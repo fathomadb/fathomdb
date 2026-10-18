@@ -463,3 +463,50 @@ fn rule7_far_apart_terms_get_a_window_each() {
     assert_eq!(s.windows.len(), 1, "{s:?}");
     assert!(shows(&s, spans[0]) && shows(&s, spans[1]));
 }
+
+fn assert_disjoint_with_gaps(s: &SnippetV1) {
+    for pair in s.windows.windows(2) {
+        assert!(pair[0].1 + 16 < pair[1].0, "windows 16 bytes apart or less must merge: {s:?}");
+    }
+}
+
+// § 6.3 rule 8 (T-11, second half): windows 16 bytes apart or less merge
+// into one window that includes the gap, when it fits; that includes the
+// head (§ 6.6) touching the first match window.
+#[test]
+fn rule8_close_windows_merge() {
+    // Rule 7 places the `fig` window right after the `pear plum` window.
+    let body =
+        format!("{}pear {}plum {}fig {}kiwi {}", pad(1000), pad(135), pad(25), pad(225), pad(1500));
+    let at = |w: &str| {
+        let i = body.find(w).unwrap();
+        (i as u32, (i + w.len()) as u32)
+    };
+    let spans = [at("pear"), at("plum"), at("fig"), at("kiwi")];
+    let s = snippet_for(&body, &spans, &windows_opts(300, 2));
+    assert_eq!(s.windows.len(), 1, "{s:?}");
+    assert!(spans[..3].iter().all(|&sp| shows(&s, sp)), "{s:?}");
+    assert_eq!(s.text, joined(&body, &s.windows));
+    assert!(s.text.len() <= 300);
+
+    // A match near the record start overlaps the head: one window, no
+    // repeated text.
+    let header = "(unknown date) [8 May 2023] Caroline: Hello there, ";
+    let body = format!("{header}{}pear {}", pad(10), pad(3000));
+    let pear = body.find("pear").unwrap();
+    let spans = [(pear as u32, pear as u32 + 4)];
+    let headed = SnippetOptions { head_bytes: 40, ..opts(300) };
+    let s = snippet_for(&body, &spans, &headed);
+    assert_eq!(s.windows.len(), 1, "{s:?}");
+    assert_eq!(s.windows[0].0, 0);
+    assert!(shows(&s, spans[0]));
+    assert_eq!(s.text, joined(&body, &s.windows));
+    assert!(s.text.len() <= 300);
+
+    for terms in
+        [&[(500, "pear"), (2548, "plum")][..], &[(500, "pear"), (1500, "plum"), (2500, "fig")][..]]
+    {
+        let (body, spans) = body_with(terms, 4000);
+        assert_disjoint_with_gaps(&snippet_for(&body, &spans, &windows_opts(400, 3)));
+    }
+}

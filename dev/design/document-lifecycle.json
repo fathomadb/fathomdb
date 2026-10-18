@@ -1388,6 +1388,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-18-reader-dispatch-and-pool-size.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-18-reader-dispatch-and-pool-size",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-18-reader-dispatch-and-pool-size.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/mcp-adapter/engine-proposals/README.md",
       "class": "proposal",
       "topic": "mcp-adapter-engine-proposals",

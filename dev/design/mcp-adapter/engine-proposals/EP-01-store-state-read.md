@@ -112,7 +112,9 @@ pub struct VisibilityStateV1 {
   two terms scan their tables. Options are additive indexes, or dropping the
   boundary from v1 and labelling cause from the projection cursor alone.
 - Round-robin reader dispatch (see EP-09) means a probe can queue behind a long
-  read on the same worker.
+  read on the same worker. This held before
+  [EP-18](EP-18-reader-dispatch-and-pool-size.md) part A; now a request queues
+  behind a busy worker only when all eight readers are busy.
 
 ## Test plan sketch
 

@@ -73,7 +73,9 @@ makes no other doc edits:
 - The adapter's `embedder_unavailable` entry misses query-embedding timeouts and
   saturation (EP-03).
 - Round-robin reader dispatch lets new calls queue behind an abandoned one,
-  which the admission cap does not prevent (EP-09).
+  which the admission cap does not prevent (EP-09). This held before
+  [EP-18](EP-18-reader-dispatch-and-pool-size.md) part A; now a request queues
+  behind a busy worker only when all eight readers are busy.
 - Erasure redacts only the telemetry sink attached at the time, so per-epoch
   sink files from earlier opens keep erased stable ids (EP-02).
 - `p:` ids are synthetic rerank passages, not stored records (EP-15, MR-042.2).

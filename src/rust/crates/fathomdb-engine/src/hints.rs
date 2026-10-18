@@ -236,7 +236,33 @@ impl<'a> SearchFacts<'a> {
 /// Never reads anything but `facts` and never panics. Allocates only when it
 /// pushes onto an `out` without spare capacity.
 pub fn search_hints(facts: &SearchFacts<'_>, out: &mut Vec<Hint>) {
-    let _ = (facts, out);
+    let empty = Hint {
+        action: HintAction::Search,
+        reason: HintReason::NoResults,
+        mode: None,
+        arm: None,
+        cause: None,
+        limit: None,
+    };
+    if let Some(&(arm, cause)) = facts.degradations.first() {
+        out.push(Hint {
+            action: HintAction::None,
+            reason: HintReason::Degraded,
+            arm: Some(arm),
+            cause: Some(cause),
+            ..empty
+        });
+    }
+    if facts.returned == 0 {
+        let suggest_hybrid = facts.mode == HintMode::Text && facts.hybrid_available;
+        out.push(Hint { mode: suggest_hybrid.then_some(HintMode::Hybrid), ..empty });
+    } else if facts.returned >= facts.limit && facts.limit < HINT_LIMIT_CAP {
+        out.push(Hint {
+            reason: HintReason::MoreResults,
+            limit: Some(facts.limit.saturating_mul(2).min(HINT_LIMIT_CAP)),
+            ..empty
+        });
+    }
 }
 
 #[cfg(test)]

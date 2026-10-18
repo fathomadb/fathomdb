@@ -66,6 +66,9 @@ pub use fathomdb_engine::lifecycle::{
     Event as SubscriberEvent, EventCategory, EventSource, Phase, ProfileRecord, ProjectionStatus,
     SlowStatement, StressFailureContext, Subscriber,
 };
+/// The hints engine subset (ADR-0.8.29-agent-hints-sidecar): the rule that
+/// derives `no_results`, `degraded` and `more_results` from page facts.
+pub use fathomdb_engine::{search_hints, HINT_LIMIT_CAP};
 pub use fathomdb_engine::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, ArmDegradation,
@@ -89,11 +92,12 @@ pub use fathomdb_engine::{
     GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
     GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
     GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
-    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, IdSpace, IdSpaceKind,
-    IngestWithExtractorReceipt, InitialState, LifecycleActuationV1, LifecycleState,
-    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NodeRecord, OpStoreRow,
-    OpenReport, OpenStage, OperationalStateRecordV1, PageCursor, PageError, PageErrorReason,
-    PageRequestV1, PageV1, PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
+    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, Hint, HintAction, HintArm, HintCause,
+    HintMode, HintReason, IdSpace, IdSpaceKind, IngestWithExtractorReceipt, InitialState,
+    LifecycleActuationV1, LifecycleState, MutationProjectionStatusRequestV1,
+    MutationProjectionStatusV1, NodeRecord, OpStoreRow, OpenReport, OpenStage,
+    OperationalStateRecordV1, PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1,
+    PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
     ProjectionGenerationError, ProjectionGenerationErrorReason, ProjectionGenerationId,
     ProjectionGenerationOriginV1, ProjectionGenerationStatusV1, ProjectionReadinessV1,
     ProjectionRole, ProjectionRuntimeStateV1, ProjectionRuntimeStatus,
@@ -102,12 +106,13 @@ pub use fathomdb_engine::{
     ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace, ReadContextV1,
     ReadView, RecoveryHint, ResolvedEvidenceV1, ResolvedGraphEvidenceV1, ResolvedGraphSeedV1,
     RuntimeConfiguration, RuntimeConfigurationError, RuntimeSqliteMode, ScalarValue,
-    SearchExpandResult, SearchFilter, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
-    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, StructuralDegradationCodeV1, StructuralDependencyStateV1,
-    StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
-    StructuralProjectionOriginV1, TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1,
-    TraceReadBoundaryV1, TraversalDirection, WriteProvenanceV1, WriteReceipt,
+    SearchExpandResult, SearchFacts, SearchFilter, SearchHit, SearchResult, SoftFallback,
+    SoftFallbackBranch, SourceDependencyRegistrationV1, SourceDependencyV1, SourceId,
+    SourceLocator, SourceRevisionId, SourceVersionId, StructuralDegradationCodeV1,
+    StructuralDependencyStateV1, StructuralInclusionStateV1, StructuralInclusionV1,
+    StructuralLifecycleStateV1, StructuralProjectionOriginV1, TraceArtifactClassV1,
+    TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection,
+    WriteProvenanceV1, WriteReceipt,
 };
 pub use fathomdb_schema::MigrationStepReport;
 

@@ -31,8 +31,14 @@ have passed.
 - **Recommendation.** Replace the counter check with a bounded FIFO wait
   queue in the adapter: a fair `tokio::sync::Semaphore` per store, a queue
   depth limit, the call's own deadline as the wait bound, and the permit
-  moved into the blocking closure so abandoned work keeps counting. Busy
-  carries an honest `retry_after_ms` (B2-7).
+  moved into the blocking closure so abandoned work keeps counting. A call
+  is admitted only while enough of its deadline remains to finish, so late
+  admissions do not turn into abandoned work. Busy carries an honest
+  `retry_after_ms` computed from the capacity that is actually free (B2-7).
+- **Owner decision, 2026-10-18.** The contract in `dev/interfaces/mcp.md`
+  changes from "refuse at once" to "wait FIFO up to the deadline". One
+  admission cap is shared by text and hybrid, provided the mixed-load check
+  in § 7.4 holds.
 - **The queue alone is not enough.** The engine's reader pool dispatches
   round-robin to per-worker queues with no regard for load
   (`reader_pool.rs:1216-1226`). One slow read blocks the reads queued behind
@@ -97,6 +103,9 @@ So the code matches the interface and its tests. It contradicts the
 architecture. MR-033.2 permits both. The fix is therefore a contract change
 to `dev/interfaces/mcp.md`, and the two bridge tests change with it (§ 9).
 They are rewritten to the new contract, not edited to pass.
+
+**Owner decision, 2026-10-18:** accepted. Excess calls wait FIFO up to the
+deadline, replacing immediate refusal. The busy codes follow § 6.1.
 
 Why it matters to agents: an agent cannot sleep, and the hint "retry after
 in-flight calls finish" gives no time. Six agents sharing one stdio
@@ -164,37 +173,43 @@ Source: tower 0.5.3, `src/limit/concurrency/service.rs`,
   (`future.rs:21-27`). `LoadShed` turns "not ready" into an immediate
   `Overloaded` error instead of waiting (`load_shed/mod.rs:43-59`).
 - **Ordering.** FIFO, inherited from tokio's fair semaphore.
-- **Adopt.** The permit-owns-the-slot pattern: admission is a permit, not a
-  counter, and the permit's lifetime is the work's lifetime. The split
-  between waiting (`ConcurrencyLimit`) and shedding (`LoadShed`) maps onto
-  "wait up to the deadline" and "queue full".
+- **Adopt.** The permit owns the slot: admission is a permit, not a
+  counter, and the permit lives as long as the work. The split between
+  waiting (`ConcurrencyLimit`) and shedding (`LoadShed`) maps onto "wait
+  while there is time" and "queue full".
 - **Reject.** Tower ties the permit to the response future, so dropping the
   future frees the slot. Our work runs on a blocking thread that outlives
-  the future. The permit must move into the blocking closure instead, as
-  `StoreGuard` already does (`bridge.rs:39-43`). We also do not adopt
-  `Service`/`Layer` as a framework. One semaphore does not need it.
+  the future, so the permit moves into the blocking closure, as
+  `StoreGuard` already does (`bridge.rs:39-43`). We do not adopt
+  `Service`/`Layer` as a framework; one semaphore does not need it.
 
-### 5.2 HikariCP connection pool
+### 5.2 PgBouncer
 
-Source: <https://github.com/brettwooldridge/HikariCP> (README,
-configuration section).
+Sources: <https://www.pgbouncer.org/config.html>;
+<https://github.com/pgbouncer/pgbouncer/blob/master/src/objects.c>.
 
-- **Structure.** A fixed-size pool (`maximumPoolSize`, default 10; the
-  README advises leaving `minimumIdle` unset so the pool stays fixed). When
-  no connection is idle, "calls to getConnection() will block for up to
-  `connectionTimeout` milliseconds before timing out" (default 30 000 ms,
-  minimum 250 ms), then an `SQLException` is thrown.
-- **Adopt.** This is the closest analogue: a fixed pool of database
-  connections, callers that wait with a bounded timeout, and a typed
-  failure at the end. The wait bound is the caller's budget, not a
-  separate queue timeout. Its pool-sizing argument (too many connections
-  hurt throughput) is why the sweep in § 7 measures instead of raising the
-  cap.
-- **Reject.** HikariCP has no queue-depth limit, because the waiter count
-  is bounded by application threads. An MCP server has no such bound
-  (H1 is unbounded), so we add one. HikariCP can reclaim a leaked
-  connection; we cannot reclaim a reader from an abandoned call (no
-  interrupt until EP-09).
+- **Structure.** A proxy in front of a database, with a fixed pool of
+  server connections per user/database pair (`default_pool_size`, default
+  20). A client that finds no free server connection is parked on the
+  pool's `waiting_client_list`: `change_client_state` appends it at the tail
+  and stamps `wait_start`, and `reuse_on_release` hands a released
+  connection to the head of the list, "to give fair chance". That is FIFO
+  per pool. Clients are bounded by `max_client_conn` (default 100); the
+  documentation describes the gap between client and server limits as the
+  queue. `query_wait_timeout` (default 120 s) bounds the wait: "If the query
+  is not assigned to a server during that time, the client is
+  disconnected." `query_wait_notify` (default 5 s) tells a client that it is
+  queued. `reserve_pool_size` (default 0) extra connections are opened when
+  the head waiter has waited `reserve_pool_timeout` (default 5 s).
+- **Adopt.** It is the same problem: a bounded set of database connections
+  shared by many callers through a proxy. We take a FIFO queue per pool, a
+  bound on waiters, a bounded wait, and a notice that the call is queued
+  (our progress notification).
+- **Reject.** Disconnecting on timeout: we return a typed busy with
+  `retry_after_ms`. The reserve pool: today it would be the eighth reader,
+  but round-robin cannot route a waiter to it (§ 4). After EP-18 part A, a
+  reserve permit for a waiter older than some threshold is a possible
+  follow-up; it is not part of this design.
 
 ### 5.3 Envoy adaptive concurrency and Netflix `concurrency-limits`
 
@@ -212,32 +227,39 @@ Sources:
   refused at once with `concurrency_limit_exceeded_status` (default 503).
   Netflix applies the same Little's-law reasoning (Vegas, Gradient2) and
   offers `LifoBlockingLimiter`: a bounded backlog (default 100) with a wait
-  timeout (default 1 s), served **last in, first out**.
-- **Adopt.** Two ideas. First, latency is the signal of a queue building,
-  so the queue records service-time samples (§ 6.1) that both
-  `retry_after_ms` and the sweep use. Second, a partitioned limit (Netflix
-  "percentage enforcement") is the shape to use if embedded hosts ever need
-  a guaranteed share (§ 6.1, fairness).
-- **Reject, for now.** An adaptive limit needs steady traffic to sample;
-  an MCP store serves bursts from a few agents, and the ceiling is a hard
+  timeout (default 1 s), served last in, first out.
+- **Adopt.** Latency is the signal that a queue is building, so the queue
+  keeps service-time samples (§ 6.1) for `retry_after_ms`, the admission
+  rule and the sweep. A partitioned limit (Netflix "percentage
+  enforcement") is the shape to use if embedded hosts ever need a
+  guaranteed share, or if § 7.4 calls for separate text and hybrid limits.
+- **Reject, for now.** An adaptive limit needs steady traffic to sample.
+  An MCP store serves bursts from a few agents, and the ceiling is a fixed
   pool of eight readers, not an unknown backend. A fixed, measured cap is
-  simpler and testable. LIFO suits request-response services that prefer
-  fresh requests. An agent waiting on its own tool call is never stale
-  before its deadline, and LIFO starves the oldest call, so FIFO fits
-  better.
+  simpler and testable. LIFO suits services that prefer fresh requests; an
+  agent waiting on its own tool call is never stale before its deadline,
+  and LIFO starves the oldest call, so FIFO fits better.
 
 ### 5.4 Considered and not chosen
 
+- **HikariCP** (<https://github.com/brettwooldridge/HikariCP>). A fixed pool
+  (`maximumPoolSize`, default 10) where `getConnection()` blocks up to
+  `connectionTimeout` (default 30 000 ms) and then throws. It has no bound on
+  waiters. Its `leakDetectionThreshold` only logs: "the amount of time that
+  a connection can be out of the pool before a message is logged indicating
+  a possible connection leak" (default 0, disabled). It does not reclaim
+  the connection. That supports the `abandoned` counter here: when work
+  cannot be reclaimed, the useful thing is to make it visible. PgBouncer
+  covers the same ground with a bounded queue, so it was preferred.
 - **SQLite's busy handler.** It sleeps and retries one connection on a lock,
   with no queue, no ordering and no fairness, and SQLite may skip it to
   avoid deadlock ([sqlite3_busy_handler](https://www.sqlite.org/c3ref/busy_handler.html),
   also recorded at `write_commit.rs:476-483`). It is not an admission
   model. It stays as H12.
-- **deadpool and bb8.** Same structure as HikariCP (wait with timeout on a
-  fixed pool); HikariCP has the clearer primary documentation.
-- **The engine's own embed dispatcher** (H7) is a good in-repo model for
-  EP-18: one FIFO, N workers pulling, deadline per request, expired entries
-  purged on submit.
+- **deadpool and bb8.** The same structure as HikariCP.
+- **The engine's own embed dispatcher** (H7) is the in-repo model for
+  EP-18: one FIFO, N workers pulling, a deadline per request, expired
+  entries purged on submit.
 
 ## 6. The queue
 
@@ -253,155 +275,214 @@ permits, acquired with `acquire_owned`. Why this one:
   (`tokio-1.52.3/src/sync/semaphore.rs:19-24`,
   <https://docs.rs/tokio/1.52.3/tokio/sync/struct.Semaphore.html>). That
   gives FIFO without writing a queue.
-- A dropped `Acquire` future removes itself from the wait list
-  (`batch_semaphore.rs:686-698`). So a waiter that times out, or whose
-  client cancels, leaves the queue at no cost.
+- A dropped `Acquire` future removes itself from the wait list and returns
+  any permits already assigned to it (`batch_semaphore.rs:686-707`). So a
+  waiter that times out or is cancelled leaves the queue at no cost, and a
+  permit granted just before the timeout fires is not leaked.
 - `OwnedSemaphorePermit` is `'static`, so it can move into the
   `spawn_blocking` closure with the `StoreGuard`.
-- It does not report the number of waiters, so the queue keeps its own
-  `AtomicUsize queued` counter for depth limits, `retry_after_ms` and idle
-  accounting.
 
 Rejected alternatives: `Mutex<VecDeque>` + `Notify` (re-implements the
-semaphore, more to test); `async-channel` or `flume` as a ticket queue (new
-dependency for the same FIFO); keeping the counter and polling (no
+semaphore, more to test); `async-channel` or `flume` as a ticket queue (a
+new dependency for the same FIFO); keeping the counter and polling (no
 ordering, wasted wakeups).
 
+**State per store.** Three quantities, each with one owner:
+
+| Quantity | Source | Changed by |
+| --- | --- | --- |
+| `in_flight` | Derived: `cap − semaphore.available_permits()`. The separate `AtomicUsize` (`registry.rs:71`) is removed | Permit acquire and drop |
+| `queued` | `AtomicUsize` | A `QueueTicket` drop guard: increment on creation, decrement in `Drop`. Timeout, cancel, panic and admission all release it the same way |
+| `abandoned` | `AtomicUsize` | Set by `bridge::call` when its deadline fires; the guard's `Drop` decrements it when the thread returns |
+
+Deriving `in_flight` from the permits closes a window that the idle sweep
+(`registry.rs:595`) and LRU drain (`registry.rs:422`) could otherwise see:
+a waiter that holds a permit but has not yet built its guard already
+counts. The idle `Notify` fires from the guard's `Drop` after the permit is
+released, when `available_permits() == cap`.
+
+**Service-time estimate.** An exponentially weighted mean, `α = 0.2`, kept
+per store and per tool, with search split by mode (`search_text`,
+`search_hybrid`, `fetch`, `expand`, `orient`). A sample is the time from
+permit acquired to permit released, for completed calls only. Abandoned
+calls never complete within their deadline, so the mean leaves them out
+and reads low exactly when abandonment is happening. The formulas below
+correct for that through effective capacity, not through the mean.
+
+**Effective capacity.** `c_eff = cap − abandoned`. Abandoned calls hold
+permits with no known end, so they are not capacity. `stuck` is true if
+and only if `c_eff == 0`.
+
 **Acquire sequence** (replaces the `Phase::Ready` arm at
-`registry.rs:342-357`):
+`registry.rs:342-357`). Let `need = max(floor, ewma_tool)`, with
+`floor = 100 ms` (the minimum `call_deadline_ms`, `config.rs:248-250`):
 
 1. Wait for `Ready` as today (H2).
-2. If `queued >= queue_limit` and no permit is free, refuse at once:
-   `busy/queue_full` with `retry_after_ms`.
-3. Otherwise increment `queued` and await `acquire_owned()` under
-   `timeout_at(deadline)`, in a `select!` with the client's cancel token
-   (`context.ct`, H1) and the slot's phase watch.
-4. On a permit, decrement `queued`, re-check under the registry mutex that
-   the slot is still `Ready` at the same epoch, then increment `in_flight`
-   and build the `StoreGuard` holding the permit.
-5. At the deadline, refuse: `busy/admission_timeout` with
-   `retry_after_ms`. A call that waited the whole deadline has no time left
-   to run, so it fails instead of starting late.
-6. On client cancel, return the JSON-RPC cancelled result; the dropped
-   future has left the queue.
+2. If no permit is free and `queued >= queue_limit`, refuse at once:
+   `busy/admission`, reason `queue_full`.
+3. Otherwise take a `QueueTicket` and await `acquire_owned()` under
+   `timeout_at(deadline − need)`, in a `select!` with the client's cancel
+   token (`context.ct`, H1) and the slot's phase watch.
+4. On a permit, re-check under the registry mutex that the slot is still
+   `Ready` at the same epoch, and that `deadline − now ≥ need`. If both hold,
+   build the `StoreGuard` holding the permit. If the time check fails,
+   drop the permit and refuse: `busy/admission`, reason `deadline`.
+5. If the wait in step 3 times out, refuse: `busy/admission`, reason
+   `deadline`, at once. This sheds on time spent waiting, as CoDel does:
+   a call that cannot finish before its deadline is not started.
+6. On client cancel, drop out of the queue and return an error result. The
+   MCP specification says the server should not respond to a cancelled
+   request, but rmcp sends whatever the handler returns
+   (`rmcp-3.5.1/src/service.rs:1603-1617`), so the client receives an error
+   it ignores. There is no JSON-RPC "cancelled" result to send.
 7. If the phase changed to `Draining` or `Closed` while waiting, fall back
-   into the existing open-wait loop with the remaining deadline.
+   into the existing open wait with the remaining deadline.
 
-**Deadline split.** The call deadline (10 s) covers queue wait and
-execution together. The queue does not get its own timeout, as in
-HikariCP: the agent's budget is the only budget. A call admitted with
-little time left is still admitted; a call admitted with less than the
-measured p50 service time left is not worth starting. That early rejection
-is an option, not part of this design, until the sweep shows it helps.
+Why step 4 is needed now, not after the sweep: `tools.rs:245-253` computes
+one deadline and passes the same instant to `bridge::call`. A waiter
+admitted at 9.9 s of a 10 s deadline has 100 ms to run. It times out, and
+its permit stays held until its thread returns. Late admission turns queue
+wait directly into abandoned work.
 
-**Queue depth limit.** `queue_limit`, a new configuration key. Proposed
-default: `2 × admission_cap`. Reason: a call that joins behind *q* waiters
-on *c* permits waits about `ceil((q+1)/c)` service times. At 2 × cap, that
-is three service times, well inside a 10 s deadline for sub-second reads.
-More depth than that converts busy into timeouts, which cost the agent the
-full deadline instead of a short wait. The sweep validates this (§ 7).
+**Queue depth limit.** `queue_limit`, a new configuration key, proposed
+default `2 × admission_cap`. A call that joins behind *q* waiters on *c*
+permits waits about `ceil((q+1)/c)` service times; at 2 × cap that is three
+service times, well inside a 10 s deadline for sub-second reads. A deeper
+queue mostly converts quick refusals into refusals at `deadline − need`,
+which cost the agent more time. The overload arm in § 7.2 tests this.
 
-**Abandoned-work accounting.** Keep today's rule: the permit and guard
-live in the blocking closure, so an abandoned call holds its permit until
-its thread returns (`bridge.rs:4-7`). Add a visible count: when
-`bridge::call` times out, it sets an `abandoned` flag shared with the
-guard and increments a per-store `abandoned` counter; the guard's `Drop`
-decrements it. This counter appears in busy details and in tracing, so an
-operator can tell "the store is busy" from "the store is stuck behind dead
-work".
+**`retry_after_ms` (B2-7).** An estimate the server can justify, never a
+promise. Clamped to `[50, call_deadline_ms]`.
+
+| Reason | What the caller needs | Formula |
+| --- | --- | --- |
+| `queue_full` | One free queue slot: one call must finish so that the head waiter moves to running | `ceil(ewma_tool / c_eff)` |
+| `deadline` | A permit within its budget, given the *q* queued at the moment of refusal | `ceil((q + 1) / c_eff) × ewma_tool` |
+
+- Omit `retry_after_ms` when fewer than 8 calls of that tool have completed
+  since the store opened. A made-up number is worse than none.
+- Omit it when `stuck` is true. Abandoned work has no known end.
+- `store_switch` (H3) reports the `deadline` formula for the store that is
+  in use.
+
+**Busy codes.** One code where the agent's action is the same, a second
+where it differs:
+
+| `code` | `busy.reason` | When | Agent action |
+| --- | --- | --- | --- |
+| `admission` | `queue_full` | Depth limit reached on arrival | Wait `retry_after_ms`, retry |
+| `admission` | `deadline` | No permit in time to finish | Wait `retry_after_ms`, retry |
+| `admission` | `engine_overloaded` | SDK `Overloaded` (`error.rs:242`); today only `embed_text` raises it, which no tool calls | Retry later; no `retry_after_ms`, since the adapter cannot see the engine queue |
+| `store_switch` | — | Another store is open with calls in flight (H3) | Use the open store, or wait `retry_after_ms` |
+
+`queue_full` and `deadline` ask for the same action, so they share the
+code `admission` and differ only by `reason`. The hints sidecar renders
+them with the same hint. `store_switch` asks for a different action, so it
+is its own code.
+
+**Field placement.** The error object is `{class, code, message, remedy,
+candidates?, detail?}` and `detail` is reserved for the SDK `ErrorKind`
+name (`dev/interfaces/mcp.md` § 6). The busy fields go in one optional
+sub-object, present only when `class` is `busy`:
+
+```json
+{"error": {"class": "busy", "code": "admission", "message": "…", "remedy": "…",
+  "busy": {"reason": "deadline", "retry_after_ms": 600,
+           "in_flight": 4, "queued": 8, "abandoned": 0, "stuck": false}}}
+```
+
+The hints design (item 2) reserves `retry_after_ms` for this document, and
+its reviewer settles placement within the error object. This proposes the
+`busy` sub-object and aligns with whatever that review decides.
 
 **Fairness across sessions and agents.**
 
 - stdio: one client, one session. If Claude Code subagents share the
   parent's MCP connection (likely, not verified here), the six subagents
   were one session. Either way the server cannot tell agents apart; there
-  is no agent identity in the request. FIFO per call
-  is the only fairness available, and it is enough: agents with similar
-  call rates get similar shares.
+  is no agent identity in the request. FIFO per call is the only fairness
+  available, and it is enough: agents with similar call rates get similar
+  shares.
 - Embedded: several `connection()` sessions share one registry and cap
-  (`lib.rs:111-114`). FIFO across all of them is the first step. If a
-  single session floods the queue, the next step is a per-session limit on
-  queued entries (for example half of `queue_limit`). Weighted or
-  partitioned shares (Netflix partitioned limiter) wait for evidence of
-  starvation.
-- Host SDK reads in embedded mode bypass the adapter entirely. Only the
-  host can bound them. The host sets `admission_cap` (MR-033.2), and EP-18
-  part B lets it size the reader pool to match.
-
-**`retry_after_ms` (B2-7).** It must be an estimate the server can justify,
-never a promise.
-
-- Keep an exponentially weighted mean of service time (permit acquired to
-  permit released) per store and mode, from completed, non-abandoned calls.
-- On busy, with *q* calls queued and *c* permits:
-  `retry_after_ms = clamp(ceil((q + 1) / c) × ewma_service_ms, 50, call_deadline_ms)`.
-- When fewer than 8 calls have completed since the store opened, omit the
-  field. A made-up number is worse than none.
-- When `abandoned > 0` and every permit is held by abandoned calls, omit
-  the field and add `stuck: true`. Abandoned work has no known end, so any
-  number would be a guess.
-- For H3 (another store in use) report the same estimate for the other
-  store, under a distinct code `busy/store_switch`, so the two causes are
-  separate.
-
-**Busy error shape** (a change to `dev/interfaces/mcp.md` § errors):
-
-| Code | When | Fields |
-| --- | --- | --- |
-| `queue_full` | Depth limit reached on arrival | `retry_after_ms?`, `in_flight`, `queued`, `abandoned` |
-| `admission_timeout` | Waited until the deadline | same |
-| `store_switch` | Another store is open with calls in flight (H3) | `retry_after_ms?` |
-
-The hints sidecar (item 2) renders these as plain-language hints. This
-document defines only the fields.
+  (`lib.rs:111-114`). FIFO across all of them is the first step. If one
+  session floods the queue, the next step is a per-session limit on queued
+  entries (for example half of `queue_limit`). Weighted or partitioned
+  shares wait for evidence of starvation.
+- Host SDK reads in embedded mode bypass the adapter. Only the host can
+  bound them. The host sets `admission_cap` (MR-033.2), and EP-18 part B
+  lets it size the reader pool to match.
 
 **Progress and visibility.** A queued call with a progress token gets a
 notification each second, as the open wait does (`registry.rs:391-394`),
-with the message `queued: position k of q`. Tracing at stderr logs each
-shed, each timeout in the queue and each abandoned call, with store,
+with the message `queued: q waiting, c running`. A position in the queue is
+not reported: computing it needs a ticket sequence with arrival and served
+counters, and cancelled waiters make served counts drift, so it would be an
+estimate dressed as a fact. Tracing at stderr logs each refusal (with
+reason), each abandoned call and each admission after a wait, with store,
 `in_flight`, `queued` and `abandoned`.
+
+**Edge cases.**
+
+- A panic on the blocking thread unwinds and drops the guard and the
+  permit, so the slot returns. The workspace sets no `panic = "abort"`
+  profile; under abort the process ends anyway.
+- A timeout cannot leak a permit: `Acquire::drop` returns any permits
+  assigned before `timeout_at` fired (`batch_semaphore.rs:700-706`).
+- `QueueTicket` is dropped on every exit path, including panics in the
+  waiting task, so `queued` cannot drift.
 
 **Drain, idle close and shutdown.**
 
-- Idle expiry and LRU drain test `in_flight == 0` (`registry.rs:422`,
-  `:595`). A queued call holds no guard yet, so they must also require
-  `queued == 0`. Otherwise a store could start draining while calls wait
-  for it.
+- Idle expiry and LRU drain require `in_flight == 0` and `queued == 0`
+  (`registry.rs:422`, `:595`). Otherwise a store could start draining while
+  calls wait for it.
 - When a drain starts, queued waiters see the phase change and return to
   the open wait (step 7), so a reopen within the deadline still serves
   them.
 - Shutdown sets `shutting_down` (`registry.rs:612-613`). Waiters wake on the
   phase change and return `not_ready/draining`, as today. The semaphore is
-  per slot and survives reopen; it is not closed, so no rebuild is needed.
+  per slot and survives reopen; it is not closed, so nothing is rebuilt.
 
 ### 6.2 Engine: EP-18 (new engine proposal)
 
 Title: work-conserving reader dispatch and a configurable reader pool.
 Drafted here; it gets its own file under
-`dev/design/mcp-adapter/engine-proposals/` after review.
+`dev/design/mcp-adapter/engine-proposals/` after review. Priority order:
+A, then C, then B.
 
 - **Part A, dispatch.** Replace round-robin per-worker channels with one
   shared bounded FIFO that idle workers pull from, as the embed dispatcher
-  does (H7). Each worker keeps its own connection, so connection thread
-  affinity (`reader_pool.rs:6-13`) is unchanged. The cost is one mutex
-  acquire per request, which the current comment avoids
-  (`reader_pool.rs:1207-1209`). That cost must be measured against the
-  head-of-line win; the HOL probe in § 7 is the evidence. A lighter
-  alternative is to pick the least-loaded worker from per-worker depth
-  counters, which keeps per-worker channels but still cannot move a request
-  already queued behind a slow one.
-- **Part B, pool size.** Add `reader_pool_size: Option<u64>` to
-  `EngineConfig` (`runtime_configuration.rs:146-157`), default 8, range to
-  be set by the sweep, validated with the other fields. Many places assume
-  exactly `READER_POOL_SIZE` (for example `wal_runtime.rs:74`, `:389`,
-  `:422`), so this is a wider change than the field. The adapter would then
-  validate `admission_cap < reader_pool_size` from the open engine instead
-  of the constant 8 (`config.rs:243-246`).
+  does (H7).
+  - *The mutex cost.* The round-robin comment avoids a mutex on the hot
+    path (`reader_pool.rs:1207-1209`). But the hybrid path already takes the
+    embed dispatcher's `QueueState` mutex per request
+    (`embed_dispatch/core.rs:309`, `:422`), and an uncontended mutex costs
+    tens of nanoseconds against reads measured in milliseconds. The
+    engine-direct harness in § 7 confirms or refutes this.
+  - *Not a shared connection.* `dev/design/engine.md:52-66` requires reads
+    not to queue behind one connection. A shared queue does not do that:
+    each worker still owns its connection for life
+    (`reader_pool.rs:6-13`). Only the hand-off of requests is shared.
+  - *Lock-free alternative.* Give each worker a rendezvous channel
+    (`sync_channel(0)`). Dispatch tries `try_send` on each worker in turn;
+    on a rendezvous channel that succeeds only when the worker is waiting
+    in `recv`, that is, idle
+    (<https://doc.rust-lang.org/std/sync/mpsc/struct.SyncSender.html>). If
+    no worker is idle, fall back to today's round-robin blocking `send`. This
+    removes queueing behind a busy worker whenever any worker is idle, with
+    no mutex, but it still queues behind a slow worker under full load.
 - **Part C, honest degradation.** When query embedding fails with
-  `Saturated` or `QueuedExpired`, report it (for example a
-  `soft_fallback` with an `embed_overloaded` reason) instead of silently
-  running text-only (H7). This may fold into EP-03 (hybrid search
-  degradation) instead.
+  `Saturated` or `QueuedExpired`, report it (for example `soft_fallback`
+  with an `embed_overloaded` reason) instead of silently running text-only
+  (H7). Whether this becomes part of EP-03 is open question 3 (§ 10).
+- **Part B, pool size.** Add `reader_pool_size: Option<u64>` to
+  `EngineConfig` (`runtime_configuration.rs:146-157`), default 8, range set
+  by the sweep. This goes last because it is the widest change: code
+  assumes exactly `READER_POOL_SIZE` (for example `wal_runtime.rs:74`,
+  `:389`, `:422`), and AC-021 exercises 8 concurrent readers
+  (`reader_pool.rs:1-4`). The adapter would then check
+  `admission_cap < reader_pool_size` from the open engine instead of the
+  constant 8 (`config.rs:243-246`).
 - **Relation to EP-09.** EP-09 frees a worker after the deadline. EP-18
   stops healthy requests from waiting behind a slow one before the
   deadline. Both are needed; neither replaces the adapter queue.
@@ -420,62 +501,113 @@ Drafted here; it gets its own file under
 
 ### 7.2 Design
 
-- **Store.** The LoCoMo store used by `dev/experiments/mcp-agent-loop/`, loaded
-  once and reused read-only.
-- **Queries.** A fixed list of LoCoMo conversation-0 questions, each issued as
-  `search` with the default limit. Order fixed by seed; the same list for
-  every cell.
-- **Load.** Closed loop: *N* clients, each issuing its next call when the
-  previous one returns, *N* ∈ {1, 2, 4, 7}. `admission_cap = N`, so the
-  cap is not the bottleneck being measured. Run with the queue build; the
-  current build gives the same numbers for N ≤ cap.
-- **Modes.** `text` and `hybrid`.
-- **Embedder.** Default embedder on CUDA, `FATHOMDB_EMBED_DEVICE=cuda:0`
-  (feature `embed-cuda`, `fathomdb-mcp/Cargo.toml`), RTX 3090 cuda:0 only.
-  No CPU arm.
-- **Two harnesses.** Through the MCP binary over stdio (what agents see),
-  and SDK-direct with the same concurrency (engine-only). The difference is
-  adapter overhead.
-- **Repetition.** One warm-up pass, then 5 repetitions of 200 calls per
-  client per cell. Report the median across repetitions; the range is
-  shown.
-- **Measures.** Latency p50, p95, p99 per call; throughput (calls per
-  second); counts of busy, timeout and soft fallback; GPU utilisation per
-  cell.
-- **HOL probe.** At *N* = 4 and 7, text mode, inject one slow read every 2 s
-  (an `expand` at `max_depth = 3` from a high-degree node, or a hybrid
-  search at limit 100) and measure p95 of the other calls against the same
-  cell without the probe.
+**Scope of the result.** All arms run on one host with an RTX 3090,
+default embedder on `cuda:0` only (`FATHOMDB_EMBED_DEVICE=cuda:0`, feature
+`embed-cuda` in `fathomdb-mcp/Cargo.toml`). The defaults chosen are
+defaults for that host class. They are not CPU or Jetson defaults; those
+platforms keep the current default until measured on their own.
+
+**Stores.**
+
+- *Small:* `conv0.sqlite`, the store used by
+  `dev/experiments/mcp-agent-loop/` (2.9 MB, about the size of one reader's
+  2 000 KiB page cache).
+- *Large:* all ten LoCoMo conversations in one store, built with the
+  `locomo_load` example (the store README item 5 also needs). The
+  head-of-line probe runs only on this store, because on the small store a
+  slow read may not exist.
+
+**Common settings.** A fixed list of LoCoMo questions, each issued as
+`search` with the default limit, in a seeded fixed order, the same for
+every cell. Closed loop: each client issues its next call when the previous
+one returns. One warm-up pass, then 5 repetitions of 200 calls per client
+per cell; report the median across repetitions with the range. Two
+harnesses: the MCP binary over stdio (what agents see) and SDK-direct at
+the same concurrency (engine only); the difference is adapter overhead.
+
+**Arms.**
+
+| Arm | Clients | Cap | Store | Load | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| Capacity | *N* ∈ {1, 2, 4, 5, 6, 7} | *N* | Small and large | text; hybrid | Cap choice (§ 7.3). Cap = *N*, so the queue stays empty here |
+| Overload | 6 and 12 | 4, and the chosen cap | Large | text; hybrid; mixed 50/50 | Mirrors the incident: queue depth, refusals, `retry_after_ms` accuracy, mixed-load mutex check |
+| HOL probe | 4 and 7 | *N* | Large | text, plus one slow read every 2 s | EP-18 part A |
+| Writer | 4 and the chosen cap | *N* | Large | text and hybrid while an embedded host writes and checkpoints | Writer mutex and checkpoint interference; projection embedding contends for the same embed dispatcher (`projection_worker.rs:617-620`) and the same GPU |
+| Cold cache | 4 | 4 | Large | text | First 50 calls after a fresh engine open, reported apart from the warm calls. Dropping the OS page cache needs root and is an escalated step; without it this arm measures a cold SQLite cache only, and says so |
+
+**Measures in every arm.** Latency p50, p95, p99 per call and per tool;
+throughput (calls per second); counts of busy by reason, timeout and soft
+fallback; GPU utilisation.
+
+**Overload arm, additional measures.** `queued` (sampled each 100 ms from
+tracing), refusals by reason, and `retry_after_ms` accuracy: the client
+waits the advised time and retries, and the harness records the advised
+wait against the observed time from refusal to admission.
+
+**Mixed-load mutex check (owner, 2026-10-18).** Text calls in the mixed
+arm cross three shared points that hybrid calls also use: the writer
+connection mutex that hybrid with `bge-small` takes for the mean vector
+(H8, `search_api.rs:553`), the embed dispatcher's `QueueState` mutex
+(`embed_dispatch/core.rs:309`, `:422`), and the reader channels (H10).
+Compare text p95 in the mixed arm with text p95 in the text-only overload
+arm at the same client count and cap. If a measurement build with timing
+spans is approved, record wait time at each of the three points so a
+breach can be attributed; without it the comparison still decides.
+
+**HOL probe.** The slow read is an `expand` at `max_depth = 3` from a
+high-degree node, or a hybrid search at limit 100, whichever is slower on
+the large store. Validity check, fixed before the run: the probe read
+takes at least 1 s standalone (median of 5). If no read on the large
+store reaches 1 s, the probe is invalid and reports "not measured", not
+"no head-of-line blocking".
 
 ### 7.3 Decision rules (fixed before the run)
 
-- **Cap, per mode.** Choose the largest *N* in {1, 2, 4, 7} for which both
-  hold against the next smaller *N*: throughput rises by at least 10 %, and
-  p95 latency is at most 2 × the *N* = 1 p95 and at most 2 500 ms (a
-  quarter of the call deadline). The default `admission_cap` is the
-  smaller of the text and hybrid choices, unless the owner accepts a
-  per-mode cap.
-- **Queue limit.** Keep `2 × admission_cap` unless, at the chosen cap, more
-  than 1 % of calls in any cell end in `admission_timeout`. Then halve it
-  and re-run that cell.
-- **EP-18 part A.** Proceed if the HOL probe raises p95 of the other calls
-  by more than 2 × at either *N*. Otherwise record EP-18 part A as not needed
-  at today's call mix.
+- **Cap.** The bound: p95 at most 2 × the *N* = 1 p95 of the same mode and at
+  most 2 500 ms (a quarter of the call deadline). Choose the largest *N* in
+  {1, 2, 4, 5, 6, 7} for which throughput rises by at least 10 % over the
+  next smaller *N* and p95 meets the bound. Ties and overlapping ranges go
+  to the smaller *N*. The rule can select 5 or 6 because they are in the
+  sweep.
+- **Shared cap.** One cap for both modes: the smaller of the text and
+  hybrid choices, unless § 7.4 says otherwise.
+- **Queue limit.** In the overload arm at the chosen cap, keep
+  `2 × admission_cap` unless more than 1 % of calls end in reason
+  `deadline`. Then halve it and re-run that cell. If more than 5 % end in
+  `queue_full` while fewer than 1 % end in `deadline`, double it and re-run.
+- **`retry_after_ms`.** Ship it if the median of |observed − advised| /
+  advised is at most 0.5 and fewer than 20 % of retries after the advised
+  wait are refused again. Otherwise ship busy without `retry_after_ms` and
+  revise the formula.
+- **EP-18 part A.** Proceed if the valid HOL probe raises p95 of the other
+  calls by more than 2 × at either *N*. Otherwise record part A as not
+  needed at today's call mix.
 - **EP-18 part B.** Proceed only if the *N* = 7 text cell meets the cap rule
-  and its p95 is still under 2 × the *N* = 1 p95. That would mean the
-  ceiling, not the workload, is limiting.
-- **Inconclusive.** If repetition ranges overlap between adjacent *N*, the
-  smaller *N* wins.
+  and its p95 is still under 2 × the *N* = 1 p95: then the ceiling, not the
+  workload, is the limit.
+- **Writer and cold-cache arms.** These do not change the cap. If either
+  breaks the bound at the chosen cap, the result is reported to the owner
+  with the cap unchanged.
+
+### 7.4 Shared or separate caps (owner, 2026-10-18)
+
+The owner leans toward one shared pool for text and hybrid, conditional on
+the path through the mutexes to SQLite holding up. Rule, fixed before the
+run: keep one shared cap unless, in the mixed overload arm, text p95 breaks
+the cap bound of § 7.3 (2 × text *N* = 1 p95, or 2 500 ms) while the text-only
+overload arm at the same client count and cap meets it. In that case,
+propose separate caps (a partitioned limit, § 5.3) to the owner, with the
+attribution data if the timing build was approved.
 
 ## 8. Changes this design implies
 
 | Artefact | Change |
 | --- | --- |
-| `dev/interfaces/mcp.md` | `admission_cap` row (line 42): calls wait FIFO up to the deadline; new `queue_limit` key; busy codes `queue_full`, `admission_timeout`, `store_switch` with their fields (line 249) |
+| `dev/interfaces/mcp.md` | `admission_cap` row (line 42): calls wait FIFO while time remains (owner decision 2026-10-18); new `queue_limit` key; busy codes `admission` (with `busy.reason`) and `store_switch`; the `busy` sub-object in § 6 errors (line 249) |
 | `dev/design/mcp-adapter/architecture.md` | § Threads: drop the "headroom" reasoning (§ 4); point at this design and EP-18 |
 | `dev/design/mcp-adapter/requirements.md` | MR-033.2: choose "wait, then busy with `retry_after_ms`" |
-| `fathomdb-mcp` | `registry.rs` acquire, `bridge.rs` abandoned flag, `error.rs` codes, `edge.rs`/`tools.rs` pass `context.ct`, `config.rs` `queue_limit` |
-| Engine | EP-18, after its own review |
+| `fathomdb-mcp` | `registry.rs` acquire and derived `in_flight`, `bridge.rs` abandoned flag, `error.rs` codes and the `busy` object, `edge.rs`/`tools.rs` pass `context.ct`, `config.rs` `queue_limit` |
+| Engine | EP-18 (A, then C, then B), after its own review |
 
 ## 9. Test plan for later (RED first)
 
@@ -486,49 +618,78 @@ by the first two, together with the interface change.
 
 1. `an_excess_call_waits_for_a_permit_and_then_runs`: cap 1, first call
    blocked, second call released after 200 ms of waiting succeeds.
-2. `an_excess_call_waits_until_its_deadline_then_returns_admission_timeout`:
-   cap 1, never released; the second call returns `busy/admission_timeout`
-   at the deadline (± 100 ms), not at once.
-3. `waiters_are_admitted_in_arrival_order`: cap 1, three waiters with
+2. `an_excess_call_is_refused_when_too_little_deadline_remains`: cap 1,
+   never released; the second call returns `busy/admission` reason
+   `deadline` at `deadline − need` (± 100 ms), not at once and not at the
+   deadline.
+3. `a_late_permit_is_not_used`: the permit is released when less than
+   `need` remains; the waiter refuses with reason `deadline` and the permit
+   is free again.
+4. `waiters_are_admitted_in_arrival_order`: cap 1, three waiters with
    staggered arrivals; release one at a time; completion order equals
    arrival order.
-4. `a_full_queue_refuses_at_once_with_queue_full`: cap 1, `queue_limit` 1,
-   third call is `busy/queue_full` in under 50 ms.
-5. `an_abandoned_call_keeps_its_permit_and_is_counted`: blocked call times
-   out; the busy detail reports `abandoned: 1`; after release, `abandoned: 0`
+5. `a_full_queue_refuses_at_once_with_queue_full`: cap 1, `queue_limit` 1,
+   third call is reason `queue_full` in under 50 ms.
+6. `an_abandoned_call_keeps_its_permit_and_is_counted`: a blocked call times
+   out; the busy object reports `abandoned: 1`; after release, `abandoned: 0`
    and the permit is free.
-6. `retry_after_ms_is_omitted_before_enough_samples`: fresh store, forced
+7. `in_flight_is_derived_from_permits`: no path changes `in_flight` other
+   than permit acquire and drop.
+8. `queued_returns_to_zero_on_timeout_cancel_and_panic`.
+9. `retry_after_ms_is_omitted_before_enough_samples`: fresh store, forced
    busy, no `retry_after_ms`.
-7. `retry_after_ms_tracks_measured_service_time`: seam delays every call by
-   100 ms; after 10 calls, a busy with 2 queued on cap 1 reports a value in
-   250..=350 ms.
-8. `retry_after_ms_is_omitted_when_only_abandoned_calls_hold_permits`:
-   reports `stuck: true` instead.
-9. `a_client_cancel_removes_a_queued_call`: cancel a waiting call; `queued`
-   drops by one; the next waiter is admitted on release.
-10. `a_store_with_queued_calls_does_not_expire_idle`: `idle_timeout_secs` 1,
+10. `retry_after_ms_uses_effective_capacity`: seam delays every call by
+    100 ms; cap 2 with one abandoned call and 2 queued; reason `deadline`
+    reports 250..=350 ms (`ceil(3/1) × 100`).
+11. `queue_full_retry_after_is_one_service_time_over_effective_capacity`.
+12. `stuck_is_reported_when_every_permit_is_abandoned`: `stuck: true`, no
+    `retry_after_ms`.
+13. `a_client_cancel_removes_a_queued_call`: `queued` drops by one; the next
+    waiter is admitted on release.
+14. `a_store_with_queued_calls_does_not_expire_idle`: `idle_timeout_secs` 1,
     a call queued for 2 s; the store stays ready.
-11. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`: start a
-    drain while calls are queued; they are served after the reopen within
-    the deadline, or return `not_ready` at it.
-12. `shutdown_wakes_queued_calls_with_not_ready_draining`.
-13. `another_store_in_use_is_busy_store_switch_not_admission`.
-14. `queued_calls_get_progress_with_their_position` (with a progress
-    token).
-15. Engine, EP-18 part A: `a_slow_read_does_not_delay_reads_on_idle_workers`,
+15. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`.
+16. `shutdown_wakes_queued_calls_with_not_ready_draining`.
+17. `another_store_in_use_is_busy_store_switch`.
+18. `sdk_overloaded_maps_to_admission_engine_overloaded_without_retry_after`.
+19. `queued_calls_get_progress_notifications` (with a progress token).
+20. Engine, EP-18 part A: `a_slow_read_does_not_delay_reads_on_idle_workers`,
     using the engine's `test-hooks` to hold one worker; seven following
     reads complete while it is held.
-16. Engine, EP-18 part C: `a_saturated_embed_queue_is_reported_as_degradation`.
+21. Engine, EP-18 part C: `a_saturated_embed_queue_is_reported_as_degradation`.
 
 ## 10. Open questions for the owner
 
-1. Is the contract change acceptable: `dev/interfaces/mcp.md` moves from
-   "refuse at once" to "wait FIFO up to the deadline", with three busy
-   codes instead of one?
-2. Should a call that waited until its deadline fail (proposed), or start
-   anyway and return a partial result labelled per MR-032?
-3. Is one `admission_cap` for both modes acceptable, or should text and
-   hybrid get separate caps if the sweep says they differ?
-4. EP-18 part A trades a mutex per read for no head-of-line blocking. Is
-   that trade open, given the round-robin was chosen to avoid the mutex?
-5. Should honest embed degradation (EP-18 part C) fold into EP-03?
+Decided on 2026-10-18: the contract change (§ 3) is accepted, and one
+shared cap is the lean, subject to § 7.4. Three questions remain open.
+
+1. **A call that has waited until little of its deadline remains: refuse,
+   or start anyway?**
+   - *Refuse (proposed, § 6.1 step 4; the reviewer's view).* The agent gets
+     `busy` with `retry_after_ms` early and can retry or move on. The
+     engine does no work that will be thrown away. Cost: a call that might
+     just have finished is refused.
+   - *Start anyway, and return a partial result labelled per MR-032.* The
+     engine has no interrupt and cannot return part of a search, so in
+     practice this means the call times out at the deadline. Its permit
+     then stays held as abandoned work, which reduces capacity for the
+     calls behind it. Benefit: no early refusal for calls that happen to
+     be fast.
+2. **EP-18 part A: one shared queue in the engine, at the cost of one
+   mutex per read?**
+   - *For.* No read waits behind a slow one while a worker is idle. The
+     cost is tens of nanoseconds per read when uncontended, and the hybrid
+     path already pays a similar lock in the embed dispatcher. The
+     reviewer considered the mutex concern answered by this argument.
+   - *Against.* It changes a hot path chosen deliberately to avoid a lock,
+     and under heavy contention the lock itself becomes a queue. The
+     lock-free rendezvous variant avoids the lock but still queues behind a
+     slow worker when every worker is busy.
+   - The HOL probe decides whether the problem is real at today's call mix.
+3. **EP-18 part C: fold honest embed degradation into EP-03, or keep it in
+   EP-18?**
+   - *Fold into EP-03.* EP-03 already owns how hybrid search reports
+     degradation, so one proposal defines every degradation label.
+   - *Keep in EP-18.* The cause is queue saturation, which this design
+     owns, and it can ship with part A without waiting for the rest of
+     EP-03.

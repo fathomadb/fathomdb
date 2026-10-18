@@ -1034,6 +1034,7 @@ dependencies = [
  "sha2 0.11.0",
  "sqlite-vec",
  "tempfile",
+ "unicode-segmentation",
 ]
 
 [[package]]

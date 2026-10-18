@@ -113,6 +113,8 @@ pub use search_api::take_slice71_search_statement_trace_for_test;
 #[doc(hidden)]
 pub use search_api::vector_phase1_sql_for_test;
 mod search_types;
+mod snippet;
+pub use snippet::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
 mod structural_state;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;

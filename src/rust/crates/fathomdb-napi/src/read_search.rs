@@ -434,6 +434,14 @@ pub struct SoftFallback {
     pub branch: String,
 }
 
+/// One requested search arm that did not run (`arm`, spelled like
+/// `SoftFallback.branch`) and why (`reason`, e.g. `"embedder_overloaded"`).
+#[napi(object)]
+pub struct ArmDegradation {
+    pub arm: String,
+    pub reason: String,
+}
+
 /// C-2 (0.8.19 / OPP-12 Phase-1, TC-8) — the typed id-space carrier for
 /// [`SearchHit::id`], surfaced to JS as `{ space, value }`. `space` is the
 /// lowercase discriminant (`"logical"` | `"content"` | `"passage"`), mirroring
@@ -693,6 +701,8 @@ pub struct SearchResult {
     /// (`explanation` in JS). Present only when `search(..., explain=true)`; `null`
     /// (default) keeps the payload byte-identical to the pre-0.8.8 shape.
     pub explanation: Option<Explanation>,
+    /// Requested arms that did not run; absent when every requested arm ran.
+    pub degradations: Option<Vec<ArmDegradation>>,
 }
 
 impl SearchResult {
@@ -709,6 +719,7 @@ impl SearchResult {
             }),
             results: r.results.iter().map(SearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(Explanation::from_rust),
+            degradations: None,
         }
     }
 }

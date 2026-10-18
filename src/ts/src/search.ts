@@ -17,6 +17,20 @@ export interface SoftFallback {
   branch: SoftFallbackBranch;
 }
 
+/** Why a requested search arm did not run. */
+export type DegradationReason = "embedder_overloaded";
+
+/**
+ * One search arm that was requested but did not run, and why.
+ * `embedder_overloaded`: the query embedding was refused because the embed
+ * queue was full, or it expired in that queue; the search still returned the
+ * hits of its other arms.
+ */
+export interface ArmDegradation {
+  arm: SoftFallbackBranch;
+  reason: DegradationReason;
+}
+
 /**
  * C-2 (0.8.19 / OPP-12 Phase-1, TC-8) — the typed id-space carrier for
  * `SearchHit.id`. `space` is the lowercase discriminant (`"logical"` |
@@ -585,6 +599,8 @@ export interface SearchResult {
    * Opt-in explanation sidecar; `null` unless the retrieval requests explanation.
    */
   explanation: Explanation | null;
+  /** Requested arms that did not run; absent when every requested arm ran. */
+  degradations?: ArmDegradation[];
 }
 
 export async function freezeReadContext(nativeEngine: NativeEngine, context: ReadContextV1): Promise<FrozenReadContextV1> {

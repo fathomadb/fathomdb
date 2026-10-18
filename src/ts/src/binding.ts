@@ -275,6 +275,11 @@ interface NativeSoftFallback {
   branch: string;
 }
 
+export interface NativeArmDegradation {
+  arm: string;
+  reason: string;
+}
+
 /** C-2 (0.8.19 / TC-8) — native typed id-space carrier (`{ space, value }`). */
 interface NativeIdSpace {
   space: string;
@@ -353,6 +358,8 @@ export interface NativeSearchResult {
   results: NativeSearchHit[];
   /** 0.8.8 EXP-OBS (Slice 10) — opt-in explanation sidecar; null by default. */
   explanation?: NativeExplanation | null;
+  /** Requested arms that did not run; absent or null when every arm ran. */
+  degradations?: NativeArmDegradation[] | null;
 }
 
 export interface NativeEvidenceSidecarEntryV1 {

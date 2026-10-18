@@ -73,3 +73,23 @@ fn rule1_body_that_fits_is_returned_whole() {
     assert!(empty.windows.is_empty());
     assert!(!empty.cut);
 }
+
+// § 6.1: unicode61 ends a token before a combining mark, inside the grapheme
+// cluster; the selector widens span ends (and starts) to grapheme boundaries.
+#[test]
+fn spans_are_widened_to_grapheme_boundaries() {
+    let nfd = "Le cafe\u{301} est ouvert.";
+    let lit = SnippetOptions { highlights: true, ..opts(300) };
+    let s = snippet_for(nfd, &[(3, 7)], &lit);
+    assert_eq!(s.spans, vec![(3, 9)], "the accent belongs to the span");
+    assert_eq!(s.highlights, vec![(3, 9)]);
+    assert_eq!(&s.text[3..9], "cafe\u{301}");
+
+    // A span that starts on the combining mark widens back to the cluster.
+    let s = snippet_for(nfd, &[(7, 9)], &lit);
+    assert_eq!(s.spans, vec![(6, 9)]);
+
+    // Widening can make neighbours overlap; they merge.
+    let s = snippet_for(nfd, &[(3, 7), (7, 9)], &lit);
+    assert_eq!(s.spans, vec![(3, 9)]);
+}

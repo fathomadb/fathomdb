@@ -147,29 +147,45 @@ pub struct SnippetV1 {
 #[must_use]
 pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
     let options = clamped(options);
+    if spans.is_empty() && body.len() <= options.max_bytes as usize {
+        // The common case needs no boundary tables.
+        return whole(body, &[], &options);
+    }
     let graphemes = Boundaries::graphemes(body);
     let spans = normalised_spans(body, spans, &graphemes);
+    let ids = approximate_identities(body, &spans);
+    select(body, &spans, &ids, &graphemes, &options)
+}
+
+/// Rules 1–9 over normalised spans and their identities (`ids[j]` labels
+/// `spans[j]`; equal labels are one term).
+fn select(
+    body: &str,
+    spans: &[Span],
+    ids: &[u32],
+    graphemes: &Boundaries,
+    options: &SnippetOptions,
+) -> SnippetV1 {
     let max_bytes = options.max_bytes as usize;
     if body.len() <= max_bytes {
-        return whole(body, &spans, &options);
+        return whole(body, spans, options);
     }
     let words = Boundaries::words(body);
     let sentences = Boundaries::sentence_starts(body);
-    let text = Text { body, graphemes: &graphemes, words: &words, sentences: &sentences };
-    let ids = approximate_identities(body, &spans);
+    let text = Text { body, graphemes, words: &words, sentences: &sentences };
     let head = text.head(options.head_bytes as usize);
-    let (windows, anchor) = match text.match_windows(&spans, &ids, head, &options) {
+    let (windows, anchor) = match text.match_windows(spans, ids, head, options) {
         Some(windows) => (windows, SnippetAnchor::Match),
         None => (vec![text.prefix(max_bytes - TRAILING.len())], SnippetAnchor::Start),
     };
-    let (text_out, highlights) = assemble(body, &windows, &spans, options.highlights);
+    let (text_out, highlights) = assemble(body, &windows, spans, options.highlights);
     debug_assert!(text_out.len() <= max_bytes);
     SnippetV1 {
         text: text_out,
         anchor,
         cut: windows != [(0, body.len())],
         windows: windows.iter().map(|&(s, e)| (to_u32(s), to_u32(e))).collect(),
-        spans: to_ranges(&spans),
+        spans: to_ranges(spans),
         highlights,
     }
 }

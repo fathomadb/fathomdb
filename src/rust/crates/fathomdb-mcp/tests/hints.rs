@@ -277,3 +277,56 @@ async fn continuation_hint_equals_result_continuation() {
     }
     harness.shutdown().await;
 }
+
+fn body_cut_hint(result: &Value) -> Option<Value> {
+    hints_of(result).into_iter().find(|hint| hint["reason"] == "body_cut")
+}
+
+/// § 8 test 8 and § 3.3: `fetch` and `expand` results with cut bodies get one
+/// `body_cut` hint naming the cut refs; re-fetching them with the hinted
+/// `max_tokens` returns them uncut.
+#[tokio::test(flavor = "multi_thread")]
+async fn fetch_body_cut_emits_hint_with_sufficient_max_tokens() {
+    let mut writes = river_notes(6, 2_000);
+    for i in 1..6 {
+        writes.push(common::edge("link", "note:000", &format!("note:{i:03}")));
+    }
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let refs: Vec<String> = (1..6).map(|i| format!("l:note:{i:03}")).collect();
+    let fetched = harness.ok("fetch", json!({"refs": refs, "max_tokens": 1_000})).await;
+    let cut: Vec<Value> = fetched["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["record"]["body_cut"] == true)
+        .map(|item| item["ref"].clone())
+        .collect();
+    assert!(!cut.is_empty(), "the budget cut bodies: {fetched}");
+    let hint = body_cut_hint(&fetched).expect("a body_cut hint");
+    assert_eq!(hint["action"], "fetch");
+    assert_eq!(hint["refs"], json!(cut));
+    let max_tokens = hint["max_tokens"].as_u64().expect("max_tokens");
+    let again = harness.ok("fetch", json!({"refs": hint["refs"], "max_tokens": max_tokens})).await;
+    for item in again["items"].as_array().unwrap() {
+        assert_eq!(item["record"]["body_cut"], false, "uncut at the hinted budget: {item}");
+    }
+    assert!(body_cut_hint(&again).is_none());
+
+    let expanded = harness.ok("expand", json!({"refs": ["l:note:000"], "max_tokens": 1_000})).await;
+    let cut: Vec<Value> = expanded["targets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|target| target["body_cut"] == true)
+        .map(|target| target["ref"].clone())
+        .collect();
+    assert!(!cut.is_empty(), "the budget cut bodies: {expanded}");
+    let hint = body_cut_hint(&expanded).expect("a body_cut hint on expand");
+    assert_eq!(hint["refs"], json!(cut));
+    let max_tokens = hint["max_tokens"].as_u64().expect("max_tokens");
+    let again = harness.ok("fetch", json!({"refs": hint["refs"], "max_tokens": max_tokens})).await;
+    for item in again["items"].as_array().unwrap() {
+        assert_eq!(item["record"]["body_cut"], false, "uncut at the hinted budget: {item}");
+    }
+    harness.shutdown().await;
+}

@@ -6,11 +6,15 @@
 // Offsets in SnippetV1 are UTF-8 byte offsets, as in Rust.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   Engine,
   InvalidArgumentError,
+  snippetFor,
   type SearchResult,
   type SnippetOptions,
   type SnippetV1,
@@ -199,4 +203,60 @@ test("searchProjectedText refuses a snippet option", async () => {
   } finally {
     await engine.close();
   }
+});
+
+// Shared with the Python test and the fathomdb-py Rust fixture test.
+const PARITY_FIXTURE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../conformance/snippet-for-parity.json",
+);
+
+interface ParityCase {
+  name: string;
+  body: string;
+  spans: [number, number][];
+  options: Record<string, number | boolean>;
+  expected: SnippetV1;
+}
+
+const PARITY_CASES = (
+  JSON.parse(readFileSync(PARITY_FIXTURE, "utf8")) as { cases: ParityCase[] }
+).cases;
+
+/** The fixture's option keys are the Python field names. */
+function camelCaseOptions(options: Record<string, number | boolean>): SnippetOptions {
+  return Object.fromEntries(
+    Object.entries(options).map(([key, value]) => [
+      key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()),
+      value,
+    ]),
+  ) as SnippetOptions;
+}
+
+for (const parityCase of PARITY_CASES) {
+  test(`snippetFor matches the shared parity fixture: ${parityCase.name}`, () => {
+    assert.deepStrictEqual(
+      snippetFor(parityCase.body, parityCase.spans, camelCaseOptions(parityCase.options)),
+      parityCase.expected,
+    );
+  });
+}
+
+test("snippetFor defaults and argument types", () => {
+  assert.deepStrictEqual(snippetFor("short body", []), {
+    text: "short body",
+    anchor: "whole",
+    windows: [[0, 10]],
+    spans: [],
+    highlights: [],
+    cut: false,
+  });
+  assert.throws(() => snippetFor(42 as unknown as string, []), TypeError);
+  assert.throws(() => snippetFor("short body", [[0]] as unknown as [number, number][]), TypeError);
+  assert.throws(() => snippetFor("short body", [[0, 1.5]]), TypeError);
+  assert.throws(() => snippetFor("short body", [], { maxBytes: "40" } as never), TypeError);
+  assert.throws(
+    () => snippetFor("short body", [], { maxbytes: 40 } as SnippetOptions),
+    InvalidArgumentError,
+  );
 });

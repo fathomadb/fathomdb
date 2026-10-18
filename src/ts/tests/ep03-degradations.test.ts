@@ -39,3 +39,23 @@ test("typescript search expand results report embedder_overloaded", async () => 
     }
   }
 });
+
+test("typescript search and searchTextOnly pass degradations through", async () => {
+  const { search, searchTextOnly } = await import("../src/search.js");
+  type NativeEngine = Parameters<typeof searchTextOnly>[0];
+  // A stand-in for the native engine that returns one fixed native result, so
+  // the test exercises only the wrapper's mapping.
+  const returning = (result: NativeSearchResult): NativeEngine =>
+    ({
+      search: async () => result,
+      searchTextOnly: async () => result,
+    }) as unknown as NativeEngine;
+  const reported = native({ degradations: [{ arm: "vector", reason: "embedder_overloaded" }] });
+  const expected = [{ arm: "vector", reason: "embedder_overloaded" }];
+  assert.deepEqual((await search(returning(reported), "q")).degradations, expected);
+  assert.deepEqual((await searchTextOnly(returning(reported), "q")).degradations, expected);
+  for (const extra of [{}, { degradations: null }, { degradations: [] }]) {
+    assert.equal("degradations" in (await search(returning(native(extra)), "q")), false);
+    assert.equal("degradations" in (await searchTextOnly(returning(native(extra)), "q")), false);
+  }
+});

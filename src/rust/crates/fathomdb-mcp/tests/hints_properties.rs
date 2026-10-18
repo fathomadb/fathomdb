@@ -73,6 +73,16 @@ proptest! {
         // (the hints-on-may-shrink-kept property); otherwise the hint is
         // complete.
         let carries_hints = shaped.structured.get("hints").is_some();
+        if !carries_hints {
+            // A hints-on page without hints is exactly the hints-off page:
+            // either nothing called for a hint, or the fallback dropped them.
+            let off = shape_search_page(&prepare_search_page(&SearchPageInput {
+                hints: Some(false),
+                ..input.clone()
+            }));
+            prop_assert_eq!(&shaped.structured, &off.structured);
+            prop_assert_eq!(&shaped.text, &off.text);
+        }
         if cut.is_empty() || !carries_hints {
             prop_assert!(hinted.is_empty());
         } else {

@@ -265,6 +265,12 @@ def main() -> None:
         locomo_session(args.data), locomo_turn(args.data), apnews(args.data), irc(args.data),
     ]
     rows = [measure(c, tok) for c in corpora]
+    for src in IRC_SOURCES:
+        part = Corpus(f"IR-C source {src}", "raw jsonl body")
+        for line in (args.data / f"raw/{src}.jsonl").open():
+            d = json.loads(line)
+            part.bodies[d["doc_id"]] = d["body"]
+        rows.append(measure(part, tok))
     out = Path(__file__).parent / "results"
     out.mkdir(exist_ok=True)
     (out / "sizing.json").write_text(json.dumps(rows, indent=2) + "\n")

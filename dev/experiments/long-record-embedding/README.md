@@ -52,7 +52,7 @@ python latency.py --db <store> --out results/latency_<store>.json --n 60
 ```
 
 The full-body store takes about 4 minutes to build on an RTX 3090 and about
-16 minutes to probe; most of the probe time is `explain=True` at
+10 minutes to probe; most of the probe time is `explain=True` at
 `limit=100`.
 
 ## Deviations from PREREG.md
@@ -63,5 +63,18 @@ The full-body store takes about 4 minutes to build on an RTX 3090 and about
   primary checkout's wheel has no CUDA. The CUDA venv cannot import that
   package, so before the run the helper was replaced with a local drain loop
   that counts `_fathomdb_vector_rows`. Coverage was 1.0 either way.
-- `probe.py build` gained `--max-chars` and `--max-records` after the run,
-  for latency attribution only. The probe store was built without them.
+- `probe.py build` gained `--max-chars`, `--max-records` and `--copies`
+  after the run, for latency attribution only. The probe store was built
+  without them.
+- `PREREG.md` names `REPORT.md § Deviations`; they are here instead.
+- P1's `hybrid` arm was read from the `limit=100, explain=True` call, not a
+  separate shipped `limit=10` call as `PREREG.md` states. At `limit=100`, up
+  to 100 vector hits enter fusion instead of 10, so P1's hybrid numbers
+  describe a non-shipped ranking. P2 measures `limit=10` separately.
+- `test_probe.py` was written after `probe.py` was committed (before the
+  run), not red-first. `_strata` and the vector-rank extraction have no unit
+  tests.
+- Explain ranks are keyed by body, so duplicate bodies share one rank. The
+  vector ranking in `probe.py` does not dedupe them. Sessions with identical
+  bodies are rare in LongMemEval-S, and P2's text-agreement check bounds the
+  effect.

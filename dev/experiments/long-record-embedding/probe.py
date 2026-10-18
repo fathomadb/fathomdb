@@ -70,7 +70,8 @@ def _drain(db: Path, engine, expected: int) -> int:
         last = n
 
 
-def build(db: Path, data: Path, max_chars: int | None = None, max_records: int | None = None) -> None:
+def build(db: Path, data: Path, max_chars: int | None = None, max_records: int | None = None,
+          copies: int = 1) -> None:
     from fathomdb.engine import Engine
 
     _, bodies = _strata(data)
@@ -79,6 +80,9 @@ def build(db: Path, data: Path, max_chars: int | None = None, max_records: int |
         bodies = {k: v[:max_chars] for k, v in bodies.items()}
     if max_records:
         bodies = dict(list(bodies.items())[:max_records])
+    if copies > 1:
+        # A distinct prefix keeps each copy a distinct body (search dedups identical bodies).
+        bodies = {f"{k}#{c}": f"[copy {c}] {v}" for c in range(copies) for k, v in bodies.items()}
     if db.exists():
         raise SystemExit(f"{db} exists; probe builds a fresh store")
     db.parent.mkdir(parents=True, exist_ok=True)
@@ -95,7 +99,7 @@ def build(db: Path, data: Path, max_chars: int | None = None, max_records: int |
         "coverage": embedded / len(items), "open_report": repr(engine.open_report()),
     }
     RESULTS.mkdir(exist_ok=True)
-    name = "probe_build" + (f"_short{max_chars}" if max_chars else "") + (f"_n{max_records}" if max_records else "")
+    name = "probe_build" + (f"_short{max_chars}" if max_chars else "") + (f"_n{max_records}" if max_records else "") + (f"_x{copies}" if copies > 1 else "")
     (RESULTS / f"{name}.json").write_text(json.dumps(meta, indent=2) + "\n")
     print(json.dumps(meta, indent=2))
 
@@ -187,9 +191,10 @@ def main() -> None:
     ap.add_argument("--data", type=Path, default=sc.DEFAULT_DATA)
     ap.add_argument("--max-chars", type=int, default=None)
     ap.add_argument("--max-records", type=int, default=None)
+    ap.add_argument("--copies", type=int, default=1)
     a = ap.parse_args()
     if a.cmd == "build":
-        build(a.db, a.data, a.max_chars, a.max_records)
+        build(a.db, a.data, a.max_chars, a.max_records, a.copies)
     else:
         run(a.db, a.data)
 

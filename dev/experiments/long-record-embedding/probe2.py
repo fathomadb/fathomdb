@@ -44,8 +44,12 @@ def _spans(lines: list[str]) -> list[tuple[int, int]]:
     return out
 
 
-def plan(data: Path) -> tuple[dict[str, str], dict[str, str], list[dict], dict]:
-    """Original bodies, rotated bodies, eligible questions, exclusion counts."""
+def plan(data: Path, twins: bool = False) -> tuple[dict[str, str], dict[str, str], list[dict], dict]:
+    """Original bodies, rotated bodies, eligible questions, exclusion counts.
+
+    `twins` applies the P2b amendment: body-identical sessions move together and
+    count as gold (`PREREG-P2b.md`).
+    """
     qs = sc._lme(data)
     tok = Tokenizer.from_file(str(sc.DEFAULT_TOKENIZER))
     tok.no_truncation()
@@ -60,6 +64,16 @@ def plan(data: Path) -> tuple[dict[str, str], dict[str, str], list[dict], dict]:
             if sid not in original:
                 lines_of[sid] = [_line(t) for t in turns]
                 original[sid] = "\n".join(lines_of[sid])
+    group_of: dict[str, list[str]] = {}
+    for sid, body in original.items():
+        group_of.setdefault(body, []).append(sid)
+
+    def key(sid: str) -> str:
+        return original[sid] if twins else sid
+
+    def members(sid: str) -> list[str]:
+        return group_of[original[sid]] if twins else [sid]
+
     cuts = {sid: c for sid, c in zip(original, [
         cut_info(b, e.offsets).cut_char
         for b, e in zip(original.values(), tok.encode_batch(list(original.values()), add_special_tokens=False))
@@ -91,7 +105,7 @@ def plan(data: Path) -> tuple[dict[str, str], dict[str, str], list[dict], dict]:
         new: dict[str, list[str]] = {}
         ok = True
         for sid, idx in c["gold_turns"].items():
-            prior = owner.get(sid)
+            prior = owner.get(key(sid))
             if prior and prior != (c["stratum"], frozenset(idx)):
                 ok = False
                 excluded["gold session claimed by another question"] += 1
@@ -108,7 +122,7 @@ def plan(data: Path) -> tuple[dict[str, str], dict[str, str], list[dict], dict]:
         if not ok:
             continue
         for sid, idx in c["gold_turns"].items():
-            owner[sid] = (c["stratum"], frozenset(idx))
+            owner[key(sid)] = (c["stratum"], frozenset(idx))
         rotated_lines.update(new)
         eligible.append(c)
 
@@ -116,18 +130,21 @@ def plan(data: Path) -> tuple[dict[str, str], dict[str, str], list[dict], dict]:
     strata_of: dict[str, set[str]] = {}
     for c in eligible:
         for sid in c["gold_turns"]:
-            strata_of.setdefault(sid, set()).add(c["stratum"])
+            strata_of.setdefault(key(sid), set()).add(c["stratum"])
     final = []
     for c in eligible:
-        if any(len(strata_of[sid]) > 1 for sid in c["gold_turns"]):
+        if any(len(strata_of[key(sid)]) > 1 for sid in c["gold_turns"]):
             excluded["gold session shared across strata"] += 1
             continue
         final.append(c)
-    keep = {sid for c in final for sid in c["gold_turns"]}
-    rotated = {sid: ("\n".join(rotated_lines[sid]) if sid in keep else body) for sid, body in original.items()}
+    # Twins share lines, so a group member takes its gold sibling's reordering.
+    source = {m: sid for c in final for sid in c["gold_turns"] for m in members(sid)}
+    keep = set(source)
+    rotated = {sid: ("\n".join(rotated_lines[source[sid]]) if sid in keep else body) for sid, body in original.items()}
     questions = [{
         "qid": c["q"]["question_id"], "type": c["q"]["question_type"], "stratum": c["stratum"],
-        "question": c["q"]["question"], "gold": list(c["q"]["answer_session_ids"]),
+        "question": c["q"]["question"],
+        "gold": sorted({m for g in c["q"]["answer_session_ids"] if g in original for m in members(g)}),
     } for c in final]
     counts = {
         "candidates": len(candidates), "eligible": {s: sum(q["stratum"] == s for q in questions) for s in "BP"},
@@ -136,10 +153,14 @@ def plan(data: Path) -> tuple[dict[str, str], dict[str, str], list[dict], dict]:
     return original, rotated, questions, counts
 
 
-def build(db: Path, data: Path) -> None:
+def _tag(twins: bool) -> str:
+    return "probe2b" if twins else "probe2"
+
+
+def build(db: Path, data: Path, twins: bool) -> None:
     from fathomdb.engine import Engine
 
-    _, rotated, _, counts = plan(data)
+    _, rotated, _, counts = plan(data, twins)
     if db.exists():
         raise SystemExit(f"{db} exists; probe builds a fresh store")
     db.parent.mkdir(parents=True, exist_ok=True)
@@ -152,7 +173,7 @@ def build(db: Path, data: Path) -> None:
     embedded = _drain(db, engine, len(items))
     meta = {**counts, "docs": len(items), "embed_wall_s": round(time.time() - t0, 1),
             "coverage": embedded / len(items)}
-    (RESULTS / "probe2_build.json").write_text(json.dumps(meta, indent=2) + "\n")
+    (RESULTS / f"{_tag(twins)}_build.json").write_text(json.dumps(meta, indent=2) + "\n")
     print(json.dumps(meta, indent=2))
 
 
@@ -168,10 +189,10 @@ def _measure(engine, q: dict) -> dict:
     return out
 
 
-def run(original: Path, rotated: Path, data: Path) -> None:
+def run(original: Path, rotated: Path, data: Path, twins: bool) -> None:
     from fathomdb.engine import Engine
 
-    _, _, questions, _ = plan(data)
+    _, _, questions, _ = plan(data, twins)
     eng = {"original": Engine.open(str(original), use_default_embedder=True),
            "rotated": Engine.open(str(rotated), use_default_embedder=True)}
     rows = []
@@ -183,11 +204,11 @@ def run(original: Path, rotated: Path, data: Path) -> None:
             "measured": min(m["original"]["vector_ranked"], m["rotated"]["vector_ranked"]) >= 10,
             "visible": m[vis], "hidden": m[hid],
         })
-    with (RESULTS / "probe2_per_question.jsonl").open("w") as f:
+    with (RESULTS / f"{_tag(twins)}_per_question.jsonl").open("w") as f:
         for r in rows:
             f.write(json.dumps(r) + "\n")
     summary = paired_summary(rows)
-    (RESULTS / "probe2_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (RESULTS / f"{_tag(twins)}_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
 
 
@@ -239,13 +260,14 @@ def main() -> None:
     ap.add_argument("--original", type=Path)
     ap.add_argument("--rotated", type=Path)
     ap.add_argument("--data", type=Path, default=sc.DEFAULT_DATA)
+    ap.add_argument("--twins", action="store_true", help="P2b amendment (PREREG-P2b.md)")
     a = ap.parse_args()
     if a.cmd == "plan":
-        print(json.dumps(plan(a.data)[3], indent=2))
+        print(json.dumps(plan(a.data, a.twins)[3], indent=2))
     elif a.cmd == "build":
-        build(a.db, a.data)
+        build(a.db, a.data, a.twins)
     else:
-        run(a.original, a.rotated, a.data)
+        run(a.original, a.rotated, a.data, a.twins)
 
 
 if __name__ == "__main__":

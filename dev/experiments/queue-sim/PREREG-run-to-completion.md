@@ -116,3 +116,36 @@ histogram, per band and tail.
 ## Gate
 
 The simulator changes and these conclusions get a Fable-medium review; each fix lands RED first.
+
+## Addendum, 2026-10-18 (after review, before run 2)
+
+**What was seen.** Run 1 was stopped at 5,429 of 86,400 simulations (realistic band, roughly
+configurations 0–67) after the Fable-medium review of the simulator. The reviewer probed 2,102 of those
+rows; a smoke test of `rtc_analysis.py` read 1,360. Seen: the start-check lock-up below, and an early R1
+direction ("drop"). Run 1 is discarded (`results/rtc-aborted-run1.*`, not committed); run 2 reruns
+everything.
+
+**Lock-up (review finding B1).** Under run to completion a late completion is a service-time sample (as
+queue-admission.md § 6.1 specifies). One read slower than 10 s can lift the p90 of its tool kind above
+the 10 s that any new call has. Every later call of that kind is then refused with reason `deadline`,
+even with a permit free, so no new sample arrives and the window never recovers. With 8 samples, p90 is
+the largest of them, so one slow read among the first eight is enough. This is a property of the design
+as written (step 4 re-checks `deadline − now ≥ need` after any permit), not of the simulator.
+
+**Changes for run 2.**
+
+- New metric `rf_with_permit`: refused for time while a permit was free (at arrival or at grant).
+- `ab_permit_s_per_kcall` now counts only the measured calls (after warm-up), from abandonment to the
+  thread's return. `turn_failed` is undefined (NaN) for open-loop configurations, which have no turns.
+- **Exploratory arms**, not part of the preregistered rules: `rtc_p90cap_rl{30,60,120}` and
+  `rtc_p90cap_ep09_rl{10,30,60}`: p90 with `need` capped at 9.95 s, so a call that finds a free permit
+  within 50 ms of arrival always starts and a late sample cannot lock its kind out. 26 arms × 2 × 2 ×
+  1,080 = 112,320 simulations.
+- **Reporting added** (exploratory): per cell, the number of configurations with `rf_with_permit` > 1 %
+  for each percentile check (lock-ups); R1 recomputed without those configurations; R1's three conditions
+  with `rtc_p90cap_rl60` in place of `rtc_p90_rl60` (R1x). R1 stays the decision. If R1 and R1x disagree,
+  both go to the owner.
+- **Rule clarifications** (review B2, N1): when R1 keeps a percentile check, the candidates are p90, p95
+  and p99 in the deciding cell. R2 then uses that check's run-limit arms. EP-09 arms exist only for p90,
+  wait-only and capped p90; if R1 picks p95 or p99, R4 uses p90's EP-09 arms and says so. R4's "within
+  0.01 points" is one-sided: a shorter limit with a lower fail rate qualifies.

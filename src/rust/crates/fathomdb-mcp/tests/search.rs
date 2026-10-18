@@ -450,3 +450,51 @@ async fn hybrid_on_dense_disabled_store_is_not_ready_use_text() {
     assert!(!refs(&found).is_empty(), "text search still answers: {found}");
     harness.shutdown().await;
 }
+
+/// A body of filler words with `term` at byte `at` (a multiple of 6).
+fn long_body(at: usize, term: &str, len: usize) -> String {
+    assert_eq!(at % 6, 0);
+    let mut body = "lorem ".repeat(at / 6);
+    body.push_str(term);
+    while body.len() < len {
+        body.push_str(" ipsum");
+    }
+    body
+}
+
+/// T-13 (match-centred-snippets.md § 7.3): hits carry `snippet_anchor`, and a
+/// long record's snippet is centred on the matched term, not its prefix; a
+/// record that fits is whole. Every response still fits its budget
+/// (MR-041.1).
+#[tokio::test(flavor = "multi_thread")]
+async fn snippets_are_centred_on_the_match_with_an_anchor() {
+    let long = long_body(3000, "zanzibar", 4096);
+    let (_fixture, harness) = harness_with(
+        vec![node("note:long", "note", &long), node("note:short", "note", "a short zanzibar note")],
+        json!({}),
+    )
+    .await;
+    let found = harness.ok("search", json!({"query": "zanzibar"})).await;
+    let hits = found["results"].as_array().unwrap();
+    let hit = |reference: &str| hits.iter().find(|hit| hit["ref"] == reference).unwrap().clone();
+
+    let long_hit = hit("l:note:long");
+    let snippet = long_hit["snippet"].as_str().unwrap();
+    assert_eq!(long_hit["snippet_anchor"], "match", "{long_hit}");
+    assert!(snippet.contains("zanzibar"), "{snippet:?}");
+    assert!(snippet.len() <= 300);
+    assert_eq!(long_hit["snippet_cut"], true);
+    assert!(long_hit.get("highlights").is_none(), "highlights are opt-in");
+
+    let short_hit = hit("l:note:short");
+    assert_eq!(short_hit["snippet_anchor"], "whole");
+    assert_eq!(short_hit["snippet"], "a short zanzibar note");
+    assert_eq!(short_hit["snippet_cut"], false);
+
+    for max_tokens in [256_u64, 300, 400, 600, 1000] {
+        let result =
+            harness.call("search", json!({"query": "zanzibar", "max_tokens": max_tokens})).await;
+        assert_fits(&result, max_tokens);
+    }
+    harness.shutdown().await;
+}

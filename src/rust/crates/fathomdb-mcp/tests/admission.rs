@@ -67,3 +67,41 @@ async fn an_excess_call_waits_for_a_permit_and_then_runs() {
     assert_ne!(first.is_error, Some(true), "{:?}", first.structured_content);
     harness.shutdown().await;
 }
+
+fn error_of(result: &CallToolResult) -> Value {
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "expected a tool error: {:?}",
+        result.structured_content
+    );
+    result.structured_content.as_ref().expect("structuredContent")["error"].clone()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_excess_call_is_refused_when_too_little_deadline_remains() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    harness.adapter.seams().block_calls("a");
+    let first = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let started = Instant::now();
+    let second = spawn_call(&harness, "search", search_a()).await.unwrap();
+    let elapsed = started.elapsed();
+    let error = error_of(&second);
+    assert_eq!(error["class"], "busy", "{error}");
+    assert_eq!(error["code"], "admission");
+    assert_eq!(error["busy"]["reason"], "deadline", "{error}");
+    assert_eq!(error["busy"]["in_flight"], 1, "{error}");
+    // A cold tool needs 50 ms, so the wait ends at deadline - 50 ms.
+    assert!(elapsed >= Duration::from_millis(850), "refused too early: {elapsed:?}");
+    assert!(elapsed <= Duration::from_millis(990), "refused at the deadline: {elapsed:?}");
+    harness.adapter.seams().release_calls("a");
+    let _ = first.await.unwrap();
+    harness.shutdown().await;
+}

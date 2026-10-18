@@ -606,7 +606,7 @@ async fn abandoned_calls_are_not_service_time_samples() {
     let fixture = Fixture::new();
     let harness = Harness::start(store_config(
         &fixture,
-        json!({"admission_cap": 1, "call_deadline_ms": 500}),
+        json!({"admission_cap": 1, "call_deadline_ms": 500, "run_limit_ms": 500}),
     ))
     .await;
     harness.ok("orient", json!({"store": "a"})).await;
@@ -811,5 +811,313 @@ async fn panicked_calls_are_not_service_time_samples() {
     seams.release_calls("a");
     let waiter = waiter.await.unwrap();
     assert_ne!(waiter.is_error, Some(true), "{:?}", waiter.structured_content);
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_started_call_past_the_wait_deadline_returns_its_result() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000, "run_limit_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.seed_service_times("a", "fetch", &millis(&[10; 7]));
+    seams.block_calls("a");
+    let started = Instant::now();
+    let slow = spawn_call(&harness, "fetch", fetch_a());
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    seams.release_calls("a");
+    let slow = slow.await.unwrap();
+    assert_ne!(
+        slow.is_error,
+        Some(true),
+        "the started call answers: {:?}",
+        slow.structured_content
+    );
+    assert!(started.elapsed() >= Duration::from_millis(2000));
+    // Its 2 s is the eighth fetch sample, so the p90 is now 2 s: a fetch
+    // that has to wait cannot start within its 1 s and is refused at once.
+    let (refused, elapsed) =
+        wait_behind_a_search(&harness, "fetch", fetch_a(), Duration::from_millis(600)).await;
+    let error = error_of(&refused);
+    assert_eq!(error["busy"]["reason"], "deadline", "{error}");
+    assert!(elapsed < Duration::from_millis(300), "the 2 s sample counts: {elapsed:?}");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_running_call_is_abandoned_at_the_run_limit() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000, "run_limit_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+
+    // Admitted at once and held for 3 s: timeout/deadline at the run limit,
+    // and the adapter keeps serving.
+    seams.block_calls("a");
+    let started = Instant::now();
+    let error = harness.err("search", search_a()).await;
+    let elapsed = started.elapsed();
+    assert_eq!(error["class"], "timeout", "{error}");
+    assert_eq!(error["code"], "deadline", "{error}");
+    assert!(elapsed >= Duration::from_millis(900), "returned early: {elapsed:?}");
+    assert!(elapsed <= Duration::from_millis(1100), "returned late: {elapsed:?}");
+    let listed = harness.ok("list_stores", json!({})).await;
+    assert_eq!(listed["stores"][0]["readiness"], "ready");
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    seams.release_calls("a");
+    let found = harness.ok("search", search_a()).await;
+    assert_eq!(found["results"][0]["ref"], "l:note:a");
+
+    // The run limit is measured from the permit: a call that waited 400 ms
+    // for its permit times out 1 s after it got it, not 1 s after arrival.
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let waiter = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep_until((started + Duration::from_millis(400)).into()).await;
+    assert!(seams.release_one_call("a"));
+    let running = running.await.unwrap();
+    assert_ne!(running.is_error, Some(true), "{:?}", running.structured_content);
+    let error = error_of(&waiter.await.unwrap());
+    let elapsed = started.elapsed();
+    assert_eq!(error["class"], "timeout", "{error}");
+    assert!(elapsed >= Duration::from_millis(1300), "measured from arrival: {elapsed:?}");
+    assert!(elapsed <= Duration::from_millis(1550), "returned late: {elapsed:?}");
+    seams.release_calls("a");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_kind_slower_than_the_deadline_still_starts_on_a_free_permit() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000, "run_limit_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    // Recent fetches took 2 s, more than the 1 s deadline. A fetch that
+    // finds a permit free has not waited, so the start check does not
+    // apply: it starts, and its own time becomes a new sample.
+    harness.adapter.seams().seed_service_times("a", "fetch", &millis(&[2000; 8]));
+    let started = harness.call("fetch", fetch_a()).await;
+    assert_ne!(started.is_error, Some(true), "{:?}", started.structured_content);
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_abandoned_call_keeps_its_permit_and_is_counted() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 500, "run_limit_ms": 500}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let error = harness.err("search", search_a()).await;
+    assert_eq!(error["class"], "timeout", "abandoned at the run limit: {error}");
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 1, "{probe}");
+    assert_eq!(probe["busy"]["in_flight"], 1, "the abandoned call keeps its permit: {probe}");
+
+    seams.release_calls("a");
+    let found = harness.ok("search", search_a()).await;
+    assert_eq!(found["results"][0]["ref"], "l:note:a", "the permit is free again");
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 0, "{probe}");
+    assert_eq!(probe["busy"]["in_flight"], 1, "{probe}");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn stuck_is_reported_when_every_permit_is_abandoned() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 2, "call_deadline_ms": 500, "run_limit_ms": 500}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let error = harness.err("search", search_a()).await;
+    assert_eq!(error["class"], "timeout", "{error}");
+    // One of two permits abandoned: not stuck.
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the second call to be held", Duration::from_secs(5), || seams.held_calls("a") == 2)
+        .await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 1, "{probe}");
+    assert_eq!(probe["busy"]["stuck"], false, "{probe}");
+    // Both abandoned: stuck.
+    let error = error_of(&running.await.unwrap());
+    assert_eq!(error["class"], "timeout", "{error}");
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 2, "{probe}");
+    assert_eq!(probe["busy"]["stuck"], true, "{probe}");
+    seams.release_calls("a");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_cancel_of_a_running_call_abandons_it() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 600, "run_limit_ms": 10000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let mut raw = common::RawClient::connect(&harness.adapter).await;
+    let running =
+        raw.send_request("tools/call", json!({"name": "search", "arguments": search_a()})).await;
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    // rmcp drops the cancelled call's response, so its effect is read from
+    // another call's busy object: abandoned until its thread returns.
+    raw.cancel(running).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 1, "{probe}");
+    assert_eq!(probe["busy"]["in_flight"], 1, "the read still holds its permit: {probe}");
+
+    seams.release_calls("a");
+    let found = harness.ok("search", search_a()).await;
+    assert_eq!(found["results"][0]["ref"], "l:note:a");
+    seams.block_calls("a");
+    let held = spawn_call(&harness, "search", search_a());
+    wait_for("a new call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1).await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 0, "released when the thread returned: {probe}");
+    seams.release_calls("a");
+    let _ = held.await.unwrap();
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shutdown_wakes_queued_calls_with_not_ready_draining() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let waiting = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let adapter = harness.adapter.clone();
+    let started = Instant::now();
+    let shutdown = tokio::spawn(async move { adapter.shutdown().await });
+    let error = error_of(&waiting.await.unwrap());
+    let elapsed = started.elapsed();
+    assert_eq!(error["class"], "not_ready", "{error}");
+    assert_eq!(error["code"], "draining", "{error}");
+    assert!(elapsed < Duration::from_millis(500), "woken at once: {elapsed:?}");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    shutdown.await.unwrap();
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_store_with_queued_calls_does_not_expire_idle() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "idle_timeout_secs": 1, "call_deadline_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let waiting = spawn_call(&harness, "search", search_a());
+    let started = Instant::now();
+    while started.elapsed() < Duration::from_millis(2000) {
+        assert_eq!(common::readiness(&harness.client, "a").await, "ready");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert!(!waiting.is_finished(), "the call is still queued");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    let waited = waiting.await.unwrap();
+    assert_ne!(waited.is_error, Some(true), "{:?}", waited.structured_content);
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn running_calls_get_progress_notifications() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(&fixture, json!({"admission_cap": 1}))).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let first = spawn_call(&harness, "search", search_a());
+    wait_for("the first call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    // The raw client records notifications in wire order.
+    let mut raw = common::RawClient::connect(&harness.adapter).await;
+    let params =
+        json!({"name": "search", "arguments": search_a(), "_meta": {"progressToken": "w"}});
+    raw.send_request("tools/call", params).await;
+    // Queued for about 1.2 s, then admitted and held for about 2.2 s.
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    assert!(seams.release_one_call("a"));
+    let _ = first.await.unwrap();
+    wait_for("the second call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    tokio::time::sleep(Duration::from_millis(2200)).await;
+    seams.release_calls("a");
+    raw.request("ping", json!({})).await;
+    let notes: Vec<(f64, String)> = raw
+        .notifications
+        .iter()
+        .filter(|message| message["method"] == "notifications/progress")
+        .filter(|message| message["params"]["progressToken"] == "w")
+        .map(|message| {
+            let params = &message["params"];
+            (
+                params["progress"].as_f64().expect("numeric progress"),
+                params["message"].as_str().unwrap_or_default().to_string(),
+            )
+        })
+        .collect();
+    let queued = notes.iter().filter(|(_, message)| message.starts_with("queued:")).count();
+    let running = notes.iter().filter(|(_, message)| message == "running").count();
+    assert!(queued >= 1, "{notes:?}");
+    assert!(running >= 2, "one notification each second while running: {notes:?}");
+    let first_running = notes.iter().position(|(_, message)| message == "running").unwrap();
+    assert!(
+        notes[..first_running].iter().all(|(_, message)| message.starts_with("queued:")),
+        "running follows queued: {notes:?}"
+    );
+    assert!(notes.windows(2).all(|pair| pair[0].0 < pair[1].0), "progress increases: {notes:?}");
     harness.shutdown().await;
 }

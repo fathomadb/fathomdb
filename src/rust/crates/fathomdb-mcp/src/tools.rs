@@ -34,8 +34,8 @@ use crate::shape::{self, CanonicalSearch};
 
 /// The engine's ranked-result cap (`MAX_RANKED_LIMIT`).
 pub(crate) const MAX_RANKED: usize = 100;
-/// Work bound for one expansion: the engine maximum. The call deadline
-/// bounds the time it may take (interface §4 `expand`).
+/// Work bound for one expansion: the engine maximum. The run limit bounds
+/// the time it may take (interface §4 `expand`).
 pub(crate) const EXPAND_WORK_UNITS: u64 = 10_000;
 const MAX_FETCH_REFS: usize = 50;
 const MAX_EXPAND_REFS: usize = 10;
@@ -235,8 +235,14 @@ fn max_tokens(ctx: &Ctx<'_>, given: Option<u64>) -> Result<u32, ToolError> {
 }
 
 impl Ctx<'_> {
+    /// The wait deadline, from arrival (`call_deadline_ms`).
     fn deadline(&self) -> Instant {
         Instant::now() + std::time::Duration::from_millis(self.shared.config.call_deadline_ms)
+    }
+
+    /// The bound on a started call, from its permit (`run_limit_ms`).
+    fn run_limit(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.shared.config.run_limit_ms)
     }
 
     async fn acquire(
@@ -262,9 +268,16 @@ impl Ctx<'_> {
         T: Send + 'static,
         F: FnOnce(&fathomdb_sdk::Engine) -> fathomdb_sdk::Result<T> + Send + 'static,
     {
-        let deadline = self.deadline();
-        let guard = self.acquire(store, kind, deadline).await?;
-        bridge::call(guard, deadline, &self.shared.hooks, f).await
+        let guard = self.acquire(store, kind, self.deadline()).await?;
+        bridge::call(
+            guard,
+            self.run_limit(),
+            &self.cancel,
+            self.progress.as_ref(),
+            &self.shared.hooks,
+            f,
+        )
+        .await
     }
 }
 
@@ -647,8 +660,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         SearchMode::Text => ToolKind::SearchText,
         SearchMode::Hybrid => ToolKind::SearchHybrid,
     };
-    let deadline = ctx.deadline();
-    let guard = ctx.acquire(&store, kind, deadline).await?;
+    let guard = ctx.acquire(&store, kind, ctx.deadline()).await?;
     if continued_epoch.is_some_and(|epoch| epoch != guard.epoch) {
         return Err(ToolError::stale_handle("continuation"));
     }
@@ -660,28 +672,38 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     // comes from this search's own correlation id, never the engine-wide
     // `last_telemetry_query_id` (MR-024.6).
     let explain = request.explain || telemetry;
-    let (answered, run) = bridge::call(guard, deadline, &ctx.shared.hooks, move |engine| {
-        let result = match mode {
-            SearchMode::Text => engine
-                .search_text_only(&request.query, TextSearchOptions { view, limit: run_limit })?,
-            SearchMode::Hybrid => engine.search(
-                &request.query,
-                SearchOptions {
-                    filter: search_filter(&request).map(SearchFilterArg::Search),
-                    explain,
-                    view,
-                    limit: run_limit,
-                    ..SearchOptions::default()
-                },
-            )?,
-        };
-        Ok(SearchRun {
-            hits: result.results,
-            explanation: result.explanation,
-            soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
-            dense_disabled: engine.dense_disabled(),
-        })
-    })
+    let started_limit = ctx.run_limit();
+    let (answered, run) = bridge::call(
+        guard,
+        started_limit,
+        &ctx.cancel,
+        ctx.progress.as_ref(),
+        &ctx.shared.hooks,
+        move |engine| {
+            let result = match mode {
+                SearchMode::Text => engine.search_text_only(
+                    &request.query,
+                    TextSearchOptions { view, limit: run_limit },
+                )?,
+                SearchMode::Hybrid => engine.search(
+                    &request.query,
+                    SearchOptions {
+                        filter: search_filter(&request).map(SearchFilterArg::Search),
+                        explain,
+                        view,
+                        limit: run_limit,
+                        ..SearchOptions::default()
+                    },
+                )?,
+            };
+            Ok(SearchRun {
+                hits: result.results,
+                explanation: result.explanation,
+                soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
+                dense_disabled: engine.dense_disabled(),
+            })
+        },
+    )
     .await?;
 
     let mut degradation = Vec::new();
@@ -1188,7 +1210,6 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     };
     let used: Vec<u64> = args.used.iter().map(|reference| entry.refs[reference]).collect();
     let unused: Vec<u64> = unused.iter().map(|reference| entry.refs[reference]).collect();
-    let deadline = ctx.deadline();
     // No waiting: a store that is no longer ready can only come back under a
     // new epoch, whose sink never saw this response.
     let guard = match ctx
@@ -1214,10 +1235,11 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     if guard.epoch != entry.epoch {
         return Ok(not_recorded(&store, guard.epoch, NotRecordedReason::StoreReopened, max_tokens));
     }
-    let (answered, ()) = bridge::call(guard, deadline, &ctx.shared.hooks, move |engine| {
-        engine.record_feedback(&query_id, &used, &unused, "agent")
-    })
-    .await?;
+    let (answered, ()) =
+        bridge::call(guard, ctx.run_limit(), &ctx.cancel, None, &ctx.shared.hooks, move |engine| {
+            engine.record_feedback(&query_id, &used, &unused, "agent")
+        })
+        .await?;
     let output = FeedbackOutput {
         envelope: envelope(&store, answered.epoch, now_secs(), vec![], max_tokens),
         status: FeedbackStatus::Recorded,

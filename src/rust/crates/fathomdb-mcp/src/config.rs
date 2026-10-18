@@ -83,10 +83,12 @@ pub struct Config {
     pub max_open_stores: u32,
     /// Engine calls in flight per store, including abandoned ones (MR-033.2).
     pub admission_cap: u32,
-    /// Per tool call deadline (MR-033.1).
+    /// Per tool call deadline, from arrival: bounds waiting and starting
+    /// (MR-033).
     pub call_deadline_ms: u64,
-    /// Bound on a started call's run time, from its admission. Never below
-    /// `call_deadline_ms`.
+    /// Bound on a started call's run time, from its admission permit; a call
+    /// still running then returns `timeout/deadline` and is abandoned. Never
+    /// below `call_deadline_ms`.
     pub run_limit_ms: u64,
     /// Calls that may wait for an admission permit per store; one more is
     /// refused as `busy/admission`, reason `queue_full`.

@@ -348,11 +348,10 @@ deadline a call must have left to be started.
   fixed one: it shortens the wait for calls that would have succeeded and
   lengthens it after slow periods (REPORT § 8).
 - **Started calls run to completion (owner, 2026-10-18).** Once a call
-  holds a permit, the wait deadline no longer applies to it. Today
-  `bridge::call` races the blocking closure against the same deadline
-  (`tools.rs:245-253`, `bridge.rs:39-45`). At that deadline the call is
-  abandoned, not cancelled: the read keeps its worker, its permit and any
-  lock until it returns, and its result is thrown away. Timing out a
+  holds a permit, the wait deadline no longer applies to it. Before this
+  rule, `bridge::call` raced the blocking closure against the same
+  deadline. At that deadline the call was abandoned, not cancelled: the read keeps its worker, its permit and any
+  lock until it returns, and its result was thrown away. Timing out a
   running call therefore frees nothing. It turns a slow answer into no
   answer, and the agent usually re-issues the call, which adds load. The
   client sets no limit of its own: Claude Code's MCP tool timeout is
@@ -434,7 +433,12 @@ The sequence:
    kind, including calls that never waited, and so would never record a
    new sample to bring the p90 down. S1b must either clamp `need` below
    `call_deadline_ms` or skip step 4 for a call that got its permit
-   without waiting.
+   without waiting. **Chosen: skip.** A call first tries to take a free
+   permit (`try_acquire_owned`, which fails while others wait); one that
+   gets it takes no queue ticket and is not checked. Clamping `need` would
+   also shorten the wait of slow kinds behind a full cap, which the
+   early-shed rule decides on purpose; skipping changes nothing for calls
+   that waited.
 5. If the wait in step 3 times out, refuse: `busy/admission`, reason
    `deadline`, at once. This sheds on time spent waiting, as CoDel does:
    a call that cannot finish before its deadline is not started.
@@ -549,6 +553,11 @@ reason), each abandoned call and each admission after a wait, with store,
 - Shutdown sets `shutting_down` (`registry.rs:612-613`). Waiters wake on the
   phase change and return `not_ready/draining`, as today. The semaphore is
   per slot and survives reopen; it is not closed, so nothing is rebuilt.
+- Shutdown waits at most `call_deadline_ms` + 5 s for stores to drain, so a
+  started call running longer is cut off when the process exits. Reads are
+  unaffected; a feedback write is rolled back by the journal. Raising the
+  bound to `run_limit_ms` would make exit wait up to 65 s with the
+  defaults. (Orchestrator decision, for owner review.)
 
 ### 6.2 Engine: EP-18 (new engine proposal)
 
@@ -803,7 +812,15 @@ by the first two, together with the interface change.
     waiter is admitted on release.
 22. `a_store_with_queued_calls_does_not_expire_idle`: `idle_timeout_secs` 1,
     a call queued for 2 s; the store stays ready.
-23. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`.
+23. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`. Not
+    buildable: idle expiry and the LRU drain both require `in_flight == 0`
+    and `queued == 0` (§ 6.1, Drain, idle close and shutdown), so the only
+    drain that can start while calls wait is shutdown, which is test 24.
+    The step-7 fallback itself is still reachable through a race: a call
+    that saw the store `Ready` but has not yet joined the queue when an
+    idle or LRU drain starts gets a permit, fails the step-4 phase re-check
+    and returns to the open wait. No test drives that window; it is covered
+    by code review only.
 24. `shutdown_wakes_queued_calls_with_not_ready_draining`.
 25. `another_store_in_use_is_busy_store_switch`.
 26. `sdk_overloaded_maps_to_admission_engine_overloaded`.

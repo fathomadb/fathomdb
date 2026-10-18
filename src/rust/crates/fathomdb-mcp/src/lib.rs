@@ -114,8 +114,8 @@ impl Adapter {
 
     /// Stop admitting calls, then drain and close every store the adapter
     /// opened. Host-registered engines are left open. Waits at most
-    /// `call_deadline_ms` + 5 s: a store whose abandoned engine call is still
-    /// running after that is not waited for.
+    /// `call_deadline_ms` + 5 s: a store whose started or abandoned engine
+    /// call is still running after that is not waited for.
     pub async fn shutdown(&self) {
         self.shared.registry.shutdown().await;
     }

@@ -352,7 +352,7 @@ async fn a_stalled_call_does_not_delay_a_call_to_another_store() {
     let fixture = Fixture::new();
     let harness = Harness::start(two_stores(
         &fixture,
-        json!({"idle_timeout_secs": 1, "call_deadline_ms": 1000}),
+        json!({"idle_timeout_secs": 1, "call_deadline_ms": 1000, "run_limit_ms": 1000}),
     ))
     .await;
     harness.ok("orient", json!({"store": "a"})).await;
@@ -424,7 +424,9 @@ async fn the_idle_clock_restarts_when_a_long_call_returns() {
 #[tokio::test(flavor = "multi_thread")]
 async fn shutdown_waits_for_a_stuck_call_only_for_the_deadline_plus_a_margin() {
     let fixture = Fixture::new();
-    let harness = Harness::start(two_stores(&fixture, json!({"call_deadline_ms": 200}))).await;
+    let harness =
+        Harness::start(two_stores(&fixture, json!({"call_deadline_ms": 200, "run_limit_ms": 200})))
+            .await;
     harness.ok("orient", json!({"store": "a"})).await;
     harness.adapter.seams().block_calls("a");
     let error = harness.err("search", json!({"store": "a", "query": "alpha"})).await;

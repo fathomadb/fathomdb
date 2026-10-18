@@ -63,7 +63,7 @@ impl Cancel {
     }
 
     /// Resolves once the call is cancelled; never, if it is not.
-    async fn cancelled(&mut self) {
+    pub(crate) async fn cancelled(&mut self) {
         if self.0.wait_for(|cancelled| *cancelled).await.is_err() {
             std::future::pending::<()>().await;
         }
@@ -107,9 +107,9 @@ pub(crate) struct Admission<'a> {
     pub(crate) cancel: Option<&'a Cancel>,
 }
 
-/// Progress callback for a call that waits on an open or for an admission
-/// permit: `(progress, message)`.
-pub(crate) type ProgressFn = Arc<dyn Fn(f64, String) + Send + Sync>;
+/// Progress callback for a call that waits on an open, waits for an
+/// admission permit or runs: the message; the edge numbers them.
+pub(crate) type ProgressFn = Arc<dyn Fn(String) + Send + Sync>;
 
 enum Source {
     Managed { path: PathBuf, create: bool },
@@ -277,19 +277,14 @@ impl Drop for Permit {
 struct QueueTicket<'a>(&'a Load);
 
 impl<'a> QueueTicket<'a> {
-    /// Join the line. When no permit is free the line is bounded by
-    /// `limit`; the test and the increment are one atomic step, so
-    /// concurrent arrivals cannot overfill it.
-    fn join(load: &'a Load, no_free_permit: bool, limit: usize) -> Option<Self> {
-        if no_free_permit {
-            load.queued
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |queued| {
-                    (queued < limit).then_some(queued + 1)
-                })
-                .ok()?;
-        } else {
-            load.queued.fetch_add(1, Ordering::SeqCst);
-        }
+    /// Join the line, bounded by `limit`; the test and the increment are
+    /// one atomic step, so concurrent arrivals cannot overfill it.
+    fn join(load: &'a Load, limit: usize) -> Option<Self> {
+        load.queued
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |queued| {
+                (queued < limit).then_some(queued + 1)
+            })
+            .ok()?;
         Some(Self(load))
     }
 }
@@ -377,6 +372,11 @@ const DONE: u8 = 1;
 const ABANDONED: u8 = 2;
 
 impl StoreGuard {
+    /// When the call got its admission permit.
+    pub(crate) fn admitted_at(&self) -> Instant {
+        self.started
+    }
+
     /// A handle that marks this call abandoned after the guard has moved
     /// into the blocking closure.
     pub(crate) fn abandoner(&self) -> Abandoner {
@@ -439,9 +439,9 @@ pub(crate) struct Registry {
     me: Weak<Registry>,
 }
 
-/// How long shutdown waits beyond the call deadline for stores to drain: an
-/// abandoned call cannot outlive its deadline by more than this unless it
-/// is stuck, and a stuck call must not hold the process open.
+/// How long shutdown waits beyond the call deadline for stores to drain. A
+/// started call may run longer (up to the run limit), and a stuck one
+/// forever; neither may hold the process open.
 const SHUTDOWN_MARGIN: Duration = Duration::from_secs(5);
 
 impl Registry {
@@ -603,7 +603,6 @@ impl Registry {
         let wait_until = call.wait_until;
         self.ensure_slot(name)?;
         let mut waited_attempt: Option<u64> = None;
-        let mut ticks = 0_u32;
         loop {
             let next = {
                 let mut inner = self.lock();
@@ -647,7 +646,7 @@ impl Registry {
             };
             let (mut changed, phase) = match next {
                 Next::Admit { load, epoch, changed } => {
-                    match self.admit(name, load, epoch, changed, call, &mut ticks).await? {
+                    match self.admit(name, load, epoch, changed, call).await? {
                         Some(guard) => return Ok(guard),
                         None => continue,
                     }
@@ -660,8 +659,7 @@ impl Registry {
                 return Err(ToolError::not_ready(name, phase.as_str()));
             }
             if let Some(progress) = call.progress {
-                progress(f64::from(ticks), format!("store {}", phase.as_str()));
-                ticks += 1;
+                progress(format!("store {}", phase.as_str()));
             }
             let step = (deadline - now).min(Duration::from_secs(1));
             let _ = tokio::time::timeout(step, changed.changed()).await;
@@ -678,7 +676,6 @@ impl Registry {
         epoch: u64,
         mut changed: watch::Receiver<u64>,
         call: &Admission<'_>,
-        ticks: &mut u32,
     ) -> Result<Option<StoreGuard>, ToolError> {
         let refuse = |reason| {
             let busy = load.busy(reason);
@@ -705,11 +702,12 @@ impl Registry {
                 .clone()
                 .try_acquire_owned()
                 .map_err(|_| refuse(BusyReason::Deadline))?,
+            // A free permit is taken at once, without the start check.
+            Some(_) if let Ok(permit) = load.permits.clone().try_acquire_owned() => permit,
             Some(deadline) => {
+                must_wait = true;
                 // Step 2: the only test on arrival.
-                must_wait = load.permits.available_permits() == 0;
-                let Some(ticket) =
-                    QueueTicket::join(&load, must_wait, self.config.queue_limit as usize)
+                let Some(ticket) = QueueTicket::join(&load, self.config.queue_limit as usize)
                 else {
                     return Err(refuse(BusyReason::QueueFull));
                 };
@@ -759,8 +757,7 @@ impl Registry {
                                         load.queued.load(Ordering::SeqCst),
                                         load.in_flight()
                                     );
-                                    progress(f64::from(*ticks), message);
-                                    *ticks += 1;
+                                    progress(message);
                                 }
                             }
                         }
@@ -787,9 +784,12 @@ impl Registry {
         if slot.phase != Phase::Ready || slot.epoch != epoch {
             return Ok(None);
         }
-        // Step 4: need is re-evaluated, since calls that completed during the
-        // wait may have changed it.
-        if let Some(deadline) = call.wait_until {
+        // Step 4, for calls that waited: need is re-evaluated, since calls
+        // that completed during the wait may have changed it. A call that
+        // took a free permit has spent nothing waiting, and checking it would
+        // let a kind whose p90 reached the deadline refuse every call and
+        // never record a new sample.
+        if let (true, Some(deadline)) = (must_wait, call.wait_until) {
             if deadline.saturating_duration_since(Instant::now()) < load.need(call.kind) {
                 drop(permit);
                 return Err(refuse(BusyReason::Deadline));

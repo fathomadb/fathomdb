@@ -352,3 +352,37 @@ fn t10_markers_avoid_code_points_the_body_contains() {
     assert_eq!(start, 0);
     assert_eq!(snippet.text, format!("{} …", &all[..end as usize]));
 }
+
+// T-15: an edge body matched through `search_index_edges` anchors on the
+// match, with spans from that table.
+#[test]
+fn t15_edge_hits_take_spans_from_the_edge_index() {
+    let _guard = lock();
+    let s = store(&["source node", "target node"]);
+    let body = long_body(3000, "zanzibar", 4096);
+    s.engine()
+        .write(&[PreparedWrite::Edge {
+            kind: "mentions".to_string(),
+            from: "n0".to_string(),
+            to: "n1".to_string(),
+            source_id: SourceId::new("test:snippets").expect("source id"),
+            logical_id: Some("edge-1".to_string()),
+            body: Some(body.clone()),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        }])
+        .expect("edge");
+    for (path, result) in [
+        ("text", text(s.engine(), "zanzibar", 10, Some(&SnippetOptions::default()))),
+        ("hybrid", hybrid(s.engine(), "zanzibar", Some(&SnippetOptions::default()))),
+    ] {
+        let index = result.results.iter().position(|hit| hit.body == body).expect("edge hit");
+        assert_eq!(result.results[index].branch, fathomdb_engine::SoftFallbackBranch::TextEdge);
+        let snippet = &result.snippets.as_ref().expect("sidecar")[index];
+        assert_eq!(snippet.anchor, SnippetAnchor::Match, "{path}: {snippet:?}");
+        assert_eq!(snippet.spans, vec![(3000, 3008)], "{path}");
+    }
+}

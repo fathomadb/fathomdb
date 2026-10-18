@@ -89,8 +89,10 @@ def ttd_ratio(ix, band, tail, disp, a, b, exclude=None):
 
 
 def lockups(ix, band, tail, disp, arm):
-    """Configurations that refused more than 1 % of calls for time while a permit was free."""
-    return {k for k, r in ix[(band, tail, disp, arm)].items() if f(r["rf_with_permit"]) > 0.01}
+    """Configurations that refused more than 1 % of calls at arrival with a permit free (rf_arrival_free; older
+    rows without it fall back to rf_with_permit, which also counts grant-time sheds)."""
+    rows = ix[(band, tail, disp, arm)]
+    return {k for k, r in rows.items() if f(r.get("rf_arrival_free") or r["rf_with_permit"]) > 0.01}
 
 
 def r1(ix, check="p90", exclude=None):

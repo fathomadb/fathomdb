@@ -20,3 +20,23 @@ fn stdin_closed_before_initialize_exits_zero() {
     assert_eq!(status.code(), Some(0), "stdin closed with no bytes written; stderr: {stderr}");
     assert!(lines.is_empty(), "nothing on stdout: {lines:?}");
 }
+
+#[test]
+fn stdin_closed_after_a_full_session_exits_zero() {
+    let fixture = Fixture::new();
+    let mut server = Spawned::start(&config(&fixture));
+    server.initialize();
+    let found = server.call("search", json!({"query": "alpha"}));
+    assert_ne!(found["isError"], true, "{found}");
+    let (status, _, stderr) = server.finish();
+    assert_eq!(status.code(), Some(0), "stderr: {stderr}");
+}
+
+#[test]
+fn a_notification_before_initialize_exits_one() {
+    let fixture = Fixture::new();
+    let mut server = Spawned::start(&config(&fixture));
+    server.send_line(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#);
+    let (status, _, stderr) = server.finish();
+    assert_eq!(status.code(), Some(1), "a handshake protocol error; stderr: {stderr}");
+}

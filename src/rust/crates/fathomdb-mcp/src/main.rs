@@ -1,8 +1,9 @@
 //! `fathomdb-mcp` binary: `fathomdb-mcp --config <path.json> [--check-config]`.
 //!
 //! stdout carries MCP JSON-RPC and nothing else; every diagnostic goes to
-//! stderr (MR-002). Exit codes: 0 normal shutdown, 2 invalid configuration or
-//! arguments, 1 any other startup failure.
+//! stderr (MR-002). Exit codes: 0 normal shutdown (stdin closed, before or
+//! after `initialize`), 2 invalid configuration or arguments, 1 any other
+//! startup or handshake failure.
 
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -10,6 +11,7 @@ use std::process::ExitCode;
 
 use fathomdb_mcp::config::Config;
 use fathomdb_mcp::Adapter;
+use rmcp::service::ServerInitializeError;
 use rmcp::ServiceExt;
 
 const USAGE: &str = "usage: fathomdb-mcp --config <path.json> [--check-config]";
@@ -100,6 +102,12 @@ fn serve(config: Config) -> ExitCode {
         };
         let running = match adapter.connection().serve(rmcp::transport::stdio()).await {
             Ok(running) => running,
+            // stdin closing before the handshake completes is a normal
+            // shutdown; any other handshake failure is not.
+            Err(ServerInitializeError::ConnectionClosed(_)) => {
+                adapter.shutdown().await;
+                return ExitCode::SUCCESS;
+            }
             Err(error) => {
                 tracing::error!(%error, "MCP initialization failed");
                 adapter.shutdown().await;

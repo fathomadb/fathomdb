@@ -26,8 +26,12 @@ fathomdb-mcp --config <path.json> --check-config
   diagnostics go to stderr (MR-002).
 - `--check-config` validates the file, prints a JSON report to stderr, and
   exits 0 (valid) or 2 (invalid) without opening any store.
-- Exit codes: 0 normal shutdown (stdin closed); 2 invalid configuration or
-  arguments; 1 any other startup failure. Store open failures never exit the
+- Exit codes: 0 normal shutdown: stdin closed, before or after `initialize`;
+  2 invalid configuration or arguments; 1 any other startup failure,
+  including a handshake protocol error (a first message that is not an
+  `initialize` request, for example a notification) and stdout closed during
+  the handshake. Unparsable input lines are ignored by the transport, so
+  garbage followed by stdin close exits 0. Store open failures never exit the
   process (MR-003.3).
 
 ## 2. Configuration (JSON; ADR-0.6.0-operator-config-json-only)

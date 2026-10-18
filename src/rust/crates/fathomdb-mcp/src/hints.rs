@@ -5,12 +5,19 @@
 
 use fathomdb_sdk::{search_hints, HintArm, HintCause, HintMode, SearchFacts};
 
-use crate::output::{Degradation, Hint, HintReason, ModeWord};
+use crate::output::{Degradation, Hint, HintAction, HintReason, Hit, ModeWord, PerHitOut};
 use crate::shape;
 
-/// The engine-subset facts of a search page, as the adapter knows them.
+/// Refs listed in one cut-ref hint (`MAX_FETCH_REFS`), so the hint is one
+/// executable `fetch` call.
+pub(crate) const MAX_HINT_REFS: usize = 50;
+
+/// One search page hit: `(hit, write cursor, per-hit explanation)`.
+pub(crate) type PageHit = (Hit, u64, Option<PerHitOut>);
+
+/// The facts of a search page that its hints are planned from.
 pub(crate) struct SearchPageFacts<'a> {
-    pub(crate) page_hits: usize,
+    pub(crate) page: &'a [PageHit],
     pub(crate) page_limit: usize,
     pub(crate) hybrid: bool,
     /// Canonical order; only the first entry is named.
@@ -18,11 +25,14 @@ pub(crate) struct SearchPageFacts<'a> {
     pub(crate) hybrid_available: bool,
 }
 
-/// The hints of one search response, planned before its budget loop.
+/// The hints of one search response, planned once before its budget loop;
+/// each iteration emits from the plan's prefix below `kept`.
 #[derive(Default)]
 pub(crate) struct SearchPlan {
     /// Engine-subset hints, in emission order.
     engine: Vec<fathomdb_sdk::Hint>,
+    /// Page indices of the hits whose snippet was cut, in rank order.
+    snippet_cut: Vec<usize>,
 }
 
 impl SearchPlan {
@@ -35,17 +45,33 @@ impl SearchPlan {
         let first = facts.degradation.first().and_then(engine_degradation);
         let degradations = first.as_slice();
         let mode = if facts.hybrid { HintMode::Hybrid } else { HintMode::Text };
-        let engine_facts = SearchFacts::new(facts.page_hits, facts.page_limit, mode)
+        let engine_facts = SearchFacts::new(facts.page.len(), facts.page_limit, mode)
             .with_degradations(degradations)
             .with_hybrid_available(facts.hybrid_available);
         let mut engine = Vec::new();
         search_hints(&engine_facts, &mut engine);
-        Self { engine }
+        let cut_count = facts.page.iter().filter(|(hit, _, _)| hit.snippet_cut).count();
+        let mut snippet_cut = Vec::new();
+        if cut_count > 0 {
+            snippet_cut.reserve_exact(cut_count);
+            snippet_cut.extend(
+                facts
+                    .page
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (hit, _, _))| hit.snippet_cut)
+                    .map(|(index, _)| index),
+            );
+        }
+        Self { engine, snippet_cut }
     }
 
-    /// The hints of the response that keeps the first `kept` page hits.
-    pub(crate) fn emit(&self) -> Vec<Hint> {
-        let mut hints = Vec::new();
+    /// The hints of the response that keeps the first `kept` hits of `page`.
+    pub(crate) fn emit(&self, page: &[PageHit], kept: usize) -> Vec<Hint> {
+        if self.engine.is_empty() && self.snippet_cut.is_empty() {
+            return Vec::new();
+        }
+        let mut hints = Vec::with_capacity(4);
         for hint in &self.engine {
             if matches!(hint.reason, fathomdb_sdk::HintReason::MoreResults) {
                 continue;
@@ -54,8 +80,36 @@ impl SearchPlan {
                 hints.push(hint);
             }
         }
+        let kept_cut = self.snippet_cut.iter().take_while(|index| **index < kept);
+        if let Some(hint) = fetch_hint(
+            HintReason::SnippetCut,
+            kept_cut.map(|index| page[*index].0.reference.as_str()),
+        ) {
+            hints.push(hint);
+        }
         hints
     }
+}
+
+/// A `fetch` hint listing `refs` in order, up to [`MAX_HINT_REFS`], with
+/// the rest counted; `None` when nothing is listed.
+fn fetch_hint<'a>(reason: HintReason, refs: impl Iterator<Item = &'a str>) -> Option<Hint> {
+    let mut listed = Vec::new();
+    let mut omitted = 0_u32;
+    for reference in refs {
+        if listed.len() < MAX_HINT_REFS {
+            listed.push(reference.to_string());
+        } else {
+            omitted += 1;
+        }
+    }
+    if listed.is_empty() {
+        return None;
+    }
+    let mut hint = Hint::new(HintAction::Fetch, reason);
+    hint.refs = Some(listed);
+    hint.refs_omitted = (omitted > 0).then_some(omitted);
+    Some(hint)
 }
 
 fn engine_degradation(entry: &Degradation) -> Option<(HintArm, HintCause)> {
@@ -104,6 +158,7 @@ fn template(hint: &Hint) -> &'static str {
             "try this mode, or rephrase with synonyms, names or related events"
         }
         HintReason::NoResults => "rephrase with synonyms, names or related events",
+        HintReason::SnippetCut => "snippets are prefixes; fetch to read the full record",
         HintReason::MoreResults => "the page reached its limit; pass the continuation for more",
     }
 }

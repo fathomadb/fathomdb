@@ -376,7 +376,7 @@ pub fn plan_search_hints(page: &PreparedSearchPage) -> PlannedHints {
         Some(enabled) => crate::hints::SearchPlan::new(
             enabled,
             &crate::hints::SearchPageFacts {
-                page_hits: page.page.len(),
+                page: &page.page,
                 page_limit: page.page_limit,
                 hybrid: page.hybrid,
                 degradation: &page.degradation,

@@ -764,7 +764,7 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
             continuation: continuation.clone(),
             continuation_exact: hosted.then_some(false),
             explanation,
-            hints: if with_hints { hints.emit() } else { Vec::new() },
+            hints: if with_hints { hints.emit(page, kept) } else { Vec::new() },
         };
         let text = render_search(&output);
         let (rendered, whole) = finish(&output, text, max_tokens, cut);
@@ -948,7 +948,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let plan = SearchPlan::new(
         hints::enabled(args.hints, ctx.shared.config.hints),
         &SearchPageFacts {
-            page_hits: page.len(),
+            page: &page,
             page_limit,
             hybrid: mode == SearchMode::Hybrid,
             degradation: &degradation,

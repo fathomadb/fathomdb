@@ -237,6 +237,7 @@ pub enum ModeWord {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HintAction {
+    Fetch,
     Search,
     None,
 }
@@ -248,6 +249,7 @@ pub enum HintAction {
 pub enum HintReason {
     Degraded,
     NoResults,
+    SnippetCut,
     MoreResults,
 }
 

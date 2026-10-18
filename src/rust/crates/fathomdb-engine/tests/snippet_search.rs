@@ -234,3 +234,18 @@ fn t1_term_far_into_a_long_record_anchors_the_snippet() {
         assert_eq!(snippet.spans, vec![(3000, 3008)], "{path}");
     }
 }
+
+// T-2: porter parity. The query `running` matches `runs` far into the record
+// (same stem); the window covers `runs`.
+#[test]
+fn t2_porter_stem_match_is_the_window() {
+    let _guard = lock();
+    // `long_body` places the term after whole filler words: 2502 = 417 × 6.
+    let body = long_body(2502, "runs", 4096);
+    let s = store(&[&body]);
+    let result = text(s.engine(), "running", 10, Some(&SnippetOptions::default()));
+    let snippet = snippet_of(&result, &body);
+    assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
+    assert!(snippet.text.contains("runs"), "{snippet:?}");
+    assert_eq!(snippet.spans, vec![(2502, 2506)]);
+}

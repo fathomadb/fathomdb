@@ -437,3 +437,49 @@ async fn an_arrival_is_queued_whatever_its_predicted_wait() {
     let _ = running.await.unwrap();
     harness.shutdown().await;
 }
+
+fn expand_a() -> Value {
+    json!({"store": "a", "refs": ["l:note:a"]})
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cold_tool_uses_the_50_ms_floor() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    // Fewer than 8 completed calls: however slow, the kind is still cold.
+    seams.seed_service_times("a", "fetch", &millis(&[500; 7]));
+    seams.seed_service_times("a", "expand", &millis(&[500; 7]));
+
+    // 60 ms left when the permit frees: the call starts.
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let waiter = spawn_call(&harness, "fetch", fetch_a());
+    tokio::time::sleep_until((started + Duration::from_millis(940)).into()).await;
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    let waiter = waiter.await.unwrap();
+    assert_ne!(waiter.is_error, Some(true), "60 ms left: starts: {:?}", waiter.structured_content);
+
+    // 40 ms left when the permit frees: the call was refused at 50 ms left.
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let waiter = spawn_call(&harness, "expand", expand_a());
+    tokio::time::sleep_until((started + Duration::from_millis(960)).into()).await;
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    let error = error_of(&waiter.await.unwrap());
+    assert_eq!(error["busy"]["reason"], "deadline", "40 ms left: refused: {error}");
+    harness.shutdown().await;
+}

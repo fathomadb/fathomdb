@@ -372,6 +372,7 @@ pub fn shape_search_page(page: &PreparedSearchPage) -> ShapedSearchPage {
         page_limit: page.page_limit,
         trace: None,
         hosted: false,
+        hints: &crate::hints::SearchPlan::default(),
     });
     ShapedSearchPage {
         next_offset: shaped.continuation.as_ref().map(|_| page.offset + shaped.kept),

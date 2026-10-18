@@ -233,6 +233,157 @@ pub enum ModeWord {
     Hybrid,
 }
 
+/// What a hint suggests doing.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HintAction {
+    Search,
+    None,
+}
+
+/// Why a hint was emitted (interface §3 vocabulary). Variants are in emission
+/// order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HintReason {
+    Degraded,
+    NoResults,
+    MoreResults,
+}
+
+/// The arm a `degraded` hint names.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HintArm {
+    Vector,
+    Text,
+    TextEdge,
+    GraphArm,
+    Graph,
+}
+
+/// Why the arm degraded: the adapter's degradation reasons and the graph
+/// expansion codes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HintCause {
+    SoftFallback,
+    DenseDisabled,
+    EmbedderUnavailable,
+    EmbedderOverloaded,
+    QuerySeedTextFallback,
+    ProjectionLegacyUnverified,
+    ProjectionProcessing,
+    ProjectionBlocked,
+    ProjectionDeferred,
+    ProjectionDegraded,
+}
+
+/// One suggested next call, authored by FathomDB (ADR-0.8.29). Every string
+/// is a closed-enum word, an adapter handle, an operator store name or a ref
+/// from the same response; never record content. Which optional fields are
+/// present depends on `reason` (interface §3). Clients ignore a hint whose
+/// `action` or `reason` they do not know.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub struct Hint {
+    pub action: HintAction,
+    pub reason: HintReason,
+    /// Refs to pass to `fetch`, in result order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refs: Option<Vec<String>>,
+    /// Cut refs left out: beyond 50, or longer than 128 bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refs_omitted: Option<u32>,
+    /// Suggested search mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<ModeWord>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arm: Option<HintArm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cause: Option<HintCause>,
+    /// The continuation to pass to `search`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub continuation: Option<String>,
+    /// The `max_tokens` to pass with the suggested call.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u64>,
+    /// The store the suggested call addresses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store: Option<String>,
+}
+
+impl Hint {
+    pub(crate) fn new(action: HintAction, reason: HintReason) -> Self {
+        Self {
+            action,
+            reason,
+            refs: None,
+            refs_omitted: None,
+            mode: None,
+            arm: None,
+            cause: None,
+            continuation: None,
+            max_tokens: None,
+            store: None,
+        }
+    }
+}
+
+/// The engine subset's words map one to one; an engine word this adapter does
+/// not know yet is refused, so the hint is dropped (clients ignore unknown
+/// words, and so does the adapter).
+impl TryFrom<fathomdb_sdk::Hint> for Hint {
+    type Error = fathomdb_sdk::Hint;
+
+    fn try_from(hint: fathomdb_sdk::Hint) -> Result<Self, Self::Error> {
+        use fathomdb_sdk::HintReason as W;
+        use fathomdb_sdk::{HintAction as A, HintArm as R, HintCause as C, HintMode as M};
+        let action = match hint.action {
+            A::Search => HintAction::Search,
+            A::None => HintAction::None,
+            _ => return Err(hint),
+        };
+        let reason = match hint.reason {
+            W::NoResults => HintReason::NoResults,
+            W::Degraded => HintReason::Degraded,
+            W::MoreResults => HintReason::MoreResults,
+            _ => return Err(hint),
+        };
+        let mode = match hint.mode {
+            None => None,
+            Some(M::Text) => Some(ModeWord::Text),
+            Some(M::Hybrid) => Some(ModeWord::Hybrid),
+            Some(_) => return Err(hint),
+        };
+        let arm = match hint.arm {
+            None => None,
+            Some(R::Vector) => Some(HintArm::Vector),
+            Some(R::Text) => Some(HintArm::Text),
+            Some(R::TextEdge) => Some(HintArm::TextEdge),
+            Some(R::GraphArm) => Some(HintArm::GraphArm),
+            Some(R::Graph) => Some(HintArm::Graph),
+            Some(_) => return Err(hint),
+        };
+        let cause = match hint.cause {
+            None => None,
+            Some(C::SoftFallback) => Some(HintCause::SoftFallback),
+            Some(C::DenseDisabled) => Some(HintCause::DenseDisabled),
+            Some(C::EmbedderUnavailable) => Some(HintCause::EmbedderUnavailable),
+            Some(C::EmbedderOverloaded) => Some(HintCause::EmbedderOverloaded),
+            Some(C::QuerySeedTextFallback) => Some(HintCause::QuerySeedTextFallback),
+            Some(C::ProjectionLegacyUnverified) => Some(HintCause::ProjectionLegacyUnverified),
+            Some(C::ProjectionProcessing) => Some(HintCause::ProjectionProcessing),
+            Some(C::ProjectionBlocked) => Some(HintCause::ProjectionBlocked),
+            Some(C::ProjectionDeferred) => Some(HintCause::ProjectionDeferred),
+            Some(C::ProjectionDegraded) => Some(HintCause::ProjectionDegraded),
+            Some(_) => return Err(hint),
+        };
+        // `more_results{limit}` becomes `more_results{continuation}` in the
+        // adapter, which attaches its own handle; the limit is not carried.
+        Ok(Self { mode, arm, cause, ..Self::new(action, reason) })
+    }
+}
+
 /// `search` result.
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct SearchOutput {
@@ -253,6 +404,9 @@ pub struct SearchOutput {
     pub continuation_exact: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub explanation: Option<ExplanationOut>,
+    /// Suggested next calls; absent when there are none or hints are off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hints: Vec<Hint>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]

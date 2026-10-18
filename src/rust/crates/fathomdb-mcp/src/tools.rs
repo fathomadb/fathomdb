@@ -20,6 +20,7 @@ use serde_json::{Map, Value};
 use crate::bridge::{self, Answered};
 use crate::config::{Config, SearchMode};
 use crate::error::ToolError;
+use crate::hints::{self, SearchPageFacts, SearchPlan};
 use crate::hooks::Hooks;
 use crate::output::{
     Budget, Degradation, DenseDisabled, EmbeddingReadinessOut, Envelope, ExpandOutput,
@@ -149,7 +150,6 @@ pub struct SearchArgs {
     pub continuation: Option<String>,
     /// Include the `hints` sidecar of suggested next calls; defaults to the
     /// operator's `hints` setting.
-    #[allow(dead_code)]
     pub hints: Option<bool>,
 }
 
@@ -633,6 +633,7 @@ fn render_search(output: &SearchOutput) -> String {
         output.continuation.as_deref().unwrap_or("none"),
         shape::render_degradation(&output.envelope.degradation),
     );
+    hints::render(&output.hints, &mut text);
     let per_hit = match &output.explanation {
         Some(ExplanationOut::Detail { per_hit, .. }) => Some(per_hit),
         _ => None,
@@ -682,6 +683,7 @@ pub(crate) struct SearchShape<'a> {
     pub(crate) page_limit: usize,
     pub(crate) trace: Option<&'a TraceOut>,
     pub(crate) hosted: bool,
+    pub(crate) hints: &'a SearchPlan,
 }
 
 /// A shaped search page: the response, its handles, how many hits it kept,
@@ -710,11 +712,13 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
         page_limit,
         trace,
         hosted,
+        hints,
     } = *input;
     let mode = canonical.search_mode();
     let page_hits = page.len();
     let mut kept = page.len();
     let mut iterations = 0;
+    let mut with_hints = true;
     loop {
         iterations += 1;
         let cut = kept < page.len();
@@ -760,10 +764,18 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
             continuation: continuation.clone(),
             continuation_exact: hosted.then_some(false),
             explanation,
+            hints: if with_hints { hints.emit() } else { Vec::new() },
         };
         let text = render_search(&output);
         let (rendered, whole) = finish(&output, text, max_tokens, cut);
-        if whole <= u64::from(max_tokens) || kept == 0 {
+        let fits = whole <= u64::from(max_tokens);
+        if kept == 0 && !fits && with_hints && !output.hints.is_empty() {
+            // Hints are advisory: an empty page that still does not fit
+            // drops them rather than exceed max_tokens.
+            with_hints = false;
+            continue;
+        }
+        if fits || kept == 0 {
             return Shaped { rendered, response_id, continuation, kept, iterations };
         }
         kept -= 1;
@@ -928,6 +940,21 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         .collect();
     let canonical_json = serde_json::to_string(&canonical).expect("serializes");
     let trace = run.explanation.as_ref().map(trace_out);
+    // § 3.3: a text search may suggest hybrid only when the store has a
+    // usable embedder the configuration permits and the dense arm is on.
+    let hybrid_available = answered.info.embedder_usable
+        && (answered.info.hosted || ctx.shared.config.use_default_embedder)
+        && !run.dense_disabled;
+    let plan = SearchPlan::new(
+        hints::enabled(args.hints, ctx.shared.config.hints),
+        &SearchPageFacts {
+            page_hits: page.len(),
+            page_limit,
+            hybrid: mode == SearchMode::Hybrid,
+            degradation: &degradation,
+            hybrid_available,
+        },
+    );
     let shaped = shape_search_page(&SearchShape {
         store: &store,
         epoch: answered.epoch,
@@ -941,6 +968,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         page_limit,
         trace: trace.as_ref(),
         hosted: answered.info.hosted,
+        hints: &plan,
     });
     let Shaped { rendered, response_id, continuation, kept, .. } = shaped;
 

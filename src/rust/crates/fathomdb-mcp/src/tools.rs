@@ -9,8 +9,8 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use fathomdb_sdk::{
     graph, read, Explanation, GraphExpandRequestV1, GraphExpansionDegradationCodeV1,
     GraphReadContextV1, GraphSeedV1, IdSpace, IdSpaceKind, PerHitExplain, ReadContextV1, ReadView,
-    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SoftFallbackBranch, TextSearchOptions,
-    TraversalDirection,
+    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SearchResult, SoftFallbackBranch,
+    TextSearchOptions, TraversalDirection,
 };
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -487,6 +487,47 @@ struct SearchRun {
     dense_disabled: bool,
 }
 
+impl SearchRun {
+    fn from_result(result: SearchResult, dense_disabled: bool) -> Self {
+        Self {
+            hits: result.results,
+            explanation: result.explanation,
+            soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
+            dense_disabled,
+        }
+    }
+}
+
+/// The `degradation` list of a search answer, before canonical ordering.
+fn search_degradations(
+    mode: SearchMode,
+    run: &SearchRun,
+    embedder_usable: bool,
+) -> Vec<Degradation> {
+    let mut degradation = Vec::new();
+    if mode == SearchMode::Hybrid {
+        if let Some(branch) = run.soft_fallback {
+            degradation.push(Degradation {
+                arm: branch_str(branch).to_string(),
+                reason: "soft_fallback".to_string(),
+            });
+        }
+        if run.dense_disabled {
+            degradation.push(Degradation {
+                arm: "vector".to_string(),
+                reason: "dense_disabled".to_string(),
+            });
+        }
+        if !embedder_usable {
+            degradation.push(Degradation {
+                arm: "vector".to_string(),
+                reason: "embedder_unavailable".to_string(),
+            });
+        }
+    }
+    degradation
+}
+
 fn search_filter(canonical: &CanonicalSearch) -> Option<SearchFilter> {
     let any = canonical.kind.is_some()
         || canonical.source_type.is_some()
@@ -696,38 +737,16 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     },
                 )?,
             };
-            Ok(SearchRun {
-                hits: result.results,
-                explanation: result.explanation,
-                soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
-                dense_disabled: engine.dense_disabled(),
-            })
+            Ok(SearchRun::from_result(result, engine.dense_disabled()))
         },
     )
     .await?;
 
-    let mut degradation = Vec::new();
-    if mode == SearchMode::Hybrid {
-        if let Some(branch) = run.soft_fallback {
-            degradation.push(Degradation {
-                arm: branch_str(branch).to_string(),
-                reason: "soft_fallback".to_string(),
-            });
-        }
-        if run.dense_disabled {
-            degradation.push(Degradation {
-                arm: "vector".to_string(),
-                reason: "dense_disabled".to_string(),
-            });
-        }
-        if !answered.info.embedder_usable {
-            degradation.push(Degradation {
-                arm: "vector".to_string(),
-                reason: "embedder_unavailable".to_string(),
-            });
-        }
-    }
-    let degradation = shape::canonical_degradation(degradation);
+    let degradation = shape::canonical_degradation(search_degradations(
+        mode,
+        &run,
+        answered.info.embedder_usable,
+    ));
     let query_id = match (&run.explanation, telemetry && mode == SearchMode::Hybrid) {
         (Some(explanation), true) if explanation.correlation_id.starts_with('q') => {
             Some(explanation.correlation_id.clone())

@@ -179,6 +179,14 @@ export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
       ceScore: hit.ceScore ?? null,
     })),
     explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
+    ...(r.degradations && r.degradations.length > 0
+      ? {
+          degradations: r.degradations.map((entry) => ({
+            arm: entry.arm as SoftFallbackBranch,
+            reason: entry.reason as DegradationReason,
+          })),
+        }
+      : {}),
   };
 }
 

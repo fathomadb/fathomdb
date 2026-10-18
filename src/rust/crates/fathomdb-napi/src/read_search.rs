@@ -436,6 +436,15 @@ pub struct SoftFallback {
 
 /// One requested search arm that did not run (`arm`, spelled like
 /// `SoftFallback.branch`) and why (`reason`, e.g. `"embedder_overloaded"`).
+fn branch_word(branch: SoftFallbackBranch) -> &'static str {
+    match branch {
+        SoftFallbackBranch::Vector => "vector",
+        SoftFallbackBranch::Text => "text",
+        SoftFallbackBranch::TextEdge => "text_edge",
+        SoftFallbackBranch::GraphArm => "graph_arm",
+    }
+}
+
 #[napi(object)]
 pub struct ArmDegradation {
     pub arm: String,
@@ -709,17 +718,21 @@ impl SearchResult {
     pub(crate) fn from_rust(r: RustSearchResult) -> Self {
         Self {
             projection_cursor: r.projection_cursor as i64,
-            soft_fallback: r.soft_fallback.as_ref().map(|s| SoftFallback {
-                branch: match s.branch {
-                    SoftFallbackBranch::Vector => "vector".to_string(),
-                    SoftFallbackBranch::Text => "text".to_string(),
-                    SoftFallbackBranch::TextEdge => "text_edge".to_string(),
-                    SoftFallbackBranch::GraphArm => "graph_arm".to_string(),
-                },
-            }),
+            soft_fallback: r
+                .soft_fallback
+                .as_ref()
+                .map(|s| SoftFallback { branch: branch_word(s.branch).to_string() }),
             results: r.results.iter().map(SearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(Explanation::from_rust),
-            degradations: None,
+            degradations: (!r.degradations.is_empty()).then(|| {
+                r.degradations
+                    .iter()
+                    .map(|entry| ArmDegradation {
+                        arm: branch_word(entry.arm).to_string(),
+                        reason: entry.reason.as_str().to_string(),
+                    })
+                    .collect()
+            }),
         }
     }
 }

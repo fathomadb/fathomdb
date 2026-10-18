@@ -159,6 +159,23 @@ impl Load {
     }
 }
 
+/// One call counted in `queued`. Dropping it, on every exit from the wait
+/// (permit, timeout, cancel, phase change, panic), uncounts it.
+struct QueueTicket<'a>(&'a Load);
+
+impl<'a> QueueTicket<'a> {
+    fn new(load: &'a Load) -> Self {
+        load.queued.fetch_add(1, Ordering::SeqCst);
+        Self(load)
+    }
+}
+
+impl Drop for QueueTicket<'_> {
+    fn drop(&mut self) {
+        self.0.queued.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
 /// When a store last admitted or finished a call. Shared with its guards,
 /// which stamp it on release without taking the registry mutex.
 #[derive(Clone)]
@@ -496,7 +513,7 @@ impl Registry {
                 {
                     return Err(refuse(BusyReason::QueueFull));
                 }
-                load.queued.fetch_add(1, Ordering::SeqCst);
+                let ticket = QueueTicket::new(&load);
                 self.hooks.after_queued(name);
                 let waited = async {
                     // Pinned once: dropping the acquire future would lose
@@ -535,7 +552,7 @@ impl Registry {
                     }
                 }
                 .await;
-                load.queued.fetch_sub(1, Ordering::SeqCst);
+                drop(ticket);
                 match waited {
                     Waited::Permit(permit) => permit,
                     Waited::Expired => return Err(refuse(BusyReason::Deadline)),

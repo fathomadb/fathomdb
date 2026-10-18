@@ -262,7 +262,7 @@ impl Config {
     /// speaker, and never exceeds the selector's `max_bytes / 2`.
     #[must_use]
     pub fn snippet_head_bytes(&self) -> u32 {
-        48.min(self.snippet_bytes / 2)
+        snippet_head_bytes(self.snippet_bytes)
     }
 
     /// Check the value rules of interface §2 on an already-built config
@@ -502,4 +502,11 @@ fn parse_roots(value: Option<&Value>, base_dir: &Path) -> Result<Vec<Root>, Conf
         roots.push(Root { path, suffix });
     }
     Ok(roots)
+}
+
+/// The record head for a snippet cap of `snippet_bytes`: `min(48,
+/// snippet_bytes / 2)` (see [`Config::snippet_head_bytes`]).
+#[must_use]
+pub(crate) fn snippet_head_bytes(snippet_bytes: u32) -> u32 {
+    48.min(snippet_bytes / 2)
 }

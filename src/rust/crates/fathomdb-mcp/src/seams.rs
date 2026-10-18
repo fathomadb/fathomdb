@@ -323,7 +323,7 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
                 &fathomdb_sdk::SnippetOptions {
                     max_bytes: bytes,
                     max_windows: 1,
-                    head_bytes: 48.min(bytes / 2),
+                    head_bytes: crate::config::snippet_head_bytes(bytes),
                     ..fathomdb_sdk::SnippetOptions::default()
                 },
             );

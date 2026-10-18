@@ -68,8 +68,8 @@ pub(crate) fn snippets_for_hits(
                 match_spans(tx, table, rowid, match_expression, &hit.body)?.unwrap_or_default();
             let approximate = snippet_for(&hit.body, &spans, options);
             // Rule 3: exact identity only where it can change the choice — a
-            // body over budget, more than one term, and a first window that
-            // misses some span. The extra queries ride on this hit's budget.
+            // body over budget, more than one term, and a span outside every
+            // window. The extra queries ride on this hit's budget.
             let misses_a_span = approximate
                 .spans
                 .iter()

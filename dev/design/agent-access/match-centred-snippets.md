@@ -504,9 +504,23 @@ SnippetV1` (§ 7.2). Its inputs are the body, its spans `[s, e)`, `max_bytes`,
    at least 80 bytes, and some spans have identities outside the first window,
    repeat steps 4–6 over those spans with the remaining budget. The default is
    1. A second window ships only if M2 shows a gain.
+
+   *As built (S5a):* a full-width first window would leave less than 80
+   bytes, so the split is decided up front. When identities lie outside the
+   full-width first window, that window is re-chosen at `full / max_windows`
+   bytes, but only if at least 80 bytes would remain beside it. Each later
+   window takes an equal share of what remains. If no whole span fits the
+   narrower first window, or too little budget would remain, the full-width
+   choice stands and no window is added. The result is then the same as with
+   `max_windows = 1`.
 8. **Merge.** If two windows are 16 bytes apart or less, merge them into one
    window that includes the gap, provided it fits. Otherwise drop the
    lower-scoring window.
+
+   *As built (S5a):* before a window is dropped, the merged window's end
+   snaps back to fit. It never moves before the end of either window's last
+   counted span, or before the head's end. The head ranks below every match
+   window.
 9. **Assemble.** Join the windows in body order:
    - with `" … "` between them;
    - with a leading `"… "` if the first window starts after byte 0;
@@ -580,7 +594,9 @@ a thin consumer.** The reasons:
   - `SnippetOptions { max_bytes: u32 (40..=4000), max_windows: u8 (1..=3,
     default 1), head_bytes: u32 (0..=max_bytes / 2), highlights: bool
     (default false), max_point_queries: u8 (default 20) }`.
-  - Values out of range are `InvalidArgument`.
+  - Values out of range are `InvalidArgument`. `SnippetOptions::validate()`
+    is the rejecting check, and search entry points call it. `snippet_for`
+    returns no `Result`; it clamps out-of-range values into range.
   - `max_point_queries` is the per-search snippet budget. Hits are processed
     in rank order. Once the cap is reached, the remaining long hits get the
     prefix with `anchor = Start`. A hit cap is used rather than a time cap,

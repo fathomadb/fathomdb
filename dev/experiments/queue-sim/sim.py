@@ -766,8 +766,9 @@ class Sim:
         out["refuse_rate"] = len(rf) / n
         cause = {"admission": 0, "hol": 0, "run": 0, "other": 0}
         for c in to:
-            # every component is measured inside the call's own window [arrival, deadline]
-            W = c.deadline
+            # every component is measured inside the call's own window [arrival, deadline], or under run to
+            # completion [arrival, permit + run_limit]
+            W = c.deadline if cfg.run_limit is None else c.t_adm + cfg.run_limit
             a = c.t_adm - c.t_arr
             if c.t_rq is None:
                 rq = 0.0  # interrupted (EP-09) before reaching the reader pool

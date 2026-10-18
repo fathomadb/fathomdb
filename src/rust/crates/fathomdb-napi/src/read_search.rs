@@ -434,6 +434,21 @@ pub struct SoftFallback {
     pub branch: String,
 }
 
+/// The binding form of an engine degradation list: `None` when empty.
+pub(crate) fn degradations_from_rust(
+    degradations: &[fathomdb_engine::ArmDegradation],
+) -> Option<Vec<ArmDegradation>> {
+    (!degradations.is_empty()).then(|| {
+        degradations
+            .iter()
+            .map(|entry| ArmDegradation {
+                arm: branch_word(entry.arm).to_string(),
+                reason: entry.reason.as_str().to_string(),
+            })
+            .collect()
+    })
+}
+
 fn branch_word(branch: SoftFallbackBranch) -> &'static str {
     match branch {
         SoftFallbackBranch::Vector => "vector",
@@ -724,15 +739,7 @@ impl SearchResult {
                 .map(|s| SoftFallback { branch: branch_word(s.branch).to_string() }),
             results: r.results.iter().map(SearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(Explanation::from_rust),
-            degradations: (!r.degradations.is_empty()).then(|| {
-                r.degradations
-                    .iter()
-                    .map(|entry| ArmDegradation {
-                        arm: branch_word(entry.arm).to_string(),
-                        reason: entry.reason.as_str().to_string(),
-                    })
-                    .collect()
-            }),
+            degradations: degradations_from_rust(&r.degradations),
         }
     }
 }

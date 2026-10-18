@@ -2,6 +2,7 @@ import type { NativeEngine } from "./binding.js";
 // Private search owner for the TypeScript SDK package root.
 import {
   type NativeFrozenReadContextV1,
+  type NativeArmDegradation,
   type NativeSearchExpandResult,
   type NativePerHitExplain,
   type NativeSearchResult,
@@ -180,14 +181,23 @@ export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
       ceScore: hit.ceScore ?? null,
     })),
     explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
-    ...(r.degradations && r.degradations.length > 0
-      ? {
-          degradations: r.degradations.map((entry) => ({
-            arm: entry.arm as SoftFallbackBranch,
-            reason: entry.reason as DegradationReason,
-          })),
-        }
-      : {}),
+    ...mapNativeDegradations(r.degradations),
+  };
+}
+
+/**
+ * `{ degradations }` when the native list is non-empty, else `{}`, so the key
+ * is absent when every requested arm ran.
+ */
+export function mapNativeDegradations(
+  native: NativeArmDegradation[] | null | undefined,
+): { degradations?: ArmDegradation[] } {
+  if (!native || native.length === 0) return {};
+  return {
+    degradations: native.map((entry) => ({
+      arm: entry.arm as SoftFallbackBranch,
+      reason: entry.reason as DegradationReason,
+    })),
   };
 }
 
@@ -899,5 +909,6 @@ export function mapNativeSearchExpandFrozenResult(result: NativeSearchExpandResu
     })),
     expanded: result.expanded,
     allLogicalIds: result.allLogicalIds,
+    ...mapNativeDegradations(result.degradations),
   };
 }

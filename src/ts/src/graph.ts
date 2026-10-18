@@ -19,6 +19,7 @@ import {
   FrozenReadContextV1,
   SearchExpandOptions,
   validateRankedResultLimit,
+  mapNativeDegradations,
   StructuralDependencyStateV1,
   StructuralLifecycleStateV1,
 } from "./search.js";
@@ -1039,5 +1040,6 @@ export function mapNativeGraphSearchExpandResult(r: NativeSearchExpandResult): S
       hopCount: e.hopCount,
     })),
     allLogicalIds: r.allLogicalIds,
+    ...mapNativeDegradations(r.degradations),
   };
 }

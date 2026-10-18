@@ -42,7 +42,7 @@ impl SearchExpandResult {
                 })
                 .collect(),
             all_logical_ids: r.all_logical_ids,
-            degradations: None,
+            degradations: degradations_from_rust(&r.degradations),
         }
     }
 }

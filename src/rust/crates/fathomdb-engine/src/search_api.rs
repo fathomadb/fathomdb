@@ -61,6 +61,32 @@ impl Engine {
         explain: bool,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
+        self.search_frozen_inner(
+            query,
+            frozen,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            limit,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn search_frozen_inner(
+        &self,
+        query: &str,
+        frozen: &FrozenReadContextV1,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        limit: usize,
+        snippet: Option<SnippetOptions>,
+    ) -> Result<SearchResult, EngineError> {
         self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -79,6 +105,7 @@ impl Engine {
             frozen.context.view,
             limit,
             Some(binding),
+            snippet,
         )
         .map(|(mut result, _stats, _expanded)| {
             if result.explanation.is_some() {
@@ -110,8 +137,7 @@ impl Engine {
         limit: usize,
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
-        let _ = snippet;
-        self.search_frozen(
+        self.search_frozen_inner(
             query,
             frozen,
             rerank_depth,
@@ -120,6 +146,7 @@ impl Engine {
             pool_n,
             explain,
             limit,
+            snippet.copied(),
         )
     }
 
@@ -388,6 +415,7 @@ impl Engine {
             limit,
             Some(binding),
             Some(depth),
+            None,
         )?;
         expanded.ok_or(EngineError::Storage)
     }
@@ -464,6 +492,7 @@ impl Engine {
             view,
             result_limit,
             None,
+            None,
         )
         .map(|(result, stats, _expanded)| (result, stats))
     }
@@ -481,6 +510,7 @@ impl Engine {
         view: ReadView,
         result_limit: usize,
         frozen_binding: Option<frozen_read::FrozenReadBinding>,
+        snippet: Option<SnippetOptions>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
         self.search_inner_with_frozen_binding_and_expansion(
             query,
@@ -494,6 +524,7 @@ impl Engine {
             result_limit,
             frozen_binding,
             None,
+            snippet,
         )
     }
 
@@ -511,6 +542,7 @@ impl Engine {
         result_limit: usize,
         frozen_binding: Option<frozen_read::FrozenReadBinding>,
         expand_depth: Option<u32>,
+        snippet: Option<SnippetOptions>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
         self.ensure_open()?;
         // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the SINGLE
@@ -652,7 +684,8 @@ impl Engine {
                 frozen_binding,
                 frozen_query_runtime,
                 expand_depth,
-            ),
+            )
+            .with_snippet(snippet),
             response_tx,
         );
         if self.reader_pool.dispatch(request).is_err() {
@@ -667,6 +700,7 @@ impl Engine {
             explanation,
             mut expanded,
             frozen_degradations,
+            snippets,
         ) = match search_result {
             Ok(result) => result,
             // fix-3 (codex §9 [P2]) — an undeclared `filterable` attribute is caught
@@ -722,7 +756,7 @@ impl Engine {
                 results,
                 explanation,
                 degradations,
-                snippets: None,
+                snippets,
             },
             graph_stats,
             expanded,
@@ -838,6 +872,7 @@ impl Engine {
             explain,
             *view,
             limit,
+            None,
         )
     }
 
@@ -864,8 +899,8 @@ impl Engine {
         limit: usize,
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
-        let _ = snippet;
-        self.search_reranked_view_with_limit(
+        let limit = validate_search_result_limit(limit)?;
+        self.search_reranked_with_explain(
             query,
             filter,
             rerank_depth,
@@ -873,8 +908,9 @@ impl Engine {
             alpha,
             pool_n,
             explain,
-            view,
+            *view,
             limit,
+            snippet.copied(),
         )
     }
 
@@ -1011,6 +1047,7 @@ impl Engine {
             false,
             ReadView::default(),
             limit,
+            None,
         )
     }
 
@@ -1066,6 +1103,7 @@ impl Engine {
             true,
             ReadView::default(),
             limit,
+            None,
         )
     }
 
@@ -1124,66 +1162,7 @@ impl Engine {
         view: &ReadView,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
-        let limit = validate_search_result_limit(limit)?;
-        self.ensure_open()?;
-        view.reject_existence_relaxation_on_search()?;
-        if query.trim().is_empty() {
-            return Err(EngineError::WriteValidation);
-        }
-        let compiled = compile_text_query(query);
-        let candidate_limit =
-            self.projection_runtime.shared.search_limit_override.load(Ordering::SeqCst).max(limit);
-        let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
-        // This explicit marker distinguishes direct text-only search from a hybrid
-        // request whose embedder yields no vector. Only the direct path gets the
-        // fixed node candidate bound before node/edge body deduplication and RRF.
-        let request = ReaderRequest::search(
-            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view),
-            response_tx,
-        );
-        if self.reader_pool.dispatch(request).is_err() {
-            return Err(EngineError::Closing);
-        }
-        let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded, _degradations) =
-            match search_result {
-                Ok(result) => result,
-                // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
-                // through: an undeclared `filterable` attribute is the EXISTING typed
-                // `InvalidFilter`, never collapsed to `Storage`. (This path takes
-                // `filter = None`, so it never fires here, but the match stays total.)
-                Err(SearchReaderError::InvalidFilter(reason)) => {
-                    return Err(EngineError::InvalidFilter { reason });
-                }
-                Err(SearchReaderError::Evidence(error)) => return Err(error),
-                Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                    return Err(EngineError::RerankerDevicePolicy(error));
-                }
-                Err(SearchReaderError::FrozenRead(error)) => {
-                    return Err(EngineError::FrozenRead(error));
-                }
-                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                    return Err(EngineError::VectorEquivalenceMismatch { reason });
-                }
-                Err(SearchReaderError::WriteValidation) => {
-                    return Err(EngineError::WriteValidation);
-                }
-                Err(SearchReaderError::InvalidArgument(msg)) => {
-                    return Err(EngineError::InvalidArgument { msg });
-                }
-                Err(SearchReaderError::Sqlite(err)) => {
-                    self.emit_sqlite_internal_error(&err);
-                    return Err(EngineError::Storage);
-                }
-            };
-        Ok(SearchResult {
-            projection_cursor: cursor,
-            soft_fallback,
-            results,
-            explanation,
-            degradations: Vec::new(),
-            snippets: None,
-        })
+        self.search_text_only_view_with_snippets(query, view, limit, None)
     }
 
     /// [`search_text_only_view_with_limit`][Engine::search_text_only_view_with_limit]
@@ -1201,8 +1180,75 @@ impl Engine {
         limit: usize,
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
-        let _ = snippet;
-        self.search_text_only_view_with_limit(query, view, limit)
+        let limit = validate_search_result_limit(limit)?;
+        self.ensure_open()?;
+        view.reject_existence_relaxation_on_search()?;
+        if query.trim().is_empty() {
+            return Err(EngineError::WriteValidation);
+        }
+        let compiled = compile_text_query(query);
+        let candidate_limit =
+            self.projection_runtime.shared.search_limit_override.load(Ordering::SeqCst).max(limit);
+        let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
+        // This explicit marker distinguishes direct text-only search from a hybrid
+        // request whose embedder yields no vector. Only the direct path gets the
+        // fixed node candidate bound before node/edge body deduplication and RRF.
+        let request = ReaderRequest::search(
+            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view)
+                .with_snippet(snippet.copied()),
+            response_tx,
+        );
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
+        let (
+            cursor,
+            soft_fallback,
+            results,
+            _graph_stats,
+            explanation,
+            _expanded,
+            _degradations,
+            snippets,
+        ) = match search_result {
+            Ok(result) => result,
+            // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
+            // through: an undeclared `filterable` attribute is the EXISTING typed
+            // `InvalidFilter`, never collapsed to `Storage`. (This path takes
+            // `filter = None`, so it never fires here, but the match stays total.)
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                return Err(EngineError::InvalidFilter { reason });
+            }
+            Err(SearchReaderError::Evidence(error)) => return Err(error),
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
+            }
+            Err(SearchReaderError::FrozenRead(error)) => {
+                return Err(EngineError::FrozenRead(error));
+            }
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                return Err(EngineError::VectorEquivalenceMismatch { reason });
+            }
+            Err(SearchReaderError::WriteValidation) => {
+                return Err(EngineError::WriteValidation);
+            }
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                return Err(EngineError::InvalidArgument { msg });
+            }
+            Err(SearchReaderError::Sqlite(err)) => {
+                self.emit_sqlite_internal_error(&err);
+                return Err(EngineError::Storage);
+            }
+        };
+        Ok(SearchResult {
+            projection_cursor: cursor,
+            soft_fallback,
+            results,
+            explanation,
+            degradations: Vec::new(),
+            snippets,
+        })
     }
 
     /// Search one declared `searchable→FTS` projection without invoking body
@@ -1317,6 +1363,7 @@ impl Engine {
         explain: bool,
         view: ReadView,
         limit: usize,
+        snippet: Option<SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
         // fix-2: refuse an existence-relaxing view BEFORE any work (and before the
         // Started event), so the refusal is a pure argument error rather than a
@@ -1324,17 +1371,21 @@ impl Engine {
         view.reject_existence_relaxation_on_search()?;
         self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Search, None);
         let started = Instant::now();
-        let outcome = self.search_inner(
-            query,
-            filter,
-            rerank_depth,
-            use_graph_arm,
-            alpha,
-            pool_n,
-            explain,
-            view,
-            limit,
-        );
+        let outcome = self
+            .search_inner_with_frozen_binding_and_stats(
+                query,
+                filter,
+                rerank_depth,
+                use_graph_arm,
+                alpha,
+                pool_n,
+                explain,
+                view,
+                limit,
+                None,
+                snippet,
+            )
+            .map(|(result, _stats, _expanded)| result);
         self.detect_slow(started, lifecycle::EventCategory::Search);
         match outcome {
             Ok(mut result) => {

@@ -38,9 +38,16 @@ pub(crate) struct SearchReaderWork {
     frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
     frozen_query_runtime: Option<Box<FrozenQueryRuntime>>,
     expand_depth: Option<u32>,
+    snippet: Option<SnippetOptions>,
 }
 
 impl SearchReaderWork {
+    /// Requests EP-17 snippets for the final hits.
+    pub(crate) fn with_snippet(mut self, snippet: Option<SnippetOptions>) -> Self {
+        self.snippet = snippet;
+        self
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn hybrid(
         compiled: Option<fathomdb_query::CompiledQuery>,
@@ -88,6 +95,7 @@ impl SearchReaderWork {
             frozen_binding: frozen_binding.map(Box::new),
             frozen_query_runtime,
             expand_depth,
+            snippet: None,
         }
     }
 
@@ -164,6 +172,7 @@ impl SearchReaderWork {
             frozen_binding: None,
             frozen_query_runtime: None,
             expand_depth: None,
+            snippet: None,
         }
     }
 }
@@ -314,6 +323,7 @@ pub(crate) trait SearchOriginCapture: Sized {
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
+        snippets: Option<Vec<SnippetV1>>,
     ) -> Result<Self::Output, SearchReaderError>;
 }
 
@@ -410,6 +420,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
         work.frozen_binding.as_deref(),
         work.frozen_query_runtime.as_deref(),
         work.expand_depth,
+        work.snippet.as_ref(),
         attribution,
         worker_idx,
         capture,
@@ -794,6 +805,7 @@ impl SearchOriginCapture for NoEvidenceCapture {
         Option<Explanation>,
         Option<SearchExpandResult>,
         Vec<ArmDegradation>,
+        Option<Vec<SnippetV1>>,
     );
 
     fn finish(
@@ -806,8 +818,18 @@ impl SearchOriginCapture for NoEvidenceCapture {
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
+        snippets: Option<Vec<SnippetV1>>,
     ) -> Result<Self::Output, SearchReaderError> {
-        Ok((cursor, soft_fallback, results, graph_stats, explanation, expanded, degradations))
+        Ok((
+            cursor,
+            soft_fallback,
+            results,
+            graph_stats,
+            explanation,
+            expanded,
+            degradations,
+            snippets,
+        ))
     }
 }
 
@@ -828,6 +850,7 @@ impl SearchOriginCapture for EvidenceCapture {
         explanation: Option<Explanation>,
         _expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
+        _snippets: Option<Vec<SnippetV1>>,
     ) -> Result<Self::Output, SearchReaderError> {
         #[cfg(any(test, feature = "test-hooks"))]
         evidence_linearization_hooks::fire_before_sidecar();
@@ -1356,6 +1379,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     frozen_query_runtime: Option<&FrozenQueryRuntime>,
     expand_depth: Option<u32>,
+    snippet: Option<&SnippetOptions>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
     mut capture: C,
@@ -2436,6 +2460,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let expanded = expand_depth
         .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter))
         .transpose()?;
+    let snippets = snippet.map(|options| {
+        results.iter().map(|hit| snippet_for(&hit.body, &[], options)).collect::<Vec<_>>()
+    });
     let output = capture.finish(
         &tx,
         cursor,
@@ -2445,6 +2472,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         explanation,
         expanded,
         degradations,
+        snippets,
     )?;
     tx.commit()?;
     Ok(output)
@@ -2484,6 +2512,7 @@ use crate::search_types::{
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, MAX_SEARCH_RESULT_LIMIT,
     TOP_K_BIT_CANDIDATES,
 };
+use crate::snippet::{snippet_for, SnippetOptions, SnippetV1};
 use crate::structural_state::structural_dependency_state;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;

@@ -8,7 +8,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Engine, type SearchResult, type SnippetV1 } from "../src/index.js";
+import {
+  Engine,
+  InvalidArgumentError,
+  type SearchResult,
+  type SnippetOptions,
+  type SnippetV1,
+} from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
 const TERM = "zephyrine";
@@ -105,6 +111,91 @@ test("searchFrozen returns the snippet sidecar", async () => {
     const plain = await engine.searchFrozen(TERM, frozen);
     assert.equal("snippets" in plain, false, "the sidecar is absent when not requested");
     assert.deepStrictEqual(plain.results, withSnippets.results);
+  } finally {
+    await engine.close();
+  }
+});
+
+type Surface = (engine: Engine, snippet: unknown) => Promise<SearchResult>;
+
+const SURFACES: Record<string, Surface> = {
+  search: (engine, snippet) =>
+    engine.search(TERM, undefined, undefined, undefined, undefined, undefined, undefined, {
+      snippet: snippet as SnippetOptions,
+    }),
+  searchTextOnly: (engine, snippet) =>
+    engine.searchTextOnly(TERM, { snippet: snippet as SnippetOptions }),
+  searchFrozen: async (engine, snippet) =>
+    engine.searchFrozen(
+      TERM,
+      await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} }),
+      { snippet: snippet as SnippetOptions },
+    ),
+};
+
+// Each value is out of its documented range (match-centred-snippets.md
+// § 7.2), including values past the native integer types.
+const OUT_OF_RANGE: SnippetOptions[] = [
+  { maxBytes: 39 },
+  { maxBytes: 4001 },
+  { maxBytes: -1 },
+  { maxBytes: 2 ** 40 },
+  { maxWindows: 0 },
+  { maxWindows: 4 },
+  { maxWindows: 2 ** 40 },
+  { maxBytes: 100, headBytes: 51 },
+  { headBytes: -1 },
+  { maxPointQueries: 256 },
+  { maxPointQueries: -1 },
+];
+
+const IN_RANGE: SnippetOptions[] = [
+  {},
+  { maxBytes: 40, maxWindows: 3, headBytes: 20, maxPointQueries: 0 },
+  { maxBytes: 4000, highlights: true, maxPointQueries: 255 },
+];
+
+const WRONG_TYPE: unknown[] = [
+  "300",
+  300,
+  { maxBytes: 300.5 },
+  { maxBytes: Number.NaN },
+  { maxBytes: Number.POSITIVE_INFINITY },
+  { maxBytes: "300" },
+  { maxWindows: true },
+  { highlights: 1 },
+];
+
+for (const [name, run] of Object.entries(SURFACES)) {
+  test(`${name} validates snippet options`, async () => {
+    const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+    try {
+      await engine.write(writes());
+      for (const options of IN_RANGE) {
+        const result = await run(engine, options);
+        assert.equal(result.snippets?.length, 2, JSON.stringify(options));
+      }
+      for (const options of OUT_OF_RANGE) {
+        await assert.rejects(run(engine, options), InvalidArgumentError, JSON.stringify(options));
+      }
+      for (const options of WRONG_TYPE) {
+        await assert.rejects(run(engine, options), TypeError, String(JSON.stringify(options)));
+      }
+      // A misspelt key is refused, not ignored.
+      await assert.rejects(run(engine, { maxbytes: 300 }), InvalidArgumentError);
+    } finally {
+      await engine.close();
+    }
+  });
+}
+
+test("searchProjectedText refuses a snippet option", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await assert.rejects(
+      engine.searchProjectedText(TERM, "facts", undefined, { snippet: { maxBytes: 120 } }),
+      InvalidArgumentError,
+    );
   } finally {
     await engine.close();
   }

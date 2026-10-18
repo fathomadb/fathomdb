@@ -43,12 +43,17 @@ pub(crate) fn snippets_for_hits(
     match_expression: &str,
     options: &SnippetOptions,
 ) -> rusqlite::Result<Vec<SnippetV1>> {
+    // `max_point_queries` caps the hits that get a point query, in rank order;
+    // a hit cap, not a time cap, keeps the output deterministic (§ 6.5).
+    let mut budget = usize::from(options.max_point_queries);
     hits.iter()
         .map(|hit| {
             // Rule 0: spans are needed only to cut the body or to highlight.
             let needs_spans = hit.body.len() > options.max_bytes as usize || options.highlights;
-            let spans = match rows.get(&hit.write_cursor).filter(|_| needs_spans) {
+            let row = rows.get(&hit.write_cursor).filter(|_| needs_spans && budget > 0);
+            let spans = match row {
                 Some(&(table, rowid)) => {
+                    budget -= 1;
                     match_spans(tx, table, rowid, match_expression, &hit.body)?.unwrap_or_default()
                 }
                 None => Vec::new(),

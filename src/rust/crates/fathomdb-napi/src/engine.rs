@@ -488,6 +488,8 @@ impl Engine {
         // `FDB_INVALID_ARGUMENT`), never silently ignored.
         view: Option<ReadViewInput>,
         limit: Option<u32>,
+        // EP-17 — fills `SearchResult.snippets`; omitted leaves it absent.
+        snippet: Option<SnippetOptionsInput>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
         if query.trim().is_empty() {
@@ -519,12 +521,22 @@ impl Engine {
         let explain = explain.unwrap_or(false);
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
+        let snippet = snippet.map(|options| options.to_rust());
         let engine = Arc::clone(&self.inner);
         // fix-2: ONE call — `explain` is a parameter of the full-arity view entry
         // point, so the two arms can no longer drift on `view`.
         let result = call_engine(move || {
-            engine.search_reranked_view_with_limit(
-                &query, filter, depth, graph_arm, alpha, pool_n, explain, &view, limit,
+            engine.search_reranked_view_with_snippets(
+                &query,
+                filter,
+                depth,
+                graph_arm,
+                alpha,
+                pool_n,
+                explain,
+                &view,
+                limit,
+                snippet.as_ref(),
             )
         })
         .await?;

@@ -228,6 +228,7 @@ export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
     })),
     explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
     ...mapNativeDegradations(r.degradations),
+    ...mapNativeSnippets(r.snippets),
   };
 }
 
@@ -889,6 +890,7 @@ export async function search(nativeEngine: NativeEngine, query: string, filter?:
         explain,
         searchOptions.view,
         searchOptions.limit,
+        searchOptions.snippet,
       ),
     );
     return mapNativeSearchResult(r);

@@ -832,6 +832,7 @@ export interface NativeEngine {
     // time). The existence flags are refused by the engine on this path.
     view?: NativeReadView,
     limit?: number,
+    snippet?: NativeSnippetOptions,
   ): Promise<NativeSearchResult>;
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only/FTS-only path +
   // degraded-state observability.

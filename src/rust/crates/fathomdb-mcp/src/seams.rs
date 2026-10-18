@@ -334,6 +334,7 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
                     snippet: snippet.text,
                     snippet_cut: snippet.cut,
                     snippet_anchor: snippet.anchor.as_str().to_string(),
+                    highlights: None,
                     source_id: hit.source_id.clone(),
                     score: hit.score,
                     arm: "text".to_string(),

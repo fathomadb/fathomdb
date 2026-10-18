@@ -146,11 +146,15 @@ pub struct SearchArgs {
     pub max_tokens: Option<u64>,
     /// Include a per-hit explanation.
     pub explain: Option<bool>,
-    /// Handle from a previous result; then only store, max_tokens and hints may be given.
+    /// Handle from a previous result; then only store, max_tokens, hints and
+    /// highlights may be given.
     pub continuation: Option<String>,
     /// Include the `hints` sidecar of suggested next calls; defaults to the
     /// operator's `hints` setting.
     pub hints: Option<bool>,
+    /// Add per-hit `highlights`, byte ranges into `snippet` of the matched
+    /// words; default false.
+    pub highlights: Option<bool>,
 }
 
 /// `fetch` arguments.
@@ -814,7 +818,8 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.explain.is_none();
             if !only_paging {
                 return Err(ToolError::bad_argument(
-                    "a continuation call takes only store, continuation, max_tokens and hints",
+                    "a continuation call takes only store, continuation, max_tokens, hints and \
+                     highlights",
                 ));
             }
             ctx.shared.registry.ensure_slot(&store)?;
@@ -885,7 +890,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         max_bytes: ctx.shared.config.snippet_bytes,
         max_windows: 1,
         head_bytes: ctx.shared.config.snippet_head_bytes(),
-        highlights: false,
+        highlights: args.highlights.unwrap_or(false),
         ..SnippetOptions::default()
     });
     let started_limit = ctx.run_limit();
@@ -950,6 +955,10 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     snippet: snippet.text.clone(),
                     snippet_cut: snippet.cut,
                     snippet_anchor: snippet.anchor.as_str().to_string(),
+                    highlights: args
+                        .highlights
+                        .unwrap_or(false)
+                        .then(|| snippet.highlights.clone()),
                     source_id: hit.source_id.clone(),
                     score: hit.score,
                     arm: branch_str(hit.branch).to_string(),

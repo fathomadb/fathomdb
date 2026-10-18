@@ -187,6 +187,10 @@ pub struct Hit {
     /// window centred on the matched words) or `start` (the record start:
     /// no lexical match, as for vector-only hits).
     pub snippet_anchor: String,
+    /// `[start, end)` byte ranges into `snippet` of the matched words; only
+    /// when the call passed `highlights: true`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highlights: Option<Vec<(u32, u32)>>,
     pub source_id: Option<String>,
     pub score: f64,
     pub arm: String,

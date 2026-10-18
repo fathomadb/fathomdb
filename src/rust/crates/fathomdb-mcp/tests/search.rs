@@ -505,7 +505,9 @@ async fn snippets_are_centred_on_the_match_with_an_anchor() {
 async fn highlights_are_opt_in_byte_ranges_into_the_snippet() {
     let long = long_body(3000, "zanzibar", 4096);
     let mut writes = vec![node("note:long", "note", &long)];
-    writes.extend((0..12).map(|i| node(&format!("note:{i:02}"), "note", "zanzibar again")));
+    writes.extend(
+        (0..12).map(|i| node(&format!("note:{i:02}"), "note", &format!("zanzibar again {i}"))),
+    );
     let (_fixture, harness) = harness_with(writes, json!({})).await;
 
     let plain = harness.ok("search", json!({"query": "zanzibar", "limit": 5})).await;

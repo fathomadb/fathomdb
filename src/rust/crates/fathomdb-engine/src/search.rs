@@ -312,6 +312,7 @@ pub(crate) trait SearchOriginCapture: Sized {
         graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
+        degradations: Vec<ArmDegradation>,
     ) -> Result<Self::Output, SearchReaderError>;
 }
 
@@ -791,6 +792,7 @@ impl SearchOriginCapture for NoEvidenceCapture {
         GraphFrontierStats,
         Option<Explanation>,
         Option<SearchExpandResult>,
+        Vec<ArmDegradation>,
     );
 
     fn finish(
@@ -802,8 +804,9 @@ impl SearchOriginCapture for NoEvidenceCapture {
         graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
+        degradations: Vec<ArmDegradation>,
     ) -> Result<Self::Output, SearchReaderError> {
-        Ok((cursor, soft_fallback, results, graph_stats, explanation, expanded))
+        Ok((cursor, soft_fallback, results, graph_stats, explanation, expanded, degradations))
     }
 }
 
@@ -823,6 +826,7 @@ impl SearchOriginCapture for EvidenceCapture {
         _graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
         _expanded: Option<SearchExpandResult>,
+        degradations: Vec<ArmDegradation>,
     ) -> Result<Self::Output, SearchReaderError> {
         #[cfg(any(test, feature = "test-hooks"))]
         evidence_linearization_hooks::fire_before_sidecar();
@@ -831,7 +835,7 @@ impl SearchOriginCapture for EvidenceCapture {
             soft_fallback,
             results,
             explanation,
-            degradations: Vec::new(),
+            degradations,
         };
         evidence::build_search_result(
             connection,
@@ -1397,6 +1401,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         #[cfg(any(test, feature = "test-hooks"))]
         frozen_after_validation_hook::fire();
     }
+    let mut degradations = Vec::new();
     let owned_compiled;
     let owned_query_vector;
     let owned_query_vector_bin;
@@ -1432,11 +1437,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             return Err(SearchReaderError::WriteValidation);
         }
         owned_compiled = compile_text_query(raw_query);
-        let raw_vector = match dispatch_embed_vector(&runtime.embed_dispatch, raw_query) {
-            Ok(vector) => Some(vector),
-            Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
-            Err(_) => None,
-        };
+        let raw_vector = query_vector_or_degradation(
+            dispatch_embed_vector(&runtime.embed_dispatch, raw_query),
+            &mut degradations,
+        );
         owned_query_vector_bin = match raw_vector.as_ref() {
             Some(vector) if identity_requires_mean_centering(&runtime.embedder_identity) => {
                 let pinned = read_pinned_mean_vec(&tx, runtime.embedder_identity.dimension)
@@ -2430,13 +2434,21 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let expanded = expand_depth
         .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter))
         .transpose()?;
-    let output =
-        capture.finish(&tx, cursor, soft_fallback, results, graph_stats, explanation, expanded)?;
+    let output = capture.finish(
+        &tx,
+        cursor,
+        soft_fallback,
+        results,
+        graph_stats,
+        explanation,
+        expanded,
+        degradations,
+    )?;
     tx.commit()?;
     Ok(output)
 }
 use crate::dependency_closure;
-use crate::embed_dispatch::{DispatchError, EmbedDispatcher};
+use crate::embed_dispatch::EmbedDispatcher;
 use crate::embedding::dispatch_embed_vector;
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
@@ -2462,9 +2474,10 @@ use crate::projection_registry::load_projection_registry;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 use crate::reader_transaction::begin_attributed_reader_tx;
 use crate::rerank::try_rerank_fused;
+use crate::search_api::query_vector_or_degradation;
 use crate::search_types::{
-    validate_search_result_limit, Bm25fQueryPlan, Explanation, GraphFrontierStats, PerHitExplain,
-    QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
+    validate_search_result_limit, ArmDegradation, Bm25fQueryPlan, Explanation, GraphFrontierStats,
+    PerHitExplain, QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
     StructuralDegradationCodeV1, StructuralInclusionStateV1, StructuralInclusionV1,
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, MAX_SEARCH_RESULT_LIMIT,
     TOP_K_BIT_CANDIDATES,

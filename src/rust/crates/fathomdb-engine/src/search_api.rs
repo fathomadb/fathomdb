@@ -624,38 +624,49 @@ impl Engine {
             return Err(EngineError::Closing);
         }
         let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (cursor, soft_fallback, results, graph_stats, explanation, expanded) =
-            match search_result {
-                Ok(result) => result,
-                // fix-3 (codex §9 [P2]) — an undeclared `filterable` attribute is caught
-                // on the reader's OWN snapshot (validate + vec0 query = one transaction),
-                // so it surfaces as the EXISTING typed `InvalidFilter` and can never be
-                // the opaque `no such column` `Storage` error the TOCTOU race produced.
-                Err(SearchReaderError::InvalidFilter(reason)) => {
-                    return Err(EngineError::InvalidFilter { reason });
-                }
-                Err(SearchReaderError::Evidence(error)) => return Err(error),
-                Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                    return Err(EngineError::RerankerDevicePolicy(error));
-                }
-                Err(SearchReaderError::FrozenRead(error)) => {
-                    return Err(EngineError::FrozenRead(error));
-                }
-                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                    self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                    return Err(EngineError::VectorEquivalenceMismatch { reason });
-                }
-                Err(SearchReaderError::WriteValidation) => {
-                    return Err(EngineError::WriteValidation);
-                }
-                Err(SearchReaderError::InvalidArgument(msg)) => {
-                    return Err(EngineError::InvalidArgument { msg });
-                }
-                Err(SearchReaderError::Sqlite(err)) => {
-                    self.emit_sqlite_internal_error(&err);
-                    return Err(EngineError::Storage);
-                }
-            };
+        let (
+            cursor,
+            soft_fallback,
+            results,
+            graph_stats,
+            explanation,
+            expanded,
+            frozen_degradations,
+        ) = match search_result {
+            Ok(result) => result,
+            // fix-3 (codex §9 [P2]) — an undeclared `filterable` attribute is caught
+            // on the reader's OWN snapshot (validate + vec0 query = one transaction),
+            // so it surfaces as the EXISTING typed `InvalidFilter` and can never be
+            // the opaque `no such column` `Storage` error the TOCTOU race produced.
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                return Err(EngineError::InvalidFilter { reason });
+            }
+            Err(SearchReaderError::Evidence(error)) => return Err(error),
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
+            }
+            Err(SearchReaderError::FrozenRead(error)) => {
+                return Err(EngineError::FrozenRead(error));
+            }
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
+                return Err(EngineError::VectorEquivalenceMismatch { reason });
+            }
+            Err(SearchReaderError::WriteValidation) => {
+                return Err(EngineError::WriteValidation);
+            }
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                return Err(EngineError::InvalidArgument { msg });
+            }
+            Err(SearchReaderError::Sqlite(err)) => {
+                self.emit_sqlite_internal_error(&err);
+                return Err(EngineError::Storage);
+            }
+        };
+
+        // Exactly one side embeds the query: this function when not frozen, the
+        // reader when frozen.
+        degradations.extend(frozen_degradations);
 
         // The worker (`read_search_in_tx`) has no embedder identity; fill the
         // trace's `embedder_id` here, where `self.runtime_embedder_identity` is in
@@ -1058,7 +1069,7 @@ impl Engine {
             return Err(EngineError::Closing);
         }
         let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded) =
+        let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded, _degradations) =
             match search_result {
                 Ok(result) => result,
                 // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict

@@ -390,13 +390,9 @@ impl Abandoner {
         false
     }
 
-    /// `(in_flight, queued, abandoned)` of the store, for logging.
-    pub(crate) fn load(&self) -> (usize, usize, usize) {
-        (
-            self.load.in_flight(),
-            self.load.queued.load(Ordering::SeqCst),
-            self.load.abandoned.load(Ordering::SeqCst),
-        )
+    /// The store's load as a busy object with `reason`.
+    pub(crate) fn busy(&self, reason: BusyReason) -> Busy {
+        self.load.busy(reason)
     }
 }
 

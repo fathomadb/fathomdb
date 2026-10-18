@@ -49,6 +49,8 @@ pub enum BusyReason {
     QueueFull,
     /// No permit came in time, or too little deadline was left to start.
     Deadline,
+    /// The engine refused the work as overloaded (SDK `Overloaded`).
+    EngineOverloaded,
 }
 
 /// The `busy` sub-object of a `busy/admission` error. It carries no advised
@@ -238,6 +240,9 @@ impl ToolError {
             BusyReason::Deadline => {
                 format!("store {store:?} could not start this call before its deadline")
             }
+            BusyReason::EngineOverloaded => {
+                format!("store {store:?}: the engine is overloaded")
+            }
         };
         let mut error = Self::new(
             ErrorClass::Busy,
@@ -311,7 +316,17 @@ impl ToolError {
             }
             ErrorKind::VectorEquivalenceMismatch => Self::vector_disabled(),
             ErrorKind::GraphExpansion => graph_error(error),
-            ErrorKind::Overloaded => Self::busy(store),
+            // The load fields are the bridge's to fill in.
+            ErrorKind::Overloaded => Self::admission(
+                store,
+                Busy {
+                    reason: BusyReason::EngineOverloaded,
+                    in_flight: 0,
+                    queued: 0,
+                    abandoned: 0,
+                    stuck: false,
+                },
+            ),
             ErrorKind::Closing => Self::not_ready(store, "draining"),
             _ => Self::internal(),
         };

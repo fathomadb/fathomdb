@@ -1276,9 +1276,12 @@ impl ReaderWorkerPool {
             return;
         }
         for sender in &self.senders {
-            // The worker checks shutdown before taking another queued request.
-            // A full queue cannot place this wake-up behind ordinary work.
-            let _ = sender.try_send(ReaderRequest::Shutdown);
+            // Channels are rendezvous, so a non-blocking wake-up would be lost
+            // for a worker that is mid-read. The blocking send waits for that
+            // worker's next `recv`. If a racing dispatch is received first, the
+            // worker sees the shutdown flag and exits, and this send returns
+            // `Err` because the receiver is gone.
+            let _ = sender.send(ReaderRequest::Shutdown);
         }
         if let Ok(mut slot) = self.handles.lock() {
             if let Some(handles) = slot.take() {

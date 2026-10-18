@@ -666,7 +666,8 @@ class Sim:
         if dt > 0 and self.n_idle > 0:
             for q in self.wq:
                 for c in q:
-                    hi = min(self.now, c.deadline)
+                    rl = self.cfg.run_limit
+                    hi = min(self.now, c.deadline if rl is None else c.t_adm + rl)
                     if hi > self.hol_t:
                         c.hol += hi - self.hol_t
         self.hol_t = self.now

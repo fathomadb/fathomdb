@@ -140,7 +140,11 @@ Result adds:
   fallback (`soft_fallback`) and dense-disabled state (`dense_disabled`), plus
   `{arm: "vector", reason: "embedder_unavailable"}`, which the adapter adds when
   the store's embedding readiness, read once per open epoch, reports no usable
-  embedder (the engine reports no soft fallback in that case, MR-032.1).
+  embedder (the engine reports no soft fallback in that case, MR-032.1), plus
+  each entry of the engine's own `degradations` list. Today that list has one
+  reason: `{arm: "vector", reason: "embedder_overloaded"}`, reported when this
+  search's query embedding was refused because the embed queue was full or it
+  expired in that queue. The search still returns its text-arm hits (EP-03).
 - `verdict`: `unavailable` in this release (MR-031).
 - `continuation`: string `c<epoch>-<hash>` or null, `<hash>` over the store,
   canonical arguments and offset. Present when the page was cut by the budget or

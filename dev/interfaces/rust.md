@@ -529,6 +529,22 @@ The Rust workspace also exposes the semver-stable companion crate
   projection-visible point for the search snapshot
 - hybrid fallback, when present, exposes a typed branch enum whose values are
   owned by `design/retrieval.md`
+- `SearchResult.degradations: Vec<ArmDegradation>` lists requested arms that
+  did not run. It is empty when every requested arm ran. `ArmDegradation
+  { arm: SoftFallbackBranch, reason: DegradationReason }` and
+  `DegradationReason` are `#[non_exhaustive]`; `ArmDegradation::new` builds
+  one and `DegradationReason::as_str` gives the wire word. The one reason
+  today is `EmbedderOverloaded` (`embedder_overloaded`): the query embedding
+  was refused because the embed queue was full (`Saturated`) or expired in
+  that queue (`QueuedExpired`). The search then runs on its other arms and
+  reports `[{Vector, EmbedderOverloaded}]`. Every hybrid read that embeds a
+  query reports it: `search*`, `search_frozen`, `search_with_evidence` (on
+  `EvidenceSearchResultV1.search_result`), and `search_expand` /
+  `search_expand_frozen` (on `SearchExpandResult.degradations`). Results,
+  ranking, `soft_fallback` and `explanation` are unchanged. Other embed
+  failures still leave the list empty. `embed_text` keeps returning
+  `EngineError::Overloaded`. Both types are re-exported by `fathomdb` and
+  `fathomdb-sdk` (EP-03)
 - counter/profile/stress payload shapes are owned by `design/lifecycle.md`
 
 ### `SearchHit.id` is `IdSpace` (C-2, 0.8.19 / TC-8)

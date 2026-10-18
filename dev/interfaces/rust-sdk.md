@@ -136,6 +136,12 @@ function in every row.
 | `engine.consolidate_with_provider` | `consolidate_with_provider(&self, cmd: &[&str], axes: &[ConsolidateAxis]) -> Result<ConsolidateReceipt>` | same |
 | `engine.embed` | `embed(&self, text: &str) -> Result<Vec<f32>>` | `embed_text` |
 
+Search results carry the engine's `degradations` list unchanged
+(`ArmDegradation`, `DegradationReason`, re-exported). An overloaded embed queue
+appears as `[{Vector, EmbedderOverloaded}]` with wire word
+`embedder_overloaded`, the same word Python and TypeScript use. See
+[rust](rust.md#caller-visible-data-shapes).
+
 Search through the engine's maintained FTS index returns `Storage` when a
 persisted FTS row cannot be decoded. The rank-stream optimization may retry
 through full stable sort, but a decoding failure there does not return a

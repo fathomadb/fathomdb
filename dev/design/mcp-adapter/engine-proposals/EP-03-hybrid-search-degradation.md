@@ -7,7 +7,26 @@ desc: Draft engine proposal. Report on every hybrid SearchResult which arms ran 
 
 # EP-03 — Typed degradation on hybrid search
 
-Status: Draft. Priority P1. Not an accepted decision.
+Status: Draft. Priority P1. Not an accepted decision, except the
+`embedder_overloaded` part, which is built (agent-access Block 1 slice S3).
+
+## Built so far: `embedder_overloaded`
+
+- Engine: `SearchResult.degradations: Vec<ArmDegradation>` and
+  `SearchExpandResult.degradations`, with `ArmDegradation` and
+  `DegradationReason` (only `EmbedderOverloaded`). The list is empty when
+  nothing degraded. `Saturated` and `QueuedExpired` on the query embedding give
+  `[{Vector, EmbedderOverloaded}]` on the non-frozen, frozen, evidence and
+  search-expand paths. Results, ranking, `soft_fallback` and `explanation` do
+  not change. Other dispatch errors keep today's silent behaviour.
+- R-OBS-2 (open question 1) is answered for the bindings: present only when
+  non-empty. Python gives `None`, TypeScript leaves the key absent. In Rust the
+  field is always there and empty.
+- Python, TypeScript and the MCP adapter use the wire word
+  `embedder_overloaded`. The adapter keeps its existing entries.
+- Not built: the other reasons, the removal of the adapter's per-epoch
+  `embedder_unavailable` and `dense_disabled` entries, and the
+  `VectorEquivalenceMismatch` mapping.
 
 ## Problem
 

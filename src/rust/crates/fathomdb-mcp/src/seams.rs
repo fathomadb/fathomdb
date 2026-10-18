@@ -18,6 +18,7 @@ struct State {
     next_call: u64,
     panicking_tools: BTreeSet<String>,
     panicking_calls: BTreeSet<String>,
+    panicking_waiters: BTreeSet<String>,
     progress_bursts: BTreeMap<String, u32>,
 }
 
@@ -104,6 +105,18 @@ impl Seams {
         self.state().panicking_calls.remove(store);
     }
 
+    /// Make every later call on `store` that has to wait for an admission
+    /// permit panic in its handler task, after joining the queue and before
+    /// the wait.
+    pub fn panic_queued_calls(&self, store: &str) {
+        self.state().panicking_waiters.insert(store.to_string());
+    }
+
+    /// Undo [`Seams::panic_queued_calls`].
+    pub fn stop_panicking_queued_calls(&self, store: &str) {
+        self.state().panicking_waiters.remove(store);
+    }
+
     /// Make every later call to `tool` that carries a progress token send `n`
     /// progress notifications (values 1..=n) before the tool body runs.
     pub fn burst_progress(&self, tool: &str, n: u32) {
@@ -136,6 +149,12 @@ impl Seams {
         state.released.remove(&call);
         if let Some(held) = state.held.get_mut(store) {
             held.retain(|other| *other != call);
+        }
+    }
+
+    pub(crate) fn after_queued(&self, store: &str) {
+        if self.state().panicking_waiters.contains(store) {
+            panic!("test seam: forced panic in a queued call on {store}");
         }
     }
 

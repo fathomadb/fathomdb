@@ -21,6 +21,12 @@ impl Hooks {
     }
 
     #[inline]
+    pub(crate) fn after_queued(&self, _store: &str) {
+        #[cfg(feature = "test-seams")]
+        self.seams.after_queued(_store);
+    }
+
+    #[inline]
     pub(crate) fn tool_panics(&self, _tool: &str) -> bool {
         #[cfg(feature = "test-seams")]
         return self.seams.tool_panics(_tool);

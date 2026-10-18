@@ -497,6 +497,7 @@ impl Registry {
                     return Err(refuse(BusyReason::QueueFull));
                 }
                 load.queued.fetch_add(1, Ordering::SeqCst);
+                self.hooks.after_queued(name);
                 let waited = async {
                     // Pinned once: dropping the acquire future would lose
                     // the call's place in the queue.

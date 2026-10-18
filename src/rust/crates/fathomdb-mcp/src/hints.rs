@@ -208,6 +208,7 @@ fn template(hint: &Hint) -> &'static str {
             "results were dropped to fit max_tokens; pass the continuation for the rest"
         }
         HintReason::MoreResults => "the page reached its limit; pass the continuation for more",
+        HintReason::DefaultStoreSet => "calls without store use this store",
     }
 }
 
@@ -253,6 +254,14 @@ pub(crate) fn render(hints: &[Hint], text: &mut String) {
 /// configured key.
 pub(crate) fn enabled(given: Option<bool>, configured: bool) -> bool {
     given.unwrap_or(configured)
+}
+
+/// The `list_stores` hint: the session has a default store, so store-less
+/// calls work.
+pub(crate) fn default_store_set(store: Option<&str>) -> Option<Hint> {
+    let mut hint = Hint::new(HintAction::Search, HintReason::DefaultStoreSet);
+    hint.store = Some(store?.to_string());
+    Some(hint)
 }
 
 /// The `degraded` hint of a non-search response (`expand`): one hint naming

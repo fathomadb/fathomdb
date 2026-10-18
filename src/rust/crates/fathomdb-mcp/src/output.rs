@@ -86,6 +86,9 @@ pub struct StoreRow {
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct ListStoresOutput {
     pub stores: Vec<StoreRow>,
+    /// Suggested next calls; absent when there are none or hints are off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hints: Vec<Hint>,
 }
 
 /// `use_store` result.
@@ -253,6 +256,7 @@ pub enum HintReason {
     BodyCut,
     CutByBudget,
     MoreResults,
+    DefaultStoreSet,
 }
 
 /// The arm a `degraded` hint names.

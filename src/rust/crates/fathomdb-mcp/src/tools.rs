@@ -78,7 +78,6 @@ pub(crate) type Outcome = Result<Rendered, ToolError>;
 pub struct ListStoresArgs {
     /// Include the `hints` sidecar of suggested next calls; defaults to the
     /// operator's `hints` setting.
-    #[allow(dead_code)]
     pub hints: Option<bool>,
 }
 
@@ -375,7 +374,7 @@ fn bytes_over(whole_tokens: u64, max_tokens: u32) -> usize {
 // ------------------------------------------------------------------- tools
 
 pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
-    let _: ListStoresArgs = parse(arguments)?;
+    let args: ListStoresArgs = parse(arguments)?;
     let default = ctx.session.default_store();
     let stores: Vec<StoreRow> = ctx
         .shared
@@ -396,7 +395,13 @@ pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) ->
             name: row.name,
         })
         .collect();
+    let hints: Vec<_> = if hints::enabled(args.hints, ctx.shared.config.hints) {
+        hints::default_store_set(default.as_deref()).into_iter().collect()
+    } else {
+        Vec::new()
+    };
     let mut text = format!("stores: {}", stores.len());
+    hints::render(&hints, &mut text);
     for row in &stores {
         let readiness = serde_json::to_value(row.readiness).expect("serializes");
         text.push_str(&format!(
@@ -407,7 +412,7 @@ pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) ->
             if row.default { " default" } else { "" }
         ));
     }
-    Ok(plain(&ListStoresOutput { stores }, text))
+    Ok(plain(&ListStoresOutput { stores, hints }, text))
 }
 
 pub(crate) async fn use_store(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {

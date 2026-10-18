@@ -146,9 +146,7 @@ IN_RANGE = [
 
 
 @pytest.mark.parametrize("surface", sorted(SURFACES))
-def test_snippet_options_are_validated_on_every_search_surface(
-    db_path: str, surface: str
-) -> None:
+def test_snippet_options_are_validated_on_every_search_surface(db_path: str, surface: str) -> None:
     run = SURFACES[surface]
     engine = Engine.open(db_path, use_default_embedder=False)
     try:
@@ -183,7 +181,9 @@ def test_snippet_options_reject_wrong_field_types(fields: dict[str, object]) -> 
 
 
 # Shared with the TypeScript test and the fathomdb-py Rust fixture test.
-PARITY_FIXTURE = Path(__file__).resolve().parents[3] / "src" / "conformance" / "snippet-for-parity.json"
+PARITY_FIXTURE = (
+    Path(__file__).resolve().parents[3] / "src" / "conformance" / "snippet-for-parity.json"
+)
 PARITY_CASES: list[dict[str, Any]] = json.loads(PARITY_FIXTURE.read_text(encoding="utf-8"))["cases"]
 
 

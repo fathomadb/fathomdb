@@ -242,29 +242,32 @@ impl Text<'_> {
         let full =
             max_bytes - TRAILING.len() - head.map_or(LEADING.len(), |(_, h)| h + BETWEEN.len());
         let pool: Vec<usize> = (0..spans.len()).collect();
-        let (mut choice, _) = self.best_window(spans, ids, &pool, full, all)?;
+        let (mut choice, mut score) = self.best_window(spans, ids, &pool, full, all)?;
         let mut width = full;
-        let mut windows: Vec<(usize, usize)> = head.into_iter().collect();
+        let mut windows: Vec<Ranked> = head.map(|h| (h, None)).into_iter().collect();
         if max_windows > 1 {
-            let first = self.place(spans, &choice, full, all);
-            let with_first = sorted_with(&windows, first);
+            let mut with_first = ranges(&windows);
+            with_first.push(self.place(spans, &choice, full, all));
+            with_first.sort_unstable();
             if !self.uncovered(spans, ids, &with_first).is_empty() {
                 // Leave room for the windows rule 7 will add.
                 width = full / max_windows;
-                choice = self.best_window(spans, ids, &pool, width, all)?.0;
+                (choice, score) = self.best_window(spans, ids, &pool, width, all)?;
             }
         }
-        windows = sorted_with(&windows, self.place(spans, &choice, width, all));
+        let first = self.place(spans, &choice, width, all);
+        insert_merging(self.body.len(), max_bytes, &mut windows, (first, Some(score)));
 
         for left in (1..max_windows).rev() {
-            let remaining = max_bytes.saturating_sub(assembled_len(self.body.len(), &windows));
+            let shown = ranges(&windows);
+            let remaining = max_bytes.saturating_sub(assembled_len(self.body.len(), &shown));
             if remaining < MIN_EXTRA_WINDOW {
                 break;
             }
-            let eligible = self.uncovered(spans, ids, &windows);
+            let eligible = self.uncovered(spans, ids, &shown);
             let width = (remaining - BETWEEN.len()) / left;
             let mut best: Option<(Choice, Score, (usize, usize))> = None;
-            for gap in gaps(self.body.len(), &windows) {
+            for gap in gaps(self.body.len(), &shown) {
                 let pool: Vec<usize> = eligible
                     .iter()
                     .copied()
@@ -276,10 +279,11 @@ impl Text<'_> {
                     }
                 }
             }
-            let Some((c, _, gap)) = best else { break };
-            windows = sorted_with(&windows, self.place(spans, &c, width, gap));
+            let Some((c, score, gap)) = best else { break };
+            let window = self.place(spans, &c, width, gap);
+            insert_merging(self.body.len(), max_bytes, &mut windows, (window, Some(score)));
         }
-        Some(windows)
+        Some(ranges(&windows))
     }
 
     /// Rule 7's pool: spans outside every window whose identity no window
@@ -441,13 +445,43 @@ impl Text<'_> {
     }
 }
 
-/// `windows` (sorted, disjoint) with `window` inserted in order.
-fn sorted_with(windows: &[(usize, usize)], window: (usize, usize)) -> Vec<(usize, usize)> {
-    let mut out = windows.to_vec();
-    let at = out.partition_point(|w| *w < window);
-    out.insert(at, window);
-    out
+/// A window and its rule 4 score; the head has none and ranks lowest.
+type Ranked = ((usize, usize), Option<Score>);
+
+fn ranges(windows: &[Ranked]) -> Vec<(usize, usize)> {
+    windows.iter().map(|&(w, _)| w).collect()
 }
+
+/// Inserts `window` in body order, then applies rule 8: neighbours 16 bytes
+/// apart or less (or overlapping) merge into one window spanning the gap
+/// when the assembled text still fits `max_bytes`; otherwise the
+/// lower-ranked one is dropped (the later one on a tie).
+fn insert_merging(len: usize, max_bytes: usize, windows: &mut Vec<Ranked>, window: Ranked) {
+    let at = windows.partition_point(|w| w.0 < window.0);
+    windows.insert(at, window);
+    let mut i = 0;
+    while i + 1 < windows.len() {
+        let ((a, b), rank_a) = windows[i];
+        let ((c, d), rank_b) = windows[i + 1];
+        if c > b + MERGE_GAP {
+            i += 1;
+            continue;
+        }
+        let mut merged = windows.clone();
+        merged[i] = ((a, b.max(d)), rank_a.max(rank_b));
+        merged.remove(i + 1);
+        if assembled_len(len, &ranges(&merged)) <= max_bytes {
+            *windows = merged;
+        } else if rank_b > rank_a {
+            windows.remove(i);
+        } else {
+            windows.remove(i + 1);
+        }
+    }
+}
+
+/// Rule 8: windows at most this many bytes apart merge.
+const MERGE_GAP: usize = 16;
 
 /// The body ranges between and around `windows` (sorted, disjoint).
 fn gaps(len: usize, windows: &[(usize, usize)]) -> Vec<(usize, usize)> {

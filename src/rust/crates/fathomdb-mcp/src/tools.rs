@@ -10,7 +10,8 @@ use fathomdb_sdk::{
     graph, read, ArmDegradation, Explanation, GraphExpandRequestV1,
     GraphExpansionDegradationCodeV1, GraphReadContextV1, GraphSeedV1, IdSpace, IdSpaceKind,
     PerHitExplain, ReadContextV1, ReadView, SearchFilter, SearchFilterArg, SearchHit,
-    SearchOptions, SearchResult, SoftFallbackBranch, TextSearchOptions, TraversalDirection,
+    SearchOptions, SearchResult, SnippetOptions, SnippetV1, SoftFallbackBranch, TextSearchOptions,
+    TraversalDirection,
 };
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -145,11 +146,15 @@ pub struct SearchArgs {
     pub max_tokens: Option<u64>,
     /// Include a per-hit explanation.
     pub explain: Option<bool>,
-    /// Handle from a previous result; then only store, max_tokens and hints may be given.
+    /// Handle from a previous result; then only store, max_tokens, hints and
+    /// highlights may be given.
     pub continuation: Option<String>,
     /// Include the `hints` sidecar of suggested next calls; defaults to the
     /// operator's `hints` setting.
     pub hints: Option<bool>,
+    /// Add per-hit `highlights`, byte ranges into `snippet` of the matched
+    /// words; default false.
+    pub highlights: Option<bool>,
 }
 
 /// `fetch` arguments.
@@ -517,6 +522,8 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
 
 struct SearchRun {
     hits: Vec<SearchHit>,
+    /// One per hit (the engine sidecar); `search_page` rejects a mismatch.
+    snippets: Vec<SnippetV1>,
     explanation: Option<Explanation>,
     soft_fallback: Option<SoftFallbackBranch>,
     dense_disabled: bool,
@@ -527,6 +534,7 @@ impl SearchRun {
     fn from_result(result: SearchResult, dense_disabled: bool) -> Self {
         Self {
             hits: result.results,
+            snippets: result.snippets.unwrap_or_default(),
             explanation: result.explanation,
             soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
             dense_disabled,
@@ -643,13 +651,14 @@ fn render_search(output: &SearchOutput) -> String {
     };
     for (index, hit) in output.results.iter().enumerate() {
         text.push_str(&format!(
-            "\n{}. {} kind={} score={} arm={} source={} snippet={}{}",
+            "\n{}. {} kind={} score={} arm={} source={} anchor={} snippet={}{}",
             index + 1,
             shape::quote(&hit.reference),
             shape::quote(&hit.kind),
             hit.score,
             hit.arm,
             hit.source_id.as_deref().map_or_else(|| "none".to_string(), shape::quote),
+            hit.snippet_anchor,
             shape::quote(&hit.snippet),
             if hit.snippet_cut { " (cut)" } else { "" }
         ));
@@ -791,6 +800,48 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
     }
 }
 
+/// The shaped hits of a search run from `offset`: each hit with its engine
+/// snippet (EP-17), cursor and explanation.
+fn search_page(
+    run: &SearchRun,
+    per_hit: &[Option<&PerHitExplain>],
+    offset: usize,
+    highlights: bool,
+) -> Result<Vec<(Hit, u64, Option<PerHitOut>)>, ToolError> {
+    // The engine returns one snippet per hit when asked; anything else is an
+    // engine/adapter mismatch, not a page to shorten.
+    if run.snippets.len() != run.hits.len() {
+        return Err(ToolError::internal());
+    }
+    Ok(run
+        .hits
+        .iter()
+        .zip(&run.snippets)
+        .zip(per_hit.iter().copied())
+        .skip(offset)
+        .map(|((hit, snippet), explain)| {
+            let reference = hit.id.to_prefixed();
+            let per_hit = explain.map(|explain| per_hit_out(&reference, explain));
+            (
+                Hit {
+                    reference,
+                    kind: hit.kind.clone(),
+                    snippet: snippet.text.clone(),
+                    snippet_cut: snippet.cut,
+                    snippet_anchor: snippet.anchor.as_str().to_string(),
+                    highlights: highlights.then(|| snippet.highlights.clone()),
+                    source_id: hit.source_id.clone(),
+                    score: hit.score,
+                    arm: branch_str(hit.branch).to_string(),
+                    ce_score: hit.ce_score,
+                },
+                hit.write_cursor,
+                per_hit,
+            )
+        })
+        .collect())
+}
+
 pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: SearchArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
@@ -809,7 +860,8 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.explain.is_none();
             if !only_paging {
                 return Err(ToolError::bad_argument(
-                    "a continuation call takes only store, continuation, max_tokens and hints",
+                    "a continuation call takes only store, continuation, max_tokens, hints and \
+                     highlights",
                 ));
             }
             ctx.shared.registry.ensure_slot(&store)?;
@@ -876,6 +928,16 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     // comes from this search's own correlation id, never the engine-wide
     // `last_telemetry_query_id` (MR-024.6).
     let explain = request.explain || telemetry;
+    let snippet = Some(SnippetOptions {
+        max_bytes: ctx.shared.config.snippet_bytes,
+        max_windows: 1,
+        head_bytes: ctx.shared.config.snippet_head_bytes(),
+        highlights: args.highlights.unwrap_or(false),
+        // One point query per hit of the run window, so every page of a
+        // continuation chain is anchored alike and `highlights` (which also
+        // queries hits that fit) never changes another hit's snippet.
+        max_point_queries: u8::try_from(run_limit).unwrap_or(u8::MAX),
+    });
     let started_limit = ctx.run_limit();
     let (answered, run) = bridge::call(
         guard,
@@ -887,7 +949,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             let result = match mode {
                 SearchMode::Text => engine.search_text_only(
                     &request.query,
-                    TextSearchOptions { view, limit: run_limit, snippet: None },
+                    TextSearchOptions { view, limit: run_limit, snippet },
                 )?,
                 SearchMode::Hybrid => engine.search(
                     &request.query,
@@ -896,6 +958,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                         explain,
                         view,
                         limit: run_limit,
+                        snippet,
                         ..SearchOptions::default()
                     },
                 )?,
@@ -921,32 +984,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             run.explanation.as_ref().and_then(|explanation| explanation.per_hit.get(index))
         })
         .collect();
-    let snippet_cap = ctx.shared.config.snippet_chars as usize;
-    let page: Vec<(Hit, u64, Option<PerHitOut>)> = run
-        .hits
-        .iter()
-        .zip(per_hit)
-        .skip(offset)
-        .map(|(hit, explain)| {
-            let reference = hit.id.to_prefixed();
-            let (snippet, snippet_cut) = shape::snippet(&hit.body, snippet_cap);
-            let per_hit = explain.map(|explain| per_hit_out(&reference, explain));
-            (
-                Hit {
-                    reference,
-                    kind: hit.kind.clone(),
-                    snippet,
-                    snippet_cut,
-                    source_id: hit.source_id.clone(),
-                    score: hit.score,
-                    arm: branch_str(hit.branch).to_string(),
-                    ce_score: hit.ce_score,
-                },
-                hit.write_cursor,
-                per_hit,
-            )
-        })
-        .collect();
+    let page = search_page(&run, &per_hit, offset, args.highlights.unwrap_or(false))?;
     let canonical_json = serde_json::to_string(&canonical).expect("serializes");
     let trace = run.explanation.as_ref().map(trace_out);
     // § 3.3: a text search may suggest hybrid only when the store has a
@@ -1452,6 +1490,22 @@ mod degradation_tests {
         ArmDegradation, DegradationReason, Engine, InitialState, OpenOptions, PreparedWrite,
         SourceId,
     };
+
+    /// S5c review P3: a run whose snippet sidecar is missing (or shorter
+    /// than its hits) is an internal error, never a silently emptied page.
+    #[test]
+    fn a_run_without_its_snippet_sidecar_is_an_internal_error() {
+        let result = overloaded_hybrid_result();
+        assert!(result.snippets.is_none(), "precondition: no snippets were requested");
+        let run = SearchRun::from_result(result, false);
+        let per_hit = vec![None; run.hits.len()];
+        let page = search_page(&run, &per_hit, 0, false);
+        assert!(
+            matches!(&page, Err(error) if error.code == "internal"),
+            "{:?}",
+            page.as_ref().map(Vec::len)
+        );
+    }
 
     fn entry(arm: &str, reason: &str) -> Degradation {
         Degradation { arm: arm.to_string(), reason: reason.to_string() }

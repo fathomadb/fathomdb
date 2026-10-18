@@ -144,27 +144,27 @@ async fn as_of_selects_the_validity_window_and_is_reported() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn snippets_are_capped_on_character_boundaries() {
+async fn snippets_are_capped_in_bytes() {
     let long: String = "é".repeat(500) + " river";
     let (_fixture, harness) = harness_with(
         vec![node("note:long", "note", &format!("river {long}"))],
-        json!({"snippet_chars": 50}),
+        json!({"snippet_bytes": 50}),
     )
     .await;
     let found = harness.ok("search", json!({"query": "river"})).await;
     let snippet = found["results"][0]["snippet"].as_str().unwrap();
-    assert_eq!(snippet.chars().count(), 50, "MR-040.1");
+    assert!(snippet.len() <= 50, "MR-040.1 in bytes: {} bytes", snippet.len());
     assert_eq!(found["results"][0]["snippet_cut"], true);
     harness.shutdown().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_default_snippet_cap_is_300_characters() {
-    let body = format!("river {}", "word ".repeat(400));
+async fn the_default_snippet_cap_is_300_bytes() {
+    let body = format!("river {}", "wörd ".repeat(400));
     let (_fixture, harness) = harness_with(vec![node("note:long", "note", &body)], json!({})).await;
     let found = harness.ok("search", json!({"query": "river"})).await;
     for hit in found["results"].as_array().unwrap() {
-        assert!(hit["snippet"].as_str().unwrap().chars().count() <= 300);
+        assert!(hit["snippet"].as_str().unwrap().len() <= 300);
     }
     harness.shutdown().await;
 }
@@ -353,15 +353,15 @@ async fn identical_requests_give_identical_output_and_references_survive_restart
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_default_snippet_cap_is_exactly_300_characters() {
+async fn the_default_snippet_cap_is_300_bytes_from_the_record_start() {
     let body = format!("river {}", "abcdefghij".repeat(40));
-    assert!(body.chars().count() > 300);
+    assert!(body.len() > 300);
     let (_fixture, harness) = harness_with(vec![node("note:long", "note", &body)], json!({})).await;
     let found = harness.ok("search", json!({"query": "river"})).await;
     let hit = &found["results"][0];
     let snippet = hit["snippet"].as_str().unwrap();
-    assert_eq!(snippet.chars().count(), 300, "MR-040.1 default cap");
-    assert!(body.starts_with(snippet));
+    assert!(snippet.len() <= 300, "MR-040.1 default cap, in bytes");
+    assert!(snippet.starts_with("river"), "{snippet:?}");
     assert_eq!(hit["snippet_cut"], true);
     harness.shutdown().await;
 }
@@ -447,5 +447,174 @@ async fn hybrid_on_dense_disabled_store_is_not_ready_use_text() {
 
     let found = harness.ok("search", json!({"query": "river", "mode": "text"})).await;
     assert!(!refs(&found).is_empty(), "text search still answers: {found}");
+    harness.shutdown().await;
+}
+
+/// A body of filler words with `term` at byte `at` (a multiple of 6).
+fn long_body(at: usize, term: &str, len: usize) -> String {
+    assert_eq!(at % 6, 0);
+    let mut body = "lorem ".repeat(at / 6);
+    body.push_str(term);
+    while body.len() < len {
+        body.push_str(" ipsum");
+    }
+    body
+}
+
+/// T-13 (match-centred-snippets.md § 7.3): hits carry `snippet_anchor`, and a
+/// long record's snippet is centred on the matched term, not its prefix; a
+/// record that fits is whole. Every response still fits its budget
+/// (MR-041.1).
+#[tokio::test(flavor = "multi_thread")]
+async fn snippets_are_centred_on_the_match_with_an_anchor() {
+    let long = long_body(3000, "zanzibar", 4096);
+    let (_fixture, harness) = harness_with(
+        vec![node("note:long", "note", &long), node("note:short", "note", "a short zanzibar note")],
+        json!({}),
+    )
+    .await;
+    let found = harness.ok("search", json!({"query": "zanzibar"})).await;
+    let hits = found["results"].as_array().unwrap();
+    let hit = |reference: &str| hits.iter().find(|hit| hit["ref"] == reference).unwrap().clone();
+
+    let long_hit = hit("l:note:long");
+    let snippet = long_hit["snippet"].as_str().unwrap();
+    assert_eq!(long_hit["snippet_anchor"], "match", "{long_hit}");
+    assert!(snippet.contains("zanzibar"), "{snippet:?}");
+    assert!(snippet.len() <= 300);
+    assert_eq!(long_hit["snippet_cut"], true);
+    assert!(long_hit.get("highlights").is_none(), "highlights are opt-in");
+
+    let short_hit = hit("l:note:short");
+    assert_eq!(short_hit["snippet_anchor"], "whole");
+    assert_eq!(short_hit["snippet"], "a short zanzibar note");
+    assert_eq!(short_hit["snippet_cut"], false);
+
+    for max_tokens in [256_u64, 300, 400, 600, 1000] {
+        let result =
+            harness.call("search", json!({"query": "zanzibar", "max_tokens": max_tokens})).await;
+        assert_fits(&result, max_tokens);
+    }
+    harness.shutdown().await;
+}
+
+/// The highlights opt-in (owner decision 3): `highlights: true` adds, per hit,
+/// byte ranges into `snippet` of the matched words; it is presentation, so a
+/// continuation call may pass it and the page's references are unchanged.
+#[tokio::test(flavor = "multi_thread")]
+async fn highlights_are_opt_in_byte_ranges_into_the_snippet() {
+    let long = long_body(3000, "zanzibar", 4096);
+    let mut writes = vec![node("note:long", "note", &long)];
+    writes.extend(
+        (0..12).map(|i| node(&format!("note:{i:02}"), "note", &format!("zanzibar again {i}"))),
+    );
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+
+    let plain = harness.ok("search", json!({"query": "zanzibar", "limit": 5})).await;
+    assert!(plain["results"].as_array().unwrap().iter().all(|hit| hit.get("highlights").is_none()));
+
+    let lit =
+        harness.ok("search", json!({"query": "zanzibar", "limit": 5, "highlights": true})).await;
+    assert_eq!(refs(&lit), refs(&plain), "presentation only");
+    for hit in lit["results"].as_array().unwrap() {
+        let snippet = hit["snippet"].as_str().unwrap();
+        let ranges = hit["highlights"].as_array().unwrap_or_else(|| panic!("{hit}"));
+        assert!(!ranges.is_empty(), "{hit}");
+        for range in ranges {
+            let (a, b) = (range[0].as_u64().unwrap() as usize, range[1].as_u64().unwrap() as usize);
+            assert_eq!(&snippet[a..b].to_lowercase(), "zanzibar", "{hit}");
+        }
+    }
+
+    let next = harness
+        .ok("search", json!({"continuation": lit["continuation"], "highlights": true}))
+        .await;
+    assert!(next["results"][0]["highlights"].is_array(), "{next}");
+    harness.shutdown().await;
+}
+
+/// Review fix (S5c P2): the engine's snippet point-query cap covers the
+/// whole run window (offset + limit), so a long record ranked past 20, on a
+/// later continuation page, is still centred on its match.
+#[tokio::test(flavor = "multi_thread")]
+async fn long_hits_past_rank_20_are_centred_on_continuation_pages() {
+    let writes: Vec<PreparedWrite> = (0..30)
+        .map(|i| {
+            node(
+                &format!("note:{i:02}"),
+                "note",
+                &format!("{} doc{i}", long_body(3000, "zanzibar", 4096)),
+            )
+        })
+        .collect();
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let mut page =
+        harness.ok("search", json!({"query": "zanzibar", "limit": 10, "max_tokens": 20000})).await;
+    let mut seen = 0;
+    loop {
+        for hit in page["results"].as_array().unwrap() {
+            assert_eq!(hit["snippet_anchor"], "match", "rank {}: {hit}", seen + 1);
+            seen += 1;
+        }
+        let Some(next) = page["continuation"].as_str().map(str::to_string) else { break };
+        page = harness.ok("search", json!({"continuation": next, "max_tokens": 20000})).await;
+    }
+    assert_eq!(seen, 30);
+    harness.shutdown().await;
+}
+
+/// Review fix (S5c P2): `highlights` is presentation only. With short hits
+/// ranked above long ones, asking for highlights (which makes fitting hits
+/// use point queries) must not change any hit's snippet text or anchor.
+#[tokio::test(flavor = "multi_thread")]
+async fn highlights_do_not_change_snippet_text_or_anchor() {
+    let mut writes: Vec<PreparedWrite> = (0..25)
+        .map(|i| node(&format!("note:s{i:02}"), "note", &format!("zanzibar note {i}")))
+        .collect();
+    writes.extend((0..5).map(|i| {
+        node(
+            &format!("note:l{i}"),
+            "note",
+            &format!("{} doc{i}", long_body(3000, "zanzibar", 4096)),
+        )
+    }));
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let args = |highlights: bool| json!({"query": "zanzibar", "limit": 30, "max_tokens": 20000, "highlights": highlights});
+    let plain = harness.ok("search", args(false)).await;
+    let lit = harness.ok("search", args(true)).await;
+    let view = |page: &Value| -> Vec<(Value, Value, Value)> {
+        page["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|hit| (hit["ref"].clone(), hit["snippet"].clone(), hit["snippet_anchor"].clone()))
+            .collect()
+    };
+    assert_eq!(view(&plain).len(), 30);
+    assert_eq!(view(&lit), view(&plain));
+    harness.shutdown().await;
+}
+
+/// Owner decision 2 (match-centred-snippets.md § 10): MCP keeps the record
+/// head. A LoCoMo-style record whose match is near byte 3000 gets a snippet
+/// that begins with the header and still holds the match.
+#[tokio::test(flavor = "multi_thread")]
+async fn match_snippets_keep_the_record_head() {
+    let header = "(unknown date) [8 May 2023] Caroline: ";
+    let mut body = header.to_string();
+    while body.len() < 2995 {
+        body.push_str("we talked ");
+    }
+    body.push_str("zanzibar");
+    body.push_str(&" again".repeat(200));
+    let (_fixture, harness) =
+        harness_with(vec![node("note:locomo", "note", &body)], json!({})).await;
+    let found = harness.ok("search", json!({"query": "zanzibar"})).await;
+    let hit = &found["results"][0];
+    let snippet = hit["snippet"].as_str().unwrap();
+    assert_eq!(hit["snippet_anchor"], "match", "{hit}");
+    assert!(snippet.starts_with("(unknown date) [8 May 2023] Caroline:"), "{snippet:?}");
+    assert!(snippet.contains("zanzibar"), "{snippet:?}");
+    assert!(snippet.len() <= 300);
     harness.shutdown().await;
 }

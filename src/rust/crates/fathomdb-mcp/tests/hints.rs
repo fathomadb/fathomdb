@@ -171,7 +171,7 @@ async fn per_call_hints_argument_overrides_config() {
 #[tokio::test(flavor = "multi_thread")]
 async fn search_with_cut_snippets_emits_one_fetch_hint_with_every_cut_ref() {
     let (_fixture, harness) =
-        harness_with(river_notes(60, 200), json!({"snippet_chars": 40})).await;
+        harness_with(river_notes(60, 200), json!({"snippet_bytes": 40})).await;
     let found =
         harness.ok("search", json!({"query": "river", "limit": 60, "max_tokens": 20_000})).await;
     let results = found["results"].as_array().unwrap();
@@ -203,7 +203,7 @@ async fn hint_bounds_hold() {
             other => other,
         })
         .collect();
-    let (_fixture, harness) = harness_with(writes, json!({"snippet_chars": 40})).await;
+    let (_fixture, harness) = harness_with(writes, json!({"snippet_bytes": 40})).await;
     let found =
         harness.ok("search", json!({"query": "river", "limit": 60, "max_tokens": 20_000})).await;
     let results: Vec<String> = common::refs(&found);
@@ -236,7 +236,7 @@ fn paging_hints(found: &Value) -> Vec<Value> {
 #[tokio::test(flavor = "multi_thread")]
 async fn continuation_hint_equals_result_continuation() {
     let (_fixture, harness) =
-        harness_with(river_notes(30, 400), json!({"snippet_chars": 40})).await;
+        harness_with(river_notes(30, 400), json!({"snippet_bytes": 40})).await;
     let full = harness.ok("search", json!({"query": "river", "limit": 5})).await;
     assert_eq!(full["completeness"], "limit_reached");
     assert_eq!(
@@ -367,7 +367,7 @@ async fn hints_count_against_the_budget() {
     for i in 1..20 {
         writes.push(common::edge("link", "note:000", &format!("note:{i:03}")));
     }
-    let (_fixture, harness) = harness_with(writes, json!({"snippet_chars": 80})).await;
+    let (_fixture, harness) = harness_with(writes, json!({"snippet_bytes": 80})).await;
     let fetch_refs: Vec<String> = (0..20).map(|i| format!("l:note:{i:03}")).collect();
     let mut with_hints = 0;
     for max_tokens in [256_u64, 300, 512, 1000, 2500, 4000, 20_000] {
@@ -441,4 +441,42 @@ async fn hit_line_refs_are_quoted_in_text_blocks() {
         assert!(text.contains(&line), "expand target line {line:?} in {text}");
     }
     harness.shutdown().await;
+}
+
+/// match-centred-snippets.md § 7.3: the `snippet_cut` hint's text is keyed
+/// on the cut hits' `snippet_anchor`: "centred on the match" for `match`,
+/// "the record start" for `start`, and both when the listed hits differ.
+/// A record that contains every highlight marker pair cannot be
+/// highlighted, so it is cut at its start.
+#[tokio::test(flavor = "multi_thread")]
+async fn snippet_cut_hint_text_follows_the_snippet_anchor() {
+    let filler = |n: usize| "lorem ".repeat(n);
+    let matched = format!("{}zanzibar{}", filler(500), " ipsum".repeat(200));
+    let unmarkable = format!(
+        "{}zanzibar \u{E000}\u{E001}\u{F8FE}\u{F8FF}\u{FDD0}\u{FDD1}{}",
+        filler(500),
+        " ipsum".repeat(200)
+    );
+    let cases = [
+        (vec![node("note:m", "note", &matched)], "snippets are centred on the match"),
+        (vec![node("note:s", "note", &unmarkable)], "snippets are the record start"),
+        (
+            vec![node("note:m", "note", &matched), node("note:s", "note", &unmarkable)],
+            "snippets are centred on the match or are the record start",
+        ),
+    ];
+    for (writes, expected) in cases {
+        let (_fixture, harness) = harness_with(writes, json!({})).await;
+        let result = harness.call("search", json!({"query": "zanzibar"})).await;
+        let text = common::text_of(&result);
+        let line = text
+            .lines()
+            .find(|line| line.contains("(snippet_cut: "))
+            .unwrap_or_else(|| panic!("no snippet_cut hint: {text}"));
+        assert!(
+            line.ends_with(&format!("(snippet_cut: {expected}; fetch to read the full record)")),
+            "{line}"
+        );
+        harness.shutdown().await;
+    }
 }

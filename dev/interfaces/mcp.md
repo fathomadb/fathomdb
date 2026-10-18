@@ -48,7 +48,7 @@ fathomdb-mcp --config <path.json> --check-config
 | `call_deadline_ms` | integer ≥ 100 | 10000 | Per tool call (MR-033), measured from arrival. It bounds the wait for an opening store and for a permit, and the decision to start: a waiting call is started only if the p90 service time of the last 128 completed calls of its tool kind (`search` text, `search` hybrid, `fetch`, `expand`, `orient`; 50 ms while a kind has fewer than 8) fits in the time it has left; otherwise it is refused as `busy/admission`, `busy.reason` `deadline`. A call that finds a permit free starts at once, without that check. It does not bound a started call: that call runs to completion and returns its result, even after this deadline (`run_limit_ms`). |
 | `run_limit_ms` | integer ≥ `call_deadline_ms` | 60000, or `call_deadline_ms` when that is larger | Bound on a started call, measured from its admission permit. It exists to report stuck work: a call still running at the limit returns `timeout/deadline` and is abandoned (its read keeps its permit until it returns, and it is counted in `busy.abandoned`). Engine reads cannot be interrupted, so the limit frees nothing. A call with a progress token gets a progress notification `queued: q waiting, c running` each second while it waits for a permit and `running` each second while it runs, numbered in one increasing sequence. |
 | `default_max_tokens` | integer ≥ 256 | 4000 | Budget when a call omits `max_tokens` (MR-041.3). |
-| `snippet_chars` | integer 40..2000 | 300 | Snippet cap (MR-040). |
+| `snippet_bytes` | integer 40..2000 | 300 | Snippet cap in UTF-8 bytes, ellipses included (MR-040). Each search requests the engine's match-centred snippets (EP-17) with `max_bytes` = this value, one window, and a record head of `min(48, snippet_bytes / 2)` bytes. 48 holds a LoCoMo-style header such as `(unknown date) [8 May 2023] Caroline:` (37 bytes). The old key `snippet_chars` is unknown (no alias). |
 | `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"text"` until the MR-021 evaluation shows hybrid at or above BM25 precision@3. |
 | `use_default_embedder` | bool | false | Passed to `OpenOptions`. Required for `"hybrid"`. |
 | `telemetry_dir` | path or null | null | Absolute or relative to the config file. When set, a fresh sink `<dir>/<store>.<pid>.<epoch>.jsonl` is enabled on every open and feedback is recorded (MR-024, MR-024.7). |
@@ -132,7 +132,10 @@ This is the one vocabulary table (MR-072):
   would not fit, is shaped again without them.
 - Text block: one line per hint after the header and before the hits, from a
   fixed template per reason, for example `hint: fetch ["l:a","l:b"]
-  (snippet_cut: snippets are prefixes; fetch to read the full record)`.
+  (snippet_cut: snippets are centred on the match; fetch to read the full
+  record)`. The `snippet_cut` sentence follows the cut hits' `snippet_anchor`:
+  "snippets are centred on the match", "snippets are the record start", or
+  "snippets are centred on the match or are the record start".
 
 ## 4. Tools
 
@@ -171,7 +174,8 @@ Args: `store`. Result adds:
 | `limit` | integer 1..100 | 10 | Ranked cap is 100 (MR-041.2). |
 | `max_tokens` | integer ≥ 256 | config | MR-041. |
 | `explain` | bool | false | Include per-hit explanation. |
-| `continuation` | string | none | From a prior result. Only `store`, `max_tokens` and `hints` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
+| `highlights` | bool | false | Add per-hit `highlights`: `[start, end)` byte ranges into `snippet` of the matched words. Presentation only: not part of the canonical arguments, so references, `response_id` and continuations are unchanged. |
+| `continuation` | string | none | From a prior result. Only `store`, `max_tokens`, `hints` and `highlights` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
 
 `include_superseded` and `include_inactive` are not search arguments: the
 engine rejects them on every search path (`reject_existence_relaxation_on_search`)
@@ -184,7 +188,22 @@ Result adds:
   the first 16 hex digits of SHA-256 over the store, the canonical arguments and
   the result references. Identical requests on identical state get identical
   ids (MR-043).
-- `results`: array of `{ref, kind, snippet, snippet_cut, source_id, score, arm, ce_score?}` in engine rank order.
+- `results`: array of `{ref, kind, snippet, snippet_cut, snippet_anchor, highlights?, source_id, score, arm, ce_score?}` in engine rank order.
+  - `snippet` is at most `snippet_bytes` bytes, chosen by the engine (EP-17).
+    It is centred on the matched words, keeps the record head, and uses `…`
+    where text is left out.
+  - `snippet_anchor` is `whole` (the record fitted), `match` (a window
+    centred on the matched words) or `start` (the record start: the hit has
+    no lexical match, as for vector-only hits, or it ranked past the
+    engine's per-search snippet cap).
+  - `snippet_cut` is true when any of the record is left out.
+  - The budget loop drops whole hits; it never re-cuts a snippet.
+  - Cost: the engine's per-search snippet cap (`max_point_queries`) is set
+    to the run window, `offset + limit` (at most 100). A search therefore
+    runs at most one `highlight()` point query per long hit in the run
+    window, plus per-term queries for multi-term queries; with `highlights`
+    it also runs one per hit that fits. M1 has not yet measured this cost.
+  - The text line for a hit carries `anchor=<snippet_anchor>`.
 - `completeness`: one of `complete` (fewer results than `limit`, no
   degradation), `limit_reached` (exactly `limit`; total unknown),
   `cut_by_budget`, `empty`, `empty_not_ready` (empty with a degradation entry),

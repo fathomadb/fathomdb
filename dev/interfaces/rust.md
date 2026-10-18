@@ -1305,7 +1305,9 @@ The plain entry points are these with `None`.
     three pairs, or the marked text does not strip back to the body, the hit
     gets no spans.
 - Exact term identity (rule 3). It applies when the body is over budget, the
-  query has more than one OR term, and the first window misses a span. The
+  query has more than one OR term, and some span lies outside every window of
+  the approximate snippet. That is the as-built reading of "the first window
+  misses a span": with a record head, the first window is the head. The
   engine then runs `highlight()` once per term in `CompiledQuery.terms`, and
   spans are grouped by term rather than by lowercased text.
 - `max_point_queries` caps how many hits get span queries, in rank order.

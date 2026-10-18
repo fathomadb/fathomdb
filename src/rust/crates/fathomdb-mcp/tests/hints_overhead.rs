@@ -1,7 +1,7 @@
 //! Hints overhead, devloop tier (hints-sidecar § 4.2, § 4.3.2; review fix 3):
 //! the time hints add to one search shaping, measured through the shaping
 //! seam on synthetic 10- and 100-hit pages with bodies of 0.2-4 KB, half over
-//! `snippet_chars`. 31 trials interleave off and on; each trial takes the
+//! `snippet_bytes`. 31 trials interleave off and on; each trial takes the
 //! median of its repetitions, and the result is the median of the trial
 //! medians. `max_tokens` is set so the budget loop renders once.
 //!
@@ -22,7 +22,7 @@ fn page(hits: u32, hints: bool) -> PreparedSearchPage {
         .map(|index| SyntheticHit {
             reference: format!("l:note:{index:03}"),
             kind: "note".to_string(),
-            // 204 bytes or 4 098 bytes, alternating: half over snippet_chars.
+            // 204 bytes or 4 098 bytes, alternating: half over snippet_bytes.
             body: "river ".repeat(if index % 2 == 0 { 34 } else { 683 }),
             source_id: Some("fixture".to_string()),
             score: 1.0 / f64::from(index + 1),
@@ -31,7 +31,7 @@ fn page(hits: u32, hints: bool) -> PreparedSearchPage {
     prepare_search_page(&SearchPageInput {
         ranked,
         limit: hits as usize,
-        snippet_chars: 300,
+        snippet_bytes: 300,
         max_tokens: 1_000_000,
         hints: Some(hints),
         ..Default::default()

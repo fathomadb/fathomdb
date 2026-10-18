@@ -153,7 +153,7 @@ async fn hints_validate_against_output_schema() {
     let harness = Harness::start(fixture.config(json!({
         "stores": {"a": {"path": "a.sqlite"}},
         "default_store": "a",
-        "snippet_chars": 40
+        "snippet_bytes": 40
     })))
     .await;
     let reasons = |result: &Value| -> Vec<String> {

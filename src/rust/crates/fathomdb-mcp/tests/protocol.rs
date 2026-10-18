@@ -37,7 +37,7 @@ async fn tools_list_and_capabilities_are_static_across_configs_and_contents() {
         "stores": {"b": {"path": "b.sqlite"}},
         "roots": [{"path": "root"}],
         "idle_timeout_secs": 0,
-        "snippet_chars": 80,
+        "snippet_bytes": 80,
         "telemetry_dir": "t"
     })))
     .await;
@@ -106,7 +106,8 @@ async fn instructions_are_a_compact_usage_guide() {
         "Always search first",
         "default limit of 10",
         "rephrase",
-        "Snippets are the first N characters of each record, not the passage that matched",
+        "Snippets are centred on the matched words when snippet_anchor is match",
+        "the record start when it is start",
         "may return nothing when the store has no edges",
         "after answering from a hybrid search",
     ] {

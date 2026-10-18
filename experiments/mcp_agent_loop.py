@@ -952,7 +952,7 @@ def _agent(question: Question, *, mcp: McpSession, functions: list[dict[str, Any
 
 
 def server_config(stores_dir: Path, mode: str) -> dict[str, Any]:
-    """The fixed server configuration; snippet_chars and default_max_tokens stay at their defaults."""
+    """The fixed server configuration; snippet_bytes and default_max_tokens stay at their defaults."""
     return {
         "roots": [{"path": str(stores_dir), "suffix": ".sqlite"}], "default_store": "conv0",
         "use_default_embedder": True, "idle_timeout_secs": 0, "call_deadline_ms": 120000,

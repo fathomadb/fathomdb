@@ -57,7 +57,7 @@ fn allocations<T>(f: impl FnOnce() -> T) -> (u64, T) {
 }
 
 /// 100 hits, bodies of 200 bytes and 4 KB alternating, so half are over
-/// `snippet_chars` (300) and 50 refs are cut.
+/// `snippet_bytes` (300) and 50 refs are cut.
 fn page(hints: Option<bool>) -> PreparedSearchPage {
     let ranked = (0..100)
         .map(|index| SyntheticHit {
@@ -71,7 +71,7 @@ fn page(hints: Option<bool>) -> PreparedSearchPage {
     prepare_search_page(&SearchPageInput {
         ranked,
         limit: 100,
-        snippet_chars: 300,
+        snippet_bytes: 300,
         max_tokens: 1_000_000,
         hints,
         ..Default::default()

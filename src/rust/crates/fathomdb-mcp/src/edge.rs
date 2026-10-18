@@ -36,8 +36,9 @@ default (or pass `store` on each call). Skip both when a default store is alread
 - Always search first, keeping the default limit of 10. It returns references (l:<logical id>) \
 with snippets in rank order. If the results miss, rephrase with synonyms, names or related \
 events and search again.\n\
-- Snippets are the first N characters of each record, not the passage that matched. fetch the \
-references whose snippet looks relevant or is cut off (snippet_cut) to read the full record.\n\
+- Snippets are centred on the matched words when snippet_anchor is match, the record start \
+when it is start. fetch the references whose snippet looks relevant or is cut (snippet_cut) to \
+read the full record.\n\
 - expand follows graph edges from references; it may return nothing when the store has no \
 edges.\n\
 - feedback (optional): after answering from a hybrid search, report which references you used.\n\
@@ -212,7 +213,7 @@ impl FathomServer {
 
     #[tool(
         name = "search",
-        description = "Search a store. Returns references (l:<logical id>), kinds, snippets of at most the configured snippet length, provenance and scores in engine rank order, with completeness and degradation labels. mode \"text\" is lexical only; \"hybrid\" adds the vector arm and accepts kind, source_type, status, created_after and attributes filters. as_of pins the validity instant. The response fits max_tokens (estimated as bytes / 4; default 4000 unless the operator configured default_max_tokens; the applied value is in budget.max_tokens); when cut it carries a continuation: call search again with only that continuation (and optionally store, max_tokens).",
+        description = "Search a store. Returns references (l:<logical id>), kinds, snippets of at most the configured snippet_bytes (each with snippet_anchor), provenance and scores in engine rank order, with completeness and degradation labels. mode \"text\" is lexical only; \"hybrid\" adds the vector arm and accepts kind, source_type, status, created_after and attributes filters. as_of pins the validity instant. The response fits max_tokens (estimated as bytes / 4; default 4000 unless the operator configured default_max_tokens; the applied value is in budget.max_tokens); when cut it carries a continuation: call search again with only that continuation (and optionally store, max_tokens).",
         input_schema = input::<SearchArgs>(),
         output_schema = output::<SearchOutput>(),
         annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false)

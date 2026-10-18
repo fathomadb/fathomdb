@@ -158,8 +158,12 @@ The evaluator writes this server config:
 ```json
 {"roots": [{"path": "<stores>", "suffix": ".sqlite"}], "use_default_embedder": true,
  "default_max_tokens": 200000, "call_deadline_ms": 120000, "idle_timeout_secs": 0,
- "snippet_chars": 40}
+ "snippet_bytes": 40}
 ```
+
+The recorded runs used the earlier key `snippet_chars: 40` (a 40-character
+prefix). EP-17 renamed it to `snippet_bytes` with no alias, and snippets are
+now selected around the match, so a rerun is not byte-comparable with them.
 
 It sends one `search` call per mode per question, with the arguments
 `{"store": "conv<i>", "query": <question>, "mode": "text" | "hybrid",

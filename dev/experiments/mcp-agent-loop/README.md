@@ -55,7 +55,7 @@ search (A2, 0.853), and the paired intervals exclude zero.
    "search_mode": "text | hybrid"}
   ```
 
-  `snippet_chars` (300) and `default_max_tokens` (4000) are left at their
+  `snippet_bytes` (300) and `default_max_tokens` (4000) are left at their
   defaults. `search_mode` is `text` for A1 and `hybrid` for the other arms. The
   root lists all ten conversation stores, so `list_stores` shows ten names and
   the agent could have switched store. It never did.

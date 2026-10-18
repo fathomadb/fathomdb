@@ -468,6 +468,17 @@ SnippetV1` (§ 7.2). Its inputs are the body, its spans `[s, e)`, `max_bytes`,
 
    It costs up to `k` extra point queries for exactly the hits where identity
    changes the choice. Variant (a′) is a later option.
+
+   *As built (S5b):* the third condition is checked as "some span lies
+   outside every window of the approximate snippet". It is not checked
+   against `windows[0]` alone, for two reasons:
+   - With a record head (`head_bytes > 0`, the MCP default), `windows[0]` is
+     the head, so a `windows[0]` check would run the per-term pass on almost
+     every long hit.
+   - When every span is already shown (in the head, the match window, or a
+     rule 7 window), exact identity cannot show more terms.
+
+   With `max_windows = 1` and no head, the two readings are the same.
 4. **First window.** For each span start, consider the window of width
    `W = max_bytes − ellipsis allowance` that begins there. Score it, in this
    lexicographic order:
@@ -646,6 +657,14 @@ a thin consumer.** The reasons:
     "start"`.
   - This case needs a long page under a small budget. The adapter can avoid it
     by setting `highlights: true`, at the point-query cost M1 measures.
+
+  *Correction (S5c):* this bullet rested on a wrong premise. The search
+  budget loop never cuts snippets: it drops whole hits from the end of the
+  page (`shape_search_page`, `kept -= 1`). `cut_bodies` serves only `fetch`
+  and `expand`, which cut full record bodies with no query and no spans. So
+  no snippet is trimmed after selection, and nothing re-runs `snippet_for`.
+  The as-built adapter takes `snippets[i]` as returned. MR-041.1 holds
+  because the loop drops hits, not because snippets shrink.
 - The server instruction at `edge.rs:38-39` changes. Snippets are centred on
   the matched words when `snippet_anchor` is `match`, and are the record start
   when it is `start`. `fetch` stays the way to read the rest.

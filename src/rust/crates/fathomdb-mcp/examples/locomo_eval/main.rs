@@ -286,7 +286,7 @@ fn main() {
         "default_max_tokens": 200_000,
         "call_deadline_ms": 120_000,
         "idle_timeout_secs": 0,
-        "snippet_chars": 40
+        "snippet_bytes": 40
     });
     let config_path = out_dir.join("mcp-config.json");
     std::fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap()).unwrap();

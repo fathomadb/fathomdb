@@ -368,7 +368,9 @@ a reference, kind, a bounded snippet, provenance and scores, not full content;
 a fetch tool returns full content for references. Meets AN-009.
 
 - MR-040.1 A default search over long records returns no content field over the
-  snippet cap *(ADR: 300 characters)*.
+  snippet cap *(ADR: 300 bytes, `snippet_bytes`; was 300 characters before
+  EP-17, owner decision 2026-10-18)*. The snippet is centred on the matched
+  words when the hit matched lexically (`snippet_anchor`).
 - MR-040.2 Fetching the returned references yields content identical to the SDK
   read of the same records under the same view.
 

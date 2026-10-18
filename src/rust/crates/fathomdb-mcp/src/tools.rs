@@ -764,7 +764,11 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
             continuation: continuation.clone(),
             continuation_exact: hosted.then_some(false),
             explanation,
-            hints: if with_hints { hints.emit(page, kept) } else { Vec::new() },
+            hints: if with_hints {
+                hints.emit(page, kept, continuation.as_deref(), cut, max_tokens)
+            } else {
+                Vec::new()
+            },
         };
         let text = render_search(&output);
         let (rendered, whole) = finish(&output, text, max_tokens, cut);

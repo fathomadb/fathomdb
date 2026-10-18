@@ -33,6 +33,7 @@ pub(crate) struct SearchPageFacts<'a> {
 /// each iteration emits from the plan's prefix below `kept`.
 #[derive(Default)]
 pub(crate) struct SearchPlan {
+    enabled: bool,
     /// Engine-subset hints, in emission order.
     engine: Vec<fathomdb_sdk::Hint>,
     /// Page indices of the hits whose snippet was cut, in rank order.
@@ -67,17 +68,29 @@ impl SearchPlan {
                     .map(|(index, _)| index),
             );
         }
-        Self { engine, snippet_cut }
+        Self { enabled, engine, snippet_cut }
     }
 
-    /// The hints of the response that keeps the first `kept` hits of `page`.
-    pub(crate) fn emit(&self, page: &[PageHit], kept: usize) -> Vec<Hint> {
-        if self.engine.is_empty() && self.snippet_cut.is_empty() {
+    /// The hints of the response that keeps the first `kept` hits of `page`
+    /// and carries `continuation`; `cut` when the budget dropped hits.
+    /// `more_results` becomes the adapter's continuation form, is dropped
+    /// without a continuation, and yields to `cut_by_budget` on a cut.
+    pub(crate) fn emit(
+        &self,
+        page: &[PageHit],
+        kept: usize,
+        continuation: Option<&str>,
+        cut: bool,
+        max_tokens: u32,
+    ) -> Vec<Hint> {
+        if !self.enabled {
             return Vec::new();
         }
         let mut hints = Vec::with_capacity(4);
+        let mut more = false;
         for hint in &self.engine {
             if matches!(hint.reason, fathomdb_sdk::HintReason::MoreResults) {
+                more = true;
                 continue;
             }
             if let Ok(hint) = Hint::try_from(*hint) {
@@ -90,6 +103,18 @@ impl SearchPlan {
             kept_cut.map(|index| page[*index].0.reference.as_str()),
         ) {
             hints.push(hint);
+        }
+        if let Some(continuation) = continuation {
+            if cut {
+                let mut hint = Hint::new(HintAction::Search, HintReason::CutByBudget);
+                hint.continuation = Some(continuation.to_string());
+                hint.max_tokens = Some(u64::from(max_tokens));
+                hints.push(hint);
+            } else if more {
+                let mut hint = Hint::new(HintAction::Search, HintReason::MoreResults);
+                hint.continuation = Some(continuation.to_string());
+                hints.push(hint);
+            }
         }
         hints
     }
@@ -164,6 +189,9 @@ fn template(hint: &Hint) -> &'static str {
         }
         HintReason::NoResults => "rephrase with synonyms, names or related events",
         HintReason::SnippetCut => "snippets are prefixes; fetch to read the full record",
+        HintReason::CutByBudget => {
+            "results were dropped to fit max_tokens; pass the continuation for the rest"
+        }
         HintReason::MoreResults => "the page reached its limit; pass the continuation for more",
     }
 }

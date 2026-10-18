@@ -250,6 +250,7 @@ pub enum HintReason {
     Degraded,
     NoResults,
     SnippetCut,
+    CutByBudget,
     MoreResults,
 }
 

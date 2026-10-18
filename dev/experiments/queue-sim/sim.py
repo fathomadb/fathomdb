@@ -801,6 +801,8 @@ class Sim:
                 if i >= len(rt):
                     return False
                 start = rt[i]
+            if self.cfg.run_limit is not None:
+                return start < c.deadline and own <= self.cfg.run_limit
             return start + own <= c.deadline
         fr = [c for c in rf if would_finish(c)]
         out["false_refusal_rate"] = len(fr) / n

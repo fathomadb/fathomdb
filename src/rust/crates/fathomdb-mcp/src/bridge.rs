@@ -35,6 +35,7 @@ where
 {
     let answered =
         Answered { store: guard.name.clone(), epoch: guard.epoch, info: guard.info.clone() };
+    let abandoner = guard.abandoner();
     let hooks = hooks.clone();
     let task = tokio::task::spawn_blocking(move || {
         let guard = guard;
@@ -42,7 +43,19 @@ where
         f(&guard.engine)
     });
     match tokio::time::timeout_at(deadline.into(), task).await {
-        Err(_) => Err(ToolError::deadline(Some(&answered.store))),
+        Err(_) => {
+            if abandoner.abandon() {
+                let (in_flight, queued, abandoned) = abandoner.load();
+                tracing::warn!(
+                    store = %answered.store,
+                    in_flight,
+                    queued,
+                    abandoned,
+                    "call abandoned at its deadline; its engine work keeps its permit"
+                );
+            }
+            Err(ToolError::deadline(Some(&answered.store)))
+        }
         Ok(Err(join)) if join.is_panic() => {
             tracing::error!(store = %answered.store, "engine call panicked");
             Err(ToolError::panic())

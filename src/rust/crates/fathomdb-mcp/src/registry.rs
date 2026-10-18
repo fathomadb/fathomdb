@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
@@ -180,6 +180,8 @@ struct Load {
     permits: Arc<Semaphore>,
     /// Calls waiting for a permit.
     queued: AtomicUsize,
+    /// Abandoned calls whose engine work still holds a permit.
+    abandoned: AtomicUsize,
     /// Fires when the last permit is returned.
     idle: Notify,
     /// Service times of the last `WINDOW_SAMPLES` completed calls, per tool
@@ -193,6 +195,7 @@ impl Load {
             cap,
             permits: Arc::new(Semaphore::new(cap)),
             queued: AtomicUsize::new(0),
+            abandoned: AtomicUsize::new(0),
             idle: Notify::new(),
             windows: Mutex::new(BTreeMap::new()),
         }
@@ -239,12 +242,15 @@ impl Load {
     }
 
     fn busy(&self, reason: BusyReason) -> Busy {
+        let abandoned = self.abandoned.load(Ordering::SeqCst);
         Busy {
             reason,
             in_flight: self.in_flight(),
             queued: self.queued.load(Ordering::SeqCst),
-            abandoned: 0,
-            stuck: false,
+            abandoned,
+            // Abandoned work has no known end, so a store whose every permit
+            // it holds cannot say when it frees up.
+            stuck: abandoned >= self.cap,
         }
     }
 }
@@ -328,6 +334,7 @@ pub(crate) struct StoreGuard {
     kind: ToolKind,
     /// When the permit was acquired.
     started: Instant,
+    run: Arc<AtomicU8>,
     // Dropped after `drop` below has run, so the sample is in the window
     // before the next waiter gets the permit and computes its need.
     permit: Permit,
@@ -338,7 +345,58 @@ impl Drop for StoreGuard {
         // Stamp before releasing the slot, so the idle clock never sees a
         // finished call as idle since its start (FIX-1 CR-5).
         self.last_used.touch();
-        self.permit.load.record(self.kind, self.started.elapsed());
+        let load = &self.permit.load;
+        match self.run.compare_exchange(RUNNING, DONE, Ordering::SeqCst, Ordering::SeqCst) {
+            Ok(_) => load.record(self.kind, self.started.elapsed()),
+            // Abandoned calls leave no sample; the window would otherwise
+            // learn from work nobody waited for.
+            Err(_) => {
+                load.abandoned.fetch_sub(1, Ordering::SeqCst);
+            }
+        }
+    }
+}
+
+const RUNNING: u8 = 0;
+const DONE: u8 = 1;
+const ABANDONED: u8 = 2;
+
+impl StoreGuard {
+    /// A handle that marks this call abandoned after the guard has moved
+    /// into the blocking closure.
+    pub(crate) fn abandoner(&self) -> Abandoner {
+        Abandoner { run: self.run.clone(), load: self.permit.load.clone() }
+    }
+}
+
+/// Marks a running call abandoned: its permit stays held until its thread
+/// returns, it is counted in `abandoned`, and it leaves no sample.
+pub(crate) struct Abandoner {
+    run: Arc<AtomicU8>,
+    load: Arc<Load>,
+}
+
+impl Abandoner {
+    /// Returns false when the call had already finished.
+    pub(crate) fn abandon(&self) -> bool {
+        // Counted before the flag flips, so the guard's decrement can never
+        // run first and wrap the counter.
+        self.load.abandoned.fetch_add(1, Ordering::SeqCst);
+        if self.run.compare_exchange(RUNNING, ABANDONED, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+        {
+            return true;
+        }
+        self.load.abandoned.fetch_sub(1, Ordering::SeqCst);
+        false
+    }
+
+    /// `(in_flight, queued, abandoned)` of the store, for logging.
+    pub(crate) fn load(&self) -> (usize, usize, usize) {
+        (
+            self.load.in_flight(),
+            self.load.queued.load(Ordering::SeqCst),
+            self.load.abandoned.load(Ordering::SeqCst),
+        )
     }
 }
 
@@ -701,6 +759,7 @@ impl Registry {
             last_used: slot.last_used.clone(),
             kind: call.kind,
             started,
+            run: Arc::new(AtomicU8::new(RUNNING)),
             permit,
         }))
     }

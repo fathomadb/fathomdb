@@ -269,7 +269,7 @@ impl Ctx<'_> {
         F: FnOnce(&fathomdb_sdk::Engine) -> fathomdb_sdk::Result<T> + Send + 'static,
     {
         let guard = self.acquire(store, kind, self.deadline()).await?;
-        bridge::call(guard, self.run_limit(), &self.shared.hooks, f).await
+        bridge::call(guard, self.run_limit(), &self.cancel, &self.shared.hooks, f).await
     }
 }
 
@@ -665,29 +665,32 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     // `last_telemetry_query_id` (MR-024.6).
     let explain = request.explain || telemetry;
     let started_limit = ctx.run_limit();
-    let (answered, run) = bridge::call(guard, started_limit, &ctx.shared.hooks, move |engine| {
-        let result = match mode {
-            SearchMode::Text => engine
-                .search_text_only(&request.query, TextSearchOptions { view, limit: run_limit })?,
-            SearchMode::Hybrid => engine.search(
-                &request.query,
-                SearchOptions {
-                    filter: search_filter(&request).map(SearchFilterArg::Search),
-                    explain,
-                    view,
-                    limit: run_limit,
-                    ..SearchOptions::default()
-                },
-            )?,
-        };
-        Ok(SearchRun {
-            hits: result.results,
-            explanation: result.explanation,
-            soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
-            dense_disabled: engine.dense_disabled(),
+    let (answered, run) =
+        bridge::call(guard, started_limit, &ctx.cancel, &ctx.shared.hooks, move |engine| {
+            let result = match mode {
+                SearchMode::Text => engine.search_text_only(
+                    &request.query,
+                    TextSearchOptions { view, limit: run_limit },
+                )?,
+                SearchMode::Hybrid => engine.search(
+                    &request.query,
+                    SearchOptions {
+                        filter: search_filter(&request).map(SearchFilterArg::Search),
+                        explain,
+                        view,
+                        limit: run_limit,
+                        ..SearchOptions::default()
+                    },
+                )?,
+            };
+            Ok(SearchRun {
+                hits: result.results,
+                explanation: result.explanation,
+                soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
+                dense_disabled: engine.dense_disabled(),
+            })
         })
-    })
-    .await?;
+        .await?;
 
     let mut degradation = Vec::new();
     if mode == SearchMode::Hybrid {
@@ -1218,10 +1221,11 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     if guard.epoch != entry.epoch {
         return Ok(not_recorded(&store, guard.epoch, NotRecordedReason::StoreReopened, max_tokens));
     }
-    let (answered, ()) = bridge::call(guard, ctx.run_limit(), &ctx.shared.hooks, move |engine| {
-        engine.record_feedback(&query_id, &used, &unused, "agent")
-    })
-    .await?;
+    let (answered, ()) =
+        bridge::call(guard, ctx.run_limit(), &ctx.cancel, &ctx.shared.hooks, move |engine| {
+            engine.record_feedback(&query_id, &used, &unused, "agent")
+        })
+        .await?;
     let output = FeedbackOutput {
         envelope: envelope(&store, answered.epoch, now_secs(), vec![], max_tokens),
         status: FeedbackStatus::Recorded,

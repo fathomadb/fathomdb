@@ -14,7 +14,7 @@ use fathomdb_sdk::Engine;
 
 use crate::error::{BusyReason, ToolError};
 use crate::hooks::Hooks;
-use crate::registry::{OpenInfo, StoreGuard};
+use crate::registry::{Cancel, OpenInfo, StoreGuard};
 
 /// What a call learned about the store it ran on.
 #[derive(Clone)]
@@ -27,6 +27,7 @@ pub(crate) struct Answered {
 pub(crate) async fn call<T, F>(
     guard: StoreGuard,
     run_limit: Duration,
+    cancel: &Cancel,
     hooks: &Hooks,
     f: F,
 ) -> Result<(Answered, T), ToolError>
@@ -46,7 +47,28 @@ where
         hooks.before_call(&guard.name);
         f(&guard.engine)
     });
-    match tokio::time::timeout_at(run_until.into(), task).await {
+    let mut cancel = cancel.clone();
+    let joined = tokio::select! {
+        biased;
+        joined = tokio::time::timeout_at(run_until.into(), task) => joined,
+        () = cancel.cancelled() => {
+            // The read cannot be stopped: it keeps its permit until it
+            // returns, and the client is answered at once (rmcp then
+            // discards the answer of a cancelled request).
+            if abandoner.abandon() {
+                let load = abandoner.busy(BusyReason::Deadline);
+                tracing::warn!(
+                    store = %answered.store,
+                    in_flight = load.in_flight,
+                    queued = load.queued,
+                    abandoned = load.abandoned,
+                    "running call cancelled by the client; its engine work keeps its permit"
+                );
+            }
+            return Err(ToolError::cancelled());
+        }
+    };
+    match joined {
         Err(_) => {
             if abandoner.abandon() {
                 let load = abandoner.busy(BusyReason::Deadline);

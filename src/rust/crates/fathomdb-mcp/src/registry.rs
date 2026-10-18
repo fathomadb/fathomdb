@@ -63,7 +63,7 @@ impl Cancel {
     }
 
     /// Resolves once the call is cancelled; never, if it is not.
-    async fn cancelled(&mut self) {
+    pub(crate) async fn cancelled(&mut self) {
         if self.0.wait_for(|cancelled| *cancelled).await.is_err() {
             std::future::pending::<()>().await;
         }

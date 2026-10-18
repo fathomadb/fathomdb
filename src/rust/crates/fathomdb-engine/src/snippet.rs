@@ -254,10 +254,33 @@ impl Text<'_> {
         let (first_s, last_e) = (spans[choice.first].start, spans[choice.last].end);
         let slack = width - (last_e - first_s);
         let centred = first_s.saturating_sub(slack / 2).min(self.body.len().saturating_sub(width));
-        let start = self.graphemes.at_or_after(centred).min(first_s);
-        let end = self.graphemes.at_or_before((start + width).min(self.body.len()));
-        debug_assert!(last_e <= end);
-        (start, end)
+        let start = self.snap_start_back(self.graphemes.at_or_after(centred).min(first_s));
+        let end = self.snap_end_back((start + width).min(self.body.len()), start);
+        let start = self.trim_start(start, end);
+        (start, self.trim_end(start, end))
+    }
+
+    /// Rule 6, start edge: the largest word boundary in
+    /// `[target − WORD_REACH, target]`, else `target` (a grapheme boundary).
+    fn snap_start_back(&self, target: usize) -> usize {
+        let word = self.words.at_or_before(target);
+        if word + WORD_REACH >= target {
+            word
+        } else {
+            target
+        }
+    }
+
+    /// Drops whitespace clusters at the start of `[start, end)`.
+    fn trim_start(&self, mut start: usize, end: usize) -> usize {
+        while start < end {
+            let next = self.graphemes.at_or_after(start + 1);
+            if next > end || !self.body[start..next].chars().all(char::is_whitespace) {
+                break;
+            }
+            start = next;
+        }
+        start
     }
 
     /// Rule 2: the prefix within `budget` bytes, on a word boundary.

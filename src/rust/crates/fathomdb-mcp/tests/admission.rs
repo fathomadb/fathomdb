@@ -914,3 +914,65 @@ async fn a_kind_slower_than_the_deadline_still_starts_on_a_free_permit() {
     assert_ne!(started.is_error, Some(true), "{:?}", started.structured_content);
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_abandoned_call_keeps_its_permit_and_is_counted() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 500, "run_limit_ms": 500}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let error = harness.err("search", search_a()).await;
+    assert_eq!(error["class"], "timeout", "abandoned at the run limit: {error}");
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 1, "{probe}");
+    assert_eq!(probe["busy"]["in_flight"], 1, "the abandoned call keeps its permit: {probe}");
+
+    seams.release_calls("a");
+    let found = harness.ok("search", search_a()).await;
+    assert_eq!(found["results"][0]["ref"], "l:note:a", "the permit is free again");
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 0, "{probe}");
+    assert_eq!(probe["busy"]["in_flight"], 1, "{probe}");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn stuck_is_reported_when_every_permit_is_abandoned() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 2, "call_deadline_ms": 500, "run_limit_ms": 500}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let error = harness.err("search", search_a()).await;
+    assert_eq!(error["class"], "timeout", "{error}");
+    // One of two permits abandoned: not stuck.
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the second call to be held", Duration::from_secs(5), || seams.held_calls("a") == 2)
+        .await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 1, "{probe}");
+    assert_eq!(probe["busy"]["stuck"], false, "{probe}");
+    // Both abandoned: stuck.
+    let error = error_of(&running.await.unwrap());
+    assert_eq!(error["class"], "timeout", "{error}");
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 2, "{probe}");
+    assert_eq!(probe["busy"]["stuck"], true, "{probe}");
+    seams.release_calls("a");
+    harness.shutdown().await;
+}

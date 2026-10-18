@@ -136,3 +136,32 @@ async fn degraded_hybrid_emits_degraded_hint_matching_first_degradation_entry() 
     );
     harness.shutdown().await;
 }
+
+/// § 8 test 12 and § 5: precedence is the call's `hints`, then the config
+/// key, then the default (on). All six combinations of call none/true/false
+/// and config true/false.
+#[tokio::test(flavor = "multi_thread")]
+async fn per_call_hints_argument_overrides_config() {
+    for config_hints in [true, false] {
+        let (_fixture, harness) =
+            harness_with(river_notes(3, 40), json!({"hints": config_hints})).await;
+        for call_hints in [None, Some(true), Some(false)] {
+            let mut args = json!({"query": "zebra"});
+            if let Some(call_hints) = call_hints {
+                args["hints"] = json!(call_hints);
+            }
+            let found = harness.ok("search", args).await;
+            let expected = call_hints.unwrap_or(config_hints);
+            assert_eq!(
+                found.get("hints").is_some(),
+                expected,
+                "config {config_hints}, call {call_hints:?}: {found}"
+            );
+        }
+        harness.shutdown().await;
+    }
+    let (_fixture, harness) = harness_with(river_notes(3, 40), json!({})).await;
+    let found = harness.ok("search", json!({"query": "zebra"})).await;
+    assert!(found.get("hints").is_some(), "on by default: {found}");
+    harness.shutdown().await;
+}

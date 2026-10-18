@@ -65,5 +65,6 @@ run one after another.
 | S4 | `feat/aa-b1-s4` (`8b60ab352`..`88a967250`) | `76c783c05` | Fable-medium: PASS; P3 follow-ups applied | landed |
 | S5a | `feat/aa-b1-s5a` (`6b1520d3b`..`acfa50d5f`) | `367bf40c0` | Fable-medium: PASS-WITH-FIXES, fixed (window and head edge cases) | landed |
 | S5b | `feat/aa-b1-s5b` (`8aa229d87`..`3760d812d`) | `25d7da5da` | Fable-medium: PASS | landed |
-| S5c | `feat/aa-b1-s5c` | — | — | in progress |
+| S5c | `feat/aa-b1-s5c` (`dea8c5d2c`..`bec7cc6ac`) | `6f4b80746` | Fable-medium: PASS-WITH-FIXES, fixed (point-query cap scaled to the run window); RED shas re-audited | landed |
+| S6 | — | — | — | in progress |
 | S5d | `feat/aa-b1-s5d` (`3530d6d15`..`bbf71f2ca`) | `8075dc7cd` | Fable-medium: PASS-WITH-FIXES, fixed; also fixed the S3 Python/TS degradations passthrough gap | landed |

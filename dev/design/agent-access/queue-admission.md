@@ -348,11 +348,10 @@ deadline a call must have left to be started.
   fixed one: it shortens the wait for calls that would have succeeded and
   lengthens it after slow periods (REPORT § 8).
 - **Started calls run to completion (owner, 2026-10-18).** Once a call
-  holds a permit, the wait deadline no longer applies to it. Today
-  `bridge::call` races the blocking closure against the same deadline
-  (`tools.rs:245-253`, `bridge.rs:39-45`). At that deadline the call is
-  abandoned, not cancelled: the read keeps its worker, its permit and any
-  lock until it returns, and its result is thrown away. Timing out a
+  holds a permit, the wait deadline no longer applies to it. Before this
+  rule, `bridge::call` raced the blocking closure against the same
+  deadline. At that deadline the call was abandoned, not cancelled: the read keeps its worker, its permit and any
+  lock until it returns, and its result was thrown away. Timing out a
   running call therefore frees nothing. It turns a slow answer into no
   answer, and the agent usually re-issues the call, which adds load. The
   client sets no limit of its own: Claude Code's MCP tool timeout is
@@ -554,6 +553,11 @@ reason), each abandoned call and each admission after a wait, with store,
 - Shutdown sets `shutting_down` (`registry.rs:612-613`). Waiters wake on the
   phase change and return `not_ready/draining`, as today. The semaphore is
   per slot and survives reopen; it is not closed, so nothing is rebuilt.
+- Shutdown waits at most `call_deadline_ms` + 5 s for stores to drain, so a
+  started call running longer is cut off when the process exits. Reads are
+  unaffected; a feedback write is rolled back by the journal. Raising the
+  bound to `run_limit_ms` would make exit wait up to 65 s with the
+  defaults. (Orchestrator decision, for owner review.)
 
 ### 6.2 Engine: EP-18 (new engine proposal)
 
@@ -812,6 +816,11 @@ by the first two, together with the interface change.
     buildable: idle expiry and the LRU drain both require `in_flight == 0`
     and `queued == 0` (§ 6.1, Drain, idle close and shutdown), so the only
     drain that can start while calls wait is shutdown, which is test 24.
+    The step-7 fallback itself is still reachable through a race: a call
+    that saw the store `Ready` but has not yet joined the queue when an
+    idle or LRU drain starts gets a permit, fails the step-4 phase re-check
+    and returns to the open wait. No test drives that window; it is covered
+    by code review only.
 24. `shutdown_wakes_queued_calls_with_not_ready_draining`.
 25. `another_store_in_use_is_busy_store_switch`.
 26. `sdk_overloaded_maps_to_admission_engine_overloaded`.

@@ -351,7 +351,9 @@ Meets AN-012.
   `dev/design/agent-access/queue-admission.md` § 6.1). With an engine call
   blocked past the run limit by the bridge's test seam, the tool returns a
   typed timeout at the run limit, measured from the call's admission, and the
-  adapter keeps serving other calls.
+  adapter keeps serving other calls. A client cancel answers the call at once
+  with a typed result: a waiting call leaves the queue, and a running call is
+  abandoned while its read runs to its end and keeps its admission slot.
 - MR-033.2 The number of engine calls in flight never exceeds the adapter's
   admission cap **[ADR]**; excess calls wait, in arrival order, while their
   deadline allows, then return a typed busy result (owner decision

@@ -330,3 +330,32 @@ async fn in_flight_is_derived_from_permits() {
     let _ = admitted.await.unwrap();
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_default_queue_refuses_the_33rd_waiter() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(&fixture, json!({"admission_cap": 1}))).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let waiters: Vec<_> = (0..32).map(|_| spawn_call(&harness, "search", search_a())).collect();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let started = Instant::now();
+    let refused = spawn_call(&harness, "search", search_a()).await.unwrap();
+    let elapsed = started.elapsed();
+    let error = error_of(&refused);
+    assert_eq!(error["busy"]["reason"], "queue_full", "{error}");
+    assert_eq!(error["busy"]["queued"], 32, "{error}");
+    assert!(elapsed < Duration::from_millis(50), "refused at once: {elapsed:?}");
+    assert!(waiters.iter().all(|waiter| !waiter.is_finished()), "the 32 waiters stay queued");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    for waiter in waiters {
+        let result = waiter.await.unwrap();
+        assert_ne!(result.is_error, Some(true), "{:?}", result.structured_content);
+    }
+    harness.shutdown().await;
+}

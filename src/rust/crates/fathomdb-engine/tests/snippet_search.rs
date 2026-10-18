@@ -567,3 +567,38 @@ fn t16_frozen_results_do_not_depend_on_snippet_options() {
         .search_frozen_with_snippets("zanzibar", &context, 0, false, 0.3, 0, false, 10, Some(&lit))
         .expect("token still valid");
 }
+
+// T-9: reader-pool safety. While a second connection holds the write lock
+// (BEGIN IMMEDIATE), snippet searches still succeed on the query_only reader
+// pool, and the statement trace shows no write statement.
+#[test]
+fn t9_snippet_work_is_read_only_on_the_reader_pool() {
+    let _guard = lock();
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("readonly{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("open");
+    opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+    let long = long_body(3000, "zanzibar", 4096);
+    opened.engine.write(&[node("n0", &long), node("n1", "a short zanzibar note")]).expect("write");
+    opened.engine.drain(10_000).expect("drain");
+
+    let blocker = rusqlite::Connection::open(&path).expect("second connection");
+    blocker.execute_batch("BEGIN IMMEDIATE").expect("hold the write lock");
+    take_slice71_search_statement_trace_for_test();
+    let lit = SnippetOptions { highlights: true, ..SnippetOptions::default() };
+    let text_result = text(&opened.engine, "zanzibar", 10, Some(&lit));
+    let hybrid_result = hybrid(&opened.engine, "zanzibar", Some(&lit));
+    let trace = take_slice71_search_statement_trace_for_test();
+    blocker.execute_batch("ROLLBACK").expect("release");
+
+    assert!(trace.iter().any(|event| event == "snippet_highlight"), "{trace:?}");
+    assert!(!trace.iter().any(|event| event == "write_statement"), "{trace:?}");
+    for result in [&text_result, &hybrid_result] {
+        assert_eq!(snippet_of(result, &long).anchor, SnippetAnchor::Match);
+    }
+
+    // Control: the trace does see writes, so the check above is not vacuous.
+    opened.engine.write(&[node("n2", "a later note")]).expect("write");
+    let trace = take_slice71_search_statement_trace_for_test();
+    assert!(trace.iter().any(|event| event == "write_statement"), "{trace:?}");
+}

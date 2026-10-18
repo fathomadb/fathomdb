@@ -1213,6 +1213,64 @@ is `dev/interfaces/mcp.md` § 3; this section documents only the engine subset.
   `SearchFacts` are `#[non_exhaustive]`; new reasons, words and fields are
   additive.
 
+## Match-centred snippet selector (EP-17)
+
+`fathomdb_engine::snippet_for(body: &str, spans: &[(u32, u32)], options:
+&SnippetOptions) -> SnippetV1` is a pure function (no SQL, I/O, clock,
+floating point or locks). It picks the part of a record body to show for a
+search hit from the hit's match spans. `fathomdb-sdk` re-exports it with its
+types. No search path calls it yet; the search sidecar is a later stage. The
+specification is `dev/design/agent-access/match-centred-snippets.md` §§ 6
+and 7.2.
+
+- `SnippetOptions` has public fields and a `Default`:
+  - `max_bytes: u32`, `40..=4000`, default 300. The output budget in UTF-8
+    bytes, ellipses included.
+  - `max_windows: u8`, `1..=3`, default 1.
+  - `head_bytes: u32`, `0..=max_bytes / 2`, default 0.
+  - `highlights: bool`, default false.
+  - `max_point_queries: u8`, default 20. The per-search cap on span
+    queries; `snippet_for` does not read it.
+- `SnippetOptions::validate()` returns `EngineError::InvalidArgument` for a
+  value out of range. `snippet_for` itself never fails: it clamps such
+  values into range.
+- Spans are body byte ranges `[start, end)`. `snippet_for` ignores spans
+  that are empty, run past the body, or do not fall on `char` boundaries. It
+  sorts the rest, widens each to grapheme boundaries (an NFD accent belongs to
+  its letter), and merges spans that overlap.
+- `SnippetV1` is `#[non_exhaustive]`:
+  - `text`: at most `max_bytes` bytes.
+  - `anchor`: `SnippetAnchor::Whole`, `Match` or `Start`; `as_str()` gives
+    `whole`, `match` or `start`.
+  - `windows`: the body ranges shown, sorted, disjoint and on grapheme
+    boundaries.
+  - `spans`: the normalised spans.
+  - `highlights`: ranges into `text` of the spans shown in full; empty unless
+    `highlights` is set.
+  - `cut`: true when any of the body is left out.
+- `text` is the windows joined in body order. `"… "` comes before a first
+  window that starts after byte 0, `" … "` goes between windows, and `" …"`
+  follows a last window that ends before the body. `windows` says where an
+  ellipsis is structure; a record can contain `…` itself.
+- Selection:
+  - A body that fits is returned whole (`Whole`).
+  - Without usable spans, the prefix is cut back to a word boundary (`Start`).
+  - Otherwise the window is chosen by distinct span identities (lowercased
+    span text), then span count, then a sentence start within 64 bytes before
+    its first span, then the earlier start.
+  - The window is centred on its spans. Its edges snap to UAX #29 word
+    boundaries without cutting a counted span; past 32 bytes they fall back
+    to a grapheme boundary. The start moves to the bonus sentence start when
+    the budget still reaches the last span.
+  - `head_bytes > 0` adds the record start as its own window. It is cut at
+    the first line break or at the last word boundary at or before
+    `head_bytes`.
+  - `max_windows > 1` adds windows for identities that no window shows.
+  - Windows 16 bytes apart or less merge when the merged text fits.
+- Output is deterministic per build. Word, sentence and grapheme boundaries
+  come from `unicode-segmentation`, so a version bump of that crate may
+  change snippet bytes.
+
 ## Errors
 
 ### Cross-encoder device policy (0.8.23 Slice 71)

@@ -606,7 +606,7 @@ async fn abandoned_calls_are_not_service_time_samples() {
     let fixture = Fixture::new();
     let harness = Harness::start(store_config(
         &fixture,
-        json!({"admission_cap": 1, "call_deadline_ms": 500}),
+        json!({"admission_cap": 1, "call_deadline_ms": 500, "run_limit_ms": 500}),
     ))
     .await;
     harness.ok("orient", json!({"store": "a"})).await;

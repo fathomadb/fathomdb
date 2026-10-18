@@ -22,7 +22,11 @@ fn harness_config(fixture: &Fixture, extra: serde_json::Value) -> fathomdb_mcp::
 #[tokio::test(flavor = "multi_thread")]
 async fn a_blocked_engine_call_returns_a_typed_timeout_at_the_deadline() {
     let fixture = Fixture::new();
-    let harness = Harness::start(harness_config(&fixture, json!({"call_deadline_ms": 500}))).await;
+    let harness = Harness::start(harness_config(
+        &fixture,
+        json!({"call_deadline_ms": 500, "run_limit_ms": 500}),
+    ))
+    .await;
     harness.ok("orient", json!({"store": "a"})).await;
     harness.adapter.seams().block_calls("a");
     let started = Instant::now();

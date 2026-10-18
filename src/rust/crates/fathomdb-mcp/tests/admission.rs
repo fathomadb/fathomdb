@@ -847,3 +847,52 @@ async fn a_started_call_past_the_wait_deadline_returns_its_result() {
     assert!(elapsed < Duration::from_millis(300), "the 2 s sample counts: {elapsed:?}");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_running_call_is_abandoned_at_the_run_limit() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000, "run_limit_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+
+    // Admitted at once and held for 3 s: timeout/deadline at the run limit,
+    // and the adapter keeps serving.
+    seams.block_calls("a");
+    let started = Instant::now();
+    let error = harness.err("search", search_a()).await;
+    let elapsed = started.elapsed();
+    assert_eq!(error["class"], "timeout", "{error}");
+    assert_eq!(error["code"], "deadline", "{error}");
+    assert!(elapsed >= Duration::from_millis(900), "returned early: {elapsed:?}");
+    assert!(elapsed <= Duration::from_millis(1100), "returned late: {elapsed:?}");
+    let listed = harness.ok("list_stores", json!({})).await;
+    assert_eq!(listed["stores"][0]["readiness"], "ready");
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    seams.release_calls("a");
+    let found = harness.ok("search", search_a()).await;
+    assert_eq!(found["results"][0]["ref"], "l:note:a");
+
+    // The run limit is measured from the permit: a call that waited 400 ms
+    // for its permit times out 1 s after it got it, not 1 s after arrival.
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let waiter = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep_until((started + Duration::from_millis(400)).into()).await;
+    assert!(seams.release_one_call("a"));
+    let running = running.await.unwrap();
+    assert_ne!(running.is_error, Some(true), "{:?}", running.structured_content);
+    let error = error_of(&waiter.await.unwrap());
+    let elapsed = started.elapsed();
+    assert_eq!(error["class"], "timeout", "{error}");
+    assert!(elapsed >= Duration::from_millis(1300), "measured from arrival: {elapsed:?}");
+    assert!(elapsed <= Duration::from_millis(1550), "returned late: {elapsed:?}");
+    seams.release_calls("a");
+    harness.shutdown().await;
+}

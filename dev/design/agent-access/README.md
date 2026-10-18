@@ -97,7 +97,33 @@ changes code until its design passes review and the owner approves.
    tuned on (conv1), with all ten conversations in one store and one agent
    per question.
 
+## Block 2 — agent feedback signals
+
+Block 1 is items 1–5 above. Block 2 is the feedback table below. Block 2 is
+**implemented only after Block 1 is complete and passing all tests**. The
+Block 1 designs must still account for it now: the hints sidecar (item 2)
+and the queue (item 1) define the shapes these signals use, so Block 2 adds
+entries rather than redesigning.
+
+| # | Situation | Today | Proposed | Designed in |
+| --- | --- | --- | --- | --- |
+| B2-1 | `verdict:"unavailable"`, `state:{status:"unavailable"}` on every search | Looks like a failure; Haiku flagged it | Omit it, or label it "freshness check not supported in this release" | item 2 |
+| B2-2 | Zero or weak results | Empty list | Hint: rephrase or switch `mode` | item 2 |
+| B2-3 | Hybrid fell back to text only | `degradation` label | The same, plus a plain-language hint | item 2 |
+| B2-4 | Wrong argument (e.g. `limit` on `fetch`) | Error | Error names the accepted arguments | item 2 |
+| B2-5 | `feedback` refs not in the response | Error | Error names the refs that aren't in that response | item 2 |
+| B2-6 | Repeated `list_stores` calls (gpt-5.4-mini) | Agent can't tell a default store is set | Guide says calls without `store` use the default; `list_stores` says so too | item 2 |
+| B2-7 | Busy | Refusal | Wait in the queue, then `retry_after_ms` | item 1 |
+
+## Gates
+
+- **HITL review before any code.** No code for Block 1 or Block 2 is
+  written until the owner has reviewed the designs, after the Fable-medium
+  reviews and their fixes.
+- Block 2 code starts only after Block 1 is complete and every test passes.
+
 ## Order
 
-Items 1, 2 and 3 are designed in parallel. Item 4 waits for 2 and 3. Item 5
-waits for the build of 1–3.
+Items 1, 2 and 3 are designed in parallel. Each gets a Fable-medium review,
+then the review fixes, then HITL review. Item 4 waits for 2 and 3. Item 5
+waits for the build of 1–3. Block 2 follows Block 1.

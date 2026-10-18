@@ -644,3 +644,31 @@ mod t4 {
         }
     }
 }
+
+// Review fix 1: raising `max_windows` never loses the match. When the
+// narrowed first window of rule 7 holds no whole span, the full-width choice
+// stands and rule 7 adds nothing.
+#[test]
+fn more_windows_never_lose_the_match() {
+    let body = format!(
+        "{}abcdefghijklmnop{}qrstuvwxyzabcde{}",
+        "x ".repeat(20),
+        "y ".repeat(50),
+        "z ".repeat(50)
+    );
+    let at = |w: &str| {
+        let i = body.find(w).unwrap();
+        (i as u32, (i + w.len()) as u32)
+    };
+    let spans = [at("abcdefghijklmnop"), at("qrstuvwxyzabcde")];
+    let one = snippet_for(&body, &spans, &windows_opts(40, 1));
+    assert_eq!(one.anchor, SnippetAnchor::Match, "{one:?}");
+    for max_windows in 2..=3 {
+        let more = snippet_for(&body, &spans, &windows_opts(40, max_windows));
+        assert_eq!(more.anchor, SnippetAnchor::Match, "max_windows {max_windows}: {more:?}");
+        assert!(shows(&more, spans[0]), "max_windows {max_windows}: {more:?}");
+    }
+    // At 3 the narrowed width (32 / 3) holds no whole span: the full-width
+    // choice stands unchanged.
+    assert_eq!(snippet_for(&body, &spans, &windows_opts(40, 3)), one);
+}

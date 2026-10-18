@@ -813,3 +813,37 @@ async fn panicked_calls_are_not_service_time_samples() {
     assert_ne!(waiter.is_error, Some(true), "{:?}", waiter.structured_content);
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_started_call_past_the_wait_deadline_returns_its_result() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000, "run_limit_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.seed_service_times("a", "fetch", &millis(&[10; 7]));
+    seams.block_calls("a");
+    let started = Instant::now();
+    let slow = spawn_call(&harness, "fetch", fetch_a());
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    seams.release_calls("a");
+    let slow = slow.await.unwrap();
+    assert_ne!(
+        slow.is_error,
+        Some(true),
+        "the started call answers: {:?}",
+        slow.structured_content
+    );
+    assert!(started.elapsed() >= Duration::from_millis(2000));
+    // Its 2 s is the eighth fetch sample, so the p90 is now 2 s: a fetch
+    // that has to wait cannot start within its 1 s and is refused at once.
+    let (refused, elapsed) =
+        wait_behind_a_search(&harness, "fetch", fetch_a(), Duration::from_millis(600)).await;
+    let error = error_of(&refused);
+    assert_eq!(error["busy"]["reason"], "deadline", "{error}");
+    assert!(elapsed < Duration::from_millis(300), "the 2 s sample counts: {elapsed:?}");
+    harness.shutdown().await;
+}

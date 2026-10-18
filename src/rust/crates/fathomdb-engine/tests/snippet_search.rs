@@ -5,8 +5,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    Engine, InitialState, OpenedEngine, PreparedWrite, ReadContextV1, ReadView, SearchFilter,
-    SearchResult, SnippetAnchor, SnippetOptions, SourceId,
+    take_slice71_search_statement_trace_for_test, Engine, InitialState, OpenedEngine,
+    PreparedWrite, ReadContextV1, ReadView, SearchFilter, SearchResult, SnippetAnchor,
+    SnippetOptions, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -271,4 +272,34 @@ fn t3_diacritic_match_highlight_covers_the_whole_word() {
             .collect();
         assert_eq!(lit_text, [word], "{word:?}: {snippet:?}");
     }
+}
+
+fn highlight_queries() -> usize {
+    take_slice71_search_statement_trace_for_test()
+        .iter()
+        .filter(|event| event.as_str() == "snippet_highlight")
+        .count()
+}
+
+// T-19: rule 0. A body that fits, with highlights off, issues no point query
+// and returns no spans; with highlights on it issues one.
+#[test]
+fn t19_a_body_that_fits_needs_no_point_query() {
+    let _guard = lock();
+    let body = "a short pear note";
+    let s = store(&[body]);
+    take_slice71_search_statement_trace_for_test();
+    let result = text(s.engine(), "pear", 10, Some(&SnippetOptions::default()));
+    assert_eq!(highlight_queries(), 0);
+    let snippet = snippet_of(&result, body);
+    assert_eq!(snippet.anchor, SnippetAnchor::Whole);
+    assert!(snippet.spans.is_empty(), "{snippet:?}");
+
+    let lit = SnippetOptions { highlights: true, ..SnippetOptions::default() };
+    let result = text(s.engine(), "pear", 10, Some(&lit));
+    assert_eq!(highlight_queries(), 1);
+    let snippet = snippet_of(&result, body);
+    assert_eq!(snippet.anchor, SnippetAnchor::Whole);
+    assert_eq!(snippet.spans, vec![(8, 12)]);
+    assert_eq!(snippet.highlights, vec![(8, 12)]);
 }

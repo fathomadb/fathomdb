@@ -546,6 +546,10 @@ pub(crate) fn record_slice71_profile_statement_for_test(sql: &str) {
         && sql.contains("WHERE r.write_cursor=")
     {
         Some("post_filter_source_lookup")
+    } else if sql.contains("highlight(") {
+        Some("snippet_highlight")
+    } else if is_write_statement(sql) {
+        Some("write_statement")
     } else {
         None
     };
@@ -554,6 +558,16 @@ pub(crate) fn record_slice71_profile_statement_for_test(sql: &str) {
             trace.push(identity.to_string());
         }
     }
+}
+
+#[cfg(feature = "test-hooks")]
+fn is_write_statement(sql: &str) -> bool {
+    let head = sql.trim_start().to_ascii_uppercase();
+    ["INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER"]
+        .iter()
+        .any(|verb| head.starts_with(verb))
+        || head.starts_with("BEGIN IMMEDIATE")
+        || head.starts_with("BEGIN EXCLUSIVE")
 }
 
 #[cfg(feature = "test-hooks")]

@@ -522,7 +522,7 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
 
 struct SearchRun {
     hits: Vec<SearchHit>,
-    /// One per hit (the engine sidecar); empty only for synthetic runs.
+    /// One per hit (the engine sidecar); `search_page` rejects a mismatch.
     snippets: Vec<SnippetV1>,
     explanation: Option<Explanation>,
     soft_fallback: Option<SoftFallbackBranch>,
@@ -808,6 +808,11 @@ fn search_page(
     offset: usize,
     highlights: bool,
 ) -> Result<Vec<(Hit, u64, Option<PerHitOut>)>, ToolError> {
+    // The engine returns one snippet per hit when asked; anything else is an
+    // engine/adapter mismatch, not a page to shorten.
+    if run.snippets.len() != run.hits.len() {
+        return Err(ToolError::internal());
+    }
     Ok(run
         .hits
         .iter()

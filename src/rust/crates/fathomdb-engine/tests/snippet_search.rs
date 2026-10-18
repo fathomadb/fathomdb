@@ -438,3 +438,53 @@ fn t6_vector_only_hits_get_the_record_start() {
     assert_eq!(snippets[b].anchor, SnippetAnchor::Match, "{:?}", snippets[b]);
     assert!(snippets[b].text.contains("zanzibar"));
 }
+
+fn without_snippets(result: &SearchResult) -> SearchResult {
+    let mut result = result.clone();
+    result.snippets = None;
+    result
+}
+
+// T-7: off by default. With `snippet: None`, every field equals the plain
+// entry point's result and `snippets` is None; with snippets on, every other
+// field is unchanged.
+#[test]
+fn t7_snippets_off_leave_the_result_unchanged() {
+    let _guard = lock();
+    let long = long_body(3000, "zanzibar", 4096);
+    let s = store(&["a short zanzibar note", &long]);
+    let view = ReadView::default();
+    let on = SnippetOptions::default();
+
+    let plain = s.engine().search_text_only_view_with_limit("zanzibar", &view, 10).expect("plain");
+    let off = text(s.engine(), "zanzibar", 10, None);
+    assert_eq!(off, plain);
+    assert!(off.snippets.is_none());
+    assert_eq!(without_snippets(&text(s.engine(), "zanzibar", 10, Some(&on))), plain);
+
+    let plain = s
+        .engine()
+        .search_reranked_view_with_limit("zanzibar", None, 0, false, 0.3, 0, false, &view, 10)
+        .expect("plain hybrid");
+    let off = hybrid(s.engine(), "zanzibar", None);
+    assert_eq!(off, plain);
+    assert!(off.snippets.is_none());
+    assert_eq!(without_snippets(&hybrid(s.engine(), "zanzibar", Some(&on))), plain);
+
+    let context = s
+        .engine()
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
+        )
+        .expect("freeze");
+    let plain = s
+        .engine()
+        .search_frozen("zanzibar", &context, 0, false, 0.3, 0, false, 10)
+        .expect("plain frozen");
+    let off = s
+        .engine()
+        .search_frozen_with_snippets("zanzibar", &context, 0, false, 0.3, 0, false, 10, None)
+        .expect("frozen off");
+    assert_eq!(off, plain);
+    assert!(off.snippets.is_none());
+}

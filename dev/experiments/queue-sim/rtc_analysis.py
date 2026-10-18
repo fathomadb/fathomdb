@@ -42,6 +42,22 @@ def load(path):
     return [r for r in rows if cnt[(r["band"], r["cfg_i"])] == n]
 
 
+def overlay(ix, rows, key, check="fail_rate"):
+    """Copy `key` from rerun rows into ix by configuration; returns the count. A rerun row whose `check` metric
+    differs from the indexed row is not the same simulation, and raises ValueError."""
+    n = 0
+    for r in rows:
+        tgt = ix[(r["band"], r["tail"], r["dispatch"], r["arm"])].get(r["cfg_i"])
+        if tgt is None:
+            continue
+        if f(tgt[check]) != f(r[check]):
+            raise ValueError(f"rerun does not reproduce {check} for {r['band']}/{r['tail']}/{r['dispatch']}/"
+                             f"{r['arm']}/{r['cfg_i']}")
+        tgt[key] = r[key]
+        n += 1
+    return n
+
+
 def index(rows):
     """{(band, tail, dispatch, arm): {cfg_i: row}}"""
     ix = defaultdict(dict)
@@ -207,6 +223,8 @@ def arms_table(out, ix, band, tail, disp, arms):
 def main(path):
     rows = load(path)
     ix = index(rows)
+    lk_path = os.path.join(os.path.dirname(path) or ".", "rtc_lockup.csv")
+    n_lk = overlay(ix, load(lk_path), "rf_arrival_free") if os.path.exists(lk_path) else 0
     seen = {r["arm"] for r in rows}
     arms = [a for a, *_ in rtc.arms() if a in seen]
     bands = bands_of(ix)
@@ -235,7 +253,10 @@ def main(path):
     r1_section(out, res, "## R1. Start check: p90 against wait-only, run limit 60 s (preregistered)")
     chk = res["chk"]
 
-    out.append("## Lock-ups (addendum): configurations refusing > 1 % of calls with a permit free\n")
+    out.append("## Lock-ups (addendum): configurations refusing > 1 % of calls at arrival with a permit free\n")
+    out.append(f"rf_arrival_free from the rerun of the four percentile arms ({n_lk} rows, every fail_rate "
+               "reproduced); columns without it (wait-only, old p90) use rf_with_permit, which also counts "
+               "grant-time sheds.\n")
     lk = []
     for b in bands:
         for t in ("base", "long"):

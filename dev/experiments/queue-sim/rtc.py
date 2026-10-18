@@ -1,4 +1,4 @@
-"""Run-to-completion study (PREREG-run-to-completion.md). usage: python rtc.py [n_real] [n_stress_scan]
+"""Run-to-completion study (PREREG-run-to-completion.md). usage: python rtc.py [n_real] [n_stress_scan] | lockup
 
 Writes results/rtc.jsonl (streamed, resumable) and results/rtc.csv; progress and errors go to results/rtc.log.
 """
@@ -62,7 +62,21 @@ def jobs(n_real=500, n_scan=2000):
                                 "run_limit": rl if rl is not None else "", "ep09": intr}
 
 
+LOCKUP_ARMS = ("rtc_p90_rl60", "rtc_p95_rl60", "rtc_p99_rl60", "rtc_p90cap_rl60")
+
+
+def lockup_jobs(n_real=500, n_scan=2000):
+    """The arms of the lock-up table, rerun to record rf_arrival_free (review 2, B1)."""
+    for cfg, tag in jobs(n_real, n_scan):
+        if tag["arm"] in LOCKUP_ARMS:
+            yield cfg, tag
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "lockup":
+        _, n_err = run_jobs("rtc lockup", fuzz.one, lockup_jobs(), os.path.join(HERE, "results", "rtc_lockup"),
+                            os.path.join(HERE, "results", "rtc.log"), every=1000)
+        sys.exit(1 if n_err else 0)
     n_real = int(sys.argv[1]) if len(sys.argv) > 1 else 500
     n_scan = int(sys.argv[2]) if len(sys.argv) > 2 else 2000
     _, n_err = run_jobs("rtc", fuzz.one, jobs(n_real, n_scan), os.path.join(HERE, "results", "rtc"),

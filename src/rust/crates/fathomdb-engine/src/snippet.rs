@@ -155,9 +155,13 @@ pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -
     }
     let words = Boundaries::words(body);
     let text = Text { body, graphemes: &graphemes, words: &words };
-    let windows =
-        if spans.is_empty() { vec![text.prefix(max_bytes - TRAILING.len())] } else { Vec::new() };
-    let anchor = SnippetAnchor::Start;
+    let ids = approximate_identities(body, &spans);
+    let width = max_bytes - LEADING.len() - TRAILING.len();
+    let pool: Vec<usize> = (0..spans.len()).collect();
+    let (windows, anchor) = match text.best_window(&spans, &ids, &pool, width) {
+        Some(choice) => (vec![text.place(&spans, &choice, width)], SnippetAnchor::Match),
+        None => (vec![text.prefix(max_bytes - TRAILING.len())], SnippetAnchor::Start),
+    };
     let (text_out, highlights) = assemble(body, &windows);
     SnippetV1 {
         text: text_out,
@@ -184,7 +188,73 @@ struct Text<'a> {
     words: &'a Boundaries,
 }
 
+/// Rule 3, default: a span's identity is its text after Unicode lowercasing.
+fn approximate_identities(body: &str, spans: &[Span]) -> Vec<u32> {
+    let mut seen: Vec<String> = Vec::new();
+    spans
+        .iter()
+        .map(|s| {
+            let key = body[s.start..s.end].to_lowercase();
+            let id = seen.iter().position(|k| *k == key).unwrap_or_else(|| {
+                seen.push(key);
+                seen.len() - 1
+            });
+            to_u32(id)
+        })
+        .collect()
+}
+
+/// A window chosen by rule 4: the spans of its pool from `spans[first]` to
+/// `spans[last]` lie inside it.
+#[derive(Clone, Copy, Debug)]
+struct Choice {
+    first: usize,
+    last: usize,
+}
+
 impl Text<'_> {
+    /// Rule 4: for each span start in `pool` (indices into `spans`, sorted),
+    /// scores the window of `width` bytes that begins there and returns the
+    /// best. `None` when no window holds a whole span.
+    fn best_window(
+        &self,
+        spans: &[Span],
+        ids: &[u32],
+        pool: &[usize],
+        width: usize,
+    ) -> Option<Choice> {
+        let mut best: Option<(Choice, (usize, usize))> = None;
+        for first in 0..pool.len() {
+            let start = spans[pool[first]].start;
+            let mut last = None;
+            let mut distinct: Vec<u32> = Vec::new();
+            for (k, &j) in pool.iter().enumerate().skip(first) {
+                if spans[j].end > start + width {
+                    break;
+                }
+                last = Some(k);
+                if !distinct.contains(&ids[j]) {
+                    distinct.push(ids[j]);
+                }
+            }
+            let Some(last) = last else { continue };
+            let score = (distinct.len(), last - first + 1);
+            // Strictly greater only: an equal score keeps the earlier start.
+            if best.is_none_or(|(_, b)| score > b) {
+                best = Some((Choice { first: pool[first], last: pool[last] }, score));
+            }
+        }
+        best.map(|(choice, _)| choice)
+    }
+
+    /// Places the chosen window: from the first counted span, `width` bytes.
+    fn place(&self, spans: &[Span], choice: &Choice, width: usize) -> (usize, usize) {
+        let start = spans[choice.first].start;
+        let end = self.graphemes.at_or_before((start + width).min(self.body.len()));
+        debug_assert!(spans[choice.last].end <= end);
+        (start, end)
+    }
+
     /// Rule 2: the prefix within `budget` bytes, on a word boundary.
     fn prefix(&self, budget: usize) -> (usize, usize) {
         let end = self.snap_end_back(budget.min(self.body.len()), 0);

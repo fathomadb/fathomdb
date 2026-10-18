@@ -8,7 +8,10 @@ as in Rust.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -177,3 +180,42 @@ def test_snippet_options_are_validated_on_every_search_surface(
 def test_snippet_options_reject_wrong_field_types(fields: dict[str, object]) -> None:
     with pytest.raises(TypeError):
         SnippetOptions(**fields)  # type: ignore[arg-type]
+
+
+# Shared with the TypeScript test and the fathomdb-py Rust fixture test.
+PARITY_FIXTURE = Path(__file__).resolve().parents[3] / "src" / "conformance" / "snippet-for-parity.json"
+PARITY_CASES: list[dict[str, Any]] = json.loads(PARITY_FIXTURE.read_text(encoding="utf-8"))["cases"]
+
+
+def _pairs(values: list[list[int]]) -> list[tuple[int, int]]:
+    return [(a, b) for a, b in values]
+
+
+@pytest.mark.parametrize("case", PARITY_CASES, ids=[c["name"] for c in PARITY_CASES])
+def test_snippet_for_matches_the_shared_parity_fixture(case: dict[str, Any]) -> None:
+    expected = case["expected"]
+    got = fathomdb.snippet_for(
+        case["body"], _pairs(case["spans"]), SnippetOptions(**case["options"])
+    )
+    assert got == SnippetV1(
+        text=expected["text"],
+        anchor=expected["anchor"],
+        windows=_pairs(expected["windows"]),
+        spans=_pairs(expected["spans"]),
+        highlights=_pairs(expected["highlights"]),
+        cut=expected["cut"],
+    )
+
+
+def test_snippet_for_defaults_and_argument_types() -> None:
+    assert fathomdb.snippet_for("short body", []) == SnippetV1(
+        text="short body", anchor="whole", windows=[(0, 10)], cut=False
+    )
+    with pytest.raises(TypeError):
+        fathomdb.snippet_for(b"short body", [])  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        fathomdb.snippet_for("short body", [(0,)])  # type: ignore[list-item]
+    with pytest.raises(TypeError):
+        fathomdb.snippet_for("short body", [(0, True)])
+    with pytest.raises(TypeError):
+        fathomdb.snippet_for("short body", [], {"max_bytes": 40})  # type: ignore[arg-type]

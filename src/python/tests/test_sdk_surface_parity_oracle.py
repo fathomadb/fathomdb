@@ -32,7 +32,9 @@ ENGINE_NON_COMMAND = {
     "set_slow_threshold_ms",
     "vector_equivalence_refusal_count",
 }
-PACKAGE_NON_COMMAND = {"embed_batch_cls"}
+# `snippet_for` is the EP-17 pure selector: like `embed_batch_cls`, a
+# standalone helper outside the signed governed-operation map.
+PACKAGE_NON_COMMAND = {"embed_batch_cls", "snippet_for"}
 ADMIN_NON_COMMAND = {"configure_runtime"}
 
 

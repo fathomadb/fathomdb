@@ -1,0 +1,168 @@
+{
+  "_comment": "EP-17 snippet_for parity fixture (match-centred-snippets.md T-12). The Python (src/python/tests/test_ep17_snippets.py) and TypeScript (src/ts/tests/ep17-snippets.test.ts) bindings must return each case's `expected` exactly; the fathomdb-py Rust test snippet::parity_fixture_tests checks that the binding conversions plus fathomdb_engine::snippet_for reproduce it. Offsets are UTF-8 byte offsets [start, end). `options` keys are the Python field names (TypeScript camelCases them); an absent key is the default. Spans or options that do not fit u32/u8 are ignored or saturated by the bindings.",
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "whole_short",
+      "body": "Caroline went to the LGBTQ support group.",
+      "spans": [],
+      "options": {},
+      "expected": {
+        "text": "Caroline went to the LGBTQ support group.",
+        "anchor": "whole",
+        "windows": [[0, 41]],
+        "spans": [],
+        "highlights": [],
+        "cut": false
+      }
+    },
+    {
+      "name": "whole_with_highlights",
+      "body": "The cafe opens at nine.",
+      "spans": [[4, 8]],
+      "options": {
+        "highlights": true
+      },
+      "expected": {
+        "text": "The cafe opens at nine.",
+        "anchor": "whole",
+        "windows": [[0, 23]],
+        "spans": [[4, 8]],
+        "highlights": [[4, 8]],
+        "cut": false
+      }
+    },
+    {
+      "name": "start_prefix",
+      "body": "Melanie painted a lake sunrise last year and kept it in the hallway by the door.",
+      "spans": [],
+      "options": {
+        "max_bytes": 40
+      },
+      "expected": {
+        "text": "Melanie painted a lake sunrise last …",
+        "anchor": "start",
+        "windows": [[0, 35]],
+        "spans": [],
+        "highlights": [],
+        "cut": true
+      }
+    },
+    {
+      "name": "match_centred",
+      "body": "filler words here filler words here filler words here filler words here filler words here filler words here filler words here filler words here filler words here filler words here Caroline adopted a retired greyhound named Pepper. more filler text more filler text more filler text more filler text more filler text more filler text more filler text more filler text more filler text more filler text",
+      "spans": [[207, 216]],
+      "options": {
+        "max_bytes": 80,
+        "highlights": true
+      },
+      "expected": {
+        "text": "… here Caroline adopted a retired greyhound named Pepper. more filler text …",
+        "anchor": "match",
+        "windows": [[175, 247]],
+        "spans": [[207, 216]],
+        "highlights": [[36, 45]],
+        "cut": true
+      }
+    },
+    {
+      "name": "nfd_accent_widened",
+      "body": "intro text intro text intro text intro text intro text intro text intro text intro text We met at the Café Lumiere on Friday. closing words closing words closing words closing words closing words closing words closing words closing words",
+      "spans": [[102, 106]],
+      "options": {
+        "max_bytes": 60,
+        "highlights": true
+      },
+      "expected": {
+        "text": "… intro text We met at the Café Lumiere on Friday. …",
+        "anchor": "match",
+        "windows": [[77, 127]],
+        "spans": [[102, 108]],
+        "highlights": [[29, 35]],
+        "cut": true
+      }
+    },
+    {
+      "name": "two_windows",
+      "body": "Jupiter rises early. pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad Saturn sets late. pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad ",
+      "spans": [[0, 7], [621, 627]],
+      "options": {
+        "max_bytes": 200,
+        "max_windows": 2
+      },
+      "expected": {
+        "text": "Jupiter rises early. pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad … pad pad pad pad pad pad pad pad pad pad pad Saturn sets late. pad pad pad pad pad pad pad pad …",
+        "anchor": "match",
+        "windows": [[0, 96], [577, 670]],
+        "spans": [[0, 7], [621, 627]],
+        "highlights": [],
+        "cut": true
+      }
+    },
+    {
+      "name": "head_window",
+      "body": "(unknown date) [8 May 2023] Caroline: we talked about many things we talked about many things we talked about many things we talked about many things we talked about many things we talked about many things we talked about many things we talked about many things including the adoption agency and then left and then left and then left and then left and then left and then left",
+      "spans": [[276, 284]],
+      "options": {
+        "max_bytes": 120,
+        "head_bytes": 48
+      },
+      "expected": {
+        "text": "(unknown date) [8 May 2023] Caroline: we talked … about many things including the adoption agency and then left …",
+        "anchor": "match",
+        "windows": [[0, 47], [244, 305]],
+        "spans": [[276, 284]],
+        "highlights": [],
+        "cut": true
+      }
+    },
+    {
+      "name": "clamped_options",
+      "body": "word word word word word word word word word word word word word word word word word word word word ",
+      "spans": [],
+      "options": {
+        "max_bytes": 10,
+        "max_windows": 0,
+        "max_point_queries": 1000
+      },
+      "expected": {
+        "text": "word word word word word word word …",
+        "anchor": "start",
+        "windows": [[0, 34]],
+        "spans": [],
+        "highlights": [],
+        "cut": true
+      }
+    },
+    {
+      "name": "ignored_spans",
+      "body": "naïve plan",
+      "spans": [[3, 4], [5, 99]],
+      "options": {},
+      "expected": {
+        "text": "naïve plan",
+        "anchor": "whole",
+        "windows": [[0, 11]],
+        "spans": [],
+        "highlights": [],
+        "cut": false
+      }
+    },
+    {
+      "name": "unrepresentable_values",
+      "body": "word word word word word word word word word word word word word word word word word word word word ",
+      "spans": [[-1, 3], [2, 4294967296]],
+      "options": {
+        "max_bytes": 1099511627776
+      },
+      "expected": {
+        "text": "word word word word word word word word word word word word word word word word word word word word ",
+        "anchor": "whole",
+        "windows": [[0, 100]],
+        "spans": [],
+        "highlights": [],
+        "cut": false
+      }
+    }
+  ]
+}

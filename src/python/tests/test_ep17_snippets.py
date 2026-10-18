@@ -67,3 +67,17 @@ def test_search_text_only_returns_snippet_sidecar(db_path: str) -> None:
         assert plain.results == with_snippets.results
     finally:
         engine.close()
+
+
+def test_search_returns_snippet_sidecar(db_path: str) -> None:
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write(_writes())
+        with_snippets = engine.search(TERM, snippet=SnippetOptions(max_bytes=120))
+        _assert_far_and_short(with_snippets, 120)
+
+        plain = engine.search(TERM)
+        assert plain.snippets is None
+        assert plain.results == with_snippets.results
+    finally:
+        engine.close()

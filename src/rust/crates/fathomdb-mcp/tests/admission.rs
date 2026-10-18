@@ -239,3 +239,56 @@ async fn a_client_cancel_removes_a_queued_call() {
     assert_ne!(later.is_error, Some(true), "{:?}", later.structured_content);
     harness.shutdown().await;
 }
+
+/// With every permit held and `queue_limit` 1, a new call is queued and
+/// refused at its deadline only if nothing else is counted as queued.
+async fn assert_nothing_queued(harness: &Harness, after: &str) {
+    let error = error_of(&spawn_call(harness, "search", search_a()).await.unwrap());
+    assert_eq!(error["busy"]["reason"], "deadline", "after {after}: {error}");
+    assert_eq!(error["busy"]["queued"], 0, "after {after}: {error}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn queued_returns_to_zero_on_timeout_cancel_and_panic() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "queue_limit": 1, "call_deadline_ms": 600}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+
+    // Timeout.
+    let error = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
+    assert_eq!(error["busy"]["reason"], "deadline", "{error}");
+    assert_nothing_queued(&harness, "a timeout").await;
+
+    // Client cancel.
+    let mut raw = common::RawClient::connect(&harness.adapter).await;
+    let cancelled =
+        raw.send_request("tools/call", json!({"name": "search", "arguments": search_a()})).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    raw.cancel(cancelled).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_nothing_queued(&harness, "a cancel").await;
+
+    // Panic in the waiting task.
+    seams.panic_queued_calls("a");
+    let Value::Object(arguments) = search_a() else { unreachable!() };
+    let panicked = harness
+        .client
+        .call_tool(CallToolRequestParams::new("search").with_arguments(arguments))
+        .await;
+    assert!(panicked.is_err(), "a panicking handler is a JSON-RPC error: {panicked:?}");
+    seams.stop_panicking_queued_calls("a");
+    assert_nothing_queued(&harness, "a panic").await;
+
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    harness.shutdown().await;
+}

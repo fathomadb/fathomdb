@@ -43,7 +43,7 @@ fathomdb-mcp --config <path.json> --check-config
 | `default_store` | string or null | null | Session default when a call omits `store`. Must be addressable. |
 | `idle_timeout_secs` | integer ≥ 0 | 60 | 0 = never close (MR-005.4). |
 | `max_open_stores` | integer | 1 | Must be 1 in this release (MR-005.7); any other value is invalid. |
-| `admission_cap` | integer ≥ 1 | 4 | Engine calls in flight per store, including abandoned ones (MR-033.2). Must be < 8. A call is refused as `busy/admission` when `in_flight >= admission_cap`. |
+| `admission_cap` | integer ≥ 1 | 4 | Engine calls in flight per store, including abandoned ones (MR-033.2). Must be < 8. A call that finds every permit held waits for one in arrival (FIFO) order while its deadline allows; it is refused as `busy/admission` only when it cannot start in time (§ 6). |
 | `call_deadline_ms` | integer ≥ 100 | 10000 | Per tool call (MR-033). |
 | `default_max_tokens` | integer ≥ 256 | 4000 | Budget when a call omits `max_tokens` (MR-041.3). |
 | `snippet_chars` | integer 40..2000 | 300 | Snippet cap (MR-040). |

@@ -603,3 +603,55 @@ fn projected_text_search_reads_a_declared_property_projection() {
     assert!(result.results[0].body.contains("needle"));
     engine.close().expect("close");
 }
+
+/// T-8 (match-centred-snippets.md § 8): through the SDK, the same search twice
+/// gives byte-identical snippets, on the hybrid, text and frozen paths; and
+/// out-of-range snippet options are InvalidArgument.
+#[test]
+fn snippets_are_deterministic_through_the_sdk() {
+    let (_dir, engine) = open_engine();
+    let long = format!("{}zanzibar{}", "lorem ".repeat(500), " ipsum".repeat(200));
+    engine.write(&[node(Some("note:long"), "note", &long, "src-a")]).expect("write long record");
+    engine.drain(10_000).expect("drain");
+    let snippet = Some(fathomdb_sdk::SnippetOptions::default());
+    let context = engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
+        )
+        .expect("freeze");
+    let run = || {
+        [
+            engine
+                .search("zanzibar", SearchOptions { snippet, ..SearchOptions::default() })
+                .expect("search"),
+            engine
+                .search_text_only(
+                    "zanzibar",
+                    TextSearchOptions { snippet, ..TextSearchOptions::default() },
+                )
+                .expect("text"),
+            engine
+                .search_frozen(
+                    "zanzibar",
+                    &context,
+                    FrozenSearchOptions { snippet, ..FrozenSearchOptions::default() },
+                )
+                .expect("frozen"),
+        ]
+    };
+    let (first, second) = (run(), run());
+    for (a, b) in first.iter().zip(&second) {
+        let snippets = a.snippets.as_ref().expect("sidecar");
+        assert_eq!(snippets.len(), a.results.len());
+        assert_eq!(snippets[0].anchor, fathomdb_sdk::SnippetAnchor::Match, "{snippets:?}");
+        assert_eq!(a.snippets, b.snippets);
+    }
+
+    let bad = Some(fathomdb_sdk::SnippetOptions {
+        max_bytes: 10,
+        ..fathomdb_sdk::SnippetOptions::default()
+    });
+    let options = TextSearchOptions { snippet: bad, ..TextSearchOptions::default() };
+    assert_eq!(kind_of(engine.search_text_only("zanzibar", options)), ErrorKind::InvalidArgument);
+    engine.close().expect("close");
+}

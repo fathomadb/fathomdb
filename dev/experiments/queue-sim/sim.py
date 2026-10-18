@@ -14,6 +14,7 @@ from collections import deque
 from dataclasses import dataclass, field
 
 KINDS = ("search_text", "search_hybrid", "fetch", "expand")
+LATE_BINS = ((10, 12), (12, 15), (15, 20), (20, 30), (30, 60), (60, 120), (120, "inf"))  # latency of late successes, s
 
 
 # --------------------------------------------------------------------------- service model
@@ -820,16 +821,37 @@ class Sim:
         out["lone_wait_p99"] = pctl(lone, 99)
         out["lone_wait_max"] = max(lone) if lone else float("nan")
         out["turn_refused"] = (sum(1 for v in bursts.values() if any(x.outcome == "refused" for x in v)) / max(1, len(bursts)))
+        # an agent re-issues a failed call on its next LLM turn: one retry turn per turn with any failure
+        out["turn_failed"] = (sum(1 for v in bursts.values() if any(x.outcome != "ok" for x in v)) / max(1, len(bursts)))
         out["late_admit_timeout_rate"] = sum(1 for c in to if c.t_adm - c.t_arr > 0) / n
         lat = [c.t_res - c.t_arr for c in ok]
         for p in (50, 95, 99):
             out[f"ok_p{p}"] = pctl(lat, p)
+        out["ok_p999"] = pctl(lat, 99.9)
+        out["fail_rate"] = 1.0 - out["ok_rate"]
+        late = [c for c in ok if c.t_res > c.deadline]
+        out["ok_late_rate"] = len(late) / n
+        out["ok_late_share"] = len(late) / len(ok) if ok else float("nan")
+        out["ok_late30_rate"] = sum(1 for c in ok if c.t_res - c.t_arr > 30.0) / n
+        out["late_start_ok_rate"] = sum(1 for c in late if c.t_adm > c.t_arr) / n
+        for lo, hi in LATE_BINS:
+            out[f"late_h_{lo}_{hi}"] = sum(1 for c in late if lo < c.t_res - c.t_arr <= (hi if hi != "inf" else math.inf))
+        # time to data: a failed call costs its own wait, one think time and one retry at the mean ok latency
+        retry = sum(lat) / len(lat) if lat else 0.0
+        ttd = lat + [c.t_res - c.t_arr + cfg.think_median + retry for c in cs if c.outcome != "ok"]
+        out["ttd_mean"] = sum(ttd) / len(ttd)
+        out["ttd_p99"] = pctl(ttd, 99)
+        out["ttd_p999"] = pctl(ttd, 99.9)
         allr = [c.t_res - c.t_arr for c in cs if c.outcome != "refused"]
         out["resp_p95"] = pctl(allr, 95)
         T = max(self.T, 1e-9)
         out["util"] = self.busy_integral / (T * cfg.n_readers)
         out["abandoned_avg"] = self.ab_integral / T
         out["abandoned_share"] = self.ab_integral / self.held_integral if self.held_integral else 0.0
+        out["ab_permit_s_per_kcall"] = self.ab_integral / n * 1000
+        out["wasted_permit_s_per_kcall"] = sum((c.t_done if c.t_done is not None else self.T) - c.t_adm for c in to) / n * 1000
+        # over the span to the last resolution: T also runs on through trailing no-op deadline checks
+        out["goodput_per_s"] = len(ok) / max(1e-9, max(c.t_res for c in cs))
         out["soft_fallback_rate"] = self.soft_fallbacks / max(1, len(self.calls))
         ro = self.retry_obs
         if ro:

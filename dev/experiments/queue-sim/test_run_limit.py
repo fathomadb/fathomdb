@@ -82,8 +82,8 @@ def test_ep09_interrupts_at_the_run_limit_and_frees_the_permit():
 
 # ---------------------------------------------------------------- metrics
 def test_late_success_metrics():
-    # three calls on separate permits: 5 s (on time), 12 s and 40 s (late successes)
-    sc = [(0.0, *T(reader=5.0)), (0.0, *T(reader=12.0)), (0.0, *T(reader=40.0))]
+    # three calls on separate permits: 5 s (on time), 13 s and 40 s (late successes)
+    sc = [(0.0, *T(reader=5.0)), (0.0, *T(reader=13.0)), (0.0, *T(reader=40.0))]
     s = script_run(sc, cap=4, admission="fifo", run_limit=60.0)
     m = s.metrics()
     assert m["ok_rate"] == 1.0

@@ -265,14 +265,16 @@ pub(super) struct PySoftFallback {
 
 impl PySoftFallback {
     pub(super) fn from_rust(s: &RustSoftFallback) -> Self {
-        Self {
-            branch: match s.branch {
-                SoftFallbackBranch::Vector => "vector".to_string(),
-                SoftFallbackBranch::Text => "text".to_string(),
-                SoftFallbackBranch::TextEdge => "text_edge".to_string(),
-                SoftFallbackBranch::GraphArm => "graph_arm".to_string(),
-            },
-        }
+        Self { branch: branch_word(s.branch).to_string() }
+    }
+}
+
+fn branch_word(branch: SoftFallbackBranch) -> &'static str {
+    match branch {
+        SoftFallbackBranch::Vector => "vector",
+        SoftFallbackBranch::Text => "text",
+        SoftFallbackBranch::TextEdge => "text_edge",
+        SoftFallbackBranch::GraphArm => "graph_arm",
     }
 }
 
@@ -383,7 +385,15 @@ impl PySearchResult {
             soft_fallback: r.soft_fallback.as_ref().map(PySoftFallback::from_rust),
             results: r.results.iter().map(PySearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(PyExplanation::from_rust),
-            degradations: None,
+            degradations: (!r.degradations.is_empty()).then(|| {
+                r.degradations
+                    .iter()
+                    .map(|entry| PyArmDegradation {
+                        arm: branch_word(entry.arm).to_string(),
+                        reason: entry.reason.as_str().to_string(),
+                    })
+                    .collect()
+            }),
         }
     }
 }

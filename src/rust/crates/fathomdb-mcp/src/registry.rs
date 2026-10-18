@@ -130,31 +130,59 @@ const NEED_FLOOR: Duration = Duration::from_millis(50);
 /// Admission state of one store. Kept across reopens, so waiters survive a
 /// drain.
 struct Load {
+    cap: usize,
     /// `admission_cap` permits, handed out in request order.
     permits: Arc<Semaphore>,
-    in_flight: AtomicUsize,
     /// Calls waiting for a permit.
     queued: AtomicUsize,
+    /// Fires when the last permit is returned.
     idle: Notify,
 }
 
 impl Load {
     fn new(cap: usize) -> Self {
         Self {
+            cap,
             permits: Arc::new(Semaphore::new(cap)),
-            in_flight: AtomicUsize::new(0),
             queued: AtomicUsize::new(0),
             idle: Notify::new(),
         }
     }
 
+    /// Permits held. A call counts from the moment it holds a permit, before
+    /// its guard exists, so idle expiry and drains never miss it.
+    fn in_flight(&self) -> usize {
+        self.cap - self.permits.available_permits()
+    }
+
+    /// Calls holding or waiting for a permit.
+    fn busy_calls(&self) -> usize {
+        self.in_flight() + self.queued.load(Ordering::SeqCst)
+    }
+
     fn busy(&self, reason: BusyReason) -> Busy {
         Busy {
             reason,
-            in_flight: self.in_flight.load(Ordering::SeqCst),
+            in_flight: self.in_flight(),
             queued: self.queued.load(Ordering::SeqCst),
             abandoned: 0,
             stuck: false,
+        }
+    }
+}
+
+/// An admission permit. Dropping it returns the permit and wakes drains
+/// waiting for the store to go idle.
+struct Permit {
+    permit: Option<OwnedSemaphorePermit>,
+    load: Arc<Load>,
+}
+
+impl Drop for Permit {
+    fn drop(&mut self) {
+        drop(self.permit.take());
+        if self.load.in_flight() == 0 {
+            self.load.idle.notify_waiters();
         }
     }
 }
@@ -218,9 +246,9 @@ pub(crate) struct StoreGuard {
     pub(crate) epoch: u64,
     pub(crate) engine: Arc<Engine>,
     pub(crate) info: Arc<OpenInfo>,
-    load: Arc<Load>,
     last_used: LastUsed,
-    _permit: OwnedSemaphorePermit,
+    // Dropped after `drop` below has run.
+    _permit: Permit,
 }
 
 impl Drop for StoreGuard {
@@ -228,9 +256,6 @@ impl Drop for StoreGuard {
         // Stamp before releasing the slot, so the idle clock never sees a
         // finished call as idle since its start (FIX-1 CR-5).
         self.last_used.touch();
-        if self.load.in_flight.fetch_sub(1, Ordering::SeqCst) == 1 {
-            self.load.idle.notify_waiters();
-        }
     }
 }
 
@@ -561,6 +586,7 @@ impl Registry {
                 }
             }
         };
+        let permit = Permit { permit: Some(permit), load: load.clone() };
         self.hooks.after_permit(name).await;
         let mut inner = self.lock();
         if inner.shutting_down {
@@ -570,14 +596,12 @@ impl Registry {
         if slot.phase != Phase::Ready || slot.epoch != epoch {
             return Ok(None);
         }
-        load.in_flight.fetch_add(1, Ordering::SeqCst);
         slot.last_used.touch();
         Ok(Some(StoreGuard {
             name: name.to_string(),
             epoch: slot.epoch,
             engine: slot.engine.clone().expect("ready slots hold an engine"),
             info: slot.info.clone().expect("ready slots hold open info"),
-            load: load.clone(),
             last_used: slot.last_used.clone(),
             _permit: permit,
         }))
@@ -592,12 +616,7 @@ impl Registry {
                 other.as_str() != name && slot.managed() && slot.phase != Phase::Closed
             })
             .map(|(other, slot)| {
-                (
-                    other.clone(),
-                    slot.phase,
-                    slot.load.in_flight.load(Ordering::SeqCst),
-                    slot.last_used.get(),
-                )
+                (other.clone(), slot.phase, slot.load.busy_calls(), slot.last_used.get())
             })
             .collect();
         let mut waits = Vec::new();
@@ -605,7 +624,7 @@ impl Registry {
             let mut to_free = others.len() + 1 - limit;
             let mut drainable: Vec<&(String, Phase, usize, Instant)> = others
                 .iter()
-                .filter(|(_, phase, in_flight, _)| *phase == Phase::Ready && *in_flight == 0)
+                .filter(|(_, phase, busy_calls, _)| *phase == Phase::Ready && *busy_calls == 0)
                 .collect();
             drainable.sort_by_key(|(_, _, _, last_used)| *last_used);
             let draining: Vec<&String> = others
@@ -777,7 +796,7 @@ impl Registry {
             .filter(|(_, slot)| {
                 slot.managed()
                     && slot.phase == Phase::Ready
-                    && slot.load.in_flight.load(Ordering::SeqCst) == 0
+                    && slot.load.busy_calls() == 0
                     && slot.last_used.get().elapsed() >= timeout
             })
             .map(|(name, _)| name.clone())
@@ -827,7 +846,7 @@ async fn wait_idle(load: &Load) {
         let notified = load.idle.notified();
         tokio::pin!(notified);
         notified.as_mut().enable();
-        if load.in_flight.load(Ordering::SeqCst) == 0 {
+        if load.in_flight() == 0 {
             return;
         }
         notified.await;

@@ -395,7 +395,7 @@ these loads: the cap is not the bottleneck, and the stack's real risks are the e
 Prompt: `dev/plans/prompts/queue-run-to-completion-test-prompt.md`. Arms, metrics and rules were fixed
 before the run in `PREREG-run-to-completion.md`, with a dated addendum written after the review and
 before run 2. Code: `sim.py` (`Config.run_limit`), `rtc.py`, `rtc_analysis.py`. Tests:
-`test_run_limit.py`, `test_rtc.py`, `test_rtc_analysis.py` (78 tests in all; the 46 earlier ones are
+`test_run_limit.py`, `test_rtc.py`, `test_rtc_analysis.py`, `test_rtc_pairing.py` (86 tests in all; the 46 earlier ones are
 unchanged). All tables are in `results/rtc_tables.md`. The study ran 112,320 simulations of 20,000 calls
 with 0 errors: 26 arms × P0/P2 × two slow tails (the configuration's own, and 10–30 s) × 1,080
 configurations (realistic band 500, stress band 580, as defined in § 7). Queue depth was 32 throughout.

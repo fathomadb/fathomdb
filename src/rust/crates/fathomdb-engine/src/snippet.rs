@@ -153,14 +153,85 @@ pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -
     if body.len() <= max_bytes {
         return whole(body, &spans, &options);
     }
+    let words = Boundaries::words(body);
+    let text = Text { body, graphemes: &graphemes, words: &words };
+    let windows =
+        if spans.is_empty() { vec![text.prefix(max_bytes - TRAILING.len())] } else { Vec::new() };
+    let anchor = SnippetAnchor::Start;
+    let (text_out, highlights) = assemble(body, &windows);
     SnippetV1 {
-        text: String::new(),
-        anchor: SnippetAnchor::Start,
-        windows: Vec::new(),
+        text: text_out,
+        anchor,
+        cut: windows != [(0, body.len())],
+        windows: windows.iter().map(|&(s, e)| (to_u32(s), to_u32(e))).collect(),
         spans: to_ranges(&spans),
-        highlights: Vec::new(),
-        cut: false,
+        highlights,
     }
+}
+
+const LEADING: &str = "\u{2026} ";
+const BETWEEN: &str = " \u{2026} ";
+const TRAILING: &str = " \u{2026}";
+
+/// How far an edge may move to reach a word boundary before it falls back to
+/// a grapheme boundary.
+const WORD_REACH: usize = 32;
+
+/// A body with its boundary tables.
+struct Text<'a> {
+    body: &'a str,
+    graphemes: &'a Boundaries,
+    words: &'a Boundaries,
+}
+
+impl Text<'_> {
+    /// Rule 2: the prefix within `budget` bytes, on a word boundary.
+    fn prefix(&self, budget: usize) -> (usize, usize) {
+        let end = self.snap_end_back(budget.min(self.body.len()), 0);
+        (0, self.trim_end(0, end))
+    }
+
+    /// The largest word boundary in `[target − WORD_REACH, target]` and not
+    /// before `floor`; else the largest grapheme boundary in `[floor, target]`.
+    fn snap_end_back(&self, target: usize, floor: usize) -> usize {
+        let word = self.words.at_or_before(target);
+        if word >= floor && word + WORD_REACH >= target {
+            return word;
+        }
+        self.graphemes.at_or_before(target).max(floor)
+    }
+
+    /// Drops whitespace clusters at the end of `[start, end)`, keeping at
+    /// least one cluster.
+    fn trim_end(&self, start: usize, mut end: usize) -> usize {
+        while end > start {
+            let prev = self.graphemes.at_or_before(end - 1);
+            if prev <= start || !self.body[prev..end].chars().all(char::is_whitespace) {
+                break;
+            }
+            end = prev;
+        }
+        end
+    }
+}
+
+/// Rule 9: joins the windows in body order with ellipses.
+fn assemble(body: &str, windows: &[(usize, usize)]) -> (String, Vec<(u32, u32)>) {
+    let mut text = String::new();
+    for (i, &(start, end)) in windows.iter().enumerate() {
+        if i == 0 {
+            if start > 0 {
+                text.push_str(LEADING);
+            }
+        } else {
+            text.push_str(BETWEEN);
+        }
+        text.push_str(&body[start..end]);
+    }
+    if windows.last().is_some_and(|&(_, end)| end < body.len()) {
+        text.push_str(TRAILING);
+    }
+    (text, Vec::new())
 }
 
 /// A match span in body bytes.
@@ -184,6 +255,12 @@ fn clamped(options: &SnippetOptions) -> SnippetOptions {
 struct Boundaries(Vec<usize>);
 
 impl Boundaries {
+    fn words(body: &str) -> Self {
+        let mut v: Vec<usize> = body.split_word_bound_indices().map(|(i, _)| i).collect();
+        v.push(body.len());
+        Self(v)
+    }
+
     fn graphemes(body: &str) -> Self {
         let mut v: Vec<usize> = body.grapheme_indices(true).map(|(i, _)| i).collect();
         v.push(body.len());

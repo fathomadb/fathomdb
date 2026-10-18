@@ -385,7 +385,10 @@ class Sim:
         if e.count < 8:
             return max(floor, 0.05)  # cold start: too few samples to estimate
         if th[0] == "pct":
-            return max(floor, e.pct(th[1]))
+            # optional 5th element caps need: under run to completion late completions are samples, and a
+            # need above the wait deadline would refuse every call of the kind, so no sample could lower it
+            v = max(floor, e.pct(th[1]))
+            return min(v, th[4]) if len(th) > 4 else v
         return max(floor, th[2] * e.ewma)
 
     def shed_on(self):

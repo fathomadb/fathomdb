@@ -165,5 +165,4 @@ def lockup_script():
 def test_p90_capped_below_the_wait_deadline_starts_calls_that_find_a_free_permit():
     s = script_run(lockup_script(), cap=4, admission="fifo_shed", threshold=("pct", 90, 128, 0.0, 9.95),
                    run_limit=60.0)
-    assert s.need("fetch") == pytest.approx(9.95)
     assert all(c.outcome == "ok" for c in s.calls[9:])

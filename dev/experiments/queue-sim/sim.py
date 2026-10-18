@@ -96,6 +96,9 @@ class Config:
     queue_limit: int | None = None
     threshold: tuple = ("ewma", 0.2, 1.0, 0.05)  # fixed F | pct p n floor | ewma a k floor
     deadline: tuple = ("fixed", 10.0)  # fixed D | derived floor k
+    run_limit: float | None = None  # None: the deadline also ends a running call (old rule). Else run to completion:
+    #                                 the deadline bounds waiting and starting; a started call is abandoned (or,
+    #                                 with interrupt, cancelled) only once it has held its permit this long
     # engine
     dispatch: str = "P0"  # P0 round-robin | P1 shared FIFO | P2 try_send idle then RR
     interrupt: bool = False  # EP-09: at the deadline the caller stops waiting, frees its permit, queued reader
@@ -482,7 +485,8 @@ class Sim:
         w = self._retry_watch.pop(c.id, None)
         if w:
             self.retry_obs.append((w[1], self.now - w[0]))
-        self.at(c.deadline, self.deadline_check, c)
+        rl = self.cfg.run_limit
+        self.at(c.deadline if rl is None else self.now + rl, self.deadline_check, c)
         if c.hybrid:
             self.embed_submit(c)
         else:

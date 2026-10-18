@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::search_types::SearchHit;
-use crate::snippet::{snippet_for, SnippetOptions, SnippetV1};
+use crate::snippet::{snippet_for, snippet_for_terms, SnippetOptions, SnippetV1};
 
 /// The FTS table a text hit came from.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -49,6 +49,7 @@ pub(crate) fn snippets_for_hits(
     hits: &[SearchHit],
     rows: &FtsRows,
     match_expression: &str,
+    terms: &[String],
     options: &SnippetOptions,
 ) -> rusqlite::Result<Vec<SnippetV1>> {
     // `max_point_queries` caps the hits that get a point query, in rank order;
@@ -59,14 +60,28 @@ pub(crate) fn snippets_for_hits(
             // Rule 0: spans are needed only to cut the body or to highlight.
             let needs_spans = hit.body.len() > options.max_bytes as usize || options.highlights;
             let row = rows.get(&hit.write_cursor).filter(|_| needs_spans && budget > 0);
-            let spans = match row {
-                Some(&(table, rowid)) => {
-                    budget -= 1;
-                    match_spans(tx, table, rowid, match_expression, &hit.body)?.unwrap_or_default()
-                }
-                None => Vec::new(),
+            let Some(&(table, rowid)) = row else {
+                return Ok(snippet_for(&hit.body, &[], options));
             };
-            Ok(snippet_for(&hit.body, &spans, options))
+            budget -= 1;
+            let spans =
+                match_spans(tx, table, rowid, match_expression, &hit.body)?.unwrap_or_default();
+            let approximate = snippet_for(&hit.body, &spans, options);
+            // Rule 3: exact identity only where it can change the choice — a
+            // body over budget, more than one term, and a first window that
+            // misses some span. The extra queries ride on this hit's budget.
+            let misses_a_span = approximate
+                .spans
+                .iter()
+                .any(|&(a, b)| !approximate.windows.iter().any(|&(wa, wb)| wa <= a && b <= wb));
+            if hit.body.len() <= options.max_bytes as usize || terms.len() < 2 || !misses_a_span {
+                return Ok(approximate);
+            }
+            let term_spans = terms
+                .iter()
+                .map(|term| Ok(match_spans(tx, table, rowid, term, &hit.body)?.unwrap_or_default()))
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(snippet_for_terms(&hit.body, &spans, &term_spans, options))
         })
         .collect()
 }

@@ -2505,7 +2505,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         .transpose()?;
     let snippets = snippet
         .map(|options| {
-            snippets_for_hits(&tx, &results, &fts_rows, &compiled.match_expression, options)
+            snippets_for_hits(
+                &tx,
+                &results,
+                &fts_rows,
+                &compiled.match_expression,
+                &compiled.terms,
+                options,
+            )
         })
         .transpose()?;
     let output = capture.finish(

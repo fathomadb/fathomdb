@@ -157,6 +157,33 @@ pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -
     select(body, &spans, &ids, &graphemes, &options)
 }
 
+/// [`snippet_for`] with exact term identity (§ 6.3 rule 3): `term_spans[i]`
+/// are the spans term `i` alone matches, and a span takes the label of the
+/// first term whose spans overlap it. A span no term claims keeps an identity
+/// of its own.
+pub(crate) fn snippet_for_terms(
+    body: &str,
+    spans: &[(u32, u32)],
+    term_spans: &[Vec<(u32, u32)>],
+    options: &SnippetOptions,
+) -> SnippetV1 {
+    let options = clamped(options);
+    let graphemes = Boundaries::graphemes(body);
+    let spans = normalised_spans(body, spans, &graphemes);
+    let terms: Vec<Vec<Span>> =
+        term_spans.iter().map(|t| normalised_spans(body, t, &graphemes)).collect();
+    let overlaps = |a: &Span, b: &Span| a.start < b.end && b.start < a.end;
+    let ids: Vec<u32> = spans
+        .iter()
+        .enumerate()
+        .map(|(j, span)| {
+            let term = terms.iter().position(|t| t.iter().any(|s| overlaps(s, span)));
+            to_u32(term.unwrap_or(term_spans.len() + j))
+        })
+        .collect();
+    select(body, &spans, &ids, &graphemes, &options)
+}
+
 /// Rules 1–9 over normalised spans and their identities (`ids[j]` labels
 /// `spans[j]`; equal labels are one term).
 fn select(

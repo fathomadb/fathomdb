@@ -70,6 +70,14 @@ def test_r1_can_exclude_configurations_and_compare_another_check():
     assert ra.r1(ix, check="p90cap")["chk"] == "wait"  # p90cap equals wait-only here
 
 
+def test_r1_exclusion_can_differ_per_cell():
+    ix = synth({("base", "P2", "rtc_p90_rl60"): {"fail_rate": lambda i: 0.2 if i < 2 else 0.0005 + 1e-6 * i},
+                ("long", "P2", "rtc_p90_rl60"): {"fail_rate": lambda i: 0.2 if i in (5, 6) else 0.001}})
+    r = ra.r1(ix, exclude=lambda cell: {"0", "1"} if cell[1] == "base" else {"5", "6"})
+    assert r["cells"][("realistic", "long", "P2")]["dF"][1] == 0.0  # only cfgs 5 and 6 differ there
+    assert r["verdict"].startswith("KEEP")
+
+
 def test_lockups_are_configurations_refusing_more_than_1_percent_with_a_free_permit():
     ix = synth({("base", "P2", "rtc_p90_rl60"): {"rf_with_permit": lambda i: 0.02 if i in (3, 7) else 0.0}})
     assert ra.lockups(ix, "realistic", "base", "P2", "rtc_p90_rl60") == {"3", "7"}

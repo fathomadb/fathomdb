@@ -395,4 +395,16 @@ mod tests {
             assert_eq!(mapped.detail, Some(detail));
         }
     }
+
+    // `Overloaded` comes only from the engine's embed queue, which no read
+    // path the adapter calls reports, so the mapping is checked directly.
+    #[test]
+    fn sdk_overloaded_maps_to_admission_engine_overloaded() {
+        let mapped = ToolError::from_sdk("notes", &SdkError::Engine(EngineError::Overloaded));
+        assert_eq!(mapped.class, ErrorClass::Busy);
+        assert_eq!(mapped.code, "admission");
+        assert_eq!(mapped.detail, Some("OverloadedError"));
+        let json = serde_json::to_value(&mapped).unwrap();
+        assert_eq!(json["busy"]["reason"], "engine_overloaded", "{json}");
+    }
 }

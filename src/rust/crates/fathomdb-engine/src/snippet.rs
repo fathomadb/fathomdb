@@ -260,21 +260,31 @@ impl Text<'_> {
         let pool: Vec<usize> = (0..spans.len()).collect();
         let (mut choice, mut score) = self.best_window(spans, ids, &pool, full, all)?;
         let mut width = full;
+        let mut extra_windows = max_windows > 1;
         let mut windows: Vec<Ranked> = head.map(|h| (h, None)).into_iter().collect();
-        if max_windows > 1 {
+        if extra_windows {
             let mut with_first = ranges(&windows);
             with_first.push(self.place(spans, &choice, full, all));
             with_first.sort_unstable();
-            if !self.uncovered(spans, ids, &with_first).is_empty() {
+            if self.uncovered(spans, ids, &with_first).is_empty() {
+                extra_windows = false;
+            } else if let Some(narrow) =
+                self.best_window(spans, ids, &pool, full / max_windows, all)
+            {
                 // Leave room for the windows rule 7 will add.
                 width = full / max_windows;
-                (choice, score) = self.best_window(spans, ids, &pool, width, all)?;
+                (choice, score) = narrow;
+            } else {
+                // No whole span fits the narrower window: keep the full-width
+                // match rather than lose it, and add no windows.
+                extra_windows = false;
             }
         }
         let first = self.place(spans, &choice, width, all);
         insert_merging(self.body.len(), max_bytes, &mut windows, (first, Some(score)));
 
-        for left in (1..max_windows).rev() {
+        let extra = if extra_windows { max_windows } else { 1 };
+        for left in (1..extra).rev() {
             let shown = ranges(&windows);
             let remaining = max_bytes.saturating_sub(assembled_len(self.body.len(), &shown));
             if remaining < MIN_EXTRA_WINDOW {

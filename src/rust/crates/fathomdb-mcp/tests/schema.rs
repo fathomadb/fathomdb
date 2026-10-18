@@ -138,3 +138,70 @@ async fn input_schemas_declare_the_argument_bounds() {
     }
     harness.shutdown().await;
 }
+
+/// Hints-sidecar § 8 test 15 and § 2.1: every hint reason the adapter emits
+/// validates against its tool's output schema (the shared client checks
+/// each result), and the schema's hint enums are closed.
+#[tokio::test(flavor = "multi_thread")]
+async fn hints_validate_against_output_schema() {
+    let fixture = Fixture::new();
+    let long = "river crossing told at length with the water high ".repeat(40);
+    let mut writes: Vec<_> =
+        (0..12).map(|i| node(&format!("note:{i:02}"), "note", &format!("{i} {long}"))).collect();
+    writes.push(edge("link", "note:00", "note:01"));
+    fixture.store("a.sqlite", writes);
+    let harness = Harness::start(fixture.config(json!({
+        "stores": {"a": {"path": "a.sqlite"}},
+        "default_store": "a",
+        "snippet_chars": 40
+    })))
+    .await;
+    let reasons = |result: &Value| -> Vec<String> {
+        result["hints"]
+            .as_array()
+            .map(|hints| {
+                hints.iter().map(|hint| hint["reason"].as_str().unwrap().to_string()).collect()
+            })
+            .unwrap_or_default()
+    };
+    let mut seen: Vec<String> = Vec::new();
+    seen.extend(reasons(&harness.ok("list_stores", json!({})).await));
+    let page = harness.ok("search", json!({"query": "river", "limit": 3})).await;
+    seen.extend(reasons(&page));
+    seen.extend(reasons(&harness.ok("search", json!({"query": "river", "max_tokens": 400})).await));
+    seen.extend(reasons(&harness.ok("search", json!({"query": "zebra", "mode": "hybrid"})).await));
+    seen.extend(reasons(
+        &harness.ok("fetch", json!({"refs": ["l:note:01"], "max_tokens": 256})).await,
+    ));
+    seen.extend(reasons(
+        &harness.ok("expand", json!({"refs": ["l:note:00"], "max_tokens": 256})).await,
+    ));
+    seen.sort();
+    seen.dedup();
+    assert_eq!(
+        seen,
+        [
+            "body_cut",
+            "cut_by_budget",
+            "default_store_set",
+            "degraded",
+            "more_results",
+            "no_results",
+            "snippet_cut"
+        ]
+    );
+
+    let tools = serde_json::to_value(harness.tools().await).unwrap();
+    let tool = tools.as_array().unwrap().iter().find(|tool| tool["name"] == "search").unwrap();
+    let schema = compile(&tool["outputSchema"]);
+    let mut valid = page.clone();
+    assert!(schema.is_valid(&valid));
+    valid["hints"] = json!([{"action": "search", "reason": "weak_results"}]);
+    assert!(!schema.is_valid(&valid), "an unknown reason is rejected");
+    valid["hints"] = json!([{"action": "retry", "reason": "no_results"}]);
+    assert!(!schema.is_valid(&valid), "an unknown action is rejected");
+    valid["hints"] =
+        json!([{"action": "none", "reason": "degraded", "arm": "vector", "cause": "tired"}]);
+    assert!(!schema.is_valid(&valid), "an unknown cause is rejected");
+    harness.shutdown().await;
+}

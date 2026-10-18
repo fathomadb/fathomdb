@@ -35,11 +35,39 @@ pub struct ToolError {
     /// The SDK error class name when the error came from the SDK.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<&'static str>,
+    /// Why the call was refused and the store's load; present only for
+    /// `busy/admission`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub busy: Option<Box<Busy>>,
+}
+
+/// Why an admission was refused (`busy.reason`).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BusyReason {
+    /// No permit came in time, or too little deadline was left to start.
+    Deadline,
+}
+
+/// The `busy` sub-object of a `busy/admission` error. It carries no advised
+/// wait: agents re-issue a call in a later turn.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Busy {
+    pub reason: BusyReason,
+    /// Permits held: running calls, including abandoned ones.
+    pub in_flight: usize,
+    /// Calls waiting for a permit.
+    pub queued: usize,
+    /// Calls past their deadline whose engine work still holds a permit.
+    pub abandoned: usize,
+    /// Every permit is held by abandoned work.
+    pub stuck: bool,
 }
 
 impl ToolError {
     fn new(class: ErrorClass, code: &'static str, message: String, remedy: &'static str) -> Self {
-        Self { class, code, message, remedy, candidates: None, detail: None }
+        Self { class, code, message, remedy, candidates: None, detail: None, busy: None }
     }
 
     fn with_detail(mut self, kind: ErrorKind) -> Self {
@@ -187,6 +215,22 @@ impl ToolError {
             format!("store {store:?} is at its admission cap, or another store is in use"),
             "retry after in-flight calls finish",
         )
+    }
+
+    pub(crate) fn admission(store: &str, busy: Busy) -> Self {
+        let message = match busy.reason {
+            BusyReason::Deadline => {
+                format!("store {store:?} could not start this call before its deadline")
+            }
+        };
+        let mut error = Self::new(
+            ErrorClass::Busy,
+            "admission",
+            message,
+            "retry in a later turn, or issue fewer calls at once",
+        );
+        error.busy = Some(Box::new(busy));
+        error
     }
 
     pub(crate) fn internal() -> Self {

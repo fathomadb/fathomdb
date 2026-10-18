@@ -154,7 +154,8 @@ pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -
         return whole(body, &spans, &options);
     }
     let words = Boundaries::words(body);
-    let text = Text { body, graphemes: &graphemes, words: &words };
+    let sentences = Boundaries::sentence_starts(body);
+    let text = Text { body, graphemes: &graphemes, words: &words, sentences: &sentences };
     let ids = approximate_identities(body, &spans);
     let width = max_bytes - LEADING.len() - TRAILING.len();
     let pool: Vec<usize> = (0..spans.len()).collect();
@@ -187,6 +188,7 @@ struct Text<'a> {
     body: &'a str,
     graphemes: &'a Boundaries,
     words: &'a Boundaries,
+    sentences: &'a Boundaries,
 }
 
 /// Rule 3, default: a span's identity is its text after Unicode lowercasing.
@@ -211,7 +213,13 @@ fn approximate_identities(body: &str, spans: &[Span]) -> Vec<u32> {
 struct Choice {
     first: usize,
     last: usize,
+    /// The rule 4.3 sentence start, when one lies within
+    /// [`SENTENCE_REACH`] bytes before `spans[first]`.
+    sentence: Option<usize>,
 }
+
+/// How far before the first span a sentence start earns the rule 4.3 bonus.
+const SENTENCE_REACH: usize = 64;
 
 impl Text<'_> {
     /// Rule 4: for each span start in `pool` (indices into `spans`, sorted),
@@ -224,7 +232,7 @@ impl Text<'_> {
         pool: &[usize],
         width: usize,
     ) -> Option<Choice> {
-        let mut best: Option<(Choice, (usize, usize))> = None;
+        let mut best: Option<(Choice, (usize, usize, bool))> = None;
         for first in 0..pool.len() {
             let start = spans[pool[first]].start;
             let mut last = None;
@@ -239,10 +247,12 @@ impl Text<'_> {
                 }
             }
             let Some(last) = last else { continue };
-            let score = (distinct.len(), last - first + 1);
+            let sentence = Some(self.sentences.at_or_before(start))
+                .filter(|&ss| ss + SENTENCE_REACH >= start && ss <= start);
+            let score = (distinct.len(), last - first + 1, sentence.is_some());
             // Strictly greater only: an equal score keeps the earlier start.
             if best.is_none_or(|(_, b)| score > b) {
-                best = Some((Choice { first: pool[first], last: pool[last] }, score));
+                best = Some((Choice { first: pool[first], last: pool[last], sentence }, score));
             }
         }
         best.map(|(choice, _)| choice)
@@ -252,6 +262,10 @@ impl Text<'_> {
     /// clamped to the body, on grapheme boundaries.
     fn place(&self, spans: &[Span], choice: &Choice, width: usize) -> (usize, usize) {
         let (first_s, last_e) = (spans[choice.first].start, spans[choice.last].end);
+        if let Some(ss) = choice.sentence.filter(|&ss| ss + width >= last_e) {
+            let end = self.snap_end_back((ss + width).min(self.body.len()), last_e);
+            return (ss, self.trim_end(last_e, end));
+        }
         let slack = width - (last_e - first_s);
         let centred = first_s.saturating_sub(slack / 2).min(self.body.len().saturating_sub(width));
         let start = self.snap_start(
@@ -383,6 +397,11 @@ fn clamped(options: &SnippetOptions) -> SnippetOptions {
 struct Boundaries(Vec<usize>);
 
 impl Boundaries {
+    /// UAX #29 sentence starts (0 included for a non-empty body).
+    fn sentence_starts(body: &str) -> Self {
+        Self(body.split_sentence_bound_indices().map(|(i, _)| i).collect())
+    }
+
     fn words(body: &str) -> Self {
         let mut v: Vec<usize> = body.split_word_bound_indices().map(|(i, _)| i).collect();
         v.push(body.len());

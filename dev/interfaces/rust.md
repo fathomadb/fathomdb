@@ -1265,8 +1265,11 @@ and 7.2.
   - `head_bytes > 0` adds the record start as its own window. It is cut at
     the first line break or at the last word boundary at or before
     `head_bytes`.
-  - `max_windows > 1` adds windows for identities that no window shows.
-  - Windows 16 bytes apart or less merge when the merged text fits.
+  - `max_windows > 1` adds windows for identities that no window shows. The
+    first window then takes `1 / max_windows` of the budget, unless no whole
+    span fits that narrower window.
+  - Windows 16 bytes apart or less merge. If the merged text does not fit,
+    its end snaps back, never before a counted span or the head's end.
 - Output is deterministic per build. Word, sentence and grapheme boundaries
   come from `unicode-segmentation`, so a version bump of that crate may
   change snippet bytes.

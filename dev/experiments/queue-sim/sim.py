@@ -833,7 +833,8 @@ class Sim:
         out["lone_wait_max"] = max(lone) if lone else float("nan")
         out["turn_refused"] = (sum(1 for v in bursts.values() if any(x.outcome == "refused" for x in v)) / max(1, len(bursts)))
         # an agent re-issues a failed call on its next LLM turn: one retry turn per turn with any failure
-        out["turn_failed"] = (sum(1 for v in bursts.values() if any(x.outcome != "ok" for x in v)) / max(1, len(bursts)))
+        out["turn_failed"] = (sum(1 for v in bursts.values() if any(x.outcome != "ok" for x in v)) / len(bursts)
+                              if bursts else float("nan"))
         out["late_admit_timeout_rate"] = sum(1 for c in to if c.t_adm - c.t_arr > 0) / n
         lat = [c.t_res - c.t_arr for c in ok]
         for p in (50, 95, 99):

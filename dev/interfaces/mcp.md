@@ -64,6 +64,11 @@ Store names match `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$` and must not be `.` or
 Every tool except `list_stores` takes `store` (string, optional: falls back to
 `use_store` or `default_store`; error if none).
 
+Every tool, including a continuation call of `search`, takes `hints` (bool,
+optional): whether the result carries the `hints` sidecar. It defaults to the
+configured `hints` key (§ 2). It is not part of the canonical request, so it
+never changes a `response_id` or `continuation` hash.
+
 Every successful result carries `structuredContent` (an object, schema
 declared as the tool's `outputSchema`) and one `text` content block that is a
 compact rendering of the same data. Each `outputSchema` is
@@ -118,7 +123,7 @@ Args: `store`. Result adds:
 | `limit` | integer 1..100 | 10 | Ranked cap is 100 (MR-041.2). |
 | `max_tokens` | integer ≥ 256 | config | MR-041. |
 | `explain` | bool | false | Include per-hit explanation. |
-| `continuation` | string | none | From a prior result. Only `store` and `max_tokens` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
+| `continuation` | string | none | From a prior result. Only `store`, `max_tokens` and `hints` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
 
 `include_superseded` and `include_inactive` are not search arguments: the
 engine rejects them on every search path (`reject_existence_relaxation_on_search`)
@@ -234,6 +239,8 @@ last 256 of each per store (least recently used dropped; an identical hash
 overwrites an identical entry). A handle from another store, another epoch, or
 one that was dropped fails as `invalid_request/stale_handle` with remedy
 "re-run the search".
+A continuation call takes only `store`, `continuation`, `max_tokens` and
+`hints`; any other argument is `invalid_request/bad_argument`.
 
 - **Standalone, read-only:** the adapter is the sole opener and nothing writes,
   so a store cannot change within an epoch and a same-epoch continuation is

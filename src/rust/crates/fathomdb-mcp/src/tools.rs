@@ -74,7 +74,12 @@ pub(crate) type Outcome = Result<Rendered, ToolError>;
 /// `list_stores` takes no arguments.
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ListStoresArgs {}
+pub struct ListStoresArgs {
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
+}
 
 /// `use_store` arguments.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -82,6 +87,11 @@ pub struct ListStoresArgs {}
 pub struct UseStoreArgs {
     /// Store name to use as the session default.
     pub store: String,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    // Accepted so every tool takes the same argument; this tool emits no hints.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 /// `orient` arguments.
@@ -90,6 +100,11 @@ pub struct UseStoreArgs {
 pub struct OrientArgs {
     /// Store name; defaults to the session default store.
     pub store: Option<String>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    // Accepted so every tool takes the same argument; this tool emits no hints.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 /// Search path.
@@ -130,8 +145,12 @@ pub struct SearchArgs {
     pub max_tokens: Option<u64>,
     /// Include a per-hit explanation.
     pub explain: Option<bool>,
-    /// Handle from a previous result; then only store and max_tokens may be given.
+    /// Handle from a previous result; then only store, max_tokens and hints may be given.
     pub continuation: Option<String>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 /// `fetch` arguments.
@@ -152,6 +171,10 @@ pub struct FetchArgs {
     /// Response budget in estimated tokens (bytes / 4), at least 256.
     #[schemars(range(min = 256))]
     pub max_tokens: Option<u64>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 /// Traversal direction.
@@ -189,6 +212,10 @@ pub struct ExpandArgs {
     /// Response budget in estimated tokens (bytes / 4), at least 256.
     #[schemars(range(min = 256))]
     pub max_tokens: Option<u64>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 /// `feedback` arguments.
@@ -203,6 +230,11 @@ pub struct FeedbackArgs {
     pub used: Vec<String>,
     /// References from that response that were not used.
     pub unused: Option<Vec<String>>,
+    /// Include the `hints` sidecar of suggested next calls; defaults to the
+    /// operator's `hints` setting.
+    // Accepted so every tool takes the same argument; this tool emits no hints.
+    #[allow(dead_code)]
+    pub hints: Option<bool>,
 }
 
 fn parse<T: DeserializeOwned>(arguments: Map<String, Value>) -> Result<T, ToolError> {
@@ -756,7 +788,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.explain.is_none();
             if !only_paging {
                 return Err(ToolError::bad_argument(
-                    "a continuation call takes only store, continuation and max_tokens",
+                    "a continuation call takes only store, continuation, max_tokens and hints",
                 ));
             }
             ctx.shared.registry.ensure_slot(&store)?;

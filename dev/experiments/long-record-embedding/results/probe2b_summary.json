@@ -1,0 +1,108 @@
+{
+  "n": 315,
+  "unmeasured": 0,
+  "n_by_stratum": {
+    "P": 133,
+    "B": 182
+  },
+  "D(text)": {
+    "point": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "se": 0.0,
+    "mde80": 0.0
+  },
+  "recall_text": {
+    "visible": 0.6158730158730159,
+    "hidden": 0.6158730158730159
+  },
+  "D(hybrid)": {
+    "point": 0.0,
+    "ci95": [
+      -0.015873015873015872,
+      0.015873015873015872
+    ],
+    "se": 0.008858295447563915,
+    "mde80": 0.02480322725317896
+  },
+  "recall_hybrid": {
+    "visible": 0.6253968253968254,
+    "hidden": 0.6253968253968254
+  },
+  "D(vector)": {
+    "point": 0.08571428571428572,
+    "ci95": [
+      0.044444444444444446,
+      0.12698412698412698
+    ],
+    "se": 0.021224992242439334,
+    "mde80": 0.059429978278830134
+  },
+  "recall_vector": {
+    "visible": 0.43174603174603177,
+    "hidden": 0.346031746031746
+  },
+  "by_stratum": {
+    "B": {
+      "n": 182,
+      "D(text)": 0.0,
+      "D(hybrid)": -0.02197802197802198,
+      "D(vector)": -0.005494505494505495
+    },
+    "P": {
+      "n": 133,
+      "D(text)": 0.0,
+      "D(hybrid)": 0.03007518796992481,
+      "D(vector)": 0.21052631578947367
+    }
+  },
+  "by_type": {
+    "knowledge-update": {
+      "n": 33,
+      "D(text)": 0.0,
+      "D(hybrid)": 0.030303030303030304,
+      "D(vector)": 0.2727272727272727
+    },
+    "multi-session": {
+      "n": 69,
+      "D(text)": 0.0,
+      "D(hybrid)": -0.028985507246376812,
+      "D(vector)": 0.057971014492753624
+    },
+    "single-session-assistant": {
+      "n": 31,
+      "D(text)": 0.0,
+      "D(hybrid)": 0.0,
+      "D(vector)": 0.1935483870967742
+    },
+    "single-session-preference": {
+      "n": 24,
+      "D(text)": 0.0,
+      "D(hybrid)": 0.0,
+      "D(vector)": 0.08333333333333333
+    },
+    "single-session-user": {
+      "n": 61,
+      "D(text)": 0.0,
+      "D(hybrid)": 0.03278688524590164,
+      "D(vector)": 0.14754098360655737
+    },
+    "temporal-reasoning": {
+      "n": 97,
+      "D(text)": 0.0,
+      "D(hybrid)": -0.010309278350515464,
+      "D(vector)": -0.030927835051546393
+    }
+  },
+  "validity": {
+    "text_agreement": 1.0,
+    "ok": true
+  },
+  "rule": {
+    "vector_failure_shown": false,
+    "product_failure_shown": false,
+    "hybrid_underpowered": false
+  }
+}

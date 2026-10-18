@@ -2,7 +2,7 @@
 title: Long-record embedding — size of the problem and choice of fix
 date: 2026-10-18
 status: PROPOSED
-desc: Measures how much of each consumer corpus lies past bge-small's 512-wordpiece cut, shows with a preregistered probe that the cut hurts the vector arm but not hybrid retrieval today, costs six fixes in vectors, embed time, index size, query latency, schema and snippet anchor, and recommends a guard now plus one gated overflow-chunking experiment.
+desc: Measures how much of each consumer corpus lies past bge-small's 512-wordpiece cut. A preregistered, paired position-intervention probe shows that the cut costs the vector arm 0.09 R@10 but hybrid retrieval nothing measurable (0.000 ± 0.016). Costs six fixes in vectors, embed time, index size, query latency, schema and snippet anchor. Recommends a guard now and one specified overflow-chunking experiment, parked until a stated trigger fires.
 inputs:
   - dev/plans/prompts/long-record-embedding-prompt.md
   - dev/design/agent-access/match-centred-snippets.md
@@ -22,59 +22,78 @@ inputs:
 
 Paths are relative to `src/rust/crates/` unless given in full. Every number
 below comes from `dev/experiments/long-record-embedding/results/` unless a
-source is cited. Measurements ran on 2026-10-18 against the `exp/agent-access`
-tree (`4ff9239ef`), built as a CUDA wheel, with the RTX 3090 on `cuda:0`.
+source is cited.
+
+- **Setup.** Measurements ran on 2026-10-18 against the `exp/agent-access`
+  tree (`4ff9239ef`), built as a CUDA wheel with `test-hooks`, with the RTX
+  3090 on `cuda:0`.
+- **History.** A first probe (P1) and a first intervention (P2) were
+  superseded; § 5.3 says why. The conclusions rest on P2b.
 
 ## 1. Summary
 
-- **Size.** The problem depends on the record unit, not the corpus. Turn
-  records are almost never cut: LoCoMo turns 0 %, LongMemEval turns 16.6 %
-  over, and 1.1 % of gold turns are partly cut. Session and document records
-  are cut most of the time:
+- **Size.** The cut depends on the record unit, not the corpus.
+  - Turn records are almost never cut: LoCoMo turns 0 %, LongMemEval turns
+    16.6 % over the cut, and 1.1 % of gold turns are partly cut.
+  - Session and document records are cut most of the time:
 
-  | records | over the cut | bytes past it | gold past it | questions with all gold past it |
-  | --- | --- | --- | --- | --- |
-  | LongMemEval-S sessions | 94 % | 79 % | 37 % | 28 % |
-  | LoCoMo sessions | 81 % | 27 % | 19 % | 17 % |
-  | AP-News articles | 77 % | 48 % | 24 % | 18 % |
-  | IR-C corpus (all sources) | 25 % | 56 % | 4 % (QAConv) | 4 % |
+    | records | over the cut | bytes past it | gold past it | questions with all gold past it |
+    | --- | --- | --- | --- | --- |
+    | LongMemEval-S sessions | 94 % | 79 % | 37 % | 28 % |
+    | LoCoMo sessions | 81 % | 27 % | 19 % | 17 % |
+    | AP-News articles | 77 % | 48 % | 24 % | 18 % |
+    | IR-C corpus (all sources) | 25 % | 56 % | 4 % (QAConv) | 4 % |
 
-- **Probe.** On LongMemEval-S sessions, the cut costs the vector arm
-  0.14 R@10 (95 % CI 0.02–0.25) once stratum difficulty is subtracted. It
-  costs hybrid retrieval 0.01 (CI −0.05 to +0.07). The preregistered rule
-  says: vector failure shown, product failure not shown. Even where the
-  vector arm can see the gold, hybrid equals text-only (0.500 vs 0.505), so
-  there is little for a fix to win back on this embedder.
-- **Cost.** Every chunking option multiplies vector rows, and the vector arm
-  costs about 7.8 µs per row per query on this machine. The cheapest chunking
-  option takes the vector side of a 19k-session store from about 190 ms to
-  about 0.8 s, single caller, before contention.
-- **Recommendation.** Ship a guard now: record the embedded span of each
-  vector, expose it as a hint, and keep EP-17's `Start` anchor honest. Run one
-  gated experiment, overflow chunking (§ 6), whose promotion needs a held-out
-  hybrid and answer gain inside the latency budget. Sequence any build after
-  the exact-scan kernel work in the 1–2M brief, because chunking's cost is
-  mostly the O(N) scan.
+- **Effect.** Probe P2b moves the gold turns of the same LongMemEval-S
+  questions across the cut and pairs each question with itself. Making the
+  gold visible to the record's vector raises vector-only R@10 by 0.086
+  (95 % CI 0.044–0.127). It raises hybrid R@10 by 0.000 (CI −0.016 to
+  +0.016; minimum detectable effect 0.025).
+  - Under the preregistered rule, neither failure is shown. The hybrid
+    result is a powered null.
+  - Text-only recall was identical across the paired stores, as the
+    design requires.
+- **Cost.** Every chunking option multiplies vector rows. The vector arm
+  costs about 8 µs per row at p50 and 10.5 µs at p95, per query, on this
+  machine. The cheapest chunking option would take a 19k-session store's
+  vector side from about 0.2 s to about 0.8 s p50 (1.05 s p95), single
+  caller.
+- **Recommendation.**
+  - Ship a guard now: record how much of each record the vector covers,
+    report it in `orient`, and report the scored extent in the EP-17
+    snippet.
+  - Specify one fix, overflow chunking (option C), with a preregistrable,
+    powered experiment (§ 7.2).
+  - Do not run it until a trigger fires (§ 7.2): an answer-level loss on
+    long records, a change to the fusion weights or the embedder, or the
+    exact-scan kernel landing.
+- **A separate engine finding.** Fusion sums the RRF terms of distinct nodes
+  whose bodies are byte-identical, and returns them as one hit carrying one
+  `source_id` (`fathomdb-engine/src/fusion.rs:99-111`). LongMemEval-S has
+  640 such groups. See § 9, question 5.
 
 ## 2. The problem in code
 
-- `fathomdb-embedder/src/candle_bge.rs:66` sets `MAX_SEQUENCE_TOKENS = 512`,
-  including `[CLS]` and `[SEP]`. `candle_bge.rs:558-568` applies it as
-  tokenizer truncation, so 510 content wordpieces survive.
-- `_fathomdb_vector_rows.write_cursor` is `UNIQUE`
-  (`fathomdb-schema/src/lib.rs:242-246`): one vector per write.
-- The vector arm takes `max(limit, 192)` bit-prefilter candidates
-  (`fathomdb-engine/src/search.rs:1537`, `search_types.rs:348`), then rescores
-  in f32. Fusion is weighted RRF, k = 30, text 3 : vector 1
-  (`fathomdb-engine/src/fusion.rs:10-19`).
+- **Truncation.** `fathomdb-embedder/src/candle_bge.rs:66` sets
+  `MAX_SEQUENCE_TOKENS = 512`, including `[CLS]` and `[SEP]`.
+  `candle_bge.rs:558-568` applies it as tokenizer truncation, so 510 content
+  wordpieces survive. The projector embeds the raw body.
+- **One vector per write.** `_fathomdb_vector_rows.write_cursor` is `UNIQUE`
+  (`fathomdb-schema/src/lib.rs:242-246`).
+- **Candidates.** The vector arm takes `max(limit, 192)` bit-prefilter
+  candidates (`fathomdb-engine/src/search.rs:1537`, `search_types.rs:348`),
+  then rescores them in f32.
+- **Fusion.** Weighted RRF with k = 30, text 3 : vector 1
+  (`fathomdb-engine/src/fusion.rs:10-19`), keyed on the body string
+  (`fusion.rs:99-111`).
 
 ## 3. Size of the problem
 
 `size_corpora.py` rebuilds each corpus's record bodies exactly as the named
-harness does and tokenizes them with the engine's pinned tokenizer
+harness does. It tokenizes them with the engine's pinned tokenizer
 (`~/.cache/fathomdb/embedders/0b2926f8a9b1/tokenizer.json`, sha256
-`d241a60d…`, matching `fathomdb-embedder/src/loader.rs:73`). "Gold past" means
-the evidence span starts at or after the end of content wordpiece 510.
+`d241a60d…`, matching `fathomdb-embedder/src/loader.rs:73`). "Gold past"
+means the evidence span starts at or after the end of content wordpiece 510.
 
 | corpus (record unit, harness) | records | wordpieces p50 / p90 / p99 / max | over cut | bytes past cut | gold spans past / straddling | items with all gold past |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -88,114 +107,128 @@ the evidence span starts at or after the end of content wordpiece 510.
 
 Gold positions:
 
-- LongMemEval: the `has_answer` turn's line in its gold session (896 spans,
-  479 questions).
-- LoCoMo: the evidence `dia_id`'s line (2,820 spans, 1,982 questions).
-- AP-News: BenchmarkQED v2 local and linked claim excerpts, found in the
+- **LongMemEval:** the `has_answer` turn's line in its gold session (896
+  spans, 479 questions).
+- **LoCoMo:** the evidence `dia_id`'s line (2,820 spans, 1,982 questions).
+- **AP-News:** BenchmarkQED v2 local and linked claim excerpts, found in the
   article by substring (126 found, 5 not).
-- IR-C: only QAConv answers are positionable, by first exact occurrence,
-  which is the position most favourable to the vector (1,827 found). EnronQA
-  answers are paraphrases. QMSum span indices are dropped by the acquire
-  script.
+- **IR-C:** only QAConv answers are positionable, by first exact
+  occurrence, the position most favourable to the vector (1,827 found).
+  EnronQA answers are paraphrases, and the QMSum acquire script drops the
+  span indices.
 
-IR-C by source: QMSum is the outlier. A third of its 600 records are meeting
-transcripts (p90 17,185 wordpieces), and 94.3 % of its bytes lie past the
-cut. CNN/DailyMail has 39.4 % of bytes past the cut, Enron 29.3 %, EnronQA
-18.4 %, QAConv 9.8 %. The rest are under 2 %.
+**IR-C by source** (rows in `results/sizing.json`):
+
+- QMSum is the outlier. A third of its 600 records are meeting transcripts
+  (p90 17,185 wordpieces), and 94.3 % of its bytes lie past the cut.
+- Bytes past the cut elsewhere: CNN/DailyMail 39.4 %, Enron 29.3 %,
+  EnronQA 18.4 %, QAConv 9.8 %. The other five sources are under 2 %.
 
 **Memex.** No populated Memex store exists on this host:
 `~/projects/memex/fathom.db` holds no nodes, and the 60-document extraction
 gold is short by construction. The write path shows long records are
-routine, though:
+routine:
 
-- web captures are kept up to 50,000 characters
-  (`memex/src/memex/tools_web.py:22`, about 12k wordpieces);
+- web captures are kept up to 50,000 characters, about 12k wordpieces
+  (`memex/src/memex/tools_web.py:22`);
 - meeting transcripts are written as derived retrieval items
   (`memex/src/memex/fathom_facade.py:363-380`);
 - Memex embeds the inner `props["body"]` field
   (`memex/src/memex/fathom_store.py:2903-2911`).
 
-The real Memex distribution is open question 1 in § 9.
+The real distribution is open question 1.
 
-**Reading.** Almost no gold lies past the cut when consumers ingest turns,
-which the MCP evaluation stores and LoCoMo examples do. A fifth to a third of
-gold lies past it when they ingest sessions, articles or captures.
+**Reading.** When consumers ingest turns, as the MCP evaluation stores and
+LoCoMo examples do, almost no gold lies past the cut. When they ingest
+sessions, articles or captures, a fifth to a third of it does.
 
 ## 4. What is different from the IR-C chunking result
 
 IR-C tried 128/96 windows with max-pool. Dense-only R@10 on exploratory
 questions went from 0.073 to 0.163, but hybrid stayed at or below text-only
 (`dev/plans/runs/IR-C-ws1-fusion-experiment-full.json`). This study does not
-repeat it. Three things differ:
+repeat that. Three things differ:
 
 1. **Query shape.** IR-C's exploratory class is QMSum summary questions,
    whose answer spans a whole transcript. Here the target is localized
-   evidence: a `has_answer` turn or a claim excerpt that a single window can
-   hold. IR-C itself named chunked single vectors as structurally weak for
-   discourse questions (`IR-C-retrieval-findings.md`, closeout).
+   evidence, a `has_answer` turn or a claim excerpt, which one window can
+   hold.
 2. **Position.** IR-C's gold had no positions (`span_locator_queries=0`), so
-   it could not split "evidence before the cut" from "evidence after".
-   Section 5 does. It also shows why IR-C's whole-record dense arm was so
-   weak on exploratory questions: it saw roughly the first 3 % of each long
-   QMSum transcript.
+   it could not separate evidence before the cut from evidence after it.
+   § 5 does, by moving the evidence.
+   - It also explains why IR-C's whole-record dense arm was so weak on
+     exploratory questions: it saw roughly the first 3 % of each long QMSum
+     transcript.
 3. **Anchor.** A chunk-level hit gives EP-17 a real span, whatever it does to
    recall (§ 7.3).
 
-The untested mechanisms the prompt names are costed in § 6: late chunking,
-long-context embedders, overflow-only chunking, and record plus chunk
-vectors.
+## 5. Probes
 
-## 5. Probe P1: the cut on LongMemEval-S sessions
+### 5.1 P2b: position intervention (the result)
 
-The preregistration is `dev/experiments/long-record-embedding/PREREG.md`,
-committed at `39c4d15e0` before the run.
+Preregistered in `PREREG-P2.md` (`413ba06ad`), as amended by `PREREG-P2b.md`
+(`e894432c4`), before the run.
 
-**Setup.**
+**Design.**
 
-- One store with all 19,195 sessions, default embedder on `cuda:0`, vector
-  coverage 1.0 (`results/probe_build.json`).
-- Global retrieval over the store, scored as session `recall_any@k`.
-- Strata: B = every gold span before the cut (192 questions); P = every gold
-  span past it (134 questions). The 153 mixed and 21 gold-less questions are
-  excluded.
-- The vector arm's ranking is read from `explain` `vector_rank`. Every
-  measured query had at least 10 vector-ranked hits.
+- **Stores.** Two stores hold all 19,195 LongMemEval-S sessions, with the
+  default embedder on `cuda:0`. Vector coverage is 1.0 on both.
+- **Intervention.**
+  - Past-cut questions (P, 133): every gold session's `has_answer` turns
+    move to the front.
+  - Before-cut questions (B, 182): those turns move to the end.
+  - Twin sessions with identical bodies move together.
+  - Line multisets are unchanged, so `bm25()` is unchanged.
+  - 11 questions are excluded because their gold could not be moved across
+    the cut.
+- **Arms.** `search_text_only(limit=10)`; `search(limit=10)` with shipped
+  defaults; and the vector arm's ranking from `explain` on a `limit=100`
+  call.
+- **Metric.** Session `recall_any@10`, counting a twin of a gold session
+  as gold. Per question, `d = recall(gold visible) − recall(gold hidden)`,
+  averaged over all 315 questions. 95 % CIs from 10,000 bootstrap
+  resamples.
 
-**Results** (`results/probe_summary.json`):
+**Result** (`results/probe2b_summary.json`):
 
-| arm | R@5 B | R@5 P | R@10 B | R@10 P | gap R@10 |
-| --- | --- | --- | --- | --- | --- |
-| text | 0.385 | 0.343 | 0.505 | 0.463 | 0.043 |
-| vector | 0.281 | 0.119 | 0.344 | 0.164 | 0.180 |
-| hybrid | 0.406 | 0.321 | 0.500 | 0.448 | 0.052 |
+| arm | R@10, gold visible | R@10, gold hidden | D | 95 % CI | SE | MDE (80 %) |
+| --- | --- | --- | --- | --- | --- | --- |
+| text | 0.616 | 0.616 | 0.000 | 0.000 to 0.000 | 0.000 | — |
+| vector | 0.432 | 0.346 | **+0.086** | +0.044 to +0.127 | 0.021 | 0.059 |
+| hybrid | 0.625 | 0.625 | **0.000** | −0.016 to +0.016 | 0.009 | 0.025 |
 
-**Effect.** The truncation effect is `E(arm) = gap(arm) − gap(text)`, with
-10,000 bootstrap resamples. The text gap is the control: text search sees the
-whole body, so its gap is stratum difficulty, not the cut.
+- **Validity.** Text agreement between stores is 100 %, which passes.
+- **Rule 1: vector failure not shown.** `D(vector) = 0.086` is below the
+  0.10 bar, although its CI excludes 0. The cut has a real but moderate
+  cost to the vector arm on its own.
+- **Rule 2: product failure not shown.** The MDE (0.025) is below the 0.03
+  threshold, so this is a powered null, not an underpowered one (rule 3
+  does not apply).
+- **Rule 4 reading.** At shipped fusion weights and session-level records,
+  putting the gold inside the record's one vector does not change hybrid
+  top-10 recall.
+  - This is a bound on that intervention. It is not a bound on a chunk
+    vector (a different unit), on retuned fusion weights, or on answer
+    accuracy.
 
-- `E(vector)` = +0.137 (CI +0.023 to +0.250): **vector failure shown**
-  (rule 1).
-- `E(hybrid)` = +0.010 (CI −0.051 to +0.071): **product failure not shown**
-  (rule 2).
-- Rule 3 applies: the cut is a vector-arm defect that hybrid absorbs today.
-  The lean is a guard plus EP-17 anchoring, unless an answer-level loss is
-  shown.
+**By stratum** (descriptive):
 
-**Exploratory cuts** (not preregistered; `results/probe_exploratory.json`):
+- Moving gold into the head (P) gives `D(vector)` +0.21 and `D(hybrid)`
+  +0.03.
+- Moving it out of the head (B) gives `D(vector)` −0.005 and
+  `D(hybrid)` −0.02.
+- The asymmetry suggests that B questions, 77 % of which are
+  temporal-reasoning or multi-session, are found by the vector through text
+  other than the gold turn.
 
-- `E(hybrid)@5` = +0.043 (CI −0.019 to +0.109). It is suggestive and needs
-  the powered run in § 7.
-- In stratum B, where the vector sees the gold, hybrid R@10 equals text-only
-  (0.500 vs 0.505). The vector finds 13 B questions that text misses, but
-  hybrid nets −1 against text. So making P behave like B would win back
-  little hybrid recall on this embedder. This bounds the upside of every fix
-  in § 6.
-- Caveat: the strata differ in question type. B is 42 % temporal-reasoning
-  and 30 % multi-session; P is 41 % single-session-user and 17 %
-  knowledge-update. The text-gap control removes shared difficulty, but not
-  an arm-by-type interaction.
+**By type** (descriptive): `D(hybrid)` stays within ±0.033 for every
+question type.
 
-**Latency on the same store**, single caller (`results/latency.json`):
+### 5.2 Latency on the same stores
+
+Single caller, 60 questions after 20 warm-up calls (`results/latency.json`).
+
+The full-body 19,195-session store:
 
 | call | p50 ms | p95 | p99 |
 | --- | --- | --- | --- |
@@ -204,242 +237,297 @@ whole body, so its gap is stratum difficulty, not the cut.
 | hybrid, limit 100 | 546 | 682 | 748 |
 | hybrid, limit 10, `explain` | 2,431 | 3,545 | 3,815 |
 
-Attribution by elimination:
+**Attribution.**
 
-- Cutting the bodies to 1,500 characters at the same 19,195 rows takes
-  hybrid to 230 ms p50.
-- Cutting to 4,800 rows takes it to 95 ms.
-- Hybrid minus text is therefore about 43 ms fixed (query embed and setup)
-  plus **7.8 µs per vector row**.
-- That is about 5× the 1.5 µs per row implied by the 1–2M brief
-  (1.5 s at 1M, `dev/design/1-2M-chunk-scaling-DECISION-BRIEF.md`). This
-  host, this store and the hydration path all differ, so the figure is local.
-- `explain` costs another 2 s and is not usable on a hot path at this size.
+- Four stores of 1,500-character bodies (4,800; 9,600; 19,195; and 38,390
+  records) fit hybrid minus text as:
+  - p50: 25 ms + 7.96 µs per vector row;
+  - p95: 19 ms + 10.5 µs per vector row.
+- Residuals are up to 31 ms at p50 and 42 ms at p95. The 4,800 and 9,600
+  points are inverted, so below about 10k rows fixed costs and noise
+  dominate. The line is set by the two larger stores.
+- Full bodies add about 90 ms at 19,195 rows: hybrid minus text is 283 ms
+  against 194 ms for short bodies. So hydration of long bodies is a second
+  term, and the fit does not model it.
+- p99 over 60 calls is one sample, and is not fitted.
+- The 38,390-record store was measured while the root disk was nearly full.
+  Its text p99 (213 ms) is suspect.
 
-Against the queue design: the realistic contention band already puts ok-call
-p95 at 0.5–1 s (`dev/experiments/queue-sim/REPORT.md` § 3), and that band was
-calibrated on a 3.3 MB LoCoMo store with hybrid p50 7 ms. A 19k-session store
-is already 320 ms single-caller.
+**Comparisons.**
+
+- The 1–2M brief implies about 1.5 µs per row
+  (`dev/design/1-2M-chunk-scaling-DECISION-BRIEF.md`). This host, store and
+  hydration path are about 5× slower, so the per-row figure here is local.
+- The queue design's realistic contention band already puts ok-call p95
+  at 0.5–1 s (`dev/experiments/queue-sim/REPORT.md` § 7). That was
+  calibrated on a 3.3 MB LoCoMo store with hybrid p50 7 ms. A 19k-session
+  store is already 323 ms single-caller.
+- `explain` adds about 2 s at this size.
+
+### 5.3 Superseded probes
+
+- **P1** (`PREREG.md`) compared different questions: B with gold before the
+  cut, P with gold past it. It reported `E(vector) = +0.137`.
+  - The review found this to be a composition effect. Within question type,
+    min-n weighted, the effect is +0.017 for the vector and −0.041 for
+    hybrid (`results/probe_exploratory.json`). The strata differ in type
+    mix and in gold-session count (2.02 against 1.37).
+  - P1's hybrid arm also came from a `limit=100` call, not the shipped
+    default.
+  - P1's raw numbers stay in `results/probe_*` as the record. No
+    conclusion rests on them.
+- **P2** (`PREREG-P2.md`) failed its own validity check: text agreement was
+  85.4 %, against a 98 % bar.
+  - Cause: LongMemEval-S holds 640 groups of byte-identical sessions
+    (1,371 sessions). Fusion sums equal bodies (§ 2), so twins score about
+    double. P2 rotated a gold session but not its twin, which broke the
+    merge.
+  - `diag_bm25.py` shows raw `bm25()` was identical on both stores.
+  - P2b fixes this (`PREREG-P2b.md`).
 
 ## 6. Options
 
-The vector multiplier comes from `results/vector_cost.json`. Embed time and
-index size are scaled from the probe build: about 9–11 ms per vector on the
-3090 at the projection's batch sizes (19,195 vectors in 216 s after writes; 4,800
-short records in 42.8 s including writes), and 1.6 KB per vector in vec0 (30.9 MB for 19,195). Query cost uses
-the § 5 fit, and its numbers are p50 for the vector side only, single caller,
-at the 19,195-record LongMemEval store. Add text and contention on top.
+**How the table's numbers are derived.**
 
-| option | vectors per record: LME / AP / IR-C | LME embed on the 3090 | LME vec0 size | vector-side query p50 | schema and projection | EP-17 anchor |
+- **Vectors per record** come from `results/vector_cost.json`.
+- **Embed time** scales with vector count. Two full builds on the 3090 took
+  11 ms and 16 ms per vector (`results/probe_build.json`,
+  `results/probe2_build.json`, the second including writes).
+- **Index size** is computed: 384 f32 values (1,536 B) plus a 48 B bit code
+  plus metadata, about 1.6 KB per vector.
+- **Query cost** uses the § 5.2 fit for the vector side only, single caller,
+  at the 19,195-record LongMemEval store. Add text, body hydration and
+  contention on top.
+
+| option | vectors per record: LME / AP / IR-C | LME embed on the 3090 | LME vec0 size | vector-side query p50 / p95 | schema and projection | EP-17 anchor |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0. today | 1 / 1 / 1 | 3.6 min | 31 MB | 0.19 s | — | `Start` |
-| A. chunk-only, 256/192 windows, max-pool | 12.4 / 5.0 / 3.5 | ≈ 45 min | 380 MB | ≈ 1.9 s | new chunk-span table; the record vector goes away, which changes short-record vectors | chunk span |
-| B. record vector plus 256/192 chunks for records over the cut | 13.2 / 5.5 / 3.5 | ≈ 48 min | 410 MB | ≈ 2.0 s | additive chunk table; record vector unchanged | chunk span, else `Start` |
-| C. overflow only: record vector (first 510) plus 510-windows over the rest | 5.1 / 2.3 / 1.8 | ≈ 18 min | 160 MB | ≈ 0.81 s | additive chunk table; short records byte-identical | chunk span, else `Start` |
-| D. late chunking (long-context model, 256 windows inside 8,192 macro chunks) | 9.6 / 4.1 / 3.0 | not measured: 4.7× today's wordpieces through quadratic attention | 300 MB at d = 384; 2× at d = 768 | ≈ 1.5 s | new embedder identity, re-embed everything, plus the chunk table | chunk span |
-| E. long-context embedder, one vector per record | 1 / 1 / 1 | not measured: same wordpieces as D | 31 MB at d = 384; 2× at d = 768 | 0.19 s, or more at d = 768 | new embedder identity, full re-embed; cut moves to 8,190 (IR-C still has 19 % of wordpieces past it) | `Start` |
-| F. ingest-side chunking by the consumer | consumer's choice | consumer's | consumer's | grows with the consumer's row count | none in the engine | the chunk record is the hit; snippets are honest |
+| 0. today | 1 / 1 / 1 | 3.5–5 min | 31 MB | 0.18 / 0.22 s | — | `Start` |
+| A. chunk-only, 256/192 windows, max-pool | 12.4 / 5.0 / 3.5 | 43–63 min | 380 MB | 1.9 / 2.5 s | new chunk-span table; replaces the record vector, which changes short-record vectors | chunk span |
+| B. record vector plus 256/192 chunks for records over the cut | 13.2 / 5.5 / 3.5 | 47–68 min | 410 MB | 2.0 / 2.7 s | additive chunk table; record vector unchanged | chunk span, else `Start` |
+| C. overflow only: record vector (first 510) plus 510-windows over the rest | 5.1 / 2.3 / 1.8 | 18–26 min | 160 MB | 0.80 / 1.05 s | additive chunk table; short records byte-identical | chunk span, else `Start` |
+| D. late chunking (long-context model, 256 windows inside 8,192 macro chunks) | 9.6 / 4.1 / 3.0 | not measured: 4.7× today's wordpieces through quadratic attention | 300 MB at d = 384; 2× at d = 768 | 1.5 / 2.0 s | new embedder identity, full re-embed, plus the chunk table | chunk span |
+| E. long-context embedder, one vector per record | 1 / 1 / 1 | not measured: same wordpieces as D | 31 MB at d = 384; 2× at d = 768 | 0.18 / 0.22 s, or more at d = 768 | new embedder identity, full re-embed; cut moves to 8,190 (IR-C still has 19 % of wordpieces past it) | `Start` |
+| F. ingest-side chunking by the consumer | consumer's choice | consumer's | consumer's | grows with the consumer's row count (LongMemEval turns: 199,499 rows, about 1.6 / 2.1 s) | none in the engine | the chunk record is the hit; snippets are honest |
 
 Option notes:
 
 - **A, chunk-only.** This is IR-C's mechanism at a different geometry, and
-  IR-C measured it flat to negative on hybrid. Dai and Callan found that
+  IR-C measured it flat to negative on hybrid. Dai and Callan found
   best-passage (MaxP) aggregation beats first-passage on Robust04, but
   first-passage was best on ClueWeb09-B description queries ("Deeper Text
   Understanding for IR with Contextual Neural Language Modeling", SIGIR 2019,
   <https://arxiv.org/abs/1905.09217>). Replacing the record vector is not a
   safe default.
-- **B, record plus chunks.** This is the parent–child or small-to-big pattern
-  (LangChain `ParentDocumentRetriever`,
-  <https://reference.langchain.com/python/langchain-classic/retrievers/parent_document_retriever/ParentDocumentRetriever>;
-  LlamaIndex `AutoMergingRetriever`,
-  <https://developers.llamaindex.ai/python/framework/integrations/retrievers/auto_merging_retriever/>).
+- **B, record plus chunks.** This is the parent–child or small-to-big
+  pattern: LangChain `ParentDocumentRetriever`
+  (<https://reference.langchain.com/python/langchain-classic/retrievers/parent_document_retriever/ParentDocumentRetriever>)
+  and LlamaIndex `AutoMergingRetriever`
+  (<https://developers.llamaindex.ai/python/framework/integrations/retrievers/auto_merging_retriever/>).
   It is the most expensive option, and its chunks duplicate the head the
   record vector already covers.
-- **C, overflow only.** It adds vectors only where the cut hides text, so
-  short-record corpora (LoCoMo turns, Memex extraction docs) are untouched,
-  and the eu7 fidelity gate is not re-opened for them. The head window is the
-  record vector already. It is the cheapest option that sees past-cut text.
+- **C, overflow only.**
+  - It adds vectors only where the cut hides text, so short-record corpora
+    (LoCoMo turns, Memex extraction documents) are untouched, and the eu7
+    fidelity gate is not reopened for them.
+  - The head window is the record vector already.
+  - It is the cheapest option that sees past-cut text.
 - **D, late chunking.** "Late Chunking: Contextual Chunk Embeddings Using
   Long-Context Embedding Models" (Günther et al., Jina AI, 2024,
   <https://arxiv.org/abs/2409.04701>) pools chunk vectors after one
-  long-context pass. It reports a +1.8 nDCG@10 average over naive chunking on
-  BEIR, and naive chunking winning on needle and passkey tasks where context
-  is noise. LongMemEval `has_answer` evidence is closer to the needle shape.
-  It needs a long-context model with token outputs. The Apache-2.0
-  candidates of bge-small's size are `jina-embeddings-v2-small-en` (33M
-  parameters, 512-d, 8,192 tokens, ALiBi) and the larger
-  `nomic-embed-text-v1.5` (768-d, 8,192 tokens). `jina-embeddings-v3` is
-  CC BY-NC 4.0 and ruled out.
-- **E, long-context embedder.** IR-C already tried nomic-embed-text-v1.5:
-  worse on exploratory questions, better only on exact-fact questions,
-  which text already solves (`IR-C-retrieval-findings.md`). LongEmbed reports
-  BM25 at 81.3 average against 58.2 for Jina-V2 and 57.5 for Nomic-V1 on its
-  long-retrieval tasks ("LongEmbed: Extending Embedding Models for Long
-  Context Retrieval", Zhu et al., 2024, <https://arxiv.org/abs/2404.12096>).
-  One vector per long record also gives no anchor.
-- **F, consumer-side chunking.** This is how the MCP evaluation stores
-  already work (LoCoMo turns, 0 % cut). It costs the engine nothing and gives
-  honest snippets. It moves the unit choice, and the record-grouping problem
-  (§ 7.1), to every consumer.
+  long-context pass.
+  - It reports a +1.8 nDCG@10 average over naive chunking on BEIR.
+    Naive chunking wins on needle and passkey tasks, where the context is
+    noise; LongMemEval `has_answer` evidence is closer to that shape.
+  - It needs a long-context model with token outputs. The Apache-2.0
+    candidates are `jina-embeddings-v2-small-en` (33M parameters, 512-d,
+    8,192 tokens, ALiBi) and `nomic-embed-text-v1.5` (768-d, 8,192 tokens).
+    `jina-embeddings-v3` is CC BY-NC 4.0 and ruled out.
+- **E, long-context embedder.** This is untested here.
+  - IR-C ran nomic-embed-text-v1.5 only under its chunked, 512-token
+    geometry. It parked whole-record long-context embedding as "PARKED, not
+    refuted" (`IR-C-retrieval-findings.md:35-38`).
+  - LongEmbed reports BM25 averaging 81.3 against 58.2 for Jina-V2 and 57.5
+    for Nomic-V1 on its long-document retrieval tasks ("LongEmbed: Extending
+    Embedding Models for Long Context Retrieval", Zhu et al., 2024,
+    <https://arxiv.org/abs/2404.12096>).
+  - One vector per long record gives no anchor.
+- **F, consumer-side chunking.**
+  - This is how the MCP evaluation stores already work: LoCoMo turns, 0 %
+    cut. It costs the engine nothing and gives honest snippets.
+  - It moves the unit choice to every consumer, and it multiplies rows by
+    more than C does. LongMemEval turns are 10.4× the session count.
 - **Not costed: contextual retrieval.** Anthropic's contextual embeddings
-  plus contextual BM25 cut top-20 retrieval failure by 49 %, at about $1.02
-  per million document tokens to generate the prefixes
-  (<https://www.anthropic.com/news/contextual-retrieval>). It needs an LLM
-  call per chunk at ingest, which FathomDB's local, no-egress default does
-  not make. It is an option for a consumer that already runs an LLM at
-  ingest, on top of C or F.
+  plus contextual BM25 cut top-20 retrieval failure by 49 %
+  (<https://www.anthropic.com/news/contextual-retrieval>). Generating the
+  prefixes costs about $1.02 per million document tokens, through an LLM
+  call per chunk at ingest. FathomDB's local, no-egress default does not
+  make such calls. A consumer that already runs an LLM at ingest can add
+  it on top of C or F.
 - **Not costed: late interaction.** ColBERT stores one 128-d vector per token
-  (<https://arxiv.org/abs/2004.12832>). That is a different index class and
-  out of scope.
+  (<https://arxiv.org/abs/2004.12832>). That is a different index class.
 
-Every option except E and F multiplies vector rows, and query cost grows with
-rows (§ 5). So the latency cost of chunking is mostly the scan, which is what
-option A of the 1–2M brief (a packed exact-scan kernel) addresses.
+Every option except E multiplies the rows that the O(N) vector scan reads.
+So most of chunking's latency cost is the scan, which option A of the 1–2M
+brief (a packed exact-scan kernel) targets.
 
 ## 7. Recommendation
 
 ### 7.1 Now: a guard, no new vectors
 
-1. **Record the embedded span.** At projection time, store how far each
-   record's vector reaches: `embedded_bytes`, and the total body length, in a
-   new sidecar table keyed by `write_cursor`. It is an additive
-   `CREATE TABLE`; existing rows are back-filled by the projector, not by
-   `INSERT … SELECT`. The value is the byte offset of the cut, which the
-   tokenizer already knows.
-2. **Hint.** A hint is derived only from values the call already holds (H3,
-   `dev/design/agent-access/hints-sidecar.md` § 2). So the search hit path
-   carries a `partly_embedded` flag for records whose body runs past
-   `embedded_bytes`.
-   - A hit found only by the vector arm, or a no-results hybrid call over a
-     store with partly embedded records, gets
-     `{"action": "search", "reason": "partly_embedded", "mode": "text"}`.
-   - It is closed-vocabulary and data-free, like the B2 rows.
-   - It needs an owner decision on the hint vocabulary (§ 9, question 3).
-3. **EP-17.** No change is needed. `anchor = Start` is honest for
-   vector-only hits, because the start is inside the scored region
-   (`match-centred-snippets.md` § 3.4). With `embedded_bytes`, the SDK can
-   also say whether a `Start` snippet covers the whole scored region.
-4. **Consumer guidance.** Document the cut, and the table in § 3, in the
-   public embedder docs: ingest turns, sections or captures in pieces of at
-   most about 1.5 KB when vector recall past the start matters.
+1. **Record the embedded extent.**
+   - At projection time, store `embedded_bytes` (the byte offset of the cut)
+     and the body length, in a new sidecar table keyed by `write_cursor`.
+   - Adding it is an additive `CREATE TABLE`.
+   - New rows get the values when they are projected. Existing rows need a
+     projection-generation bump, so that the projector recomputes them: a
+     derived-data rebuild, not an `INSERT … SELECT` data migration. The
+     tokenizer already knows the offset.
+2. **Report it per store in `orient`.** Report the share of records over the
+   cut and the share of body bytes the vectors do not see, cached with the
+   projection state so that `orient` adds no scan.
+   - This is the fact an agent can act on: in a store where much text is
+     unembedded, prefer `mode: text` for passages deep inside long records.
+   - A per-hit hint is not proposed. A vector-only hit on a partly embedded
+     record was found by its head, so "search again as text" is not
+     actionable on it, and the real failure is records not returned. A
+     hint from store-level facts on every search call would also need a
+     value the call does not hold (hints-sidecar.md H3).
+3. **Report it per hit in the EP-17 sidecar.** `SnippetV1` gains
+   `scored_bytes: Option<u32>`, the extent the hit's vector scored. It lives
+   in the opt-in snippet sidecar, so there is no per-hit struct growth
+   (R-OBS-2). A `Start` snippet can then say whether it covers the whole
+   scored region.
+4. **No EP-17 anchor change.** `anchor = Start` stays honest for vector-only
+   hits (`match-centred-snippets.md` § 3.4).
+5. **Consumer guidance.** Document the cut and the § 3 table in the public
+   embedder docs. Ingest turns, sections or capture pieces of at most about
+   1.5 KB when vector recall past a record's start matters. Note that this
+   multiplies rows (§ 6, F).
 
-### 7.2 One experiment: overflow chunking (option C)
+### 7.2 The one fix to specify: overflow chunking (C), parked
 
-Of the options, C is the one worth running. It is the cheapest that sees
-past-cut text, it leaves short-record corpora untouched, it gives EP-17 a real
-anchor, and it needs no new model. The § 5 bound says a hybrid gain on
-LongMemEval will be small. The experiment is there to measure that bound
-across corpora, not because a win is expected.
+C is the option to keep ready:
 
-**Arms.** All arms use bge-small, CLS pooling as shipped, and harness-side
-pooling. Overflow chunks are written as their own records with
-`source_id` = parent, and their vectors go in through the engine's own
-projector.
+- it is the cheapest option that sees past-cut text;
+- it leaves short-record corpora untouched;
+- it gives EP-17 a real anchor;
+- it needs no new model.
 
-- C0: today.
-- C1: overflow windows of 510 wordpieces, no overlap, max-pool to the parent
-  before fusion.
-- C2: as C1, with 64-wordpiece overlap.
-- D1 (optional, only if the owner wants the late-chunking question closed):
-  late chunking with `jina-embeddings-v2-small-en` at 256 windows.
+**Do not run it now.** P2b shows that making past-cut gold visible to the
+vector does not move hybrid top-10 recall at shipped weights. Under the
+current scan, C also cannot pass the latency gate on a LongMemEval-shaped
+store: its vector-side p95 projects to 1.05 s, against 0.22 s today.
 
-**Grouping before the cut.** Chunks must be grouped to their parent before
-the 192-candidate cut and before fusion. At 5 chunks per record, 192
-ungrouped candidates cover about 38 distinct records, and duplicates would
-crowd the fused list. The harness collapses each parent to its best chunk
-before RRF.
+**Run it when any trigger fires:**
 
-**Corpora and splits.** Each corpus is split 50/50 by question with seed
-20261018. The first half is used to choose between C1 and C2; the second
-half is held out.
+1. an answer-level evaluation on session- or document-unit stores shows a
+   loss that traces to evidence past the cut;
+2. the fusion weights or the default embedder change;
+3. the exact-scan kernel (1–2M brief, E1 then option A) lands, so that the
+   latency gate can pass.
 
-- LongMemEval-S sessions.
-- AP-News articles with v2 local and linked questions.
-- IR-C QAConv, CNN/DailyMail and QMSum-specific questions. QMSum needs its
-  upstream `relevant_text_span`, re-fetched at the pinned SHA.
-- Short-record guards: LoCoMo turns and IR-C exact-fact questions.
+**Experiment, ready to preregister:**
 
-**Metrics.**
+- **Arms.** Both use bge-small with CLS pooling as shipped.
+  - C0: today.
+  - C1: overflow windows of 510 wordpieces, no overlap, fixed a priori.
+    There is no tuning split, so the whole sample is held out.
+  - An optional D1 (late chunking, `jina-embeddings-v2-small-en`, 256
+    windows) only if the owner wants that question closed.
+- **Harness.** A Rust test under `fathomdb-engine/tests/`, as IR-C did,
+  with `test-hooks`. It is test code, not product code.
+  - **Text ranking.** The C0 store's `search_text_only`. The text arm must
+    not change, so chunk records never enter the FTS index.
+  - **Vector ranking.** The chunk store's vector stage, with
+    `set_vector_stage_only_for_test` (`fathomdb-engine/src/search_api.rs:1465`)
+    and a raised candidate pool via `set_search_limit_for_test`
+    (`search_api.rs:1430`). The harness groups chunks to their parent
+    before fusion, keeping each parent's best chunk; 192 ungrouped
+    candidates would cover only about 38 distinct records.
+  - **Fusion.** The harness reimplements RRF (k = 30, 3 : 1). It must first
+    reproduce the engine's hybrid top-10 on C0 for at least 99 % of
+    questions, or the run stops.
+- **Sample and power.**
+  - P2b's paired SE for hybrid is 0.009 at n = 315. A 0.03 effect at 80 %
+    power, one-sided α = 0.05, needs SE ≤ 0.012. At P2b's discordance rate
+    that is about 180 paired questions whose gold lies past the cut; recheck
+    the discordance on the first 50 questions, since past-cut questions may
+    be more discordant than P2b's mix.
+  - Pool all positionable past-cut questions: LongMemEval P and mixed
+    (287), AP-News local and linked with a past-cut excerpt, QAConv
+    past-cut (about 75), and QMSum specific questions once their upstream
+    `relevant_text_span` is re-fetched at the pinned SHA.
+  - Guard set: LoCoMo turns and IR-C exact-fact questions.
+- **Decision rule. Promote C1 only if all four hold:**
+  1. Paired hybrid R@10 gain on the pooled past-cut set ≥ 0.03, one-sided
+     95 % lower bound > 0.
+  2. Paired LongMemEval answer accuracy gain ≥ 2 points on the same
+     questions, lower bound > 0, with the existing judge harness.
+  3. No guard corpus loses more than 0.01 hybrid R@10.
+  4. Single-caller hybrid p95, measured on the C1 store at LongMemEval
+     size, is at most 1.5× C0's.
+  - If 1–3 hold and only 4 fails, park C1 behind the kernel and
+    re-measure there. Otherwise close C1 and keep the guard.
+- **Cost.**
+  - Embedding: about 18–26 minutes on the 3090 for LongMemEval, under
+    5 minutes for the rest.
+  - One answer-judge run.
 
-- Session or document `recall_any@{5,10}` for hybrid, vector and text.
-- Answer accuracy on LongMemEval with the existing judge harness.
-- Duplicate-parent rate.
-- Embed wall time on `cuda:0`.
-- Vec0 bytes.
-- Single-caller hybrid p50/p95/p99 at each store size.
-
-**Decision rule** (preregister before the held-out run). Promote C1 or C2
-only if all of these hold on the held-out half:
-
-1. Hybrid R@10 improves by ≥ 0.03 on at least two of the three long-record
-   corpora, with each CI excluding 0.
-2. LongMemEval answer accuracy improves by ≥ 2 points, CI excluding 0.
-3. No short-record guard corpus loses more than 0.01 hybrid R@10.
-4. Single-caller hybrid p95 at the LongMemEval store size stays within
-   1.5× today's (392 ms → at most 590 ms).
-
-If 1–3 hold and only 4 fails, park the option behind the exact-scan kernel
-(1–2M brief, E1 then option A) and re-measure there. Otherwise close it, and
-keep the guard and the consumer-side units.
-
-**Cost of the experiment.** About 18 minutes of embedding on the 3090 for
-LongMemEval, under 5 for the rest, and one answer-judge run on the held-out
-half. No product code: chunk records go through the public write path, and
-pooling is in the harness.
-
-### 7.3 What the promoted design would change (for later, not now)
+### 7.3 What a promoted C would change (later, not now)
 
 - **Schema.** A new table
   `_fathomdb_vector_chunks(vec_rowid PRIMARY KEY, write_cursor, chunk_ix,
-  byte_start, byte_end)`. The overflow vectors live in `vector_default`;
-  `_fathomdb_vector_rows` keeps the head vector, one per write, so
-  `write_cursor UNIQUE` stays. Additive only. Existing long records get
-  overflow vectors through a projection rebuild, which is derived data, not a
-  data migration.
+  byte_start, byte_end)`. Overflow vectors live in `vector_default`, and
+  `_fathomdb_vector_rows` keeps the head vector, so `write_cursor UNIQUE`
+  stays. Existing long records get overflow vectors through a projection
+  rebuild. All of this is additive.
 - **Search.** The vector arm groups candidates by `write_cursor` and keeps
-  the best chunk, before the candidate cut, and returns the winning chunk's
-  span to the hit.
-- **EP-17.** A vector hit whose best chunk is an overflow window gets
-  `anchor = Match` with `spans = [(byte_start, byte_end)]`. That needs a third
-  anchor source in § 7.2 of the snippet design, or a new
-  `SnippetAnchor::Chunk`, which is the owner's choice. Head-window and
-  short-record vector hits keep `Start`.
-- **Identity.** Chunk geometry is a vector-configuration field
-  (`ADR-0.6.0-vector-identity-embedder-owned.md`: "chunking policy (chunk
-  size, overlap, splitter type)"). It is not embedder identity, so no
-  identity change follows. Late chunking (D) would change how text becomes a
-  vector, which is identity.
-- **Hints.** `partly_embedded` disappears for chunked records.
+  the best chunk, before the candidate cut. The hit carries the winning
+  chunk's span.
+- **EP-17.** An overflow-window vector hit gets `anchor = Match` with
+  `spans = [(byte_start, byte_end)]`. That needs a third anchor source in
+  the snippet design's § 7.2, or a new `SnippetAnchor::Chunk`, which is the
+  owner's choice. Head-window and short-record vector hits keep `Start`.
+- **Identity.** Chunk geometry is vector configuration, not embedder
+  identity. `ADR-0.6.0-vector-identity-embedder-owned.md` lists "chunking
+  policy (chunk size, overlap, splitter type)" as allowed configuration, so
+  no identity change follows. Late chunking (D) would change how text
+  becomes a vector, which is identity.
+- **Guard.** `scored_bytes` and the `orient` coverage fields then report
+  chunk coverage.
 
 ## 8. Receipts
 
-`dev/experiments/long-record-embedding/`:
+`dev/experiments/long-record-embedding/`. `README.md` lists every file,
+explains how to rerun, and records each deviation.
 
-- `README.md` — how to rerun.
-- `PREREG.md` — the probe's preregistration.
-- `cut.py` and `test_cut.py` — the cut arithmetic.
-- `size_corpora.py` — `results/sizing.json`.
-- `vector_cost.py` — `results/vector_cost.json`.
-- `probe.py` and `test_probe.py` — the probe store builds and the
-  `results/probe_*.json` files.
-- `probe_exploratory.py` — `results/probe_exploratory.json`.
-- `latency.py` — the `results/latency_*.json` files, combined in
-  `results/latency.json`.
+- **Preregistrations:** `PREREG.md` (P1), `PREREG-P2.md`, `PREREG-P2b.md`.
+- **Code:** `cut.py`, `size_corpora.py`, `vector_cost.py`, `probe.py`,
+  `probe2.py`, `probe_exploratory.py`, `latency.py`, `latency_fit.py`, and
+  the `diag_*.py` diagnostics.
+- **Tests:** `test_cut.py`, `test_probe.py`, `test_probe2.py`.
+- **Results:** `results/` — `sizing.json`, `vector_cost.json`,
+  `probe2b_summary.json`, `probe2b_per_question.jsonl`, the latency files,
+  the superseded P1/P2 results, and the diagnostics.
 
 ## 9. Open questions for the owner
 
-1. **Memex's real distribution.** How long are Memex's actual records (web
-   captures, transcripts, notes)? No populated store is on this host. A
-   read-only length census on a real store would settle whether § 3's
-   session-level rows or its turn-level rows describe Memex.
-2. **Guard scope.** Ship the `embedded_bytes` sidecar and the hint in the
-   agent-access Block 2 work, or later?
-3. **Hint vocabulary.** Add `partly_embedded` as a reason on the `search`
-   action?
-4. **Experiment.** Run § 7.2 now, or only after the exact-scan kernel (1–2M
-   brief E1)? Include the late-chunking arm D1?
-5. **Latency outside this design.** Hybrid on a 19k-session store is 323 ms
-   p50 single-caller, and `explain` adds 2 s. Both are outside this design,
-   but they bear on the queue design's service-time assumptions, which were
-   calibrated on a 3.3 MB store. Should they be raised as a separate finding?
+1. **Memex's real distribution.** How long are Memex's actual records: web
+   captures, transcripts, notes? A read-only length census on a real store
+   would settle whether § 3's session rows or turn rows describe Memex.
+2. **Guard scope.** Should the `embedded_bytes` sidecar, the `orient`
+   fields and `SnippetV1.scored_bytes` go into the agent-access Block 2
+   work, or later?
+3. **Triggers.** Are § 7.2's three triggers the right ones? Should an
+   answer-level evaluation on session-unit stores (trigger 1) be scheduled
+   now, so that the question gets answered rather than waited on?
+4. **Latency.** Hybrid on a 19k-session store is 323 ms p50 single-caller,
+   and `explain` adds 2 s. The queue design's service times came from a
+   3.3 MB store. Should this be raised against the queue design, and should
+   it bring the 1–2M brief's E1 forward?
+5. **Duplicate bodies in fusion.** Distinct nodes with byte-identical bodies
+   have their RRF terms summed and come back as one hit carrying the first
+   node's `source_id` (`fusion.rs:99-111`).
+   - In a memory store this double-counts repeated content and hides the
+     other copies' provenance.
+   - Is that intended, or a defect to file? It sits outside this design.

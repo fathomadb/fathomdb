@@ -337,11 +337,13 @@ Requested by the owner; no release slot yet.
     [`design/long-record-embedding.md`](design/long-record-embedding.md):
     - Session- and document-level records put 19–37 % of gold past the cut;
       turn-level records put almost none there.
-    - A preregistered probe shows the cut costs the vector arm 0.14 R@10 but
-      hybrid only 0.01 (CI includes 0).
+    - A preregistered, paired probe moved gold across the cut. The vector
+      arm gains 0.09 R@10 when the gold is visible; hybrid gains 0.000
+      (± 0.016), a powered null.
     - Every chunking option multiplies the O(N) vector scan.
-    - Proposed: a guard now (embedded span and a `partly_embedded` hint),
-      plus one gated overflow-chunking experiment. Awaiting owner review.
+    - Proposed: a guard now (embedded extent in `orient` and in the EP-17
+      snippet), plus one specified overflow-chunking experiment, parked
+      until a stated trigger fires. Awaiting owner review.
 
 ## Longer-horizon proposals
 

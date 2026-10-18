@@ -1,14 +1,158 @@
 {
-  "_comment": "Single-caller latency, ms, 60 LongMemEval-S questions after 20 warm-up calls, RTX 3090 cuda:0 query embed. Per-store detail in latency_*.json. Overwritten by latency.py on each run; this file is the combined table.",
+  "_comment": "Single-caller ms, 60 LongMemEval-S questions, 20 warm-up calls, query embed on RTX 3090 cuda:0.",
   "stores": {
-    "full_bodies_n19195": {"text_limit10": {"p50": 39.9, "p95": 66.58, "p99": 71.46}, "hybrid_limit10": {"p50": 322.98, "p95": 391.54, "p99": 416.82}, "hybrid_limit100": {"p50": 546.23, "p95": 682.32, "p99": 748.36}, "hybrid_limit10_explain": {"p50": 2431.14, "p95": 3545.09, "p99": 3815.12}},
-    "short1500_n19195": {"text_limit10": {"p50": 36.47, "p95": 103.85, "p99": 151.03}, "hybrid_limit10": {"p50": 230.08, "p95": 360.74, "p99": 423.19}, "hybrid_limit100": {"p50": 251.62, "p95": 349.04, "p99": 389.95}, "hybrid_limit10_explain": {"p50": 2025.4, "p95": 2353.9, "p99": 2397.02}},
-    "short1500_n4800": {"text_limit10": {"p50": 13.91, "p95": 41.54, "p99": 60.07}, "hybrid_limit10": {"p50": 95.01, "p95": 127.33, "p99": 150.55}, "hybrid_limit100": {"p50": 95.12, "p95": 126.77, "p99": 156.18}, "hybrid_limit10_explain": {"p50": 632.35, "p95": 938.19, "p99": 1035.98}}
+    "full_bodies": {
+      "store_records": null,
+      "n": 60,
+      "text_limit10": {
+        "p50": 39.9,
+        "p95": 66.58,
+        "p99": 71.46
+      },
+      "hybrid_limit10": {
+        "p50": 322.98,
+        "p95": 391.54,
+        "p99": 416.82
+      },
+      "hybrid_limit10_explain": {
+        "p50": 2431.14,
+        "p95": 3545.09,
+        "p99": 3815.12
+      },
+      "hybrid_limit100": {
+        "p50": 546.23,
+        "p95": 682.32,
+        "p99": 748.36
+      }
+    },
+    "short1500_n19195": {
+      "store_records": null,
+      "n": 60,
+      "text_limit10": {
+        "p50": 36.47,
+        "p95": 103.85,
+        "p99": 151.03
+      },
+      "hybrid_limit10": {
+        "p50": 230.08,
+        "p95": 360.74,
+        "p99": 423.19
+      },
+      "hybrid_limit10_explain": {
+        "p50": 2025.4,
+        "p95": 2353.9,
+        "p99": 2397.02
+      },
+      "hybrid_limit100": {
+        "p50": 251.62,
+        "p95": 349.04,
+        "p99": 389.95
+      }
+    },
+    "short1500_n4800": {
+      "store_records": null,
+      "n": 60,
+      "text_limit10": {
+        "p50": 13.91,
+        "p95": 41.54,
+        "p99": 60.07
+      },
+      "hybrid_limit10": {
+        "p50": 95.01,
+        "p95": 127.33,
+        "p99": 150.55
+      },
+      "hybrid_limit10_explain": {
+        "p50": 632.35,
+        "p95": 938.19,
+        "p99": 1035.98
+      },
+      "hybrid_limit100": {
+        "p50": 95.12,
+        "p95": 126.77,
+        "p99": 156.18
+      }
+    },
+    "short1500_n9600": {
+      "n": 60,
+      "text_limit10": {
+        "p50": 14.84,
+        "p95": 38.56,
+        "p99": 48.42
+      },
+      "hybrid_limit10": {
+        "p50": 85.67,
+        "p95": 116.91,
+        "p99": 144.57
+      },
+      "hybrid_limit10_explain": {
+        "p50": 857.7,
+        "p95": 1001.71,
+        "p99": 1036.19
+      },
+      "hybrid_limit100": {
+        "p50": 82.78,
+        "p95": 109.78,
+        "p99": 121.35
+      }
+    },
+    "short1500_x2": {
+      "n": 60,
+      "text_limit10": {
+        "p50": 29.6,
+        "p95": 113.93,
+        "p99": 213.25
+      },
+      "hybrid_limit10": {
+        "p50": 358.26,
+        "p95": 528.59,
+        "p99": 595.99
+      },
+      "hybrid_limit10_explain": {
+        "p50": 3575.99,
+        "p95": 6511.44,
+        "p99": 7861.98
+      },
+      "hybrid_limit100": {
+        "p50": 222.62,
+        "p95": 554.99,
+        "p99": 667.93
+      }
+    }
   },
   "fit": {
-    "hybrid_minus_text_p50_ms": {"n4800": 81.1, "n19195": 193.6},
-    "per_vector_row_us": 7.8,
-    "fixed_ms": 43.4,
-    "note": "Two-point linear fit on the short-body stores; body length adds ~90 ms at n19195 on top (full vs short bodies)."
+    "hybrid_minus_text_p50": {
+      "per_vector_row_us": 7.96,
+      "fixed_ms": 25.3,
+      "points": {
+        "short1500_n4800": 81.1,
+        "short1500_n9600": 70.8,
+        "short1500_n19195": 193.6,
+        "short1500_x2": 328.7
+      },
+      "residuals_ms": {
+        "short1500_n4800": 17.6,
+        "short1500_n9600": -30.9,
+        "short1500_n19195": 15.5,
+        "short1500_x2": -2.2
+      }
+    },
+    "hybrid_minus_text_p95": {
+      "per_vector_row_us": 10.54,
+      "fixed_ms": 19.3,
+      "points": {
+        "short1500_n4800": 85.8,
+        "short1500_n9600": 78.3,
+        "short1500_n19195": 256.9,
+        "short1500_x2": 414.7
+      },
+      "residuals_ms": {
+        "short1500_n4800": 15.9,
+        "short1500_n9600": -42.1,
+        "short1500_n19195": 35.3,
+        "short1500_x2": -9.1
+      }
+    },
+    "full_bodies_n19195_hybrid_minus_text_p50": 283.1
   }
 }

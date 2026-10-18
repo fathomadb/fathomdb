@@ -63,4 +63,5 @@ run one after another.
 | S1b | `feat/aa-b1-s1b` (`693873ea0`..`8a46c04b8`) | `96fa30d6f` | Fable-medium: PASS-WITH-FIXES, fixed (progress while running); test 23 not buildable; shutdown bound kept at `call_deadline_ms` + 5 s for owner review | landed |
 | S3 | `feat/aa-b1-s3` (`9e2137cc6`..`0799623bd`) | `248fbbb3f` | Fable-medium: PASS-WITH-FIXES, fixed (Py/TS expand parity; governed allowlist 37 → 39 awaiting HITL sign-off) | landed |
 | S4 | `feat/aa-b1-s4` (`8b60ab352`..`88a967250`) | `76c783c05` | Fable-medium: PASS; P3 follow-ups applied | landed |
-| S5a | `feat/aa-b1-s5a` | — | — | in progress |
+| S5a | `feat/aa-b1-s5a` (`6b1520d3b`..`acfa50d5f`) | `367bf40c0` | Fable-medium: PASS-WITH-FIXES, fixed (window and head edge cases) | landed |
+| S5b | `feat/aa-b1-s5b` | — | — | in progress |

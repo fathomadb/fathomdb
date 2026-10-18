@@ -634,6 +634,110 @@ fn render_search(output: &SearchOutput) -> String {
     text
 }
 
+/// Everything the search budget loop reads: the page as cut to snippets, and
+/// the request facts that the handles and envelope are derived from.
+pub(crate) struct SearchShape<'a> {
+    pub(crate) store: &'a str,
+    pub(crate) epoch: u64,
+    pub(crate) validity_instant: i64,
+    pub(crate) degradation: &'a [Degradation],
+    pub(crate) max_tokens: u32,
+    pub(crate) canonical: &'a CanonicalSearch,
+    pub(crate) canonical_json: &'a str,
+    pub(crate) offset: usize,
+    /// `(hit, write cursor, per-hit explanation)` in rank order.
+    pub(crate) page: &'a [(Hit, u64, Option<PerHitOut>)],
+    pub(crate) page_limit: usize,
+    pub(crate) trace: Option<&'a TraceOut>,
+    pub(crate) hosted: bool,
+}
+
+/// A shaped search page: the response, its handles, how many hits it kept,
+/// and how many times the budget loop rendered it.
+pub(crate) struct Shaped {
+    pub(crate) rendered: Rendered,
+    pub(crate) response_id: String,
+    pub(crate) continuation: Option<String>,
+    pub(crate) kept: usize,
+    pub(crate) iterations: usize,
+}
+
+/// The search budget loop: render the page and drop trailing hits until the
+/// whole response fits `max_tokens` or nothing is left. Pure and synchronous.
+pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
+    let SearchShape {
+        store,
+        epoch,
+        validity_instant,
+        degradation,
+        max_tokens,
+        canonical,
+        canonical_json,
+        offset,
+        page,
+        page_limit,
+        trace,
+        hosted,
+    } = *input;
+    let mode = canonical.search_mode();
+    let page_hits = page.len();
+    let mut kept = page.len();
+    let mut iterations = 0;
+    loop {
+        iterations += 1;
+        let cut = kept < page.len();
+        let continuation = shape::next_offset(offset, kept, page_hits, page_limit, MAX_RANKED)
+            .map(|next| shape::handle('c', epoch, &[store, canonical_json, &next.to_string()]));
+        let refs: Vec<&str> =
+            page[..kept].iter().map(|(hit, _, _)| hit.reference.as_str()).collect();
+        let response_id = shape::handle(
+            'r',
+            epoch,
+            &[store, canonical_json, &offset.to_string(), &refs.join("\n")],
+        );
+        let explanation = canonical.explain.then(|| match (trace, mode) {
+            (Some(trace), SearchMode::Hybrid) => ExplanationOut::Detail {
+                trace: trace.clone(),
+                per_hit: page[..kept]
+                    .iter()
+                    .filter_map(|(_, _, explain)| explain.clone())
+                    .collect(),
+            },
+            _ => ExplanationOut::Unavailable {
+                status: UnavailableWord::Unavailable,
+                reason: if mode == SearchMode::Text { "text_mode" } else { "not_returned" }
+                    .to_string(),
+            },
+        });
+        let output = SearchOutput {
+            envelope: envelope(store, epoch, validity_instant, degradation.to_vec(), max_tokens),
+            mode: match mode {
+                SearchMode::Text => ModeWord::Text,
+                SearchMode::Hybrid => ModeWord::Hybrid,
+            },
+            response_id: response_id.clone(),
+            results: page[..kept].iter().map(|(hit, _, _)| hit.clone()).collect(),
+            completeness: shape::completeness(
+                kept,
+                page_hits,
+                page_limit,
+                cut,
+                !degradation.is_empty(),
+            ),
+            verdict: UnavailableWord::Unavailable,
+            continuation: continuation.clone(),
+            continuation_exact: hosted.then_some(false),
+            explanation,
+        };
+        let text = render_search(&output);
+        let (rendered, whole) = finish(&output, text, max_tokens, cut);
+        if whole <= u64::from(max_tokens) || kept == 0 {
+            return Shaped { rendered, response_id, continuation, kept, iterations };
+        }
+        kept -= 1;
+    }
+}
+
 pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: SearchArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
@@ -790,71 +894,23 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             )
         })
         .collect();
-    let page_hits = page.len();
     let canonical_json = serde_json::to_string(&canonical).expect("serializes");
     let trace = run.explanation.as_ref().map(trace_out);
-
-    let mut kept = page.len();
-    let (rendered, response_id, continuation) = loop {
-        let cut = kept < page.len();
-        let continuation =
-            shape::next_offset(offset, kept, page_hits, page_limit, MAX_RANKED).map(|next| {
-                shape::handle('c', answered.epoch, &[&store, &canonical_json, &next.to_string()])
-            });
-        let refs: Vec<&str> =
-            page[..kept].iter().map(|(hit, _, _)| hit.reference.as_str()).collect();
-        let response_id = shape::handle(
-            'r',
-            answered.epoch,
-            &[&store, &canonical_json, &offset.to_string(), &refs.join("\n")],
-        );
-        let explanation = canonical.explain.then(|| match (&trace, mode) {
-            (Some(trace), SearchMode::Hybrid) => ExplanationOut::Detail {
-                trace: trace.clone(),
-                per_hit: page[..kept]
-                    .iter()
-                    .filter_map(|(_, _, explain)| explain.clone())
-                    .collect(),
-            },
-            _ => ExplanationOut::Unavailable {
-                status: UnavailableWord::Unavailable,
-                reason: if mode == SearchMode::Text { "text_mode" } else { "not_returned" }
-                    .to_string(),
-            },
-        });
-        let output = SearchOutput {
-            envelope: envelope(
-                &store,
-                answered.epoch,
-                validity_instant,
-                degradation.clone(),
-                max_tokens,
-            ),
-            mode: match mode {
-                SearchMode::Text => ModeWord::Text,
-                SearchMode::Hybrid => ModeWord::Hybrid,
-            },
-            response_id: response_id.clone(),
-            results: page[..kept].iter().map(|(hit, _, _)| hit.clone()).collect(),
-            completeness: shape::completeness(
-                kept,
-                page_hits,
-                page_limit,
-                cut,
-                !degradation.is_empty(),
-            ),
-            verdict: UnavailableWord::Unavailable,
-            continuation: continuation.clone(),
-            continuation_exact: answered.info.hosted.then_some(false),
-            explanation,
-        };
-        let text = render_search(&output);
-        let (rendered, whole) = finish(&output, text, max_tokens, cut);
-        if whole <= u64::from(max_tokens) || kept == 0 {
-            break (rendered, response_id, continuation);
-        }
-        kept -= 1;
-    };
+    let shaped = shape_search_page(&SearchShape {
+        store: &store,
+        epoch: answered.epoch,
+        validity_instant,
+        degradation: &degradation,
+        max_tokens,
+        canonical: &canonical,
+        canonical_json: &canonical_json,
+        offset,
+        page: &page,
+        page_limit,
+        trace: trace.as_ref(),
+        hosted: answered.info.hosted,
+    });
+    let Shaped { rendered, response_id, continuation, kept, .. } = shaped;
 
     if let Some(handle) = continuation {
         ctx.session.put_continuation(

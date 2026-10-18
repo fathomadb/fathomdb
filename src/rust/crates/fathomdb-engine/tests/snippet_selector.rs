@@ -321,3 +321,35 @@ fn rule6_snapping_keeps_every_counted_span() {
         assert!(s.text.len() <= 120);
     }
 }
+
+// § 6.3 rules 4.3 and 6 (T-17, second half): a UAX #29 sentence start within
+// 64 bytes before the first span earns the score bonus, and the window start
+// moves to it when the budget still covers the last counted span.
+#[test]
+fn rule6_sentence_start_before_the_first_span_moves_the_window_start() {
+    let body = format!("{}The story ends. Then the ripe pear fell. {}", pad(1500), pad(1500));
+    let then = body.find("Then").unwrap();
+    let pear = body.find("pear").unwrap();
+    let spans = [(pear as u32, (pear + 4) as u32)];
+    let s = snippet_for(&body, &spans, &opts(120));
+    assert_eq!(s.windows[0].0 as usize, then, "{s:?}");
+    assert!(s.text.starts_with("… Then the ripe pear"));
+
+    // The bonus breaks a tie: the later `pear`, after a sentence start, wins.
+    let body = format!("{}pear {}The end. A pear. {}", pad(300), pad(1000), pad(1000));
+    let early = 300;
+    let late = body.rfind("pear").unwrap();
+    let spans = [(early, early + 4), (late as u32, (late + 4) as u32)];
+    let s = snippet_for(&body, &spans, &opts(120));
+    assert!(shows(&s, spans[1]) && !shows(&s, spans[0]), "{s:?}");
+
+    // No move when the sentence start would leave the last span out of budget.
+    let body = format!("{}Then {}pear {}fig {}", pad(1500), pad(55), pad(97), pad(1500));
+    let then = body.find("Then").unwrap();
+    let (pear, fig) = (body.find("pear").unwrap(), body.find("fig").unwrap());
+    let spans = [(pear as u32, (pear + 4) as u32), (fig as u32, (fig + 3) as u32)];
+    assert!(pear - then <= 64 && then + 112 < fig + 3);
+    let s = snippet_for(&body, &spans, &opts(120));
+    assert!(s.windows[0].0 as usize > then, "{s:?}");
+    assert!(shows(&s, spans[0]) && shows(&s, spans[1]), "{s:?}");
+}

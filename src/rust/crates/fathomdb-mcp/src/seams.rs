@@ -19,6 +19,8 @@ struct State {
     panicking_tools: BTreeSet<String>,
     panicking_calls: BTreeSet<String>,
     panicking_waiters: BTreeSet<String>,
+    admitted_blocked: BTreeSet<String>,
+    admitted_held: BTreeMap<String, usize>,
     progress_bursts: BTreeMap<String, u32>,
 }
 
@@ -81,11 +83,12 @@ impl Seams {
         self.state().held.get(store).map_or(0, VecDeque::len)
     }
 
-    /// Release every held open and call.
+    /// Release every held open and call, including calls held after admission.
     pub fn release_all(&self) {
         let mut state = self.state();
         state.open_blocked.clear();
         state.calls_blocked.clear();
+        state.admitted_blocked.clear();
         drop(state);
         self.inner.1.notify_all();
     }
@@ -115,6 +118,22 @@ impl Seams {
     /// Undo [`Seams::panic_queued_calls`].
     pub fn stop_panicking_queued_calls(&self, store: &str) {
         self.state().panicking_waiters.remove(store);
+    }
+
+    /// Hold every call on `store` right after it gets its admission permit,
+    /// before its store guard exists, until released.
+    pub fn hold_admitted_calls(&self, store: &str) {
+        self.state().admitted_blocked.insert(store.to_string());
+    }
+
+    /// Let calls held by [`Seams::hold_admitted_calls`] proceed.
+    pub fn release_admitted_calls(&self, store: &str) {
+        self.state().admitted_blocked.remove(store);
+    }
+
+    /// How many calls on `store` are held between permit and guard.
+    pub fn admitted_held(&self, store: &str) -> usize {
+        self.state().admitted_held.get(store).copied().unwrap_or(0)
     }
 
     /// Make every later call to `tool` that carries a progress token send `n`
@@ -156,6 +175,19 @@ impl Seams {
         if self.state().panicking_waiters.contains(store) {
             panic!("test seam: forced panic in a queued call on {store}");
         }
+    }
+
+    // Runs on the async handler task, so it polls instead of parking the
+    // thread on the condition variable.
+    pub(crate) async fn after_permit(&self, store: &str) {
+        if !self.state().admitted_blocked.contains(store) {
+            return;
+        }
+        *self.state().admitted_held.entry(store.to_string()).or_default() += 1;
+        while self.state().admitted_blocked.contains(store) {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+        *self.state().admitted_held.entry(store.to_string()).or_default() -= 1;
     }
 
     pub(crate) fn tool_panics(&self, tool: &str) -> bool {

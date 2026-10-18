@@ -27,6 +27,12 @@ impl Hooks {
     }
 
     #[inline]
+    pub(crate) async fn after_permit(&self, _store: &str) {
+        #[cfg(feature = "test-seams")]
+        self.seams.after_permit(_store).await;
+    }
+
+    #[inline]
     pub(crate) fn tool_panics(&self, _tool: &str) -> bool {
         #[cfg(feature = "test-seams")]
         return self.seams.tool_panics(_tool);

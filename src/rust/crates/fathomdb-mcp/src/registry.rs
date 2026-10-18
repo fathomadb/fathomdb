@@ -561,6 +561,7 @@ impl Registry {
                 }
             }
         };
+        self.hooks.after_permit(name).await;
         let mut inner = self.lock();
         if inner.shutting_down {
             return Err(ToolError::not_ready(name, "draining"));

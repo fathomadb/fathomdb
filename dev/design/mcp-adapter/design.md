@@ -178,8 +178,9 @@ search event).
     (MR-024.6).
   - `include_superseded` and `include_inactive` are never set on search; the
     engine rejects them there.
-  - The shaper builds `results` (snippet cut at `snippet_chars` on a character
-    boundary, with `snippet_cut`), then `completeness`: `empty` or
+  - The shaper builds `results` from the engine's snippet sidecar (EP-17:
+    `snippet`, `snippet_cut` and `snippet_anchor` from `snippets[i]`, requested
+    with `max_bytes: snippet_bytes`), then `completeness`: `empty` or
     `empty_not_ready` (empty with a degradation entry, or `dense_disabled` in
     hybrid), `complete` (count < limit and no degradation), `limit_reached`, or
     `cut_by_budget`. It adds `degradation` from `soft_fallback` and

@@ -222,7 +222,7 @@ I/O, clock or locks.**
 
 | Reason | Why it is adapter-only |
 | --- | --- |
-| `snippet_cut` | Snippets are adapter presentation. The SDK returns whole bodies (`search_types.rs:95`), and the adapter cuts them at `snippet_chars` (`tools.rs:701-709`, `shape.rs:13-20`). |
+| `snippet_cut` | Snippets are adapter presentation. Since EP-17 the adapter requests the engine's snippet sidecar with `max_bytes: snippet_bytes`, and each hit's `snippet_cut` is `snippets[i].cut` (`tools.rs` search). |
 | `body_cut` | Body cuts come from the adapter's budget fitting (`tools.rs:931-944`, `tools.rs:1088-1101`). |
 | `cut_by_budget`, continuation on `more_results` | Continuations and the budget are adapter state (`tools.rs:732-804`, `shape.rs:36-48`). |
 | `degraded` / `embedder_unavailable` | The adapter reads embedding readiness once per open epoch (`registry.rs:696-698`, used at `tools.rs:682-687`) and passes it in as a degradation fact. |
@@ -301,7 +301,7 @@ In the engine subset, the caller supplies the result of conditions 2–4 as
   re-serializes the page each time it drops a hit (`tools.rs:731-791`).
   Hints are therefore planned once, before the loop, as a fixed plan: the
   indices of the cut hits in rank order, plus the engine-subset hints. The
-  plan uses the `snippet_cut` flags already computed (`tools.rs:709`). Each
+  plan uses the `snippet_cut` flags already set from `snippets[i].cut`. Each
   iteration builds its output from the plan's prefix of indices below `kept`.
   The cost per iteration is one `Vec` for the hint list and one `String`
   clone per emitted ref. It is not per response, because the loop rebuilds the
@@ -350,7 +350,7 @@ with a blocking catastrophic ceiling and notify-only soft bounds
    `off − baseline == 0` and `on − off ≤ (1 + refs) × iterations`. The
    iteration count is reported by the shaping function's test seam.
 2. **Devloop timing (always on, `cargo test`).** A synthetic 10- and 100-hit
-   page with bodies of 0.2–4 KB, half over `snippet_chars`. It runs 31
+   page with bodies of 0.2–4 KB, half over `snippet_bytes`. It runs 31
    trials, interleaved off/on, and takes the median of the trial medians. It
    blocks only on the 200 µs ceiling at `limit` 100. The 10 µs and 25 µs
    bounds print a WARN line.
@@ -424,8 +424,11 @@ with a blocking catastrophic ceiling and notify-only soft bounds
   only grows as more bodies are cut. If the hint's own bytes stop the response
   from fitting, the existing `fetch` refusal applies (`tools.rs:939-943`).
 - Text rendering: one line per hint after the header line and before the hits,
-  for example `hint: fetch ["l:a","l:b"] (snippet_cut: snippets are prefixes;
-  fetch to read the full record)`.
+  for example `hint: fetch ["l:a","l:b"] (snippet_cut: snippets are centred on
+  the match; fetch to read the full record)`. The `snippet_cut` sentence is
+  keyed on the cut hits' `snippet_anchor`: "centred on the match" for
+  `match`, "the record start" for `start`, and "centred on the match or are
+  the record start" when they differ (EP-17).
 
 ## 6. Block 2 rows as vocabulary or field entries
 
@@ -594,7 +597,7 @@ in-process protocol harness (`fathomdb-mcp/tests/`), with no mocks.
 Block 1:
 
 1. `search_with_cut_snippets_emits_one_fetch_hint_with_every_cut_ref`: long
-   bodies, `snippet_chars` 40, `limit` 60. One `snippet_cut` hint lists every
+   bodies, `snippet_bytes` 40, `limit` 60. One `snippet_cut` hint lists every
    cut ref in rank order up to 50, with `refs_omitted` = 10.
 2. `fetch_hint_refs_are_a_subset_of_returned_refs`: a `proptest` property over
    random pages, budgets and cut patterns. Every hint ref is among

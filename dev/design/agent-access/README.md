@@ -83,6 +83,12 @@ changes code until its design passes review and the owner approves.
       a budget in bytes.
    4. Output an engine proposal draft (EP-17) plus the adapter changes.
    5. **Gate:** Fable-medium design review.
+   6. **Built (Block 1, S5a–S5c).** The engine sidecar and selector are in
+      place. MCP search hits carry `snippet_anchor`, `snippet_cut` comes from
+      the engine, and the config key is `snippet_bytes` (300 bytes, record
+      head `min(48, snippet_bytes / 2)`; `snippet_chars` is gone, with no
+      alias). `highlights` is opt-in. The M1 and M2 measurements are still
+      open.
 
 4. **Compact text block instead of JSON: value first, design later.**
    1. Before any design work, show that it helps. Replay the 30-question

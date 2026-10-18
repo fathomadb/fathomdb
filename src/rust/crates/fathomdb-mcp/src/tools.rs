@@ -1267,3 +1267,61 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     let text = format!("feedback store={store} status=recorded");
     Ok(finish(&output, text, max_tokens, false).0)
 }
+
+#[cfg(test)]
+mod degradation_tests {
+    use super::*;
+    use fathomdb_sdk::{
+        ArmDegradation, DegradationReason, Engine, InitialState, OpenOptions, PreparedWrite,
+        SourceId,
+    };
+
+    fn entry(arm: &str, reason: &str) -> Degradation {
+        Degradation { arm: arm.to_string(), reason: reason.to_string() }
+    }
+
+    /// A real hybrid `SearchResult` from a store opened through the SDK the
+    /// adapter uses. The SDK cannot saturate the engine's embed queue (no
+    /// caller-embedder route), so the engine's overloaded report is appended to
+    /// this real value; the engine side of the report is tested in
+    /// `fathomdb-engine/tests/ep03_embedder_overloaded.rs`.
+    fn overloaded_hybrid_result() -> SearchResult {
+        let dir = tempfile::TempDir::new().unwrap();
+        let engine = Engine::open(dir.path().join("mcp-ep03.sqlite"), OpenOptions::default())
+            .expect("open through the SDK");
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "mcpep03needle note".to_string(),
+                source_id: SourceId::new("test:mcp-ep03").unwrap(),
+                logical_id: Some("mcp-ep03".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        let mut result = engine.search("mcpep03needle", SearchOptions::default()).unwrap();
+        engine.close().unwrap();
+        assert!(!result.results.is_empty(), "precondition: the text arm answered");
+        result.degradations.push(ArmDegradation::new(
+            SoftFallbackBranch::Vector,
+            DegradationReason::EmbedderOverloaded,
+        ));
+        result
+    }
+
+    #[test]
+    fn hybrid_search_reports_embedder_overloaded_degradation() {
+        let run = SearchRun::from_result(overloaded_hybrid_result(), false);
+        assert_eq!(
+            search_degradations(SearchMode::Hybrid, &run, true),
+            vec![entry("vector", "embedder_overloaded")]
+        );
+        assert_eq!(
+            shape::canonical_degradation(search_degradations(SearchMode::Hybrid, &run, false)),
+            vec![entry("vector", "embedder_overloaded"), entry("vector", "embedder_unavailable")],
+            "the existing entries stay"
+        );
+    }
+}

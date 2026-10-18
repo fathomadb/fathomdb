@@ -1123,6 +1123,7 @@ snippetFor(body, spans, options?): SnippetV1
   `SnippetAnchor` `"whole" | "match" | "start"`. The three range lists are
   `[number, number][]` of **UTF-8 byte** offsets, not UTF-16 string indices.
   `windows` and `spans` index the record body, and `highlights` index `text`.
+  Read one as `Buffer.from(body, "utf8").subarray(start, end).toString("utf8")`.
 - `snippetFor` is the synchronous pure selector. It needs no engine and does
   not throw for well-typed arguments: spans that do not lie on the body's
   characters, or that are not safe integers, are ignored, and option values

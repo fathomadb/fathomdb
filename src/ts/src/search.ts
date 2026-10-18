@@ -63,6 +63,10 @@ export type SnippetAnchor = "whole" | "match" | "start";
  * into `text`. `text` is at most `maxBytes` bytes: the windows joined in body
  * order with `"… "`, `" … "` and `" …"`. `highlights` is empty unless
  * requested; `cut` is true when any of the body is left out.
+ *
+ * To read a range, slice the UTF-8 bytes and decode:
+ * `Buffer.from(body, "utf8").subarray(start, end).toString("utf8")` for a
+ * window or span, and the same over `text` for a highlight.
  */
 export interface SnippetV1 {
   text: string;
@@ -237,8 +241,9 @@ function validateSnippetOptionTypes(snippet: unknown): void {
 /**
  * EP-17 pure snippet selector, the same function search uses. `spans` are
  * match spans as `[start, end]` UTF-8 byte offsets into `body` (not UTF-16
- * indices); spans that are empty, run past the body or split a character are
- * ignored. `options` defaults to all-default `SnippetOptions`; values out of
+ * indices), so `Buffer.from(body, "utf8").subarray(start, end).toString("utf8")`
+ * is the matched text; spans that are empty, run past the body or split a
+ * character are ignored. `options` defaults to all-default `SnippetOptions`; values out of
  * range are clamped, so this does not throw for a well-typed call. No
  * database is involved.
  *

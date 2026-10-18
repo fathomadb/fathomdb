@@ -443,6 +443,11 @@ class SnippetV1:
     ``spans`` are the body-relative match spans used; ``highlights`` are
     ranges into ``text`` and are empty unless requested; ``cut`` is true when
     any of the body is left out.
+
+    Offsets index the UTF-8 encoding, not the ``str``. Slice the bytes and
+    decode: ``body.encode("utf-8")[start:end].decode("utf-8")`` for a window
+    or span, ``snippet.text.encode("utf-8")[start:end].decode("utf-8")`` for a
+    highlight.
     """
 
     text: str

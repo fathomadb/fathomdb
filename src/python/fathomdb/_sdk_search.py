@@ -90,8 +90,9 @@ def snippet_for(
     """EP-17 pure snippet selector, the same function search uses.
 
     ``spans`` are match spans as UTF-8 byte ranges ``(start, end)`` into
-    ``body``; spans that are empty, run past the body or split a character
-    are ignored. ``options`` defaults to ``SnippetOptions()``; values out of
+    ``body``, so ``body.encode("utf-8")[start:end].decode("utf-8")`` is the
+    matched text; spans that are empty, run past the body or split a
+    character are ignored. ``options`` defaults to ``SnippetOptions()``; values out of
     range are clamped, so this never raises for a well-typed call. No
     database is involved.
 

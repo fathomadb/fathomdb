@@ -1052,7 +1052,8 @@ fathomdb.snippet_for(body, spans, options=None) -> SnippetV1
   `SnippetAnchor` literal `"whole"`, `"match"` or `"start"`. `windows`,
   `spans` and `highlights` are `list[tuple[int, int]]` of **UTF-8 byte**
   offsets, not `str` indices. `windows` and `spans` index the record body;
-  `highlights` index `text`.
+  `highlights` index `text`. Read one as
+  `body.encode("utf-8")[start:end].decode("utf-8")`.
 - `fathomdb.snippet_for` is the pure selector. It needs no engine and does not
   raise for well-typed arguments: spans that do not lie on the body's
   characters are ignored, and option values are clamped into range. It raises

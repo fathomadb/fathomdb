@@ -187,3 +187,55 @@ async fn waiters_are_admitted_in_arrival_order() {
     }
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_cancel_removes_a_queued_call() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "queue_limit": 2, "call_deadline_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    // The call to cancel waits on its own connection, so it can be cancelled
+    // by request id.
+    let mut raw = common::RawClient::connect(&harness.adapter).await;
+    let cancelled =
+        raw.send_request("tools/call", json!({"name": "search", "arguments": search_a()})).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let next = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let full = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
+    assert_eq!(full["busy"]["reason"], "queue_full", "two calls wait: {full}");
+    assert_eq!(full["busy"]["queued"], 2, "{full}");
+
+    raw.cancel(cancelled).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    // The cancelled call left the line: one more call fits.
+    let later = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(!later.is_finished(), "a call fits in the line again");
+    let full = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
+    assert_eq!(full["busy"]["reason"], "queue_full", "{full}");
+    assert_eq!(full["busy"]["queued"], 2, "the cancelled call is not counted: {full}");
+
+    // On release the next waiter is admitted, not the cancelled call.
+    assert!(seams.release_one_call("a"));
+    let _ = running.await.unwrap();
+    wait_for("the next waiter to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    assert!(seams.release_one_call("a"));
+    let next = next.await.unwrap();
+    assert_ne!(next.is_error, Some(true), "{:?}", next.structured_content);
+    wait_for("the later waiter to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    assert!(seams.release_one_call("a"));
+    let later = later.await.unwrap();
+    assert_ne!(later.is_error, Some(true), "{:?}", later.structured_content);
+    harness.shutdown().await;
+}

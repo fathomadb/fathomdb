@@ -745,3 +745,35 @@ async fn queued_calls_get_progress_notifications() {
     assert!(queued.windows(2).all(|pair| pair[0].0 < pair[1].0), "progress increases: {queued:?}");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn concurrent_arrivals_never_overfill_the_queue() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "queue_limit": 1, "call_deadline_ms": 3000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    // Two arrivals reach the arrival check together while the line is empty.
+    seams.hold_arrivals("a");
+    let first = spawn_call(&harness, "search", search_a());
+    let second = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    seams.release_arrivals("a");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let full = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
+    assert_eq!(full["busy"]["reason"], "queue_full", "{full}");
+    assert_eq!(full["busy"]["queued"], 1, "queue_limit 1 admits one waiter: {full}");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    let outcomes = [first.await.unwrap(), second.await.unwrap()];
+    let refused = outcomes.iter().filter(|result| result.is_error == Some(true)).count();
+    assert_eq!(refused, 1, "one of the two arrivals is refused queue_full");
+    harness.shutdown().await;
+}

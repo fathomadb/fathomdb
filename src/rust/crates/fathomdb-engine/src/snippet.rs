@@ -162,7 +162,8 @@ pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -
         Some(choice) => (vec![text.place(&spans, &choice, width)], SnippetAnchor::Match),
         None => (vec![text.prefix(max_bytes - TRAILING.len())], SnippetAnchor::Start),
     };
-    let (text_out, highlights) = assemble(body, &windows);
+    let (text_out, highlights) = assemble(body, &windows, &spans, options.highlights);
+    debug_assert!(text_out.len() <= max_bytes);
     SnippetV1 {
         text: text_out,
         anchor,
@@ -285,9 +286,16 @@ impl Text<'_> {
     }
 }
 
-/// Rule 9: joins the windows in body order with ellipses.
-fn assemble(body: &str, windows: &[(usize, usize)]) -> (String, Vec<(u32, u32)>) {
+/// Rule 9: joins the windows in body order with ellipses. With `highlights`,
+/// also returns the ranges into the text of the spans shown in full.
+fn assemble(
+    body: &str,
+    windows: &[(usize, usize)],
+    spans: &[Span],
+    highlights: bool,
+) -> (String, Vec<(u32, u32)>) {
     let mut text = String::new();
+    let mut lit = Vec::new();
     for (i, &(start, end)) in windows.iter().enumerate() {
         if i == 0 {
             if start > 0 {
@@ -296,12 +304,21 @@ fn assemble(body: &str, windows: &[(usize, usize)]) -> (String, Vec<(u32, u32)>)
         } else {
             text.push_str(BETWEEN);
         }
+        let base = text.len();
         text.push_str(&body[start..end]);
+        if highlights {
+            lit.extend(
+                spans
+                    .iter()
+                    .filter(|s| start <= s.start && s.end <= end)
+                    .map(|s| (to_u32(base + s.start - start), to_u32(base + s.end - start))),
+            );
+        }
     }
     if windows.last().is_some_and(|&(_, end)| end < body.len()) {
         text.push_str(TRAILING);
     }
-    (text, Vec::new())
+    (text, lit)
 }
 
 /// A match span in body bytes.

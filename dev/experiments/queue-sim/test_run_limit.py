@@ -181,3 +181,9 @@ def test_abandoned_permit_seconds_count_only_calls_after_warm_up():
                  run_limit=60.0)
     m = simulate(cfg).metrics()
     assert m["n"] == 1 and m["ab_permit_s_per_kcall"] == 0.0  # the only abandonment is in the warm-up
+
+
+def test_turn_failed_is_undefined_without_agent_turns():
+    s = script_run([(0.0, *T())], cap=1, admission="fifo")
+    m = s.metrics()
+    assert m["turn_failed"] != m["turn_failed"]  # NaN: open and scripted arrivals have no turns

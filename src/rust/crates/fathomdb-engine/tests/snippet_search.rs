@@ -602,3 +602,30 @@ fn t9_snippet_work_is_read_only_on_the_reader_pool() {
     let trace = take_slice71_search_statement_trace_for_test();
     assert!(trace.iter().any(|event| event == "write_statement"), "{trace:?}");
 }
+
+// § 6.3 rule 3 (owner decision 4): exact term identity. `running` and `runs`
+// share the porter stem of the query term `run`, so they are one term, not
+// two. The approximate (lowercased-text) identity ties the `running … runs`
+// window with the later `running … cat` window and keeps the earlier one;
+// the per-term highlight() pass labels spans by OR term and picks the window
+// holding both query terms.
+#[test]
+fn rule3_exact_identity_prefers_the_window_with_both_terms() {
+    let _guard = lock();
+    let filler = |n: usize| "lorem ".repeat(n);
+    let body = format!(
+        "{}running {}runs {}running {}cat {}",
+        filler(160),
+        filler(5),
+        filler(300),
+        filler(5),
+        filler(300)
+    );
+    let s = store(&[&body]);
+    let narrow = SnippetOptions { max_bytes: 120, ..SnippetOptions::default() };
+    let result = text(s.engine(), "run cat", 10, Some(&narrow));
+    let snippet = snippet_of(&result, &body);
+    assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
+    assert!(snippet.text.contains("cat"), "{snippet:?}");
+    assert!(snippet.text.contains("running"), "{snippet:?}");
+}

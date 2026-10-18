@@ -249,3 +249,26 @@ fn t2_porter_stem_match_is_the_window() {
     assert!(snippet.text.contains("runs"), "{snippet:?}");
     assert_eq!(snippet.spans, vec![(2502, 2506)]);
 }
+
+// T-3: diacritics. `cafe` matches `Café` beyond the prefix in NFC and NFD
+// forms; the highlight covers the word's bytes exactly, the NFD combining
+// accent included (§ 6.1).
+#[test]
+fn t3_diacritic_match_highlight_covers_the_whole_word() {
+    let _guard = lock();
+    let lit = SnippetOptions { highlights: true, ..SnippetOptions::default() };
+    for word in ["Caf\u{e9}", "Cafe\u{301}"] {
+        let body = long_body(3000, word, 4096);
+        let s = store(&[&body]);
+        let result = text(s.engine(), "cafe", 10, Some(&lit));
+        let snippet = snippet_of(&result, &body);
+        assert_eq!(snippet.anchor, SnippetAnchor::Match, "{word:?}: {snippet:?}");
+        assert_eq!(snippet.spans, vec![(3000, (3000 + word.len()) as u32)], "{word:?}");
+        let lit_text: Vec<&str> = snippet
+            .highlights
+            .iter()
+            .map(|&(a, b)| &snippet.text[a as usize..b as usize])
+            .collect();
+        assert_eq!(lit_text, [word], "{word:?}: {snippet:?}");
+    }
+}

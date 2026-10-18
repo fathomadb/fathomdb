@@ -188,3 +188,38 @@ async fn search_with_cut_snippets_emits_one_fetch_hint_with_every_cut_ref() {
     );
     harness.shutdown().await;
 }
+
+/// § 8 test 14 and § 2.2: one hint per reason, at most 50 refs, and a ref
+/// longer than 128 bytes is left out of the hint (but stays in `results`)
+/// and counted in `refs_omitted`.
+#[tokio::test(flavor = "multi_thread")]
+async fn hint_bounds_hold() {
+    let long_id = |i: usize| format!("note:{i:03}:{}", "x".repeat(130));
+    let writes: Vec<PreparedWrite> = river_notes(60, 200)
+        .into_iter()
+        .enumerate()
+        .map(|(i, write)| match write {
+            PreparedWrite::Node { body, .. } if i % 10 == 3 => node(&long_id(i), "note", &body),
+            other => other,
+        })
+        .collect();
+    let (_fixture, harness) = harness_with(writes, json!({"snippet_chars": 40})).await;
+    let found =
+        harness.ok("search", json!({"query": "river", "limit": 60, "max_tokens": 20_000})).await;
+    let results: Vec<String> = common::refs(&found);
+    assert_eq!(results.len(), 60, "nothing cut by the budget");
+    let long: Vec<&String> = results.iter().filter(|reference| reference.len() > 128).collect();
+    assert_eq!(long.len(), 6, "long refs stay in results");
+    let hints = hints_of(&found);
+    let mut reasons: Vec<&str> =
+        hints.iter().map(|hint| hint["reason"].as_str().unwrap()).collect();
+    reasons.dedup();
+    assert_eq!(reasons.len(), hints.len(), "one hint per reason: {hints:?}");
+    let cut = hints.iter().find(|hint| hint["reason"] == "snippet_cut").expect("snippet_cut");
+    let listed: Vec<&str> =
+        cut["refs"].as_array().unwrap().iter().map(|r| r.as_str().unwrap()).collect();
+    let short: Vec<&str> = results.iter().filter(|r| r.len() <= 128).map(String::as_str).collect();
+    assert_eq!(listed, short[..50].to_vec(), "the first 50 short cut refs, in order");
+    assert_eq!(cut["refs_omitted"], 10, "6 long refs and 4 beyond 50");
+    harness.shutdown().await;
+}

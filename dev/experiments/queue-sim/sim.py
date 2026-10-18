@@ -859,7 +859,8 @@ class Sim:
         out["util"] = self.busy_integral / (T * cfg.n_readers)
         out["abandoned_avg"] = self.ab_integral / T
         out["abandoned_share"] = self.ab_integral / self.held_integral if self.held_integral else 0.0
-        out["ab_permit_s_per_kcall"] = self.ab_integral / n * 1000
+        # abandoned holds of the measured calls only: from abandonment to the thread's return (0 under EP-09)
+        out["ab_permit_s_per_kcall"] = sum((c.t_done if c.t_done is not None else self.T) - c.t_res for c in to) / n * 1000
         out["wasted_permit_s_per_kcall"] = sum((c.t_done if c.t_done is not None else self.T) - c.t_adm for c in to) / n * 1000
         # over the span to the last resolution: T also runs on through trailing no-op deadline checks
         out["goodput_per_s"] = len(ok) / max(1e-9, max(c.t_res for c in cs))

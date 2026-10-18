@@ -1013,3 +1013,61 @@ async fn a_client_cancel_of_a_running_call_abandons_it() {
     let _ = held.await.unwrap();
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shutdown_wakes_queued_calls_with_not_ready_draining() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let waiting = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let adapter = harness.adapter.clone();
+    let started = Instant::now();
+    let shutdown = tokio::spawn(async move { adapter.shutdown().await });
+    let error = error_of(&waiting.await.unwrap());
+    let elapsed = started.elapsed();
+    assert_eq!(error["class"], "not_ready", "{error}");
+    assert_eq!(error["code"], "draining", "{error}");
+    assert!(elapsed < Duration::from_millis(500), "woken at once: {elapsed:?}");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    shutdown.await.unwrap();
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_store_with_queued_calls_does_not_expire_idle() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "idle_timeout_secs": 1, "call_deadline_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let waiting = spawn_call(&harness, "search", search_a());
+    let started = Instant::now();
+    while started.elapsed() < Duration::from_millis(2000) {
+        assert_eq!(common::readiness(&harness.client, "a").await, "ready");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert!(!waiting.is_finished(), "the call is still queued");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    let waited = waiting.await.unwrap();
+    assert_ne!(waited.is_error, Some(true), "{:?}", waited.structured_content);
+    harness.shutdown().await;
+}

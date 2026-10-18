@@ -107,3 +107,15 @@ fn unpinned_sessions_differ_only_in_the_validity_instant() {
     };
     assert_eq!(ids(&one), ids(&two));
 }
+
+/// Hints-sidecar § 8 test 13 / H4: with hints on (the default), the pinned
+/// session is byte-identical across process lifetimes, hints included.
+#[test]
+fn hints_are_deterministic_across_process_lifetimes() {
+    let fixture = fixture();
+    let one = session(&fixture);
+    let two = session(&fixture);
+    assert_eq!(one, two, "MR-043.1 with hints");
+    assert!(one.iter().any(|line| line.contains("\"hints\":[")), "hints were emitted");
+    assert!(one.iter().any(|line| line.contains("\\nhint: ")), "hint text lines were emitted");
+}

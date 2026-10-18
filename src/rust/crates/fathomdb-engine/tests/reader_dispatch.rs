@@ -82,3 +82,46 @@ fn a_slow_read_does_not_delay_reads_while_a_reader_is_idle() {
     reader.join().expect("reader thread");
     assert!(elapsed < Duration::from_secs(3), "seven reads took {elapsed:?} while one was held");
 }
+
+#[test]
+fn with_every_reader_busy_dispatch_falls_back_to_round_robin() {
+    let (_dir, opened) = seeded_engine("round_robin_fallback");
+    let started = Instant::now();
+    let (snapshot_ready, mut releases) = opened.engine.pause_every_reader_with_timeout_for_test();
+    for _ in 0..READER_POOL_SIZE {
+        snapshot_ready
+            .recv_timeout(Duration::from_secs(2))
+            .expect("every worker must acquire its snapshot");
+    }
+
+    let engine = Arc::new(opened.engine);
+    let cursor = engine.next_reader_worker_index_for_test();
+    let (done_tx, done_rx) = mpsc::channel();
+    let reader_engine = Arc::clone(&engine);
+    let reader = thread::spawn(move || {
+        let _ = done_tx.send(reader_engine.search(QUERY));
+    });
+    while engine.next_reader_worker_index_for_test() == cursor {
+        assert!(started.elapsed() < Duration::from_secs(2), "the ninth read was not dispatched");
+        thread::yield_now();
+    }
+    // The cursor moves before the idle probe; give the probe time to finish
+    // and the read to block on the round-robin worker.
+    thread::sleep(Duration::from_millis(200));
+
+    let other = (cursor + 1) % READER_POOL_SIZE;
+    releases[other].send(()).expect("release a non-cursor worker");
+    let early = done_rx.recv_timeout(Duration::from_millis(500));
+    assert!(early.is_err(), "the read completed before its round-robin worker was released");
+
+    releases[cursor].send(()).expect("release the cursor worker");
+    let result = done_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the read must complete once its round-robin worker is released");
+    let elapsed = started.elapsed();
+    releases.clear();
+    reader.join().expect("reader thread");
+
+    assert!(!result.expect("search").results.is_empty());
+    assert!(elapsed < Duration::from_secs(4), "fallback read took {elapsed:?}");
+}

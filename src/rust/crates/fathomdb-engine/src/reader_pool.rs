@@ -8,9 +8,14 @@ pub(crate) const READER_POOL_SIZE: usize = 8;
 /// Per `dev/design/engine.md` § Writer / reader split, reader connections
 /// must not serialize behind a single mutex. Each worker thread owns
 /// exactly one read-only `Connection` for its lifetime; `Connection`
-/// objects never cross thread boundaries after startup. `Engine::search`
-/// dispatches a request via a per-worker bounded channel using a
-/// lock-free round-robin counter on the hot path.
+/// objects never cross thread boundaries after startup.
+///
+/// Dispatch is idle-first (EP-18 part A): each worker has a rendezvous
+/// channel, and a request goes to the first worker, starting from a
+/// lock-free round-robin cursor, that is waiting in `recv`. Only when every
+/// worker is busy does the request block on the cursor's worker. There is
+/// no per-worker queue, so a caller that waits does so in `send` rather
+/// than behind queued work in the worker; the latency is the same.
 pub(crate) struct ReaderWorkerPool {
     senders: Vec<SyncSender<ReaderRequest>>,
     handles: Mutex<Option<Vec<JoinHandle<()>>>>,
@@ -493,10 +498,10 @@ pub struct CacheStatusReply {
     pub cache_used_bytes: i32,
 }
 
-/// Per-worker outbound channel capacity. Round-robin dispatch keeps
-/// queue depth at ~0 on hot paths; the small slack absorbs jitter
-/// without a runtime mutex.
-const READER_WORKER_CHANNEL_CAPACITY: usize = 4;
+/// Per-worker channel capacity. Zero makes each channel a rendezvous, so a
+/// non-blocking send succeeds only when that worker is waiting in `recv`:
+/// the idle test that dispatch relies on, without a runtime mutex.
+const READER_WORKER_CHANNEL_CAPACITY: usize = 0;
 
 #[allow(clippy::too_many_arguments)]
 fn reader_worker_loop(
@@ -1102,6 +1107,8 @@ impl ReaderWorkerPool {
                     let Some(pending) = request.take() else { break };
                     match sender.try_send(pending) {
                         Ok(()) => break,
+                        // On a rendezvous channel `Full` means the worker is
+                        // busy with another request, not that a queue is full.
                         Err(mpsc::TrySendError::Full(pending)) if Instant::now() < deadline => {
                             request = Some(pending);
                             thread::sleep(Duration::from_millis(1));
@@ -1226,9 +1233,12 @@ impl ReaderWorkerPool {
         results
     }
 
-    /// Hot path. Lock-free dispatch: `AtomicUsize::fetch_add` selects
-    /// the worker, then a single `SyncSender::send` enqueues the
-    /// request. No global mutex is taken on the request path.
+    /// Hot path. Lock-free, idle-first dispatch: `AtomicUsize::fetch_add`
+    /// selects a starting worker, then `try_send` offers the request to each
+    /// worker in turn and succeeds at the first one waiting in `recv`. If
+    /// every worker is busy, a blocking `send` waits for the starting
+    /// worker, as round-robin dispatch did. No global mutex is taken on the
+    /// request path.
     // The `Search` variant contains a SyncSender and boxed fields (filter, raw_query);
     // even after FIX-4 (raw_query: Box<str>), the variant remains large due to the
     // SyncSender channel ownership. The Err return is only ever a no-worker/shutdown
@@ -1243,8 +1253,19 @@ impl ReaderWorkerPool {
         if n == 0 {
             return Err(request);
         }
-        let idx = self.next.fetch_add(1, Ordering::Relaxed) % n;
-        self.senders[idx].send(request).map_err(|err| err.0)
+        let start = self.next.fetch_add(1, Ordering::Relaxed) % n;
+        let mut request = request;
+        for offset in 0..n {
+            match self.senders[(start + offset) % n].try_send(request) {
+                Ok(()) => return Ok(()),
+                // A disconnected worker is skipped here; if it is the
+                // starting worker, the blocking send below reports it.
+                Err(mpsc::TrySendError::Full(back) | mpsc::TrySendError::Disconnected(back)) => {
+                    request = back;
+                }
+            }
+        }
+        self.senders[start].send(request).map_err(|err| err.0)
     }
 
     /// Signal every worker to exit and join its thread. Idempotent —

@@ -326,3 +326,29 @@ fn t20_point_query_cap_anchors_the_rest_at_the_start() {
     let again = text(s.engine(), "zanzibar", 30, Some(&capped));
     assert_eq!(again.snippets, first.snippets);
 }
+
+// T-10: marker selection (§ 6.1). A body containing U+E000 uses the next
+// free pair and still anchors on the match; a body containing all three
+// pairs gets the record start, with no marker in the text.
+#[test]
+fn t10_markers_avoid_code_points_the_body_contains() {
+    let _guard = lock();
+    let one = format!("{} \u{E000} glyph", long_body(3000, "zanzibar", 4096));
+    let all = format!(
+        "{} \u{E000}\u{E001}\u{F8FE}\u{F8FF}\u{FDD0}\u{FDD1} glyphs",
+        long_body(3000, "zanzibar", 4096)
+    );
+    let s = store(&[&one, &all]);
+    let result = text(s.engine(), "zanzibar", 10, Some(&SnippetOptions::default()));
+
+    let snippet = snippet_of(&result, &one);
+    assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
+    assert_eq!(snippet.spans, vec![(3000, 3008)]);
+
+    let snippet = snippet_of(&result, &all);
+    assert_eq!(snippet.anchor, SnippetAnchor::Start, "{snippet:?}");
+    assert!(snippet.spans.is_empty());
+    let (start, end) = snippet.windows[0];
+    assert_eq!(start, 0);
+    assert_eq!(snippet.text, format!("{} …", &all[..end as usize]));
+}

@@ -122,3 +122,61 @@ fn rule2_no_spans_gives_the_prefix_on_a_word_boundary() {
     assert_eq!(s.text, format!("{} …", "e\u{301}".repeat(18)));
     assert!(s.cut);
 }
+
+const FILLER: [&str; 5] = ["lorem", "ipsum", "dolor", "sit", "amet"];
+
+/// A body of space-separated filler words with each `(offset, term)` placed
+/// at the first word start at or after `offset`, padded to at least `len`
+/// bytes. Returns the body and the terms' spans in order.
+fn body_with(terms: &[(usize, &str)], len: usize) -> (String, Vec<(u32, u32)>) {
+    let mut body = String::new();
+    let mut spans = Vec::new();
+    let mut filler = FILLER.iter().cycle();
+    let mut pending = terms.iter().peekable();
+    while body.len() < len || pending.peek().is_some() {
+        if !body.is_empty() {
+            body.push(' ');
+        }
+        match pending.peek() {
+            Some(&&(at, term)) if body.len() >= at => {
+                let start = body.len();
+                body.push_str(term);
+                spans.push((start as u32, body.len() as u32));
+                pending.next();
+            }
+            _ => body.push_str(filler.next().unwrap()),
+        }
+    }
+    (body, spans)
+}
+
+fn shows(s: &SnippetV1, span: (u32, u32)) -> bool {
+    s.windows.iter().any(|&(ws, we)| ws <= span.0 && span.1 <= we)
+}
+
+// § 6.3 rule 4 (T-17, first half): distinct identities outrank repeats;
+// identity is the lowercased span text; ties go to the earlier start.
+#[test]
+fn rule4_window_scoring_prefers_distinct_terms() {
+    let (body, spans) = body_with(
+        &[(300, "apple"), (330, "apple"), (360, "apple"), (1500, "pear"), (1540, "plum")],
+        3000,
+    );
+    let s = snippet_for(&body, &spans, &opts(120));
+    assert_eq!(s.anchor, SnippetAnchor::Match);
+    assert!(shows(&s, spans[3]) && shows(&s, spans[4]), "{s:?}");
+    assert!(!shows(&s, spans[0]));
+
+    // `Apple` and `APPLE` are one identity, so `pear plum` wins.
+    let (body, spans) =
+        body_with(&[(300, "Apple"), (340, "APPLE"), (1500, "pear"), (1540, "plum")], 3000);
+    let s = snippet_for(&body, &spans, &opts(120));
+    assert!(shows(&s, spans[2]) && shows(&s, spans[3]), "{s:?}");
+
+    // Equal scores: the earlier window wins.
+    let (body, spans) =
+        body_with(&[(300, "pear"), (340, "plum"), (1500, "pear"), (1540, "plum")], 3000);
+    let s = snippet_for(&body, &spans, &opts(120));
+    assert!(shows(&s, spans[0]) && shows(&s, spans[1]), "{s:?}");
+    assert!(!shows(&s, spans[2]));
+}

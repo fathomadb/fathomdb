@@ -630,7 +630,7 @@ impl Engine {
             results,
             graph_stats,
             explanation,
-            expanded,
+            mut expanded,
             frozen_degradations,
         ) = match search_result {
             Ok(result) => result,
@@ -667,6 +667,9 @@ impl Engine {
         // Exactly one side embeds the query: this function when not frozen, the
         // reader when frozen.
         degradations.extend(frozen_degradations);
+        if let Some(expanded) = expanded.as_mut() {
+            expanded.degradations.clone_from(&degradations);
+        }
 
         // The worker (`read_search_in_tx`) has no embedder identity; fill the
         // trace's `embedder_id` here, where `self.runtime_embedder_identity` is in
@@ -1337,12 +1340,13 @@ impl Engine {
         // 0.8.5: depth=0 → no rerank, so α/pool_n (0.3, 0) are inert here.
         let search_result =
             self.search_inner(query, filter, 0, false, 0.3, 0, false, ReadView::default(), limit)?;
+        let degradations = search_result.degradations;
         if search_result.results.is_empty() {
             return Ok(SearchExpandResult {
                 search_hits: Vec::new(),
                 expanded: Vec::new(),
                 all_logical_ids: Vec::new(),
-                degradations: Vec::new(),
+                degradations,
             });
         }
         // Step 2: dispatch to the reader pool to resolve logical_ids and run BFS.
@@ -1361,7 +1365,7 @@ impl Engine {
             return Err(EngineError::Closing);
         }
         match response_rx.recv().map_err(|_| EngineError::Storage)? {
-            Ok(result) => Ok(result),
+            Ok(result) => Ok(SearchExpandResult { degradations, ..result }),
             Err(graph_expand::SearchExpandHandlerError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
             }

@@ -91,3 +91,21 @@ test("search returns the snippet sidecar", async () => {
     await engine.close();
   }
 });
+
+test("searchFrozen returns the snippet sidecar", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await engine.write(writes());
+    const frozen = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const withSnippets = await engine.searchFrozen(TERM, frozen, { snippet: { maxBytes: 120 } });
+    assertFarAndShort(withSnippets, 120);
+
+    // Snippet options are presentation: the same frozen context serves both
+    // calls and the results do not change.
+    const plain = await engine.searchFrozen(TERM, frozen);
+    assert.equal("snippets" in plain, false, "the sidecar is absent when not requested");
+    assert.deepStrictEqual(plain.results, withSnippets.results);
+  } finally {
+    await engine.close();
+  }
+});

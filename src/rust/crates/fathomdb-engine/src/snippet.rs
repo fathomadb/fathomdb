@@ -9,7 +9,7 @@
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::EngineError;
+use crate::errors::EngineError;
 
 /// Snippet settings for one search, and the inputs of [`snippet_for`].
 ///

@@ -2531,7 +2531,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
 }
 use crate::dependency_closure;
 use crate::embed_dispatch::EmbedDispatcher;
-use crate::embedding::dispatch_embed_vector;
+use crate::embedding::{dispatch_embed_vector, query_vector_or_degradation};
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
@@ -2556,7 +2556,6 @@ use crate::projection_registry::load_projection_registry;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 use crate::reader_transaction::begin_attributed_reader_tx;
 use crate::rerank::try_rerank_fused;
-use crate::search_api::query_vector_or_degradation;
 use crate::search_types::{
     validate_search_result_limit, ArmDegradation, Bm25fQueryPlan, Explanation, GraphFrontierStats,
     PerHitExplain, QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,

@@ -1035,6 +1035,28 @@ impl ReaderWorkerPool {
             .expect("reader worker must be live for independence control");
     }
 
+    /// Hold every worker on a real snapshot. Worker `i` reports `i` on
+    /// `snapshot_ready` and waits on the `i`-th returned release receiver.
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(crate) fn hold_every_worker_wal_snapshot_bounded(
+        &self,
+        snapshot_ready: &SyncSender<usize>,
+    ) -> Vec<SyncSender<()>> {
+        self.senders
+            .iter()
+            .map(|sender| {
+                let (release_tx, release) = mpsc::sync_channel(1);
+                sender
+                    .send(ReaderRequest::HoldWalSnapshotBounded {
+                        snapshot_ready: snapshot_ready.clone(),
+                        release,
+                    })
+                    .expect("reader worker must be live for independence control");
+                release_tx
+            })
+            .collect()
+    }
+
     #[cfg(test)]
     pub(crate) fn hold_worker_zero_wal_snapshot_with_commit_ack(
         &self,

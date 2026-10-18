@@ -239,7 +239,7 @@ impl Seams {
 }
 
 /// One ranked hit of a synthetic search page for [`shape_search_page`].
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SyntheticHit {
     /// The prefixed reference, for example `l:note:1`.
     pub reference: String,
@@ -251,8 +251,8 @@ pub struct SyntheticHit {
 }
 
 /// A synthetic search answer: the engine's ranked list and the request
-/// facts the shaping step reads.
-#[derive(Clone, Debug)]
+/// facts the shaping step reads. Build with `..Default::default()`.
+#[derive(Clone, Debug, Default)]
 pub struct SearchPageInput {
     /// The ranked list as the engine returned it (at most 100 hits).
     pub ranked: Vec<SyntheticHit>,
@@ -266,6 +266,11 @@ pub struct SearchPageInput {
     pub hybrid: bool,
     /// `(arm, reason)` degradation entries, in any order.
     pub degradation: Vec<(String, String)>,
+    /// Whether a hybrid run could use the vector arm (§ 3.3).
+    pub hybrid_available: bool,
+    /// The resolved hints setting; `None` skips hint planning altogether,
+    /// the no-hints baseline of the allocation test.
+    pub hints: Option<bool>,
 }
 
 /// A page prepared for shaping: the snippet cut is done, so measuring
@@ -278,6 +283,9 @@ pub struct PreparedSearchPage {
     degradation: Vec<crate::output::Degradation>,
     canonical: crate::shape::CanonicalSearch,
     canonical_json: String,
+    hybrid: bool,
+    hybrid_available: bool,
+    hints: Option<bool>,
 }
 
 /// What the search tool would answer for a prepared page.
@@ -353,12 +361,51 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
         ),
         canonical,
         canonical_json,
+        hybrid: input.hybrid,
+        hybrid_available: input.hybrid_available,
+        hints: input.hints,
     }
 }
 
-/// Run the search budget loop on a prepared page (epoch 1, store `s`).
+/// Plan the hints of a prepared page, as `search` does before its budget
+/// loop. `None` returns the empty plan without planning.
+#[must_use]
+pub fn plan_search_hints(page: &PreparedSearchPage) -> PlannedHints {
+    PlannedHints(match page.hints {
+        None => crate::hints::SearchPlan::default(),
+        Some(enabled) => crate::hints::SearchPlan::new(
+            enabled,
+            &crate::hints::SearchPageFacts {
+                page_hits: page.page.len(),
+                page_limit: page.page_limit,
+                hybrid: page.hybrid,
+                degradation: &page.degradation,
+                hybrid_available: page.hybrid_available,
+            },
+        ),
+    })
+}
+
+/// A planned set of hints for one page.
+pub struct PlannedHints(crate::hints::SearchPlan);
+
+/// Run the search budget loop on a prepared page with its planned hints.
+#[must_use]
+pub fn shape_planned_search_page(
+    page: &PreparedSearchPage,
+    plan: &PlannedHints,
+) -> ShapedSearchPage {
+    shape_with(page, &plan.0)
+}
+
+/// Plan the page's hints and run the search budget loop on it (epoch 1,
+/// store `s`), as `search` does.
 #[must_use]
 pub fn shape_search_page(page: &PreparedSearchPage) -> ShapedSearchPage {
+    shape_with(page, &plan_search_hints(page).0)
+}
+
+fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> ShapedSearchPage {
     let shaped = crate::tools::shape_search_page(&crate::tools::SearchShape {
         store: "s",
         epoch: 1,
@@ -372,7 +419,7 @@ pub fn shape_search_page(page: &PreparedSearchPage) -> ShapedSearchPage {
         page_limit: page.page_limit,
         trace: None,
         hosted: false,
-        hints: &crate::hints::SearchPlan::default(),
+        hints: plan,
     });
     ShapedSearchPage {
         next_offset: shaped.continuation.as_ref().map(|_| page.offset + shaped.kept),

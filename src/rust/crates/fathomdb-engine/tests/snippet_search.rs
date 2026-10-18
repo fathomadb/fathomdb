@@ -515,3 +515,55 @@ fn t14_head_window_keeps_the_record_header() {
     assert!(snippet.text.contains("zanzibar"));
     assert!(snippet.text.len() <= 300);
 }
+
+// T-16: frozen reads. Snippet options are presentation: `search_frozen` with
+// snippets returns the same results (and explanation) as without, under the
+// same frozen context, and the context's token is untouched.
+#[test]
+fn t16_frozen_results_do_not_depend_on_snippet_options() {
+    let _guard = lock();
+    let long = long_body(3000, "zanzibar", 4096);
+    let s = store(&["a short zanzibar note", &long]);
+    let context = s
+        .engine()
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
+        )
+        .expect("freeze");
+    let token = context.token.clone();
+    let lit = SnippetOptions { highlights: true, head_bytes: 40, ..SnippetOptions::default() };
+    for explain in [false, true] {
+        let off = s
+            .engine()
+            .search_frozen_with_snippets("zanzibar", &context, 0, false, 0.3, 0, explain, 10, None)
+            .expect("off");
+        let on = s
+            .engine()
+            .search_frozen_with_snippets(
+                "zanzibar",
+                &context,
+                0,
+                false,
+                0.3,
+                0,
+                explain,
+                10,
+                Some(&lit),
+            )
+            .expect("on");
+        assert_eq!(on.results, off.results);
+        assert_eq!(on.projection_cursor, off.projection_cursor);
+        assert_eq!(on.degradations, off.degradations);
+        assert_eq!(
+            on.explanation.as_ref().map(|e| &e.per_hit),
+            off.explanation.as_ref().map(|e| &e.per_hit)
+        );
+        let snippet = snippet_of(&on, &long);
+        assert_eq!(snippet.anchor, SnippetAnchor::Match);
+    }
+    assert_eq!(context.token, token);
+    // The token still authenticates after snippet searches.
+    s.engine()
+        .search_frozen_with_snippets("zanzibar", &context, 0, false, 0.3, 0, false, 10, Some(&lit))
+        .expect("token still valid");
+}

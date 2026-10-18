@@ -22,8 +22,8 @@ Status: Draft. Priority P1. Not an accepted decision, except the
 - R-OBS-2 (open question 1) is answered for the bindings: present only when
   non-empty. Python gives `None`, TypeScript leaves the key absent. In Rust the
   field is always there and empty.
-- Python, TypeScript and the MCP adapter use the wire word
-  `embedder_overloaded`. The adapter keeps its existing entries.
+- Python and TypeScript carry it on search and search-expand results; they and
+  the MCP adapter use the wire word `embedder_overloaded`. The adapter keeps its existing entries.
 - Not built: the other reasons, the removal of the adapter's per-epoch
   `embedder_unavailable` and `dense_disabled` entries, and the
   `VectorEquivalenceMismatch` mapping.

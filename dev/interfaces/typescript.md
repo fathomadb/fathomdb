@@ -207,7 +207,8 @@ arm ran. Each `{ arm, reason }` spells `arm` like `softFallback.branch`. The one
 `DegradationReason` today is `"embedder_overloaded"`: the query embedding was
 refused because the embed queue was full, or it expired in that queue. The
 search still returns the other arms' hits. Ordinary, frozen and evidence
-searches report it.
+searches report it, and so do `graph.searchExpand` and `searchExpandFrozen` on
+`SearchExpandResult.degradations` (same type, absent when empty).
 
 ### `OpenReport.embedderGpuAllocationWitness` (0.8.23 Slice 80.6)
 

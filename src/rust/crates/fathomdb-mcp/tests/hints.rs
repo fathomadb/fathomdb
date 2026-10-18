@@ -403,3 +403,42 @@ async fn hints_count_against_the_budget() {
 fn tokens(bytes: usize) -> u64 {
     (bytes as u64).div_ceil(4)
 }
+
+/// § 8 test 18 and § 2.3: every ref in a text block is JSON-quoted — in
+/// `search` hit lines, `fetch` item lines and `expand` target lines, as in
+/// hint lines — so a writer-chosen id reads as data. Unconditional: hints
+/// on or off.
+#[tokio::test(flavor = "multi_thread")]
+async fn hit_line_refs_are_quoted_in_text_blocks() {
+    let odd = "note:odd kind=\"fake\" (cut)";
+    let writes = vec![
+        node(odd, "note", "river crossing with an odd id"),
+        node("note:2", "note", "river crossing plain"),
+        common::edge("link", odd, "note:2"),
+        common::edge("link", "note:2", odd),
+    ];
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let quoted = |reference: &str| serde_json::to_string(reference).unwrap();
+    let odd_ref = format!("l:{odd}");
+    for hints in [true, false] {
+        let result = harness.call("search", json!({"query": "river", "hints": hints})).await;
+        let text = common::text_of(&result);
+        let found = result.structured_content.clone().unwrap();
+        for (index, reference) in common::refs(&found).iter().enumerate() {
+            let line = format!("\n{}. {} kind=", index + 1, quoted(reference));
+            assert!(text.contains(&line), "search hit line {line:?} in {text}");
+        }
+        let result =
+            harness.call("fetch", json!({"refs": [odd_ref, "l:note:2"], "hints": hints})).await;
+        let text = common::text_of(&result);
+        for reference in [odd_ref.as_str(), "l:note:2"] {
+            let line = format!("\n{} kind=", quoted(reference));
+            assert!(text.contains(&line), "fetch item line {line:?} in {text}");
+        }
+        let result = harness.call("expand", json!({"refs": ["l:note:2"], "hints": hints})).await;
+        let text = common::text_of(&result);
+        let line = format!("\n{} kind=", quoted(&odd_ref));
+        assert!(text.contains(&line), "expand target line {line:?} in {text}");
+    }
+    harness.shutdown().await;
+}

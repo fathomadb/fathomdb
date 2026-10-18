@@ -254,3 +254,41 @@ pub(crate) fn render(hints: &[Hint], text: &mut String) {
 pub(crate) fn enabled(given: Option<bool>, configured: bool) -> bool {
     given.unwrap_or(configured)
 }
+
+/// The `degraded` hint of a non-search response (`expand`): one hint naming
+/// the first entry of the canonical degradation list.
+pub(crate) fn degraded(degradation: &[Degradation]) -> Option<Hint> {
+    let _ = degradation;
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(arm: &str, reason: &str) -> Degradation {
+        Degradation { arm: arm.to_string(), reason: reason.to_string() }
+    }
+
+    /// Hints-sidecar § 3.3: `expand` gets `degraded` for its graph codes.
+    /// The engine reports no graph degradation on an explicit-seed expansion
+    /// over a ready store, so the rule is tested here, on canonical entries.
+    #[test]
+    fn expand_degradation_names_the_first_graph_code() {
+        let entries = shape::canonical_degradation(vec![
+            entry("graph", "projection_processing"),
+            entry("graph", "projection_blocked"),
+        ]);
+        let hint = degraded(&entries).expect("a degraded hint");
+        assert_eq!(
+            serde_json::to_value(&hint).unwrap(),
+            serde_json::json!({
+                "action": "none",
+                "reason": "degraded",
+                "arm": "graph",
+                "cause": "projection_blocked"
+            })
+        );
+        assert!(degraded(&[]).is_none());
+    }
+}

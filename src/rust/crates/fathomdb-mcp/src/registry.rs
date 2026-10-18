@@ -661,7 +661,20 @@ impl Registry {
         call: &Admission<'_>,
         ticks: &mut u32,
     ) -> Result<Option<StoreGuard>, ToolError> {
-        let refuse = |reason| ToolError::admission(name, load.busy(reason));
+        let refuse = |reason| {
+            let busy = load.busy(reason);
+            tracing::info!(
+                store = %name,
+                reason = busy.reason.as_str(),
+                in_flight = busy.in_flight,
+                queued = busy.queued,
+                abandoned = busy.abandoned,
+                "admission refused"
+            );
+            ToolError::admission(name, busy)
+        };
+        let arrived = Instant::now();
+        let mut must_wait = false;
         for (kind, sample) in self.hooks.seeded_service_times(name) {
             if let Some(kind) = ToolKind::from_name(&kind) {
                 load.record(kind, sample);
@@ -680,6 +693,7 @@ impl Registry {
                 {
                     return Err(refuse(BusyReason::QueueFull));
                 }
+                must_wait = load.permits.available_permits() == 0;
                 let ticket = QueueTicket::new(&load);
                 self.hooks.after_queued(name);
                 let waited = async {
@@ -763,6 +777,17 @@ impl Registry {
             }
         }
         slot.last_used.touch();
+        if must_wait {
+            let busy = load.busy(BusyReason::Deadline);
+            tracing::debug!(
+                store = %name,
+                waited_ms = arrived.elapsed().as_millis() as u64,
+                in_flight = busy.in_flight,
+                queued = busy.queued,
+                abandoned = busy.abandoned,
+                "admitted after a wait"
+            );
+        }
         Ok(Some(StoreGuard {
             name: name.to_string(),
             epoch: slot.epoch,

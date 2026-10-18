@@ -53,6 +53,18 @@ pub enum BusyReason {
     EngineOverloaded,
 }
 
+impl BusyReason {
+    /// The wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::QueueFull => "queue_full",
+            Self::Deadline => "deadline",
+            Self::EngineOverloaded => "engine_overloaded",
+        }
+    }
+}
+
 /// The `busy` sub-object of a `busy/admission` error. It carries no advised
 /// wait: agents re-issue a call in a later turn.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]

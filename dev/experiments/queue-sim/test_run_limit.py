@@ -144,3 +144,11 @@ def test_timeout_cause_window_ends_at_the_run_limit():
     m = s.metrics()
     assert s.calls[1].outcome == "timeout" and s.calls[1].t_res == pytest.approx(66.0)
     assert m["to_run"] == pytest.approx(0.5) and m["to_admission"] == 0.0
+
+
+def test_hol_accrues_past_the_wait_deadline_under_run_to_completion():
+    # as test_S1, but run to completion: read #8 waits 0.8 -> 40 s behind worker 0 and then answers, so all
+    # 39.2 s of head-of-line wait delayed its answer
+    sc = [(0.0, *T(reader=40.0))] + [(0.1 * i, *T(reader=0.01)) for i in range(1, 9)]
+    s = script_run(sc, cap=100, admission="refuse", dispatch="P0", run_limit=60.0)
+    assert s.calls[8].outcome == "ok" and s.calls[8].hol == pytest.approx(39.2)

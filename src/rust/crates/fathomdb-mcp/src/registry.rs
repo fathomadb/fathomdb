@@ -359,6 +359,9 @@ impl Drop for StoreGuard {
         self.last_used.touch();
         let load = &self.permit.load;
         match self.run.compare_exchange(RUNNING, DONE, Ordering::SeqCst, Ordering::SeqCst) {
+            // A guard dropped while its thread unwinds belongs to a call that
+            // panicked, not one that completed.
+            Ok(_) if std::thread::panicking() => {}
             Ok(_) => load.record(self.kind, self.started.elapsed()),
             // Abandoned calls leave no sample; the window would otherwise
             // learn from work nobody waited for.

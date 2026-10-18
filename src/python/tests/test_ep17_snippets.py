@@ -219,3 +219,46 @@ def test_snippet_for_defaults_and_argument_types() -> None:
         fathomdb.snippet_for("short body", [(0, True)])
     with pytest.raises(TypeError):
         fathomdb.snippet_for("short body", [], {"max_bytes": 40})  # type: ignore[arg-type]
+
+
+# Python ints are unbounded; values past i64 must keep the contract:
+# search refuses them, snippet_for drops or clamps them.
+BEYOND_I64 = [2**63, 2**64, -(2**63) - 1, -(2**64)]
+
+
+@pytest.mark.parametrize("surface", sorted(SURFACES))
+def test_snippet_options_beyond_i64_are_invalid_argument(db_path: str, surface: str) -> None:
+    run = SURFACES[surface]
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write(_writes())
+        for value in BEYOND_I64:
+            for field_name in ("max_bytes", "max_windows", "head_bytes", "max_point_queries"):
+                options = SnippetOptions(**{field_name: value})  # type: ignore[arg-type]
+                with pytest.raises(InvalidArgumentError, match="out of range"):
+                    run(engine, options)
+        # A value that fits i64 but not its field type names the range
+        # problem, not the native integer width.
+        with pytest.raises(InvalidArgumentError, match="out of range") as raised:
+            run(engine, SnippetOptions(max_point_queries=256))
+        assert "4294967295" not in str(raised.value)
+    finally:
+        engine.close()
+
+
+def test_snippet_for_never_raises_for_ints_beyond_i64() -> None:
+    whole = SnippetV1(text="short body", anchor="whole", windows=[(0, 10)], cut=False)
+    for value in BEYOND_I64:
+        assert fathomdb.snippet_for("short body", [(0, value)]) == whole
+        assert fathomdb.snippet_for("short body", [(value, 3)]) == whole
+
+    body = "word " * 1000
+    clamped_high = fathomdb.snippet_for(body, [], SnippetOptions(max_bytes=4000))
+    clamped_low = fathomdb.snippet_for(body, [], SnippetOptions(max_bytes=40))
+    for value in (2**63, 2**64):
+        options = SnippetOptions(
+            max_bytes=value, max_windows=value, head_bytes=value, max_point_queries=value
+        )
+        assert fathomdb.snippet_for(body, [], options).text == clamped_high.text
+    for value in (-(2**63) - 1, -(2**64)):
+        assert fathomdb.snippet_for(body, [], SnippetOptions(max_bytes=value)) == clamped_low

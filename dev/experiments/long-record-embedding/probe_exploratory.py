@@ -36,6 +36,21 @@ def main() -> None:
         out[f"{s}: hybrid@10 hit, text@10 miss"] = sum(bool(r["hybrid@10"] and not r["text@10"]) for r in v)
         out[f"{s}: text@10 hit, hybrid@10 miss"] = sum(bool(r["text@10"] and not r["hybrid@10"]) for r in v)
         out[f"{s}: vector@10 hit, text@10 miss"] = sum(bool(r["vector@10"] and not r["text@10"]) for r in v)
+    by_type: dict = {}
+    for t in sorted({r["type"] for r in strata["B"] + strata["P"]}):
+        sub = {s: [r for r in v if r["type"] == t] for s, v in strata.items()}
+        if sub["B"] and sub["P"]:
+            by_type[t] = {
+                "nB": len(sub["B"]), "nP": len(sub["P"]),
+                "E(vector)@10": effect(sub, "vector", 10), "E(hybrid)@10": effect(sub, "hybrid", 10),
+            }
+    weights = {t: min(v["nB"], v["nP"]) for t, v in by_type.items()}
+    for arm in ("vector", "hybrid"):
+        out[f"E({arm})@10 within-type, min-n weighted"] = sum(
+            weights[t] * v[f"E({arm})@10"] for t, v in by_type.items()
+        ) / sum(weights.values())
+    out["by_type"] = by_type
+    out["mean_gold_sessions"] = {s: _mean([len(r["gold"]) for r in v]) for s, v in strata.items()}
     out["types"] = {f"{s}/{t}": n for (s, t), n in sorted(Counter((r["stratum"], r["type"]) for r in rows if r["stratum"] in "BP").items())}
     (RESULTS / "probe_exploratory.json").write_text(json.dumps(out, indent=2) + "\n")
     print(json.dumps(out, indent=2))

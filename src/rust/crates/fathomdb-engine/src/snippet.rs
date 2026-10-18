@@ -248,11 +248,15 @@ impl Text<'_> {
         best.map(|(choice, _)| choice)
     }
 
-    /// Places the chosen window: from the first counted span, `width` bytes.
+    /// Rule 5: centres a window of `width` bytes on the chosen spans,
+    /// clamped to the body, on grapheme boundaries.
     fn place(&self, spans: &[Span], choice: &Choice, width: usize) -> (usize, usize) {
-        let start = spans[choice.first].start;
+        let (first_s, last_e) = (spans[choice.first].start, spans[choice.last].end);
+        let slack = width - (last_e - first_s);
+        let centred = first_s.saturating_sub(slack / 2).min(self.body.len().saturating_sub(width));
+        let start = self.graphemes.at_or_after(centred).min(first_s);
         let end = self.graphemes.at_or_before((start + width).min(self.body.len()));
-        debug_assert!(spans[choice.last].end <= end);
+        debug_assert!(last_e <= end);
         (start, end)
     }
 

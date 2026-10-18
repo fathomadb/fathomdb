@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
 use fathomdb_sdk::{read, Engine, OpenOptions};
-use tokio::sync::{watch, Notify};
+use tokio::sync::{watch, Notify, OwnedSemaphorePermit, Semaphore};
 
 use crate::config::Config;
 use crate::error::ToolError;
@@ -69,6 +69,9 @@ struct Slot {
     engine: Option<Arc<Engine>>,
     info: Option<Arc<OpenInfo>>,
     in_flight: Arc<AtomicUsize>,
+    /// `admission_cap` permits, handed out in request order. Kept across
+    /// reopens, so waiters survive a drain.
+    permits: Arc<Semaphore>,
     idle: Arc<Notify>,
     last_used: LastUsed,
     last_error: Option<ToolError>,
@@ -76,7 +79,7 @@ struct Slot {
 }
 
 impl Slot {
-    fn new(source: Source) -> Self {
+    fn new(source: Source, cap: usize) -> Self {
         Self {
             source,
             phase: Phase::Closed,
@@ -85,6 +88,7 @@ impl Slot {
             engine: None,
             info: None,
             in_flight: Arc::new(AtomicUsize::new(0)),
+            permits: Arc::new(Semaphore::new(cap)),
             idle: Arc::new(Notify::new()),
             last_used: LastUsed::default(),
             last_error: None,
@@ -153,6 +157,7 @@ pub(crate) struct StoreGuard {
     in_flight: Arc<AtomicUsize>,
     idle: Arc<Notify>,
     last_used: LastUsed,
+    _permit: OwnedSemaphorePermit,
 }
 
 impl Drop for StoreGuard {
@@ -164,6 +169,12 @@ impl Drop for StoreGuard {
             self.idle.notify_waiters();
         }
     }
+}
+
+/// What `acquire` does after one look at the slot under the mutex.
+enum Next {
+    Admit { permits: Arc<Semaphore>, epoch: u64, changed: watch::Receiver<u64> },
+    Wait(watch::Receiver<u64>, Phase),
 }
 
 /// Why a host engine could not be registered.
@@ -195,6 +206,10 @@ impl Registry {
         })
     }
 
+    fn cap(&self) -> usize {
+        self.config.admission_cap as usize
+    }
+
     fn lock(&self) -> MutexGuard<'_, Inner> {
         self.inner.lock().unwrap_or_else(|poison| poison.into_inner())
     }
@@ -220,7 +235,7 @@ impl Registry {
             if inner.slots.contains_key(name) || self.config.stores.contains_key(name) {
                 return Err(RegisterError::Duplicate);
             }
-            let mut slot = Slot::new(Source::Hosted);
+            let mut slot = Slot::new(Source::Hosted, self.cap());
             slot.phase = Phase::Opening;
             inner.slots.insert(name.to_string(), slot);
         }
@@ -248,8 +263,12 @@ impl Registry {
         match self.config.resolve(name) {
             Ok(resolution) => {
                 let mut inner = self.lock();
+                let cap = self.cap();
                 inner.slots.entry(name.to_string()).or_insert_with(|| {
-                    Slot::new(Source::Managed { path: resolution.path, create: resolution.create })
+                    Slot::new(
+                        Source::Managed { path: resolution.path, create: resolution.create },
+                        cap,
+                    )
                 });
                 Ok(())
             }
@@ -313,14 +332,16 @@ impl Registry {
 
     /// Admit one call on `name`.
     ///
-    /// A ready store admits the call unless it is at its admission cap. A
-    /// closed store starts opening (draining the least recently used idle
-    /// store when the open limit is reached). A call with a deadline in
+    /// A ready store admits the call when a permit is free; otherwise the
+    /// call waits for one, in arrival order, until `wait_until`. A closed
+    /// store starts opening (draining the least recently used idle store
+    /// when the open limit is reached). A call with a deadline in
     /// `wait_until` waits for the open until then, reporting progress when
     /// `progress` is given, and returns `not_ready` with the phase at the
-    /// deadline. Without a deadline (internal callers only) it returns
-    /// `not_ready` at once, or the error the previous open recorded while the
-    /// retry starts (MR-003.2, MR-006.6).
+    /// deadline. Without a deadline (internal callers only) it never waits:
+    /// it returns `busy` when no permit is free, `not_ready` at once on a
+    /// store that is not ready, or the error the previous open recorded
+    /// while the retry starts (MR-003.2, MR-006.6).
     pub(crate) async fn acquire(
         &self,
         name: &str,
@@ -328,33 +349,21 @@ impl Registry {
         progress: Option<&ProgressFn>,
     ) -> Result<StoreGuard, ToolError> {
         self.ensure_slot(name)?;
-        let cap = self.config.admission_cap as usize;
         let mut waited_attempt: Option<u64> = None;
         let mut ticks = 0_u32;
         loop {
-            let (mut changed, phase) = {
+            let next = {
                 let mut inner = self.lock();
                 if inner.shutting_down {
                     return Err(ToolError::not_ready(name, "draining"));
                 }
                 let slot = inner.slots.get_mut(name).expect("slot exists after ensure_slot");
                 match slot.phase {
-                    Phase::Ready => {
-                        if slot.in_flight.load(Ordering::SeqCst) >= cap {
-                            return Err(ToolError::busy(name));
-                        }
-                        slot.in_flight.fetch_add(1, Ordering::SeqCst);
-                        slot.last_used.touch();
-                        return Ok(StoreGuard {
-                            name: name.to_string(),
-                            epoch: slot.epoch,
-                            engine: slot.engine.clone().expect("ready slots hold an engine"),
-                            info: slot.info.clone().expect("ready slots hold open info"),
-                            in_flight: slot.in_flight.clone(),
-                            idle: slot.idle.clone(),
-                            last_used: slot.last_used.clone(),
-                        });
-                    }
+                    Phase::Ready => Next::Admit {
+                        permits: slot.permits.clone(),
+                        epoch: slot.epoch,
+                        changed: slot.changed.subscribe(),
+                    },
                     Phase::Closed => {
                         if let (Some(attempt), Some(error)) = (waited_attempt, &slot.last_error) {
                             if slot.attempt == attempt {
@@ -370,7 +379,7 @@ impl Registry {
                             }));
                         }
                         waited_attempt = Some(slot.attempt);
-                        (slot.changed.subscribe(), slot.phase)
+                        Next::Wait(slot.changed.subscribe(), slot.phase)
                     }
                     phase @ (Phase::Opening | Phase::Reopening | Phase::Draining) => {
                         if wait_until.is_none() {
@@ -379,9 +388,18 @@ impl Registry {
                         if phase != Phase::Draining {
                             waited_attempt = Some(slot.attempt);
                         }
-                        (slot.changed.subscribe(), phase)
+                        Next::Wait(slot.changed.subscribe(), phase)
                     }
                 }
+            };
+            let (mut changed, phase) = match next {
+                Next::Admit { permits, epoch, changed } => {
+                    match self.admit(name, permits, epoch, changed, wait_until).await? {
+                        Some(guard) => return Ok(guard),
+                        None => continue,
+                    }
+                }
+                Next::Wait(changed, phase) => (changed, phase),
             };
             let deadline = wait_until.expect("only waiting calls reach here");
             let now = Instant::now();
@@ -395,6 +413,64 @@ impl Registry {
             let step = (deadline - now).min(Duration::from_secs(1));
             let _ = tokio::time::timeout(step, changed.changed()).await;
         }
+    }
+
+    /// Wait for a permit of a ready store. `None` means the store left
+    /// `Ready` (or reopened) meanwhile, and the caller goes back to the open
+    /// wait.
+    async fn admit(
+        &self,
+        name: &str,
+        permits: Arc<Semaphore>,
+        epoch: u64,
+        mut changed: watch::Receiver<u64>,
+        wait_until: Option<Instant>,
+    ) -> Result<Option<StoreGuard>, ToolError> {
+        let permit = match wait_until {
+            None => permits.try_acquire_owned().map_err(|_| ToolError::busy(name))?,
+            Some(deadline) => {
+                // Pinned once: dropping the acquire future would lose the
+                // call's place in the queue.
+                let acquire = permits.acquire_owned();
+                tokio::pin!(acquire);
+                let expired = tokio::time::sleep_until(deadline.into());
+                tokio::pin!(expired);
+                loop {
+                    tokio::select! {
+                        biased;
+                        permit = &mut acquire => {
+                            break permit.expect("admission semaphores are never closed");
+                        }
+                        () = &mut expired => return Err(ToolError::busy(name)),
+                        _ = changed.changed() => {
+                            if self.ready_epoch(name) != Some(epoch) {
+                                return Ok(None);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        let mut inner = self.lock();
+        if inner.shutting_down {
+            return Err(ToolError::not_ready(name, "draining"));
+        }
+        let slot = inner.slots.get_mut(name).expect("slot exists after ensure_slot");
+        if slot.phase != Phase::Ready || slot.epoch != epoch {
+            return Ok(None);
+        }
+        slot.in_flight.fetch_add(1, Ordering::SeqCst);
+        slot.last_used.touch();
+        Ok(Some(StoreGuard {
+            name: name.to_string(),
+            epoch: slot.epoch,
+            engine: slot.engine.clone().expect("ready slots hold an engine"),
+            info: slot.info.clone().expect("ready slots hold open info"),
+            in_flight: slot.in_flight.clone(),
+            idle: slot.idle.clone(),
+            last_used: slot.last_used.clone(),
+            _permit: permit,
+        }))
     }
 
     fn start_open_locked(&self, inner: &mut Inner, name: &str) -> Result<(), ToolError> {

@@ -1025,7 +1025,7 @@ engine.searchTextOnly(query, options?): Promise<SearchResult>
 ```
 
 `options` is `SearchOptions`: the exported `ReadView` shape plus optional
-`limit`. It keeps the same validity fields `read.get` / `read.list` /
+`limit` and `snippet` (§ "Match-centred snippets (EP-17)"). It keeps the same validity fields `read.get` / `read.list` /
 `graph.neighbors` accept (`camelCase` here, `snake_case` in Python).
 
 - Omitted / `undefined` is the STRICT view: active-only, non-superseded, and
@@ -1093,6 +1093,46 @@ named declared `"searchable"` property-FTS projection, applying metadata,
 validity, and attribute filters. It does not body-scan, invoke vectors, or fuse;
 hits are text branch with no soft fallback or explanation.
 
+## Match-centred snippets (EP-17)
+
+The TypeScript peer of `dev/interfaces/rust.md` § "Match-centred snippet
+selector" and § "Match-centred snippets on search". Selection, anchors,
+point-query caps and frozen-read behaviour are the engine's and are not
+restated here.
+
+```ts
+engine.search(query, filter?, ..., explain?, { snippet?: SnippetOptions, ... })
+engine.searchTextOnly(query, { snippet?: SnippetOptions, ... })
+engine.searchFrozen(query, context, { snippet?: SnippetOptions, ... })
+snippetFor(body, spans, options?): SnippetV1
+```
+
+- `SnippetOptions { maxBytes?, maxWindows?, headBytes?, highlights?,
+  maxPointQueries? }`. An omitted field takes the Rust default (300, 1, 0,
+  false, 20). A snippet that is not an object, a non-integer number, or a
+  non-boolean `highlights` throws `TypeError`. An unknown key, or a value out
+  of its range (`maxBytes` 40..=4000, `maxWindows` 1..=3, `headBytes`
+  0..=`maxBytes / 2`, `maxPointQueries` 0..=255), rejects with
+  `InvalidArgumentError`.
+- With `snippet` set, `SearchResult.snippets?: SnippetV1[]` holds one snippet
+  per hit in `results` order. Otherwise the key is absent, as with
+  `degradations`, and every other field is unchanged. Snippet options are
+  presentation, so they are not part of a frozen context.
+  `searchProjectedText` refuses `snippet` with `InvalidArgumentError`.
+- `SnippetV1 { text, anchor, windows, spans, highlights, cut }`. `anchor` is the
+  `SnippetAnchor` `"whole" | "match" | "start"`. The three range lists are
+  `[number, number][]` of **UTF-8 byte** offsets, not UTF-16 string indices.
+  `windows` and `spans` index the record body, and `highlights` index `text`.
+- `snippetFor` is the synchronous pure selector. It needs no engine and does
+  not throw for well-typed arguments: spans that do not lie on the body's
+  characters, or that are not safe integers, are ignored, and option values
+  are clamped into range. It throws `TypeError` for a non-string body, a span
+  that is not a pair of integers, or a mistyped option, and
+  `InvalidArgumentError` for an unknown option key. Like `embedBatchCls`, it is
+  a package helper outside the governed-operation map.
+- `src/conformance/snippet-for-parity.json` is the shared fixture. TypeScript,
+  Python and the Rust selector must return the same `SnippetV1` for each case.
+
 ## Non-presence
 
 TypeScript does not expose recovery verbs or doctor-only flags. In particular,
@@ -1108,6 +1148,9 @@ token must be echoed to `engine.searchFrozen` or
 `engine.searchExpandFrozen`. Refusals surface as `FrozenReadError` with stable
 `reason` and `fieldPath`. Frozen search options can affect ranking and result
 count only; they cannot weaken the authenticated view or eligibility.
+
+`FrozenSearchOptions.snippet` fills `SearchResult.snippets` (EP-17) and does
+not enter the frozen context.
 
 With `{ explain: true }`, `engine.searchFrozen` returns a validated explanation
 with a nonempty Engine correlation identity. Explanation-disabled frozen calls

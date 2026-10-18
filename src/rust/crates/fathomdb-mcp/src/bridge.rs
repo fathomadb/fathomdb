@@ -1,13 +1,14 @@
 //! Engine bridge (design §6): runs one SDK closure on a blocking thread,
-//! raced against the call deadline, and maps its failures to tool errors.
+//! raced against the run limit measured from the call's admission permit,
+//! and maps its failures to tool errors.
 //!
-//! SDK calls have no interrupt, so a timed-out call is abandoned, not
-//! cancelled: its closure keeps the store guard until the blocking thread
+//! SDK calls have no interrupt, so a call past its run limit is abandoned,
+//! not cancelled: its closure keeps the store guard until the blocking thread
 //! returns, which is how admission (MR-033.2) and the idle clock (MR-005.4)
 //! keep counting it.
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::Duration;
 
 use fathomdb_sdk::Engine;
 
@@ -25,7 +26,7 @@ pub(crate) struct Answered {
 
 pub(crate) async fn call<T, F>(
     guard: StoreGuard,
-    deadline: Instant,
+    run_limit: Duration,
     hooks: &Hooks,
     f: F,
 ) -> Result<(Answered, T), ToolError>
@@ -36,13 +37,16 @@ where
     let answered =
         Answered { store: guard.name.clone(), epoch: guard.epoch, info: guard.info.clone() };
     let abandoner = guard.abandoner();
+    // A started call runs to completion; the run limit, from its permit,
+    // only reports stuck work.
+    let run_until = guard.admitted_at() + run_limit;
     let hooks = hooks.clone();
     let task = tokio::task::spawn_blocking(move || {
         let guard = guard;
         hooks.before_call(&guard.name);
         f(&guard.engine)
     });
-    match tokio::time::timeout_at(deadline.into(), task).await {
+    match tokio::time::timeout_at(run_until.into(), task).await {
         Err(_) => {
             if abandoner.abandon() {
                 let load = abandoner.busy(BusyReason::Deadline);

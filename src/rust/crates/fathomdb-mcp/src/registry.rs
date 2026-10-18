@@ -377,6 +377,11 @@ const DONE: u8 = 1;
 const ABANDONED: u8 = 2;
 
 impl StoreGuard {
+    /// When the call got its admission permit.
+    pub(crate) fn admitted_at(&self) -> Instant {
+        self.started
+    }
+
     /// A handle that marks this call abandoned after the guard has moved
     /// into the blocking closure.
     pub(crate) fn abandoner(&self) -> Abandoner {

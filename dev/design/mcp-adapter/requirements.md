@@ -569,7 +569,9 @@ Meets AN-009.
   With hints off, every output is byte-identical to the output without
   hints.
 - MR-072.7 Budget: hints count against `max_tokens` (MR-041.1 holds with
-  them); a page may keep fewer results, but never none because of hints.
+  them). A `search` page may keep fewer results, but never none because of
+  hints. A `fetch` whose items fit only without the `body_cut` hint is still
+  refused, as when they cannot fit at all.
 
 ## First-release scope
 

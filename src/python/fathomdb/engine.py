@@ -305,6 +305,7 @@ class Engine:
         explain: bool = False,
         view: ReadView | None = None,
         limit: int = 10,
+        snippet: SnippetOptions | None = None,
     ) -> SearchResult:
         """Hybrid search with optional CE reranking and optional graph-BFS arm.
 
@@ -339,6 +340,9 @@ class Engine:
                 silently ignored: search hydrates from projection indexes that
                 are not version-complete, so they have no truthful answer.
                 Use ``read.list`` to enumerate history.
+            snippet: EP-17 ``SnippetOptions``. When set, ``SearchResult.snippets``
+                holds one match-centred ``SnippetV1`` per hit; ``None``
+                (default) leaves it ``None`` and the result unchanged.
 
         Returns:
             ``SearchResult`` with RRF-fused (and optionally CE-reranked) hits.
@@ -356,6 +360,7 @@ class Engine:
             explain=explain,
             view=view,
             limit=limit,
+            snippet=snippet,
         )
 
     def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1:

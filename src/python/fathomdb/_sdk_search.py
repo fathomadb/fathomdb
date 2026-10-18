@@ -425,6 +425,7 @@ def search(
     explain: bool = False,
     view: ReadView | None = None,
     limit: int = 10,
+    snippet: SnippetOptions | None = None,
 ) -> SearchResult:
     # FIX-3: reject bool and non-int before the negative check.
     # bool is a subclass of int in Python so it passes isinstance(x, int);
@@ -473,6 +474,7 @@ def search(
             explain=explain,
             view=native_view,
             limit=limit,
+            snippet=snippet,
         )
     else:
         result = self._native.search(
@@ -489,6 +491,7 @@ def search(
             explain=explain,
             view=native_view,
             limit=limit,
+            snippet=snippet,
         )
     fallback = result.soft_fallback
     soft = (
@@ -520,6 +523,7 @@ def search(
             for hit in result.results
         ],
         explanation=explanation,
+        snippets=_map_native_snippets(result),
     )
 
 

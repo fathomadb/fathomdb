@@ -409,7 +409,8 @@ impl PyEngine {
     #[pyo3(
         signature = (query, source_type=None, kind=None, created_after=None,
                      status=None, rerank_depth=0, use_graph_arm=false,
-                     alpha=None, pool_n=None, explain=false, attributes=None, view=None, limit=10)
+                     alpha=None, pool_n=None, explain=false, attributes=None, view=None, limit=10,
+                     snippet=None)
     )]
     fn search(
         &self,
@@ -445,6 +446,8 @@ impl PyEngine {
         // `Engine::search_view`.
         view: Option<&PyReadView>,
         limit: usize,
+        // EP-17 — a `fathomdb.SnippetOptions`; fills `SearchResult.snippets`.
+        snippet: Option<PySnippetOptionsArg>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         // G10 filter strings cross the FFI exactly like `query` and the write
@@ -493,13 +496,14 @@ impl PyEngine {
         let pool_n = pool_n.unwrap_or(rerank_depth);
         // Resolved BEFORE the GIL is released, exactly as the read verbs do.
         let view = read_view_or_default(view);
+        let snippet = snippet.map(|options| options.to_rust());
         // 0.8.8 EXP-OBS: `explain=True` routes to `search_explained` (same retrieval,
         // plus the sidecar); `explain=False` (default) stays on `search_reranked`.
         // fix-2: ONE call now that the view rides the full-arity entry point —
         // `explain` is a parameter of it, so the explain/non-explain split no
         // longer duplicates the argument list (and cannot drift on `view`).
         let result = call_engine(py, move || {
-            engine.search_reranked_view_with_limit(
+            engine.search_reranked_view_with_snippets(
                 &query,
                 filter,
                 rerank_depth,
@@ -509,6 +513,7 @@ impl PyEngine {
                 explain,
                 &view,
                 limit,
+                snippet.as_ref(),
             )
         })?;
         Ok(PySearchResult::from_rust(result))

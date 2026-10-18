@@ -547,6 +547,8 @@ class Engine:
         # than being silently ignored. See `fathomdb.engine.Engine.search`.
         view: ReadView | None = ...,
         limit: int = ...,
+        # EP-17: a `fathomdb.SnippetOptions` (read by attribute).
+        snippet: object | None = ...,
     ) -> SearchResult: ...
     def search_projected_text(
         self,

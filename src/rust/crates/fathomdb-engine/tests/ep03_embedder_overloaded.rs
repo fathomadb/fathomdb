@@ -151,7 +151,7 @@ fn a_saturated_embed_queue_is_reported_as_embedder_overloaded() {
         assert!(healthy.degradations.is_empty(), "served embeds report nothing");
     }
     assert_text_only_with_overload(&result);
-    Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
+    Arc::try_unwrap(engine).unwrap_or_else(|_| panic!("sole owner")).close().expect("close");
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn a_queued_embed_request_past_its_deadline_is_reported_as_embedder_overloaded()
         "a started-then-timed-out embed is not embedder_overloaded"
     );
     assert_text_only_with_overload(&result);
-    Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
+    Arc::try_unwrap(engine).unwrap_or_else(|_| panic!("sole owner")).close().expect("close");
 }
 
 fn digest(body: &str) -> String {
@@ -300,7 +300,7 @@ fn a_frozen_search_reports_embedder_overloaded() {
         .search_frozen(QUERY, &frozen, 0, false, 0.3, 0, false, 10)
         .expect("healthy frozen search");
     assert!(healthy.degradations.is_empty(), "a served frozen embed reports nothing");
-    Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
+    Arc::try_unwrap(engine).unwrap_or_else(|_| panic!("sole owner")).close().expect("close");
 }
 
 #[test]
@@ -327,5 +327,5 @@ fn search_expand_reports_embedder_overloaded() {
 
     let healthy = engine.search_expand(QUERY, None, 1).expect("healthy search_expand");
     assert!(healthy.degradations.is_empty(), "a served embed reports nothing");
-    Arc::try_unwrap(engine).ok().expect("sole owner").close().expect("close");
+    Arc::try_unwrap(engine).unwrap_or_else(|_| panic!("sole owner")).close().expect("close");
 }

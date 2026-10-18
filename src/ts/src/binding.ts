@@ -794,6 +794,7 @@ export interface NativeEngine {
     poolN?: number,
     explain?: boolean,
     limit?: number,
+    snippet?: NativeSnippetOptions,
   ): Promise<NativeSearchResult>;
   searchWithEvidence(
     query: string,

@@ -328,7 +328,9 @@ impl Engine {
             .map_err(|_| typed_error(CODE_DEPENDENCY_TRACE, "trace codec failure", JsonValue::Null))
     }
 
-    /// Search under a frozen validity and eligibility context.
+    /// Search under a frozen validity and eligibility context. `snippet`
+    /// (EP-17) is presentation: it fills `SearchResult.snippets` and is not
+    /// part of the frozen context.
     #[napi]
     #[allow(clippy::too_many_arguments)]
     pub async fn search_frozen(
@@ -341,6 +343,7 @@ impl Engine {
         pool_n: Option<i64>,
         explain: Option<bool>,
         limit: Option<i64>,
+        snippet: Option<SnippetOptionsInput>,
     ) -> Result<SearchResult> {
         let context = frozen_context_to_rust(context)?;
         let depth = usize::try_from(rerank_depth.unwrap_or(0)).unwrap_or(usize::MAX);
@@ -350,9 +353,20 @@ impl Engine {
             pool_n.map(|value| usize::try_from(value).unwrap_or(usize::MAX)).unwrap_or(depth);
         let explain = explain.unwrap_or(false);
         let limit = usize::try_from(limit.unwrap_or(10)).unwrap_or(usize::MAX);
+        let snippet = snippet.map(|options| options.to_rust());
         let engine = Arc::clone(&self.inner);
         let result = call_engine(move || {
-            engine.search_frozen(&query, &context, depth, graph_arm, alpha, pool_n, explain, limit)
+            engine.search_frozen_with_snippets(
+                &query,
+                &context,
+                depth,
+                graph_arm,
+                alpha,
+                pool_n,
+                explain,
+                limit,
+                snippet.as_ref(),
+            )
         })
         .await?;
         Ok(SearchResult::from_rust(result))

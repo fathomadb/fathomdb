@@ -158,7 +158,10 @@ export interface FrozenReadContextV1 {
   token: string;
 }
 
-/** Per-call ranked-search controls that cannot weaken a frozen context. */
+/**
+ * Per-call ranked-search controls that cannot weaken a frozen context.
+ * `snippet` (EP-17) is presentation, not part of the frozen context.
+ */
 export interface FrozenSearchOptions {
   rerankDepth?: number;
   useGraphArm?: boolean;
@@ -166,6 +169,7 @@ export interface FrozenSearchOptions {
   poolN?: number;
   explain?: boolean;
   limit?: number;
+  snippet?: SnippetOptions;
 }
 
 /**
@@ -737,7 +741,7 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
     );
     assertKnownKeys(
       options,
-      ["rerankDepth", "useGraphArm", "alpha", "poolN", "explain", "limit"],
+      ["rerankDepth", "useGraphArm", "alpha", "poolN", "explain", "limit", "snippet"],
       "FrozenSearchOptions",
     );
     if (options.rerankDepth !== undefined) {
@@ -781,6 +785,7 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
         options.poolN,
         options.explain,
         options.limit,
+        options.snippet,
       ),
     );
     return mapNativeSearchResult(result);

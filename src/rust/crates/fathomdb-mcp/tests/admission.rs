@@ -976,3 +976,40 @@ async fn stuck_is_reported_when_every_permit_is_abandoned() {
     seams.release_calls("a");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_cancel_of_a_running_call_abandons_it() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 600, "run_limit_ms": 10000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let mut raw = common::RawClient::connect(&harness.adapter).await;
+    let running =
+        raw.send_request("tools/call", json!({"name": "search", "arguments": search_a()})).await;
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    // rmcp drops the cancelled call's response, so its effect is read from
+    // another call's busy object: abandoned until its thread returns.
+    raw.cancel(running).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 1, "{probe}");
+    assert_eq!(probe["busy"]["in_flight"], 1, "the read still holds its permit: {probe}");
+
+    seams.release_calls("a");
+    let found = harness.ok("search", search_a()).await;
+    assert_eq!(found["results"][0]["ref"], "l:note:a");
+    seams.block_calls("a");
+    let held = spawn_call(&harness, "search", search_a());
+    wait_for("a new call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1).await;
+    let probe = harness.err("search", search_a()).await;
+    assert_eq!(probe["busy"]["abandoned"], 0, "released when the thread returned: {probe}");
+    seams.release_calls("a");
+    let _ = held.await.unwrap();
+    harness.shutdown().await;
+}

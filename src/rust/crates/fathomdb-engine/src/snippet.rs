@@ -58,6 +58,29 @@ impl SnippetOptions {
     ///
     /// [`EngineError::InvalidArgument`] naming the first field out of range.
     pub fn validate(&self) -> Result<(), EngineError> {
+        let invalid = |msg: String| Err(EngineError::InvalidArgument { msg });
+        if !(Self::MIN_BYTES..=Self::MAX_BYTES).contains(&self.max_bytes) {
+            return invalid(format!(
+                "snippet max_bytes must be in {}..={}, got {}",
+                Self::MIN_BYTES,
+                Self::MAX_BYTES,
+                self.max_bytes
+            ));
+        }
+        if !(1..=Self::MAX_WINDOWS).contains(&self.max_windows) {
+            return invalid(format!(
+                "snippet max_windows must be in 1..={}, got {}",
+                Self::MAX_WINDOWS,
+                self.max_windows
+            ));
+        }
+        if self.head_bytes > self.max_bytes / 2 {
+            return invalid(format!(
+                "snippet head_bytes must be in 0..={} (max_bytes / 2), got {}",
+                self.max_bytes / 2,
+                self.head_bytes
+            ));
+        }
         Ok(())
     }
 }

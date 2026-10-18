@@ -540,11 +540,13 @@ impl Engine {
         // mirrors the write path: identity must be MC-required AND a
         // mean_vec must be pinned. NoopEmbedder collapses to
         // `query_vector_bin == query_vector` until EU-5b.
+        let mut degradations = Vec::new();
         let raw_query_vector = (!is_frozen)
-            .then(|| match dispatch_embed_vector(&self.embed_dispatch, query) {
-                Ok(vector) => Some(vector),
-                Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
-                Err(_) => None,
+            .then(|| {
+                query_vector_or_degradation(
+                    dispatch_embed_vector(&self.embed_dispatch, query),
+                    &mut degradations,
+                )
             })
             .flatten();
         let query_vector_bin = match raw_query_vector.as_ref() {
@@ -670,7 +672,7 @@ impl Engine {
                 soft_fallback,
                 results,
                 explanation,
-                degradations: Vec::new(),
+                degradations,
             },
             graph_stats,
             expanded,
@@ -1393,8 +1395,8 @@ use crate::search::{bm25f_search_inner, FrozenQueryRuntime, SearchReaderError, S
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::search_types::SEARCH_RERANK_LIMIT;
 use crate::search_types::{
-    validate_search_result_limit, Bm25fQueryPlan, GraphFrontierStats, SearchResult,
-    DEFAULT_SEARCH_RESULT_LIMIT,
+    validate_search_result_limit, ArmDegradation, Bm25fQueryPlan, DegradationReason,
+    GraphFrontierStats, SearchResult, SoftFallbackBranch, DEFAULT_SEARCH_RESULT_LIMIT,
 };
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
@@ -1525,4 +1527,26 @@ pub fn take_slice71_search_statement_trace_for_test() -> Vec<String> {
         .lock()
         .map(|mut trace| std::mem::take(&mut *trace))
         .unwrap_or_default()
+}
+
+/// The query vector, or `None` with the reason recorded when the embedding was
+/// refused for a reason the search reports instead of failing on. Errors other
+/// than queue overload keep today's silent text-only behaviour; a provider panic
+/// resumes on the caller.
+pub(crate) fn query_vector_or_degradation(
+    embedded: Result<Vec<f32>, DispatchError>,
+    degradations: &mut Vec<ArmDegradation>,
+) -> Option<Vec<f32>> {
+    match embedded {
+        Ok(vector) => Some(vector),
+        Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+        Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
+            degradations.push(ArmDegradation::new(
+                SoftFallbackBranch::Vector,
+                DegradationReason::EmbedderOverloaded,
+            ));
+            None
+        }
+        Err(_) => None,
+    }
 }

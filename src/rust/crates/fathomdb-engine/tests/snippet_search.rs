@@ -144,3 +144,64 @@ fn sidecar_is_some_when_requested() {
     }
     assert!(text(s.engine(), "pear", 10, None).snippets.is_none());
 }
+
+// § 7.2: out-of-range snippet options are InvalidArgument on every entry
+// point that takes them.
+#[test]
+fn entry_points_reject_invalid_snippet_options() {
+    let _guard = lock();
+    let s = store(&["a short pear note"]);
+    let bad = SnippetOptions { max_bytes: 39, ..SnippetOptions::default() };
+    let context = s
+        .engine()
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
+        )
+        .expect("freeze");
+    let results = [
+        (
+            "text",
+            s.engine().search_text_only_view_with_snippets(
+                "pear",
+                &ReadView::default(),
+                10,
+                Some(&bad),
+            ),
+        ),
+        (
+            "hybrid",
+            s.engine().search_reranked_view_with_snippets(
+                "pear",
+                None,
+                0,
+                false,
+                0.3,
+                0,
+                false,
+                &ReadView::default(),
+                10,
+                Some(&bad),
+            ),
+        ),
+        (
+            "frozen",
+            s.engine().search_frozen_with_snippets(
+                "pear",
+                &context,
+                0,
+                false,
+                0.3,
+                0,
+                false,
+                10,
+                Some(&bad),
+            ),
+        ),
+    ];
+    for (path, result) in results {
+        assert!(
+            matches!(result, Err(fathomdb_engine::EngineError::InvalidArgument { .. })),
+            "{path}: {result:?}"
+        );
+    }
+}

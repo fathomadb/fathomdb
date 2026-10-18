@@ -535,6 +535,12 @@ mod degradation_tests {
 
     /// One real overloaded hybrid search and one healthy one, from a real store.
     fn overloaded_and_healthy_results() -> (RustSearchResult, RustSearchResult) {
+        overloaded_and_healthy(|engine| engine.search("pyep03needle").unwrap())
+    }
+
+    /// Runs `op` once while the only provider worker is held (its query
+    /// embedding expires in the queue) and once on a healthy dispatcher.
+    fn overloaded_and_healthy<T>(op: fn(&fathomdb_engine::Engine) -> T) -> (T, T) {
         let dir = tempfile::TempDir::new().unwrap();
         let path = dir.path().join(format!("py_ep03{}", fathomdb_schema::SQLITE_SUFFIX));
         let gate = Arc::new(Gate::default());
@@ -574,11 +580,11 @@ mod degradation_tests {
             assert!(Instant::now() < deadline, "the held embed never started");
             std::thread::sleep(Duration::from_millis(2));
         }
-        let overloaded = engine.search("pyep03needle").unwrap();
+        let overloaded = op(&engine);
         *gate.closed.lock().unwrap() = false;
         gate.changed.notify_all();
         let _ = holder.join().unwrap();
-        let healthy = engine.search("pyep03needle").unwrap();
+        let healthy = op(&engine);
         Arc::try_unwrap(engine).ok().unwrap().close().unwrap();
         (overloaded, healthy)
     }
@@ -594,5 +600,19 @@ mod degradation_tests {
             .map(|entries| entries.into_iter().map(|entry| (entry.arm, entry.reason)).collect());
         assert_eq!(words, Some(vec![("vector".to_string(), "embedder_overloaded".to_string())]));
         assert!(PySearchResult::from_rust(healthy).degradations.is_none());
+    }
+
+    #[test]
+    fn search_expand_result_reports_embedder_overloaded() {
+        let (overloaded, healthy) =
+            overloaded_and_healthy(|engine| engine.search_expand("pyep03needle", None, 1).unwrap());
+        assert_eq!(overloaded.degradations.len(), 1, "precondition: a real overloaded result");
+
+        let converted = PySearchExpandResult::from_rust(overloaded);
+        let words: Option<Vec<(String, String)>> = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|entry| (entry.arm, entry.reason)).collect());
+        assert_eq!(words, Some(vec![("vector".to_string(), "embedder_overloaded".to_string())]));
+        assert!(PySearchExpandResult::from_rust(healthy).degradations.is_none());
     }
 }

@@ -31,3 +31,22 @@ def test_python_search_result_reports_embedder_overloaded() -> None:
 def test_python_search_result_without_degradations_is_none() -> None:
     assert _map_native_search_result(_native(degradations=None)).degradations is None
     assert _map_native_search_result(_native()).degradations is None
+
+
+def _native_expand(**fields: object) -> SimpleNamespace:
+    return SimpleNamespace(search_hits=[], expanded=[], all_logical_ids=[], **fields)
+
+
+def test_python_search_expand_results_report_embedder_overloaded() -> None:
+    from fathomdb._sdk_graph import _map_native_search_expand_result
+    from fathomdb.graph import _to_search_expand_result
+
+    native = _native_expand(
+        degradations=[SimpleNamespace(arm="vector", reason="embedder_overloaded")]
+    )
+    expected = [ArmDegradation(arm="vector", reason="embedder_overloaded")]
+    assert _to_search_expand_result(native).degradations == expected
+    assert _map_native_search_expand_result(native).degradations == expected
+    for absent in (_native_expand(), _native_expand(degradations=None)):
+        assert _to_search_expand_result(absent).degradations is None
+        assert _map_native_search_expand_result(absent).degradations is None

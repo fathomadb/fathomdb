@@ -27,7 +27,7 @@ pub(super) struct PySearchExpandResult {
     all_logical_ids: Vec<String>,
     /// Requested search arms that did not run; `None` when every arm ran.
     #[pyo3(get)]
-    degradations: Option<Vec<PyArmDegradation>>,
+    pub(super) degradations: Option<Vec<PyArmDegradation>>,
 }
 
 impl PySearchExpandResult {

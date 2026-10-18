@@ -93,3 +93,32 @@ fn spans_are_widened_to_grapheme_boundaries() {
     let s = snippet_for(nfd, &[(3, 7), (7, 9)], &lit);
     assert_eq!(s.spans, vec![(3, 9)]);
 }
+
+// § 6.3 rule 2: no spans gives the prefix, cut back to a word boundary within
+// `max_bytes − len(" …")`, then `" …"`; a grapheme boundary when no word
+// boundary falls within 32 bytes.
+#[test]
+fn rule2_no_spans_gives_the_prefix_on_a_word_boundary() {
+    let body =
+        "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho";
+    let s = snippet_for(body, &[], &opts(62));
+    assert_eq!(s.text, "alpha beta gamma delta epsilon zeta eta theta iota kappa …");
+    assert_eq!(s.anchor, SnippetAnchor::Start);
+    assert_eq!(s.windows, vec![(0, 56)]);
+    assert!(s.spans.is_empty());
+    assert!(s.cut);
+    assert!(s.text.len() <= 62);
+
+    // Spans that are all invalid count as no spans.
+    let s = snippet_for(body, &[(5, 5), (80, 200), (90, 95)], &opts(62));
+    assert_eq!(s.anchor, SnippetAnchor::Start);
+    assert_eq!(s.windows, vec![(0, 56)]);
+
+    // One long UAX #29 word of NFD clusters (3 bytes each): no word boundary
+    // within 32 bytes of 56, so the edge falls back to the grapheme boundary 54.
+    let blob = "e\u{301}".repeat(40);
+    let s = snippet_for(&blob, &[], &opts(60));
+    assert_eq!(s.windows, vec![(0, 54)]);
+    assert_eq!(s.text, format!("{} …", "e\u{301}".repeat(18)));
+    assert!(s.cut);
+}

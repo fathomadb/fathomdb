@@ -13,7 +13,10 @@ from runner import run_jobs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CHECKS = {"p90": ("fifo_shed", ("pct", 90, 128, 0.0)), "p95": ("fifo_shed", ("pct", 95, 128, 0.0)),
-          "p99": ("fifo_shed", ("pct", 99, 128, 0.0)), "wait": ("fifo", ("pct", 90, 128, 0.0))}
+          "p99": ("fifo_shed", ("pct", 99, 128, 0.0)), "wait": ("fifo", ("pct", 90, 128, 0.0)),
+          # exploratory (preregistration addendum): need capped below the 10 s wait deadline, so a call that
+          # finds a free permit can always start and a late sample cannot lock its tool kind out
+          "p90cap": ("fifo_shed", ("pct", 90, 128, 0.0, 9.95))}
 
 
 def arms():
@@ -23,7 +26,9 @@ def arms():
     for chk in ("p90", "p95", "p99", "wait"):
         for rl in (30.0, 60.0, 120.0):
             yield f"rtc_{chk}_rl{int(rl)}", chk, rl, False
-    for chk in ("p90", "wait"):
+    for rl in (30.0, 60.0, 120.0):
+        yield f"rtc_p90cap_rl{int(rl)}", "p90cap", rl, False
+    for chk in ("p90", "wait", "p90cap"):
         for rl in (10.0, 30.0, 60.0):
             yield f"rtc_{chk}_ep09_rl{int(rl)}", chk, rl, True
 
@@ -38,7 +43,7 @@ def bands(n_real, n_scan):
             yield "stress", i, c
 
 
-def long_tail(cfg, i):
+def long_tail(cfg):
     """Same slow-read probability, magnitude 10-30 s: median log-uniform 10-30 s, sigma 0.25."""
     r = random.Random(500_000 + cfg.seed)
     return replace(cfg, slow_median=math.exp(r.uniform(math.log(10.0), math.log(30.0))), slow_sigma=0.25)
@@ -48,7 +53,7 @@ def jobs(n_real=500, n_scan=2000):
     for band, i, base in bands(n_real, n_scan):
         base = replace(base, queue_limit=32)
         for tail in ("base", "long"):
-            cfg0 = base if tail == "base" else long_tail(base, i)
+            cfg0 = base if tail == "base" else long_tail(base)
             for disp in ("P0", "P2"):
                 for arm, chk, rl, intr in arms():
                     adm, th = CHECKS[chk]

@@ -75,6 +75,12 @@ def test_lockups_are_configurations_refusing_more_than_1_percent_with_a_free_per
     assert ra.lockups(ix, "realistic", "base", "P2", "rtc_p90_rl60") == {"3", "7"}
 
 
+def test_lockups_count_arrival_refusals_only_when_recorded():
+    ix = synth({("base", "P2", "rtc_p90_rl60"): {"rf_with_permit": 0.05,
+                                                 "rf_arrival_free": lambda i: 0.02 if i == 4 else 0.0}})
+    assert ra.lockups(ix, "realistic", "base", "P2", "rtc_p90_rl60") == {"4"}
+
+
 def test_r2_picks_the_smallest_run_limit_meeting_both_tails():
     assert ra.r2(synth({("long", "P2", "rtc_wait_rl30"): {"timeout_rate": 0.001}}), "wait") == (60, True)
     ix = synth({("long", "P2", f"rtc_wait_rl{r}"): {"timeout_rate": 0.001} for r in (30, 60, 120)})

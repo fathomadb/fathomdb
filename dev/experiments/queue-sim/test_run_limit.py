@@ -187,3 +187,19 @@ def test_turn_failed_is_undefined_without_agent_turns():
     s = script_run([(0.0, *T())], cap=1, admission="fifo")
     m = s.metrics()
     assert m["turn_failed"] != m["turn_failed"]  # NaN: open and scripted arrivals have no turns
+
+
+# ---------------------------------------------------------------- review 2 (Fable): lock-up vs grant-time shed
+def test_a_lock_up_is_a_refusal_at_arrival_with_a_free_permit():
+    s = script_run(lockup_script(), cap=4, admission="fifo_shed", threshold=P90, run_limit=60.0)
+    assert s.metrics()["rf_arrival_free"] == pytest.approx(20 / 29)
+
+
+def test_a_grant_time_shed_is_not_a_lock_up():
+    # need is 0.1 s when w queues; the 9.5 s call completes at 11.5 s and lifts p90 to 9.5 s, so the permit
+    # it frees is refused to w (0.6 s left) at grant: a shed with a permit free, but not at arrival
+    sc = [(i * 0.2, *T(reader=0.1)) for i in range(8)] + [(2.0, *T(reader=9.5)), (2.1, *T(reader=0.1))]
+    s = script_run(sc, cap=1, admission="fifo_shed", threshold=P90, run_limit=60.0)
+    m = s.metrics()
+    assert s.calls[9].reason == "deadline" and s.calls[9].t_res == pytest.approx(11.5)
+    assert m["rf_with_permit"] == pytest.approx(1 / 10) and m["rf_arrival_free"] == 0.0

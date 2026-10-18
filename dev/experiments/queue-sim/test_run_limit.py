@@ -152,3 +152,18 @@ def test_hol_accrues_past_the_wait_deadline_under_run_to_completion():
     sc = [(0.0, *T(reader=40.0))] + [(0.1 * i, *T(reader=0.01)) for i in range(1, 9)]
     s = script_run(sc, cap=100, admission="refuse", dispatch="P0", run_limit=60.0)
     assert s.calls[8].outcome == "ok" and s.calls[8].hol == pytest.approx(39.2)
+
+
+# ---------------------------------------------------------------- review 2026-10-18 (Fable): start-check lock-up
+def lockup_script():
+    # 8 quick fetches train the window; one 20 s fetch completes late (a sample under run to completion), so
+    # p90 of 9 samples is 20 s, above the 10 s any new call has; then 20 fetches arrive with every permit free
+    sc = [(i * 0.1, *T("fetch", reader=0.01)) for i in range(8)] + [(1.0, *T("fetch", reader=20.0))]
+    return sc + [(30.0 + i, *T("fetch", reader=0.01)) for i in range(20)]
+
+
+def test_p90_capped_below_the_wait_deadline_starts_calls_that_find_a_free_permit():
+    s = script_run(lockup_script(), cap=4, admission="fifo_shed", threshold=("pct", 90, 128, 0.0, 9.95),
+                   run_limit=60.0)
+    assert s.need("fetch") == pytest.approx(9.95)
+    assert all(c.outcome == "ok" for c in s.calls[9:])

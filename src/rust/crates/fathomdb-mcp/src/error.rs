@@ -143,6 +143,17 @@ impl ToolError {
         )
     }
 
+    pub(crate) fn vector_disabled() -> Self {
+        Self::new(
+            ErrorClass::NotReady,
+            "vector_disabled",
+            "the dense side of this store is disabled: its embedder failed the open-time \
+             vector-equivalence check"
+                .to_string(),
+            "use mode \"text\", or ask the operator to check the store's embedder",
+        )
+    }
+
     pub(crate) fn missing_file(store: &str) -> Self {
         Self::new(
             ErrorClass::Unavailable,
@@ -238,6 +249,7 @@ impl ToolError {
             ErrorKind::EmbedderNotConfigured | ErrorKind::KindNotVectorIndexed => {
                 Self::embedder_not_ready()
             }
+            ErrorKind::VectorEquivalenceMismatch => Self::vector_disabled(),
             ErrorKind::GraphExpansion => graph_error(error),
             ErrorKind::Overloaded => Self::busy(store),
             ErrorKind::Closing => Self::not_ready(store, "draining"),

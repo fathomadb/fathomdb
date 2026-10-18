@@ -83,6 +83,11 @@ impl FathomServer {
         }
         let ctx =
             Ctx { shared: &self.shared, session: &self.session, progress: progress_fn(&context) };
+        if let Some(progress) = &ctx.progress {
+            for tick in 1..=self.shared.hooks.progress_burst(tool) {
+                progress(f64::from(tick), "burst");
+            }
+        }
         let outcome = match tool {
             "list_stores" => tools::list_stores(&ctx, arguments).await,
             "use_store" => tools::use_store(&ctx, arguments).await,

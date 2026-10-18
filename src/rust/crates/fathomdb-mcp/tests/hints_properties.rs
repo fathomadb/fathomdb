@@ -127,4 +127,51 @@ proptest! {
             prop_assert!(!line.contains(MARKER), "{line}");
         }
     }
+
+    /// § 8 test 10 and § 5.1: over the same ranked list and budgets, hints on
+    /// keep no more hits than hints off; in each mode the continuation chain
+    /// returns every hit once, in order; and each continuation resumes at
+    /// `offset + kept` of its own response.
+    #[test]
+    fn hints_on_may_shrink_kept_but_offsets_stay_consistent(
+        lengths in proptest::collection::vec(0_usize..400, 0..100),
+        limit in 1_usize..=100,
+        budgets in proptest::collection::vec(256_u32..6_000, 1..20),
+        snippet_chars in 40_usize..120,
+    ) {
+        let ranked = ranked(&lengths);
+        let expected: Vec<String> = ranked.iter().map(|hit| hit.reference.clone()).collect();
+        let mut first_kept = Vec::new();
+        for hints_on in [false, true] {
+            let mut seen = Vec::new();
+            let mut offset = Some(0_usize);
+            let mut pages = 0;
+            while let Some(start) = offset {
+                let input = SearchPageInput {
+                    ranked: ranked.clone(),
+                    offset: start,
+                    limit,
+                    snippet_chars,
+                    max_tokens: budgets[pages % budgets.len()],
+                    hints: Some(hints_on),
+                    ..Default::default()
+                };
+                let shaped = shape_search_page(&prepare_search_page(&input));
+                if pages == 0 {
+                    first_kept.push(shaped.kept);
+                }
+                let results = shaped.structured["results"].as_array().unwrap();
+                prop_assert_eq!(results.len(), shaped.kept);
+                seen.extend(results.iter().map(|hit| hit["ref"].as_str().unwrap().to_string()));
+                if let Some(next) = shaped.next_offset {
+                    prop_assert_eq!(next, start + shaped.kept);
+                }
+                offset = shaped.next_offset;
+                pages += 1;
+                prop_assert!(pages <= 200, "paging must terminate");
+            }
+            prop_assert_eq!(&seen, &expected, "hints {}", hints_on);
+        }
+        prop_assert!(first_kept[1] <= first_kept[0], "kept_on {} > kept_off {}", first_kept[1], first_kept[0]);
+    }
 }

@@ -338,8 +338,10 @@ Requested by the owner; no release slot yet.
     - Session- and document-level records put 19–37 % of gold past the cut;
       turn-level records put almost none there.
     - A preregistered, paired probe moved gold across the cut. The vector
-      arm gains 0.09 R@10 when the gold is visible; hybrid gains 0.000
-      (± 0.016), a powered null.
+      arm gains 0.09 R@10 when the gold is visible. Hybrid's pooled effect
+      is 0.000, but that is opposite stratum effects cancelling: moving
+      past-cut gold into the head gains +0.03 on 4 of 133 questions. No
+      answer-level measurement exists yet.
     - Every chunking option multiplies the O(N) vector scan.
     - Proposed: a guard now (embedded extent in `orient` and in the EP-17
       snippet), plus one specified overflow-chunking experiment, parked

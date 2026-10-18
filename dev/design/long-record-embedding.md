@@ -2,7 +2,7 @@
 title: Long-record embedding — size of the problem and choice of fix
 date: 2026-10-18
 status: PROPOSED
-desc: Measures how much of each consumer corpus lies past bge-small's 512-wordpiece cut. A preregistered, paired position-intervention probe shows that the cut costs the vector arm 0.09 R@10 but hybrid retrieval nothing measurable (0.000 ± 0.016). Costs six fixes in vectors, embed time, index size, query latency, schema and snippet anchor. Recommends a guard now and one specified overflow-chunking experiment, parked until a stated trigger fires.
+desc: Measures how much of each consumer corpus lies past bge-small's 512-wordpiece cut. A preregistered, paired position-intervention probe shows that the cut costs the vector arm 0.09 R@10; for hybrid the pooled effect is 0.000, but that is two opposite stratum effects cancelling, and moving past-cut gold into the head gains +0.03 on 4 of 133 questions. Costs six fixes in vectors, embed time, index size, query latency, schema and snippet anchor. Recommends a guard now and one specified overflow-chunking experiment, parked until a stated trigger fires.
 inputs:
   - dev/plans/prompts/long-record-embedding-prompt.md
   - dev/design/agent-access/match-centred-snippets.md
@@ -47,10 +47,17 @@ source is cited.
 - **Effect.** Probe P2b moves the gold turns of the same LongMemEval-S
   questions across the cut and pairs each question with itself. Making the
   gold visible to the record's vector raises vector-only R@10 by 0.086
-  (95 % CI 0.044–0.127). It raises hybrid R@10 by 0.000 (CI −0.016 to
-  +0.016; minimum detectable effect 0.025).
-  - Under the preregistered rule, neither failure is shown. The hybrid
-    result is a powered null.
+  (95 % CI 0.044–0.127). The pooled hybrid effect is 0.000 (CI −0.016 to
+  +0.016).
+  - Under the preregistered pooled rule, neither failure is shown.
+  - The pooled hybrid zero is a cancellation of opposite stratum effects,
+    not evidence of no effect. In the direction a fix acts (past-cut gold
+    moved into the head, n = 133), hybrid gains +0.030 (CI +0.008 to
+    +0.060). That rests on 4 questions, all gains. In the reverse direction
+    (n = 182), hybrid changes by −0.022 (CI −0.044 to −0.005), on 4
+    questions, all losses; this is unexplained.
+  - Both stratum results are descriptive, not preregistered.
+  - No answer-level measurement exists yet.
   - Text-only recall was identical across the paired stores, as the
     design requires.
 - **Cost.** Every chunking option multiplies vector rows. The vector arm
@@ -201,25 +208,37 @@ Preregistered in `PREREG-P2.md` (`413ba06ad`), as amended by `PREREG-P2b.md`
 - **Rule 1: vector failure not shown.** `D(vector) = 0.086` is below the
   0.10 bar, although its CI excludes 0. The cut has a real but moderate
   cost to the vector arm on its own.
-- **Rule 2: product failure not shown.** The MDE (0.025) is below the 0.03
-  threshold, so this is a powered null, not an underpowered one (rule 3
-  does not apply).
+- **Rule 2: product failure not shown.** The pooled MDE (0.025) is below
+  the 0.03 threshold, so rule 3 does not apply. But the pooled estimator
+  averages the two directions, and they cancel (below). So the pooled
+  result does not show the absence of an effect.
 - **Rule 4 reading.** At shipped fusion weights and session-level records,
-  putting the gold inside the record's one vector does not change hybrid
-  top-10 recall.
-  - This is a bound on that intervention. It is not a bound on a chunk
+  putting the gold inside the record's one vector moves hybrid top-10
+  recall on few questions: 8 of 315 changed. The direction that matters
+  gains about 0.03 on past-cut questions.
+  - This bounds that intervention only. It is not a bound on a chunk
     vector (a different unit), on retuned fusion weights, or on answer
     accuracy.
 
-**By stratum** (descriptive):
+**By stratum** (descriptive, not preregistered;
+`results/probe2b_strata.json`):
 
-- Moving gold into the head (P) gives `D(vector)` +0.21 and `D(hybrid)`
-  +0.03.
-- Moving it out of the head (B) gives `D(vector)` −0.005 and
-  `D(hybrid)` −0.02.
-- The asymmetry suggests that B questions, 77 % of which are
-  temporal-reasoning or multi-session, are found by the vector through text
-  other than the gold turn.
+| direction | n | D(vector) | 95 % CI | D(hybrid) | 95 % CI | hybrid +1 / −1 questions |
+| --- | --- | --- | --- | --- | --- | --- |
+| P: past-cut gold moved into the head (what a fix does) | 133 | +0.211 | +0.143 to +0.286 | +0.030 | +0.008 to +0.060 | 4 / 0 |
+| B: gold moved out of the head | 182 | −0.005 | −0.055 to +0.044 | −0.022 | −0.044 to −0.005 | 0 / 4 |
+
+- **P.** The vector effect is large, and the hybrid effect sits at rule 2's
+  threshold with its CI above 0, on 4 questions. A fix that puts past-cut
+  evidence into a vector can therefore be expected to gain on the order of
+  0.03 hybrid R@10 on past-cut questions. Those are 28–37 % of
+  LongMemEval-S questions, so the whole-corpus gain would be about 0.01.
+- **B.** Moving the gold out of the head barely moves the vector arm,
+  perhaps because B questions (77 % temporal-reasoning or multi-session) are
+  matched through text other than the gold turn. That does not explain why
+  hybrid *improves* on 4 questions when the gold is hidden. The rotation
+  also changes which text fills the head, which is a candidate cause, but it
+  is untested.
 
 **By type** (descriptive): `D(hybrid)` stays within ±0.033 for every
 question type.
@@ -307,7 +326,7 @@ The full-body 19,195-session store:
 | C. overflow only: record vector (first 510) plus 510-windows over the rest | 5.1 / 2.3 / 1.8 | 18–26 min | 160 MB | 0.80 / 1.05 s | additive chunk table; short records byte-identical | chunk span, else `Start` |
 | D. late chunking (long-context model, 256 windows inside 8,192 macro chunks) | 9.6 / 4.1 / 3.0 | not measured: 4.7× today's wordpieces through quadratic attention | 300 MB at d = 384; 2× at d = 768 | 1.5 / 2.0 s | new embedder identity, full re-embed, plus the chunk table | chunk span |
 | E. long-context embedder, one vector per record | 1 / 1 / 1 | not measured: same wordpieces as D | 31 MB at d = 384; 2× at d = 768 | 0.18 / 0.22 s, or more at d = 768 | new embedder identity, full re-embed; cut moves to 8,190 (IR-C still has 19 % of wordpieces past it) | `Start` |
-| F. ingest-side chunking by the consumer | consumer's choice | consumer's | consumer's | grows with the consumer's row count (LongMemEval turns: 199,499 rows, about 1.6 / 2.1 s) | none in the engine | the chunk record is the hit; snippets are honest |
+| F. ingest-side chunking by the consumer | consumer's choice | consumer's | consumer's | grows with the consumer's row count (LongMemEval turns, 199,499 rows: about 1.6 / 2.1 s, extrapolated 5× past the largest measured store) | none in the engine | the chunk record is the hit; snippets are honest |
 
 Option notes:
 
@@ -396,7 +415,9 @@ brief (a packed exact-scan kernel) targets.
    `scored_bytes: Option<u32>`, the extent the hit's vector scored. It lives
    in the opt-in snippet sidecar, so there is no per-hit struct growth
    (R-OBS-2). A `Start` snippet can then say whether it covers the whole
-   scored region.
+   scored region. This changes the `SnippetV1` struct that EP-17 proposes
+   (`match-centred-snippets.md` § 7.2), so EP-17 and the snippet design must
+   be amended in the same PR that builds it.
 4. **No EP-17 anchor change.** `anchor = Start` stays honest for vector-only
    hits (`match-centred-snippets.md` § 3.4).
 5. **Consumer guidance.** Document the cut and the § 3 table in the public
@@ -413,15 +434,23 @@ C is the option to keep ready:
 - it gives EP-17 a real anchor;
 - it needs no new model.
 
-**Do not run it now.** P2b shows that making past-cut gold visible to the
-vector does not move hybrid top-10 recall at shipped weights. Under the
-current scan, C also cannot pass the latency gate on a LongMemEval-shaped
-store: its vector-side p95 projects to 1.05 s, against 0.22 s today.
+**Do not run it now.** The two halves of the evidence point the same way:
+
+- **The expected gain is small.** In P2b, making past-cut gold visible to
+  the vector gains about 0.03 hybrid R@10 on past-cut questions (4 of 133
+  questions), about 0.01 corpus-wide.
+- **The latency gate cannot pass today.** Under the current scan, C's
+  vector-side p95 on a LongMemEval-shaped store projects to 1.05 s, against
+  0.22 s today.
+
+That pairing is a weak case for the latency cost now. It is also the reason
+to keep C specified rather than close it.
 
 **Run it when any trigger fires:**
 
 1. an answer-level evaluation on session- or document-unit stores shows a
-   loss that traces to evidence past the cut;
+   loss that traces to evidence past the cut. No such measurement exists
+   yet, and this study did not make one (§ 9, question 3);
 2. the fusion weights or the default embedder change;
 3. the exact-scan kernel (1–2M brief, E1 then option A) lands, so that the
    latency gate can pass.
@@ -448,11 +477,12 @@ store: its vector-side p95 projects to 1.05 s, against 0.22 s today.
     reproduce the engine's hybrid top-10 on C0 for at least 99 % of
     questions, or the run stops.
 - **Sample and power.**
-  - P2b's paired SE for hybrid is 0.009 at n = 315. A 0.03 effect at 80 %
-    power, one-sided α = 0.05, needs SE ≤ 0.012. At P2b's discordance rate
-    that is about 180 paired questions whose gold lies past the cut; recheck
-    the discordance on the first 50 questions, since past-cut questions may
-    be more discordant than P2b's mix.
+  - The power basis is P2b's past-cut stratum, the direction the fix acts
+    in: paired SE for hybrid 0.0149 at n = 133.
+  - A 0.03 effect at 80 % power, one-sided α = 0.05, needs SE ≤ 0.012,
+    which is about 205 paired past-cut questions (133 × (0.0149 / 0.012)²).
+  - A chunk vector may change more questions than P2b's intervention did.
+    Recheck the discordance on the first 50 questions.
   - Pool all positionable past-cut questions: LongMemEval P and mixed
     (287), AP-News local and linked with a past-cut excerpt, QAConv
     past-cut (about 75), and QMSum specific questions once their upstream
@@ -518,9 +548,14 @@ explains how to rerun, and records each deviation.
 2. **Guard scope.** Should the `embedded_bytes` sidecar, the `orient`
    fields and `SnippetV1.scored_bytes` go into the agent-access Block 2
    work, or later?
-3. **Triggers.** Are § 7.2's three triggers the right ones? Should an
-   answer-level evaluation on session-unit stores (trigger 1) be scheduled
-   now, so that the question gets answered rather than waited on?
+3. **Triggers.** Are § 7.2's three triggers the right ones?
+   - Recommended: schedule the answer-level evaluation on session-unit
+     stores (trigger 1) now. Retrieval shows a small effect in the
+     direction a fix acts (+0.03 on past-cut questions), and no
+     answer-level measurement exists.
+   - It needs no chunk vectors: compare answers for P2b's past-cut
+     questions on the original and the rotated store, with the existing
+     judge harness.
 4. **Latency.** Hybrid on a 19k-session store is 323 ms p50 single-caller,
    and `explain` adds 2 s. The queue design's service times came from a
    3.3 MB store. Should this be raised against the queue design, and should

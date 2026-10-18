@@ -27,6 +27,10 @@ Receipts for `dev/design/long-record-embedding.md`. The study does two things:
 - `probe2.py`, `test_probe2.py` — the P2 and P2b rotated stores and paired
   runs. `--twins` selects P2b. They write `results/probe2*_summary.json`,
   `probe2*_per_question.jsonl` and `probe2_build.json`.
+- `probe2_strata.py` — per-stratum CIs and discordant counts for P2b
+  (`results/probe2b_strata.json`). This is descriptive: the preregistered
+  estimator is pooled. `results/probe2b_plan.json` is the output of
+  `probe2.py plan --twins`.
 - `latency.py` — single-caller latency per store
   (`results/latency_<store>.json`).
 - `latency_fit.py` — combines those files into `results/latency.json` and
@@ -110,7 +114,13 @@ Other:
   written, and the 38,390-record store's build process died with a bus
   error after its drain.
   - Row counts checked afterwards with `diag_counts.py` showed all three
-    stores complete: every node had its FTS rows and its vector.
+    stores complete: every node had its FTS rows and its vector. That
+    output was read in the session but not saved, and the stores are now
+    deleted, so it is not receipted.
+- **`plan()` untested.** `test_probe2.py` covers `rotate` and
+  `paired_summary` only. `plan()` — eligibility, the owner check and twin
+  grouping, which is where P2 failed — has no unit test. It is checked
+  only by the receipted counts in `probe2b_plan.json`.
   - The 38,390-record latency run took place while the disk was nearly
     full.
 - **Stores deleted.** With the owner's approval, the stores were deleted

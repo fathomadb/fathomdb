@@ -785,6 +785,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/agent-access/queue-manager-research.md",
+      "class": "proposal",
+      "topic": "agent-access-queue-manager-research",
+      "role": "analysis",
+      "owner": "dev/design/agent-access/queue-manager-research.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/agent-memory-impl-strategy.md",
       "class": "reference",
       "topic": "agent-memory-impl-strategy",

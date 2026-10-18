@@ -32,8 +32,11 @@ impl FtsTable {
 /// The search-local map from a text hit's `write_cursor` to its FTS row.
 pub(crate) type FtsRows = HashMap<u64, (FtsTable, i64)>;
 
-const OPEN: char = '\u{E000}';
-const CLOSE: char = '\u{E001}';
+/// Marker pairs in preference order (§ 6.1): private use, then the last
+/// private-use pair, then noncharacters. Private-use glyphs occur in real
+/// text (Nerd Fonts, Powerline), hence a list rather than one pair.
+const MARKERS: [(char, char); 3] =
+    [('\u{E000}', '\u{E001}'), ('\u{F8FE}', '\u{F8FF}'), ('\u{FDD0}', '\u{FDD1}')];
 
 /// One snippet per hit, in order.
 pub(crate) fn snippets_for_hits(
@@ -72,14 +75,21 @@ fn match_spans(
     match_expression: &str,
     body: &str,
 ) -> rusqlite::Result<Option<Vec<(u32, u32)>>> {
+    // The first pair whose code points are both absent from the body; none
+    // free means no highlighting, so the hit gets the record start.
+    let Some((open, close)) =
+        MARKERS.into_iter().find(|&(open, close)| !body.contains(open) && !body.contains(close))
+    else {
+        return Ok(None);
+    };
     let marked: Option<String> = tx
         .prepare_cached(table.highlight_sql())?
         .query_row(
-            rusqlite::params![OPEN.to_string(), CLOSE.to_string(), match_expression, rowid],
+            rusqlite::params![open.to_string(), close.to_string(), match_expression, rowid],
             |row| row.get(0),
         )
         .optional()?;
-    Ok(marked.and_then(|marked| parse_marked(body, &marked, OPEN, CLOSE)))
+    Ok(marked.and_then(|marked| parse_marked(body, &marked, open, close)))
 }
 
 /// Parses `marked` once, left to right: each marker's offset minus the bytes

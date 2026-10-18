@@ -38,7 +38,10 @@ have passed.
 - **Owner decision, 2026-10-18.** The contract in `dev/interfaces/mcp.md`
   changes from "refuse at once" to "wait FIFO up to the deadline". One
   admission cap is shared by text and hybrid, provided the mixed-load check
-  in § 7.4 holds.
+  in § 7.4 holds. A call that cannot get a slot in time fails with `busy`
+  and `retry_after_ms`; "run anyway with a partial result" is rejected. The
+  early-shed threshold and the deadline are parameters whose values (fixed
+  or adaptive) are set by a separate queue simulation, still pending.
 - **The queue alone is not enough.** The engine's reader pool dispatches
   round-robin to per-worker queues with no regard for load
   (`reader_pool.rs:1216-1226`). One slow read blocks the reads queued behind
@@ -314,8 +317,18 @@ permits with no known end, so they are not capacity. `stuck` is true if
 and only if `c_eff == 0`.
 
 **Acquire sequence** (replaces the `Phase::Ready` arm at
-`registry.rs:342-357`). Let `need = max(floor, ewma_tool)`, with
-`floor = 100 ms` (the minimum `call_deadline_ms`, `config.rs:248-250`):
+`registry.rs:342-357`). `need` is the **early-shed threshold**: the least
+deadline a call must have left to be started.
+
+- **Parameter.** `need`, together with the call deadline itself
+  (`call_deadline_ms`, default 10 s). **Value set by the queue simulation
+  (pending).** The simulation decides whether each is a fixed configured
+  number or adaptive, for example a percentile of the last *n* service
+  times of that tool.
+- **Placeholder until then.** `need = max(floor, ewma_tool)`, with
+  `floor = 100 ms` (the minimum `call_deadline_ms`, `config.rs:248-250`).
+
+The sequence:
 
 1. Wait for `Ready` as today (H2).
 2. If no permit is free and `queued >= queue_limit`, refuse at once:
@@ -448,7 +461,8 @@ reason), each abandoned call and each admission after a wait, with store,
 Title: work-conserving reader dispatch and a configurable reader pool.
 Drafted here; it gets its own file under
 `dev/design/mcp-adapter/engine-proposals/` after review. Priority order:
-A, then C, then B.
+A, then B. Part C, honest embed degradation, moved to EP-03 (owner
+decision 2026-10-18).
 
 - **Part A, dispatch.** Replace round-robin per-worker channels with one
   shared bounded FIFO that idle workers pull from, as the embed dispatcher
@@ -471,10 +485,12 @@ A, then C, then B.
     no worker is idle, fall back to today's round-robin blocking `send`. This
     removes queueing behind a busy worker whenever any worker is idle, with
     no mutex, but it still queues behind a slow worker under full load.
-- **Part C, honest degradation.** When query embedding fails with
-  `Saturated` or `QueuedExpired`, report it (for example `soft_fallback`
-  with an `embed_overloaded` reason) instead of silently running text-only
-  (H7). Whether this becomes part of EP-03 is open question 3 (§ 10).
+- **Former part C, now in EP-03.** When query embedding fails with
+  `Saturated` or `QueuedExpired`, the search silently runs text-only (H7).
+  By owner decision (2026-10-18) this is reported by EP-03 as the common
+  degradation reason `embedder_overloaded`, alongside its other hybrid
+  degradation reasons
+  ([EP-03](../mcp-adapter/engine-proposals/EP-03-hybrid-search-degradation.md)).
 - **Part B, pool size.** Add `reader_pool_size: Option<u64>` to
   `EngineConfig` (`runtime_configuration.rs:146-157`), default 8, range set
   by the sweep. This goes last because it is the widest change: code
@@ -579,9 +595,11 @@ store reaches 1 s, the probe is invalid and reports "not measured", not
   advised is at most 0.5 and fewer than 20 % of retries after the advised
   wait are refused again. Otherwise ship busy without `retry_after_ms` and
   revise the formula.
-- **EP-18 part A.** Proceed if the valid HOL probe raises p95 of the other
-  calls by more than 2 × at either *N*. Otherwise record part A as not
-  needed at today's call mix.
+- **EP-18 part A (pending simulation).** The queue simulation decides
+  part A. This probe supplies the measured input: proceed if the valid HOL
+  probe raises p95 of the other calls by more than 2 × at either *N*;
+  otherwise record part A as not needed at today's call mix, unless the
+  simulation shows otherwise.
 - **EP-18 part B.** Proceed only if the *N* = 7 text cell meets the cap rule
   and its p95 is still under 2 × the *N* = 1 p95: then the ceiling, not the
   workload, is the limit.
@@ -607,7 +625,7 @@ attribution data if the timing build was approved.
 | `dev/design/mcp-adapter/architecture.md` | § Threads: drop the "headroom" reasoning (§ 4); point at this design and EP-18 |
 | `dev/design/mcp-adapter/requirements.md` | MR-033.2: choose "wait, then busy with `retry_after_ms`" |
 | `fathomdb-mcp` | `registry.rs` acquire and derived `in_flight`, `bridge.rs` abandoned flag, `error.rs` codes and the `busy` object, `edge.rs`/`tools.rs` pass `context.ct`, `config.rs` `queue_limit` |
-| Engine | EP-18 (A, then C, then B), after its own review |
+| Engine | EP-18 (A, then B), after its own review; `embedder_overloaded` in EP-03 |
 
 ## 9. Test plan for later (RED first)
 
@@ -656,27 +674,33 @@ by the first two, together with the interface change.
 20. Engine, EP-18 part A: `a_slow_read_does_not_delay_reads_on_idle_workers`,
     using the engine's `test-hooks` to hold one worker; seven following
     reads complete while it is held.
-21. Engine, EP-18 part C: `a_saturated_embed_queue_is_reported_as_degradation`.
+21. Engine, EP-03: `a_saturated_embed_queue_is_reported_as_embedder_overloaded`.
 
 ## 10. Open questions for the owner
 
-Decided on 2026-10-18: the contract change (§ 3) is accepted, and one
-shared cap is the lean, subject to § 7.4. Three questions remain open.
+Owner decisions, 2026-10-18:
 
-1. **A call that has waited until little of its deadline remains: refuse,
-   or start anyway?**
-   - *Refuse (proposed, § 6.1 step 4; the reviewer's view).* The agent gets
-     `busy` with `retry_after_ms` early and can retry or move on. The
-     engine does no work that will be thrown away. Cost: a call that might
-     just have finished is refused.
-   - *Start anyway, and return a partial result labelled per MR-032.* The
-     engine has no interrupt and cannot return part of a search, so in
-     practice this means the call times out at the deadline. Its permit
-     then stays held as abandoned work, which reduces capacity for the
-     calls behind it. Benefit: no early refusal for calls that happen to
-     be fast.
-2. **EP-18 part A: one shared queue in the engine, at the cost of one
-   mutex per read?**
+- **Contract change (§ 3): accepted.** Excess calls wait FIFO while time
+  remains.
+- **Shared cap: one shared cap is the lean,** subject to the mixed-load
+  check in § 7.4.
+- **Former Q2, refuse or start late: decided.** A call that cannot get a
+  slot in time fails with `busy` and `retry_after_ms`. "Run anyway with a
+  partial result" is rejected: the engine cannot return part of a search,
+  so a late start would only become abandoned work. How the early-shed
+  threshold `need` and the deadline are set (fixed or adaptive) is a
+  parameter whose value comes from the queue simulation (pending); § 6.1
+  keeps the current proposal as the placeholder.
+- **Former Q5, where honest embed degradation lives: decided.** It folds
+  into EP-03 as the common degradation reason `embedder_overloaded`,
+  alongside the existing hybrid degradation reasons. EP-18 no longer has a
+  part C.
+
+Pending:
+
+1. **EP-18 part A: one shared queue in the engine, at the cost of one
+   mutex per read? Pending simulation.** The separate queue simulation
+   settles this, alongside the HOL probe in § 7. The trade-off it weighs:
    - *For.* No read waits behind a slow one while a worker is idle. The
      cost is tens of nanoseconds per read when uncontended, and the hybrid
      path already pays a similar lock in the embed dispatcher. The
@@ -685,11 +709,3 @@ shared cap is the lean, subject to § 7.4. Three questions remain open.
      and under heavy contention the lock itself becomes a queue. The
      lock-free rendezvous variant avoids the lock but still queues behind a
      slow worker when every worker is busy.
-   - The HOL probe decides whether the problem is real at today's call mix.
-3. **EP-18 part C: fold honest embed degradation into EP-03, or keep it in
-   EP-18?**
-   - *Fold into EP-03.* EP-03 already owns how hybrid search reports
-     degradation, so one proposal defines every degradation label.
-   - *Keep in EP-18.* The cause is queue saturation, which this design
-     owns, and it can ship with part A without waiting for the rest of
-     EP-03.

@@ -623,3 +623,28 @@ async fn abandoned_calls_are_not_service_time_samples() {
     assert_ne!(next.is_error, Some(true), "{:?}", next.structured_content);
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn another_store_in_use_is_busy_store_switch() {
+    let fixture = Fixture::new();
+    fixture.store("b.sqlite", vec![node("note:c", "note", "gamma river crossing")]);
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"stores": {"a": {"path": "a.sqlite"}, "b": {"path": "b.sqlite"}}}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let error = harness.err("search", json!({"store": "b", "query": "gamma"})).await;
+    assert_eq!(error["class"], "busy", "{error}");
+    assert_eq!(error["code"], "store_switch", "{error}");
+    assert!(started.elapsed() < Duration::from_millis(300), "refused at once");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    harness.shutdown().await;
+}

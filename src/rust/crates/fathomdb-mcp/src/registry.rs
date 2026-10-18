@@ -70,6 +70,43 @@ impl Cancel {
     }
 }
 
+/// The tool kinds with their own service-time window (queue-admission
+/// § 6.1). Search is split by mode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub(crate) enum ToolKind {
+    SearchText,
+    SearchHybrid,
+    Fetch,
+    Expand,
+    Orient,
+    /// Takes a permit but never waits and leaves no sample.
+    Feedback,
+}
+
+impl ToolKind {
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "search_text" => Some(Self::SearchText),
+            "search_hybrid" => Some(Self::SearchHybrid),
+            "fetch" => Some(Self::Fetch),
+            "expand" => Some(Self::Expand),
+            "orient" => Some(Self::Orient),
+            _ => None,
+        }
+    }
+}
+
+/// What a call brings to admission.
+pub(crate) struct Admission<'a> {
+    pub(crate) kind: ToolKind,
+    /// The call deadline; `None` (internal callers only) never waits.
+    pub(crate) wait_until: Option<Instant>,
+    /// Progress notifications while the call waits.
+    pub(crate) progress: Option<&'a ProgressFn>,
+    /// The client's cancel; a waiting call leaves the queue on it.
+    pub(crate) cancel: Option<&'a Cancel>,
+}
+
 /// Progress callback for a call that waits on an open: `(progress, phase)`.
 pub(crate) type ProgressFn = Arc<dyn Fn(f64, &'static str) + Send + Sync>;
 
@@ -126,6 +163,12 @@ impl Slot {
 /// The least deadline a call of a tool kind with no history must have left
 /// to be started (queue-admission § 6.1, early-shed rule).
 const NEED_FLOOR: Duration = Duration::from_millis(50);
+/// Completed calls of a kind before its window replaces the floor.
+const WARM_SAMPLES: usize = 8;
+/// The share of recent calls of a kind that must fit in the time a waiter
+/// has left. Provisional: the run-to-completion follow-up decides whether
+/// the check stays.
+const NEED_QUANTILE: f64 = 0.9;
 
 /// Admission state of one store. Kept across reopens, so waiters survive a
 /// drain.
@@ -137,6 +180,8 @@ struct Load {
     queued: AtomicUsize,
     /// Fires when the last permit is returned.
     idle: Notify,
+    /// Service times of completed calls, per tool kind.
+    windows: Mutex<BTreeMap<ToolKind, Vec<Duration>>>,
 }
 
 impl Load {
@@ -146,7 +191,32 @@ impl Load {
             permits: Arc::new(Semaphore::new(cap)),
             queued: AtomicUsize::new(0),
             idle: Notify::new(),
+            windows: Mutex::new(BTreeMap::new()),
         }
+    }
+
+    fn windows(&self) -> MutexGuard<'_, BTreeMap<ToolKind, Vec<Duration>>> {
+        self.windows.lock().unwrap_or_else(|poison| poison.into_inner())
+    }
+
+    fn record(&self, kind: ToolKind, sample: Duration) {
+        if kind != ToolKind::Feedback {
+            self.windows().entry(kind).or_default().push(sample);
+        }
+    }
+
+    /// The early-shed threshold: the least time a call of `kind` must have
+    /// left to be started.
+    fn need(&self, kind: ToolKind) -> Duration {
+        let windows = self.windows();
+        let Some(window) = windows.get(&kind).filter(|window| window.len() >= WARM_SAMPLES) else {
+            return NEED_FLOOR;
+        };
+        let mut sorted = window.clone();
+        sorted.sort_unstable();
+        // Nearest rank: the smallest sample at or above the quantile.
+        let rank = (NEED_QUANTILE * sorted.len() as f64).ceil() as usize;
+        sorted[rank.clamp(1, sorted.len()) - 1]
     }
 
     /// Permits held. A call counts from the moment it holds a permit, before
@@ -247,8 +317,12 @@ pub(crate) struct StoreGuard {
     pub(crate) engine: Arc<Engine>,
     pub(crate) info: Arc<OpenInfo>,
     last_used: LastUsed,
-    // Dropped after `drop` below has run.
-    _permit: Permit,
+    kind: ToolKind,
+    /// When the permit was acquired.
+    started: Instant,
+    // Dropped after `drop` below has run, so the sample is in the window
+    // before the next waiter gets the permit and computes its need.
+    permit: Permit,
 }
 
 impl Drop for StoreGuard {
@@ -256,6 +330,7 @@ impl Drop for StoreGuard {
         // Stamp before releasing the slot, so the idle clock never sees a
         // finished call as idle since its start (FIX-1 CR-5).
         self.last_used.touch();
+        self.permit.load.record(self.kind, self.started.elapsed());
     }
 }
 
@@ -441,10 +516,9 @@ impl Registry {
     pub(crate) async fn acquire(
         &self,
         name: &str,
-        wait_until: Option<Instant>,
-        progress: Option<&ProgressFn>,
-        cancel: Option<&Cancel>,
+        call: &Admission<'_>,
     ) -> Result<StoreGuard, ToolError> {
+        let wait_until = call.wait_until;
         self.ensure_slot(name)?;
         let mut waited_attempt: Option<u64> = None;
         let mut ticks = 0_u32;
@@ -491,7 +565,7 @@ impl Registry {
             };
             let (mut changed, phase) = match next {
                 Next::Admit { load, epoch, changed } => {
-                    match self.admit(name, load, epoch, changed, wait_until, cancel).await? {
+                    match self.admit(name, load, epoch, changed, call).await? {
                         Some(guard) => return Ok(guard),
                         None => continue,
                     }
@@ -503,7 +577,7 @@ impl Registry {
             if now >= deadline {
                 return Err(ToolError::not_ready(name, phase.as_str()));
             }
-            if let Some(progress) = progress {
+            if let Some(progress) = call.progress {
                 progress(f64::from(ticks), phase.as_str());
                 ticks += 1;
             }
@@ -521,11 +595,15 @@ impl Registry {
         load: Arc<Load>,
         epoch: u64,
         mut changed: watch::Receiver<u64>,
-        wait_until: Option<Instant>,
-        cancel: Option<&Cancel>,
+        call: &Admission<'_>,
     ) -> Result<Option<StoreGuard>, ToolError> {
         let refuse = |reason| ToolError::admission(name, load.busy(reason));
-        let permit = match wait_until {
+        for (kind, sample) in self.hooks.seeded_service_times(name) {
+            if let Some(kind) = ToolKind::from_name(&kind) {
+                load.record(kind, sample);
+            }
+        }
+        let permit = match call.wait_until {
             None => load
                 .permits
                 .clone()
@@ -547,10 +625,11 @@ impl Registry {
                     tokio::pin!(acquire);
                     // A call is started only if it has at least `need` left
                     // (step 3), so the wait ends `need` before the deadline.
-                    let wait_end = deadline.checked_sub(NEED_FLOOR).unwrap_or(deadline);
+                    let need = load.need(call.kind);
+                    let wait_end = deadline.checked_sub(need).unwrap_or(deadline);
                     let expired = tokio::time::sleep_until(wait_end.into());
                     tokio::pin!(expired);
-                    let mut cancel = cancel.cloned();
+                    let mut cancel = call.cancel.cloned();
                     let cancelled = async {
                         match cancel.as_mut() {
                             Some(cancel) => cancel.cancelled().await,
@@ -586,6 +665,7 @@ impl Registry {
                 }
             }
         };
+        let started = Instant::now();
         let permit = Permit { permit: Some(permit), load: load.clone() };
         self.hooks.after_permit(name).await;
         let mut inner = self.lock();
@@ -596,6 +676,14 @@ impl Registry {
         if slot.phase != Phase::Ready || slot.epoch != epoch {
             return Ok(None);
         }
+        // Step 4: need is re-evaluated, since calls that completed during the
+        // wait may have changed it.
+        if let Some(deadline) = call.wait_until {
+            if deadline.saturating_duration_since(Instant::now()) < load.need(call.kind) {
+                drop(permit);
+                return Err(refuse(BusyReason::Deadline));
+            }
+        }
         slot.last_used.touch();
         Ok(Some(StoreGuard {
             name: name.to_string(),
@@ -603,7 +691,9 @@ impl Registry {
             engine: slot.engine.clone().expect("ready slots hold an engine"),
             info: slot.info.clone().expect("ready slots hold open info"),
             last_used: slot.last_used.clone(),
-            _permit: permit,
+            kind: call.kind,
+            started,
+            permit,
         }))
     }
 

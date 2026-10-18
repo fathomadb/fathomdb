@@ -28,7 +28,7 @@ use crate::output::{
     ProjectionStatusOut, Readiness, RecordOut, SearchOutput, StoreRow, Target, TraceOut,
     Unavailable, UnavailableWord, UseStoreOutput,
 };
-use crate::registry::{Cancel, ProgressFn, Registry, StoreGuard};
+use crate::registry::{Admission, Cancel, ProgressFn, Registry, StoreGuard, ToolKind};
 use crate::session::{Continuation, ResponseContext, ResponseLookup, Session};
 use crate::shape::{self, CanonicalSearch};
 
@@ -239,22 +239,31 @@ impl Ctx<'_> {
         Instant::now() + std::time::Duration::from_millis(self.shared.config.call_deadline_ms)
     }
 
-    async fn acquire(&self, store: &str, deadline: Instant) -> Result<StoreGuard, ToolError> {
-        // Every call waits for an open in progress up to its deadline; only
-        // calls with a progress token are sent progress notifications.
-        self.shared
-            .registry
-            .acquire(store, Some(deadline), self.progress.as_ref(), Some(&self.cancel))
-            .await
+    async fn acquire(
+        &self,
+        store: &str,
+        kind: ToolKind,
+        deadline: Instant,
+    ) -> Result<StoreGuard, ToolError> {
+        // Every call waits for an open in progress, and for an admission
+        // permit, up to its deadline; only calls with a progress token are
+        // sent progress notifications.
+        let call = Admission {
+            kind,
+            wait_until: Some(deadline),
+            progress: self.progress.as_ref(),
+            cancel: Some(&self.cancel),
+        };
+        self.shared.registry.acquire(store, &call).await
     }
 
-    async fn run<T, F>(&self, store: &str, f: F) -> Result<(Answered, T), ToolError>
+    async fn run<T, F>(&self, store: &str, kind: ToolKind, f: F) -> Result<(Answered, T), ToolError>
     where
         T: Send + 'static,
         F: FnOnce(&fathomdb_sdk::Engine) -> fathomdb_sdk::Result<T> + Send + 'static,
     {
         let deadline = self.deadline();
-        let guard = self.acquire(store, deadline).await?;
+        let guard = self.acquire(store, kind, deadline).await?;
         bridge::call(guard, deadline, &self.shared.hooks, f).await
     }
 }
@@ -378,7 +387,7 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let store = resolve_store(ctx, args.store.as_deref())?;
     let validity_instant = now_secs();
     let (answered, read) = ctx
-        .run(&store, |engine| {
+        .run(&store, ToolKind::Orient, |engine| {
             let mut projections: Vec<ProjectionRow> = read::projections(engine)?
                 .into_iter()
                 .map(|spec| ProjectionRow {
@@ -633,12 +642,16 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         }
     };
 
+    let mode = canonical.search_mode();
+    let kind = match mode {
+        SearchMode::Text => ToolKind::SearchText,
+        SearchMode::Hybrid => ToolKind::SearchHybrid,
+    };
     let deadline = ctx.deadline();
-    let guard = ctx.acquire(&store, deadline).await?;
+    let guard = ctx.acquire(&store, kind, deadline).await?;
     if continued_epoch.is_some_and(|epoch| epoch != guard.epoch) {
         return Err(ToolError::stale_handle("continuation"));
     }
-    let mode = canonical.search_mode();
     let telemetry = guard.info.telemetry;
     let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
     let view = ReadView { valid_as_of: Some(validity_instant), ..ReadView::default() };
@@ -888,7 +901,7 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
         ..ReadView::default()
     };
     let (answered, records) = ctx
-        .run(&store, move |engine| {
+        .run(&store, ToolKind::Fetch, move |engine| {
             if ids.is_empty() {
                 return Ok(Vec::new());
             }
@@ -1021,7 +1034,7 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let edge_kinds = args.edge_kinds.unwrap_or_default();
     let target_kinds = args.target_kinds.unwrap_or_default();
     let (answered, result) = ctx
-        .run(&store, move |engine| {
+        .run(&store, ToolKind::Expand, move |engine| {
             let request = GraphExpandRequestV1 {
                 schema_version: 1,
                 seed: GraphSeedV1::Explicit { schema_version: 1, logical_ids: ids },
@@ -1178,7 +1191,15 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     let deadline = ctx.deadline();
     // No waiting: a store that is no longer ready can only come back under a
     // new epoch, whose sink never saw this response.
-    let guard = match ctx.shared.registry.acquire(&store, None, None, None).await {
+    let guard = match ctx
+        .shared
+        .registry
+        .acquire(
+            &store,
+            &Admission { kind: ToolKind::Feedback, wait_until: None, progress: None, cancel: None },
+        )
+        .await
+    {
         Ok(guard) => guard,
         Err(error) if error.class_str() == "not_ready" => {
             return Ok(not_recorded(

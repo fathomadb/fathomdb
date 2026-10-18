@@ -129,4 +129,17 @@ mod tests {
         let compiled = compile_text_query("an \"of");
         assert_eq!(compiled.match_expression, "\"an\" OR \"\"\"of\"");
     }
+
+    #[test]
+    fn terms_are_the_or_operands_as_compiled() {
+        // EP-17: one MATCH operand per OR term, so the engine can run a
+        // per-term highlight() without re-splitting the expression.
+        for raw in ["alpha beta alpha", "who are we", "an \"of", "status of the alpha"] {
+            let compiled = compile_text_query(raw);
+            assert_eq!(compiled.terms.join(" OR "), compiled.match_expression, "{raw}");
+        }
+        assert_eq!(compile_text_query("alpha beta alpha").terms, ["\"alpha\"", "\"beta\""]);
+        assert_eq!(compile_text_query("an \"of").terms, ["\"an\"", "\"\"\"of\""]);
+        assert!(compile_text_query("   ").terms.is_empty());
+    }
 }

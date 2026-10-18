@@ -3,7 +3,8 @@
 Measurement, code trace and discrete-event simulation. 2026-10-18.
 
 Files (all under this directory): `sim.py` (simulator), `test_sim.py` (46 tests with `test_fuzz.py`, `test_runner.py`;
-§ 12 adds `rtc.py`, `rtc_analysis.py`, `test_run_limit.py`, `test_rtc.py`, `test_rtc_analysis.py`),
+§ 12 adds `rtc.py`, `rtc_analysis.py`, `rtc_pairing.py` and their tests `test_run_limit.py`, `test_rtc.py`,
+`test_rtc_analysis.py`, `test_rtc_pairing.py`),
 `measure.py` (sequential service times against the staged server), `probe.py` (burst probe), `fuzz.py`, `grids.py`,
 `step.py`, `incident.py` (studies), `runner.py` (crash-safe resumable driver), `analysis.py` (tables),
 `results/` (`tables.md` with every table, summaries, the small per-study CSVs, `incident-transcripts/` extracted
@@ -413,6 +414,11 @@ Code does not cancel a pending MCP call (§ 2).
   It was resumed from its JSONL and ran to completion.
 - The capped-p90 arms and the lock-up reporting are exploratory additions (see the addendum). They do
   not enter R1–R4.
+- After the second review, two exploratory pieces were added, neither of which changes R1–R4:
+  - The four percentile arms at 60 s were rerun (17,280 simulations) to record `rf_arrival_free`, a
+    refusal at arrival with a permit free. Every `fail_rate` reproduced exactly.
+  - The fate of the old rule's timeouts was traced call by call (`rtc_pairing.py`,
+    `results/rtc_pairing.md`).
 
 ### 12.1 Finding: the p90 start check locks up under run to completion
 
@@ -421,23 +427,33 @@ Code does not cancel a pending MCP call (§ 2).
   p90 of its tool kind above the 10 s that any new call has.
 - **The lock-up.** Every later call of that kind is then refused with reason `deadline`, even while
   permits are free. No call of that kind runs, so no new sample arrives, and the window never recovers.
-- **Cold start.** With fewer than 10 samples, p90 is the largest of them. A single slow read among the
+- **Cold start.** With 10 or fewer samples, p90 is the largest of them. A single slow read among the
   first eight is enough.
 
 The defect is in the design as written (§ 6.1 step 4), not in the simulator.
 
-Configurations that refused more than 1 % of their calls while a permit was free (out of 500 realistic
-and 580 stress configurations):
+A lock-up shows as calls refused **at arrival** while a permit is free (`rf_arrival_free`). Only a
+threshold above the wait deadline can do that. A grant-time shed is different: a call that waited is
+refused because the threshold rose meanwhile. The table counts configurations that refused more than 1 %
+of their calls at arrival with a permit free (out of 500 realistic and 580 stress configurations):
 
-| band, tail, dispatch | p90 | p95 | p99 | p90 capped at 9.95 s | wait-only | old p90 |
-| --- | --- | --- | --- | --- | --- | --- |
-| realistic, base, P2 | 8 | 14 | 103 | 0 | 0 | 0 |
-| realistic, long, P2 | 44 | 102 | 493 | 0 | 0 | 0 |
-| stress, base, P2 | 39 | 82 | 293 | 1 | 0 | 0 |
-| stress, long, P2 | 264 | 572 | 580 | 2 | 0 | 0 |
+| band, tail | dispatch | p90 | p95 | p99 | p90 capped at 9.95 s |
+| --- | --- | --- | --- | --- | --- |
+| realistic, base | P2 | 8 | 14 | 103 | 0 |
+| realistic, base | P0 | 10 | 24 | 161 | 0 |
+| realistic, long | P2 | 44 | 102 | 493 | 0 |
+| realistic, long | P0 | 93 | 218 | 499 | 0 |
+| stress, base | P2 | 39 | 79 | 292 | 0 |
+| stress, base | P0 | 144 | 236 | 381 | 0 |
+| stress, long | P2 | 262 | 572 | 580 | 0 |
+| stress, long | P0 | 572 | 580 | 580 | 0 |
 
-A higher percentile locks up more often, so p95 and p99 are worse, not safer. Capping `need` below the
-wait deadline removes the lock-up in every band except stress with round-robin dispatch (P0).
+- **A higher percentile locks up more often,** so p95 and p99 are worse, not safer.
+- **Capping `need` below the wait deadline cannot lock up, by construction.** A call that finds a free
+  permit at arrival has 10 s left, which is at least `need`.
+- **Wait-only and the old rule cannot lock up either.** Wait-only has no threshold, and under the old
+  rule every sample is at most 10 s.
+- **The capped check still sheds waiting calls,** heavily so in stress with P0 (§ 12.3 Q2).
 
 ### 12.2 Arms by band
 
@@ -480,16 +496,31 @@ configurations; latency is the median over configurations.
 - **Old rule** (realistic band, P2, base tail): 0.049 % of calls are abandoned. Most of them started at
   once and then ran past 10 s; only 0.004 % of calls were late admissions. So the late-start problem the
   p90 check was built for is about a tenth of all abandonment.
-- **Wait-only with a 60 s run limit:** 0.055 % of successes answer after 10 s, and 0.0013 % of calls hit
-  the run limit. In aggregate, about 97 % of the former timeouts become answers.
-- **How late** (5,344 late answers, pooled):
+- **Call by call** (`results/rtc_pairing.md`). Common random numbers make a client's i-th call the same
+  call in every arm, so each old-rule timeout can be followed into wait-only with a 60 s run limit
+  (realistic band, P2, all 500 configurations, warm-up included):
 
-  | (10, 12] s | (12, 15] s | (15, 20] s | (20, 30] s | (30, 60] s | > 60 s |
+  | tail | former timeouts | answered on time | answered late | hit the run limit | refused |
   | --- | --- | --- | --- | --- | --- |
-  | 40 % | 27 % | 16 % | 11 % | 6 % | none |
+  | base | 4,850 | 36.8 % | 60.5 % | 2.6 % | 0.1 % |
+  | 10–30 s | 38,032 | 5.4 % | 94.5 % | 0.0 % | 0.0 % |
 
-- **On the 10–30 s slow tail:** the old rule abandons 0.381 % of calls. Wait-only answers 0.390 % of its
-  successes late, and 10 % of those come after 30 s.
+  With a 30 s run limit the run-limit share is 9.4 % (base) and 10.3 % (10–30 s tail).
+- **So 97 % (base) and almost all (long tail) of the former timeouts are answered.** A third of them on
+  the base tail answer on time: under the old rule they had timed out waiting behind permits that
+  abandoned work still held.
+- **How late the former timeouts answer** (60 s run limit):
+
+  | tail | (10, 12] s | (12, 15] s | (15, 20] s | (20, 30] s | (30, 60] s | > 60 s |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | base | 28 % | 25 % | 20 % | 15 % | 11 % | none |
+  | 10–30 s | 11 % | 18 % | 27 % | 33 % | 11 % | none |
+
+- **Not every late answer is a former timeout.** About 2,200 late answers on the base tail were on-time
+  successes under the old rule; they now wait behind calls that would have been cut off.
+- **Rates, from `results/rtc_tables.md`** (wait-only, 60 s): 0.055 % of successes answer after 10 s, and
+  0.0013 % of calls hit the run limit (base tail). On the 10–30 s tail, the old rule abandons 0.381 % of
+  calls, and wait-only answers 0.390 % of its successes late.
 - **Busy also falls,** from 0.012 % to 0.004 %, because the start check no longer refuses calls.
 
 **Q2. Does the p90 start check still pay for itself?** No. **R1 verdict: drop it; start any call that
@@ -500,20 +531,32 @@ gets a permit before its wait deadline.**
   - Time-to-data p99 is equal (ratio 1.000).
   - The late-answer guard holds. 0.055 % (base) and 0.390 % (long) of successes are late, against a
     limit of 1 %. 0.0035 % and 0.040 % of calls answer after 30 s, against a limit of 0.1 %.
-- **Most of the difference is the lock-up** (§ 12.1). Without the 8 locked configurations, p90 still
-  fails more calls (+0.008 points [+0.001, +0.019]). The capped p90 also fails more (+0.009 points
-  [+0.002, +0.019]).
-- **Why:** in the realistic band the check removes no failures. Under run to completion a late start is a
-  late answer, not a lost one.
+- **Two different costs.** Almost all of the +0.407 points is the cost of the lock-up defect (§ 12.1),
+  coming from 8 configurations. The cost of the check as intended is tiny but not zero:
+  - p90 without each cell's locked configurations: +0.008 points [+0.001, +0.019], about 1 call in
+    12,000;
+  - capped p90: +0.009 points [+0.002, +0.019].
+
+  Both are exploratory.
+- **Interpretation:** in the realistic band the check removes no failures. Under run to completion a late
+  start is a late answer, not a lost one, so every shed is a call that would have been answered.
 
 One cell points the other way, which the preregistration requires reporting: **in the stress band with
 P2, a percentile check fails fewer calls.**
 
 - p90, base tail: −1.89 points [−2.70, −1.11].
-- Capped p90: −1.14 points on the base tail, −1.11 points on the long tail.
-- **Why:** under overload, a call started with seconds left holds a permit for its whole read while the
-  queue behind it waits. Shedding that call lets the others start in time.
-- Plain p90 loses this gain to lock-ups as soon as the slow tail lengthens (stress, long: +9.8 points).
+- Capped p90: −1.14 points [−1.57, −0.77] on the base tail, −1.11 points [−1.62, −0.61] on the long tail.
+- **Where the gain comes from** (capped p90 − wait-only, stress, base, P2, paired):
+  - `queue_full` refusals −1.05 points [−1.44, −0.70];
+  - `deadline` refusals −0.09 points [−0.33, +0.13];
+  - goodput +0.12 calls/s [+0.08, +0.16].
+- **Interpretation, not a measured mechanism:** shedding a few late starts shortens the queue, so fewer
+  arrivals hit the depth-32 backstop.
+- **The gain does not survive round-robin dispatch with a long tail.** Stress, long, P0, which is today's
+  engine:
+  - capped p90 fails +11.8 points [+10.9, +12.7] more than wait-only;
+  - `deadline` refusals +28.2 points, `queue_full` −16.4 points.
+- Plain p90 loses the P2 gain to lock-ups once the slow tail lengthens (stress, long: +9.8 points).
 - p95 and p99 are worse than p90 in every cell.
 
 **Q3. Which `run_limit_ms`, and how often is it hit?** **R2 verdict: 30 s.**
@@ -528,14 +571,24 @@ Run-limit hits with the wait-only check, realistic band, P2, as a share of calls
 - The 30 s limit only just meets the long-tail threshold. On that tail it fails 0.04 points of calls that
   60 s would answer, in exchange for a shorter worst-case wait for a stuck call.
 - Abandoned work held at the run limit is small in the realistic band (0.9–1.6 permit-seconds per 1,000
-  calls at 30–60 s). In the stress band it is 7–45.
+  calls at 30–60 s). In the stress band it is 1.8–45.7.
+- **R2 and R4 disagree** (Q5). They measure the same cost with different tolerances. Without EP-09, 30 s
+  fails 0.045 % of calls on the long tail against 0.005 % at 60 s; with EP-09, 0.044 % against 0.005 %.
+  R2 tolerates 0.05 % of calls in run-limit hits, so it passes 30 s. R4 tolerates 0.01 points over 60 s,
+  so it keeps 60 s. EP-09 does not change the trade. The owner picks the tolerance (§ 12.4).
 
 **Q4. Does run to completion change the queue depth or head-of-line results?**
 
-- **Depth: no.** In the realistic band the share of calls refused `queue_full` is unchanged
-  (+0.000 points), and 1 % of configurations reach depth 32 under both rules. In the stress band, the
-  share of configurations reaching 32 goes from 40.7 % to 41.0 % (base tail) and from 71.6 % to 67.4 %
-  (long tail).
+- **Depth: no in the realistic band, yes in stress with the long tail** (R3).
+  - Realistic band: the share of calls refused `queue_full` is unchanged (+0.000 points), and 1 % of
+    configurations reach depth 32 under both rules.
+  - Stress, long tail: run to completion refuses fewer calls `queue_full` (−1.20 points [−1.51, −0.87]),
+    and the share of configurations reaching 32 falls from 71.6 % to 67.4 %. This passes R3's 0.1-point
+    trigger.
+  - Stress, base tail: +0.23 points [−0.00, +0.48], and the share reaching 32 goes from 40.7 % to
+    41.0 %.
+
+  The depth rule of queue-admission.md § 7.3 acts only on the live sweep, so nothing changes now.
 - **Head-of-line: yes, in kind.** Under round-robin (P0), calls blocked behind a slow read now answer late
   instead of timing out:
   - The excess failure over P2 falls: realistic, long from +0.72 to +0.27 points; stress, base from +7.8
@@ -545,11 +598,13 @@ Run-limit hits with the wait-only check, realistic band, P2, as a share of calls
 - **EP-18 part A still matters.** In the realistic band, base tail, wait-only fails 0.066 % of calls under
   P0 and 0.005 % under P2.
 
-**Q5. What changes once EP-09 lands?** **R4 verdict: the run limit cannot come down. Keep it at 60 s
-with EP-09.**
+**Q5. What changes once EP-09 lands?** **R4 verdict: with EP-09 the smallest run limit within
+0.01 points of 60 s is 60 s.**
 
-- **Lower limits fail legitimate slow reads.** On the realistic long tail, interrupting at 10 s fails
-  0.384 % of calls and 30 s fails 0.044 %, against 0.005 % at 60 s.
+- **Lower limits fail legitimate slow reads, with or without EP-09.** On the realistic long tail,
+  interrupting at 10 s fails 0.384 % of calls and 30 s fails 0.044 %, against 0.005 % at 60 s. Without
+  EP-09, 30 s fails 0.045 %. EP-09 therefore does not let the run limit come down toward the wait
+  deadline. R4's stricter tolerance is the only reason it disagrees with R2's 30 s (Q3).
 - **What EP-09 does buy is freed capacity.** Abandoned permit-seconds go to zero. Under P0, failures fall
   (realistic, base: 0.066 % → 0.024 %).
 - **Under overload, the best arm of the whole study is the old rule with EP-09,** which interrupts at the
@@ -565,13 +620,18 @@ with EP-09.**
 - **Start check: drop it.** A waiting call starts if it gets a permit before its 10 s wait deadline. This
   is the R1 verdict. The p90 check must not ship in any form that lets late samples into its window,
   because it locks a tool kind out.
-- **If the owner wants an overload guard,** use the capped form (`need = min(p90, deadline − 50 ms)`). It
-  costs 0.009 points in the realistic band and saves about 1.1 points in the stress band (P2). This is
-  exploratory, not a preregistered result.
-- **`run_limit_ms`: 30 s** by the preregistered rule. Use 60 s if legitimate reads of 30–60 s are
-  expected; that answers 0.04 points more calls on a 10–30 s slow tail.
+- **If the owner wants an overload guard,** use the capped form (`need = min(p90, deadline − 50 ms)`).
+  - It costs 0.009 points in the realistic band and saves about 1.1 points in the stress band with P2.
+  - Under today's round-robin dispatch with a long tail it costs +11.8 points. Enable it only after
+    EP-18 part A lands.
+  - This is exploratory, not a preregistered result.
+- **`run_limit_ms`: 30 s or 60 s; the owner picks the tolerance.**
+  - R2 gives 30 s and R4 keeps 60 s, for the same trade (Q3).
+  - 30 s fails about 0.04 points of calls on a 10–30 s slow tail, with or without EP-09, and halves the
+    longest wait on stuck work.
+  - 60 s answers those calls.
 - **EP-18 part A** stays necessary.
-- **EP-09** does not lower the run limit, and it opens an overload-policy question for the owner.
+- **EP-09** does not lower the run limit, and it opens an overload-policy question for the owner (Q5).
 
 ### 12.5 Limits
 

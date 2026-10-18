@@ -856,26 +856,39 @@ the arms and rules fixed in advance in
 
 **What the test found.**
 
-- **The start check does not pay for itself.** Realistic band, P2, run
-  limit 60 s: the p90 check fails 0.41 points more calls than starting any
-  call that gets a permit before its wait deadline. Time to data is the
-  same. 0.055 % of successes answer after 10 s.
 - **The p90 check as written locks up.** Under run to completion a late
   completion is a sample. One read over 10 s lifts p90 above the 10 s any
   new call has, and § 6.1 step 4 then refuses every later call of that
   kind while permits are free. No new sample can arrive, so the window
-  never recovers. It hit 8 of 500 realistic configurations on the
-  measured-like tail and 44 of 500 on a 10–30 s tail. p95 and p99 are
-  worse.
-- **The run limit.** The preregistered rule gives `run_limit_ms` = 30 s.
-  At 30 s, 0.005 % of calls hit it on the base tail and 0.04 % on a 10–30 s
-  tail; at 60 s, 0.001 % and 0.0001 %.
+  never recovers. It locked up 8 of 500 realistic configurations on the
+  base tail and 44 of 500 on a 10–30 s tail. p95 and p99 are worse.
+- **The defect costs 0.40 points; the check itself costs about 0.01.**
+  Realistic band, P2, run limit 60 s: p90 fails 0.41 points more calls than
+  starting any call that gets a permit before its wait deadline, almost
+  all of it from the 8 locked configurations. Without them, or with `need`
+  capped below the deadline, the check still fails about 0.01 points more
+  calls (1 in 12,000) and removes none: a late start is now a late answer.
+  Time to data is the same. 0.055 % of successes answer after 10 s.
+- **Under overload a capped check helps, but only with idle-first
+  dispatch.** In the stress band with P2 it fails about 1.1 points fewer
+  calls, mostly through fewer `queue_full` refusals. Under today's
+  round-robin dispatch with a 10–30 s tail it fails 11.8 points more.
+- **The run limit: 30 s or 60 s.** The preregistered R2 rule gives 30 s.
+  The R4 rule, which has a stricter tolerance, keeps 60 s. The trade is
+  the same either way: on a 10–30 s tail, 30 s fails 0.04 % of calls,
+  against 0.005 % at 60 s, with or without EP-09. On the base tail it is
+  0.005 % against 0.001 %.
 - **Former timeouts become answers.** Under the old rule 0.049 % of calls
-  timed out. About 97 % of them now answer: 83 % of those within 20 s and
-  none after 60 s.
+  timed out. Followed call by call with a 60 s run limit, 97 % of them now
+  answer: 37 % on time and 60 % late, 73 % of the late ones within 20 s and
+  none after 60 s. 2.6 % hit the run limit.
 - **EP-09 does not lower the run limit.** Interrupting at 10 s or 30 s
-  fails legitimate slow reads. Under overload (stress band), interrupting
-  at the 10 s deadline fails the fewest calls of any arm.
+  fails legitimate slow reads, as a 30 s limit does without EP-09. Under
+  overload (stress band), interrupting at the 10 s deadline fails the
+  fewest calls of any arm.
+- **Depth.** Run to completion leaves the realistic-band depth result
+  unchanged. In the stress band with the long tail it refuses 1.2 points
+  fewer calls `queue_full`.
 
 ### 11.1 Proposed edits to § 6.1
 
@@ -901,9 +914,9 @@ the arms and rules fixed in advance in
   - The paragraph "Why step 4 exists" shrinks to the epoch check.
 - **Busy codes:** the `deadline` row reads "No permit came before the wait
   deadline".
-- **`run_limit_ms`:** proposed default 30 s (REPORT § 12, R2) instead of
-  60 s. The alternative is 60 s if reads of 30–60 s are expected (open
-  question 2).
+- **`run_limit_ms`:** 30 s (R2) or 60 s (R4, and the current proposal);
+  open question 2. Both rules weigh the same trade with different
+  tolerances.
 - **Cost bullet** ("a rare call answers after more than 10 s"): replace its
   estimate with the measured one: 0.055 % of successes, 6 % of those after
   30 s at a 60 s limit, none after 60 s.
@@ -916,16 +929,19 @@ the arms and rules fixed in advance in
   > run-limit hits. If more than 1 % of successes answer after 10 s at the
   > chosen cap, report it to the owner.
 - **Add a run-limit bullet:**
-  > **`run_limit_ms`. Set by simulation: 30 s** (REPORT § 12, R2). Report
-  > to the owner if more than 0.01 % of calls on the large store hit it.
-- **Queue limit:** no change. Run to completion leaves the depth result
-  unchanged (REPORT § 12, Q4).
+  > **`run_limit_ms`. Set by the owner from REPORT § 12** (30 s or 60 s).
+  > Report to the owner if more than 0.01 % of calls on the large store
+  > hit it.
+- **Queue limit:** no change. Run to completion leaves the realistic-band
+  depth result unchanged. In the stress band with the long tail it refuses
+  fewer calls `queue_full` (REPORT § 12, Q4). The live overload arm
+  already validates the depth.
 
 ### 11.3 Proposed edits to § 10
 
 - **The pending item** ("whether the p90 start check stays … and the
   value of `run_limit_ms`"): for the owner to record as answered — no
-  start check; `run_limit_ms` 30 s, or 60 s.
+  start check; `run_limit_ms` 30 s or 60 s (open question 2).
 - **"Queue parameters"** bullet: drop "the p90 start check over the last
   128 completed calls per tool kind, with a 50 ms floor before there is
   history".
@@ -947,14 +963,16 @@ the arms and rules fixed in advance in
 
 ### 11.5 Open questions for the owner
 
-1. **Overload guard.** In the stress band (16–32 agents, 2–5 % slow reads,
-   P2) a percentile check fails about 1–2 points fewer calls. Ship
-   without one, as R1 says? Or add the capped form
-   (`need = min(p90, deadline − 50 ms)`), off by default? In the
-   realistic band it costs 0.009 points.
-2. **30 s or 60 s.** The rule gives 30 s. 60 s answers 0.04 points more
-   calls on a 10–30 s slow tail, but doubles how long an agent waits on
-   stuck work.
+1. **Overload guard.** In the stress band (16–32 agents, 2–5 % slow reads)
+   with P2, the capped check (`need = min(p90, deadline − 50 ms)`) fails
+   about 1.1 points fewer calls. Under today's round-robin dispatch with a
+   10–30 s tail it fails 11.8 points more. In the realistic band it costs
+   0.009 points. Ship without one, as R1 says? Or add the capped form, off
+   by default and only after EP-18 part A?
+2. **30 s or 60 s.** R2 gives 30 s and R4 keeps 60 s for the same trade.
+   60 s answers about 0.04 points more calls on a 10–30 s slow tail; 30 s
+   halves how long an agent can wait on stuck work. Which tolerance
+   should apply?
 3. **After EP-09.** Under overload, interrupting at the 10 s deadline
    (counted from arrival) fails the fewest calls: 4.6 % against 6.8 %. In
    the realistic band it fails twelve times as many as run to completion

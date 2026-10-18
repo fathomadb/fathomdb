@@ -122,7 +122,9 @@ The simulator changes and these conclusions get a Fable-medium review; each fix 
 **What was seen.** Run 1 was stopped at 5,429 of 86,400 simulations (realistic band, roughly
 configurations 0–67) after the Fable-medium review of the simulator. The reviewer probed 2,102 of those
 rows; a smoke test of `rtc_analysis.py` read 1,360. Seen: the start-check lock-up below, and an early R1
-direction ("drop"). Run 1 is discarded (`results/rtc-aborted-run1.*`, not committed); run 2 reruns
+direction ("drop"). The reviewer's report also gave run-1 arm means for about 42 realistic
+configurations: R2's 30 s limit as marginal on the long tail (hits 0.049 % against the 0.05 % limit),
+the collapse of p99, and the ordering of the EP-09 arms. No R1–R4 threshold was changed after that. Run 1 is discarded (`results/rtc-aborted-run1.*`, not committed); run 2 reruns
 everything.
 
 **Lock-up (review finding B1).** Under run to completion a late completion is a service-time sample (as
@@ -150,3 +152,9 @@ as written (step 4 re-checks `deadline − now ≥ need` after any permit), not 
   paired ratio), and the qualifying one with the lowest mean `fail_rate` is chosen. R2 then uses that check's run-limit arms. EP-09 arms exist only for p90,
   wait-only and capped p90; if R1 picks p95 or p99, R4 uses p90's EP-09 arms and says so. R4's "within
   0.01 points" is one-sided: a shorter limit with a lower fail rate qualifies.
+
+**After run 2 (second review, 2026-10-18).** The lock-up count used `rf_with_permit`, which also counts
+grant-time sheds. A new metric, `rf_arrival_free`, records refusals at arrival with a permit free, and
+the four percentile arms at 60 s were rerun to record it. The rerun used the same configurations, and
+every `fail_rate` reproduced. A per-call pairing of the old rule's timeouts (`rtc_pairing.py`) replaces
+the aggregate "how many become answers". Both are exploratory; R1–R4 are unchanged.

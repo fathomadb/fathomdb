@@ -63,7 +63,9 @@ Rates are means over configurations; latency percentiles are medians over config
 
 **Verdict:** DROP the start check: start any call that gets a permit before its wait deadline. Condition 1 holds, condition 2 holds, late-answer guard holds. Cells pointing the other way: stress/base/P2.
 
-## Lock-ups (addendum): configurations refusing > 1 % of calls with a permit free
+## Lock-ups (addendum): configurations refusing > 1 % of calls at arrival with a permit free
+
+rf_arrival_free from the rerun of the four percentile arms (17280 rows, every fail_rate reproduced); columns without it (wait-only, old p90) use rf_with_permit, which also counts grant-time sheds.
 
 | band | tail | dispatch | p90 | p95 | p99 | p90 capped | wait-only | old p90 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -71,25 +73,25 @@ Rates are means over configurations; latency percentiles are medians over config
 | realistic | base | P0 | 10 / 500 | 24 / 500 | 161 / 500 | 0 / 500 | 0 / 500 | 0 / 500 |
 | realistic | long | P2 | 44 / 500 | 102 / 500 | 493 / 500 | 0 / 500 | 0 / 500 | 0 / 500 |
 | realistic | long | P0 | 93 / 500 | 218 / 500 | 499 / 500 | 0 / 500 | 0 / 500 | 0 / 500 |
-| stress | base | P2 | 39 / 580 | 82 / 580 | 293 / 580 | 1 / 580 | 0 / 580 | 0 / 580 |
-| stress | base | P0 | 153 / 580 | 244 / 580 | 381 / 580 | 29 / 580 | 0 / 580 | 0 / 580 |
-| stress | long | P2 | 264 / 580 | 572 / 580 | 580 / 580 | 2 / 580 | 0 / 580 | 0 / 580 |
-| stress | long | P0 | 576 / 580 | 580 / 580 | 580 / 580 | 440 / 580 | 0 / 580 | 0 / 580 |
+| stress | base | P2 | 39 / 580 | 79 / 580 | 292 / 580 | 0 / 580 | 0 / 580 | 0 / 580 |
+| stress | base | P0 | 144 / 580 | 236 / 580 | 381 / 580 | 0 / 580 | 0 / 580 | 0 / 580 |
+| stress | long | P2 | 262 / 580 | 572 / 580 | 580 / 580 | 0 / 580 | 0 / 580 | 0 / 580 |
+| stress | long | P0 | 572 / 580 | 580 / 580 | 580 / 580 | 0 / 580 | 0 / 580 | 0 / 580 |
 
-### R1 without the 8 locked configurations of the deciding cell (exploratory)
+### R1 without each cell's locked configurations (8 in the deciding cell; exploratory)
 
 | band | tail | dispatch | ΔF check − wait | Δ busy | Δ abandoned | ttd p99 ratio wait/check (median) | wait: late / ok | wait: > 30 s / calls |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | realistic | base | P2 | +0.008 pp [+0.001, +0.019] | +0.008 pp [+0.001, +0.019] | +0.000 pp [+0.000, +0.000] | 1.000 | 0.037 % | 0.0031 % |
-| realistic | base | P0 | +0.075 pp [+0.005, +0.200] | +0.076 pp [+0.005, +0.200] | -0.000 pp [-0.000, +0.000] | 1.000 | 0.055 % | 0.0068 % |
-| realistic | long | P2 | +1.027 pp [+0.645, +1.461] | +1.027 pp [+0.645, +1.461] | +0.000 pp [+0.000, +0.000] | 1.000 | 0.372 % | 0.0393 % |
-| realistic | long | P0 | +4.465 pp [+3.339, +5.693] | +4.464 pp [+3.339, +5.693] | +0.000 pp [-0.000, +0.000] | 1.000 | 0.677 % | 0.0592 % |
-| stress | base | P2 | -1.904 pp [-2.781, -1.137] | -1.893 pp [-2.767, -1.134] | -0.011 pp [-0.023, -0.001] | 1.000 | 3.014 % | 0.1660 % |
-| stress | base | P0 | +4.467 pp [+2.987, +6.012] | +4.492 pp [+3.009, +6.040] | -0.025 pp [-0.039, -0.014] | 1.000 | 3.776 % | 0.2253 % |
-| stress | long | P2 | +9.888 pp [+8.153, +11.595] | +9.902 pp [+8.166, +11.607] | -0.013 pp [-0.028, -0.002] | 1.018 | 6.445 % | 0.4712 % |
-| stress | long | P0 | +47.778 pp [+45.683, +49.790] | +47.803 pp [+45.703, +49.810] | -0.026 pp [-0.039, -0.015] | 3.138 | 13.125 % | 0.7821 % |
+| realistic | base | P0 | +0.009 pp [+0.002, +0.018] | +0.009 pp [+0.003, +0.018] | -0.000 pp [-0.000, +0.000] | 1.000 | 0.055 % | 0.0066 % |
+| realistic | long | P2 | +0.009 pp [+0.002, +0.020] | +0.009 pp [+0.002, +0.020] | +0.000 pp [+0.000, +0.000] | 1.000 | 0.361 % | 0.0387 % |
+| realistic | long | P0 | +0.007 pp [-0.002, +0.018] | +0.007 pp [-0.002, +0.018] | -0.000 pp [-0.000, +0.000] | 1.000 | 0.549 % | 0.0439 % |
+| stress | base | P2 | -0.351 pp [-0.586, -0.172] | -0.352 pp [-0.587, -0.172] | +0.000 pp [-0.000, +0.001] | 1.000 | 1.596 % | 0.0278 % |
+| stress | base | P0 | -0.241 pp [-0.516, -0.020] | -0.241 pp [-0.516, -0.020] | +0.000 pp [-0.001, +0.001] | 1.000 | 1.942 % | 0.0265 % |
+| stress | long | P2 | +0.122 pp [-0.299, +0.588] | +0.122 pp [-0.299, +0.588] | -0.000 pp [-0.000, +0.000] | 1.000 | 5.161 % | 0.2487 % |
+| stress | long | P0 | +3.623 pp [+1.096, +6.523] | +3.623 pp [+1.096, +6.523] | +0.000 pp [+0.000, +0.000] | 1.032 | 13.495 % | 0.0312 % |
 
-**Verdict:** DROP the start check: start any call that gets a permit before its wait deadline. Condition 1 holds, condition 2 holds, late-answer guard holds. Cells pointing the other way: stress/base/P2.
+**Verdict:** DROP the start check: start any call that gets a permit before its wait deadline. Condition 1 holds, condition 2 holds, late-answer guard holds. Cells pointing the other way: stress/base/P2, stress/base/P0.
 
 ### R1x: capped p90 against wait-only (exploratory)
 

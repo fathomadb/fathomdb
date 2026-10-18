@@ -665,7 +665,13 @@ impl Engine {
         });
 
         Ok((
-            SearchResult { projection_cursor: cursor, soft_fallback, results, explanation },
+            SearchResult {
+                projection_cursor: cursor,
+                soft_fallback,
+                results,
+                explanation,
+                degradations: Vec::new(),
+            },
             graph_stats,
             expanded,
         ))
@@ -1081,7 +1087,13 @@ impl Engine {
                     return Err(EngineError::Storage);
                 }
             };
-        Ok(SearchResult { projection_cursor: cursor, soft_fallback, results, explanation })
+        Ok(SearchResult {
+            projection_cursor: cursor,
+            soft_fallback,
+            results,
+            explanation,
+            degradations: Vec::new(),
+        })
     }
 
     /// Search one declared `searchable→FTS` projection without invoking body
@@ -1317,6 +1329,7 @@ impl Engine {
                 search_hits: Vec::new(),
                 expanded: Vec::new(),
                 all_logical_ids: Vec::new(),
+                degradations: Vec::new(),
             });
         }
         // Step 2: dispatch to the reader pool to resolve logical_ids and run BFS.

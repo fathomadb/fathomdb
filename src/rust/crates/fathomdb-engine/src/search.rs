@@ -277,7 +277,13 @@ pub(crate) fn read_projected_text_in_tx(
         }
     }
     let projection_cursor = load_projection_cursor(&tx)?;
-    Ok(SearchResult { projection_cursor, soft_fallback: None, results, explanation: None })
+    Ok(SearchResult {
+        projection_cursor,
+        soft_fallback: None,
+        results,
+        explanation: None,
+        degradations: Vec::new(),
+    })
 }
 
 // The 8th parameter (`vector_stage_only`) is the additive GA-2 / ◆ B-1
@@ -820,8 +826,13 @@ impl SearchOriginCapture for EvidenceCapture {
     ) -> Result<Self::Output, SearchReaderError> {
         #[cfg(any(test, feature = "test-hooks"))]
         evidence_linearization_hooks::fire_before_sidecar();
-        let search_result =
-            SearchResult { projection_cursor: cursor, soft_fallback, results, explanation };
+        let search_result = SearchResult {
+            projection_cursor: cursor,
+            soft_fallback,
+            results,
+            explanation,
+            degradations: Vec::new(),
+        };
         evidence::build_search_result(
             connection,
             &self.frozen,

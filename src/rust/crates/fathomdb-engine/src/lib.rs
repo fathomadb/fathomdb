@@ -312,11 +312,12 @@ pub(crate) use search::retain_complete_rank_boundary_candidates;
 pub(crate) use search::{append_json_witness_for_test, record_slice71_profile_statement_for_test};
 pub(crate) use search::{prepare_search_statement, CapturedGraphOrigin};
 pub use search_types::{
-    Bm25fFieldWeights, Bm25fQueryPlan, Explanation, GraphFrontierStats, PerHitExplain, QueryTrace,
-    SearchHit, SearchResult, SoftFallback, SoftFallbackBranch, StructuralDegradationCodeV1,
-    StructuralDependencyStateV1, StructuralInclusionStateV1, StructuralInclusionV1,
-    StructuralLifecycleStateV1, StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT,
-    MAX_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
+    ArmDegradation, Bm25fFieldWeights, Bm25fQueryPlan, DegradationReason, Explanation,
+    GraphFrontierStats, PerHitExplain, QueryTrace, SearchHit, SearchResult, SoftFallback,
+    SoftFallbackBranch, StructuralDegradationCodeV1, StructuralDependencyStateV1,
+    StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
+    StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT, MAX_SEARCH_RESULT_LIMIT,
+    SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
 };
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]

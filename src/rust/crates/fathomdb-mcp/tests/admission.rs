@@ -105,3 +105,34 @@ async fn an_excess_call_is_refused_when_too_little_deadline_remains() {
     let _ = first.await.unwrap();
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_full_queue_refuses_at_once_with_queue_full() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "queue_limit": 1, "call_deadline_ms": 3000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    harness.adapter.seams().block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let waiting = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let started = Instant::now();
+    let third = spawn_call(&harness, "search", search_a()).await.unwrap();
+    let elapsed = started.elapsed();
+    let error = error_of(&third);
+    assert_eq!(error["class"], "busy", "{error}");
+    assert_eq!(error["code"], "admission");
+    assert_eq!(error["busy"]["reason"], "queue_full", "{error}");
+    assert_eq!(error["busy"]["in_flight"], 1, "{error}");
+    assert_eq!(error["busy"]["queued"], 1, "{error}");
+    assert!(elapsed < Duration::from_millis(50), "refused at once: {elapsed:?}");
+    assert!(!waiting.is_finished(), "the queued call keeps waiting");
+    harness.adapter.seams().release_calls("a");
+    assert_ne!(waiting.await.unwrap().is_error, Some(true), "the queued call runs");
+    let _ = running.await.unwrap();
+    harness.shutdown().await;
+}

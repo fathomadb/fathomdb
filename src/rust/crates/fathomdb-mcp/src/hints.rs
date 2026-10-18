@@ -12,6 +12,10 @@ use crate::shape;
 /// executable `fetch` call.
 pub(crate) const MAX_HINT_REFS: usize = 50;
 
+/// A ref longer than this is left out of hints, which bounds what a
+/// writer-chosen id can carry inside an imperative-looking hint (§ 2.3).
+pub(crate) const MAX_HINT_REF_BYTES: usize = 128;
+
 /// One search page hit: `(hit, write cursor, per-hit explanation)`.
 pub(crate) type PageHit = (Hit, u64, Option<PerHitOut>);
 
@@ -91,13 +95,14 @@ impl SearchPlan {
     }
 }
 
-/// A `fetch` hint listing `refs` in order, up to [`MAX_HINT_REFS`], with
-/// the rest counted; `None` when nothing is listed.
+/// A `fetch` hint listing `refs` in order, up to [`MAX_HINT_REFS`] of at
+/// most [`MAX_HINT_REF_BYTES`] each, with the rest counted; `None` when
+/// nothing is listed.
 fn fetch_hint<'a>(reason: HintReason, refs: impl Iterator<Item = &'a str>) -> Option<Hint> {
     let mut listed = Vec::new();
     let mut omitted = 0_u32;
     for reference in refs {
-        if listed.len() < MAX_HINT_REFS {
+        if reference.len() <= MAX_HINT_REF_BYTES && listed.len() < MAX_HINT_REFS {
             listed.push(reference.to_string());
         } else {
             omitted += 1;

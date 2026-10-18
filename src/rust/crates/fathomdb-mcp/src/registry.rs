@@ -53,6 +53,23 @@ pub(crate) struct OpenInfo {
     pub(crate) hosted: bool,
 }
 
+/// Fires when the client cancels the call (`notifications/cancelled`).
+#[derive(Clone)]
+pub(crate) struct Cancel(watch::Receiver<bool>);
+
+impl Cancel {
+    pub(crate) fn new(cancelled: watch::Receiver<bool>) -> Self {
+        Self(cancelled)
+    }
+
+    /// Resolves once the call is cancelled; never, if it is not.
+    async fn cancelled(&mut self) {
+        if self.0.wait_for(|cancelled| *cancelled).await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    }
+}
+
 /// Progress callback for a call that waits on an open: `(progress, phase)`.
 pub(crate) type ProgressFn = Arc<dyn Fn(f64, &'static str) + Send + Sync>;
 
@@ -211,6 +228,7 @@ enum Waited {
     Permit(OwnedSemaphorePermit),
     Expired,
     Moved,
+    Cancelled,
 }
 
 /// Why a host engine could not be registered.
@@ -383,6 +401,7 @@ impl Registry {
         name: &str,
         wait_until: Option<Instant>,
         progress: Option<&ProgressFn>,
+        cancel: Option<&Cancel>,
     ) -> Result<StoreGuard, ToolError> {
         self.ensure_slot(name)?;
         let mut waited_attempt: Option<u64> = None;
@@ -430,7 +449,7 @@ impl Registry {
             };
             let (mut changed, phase) = match next {
                 Next::Admit { load, epoch, changed } => {
-                    match self.admit(name, load, epoch, changed, wait_until).await? {
+                    match self.admit(name, load, epoch, changed, wait_until, cancel).await? {
                         Some(guard) => return Ok(guard),
                         None => continue,
                     }
@@ -461,6 +480,7 @@ impl Registry {
         epoch: u64,
         mut changed: watch::Receiver<u64>,
         wait_until: Option<Instant>,
+        cancel: Option<&Cancel>,
     ) -> Result<Option<StoreGuard>, ToolError> {
         let refuse = |reason| ToolError::admission(name, load.busy(reason));
         let permit = match wait_until {
@@ -487,6 +507,14 @@ impl Registry {
                     let wait_end = deadline.checked_sub(NEED_FLOOR).unwrap_or(deadline);
                     let expired = tokio::time::sleep_until(wait_end.into());
                     tokio::pin!(expired);
+                    let mut cancel = cancel.cloned();
+                    let cancelled = async {
+                        match cancel.as_mut() {
+                            Some(cancel) => cancel.cancelled().await,
+                            None => std::future::pending().await,
+                        }
+                    };
+                    tokio::pin!(cancelled);
                     loop {
                         tokio::select! {
                             biased;
@@ -496,6 +524,7 @@ impl Registry {
                                 );
                             }
                             () = &mut expired => return Waited::Expired,
+                            () = &mut cancelled => return Waited::Cancelled,
                             _ = changed.changed() => {
                                 if self.ready_epoch(name) != Some(epoch) {
                                     return Waited::Moved;
@@ -510,6 +539,7 @@ impl Registry {
                     Waited::Permit(permit) => permit,
                     Waited::Expired => return Err(refuse(BusyReason::Deadline)),
                     Waited::Moved => return Ok(None),
+                    Waited::Cancelled => return Err(ToolError::cancelled()),
                 }
             }
         };

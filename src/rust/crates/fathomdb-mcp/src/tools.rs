@@ -28,7 +28,7 @@ use crate::output::{
     ProjectionStatusOut, Readiness, RecordOut, SearchOutput, StoreRow, Target, TraceOut,
     Unavailable, UnavailableWord, UseStoreOutput,
 };
-use crate::registry::{ProgressFn, Registry, StoreGuard};
+use crate::registry::{Cancel, ProgressFn, Registry, StoreGuard};
 use crate::session::{Continuation, ResponseContext, ResponseLookup, Session};
 use crate::shape::{self, CanonicalSearch};
 
@@ -56,6 +56,9 @@ pub(crate) struct Ctx<'a> {
     /// notifications are sent while the call waits for an opening store
     /// (MR-006.4).
     pub(crate) progress: Option<ProgressFn>,
+    /// Fires when the client cancels the call; a queued call then leaves
+    /// the queue.
+    pub(crate) cancel: Cancel,
 }
 
 /// A successful result: structured content and its text rendering.
@@ -239,7 +242,10 @@ impl Ctx<'_> {
     async fn acquire(&self, store: &str, deadline: Instant) -> Result<StoreGuard, ToolError> {
         // Every call waits for an open in progress up to its deadline; only
         // calls with a progress token are sent progress notifications.
-        self.shared.registry.acquire(store, Some(deadline), self.progress.as_ref()).await
+        self.shared
+            .registry
+            .acquire(store, Some(deadline), self.progress.as_ref(), Some(&self.cancel))
+            .await
     }
 
     async fn run<T, F>(&self, store: &str, f: F) -> Result<(Answered, T), ToolError>
@@ -1172,7 +1178,7 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     let deadline = ctx.deadline();
     // No waiting: a store that is no longer ready can only come back under a
     // new epoch, whose sink never saw this response.
-    let guard = match ctx.shared.registry.acquire(&store, None, None).await {
+    let guard = match ctx.shared.registry.acquire(&store, None, None, None).await {
         Ok(guard) => guard,
         Err(error) if error.class_str() == "not_ready" => {
             return Ok(not_recorded(

@@ -219,6 +219,17 @@ impl ToolError {
         )
     }
 
+    /// The client cancelled the call. rmcp discards the response of a
+    /// cancelled request, so no client sees this result.
+    pub(crate) fn cancelled() -> Self {
+        Self::new(
+            ErrorClass::Timeout,
+            "cancelled",
+            "the client cancelled this call".to_string(),
+            "none; the call was cancelled by the client",
+        )
+    }
+
     pub(crate) fn admission(store: &str, busy: Busy) -> Self {
         let message = match busy.reason {
             BusyReason::QueueFull => {

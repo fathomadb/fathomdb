@@ -95,8 +95,8 @@ pub struct Config {
     pub queue_limit: u32,
     /// Budget when a call omits `max_tokens` (MR-041.3).
     pub default_max_tokens: u32,
-    /// Snippet cap in characters (MR-040.1).
-    pub snippet_chars: u32,
+    /// Snippet cap in UTF-8 bytes (MR-040.1).
+    pub snippet_bytes: u32,
     /// Search path when a call omits `mode`.
     pub search_mode: SearchMode,
     /// Open every store with the pinned default embedder (needs the
@@ -122,7 +122,7 @@ impl Default for Config {
             run_limit_ms: 60_000,
             queue_limit: 32,
             default_max_tokens: 4_000,
-            snippet_chars: 300,
+            snippet_bytes: 300,
             search_mode: SearchMode::Text,
             use_default_embedder: false,
             telemetry_dir: None,
@@ -163,7 +163,7 @@ const TOP_LEVEL_KEYS: &[&str] = &[
     "run_limit_ms",
     "queue_limit",
     "default_max_tokens",
-    "snippet_chars",
+    "snippet_bytes",
     "search_mode",
     "use_default_embedder",
     "telemetry_dir",
@@ -213,7 +213,7 @@ impl Config {
                 "default_max_tokens",
                 u64::from(defaults.default_max_tokens),
             )?,
-            snippet_chars: narrow(&object, "snippet_chars", u64::from(defaults.snippet_chars))?,
+            snippet_bytes: narrow(&object, "snippet_bytes", u64::from(defaults.snippet_bytes))?,
             search_mode: parse_search_mode(object.get("search_mode"))?,
             use_default_embedder: boolean(&object, "use_default_embedder", false)?,
             telemetry_dir: optional_string(&object, "telemetry_dir")?
@@ -256,6 +256,15 @@ impl Config {
         Self::from_json_str(&text, &base)
     }
 
+    /// The record head each search snippet keeps, `min(48, snippet_bytes /
+    /// 2)` bytes: 48 holds a LoCoMo-style header such as `(unknown date)
+    /// [8 May 2023] Caroline:` (37 bytes) with room for a longer date or
+    /// speaker, and never exceeds the selector's `max_bytes / 2`.
+    #[must_use]
+    pub fn snippet_head_bytes(&self) -> u32 {
+        48.min(self.snippet_bytes / 2)
+    }
+
     /// Check the value rules of interface §2 on an already-built config
     /// (fields are public, so a hand-built config is checked again here).
     ///
@@ -282,8 +291,8 @@ impl Config {
         if self.default_max_tokens < 256 {
             return Err(ConfigError::new("default_max_tokens: must be at least 256"));
         }
-        if !(40..=2000).contains(&self.snippet_chars) {
-            return Err(ConfigError::new("snippet_chars: must be in 40..=2000"));
+        if !(40..=2000).contains(&self.snippet_bytes) {
+            return Err(ConfigError::new("snippet_bytes: must be in 40..=2000"));
         }
         if self.search_mode == SearchMode::Hybrid && !self.use_default_embedder {
             return Err(ConfigError::new(

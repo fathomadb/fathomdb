@@ -921,7 +921,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             run.explanation.as_ref().and_then(|explanation| explanation.per_hit.get(index))
         })
         .collect();
-    let snippet_cap = ctx.shared.config.snippet_chars as usize;
+    let snippet_cap = ctx.shared.config.snippet_bytes as usize;
     let page: Vec<(Hit, u64, Option<PerHitOut>)> = run
         .hits
         .iter()
@@ -929,7 +929,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         .skip(offset)
         .map(|(hit, explain)| {
             let reference = hit.id.to_prefixed();
-            let (snippet, snippet_cut) = shape::snippet(&hit.body, snippet_cap);
+            let (snippet, snippet_cut) = shape::snippet_bytes(&hit.body, snippet_cap);
             let per_hit = explain.map(|explain| per_hit_out(&reference, explain));
             (
                 Hit {

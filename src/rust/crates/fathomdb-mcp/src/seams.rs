@@ -244,7 +244,7 @@ pub struct SyntheticHit {
     /// The prefixed reference, for example `l:note:1`.
     pub reference: String,
     pub kind: String,
-    /// The whole body; the seam cuts it to `snippet_chars` as `search` does.
+    /// The whole body; the seam cuts it to `snippet_bytes` as `search` does.
     pub body: String,
     pub source_id: Option<String>,
     pub score: f64,
@@ -260,7 +260,7 @@ pub struct SearchPageInput {
     pub offset: usize,
     /// The request's `limit`.
     pub limit: usize,
-    pub snippet_chars: usize,
+    pub snippet_bytes: usize,
     pub max_tokens: u32,
     /// Hybrid rather than text mode.
     pub hybrid: bool,
@@ -314,7 +314,8 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
         .skip(input.offset)
         .enumerate()
         .map(|(index, hit)| {
-            let (snippet, snippet_cut) = crate::shape::snippet(&hit.body, input.snippet_chars);
+            let (snippet, snippet_cut) =
+                crate::shape::snippet_bytes(&hit.body, input.snippet_bytes);
             (
                 crate::output::Hit {
                     reference: hit.reference.clone(),

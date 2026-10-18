@@ -37,7 +37,7 @@ async fn tools_list_and_capabilities_are_static_across_configs_and_contents() {
         "stores": {"b": {"path": "b.sqlite"}},
         "roots": [{"path": "root"}],
         "idle_timeout_secs": 0,
-        "snippet_chars": 80,
+        "snippet_bytes": 80,
         "telemetry_dir": "t"
     })))
     .await;

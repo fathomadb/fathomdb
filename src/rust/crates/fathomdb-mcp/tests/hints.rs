@@ -171,7 +171,7 @@ async fn per_call_hints_argument_overrides_config() {
 #[tokio::test(flavor = "multi_thread")]
 async fn search_with_cut_snippets_emits_one_fetch_hint_with_every_cut_ref() {
     let (_fixture, harness) =
-        harness_with(river_notes(60, 200), json!({"snippet_chars": 40})).await;
+        harness_with(river_notes(60, 200), json!({"snippet_bytes": 40})).await;
     let found =
         harness.ok("search", json!({"query": "river", "limit": 60, "max_tokens": 20_000})).await;
     let results = found["results"].as_array().unwrap();
@@ -203,7 +203,7 @@ async fn hint_bounds_hold() {
             other => other,
         })
         .collect();
-    let (_fixture, harness) = harness_with(writes, json!({"snippet_chars": 40})).await;
+    let (_fixture, harness) = harness_with(writes, json!({"snippet_bytes": 40})).await;
     let found =
         harness.ok("search", json!({"query": "river", "limit": 60, "max_tokens": 20_000})).await;
     let results: Vec<String> = common::refs(&found);
@@ -236,7 +236,7 @@ fn paging_hints(found: &Value) -> Vec<Value> {
 #[tokio::test(flavor = "multi_thread")]
 async fn continuation_hint_equals_result_continuation() {
     let (_fixture, harness) =
-        harness_with(river_notes(30, 400), json!({"snippet_chars": 40})).await;
+        harness_with(river_notes(30, 400), json!({"snippet_bytes": 40})).await;
     let full = harness.ok("search", json!({"query": "river", "limit": 5})).await;
     assert_eq!(full["completeness"], "limit_reached");
     assert_eq!(
@@ -367,7 +367,7 @@ async fn hints_count_against_the_budget() {
     for i in 1..20 {
         writes.push(common::edge("link", "note:000", &format!("note:{i:03}")));
     }
-    let (_fixture, harness) = harness_with(writes, json!({"snippet_chars": 80})).await;
+    let (_fixture, harness) = harness_with(writes, json!({"snippet_bytes": 80})).await;
     let fetch_refs: Vec<String> = (0..20).map(|i| format!("l:note:{i:03}")).collect();
     let mut with_hints = 0;
     for max_tokens in [256_u64, 300, 512, 1000, 2500, 4000, 20_000] {

@@ -41,12 +41,12 @@ proptest! {
         lengths in proptest::collection::vec(0_usize..400, 0..100),
         limit in 1_usize..=100,
         max_tokens in 256_u32..20_000,
-        snippet_chars in 40_usize..120,
+        snippet_bytes in 40_usize..120,
     ) {
         let input = SearchPageInput {
             ranked: ranked(&lengths),
             limit,
-            snippet_chars,
+            snippet_bytes,
             max_tokens,
             hints: Some(true),
             ..Default::default()
@@ -126,7 +126,7 @@ proptest! {
         let input = SearchPageInput {
             ranked,
             limit,
-            snippet_chars: 40,
+            snippet_bytes: 40,
             max_tokens,
             hybrid: degraded,
             degradation,
@@ -151,7 +151,7 @@ proptest! {
         lengths in proptest::collection::vec(0_usize..400, 0..100),
         limit in 1_usize..=100,
         budgets in proptest::collection::vec(256_u32..6_000, 1..20),
-        snippet_chars in 40_usize..120,
+        snippet_bytes in 40_usize..120,
     ) {
         let ranked = ranked(&lengths);
         let expected: Vec<String> = ranked.iter().map(|hit| hit.reference.clone()).collect();
@@ -165,7 +165,7 @@ proptest! {
                     ranked: ranked.clone(),
                     offset: start,
                     limit,
-                    snippet_chars,
+                    snippet_bytes,
                     max_tokens: budgets[pages % budgets.len()],
                     hints: Some(hints_on),
                     ..Default::default()

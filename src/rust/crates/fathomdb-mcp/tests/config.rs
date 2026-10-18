@@ -32,7 +32,7 @@ fn empty_object_yields_documented_defaults() {
     assert_eq!(config.admission_cap, 4);
     assert_eq!(config.call_deadline_ms, 10_000);
     assert_eq!(config.default_max_tokens, 4_000);
-    assert_eq!(config.snippet_chars, 300);
+    assert_eq!(config.snippet_bytes, 300);
     assert_eq!(config.search_mode, SearchMode::Text);
     assert!(!config.use_default_embedder);
     assert_eq!(config.telemetry_dir, None);
@@ -57,7 +57,7 @@ fn relative_paths_resolve_against_the_config_directory() {
         "admission_cap": 7,
         "call_deadline_ms": 100,
         "default_max_tokens": 256,
-        "snippet_chars": 40,
+        "snippet_bytes": 40,
         "search_mode": "hybrid",
         "use_default_embedder": true,
         "telemetry_dir": "telemetry",
@@ -83,7 +83,7 @@ fn relative_paths_resolve_against_the_config_directory() {
     assert_eq!(config.admission_cap, 7);
     assert_eq!(config.call_deadline_ms, 100);
     assert_eq!(config.default_max_tokens, 256);
-    assert_eq!(config.snippet_chars, 40);
+    assert_eq!(config.snippet_bytes, 40);
     assert_eq!(config.search_mode, SearchMode::Hybrid);
     assert!(config.use_default_embedder);
     assert_eq!(config.telemetry_dir, Some(dir.path().join("telemetry")));
@@ -111,10 +111,26 @@ fn numeric_ranges_are_enforced() {
     assert!(invalid(r#"{"admission_cap": 8}"#, base).contains("admission_cap"));
     assert!(invalid(r#"{"call_deadline_ms": 99}"#, base).contains("call_deadline_ms"));
     assert!(invalid(r#"{"default_max_tokens": 255}"#, base).contains("default_max_tokens"));
-    assert!(invalid(r#"{"snippet_chars": 39}"#, base).contains("snippet_chars"));
-    assert!(invalid(r#"{"snippet_chars": 2001}"#, base).contains("snippet_chars"));
-    assert!(parse(r#"{"snippet_chars": 2000}"#, base).is_ok());
+    assert!(invalid(r#"{"snippet_bytes": 39}"#, base).contains("snippet_bytes"));
+    assert!(invalid(r#"{"snippet_bytes": 2001}"#, base).contains("snippet_bytes"));
+    assert!(parse(r#"{"snippet_bytes": 2000}"#, base).is_ok());
     assert!(invalid(r#"{"idle_timeout_secs": -1}"#, base).contains("idle_timeout_secs"));
+}
+
+/// MR-040 in bytes (match-centred-snippets.md § 6.2, § 7.3): the cap is
+/// `snippet_bytes` with no alias for the old `snippet_chars` key, and the
+/// record head is `min(48, snippet_bytes / 2)`, fixed at validation.
+#[test]
+fn snippet_cap_is_in_bytes_with_a_derived_head() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path();
+    let message = invalid(r#"{"snippet_chars": 300}"#, base);
+    assert!(message.contains("snippet_chars"), "{message}");
+    let defaults = parse("{}", base).unwrap();
+    assert_eq!(defaults.snippet_head_bytes(), 48);
+    assert_eq!(parse(r#"{"snippet_bytes": 40}"#, base).unwrap().snippet_head_bytes(), 20);
+    assert_eq!(parse(r#"{"snippet_bytes": 97}"#, base).unwrap().snippet_head_bytes(), 48);
+    assert_eq!(parse(r#"{"snippet_bytes": 95}"#, base).unwrap().snippet_head_bytes(), 47);
 }
 
 #[test]

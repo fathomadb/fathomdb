@@ -144,27 +144,28 @@ async fn as_of_selects_the_validity_window_and_is_reported() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn snippets_are_capped_on_character_boundaries() {
+async fn snippets_are_capped_in_bytes() {
     let long: String = "é".repeat(500) + " river";
     let (_fixture, harness) = harness_with(
         vec![node("note:long", "note", &format!("river {long}"))],
-        json!({"snippet_chars": 50}),
+        json!({"snippet_bytes": 50}),
     )
     .await;
     let found = harness.ok("search", json!({"query": "river"})).await;
     let snippet = found["results"][0]["snippet"].as_str().unwrap();
-    assert_eq!(snippet.chars().count(), 50, "MR-040.1");
+    assert!(snippet.len() <= 50, "MR-040.1 in bytes: {} bytes", snippet.len());
+    assert!(snippet.len() >= 25, "the budget is used: {snippet:?}");
     assert_eq!(found["results"][0]["snippet_cut"], true);
     harness.shutdown().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_default_snippet_cap_is_300_characters() {
-    let body = format!("river {}", "word ".repeat(400));
+async fn the_default_snippet_cap_is_300_bytes() {
+    let body = format!("river {}", "wörd ".repeat(400));
     let (_fixture, harness) = harness_with(vec![node("note:long", "note", &body)], json!({})).await;
     let found = harness.ok("search", json!({"query": "river"})).await;
     for hit in found["results"].as_array().unwrap() {
-        assert!(hit["snippet"].as_str().unwrap().chars().count() <= 300);
+        assert!(hit["snippet"].as_str().unwrap().len() <= 300);
     }
     harness.shutdown().await;
 }

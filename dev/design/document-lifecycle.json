@@ -749,6 +749,24 @@
       "successor": null
     },
     {
+      "path": "dev/design/agent-access/README.md",
+      "class": "proposal",
+      "topic": "agent-access-work-list",
+      "role": "plan",
+      "owner": "dev/design/agent-access/README.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/agent-access/match-centred-snippets.md",
+      "class": "proposal",
+      "topic": "agent-access-match-centred-snippets",
+      "role": "design",
+      "owner": "dev/design/agent-access/match-centred-snippets.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/agent-memory-impl-strategy.md",
       "class": "reference",
       "topic": "agent-memory-impl-strategy",
@@ -1321,6 +1339,15 @@
       "topic": "mcp-adapter-ep-16-governed-change-feed",
       "role": "proposal",
       "owner": "dev/design/mcp-adapter/engine-proposals/EP-16-governed-change-feed.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
+      "path": "dev/design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md",
+      "class": "proposal",
+      "topic": "mcp-adapter-ep-17-match-centred-snippets",
+      "role": "proposal",
+      "owner": "dev/design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md",
       "release": "future:mcp-adapter",
       "successor": null
     },

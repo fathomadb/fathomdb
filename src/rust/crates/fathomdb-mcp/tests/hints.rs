@@ -165,3 +165,26 @@ async fn per_call_hints_argument_overrides_config() {
     assert!(found.get("hints").is_some(), "on by default: {found}");
     harness.shutdown().await;
 }
+
+/// § 8 test 1 and § 2.2: one `snippet_cut` hint lists every cut ref in rank
+/// order up to 50, and counts the rest in `refs_omitted`.
+#[tokio::test(flavor = "multi_thread")]
+async fn search_with_cut_snippets_emits_one_fetch_hint_with_every_cut_ref() {
+    let (_fixture, harness) =
+        harness_with(river_notes(60, 200), json!({"snippet_chars": 40})).await;
+    let found =
+        harness.ok("search", json!({"query": "river", "limit": 60, "max_tokens": 20_000})).await;
+    let results = found["results"].as_array().unwrap();
+    assert_eq!(results.len(), 60, "nothing cut by the budget: {}", found["budget"]);
+    assert!(results.iter().all(|hit| hit["snippet_cut"] == true));
+    let cut: Vec<Value> =
+        hints_of(&found).into_iter().filter(|hint| hint["reason"] == "snippet_cut").collect();
+    let expected: Vec<Value> = results[..50].iter().map(|hit| hit["ref"].clone()).collect();
+    assert_eq!(
+        cut,
+        vec![
+            json!({"action": "fetch", "reason": "snippet_cut", "refs": expected, "refs_omitted": 10})
+        ]
+    );
+    harness.shutdown().await;
+}

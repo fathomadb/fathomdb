@@ -488,3 +488,30 @@ fn t7_snippets_off_leave_the_result_unchanged() {
     assert_eq!(off, plain);
     assert!(off.snippets.is_none());
 }
+
+// T-14: `head_bytes` on a single-line LoCoMo-style record with the match at
+// byte 1500. The head window ends on a word boundary at or before
+// head_bytes, and the match window follows.
+#[test]
+fn t14_head_window_keeps_the_record_header() {
+    let _guard = lock();
+    let header = "(unknown date) [8 May 2023] Caroline: ";
+    let mut body = header.to_string();
+    while body.len() < 1495 {
+        body.push_str("we talked ");
+    }
+    let body = format!("{body}zanzibar{}", " again".repeat(300));
+    let s = store(&[&body]);
+    let headed = SnippetOptions { head_bytes: 48, ..SnippetOptions::default() };
+    let result = text(s.engine(), "zanzibar", 10, Some(&headed));
+    let snippet = snippet_of(&result, &body);
+    assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
+    assert_eq!(snippet.windows.len(), 2, "{snippet:?}");
+    let (head_start, head_end) = snippet.windows[0];
+    assert_eq!(head_start, 0);
+    assert!(head_end <= 48);
+    assert!(snippet.text.starts_with("(unknown date) [8 May 2023] Caroline:"), "{snippet:?}");
+    assert!(body[head_end as usize..].starts_with(' '), "head ends on a word boundary");
+    assert!(snippet.text.contains("zanzibar"));
+    assert!(snippet.text.len() <= 300);
+}

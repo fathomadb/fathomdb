@@ -547,3 +547,30 @@ async fn a_waiter_starts_only_if_p90_of_its_tool_fits() {
     assert!(elapsed < Duration::from_millis(800), "refused late: {elapsed:?}");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_start_check_is_per_tool_kind() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    harness.adapter.seams().seed_service_times("a", "expand", &millis(&[800; 128]));
+
+    let (refused, _) =
+        wait_behind_a_search(&harness, "expand", expand_a(), Duration::from_millis(500)).await;
+    let error = error_of(&refused);
+    assert_eq!(error["busy"]["reason"], "deadline", "slow expand is shed: {error}");
+
+    let (started, _) =
+        wait_behind_a_search(&harness, "fetch", fetch_a(), Duration::from_millis(500)).await;
+    assert_ne!(
+        started.is_error,
+        Some(true),
+        "a slow expand window does not shed fetch: {:?}",
+        started.structured_content
+    );
+    harness.shutdown().await;
+}

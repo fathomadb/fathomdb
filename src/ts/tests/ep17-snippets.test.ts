@@ -67,3 +67,27 @@ test("searchTextOnly returns the snippet sidecar", async () => {
     await engine.close();
   }
 });
+
+test("search returns the snippet sidecar", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await engine.write(writes());
+    const withSnippets = await engine.search(
+      TERM,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { snippet: { maxBytes: 120 } },
+    );
+    assertFarAndShort(withSnippets, 120);
+
+    const plain = await engine.search(TERM);
+    assert.equal("snippets" in plain, false, "the sidecar is absent when not requested");
+    assert.deepStrictEqual(plain.results, withSnippets.results);
+  } finally {
+    await engine.close();
+  }
+});

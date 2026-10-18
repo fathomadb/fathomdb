@@ -2,9 +2,10 @@
 title: Admission queue between an agent and SQLite
 date: 2026-10-18
 status: PROPOSED
-desc: Maps every queue and limit from an MCP agent to SQLite, records the immediate-busy admission defect and the reader-pool head-of-line risk, and proposes a bounded FIFO admission queue with deadlines, abandoned-work accounting and an honest retry_after_ms, plus engine proposal EP-18 and a concurrency sweep with its decision rule written before the run.
+desc: Maps every queue and limit from an MCP agent to SQLite, records the immediate-busy admission defect and the reader-pool head-of-line risk, and proposes a bounded FIFO admission queue (depth 32) with a fixed 10 s deadline, a p90 early-shed rule set by simulation, abandoned-work accounting and busy without retry_after_ms, plus engine proposal EP-18 (part A decided, try an idle reader first) and a concurrency sweep that validates the simulated decisions.
 inputs:
   - dev/design/agent-access/README.md
+  - dev/experiments/queue-sim/REPORT.md
   - dev/design/mcp-adapter/architecture.md
   - dev/design/mcp-adapter/requirements.md
   - dev/interfaces/mcp.md
@@ -33,24 +34,36 @@ have passed.
   depth limit, the call's own deadline as the wait bound, and the permit
   moved into the blocking closure so abandoned work keeps counting. A call
   is admitted only while enough of its deadline remains to finish, so late
-  admissions do not turn into abandoned work. Busy carries an honest
-  `retry_after_ms` computed from the capacity that is actually free (B2-7).
+  admissions do not turn into abandoned work. Busy carries no
+  `retry_after_ms` (B2-7).
 - **Owner decision, 2026-10-18.** The contract in `dev/interfaces/mcp.md`
   changes from "refuse at once" to "wait FIFO up to the deadline". One
   admission cap is shared by text and hybrid, provided the mixed-load check
-  in § 7.4 holds. A call that cannot get a slot in time fails with `busy`
-  and `retry_after_ms`; "run anyway with a partial result" is rejected. The
-  early-shed threshold and the deadline are parameters whose values (fixed
-  or adaptive) are set by a separate queue simulation, still pending.
+  in § 7.4 holds. A call that cannot get a slot in time fails with `busy`;
+  "run anyway with a partial result" is rejected.
+- **Simulation decisions, owner 2026-10-18.** A discrete-event simulation
+  of admission and reader dispatch
+  ([REPORT.md](../../experiments/queue-sim/REPORT.md)) set the open values:
+  - Per-store `admission_cap` default 4, maximum 7, against 8 readers.
+  - A FIFO waiting line of depth `queue_limit`, default 32. A call that
+    arrives when it is full is refused with `admission`/`queue_full`.
+  - No predicted-wait test at arrival.
+  - A fixed per-call deadline, `call_deadline_ms`, default 10 s.
+  - A waiting call starts only if the p90 of the last 128 completed calls
+    of the same tool kind fits in its remaining time; 50 ms before there is
+    history. Otherwise it fails with `admission`/`deadline`.
+  - No `retry_after_ms`.
+  - EP-18 part A: try an idle reader first, otherwise round-robin.
 - **The queue alone is not enough.** The engine's reader pool dispatches
   round-robin to per-worker queues with no regard for load
   (`reader_pool.rs:1216-1226`). One slow read blocks the reads queued behind
   it on that worker while other workers are idle, and every blocked read
   holds an admission permit. The adapter queue hides this as latency. It
-  does not fix it. EP-18 (new) proposes a work-conserving shared queue in
-  the engine and a configurable reader pool.
-- **Defaults.** Do not move `admission_cap` from 4 until the sweep in § 7
-  has run. The decision rule is fixed below, before any measurement.
+  does not fix it. EP-18 (new) proposes idle-first reader dispatch in the
+  engine and a configurable reader pool.
+- **Defaults.** `admission_cap` stays at 4. The live sweep in § 7 still
+  runs; it validates the simulated values and decides the rest. Its
+  decision rules are fixed below, before any measurement.
 
 ## 2. The path, hop by hop
 
@@ -82,8 +95,8 @@ Notes on the table:
   sessions share one cap, and the host's own SDK reads draw on the same
   eight readers without passing H4.
 - **H3 and H4 share one error code.** A client cannot tell "this store is
-  full" from "another store is in use". That matters for `retry_after_ms`:
-  the two have different wait times.
+  full" from "another store is in use". The agent's action differs, so
+  § 6.1 gives H3 its own code, `store_switch`.
 - **The page-cache ADR removes one cross-worker effect.** Before it, one
   heavy reader could take other readers' cached pages, and later reads ran
   about 2.5× slower (ADR § Context). That robbery was a coupling between
@@ -208,11 +221,11 @@ Sources: <https://www.pgbouncer.org/config.html>;
   shared by many callers through a proxy. We take a FIFO queue per pool, a
   bound on waiters, a bounded wait, and a notice that the call is queued
   (our progress notification).
-- **Reject.** Disconnecting on timeout: we return a typed busy with
-  `retry_after_ms`. The reserve pool: today it would be the eighth reader,
-  but round-robin cannot route a waiter to it (§ 4). After EP-18 part A, a
-  reserve permit for a waiter older than some threshold is a possible
-  follow-up; it is not part of this design.
+- **Reject.** Disconnecting on timeout: we return a typed busy. The reserve
+  pool: today it would be the eighth reader, but round-robin cannot route a
+  waiter to it (§ 4). After EP-18 part A, a reserve permit for a waiter
+  older than some threshold is a possible follow-up; it is not part of this
+  design.
 
 ### 5.3 Envoy adaptive concurrency and Netflix `concurrency-limits`
 
@@ -232,8 +245,9 @@ Sources:
   offers `LifoBlockingLimiter`: a bounded backlog (default 100) with a wait
   timeout (default 1 s), served last in, first out.
 - **Adopt.** Latency is the signal that a queue is building, so the queue
-  keeps service-time samples (§ 6.1) for `retry_after_ms`, the admission
-  rule and the sweep. A partitioned limit (Netflix "percentage
+  keeps service-time samples (§ 6.1) for the early-shed rule and the sweep.
+  A partitioned limit (Netflix "percentage
+
   enforcement") is the shape to use if embedded hosts ever need a
   guaranteed share, or if § 7.4 calls for separate text and hybrid limits.
 - **Reject, for now.** An adaptive limit needs steady traffic to sample.
@@ -304,35 +318,54 @@ a waiter that holds a permit but has not yet built its guard already
 counts. The idle `Notify` fires from the guard's `Drop` after the permit is
 released, when `available_permits() == cap`.
 
-**Service-time estimate.** An exponentially weighted mean, `α = 0.2`, kept
-per store and per tool, with search split by mode (`search_text`,
-`search_hybrid`, `fetch`, `expand`, `orient`). A sample is the time from
+**Service-time window.** Per store and per tool kind, with search split by
+mode (`search_text`, `search_hybrid`, `fetch`, `expand`, `orient`), keep the
+service times of the last 128 completed calls. A sample is the time from
 permit acquired to permit released, for completed calls only. Abandoned
-calls never complete within their deadline, so the mean leaves them out
-and reads low exactly when abandonment is happening. The formulas below
-correct for that through effective capacity, not through the mean.
+calls never complete within their deadline, so the window leaves them out.
+It reads low when abandonment is happening; the `abandoned` count reports
+that instead.
 
-**Effective capacity.** `c_eff = cap − abandoned`. Abandoned calls hold
-permits with no known end, so they are not capacity. `stuck` is true if
-and only if `c_eff == 0`.
+**Stuck.** `stuck` is true if and only if every permit is held by
+abandoned work (`abandoned == admission_cap`). Abandoned work has no known
+end, so a stuck store cannot say when it frees up.
 
 **Acquire sequence** (replaces the `Phase::Ready` arm at
 `registry.rs:342-357`). `need` is the **early-shed threshold**: the least
 deadline a call must have left to be started.
 
-- **Parameter.** `need`, together with the call deadline itself
-  (`call_deadline_ms`, default 10 s). **Value set by the queue simulation
-  (pending).** The simulation decides whether each is a fixed configured
-  number or adaptive, for example a percentile of the last *n* service
-  times of that tool.
-- **Placeholder until then.** `need = max(floor, ewma_tool)`, with
-  `floor = 100 ms` (the minimum `call_deadline_ms`, `config.rs:248-250`).
+- **Deadline.** `call_deadline_ms`, fixed, default 10 s. A deadline derived
+  from recent p99 (3 × or 10 × p99, at least 1 s) failed more calls than the
+  fixed one: it shortens the wait for calls that would have succeeded and
+  lengthens it after slow periods (REPORT § 8).
+- **Early-shed rule (owner, 2026-10-18).** `need` is the p90 of the service
+  times in the window of the call's tool kind. Before there is history
+  (fewer than 8 completed calls of that kind), `need` is a 50 ms floor.
+  In operator words: a waiting call is started only if nine out of ten
+  recent calls of the same kind would finish in the time it has left.
+- **Why p90 of 128.** Evidence from REPORT § 8 (600 configurations × 27
+  cutoff policies):
+  - Fixed floors do nothing. 50 ms, 250 ms and 1 s remove almost no late
+    starts (0.285 % against 0.287 % of calls), and 250 ms refuses calls
+    that would have finished.
+  - p5 is too optimistic. It removes only a fifth of the late starts.
+  - p90 removes 44 % of the calls that start late and then time out, for
+    0.07 points more deadline sheds. p95 is the same within noise.
+  - After a 10× step in service time, a window of 128 reconverges in about
+    76 s without oscillating. A window of 32 oscillates; 512 takes about
+    5 minutes.
+- **No predicted-wait test at arrival.** A rule that refuses on arrival
+  when the predicted wait exceeds the deadline changes nothing for
+  closed-loop agents and halves throughput under overload for no gain in
+  failures (REPORT § 6, T4). The time-based shed in steps 3 to 5 does the
+  job.
 
 The sequence:
 
 1. Wait for `Ready` as today (H2).
 2. If no permit is free and `queued >= queue_limit`, refuse at once:
-   `busy/admission`, reason `queue_full`.
+   `busy/admission`, reason `queue_full`. Nothing else is tested on
+   arrival.
 3. Otherwise take a `QueueTicket` and await `acquire_owned()` under
    `timeout_at(deadline − need)`, in a `select!` with the client's cancel
    token (`context.ct`, H1) and the slot's phase watch.
@@ -357,36 +390,30 @@ admitted at 9.9 s of a 10 s deadline has 100 ms to run. It times out, and
 its permit stays held until its thread returns. Late admission turns queue
 wait directly into abandoned work.
 
-**Queue depth limit.** `queue_limit`, a new configuration key, proposed
-default `2 × admission_cap`. A call that joins behind *q* waiters on *c*
-permits waits about `ceil((q+1)/c)` service times; at 2 × cap that is three
-service times, well inside a 10 s deadline for sub-second reads. A deeper
-queue mostly converts quick refusals into refusals at `deadline − need`,
-which cost the agent more time. The overload arm in § 7.2 tests this.
+**Queue depth limit.** `queue_limit`, a new configuration key, default 32
+(owner, 2026-10-18). The 33rd waiting call is refused with `queue_full`.
+The first proposal, `2 × admission_cap` (8 at cap 4), was too shallow: two
+overlapping 10-call fan-outs already exceed it, and it refused 0.3–1 % of
+calls at 6 to 20 agents. At depth 16 or more nothing was refused; 20
+closed-loop agents never queued more than 24, and a lone call behind
+another agent's burst waited at most 156 ms (REPORT § 6, T3). Depth 32 is a
+backstop that agents do not reach.
 
-**`retry_after_ms` (B2-7).** An estimate the server can justify, never a
-promise. Clamped to `[50, call_deadline_ms]`.
-
-| Reason | What the caller needs | Formula |
-| --- | --- | --- |
-| `queue_full` | One free queue slot: one call must finish so that the head waiter moves to running | `ceil(ewma_tool / c_eff)` |
-| `deadline` | A permit within its budget, given the *q* queued at the moment of refusal | `ceil((q + 1) / c_eff) × ewma_tool` |
-
-- Omit `retry_after_ms` when fewer than 8 calls of that tool have completed
-  since the store opened. A made-up number is worse than none.
-- Omit it when `stuck` is true. Abandoned work has no known end.
-- `store_switch` (H3) reports the `deadline` formula for the store that is
-  in use.
+**No `retry_after_ms` (owner, 2026-10-18).** The first proposal advised a
+wait computed from the service-time mean and the free capacity. It failed
+its own ship rule (§ 7.3): the observed wait was a median 4× the advised
+value, and 23 of 479 simulated cells passed (REPORT § 8). Agents also do
+not sleep on it; they re-issue a turn later. Busy ships without it.
 
 **Busy codes.** One code where the agent's action is the same, a second
 where it differs:
 
 | `code` | `busy.reason` | When | Agent action |
 | --- | --- | --- | --- |
-| `admission` | `queue_full` | Depth limit reached on arrival | Wait `retry_after_ms`, retry |
-| `admission` | `deadline` | No permit in time to finish | Wait `retry_after_ms`, retry |
-| `admission` | `engine_overloaded` | SDK `Overloaded` (`error.rs:242`); today only `embed_text` raises it, which no tool calls | Retry later; no `retry_after_ms`, since the adapter cannot see the engine queue |
-| `store_switch` | — | Another store is open with calls in flight (H3) | Use the open store, or wait `retry_after_ms` |
+| `admission` | `queue_full` | Depth limit reached on arrival | Retry in a later turn, or issue fewer calls at once |
+| `admission` | `deadline` | The p90 start check failed, or no permit came in time | Retry in a later turn |
+| `admission` | `engine_overloaded` | SDK `Overloaded` (`error.rs:242`); today only `embed_text` raises it, which no tool calls | Retry in a later turn |
+| `store_switch` | — | Another store is open with calls in flight (H3) | Use the open store, or retry in a later turn |
 
 `queue_full` and `deadline` ask for the same action, so they share the
 code `admission` and differ only by `reason`. The hints sidecar renders
@@ -400,13 +427,13 @@ sub-object, present only when `class` is `busy`:
 
 ```json
 {"error": {"class": "busy", "code": "admission", "message": "…", "remedy": "…",
-  "busy": {"reason": "deadline", "retry_after_ms": 600,
+  "busy": {"reason": "deadline",
            "in_flight": 4, "queued": 8, "abandoned": 0, "stuck": false}}}
 ```
 
-The hints design (item 2) reserves `retry_after_ms` for this document, and
-its reviewer settles placement within the error object. This proposes the
-`busy` sub-object and aligns with whatever that review decides.
+The hints design (item 2) reserves no busy field
+([hints-sidecar.md](hints-sidecar.md) § 6, B2-7). The `busy` sub-object is
+defined here.
 
 **Fairness across sessions and agents.**
 
@@ -464,27 +491,33 @@ Drafted here; it gets its own file under
 A, then B. Part C, honest embed degradation, moved to EP-03 (owner
 decision 2026-10-18).
 
-- **Part A, dispatch.** Replace round-robin per-worker channels with one
-  shared bounded FIFO that idle workers pull from, as the embed dispatcher
-  does (H7).
-  - *The mutex cost.* The round-robin comment avoids a mutex on the hot
-    path (`reader_pool.rs:1207-1209`). But the hybrid path already takes the
-    embed dispatcher's `QueueState` mutex per request
-    (`embed_dispatch/core.rs:309`, `:422`), and an uncontended mutex costs
-    tens of nanoseconds against reads measured in milliseconds. The
-    engine-direct harness in § 7 confirms or refutes this.
-  - *Not a shared connection.* `dev/design/engine.md:52-66` requires reads
-    not to queue behind one connection. A shared queue does not do that:
-    each worker still owns its connection for life
-    (`reader_pool.rs:6-13`). Only the hand-off of requests is shared.
-  - *Lock-free alternative.* Give each worker a rendezvous channel
-    (`sync_channel(0)`). Dispatch tries `try_send` on each worker in turn;
-    on a rendezvous channel that succeeds only when the worker is waiting
-    in `recv`, that is, idle
+- **Part A, dispatch. Decided (owner, 2026-10-18): P2, try an idle reader
+  first, otherwise round-robin.**
+  - *Mechanism.* Give each worker a rendezvous channel (`sync_channel(0)`).
+    Dispatch tries `try_send` on each worker in turn; on a rendezvous
+    channel that succeeds only when the worker is waiting in `recv`, that
+    is, idle
     (<https://doc.rust-lang.org/std/sync/mpsc/struct.SyncSender.html>). If
-    no worker is idle, fall back to today's round-robin blocking `send`. This
-    removes queueing behind a busy worker whenever any worker is idle, with
-    no mutex, but it still queues behind a slow worker under full load.
+    no worker is idle, fall back to today's round-robin blocking `send`.
+    There is no mutex on the hot path, so the reason for round-robin
+    (`reader_pool.rs:1207-1209`) still holds.
+  - *Why it is enough.* In the simulation P2 matched a shared FIFO (P1) in
+    all 2,500 configurations (2,000 across the full ranges and 500 in the
+  realistic band; REPORT § 7). The adapter cap is at most 7
+    against 8 readers, so an idle reader always exists and `try_send`
+    always finds it. A shared FIFO with a mutex would matter only if host
+    SDK reads bypass admission and fill all eight readers.
+  - *When.* Before stores get slow enough that reads take seconds.
+    Round-robin costs under about 0.5 % extra failures while single reads
+    stay below about 1.5 s. In the simulated HOL probe, one 3 s read every
+    2 s raised the other calls' p95 from 35 ms to 1.9 s under round-robin;
+    with idle-first dispatch it stayed at 35 ms (REPORT § 6, T5).
+  - *Not a shared connection.* `dev/design/engine.md:52-66` requires reads
+    not to queue behind one connection. P2 does not: each worker still owns
+    its connection for life (`reader_pool.rs:6-13`).
+  - *Fallback alternative, untested.* If the rendezvous hand-off proves
+    awkward, dispatch to the worker with the fewest queued requests. The
+    simulation did not model this.
 - **Former part C, now in EP-03.** When query embedding fails with
   `Saturated` or `QueuedExpired`, the search silently runs text-only (H7).
   By owner decision (2026-10-18) this is reported by EP-03 as the common
@@ -501,9 +534,20 @@ decision 2026-10-18).
   constant 8 (`config.rs:243-246`).
 - **Relation to EP-09.** EP-09 frees a worker after the deadline. EP-18
   stops healthy requests from waiting behind a slow one before the
-  deadline. Both are needed; neither replaces the adapter queue.
+  deadline. Once single reads exceed the deadline, EP-09 is what helps: at
+  10 s slow reads and cap 4, abandoned slow reads hold every permit, and
+  only EP-09 helps (other calls' p95 9.9 s → 3.9 s with a shared queue;
+  timeouts 6.2 % → 0 with round-robin; REPORT § 6, T5). Both are needed;
+  neither replaces the adapter queue.
 
 ## 7. Defaults: the concurrency sweep
+
+The simulation (§ 10) already settled several of the decision rules in
+§ 7.3: the queue limit, `retry_after_ms`, the early-shed rule and EP-18
+part A. Each is marked there. The live sweep still runs. It validates those
+values on the real server, and it alone decides the cap, the shared cap
+(§ 7.4) and EP-18 part B. The simulation found the cap the least important
+knob once a queue exists (REPORT § 7, "Which knob matters most").
 
 ### 7.1 Why not just raise the cap
 
@@ -546,8 +590,8 @@ the same concurrency (engine only); the difference is adapter overhead.
 | Arm | Clients | Cap | Store | Load | Purpose |
 | --- | --- | --- | --- | --- | --- |
 | Capacity | *N* ∈ {1, 2, 4, 5, 6, 7} | *N* | Small and large | text; hybrid | Cap choice (§ 7.3). Cap = *N*, so the queue stays empty here |
-| Overload | 6 and 12 | 4, and the chosen cap | Large | text; hybrid; mixed 50/50 | Mirrors the incident: queue depth, refusals, `retry_after_ms` accuracy, mixed-load mutex check |
-| HOL probe | 4 and 7 | *N* | Large | text, plus one slow read every 2 s | EP-18 part A |
+| Overload | 6 and 12 | 4, and the chosen cap | Large | text; hybrid; mixed 50/50 | Mirrors the incident: queue depth, refusals by reason, late starts, mixed-load mutex check |
+| HOL probe | 4 and 7 | *N* | Large | text, plus one slow read every 2 s | Validates EP-18 part A |
 | Writer | 4 and the chosen cap | *N* | Large | text and hybrid while an embedded host writes and checkpoints | Writer mutex and checkpoint interference; projection embedding contends for the same embed dispatcher (`projection_worker.rs:617-620`) and the same GPU |
 | Cold cache | 4 | 4 | Large | text | First 50 calls after a fresh engine open, reported apart from the warm calls. Dropping the OS page cache needs root and is an escalated step; without it this arm measures a cold SQLite cache only, and says so |
 
@@ -556,9 +600,8 @@ throughput (calls per second); counts of busy by reason, timeout and soft
 fallback; GPU utilisation.
 
 **Overload arm, additional measures.** `queued` (sampled each 100 ms from
-tracing), refusals by reason, and `retry_after_ms` accuracy: the client
-waits the advised time and retries, and the harness records the advised
-wait against the observed time from refusal to admission.
+tracing), refusals by reason, and late starts: calls that passed the p90
+start check and then timed out.
 
 **Mixed-load mutex check (owner, 2026-10-18).** Text calls in the mixed
 arm cross three shared points that hybrid calls also use: the writer
@@ -587,19 +630,27 @@ store reaches 1 s, the probe is invalid and reports "not measured", not
   sweep.
 - **Shared cap.** One cap for both modes: the smaller of the text and
   hybrid choices, unless § 7.4 says otherwise.
-- **Queue limit.** In the overload arm at the chosen cap, keep
-  `2 × admission_cap` unless more than 1 % of calls end in reason
-  `deadline`. Then halve it and re-run that cell. If more than 5 % end in
-  `queue_full` while fewer than 1 % end in `deadline`, double it and re-run.
-- **`retry_after_ms`.** Ship it if the median of |observed − advised| /
+- **Queue limit. Settled by simulation: 32.** The live overload arm at the
+  chosen cap validates it: keep 32 unless more than 1 % of calls end in
+  reason `deadline`, then halve it and re-run that cell. If more than 5 %
+  end in `queue_full` while fewer than 1 % end in `deadline`, double it and
+  re-run.
+- **`retry_after_ms`. Settled by simulation: dropped.** It failed this
+  rule in simulation: ship it only if the median of |observed − advised| /
   advised is at most 0.5 and fewer than 20 % of retries after the advised
-  wait are refused again. Otherwise ship busy without `retry_after_ms` and
-  revise the formula.
-- **EP-18 part A (pending simulation).** The queue simulation decides
-  part A. This probe supplies the measured input: proceed if the valid HOL
-  probe raises p95 of the other calls by more than 2 × at either *N*;
-  otherwise record part A as not needed at today's call mix, unless the
-  simulation shows otherwise.
+  wait are refused again. The observed wait was a median 4× the advised
+  value (REPORT § 8). The live sweep does not measure it.
+- **Early shed. Settled by simulation: p90 of the last 128 per tool kind,
+  50 ms cold floor.** The overload arm reports late starts. If more than
+  1 % of admitted calls start and then time out, report it to the owner
+  with the rule unchanged.
+- **EP-18 part A. Settled by simulation: P2, try an idle reader first.**
+  The HOL probe validates it on the real server. Before P2 is built: if
+  the valid probe raises p95 of the other calls by more than 2 × at either
+  *N* under round-robin, the case for P2 is confirmed. After P2 is built,
+  the same probe must keep that p95 within 2 × of the run without the slow
+  read; if it does not, report to the owner. An invalid probe (no read reaches
+  1 s) leaves the decision standing on the simulation.
 - **EP-18 part B.** Proceed only if the *N* = 7 text cell meets the cap rule
   and its p95 is still under 2 × the *N* = 1 p95: then the ceiling, not the
   workload, is the limit.
@@ -621,11 +672,11 @@ attribution data if the timing build was approved.
 
 | Artefact | Change |
 | --- | --- |
-| `dev/interfaces/mcp.md` | `admission_cap` row (line 42): calls wait FIFO while time remains (owner decision 2026-10-18); new `queue_limit` key; busy codes `admission` (with `busy.reason`) and `store_switch`; the `busy` sub-object in § 6 errors (line 249) |
+| `dev/interfaces/mcp.md` | `admission_cap` row (line 42): calls wait FIFO while time remains (owner decision 2026-10-18), default 4, maximum 7; new `queue_limit` key, default 32; `call_deadline_ms` stays a fixed 10 s; the p90 start check; busy codes `admission` (with `busy.reason`) and `store_switch`, no `retry_after_ms`; the `busy` sub-object in § 6 errors (line 249) |
 | `dev/design/mcp-adapter/architecture.md` | § Threads: drop the "headroom" reasoning (§ 4); point at this design and EP-18 |
-| `dev/design/mcp-adapter/requirements.md` | MR-033.2: choose "wait, then busy with `retry_after_ms`" |
-| `fathomdb-mcp` | `registry.rs` acquire and derived `in_flight`, `bridge.rs` abandoned flag, `error.rs` codes and the `busy` object, `edge.rs`/`tools.rs` pass `context.ct`, `config.rs` `queue_limit` |
-| Engine | EP-18 (A, then B), after its own review; `embedder_overloaded` in EP-03 |
+| `dev/design/mcp-adapter/requirements.md` | MR-033.2: choose "wait, then busy" |
+| `fathomdb-mcp` | `registry.rs` acquire, derived `in_flight` and the per-tool window of 128 service times, `bridge.rs` abandoned flag, `error.rs` codes and the `busy` object, `edge.rs`/`tools.rs` pass `context.ct`, `config.rs` `queue_limit` |
+| Engine | EP-18 (A as P2, then B), after its own review; `embedder_overloaded` in EP-03 |
 
 ## 9. Test plan for later (RED first)
 
@@ -637,9 +688,9 @@ by the first two, together with the interface change.
 1. `an_excess_call_waits_for_a_permit_and_then_runs`: cap 1, first call
    blocked, second call released after 200 ms of waiting succeeds.
 2. `an_excess_call_is_refused_when_too_little_deadline_remains`: cap 1,
-   never released; the second call returns `busy/admission` reason
-   `deadline` at `deadline − need` (± 100 ms), not at once and not at the
-   deadline.
+   fresh store, never released; the second call returns `busy/admission`
+   reason `deadline` at `deadline − 50 ms` (± 100 ms), not at once and not
+   at the deadline.
 3. `a_late_permit_is_not_used`: the permit is released when less than
    `need` remains; the waiter refuses with reason `deadline` and the permit
    is free again.
@@ -648,64 +699,94 @@ by the first two, together with the interface change.
    arrival order.
 5. `a_full_queue_refuses_at_once_with_queue_full`: cap 1, `queue_limit` 1,
    third call is reason `queue_full` in under 50 ms.
-6. `an_abandoned_call_keeps_its_permit_and_is_counted`: a blocked call times
-   out; the busy object reports `abandoned: 1`; after release, `abandoned: 0`
-   and the permit is free.
-7. `in_flight_is_derived_from_permits`: no path changes `in_flight` other
-   than permit acquire and drop.
-8. `queued_returns_to_zero_on_timeout_cancel_and_panic`.
-9. `retry_after_ms_is_omitted_before_enough_samples`: fresh store, forced
-   busy, no `retry_after_ms`.
-10. `retry_after_ms_uses_effective_capacity`: seam delays every call by
-    100 ms; cap 2 with one abandoned call and 2 queued; reason `deadline`
-    reports 250..=350 ms (`ceil(3/1) × 100`).
-11. `queue_full_retry_after_is_one_service_time_over_effective_capacity`.
-12. `stuck_is_reported_when_every_permit_is_abandoned`: `stuck: true`, no
-    `retry_after_ms`.
-13. `a_client_cancel_removes_a_queued_call`: `queued` drops by one; the next
+6. `the_default_queue_refuses_the_33rd_waiter`: cap 1, default
+   `queue_limit`, one call running and 32 waiting; the next call is reason
+   `queue_full` in under 50 ms, and the 32 waiters stay queued.
+7. `a_waiter_starts_only_if_p90_of_its_tool_fits`: 128 completed `fetch`
+   calls whose p90 is 300 ms; a waiter with 250 ms left when a permit frees
+   refuses with reason `deadline`, and one with 350 ms left starts.
+8. `the_start_check_is_per_tool_kind`: a slow `expand` window does not shed
+   a `fetch` waiter.
+9. `the_window_keeps_the_last_128_completed_calls`: 128 slow calls after
+   128 fast ones; the start check uses the slow p90 only.
+10. `a_cold_tool_uses_the_50_ms_floor`: with fewer than 8 completed calls
+    of a kind, a waiter with 60 ms left starts and one with 40 ms left
+    refuses.
+11. `abandoned_calls_are_not_service_time_samples`.
+12. `an_arrival_is_queued_whatever_its_predicted_wait`: cap 1, slow window,
+    an arrival with room in the queue is queued, not refused on arrival.
+13. `an_abandoned_call_keeps_its_permit_and_is_counted`: a blocked call
+    times out; the busy object reports `abandoned: 1`; after release,
+    `abandoned: 0` and the permit is free.
+14. `in_flight_is_derived_from_permits`: no path changes `in_flight` other
+    than permit acquire and drop.
+15. `queued_returns_to_zero_on_timeout_cancel_and_panic`.
+16. `no_busy_result_carries_retry_after_ms`: every busy reason, checked
+    against the output schema.
+17. `stuck_is_reported_when_every_permit_is_abandoned`: `stuck: true`.
+18. `a_client_cancel_removes_a_queued_call`: `queued` drops by one; the next
     waiter is admitted on release.
-14. `a_store_with_queued_calls_does_not_expire_idle`: `idle_timeout_secs` 1,
+19. `a_store_with_queued_calls_does_not_expire_idle`: `idle_timeout_secs` 1,
     a call queued for 2 s; the store stays ready.
-15. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`.
-16. `shutdown_wakes_queued_calls_with_not_ready_draining`.
-17. `another_store_in_use_is_busy_store_switch`.
-18. `sdk_overloaded_maps_to_admission_engine_overloaded_without_retry_after`.
-19. `queued_calls_get_progress_notifications` (with a progress token).
-20. Engine, EP-18 part A: `a_slow_read_does_not_delay_reads_on_idle_workers`,
+20. `a_drain_during_the_wait_returns_waiters_to_the_open_wait`.
+21. `shutdown_wakes_queued_calls_with_not_ready_draining`.
+22. `another_store_in_use_is_busy_store_switch`.
+23. `sdk_overloaded_maps_to_admission_engine_overloaded`.
+24. `queued_calls_get_progress_notifications` (with a progress token).
+25. Engine, EP-18 part A: `a_slow_read_does_not_delay_reads_while_a_reader_is_idle`,
     using the engine's `test-hooks` to hold one worker; seven following
     reads complete while it is held.
-21. Engine, EP-03: `a_saturated_embed_queue_is_reported_as_embedder_overloaded`.
+26. Engine, EP-18 part A: `with_every_reader_busy_dispatch_falls_back_to_round_robin`:
+    all eight workers held; the next read queues on the round-robin worker
+    and runs when that worker is released.
+27. Engine, EP-03: `a_saturated_embed_queue_is_reported_as_embedder_overloaded`.
 
-## 10. Open questions for the owner
+## 10. Owner decisions
 
-Owner decisions, 2026-10-18:
+All questions are decided as of 2026-10-18. Nothing is pending.
 
 - **Contract change (§ 3): accepted.** Excess calls wait FIFO while time
   remains.
 - **Shared cap: one shared cap is the lean,** subject to the mixed-load
   check in § 7.4.
 - **Former Q2, refuse or start late: decided.** A call that cannot get a
-  slot in time fails with `busy` and `retry_after_ms`. "Run anyway with a
-  partial result" is rejected: the engine cannot return part of a search,
-  so a late start would only become abandoned work. How the early-shed
-  threshold `need` and the deadline are set (fixed or adaptive) is a
-  parameter whose value comes from the queue simulation (pending); § 6.1
-  keeps the current proposal as the placeholder.
+  slot in time fails with `busy`. "Run anyway with a partial result" is
+  rejected: the engine cannot return part of a search, so a late start
+  would only become abandoned work.
 - **Former Q5, where honest embed degradation lives: decided.** It folds
   into EP-03 as the common degradation reason `embedder_overloaded`,
   alongside the existing hybrid degradation reasons. EP-18 no longer has a
   part C.
+- **Queue parameters: decided from the simulation** (§ 6.1;
+  [REPORT.md](../../experiments/queue-sim/REPORT.md) §§ 6, 8, 10).
+  `admission_cap` default 4, maximum 7; `queue_limit` default 32; no
+  predicted-wait test at arrival; a fixed 10 s `call_deadline_ms`; the p90
+  start check over the last 128 completed calls per tool kind, with a
+  50 ms floor before there is history.
+- **`retry_after_ms`: dropped.** It failed its own ship rule in
+  simulation (§ 7.3). Busy ships without it.
+- **Former pending question 1, EP-18 part A: decided, P2.** Try an idle
+  reader first, otherwise round-robin (§ 6.2). It matched a shared FIFO in every simulated
+  configuration while the cap is below the reader count, with no mutex.
+  "Fewest queued" dispatch is the untested fallback. EP-09 is what helps
+  once reads exceed the deadline.
 
-Pending:
+**Limits of the simulation** (REPORT § 11):
 
-1. **EP-18 part A: one shared queue in the engine, at the cost of one
-   mutex per read? Pending simulation.** The separate queue simulation
-   settles this, alongside the HOL probe in § 7. The trade-off it weighs:
-   - *For.* No read waits behind a slow one while a worker is idle. The
-     cost is tens of nanoseconds per read when uncontended, and the hybrid
-     path already pays a similar lock in the embed dispatcher. The
-     reviewer considered the mutex concern answered by this argument.
-   - *Against.* It changes a hot path chosen deliberately to avoid a lock,
-     and under heavy contention the lock itself becomes a queue. The
-     lock-free rendezvous variant avoids the lock but still queues behind a
-     slow worker when every worker is busy.
+- Service times come from 3 MB stores where nothing is slow. The slow tail
+  is fuzzed, not measured.
+- SQLite internals are not modelled: the global page-cache mutex, WAL
+  read-mark slots, checkpoints, WAL growth and cold caches.
+- One GPU, modelled as one FIFO server fitted to one probe on one RTX 3090.
+- Client behaviour is grounded in six transcripts from one evaluation, plus
+  published population statistics.
+
+The live sweep in § 7 checks these on the real server.
+
+**A separate finding.** In the simulation, writer-mutex and projection
+contention hold hybrid search p95 at 0.5–1 s whenever a writer or
+projection is active, whatever the admission or dispatch policy. With the
+writer off and no projection, p95 is 20 ms (REPORT §§ 7, 10). No queue
+setting fixes this. The fix is in the engine: move the mean-vector and
+orient reads off the writer connection (H8, H9), and give query embedding
+priority over projection.

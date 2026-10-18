@@ -115,7 +115,6 @@ Words reserved for later versions, not emitted in v1:
 - `weak_results` needs a calibrated verdict (MR-031, B2-2).
 - `index_not_ready` waits for a real projection-readiness signal (§ 6 B2-2
   explains why `empty_not_ready` is not one).
-- `retry` (an action) belongs to item 1's queue (B2-7).
 
 Closed field value sets in v1:
 
@@ -432,7 +431,6 @@ optional typed fields, omitted when absent, as `candidates` is today:
 | `argument` | string (≤ 64 bytes, else truncated with `…`) | B2-4 |
 | `accepted` | array of string (from the tool's input schema) | B2-4 |
 | `refs_not_in_response` | array of string (≤ 50, each ≤ 128 bytes), `refs_omitted?` | B2-5 |
-| `retry_after_ms` | integer | B2-7 (item 1) |
 
 Errors carry no `hints` array. For errors, `remedy` is already the next-action
 slot, and it is a compile-time constant (`error.rs:30`).
@@ -541,9 +539,10 @@ suggested call, because an agent cannot fix degradation.
 
 ### B2-7 — busy
 
-Designed in item 1 (`queue-admission.md`). This design reserves the
-`retry_after_ms` error-detail field and the `retry` action word, so the queue
-adds entries rather than a new shape.
+Designed in item 1 (`queue-admission.md`). Busy ships without
+`retry_after_ms` (owner, 2026-10-18; queue-admission.md § 6.1), so this design
+reserves no busy field and no `retry` action word. The busy fields live in the
+error's own `busy` sub-object, and `remedy` carries the next action.
 
 ## 7. Public-surface impact and compatibility
 

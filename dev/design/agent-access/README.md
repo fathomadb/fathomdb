@@ -41,7 +41,8 @@ changes code until its design passes review and the owner approves.
       calls wait up to the deadline.
    3. Define the queue type needed, and where it lives: bounded FIFO with
       deadlines, fairness across sessions or agents, accounting for abandoned
-      work, load-shedding signal, `retry_after_ms`.
+      work, load-shedding signal (busy, without `retry_after_ms`; see
+      queue-admission.md).
    4. Set the defaults and the ceiling: `admission_cap` 4 → 7 against the
       reader pool of 8, and whether the engine pool should become
       configurable. Specify a concurrency sweep (1, 2, 4 and 7 in flight ×
@@ -62,7 +63,7 @@ changes code until its design passes review and the owner approves.
    3. Make it very fast (no extra queries, no allocation when off, a measured
       overhead budget) and configurable off, per call and per process.
    4. Cover the related error feedback: unknown arguments name the accepted
-      ones, feedback refs not in the response, busy with `retry_after_ms`,
+      ones, feedback refs not in the response, busy (B2-7, item 1),
       and an honest label for the unavailable state verdict.
    5. **Gate:** Fable-medium design review.
 
@@ -113,7 +114,7 @@ entries rather than redesigning.
 | B2-4 | Wrong argument (e.g. `limit` on `fetch`) | Error | Error names the accepted arguments | item 2 |
 | B2-5 | `feedback` refs not in the response | Error | Error names the refs that aren't in that response | item 2 |
 | B2-6 | Repeated `list_stores` calls (gpt-5.4-mini) | Agent can't tell a default store is set | Guide says calls without `store` use the default; `list_stores` says so too | item 2 |
-| B2-7 | Busy | Refusal | Wait in the queue, then `retry_after_ms` | item 1 |
+| B2-7 | Busy | Refusal | Wait in the queue, then busy (no `retry_after_ms`; see queue-admission.md) | item 1 |
 
 ## Gates
 

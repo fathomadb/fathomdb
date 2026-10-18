@@ -277,19 +277,14 @@ impl Drop for Permit {
 struct QueueTicket<'a>(&'a Load);
 
 impl<'a> QueueTicket<'a> {
-    /// Join the line. When no permit is free the line is bounded by
-    /// `limit`; the test and the increment are one atomic step, so
-    /// concurrent arrivals cannot overfill it.
-    fn join(load: &'a Load, no_free_permit: bool, limit: usize) -> Option<Self> {
-        if no_free_permit {
-            load.queued
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |queued| {
-                    (queued < limit).then_some(queued + 1)
-                })
-                .ok()?;
-        } else {
-            load.queued.fetch_add(1, Ordering::SeqCst);
-        }
+    /// Join the line, bounded by `limit`; the test and the increment are
+    /// one atomic step, so concurrent arrivals cannot overfill it.
+    fn join(load: &'a Load, limit: usize) -> Option<Self> {
+        load.queued
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |queued| {
+                (queued < limit).then_some(queued + 1)
+            })
+            .ok()?;
         Some(Self(load))
     }
 }
@@ -710,11 +705,12 @@ impl Registry {
                 .clone()
                 .try_acquire_owned()
                 .map_err(|_| refuse(BusyReason::Deadline))?,
+            // A free permit is taken at once, without the start check.
+            Some(_) if let Ok(permit) = load.permits.clone().try_acquire_owned() => permit,
             Some(deadline) => {
+                must_wait = true;
                 // Step 2: the only test on arrival.
-                must_wait = load.permits.available_permits() == 0;
-                let Some(ticket) =
-                    QueueTicket::join(&load, must_wait, self.config.queue_limit as usize)
+                let Some(ticket) = QueueTicket::join(&load, self.config.queue_limit as usize)
                 else {
                     return Err(refuse(BusyReason::QueueFull));
                 };
@@ -792,9 +788,12 @@ impl Registry {
         if slot.phase != Phase::Ready || slot.epoch != epoch {
             return Ok(None);
         }
-        // Step 4: need is re-evaluated, since calls that completed during the
-        // wait may have changed it.
-        if let Some(deadline) = call.wait_until {
+        // Step 4, for calls that waited: need is re-evaluated, since calls
+        // that completed during the wait may have changed it. A call that
+        // took a free permit has spent nothing waiting, and checking it would
+        // let a kind whose p90 reached the deadline refuse every call and
+        // never record a new sample.
+        if let (true, Some(deadline)) = (must_wait, call.wait_until) {
             if deadline.saturating_duration_since(Instant::now()) < load.need(call.kind) {
                 drop(permit);
                 return Err(refuse(BusyReason::Deadline));

@@ -9,30 +9,38 @@ use tempfile::TempDir;
 fn close_discards_queued_reader_work_after_active_snapshot_reaches_boundary() {
     let dir = TempDir::new().expect("temp db");
     let opened = Arc::new(Engine::open(dir.path().join("readers.sqlite")).expect("open"));
-    let (active, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
-    active.wait();
-
-    let worker_count =
-        opened.engine.reader_pool.live_workers_for_test().load(std::sync::atomic::Ordering::SeqCst);
-    let mut queued = Vec::new();
-    for index in 0..worker_count * 4 {
-        let (respond, received) = mpsc::sync_channel(1);
-        assert!(
-            opened
-                .engine
-                .reader_pool
-                .dispatch(ReaderRequest::GetById {
-                    logical_ids: vec![format!("absent-{index}")],
-                    view: ReadView::default(),
-                    respond,
-                })
-                .is_ok(),
-            "enqueue bounded reader request"
-        );
-        if index % worker_count == 0 {
-            queued.push(received);
-        }
+    // Reader channels are rendezvous: work queues only as callers blocked in
+    // dispatch, which needs every worker busy.
+    let (snapshot_ready, releases) = opened.engine.pause_every_reader_with_timeout_for_test();
+    let worker_count = releases.len();
+    for _ in 0..worker_count {
+        snapshot_ready.recv_timeout(Duration::from_secs(2)).expect("worker holds its snapshot");
     }
+
+    const QUEUED: usize = 4;
+    let start = opened.engine.reader_pool.next_worker_index();
+    let mut queued = Vec::new();
+    let mut callers = Vec::new();
+    for index in 0..QUEUED {
+        let (respond, received) = mpsc::sync_channel(1);
+        let engine = Arc::clone(&opened);
+        callers.push(std::thread::spawn(move || {
+            let _ = engine.engine.reader_pool.dispatch(ReaderRequest::GetById {
+                logical_ids: vec![format!("absent-{index}")],
+                view: ReadView::default(),
+                respond,
+            });
+        }));
+        queued.push(received);
+    }
+    let started = Instant::now();
+    while opened.engine.reader_pool.next_worker_index() != (start + QUEUED) % worker_count {
+        assert!(started.elapsed() < Duration::from_secs(2), "reader work was not dispatched");
+        std::thread::yield_now();
+    }
+    // The cursor moves before the idle probe; let each caller reach its
+    // blocking send.
+    std::thread::sleep(Duration::from_millis(200));
 
     let (closed_tx, closed_rx) = mpsc::channel();
     let closing = Arc::clone(&opened);
@@ -45,9 +53,12 @@ fn close_discards_queued_reader_work_after_active_snapshot_reaches_boundary() {
         std::thread::yield_now();
     }
     let still_live = opened.engine.managed_connections.live.lock().expect("registry").len();
-    release.wait();
+    drop(releases);
     let close_result = closed_rx.recv_timeout(Duration::from_secs(2)).expect("close after release");
     close_thread.join().expect("close thread");
+    for caller in callers {
+        caller.join().expect("dispatch caller");
+    }
     let queued_outcomes: Vec<_> =
         queued.into_iter().map(|reply| reply.recv_timeout(Duration::from_secs(1))).collect();
 

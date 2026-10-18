@@ -118,6 +118,19 @@ fn numeric_ranges_are_enforced() {
 }
 
 #[test]
+fn queue_limit_defaults_to_32_and_must_be_at_least_1() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path();
+    let defaults = parse("{}", base).unwrap();
+    assert_eq!(parse(r#"{"queue_limit": 32}"#, base).unwrap(), defaults, "32 is the default");
+    assert_ne!(parse(r#"{"queue_limit": 1}"#, base).unwrap(), defaults);
+    let message = invalid(r#"{"queue_limit": 0}"#, base);
+    assert!(message.contains("queue_limit: must be at least 1"), "{message}");
+    let message = invalid(r#"{"queue_limit": "many"}"#, base);
+    assert!(message.contains("queue_limit: must be a non-negative integer"), "{message}");
+}
+
+#[test]
 fn unknown_keys_and_wrong_types_are_invalid() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path();

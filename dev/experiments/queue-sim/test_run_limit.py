@@ -166,3 +166,10 @@ def test_p90_capped_below_the_wait_deadline_starts_calls_that_find_a_free_permit
     s = script_run(lockup_script(), cap=4, admission="fifo_shed", threshold=("pct", 90, 128, 0.0, 9.95),
                    run_limit=60.0)
     assert all(c.outcome == "ok" for c in s.calls[9:])
+
+
+def test_refusals_with_a_free_permit_are_counted():
+    s = script_run(lockup_script(), cap=4, admission="fifo_shed", threshold=P90, run_limit=60.0)
+    m = s.metrics()
+    assert all(c.reason == "deadline" for c in s.calls[9:])  # locked out: p90 is 20 s
+    assert m["rf_with_permit"] == pytest.approx(20 / 29)

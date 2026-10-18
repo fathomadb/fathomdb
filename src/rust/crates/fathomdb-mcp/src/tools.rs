@@ -645,7 +645,7 @@ fn render_search(output: &SearchOutput) -> String {
         text.push_str(&format!(
             "\n{}. {} kind={} score={} arm={} source={} snippet={}{}",
             index + 1,
-            hit.reference,
+            shape::quote(&hit.reference),
             shape::quote(&hit.kind),
             hit.score,
             hit.arm,
@@ -1022,7 +1022,7 @@ fn render_fetch(output: &FetchOutput) -> String {
         match item {
             FetchItem::Record { reference, record } => text.push_str(&format!(
                 "\n{} kind={} body={}{}",
-                reference,
+                shape::quote(reference),
                 shape::quote(&record.kind),
                 shape::quote(&record.body),
                 if record.body_cut { " (cut)" } else { "" }
@@ -1182,7 +1182,7 @@ fn render_expand(output: &ExpandOutput) -> String {
     for target in &output.targets {
         text.push_str(&format!(
             "\n{} kind={} hops={} via={} body={}{}",
-            target.reference,
+            shape::quote(&target.reference),
             shape::quote(&target.kind),
             target.hop_count,
             shape::quote(&target.terminal_edge_kind),

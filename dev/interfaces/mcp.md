@@ -75,6 +75,8 @@ compact rendering of the same data. Each `outputSchema` is
 `anyOf[<result>, {error}]` with a root `"type": "object"`, because tool errors
 also carry `structuredContent` (§6, MR-071.1). Field order is fixed; maps are sorted by
 key; no wall-clock or random values appear except `validity_instant` (MR-043).
+In text blocks, record content and every `ref` (hit, item, target and hint
+lines) are JSON-quoted, so a writer-chosen id reads as data.
 
 Common envelope fields (present on every store-bound result):
 

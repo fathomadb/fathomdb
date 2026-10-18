@@ -7,6 +7,8 @@
 //! Specification: `dev/design/agent-access/match-centred-snippets.md` §§ 6,
 //! 7.2.
 
+use unicode_segmentation::UnicodeSegmentation;
+
 use crate::EngineError;
 
 /// Snippet settings for one search, and the inputs of [`snippet_for`].
@@ -145,7 +147,8 @@ pub struct SnippetV1 {
 #[must_use]
 pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
     let options = clamped(options);
-    let spans = normalised_spans(body, spans);
+    let graphemes = Boundaries::graphemes(body);
+    let spans = normalised_spans(body, spans, &graphemes);
     let max_bytes = options.max_bytes as usize;
     if body.len() <= max_bytes {
         return whole(body, &spans, &options);
@@ -177,7 +180,34 @@ fn clamped(options: &SnippetOptions) -> SnippetOptions {
     }
 }
 
-fn normalised_spans(body: &str, spans: &[(u32, u32)]) -> Vec<Span> {
+/// Sorted byte offsets of one kind of boundary, including 0 and `body.len()`.
+struct Boundaries(Vec<usize>);
+
+impl Boundaries {
+    fn graphemes(body: &str) -> Self {
+        let mut v: Vec<usize> = body.grapheme_indices(true).map(|(i, _)| i).collect();
+        v.push(body.len());
+        Self(v)
+    }
+
+    /// The largest boundary at or before `offset`.
+    fn at_or_before(&self, offset: usize) -> usize {
+        match self.0.binary_search(&offset) {
+            Ok(i) => self.0[i],
+            Err(i) => self.0[i.saturating_sub(1)],
+        }
+    }
+
+    /// The smallest boundary at or after `offset`.
+    fn at_or_after(&self, offset: usize) -> usize {
+        match self.0.binary_search(&offset) {
+            Ok(i) => self.0[i],
+            Err(i) => self.0.get(i).copied().unwrap_or(offset),
+        }
+    }
+}
+
+fn normalised_spans(body: &str, spans: &[(u32, u32)], graphemes: &Boundaries) -> Vec<Span> {
     let mut out: Vec<Span> = spans
         .iter()
         .map(|&(s, e)| Span { start: s as usize, end: e as usize })
@@ -187,6 +217,7 @@ fn normalised_spans(body: &str, spans: &[(u32, u32)]) -> Vec<Span> {
                 && body.is_char_boundary(s.start)
                 && body.is_char_boundary(s.end)
         })
+        .map(|s| Span { start: graphemes.at_or_before(s.start), end: graphemes.at_or_after(s.end) })
         .collect();
     out.sort_by_key(|s| (s.start, s.end));
     let mut merged: Vec<Span> = Vec::with_capacity(out.len());

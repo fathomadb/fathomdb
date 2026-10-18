@@ -1071,3 +1071,53 @@ async fn a_store_with_queued_calls_does_not_expire_idle() {
     assert_ne!(waited.is_error, Some(true), "{:?}", waited.structured_content);
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn running_calls_get_progress_notifications() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(&fixture, json!({"admission_cap": 1}))).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let first = spawn_call(&harness, "search", search_a());
+    wait_for("the first call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    // The raw client records notifications in wire order.
+    let mut raw = common::RawClient::connect(&harness.adapter).await;
+    let params =
+        json!({"name": "search", "arguments": search_a(), "_meta": {"progressToken": "w"}});
+    raw.send_request("tools/call", params).await;
+    // Queued for about 1.2 s, then admitted and held for about 2.2 s.
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    assert!(seams.release_one_call("a"));
+    let _ = first.await.unwrap();
+    wait_for("the second call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    tokio::time::sleep(Duration::from_millis(2200)).await;
+    seams.release_calls("a");
+    raw.request("ping", json!({})).await;
+    let notes: Vec<(f64, String)> = raw
+        .notifications
+        .iter()
+        .filter(|message| message["method"] == "notifications/progress")
+        .filter(|message| message["params"]["progressToken"] == "w")
+        .map(|message| {
+            let params = &message["params"];
+            (
+                params["progress"].as_f64().expect("numeric progress"),
+                params["message"].as_str().unwrap_or_default().to_string(),
+            )
+        })
+        .collect();
+    let queued = notes.iter().filter(|(_, message)| message.starts_with("queued:")).count();
+    let running = notes.iter().filter(|(_, message)| message == "running").count();
+    assert!(queued >= 1, "{notes:?}");
+    assert!(running >= 2, "one notification each second while running: {notes:?}");
+    let first_running = notes.iter().position(|(_, message)| message == "running").unwrap();
+    assert!(
+        notes[..first_running].iter().all(|(_, message)| message.starts_with("queued:")),
+        "running follows queued: {notes:?}"
+    );
+    assert!(notes.windows(2).all(|pair| pair[0].0 < pair[1].0), "progress increases: {notes:?}");
+    harness.shutdown().await;
+}

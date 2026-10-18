@@ -1,0 +1,1 @@
+{"roots": [{"path": "stores", "suffix": ".sqlite"}], "default_store": "conv0", "use_default_embedder": true, "idle_timeout_secs": 0, "call_deadline_ms": 10000, "search_mode": "hybrid", "admission_cap": 7}

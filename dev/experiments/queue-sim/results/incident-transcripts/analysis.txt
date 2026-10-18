@@ -1,0 +1,13 @@
+calls 97 busy 29
+fan-out bursts: busy-result t, ok-results t range, agent, busy
+  5.676  5.917-5.930  a5af50 busy=6
+  6.030  6.375-6.434  a0e553 busy=6
+  6.100  6.473-6.483  af7416 busy=6
+  6.189  6.524-6.561  a52788 busy=6
+  9.272  9.506-9.584  a7917d busy=5
+gaps between consecutive bursts' busy results (s): [0.354, 0.07, 0.089, 3.083]
+max calls in flight at once in the session (client-side, dispatch=last emit of the turn): 34
+client latency last-emit->result, busy: n=29 median 305 ms min 294 max 338
+client latency last-emit->result, ok in fan-out: n=21 median 667 ms min 536 max 709
+client latency last-emit->result, ok k=2-3: n=33 median 585 ms min 525 max 795
+client latency last-emit->result, ok k=1: n=14 median 502 ms min 207 max 694

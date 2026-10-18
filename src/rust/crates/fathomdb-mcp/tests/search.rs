@@ -497,3 +497,36 @@ async fn snippets_are_centred_on_the_match_with_an_anchor() {
     }
     harness.shutdown().await;
 }
+
+/// The highlights opt-in (owner decision 3): `highlights: true` adds, per hit,
+/// byte ranges into `snippet` of the matched words; it is presentation, so a
+/// continuation call may pass it and the page's references are unchanged.
+#[tokio::test(flavor = "multi_thread")]
+async fn highlights_are_opt_in_byte_ranges_into_the_snippet() {
+    let long = long_body(3000, "zanzibar", 4096);
+    let mut writes = vec![node("note:long", "note", &long)];
+    writes.extend((0..12).map(|i| node(&format!("note:{i:02}"), "note", "zanzibar again")));
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+
+    let plain = harness.ok("search", json!({"query": "zanzibar", "limit": 5})).await;
+    assert!(plain["results"].as_array().unwrap().iter().all(|hit| hit.get("highlights").is_none()));
+
+    let lit =
+        harness.ok("search", json!({"query": "zanzibar", "limit": 5, "highlights": true})).await;
+    assert_eq!(refs(&lit), refs(&plain), "presentation only");
+    for hit in lit["results"].as_array().unwrap() {
+        let snippet = hit["snippet"].as_str().unwrap();
+        let ranges = hit["highlights"].as_array().unwrap_or_else(|| panic!("{hit}"));
+        assert!(!ranges.is_empty(), "{hit}");
+        for range in ranges {
+            let (a, b) = (range[0].as_u64().unwrap() as usize, range[1].as_u64().unwrap() as usize);
+            assert_eq!(&snippet[a..b].to_lowercase(), "zanzibar", "{hit}");
+        }
+    }
+
+    let next = harness
+        .ok("search", json!({"continuation": lit["continuation"], "highlights": true}))
+        .await;
+    assert!(next["results"][0]["highlights"].is_array(), "{next}");
+    harness.shutdown().await;
+}

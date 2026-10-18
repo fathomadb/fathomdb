@@ -173,7 +173,7 @@ is the **typed governed application surface** this file owns. Three load-bearing
 properties hold (asserted by `src/rust/crates/fathomdb/tests/governed_surface.rs`,
 which binds AC-074 — not a new AC id):
 
-- **P1 — positive allowlist (`GOVERNED_SURFACE_ALLOWLIST`, 37 types):** the
+- **P1 — positive allowlist (`GOVERNED_SURFACE_ALLOWLIST`, 39 types):** the
   facade re-exports exactly the curated governed application surface — the
   original 17: `Engine`, `OpenedEngine`, `OpenReport`, `WriteReceipt`,
   `SearchResult`, `PreparedWrite`, `EngineError`, `EngineOpenError`, the open-path
@@ -196,7 +196,9 @@ which binds AC-074 — not a new AC id):
   pre-slice read semantics exactly. 0.8.20 Slices 5c/5d (R-20-E3 / R-20-E4) add
   the erasure types `SourceId` and `ExciseReport` (the latter moved out of the
   operator-gated block — it is `erase_source`'s return type) — **HITL-SIGNED
-  2026-07-29 (steward `seq-157`)**. Each of those 37 resolves through the facade
+  2026-07-29 (steward `seq-157`)**. Agent-access Block 1 S3 (EP-03) adds the
+  search degradation report types `ArmDegradation` and `DegradationReason`
+  (**awaiting HITL sign-off**). Each of those 39 resolves through the facade
   at compile time (`type_name::<…>()`). The facade also `pub use`s additional
   explicitly documented additive groups that are **not members of this
   historical const**; do not infer the full re-export surface from its count.

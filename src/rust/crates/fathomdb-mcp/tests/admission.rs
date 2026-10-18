@@ -574,3 +574,29 @@ async fn the_start_check_is_per_tool_kind() {
     );
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_window_keeps_the_last_128_completed_calls() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    // 128 fast calls, then 128 slow ones. The p90 of the slow 128 is
+    // 600 ms; the p90 of all 256 would be 200 ms.
+    seams.seed_service_times("a", "fetch", &millis(&[10; 128]));
+    let mut slow = vec![200; 110];
+    slow.extend([600; 18]);
+    seams.seed_service_times("a", "fetch", &millis(&slow));
+
+    let (refused, elapsed) =
+        wait_behind_a_search(&harness, "fetch", fetch_a(), Duration::from_millis(600)).await;
+    let error = error_of(&refused);
+    assert_eq!(error["busy"]["reason"], "deadline", "400 ms left < 600 ms: {error}");
+    assert!(elapsed >= Duration::from_millis(350), "refused early: {elapsed:?}");
+    assert!(elapsed < Duration::from_millis(550), "refused late: {elapsed:?}");
+    harness.shutdown().await;
+}

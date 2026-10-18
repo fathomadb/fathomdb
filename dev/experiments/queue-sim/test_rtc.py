@@ -11,6 +11,14 @@ def test_arms_are_the_preregistered_twenty_plus_six_exploratory():
     assert rtc.CHECKS["p90cap"] == ("fifo_shed", ("pct", 90, 128, 0.0, 9.95))
 
 
+def test_lockup_jobs_rerun_the_four_percentile_arms_at_60_s():
+    js = list(rtc.lockup_jobs(1, 0))
+    assert len(js) == 4 * 2 * 2
+    assert {t["arm"] for _, t in js} == {"rtc_p90_rl60", "rtc_p95_rl60", "rtc_p99_rl60", "rtc_p90cap_rl60"}
+    full = {(t["tail"], t["dispatch"], t["arm"]): cfg for cfg, t in rtc.jobs(1, 0)}
+    assert all(cfg == full[(t["tail"], t["dispatch"], t["arm"])] for cfg, t in js)  # same configs: CRN
+
+
 def test_long_tail_keeps_slow_p_and_sets_10_to_30_s_reads():
     for b, i, c in rtc.bands(50, 0):
         lt = rtc.long_tail(c)

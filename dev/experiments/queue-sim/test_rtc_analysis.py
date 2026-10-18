@@ -81,6 +81,20 @@ def test_lockups_count_arrival_refusals_only_when_recorded():
     assert ra.lockups(ix, "realistic", "base", "P2", "rtc_p90_rl60") == {"4"}
 
 
+def test_overlay_adds_a_metric_from_a_rerun_by_configuration():
+    ix = synth({("base", "P2", "rtc_p90_rl60"): {"rf_with_permit": 0.05}})
+    extra = [{"band": "realistic", "cfg_i": "4", "tail": "base", "dispatch": "P2", "arm": "rtc_p90_rl60",
+              "rf_arrival_free": "0.02", "fail_rate": "0.001"}]
+    assert ra.overlay(ix, extra, "rf_arrival_free", check="fail_rate") == 1
+    assert ix[("realistic", "base", "P2", "rtc_p90_rl60")]["4"]["rf_arrival_free"] == "0.02"
+    bad = [dict(extra[0], fail_rate="0.5")]
+    try:
+        ra.overlay(ix, bad, "rf_arrival_free", check="fail_rate")
+        raise AssertionError("a rerun that does not reproduce the run must be rejected")
+    except ValueError:
+        pass
+
+
 def test_r2_picks_the_smallest_run_limit_meeting_both_tails():
     assert ra.r2(synth({("long", "P2", "rtc_wait_rl30"): {"timeout_rate": 0.001}}), "wait") == (60, True)
     ix = synth({("long", "P2", f"rtc_wait_rl{r}"): {"timeout_rate": 0.001} for r in (30, 60, 120)})

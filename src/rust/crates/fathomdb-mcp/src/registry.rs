@@ -567,14 +567,19 @@ impl Registry {
     /// Admit one call on `name`.
     ///
     /// A ready store admits the call when a permit is free; otherwise the
-    /// call waits for one, in arrival order, until `wait_until`. A closed
-    /// store starts opening (draining the least recently used idle store
-    /// when the open limit is reached). A call with a deadline in
-    /// `wait_until` waits for the open until then, reporting progress when
-    /// `progress` is given, and returns `not_ready` with the phase at the
-    /// deadline. Without a deadline (internal callers only) it never waits:
-    /// it returns `busy` when no permit is free, `not_ready` at once on a
-    /// store that is not ready, or the error the previous open recorded
+    /// call waits for one, in arrival order, while at least `need` of its
+    /// deadline (`call.wait_until`) is left (queue-admission § 6.1). It is
+    /// refused as `busy/admission` when the line is full on arrival
+    /// (`queue_full`) or when it cannot start in time (`deadline`), and
+    /// returns `timeout/cancelled` when the client cancels it while it
+    /// waits. A closed store starts opening (draining the least recently
+    /// used idle store when the open limit is reached, else
+    /// `busy/store_switch`). A call with a deadline waits for the open until
+    /// then and returns `not_ready` with the phase at the deadline. Waiting
+    /// calls with `call.progress` get progress notifications. Without a
+    /// deadline (internal callers only) it never waits: it is refused
+    /// `busy/admission` when no permit is free, returns `not_ready` at once
+    /// on a store that is not ready, or the error the previous open recorded
     /// while the retry starts (MR-003.2, MR-006.6).
     pub(crate) async fn acquire(
         &self,

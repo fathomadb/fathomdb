@@ -424,7 +424,17 @@ The sequence:
    both hold, build the `StoreGuard` holding the permit. If the time check
    fails, drop the permit and refuse: `busy/admission`, reason `deadline`.
    A guard records its sample before it returns its permit, so the next
-   waiter's step 4 sees it.
+   waiter's step 4 sees it. Calls that panicked or were abandoned leave no
+   sample.
+
+   **Constraint for the run-to-completion slice (S1b).** Step 4 also
+   applies to a call that got its permit at once. Once started calls run
+   past the wait deadline and their service times are recorded, a kind
+   whose p90 reaches `call_deadline_ms` would refuse every call of that
+   kind, including calls that never waited, and so would never record a
+   new sample to bring the p90 down. S1b must either clamp `need` below
+   `call_deadline_ms` or skip step 4 for a call that got its permit
+   without waiting.
 5. If the wait in step 3 times out, refuse: `busy/admission`, reason
    `deadline`, at once. This sheds on time spent waiting, as CoDel does:
    a call that cannot finish before its deadline is not started.

@@ -212,6 +212,9 @@ reasons, every ref in `used` and `unused` must belong to it
 (`invalid_request/bad_argument` otherwise). A response from another store is `invalid_request/wrong_store`
 (MR-024.5). `used` may be empty. Recorded feedback reaches `record_feedback`
 with label source `agent` (MR-024.1). Feedback never alters later results.
+Feedback takes an admission permit but never queues for one: with no free
+permit it is refused at once as `busy/admission`, `busy.reason`
+`deadline`.
 
 ### Not present in this release
 

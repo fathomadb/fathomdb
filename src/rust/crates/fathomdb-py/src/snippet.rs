@@ -75,3 +75,92 @@ pub(super) fn snippets_from_rust(
 ) -> Option<Vec<PySnippetV1>> {
     snippets.map(|all| all.iter().map(PySnippetV1::from_rust).collect())
 }
+
+impl PySnippetOptionsArg {
+    /// The options for `snippet_for`, which never fails: each value
+    /// saturates into its field type, and the selector clamps it into range.
+    fn to_rust_clamped(&self) -> RustSnippetOptions {
+        RustSnippetOptions {
+            max_bytes: u32::try_from(self.max_bytes.max(0)).unwrap_or(u32::MAX),
+            max_windows: u8::try_from(self.max_windows.max(0)).unwrap_or(u8::MAX),
+            head_bytes: u32::try_from(self.head_bytes.max(0)).unwrap_or(u32::MAX),
+            highlights: self.highlights,
+            max_point_queries: u8::try_from(self.max_point_queries.max(0)).unwrap_or(u8::MAX),
+        }
+    }
+}
+
+/// Spans that are not `u32` byte ranges cannot lie inside a body; they are
+/// ignored, as the selector ignores spans that run past the body.
+fn representable_spans(spans: &[(i64, i64)]) -> Vec<(u32, u32)> {
+    spans
+        .iter()
+        .filter_map(|&(start, end)| Some((u32::try_from(start).ok()?, u32::try_from(end).ok()?)))
+        .collect()
+}
+
+/// EP-17 pure selector (`fathomdb_engine::snippet_for`): the snippet of
+/// `body` for match `spans` (UTF-8 byte ranges). Never fails; out-of-range
+/// options are clamped.
+#[pyfunction]
+#[pyo3(signature = (body, spans, options))]
+pub(super) fn snippet_for(
+    body: &str,
+    spans: Vec<(i64, i64)>,
+    options: PySnippetOptionsArg,
+) -> PySnippetV1 {
+    PySnippetV1::from_rust(&fathomdb_engine::snippet_for(
+        body,
+        &representable_spans(&spans),
+        &options.to_rust_clamped(),
+    ))
+}
+
+#[cfg(test)]
+mod parity_fixture_tests {
+    use super::*;
+    use serde_json::{json, Value};
+
+    /// The shared parity fixture the Python and TypeScript tests also read:
+    /// the binding conversions plus the engine selector must reproduce each
+    /// case's `expected` exactly.
+    #[test]
+    fn snippet_for_reproduces_the_shared_parity_fixture() {
+        let path =
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../../../conformance/snippet-for-parity.json");
+        let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let int = |options: &Value, name: &str, default: i64| {
+            options.get(name).map_or(default, |v| v.as_i64().unwrap())
+        };
+        let mut mismatches = Vec::new();
+        for case in fixture["cases"].as_array().unwrap() {
+            let options = &case["options"];
+            let options = PySnippetOptionsArg {
+                max_bytes: int(options, "max_bytes", 300),
+                max_windows: int(options, "max_windows", 1),
+                head_bytes: int(options, "head_bytes", 0),
+                highlights: options.get("highlights").is_some_and(|v| v.as_bool().unwrap()),
+                max_point_queries: int(options, "max_point_queries", 20),
+            };
+            let spans: Vec<(i64, i64)> = case["spans"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|pair| (pair[0].as_i64().unwrap(), pair[1].as_i64().unwrap()))
+                .collect();
+            let got = snippet_for(case["body"].as_str().unwrap(), spans, options);
+            let actual = json!({
+                "text": got.text,
+                "anchor": got.anchor,
+                "windows": got.windows,
+                "spans": got.spans,
+                "highlights": got.highlights,
+                "cut": got.cut,
+            });
+            if actual != case["expected"] {
+                mismatches.push(format!("{}: {actual}", case["name"]));
+            }
+        }
+        assert!(mismatches.is_empty(), "fixture mismatches:\n{}", mismatches.join("\n"));
+    }
+}

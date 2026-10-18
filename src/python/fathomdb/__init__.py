@@ -21,6 +21,7 @@ from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import IngestWithExtractorReceipt
 from fathomdb._fathomdb import embed_batch_cls
 from fathomdb._fathomdb import rerank
+from fathomdb._sdk_search import snippet_for
 from fathomdb.config import EngineConfig
 from fathomdb.engine import Engine
 from fathomdb.errors import (
@@ -266,5 +267,6 @@ __all__ = [
     "graph",
     "read",
     "rerank",
+    "snippet_for",
 ]
 __version__ = "0.8.27"

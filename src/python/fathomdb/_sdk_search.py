@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from fathomdb._fathomdb import FrozenReadContextV1 as _NativeFrozenReadContextV1
 from fathomdb._fathomdb import ReadContextV1 as _NativeReadContextV1
+from fathomdb._fathomdb import snippet_for as _native_snippet_for
 from fathomdb.errors import (
     FrozenReadError,
     InvalidArgumentError,
@@ -78,6 +79,40 @@ def _map_native_search_result(result: Any) -> SearchResult:
         degradations=degradations,
         snippets=_map_native_snippets(result),
     )
+
+
+def snippet_for(
+    body: str,
+    spans: Sequence[tuple[int, int]],
+    options: SnippetOptions | None = None,
+) -> SnippetV1:
+    """EP-17 pure snippet selector, the same function search uses.
+
+    ``spans`` are match spans as UTF-8 byte ranges ``(start, end)`` into
+    ``body``; spans that are empty, run past the body or split a character
+    are ignored. ``options`` defaults to ``SnippetOptions()``; values out of
+    range are clamped, so this never raises for a well-typed call. No
+    database is involved.
+
+    Raises:
+        TypeError: ``body`` is not a str, a span is not a pair of ints, or
+            ``options`` is not a ``SnippetOptions``.
+    """
+    if not isinstance(body, str):
+        raise TypeError(f"body must be a str, got {type(body).__name__!r}")
+    native_spans: list[tuple[int, int]] = []
+    for span in spans:
+        if (
+            not isinstance(span, (tuple, list))
+            or len(span) != 2
+            or not all(isinstance(v, int) and not isinstance(v, bool) for v in span)
+        ):
+            raise TypeError(f"each span must be a (start, end) pair of ints, got {span!r}")
+        native_spans.append((span[0], span[1]))
+    if options is None:
+        options = SnippetOptions()
+    _validate_snippet(options)
+    return _map_native_snippet(_native_snippet_for(body, native_spans, options))
 
 
 def _validate_snippet(snippet: object) -> None:

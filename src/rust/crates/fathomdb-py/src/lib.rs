@@ -245,6 +245,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.2 Slice E2 — standalone rerank over an arbitrary passage list.
     m.add_function(wrap_pyfunction!(rerank, &m)?)?;
     m.add_function(wrap_pyfunction!(embed_batch_cls, &m)?)?;
+    m.add_function(wrap_pyfunction!(snippet_for, &m)?)?;
 
     #[cfg(any(test, feature = "test-hooks"))]
     m.add_function(wrap_pyfunction!(force_panic_for_test, &m)?)?;

@@ -854,6 +854,18 @@ def rerank(
     """
     ...
 
+def snippet_for(
+    body: str,
+    spans: list[tuple[int, int]],
+    options: object,
+) -> SnippetV1:
+    """EP-17 pure selector; `options` is a `fathomdb.SnippetOptions`.
+
+    Spans that do not fit u32 are ignored; option values are saturated into
+    their field types and clamped into range. Never raises for valid types.
+    """
+    ...
+
 def embed_batch_cls(texts: list[str]) -> list[list[float]]:
     """V-3 dense-encoder path — CLS-pooled batch embed of ``texts``.
 

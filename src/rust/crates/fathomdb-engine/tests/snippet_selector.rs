@@ -180,3 +180,48 @@ fn rule4_window_scoring_prefers_distinct_terms() {
     assert!(shows(&s, spans[0]) && shows(&s, spans[1]), "{s:?}");
     assert!(!shows(&s, spans[2]));
 }
+
+/// The rule 9 join of `windows` over `body`.
+fn joined(body: &str, windows: &[(u32, u32)]) -> String {
+    let mut text = String::new();
+    for (i, &(s, e)) in windows.iter().enumerate() {
+        if i > 0 {
+            text.push_str(" … ");
+        } else if s > 0 {
+            text.push_str("… ");
+        }
+        text.push_str(&body[s as usize..e as usize]);
+    }
+    if windows.last().is_some_and(|&(_, e)| (e as usize) < body.len()) {
+        text.push_str(" …");
+    }
+    text
+}
+
+// § 6.3 rule 9 and § 6.4: the text is the ellipsis join of the windows, at
+// most `max_bytes`; highlights are ranges into `text` of the spans shown in
+// full, and only those.
+#[test]
+fn rule9_assembly_joins_windows_and_maps_highlights_into_text() {
+    let (body, spans) = body_with(&[(1500, "pear"), (1540, "plum"), (1700, "fig")], 3000);
+    let lit = SnippetOptions { highlights: true, ..opts(120) };
+    let s = snippet_for(&body, &spans, &lit);
+    assert!(s.windows[0].0 > 0);
+    assert_eq!(s.text, joined(&body, &s.windows));
+    assert!(s.text.starts_with("… ") && s.text.ends_with(" …"));
+    assert!(s.text.len() <= 120);
+    let lit_text: Vec<&str> =
+        s.highlights.iter().map(|&(a, b)| &s.text[a as usize..b as usize]).collect();
+    assert_eq!(lit_text, ["pear", "plum"], "fig lies outside the window");
+
+    // A window at byte 0 has no leading ellipsis; the highlight is not shifted.
+    let (body, spans) = body_with(&[(0, "pear")], 3000);
+    let s = snippet_for(&body, &spans, &lit);
+    assert_eq!(s.windows[0].0, 0);
+    assert!(s.text.starts_with("pear "));
+    assert_eq!(s.highlights, vec![(0, 4)]);
+
+    // Highlights stay off unless asked for.
+    let s = snippet_for(&body, &spans, &opts(120));
+    assert!(s.highlights.is_empty());
+}

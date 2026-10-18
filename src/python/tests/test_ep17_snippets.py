@@ -81,3 +81,20 @@ def test_search_returns_snippet_sidecar(db_path: str) -> None:
         assert plain.results == with_snippets.results
     finally:
         engine.close()
+
+
+def test_search_frozen_returns_snippet_sidecar(db_path: str) -> None:
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write(_writes())
+        frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+        with_snippets = engine.search_frozen(TERM, frozen, snippet=SnippetOptions(max_bytes=120))
+        _assert_far_and_short(with_snippets, 120)
+
+        # Snippet options are presentation: the same frozen context serves
+        # both calls and the results do not change.
+        plain = engine.search_frozen(TERM, frozen)
+        assert plain.snippets is None
+        assert plain.results == with_snippets.results
+    finally:
+        engine.close()

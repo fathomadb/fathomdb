@@ -173,7 +173,6 @@ pub struct FetchArgs {
     pub max_tokens: Option<u64>,
     /// Include the `hints` sidecar of suggested next calls; defaults to the
     /// operator's `hints` setting.
-    #[allow(dead_code)]
     pub hints: Option<bool>,
 }
 
@@ -214,7 +213,6 @@ pub struct ExpandArgs {
     pub max_tokens: Option<u64>,
     /// Include the `hints` sidecar of suggested next calls; defaults to the
     /// operator's `hints` setting.
-    #[allow(dead_code)]
     pub hints: Option<bool>,
 }
 
@@ -1012,6 +1010,7 @@ fn render_fetch(output: &FetchOutput) -> String {
         output.items.len(),
         output.envelope.validity_instant
     );
+    hints::render(&output.hints, &mut text);
     for item in &output.items {
         match item {
             FetchItem::Record { reference, record } => text.push_str(&format!(
@@ -1091,7 +1090,20 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
             },
         }
     }
+    let with_hints = hints::enabled(args.hints, ctx.shared.config.hints);
+    let uncut_whole = std::cell::Cell::new(0_u64);
     let build = |bodies: &[(String, bool)]| -> FetchOutput {
+        let hints = if with_hints && bodies.iter().any(|(_, cut)| *cut) {
+            let mut cut = bodies.iter().map(|(_, cut)| *cut);
+            let refs = resolved
+                .iter()
+                .filter(|(_, kind, _)| kind.is_some())
+                .map(|(reference, _, _)| reference.as_str())
+                .filter(|_| cut.next().unwrap_or(false));
+            hints::body_cut(refs, uncut_whole.get()).into_iter().collect()
+        } else {
+            Vec::new()
+        };
         let mut bodies = bodies.iter();
         let items = resolved
             .iter()
@@ -1112,12 +1124,17 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
         FetchOutput {
             envelope: envelope(&store, answered.epoch, validity_instant, vec![], max_tokens),
             items,
+            hints,
         }
     };
     shape::cut_bodies(&mut bodies, |bodies| {
         let output = build(bodies);
         let cut = bodies.iter().any(|(_, cut)| *cut);
-        bytes_over(finish(&output, render_fetch(&output), max_tokens, cut).1, max_tokens)
+        let whole = finish(&output, render_fetch(&output), max_tokens, cut).1;
+        if !cut {
+            uncut_whole.set(whole);
+        }
+        bytes_over(whole, max_tokens)
     });
     let output = build(&bodies);
     let cut = bodies.iter().any(|(_, cut)| *cut);
@@ -1154,6 +1171,7 @@ fn render_expand(output: &ExpandOutput) -> String {
         output.envelope.validity_instant,
         shape::render_degradation(&output.envelope.degradation)
     );
+    hints::render(&output.hints, &mut text);
     for target in &output.targets {
         text.push_str(&format!(
             "\n{} kind={} hops={} via={} body={}{}",
@@ -1241,7 +1259,24 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let mut bodies: Vec<(String, bool)> =
         result.targets.iter().map(|target| (target.body.clone(), false)).collect();
     let mut kept = result.targets.len();
+    let with_hints = hints::enabled(args.hints, ctx.shared.config.hints);
+    let uncut_whole = std::cell::Cell::new(0_u64);
+    let references: Vec<String> = result
+        .targets
+        .iter()
+        .map(|target| IdSpace::logical(target.logical_id.clone()).to_prefixed())
+        .collect();
     let build = |bodies: &[(String, bool)], kept: usize| -> ExpandOutput {
+        let hints = if with_hints {
+            let refs = references[..kept]
+                .iter()
+                .zip(bodies)
+                .filter(|(_, (_, cut))| *cut)
+                .map(|(reference, _)| reference.as_str());
+            hints::body_cut(refs, uncut_whole.get()).into_iter().collect()
+        } else {
+            Vec::new()
+        };
         ExpandOutput {
             envelope: envelope(
                 &store,
@@ -1253,8 +1288,9 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             targets: result.targets[..kept]
                 .iter()
                 .zip(bodies)
-                .map(|(target, (body, body_cut))| Target {
-                    reference: IdSpace::logical(target.logical_id.clone()).to_prefixed(),
+                .zip(&references)
+                .map(|((target, (body, body_cut)), reference)| Target {
+                    reference: reference.clone(),
                     kind: target.kind.clone(),
                     hop_count: target.origin.hop_count,
                     terminal_edge_kind: target.origin.terminal_edge_kind.clone(),
@@ -1269,12 +1305,17 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             } else {
                 bound.clone()
             },
+            hints,
         }
     };
     shape::cut_bodies(&mut bodies, |bodies| {
         let output = build(bodies, kept);
         let cut = bodies.iter().any(|(_, cut)| *cut);
-        bytes_over(finish(&output, render_expand(&output), max_tokens, cut).1, max_tokens)
+        let whole = finish(&output, render_expand(&output), max_tokens, cut).1;
+        if !cut {
+            uncut_whole.set(whole);
+        }
+        bytes_over(whole, max_tokens)
     });
     loop {
         let output = build(&bodies[..kept], kept);

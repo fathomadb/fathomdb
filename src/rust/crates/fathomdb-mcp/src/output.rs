@@ -250,6 +250,7 @@ pub enum HintReason {
     Degraded,
     NoResults,
     SnippetCut,
+    BodyCut,
     CutByBudget,
     MoreResults,
 }
@@ -441,6 +442,9 @@ pub struct FetchOutput {
     #[serde(flatten)]
     pub envelope: Envelope,
     pub items: Vec<FetchItem>,
+    /// Suggested next calls; absent when there are none or hints are off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hints: Vec<Hint>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -462,6 +466,9 @@ pub struct ExpandOutput {
     pub targets: Vec<Target>,
     pub complete: bool,
     pub bound: Option<String>,
+    /// Suggested next calls; absent when there are none or hints are off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hints: Vec<Hint>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]

@@ -16,6 +16,9 @@ pub(crate) const MAX_HINT_REFS: usize = 50;
 /// writer-chosen id can carry inside an imperative-looking hint (§ 2.3).
 pub(crate) const MAX_HINT_REF_BYTES: usize = 128;
 
+/// The smallest `max_tokens` a call accepts.
+const MIN_MAX_TOKENS: u64 = 256;
+
 /// One search page hit: `(hit, write cursor, per-hit explanation)`.
 pub(crate) type PageHit = (Hit, u64, Option<PerHitOut>);
 
@@ -120,6 +123,15 @@ impl SearchPlan {
     }
 }
 
+/// The `body_cut` hint of a `fetch` or `expand` response: the cut refs in
+/// result order, and `max_tokens`, the whole-response estimate with every
+/// body uncut, which is enough to fetch them whole.
+pub(crate) fn body_cut<'a>(refs: impl Iterator<Item = &'a str>, max_tokens: u64) -> Option<Hint> {
+    let mut hint = fetch_hint(HintReason::BodyCut, refs)?;
+    hint.max_tokens = Some(max_tokens.max(MIN_MAX_TOKENS));
+    Some(hint)
+}
+
 /// A `fetch` hint listing `refs` in order, up to [`MAX_HINT_REFS`] of at
 /// most [`MAX_HINT_REF_BYTES`] each, with the rest counted; `None` when
 /// nothing is listed.
@@ -189,6 +201,9 @@ fn template(hint: &Hint) -> &'static str {
         }
         HintReason::NoResults => "rephrase with synonyms, names or related events",
         HintReason::SnippetCut => "snippets are prefixes; fetch to read the full record",
+        HintReason::BodyCut => {
+            "bodies were shortened; fetch with this max_tokens to read them whole"
+        }
         HintReason::CutByBudget => {
             "results were dropped to fit max_tokens; pass the continuation for the rest"
         }

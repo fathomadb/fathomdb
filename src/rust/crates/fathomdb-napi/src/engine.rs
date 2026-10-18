@@ -328,7 +328,9 @@ impl Engine {
             .map_err(|_| typed_error(CODE_DEPENDENCY_TRACE, "trace codec failure", JsonValue::Null))
     }
 
-    /// Search under a frozen validity and eligibility context.
+    /// Search under a frozen validity and eligibility context. `snippet`
+    /// (EP-17) is presentation: it fills `SearchResult.snippets` and is not
+    /// part of the frozen context.
     #[napi]
     #[allow(clippy::too_many_arguments)]
     pub async fn search_frozen(
@@ -341,6 +343,7 @@ impl Engine {
         pool_n: Option<i64>,
         explain: Option<bool>,
         limit: Option<i64>,
+        snippet: Option<SnippetOptionsInput>,
     ) -> Result<SearchResult> {
         let context = frozen_context_to_rust(context)?;
         let depth = usize::try_from(rerank_depth.unwrap_or(0)).unwrap_or(usize::MAX);
@@ -350,9 +353,20 @@ impl Engine {
             pool_n.map(|value| usize::try_from(value).unwrap_or(usize::MAX)).unwrap_or(depth);
         let explain = explain.unwrap_or(false);
         let limit = usize::try_from(limit.unwrap_or(10)).unwrap_or(usize::MAX);
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
         let result = call_engine(move || {
-            engine.search_frozen(&query, &context, depth, graph_arm, alpha, pool_n, explain, limit)
+            engine.search_frozen_with_snippets(
+                &query,
+                &context,
+                depth,
+                graph_arm,
+                alpha,
+                pool_n,
+                explain,
+                limit,
+                snippet.as_ref(),
+            )
         })
         .await?;
         Ok(SearchResult::from_rust(result))
@@ -488,6 +502,8 @@ impl Engine {
         // `FDB_INVALID_ARGUMENT`), never silently ignored.
         view: Option<ReadViewInput>,
         limit: Option<u32>,
+        // EP-17 — fills `SearchResult.snippets`; omitted leaves it absent.
+        snippet: Option<SnippetOptionsInput>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
         if query.trim().is_empty() {
@@ -519,12 +535,22 @@ impl Engine {
         let explain = explain.unwrap_or(false);
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
         // fix-2: ONE call — `explain` is a parameter of the full-arity view entry
         // point, so the two arms can no longer drift on `view`.
         let result = call_engine(move || {
-            engine.search_reranked_view_with_limit(
-                &query, filter, depth, graph_arm, alpha, pool_n, explain, &view, limit,
+            engine.search_reranked_view_with_snippets(
+                &query,
+                filter,
+                depth,
+                graph_arm,
+                alpha,
+                pool_n,
+                explain,
+                &view,
+                limit,
+                snippet.as_ref(),
             )
         })
         .await?;
@@ -563,11 +589,15 @@ impl Engine {
     #[napi]
     ///
     /// 0.8.20 Slice 15b fix-2 — takes the same optional `view` as `search`.
+    ///
+    /// EP-17 — `snippet` fills `SearchResult.snippets`; omitted leaves it
+    /// absent.
     pub async fn search_text_only(
         &self,
         query: String,
         view: Option<ReadViewInput>,
         limit: Option<u32>,
+        snippet: Option<SnippetOptionsInput>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
         if query.trim().is_empty() {
@@ -579,10 +609,12 @@ impl Engine {
         }
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
-        let result =
-            call_engine(move || engine.search_text_only_view_with_limit(&query, &view, limit))
-                .await?;
+        let result = call_engine(move || {
+            engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())
+        })
+        .await?;
         Ok(SearchResult::from_rust(result))
     }
 

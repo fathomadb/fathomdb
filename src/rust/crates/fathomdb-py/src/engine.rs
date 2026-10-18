@@ -192,9 +192,11 @@ impl PyEngine {
     }
 
     /// Search using eligibility and validity authenticated by a frozen context.
+    /// `snippet` (EP-17) is presentation: it fills `SearchResult.snippets`
+    /// and is not part of the frozen context.
     #[pyo3(signature = (
         query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,
-        pool_n=None, explain=false, limit=10
+        pool_n=None, explain=false, limit=10, snippet=None
     ))]
     #[allow(clippy::too_many_arguments)]
     fn search_frozen(
@@ -208,13 +210,15 @@ impl PyEngine {
         pool_n: Option<i64>,
         explain: bool,
         limit: i64,
+        snippet: Option<PySnippetOptionsArg>,
     ) -> PyResult<PySearchResult> {
         let pool_n = pool_n.unwrap_or(rerank_depth);
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let context = context.inner.clone();
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         call_engine(py, move || {
-            engine.search_frozen(
+            engine.search_frozen_with_snippets(
                 &query,
                 &context,
                 usize::try_from(rerank_depth).unwrap_or(usize::MAX),
@@ -223,6 +227,7 @@ impl PyEngine {
                 usize::try_from(pool_n).unwrap_or(usize::MAX),
                 explain,
                 usize::try_from(limit).unwrap_or(usize::MAX),
+                snippet.as_ref(),
             )
         })
         .map(PySearchResult::from_rust)
@@ -409,7 +414,8 @@ impl PyEngine {
     #[pyo3(
         signature = (query, source_type=None, kind=None, created_after=None,
                      status=None, rerank_depth=0, use_graph_arm=false,
-                     alpha=None, pool_n=None, explain=false, attributes=None, view=None, limit=10)
+                     alpha=None, pool_n=None, explain=false, attributes=None, view=None, limit=10,
+                     snippet=None)
     )]
     fn search(
         &self,
@@ -445,6 +451,8 @@ impl PyEngine {
         // `Engine::search_view`.
         view: Option<&PyReadView>,
         limit: usize,
+        // EP-17 — a `fathomdb.SnippetOptions`; fills `SearchResult.snippets`.
+        snippet: Option<PySnippetOptionsArg>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         // G10 filter strings cross the FFI exactly like `query` and the write
@@ -493,13 +501,14 @@ impl PyEngine {
         let pool_n = pool_n.unwrap_or(rerank_depth);
         // Resolved BEFORE the GIL is released, exactly as the read verbs do.
         let view = read_view_or_default(view);
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         // 0.8.8 EXP-OBS: `explain=True` routes to `search_explained` (same retrieval,
         // plus the sidecar); `explain=False` (default) stays on `search_reranked`.
         // fix-2: ONE call now that the view rides the full-arity entry point —
         // `explain` is a parameter of it, so the explain/non-explain split no
         // longer duplicates the argument list (and cannot drift on `view`).
         let result = call_engine(py, move || {
-            engine.search_reranked_view_with_limit(
+            engine.search_reranked_view_with_snippets(
                 &query,
                 filter,
                 rerank_depth,
@@ -509,6 +518,7 @@ impl PyEngine {
                 explain,
                 &view,
                 limit,
+                snippet.as_ref(),
             )
         })?;
         Ok(PySearchResult::from_rust(result))
@@ -574,20 +584,26 @@ impl PyEngine {
     /// `limit`; no vector recall, CE rerank, or graph arm runs on this path.
     ///
     /// 0.8.20 Slice 15b fix-2 — takes the same optional `view` as `search`.
-    #[pyo3(signature = (query, view=None, limit=10))]
+    ///
+    /// EP-17 — `snippet` (a `fathomdb.SnippetOptions`) fills
+    /// `SearchResult.snippets`; `None` leaves it `None`.
+    #[pyo3(signature = (query, view=None, limit=10, snippet=None))]
     fn search_text_only(
         &self,
         py: Python<'_>,
         query: &str,
         view: Option<&PyReadView>,
         limit: usize,
+        snippet: Option<PySnippetOptionsArg>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let view = read_view_or_default(view);
-        let result =
-            call_engine(py, move || engine.search_text_only_view_with_limit(&query, &view, limit))?;
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
+        let result = call_engine(py, move || {
+            engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())
+        })?;
         Ok(PySearchResult::from_rust(result))
     }
 

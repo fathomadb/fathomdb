@@ -352,6 +352,25 @@ interface NativeExplanation {
   correlationId?: string;
 }
 
+/** EP-17 snippet options; an omitted field takes the Rust default. */
+export interface NativeSnippetOptions {
+  maxBytes?: number;
+  maxWindows?: number;
+  headBytes?: number;
+  highlights?: boolean;
+  maxPointQueries?: number;
+}
+
+/** EP-17 snippet; ranges are `[start, end]` UTF-8 byte offsets. */
+export interface NativeSnippetV1 {
+  text: string;
+  anchor: string;
+  windows: number[][];
+  spans: number[][];
+  highlights: number[][];
+  cut: boolean;
+}
+
 export interface NativeSearchResult {
   projectionCursor: number;
   softFallback: NativeSoftFallback | null;
@@ -360,6 +379,8 @@ export interface NativeSearchResult {
   explanation?: NativeExplanation | null;
   /** Requested arms that did not run; absent or null when every arm ran. */
   degradations?: NativeArmDegradation[] | null;
+  /** EP-17 snippet sidecar; absent or null unless requested. */
+  snippets?: NativeSnippetV1[] | null;
 }
 
 export interface NativeEvidenceSidecarEntryV1 {
@@ -773,6 +794,7 @@ export interface NativeEngine {
     poolN?: number,
     explain?: boolean,
     limit?: number,
+    snippet?: NativeSnippetOptions,
   ): Promise<NativeSearchResult>;
   searchWithEvidence(
     query: string,
@@ -811,10 +833,16 @@ export interface NativeEngine {
     // time). The existence flags are refused by the engine on this path.
     view?: NativeReadView,
     limit?: number,
+    snippet?: NativeSnippetOptions,
   ): Promise<NativeSearchResult>;
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only/FTS-only path +
   // degraded-state observability.
-  searchTextOnly(query: string, view?: NativeReadView, limit?: number): Promise<NativeSearchResult>;
+  searchTextOnly(
+    query: string,
+    view?: NativeReadView,
+    limit?: number,
+    snippet?: NativeSnippetOptions,
+  ): Promise<NativeSearchResult>;
   searchProjectedText(
     query: string,
     name: string,
@@ -870,6 +898,8 @@ export interface NativeModule {
   };
   /** Module-level CLS-pooled batch embedder (Python: `embed_batch_cls`). */
   embedBatchCls(texts: string[]): Promise<number[][]>;
+  /** EP-17 pure snippet selector (Python: `snippet_for`). */
+  snippetFor(body: string, spans: number[][], options?: NativeSnippetOptions): NativeSnippetV1;
   /** Module-level standalone reranker (Python: `rerank`). */
   rerank(
     query: string,

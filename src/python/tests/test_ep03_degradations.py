@@ -50,3 +50,32 @@ def test_python_search_expand_results_report_embedder_overloaded() -> None:
     for absent in (_native_expand(), _native_expand(degradations=None)):
         assert _to_search_expand_result(absent).degradations is None
         assert _map_native_search_expand_result(absent).degradations is None
+
+
+class _NativeReturning:
+    """A stand-in for the native engine that returns one fixed native result,
+    so the test exercises only the Python wrapper's mapping."""
+
+    def __init__(self, result: SimpleNamespace) -> None:
+        self._result = result
+
+    def search(self, *_args: object, **_kwargs: object) -> SimpleNamespace:
+        return self._result
+
+    def search_text_only(self, *_args: object, **_kwargs: object) -> SimpleNamespace:
+        return self._result
+
+
+def test_python_search_and_search_text_only_report_degradations() -> None:
+    from fathomdb import _sdk_search
+
+    reported = _native(degradations=[SimpleNamespace(arm="vector", reason="embedder_overloaded")])
+    engine = SimpleNamespace(_native=_NativeReturning(reported))
+    expected = [ArmDegradation(arm="vector", reason="embedder_overloaded")]
+    assert _sdk_search.search(engine, "q").degradations == expected  # type: ignore[arg-type]
+    assert _sdk_search.search_text_only(engine, "q").degradations == expected  # type: ignore[arg-type]
+
+    for absent in (_native(), _native(degradations=None), _native(degradations=[])):
+        engine = SimpleNamespace(_native=_NativeReturning(absent))
+        assert _sdk_search.search(engine, "q").degradations is None  # type: ignore[arg-type]
+        assert _sdk_search.search_text_only(engine, "q").degradations is None  # type: ignore[arg-type]

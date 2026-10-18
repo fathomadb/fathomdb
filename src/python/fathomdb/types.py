@@ -17,6 +17,9 @@ T = TypeVar("T")
 #: ``PerHitExplain.arm`` (and, for graph-arm hits, ``SearchHit.branch``).
 SoftFallbackBranch = Literal["vector", "text", "text_edge", "graph_arm"]
 DegradationReason = Literal["embedder_overloaded"]
+#: Where a snippet's text comes from: the whole body, a window centred on
+#: match spans, or the record start.
+SnippetAnchor = Literal["whole", "match", "start"]
 DependencyTraceDirectionV1 = Literal["to_source", "to_dependents"]
 StructuralInclusionStateV1 = Literal["included", "degraded"]
 StructuralProjectionOriginV1 = Literal[
@@ -400,6 +403,59 @@ class SoftFallback:
     """
 
     branch: SoftFallbackBranch
+
+
+@dataclass(frozen=True)
+class SnippetOptions:
+    """EP-17 match-centred snippet options (``search(..., snippet=...)``).
+
+    ``max_bytes`` is the output budget in UTF-8 bytes, ellipses included
+    (``40..=4000``); ``max_windows`` is ``1..=3``; ``head_bytes`` reserves the
+    record start as its own window (``0..=max_bytes // 2``); ``highlights``
+    asks for highlight ranges; ``max_point_queries`` caps per-search span
+    queries in rank order (``0..=255``; later hits get the record start).
+    Search raises ``InvalidArgumentError`` for a value out of range;
+    :func:`fathomdb.snippet_for` clamps instead.
+    """
+
+    max_bytes: int = 300
+    max_windows: int = 1
+    head_bytes: int = 0
+    highlights: bool = False
+    max_point_queries: int = 20
+
+    def __post_init__(self) -> None:
+        for name in ("max_bytes", "max_windows", "head_bytes", "max_point_queries"):
+            value = getattr(self, name)
+            # bool is an int subclass; reject it like the other SDK guards.
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError(f"{name} must be an int, got {type(value).__name__!r}")
+        if not isinstance(self.highlights, bool):
+            raise TypeError(f"highlights must be a bool, got {type(self.highlights).__name__!r}")
+
+
+@dataclass(frozen=True)
+class SnippetV1:
+    """One hit's snippet. Offsets are UTF-8 byte offsets ``(start, end)``.
+
+    ``text`` is at most ``max_bytes`` bytes: the ``windows`` (body ranges)
+    joined in body order with ``"… "``, ``" … "`` and ``" …"`` ellipses.
+    ``spans`` are the body-relative match spans used; ``highlights`` are
+    ranges into ``text`` and are empty unless requested; ``cut`` is true when
+    any of the body is left out.
+
+    Offsets index the UTF-8 encoding, not the ``str``. Slice the bytes and
+    decode: ``body.encode("utf-8")[start:end].decode("utf-8")`` for a window
+    or span, ``snippet.text.encode("utf-8")[start:end].decode("utf-8")`` for a
+    highlight.
+    """
+
+    text: str
+    anchor: SnippetAnchor
+    windows: list[tuple[int, int]] = field(default_factory=list)
+    spans: list[tuple[int, int]] = field(default_factory=list)
+    highlights: list[tuple[int, int]] = field(default_factory=list)
+    cut: bool = False
 
 
 @dataclass(frozen=True)
@@ -1193,6 +1249,9 @@ class SearchResult:
     explanation: Explanation | None = None
     #: Requested arms that did not run; ``None`` when every requested arm ran.
     degradations: list[ArmDegradation] | None = None
+    #: EP-17 snippet sidecar: one ``SnippetV1`` per hit, in ``results`` order,
+    #: when the search passed ``snippet=``; ``None`` otherwise.
+    snippets: list[SnippetV1] | None = None
 
 
 @dataclass(frozen=True)
@@ -1565,6 +1624,9 @@ __all__ = [
     "SoftFallbackBranch",
     "ArmDegradation",
     "DegradationReason",
+    "SnippetAnchor",
+    "SnippetOptions",
+    "SnippetV1",
     "UnknownEmbedderEvent",
     "WriteReceipt",
     "is_known_embedder_event",

@@ -391,6 +391,9 @@ pub(super) struct PySearchResult {
     explanation: Option<PyExplanation>,
     /// Requested arms that did not run; `None` when every requested arm ran.
     degradations: Option<Vec<PyArmDegradation>>,
+    /// EP-17 snippet sidecar, one per hit in `results` order; `None` unless
+    /// the search asked for snippets.
+    snippets: Option<Vec<PySnippetV1>>,
 }
 
 impl PySearchResult {
@@ -401,6 +404,7 @@ impl PySearchResult {
             results: r.results.iter().map(PySearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(PyExplanation::from_rust),
             degradations: degradations_from_rust(&r.degradations),
+            snippets: snippets_from_rust(r.snippets.as_ref()),
         }
     }
 }

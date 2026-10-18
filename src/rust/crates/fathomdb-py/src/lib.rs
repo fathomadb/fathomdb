@@ -138,6 +138,8 @@ mod graph_evidence;
 use graph_evidence::*;
 mod embedding;
 use embedding::*;
+mod snippet;
+use snippet::*;
 #[cfg(any(test, feature = "test-hooks"))]
 mod test_support;
 #[cfg(any(test, feature = "test-hooks"))]
@@ -166,6 +168,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyIdSpace>()?;
     m.add_class::<PySearchHit>()?;
     m.add_class::<PySearchResult>()?;
+    m.add_class::<PySnippetV1>()?;
     m.add_class::<PyEvidenceSidecarEntryV1>()?;
     m.add_class::<PyEvidenceSearchResultV1>()?;
     m.add_class::<PyEvidenceContributionV1>()?;
@@ -242,6 +245,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.2 Slice E2 — standalone rerank over an arbitrary passage list.
     m.add_function(wrap_pyfunction!(rerank, &m)?)?;
     m.add_function(wrap_pyfunction!(embed_batch_cls, &m)?)?;
+    m.add_function(wrap_pyfunction!(snippet_for, &m)?)?;
 
     #[cfg(any(test, feature = "test-hooks"))]
     m.add_function(wrap_pyfunction!(force_panic_for_test, &m)?)?;

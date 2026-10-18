@@ -50,6 +50,7 @@ write-path change, or a change across several read paths.
 | [EP-15](EP-15-fetch-by-content-id.md) | Point reads by content id (h:) | P2 | MR-042.2 | `canonical_nodes.body_sha256`; new `read::get_many_by_id` | M |
 | [EP-16](EP-16-governed-change-feed.md) | Governed change feed keyed by write cursor | P2 | MR-055 | New `read::changes`; change log table or stamped column | L |
 | [EP-17](EP-17-match-centred-snippets.md) | Match-centred snippets on search results | P1 | MR-040 (snippet shows the match) | `SearchOptions.snippet`, `TextSearchOptions.snippet`; `SearchResult.snippets` sidecar; `snippet_for` selector | M |
+| [EP-18](EP-18-reader-dispatch-and-pool-size.md) | Work-conserving reader dispatch and a configurable reader pool. Part A accepted and built; part B waits for the live sweep | P1 | MR-033.1/.2 | `ReaderWorkerPool` dispatch and shutdown (A); `EngineConfig.reader_pool_size` (B) | M |
 
 ## Suggested order
 
@@ -72,7 +73,9 @@ makes no other doc edits:
 - The adapter's `embedder_unavailable` entry misses query-embedding timeouts and
   saturation (EP-03).
 - Round-robin reader dispatch lets new calls queue behind an abandoned one,
-  which the admission cap does not prevent (EP-09).
+  which the admission cap does not prevent (EP-09). This held before
+  [EP-18](EP-18-reader-dispatch-and-pool-size.md) part A; now a request queues
+  behind a busy worker only when all eight readers are busy.
 - Erasure redacts only the telemetry sink attached at the time, so per-epoch
   sink files from earlier opens keep erased stable ids (EP-02).
 - `p:` ids are synthetic rerank passages, not stored records (EP-15, MR-042.2).

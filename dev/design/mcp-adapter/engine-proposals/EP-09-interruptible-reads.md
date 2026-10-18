@@ -20,7 +20,9 @@ How the reader pool works, verified in code:
   (`reader_pool.rs:499`, `reader_pool.rs:955`).
 - `dispatch` picks a worker round-robin from a global counter and calls a
   blocking `send` on that worker's `SyncSender` (`reader_pool.rs:1216-1226`).
-  Nothing looks at worker load.
+  Nothing looks at worker load. This held before
+  [EP-18](EP-18-reader-dispatch-and-pool-size.md) part A; now a request queues
+  behind a busy worker only when all eight readers are busy.
 - No reader request carries a deadline. There is no `sqlite3_interrupt` or
   progress handler on reader connections. The only progress handler in the
   engine is the dependency-trace bound on the writer connection
@@ -29,7 +31,9 @@ How the reader pool works, verified in code:
 So a call the adapter abandons at its deadline keeps its worker busy until the
 SQL finishes. Worse than the architecture assumed, round-robin means about 1 in
 8 later requests lands in that worker's queue and waits behind it, even when the
-other 7 are idle. The adapter's admission cap
+other 7 are idle. This held before
+[EP-18](EP-18-reader-dispatch-and-pool-size.md) part A; now a request queues
+behind a busy worker only when all eight readers are busy. The adapter's admission cap
 (`src/rust/crates/fathomdb-mcp/src/registry.rs:331`, interface §2) limits how
 many calls are in flight. It cannot stop a fresh call from queueing behind an
 abandoned one.

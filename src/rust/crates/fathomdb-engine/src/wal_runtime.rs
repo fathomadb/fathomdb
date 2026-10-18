@@ -243,6 +243,21 @@ impl Engine {
         (snapshot_ready_rx, release_tx)
     }
 
+    /// Pause every reader worker on a real snapshot with bounded release.
+    /// Each worker reports its index on the returned receiver once it holds
+    /// its snapshot. The `i`-th sender releases worker `i`; dropping it also
+    /// releases, and every hold auto-releases after five seconds.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn pause_every_reader_with_timeout_for_test(
+        &self,
+    ) -> (Receiver<usize>, Vec<SyncSender<()>>) {
+        let (snapshot_ready_tx, snapshot_ready_rx) =
+            mpsc::sync_channel(self.reader_pool.worker_count());
+        let releases = self.reader_pool.hold_every_worker_wal_snapshot_bounded(&snapshot_ready_tx);
+        (snapshot_ready_rx, releases)
+    }
+
     #[cfg(test)]
     pub(crate) fn post_commit_ack_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>, Arc<Barrier>) {
         let snapshot_ready = Arc::new(Barrier::new(2));

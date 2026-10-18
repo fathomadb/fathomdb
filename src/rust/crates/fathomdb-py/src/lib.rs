@@ -161,6 +161,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.12 Slice 15 (OPP-2) — consolidation receipt.
     m.add_class::<PyConsolidateReceipt>()?;
     m.add_class::<PySoftFallback>()?;
+    m.add_class::<PyArmDegradation>()?;
     // C-2 (0.8.19 / TC-8) — typed IdSpace id carrier for SearchHit.id.
     m.add_class::<PyIdSpace>()?;
     m.add_class::<PySearchHit>()?;

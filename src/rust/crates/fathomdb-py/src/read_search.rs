@@ -276,6 +276,21 @@ impl PySoftFallback {
     }
 }
 
+/// One requested search arm that did not run (`arm`, spelled like
+/// `SoftFallback.branch`) and why (`reason`, e.g. `"embedder_overloaded"`).
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "ArmDegradation",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyArmDegradation {
+    arm: String,
+    reason: String,
+}
+
 /// C-2 (0.8.19 / OPP-12 Phase-1, TC-8) — the typed id-space carrier for
 /// [`PySearchHit::id`], surfaced to Python as an `IdSpace` with `space` +
 /// `value` attributes. `space` is the lowercase discriminant (`"logical"` |
@@ -357,6 +372,8 @@ pub(super) struct PySearchResult {
     /// only when `search(..., explain=True)`; `None` (default) keeps the payload
     /// byte-identical to the pre-0.8.8 shape.
     explanation: Option<PyExplanation>,
+    /// Requested arms that did not run; `None` when every requested arm ran.
+    degradations: Option<Vec<PyArmDegradation>>,
 }
 
 impl PySearchResult {
@@ -366,6 +383,7 @@ impl PySearchResult {
             soft_fallback: r.soft_fallback.as_ref().map(PySoftFallback::from_rust),
             results: r.results.iter().map(PySearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(PyExplanation::from_rust),
+            degradations: None,
         }
     }
 }

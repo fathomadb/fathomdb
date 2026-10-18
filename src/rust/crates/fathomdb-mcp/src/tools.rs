@@ -235,8 +235,15 @@ fn max_tokens(ctx: &Ctx<'_>, given: Option<u64>) -> Result<u32, ToolError> {
 }
 
 impl Ctx<'_> {
-    fn deadline(&self) -> Instant {
-        Instant::now() + std::time::Duration::from_millis(self.shared.config.call_deadline_ms)
+    /// The wait deadline (`call_deadline_ms`) and the run limit
+    /// (`run_limit_ms`), both from arrival.
+    fn deadlines(&self) -> (Instant, Instant) {
+        let now = Instant::now();
+        let config = &self.shared.config;
+        (
+            now + std::time::Duration::from_millis(config.call_deadline_ms),
+            now + std::time::Duration::from_millis(config.run_limit_ms),
+        )
     }
 
     async fn acquire(
@@ -262,9 +269,9 @@ impl Ctx<'_> {
         T: Send + 'static,
         F: FnOnce(&fathomdb_sdk::Engine) -> fathomdb_sdk::Result<T> + Send + 'static,
     {
-        let deadline = self.deadline();
+        let (deadline, run_until) = self.deadlines();
         let guard = self.acquire(store, kind, deadline).await?;
-        bridge::call(guard, deadline, &self.shared.hooks, f).await
+        bridge::call(guard, run_until, &self.shared.hooks, f).await
     }
 }
 
@@ -647,7 +654,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         SearchMode::Text => ToolKind::SearchText,
         SearchMode::Hybrid => ToolKind::SearchHybrid,
     };
-    let deadline = ctx.deadline();
+    let (deadline, run_until) = ctx.deadlines();
     let guard = ctx.acquire(&store, kind, deadline).await?;
     if continued_epoch.is_some_and(|epoch| epoch != guard.epoch) {
         return Err(ToolError::stale_handle("continuation"));
@@ -660,7 +667,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     // comes from this search's own correlation id, never the engine-wide
     // `last_telemetry_query_id` (MR-024.6).
     let explain = request.explain || telemetry;
-    let (answered, run) = bridge::call(guard, deadline, &ctx.shared.hooks, move |engine| {
+    let (answered, run) = bridge::call(guard, run_until, &ctx.shared.hooks, move |engine| {
         let result = match mode {
             SearchMode::Text => engine
                 .search_text_only(&request.query, TextSearchOptions { view, limit: run_limit })?,
@@ -1188,7 +1195,7 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     };
     let used: Vec<u64> = args.used.iter().map(|reference| entry.refs[reference]).collect();
     let unused: Vec<u64> = unused.iter().map(|reference| entry.refs[reference]).collect();
-    let deadline = ctx.deadline();
+    let (_, run_until) = ctx.deadlines();
     // No waiting: a store that is no longer ready can only come back under a
     // new epoch, whose sink never saw this response.
     let guard = match ctx
@@ -1214,7 +1221,7 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     if guard.epoch != entry.epoch {
         return Ok(not_recorded(&store, guard.epoch, NotRecordedReason::StoreReopened, max_tokens));
     }
-    let (answered, ()) = bridge::call(guard, deadline, &ctx.shared.hooks, move |engine| {
+    let (answered, ()) = bridge::call(guard, run_until, &ctx.shared.hooks, move |engine| {
         engine.record_feedback(&query_id, &used, &unused, "agent")
     })
     .await?;

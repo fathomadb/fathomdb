@@ -51,7 +51,7 @@ where
                     in_flight = load.in_flight,
                     queued = load.queued,
                     abandoned = load.abandoned,
-                    "call abandoned at its deadline; its engine work keeps its permit"
+                    "call abandoned at its run limit; its engine work keeps its permit"
                 );
             }
             Err(ToolError::deadline(Some(&answered.store)))

@@ -131,6 +131,23 @@ fn queue_limit_defaults_to_32_and_must_be_at_least_1() {
 }
 
 #[test]
+fn run_limit_ms_defaults_to_60_s_and_is_never_below_the_call_deadline() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path();
+    let defaults = parse("{}", base).unwrap();
+    assert_eq!(parse(r#"{"run_limit_ms": 60000}"#, base).unwrap(), defaults, "60 s is the default");
+    assert_ne!(parse(r#"{"run_limit_ms": 10000}"#, base).unwrap(), defaults);
+    let message = invalid(r#"{"call_deadline_ms": 2000, "run_limit_ms": 1999}"#, base);
+    assert!(message.contains("run_limit_ms: must be at least call_deadline_ms"), "{message}");
+    // A config that sets only a long call deadline stays valid: the
+    // omitted run limit is never below it.
+    assert_eq!(
+        parse(r#"{"call_deadline_ms": 120000}"#, base).unwrap(),
+        parse(r#"{"call_deadline_ms": 120000, "run_limit_ms": 120000}"#, base).unwrap()
+    );
+}
+
+#[test]
 fn unknown_keys_and_wrong_types_are_invalid() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path();

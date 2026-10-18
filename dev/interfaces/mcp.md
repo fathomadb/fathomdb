@@ -52,6 +52,7 @@ fathomdb-mcp --config <path.json> --check-config
 | `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"text"` until the MR-021 evaluation shows hybrid at or above BM25 precision@3. |
 | `use_default_embedder` | bool | false | Passed to `OpenOptions`. Required for `"hybrid"`. |
 | `telemetry_dir` | path or null | null | Absolute or relative to the config file. When set, a fresh sink `<dir>/<store>.<pid>.<epoch>.jsonl` is enabled on every open and feedback is recorded (MR-024, MR-024.7). |
+| `hints` | bool | true | Whether results carry the `hints` sidecar of suggested next calls (§ 3) when a call does not pass its own `hints` argument. Precedence: the call's argument, then this key, then the default. |
 | `write` | bool | false | Must be false in this release. |
 | `scope` | null | null | Must be null in this release (MR-014.4). |
 

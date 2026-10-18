@@ -434,8 +434,6 @@ pub struct SoftFallback {
     pub branch: String,
 }
 
-/// One requested search arm that did not run (`arm`, spelled like
-/// `SoftFallback.branch`) and why (`reason`, e.g. `"embedder_overloaded"`).
 fn branch_word(branch: SoftFallbackBranch) -> &'static str {
     match branch {
         SoftFallbackBranch::Vector => "vector",
@@ -445,6 +443,8 @@ fn branch_word(branch: SoftFallbackBranch) -> &'static str {
     }
 }
 
+/// One requested search arm that did not run (`arm`, spelled like
+/// `SoftFallback.branch`) and why (`reason`, e.g. `"embedder_overloaded"`).
 #[napi(object)]
 pub struct ArmDegradation {
     pub arm: String,

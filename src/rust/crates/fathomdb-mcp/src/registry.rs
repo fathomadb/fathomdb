@@ -107,8 +107,9 @@ pub(crate) struct Admission<'a> {
     pub(crate) cancel: Option<&'a Cancel>,
 }
 
-/// Progress callback for a call that waits on an open: `(progress, phase)`.
-pub(crate) type ProgressFn = Arc<dyn Fn(f64, &'static str) + Send + Sync>;
+/// Progress callback for a call that waits on an open or for an admission
+/// permit: `(progress, message)`.
+pub(crate) type ProgressFn = Arc<dyn Fn(f64, String) + Send + Sync>;
 
 enum Source {
     Managed { path: PathBuf, create: bool },
@@ -627,7 +628,7 @@ impl Registry {
             };
             let (mut changed, phase) = match next {
                 Next::Admit { load, epoch, changed } => {
-                    match self.admit(name, load, epoch, changed, call).await? {
+                    match self.admit(name, load, epoch, changed, call, &mut ticks).await? {
                         Some(guard) => return Ok(guard),
                         None => continue,
                     }
@@ -640,7 +641,7 @@ impl Registry {
                 return Err(ToolError::not_ready(name, phase.as_str()));
             }
             if let Some(progress) = call.progress {
-                progress(f64::from(ticks), phase.as_str());
+                progress(f64::from(ticks), format!("store {}", phase.as_str()));
                 ticks += 1;
             }
             let step = (deadline - now).min(Duration::from_secs(1));
@@ -658,6 +659,7 @@ impl Registry {
         epoch: u64,
         mut changed: watch::Receiver<u64>,
         call: &Admission<'_>,
+        ticks: &mut u32,
     ) -> Result<Option<StoreGuard>, ToolError> {
         let refuse = |reason| ToolError::admission(name, load.busy(reason));
         for (kind, sample) in self.hooks.seeded_service_times(name) {
@@ -699,6 +701,9 @@ impl Registry {
                         }
                     };
                     tokio::pin!(cancelled);
+                    // The first tick is immediate: a queued call hears so at
+                    // once, then each second.
+                    let mut progress_tick = tokio::time::interval(Duration::from_secs(1));
                     loop {
                         tokio::select! {
                             biased;
@@ -712,6 +717,17 @@ impl Registry {
                             _ = changed.changed() => {
                                 if self.ready_epoch(name) != Some(epoch) {
                                     return Waited::Moved;
+                                }
+                            }
+                            _ = progress_tick.tick(), if call.progress.is_some() => {
+                                if let Some(progress) = call.progress {
+                                    let message = format!(
+                                        "queued: {} waiting, {} running",
+                                        load.queued.load(Ordering::SeqCst),
+                                        load.in_flight()
+                                    );
+                                    progress(f64::from(*ticks), message);
+                                    *ticks += 1;
                                 }
                             }
                         }

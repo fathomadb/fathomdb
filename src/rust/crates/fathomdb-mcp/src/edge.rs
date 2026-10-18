@@ -1,7 +1,8 @@
 //! Protocol edge: the only module (with `main.rs`) that names rmcp types
 //! (design §3, §8). It declares the static tool set, converts tool outcomes
 //! to `CallToolResult`, turns handler panics into JSON-RPC errors and sends
-//! progress notifications for calls that wait on an opening store.
+//! progress notifications for calls that wait on an opening store or for an
+//! admission permit.
 
 use std::sync::Arc;
 
@@ -89,7 +90,7 @@ impl FathomServer {
         };
         if let Some(progress) = &ctx.progress {
             for tick in 1..=self.shared.hooks.progress_burst(tool) {
-                progress(f64::from(tick), "burst");
+                progress(f64::from(tick), "store burst".to_string());
             }
         }
         let outcome = match tool {
@@ -118,9 +119,9 @@ fn progress_fn(context: &RequestContext<RoleServer>) -> Option<ProgressFn> {
             let _ = peer.notify_progress(notification).await;
         }
     });
-    Some(Arc::new(move |progress: f64, phase: &'static str| {
-        let notification = ProgressNotificationParam::new(token.clone(), progress)
-            .with_message(format!("store {phase}"));
+    Some(Arc::new(move |progress: f64, message: String| {
+        let notification =
+            ProgressNotificationParam::new(token.clone(), progress).with_message(message);
         let _ = sender.send(notification);
     }))
 }

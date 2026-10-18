@@ -292,3 +292,41 @@ async fn queued_returns_to_zero_on_timeout_cancel_and_panic() {
     let _ = running.await.unwrap();
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn in_flight_is_derived_from_permits() {
+    let fixture = Fixture::new();
+    fixture.store("b.sqlite", vec![node("note:c", "note", "gamma river crossing")]);
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({
+            "stores": {"a": {"path": "a.sqlite"}, "b": {"path": "b.sqlite"}},
+            "admission_cap": 1,
+            "idle_timeout_secs": 1,
+            "call_deadline_ms": 1000
+        }),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.hold_admitted_calls("a");
+    let admitted = spawn_call(&harness, "search", search_a());
+    wait_for("a call between permit and guard", Duration::from_secs(5), || {
+        seams.admitted_held("a") == 1
+    })
+    .await;
+    let held_at = Instant::now();
+    // A call holding a permit is in flight before its guard exists.
+    let error = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
+    assert_eq!(error["busy"]["reason"], "deadline", "{error}");
+    assert_eq!(error["busy"]["in_flight"], 1, "{error}");
+    // ... so the open-store limit cannot drain `a` for `b` ...
+    let other = harness.call("search", json!({"store": "b", "query": "gamma"})).await;
+    assert_eq!(error_of(&other)["class"], "busy");
+    // ... and the idle clock does not close it.
+    tokio::time::sleep(Duration::from_millis(2200).saturating_sub(held_at.elapsed())).await;
+    assert_eq!(common::readiness(&harness.client, "a").await, "ready");
+    seams.release_admitted_calls("a");
+    let _ = admitted.await.unwrap();
+    harness.shutdown().await;
+}

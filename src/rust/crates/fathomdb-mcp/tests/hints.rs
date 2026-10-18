@@ -357,3 +357,49 @@ async fn list_stores_emits_default_store_set_hint() {
     assert_eq!(hints_of(&off), Vec::<Value>::new());
     harness.shutdown().await;
 }
+
+/// § 8 test 9 and § 5.1: hints count against the budget like any field:
+/// `used_tokens` is ceil(bytes / 4) with hints present, and every response
+/// stays within `max_tokens` for every budget of at least 256.
+#[tokio::test(flavor = "multi_thread")]
+async fn hints_count_against_the_budget() {
+    let mut writes = river_notes(40, 600);
+    for i in 1..20 {
+        writes.push(common::edge("link", "note:000", &format!("note:{i:03}")));
+    }
+    let (_fixture, harness) = harness_with(writes, json!({"snippet_chars": 80})).await;
+    let fetch_refs: Vec<String> = (0..20).map(|i| format!("l:note:{i:03}")).collect();
+    let mut with_hints = 0;
+    for max_tokens in [256_u64, 300, 512, 1000, 2500, 4000, 20_000] {
+        let calls = [
+            ("search", json!({"query": "river", "limit": 20, "max_tokens": max_tokens})),
+            ("search", json!({"query": "river", "mode": "hybrid", "max_tokens": max_tokens})),
+            ("search", json!({"query": "zebra", "mode": "hybrid", "max_tokens": max_tokens})),
+            ("fetch", json!({"refs": fetch_refs, "max_tokens": max_tokens})),
+            ("expand", json!({"refs": ["l:note:000"], "max_tokens": max_tokens})),
+        ];
+        for (tool, args) in calls {
+            let result = harness.call(tool, args).await;
+            if result.is_error == Some(true) {
+                continue;
+            }
+            let structured = result.structured_content.clone().unwrap();
+            if structured.get("hints").is_some() {
+                with_hints += 1;
+            }
+            let text = common::text_of(&result);
+            let whole = serde_json::to_string(&structured).unwrap().len() + text.len();
+            assert!(tokens(whole) <= max_tokens, "{tool} at {max_tokens}: {}", tokens(whole));
+            let mut without = structured.clone();
+            without.as_object_mut().unwrap().remove("budget");
+            let used = tokens(serde_json::to_string(&without).unwrap().len() + text.len());
+            assert_eq!(structured["budget"]["used_tokens"], used, "{tool} at {max_tokens}");
+        }
+    }
+    assert!(with_hints >= 20, "hints were present in most responses: {with_hints}");
+    harness.shutdown().await;
+}
+
+fn tokens(bytes: usize) -> u64 {
+    (bytes as u64).div_ceil(4)
+}

@@ -136,3 +136,54 @@ async fn a_full_queue_refuses_at_once_with_queue_full() {
     let _ = running.await.unwrap();
     harness.shutdown().await;
 }
+
+/// Poll `condition` every 5 ms; panics after `timeout`.
+async fn wait_for(what: &str, timeout: Duration, condition: impl Fn() -> bool) {
+    let deadline = Instant::now() + timeout;
+    while !condition() {
+        assert!(Instant::now() < deadline, "timed out waiting for {what}");
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn waiters_are_admitted_in_arrival_order() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(&fixture, json!({"admission_cap": 1}))).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let completed = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let mut calls = Vec::new();
+    for index in 0..4 {
+        let call = spawn_call(&harness, "search", search_a());
+        let completed = completed.clone();
+        calls.push(tokio::spawn(async move {
+            let result = call.await.unwrap();
+            completed.lock().unwrap().push(index);
+            result
+        }));
+        if index == 0 {
+            wait_for("the first call to be held", Duration::from_secs(5), || {
+                seams.held_calls("a") == 1
+            })
+            .await;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    for done in 1..=4 {
+        wait_for("the next call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+            .await;
+        assert!(seams.release_one_call("a"));
+        wait_for("the released call to complete", Duration::from_secs(5), || {
+            completed.lock().unwrap().len() == done
+        })
+        .await;
+    }
+    assert_eq!(*completed.lock().unwrap(), vec![0, 1, 2, 3], "completion order is arrival order");
+    for call in calls {
+        let result = call.await.unwrap();
+        assert_ne!(result.is_error, Some(true), "{:?}", result.structured_content);
+    }
+    harness.shutdown().await;
+}

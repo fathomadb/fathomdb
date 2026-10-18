@@ -80,3 +80,51 @@ proptest! {
         }
     }
 }
+
+const MARKER: &str = "ZQXJ";
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+    /// § 8 test 3 and H1: with bodies, kinds and source ids drawn from a
+    /// marker alphabet, no hint string, structured or text, holds a marker.
+    #[test]
+    fn hints_never_contain_record_content(
+        lengths in proptest::collection::vec(0_usize..400, 0..60),
+        limit in 1_usize..=60,
+        max_tokens in 256_u32..20_000,
+        degraded in any::<bool>(),
+    ) {
+        let ranked: Vec<SyntheticHit> = ranked(&lengths)
+            .into_iter()
+            .map(|hit| SyntheticHit {
+                kind: format!("{MARKER}kind"),
+                body: format!("{MARKER} {}", hit.body.replace("river", MARKER)),
+                source_id: Some(format!("{MARKER}source")),
+                ..hit
+            })
+            .collect();
+        let degradation = if degraded {
+            vec![("vector".to_string(), "embedder_unavailable".to_string())]
+        } else {
+            Vec::new()
+        };
+        let input = SearchPageInput {
+            ranked,
+            limit,
+            snippet_chars: 40,
+            max_tokens,
+            hybrid: degraded,
+            degradation,
+            hints: Some(true),
+            ..Default::default()
+        };
+        let shaped = shape_search_page(&prepare_search_page(&input));
+        for hint in hints(&shaped.structured) {
+            prop_assert!(!hint.to_string().contains(MARKER), "{hint}");
+        }
+        for line in shaped.text.lines().filter(|line| line.starts_with("hint: ")) {
+            prop_assert!(!line.contains(MARKER), "{line}");
+        }
+    }
+}

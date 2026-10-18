@@ -2,7 +2,8 @@
 
 You are working in the FathomDB repository. Read `AGENTS.md` and the memory
 index first and follow them: TDD, no mocked database, one writer per
-checkout (use your own worktree off `origin/main`), the GPU mandate (RTX 3090
+checkout (use your own worktree, cut from `origin/exp/agent-access`: the
+agent-access documents below exist only on that branch until it merges), the GPU mandate (RTX 3090
 `cuda:0` only), never push a `v*` tag. This is **research and experiment
 design first**. Write no product code until the owner (HITL) has reviewed
 your findings and the design.

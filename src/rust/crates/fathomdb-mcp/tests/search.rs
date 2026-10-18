@@ -387,6 +387,9 @@ fn dense_disabled_store(fixture: &Fixture) {
     };
     engine.configure_projections(&[spec], &[]).expect("declare a vector projection");
     engine.write(&river_notes(3)).expect("write notes");
+    // Embed them now: once the dense side is disabled nothing embeds them,
+    // and the adapter's shutdown drain would wait out its whole deadline.
+    engine.drain(600_000).expect("drain the vector work");
     engine.close().expect("close");
     let engine = fathomdb_sdk::Engine::open(&path, options).expect("reopen with embedder");
     engine.close().expect("close");

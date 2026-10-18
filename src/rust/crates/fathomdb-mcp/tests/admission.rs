@@ -483,3 +483,67 @@ async fn a_cold_tool_uses_the_50_ms_floor() {
     assert_eq!(error["busy"]["reason"], "deadline", "40 ms left: refused: {error}");
     harness.shutdown().await;
 }
+
+/// 128 samples whose nearest-rank p90 is `p90_ms` and whose mean is far
+/// below it.
+fn window_with_p90(fast_ms: u64, p90_ms: u64) -> Vec<Duration> {
+    let mut samples = vec![fast_ms; 115];
+    samples.extend([p90_ms; 13]);
+    millis(&samples)
+}
+
+/// Run one waiter of `tool` behind a held search, freeing the permit
+/// `release_after` after the waiter arrived; returns its result and when it
+/// returned.
+async fn wait_behind_a_search(
+    harness: &Harness,
+    tool: &str,
+    args: Value,
+    release_after: Duration,
+) -> (CallToolResult, Duration) {
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let waiter = spawn_call(harness, tool, args);
+    let returned = tokio::spawn(async move {
+        let result = waiter.await.unwrap();
+        (result, started.elapsed())
+    });
+    tokio::time::sleep_until((started + release_after).into()).await;
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    returned.await.unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_waiter_starts_only_if_p90_of_its_tool_fits() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    harness.adapter.seams().seed_service_times("a", "fetch", &window_with_p90(10, 300));
+
+    let (started, _) =
+        wait_behind_a_search(&harness, "fetch", fetch_a(), Duration::from_millis(650)).await;
+    assert_ne!(
+        started.is_error,
+        Some(true),
+        "350 ms left: starts: {:?}",
+        started.structured_content
+    );
+
+    let (refused, elapsed) =
+        wait_behind_a_search(&harness, "fetch", fetch_a(), Duration::from_millis(750)).await;
+    let error = error_of(&refused);
+    assert_eq!(error["busy"]["reason"], "deadline", "250 ms left: refused: {error}");
+    // Refused when 300 ms were left, not at the 50 ms floor.
+    assert!(elapsed >= Duration::from_millis(650), "refused early: {elapsed:?}");
+    assert!(elapsed < Duration::from_millis(800), "refused late: {elapsed:?}");
+    harness.shutdown().await;
+}

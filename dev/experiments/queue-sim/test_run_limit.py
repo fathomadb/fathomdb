@@ -77,3 +77,52 @@ def test_ep09_interrupts_at_the_run_limit_and_frees_the_permit():
     assert a.outcome == "timeout" and a.t_res == pytest.approx(60.0)
     assert b.t_adm == pytest.approx(61.0) and b.t_rs == pytest.approx(61.0)
     assert s.ab_integral == 0.0
+
+
+
+# ---------------------------------------------------------------- metrics
+def test_late_success_metrics():
+    # three calls on separate permits: 5 s (on time), 12 s and 40 s (late successes)
+    sc = [(0.0, *T(reader=5.0)), (0.0, *T(reader=12.0)), (0.0, *T(reader=40.0))]
+    s = script_run(sc, cap=4, admission="fifo", run_limit=60.0)
+    m = s.metrics()
+    assert m["ok_rate"] == 1.0
+    assert m["ok_late_rate"] == pytest.approx(2 / 3)  # answered after the 10 s wait deadline
+    assert m["ok_late30_rate"] == pytest.approx(1 / 3)
+    assert m["ok_late_share"] == pytest.approx(2 / 3)
+    assert m["late_h_10_12"] == 0 and m["late_h_12_15"] == 1 and m["late_h_30_60"] == 1
+    assert m["ok_p999"] == pytest.approx(40.0)
+
+
+def test_abandoned_work_and_fail_metrics():
+    sc = [(0.0, *T(reader=70.0)), (61.0, *T(reader=0.1))]
+    s = script_run(sc, cap=1, admission="fifo", run_limit=60.0)
+    m = s.metrics()
+    assert m["fail_rate"] == pytest.approx(0.5)
+    assert m["ab_permit_s_per_kcall"] == pytest.approx(10.0 / 2 * 1000)
+    assert m["wasted_permit_s_per_kcall"] == pytest.approx(70.0 / 2 * 1000)  # the whole hold of the abandoned call
+    assert m["goodput_per_s"] == pytest.approx(1 / 70.1)
+
+
+def test_late_start_success_is_counted():
+    sc = [(0.0, *T(reader=9.0)), (0.5, *T(reader=3.0))]
+    s = script_run(sc, cap=1, admission="fifo", run_limit=60.0)
+    m = s.metrics()
+    assert s.calls[1].t_res == pytest.approx(12.0)
+    assert m["late_start_ok_rate"] == pytest.approx(0.5)
+
+
+def test_turn_failed_counts_turns_with_any_failed_call():
+    cfg = Config(K=1, cap=4, admission="refuse", session_prefix=(1, 10), session_turns=2, n_calls=11,
+                 warmup_frac=0.0, hybrid_frac=0.0)
+    m = simulate(cfg, flat_svc()).metrics()
+    assert m["turn_failed"] == pytest.approx(0.5)
+
+
+def test_time_to_data_charges_a_failure_one_think_and_one_retry():
+    # a: ok in 1 s; b: refused at once at 0.5 s. ttd(b) = 0 + think_median 3 s + mean ok latency 1 s
+    sc = [(0.0, *T(reader=1.0)), (0.5, *T())]
+    s = script_run(sc, cap=1, admission="refuse", think_median=3.0)
+    m = s.metrics()
+    assert m["ttd_mean"] == pytest.approx((1.0 + 4.0) / 2)
+    assert m["ttd_p99"] == pytest.approx(4.0)

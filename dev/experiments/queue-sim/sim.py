@@ -138,7 +138,7 @@ class Call:
     __slots__ = ("id", "cid", "kind", "embed", "reader", "slow", "t_arr", "deadline", "state", "t_adm",
                  "t_done", "timed_out", "hol", "t_rq", "t_rs", "embed_wait", "mutex_wait", "soft",
                  "outcome", "reason", "t_res", "need_at_refuse", "remaining_at_refuse", "advice", "hybrid",
-                 "cancelled", "proj", "q_ahead")
+                 "cancelled", "proj", "q_ahead", "with_permit")
 
     def __init__(self, i, cid, kind, embed, reader, slow):
         self.id, self.cid, self.kind, self.embed, self.reader, self.slow = i, cid, kind, embed, reader, slow
@@ -152,6 +152,7 @@ class Call:
         self.cancelled = False
         self.q_ahead = None
         self.proj = False
+        self.with_permit = False
 
 
 class Estimator:
@@ -417,6 +418,7 @@ class Sim:
             return
         if self.held < cfg.cap and self.qlen == 0:
             if self.shed_on() and c.deadline - self.now < self.need(c.kind):
+                c.with_permit = True
                 self.refuse(c, "deadline")
             else:
                 self.admit(c)
@@ -504,6 +506,7 @@ class Sim:
                 continue
             self.qlen -= 1
             if self.shed_on() and c.deadline - self.now < self.need(c.kind):
+                c.with_permit = True
                 self.refuse(c, "deadline")
                 continue
             if c.deadline <= self.now:
@@ -813,6 +816,7 @@ class Sim:
         out["false_refusal_rate"] = len(fr) / n
         out["false_refusal_share"] = len(fr) / len(rf) if rf else float("nan")
         out["rf_predicted"] = sum(1 for c in rf if c.reason == "predicted") / n
+        out["rf_with_permit"] = sum(1 for c in rf if c.with_permit) / n
         out["max_queue"] = self.max_q
         bursts = {}
         for c in cs:

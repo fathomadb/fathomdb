@@ -69,6 +69,9 @@ pub use fathomdb_engine::lifecycle::{
 /// The hints engine subset (ADR-0.8.29-agent-hints-sidecar): the rule that
 /// derives `no_results`, `degraded` and `more_results` from page facts.
 pub use fathomdb_engine::{search_hints, HINT_LIMIT_CAP};
+/// The EP-17 pure snippet selector (match-centred-snippets.md § 7.2): the
+/// function the engine calls, for re-running selection under another budget.
+pub use fathomdb_engine::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
 pub use fathomdb_engine::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, ArmDegradation,

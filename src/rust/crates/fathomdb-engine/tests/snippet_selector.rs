@@ -43,3 +43,33 @@ fn options_default_and_reject_out_of_range_values() {
     );
     let _: fn(&str, &[(u32, u32)], &SnippetOptions) -> SnippetV1 = snippet_for;
 }
+
+fn opts(max_bytes: u32) -> SnippetOptions {
+    SnippetOptions { max_bytes, ..SnippetOptions::default() }
+}
+
+// § 6.3 rule 1: a body that fits is returned whole, with every span.
+#[test]
+fn rule1_body_that_fits_is_returned_whole() {
+    let body = "The quick brown fox jumps over the lazy dog.";
+    assert_eq!(body.len(), 44);
+    let spans = [(4, 9), (16, 19)];
+
+    let s = snippet_for(body, &spans, &opts(44));
+    assert_eq!(s.text, body);
+    assert_eq!(s.anchor, SnippetAnchor::Whole);
+    assert_eq!(s.windows, vec![(0, 44)]);
+    assert_eq!(s.spans, spans.to_vec());
+    assert!(s.highlights.is_empty(), "highlights are off by default");
+    assert!(!s.cut);
+
+    let lit = snippet_for(body, &spans, &SnippetOptions { highlights: true, ..opts(300) });
+    assert_eq!(lit.text, body);
+    assert_eq!(lit.highlights, spans.to_vec());
+
+    let empty = snippet_for("", &[], &opts(300));
+    assert_eq!(empty.text, "");
+    assert_eq!(empty.anchor, SnippetAnchor::Whole);
+    assert!(empty.windows.is_empty());
+    assert!(!empty.cut);
+}

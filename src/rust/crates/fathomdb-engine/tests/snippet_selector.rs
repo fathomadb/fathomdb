@@ -353,3 +353,46 @@ fn rule6_sentence_start_before_the_first_span_moves_the_window_start() {
     assert!(s.windows[0].0 as usize > then, "{s:?}");
     assert!(shows(&s, spans[0]) && shows(&s, spans[1]), "{s:?}");
 }
+
+fn grapheme_boundaries(body: &str) -> Vec<usize> {
+    use unicode_segmentation::UnicodeSegmentation;
+    let mut v: Vec<usize> = body.grapheme_indices(true).map(|(i, _)| i).collect();
+    v.push(body.len());
+    v
+}
+
+// T-5: emoji ZWJ sequences, flags and combining marks at every window edge;
+// no edge splits a grapheme cluster.
+#[test]
+fn t5_no_window_edge_splits_a_grapheme_cluster() {
+    let clusters = [
+        "\u{1F469}\u{200D}\u{1F469}\u{200D}\u{1F467}", // family, ZWJ sequence
+        "\u{1F1EB}\u{1F1F7}",                          // flag, regional-indicator pair
+        "e\u{301}",                                    // combining acute
+        "a\u{308}\u{301}",                             // two combining marks
+        "\u{1F44D}\u{1F3FD}",                          // emoji + skin-tone modifier
+    ];
+    for cluster in clusters {
+        for lead in 0..6 {
+            let body =
+                format!("{}{}pear{}", "x".repeat(lead), cluster.repeat(120), cluster.repeat(120));
+            let pear = body.find("pear").unwrap();
+            let bounds = grapheme_boundaries(&body);
+            for max_bytes in (40..=400).step_by(9) {
+                for spans in [vec![], vec![(pear as u32, pear as u32 + 4)]] {
+                    let s = snippet_for(&body, &spans, &opts(max_bytes));
+                    for &(a, b) in &s.windows {
+                        assert!(
+                            bounds.contains(&(a as usize)) && bounds.contains(&(b as usize)),
+                            "{cluster:?} lead {lead} max {max_bytes}: window ({a}, {b}) splits a cluster"
+                        );
+                    }
+                    assert!(s.text.len() <= max_bytes as usize);
+                    if !spans.is_empty() {
+                        assert!(shows(&s, spans[0]), "{cluster:?} {max_bytes}: {s:?}");
+                    }
+                }
+            }
+        }
+    }
+}

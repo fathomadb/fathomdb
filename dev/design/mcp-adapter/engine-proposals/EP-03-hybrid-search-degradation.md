@@ -16,13 +16,20 @@ and `soft_fallback: None`:
 
 - The query embedding is computed with
   `dispatch_embed_vector(...)`. Every error except a panic becomes `None`
-  (`fathomdb-engine/src/search_api.rs:542-548`).
+  (`fathomdb-engine/src/search_api.rs:543-550`).
 - `DispatchError` already names the cause: `NotConfigured`, `Saturated`,
   `QueuedExpired`, `StartedTimeout`, `Provider`, `InvalidOutput`, `Closing`,
   `Cancelled` (`embed_dispatch/core.rs:20-30`). All of it is discarded.
 - In the reader, `soft_fallback` is set only when vector eligibility degraded,
   or when a query vector existed but matched unprojected rows
-  (`search.rs:1698-1718`). With no query vector it is `None`.
+  (`search.rs:1699-1716`; the eligibility flag itself requires a query
+  vector, `search.rs:1476`). With no query vector it is `None`.
+- So an overloaded embed queue (`Saturated` when the waiting queue of
+  `embedder_pool_size × 4` is full, `QueuedExpired` when a queued request
+  passes its deadline; `embed_dispatch/core.rs:186-192`, `:441-446`) makes a
+  hybrid search run text-only with no label. Under concurrent agent load
+  this is the expected failure, not a rare one
+  ([queue-admission.md](../../agent-access/queue-admission.md) § 2, hop H7).
 - `SoftFallback` carries only `branch`, with no reason
   (`search_types.rs:10-12`).
 
@@ -53,7 +60,7 @@ pub struct ArmDegradation {
 #[non_exhaustive]
 pub enum DegradationReason {
     EmbedderAbsent,         // DispatchError::NotConfigured
-    EmbedderSaturated,      // Saturated, QueuedExpired
+    EmbedderOverloaded,     // Saturated, QueuedExpired; wire `embedder_overloaded`
     EmbedderTimeout,        // StartedTimeout
     EmbedderFailed,         // Provider, InvalidOutput
     EligibilityDegraded,    // today's vector_eligibility_degraded
@@ -68,6 +75,11 @@ pub enum DegradationReason {
 - `Closing` and `Cancelled` keep failing the call as today. They are not
   degradations.
 - `search_text_only` returns an empty `degradations`. Its only arm is text.
+- `EmbedderOverloaded` is a common reason, not a hybrid-only detail: any
+  read that embeds a query through the dispatcher reports it the same way,
+  with the wire name `embedder_overloaded` in every binding and in the MCP
+  adapter's `degradation` list. Owner decision 2026-10-18: this reason was
+  folded in from EP-18 part C of the queue-admission design.
 
 ## Invariants and consistency
 
@@ -100,6 +112,9 @@ discards them.
   lexical hits and `[{Vector, EmbedderAbsent}]`.
 - Embedder with a forced call timeout (`embedder_call_timeout_ms`): the result
   carries `EmbedderTimeout`, which is the case the adapter misses today.
+- Embedder held busy until the waiting queue is full: the next hybrid search
+  returns lexical hits and `[{Vector, EmbedderOverloaded}]`; the same with a
+  queued request that passes its deadline (`QueuedExpired`).
 - A healthy embedder with unprojected matching rows gives `ProjectionPending`,
   the same condition as today's soft fallback.
 - Byte test: `results` and `soft_fallback` are identical with and without the
@@ -115,5 +130,5 @@ to `not_ready` with remedy "use mode text", instead of `internal`.
 ## Open questions for the owner
 
 1. Always-present field, or present only when non-empty, given R-OBS-2?
-2. Is `EmbedderSaturated` a degradation, or should a saturated embed fail the
-   call as `Overloaded` so callers retry?
+2. Decided (owner, 2026-10-18): an overloaded embed queue is a degradation,
+   reported as `embedder_overloaded`, not a failed call.

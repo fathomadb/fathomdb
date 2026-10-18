@@ -386,3 +386,55 @@ fn t15_edge_hits_take_spans_from_the_edge_index() {
         assert_eq!(snippet.spans, vec![(3000, 3008)], "{path}");
     }
 }
+
+/// Embeds any text containing `vectorhit`, and the query `zanzibar`, to one
+/// direction and everything else to another, so the vector arm returns
+/// exactly the `vectorhit` records.
+#[derive(Debug)]
+struct VectorHitEmbedder;
+
+impl Embedder for VectorHitEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("snippet-vectorhit", "v1", 8)
+    }
+
+    fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+        let near = text == "zanzibar" || text.contains("vectorhit");
+        let mut vector = vec![0.0; 8];
+        vector[usize::from(!near)] = 1.0;
+        Ok(vector)
+    }
+}
+
+// T-6: no lexical anchor. A hybrid hit found only by the vector arm, whose
+// body matches none of the query terms, gets anchor Start and the prefix. A
+// hit whose fused struct says `branch == Vector` but whose body does match
+// gets anchor Match (§ 3.3: `branch` is not consulted).
+#[test]
+fn t6_vector_only_hits_get_the_record_start() {
+    let _guard = lock();
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("vector{SQLITE_SUFFIX}"));
+    let opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(VectorHitEmbedder)).expect("open");
+    opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+    let vector_only = format!("vectorhit {}", long_body(3000, "elsewhere", 4096));
+    let both = format!("vectorhit {}", long_body(2994, "zanzibar", 4096));
+    opened.engine.write(&[node("v", &vector_only), node("b", &both)]).expect("write");
+    opened.engine.drain(10_000).expect("drain");
+
+    let result = hybrid(&opened.engine, "zanzibar", Some(&SnippetOptions::default()));
+    let at = |body: &str| result.results.iter().position(|hit| hit.body == body);
+    let snippets = result.snippets.as_ref().expect("sidecar");
+
+    let v = at(&vector_only).unwrap_or_else(|| panic!("vector-only hit missing: {result:?}"));
+    assert_eq!(result.results[v].branch, fathomdb_engine::SoftFallbackBranch::Vector);
+    assert_eq!(snippets[v].anchor, SnippetAnchor::Start, "{:?}", snippets[v]);
+    assert_eq!(snippets[v].windows[0].0, 0);
+    assert!(snippets[v].spans.is_empty());
+
+    let b = at(&both).unwrap_or_else(|| panic!("matching hit missing: {result:?}"));
+    assert_eq!(result.results[b].branch, fathomdb_engine::SoftFallbackBranch::Vector);
+    assert_eq!(snippets[b].anchor, SnippetAnchor::Match, "{:?}", snippets[b]);
+    assert!(snippets[b].text.contains("zanzibar"));
+}

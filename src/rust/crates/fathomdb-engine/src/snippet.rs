@@ -254,28 +254,40 @@ impl Text<'_> {
         let (first_s, last_e) = (spans[choice.first].start, spans[choice.last].end);
         let slack = width - (last_e - first_s);
         let centred = first_s.saturating_sub(slack / 2).min(self.body.len().saturating_sub(width));
-        let start = self.snap_start_back(self.graphemes.at_or_after(centred).min(first_s));
-        let end = self.snap_end_back((start + width).min(self.body.len()), start);
-        let start = self.trim_start(start, end);
-        (start, self.trim_end(start, end))
+        let start = self.snap_start(
+            self.graphemes.at_or_after(centred).min(first_s),
+            first_s,
+            last_e,
+            width,
+        );
+        let end = self.snap_end_back((start + width).min(self.body.len()), last_e);
+        let start = self.trim_start(start, first_s);
+        (start, self.trim_end(last_e, end))
     }
 
-    /// Rule 6, start edge: the largest word boundary in
-    /// `[target − WORD_REACH, target]`, else `target` (a grapheme boundary).
-    fn snap_start_back(&self, target: usize) -> usize {
-        let word = self.words.at_or_before(target);
-        if word + WORD_REACH >= target {
-            word
-        } else {
-            target
+    /// Rule 6, start edge, for a window of `width` bytes that must keep
+    /// `[first_s, last_e)`: the largest word boundary in
+    /// `[target − WORD_REACH, target]` that still leaves `last_e` in budget;
+    /// else the smallest word boundary in `[target, target + WORD_REACH]` not
+    /// past `first_s`; else `target` itself (a grapheme boundary).
+    fn snap_start(&self, target: usize, first_s: usize, last_e: usize, width: usize) -> usize {
+        let back = self.words.at_or_before(target);
+        if back + WORD_REACH >= target && back + width >= last_e {
+            return back;
         }
+        let forward = self.words.at_or_after(target);
+        if forward <= first_s && forward <= target + WORD_REACH {
+            return forward;
+        }
+        target
     }
 
-    /// Drops whitespace clusters at the start of `[start, end)`.
-    fn trim_start(&self, mut start: usize, end: usize) -> usize {
-        while start < end {
+    /// Drops whitespace clusters from the start of a window starting at
+    /// `start`, never moving it past `ceiling`.
+    fn trim_start(&self, mut start: usize, ceiling: usize) -> usize {
+        while start < ceiling {
             let next = self.graphemes.at_or_after(start + 1);
-            if next > end || !self.body[start..next].chars().all(char::is_whitespace) {
+            if next > ceiling || !self.body[start..next].chars().all(char::is_whitespace) {
                 break;
             }
             start = next;
@@ -286,7 +298,9 @@ impl Text<'_> {
     /// Rule 2: the prefix within `budget` bytes, on a word boundary.
     fn prefix(&self, budget: usize) -> (usize, usize) {
         let end = self.snap_end_back(budget.min(self.body.len()), 0);
-        (0, self.trim_end(0, end))
+        // Keep at least the first cluster, even when it is whitespace.
+        let floor = self.graphemes.at_or_after(1).min(end);
+        (0, self.trim_end(floor, end))
     }
 
     /// The largest word boundary in `[target − WORD_REACH, target]` and not
@@ -299,12 +313,12 @@ impl Text<'_> {
         self.graphemes.at_or_before(target).max(floor)
     }
 
-    /// Drops whitespace clusters at the end of `[start, end)`, keeping at
-    /// least one cluster.
-    fn trim_end(&self, start: usize, mut end: usize) -> usize {
-        while end > start {
+    /// Drops whitespace clusters from the end of a window ending at `end`,
+    /// never moving it before `floor`.
+    fn trim_end(&self, floor: usize, mut end: usize) -> usize {
+        while end > floor {
             let prev = self.graphemes.at_or_before(end - 1);
-            if prev <= start || !self.body[prev..end].chars().all(char::is_whitespace) {
+            if prev < floor || !self.body[prev..end].chars().all(char::is_whitespace) {
                 break;
             }
             end = prev;

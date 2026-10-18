@@ -565,6 +565,7 @@ def search(
             for hit in result.results
         ],
         explanation=explanation,
+        degradations=_map_native_degradations(result),
         snippets=_map_native_snippets(result),
     )
 
@@ -727,5 +728,6 @@ def search_text_only(
             for hit in result.results
         ],
         explanation=None,
+        degradations=_map_native_degradations(result),
         snippets=_map_native_snippets(result),
     )

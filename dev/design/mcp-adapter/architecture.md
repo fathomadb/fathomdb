@@ -234,12 +234,20 @@ handshake timeout.
   cooperative at return only:** a cancelled or timed-out call stops waiting and
   answers the client (MR-033.1), but its blocking thread runs to completion and
   still holds a reader-pool slot.
-- So that abandoned work cannot exhaust the engine, the bridge admits at most
-  N engine calls in flight, and an abandoned call counts against N until its
-  thread actually returns. In standalone mode N defaults below the reader-pool
-  size (8 today). In embedded mode the host sets N, since its own reads draw on
-  the same pool. Excess calls wait up to the deadline, then return busy
-  (MR-033.2). Interruptible search is an engine follow-up (§7).
+- Admission is a per-store FIFO queue in front of N permits
+  (`admission_cap`), and an abandoned call keeps its permit until its thread
+  actually returns. Excess calls wait in arrival order while their deadline
+  allows; a bounded line (`queue_limit`), the deadline and a p90 start check
+  turn the rest into a typed busy (MR-033.2). The design, its limits and its
+  test plan are
+  [queue-admission.md](../agent-access/queue-admission.md) § 6.1. In
+  standalone mode N defaults to 4, below the reader-pool size (8 today). The
+  spare readers are not headroom: the engine dispatches reads round-robin,
+  so one slow read delays the reads queued behind it on its reader while
+  others are idle (queue-admission § 4); idle-first dispatch is engine
+  proposal EP-18 (queue-admission § 6.2). In embedded mode the host sets N,
+  since its own reads draw on the same pool. Interruptible search is an
+  engine follow-up (§7).
 - The bridge's open and call paths carry a test seam behind an adapter-only
   feature, for MR-003 and MR-033 tests, so no engine test hook is needed.
 - Writes serialise on the engine's single writer; the adapter adds no

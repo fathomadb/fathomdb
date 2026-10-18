@@ -350,7 +350,9 @@ Meets AN-012.
   seam, the tool returns a typed timeout at the deadline, and the adapter keeps
   serving other calls.
 - MR-033.2 The number of engine calls in flight never exceeds the adapter's
-  admission cap **[ADR]**; excess calls wait or return a typed busy result. In
+  admission cap **[ADR]**; excess calls wait, in arrival order, while their
+  deadline allows, then return a typed busy result (owner decision
+  2026-10-18; `dev/design/agent-access/queue-admission.md` § 6.1). In
   standalone mode the default cap is below the engine reader-pool size; in
   embedded mode the host sets it, because the host shares the same pool.
 

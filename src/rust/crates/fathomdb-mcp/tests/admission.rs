@@ -405,3 +405,35 @@ async fn a_late_permit_is_not_used() {
     assert!(started.elapsed() < Duration::from_millis(300), "the permit is free");
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_arrival_is_queued_whatever_its_predicted_wait() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 10000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    // Recent searches took 9 s: a call behind a running one is predicted to
+    // wait past its 10 s deadline.
+    seams.seed_service_times("a", "search_text", &millis(&[9000; 8]));
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let arrival = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!arrival.is_finished(), "an arrival with room in the queue is queued");
+    // It waits until it no longer has the 9 s it needs, then is refused.
+    let error = error_of(&arrival.await.unwrap());
+    let elapsed = started.elapsed();
+    assert_eq!(error["busy"]["reason"], "deadline", "{error}");
+    assert!(elapsed >= Duration::from_millis(900), "refused early: {elapsed:?}");
+    assert!(elapsed < Duration::from_millis(1500), "refused late: {elapsed:?}");
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    harness.shutdown().await;
+}

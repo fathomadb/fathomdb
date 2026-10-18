@@ -485,3 +485,104 @@ impl PyOperationalStatePageV1 {
         }
     }
 }
+
+#[cfg(test)]
+mod degradation_tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+    use std::sync::{Condvar, Mutex};
+    use std::time::{Duration, Instant};
+
+    use fathomdb_embedder_api::{Embedder, EmbedderError, Vector};
+    use fathomdb_engine::{EmbedderChoice, EngineConfig, PreparedWrite, SourceId};
+
+    /// Blocks in `embed` while closed, so one held call occupies the only
+    /// provider worker and a queued query embedding expires (QueuedExpired).
+    #[derive(Debug, Default)]
+    struct Gate {
+        closed: Mutex<bool>,
+        changed: Condvar,
+        blocked: std::sync::atomic::AtomicUsize,
+    }
+
+    impl Embedder for Gate {
+        fn identity(&self) -> RustEmbedderIdentity {
+            RustEmbedderIdentity::new("py-ep03-gate", "rev-a", 8)
+        }
+
+        fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+            let closed = self.closed.lock().unwrap();
+            if *closed {
+                self.blocked.fetch_add(1, Ordering::SeqCst);
+                let _open = self
+                    .changed
+                    .wait_timeout_while(closed, Duration::from_secs(10), |closed| *closed)
+                    .unwrap();
+            }
+            Ok(vec![1.0; 8])
+        }
+    }
+
+    /// One real overloaded hybrid search and one healthy one, from a real store.
+    fn overloaded_and_healthy_results() -> (RustSearchResult, RustSearchResult) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("py_ep03{}", fathomdb_schema::SQLITE_SUFFIX));
+        let gate = Arc::new(Gate::default());
+        let engine = Arc::new(
+            fathomdb_engine::Engine::open_with_choice_and_config(
+                &path,
+                EmbedderChoice::Caller(gate.clone()),
+                EngineConfig {
+                    embedder_pool_size: Some(1),
+                    embedder_call_timeout_ms: Some(300),
+                    ..EngineConfig::default()
+                },
+            )
+            .unwrap()
+            .engine,
+        );
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "pyep03needle note".to_string(),
+                source_id: SourceId::new("test:py-ep03").unwrap(),
+                logical_id: Some("py-ep03".to_string()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.drain(30_000).unwrap();
+        *gate.closed.lock().unwrap() = true;
+        let holder = {
+            let engine = Arc::clone(&engine);
+            std::thread::spawn(move || engine.embed_text("hold"))
+        };
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while gate.blocked.load(Ordering::SeqCst) == 0 {
+            assert!(Instant::now() < deadline, "the held embed never started");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let overloaded = engine.search("pyep03needle").unwrap();
+        *gate.closed.lock().unwrap() = false;
+        gate.changed.notify_all();
+        let _ = holder.join().unwrap();
+        let healthy = engine.search("pyep03needle").unwrap();
+        Arc::try_unwrap(engine).ok().unwrap().close().unwrap();
+        (overloaded, healthy)
+    }
+
+    #[test]
+    fn python_search_result_reports_embedder_overloaded() {
+        let (overloaded, healthy) = overloaded_and_healthy_results();
+        assert_eq!(overloaded.degradations.len(), 1, "precondition: a real overloaded result");
+
+        let converted = PySearchResult::from_rust(overloaded);
+        let words: Option<Vec<(String, String)>> = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|entry| (entry.arm, entry.reason)).collect());
+        assert_eq!(words, Some(vec![("vector".to_string(), "embedder_overloaded".to_string())]));
+        assert!(PySearchResult::from_rust(healthy).degradations.is_none());
+    }
+}

@@ -4,13 +4,18 @@
 //! They live in the adapter's bridge and need no engine hook (MR-003.1,
 //! MR-033.1, MR-002.2).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 #[derive(Default)]
 struct State {
     open_blocked: BTreeSet<String>,
     calls_blocked: BTreeSet<String>,
+    /// Calls held by `block_calls`, per store, oldest first.
+    held: BTreeMap<String, VecDeque<u64>>,
+    /// Held calls let through one at a time by `release_one_call`.
+    released: BTreeSet<u64>,
+    next_call: u64,
     panicking_tools: BTreeSet<String>,
     panicking_calls: BTreeSet<String>,
     progress_bursts: BTreeMap<String, u32>,
@@ -57,6 +62,24 @@ impl Seams {
         self.inner.1.notify_all();
     }
 
+    /// Let the oldest call held on `store` proceed; later calls stay held.
+    /// Returns false when no call is held.
+    pub fn release_one_call(&self, store: &str) -> bool {
+        let mut state = self.state();
+        let Some(call) = state.held.get_mut(store).and_then(VecDeque::pop_front) else {
+            return false;
+        };
+        state.released.insert(call);
+        drop(state);
+        self.inner.1.notify_all();
+        true
+    }
+
+    /// How many calls on `store` are held by `block_calls` right now.
+    pub fn held_calls(&self, store: &str) -> usize {
+        self.state().held.get(store).map_or(0, VecDeque::len)
+    }
+
     /// Release every held open and call.
     pub fn release_all(&self) {
         let mut state = self.state();
@@ -92,9 +115,27 @@ impl Seams {
     }
 
     pub(crate) fn before_call(&self, store: &str) {
-        self.wait_while(|state| state.calls_blocked.contains(store));
+        self.hold_call(store);
         if self.state().panicking_calls.contains(store) {
             panic!("test seam: forced panic in an engine call on {store}");
+        }
+    }
+
+    fn hold_call(&self, store: &str) {
+        let (lock, condvar) = &*self.inner;
+        let mut state = lock.lock().unwrap_or_else(|poison| poison.into_inner());
+        if !state.calls_blocked.contains(store) {
+            return;
+        }
+        let call = state.next_call;
+        state.next_call += 1;
+        state.held.entry(store.to_string()).or_default().push_back(call);
+        while state.calls_blocked.contains(store) && !state.released.contains(&call) {
+            state = condvar.wait(state).unwrap_or_else(|poison| poison.into_inner());
+        }
+        state.released.remove(&call);
+        if let Some(held) = state.held.get_mut(store) {
+            held.retain(|other| *other != call);
         }
     }
 

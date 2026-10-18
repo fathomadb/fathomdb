@@ -695,7 +695,7 @@ pub(crate) fn body_fts_rank_sql(
 ) -> String {
     format!(
         "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-         bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
+         bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
          WHERE search_index MATCH ?1 \
            AND cn.superseded_at IS NULL \

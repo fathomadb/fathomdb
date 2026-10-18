@@ -698,6 +698,7 @@ impl Registry {
                 {
                     return Err(refuse(BusyReason::QueueFull));
                 }
+                self.hooks.after_arrival_check(name).await;
                 must_wait = load.permits.available_permits() == 0;
                 let ticket = QueueTicket::new(&load);
                 self.hooks.after_queued(name);

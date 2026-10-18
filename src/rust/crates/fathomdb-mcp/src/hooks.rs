@@ -27,6 +27,12 @@ impl Hooks {
     }
 
     #[inline]
+    pub(crate) async fn after_arrival_check(&self, _store: &str) {
+        #[cfg(feature = "test-seams")]
+        self.seams.after_arrival_check(_store).await;
+    }
+
+    #[inline]
     pub(crate) async fn after_permit(&self, _store: &str) {
         #[cfg(feature = "test-seams")]
         self.seams.after_permit(_store).await;

@@ -21,6 +21,7 @@ struct State {
     panicking_calls: BTreeSet<String>,
     panicking_waiters: BTreeSet<String>,
     admitted_blocked: BTreeSet<String>,
+    arrivals_blocked: BTreeSet<String>,
     admitted_held: BTreeMap<String, usize>,
     /// Service times waiting to be added to a store's window, oldest first.
     seeded: BTreeMap<String, Vec<(String, Duration)>>,
@@ -92,6 +93,7 @@ impl Seams {
         state.open_blocked.clear();
         state.calls_blocked.clear();
         state.admitted_blocked.clear();
+        state.arrivals_blocked.clear();
         drop(state);
         self.inner.1.notify_all();
     }
@@ -121,6 +123,17 @@ impl Seams {
     /// Undo [`Seams::panic_queued_calls`].
     pub fn stop_panicking_queued_calls(&self, store: &str) {
         self.state().panicking_waiters.remove(store);
+    }
+
+    /// Hold every call on `store` that has to wait for a permit right after
+    /// it passed the arrival check (`queue_limit`), until released.
+    pub fn hold_arrivals(&self, store: &str) {
+        self.state().arrivals_blocked.insert(store.to_string());
+    }
+
+    /// Let calls held by [`Seams::hold_arrivals`] proceed.
+    pub fn release_arrivals(&self, store: &str) {
+        self.state().arrivals_blocked.remove(store);
     }
 
     /// Hold every call on `store` right after it gets its admission permit,
@@ -192,6 +205,14 @@ impl Seams {
     pub(crate) fn after_queued(&self, store: &str) {
         if self.state().panicking_waiters.contains(store) {
             panic!("test seam: forced panic in a queued call on {store}");
+        }
+    }
+
+    // Runs on the async handler task, so it polls instead of parking the
+    // thread on the condition variable.
+    pub(crate) async fn after_arrival_check(&self, store: &str) {
+        while self.state().arrivals_blocked.contains(store) {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }
     }
 

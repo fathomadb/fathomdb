@@ -800,6 +800,43 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
     }
 }
 
+/// The shaped hits of a search run from `offset`: each hit with its engine
+/// snippet (EP-17), cursor and explanation.
+fn search_page(
+    run: &SearchRun,
+    per_hit: &[Option<&PerHitExplain>],
+    offset: usize,
+    highlights: bool,
+) -> Result<Vec<(Hit, u64, Option<PerHitOut>)>, ToolError> {
+    Ok(run
+        .hits
+        .iter()
+        .zip(&run.snippets)
+        .zip(per_hit.iter().copied())
+        .skip(offset)
+        .map(|((hit, snippet), explain)| {
+            let reference = hit.id.to_prefixed();
+            let per_hit = explain.map(|explain| per_hit_out(&reference, explain));
+            (
+                Hit {
+                    reference,
+                    kind: hit.kind.clone(),
+                    snippet: snippet.text.clone(),
+                    snippet_cut: snippet.cut,
+                    snippet_anchor: snippet.anchor.as_str().to_string(),
+                    highlights: highlights.then(|| snippet.highlights.clone()),
+                    source_id: hit.source_id.clone(),
+                    score: hit.score,
+                    arm: branch_str(hit.branch).to_string(),
+                    ce_score: hit.ce_score,
+                },
+                hit.write_cursor,
+                per_hit,
+            )
+        })
+        .collect())
+}
+
 pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: SearchArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
@@ -942,36 +979,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             run.explanation.as_ref().and_then(|explanation| explanation.per_hit.get(index))
         })
         .collect();
-    let page: Vec<(Hit, u64, Option<PerHitOut>)> = run
-        .hits
-        .iter()
-        .zip(&run.snippets)
-        .zip(per_hit)
-        .skip(offset)
-        .map(|((hit, snippet), explain)| {
-            let reference = hit.id.to_prefixed();
-            let per_hit = explain.map(|explain| per_hit_out(&reference, explain));
-            (
-                Hit {
-                    reference,
-                    kind: hit.kind.clone(),
-                    snippet: snippet.text.clone(),
-                    snippet_cut: snippet.cut,
-                    snippet_anchor: snippet.anchor.as_str().to_string(),
-                    highlights: args
-                        .highlights
-                        .unwrap_or(false)
-                        .then(|| snippet.highlights.clone()),
-                    source_id: hit.source_id.clone(),
-                    score: hit.score,
-                    arm: branch_str(hit.branch).to_string(),
-                    ce_score: hit.ce_score,
-                },
-                hit.write_cursor,
-                per_hit,
-            )
-        })
-        .collect();
+    let page = search_page(&run, &per_hit, offset, args.highlights.unwrap_or(false))?;
     let canonical_json = serde_json::to_string(&canonical).expect("serializes");
     let trace = run.explanation.as_ref().map(trace_out);
     // § 3.3: a text search may suggest hybrid only when the store has a
@@ -1477,6 +1485,22 @@ mod degradation_tests {
         ArmDegradation, DegradationReason, Engine, InitialState, OpenOptions, PreparedWrite,
         SourceId,
     };
+
+    /// S5c review P3: a run whose snippet sidecar is missing (or shorter
+    /// than its hits) is an internal error, never a silently emptied page.
+    #[test]
+    fn a_run_without_its_snippet_sidecar_is_an_internal_error() {
+        let result = overloaded_hybrid_result();
+        assert!(result.snippets.is_none(), "precondition: no snippets were requested");
+        let run = SearchRun::from_result(result, false);
+        let per_hit = vec![None; run.hits.len()];
+        let page = search_page(&run, &per_hit, 0, false);
+        assert!(
+            matches!(&page, Err(error) if error.code == "internal"),
+            "{:?}",
+            page.as_ref().map(Vec::len)
+        );
+    }
 
     fn entry(arm: &str, reason: &str) -> Degradation {
         Degradation { arm: arm.to_string(), reason: reason.to_string() }

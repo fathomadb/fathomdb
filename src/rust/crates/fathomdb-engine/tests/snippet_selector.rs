@@ -698,3 +698,21 @@ fn head_close_to_the_match_window_merges_instead_of_dropping() {
         assert!(s.text.len() <= 100);
     }
 }
+
+// Rule 7 narrows the first window only when a later window could then be
+// added (at least 80 bytes left); otherwise the first window keeps the full
+// width, exactly as with `max_windows = 1`.
+#[test]
+fn rule7_narrows_only_when_another_window_fits() {
+    let (body, spans) = body_with(&[(1000, "pear"), (3000, "plum")], 4000);
+    for max_bytes in [40, 100] {
+        let one = snippet_for(&body, &spans, &windows_opts(max_bytes, 1));
+        for max_windows in 2..=3 {
+            let more = snippet_for(&body, &spans, &windows_opts(max_bytes, max_windows));
+            assert_eq!(more, one, "max_bytes {max_bytes}, max_windows {max_windows}");
+        }
+    }
+    // With room for a second window the split still happens.
+    let s = snippet_for(&body, &spans, &windows_opts(300, 2));
+    assert_eq!(s.windows.len(), 2, "{s:?}");
+}

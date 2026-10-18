@@ -8,8 +8,13 @@ as in Rust.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
+import pytest
+
 import fathomdb
 from fathomdb import Engine, SnippetOptions, SnippetV1
+from fathomdb.errors import InvalidArgumentError
 
 TERM = "zephyrine"
 SOURCE = "py-test:ep17"
@@ -98,3 +103,77 @@ def test_search_frozen_returns_snippet_sidecar(db_path: str) -> None:
         assert plain.results == with_snippets.results
     finally:
         engine.close()
+
+
+Search = Callable[[Engine, object], fathomdb.SearchResult]
+
+SURFACES: dict[str, Search] = {
+    "search": lambda engine, options: engine.search(TERM, snippet=options),  # type: ignore[arg-type]
+    "search_text_only": lambda engine, options: engine.search_text_only(
+        TERM,
+        snippet=options,  # type: ignore[arg-type]
+    ),
+    "search_frozen": lambda engine, options: engine.search_frozen(
+        TERM,
+        engine.freeze_read_context(fathomdb.ReadContextV1()),
+        snippet=options,  # type: ignore[arg-type]
+    ),
+}
+
+# Each value is out of its documented range (match-centred-snippets.md
+# § 7.2), including values past the native integer types.
+OUT_OF_RANGE = [
+    SnippetOptions(max_bytes=39),
+    SnippetOptions(max_bytes=4001),
+    SnippetOptions(max_bytes=-1),
+    SnippetOptions(max_bytes=2**40),
+    SnippetOptions(max_windows=0),
+    SnippetOptions(max_windows=4),
+    SnippetOptions(max_windows=2**40),
+    SnippetOptions(max_bytes=100, head_bytes=51),
+    SnippetOptions(head_bytes=-1),
+    SnippetOptions(max_point_queries=256),
+    SnippetOptions(max_point_queries=-1),
+]
+
+IN_RANGE = [
+    SnippetOptions(max_bytes=40, max_windows=3, head_bytes=20, max_point_queries=0),
+    SnippetOptions(max_bytes=4000, highlights=True, max_point_queries=255),
+]
+
+
+@pytest.mark.parametrize("surface", sorted(SURFACES))
+def test_snippet_options_are_validated_on_every_search_surface(
+    db_path: str, surface: str
+) -> None:
+    run = SURFACES[surface]
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write(_writes())
+        for options in IN_RANGE:
+            result = run(engine, options)
+            assert result.snippets is not None
+            assert len(result.snippets) == len(result.results) == 2
+        for options in OUT_OF_RANGE:
+            with pytest.raises(InvalidArgumentError):
+                run(engine, options)
+        with pytest.raises(TypeError):
+            run(engine, {"max_bytes": 300})
+    finally:
+        engine.close()
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"max_bytes": True},
+        {"max_bytes": 300.0},
+        {"max_windows": "1"},
+        {"head_bytes": None},
+        {"max_point_queries": False},
+        {"highlights": 1},
+    ],
+)
+def test_snippet_options_reject_wrong_field_types(fields: dict[str, object]) -> None:
+    with pytest.raises(TypeError):
+        SnippetOptions(**fields)  # type: ignore[arg-type]

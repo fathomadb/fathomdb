@@ -708,3 +708,40 @@ async fn no_busy_result_carries_retry_after_ms() {
     let _ = running.await.unwrap();
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn queued_calls_get_progress_notifications() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(&fixture, json!({"admission_cap": 1}))).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "search", search_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    // The rmcp test client sends a progress token with every request.
+    let waiting = spawn_call(&harness, "search", search_a());
+    tokio::time::sleep(Duration::from_millis(2300)).await;
+    seams.release_calls("a");
+    let _ = running.await.unwrap();
+    let waited = waiting.await.unwrap();
+    assert_ne!(waited.is_error, Some(true), "{:?}", waited.structured_content);
+    let queued: Vec<(f64, String)> = harness
+        .client
+        .service()
+        .progress
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|note| {
+            let message = note.message.clone()?;
+            message.starts_with("queued:").then_some((note.progress, message))
+        })
+        .collect();
+    assert!(queued.len() >= 2, "one notification each second while queued: {queued:?}");
+    for (_, message) in &queued {
+        assert_eq!(message, "queued: 1 waiting, 1 running");
+    }
+    assert!(queued.windows(2).all(|pair| pair[0].0 < pair[1].0), "progress increases: {queued:?}");
+    harness.shutdown().await;
+}

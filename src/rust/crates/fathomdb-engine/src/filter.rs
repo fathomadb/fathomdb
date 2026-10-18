@@ -708,7 +708,7 @@ pub(crate) fn body_fts_rank_sql(
 pub(crate) fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
-         ce.logical_id, ce.source_id \
+         ce.logical_id, ce.source_id, sei.rowid \
          FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
          WHERE search_index_edges MATCH ?1 \

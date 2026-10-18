@@ -16,6 +16,7 @@ use crate::snippet::{snippet_for, SnippetOptions, SnippetV1};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FtsTable {
     Nodes,
+    Edges,
 }
 
 impl FtsTable {
@@ -24,6 +25,10 @@ impl FtsTable {
             Self::Nodes => {
                 "SELECT highlight(search_index, 0, ?1, ?2) FROM search_index \
                  WHERE search_index MATCH ?3 AND rowid = ?4"
+            }
+            Self::Edges => {
+                "SELECT highlight(search_index_edges, 0, ?1, ?2) FROM search_index_edges \
+                 WHERE search_index_edges MATCH ?3 AND rowid = ?4"
             }
         }
     }

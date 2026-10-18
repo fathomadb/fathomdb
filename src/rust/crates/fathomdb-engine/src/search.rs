@@ -1967,7 +1967,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     })?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })?;
-            let mut candidates = keep_rowids(candidates, snippet.is_some(), &mut fts_rows);
+            let mut candidates =
+                keep_rowids(candidates, FtsTable::Nodes, snippet.is_some(), &mut fts_rows);
             candidates.sort_by(|left, right| {
                 left.score
                     .total_cmp(&right.score)
@@ -2019,7 +2020,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     Ok((hit, row.get::<_, i64>(6)?))
                 })?;
             let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-            keep_rowids(hits, snippet.is_some(), &mut fts_rows)
+            keep_rowids(hits, FtsTable::Nodes, snippet.is_some(), &mut fts_rows)
         } else {
             // No `superseded_at IS NULL` filter here (and none is possible): this
             // fallback fires only on pre-step-12 schemas whose `canonical_nodes`
@@ -2059,7 +2060,12 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     };
                     Ok((hit, row.get::<_, i64>(5)?))
                 })?;
-                keep_rowids(rows.flatten().collect(), snippet.is_some(), &mut fts_rows)
+                keep_rowids(
+                    rows.flatten().collect(),
+                    FtsTable::Nodes,
+                    snippet.is_some(),
+                    &mut fts_rows,
+                )
             } else {
                 // Pre-step-8: no `source_id` column anywhere. Byte-identical to
                 // the historical statement.
@@ -2084,7 +2090,12 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     };
                     Ok((hit, row.get::<_, i64>(4)?))
                 })?;
-                keep_rowids(rows.flatten().collect(), snippet.is_some(), &mut fts_rows)
+                keep_rowids(
+                    rows.flatten().collect(),
+                    FtsTable::Nodes,
+                    snippet.is_some(),
+                    &mut fts_rows,
+                )
             }
         }
     };
@@ -2137,7 +2148,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
             let body = row.get::<_, String>(0)?;
             let logical_id = row.get::<_, Option<String>>(4)?;
-            Ok(SearchHit {
+            let hit = SearchHit {
                 id: derive_stable_id(logical_id.as_deref(), &body),
                 body,
                 kind: row.get::<_, String>(1)?,
@@ -2147,9 +2158,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 // TC-31: the EDGE's own provenance.
                 source_id: row.get::<_, Option<String>>(5)?,
                 ce_score: None,
-            })
+            };
+            Ok((hit, row.get::<_, i64>(6)?))
         })?;
-        rows.collect::<rusqlite::Result<Vec<_>>>()?
+        let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+        keep_rowids(hits, FtsTable::Edges, snippet.is_some(), &mut fts_rows)
     };
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested
@@ -2566,13 +2579,18 @@ use std::sync::Arc;
 #[cfg(feature = "test-hooks")]
 use std::{fs::OpenOptions, io::Write, sync::Mutex};
 
-/// Splits `(hit, rowid)` rows, recording each node-text rowid when snippets
+/// Splits `(hit, rowid)` rows, recording each FTS rowid when snippets
 /// are requested.
-fn keep_rowids(rows: Vec<(SearchHit, i64)>, keep: bool, fts_rows: &mut FtsRows) -> Vec<SearchHit> {
+fn keep_rowids(
+    rows: Vec<(SearchHit, i64)>,
+    table: FtsTable,
+    keep: bool,
+    fts_rows: &mut FtsRows,
+) -> Vec<SearchHit> {
     rows.into_iter()
         .map(|(hit, rowid)| {
             if keep {
-                fts_rows.insert(hit.write_cursor, (FtsTable::Nodes, rowid));
+                fts_rows.insert(hit.write_cursor, (table, rowid));
             }
             hit
         })

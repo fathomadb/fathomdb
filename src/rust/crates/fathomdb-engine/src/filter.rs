@@ -695,7 +695,7 @@ pub(crate) fn body_fts_rank_sql(
 ) -> String {
     format!(
         "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-         bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
+         bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
          WHERE search_index MATCH ?1 \
            AND cn.superseded_at IS NULL \
@@ -708,7 +708,7 @@ pub(crate) fn body_fts_rank_sql(
 pub(crate) fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
-         ce.logical_id, ce.source_id \
+         ce.logical_id, ce.source_id, sei.rowid \
          FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
          WHERE search_index_edges MATCH ?1 \

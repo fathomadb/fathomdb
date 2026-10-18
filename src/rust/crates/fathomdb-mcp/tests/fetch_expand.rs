@@ -181,7 +181,7 @@ async fn fetch_and_search_return_exactly_what_the_sdk_returns_under_the_same_vie
             .collect();
         let view = ReadView { valid_as_of: Some(instant), ..ReadView::default() };
         let hits = engine
-            .search_text_only("river", TextSearchOptions { view, limit: 20 })
+            .search_text_only("river", TextSearchOptions { view, limit: 20, snippet: None })
             .unwrap()
             .results
             .into_iter()

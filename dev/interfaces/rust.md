@@ -777,6 +777,11 @@ row-set, the `bm25()` ordering and the scores byte-unchanged.
   pool_n, explain, &ReadView, limit) -> Result<SearchResult, EngineError>`
 - `Engine::search_text_only_view_with_limit(query, &ReadView, limit) -> Result<SearchResult,
   EngineError>`
+- `Engine::search_reranked_view_with_snippets(.., limit, snippet: Option<&SnippetOptions>)`,
+  `Engine::search_text_only_view_with_snippets(query, &ReadView, limit, snippet)` and
+  `Engine::search_frozen_with_snippets(.., limit, snippet)` — the `*_with_limit` and
+  `search_frozen` forms with a trailing snippet option (EP-17, § "Match-centred snippets
+  on search" below). `None` is exactly the plain call.
 
 `search_reranked(q, f, d, g, a, p)` is exactly
 `search_reranked_view(q, f, d, g, a, p, false, &ReadView::default())`.
@@ -1219,8 +1224,8 @@ is `dev/interfaces/mcp.md` § 3; this section documents only the engine subset.
 &SnippetOptions) -> SnippetV1` is a pure function (no SQL, I/O, clock,
 floating point or locks). It picks the part of a record body to show for a
 search hit from the hit's match spans. `fathomdb-sdk` re-exports it with its
-types. No search path calls it yet; the search sidecar is a later stage. The
-specification is `dev/design/agent-access/match-centred-snippets.md` §§ 6
+types. The search entry points below call the same function for their
+snippet sidecar. The specification is `dev/design/agent-access/match-centred-snippets.md` §§ 6
 and 7.2.
 
 - `SnippetOptions` has public fields and a `Default`:
@@ -1274,6 +1279,49 @@ and 7.2.
 - Output is deterministic per build. Word, sentence and grapheme boundaries
   come from `unicode-segmentation`, so a version bump of that crate may
   change snippet bytes.
+
+## Match-centred snippets on search (EP-17)
+
+`search_reranked_view_with_snippets`, `search_text_only_view_with_snippets`
+and `search_frozen_with_snippets` take `snippet: Option<&SnippetOptions>`.
+The plain entry points are these with `None`.
+
+- `Some(options)` is validated first (`SnippetOptions::validate`;
+  `EngineError::InvalidArgument`). It then fills
+  `SearchResult::snippets: Option<Vec<SnippetV1>>`, one snippet per hit, in
+  `results` order. `None` leaves `snippets` as `None`, and every other field
+  is the same with or without snippets.
+- Work runs after ranking, truncation to the limit, and the identity pass, on
+  the search's reader transaction, with read-only statements only.
+- A text hit's FTS rowid is kept in a search-local map from `write_cursor`
+  to `search_index` or `search_index_edges`, only when snippets are
+  requested. For a mapped hit that needs spans, the engine runs one
+  `highlight()` constrained to that rowid:
+  - Spans are needed when the body is over `max_bytes` or `highlights` is
+    set. A body that fits with highlights off gets the whole body and no
+    query.
+  - Markers are the first pair of U+E000/U+E001, U+F8FE/U+F8FF and
+    U+FDD0/U+FDD1 that the body does not contain. If the body contains all
+    three pairs, or the marked text does not strip back to the body, the hit
+    gets no spans.
+- Exact term identity (rule 3). It applies when the body is over budget, the
+  query has more than one OR term, and the first window misses a span. The
+  engine then runs `highlight()` once per term in `CompiledQuery.terms`, and
+  spans are grouped by term rather than by lowercased text.
+- `max_point_queries` caps how many hits get span queries, in rank order.
+  The per-term queries of a hit count as that hit's one slot. Later hits get
+  the record start (`SnippetAnchor::Start`).
+- Anchor: `Match` only when the hit is in the map and highlighting found a
+  span. `fusion` may keep a vector hit's struct (`branch == Vector`) for a
+  body the text arm also matched, so `branch` is not consulted. Vector-only
+  and graph-arm hits get `Start`.
+- Frozen reads: snippet options are presentation. They are not eligibility
+  and do not enter the frozen context or its token.
+- `search_projected_text` and `bm25f_search` take no snippet option.
+
+`fathomdb_query::CompiledQuery` has `match_expression` and `terms:
+Vec<String>`. `terms` holds the OR operands as compiled, each a quoted,
+escaped FTS5 string, and `match_expression == terms.join(" OR ")`.
 
 ## Errors
 

@@ -17,6 +17,22 @@ snippets plus an instruction telling agents to fetch. Size M. Not an accepted
 decision. The full analysis is in
 [match-centred-snippets.md](../../agent-access/match-centred-snippets.md).
 
+**Engine built (agent-access Block 1, S5a and S5b).** The pure selector
+`snippet_for` and the search sidecar are in `fathomdb-engine` and
+`fathomdb-sdk`, documented in `dev/interfaces/rust.md` (§§ "Match-centred
+snippet selector", "Match-centred snippets on search") and
+`dev/interfaces/rust-sdk.md`. The engine entry points are
+`search_reranked_view_with_snippets`, `search_text_only_view_with_snippets`
+and `search_frozen_with_snippets`. The SDK options gain `snippet`, including
+`FrozenSearchOptions`. As built:
+
+- `CompiledQuery.terms` carries the OR operands for the per-term pass.
+- The per-term queries of a hit count as that hit's one
+  `max_point_queries` slot.
+
+Still open: the MCP adapter (S5c), Python and TypeScript parity (S5d), and
+the M1 and M2 measurements.
+
 ## Problem
 
 The adapter can build snippets only as body prefixes

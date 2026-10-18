@@ -38,9 +38,16 @@ pub(crate) struct SearchReaderWork {
     frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
     frozen_query_runtime: Option<Box<FrozenQueryRuntime>>,
     expand_depth: Option<u32>,
+    snippet: Option<SnippetOptions>,
 }
 
 impl SearchReaderWork {
+    /// Requests EP-17 snippets for the final hits.
+    pub(crate) fn with_snippet(mut self, snippet: Option<SnippetOptions>) -> Self {
+        self.snippet = snippet;
+        self
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn hybrid(
         compiled: Option<fathomdb_query::CompiledQuery>,
@@ -88,6 +95,7 @@ impl SearchReaderWork {
             frozen_binding: frozen_binding.map(Box::new),
             frozen_query_runtime,
             expand_depth,
+            snippet: None,
         }
     }
 
@@ -164,6 +172,7 @@ impl SearchReaderWork {
             frozen_binding: None,
             frozen_query_runtime: None,
             expand_depth: None,
+            snippet: None,
         }
     }
 }
@@ -283,6 +292,7 @@ pub(crate) fn read_projected_text_in_tx(
         results,
         explanation: None,
         degradations: Vec::new(),
+        snippets: None,
     })
 }
 
@@ -313,6 +323,7 @@ pub(crate) trait SearchOriginCapture: Sized {
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
+        snippets: Option<Vec<SnippetV1>>,
     ) -> Result<Self::Output, SearchReaderError>;
 }
 
@@ -409,6 +420,7 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
         work.frozen_binding.as_deref(),
         work.frozen_query_runtime.as_deref(),
         work.expand_depth,
+        work.snippet.as_ref(),
         attribution,
         worker_idx,
         capture,
@@ -436,10 +448,10 @@ fn load_projection_cursor_for_search(connection: &Connection) -> rusqlite::Resul
         })
 }
 
-fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchHit> {
+fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(SearchHit, i64)> {
     let body = row.get::<_, String>(0)?;
     let logical_id = row.get::<_, Option<String>>(4)?;
-    Ok(SearchHit {
+    let hit = SearchHit {
         id: derive_stable_id(logical_id.as_deref(), &body),
         body,
         kind: row.get::<_, String>(1)?,
@@ -448,18 +460,23 @@ fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchH
         branch: SoftFallbackBranch::Text,
         source_id: row.get::<_, Option<String>>(5)?,
         ce_score: None,
-    })
+    };
+    Ok((hit, row.get::<_, i64>(6)?))
 }
 
 fn collect_complete_rank_boundary(
     rows: &mut rusqlite::Rows<'_>,
     limit: usize,
+    mut fts_rows: Option<&mut FtsRows>,
 ) -> rusqlite::Result<(Vec<SearchHit>, bool)> {
     let mut candidates = Vec::with_capacity(limit.saturating_add(1));
     let mut boundary_score = None;
 
     while let Some(row) = rows.next()? {
-        let candidate = rank_search_hit_from_row(row)?;
+        let (candidate, rowid) = rank_search_hit_from_row(row)?;
+        if let Some(fts_rows) = fts_rows.as_deref_mut() {
+            fts_rows.insert(candidate.write_cursor, (FtsTable::Nodes, rowid));
+        }
         if candidates.len() < limit {
             if candidates.len().saturating_add(1) == limit {
                 boundary_score = Some(candidate.score);
@@ -529,6 +546,10 @@ pub(crate) fn record_slice71_profile_statement_for_test(sql: &str) {
         && sql.contains("WHERE r.write_cursor=")
     {
         Some("post_filter_source_lookup")
+    } else if sql.contains("highlight(") {
+        Some("snippet_highlight")
+    } else if is_write_statement(sql) {
+        Some("write_statement")
     } else {
         None
     };
@@ -537,6 +558,16 @@ pub(crate) fn record_slice71_profile_statement_for_test(sql: &str) {
             trace.push(identity.to_string());
         }
     }
+}
+
+#[cfg(feature = "test-hooks")]
+fn is_write_statement(sql: &str) -> bool {
+    let head = sql.trim_start().to_ascii_uppercase();
+    ["INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER"]
+        .iter()
+        .any(|verb| head.starts_with(verb))
+        || head.starts_with("BEGIN IMMEDIATE")
+        || head.starts_with("BEGIN EXCLUSIVE")
 }
 
 #[cfg(feature = "test-hooks")]
@@ -793,6 +824,7 @@ impl SearchOriginCapture for NoEvidenceCapture {
         Option<Explanation>,
         Option<SearchExpandResult>,
         Vec<ArmDegradation>,
+        Option<Vec<SnippetV1>>,
     );
 
     fn finish(
@@ -805,8 +837,18 @@ impl SearchOriginCapture for NoEvidenceCapture {
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
+        snippets: Option<Vec<SnippetV1>>,
     ) -> Result<Self::Output, SearchReaderError> {
-        Ok((cursor, soft_fallback, results, graph_stats, explanation, expanded, degradations))
+        Ok((
+            cursor,
+            soft_fallback,
+            results,
+            graph_stats,
+            explanation,
+            expanded,
+            degradations,
+            snippets,
+        ))
     }
 }
 
@@ -827,6 +869,7 @@ impl SearchOriginCapture for EvidenceCapture {
         explanation: Option<Explanation>,
         _expanded: Option<SearchExpandResult>,
         degradations: Vec<ArmDegradation>,
+        _snippets: Option<Vec<SnippetV1>>,
     ) -> Result<Self::Output, SearchReaderError> {
         #[cfg(any(test, feature = "test-hooks"))]
         evidence_linearization_hooks::fire_before_sidecar();
@@ -836,6 +879,7 @@ impl SearchOriginCapture for EvidenceCapture {
             results,
             explanation,
             degradations,
+            snippets: None,
         };
         evidence::build_search_result(
             connection,
@@ -1354,6 +1398,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     frozen_query_runtime: Option<&FrozenQueryRuntime>,
     expand_depth: Option<u32>,
+    snippet: Option<&SnippetOptions>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
     mut capture: C,
@@ -1735,6 +1780,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
     let mut deferred_text_identity = false;
+    // EP-17: the search-local `write_cursor → (table, rowid)` map, filled only
+    // when snippets are requested.
+    let mut fts_rows = FtsRows::new();
     let text_candidates: Vec<SearchHit> = {
         #[cfg(feature = "tc5-benchmark")]
         tc5_benchmark::record_fts_route();
@@ -1868,7 +1916,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             let rank_mapping = "bm25()";
             let rank_sql = format!(
                 "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-                 bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
+                 bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid \
+                 FROM search_index \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
                  WHERE search_index MATCH ?1 \
                    AND cn.superseded_at IS NULL \
@@ -1883,7 +1932,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 .and_then(|mut statement| {
                     let mut rows =
                         statement.query(rusqlite::params_from_iter(text_params.iter()))?;
-                    collect_complete_rank_boundary(&mut rows, rank_candidate_limit)
+                    collect_complete_rank_boundary(
+                        &mut rows,
+                        rank_candidate_limit,
+                        snippet.is_some().then_some(&mut fts_rows),
+                    )
                 })
                 .ok()
         } else {
@@ -1893,29 +1946,29 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             let now_binding =
                 now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
-                "SELECT body, kind, write_cursor, bm25(search_index) FROM search_index \
+                "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index \
                  WHERE search_index MATCH ?1{now_binding}{limit_clause}"
             );
+            let candidates = prepare_search_statement(&tx, &sql).and_then(|mut statement| {
+                let rows =
+                    statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                        let body = row.get::<_, String>(0)?;
+                        let hit = SearchHit {
+                            id: IdSpace::content(String::new()),
+                            body,
+                            kind: row.get::<_, String>(1)?,
+                            write_cursor: row.get::<_, i64>(2)? as u64,
+                            score: row.get::<_, f64>(3)?,
+                            branch: SoftFallbackBranch::Text,
+                            source_id: None,
+                            ce_score: None,
+                        };
+                        Ok((hit, row.get::<_, i64>(4)?))
+                    })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })?;
             let mut candidates =
-                prepare_search_statement(&tx, &sql).and_then(|mut statement| {
-                    let rows = statement.query_map(
-                        rusqlite::params_from_iter(text_params.iter()),
-                        |row| {
-                            let body = row.get::<_, String>(0)?;
-                            Ok(SearchHit {
-                                id: IdSpace::content(String::new()),
-                                body,
-                                kind: row.get::<_, String>(1)?,
-                                write_cursor: row.get::<_, i64>(2)? as u64,
-                                score: row.get::<_, f64>(3)?,
-                                branch: SoftFallbackBranch::Text,
-                                source_id: None,
-                                ce_score: None,
-                            })
-                        },
-                    )?;
-                    rows.collect::<rusqlite::Result<Vec<_>>>()
-                })?;
+                keep_rowids(candidates, FtsTable::Nodes, snippet.is_some(), &mut fts_rows);
             candidates.sort_by(|left, right| {
                 left.score
                     .total_cmp(&right.score)
@@ -1951,7 +2004,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
                     let body = row.get::<_, String>(0)?;
                     let logical_id = row.get::<_, Option<String>>(4)?;
-                    Ok(SearchHit {
+                    let hit = SearchHit {
                         id: derive_stable_id(logical_id.as_deref(), &body),
                         body,
                         kind: row.get::<_, String>(1)?,
@@ -1963,9 +2016,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         // `search_index` row the LEFT JOIN keeps with no `cn`.
                         source_id: row.get::<_, Option<String>>(5)?,
                         ce_score: None,
-                    })
+                    };
+                    Ok((hit, row.get::<_, i64>(6)?))
                 })?;
-            rows.collect::<rusqlite::Result<Vec<_>>>()?
+            let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+            keep_rowids(hits, FtsTable::Nodes, snippet.is_some(), &mut fts_rows)
         } else {
             // No `superseded_at IS NULL` filter here (and none is possible): this
             // fallback fires only on pre-step-12 schemas whose `canonical_nodes`
@@ -1984,7 +2039,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // genuinely does not exist and `None` is the only truthful answer.
             let source_sql = format!(
                 "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-                 bm25(search_index), cn.source_id FROM search_index \
+                 bm25(search_index), cn.source_id, search_index.rowid FROM search_index \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
                  WHERE search_index MATCH ?1 \
                  ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
@@ -1992,7 +2047,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             if let Ok(mut statement) = tx.prepare(&source_sql) {
                 let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
                     let body = row.get::<_, String>(0)?;
-                    Ok(SearchHit {
+                    let hit = SearchHit {
                         // No logical_id column on this schema → content-hash id.
                         id: derive_stable_id(None, &body),
                         body,
@@ -2002,21 +2057,27 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         branch: SoftFallbackBranch::Text,
                         source_id: row.get::<_, Option<String>>(4)?,
                         ce_score: None,
-                    })
+                    };
+                    Ok((hit, row.get::<_, i64>(5)?))
                 })?;
-                rows.flatten().collect()
+                keep_rowids(
+                    rows.flatten().collect(),
+                    FtsTable::Nodes,
+                    snippet.is_some(),
+                    &mut fts_rows,
+                )
             } else {
                 // Pre-step-8: no `source_id` column anywhere. Byte-identical to
                 // the historical statement.
                 let plain_sql = format!(
-                    "SELECT body, kind, write_cursor, bm25(search_index) FROM search_index \
+                    "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index \
                      WHERE search_index MATCH ?1 \
                      ORDER BY bm25(search_index), write_cursor{limit_clause}"
                 );
                 let mut statement = tx.prepare(&plain_sql)?;
                 let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
                     let body = row.get::<_, String>(0)?;
-                    Ok(SearchHit {
+                    let hit = SearchHit {
                         // No logical_id column on this schema → content-hash id.
                         id: derive_stable_id(None, &body),
                         body,
@@ -2026,9 +2087,15 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         branch: SoftFallbackBranch::Text,
                         source_id: None,
                         ce_score: None,
-                    })
+                    };
+                    Ok((hit, row.get::<_, i64>(4)?))
                 })?;
-                rows.flatten().collect()
+                keep_rowids(
+                    rows.flatten().collect(),
+                    FtsTable::Nodes,
+                    snippet.is_some(),
+                    &mut fts_rows,
+                )
             }
         }
     };
@@ -2081,7 +2148,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
             let body = row.get::<_, String>(0)?;
             let logical_id = row.get::<_, Option<String>>(4)?;
-            Ok(SearchHit {
+            let hit = SearchHit {
                 id: derive_stable_id(logical_id.as_deref(), &body),
                 body,
                 kind: row.get::<_, String>(1)?,
@@ -2091,9 +2158,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 // TC-31: the EDGE's own provenance.
                 source_id: row.get::<_, Option<String>>(5)?,
                 ce_score: None,
-            })
+            };
+            Ok((hit, row.get::<_, i64>(6)?))
         })?;
-        rows.collect::<rusqlite::Result<Vec<_>>>()?
+        let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+        keep_rowids(hits, FtsTable::Edges, snippet.is_some(), &mut fts_rows)
     };
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested
@@ -2434,6 +2503,18 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let expanded = expand_depth
         .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter))
         .transpose()?;
+    let snippets = snippet
+        .map(|options| {
+            snippets_for_hits(
+                &tx,
+                &results,
+                &fts_rows,
+                &compiled.match_expression,
+                &compiled.terms,
+                options,
+            )
+        })
+        .transpose()?;
     let output = capture.finish(
         &tx,
         cursor,
@@ -2443,6 +2524,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         explanation,
         expanded,
         degradations,
+        snippets,
     )?;
     tx.commit()?;
     Ok(output)
@@ -2482,6 +2564,8 @@ use crate::search_types::{
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, MAX_SEARCH_RESULT_LIMIT,
     TOP_K_BIT_CANDIDATES,
 };
+use crate::snippet::{SnippetOptions, SnippetV1};
+use crate::snippet_query::{snippets_for_hits, FtsRows, FtsTable};
 use crate::structural_state::structural_dependency_state;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
@@ -2501,3 +2585,21 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 #[cfg(feature = "test-hooks")]
 use std::{fs::OpenOptions, io::Write, sync::Mutex};
+
+/// Splits `(hit, rowid)` rows, recording each FTS rowid when snippets
+/// are requested.
+fn keep_rowids(
+    rows: Vec<(SearchHit, i64)>,
+    table: FtsTable,
+    keep: bool,
+    fts_rows: &mut FtsRows,
+) -> Vec<SearchHit> {
+    rows.into_iter()
+        .map(|(hit, rowid)| {
+            if keep {
+                fts_rows.insert(hit.write_cursor, (table, rowid));
+            }
+            hit
+        })
+        .collect()
+}

@@ -479,6 +479,7 @@ pub(crate) type ReaderResponse = Result<
         Option<Explanation>,
         Option<SearchExpandResult>,
         Vec<ArmDegradation>,
+        Option<Vec<SnippetV1>>,
     ),
     SearchReaderError,
 >;
@@ -1326,6 +1327,7 @@ use crate::search::{
 use crate::search_types::{
     ArmDegradation, Explanation, GraphFrontierStats, SearchHit, SoftFallback,
 };
+use crate::snippet::SnippetV1;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::{BoundaryCrossing, ReadView};

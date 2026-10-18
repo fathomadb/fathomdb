@@ -192,12 +192,13 @@ impl Engine {
             explain,
             view,
             limit,
+            snippet,
         } = options;
         guard::ranked_limit("limit", limit)?;
         let alpha = guard::alpha(alpha)?;
         guard::text(query)?;
         let filter = filter.map(|filter| filter.lower()).transpose()?;
-        Ok(self.core.search_reranked_view_with_limit(
+        Ok(self.core.search_reranked_view_with_snippets(
             query,
             filter,
             rerank_depth,
@@ -207,6 +208,7 @@ impl Engine {
             explain,
             &view,
             limit,
+            snippet.as_ref(),
         )?)
     }
 
@@ -218,7 +220,12 @@ impl Engine {
     ) -> Result<SearchResult> {
         guard::ranked_limit("limit", options.limit)?;
         guard::text(query)?;
-        Ok(self.core.search_text_only_view_with_limit(query, &options.view, options.limit)?)
+        Ok(self.core.search_text_only_view_with_snippets(
+            query,
+            &options.view,
+            options.limit,
+            options.snippet.as_ref(),
+        )?)
     }
 
     /// Lexical search over one declared property-FTS projection.
@@ -256,13 +263,20 @@ impl Engine {
         context: &FrozenReadContextV1,
         options: FrozenSearchOptions,
     ) -> Result<SearchResult> {
-        let FrozenSearchOptions { rerank_depth, use_graph_arm, alpha, pool_n, explain, limit } =
-            options;
+        let FrozenSearchOptions {
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            limit,
+            snippet,
+        } = options;
         self.core.validate_frozen_read_context_for_binding(context)?;
         guard::ranked_limit("limit", limit)?;
         let alpha = guard::alpha(alpha)?;
         guard::text(query)?;
-        Ok(self.core.search_frozen(
+        Ok(self.core.search_frozen_with_snippets(
             query,
             context,
             rerank_depth,
@@ -271,6 +285,7 @@ impl Engine {
             pool_n.unwrap_or(rerank_depth),
             explain,
             limit,
+            snippet.as_ref(),
         )?)
     }
 

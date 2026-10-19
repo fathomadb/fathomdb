@@ -136,6 +136,11 @@ This is the one vocabulary table (MR-072):
   record)`. The `snippet_cut` sentence follows the cut hits' `snippet_anchor`:
   "snippets are centred on the match", "snippets are the record start", or
   "snippets are centred on the match or are the record start".
+  The paging sentences name the continuation-only call, because a
+  continuation call refuses `query`, `limit` and filters: `hint: search
+  continuation=c1-… (more_results: the page reached its limit; for more call
+  search {"continuation": "<c>"}: pass only the continuation; do not repeat
+  query or limit)`. The `cut_by_budget` sentence also names `max_tokens`.
 
 ## 4. Tools
 

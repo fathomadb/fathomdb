@@ -34,6 +34,8 @@ RUST_NON_COMMAND = {
     "engine_instance:vector_equivalence_refusal_count",
     "admin:configure_runtime",
     "package:embed_batch_cls",
+    "package:search_hints",
+    "package:snippet_for",
 }
 # Trait impls the SDK `Engine` may carry; anything else (e.g. `Deref`) could
 # expose the core engine without a governed operation.

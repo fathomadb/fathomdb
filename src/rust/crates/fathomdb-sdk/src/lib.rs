@@ -51,7 +51,9 @@ pub use options::{
     FrozenSearchOptions, ListOptions, NeighborsOptions, OpenOptions, ProjectedTextSearchOptions,
     RerankOptions, SearchExpandOptions, SearchFilterArg, SearchOptions, TextSearchOptions,
 };
-pub use standalone::{embed_batch_cls, rerank, RerankPassage, RerankResult};
+pub use standalone::{
+    embed_batch_cls, rerank, search_hints, snippet_for, RerankPassage, RerankResult,
+};
 
 // Shared request, result and payload types: the `fathomdb` facade's
 // non-operator types minus `Engine`, `OpenedEngine` and `Subscription`, plus
@@ -66,12 +68,7 @@ pub use fathomdb_engine::lifecycle::{
     Event as SubscriberEvent, EventCategory, EventSource, Phase, ProfileRecord, ProjectionStatus,
     SlowStatement, StressFailureContext, Subscriber,
 };
-/// The hints engine subset (ADR-0.8.29-agent-hints-sidecar): the rule that
-/// derives `no_results`, `degraded` and `more_results` from page facts.
-pub use fathomdb_engine::{search_hints, HINT_LIMIT_CAP};
-/// The EP-17 pure snippet selector (match-centred-snippets.md § 7.2): the
-/// function the engine calls, for re-running selection under another budget.
-pub use fathomdb_engine::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
+pub use fathomdb_engine::HINT_LIMIT_CAP;
 pub use fathomdb_engine::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, ArmDegradation,
@@ -117,6 +114,7 @@ pub use fathomdb_engine::{
     TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection,
     WriteProvenanceV1, WriteReceipt,
 };
+pub use fathomdb_engine::{SnippetAnchor, SnippetOptions, SnippetV1};
 pub use fathomdb_schema::MigrationStepReport;
 
 /// Absence proofs: each core-only route below must not resolve through

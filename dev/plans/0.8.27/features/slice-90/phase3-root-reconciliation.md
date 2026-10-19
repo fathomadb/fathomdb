@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 0226b8836c929a30793b8913461f5abf341123c2
+lib_rs_blob: af36592d1aa97d5a304397fc42b03607ad63db70
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -24,8 +24,11 @@ to `e395a9b0e75928bcdea6528c71bba65c091050de`. Later Windows-only tests
 and a Slice 114 stale-comment removal changed the whole-file blob to
 `4417d3ad27122c38a1668ca746968af344418905`. The embedder-close fix then made
 `runtime_embedder` a weak reference, changing the blob to the prior `9afaec4a6a42eed8415f531b3e22047a9bf7e242`.
-Slice 140 changes the fixture gates and conditional fixture storage to the
-current blob above. The 43 root storage fields and approved
+Slice 140 changed the fixture gates and conditional fixture storage, giving
+blob `0226b8836c929a30793b8913461f5abf341123c2`. Agent-access Block 1 then
+added the `hints`, `snippet` and `snippet_query` module declarations and their
+public re-exports, plus the `ArmDegradation` and `DegradationReason`
+re-exports, giving the current blob above. The 43 root storage fields and approved
 root method inventory remain unchanged.
 
 ## Remaining root declarations

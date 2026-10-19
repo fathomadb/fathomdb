@@ -20,7 +20,7 @@ its separate contract in [`rust.md`](rust.md).
 
 `fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, the option
 structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
-`embed_batch_cls`, the rerank DTOs, the shared DTO re-exports, and the
+`embed_batch_cls`, `snippet_for`, `search_hints`, the rerank DTOs, the shared DTO re-exports, and the
 modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
 privately; there is no `Deref`, accessor or conversion to
 `fathomdb_engine::Engine`. Custom embedder injection (`EmbedderChoice`,
@@ -32,6 +32,7 @@ The checker also refuses these routes to the core:
 - `Engine` trait impls other than `Drop` and `Debug`;
 - public `Engine` fields;
 - glob or core-`Engine` re-exports of `fathomdb_engine`;
+- re-exports of `fathomdb_engine` functions (an SDK function wraps them);
 - extra public modules.
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
@@ -230,7 +231,8 @@ impls for both. `Unified` is lowered through the public
 | — | `admin::configure_runtime(sqlite_mode: RuntimeSqliteMode) -> Result<RuntimeConfiguration>` | `fathomdb_engine::configure_runtime` |
 | `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A non-finite passage `score` or a core `Err(String)` is `WriteValidation`, following Python and napi. This is a deliberate exception to rule 6, because the TypeScript wrapper's `RangeError` is a host-side check. | `fathomdb_engine::rerank_passages` |
 | — | `embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>>`. With `default-embedder`: empty input returns `[]`; the embedder is a process singleton cached only on success; a load failure is `EmbedderNotConfigured`, and an embed failure is `Embedder`. Without the feature, every call, including one with empty input, returns `EmbedderNotConfigured`. | `CandleBgeEmbedder::new()?.with_pooling(Pooling::Cls)` then `Embedder::embed_batch` |
-| — | `snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1`. Pure; no engine and no `Result`. The rules are in `dev/interfaces/rust.md` § "Match-centred snippet selector". | `fathomdb_engine::snippet_for` (re-exported with `SnippetOptions`, `SnippetAnchor` and `SnippetV1`) |
+| — | `snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1`. Pure; no engine and no `Result`. The rules are in `dev/interfaces/rust.md` § "Match-centred snippet selector". | `fathomdb_engine::snippet_for` (`SnippetOptions`, `SnippetAnchor` and `SnippetV1` re-exported) |
+| — | `search_hints(facts: &SearchFacts<'_>, out: &mut Vec<Hint>)`. The hints engine subset (ADR-0.8.29-agent-hints-sidecar); pure, never panics. | `fathomdb_engine::search_hints` (`HINT_LIMIT_CAP` and the hint types re-exported) |
 
 The namespace functions take `&Engine` first, as the Python and TypeScript
 namespace functions take the engine.

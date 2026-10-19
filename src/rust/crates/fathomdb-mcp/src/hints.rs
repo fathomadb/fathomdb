@@ -223,10 +223,16 @@ fn template(hint: &Hint) -> &'static str {
         HintReason::BodyCut => {
             "bodies were shortened; fetch with this max_tokens to read them whole"
         }
+        // A continuation call refuses query, limit and filters.
         HintReason::CutByBudget => {
-            "results were dropped to fit max_tokens; pass the continuation for the rest"
+            "results were dropped to fit max_tokens; for the rest call search \
+             {\"continuation\": \"<c>\", \"max_tokens\": <n>}: pass only the continuation \
+             and max_tokens; do not repeat query or limit"
         }
-        HintReason::MoreResults => "the page reached its limit; pass the continuation for more",
+        HintReason::MoreResults => {
+            "the page reached its limit; for more call search {\"continuation\": \"<c>\"}: \
+             pass only the continuation; do not repeat query or limit"
+        }
         HintReason::DefaultStoreSet => "calls without store use this store",
     }
 }

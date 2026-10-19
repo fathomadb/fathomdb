@@ -1,9 +1,10 @@
-//! Package-root operations that need no open engine: passage reranking and
-//! CLS-pooled batch embedding.
+//! Package-root operations that need no open engine: passage reranking,
+//! CLS-pooled batch embedding, search hints and snippet selection.
 
 use crate::error::{Error, ErrorKind, Result};
 use crate::guard;
 use crate::options::RerankOptions;
+use crate::{Hint, SearchFacts, SnippetOptions, SnippetV1};
 
 /// One caller-supplied passage for [`rerank`].
 #[derive(Clone, Debug, PartialEq)]
@@ -115,4 +116,34 @@ mod cls {
             "embed_batch_cls requires the `default-embedder` feature",
         ))
     }
+}
+
+/// Append the engine-subset hints for one search page to `out`
+/// (ADR-0.8.29-agent-hints-sidecar): at most one per reason, in the order
+/// `degraded`, `no_results`, `more_results`.
+///
+/// - `degraded` when `facts.degradations` is non-empty, naming its first
+///   entry.
+/// - `no_results` when `facts.returned` is zero, with `mode: Hybrid` only for
+///   a text-mode search with `hybrid_available`.
+/// - `more_results` when the page reached its limit and the limit is below
+///   [`crate::HINT_LIMIT_CAP`], suggesting the smaller of twice the limit and
+///   the cap.
+///
+/// Reads nothing but `facts`; never panics.
+pub fn search_hints(facts: &SearchFacts<'_>, out: &mut Vec<Hint>) {
+    fathomdb_engine::search_hints(facts, out);
+}
+
+/// Select the EP-17 match-centred snippet for `body` from its match `spans`
+/// (byte ranges `[start, end)`) under `options`; the selector the engine
+/// runs, for re-running selection under another budget.
+///
+/// Empty spans, spans past the end of the body and spans off `char`
+/// boundaries are ignored; options outside their documented ranges are
+/// clamped ([`SnippetOptions::validate`] is the rejecting check). Pure: the
+/// result depends only on the arguments and the build's Unicode tables.
+#[must_use]
+pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
+    fathomdb_engine::snippet_for(body, spans, options)
 }

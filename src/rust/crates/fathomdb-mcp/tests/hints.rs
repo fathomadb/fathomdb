@@ -278,6 +278,34 @@ async fn continuation_hint_equals_result_continuation() {
     harness.shutdown().await;
 }
 
+/// A continuation call refuses `query` and `limit`, so the paging hints'
+/// text tells the agent to pass only the continuation, and doing exactly
+/// that succeeds.
+#[tokio::test(flavor = "multi_thread")]
+async fn paging_hint_text_says_pass_only_the_continuation() {
+    let (_fixture, harness) =
+        harness_with(river_notes(30, 400), json!({"snippet_bytes": 40})).await;
+    for (args, reason) in [
+        (json!({"query": "river", "limit": 5}), "more_results"),
+        (json!({"query": "river", "limit": 20, "max_tokens": 700}), "cut_by_budget"),
+    ] {
+        let result = harness.call("search", args).await;
+        let found = result.structured_content.clone().unwrap();
+        let text = common::text_of(&result);
+        let line = text
+            .lines()
+            .find(|line| {
+                line.starts_with("hint: search ") && line.contains(&format!("({reason}: "))
+            })
+            .unwrap_or_else(|| panic!("no {reason} hint line: {text}"));
+        assert!(line.contains("only the continuation"), "{line}");
+        assert!(line.contains("do not repeat query or limit"), "{line}");
+        let next = harness.ok("search", json!({"continuation": found["continuation"]})).await;
+        assert!(!common::refs(&next).is_empty(), "{next}");
+    }
+    harness.shutdown().await;
+}
+
 fn body_cut_hint(result: &Value) -> Option<Value> {
     hints_of(result).into_iter().find(|hint| hint["reason"] == "body_cut")
 }

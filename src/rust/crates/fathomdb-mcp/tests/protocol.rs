@@ -110,6 +110,7 @@ async fn instructions_are_a_compact_usage_guide() {
         "the record start when it is start",
         "may return nothing when the store has no edges",
         "after answering from a hybrid search",
+        "call search with only that continuation",
     ] {
         assert!(
             instructions.contains(guidance),

@@ -169,8 +169,8 @@ const WINDOW_SAMPLES: usize = 128;
 /// Completed calls of a kind before its window replaces the floor.
 const WARM_SAMPLES: usize = 8;
 /// The share of recent calls of a kind that must fit in the time a waiter
-/// has left. Provisional: the run-to-completion follow-up decides whether
-/// the check stays.
+/// has left. Not yet final: the run-to-completion follow-up decides
+/// whether the check stays.
 const NEED_QUANTILE: f64 = 0.9;
 
 /// Admission state of one store. Kept across reopens, so waiters survive a

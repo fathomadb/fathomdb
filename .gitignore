@@ -177,3 +177,9 @@ scripts/sbom-survey/.venv/
 # stops being a reliable signal at exactly the moment Slice 33 is working.
 scripts/sbom-survey/build/
 scripts/sbom-survey/*.egg-info/
+
+# Generated experiment data and run receipts: kept locally, not tracked.
+dev/experiments/queue-sim/results/**/*.csv
+dev/experiments/queue-sim/results/**/*.tsv
+dev/experiments/mcp-hybrid-vs-keyword/results/per_query.jsonl
+experiments/runs/mcp-agent-loop-*/

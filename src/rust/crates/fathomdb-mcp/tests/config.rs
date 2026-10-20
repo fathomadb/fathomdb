@@ -147,11 +147,12 @@ fn queue_limit_defaults_to_32_and_must_be_at_least_1() {
 }
 
 #[test]
-fn run_limit_ms_defaults_to_60_s_and_is_never_below_the_call_deadline() {
+fn run_limit_ms_defaults_to_30_s_and_is_never_below_the_call_deadline() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path();
     let defaults = parse("{}", base).unwrap();
-    assert_eq!(parse(r#"{"run_limit_ms": 60000}"#, base).unwrap(), defaults, "60 s is the default");
+    assert_eq!(parse(r#"{"run_limit_ms": 30000}"#, base).unwrap(), defaults, "30 s is the default");
+    assert_ne!(parse(r#"{"run_limit_ms": 60000}"#, base).unwrap(), defaults);
     assert_ne!(parse(r#"{"run_limit_ms": 10000}"#, base).unwrap(), defaults);
     let message = invalid(r#"{"call_deadline_ms": 2000, "run_limit_ms": 1999}"#, base);
     assert!(message.contains("run_limit_ms: must be at least call_deadline_ms"), "{message}");

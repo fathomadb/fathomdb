@@ -83,8 +83,8 @@ pub struct Config {
     pub max_open_stores: u32,
     /// Engine calls in flight per store, including abandoned ones (MR-033.2).
     pub admission_cap: u32,
-    /// Per tool call deadline, from arrival: bounds waiting and starting
-    /// (MR-033).
+    /// Per tool call wait deadline, from arrival: a call starts if it gets a
+    /// permit before it (MR-033).
     pub call_deadline_ms: u64,
     /// Bound on a started call's run time, from its admission permit; a call
     /// still running then returns `timeout/deadline` and is abandoned. Never
@@ -119,7 +119,7 @@ impl Default for Config {
             max_open_stores: 1,
             admission_cap: 4,
             call_deadline_ms: 10_000,
-            run_limit_ms: 60_000,
+            run_limit_ms: 30_000,
             queue_limit: 32,
             default_max_tokens: 4_000,
             snippet_bytes: 300,

@@ -98,11 +98,19 @@ changes code until its design passes review and the owner approves.
    2. Do this only after items 2 and 3 land, because hints and centred
       snippets change what the text block carries.
    3. **Gate:** owner decision on the measured value.
+   4. **Measured 2026-10-19**
+      ([REPORT](../../experiments/agent-remeasure/REPORT.md)). Compact cuts
+      search tokens by a third and cost per question by about 30 %, with no
+      measurable accuracy or fetch change. Awaiting the owner decision.
 
 5. **Re-measure without the test-set tuning.** After items 1–3, re-run
    Sonnet 5.5 and Haiku 5.5 subagents on a conversation the prompt was never
    tuned on (conv1), with all ten conversations in one store and one agent
    per question.
+   1. **Measured 2026-10-19**
+      ([REPORT](../../experiments/agent-remeasure/REPORT.md)). 81 conv-1
+      questions: Sonnet 0.951 lenient, 0.840 strict; Haiku 0.926 and
+      0.741. No busy results or errors.
 
 6. **MCP server defects found during the evaluations.** Each is fixed
    test-first (its own RED commit) as part of the Block 1 build:

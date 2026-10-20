@@ -182,4 +182,5 @@ scripts/sbom-survey/*.egg-info/
 dev/experiments/queue-sim/results/**/*.csv
 dev/experiments/queue-sim/results/**/*.tsv
 dev/experiments/mcp-hybrid-vs-keyword/results/per_query.jsonl
+dev/experiments/long-record-embedding/results/*per_question.jsonl
 experiments/runs/mcp-agent-loop-*/

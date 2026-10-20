@@ -1178,3 +1178,39 @@ async fn a_slow_completion_does_not_refuse_later_calls_of_its_kind() {
     }
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_permit_with_little_deadline_left_still_starts_the_call() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 1, "call_deadline_ms": 1000, "run_limit_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    // Recent fetches took about 300 ms each.
+    complete_slow_fetches(&harness, 1, 7, Duration::from_millis(300)).await;
+
+    // The running fetch frees the permit about 800 ms after the waiter
+    // arrived: the waiter has about 200 ms of its 1 s left, less than any
+    // recent fetch took, and still starts.
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running = spawn_call(&harness, "fetch", fetch_a());
+    wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+        .await;
+    let started = Instant::now();
+    let waiter = spawn_call(&harness, "fetch", fetch_a());
+    tokio::time::sleep_until((started + Duration::from_millis(800)).into()).await;
+    seams.release_calls("a");
+    let running = running.await.unwrap();
+    assert_ne!(running.is_error, Some(true), "{:?}", running.structured_content);
+    let waiter = waiter.await.unwrap();
+    assert_ne!(
+        waiter.is_error,
+        Some(true),
+        "a permit before the deadline starts the call: {:?}",
+        waiter.structured_content
+    );
+    harness.shutdown().await;
+}

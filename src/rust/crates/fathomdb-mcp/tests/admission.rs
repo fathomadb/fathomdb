@@ -1121,3 +1121,60 @@ async fn running_calls_get_progress_notifications() {
     assert!(notes.windows(2).all(|pair| pair[0].0 < pair[1].0), "progress increases: {notes:?}");
     harness.shutdown().await;
 }
+
+/// Complete `count` fetches on store `a`, each held about `held` before it
+/// is released, `admission_cap` of them at a time.
+async fn complete_slow_fetches(harness: &Harness, cap: usize, count: usize, held: Duration) {
+    let seams = harness.adapter.seams().clone();
+    for round in 0..count.div_ceil(cap) {
+        let batch = cap.min(count - round * cap);
+        seams.block_calls("a");
+        let calls: Vec<_> = (0..batch).map(|_| spawn_call(harness, "fetch", fetch_a())).collect();
+        wait_for("the slow fetches to be held", Duration::from_secs(5), || {
+            seams.held_calls("a") == batch
+        })
+        .await;
+        tokio::time::sleep(held).await;
+        seams.release_calls("a");
+        for call in calls {
+            let result = call.await.unwrap();
+            assert_ne!(result.is_error, Some(true), "{:?}", result.structured_content);
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_slow_completion_does_not_refuse_later_calls_of_its_kind() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({"admission_cap": 4, "call_deadline_ms": 1000, "run_limit_ms": 5000}),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    // Every recent fetch ran longer than the 1 s wait deadline.
+    complete_slow_fetches(&harness, 4, 8, Duration::from_millis(1200)).await;
+
+    // A later fetch finds every permit held and one frees 300 ms later,
+    // well before its deadline: it starts and answers.
+    let seams = harness.adapter.seams().clone();
+    seams.block_calls("a");
+    let running: Vec<_> = (0..4).map(|_| spawn_call(&harness, "search", search_a())).collect();
+    wait_for("every permit to be held", Duration::from_secs(5), || seams.held_calls("a") == 4)
+        .await;
+    let started = Instant::now();
+    let waiter = spawn_call(&harness, "fetch", fetch_a());
+    tokio::time::sleep_until((started + Duration::from_millis(300)).into()).await;
+    seams.release_calls("a");
+    let waiter = waiter.await.unwrap();
+    assert_ne!(
+        waiter.is_error,
+        Some(true),
+        "a fetch that gets its permit in time starts: {:?}",
+        waiter.structured_content
+    );
+    for call in running {
+        let _ = call.await.unwrap();
+    }
+    harness.shutdown().await;
+}

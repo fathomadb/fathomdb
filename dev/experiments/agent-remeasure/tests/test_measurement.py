@@ -97,3 +97,27 @@ def test_audit_counts_calls_bytes_cut_fetches_and_off_policy():
         assert audit["result_bytes_total"] == len(text.encode()) + len(b"fetched") + len(b"denied")
         assert audit["off_policy"] == ["Bash"] and audit["invalid"]
         assert audit["api_calls"] == 3 and audit["input_tokens"] == 7 and audit["cost_usd"] == 0.01
+
+
+def test_unparsed_reply_is_judged_without_instructions_line():
+    reply = "INSTRUCTIONS_SEEN: yes\nGina lost the job in January 2023."
+    row = {"answer_json": None, "answer": ""}
+    assert score.graded_answer(row, reply) == "Gina lost the job in January 2023."
+    lines = [json.dumps({"type": "result", "result": reply})]
+    assert score.final_result_text(lines) == reply
+    parsed = {"answer_json": {"answer": "Jan 2023"}, "answer": "Jan 2023"}
+    assert score.graded_answer(parsed, reply) == "Jan 2023"
+
+
+def test_judge_cache_key_depends_on_answer():
+    assert score.answer_key("q1", "a") != score.answer_key("q1", "b")
+    assert score.answer_key("q1", "a") == score.answer_key("q1", "a")
+
+
+def test_busy_detection_reads_error_class():
+    busy = json.dumps({"error": {"class": "busy", "code": "admission", "busy": {"reason": "deadline"}}})
+    other = json.dumps({"error": {"class": "timeout", "code": "deadline", "message": "not busy"}})
+    hit_with_word = json.dumps({"results": [{"snippet": 'I was "busy" all week'}]})
+    assert score.is_busy(busy)
+    assert not score.is_busy(other) and not score.is_busy(hit_with_word)
+    assert score.is_busy("error busy/admission")

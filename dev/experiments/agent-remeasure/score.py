@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import hashlib
 import json
 import random
 import re
@@ -79,6 +80,42 @@ def cut_refs_in_result(text: str) -> tuple[list[str], list[str]]:
     return refs, cut
 
 
+def is_busy(text: str) -> bool:
+    """Whether a tool result is a ``busy`` error (``error.class``); substring fallback when not JSON."""
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return '"busy"' in text or "busy/" in text or "busy:" in text
+    error = data.get("error") if isinstance(data, dict) else None
+    return isinstance(error, dict) and error.get("class") == "busy"
+
+
+def final_result_text(lines) -> str:
+    """The ``result`` text of the transcript's final result record ("" when absent)."""
+    text = ""
+    for raw in lines:
+        try:
+            rec = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(rec, dict) and rec.get("type") == "result":
+            text = rec.get("result") or ""
+    return text
+
+
+def graded_answer(row: dict, result_text: str) -> str:
+    """The answer to judge: the parsed JSON answer, else the final reply minus the INSTRUCTIONS_SEEN line."""
+    if row.get("answer_json") is not None:
+        return row.get("answer") or ""
+    kept = [line for line in result_text.splitlines()
+            if not line.strip().strip("`").upper().startswith("INSTRUCTIONS_SEEN:")]
+    return "\n".join(kept).strip()
+
+
+def answer_key(qid: str, answer: str) -> str:
+    return f"{qid}:{hashlib.sha1(answer.encode()).hexdigest()}"
+
+
 def audit_transcript(lines) -> dict:
     """Per-question tool and token audit of one stream-json transcript."""
     uses: dict[str, dict] = {}
@@ -128,7 +165,7 @@ def audit_transcript(lines) -> dict:
                 result_counts[short] += 1
                 if part.get("is_error"):
                     errors += 1
-                if '"busy"' in text or "busy/" in text or "busy:" in text:
+                if is_busy(text):
                     busy += 1
                 if short == "search" and not part.get("is_error"):
                     shown_cut.extend(cut_refs_in_result(text)[1])
@@ -212,21 +249,28 @@ def score_run(run_dir: Path, judges: Judges | None) -> list[dict]:
     cache_path = run_dir / "judged.jsonl"
     cache = {}
     if cache_path.exists():
-        cache = {json.loads(line)["qid"]: json.loads(line) for line in cache_path.read_text().splitlines() if line.strip()}
+        for line in cache_path.read_text().splitlines():
+            entry = json.loads(line) if line.strip() else {}
+            if "key" in entry:
+                cache[entry["key"]] = entry
     out = []
     for row in rows:
         transcript = run_dir / "q" / f"{row['qid']}.stream.jsonl"
-        audit = audit_transcript(transcript.read_text().splitlines())
-        if row["qid"] not in cache and judges is not None:
-            verdict = {"qid": row["qid"], **judges.judge(meta["conv"], row["qid"], row.get("answer") or "")}
-            cache[row["qid"]] = verdict
+        lines = transcript.read_text().splitlines()
+        audit = audit_transcript(lines)
+        answer = graded_answer(row, final_result_text(lines))
+        key = answer_key(row["qid"], answer)
+        if key not in cache and judges is not None:
+            verdict = {"key": key, "qid": row["qid"], **judges.judge(meta["conv"], row["qid"], answer)}
+            cache[key] = verdict
             with cache_path.open("a") as handle:
                 handle.write(json.dumps(verdict) + "\n")
-        verdict = cache.get(row["qid"], {})
+        verdict = cache.get(key, {})
         refs_used = set((row.get("answer_json") or {}).get("refs_used") or [])
         out.append({"run": run_dir.name, "item": meta["item"], "arm": meta["arm"], "model": meta["model"],
                     "qid": row["qid"], "wall_s": row["wall_s"], "exit": row["exit"],
                     "instructions_seen": row.get("instructions_seen"), "answer_parsed": row.get("answer_json") is not None,
+                    "answer_unparsed": row.get("answer_json") is None,
                     "lenient": verdict.get("lenient"), "strict": verdict.get("strict"), "category": verdict.get("category"),
                     "gold_ref_used": bool(refs_used & set(verdict.get("gold_refs") or [])), **audit})
     return out
@@ -247,7 +291,8 @@ def summarize(rows: list[dict]) -> dict:
         cut_shown = sum(r["cut_refs_shown"] for r in items)
         runs[name] = {
             "item": items[0]["item"], "arm": items[0]["arm"], "model": items[0]["model"], "n": len(items),
-            "invalid": sum(r["invalid"] for r in items), "exit_nonzero": sum(r["exit"] != 0 for r in items),
+            "invalid": sum(r["invalid"] for r in items),
+            "answer_unparsed": sum(r["answer_unparsed"] for r in items), "exit_nonzero": sum(r["exit"] != 0 for r in items),
             "lenient": bootstrap([r["lenient"] for r in valid]), "strict": bootstrap([r["strict"] for r in valid]),
             "instructions_seen": dict(collections.Counter(r["instructions_seen"] for r in items)),
             "mean_searches": mean("searches"), "mean_fetches": mean("fetches"),

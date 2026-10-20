@@ -212,6 +212,10 @@ fn main() {
     let text = std::fs::read_to_string(input).expect("read LoCoMo json");
     let data: Value = serde_json::from_str(&text).expect("parse LoCoMo json");
     let samples = data.as_array().expect("array of samples");
+    if let Some(bad) = convs.iter().flatten().find(|index| **index >= samples.len()) {
+        eprintln!("locomo_load: --convs index {bad} out of range (0..{})", samples.len());
+        std::process::exit(2);
+    }
     let result = if let Some(file) = single {
         if let Some(parent) = file.parent() {
             std::fs::create_dir_all(parent).expect("create store dir");

@@ -24,7 +24,12 @@ in this repository.
 - `score.py` audits the transcripts and judges the answers twice with
   gpt-4o-mini: the harness's evidence-aware LOCOMO judge (lenient) and a
   strict rubric. It reports accuracy with 95% bootstrap intervals and paired
-  differences between runs of the same item.
+  differences between runs of the same item. When the final reply has no
+  parsable JSON answer line, the whole reply minus the `INSTRUCTIONS_SEEN`
+  line is judged, and `answer_unparsed` counts these. Verdicts are cached
+  by question and answer hash. `mean_search_tokens_est_per_call` is the mean
+  of per-question means (search bytes ÷ 4 per call), not a pooled per-call
+  mean.
 - `tests/` tests measurement correctness only: rendering keeps the
   information, and the audit counts correctly.
 

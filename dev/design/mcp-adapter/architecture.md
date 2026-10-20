@@ -240,7 +240,7 @@ handshake timeout.
 - Admission is a per-store FIFO queue in front of N permits
   (`admission_cap`), and an abandoned call keeps its permit until its thread
   actually returns. Excess calls wait in arrival order while their deadline
-  allows; a bounded line (`queue_limit`), the deadline and a p90 start check
+  allows; a bounded line (`queue_limit`) and the wait deadline
   turn the rest into a typed busy (MR-033.2). The design, its limits and its
   test plan are
   [queue-admission.md](../agent-access/queue-admission.md) § 6.1. In

@@ -145,8 +145,8 @@ entries rather than redesigning.
 - **HITL review before any code.** No code for Block 1 or Block 2 is
   written until the owner has reviewed the designs, after the Fable-medium
   reviews and their fixes. **Block 1 designs approved by the owner on
-  2026-10-18.** The p90 start check and `run_limit_ms` stay provisional
-  until the follow-up test (`dev/plans/prompts/queue-run-to-completion-test-prompt.md`).
+  2026-10-18.** From the follow-up test (queue-sim REPORT § 12), the owner
+  dropped the p90 start check and set `run_limit_ms` to 30 s on 2026-10-19.
 - Block 2 code starts only after Block 1 is complete and every test passes.
 
 ## Order

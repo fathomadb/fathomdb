@@ -2,7 +2,7 @@
 title: Admission queue between an agent and SQLite
 date: 2026-10-18
 status: PROPOSED
-desc: Maps every queue and limit from an MCP agent to SQLite, records the immediate-busy admission defect and the reader-pool head-of-line risk, and proposes a bounded FIFO admission queue (depth 32) with a fixed 10 s wait deadline, started calls running to completion under a run limit, a p90 early-shed rule set by simulation, abandoned-work accounting and busy without retry_after_ms, plus engine proposal EP-18 (part A decided, try an idle reader first) and a concurrency sweep that validates the simulated decisions.
+desc: Maps every queue and limit from an MCP agent to SQLite, records the immediate-busy admission defect and the reader-pool head-of-line risk, and proposes a bounded FIFO admission queue (depth 32) with a fixed 10 s wait deadline, started calls running to completion under a run limit, no start check, abandoned-work accounting and busy without retry_after_ms, plus engine proposal EP-18 (part A decided, try an idle reader first) and a concurrency sweep that validates the simulated decisions.
 inputs:
   - dev/design/agent-access/README.md
   - dev/experiments/queue-sim/REPORT.md
@@ -52,13 +52,11 @@ have passed.
   - A fixed wait deadline, `call_deadline_ms`, default 10 s. It bounds
     waiting and starting, not running.
   - A started call runs to completion. A separate safety limit,
-    `run_limit_ms` (proposed 60 s from the start), abandons stuck work
-    (owner, 2026-10-18; § 6.1).
-  - A waiting call starts only if the p90 of the last 128 completed calls
-    of the same tool kind fits in its remaining time; 50 ms before there is
-    history. Otherwise it fails with `admission`/`deadline`. Kept
-    provisionally: the follow-up test decides whether it stays now that
-    started calls run to completion.
+    `run_limit_ms` (30 s from the permit), abandons stuck work
+    (owner, 2026-10-18 and 2026-10-19; § 6.1).
+  - No start check. A waiting call starts if it gets a permit before its
+    wait deadline; otherwise it fails with `admission`/`deadline` (owner,
+    2026-10-19, from the follow-up test, REPORT § 12).
   - No `retry_after_ms`.
   - EP-18 part A: try an idle reader first, otherwise round-robin.
 - **The queue alone is not enough.** The engine's reader pool dispatches
@@ -252,7 +250,7 @@ Sources:
   offers `LifoBlockingLimiter`: a bounded backlog (default 100) with a wait
   timeout (default 1 s), served last in, first out.
 - **Adopt.** Latency is the signal that a queue is building, so the queue
-  keeps service-time samples (§ 6.1) for the early-shed rule and the sweep.
+  logs service times in tracing (§ 6.1) for the sweep.
   A partitioned limit (Netflix "percentage
 
   enforcement") is the shape to use if embedded hosts ever need a
@@ -325,22 +323,18 @@ a waiter that holds a permit but has not yet built its guard already
 counts. The idle `Notify` fires from the guard's `Drop` after the permit is
 released, when `available_permits() == cap`.
 
-**Service-time window.** Per store and per tool kind, with search split by
-mode (`search_text`, `search_hybrid`, `fetch`, `expand`, `orient`), keep the
-service times of the last 128 completed calls. A sample is the time from
-permit acquired to permit released, for completed calls only. A call that
-finishes after the wait deadline is still a sample. Abandoned calls (past
-the run limit, or cancelled while running) leave no sample, so the window
-reads low when abandonment is happening; the `abandoned` count reports that
-instead.
+**Service times.** The admission path keeps none. The per-tool window of
+128 service times existed only for the start check, which the owner
+dropped on 2026-10-19 (below). Service times stay in tracing for the
+sweep. If an overload guard is ever wanted, the window returns with `need`
+capped below the wait deadline (REPORT § 12.4).
 
 **Stuck.** `stuck` is true if and only if every permit is held by
 abandoned work (`abandoned == admission_cap`). Abandoned work has no known
 end, so a stuck store cannot say when it frees up.
 
 **Acquire sequence** (replaces the `Phase::Ready` arm at
-`registry.rs:342-357`). `need` is the **early-shed threshold**: the least
-deadline a call must have left to be started.
+`registry.rs:342-357`).
 
 - **Wait deadline.** `call_deadline_ms`, fixed, default 10 s, measured from
   arrival. It bounds the wait and the decision to start. A deadline derived
@@ -357,9 +351,9 @@ deadline a call must have left to be started.
   client sets no limit of its own: Claude Code's MCP tool timeout is
   effectively none, about 28 h (REPORT § 2). So:
   - `bridge::call` races the closure against `run_limit_ms`, a new
-    configuration key measured from the permit, proposed default 60 s. It
-    is never below `call_deadline_ms`; when it is not set and the deadline
-    is above 60 s, it equals the deadline, so existing long-deadline
+    configuration key measured from the permit, default 30 s (owner,
+    2026-10-19). It is never below `call_deadline_ms`; when it is not set
+    and the deadline is above 30 s, it equals the deadline, so existing long-deadline
     configurations stay valid. It exists only to report stuck work. A call past it is abandoned and fails
     with `timeout/deadline`, as today.
   - A client cancel of a running call returns `timeout/cancelled` at once
@@ -370,36 +364,27 @@ deadline a call must have left to be started.
   - Progress notifications continue while the call runs, if it has a
     progress token.
   - When EP-09 (interruptible reads) lands, a timeout can actually stop the
-    read and free its resources. `run_limit_ms` can then come down toward
-    the wait deadline.
+    read and free its resources. It does not let `run_limit_ms` come down:
+    interrupting at 10 s or 30 s fails legitimate slow reads either way
+    (REPORT § 12.3 Q5).
+  - Why 30 s: the follow-up test's R2 rule gives 30 s and its stricter R4
+    rule keeps 60 s, for the same trade. On a 10–30 s slow tail, 30 s
+    fails about 0.04 % of calls that 60 s would answer, and it halves how
+    long an agent can wait on stuck work (REPORT § 12.3 Q3). The owner
+    chose 30 s.
   - The cost: a rare call answers after more than 10 s instead of failing
-    at 10 s. In the simulation, before this change, about 0.29 % of calls
-    started late and then timed out, and the p90 start check removed 44 % of
-    those (REPORT § 8). Under this rule they become late successes. The
-    follow-up test measures how many and how late.
-- **Early-shed rule (owner, 2026-10-18; provisional).** `need` is the p90 of the service
-  times in the window of the call's tool kind. Before there is history
-  (fewer than 8 completed calls of that kind), `need` is a 50 ms floor.
-  In operator words: a waiting call is started only if nine out of ten
-  recent calls of the same kind would finish in the time it has left.
-  Its first purpose was to keep late starts from becoming abandoned work.
-  Now that started calls run to completion, a late start becomes a late
-  answer, and the check's remaining purpose is to keep answers near the
-  10 s target: it trades a late success for a quick busy. Whether that
-  trade is worth it is the open question for the follow-up test, against
-  the alternative of starting any call that gets a permit before its wait
-  deadline.
-- **Why p90 of 128.** Evidence from REPORT § 8 (600 configurations × 27
-  cutoff policies):
-  - Fixed floors do nothing. 50 ms, 250 ms and 1 s remove almost no late
-    starts (0.285 % against 0.287 % of calls), and 250 ms refuses calls
-    that would have finished.
-  - p5 is too optimistic. It removes only a fifth of the late starts.
-  - p90 removes 44 % of the calls that start late and then time out, for
-    0.07 points more deadline sheds. p95 is the same within noise.
-  - After a 10× step in service time, a window of 128 reconverges in about
-    76 s without oscillating. A window of 32 oscillates; 512 takes about
-    5 minutes.
+    at 10 s. Measured: 0.055 % of successes in the realistic band, and
+    0.0048 % of calls hit a 30 s run limit (base tail; REPORT § 12.3).
+- **No start check (owner, 2026-10-19).** A waiting call starts as soon
+  as it gets a permit before its wait deadline. Under run to completion a
+  late start is a late answer, not abandoned work, so every shed is a call
+  that would have been answered. The p90 check as first designed failed
+  more calls (REPORT § 12, R1), and it locked a tool kind out: once one
+  slow completion lifted p90 above the wait deadline, every later call of
+  that kind was refused while permits were free, and no new sample could
+  bring it down (REPORT § 12.1). The earlier evidence for p90 of 128
+  (REPORT § 8) measured late starts that became abandoned work, which run
+  to completion removes.
 - **No predicted-wait test at arrival.** A rule that refuses on arrival
   when the predicted wait exceeds the deadline changes nothing for
   closed-loop agents and halves throughput under overload for no gain in
@@ -412,36 +397,16 @@ The sequence:
 2. If no permit is free and `queued >= queue_limit`, refuse at once:
    `busy/admission`, reason `queue_full`. Nothing else is tested on
    arrival.
-3. Otherwise take a `QueueTicket` and await `acquire_owned()` under
-   `timeout_at(deadline − need)`, with `need` read from the window on
-   arrival, in a `select!` with the client's cancel token (`context.ct`,
-   H1) and the slot's phase watch.
+3. Otherwise take a free permit at once if there is one
+   (`try_acquire_owned`, which fails while others wait). If not, take a
+   `QueueTicket` and await `acquire_owned()` under `timeout_at(deadline)`,
+   in a `select!` with the client's cancel token (`context.ct`, H1) and
+   the slot's phase watch.
 4. On a permit, re-check under the registry mutex that the slot is still
-   `Ready` at the same epoch, and that `deadline − now ≥ need`, with `need`
-   recomputed from the window now: calls that completed during the wait may
-   have changed it (a cold kind can become warm, a fast window slow). If
-   both hold, build the `StoreGuard` holding the permit. If the time check
-   fails, drop the permit and refuse: `busy/admission`, reason `deadline`.
-   A guard records its sample before it returns its permit, so the next
-   waiter's step 4 sees it. Calls that panicked or were abandoned leave no
-   sample.
-
-   **Constraint for the run-to-completion slice (S1b).** Step 4 also
-   applies to a call that got its permit at once. Once started calls run
-   past the wait deadline and their service times are recorded, a kind
-   whose p90 reaches `call_deadline_ms` would refuse every call of that
-   kind, including calls that never waited, and so would never record a
-   new sample to bring the p90 down. S1b must either clamp `need` below
-   `call_deadline_ms` or skip step 4 for a call that got its permit
-   without waiting. **Chosen: skip.** A call first tries to take a free
-   permit (`try_acquire_owned`, which fails while others wait); one that
-   gets it takes no queue ticket and is not checked. Clamping `need` would
-   also shorten the wait of slow kinds behind a full cap, which the
-   early-shed rule decides on purpose; skipping changes nothing for calls
-   that waited.
+   `Ready` at the same epoch. If it is, build the `StoreGuard` holding the
+   permit.
 5. If the wait in step 3 times out, refuse: `busy/admission`, reason
-   `deadline`, at once. This sheds on time spent waiting, as CoDel does:
-   a call that cannot finish before its deadline is not started.
+   `deadline`, at once.
 6. On client cancel, drop out of the queue and return `timeout/cancelled`.
    No client sees that result: rmcp 3.5.1 removes the request from its
    pool when the cancel arrives (`rmcp-3.5.1/src/service.rs:1648-1652`) and
@@ -453,12 +418,10 @@ The sequence:
 7. If the phase changed to `Draining` or `Closed` while waiting, fall back
    into the existing open wait with the remaining deadline.
 
-Why step 4 exists: before the run-to-completion rule, `tools.rs:245-253`
-computed one deadline and passed the same instant to `bridge::call`, so a
-waiter admitted at 9.9 s of a 10 s deadline had 100 ms to run, timed out,
-and kept its permit until its thread returned. Late admission turned queue
-wait directly into abandoned work. With run to completion it turns into a
-late answer instead; step 4 stays while the start check stays.
+Why step 4 exists: a drain can start while a call waits for its permit,
+and a reopen changes the epoch. The re-check keeps a call from running
+against a store that is no longer the one it queued for; on a failed
+check it falls back to step 7.
 
 **Queue depth limit.** `queue_limit`, a new configuration key, default 32
 (owner, 2026-10-18). The 33rd waiting call is refused with `queue_full`.
@@ -481,7 +444,7 @@ where it differs:
 | `code` | `busy.reason` | When | Agent action |
 | --- | --- | --- | --- |
 | `admission` | `queue_full` | Depth limit reached on arrival | Retry in a later turn, or issue fewer calls at once |
-| `admission` | `deadline` | The p90 start check failed, or no permit came in time | Retry in a later turn |
+| `admission` | `deadline` | No permit came before the wait deadline | Retry in a later turn |
 | `admission` | `engine_overloaded` | SDK `Overloaded` (`error.rs:242`); today only `embed_text` raises it, which no tool calls | Retry in a later turn |
 | `store_switch` | — | Another store is open with calls in flight (H3) | Use the open store, or retry in a later turn |
 
@@ -621,7 +584,7 @@ decision 2026-10-18).
 ## 7. Defaults: the concurrency sweep
 
 The simulation (§ 10) already settled several of the decision rules in
-§ 7.3: the queue limit, `retry_after_ms`, the early-shed rule and EP-18
+§ 7.3: the queue limit, `retry_after_ms`, the start check and EP-18
 part A. Each is marked there. The live sweep still runs. It validates those
 values on the real server, and it alone decides the cap, the shared cap
 (§ 7.4) and EP-18 part B. The simulation found the cap the least important
@@ -678,8 +641,8 @@ throughput (calls per second); counts of busy by reason, timeout and soft
 fallback; GPU utilisation.
 
 **Overload arm, additional measures.** `queued` (sampled each 100 ms from
-tracing), refusals by reason, and late starts: calls that passed the p90
-start check and then timed out.
+tracing), refusals by reason, and late answers: successes answered after
+the wait deadline, their latency, and run-limit hits.
 
 **Mixed-load mutex check (owner, 2026-10-18).** Text calls in the mixed
 arm cross three shared points that hybrid calls also use: the writer
@@ -718,11 +681,12 @@ store reaches 1 s, the probe is invalid and reports "not measured", not
   advised is at most 0.5 and fewer than 20 % of retries after the advised
   wait are refused again. The observed wait was a median 4× the advised
   value (REPORT § 8). The live sweep does not measure it.
-- **Early shed. Set by simulation: p90 of the last 128 per tool kind,
-  50 ms cold floor; provisional under run to completion.** The overload arm
-  reports late starts: how many admitted calls finish after the wait
-  deadline, how late, and how many reach `run_limit_ms`. The follow-up test
-  decides whether the check stays.
+- **Start check. Settled by simulation: none** (REPORT § 12, R1; owner,
+  2026-10-19). The overload arm reports successes answered after 10 s,
+  their latency and run-limit hits. If more than 1 % of successes answer
+  after 10 s at the chosen cap, report it to the owner.
+- **`run_limit_ms`. Set by the owner from REPORT § 12: 30 s.** Report to
+  the owner if more than 0.01 % of calls on the large store hit it.
 - **EP-18 part A. Settled by simulation: P2, try an idle reader first.**
   The HOL probe validates it on the real server. Before P2 is built: if
   the valid probe raises p95 of the other calls by more than 2 × at either
@@ -751,10 +715,10 @@ attribution data if the timing build was approved.
 
 | Artefact | Change |
 | --- | --- |
-| `dev/interfaces/mcp.md` | `admission_cap` row (line 42): calls wait FIFO while time remains (owner decision 2026-10-18), default 4, maximum 7; new `queue_limit` key, default 32; `call_deadline_ms` stays a fixed 10 s and now bounds waiting only; new `run_limit_ms` key, proposed 60 s, for started calls; the p90 start check; busy codes `admission` (with `busy.reason`) and `store_switch`, no `retry_after_ms`; the `busy` sub-object in § 6 errors (line 249) |
+| `dev/interfaces/mcp.md` | `admission_cap` row (line 42): calls wait FIFO while time remains (owner decision 2026-10-18), default 4, maximum 7; new `queue_limit` key, default 32; `call_deadline_ms` stays a fixed 10 s and now bounds waiting only; new `run_limit_ms` key, 30 s, for started calls; busy codes `admission` (with `busy.reason`) and `store_switch`, no `retry_after_ms`; the `busy` sub-object in § 6 errors (line 249) |
 | `dev/design/mcp-adapter/architecture.md` | § Threads: drop the "headroom" reasoning (§ 4); point at this design and EP-18 |
 | `dev/design/mcp-adapter/requirements.md` | MR-033.2: choose "wait, then busy" |
-| `fathomdb-mcp` | `registry.rs` acquire, derived `in_flight` and the per-tool window of 128 service times, `bridge.rs` races the run limit instead of the call deadline and sets the abandoned flag, `tools.rs` passes the wait deadline and the run limit separately, `error.rs` codes and the `busy` object, `edge.rs`/`tools.rs` pass `context.ct`, `config.rs` `queue_limit` |
+| `fathomdb-mcp` | `registry.rs` acquire, derived `in_flight`, `bridge.rs` races the run limit instead of the call deadline and sets the abandoned flag, `tools.rs` passes the wait deadline and the run limit separately, `error.rs` codes and the `busy` object, `edge.rs`/`tools.rs` pass `context.ct`, `config.rs` `queue_limit` |
 | Engine | EP-18 (A as P2, then B), after its own review; `embedder_overloaded` in EP-03 |
 
 ## 9. Test plan for later (RED first)
@@ -767,12 +731,11 @@ by the first two, together with the interface change.
 1. `an_excess_call_waits_for_a_permit_and_then_runs`: cap 1, first call
    blocked, second call released after 200 ms of waiting succeeds.
 2. `an_excess_call_is_refused_when_too_little_deadline_remains`: cap 1,
-   fresh store, never released; the second call returns `busy/admission`
-   reason `deadline` at `deadline − 50 ms` (± 100 ms), not at once and not
-   at the deadline.
-3. `a_late_permit_is_not_used`: the permit is released when less than
-   `need` remains; the waiter refuses with reason `deadline` and the permit
-   is free again.
+   never released; the second call returns `busy/admission` reason
+   `deadline` at the wait deadline (± 100 ms), not at once.
+3. `a_late_permit_is_not_used`: the permit is released after the wait
+   deadline; the waiter has already refused with reason `deadline`, and
+   the permit is free again.
 4. `waiters_are_admitted_in_arrival_order`: cap 1, three waiters with
    staggered arrivals; release one at a time; completion order equals
    arrival order.
@@ -781,17 +744,16 @@ by the first two, together with the interface change.
 6. `the_default_queue_refuses_the_33rd_waiter`: cap 1, default
    `queue_limit`, one call running and 32 waiting; the next call is reason
    `queue_full` in under 50 ms, and the 32 waiters stay queued.
-7. `a_waiter_starts_only_if_p90_of_its_tool_fits`: 128 completed `fetch`
-   calls whose p90 is 300 ms; a waiter with 250 ms left when a permit frees
-   refuses with reason `deadline`, and one with 350 ms left starts.
-8. `the_start_check_is_per_tool_kind`: a slow `expand` window does not shed
-   a `fetch` waiter.
-9. `the_window_keeps_the_last_128_completed_calls`: 128 slow calls after
-   128 fast ones; the start check uses the slow p90 only.
-10. `a_cold_tool_uses_the_50_ms_floor`: with fewer than 8 completed calls
-    of a kind, a waiter with 60 ms left starts and one with 40 ms left
-    refuses.
-11. `abandoned_calls_are_not_service_time_samples`.
+7. `a_slow_completion_does_not_refuse_later_calls_of_its_kind`: a call
+   that completes after the wait deadline does not cause a later call of
+   the same kind, which waits for a permit, to be refused.
+8. `a_waiter_starts_with_little_deadline_left`: a waiter whose permit frees
+   shortly before its wait deadline starts and succeeds.
+9. Removed with the start check (owner, 2026-10-19): the per-kind start
+   check and the window of 128.
+10. Removed with the start check: the 50 ms cold floor.
+11. Removed with the start check: abandoned and panicked calls as
+    service-time samples.
 12. `an_arrival_is_queued_whatever_its_predicted_wait`: cap 1, slow window,
     an arrival with room in the queue is queued, not refused on arrival.
 13. `an_abandoned_call_keeps_its_permit_and_is_counted`: a blocked call
@@ -799,7 +761,7 @@ by the first two, together with the interface change.
     release, `abandoned: 0` and the permit is free.
 14. `a_started_call_past_the_wait_deadline_returns_its_result`: deadline
     1 s, run limit 5 s; a call admitted at once and blocked for 2 s
-    succeeds, and its service time enters the window.
+    succeeds.
 15. `a_running_call_is_abandoned_at_the_run_limit`: run limit 1 s, call
     blocked for 3 s; `timeout/deadline` at 1 s (± 100 ms).
 16. `a_client_cancel_of_a_running_call_abandons_it`: the error result
@@ -837,9 +799,15 @@ by the first two, together with the interface change.
 
 ## 10. Owner decisions
 
-Decided as of 2026-10-18, except one item that waits for the follow-up
-test: whether the p90 start check stays under run to completion, and the
-value of `run_limit_ms`.
+Decided as of 2026-10-18; the start check and `run_limit_ms` were decided
+on 2026-10-19 from the follow-up test.
+
+- **Start check: dropped** (owner, 2026-10-19; REPORT § 12, R1). A waiting
+  call starts if it gets a permit before its 10 s wait deadline. No
+  overload guard ships; the capped form (REPORT § 12.4) is the shape to use
+  if one is ever wanted, and only after EP-18 part A.
+- **`run_limit_ms`: 30 s** (owner, 2026-10-19; REPORT § 12.3 Q3).
+- **Shutdown bound: `call_deadline_ms` + 5 s** (owner, 2026-10-19; § 6.1).
 
 - **Contract change (§ 3): accepted.** Excess calls wait FIFO while time
   remains.
@@ -858,9 +826,7 @@ value of `run_limit_ms`.
 - **Queue parameters: decided from the simulation** (§ 6.1;
   [REPORT.md](../../experiments/queue-sim/REPORT.md) §§ 6, 8, 10).
   `admission_cap` default 4, maximum 7; `queue_limit` default 32; no
-  predicted-wait test at arrival; a fixed 10 s `call_deadline_ms`; the p90
-  start check over the last 128 completed calls per tool kind, with a
-  50 ms floor before there is history.
+  predicted-wait test at arrival; a fixed 10 s `call_deadline_ms`.
 - **`retry_after_ms`: dropped.** It failed its own ship rule in
   simulation (§ 7.3). Busy ships without it.
 - **Former pending question 1, EP-18 part A: decided, P2.** Try an idle
@@ -891,9 +857,10 @@ priority over projection.
 
 ## 11. PROPOSAL: edits from the run-to-completion test (2026-10-18)
 
-**Status: proposed, not decided.** Nothing in §§ 1–10 has been changed. The
-owner decisions in § 10 stand until the owner rules on this section. The
-evidence is [REPORT.md § 12](../../experiments/queue-sim/REPORT.md), with
+**Status: decided 2026-10-19 and applied to §§ 1–10.** The owner dropped
+the start check (open question 1: no overload guard) and chose 30 s for
+`run_limit_ms` (open question 2). Open question 3 stays open until EP-09.
+This section is kept as the record of what the test found. The evidence is [REPORT.md § 12](../../experiments/queue-sim/REPORT.md), with
 the arms and rules fixed in advance in
 `dev/experiments/queue-sim/PREREG-run-to-completion.md`.
 

@@ -888,3 +888,137 @@ writer off and no projection, p95 is 20 ms (REPORT §§ 7, 10). No queue
 setting fixes this. The fix is in the engine: move the mean-vector and
 orient reads off the writer connection (H8, H9), and give query embedding
 priority over projection.
+
+## 11. PROPOSAL: edits from the run-to-completion test (2026-10-18)
+
+**Status: proposed, not decided.** Nothing in §§ 1–10 has been changed. The
+owner decisions in § 10 stand until the owner rules on this section. The
+evidence is [REPORT.md § 12](../../experiments/queue-sim/REPORT.md), with
+the arms and rules fixed in advance in
+`dev/experiments/queue-sim/PREREG-run-to-completion.md`.
+
+**What the test found.**
+
+- **The p90 check as written locks up.** Under run to completion a late
+  completion is a sample. One read over 10 s lifts p90 above the 10 s any
+  new call has, and § 6.1 step 4 then refuses every later call of that
+  kind while permits are free. No new sample can arrive, so the window
+  never recovers. It locked up 8 of 500 realistic configurations on the
+  base tail and 44 of 500 on a 10–30 s tail. p95 and p99 are worse.
+- **The defect costs 0.40 points; the check itself costs about 0.01.**
+  Realistic band, P2, run limit 60 s: p90 fails 0.41 points more calls than
+  starting any call that gets a permit before its wait deadline, almost
+  all of it from the 8 locked configurations. Without them, or with `need`
+  capped below the deadline, the check still fails about 0.01 points more
+  calls (1 in 12,000) and removes none: a late start is now a late answer.
+  Time to data is the same. 0.055 % of successes answer after 10 s.
+- **Under overload a capped check helps, but only with idle-first
+  dispatch.** In the stress band with P2 it fails about 1.1 points fewer
+  calls, mostly through fewer `queue_full` refusals. Under today's
+  round-robin dispatch with a 10–30 s tail it fails 11.8 points more.
+- **The run limit: 30 s or 60 s.** The preregistered R2 rule gives 30 s.
+  The R4 rule, which has a stricter tolerance, keeps 60 s. The trade is
+  the same either way: on a 10–30 s tail, 30 s fails 0.04 % of calls,
+  against 0.005 % at 60 s, with or without EP-09. On the base tail it is
+  0.005 % against 0.001 %.
+- **Former timeouts become answers.** Under the old rule 0.049 % of calls
+  timed out. Followed call by call with a 60 s run limit, 97 % of them now
+  answer: 37 % on time and 60 % late, 73 % of the late ones within 20 s and
+  none after 60 s. 2.6 % hit the run limit.
+- **EP-09 does not lower the run limit.** Interrupting at 10 s or 30 s
+  fails legitimate slow reads, as a 30 s limit does without EP-09. Under
+  overload (stress band), interrupting at the 10 s deadline fails the
+  fewest calls of any arm.
+- **Depth.** Run to completion leaves the realistic-band depth result
+  unchanged. In the stress band with the long tail it refuses 1.2 points
+  fewer calls `queue_full`.
+
+### 11.1 Proposed edits to § 6.1
+
+- **Early-shed rule:** replace the bullet with:
+  > **No start check (follow-up test, 2026-10-18).** A waiting call starts
+  > as soon as it gets a permit before its wait deadline. Under run to
+  > completion a late start is a late answer, not abandoned work. A
+  > percentile check fails more calls (REPORT § 12, R1). It also locks a
+  > tool kind out once one slow completion lifts the percentile above the
+  > wait deadline (REPORT § 12.1).
+- **"Why p90 of 128":** mark it superseded. Its evidence (REPORT § 8)
+  measured late starts that became abandoned work, which run to
+  completion removes.
+- **Service-time window:** remove it from the admission path. It existed
+  only for the start check. Service times stay in tracing for the sweep.
+  If an overload guard is ever wanted (open question 1 below), the window
+  returns with `need` capped below the wait deadline.
+- **Acquire sequence:**
+  - Step 3 awaits `acquire_owned()` under `timeout_at(deadline)`, with no
+    `− need`.
+  - Step 4 keeps the phase and epoch re-check and drops the time check.
+  - Step 5 refuses with reason `deadline` when the wait deadline passes.
+  - The paragraph "Why step 4 exists" shrinks to the epoch check.
+- **Busy codes:** the `deadline` row reads "No permit came before the wait
+  deadline".
+- **`run_limit_ms`:** 30 s (R2) or 60 s (R4, and the current proposal);
+  open question 2. Both rules weigh the same trade with different
+  tolerances.
+- **Cost bullet** ("a rare call answers after more than 10 s"): replace its
+  estimate with the measured one: 0.055 % of successes, 6 % of those after
+  30 s at a 60 s limit, none after 60 s.
+
+### 11.2 Proposed edits to § 7.3
+
+- **Early shed:** replace the bullet with:
+  > **Start check. Settled by simulation: none** (REPORT § 12, R1). The
+  > overload arm reports successes answered after 10 s, their latency and
+  > run-limit hits. If more than 1 % of successes answer after 10 s at the
+  > chosen cap, report it to the owner.
+- **Add a run-limit bullet:**
+  > **`run_limit_ms`. Set by the owner from REPORT § 12** (30 s or 60 s).
+  > Report to the owner if more than 0.01 % of calls on the large store
+  > hit it.
+- **Queue limit:** no change. Run to completion leaves the realistic-band
+  depth result unchanged. In the stress band with the long tail it refuses
+  fewer calls `queue_full` (REPORT § 12, Q4). The live overload arm
+  already validates the depth.
+
+### 11.3 Proposed edits to § 10
+
+- **The pending item** ("whether the p90 start check stays … and the
+  value of `run_limit_ms`"): for the owner to record as answered — no
+  start check; `run_limit_ms` 30 s or 60 s (open question 2).
+- **"Queue parameters"** bullet: drop "the p90 start check over the last
+  128 completed calls per tool kind, with a 50 ms floor before there is
+  history".
+- No other decision changes.
+
+### 11.4 Knock-on edits, if accepted
+
+- § 1 summary: the early-shed bullet changes to match § 6.1.
+- § 8 `fathomdb-mcp` row: drop "the per-tool window of 128 service times".
+- § 9 tests:
+  - Tests 7–11 go: the start check, per-kind windows, the window of 128,
+    the cold floor, and abandoned calls as samples.
+  - Test 2 becomes "refused with reason `deadline` at the deadline
+    (± 100 ms)".
+  - Test 3 becomes "a permit freed after the deadline is not used".
+  - New: `a_slow_completion_does_not_refuse_later_calls_of_its_kind`, and
+    `a_call_that_finds_a_free_permit_starts`.
+- `dev/interfaces/mcp.md` row in § 8: drop "the p90 start check".
+
+### 11.5 Open questions for the owner
+
+1. **Overload guard.** In the stress band (16–32 agents, 2–5 % slow reads)
+   with P2, the capped check (`need = min(p90, deadline − 50 ms)`) fails
+   about 1.1 points fewer calls. Under today's round-robin dispatch with a
+   10–30 s tail it fails 11.8 points more. In the realistic band it costs
+   0.009 points. Ship without one, as R1 says? Or add the capped form, off
+   by default and only after EP-18 part A?
+2. **30 s or 60 s.** R2 gives 30 s and R4 keeps 60 s for the same trade.
+   60 s answers about 0.04 points more calls on a 10–30 s slow tail; 30 s
+   halves how long an agent can wait on stuck work. Which tolerance
+   should apply?
+3. **After EP-09.** Under overload, interrupting at the 10 s deadline
+   (counted from arrival) fails the fewest calls: 4.6 % against 6.8 %. In
+   the realistic band it fails twelve times as many as run to completion
+   (0.060 % against 0.005 %). Should EP-09's arrival change this rule, for
+   example by interrupting near the deadline only while calls are waiting?
+   The simulation has not tested such a rule.

@@ -14,6 +14,7 @@ from collections import deque
 from dataclasses import dataclass, field
 
 KINDS = ("search_text", "search_hybrid", "fetch", "expand")
+LATE_BINS = ((10, 12), (12, 15), (15, 20), (20, 30), (30, 60), (60, 120), (120, "inf"))  # latency of late successes, s
 
 
 # --------------------------------------------------------------------------- service model
@@ -96,6 +97,9 @@ class Config:
     queue_limit: int | None = None
     threshold: tuple = ("ewma", 0.2, 1.0, 0.05)  # fixed F | pct p n floor | ewma a k floor
     deadline: tuple = ("fixed", 10.0)  # fixed D | derived floor k
+    run_limit: float | None = None  # None: the deadline also ends a running call (old rule). Else run to completion:
+    #                                 the deadline bounds waiting and starting; a started call is abandoned (or,
+    #                                 with interrupt, cancelled) only once it has held its permit this long
     # engine
     dispatch: str = "P0"  # P0 round-robin | P1 shared FIFO | P2 try_send idle then RR
     interrupt: bool = False  # EP-09: at the deadline the caller stops waiting, frees its permit, queued reader
@@ -134,7 +138,7 @@ class Call:
     __slots__ = ("id", "cid", "kind", "embed", "reader", "slow", "t_arr", "deadline", "state", "t_adm",
                  "t_done", "timed_out", "hol", "t_rq", "t_rs", "embed_wait", "mutex_wait", "soft",
                  "outcome", "reason", "t_res", "need_at_refuse", "remaining_at_refuse", "advice", "hybrid",
-                 "cancelled", "proj", "q_ahead")
+                 "cancelled", "proj", "q_ahead", "with_permit", "arrival_free")
 
     def __init__(self, i, cid, kind, embed, reader, slow):
         self.id, self.cid, self.kind, self.embed, self.reader, self.slow = i, cid, kind, embed, reader, slow
@@ -148,6 +152,8 @@ class Call:
         self.cancelled = False
         self.q_ahead = None
         self.proj = False
+        self.with_permit = False
+        self.arrival_free = False
 
 
 class Estimator:
@@ -381,7 +387,10 @@ class Sim:
         if e.count < 8:
             return max(floor, 0.05)  # cold start: too few samples to estimate
         if th[0] == "pct":
-            return max(floor, e.pct(th[1]))
+            # optional 5th element caps need: under run to completion late completions are samples, and a
+            # need above the wait deadline would refuse every call of the kind, so no sample could lower it
+            v = max(floor, e.pct(th[1]))
+            return min(v, th[4]) if len(th) > 4 else v
         return max(floor, th[2] * e.ewma)
 
     def shed_on(self):
@@ -410,6 +419,7 @@ class Sim:
             return
         if self.held < cfg.cap and self.qlen == 0:
             if self.shed_on() and c.deadline - self.now < self.need(c.kind):
+                c.with_permit = c.arrival_free = True
                 self.refuse(c, "deadline")
             else:
                 self.admit(c)
@@ -482,7 +492,8 @@ class Sim:
         w = self._retry_watch.pop(c.id, None)
         if w:
             self.retry_obs.append((w[1], self.now - w[0]))
-        self.at(c.deadline, self.deadline_check, c)
+        rl = self.cfg.run_limit
+        self.at(c.deadline if rl is None else self.now + rl, self.deadline_check, c)
         if c.hybrid:
             self.embed_submit(c)
         else:
@@ -496,6 +507,7 @@ class Sim:
                 continue
             self.qlen -= 1
             if self.shed_on() and c.deadline - self.now < self.need(c.kind):
+                c.with_permit = True
                 self.refuse(c, "deadline")
                 continue
             if c.deadline <= self.now:
@@ -661,7 +673,8 @@ class Sim:
         if dt > 0 and self.n_idle > 0:
             for q in self.wq:
                 for c in q:
-                    hi = min(self.now, c.deadline)
+                    rl = self.cfg.run_limit
+                    hi = min(self.now, c.deadline if rl is None else c.t_adm + rl)
                     if hi > self.hol_t:
                         c.hol += hi - self.hol_t
         self.hol_t = self.now
@@ -761,8 +774,9 @@ class Sim:
         out["refuse_rate"] = len(rf) / n
         cause = {"admission": 0, "hol": 0, "run": 0, "other": 0}
         for c in to:
-            # every component is measured inside the call's own window [arrival, deadline]
-            W = c.deadline
+            # every component is measured inside the call's own window [arrival, deadline], or under run to
+            # completion [arrival, permit + run_limit]
+            W = c.deadline if cfg.run_limit is None else c.t_adm + cfg.run_limit
             a = c.t_adm - c.t_arr
             if c.t_rq is None:
                 rq = 0.0  # interrupted (EP-09) before reaching the reader pool
@@ -796,11 +810,16 @@ class Sim:
                 if i >= len(rt):
                     return False
                 start = rt[i]
+            if self.cfg.run_limit is not None:
+                return start < c.deadline and own <= self.cfg.run_limit
             return start + own <= c.deadline
         fr = [c for c in rf if would_finish(c)]
         out["false_refusal_rate"] = len(fr) / n
         out["false_refusal_share"] = len(fr) / len(rf) if rf else float("nan")
         out["rf_predicted"] = sum(1 for c in rf if c.reason == "predicted") / n
+        out["rf_with_permit"] = sum(1 for c in rf if c.with_permit) / n
+        # refused at arrival with a permit free: only a start-check threshold above the wait deadline does this
+        out["rf_arrival_free"] = sum(1 for c in rf if c.arrival_free) / n
         out["max_queue"] = self.max_q
         bursts = {}
         for c in cs:
@@ -816,16 +835,39 @@ class Sim:
         out["lone_wait_p99"] = pctl(lone, 99)
         out["lone_wait_max"] = max(lone) if lone else float("nan")
         out["turn_refused"] = (sum(1 for v in bursts.values() if any(x.outcome == "refused" for x in v)) / max(1, len(bursts)))
+        # an agent re-issues a failed call on its next LLM turn: one retry turn per turn with any failure
+        out["turn_failed"] = (sum(1 for v in bursts.values() if any(x.outcome != "ok" for x in v)) / len(bursts)
+                              if bursts else float("nan"))
         out["late_admit_timeout_rate"] = sum(1 for c in to if c.t_adm - c.t_arr > 0) / n
         lat = [c.t_res - c.t_arr for c in ok]
         for p in (50, 95, 99):
             out[f"ok_p{p}"] = pctl(lat, p)
+        out["ok_p999"] = pctl(lat, 99.9)
+        out["fail_rate"] = 1.0 - out["ok_rate"]
+        late = [c for c in ok if c.t_res > c.deadline]
+        out["ok_late_rate"] = len(late) / n
+        out["ok_late_share"] = len(late) / len(ok) if ok else float("nan")
+        out["ok_late30_rate"] = sum(1 for c in ok if c.t_res - c.t_arr > 30.0) / n
+        out["late_start_ok_rate"] = sum(1 for c in late if c.t_adm > c.t_arr) / n
+        for lo, hi in LATE_BINS:
+            out[f"late_h_{lo}_{hi}"] = sum(1 for c in late if lo < c.t_res - c.t_arr <= (hi if hi != "inf" else math.inf))
+        # time to data: a failed call costs its own wait, one think time and one retry at the mean ok latency
+        retry = sum(lat) / len(lat) if lat else 0.0
+        ttd = lat + [c.t_res - c.t_arr + cfg.think_median + retry for c in cs if c.outcome != "ok"]
+        out["ttd_mean"] = sum(ttd) / len(ttd)
+        out["ttd_p99"] = pctl(ttd, 99)
+        out["ttd_p999"] = pctl(ttd, 99.9)
         allr = [c.t_res - c.t_arr for c in cs if c.outcome != "refused"]
         out["resp_p95"] = pctl(allr, 95)
         T = max(self.T, 1e-9)
         out["util"] = self.busy_integral / (T * cfg.n_readers)
         out["abandoned_avg"] = self.ab_integral / T
         out["abandoned_share"] = self.ab_integral / self.held_integral if self.held_integral else 0.0
+        # abandoned holds of the measured calls only: from abandonment to the thread's return (0 under EP-09)
+        out["ab_permit_s_per_kcall"] = sum((c.t_done if c.t_done is not None else self.T) - c.t_res for c in to) / n * 1000
+        out["wasted_permit_s_per_kcall"] = sum((c.t_done if c.t_done is not None else self.T) - c.t_adm for c in to) / n * 1000
+        # over the span to the last resolution: T also runs on through trailing no-op deadline checks
+        out["goodput_per_s"] = len(ok) / max(1e-9, max(c.t_res for c in cs))
         out["soft_fallback_rate"] = self.soft_fallbacks / max(1, len(self.calls))
         ro = self.retry_obs
         if ro:

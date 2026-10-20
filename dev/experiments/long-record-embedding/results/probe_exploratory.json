@@ -1,0 +1,80 @@
+{
+  "E(vector)@5": {
+    "point": 0.11971393034825867,
+    "ci95": [
+      0.011738184079602004,
+      0.22924440298507465
+    ]
+  },
+  "E(hybrid)@5": {
+    "point": 0.04322139303482586,
+    "ci95": [
+      -0.019434079601990006,
+      0.10883084577114432
+    ]
+  },
+  "B: hybrid@10 hit, text@10 miss": 7,
+  "B: text@10 hit, hybrid@10 miss": 8,
+  "B: vector@10 hit, text@10 miss": 13,
+  "P: hybrid@10 hit, text@10 miss": 4,
+  "P: text@10 hit, hybrid@10 miss": 6,
+  "P: vector@10 hit, text@10 miss": 3,
+  "E(vector)@10 within-type, min-n weighted": 0.016595469964846912,
+  "E(hybrid)@10 within-type, min-n weighted": -0.04051294598538102,
+  "by_type": {
+    "knowledge-update": {
+      "nB": 10,
+      "nP": 23,
+      "E(vector)@10": -0.3086956521739131,
+      "E(hybrid)@10": -0.4434782608695652
+    },
+    "multi-session": {
+      "nB": 58,
+      "nP": 11,
+      "E(vector)@10": 0.009404388714733536,
+      "E(hybrid)@10": 0.01724137931034475
+    },
+    "single-session-assistant": {
+      "nB": 24,
+      "nP": 17,
+      "E(vector)@10": 0.2181372549019608,
+      "E(hybrid)@10": 0.04166666666666663
+    },
+    "single-session-preference": {
+      "nB": 12,
+      "nP": 12,
+      "E(vector)@10": 0.08333333333333334,
+      "E(hybrid)@10": 0.0
+    },
+    "single-session-user": {
+      "nB": 7,
+      "nP": 55,
+      "E(vector)@10": 0.0077922077922077115,
+      "E(hybrid)@10": 0.05454545454545451
+    },
+    "temporal-reasoning": {
+      "nB": 81,
+      "nP": 16,
+      "E(vector)@10": -0.03549382716049382,
+      "E(hybrid)@10": 0.012345679012345678
+    }
+  },
+  "mean_gold_sessions": {
+    "B": 2.015625,
+    "P": 1.373134328358209
+  },
+  "types": {
+    "B/knowledge-update": 10,
+    "B/multi-session": 58,
+    "B/single-session-assistant": 24,
+    "B/single-session-preference": 12,
+    "B/single-session-user": 7,
+    "B/temporal-reasoning": 81,
+    "P/knowledge-update": 23,
+    "P/multi-session": 11,
+    "P/single-session-assistant": 17,
+    "P/single-session-preference": 12,
+    "P/single-session-user": 55,
+    "P/temporal-reasoning": 16
+  }
+}

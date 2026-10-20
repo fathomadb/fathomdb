@@ -1,0 +1,152 @@
+[
+  {
+    "qid": "6ade9755",
+    "stratum": "P",
+    "original": {
+      "repeatable": true,
+      "gold_rank_score": [
+        [
+          9,
+          0.0828
+        ]
+      ],
+      "top3": [
+        [
+          "answer_a21f3697_3",
+          0.1165
+        ],
+        [
+          "47c91134",
+          0.0968
+        ],
+        [
+          "c0aea96c",
+          0.0938
+        ]
+      ]
+    },
+    "rotated": {
+      "repeatable": true,
+      "gold_rank_score": [
+        [
+          42,
+          0.0417
+        ]
+      ],
+      "top3": [
+        [
+          "answer_a21f3697_3",
+          0.1165
+        ],
+        [
+          "47c91134",
+          0.0968
+        ],
+        [
+          "c0aea96c",
+          0.0938
+        ]
+      ]
+    }
+  },
+  {
+    "qid": "7527f7e2",
+    "stratum": "P",
+    "original": {
+      "repeatable": true,
+      "gold_rank_score": [
+        [
+          1,
+          0.1237
+        ]
+      ],
+      "top3": [
+        [
+          "answer_7cb94507",
+          0.1237
+        ],
+        [
+          "5c05a50c",
+          0.1062
+        ],
+        [
+          "d87809b7_1",
+          0.0968
+        ]
+      ]
+    },
+    "rotated": {
+      "repeatable": true,
+      "gold_rank_score": [
+        [
+          20,
+          0.0625
+        ]
+      ],
+      "top3": [
+        [
+          "5c05a50c",
+          0.1062
+        ],
+        [
+          "d87809b7_1",
+          0.0968
+        ],
+        [
+          "answer_ef74281f_1",
+          0.0938
+        ]
+      ]
+    }
+  },
+  {
+    "qid": "c960da58",
+    "stratum": "P",
+    "original": {
+      "repeatable": true,
+      "gold_rank_score": [
+        [
+          6,
+          0.0889
+        ]
+      ],
+      "top3": [
+        [
+          "answer_e9bb9500_2",
+          0.1319
+        ],
+        [
+          "1e739aef",
+          0.0976
+        ],
+        [
+          "de5f2701_1",
+          0.0968
+        ]
+      ]
+    },
+    "rotated": {
+      "repeatable": true,
+      "gold_rank_score": [
+        [
+          36,
+          0.0448
+        ]
+      ],
+      "top3": [
+        [
+          "answer_e9bb9500_2",
+          0.1319
+        ],
+        [
+          "1e739aef",
+          0.0976
+        ],
+        [
+          "de5f2701_1",
+          0.0968
+        ]
+      ]
+    }
+  }
+]

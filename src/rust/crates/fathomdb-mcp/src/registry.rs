@@ -6,7 +6,7 @@
 //! across an `.await` or an engine call: opens and drains run on spawned
 //! tasks and blocking threads, and report back under the mutex.
 
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
@@ -70,35 +70,8 @@ impl Cancel {
     }
 }
 
-/// The tool kinds with their own service-time window (queue-admission
-/// § 6.1). Search is split by mode.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) enum ToolKind {
-    SearchText,
-    SearchHybrid,
-    Fetch,
-    Expand,
-    Orient,
-    /// Takes a permit but never waits and leaves no sample.
-    Feedback,
-}
-
-impl ToolKind {
-    fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "search_text" => Some(Self::SearchText),
-            "search_hybrid" => Some(Self::SearchHybrid),
-            "fetch" => Some(Self::Fetch),
-            "expand" => Some(Self::Expand),
-            "orient" => Some(Self::Orient),
-            _ => None,
-        }
-    }
-}
-
 /// What a call brings to admission.
 pub(crate) struct Admission<'a> {
-    pub(crate) kind: ToolKind,
     /// The call deadline; `None` (internal callers only) never waits.
     pub(crate) wait_until: Option<Instant>,
     /// Progress notifications while the call waits.
@@ -161,18 +134,6 @@ impl Slot {
     }
 }
 
-/// The least deadline a call of a tool kind with no history must have left
-/// to be started (queue-admission § 6.1, early-shed rule).
-const NEED_FLOOR: Duration = Duration::from_millis(50);
-/// Completed calls per tool kind kept in a store's service-time window.
-const WINDOW_SAMPLES: usize = 128;
-/// Completed calls of a kind before its window replaces the floor.
-const WARM_SAMPLES: usize = 8;
-/// The share of recent calls of a kind that must fit in the time a waiter
-/// has left. Not yet final: the run-to-completion follow-up decides
-/// whether the check stays.
-const NEED_QUANTILE: f64 = 0.9;
-
 /// Admission state of one store. Kept across reopens, so waiters survive a
 /// drain.
 struct Load {
@@ -185,9 +146,6 @@ struct Load {
     abandoned: AtomicUsize,
     /// Fires when the last permit is returned.
     idle: Notify,
-    /// Service times of the last `WINDOW_SAMPLES` completed calls, per tool
-    /// kind, oldest first.
-    windows: Mutex<BTreeMap<ToolKind, VecDeque<Duration>>>,
 }
 
 impl Load {
@@ -198,37 +156,7 @@ impl Load {
             queued: AtomicUsize::new(0),
             abandoned: AtomicUsize::new(0),
             idle: Notify::new(),
-            windows: Mutex::new(BTreeMap::new()),
         }
-    }
-
-    fn windows(&self) -> MutexGuard<'_, BTreeMap<ToolKind, VecDeque<Duration>>> {
-        self.windows.lock().unwrap_or_else(|poison| poison.into_inner())
-    }
-
-    fn record(&self, kind: ToolKind, sample: Duration) {
-        if kind != ToolKind::Feedback {
-            let mut windows = self.windows();
-            let window = windows.entry(kind).or_default();
-            if window.len() == WINDOW_SAMPLES {
-                window.pop_front();
-            }
-            window.push_back(sample);
-        }
-    }
-
-    /// The early-shed threshold: the least time a call of `kind` must have
-    /// left to be started.
-    fn need(&self, kind: ToolKind) -> Duration {
-        let windows = self.windows();
-        let Some(window) = windows.get(&kind).filter(|window| window.len() >= WARM_SAMPLES) else {
-            return NEED_FLOOR;
-        };
-        let mut sorted: Vec<Duration> = window.iter().copied().collect();
-        sorted.sort_unstable();
-        // Nearest rank: the smallest sample at or above the quantile.
-        let rank = (NEED_QUANTILE * sorted.len() as f64).ceil() as usize;
-        sorted[rank.clamp(1, sorted.len()) - 1]
     }
 
     /// Permits held. A call counts from the moment it holds a permit, before
@@ -338,12 +266,9 @@ pub(crate) struct StoreGuard {
     pub(crate) engine: Arc<Engine>,
     pub(crate) info: Arc<OpenInfo>,
     last_used: LastUsed,
-    kind: ToolKind,
     /// When the permit was acquired.
     started: Instant,
     run: Arc<AtomicU8>,
-    // Dropped after `drop` below has run, so the sample is in the window
-    // before the next waiter gets the permit and computes its need.
     permit: Permit,
 }
 
@@ -353,16 +278,8 @@ impl Drop for StoreGuard {
         // finished call as idle since its start (FIX-1 CR-5).
         self.last_used.touch();
         let load = &self.permit.load;
-        match self.run.compare_exchange(RUNNING, DONE, Ordering::SeqCst, Ordering::SeqCst) {
-            // A guard dropped while its thread unwinds belongs to a call that
-            // panicked, not one that completed.
-            Ok(_) if std::thread::panicking() => {}
-            Ok(_) => load.record(self.kind, self.started.elapsed()),
-            // Abandoned calls leave no sample; the window would otherwise
-            // learn from work nobody waited for.
-            Err(_) => {
-                load.abandoned.fetch_sub(1, Ordering::SeqCst);
-            }
+        if self.run.compare_exchange(RUNNING, DONE, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            load.abandoned.fetch_sub(1, Ordering::SeqCst);
         }
     }
 }
@@ -385,7 +302,7 @@ impl StoreGuard {
 }
 
 /// Marks a running call abandoned: its permit stays held until its thread
-/// returns, it is counted in `abandoned`, and it leaves no sample.
+/// returns, and it is counted in `abandoned`.
 pub(crate) struct Abandoner {
     run: Arc<AtomicU8>,
     load: Arc<Load>,
@@ -581,10 +498,11 @@ impl Registry {
     /// Admit one call on `name`.
     ///
     /// A ready store admits the call when a permit is free; otherwise the
-    /// call waits for one, in arrival order, while at least `need` of its
-    /// deadline (`call.wait_until`) is left (queue-admission § 6.1). It is
-    /// refused as `busy/admission` when the line is full on arrival
-    /// (`queue_full`) or when it cannot start in time (`deadline`), and
+    /// call waits for one, in arrival order, until its deadline
+    /// (`call.wait_until`; queue-admission § 6.1) and starts on any permit
+    /// that comes before it. It is refused as `busy/admission` when the line
+    /// is full on arrival (`queue_full`) or when no permit comes before the
+    /// deadline (`deadline`), and
     /// returns `timeout/cancelled` when the client cancels it while it
     /// waits. A closed store starts opening (draining the least recently
     /// used idle store when the open limit is reached, else
@@ -691,18 +609,13 @@ impl Registry {
         };
         let arrived = Instant::now();
         let mut must_wait = false;
-        for (kind, sample) in self.hooks.seeded_service_times(name) {
-            if let Some(kind) = ToolKind::from_name(&kind) {
-                load.record(kind, sample);
-            }
-        }
         let permit = match call.wait_until {
             None => load
                 .permits
                 .clone()
                 .try_acquire_owned()
                 .map_err(|_| refuse(BusyReason::Deadline))?,
-            // A free permit is taken at once, without the start check.
+            // A free permit is taken at once, without joining the queue.
             Some(_) if let Ok(permit) = load.permits.clone().try_acquire_owned() => permit,
             Some(deadline) => {
                 must_wait = true;
@@ -718,11 +631,9 @@ impl Registry {
                     // the call's place in the queue.
                     let acquire = load.permits.clone().acquire_owned();
                     tokio::pin!(acquire);
-                    // A call is started only if it has at least `need` left
-                    // (step 3), so the wait ends `need` before the deadline.
-                    let need = load.need(call.kind);
-                    let wait_end = deadline.checked_sub(need).unwrap_or(deadline);
-                    let expired = tokio::time::sleep_until(wait_end.into());
+                    // A permit that comes before the deadline starts the
+                    // call, however little time is left.
+                    let expired = tokio::time::sleep_until(deadline.into());
                     tokio::pin!(expired);
                     let mut cancel = call.cancel.cloned();
                     let cancelled = async {
@@ -784,17 +695,6 @@ impl Registry {
         if slot.phase != Phase::Ready || slot.epoch != epoch {
             return Ok(None);
         }
-        // Step 4, for calls that waited: need is re-evaluated, since calls
-        // that completed during the wait may have changed it. A call that
-        // took a free permit has spent nothing waiting, and checking it would
-        // let a kind whose p90 reached the deadline refuse every call and
-        // never record a new sample.
-        if let (true, Some(deadline)) = (must_wait, call.wait_until) {
-            if deadline.saturating_duration_since(Instant::now()) < load.need(call.kind) {
-                drop(permit);
-                return Err(refuse(BusyReason::Deadline));
-            }
-        }
         slot.last_used.touch();
         if must_wait {
             let busy = load.busy(BusyReason::Deadline);
@@ -813,7 +713,6 @@ impl Registry {
             engine: slot.engine.clone().expect("ready slots hold an engine"),
             info: slot.info.clone().expect("ready slots hold open info"),
             last_used: slot.last_used.clone(),
-            kind: call.kind,
             started,
             run: Arc::new(AtomicU8::new(RUNNING)),
             permit,

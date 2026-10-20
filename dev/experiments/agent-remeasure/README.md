@@ -38,7 +38,7 @@ in this repository.
 - **Prompt and server disagree.** The prompt is reused verbatim from the first
   Claude run so the runs stay comparable. It still says "Snippets show only the
   start of each record", but since Block 1 snippets are centred on the match.
-  The server's own instructions also still say snippets are the record start.
+  The server's own instructions describe centred snippets.
 - **What the agent sees.** Claude Code passes the model `structuredContent`,
   serialized as JSON, whenever a result has it. It does not pass the `text`
   block. Arm `json` is therefore the sorted, compact JSON of

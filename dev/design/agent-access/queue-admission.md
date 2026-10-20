@@ -747,14 +747,14 @@ by the first two, together with the interface change.
 7. `a_slow_completion_does_not_refuse_later_calls_of_its_kind`: a call
    that completes after the wait deadline does not cause a later call of
    the same kind, which waits for a permit, to be refused.
-8. `a_waiter_starts_with_little_deadline_left`: a waiter whose permit frees
-   shortly before its wait deadline starts and succeeds.
+8. `a_permit_with_little_deadline_left_still_starts_the_call`: a waiter
+   whose permit frees shortly before its wait deadline starts and succeeds.
 9. Removed with the start check (owner, 2026-10-19): the per-kind start
    check and the window of 128.
 10. Removed with the start check: the 50 ms cold floor.
 11. Removed with the start check: abandoned and panicked calls as
     service-time samples.
-12. `an_arrival_is_queued_whatever_its_predicted_wait`: cap 1, slow window,
+12. `an_arrival_is_queued_behind_a_slow_call`: cap 1, a slow call running,
     an arrival with room in the queue is queued, not refused on arrival.
 13. `an_abandoned_call_keeps_its_permit_and_is_counted`: a blocked call
     passes `run_limit_ms`; the busy object reports `abandoned: 1`; after

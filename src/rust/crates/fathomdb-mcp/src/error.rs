@@ -47,7 +47,7 @@ pub struct ToolError {
 pub enum BusyReason {
     /// The waiting line was full on arrival (`queue_limit`).
     QueueFull,
-    /// No permit came in time, or too little deadline was left to start.
+    /// No permit came before the call's wait deadline.
     Deadline,
     /// The engine refused the work as overloaded (SDK `Overloaded`).
     EngineOverloaded,

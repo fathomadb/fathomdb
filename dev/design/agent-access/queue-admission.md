@@ -557,7 +557,9 @@ reason), each abandoned call and each admission after a wait, with store,
   started call running longer is cut off when the process exits. Reads are
   unaffected; a feedback write is rolled back by the journal. Raising the
   bound to `run_limit_ms` would make exit wait up to 65 s with the
-  defaults. (Orchestrator decision, for owner review.)
+  defaults, for results no one can receive: on stdio, shutdown follows
+  stdin closing, so the client is already gone. (Owner decision
+  2026-10-19.)
 
 ### 6.2 Engine: EP-18 (new engine proposal)
 

@@ -60,8 +60,8 @@ run one after another.
 | S0 | `feat/aa-b1-s0` (`ba992064e`..`e519273d2`) | `47c560615` | Fable-medium (codex blocked by the harness): PASS-WITH-FIXES, non-blocking; drain defect filed as a todo | landed |
 | S2 | `feat/aa-b1-s2` (`7f995d843`..`54c1451ab`) | `54f762a53` | Fable-medium: PASS-WITH-FIXES, doc fixes applied | landed |
 | S1a | `feat/aa-b1-s1a` (`4cf0c7013`..`e4b246658`) | `baa124647` | Fable-medium: PASS-WITH-FIXES, fixed (atomic `queue_full`, no sample from panics) | landed |
-| S1b | `feat/aa-b1-s1b` (`693873ea0`..`8a46c04b8`) | `96fa30d6f` | Fable-medium: PASS-WITH-FIXES, fixed (progress while running); test 23 not buildable; shutdown bound kept at `call_deadline_ms` + 5 s for owner review | landed |
-| S3 | `feat/aa-b1-s3` (`9e2137cc6`..`0799623bd`) | `248fbbb3f` | Fable-medium: PASS-WITH-FIXES, fixed (Py/TS expand parity; governed allowlist 37 → 39 awaiting HITL sign-off) | landed |
+| S1b | `feat/aa-b1-s1b` (`693873ea0`..`8a46c04b8`) | `96fa30d6f` | Fable-medium: PASS-WITH-FIXES, fixed (progress while running); test 23 not buildable; shutdown bound `call_deadline_ms` + 5 s, owner-approved 2026-10-19 | landed |
+| S3 | `feat/aa-b1-s3` (`9e2137cc6`..`0799623bd`) | `248fbbb3f` | Fable-medium: PASS-WITH-FIXES, fixed (Py/TS expand parity; governed allowlist 37 → 39, HITL-signed 2026-10-19) | landed |
 | S4 | `feat/aa-b1-s4` (`8b60ab352`..`88a967250`) | `76c783c05` | Fable-medium: PASS; P3 follow-ups applied | landed |
 | S5a | `feat/aa-b1-s5a` (`6b1520d3b`..`acfa50d5f`) | `367bf40c0` | Fable-medium: PASS-WITH-FIXES, fixed (window and head edge cases) | landed |
 | S5b | `feat/aa-b1-s5b` (`8aa229d87`..`3760d812d`) | `25d7da5da` | Fable-medium: PASS | landed |

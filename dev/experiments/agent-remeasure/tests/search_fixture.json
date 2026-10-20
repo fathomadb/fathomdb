@@ -1,0 +1,276 @@
+{
+ "search": {
+  "budget": {
+   "cut": false,
+   "max_tokens": 4000,
+   "used_tokens": 1985
+  },
+  "completeness": "limit_reached",
+  "continuation": "c1-1cf18ca203ec53c9",
+  "degradation": [],
+  "epoch": 1,
+  "hints": [
+   {
+    "action": "fetch",
+    "reason": "snippet_cut",
+    "refs": [
+     "l:0:D10:5",
+     "l:0:D10:3",
+     "l:0:D12:1",
+     "l:0:D16:5"
+    ]
+   },
+   {
+    "action": "search",
+    "continuation": "c1-1cf18ca203ec53c9",
+    "reason": "more_results"
+   }
+  ],
+  "mode": "hybrid",
+  "response_id": "r1-81454ee49e5e15c9",
+  "results": [
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D1:3",
+    "score": 0.1270772238514174,
+    "snippet": "[redacted snippet search-0 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session1"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D10:5",
+    "score": 0.12600806451612903,
+    "snippet": "[redacted snippet search-1 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "match",
+    "snippet_cut": true,
+    "source_id": "locomo-conv0-session10"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D10:3",
+    "score": 0.11948529411764706,
+    "snippet": "[redacted snippet search-2 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "match",
+    "snippet_cut": true,
+    "source_id": "locomo-conv0-session10"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D1:7",
+    "score": 0.11722488038277512,
+    "snippet": "[redacted snippet search-3 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session1"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D12:1",
+    "score": 0.11135531135531135,
+    "snippet": "[redacted snippet search-4 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "match",
+    "snippet_cut": true,
+    "source_id": "locomo-conv0-session12"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D16:5",
+    "score": 0.09679446888749214,
+    "snippet": "[redacted snippet search-5 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "match",
+    "snippet_cut": true,
+    "source_id": "locomo-conv0-session16"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D9:2",
+    "score": 0.08547008547008547,
+    "snippet": "[redacted snippet search-6 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session9"
+   },
+   {
+    "arm": "text",
+    "kind": "note",
+    "ref": "l:0:D2:12",
+    "score": 0.08333333333333333,
+    "snippet": "[redacted snippet search-7 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session2"
+   },
+   {
+    "arm": "text",
+    "kind": "note",
+    "ref": "l:0:D11:6",
+    "score": 0.08108108108108109,
+    "snippet": "[redacted snippet search-8 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session11"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D9:11",
+    "score": 0.08055555555555555,
+    "snippet": "[redacted snippet search-9 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session9"
+   }
+  ],
+  "state": {
+   "status": "unavailable"
+  },
+  "store": "conv0",
+  "validity_instant": 1792457660,
+  "verdict": "unavailable"
+ },
+ "search2": {
+  "budget": {
+   "cut": false,
+   "max_tokens": 4000,
+   "used_tokens": 1911
+  },
+  "completeness": "limit_reached",
+  "continuation": "c1-fbe86bf2c4a5cddc",
+  "degradation": [],
+  "epoch": 1,
+  "hints": [
+   {
+    "action": "fetch",
+    "reason": "snippet_cut",
+    "refs": [
+     "l:0:D14:7",
+     "l:0:D11:8"
+    ]
+   },
+   {
+    "action": "search",
+    "continuation": "c1-fbe86bf2c4a5cddc",
+    "reason": "more_results"
+   }
+  ],
+  "mode": "hybrid",
+  "response_id": "r1-aeccf22e605e948f",
+  "results": [
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D1:14",
+    "score": 0.12903225806451613,
+    "snippet": "[redacted snippet search2-0 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session1"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D14:30",
+    "score": 0.12232142857142857,
+    "snippet": "[redacted snippet search2-1 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session14"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D14:7",
+    "score": 0.11233108108108109,
+    "snippet": "[redacted snippet search2-2 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "match",
+    "snippet_cut": true,
+    "source_id": "locomo-conv0-session14"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D8:6",
+    "score": 0.10835913312693499,
+    "snippet": "[redacted snippet search2-3 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session8"
+   },
+   {
+    "arm": "text",
+    "kind": "note",
+    "ref": "l:0:D11:8",
+    "score": 0.09090909090909091,
+    "snippet": "[redacted snippet search2-4 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "match",
+    "snippet_cut": true,
+    "source_id": "locomo-conv0-session11"
+   },
+   {
+    "arm": "text",
+    "kind": "note",
+    "ref": "l:0:D17:14",
+    "score": 0.08823529411764706,
+    "snippet": "[redacted snippet search2-5 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session17"
+   },
+   {
+    "arm": "text",
+    "kind": "note",
+    "ref": "l:0:D9:14",
+    "score": 0.08571428571428572,
+    "snippet": "[redacted snippet search2-6 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session9"
+   },
+   {
+    "arm": "text",
+    "kind": "note",
+    "ref": "l:0:D14:5",
+    "score": 0.08333333333333333,
+    "snippet": "[redacted snippet search2-7 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session14"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D9:15",
+    "score": 0.08224479922593131,
+    "snippet": "[redacted snippet search2-8 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session9"
+   },
+   {
+    "arm": "vector",
+    "kind": "note",
+    "ref": "l:0:D9:17",
+    "score": 0.08187134502923976,
+    "snippet": "[redacted snippet search2-9 \"quoted\" | pipe] xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "snippet_anchor": "whole",
+    "snippet_cut": false,
+    "source_id": "locomo-conv0-session9"
+   }
+  ],
+  "state": {
+   "status": "unavailable"
+  },
+  "store": "conv0",
+  "validity_instant": 1792457660,
+  "verdict": "unavailable"
+ }
+}

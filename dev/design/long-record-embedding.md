@@ -1,7 +1,7 @@
 ---
 title: Long-record embedding — size of the problem and choice of fix
 date: 2026-10-18
-status: PROPOSED
+status: ACTIVE
 desc: Measures how much of each consumer corpus lies past bge-small's 512-wordpiece cut. A preregistered, paired position-intervention probe shows that the cut costs the vector arm 0.09 R@10; for hybrid the pooled effect is 0.000, but that is two opposite stratum effects cancelling, and moving past-cut gold into the head gains +0.03 on 4 of 133 questions. Costs six fixes in vectors, embed time, index size, query latency, schema and snippet anchor. Recommends a guard now and one specified overflow-chunking experiment, parked until a stated trigger fires.
 inputs:
   - dev/plans/prompts/long-record-embedding-prompt.md
@@ -19,6 +19,12 @@ inputs:
 ---
 
 # Long-record embedding
+
+**Owner decision, 2026-10-19: accepted.** Ship the guard of § 7.1 (vector
+coverage per record reported in `orient`, and the scored extent in the
+EP-17 snippet). Park overflow chunking (option C, § 7.2) until one of its
+triggers fires. The guard is not built yet; where it lands is open (§ 9,
+question 2).
 
 Paths are relative to `src/rust/crates/` unless given in full. Every number
 below comes from `dev/experiments/long-record-embedding/results/` unless a

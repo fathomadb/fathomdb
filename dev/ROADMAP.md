@@ -219,6 +219,12 @@ regression.
   [`design/agent-access/hints-sidecar.md`](design/agent-access/hints-sidecar.md)
   § 10, question 3.
 
+- **Re-check the overflow-chunking triggers** (owner ruling 2026-10-19).
+  Overflow chunking (option C) is parked until a trigger fires. Check each
+  trigger in
+  [`design/long-record-embedding.md`](design/long-record-embedding.md)
+  § 7.2 and promote C if one has.
+
 **Placed work, not a checkpoint (owner ruling 2026-10-07):** make FathomDB
 survive a co-resident library resetting the CUDA primary context (todo
 `TC-281155a1-4767-4379-9506-ef97b2ed51a9`). Today cudarc's `CudaSlice` drop

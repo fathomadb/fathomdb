@@ -101,7 +101,11 @@ changes code until its design passes review and the owner approves.
    4. **Measured 2026-10-19**
       ([REPORT](../../experiments/agent-remeasure/REPORT.md)). Compact cuts
       search tokens by a third and cost per question by about 30 %, with no
-      measurable accuracy or fetch change. Awaiting the owner decision.
+      measurable accuracy or fetch change.
+   5. **Owner decision 2026-10-21:** design it; implementation placed in
+      0.8.28 as D28-14. Design:
+      [compact-text-block.md](compact-text-block.md), awaiting the GPT-6
+      Astra review.
 
 5. **Re-measure without the test-set tuning.** After items 1–3, re-run
    Sonnet 5.5 and Haiku 5.5 subagents on a conversation the prompt was never

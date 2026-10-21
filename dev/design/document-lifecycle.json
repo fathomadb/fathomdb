@@ -758,6 +758,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/agent-access/compact-text-block-astra-review.md",
+      "class": "proposal",
+      "topic": "agent-access-compact-text-block",
+      "role": "review",
+      "owner": "dev/design/agent-access/compact-text-block.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/agent-access/compact-text-block.md",
       "class": "proposal",
       "topic": "agent-access-compact-text-block",

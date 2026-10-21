@@ -758,6 +758,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/agent-access/compact-text-block.md",
+      "class": "proposal",
+      "topic": "agent-access-compact-text-block",
+      "role": "design",
+      "owner": "dev/design/agent-access/compact-text-block.md",
+      "release": "future:mcp-adapter",
+      "successor": null
+    },
+    {
       "path": "dev/design/agent-access/hints-sidecar.md",
       "class": "proposal",
       "topic": "agent-access-hints-sidecar",

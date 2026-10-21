@@ -2,7 +2,7 @@
 title: Compact text block for MCP results
 date: 2026-10-21
 status: ACTIVE
-desc: Design for agent-access item 4 — a `result_format` server setting whose default sends search and expand results as a compact text block without `structuredContent`, the line grammar, budget accounting, tests and the open questions for review. Implementation is placed in 0.8.28 as D28-14.
+desc: Design for agent-access item 4 — a `result_format` server setting whose default sends search and expand results as a compact text block without `structuredContent`, the line grammar, budget accounting, tests and the open questions for review. Implementation is placed in 0.8.29.
 inputs:
   - dev/design/agent-access/README.md
   - dev/experiments/agent-remeasure/REPORT.md
@@ -15,7 +15,7 @@ inputs:
 ## 1. Decision and evidence
 
 The owner decided on 2026-10-21 to design the compact text block (agent-access
-item 4) and to place its implementation in 0.8.28. The measurement is in
+item 4) and to place its implementation in 0.8.29. The measurement is in
 [REPORT](../../experiments/agent-remeasure/REPORT.md) § "Item 4". On a
 30-question sample with Haiku 5.5 and Sonnet 5.5, the compact rendering cut
 search tokens per call by 33 % and cost per question by 28–30 %. It made no
@@ -150,7 +150,7 @@ proxy, and confirm the token cut matches the proxy figure.
 
 ## 7. Placement
 
-Implementation is placed in 0.8.28 as **D28-14**
-([draft scope](../../plans/0.8.28-draft-scope.md)). It depends on Block 1
+Implementation is placed in 0.8.29
+([ROADMAP](../../ROADMAP.md) § 0.8.29). It depends on Block 1
 landing, and starts after the review in § 6 and owner approval of the
 answers.

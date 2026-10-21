@@ -219,6 +219,13 @@ regression.
   [`design/agent-access/hints-sidecar.md`](design/agent-access/hints-sidecar.md)
   § 10, question 3.
 
+- **MCP compact text block (owner ruling 2026-10-21; implementation placed
+  here, not a checkpoint).** Add a `result_format` setting whose default
+  `text` sends results as a compact text block without `structuredContent`,
+  and counts only that block against the budget. Depends on agent-access
+  Block 1. Design and review gate:
+  [`design/agent-access/compact-text-block.md`](design/agent-access/compact-text-block.md).
+
 - **Re-check the overflow-chunking triggers** (owner ruling 2026-10-19).
   Overflow chunking (option C) is parked until a trigger fires. Check each
   trigger in

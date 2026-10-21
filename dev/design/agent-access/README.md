@@ -103,7 +103,7 @@ changes code until its design passes review and the owner approves.
       search tokens by a third and cost per question by about 30 %, with no
       measurable accuracy or fetch change.
    5. **Owner decision 2026-10-21:** design it; implementation placed in
-      0.8.28 as D28-14. Design:
+      0.8.29. Design:
       [compact-text-block.md](compact-text-block.md), awaiting the GPT-6
       Astra review.
 

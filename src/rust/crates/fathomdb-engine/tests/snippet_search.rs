@@ -629,3 +629,44 @@ fn rule3_exact_identity_prefers_the_window_with_both_terms() {
     assert!(snippet.text.contains("cat"), "{snippet:?}");
     assert!(snippet.text.contains("running"), "{snippet:?}");
 }
+
+/// A body of at least `len` bytes of filler words with each `(at, term)`
+/// placed at the first word boundary at or after byte `at`, in order.
+fn body_with_terms(terms: &[(usize, &str)], len: usize) -> String {
+    let mut body = String::new();
+    for &(at, term) in terms {
+        while body.len() < at {
+            body.push_str("lorem ");
+        }
+        body.push_str(term);
+        body.push(' ');
+    }
+    while body.len() < len {
+        body.push_str("ipsum ");
+    }
+    body
+}
+
+// Block 1 close (§ 6.5): the rule-3 per-term pass draws on a second per-search
+// pool of `max_point_queries`, so a k-term search issues at most
+// 2 × max_point_queries point queries. 30 long hits under a 3-term query
+// whose terms sit in different windows of each body all qualify for rule 3.
+#[test]
+fn snippet_point_queries_stay_within_twice_the_cap_with_many_terms() {
+    let _guard = lock();
+    let bodies: Vec<String> = (0..30)
+        .map(|i| {
+            let body =
+                body_with_terms(&[(500, "zanzibar"), (2000, "quokka"), (3500, "marmot")], 4096);
+            format!("{body} doc{i}")
+        })
+        .collect();
+    let refs: Vec<&str> = bodies.iter().map(String::as_str).collect();
+    let s = store(&refs);
+    let capped = SnippetOptions { max_point_queries: 20, ..SnippetOptions::default() };
+    take_slice71_search_statement_trace_for_test();
+    let result = text(s.engine(), "zanzibar quokka marmot", 30, Some(&capped));
+    let queries = highlight_queries();
+    assert_eq!(result.results.len(), 30);
+    assert!(queries <= 40, "{queries} point queries for max_point_queries = 20");
+}

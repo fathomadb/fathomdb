@@ -125,6 +125,12 @@ impl Default for ProjectedTextSearchOptions {
 
 /// `Engine::search_frozen` options; defaults as [`SearchOptions`]. Snippet
 /// options are presentation, not part of the frozen context.
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::FrozenSearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct FrozenSearchOptions {
     pub rerank_depth: usize,

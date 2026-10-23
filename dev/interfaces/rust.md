@@ -1234,8 +1234,9 @@ and 7.2.
   - `max_windows: u8`, `1..=3`, default 1.
   - `head_bytes: u32`, `0..=max_bytes / 2`, default 0.
   - `highlights: bool`, default false.
-  - `max_point_queries: u8`, default 20. The per-search cap on span
-    queries; `snippet_for` does not read it.
+  - `max_point_queries: u8`, default 20. The number of hits per search that
+    get a combined span query; the rule-3 per-term pass draws on a second
+    pool of the same size. `snippet_for` does not read it.
 - `SnippetOptions::validate()` returns `EngineError::InvalidArgument` for a
   value out of range. `snippet_for` itself never fails: it clamps such
   values into range.
@@ -1310,9 +1311,13 @@ The plain entry points are these with `None`.
   misses a span": with a record head, the first window is the head. The
   engine then runs `highlight()` once per term in `CompiledQuery.terms`, and
   spans are grouped by term rather than by lowercased text.
-- `max_point_queries` caps how many hits get span queries, in rank order.
-  The per-term queries of a hit count as that hit's one slot. Later hits get
-  the record start (`SnippetAnchor::Start`).
+- `max_point_queries` caps how many hits get a combined span query, in rank
+  order. Later hits get the record start (`SnippetAnchor::Start`).
+- The per-term queries draw on a second per-search pool of
+  `max_point_queries` queries, in rank order. A hit's per-term pass runs only
+  if the pool still holds `terms.len()` queries, and then costs that many.
+  Otherwise the hit keeps the snippet built from the combined spans. A search
+  therefore issues at most 2 × `max_point_queries` point queries.
 - Anchor: `Match` only when the hit is in the map and highlighting found a
   span. `fusion` may keep a vector hit's struct (`branch == Vector`) for a
   body the text arm also matched, so `branch` is not consulted. Vector-only

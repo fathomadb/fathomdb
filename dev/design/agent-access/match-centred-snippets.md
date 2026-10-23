@@ -466,8 +466,9 @@ SnippetV1` (§ 7.2). Its inputs are the body, its spans `[s, e)`, `max_bytes`,
    - the first window, chosen by approximate identity, does not cover every
      span.
 
-   It costs up to `k` extra point queries for exactly the hits where identity
-   changes the choice. Variant (a′) is a later option.
+   It costs `k` extra point queries for exactly the hits where identity
+   changes the choice, drawn from a per-search pool (§ 6.5). Variant (a′) is
+   a later option.
 
    *As built (S5b):* the third condition is checked as "some span lies
    outside every window of the approximate snippet". It is not checked
@@ -569,6 +570,21 @@ SnippetV1` (§ 7.2). Its inputs are the body, its spans `[s, e)`, `max_bytes`,
 - MR-043's `response_id` hashes the store, the canonical arguments and the
   result refs, not snippets (`dev/interfaces/mcp.md:123-126`). Snippet changes
   therefore never change it.
+- Point queries are capped by counts, never by time, so load cannot change a
+  snippet (owner decision of 2026-10-21, § 10):
+  - `max_point_queries` hits, in rank order, get a combined span query.
+  - The rule-3 per-term pass draws on a second per-search pool, also of
+    `max_point_queries` queries. Hits draw on it in rank order. A hit's pass
+    runs only if the pool still holds `k` queries, and then costs `k`. It is
+    all or nothing: a hit the pool cannot cover keeps its approximate
+    snippet, the one built from the combined spans.
+  - A search therefore issues at most 2 × `max_point_queries` point queries,
+    whatever `k` is. Before this bound, a `k`-term search could issue
+    `max_point_queries × (1 + k)`.
+  - Which hits get the exact pass depends only on the ranked hits, their
+    bodies, the query and the options. A continuation page in the MCP adapter
+    sets `max_point_queries` to its run window, so it shows the snippets an
+    unpaged search over the same window would.
 
 ### 6.6 The record head
 
@@ -608,11 +624,15 @@ a thin consumer.** The reasons:
   - Values out of range are `InvalidArgument`. `SnippetOptions::validate()`
     is the rejecting check, and search entry points call it. `snippet_for`
     returns no `Result`; it clamps out-of-range values into range.
-  - `max_point_queries` is the per-search snippet budget. Hits are processed
-    in rank order. Once the cap is reached, the remaining long hits get the
-    prefix with `anchor = Start`. A hit cap is used rather than a time cap,
-    because a time cap would make the output depend on machine load and break
-    § 6.5. M1 sets the default.
+  - `max_point_queries` is the per-search snippet budget: the number of hits
+    that get a combined span query. Hits are processed in rank order. Once
+    the cap is reached, the remaining long hits get the prefix with
+    `anchor = Start`. A hit cap is used rather than a time cap, because a
+    time cap would make the output depend on machine load and break § 6.5.
+    M1 sets the default.
+  - The rule-3 per-term pass draws on a second per-search pool of
+    `max_point_queries` queries, all or nothing per hit (§ 6.5). A search
+    issues at most 2 × `max_point_queries` point queries.
 - `SearchResult.snippets: Option<Vec<SnippetV1>>`.
   - It is a sidecar parallel to `results`, the same length and in the same
     order. `None` when the option is off.
@@ -792,6 +812,12 @@ variant is worth an experiment.
    option.
 5. Chunked embedding: added to `dev/ROADMAP.md` under "Requested". Until it
    ships, vector-only hits keep the record-start fallback.
+
+**2026-10-21 owner (Block 1 close):** bound the per-term pass to a second
+pool of `max_point_queries`; at most 2 × point queries. `max_point_queries`
+keeps its meaning and range, and the MCP setting is unchanged. A hit whose
+per-term pass the pool cannot cover keeps its approximate snippet (§ 6.5).
+The receipt is `dev/experiments/agent-access-snippet-cost/`.
 
 The questions as originally put, with the Fable-medium reviewer's view:
 

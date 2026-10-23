@@ -42,9 +42,11 @@ export interface ArmDegradation {
  * budget in UTF-8 bytes, ellipses included; `maxWindows` (default 1, `1..=3`);
  * `headBytes` (default 0, `0..=maxBytes / 2`) reserves the record start as its
  * own window; `highlights` (default false) asks for highlight ranges;
- * `maxPointQueries` (default 20, `0..=255`) caps per-search span queries in
- * rank order, and later hits get the record start. Search rejects a value out
- * of range with `InvalidArgumentError`; {@link snippetFor} clamps instead.
+ * `maxPointQueries` (default 20, `0..=255`) caps the hits per search that get
+ * a combined span query, in rank order, and later hits get the record start;
+ * the per-term pass draws on a second pool of the same size. Search rejects a
+ * value out of range with `InvalidArgumentError`; {@link snippetFor} clamps
+ * instead.
  */
 export interface SnippetOptions {
   maxBytes?: number;

@@ -54,6 +54,12 @@ impl SearchFilterArg {
 /// `Engine::search` options. `alpha` defaults to 0.3 and `pool_n` to
 /// `rerank_depth`; `limit` must be in `1..=100`. `snippet: Some(..)` fills
 /// `SearchResult::snippets` (EP-17); `None` is the plain search.
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::SearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct SearchOptions {
     pub filter: Option<SearchFilterArg>,

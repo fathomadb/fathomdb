@@ -466,8 +466,8 @@ SnippetV1` (§ 7.2). Its inputs are the body, its spans `[s, e)`, `max_bytes`,
    - the first window, chosen by approximate identity, does not cover every
      span.
 
-   It costs `k` extra point queries for exactly the hits where identity
-   changes the choice, drawn from a per-search pool (§ 6.5). Variant (a′) is
+   It costs `k` extra point queries for the hits where identity could
+   change the choice, while a per-search pool lasts (§ 6.5). Variant (a′) is
    a later option.
 
    *As built (S5b):* the third condition is checked as "some span lies
@@ -585,6 +585,12 @@ SnippetV1` (§ 7.2). Its inputs are the body, its spans `[s, e)`, `max_bytes`,
     bodies, the query and the options. A continuation page in the MCP adapter
     sets `max_point_queries` to its run window, so it shows the snippets an
     unpaged search over the same window would.
+  - A hit's snippet text can therefore depend on the run window. Only the
+    first `floor(max_point_queries / k)` hits that qualify for rule 3 get the
+    exact pass. In MCP, with `k = 3`, rank 4 gets the approximate window at
+    `limit: 10` and the exact one at `limit: 20`. Continuation pages past
+    that point carry approximate snippets. The anchor is unaffected: it
+    depends only on the combined query.
 
 ### 6.6 The record head
 

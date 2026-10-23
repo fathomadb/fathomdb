@@ -925,7 +925,11 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         highlights: args.highlights.unwrap_or(false),
         // One point query per hit of the run window, so every page of a
         // continuation chain is anchored alike and `highlights` (which also
-        // queries hits that fit) never changes another hit's snippet.
+        // queries hits that fit) never changes another hit's snippet. The
+        // engine's per-term pool is the same size, so only the first
+        // window / k eligible hits get the exact-identity window: a hit's
+        // snippet text, though not its anchor, can depend on the window, and
+        // a page equals the same ranks of an unpaged search over its window.
         max_point_queries: u8::try_from(run_limit).unwrap_or(u8::MAX),
     });
     let started_limit = ctx.run_limit();

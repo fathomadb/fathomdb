@@ -25,7 +25,8 @@ k = 5 in every record size. The per-cell numbers are in the two summaries.
 
 ## Sweep
 
-- Each cell gets its own store of 40 synthetic records of 2, 10 or 50 KiB.
+- Each (record size, k) pair gets its own store of 40 synthetic records of
+  2, 10 or 50 KiB; its two cells, snippets off and on, share it.
   Each record holds the k query terms (k = 1, 3, 5), spread evenly through
   the body, so each term falls in its own window.
 - The query is the k terms, run as a text-only search with limit 20.

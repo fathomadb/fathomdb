@@ -2,8 +2,9 @@
 //! search (`dev/design/agent-access/match-centred-snippets.md` §§ 6.1, 7.2).
 //!
 //! Runs on the search's reader transaction after truncation and the identity
-//! pass, with read-only point queries only: one `highlight()` per hit,
-//! constrained to the hit's FTS rowid.
+//! pass, with read-only point queries only, each constrained to the hit's FTS
+//! rowid: one combined `highlight()` per hit and, from a second pool, one per
+//! term for the rule-3 exact-identity pass.
 
 use std::collections::HashMap;
 

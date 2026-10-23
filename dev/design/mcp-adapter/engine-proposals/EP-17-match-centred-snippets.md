@@ -87,11 +87,14 @@ agents answer from the wrong text.
      inserts without one (`index_projector.rs:361`).
 2. **Fetch spans only where needed.** After `results.truncate(final_limit)` and
    the identity pass (`search.rs:2265-2286`), in the same reader transaction,
-   walk the final hits in rank order. Run a point query for a hit only if all
-   of the following hold:
+   walk the final hits in rank order. Run a combined point query for a hit
+   only if all of the following hold:
    - the hit is in the map;
    - `body.len() > max_bytes`, or `highlights` is true;
-   - fewer than `max_point_queries` point queries have run so far.
+   - fewer than `max_point_queries` combined point queries have run so far.
+
+   The per-term queries of the exact-identity upgrade come from a second
+   pool (match-centred-snippets.md § 6.5).
 
    The point query is
    `SELECT highlight(<table>, 0, ?open, ?close) FROM <table> WHERE <table> MATCH

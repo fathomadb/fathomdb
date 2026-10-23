@@ -212,6 +212,12 @@ Result adds:
     continuation page shows the snippets of an unpaged search over the same
     window. M1 has not yet measured this cost; the engine receipt is
     `dev/experiments/agent-access-snippet-cost/`.
+  - A hit's snippet text can depend on the run window. The exact
+    per-term pass reaches only the first `floor(window / k)` hits that need
+    it, for `k` query terms. With `k = 3`, rank 4 shows the approximate
+    window at `limit: 10` and the exact one at `limit: 20`, and continuation
+    pages past that point carry approximate snippets. `snippet_anchor` is
+    unaffected.
   - The text line for a hit carries `anchor=<snippet_anchor>`.
 - `completeness`: one of `complete` (fewer results than `limit`, no
   degradation), `limit_reached` (exactly `limit`; total unknown),

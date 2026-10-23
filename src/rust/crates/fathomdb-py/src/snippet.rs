@@ -21,13 +21,13 @@ impl PySnippetOptionsArg {
     /// type is `InvalidArgumentError`, like a value the engine's range check
     /// rejects.
     pub(super) fn to_rust(&self) -> PyResult<RustSnippetOptions> {
-        Ok(RustSnippetOptions {
-            max_bytes: checked("max_bytes", self.max_bytes)?,
-            max_windows: checked("max_windows", self.max_windows)?,
-            head_bytes: checked("head_bytes", self.head_bytes)?,
-            highlights: self.highlights,
-            max_point_queries: checked("max_point_queries", self.max_point_queries)?,
-        })
+        let mut options = RustSnippetOptions::default();
+        options.max_bytes = checked("max_bytes", self.max_bytes)?;
+        options.max_windows = checked("max_windows", self.max_windows)?;
+        options.head_bytes = checked("head_bytes", self.head_bytes)?;
+        options.highlights = self.highlights;
+        options.max_point_queries = checked("max_point_queries", self.max_point_queries)?;
+        Ok(options)
     }
 }
 
@@ -76,13 +76,13 @@ impl PySnippetOptionsArg {
     /// The options for `snippet_for`, which never fails: each value
     /// saturates into its field type, and the selector clamps it into range.
     fn to_rust_clamped(&self) -> RustSnippetOptions {
-        RustSnippetOptions {
-            max_bytes: u32::try_from(self.max_bytes.max(0)).unwrap_or(u32::MAX),
-            max_windows: u8::try_from(self.max_windows.max(0)).unwrap_or(u8::MAX),
-            head_bytes: u32::try_from(self.head_bytes.max(0)).unwrap_or(u32::MAX),
-            highlights: self.highlights,
-            max_point_queries: u8::try_from(self.max_point_queries.max(0)).unwrap_or(u8::MAX),
-        }
+        let mut options = RustSnippetOptions::default();
+        options.max_bytes = u32::try_from(self.max_bytes.max(0)).unwrap_or(u32::MAX);
+        options.max_windows = u8::try_from(self.max_windows.max(0)).unwrap_or(u8::MAX);
+        options.head_bytes = u32::try_from(self.head_bytes.max(0)).unwrap_or(u32::MAX);
+        options.highlights = self.highlights;
+        options.max_point_queries = u8::try_from(self.max_point_queries.max(0)).unwrap_or(u8::MAX);
+        options
     }
 }
 

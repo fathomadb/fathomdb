@@ -19,20 +19,60 @@ fn options_default_and_reject_out_of_range_values() {
     assert!(d.validate().is_ok());
 
     for ok in [
-        SnippetOptions { max_bytes: 40, ..d },
-        SnippetOptions { max_bytes: 4000, ..d },
-        SnippetOptions { max_windows: 3, ..d },
-        SnippetOptions { head_bytes: 150, ..d },
-        SnippetOptions { max_point_queries: 0, ..d },
+        {
+            let mut o = d;
+            o.max_bytes = 40;
+            o
+        },
+        {
+            let mut o = d;
+            o.max_bytes = 4000;
+            o
+        },
+        {
+            let mut o = d;
+            o.max_windows = 3;
+            o
+        },
+        {
+            let mut o = d;
+            o.head_bytes = 150;
+            o
+        },
+        {
+            let mut o = d;
+            o.max_point_queries = 0;
+            o
+        },
     ] {
         assert!(ok.validate().is_ok(), "{ok:?} must validate");
     }
     for bad in [
-        SnippetOptions { max_bytes: 39, ..d },
-        SnippetOptions { max_bytes: 4001, ..d },
-        SnippetOptions { max_windows: 0, ..d },
-        SnippetOptions { max_windows: 4, ..d },
-        SnippetOptions { head_bytes: 151, ..d },
+        {
+            let mut o = d;
+            o.max_bytes = 39;
+            o
+        },
+        {
+            let mut o = d;
+            o.max_bytes = 4001;
+            o
+        },
+        {
+            let mut o = d;
+            o.max_windows = 0;
+            o
+        },
+        {
+            let mut o = d;
+            o.max_windows = 4;
+            o
+        },
+        {
+            let mut o = d;
+            o.head_bytes = 151;
+            o
+        },
     ] {
         assert!(is_invalid_argument(bad.validate()), "{bad:?} must be InvalidArgument");
     }
@@ -45,7 +85,9 @@ fn options_default_and_reject_out_of_range_values() {
 }
 
 fn opts(max_bytes: u32) -> SnippetOptions {
-    SnippetOptions { max_bytes, ..SnippetOptions::default() }
+    let mut o = SnippetOptions::default();
+    o.max_bytes = max_bytes;
+    o
 }
 
 // § 6.3 rule 1: a body that fits is returned whole, with every span.
@@ -63,7 +105,11 @@ fn rule1_body_that_fits_is_returned_whole() {
     assert!(s.highlights.is_empty(), "highlights are off by default");
     assert!(!s.cut);
 
-    let lit = snippet_for(body, &spans, &SnippetOptions { highlights: true, ..opts(300) });
+    let lit = snippet_for(body, &spans, &{
+        let mut o = opts(300);
+        o.highlights = true;
+        o
+    });
     assert_eq!(lit.text, body);
     assert_eq!(lit.highlights, spans.to_vec());
 
@@ -79,7 +125,8 @@ fn rule1_body_that_fits_is_returned_whole() {
 #[test]
 fn spans_are_widened_to_grapheme_boundaries() {
     let nfd = "Le cafe\u{301} est ouvert.";
-    let lit = SnippetOptions { highlights: true, ..opts(300) };
+    let mut lit = opts(300);
+    lit.highlights = true;
     let s = snippet_for(nfd, &[(3, 7)], &lit);
     assert_eq!(s.spans, vec![(3, 9)], "the accent belongs to the span");
     assert_eq!(s.highlights, vec![(3, 9)]);
@@ -204,7 +251,8 @@ fn joined(body: &str, windows: &[(u32, u32)]) -> String {
 #[test]
 fn rule9_assembly_joins_windows_and_maps_highlights_into_text() {
     let (body, spans) = body_with(&[(1500, "pear"), (1540, "plum"), (1700, "fig")], 3000);
-    let lit = SnippetOptions { highlights: true, ..opts(120) };
+    let mut lit = opts(120);
+    lit.highlights = true;
     let s = snippet_for(&body, &spans, &lit);
     assert!(s.windows[0].0 > 0);
     assert_eq!(s.text, joined(&body, &s.windows));
@@ -406,7 +454,8 @@ fn head_window_precedes_the_match_window() {
     let body = format!("{header}{}pear {}", pad(1500 - header.len()), pad(1500));
     let pear = body.find("pear").unwrap();
     let spans = [(pear as u32, pear as u32 + 4)];
-    let headed = SnippetOptions { head_bytes: 40, ..opts(300) };
+    let mut headed = opts(300);
+    headed.head_bytes = 40;
     let s = snippet_for(&body, &spans, &headed);
     assert_eq!(s.windows[0], (0, 37), "{s:?}");
     assert_eq!(s.windows.len(), 2);
@@ -429,7 +478,9 @@ fn head_window_precedes_the_match_window() {
 }
 
 fn windows_opts(max_bytes: u32, max_windows: u8) -> SnippetOptions {
-    SnippetOptions { max_windows, ..opts(max_bytes) }
+    let mut o = opts(max_bytes);
+    o.max_windows = max_windows;
+    o
 }
 
 // § 6.3 rule 7 (T-11, first half): with `max_windows > 1`, distinct terms
@@ -495,7 +546,8 @@ fn rule8_close_windows_merge() {
     let body = format!("{header}{}pear {}", pad(10), pad(3000));
     let pear = body.find("pear").unwrap();
     let spans = [(pear as u32, pear as u32 + 4)];
-    let headed = SnippetOptions { head_bytes: 40, ..opts(300) };
+    let mut headed = opts(300);
+    headed.head_bytes = 40;
     let s = snippet_for(&body, &spans, &headed);
     assert_eq!(s.windows.len(), 1, "{s:?}");
     assert_eq!(s.windows[0].0, 0);
@@ -564,12 +616,13 @@ mod t4 {
 
     fn options() -> impl Strategy<Value = SnippetOptions> {
         (40u32..=700, 1u8..=3, 0u32..=350, any::<bool>()).prop_map(
-            |(max_bytes, max_windows, head, highlights)| SnippetOptions {
-                max_bytes,
-                max_windows,
-                head_bytes: head.min(max_bytes / 2),
-                highlights,
-                ..SnippetOptions::default()
+            |(max_bytes, max_windows, head, highlights)| {
+                let mut o = SnippetOptions::default();
+                o.max_bytes = max_bytes;
+                o.max_windows = max_windows;
+                o.head_bytes = head.min(max_bytes / 2);
+                o.highlights = highlights;
+                o
             },
         )
     }
@@ -689,7 +742,8 @@ fn head_close_to_the_match_window_merges_instead_of_dropping() {
         );
         let pear = body.find("pear").unwrap() as u32;
         let spans = [(pear, pear + 4)];
-        let headed = SnippetOptions { head_bytes: 50, ..opts(100) };
+        let mut headed = opts(100);
+        headed.head_bytes = 50;
         let s = snippet_for(&body, &spans, &headed);
         assert_eq!(s.windows[0].0, 0, "f={f}: the head survives: {s:?}");
         assert!(s.text.starts_with("h h h"), "f={f}: {s:?}");

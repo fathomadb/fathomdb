@@ -22,17 +22,14 @@ impl SnippetOptionsInput {
     /// rejects.
     pub(crate) fn to_rust(&self) -> Result<RustSnippetOptions> {
         let defaults = RustSnippetOptions::default();
-        Ok(RustSnippetOptions {
-            max_bytes: checked("max_bytes", self.max_bytes, defaults.max_bytes)?,
-            max_windows: checked("max_windows", self.max_windows, defaults.max_windows)?,
-            head_bytes: checked("head_bytes", self.head_bytes, defaults.head_bytes)?,
-            highlights: self.highlights.unwrap_or(defaults.highlights),
-            max_point_queries: checked(
-                "max_point_queries",
-                self.max_point_queries,
-                defaults.max_point_queries,
-            )?,
-        })
+        let mut options = defaults;
+        options.max_bytes = checked("max_bytes", self.max_bytes, defaults.max_bytes)?;
+        options.max_windows = checked("max_windows", self.max_windows, defaults.max_windows)?;
+        options.head_bytes = checked("head_bytes", self.head_bytes, defaults.head_bytes)?;
+        options.highlights = self.highlights.unwrap_or(defaults.highlights);
+        options.max_point_queries =
+            checked("max_point_queries", self.max_point_queries, defaults.max_point_queries)?;
+        Ok(options)
     }
 }
 
@@ -86,13 +83,13 @@ impl SnippetOptionsInput {
             |v: Option<i64>, d: u32| v.map_or(d, |v| u32::try_from(v.max(0)).unwrap_or(u32::MAX));
         let u8_of =
             |v: Option<i64>, d: u8| v.map_or(d, |v| u8::try_from(v.max(0)).unwrap_or(u8::MAX));
-        RustSnippetOptions {
-            max_bytes: u32_of(self.max_bytes, defaults.max_bytes),
-            max_windows: u8_of(self.max_windows, defaults.max_windows),
-            head_bytes: u32_of(self.head_bytes, defaults.head_bytes),
-            highlights: self.highlights.unwrap_or(defaults.highlights),
-            max_point_queries: u8_of(self.max_point_queries, defaults.max_point_queries),
-        }
+        let mut options = defaults;
+        options.max_bytes = u32_of(self.max_bytes, defaults.max_bytes);
+        options.max_windows = u8_of(self.max_windows, defaults.max_windows);
+        options.head_bytes = u32_of(self.head_bytes, defaults.head_bytes);
+        options.highlights = self.highlights.unwrap_or(defaults.highlights);
+        options.max_point_queries = u8_of(self.max_point_queries, defaults.max_point_queries);
+        options
     }
 }
 

@@ -61,6 +61,7 @@ impl SearchFilterArg {
 /// let _ = fathomdb_sdk::SearchOptions { limit: 5, ..Default::default() };
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct SearchOptions {
     pub filter: Option<SearchFilterArg>,
     pub rerank_depth: usize,
@@ -97,6 +98,7 @@ impl Default for SearchOptions {
 /// let _ = fathomdb_sdk::TextSearchOptions { limit: 5, ..Default::default() };
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct TextSearchOptions {
     pub view: ReadView,
     pub limit: usize,
@@ -132,6 +134,7 @@ impl Default for ProjectedTextSearchOptions {
 /// let _ = fathomdb_sdk::FrozenSearchOptions { limit: 5, ..Default::default() };
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct FrozenSearchOptions {
     pub rerank_depth: usize,
     pub use_graph_arm: bool,

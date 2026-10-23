@@ -53,6 +53,7 @@ impl From<SnapshotFilterError> for SearchExpandHandlerError {
 /// };
 /// ```
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct SearchExpandResult {
     /// Original RRF-scored search results (G1+G9 hybrid).
     pub search_hits: Vec<SearchHit>,

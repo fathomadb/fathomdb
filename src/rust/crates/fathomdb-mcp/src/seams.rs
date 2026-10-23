@@ -299,16 +299,11 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
             let bytes = u32::try_from(input.snippet_bytes).unwrap_or(u32::MAX);
             // Synthetic hits carry no match spans, as a hit the engine did
             // not anchor; the options are the ones `search` requests.
-            let snippet = fathomdb_sdk::snippet_for(
-                &hit.body,
-                &[],
-                &fathomdb_sdk::SnippetOptions {
-                    max_bytes: bytes,
-                    max_windows: 1,
-                    head_bytes: crate::config::snippet_head_bytes(bytes),
-                    ..fathomdb_sdk::SnippetOptions::default()
-                },
-            );
+            let mut options = fathomdb_sdk::SnippetOptions::default();
+            options.max_bytes = bytes;
+            options.max_windows = 1;
+            options.head_bytes = crate::config::snippet_head_bytes(bytes);
+            let snippet = fathomdb_sdk::snippet_for(&hit.body, &[], &options);
             (
                 crate::output::Hit {
                     reference: hit.reference.clone(),

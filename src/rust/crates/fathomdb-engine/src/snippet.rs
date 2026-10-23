@@ -24,6 +24,7 @@ use crate::errors::EngineError;
 /// let _ = fathomdb_engine::SnippetOptions { max_bytes: 120, ..Default::default() };
 /// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
 pub struct SnippetOptions {
     /// Output budget in UTF-8 bytes, ellipses included. `40..=4000`; default
     /// 300.

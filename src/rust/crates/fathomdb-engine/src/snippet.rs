@@ -17,6 +17,12 @@ use crate::errors::EngineError;
 /// [`SnippetOptions::default`]. [`SnippetOptions::validate`] checks the
 /// documented ranges; search entry points reject out-of-range values with
 /// [`EngineError::InvalidArgument`].
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_engine::SnippetOptions { max_bytes: 120, ..Default::default() };
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct SnippetOptions {
     /// Output budget in UTF-8 bytes, ellipses included. `40..=4000`; default

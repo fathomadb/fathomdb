@@ -696,3 +696,27 @@ fn per_term_pass_that_does_not_fit_keeps_the_approximate_window() {
     assert!(snippet.text.contains("running"), "{snippet:?}");
     assert!(!snippet.text.contains("cat"), "{snippet:?}");
 }
+
+// Review fix (C1 P3-1): the per-term pool is drawn on in full, so rule 3
+// stays alive. The fixture of
+// `snippet_point_queries_stay_within_twice_the_cap_with_many_terms`, with
+// max_point_queries = 20, issues 20 combined queries plus six 3-term passes:
+// exactly 38.
+#[test]
+fn snippet_per_term_pool_is_spent_in_whole_passes() {
+    let _guard = lock();
+    let bodies: Vec<String> = (0..30)
+        .map(|i| {
+            let body =
+                body_with_terms(&[(500, "zanzibar"), (2000, "quokka"), (3500, "marmot")], 4096);
+            format!("{body} doc{i}")
+        })
+        .collect();
+    let refs: Vec<&str> = bodies.iter().map(String::as_str).collect();
+    let s = store(&refs);
+    let capped = SnippetOptions { max_point_queries: 20, ..SnippetOptions::default() };
+    take_slice71_search_statement_trace_for_test();
+    let result = text(s.engine(), "zanzibar quokka marmot", 30, Some(&capped));
+    assert_eq!(result.results.len(), 30);
+    assert_eq!(highlight_queries(), 20 + 6 * 3);
+}

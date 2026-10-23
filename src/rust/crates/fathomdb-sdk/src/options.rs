@@ -90,6 +90,12 @@ impl Default for SearchOptions {
 }
 
 /// `Engine::search_text_only` options; `snippet` as in [`SearchOptions`].
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::TextSearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TextSearchOptions {
     pub view: ReadView,

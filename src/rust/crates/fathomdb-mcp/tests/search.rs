@@ -670,3 +670,70 @@ async fn mcp_multi_term_continuation_pages_anchor_alike() {
     assert_eq!((pages, offset), (3, 30));
     harness.shutdown().await;
 }
+
+/// Review fix (C1 P2-1, match-centred-snippets.md § 6.5): the per-term pool
+/// is visible from MCP. Under `run cat`, approximate identity picks the
+/// earlier `running … runs` window and exact identity the `running … cat`
+/// window, so a snippet shows which pass it got. The pool holds the run
+/// window's worth of queries and each pass costs 2, so in a search over a
+/// window of W only ranks 1..=W/2 get the exact pass; a continuation page
+/// equals the same ranks of the unpaged search over its window.
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_per_term_pool_scales_with_the_run_window() {
+    let filler = |n: usize| "lorem ".repeat(n);
+    let writes: Vec<PreparedWrite> = (0..30)
+        .map(|i| {
+            let body = format!(
+                "{}running {}runs {}running {}cat {}doc{i}",
+                filler(160),
+                filler(5),
+                filler(300),
+                filler(5),
+                filler(300)
+            );
+            node(&format!("note:{i:02}"), "note", &body)
+        })
+        .collect();
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let query = "run cat";
+    let view = |page: &Value| -> Vec<(Value, Value, Value)> {
+        page["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|hit| (hit["ref"].clone(), hit["snippet"].clone(), hit["snippet_anchor"].clone()))
+            .collect()
+    };
+    let exact = |snippet: &Value| {
+        let text = snippet.as_str().unwrap();
+        assert!(text.contains("running"), "{text:?}");
+        text.contains("cat")
+    };
+    let mut page =
+        harness.ok("search", json!({"query": query, "limit": 10, "max_tokens": 20000})).await;
+    let mut offset = 0;
+    loop {
+        let paged = view(&page);
+        if paged.is_empty() {
+            break;
+        }
+        assert_eq!(paged.len(), 10, "offset {offset}: {page}");
+        let window = offset + paged.len();
+        let unpaged = view(
+            &harness
+                .ok("search", json!({"query": query, "limit": window, "max_tokens": 20000}))
+                .await,
+        );
+        assert_eq!(unpaged.len(), window);
+        for (rank, (_, snippet, anchor)) in unpaged.iter().enumerate() {
+            assert_eq!(anchor, "match", "window {window}, rank {}", rank + 1);
+            assert_eq!(exact(snippet), rank < window / 2, "window {window}, rank {}", rank + 1);
+        }
+        assert_eq!(paged, unpaged[offset..window], "offset {offset}");
+        offset = window;
+        let Some(next) = page["continuation"].as_str().map(str::to_string) else { break };
+        page = harness.ok("search", json!({"continuation": next, "max_tokens": 20000})).await;
+    }
+    assert_eq!(offset, 30);
+    harness.shutdown().await;
+}

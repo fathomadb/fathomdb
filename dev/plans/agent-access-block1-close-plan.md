@@ -1,7 +1,7 @@
 ---
 title: Agent access, Block 1 — close plan
 date: 2026-10-21
-status: ACTIVE
+status: COMPLETE
 desc: Consolidates the Block 1 branches, proves the integration branch stable, files the open items as 0.8.29 todos on main, and builds three close fixes (a bounded per-term snippet pass, its measurement, non-exhaustive SDK structs) before Block 1 is declared closed.
 inputs:
   - dev/plans/agent-access-block1-plan.md

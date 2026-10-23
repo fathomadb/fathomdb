@@ -161,6 +161,11 @@ entries rather than redesigning.
   2026-10-18.** From the follow-up test (queue-sim REPORT § 12), the owner
   dropped the p90 start check and set `run_limit_ms` to 30 s on 2026-10-19.
 - Block 2 code starts only after Block 1 is complete and every test passes.
+- **Block 1 CLOSED 2026-10-23** on `feat/agent-access-block1` (not merged to
+  `main`). The full gate is green at `32fdc4167` (196/196 suites). The close
+  record and the open 0.8.29 todos are in
+  `dev/plans/agent-access-block1-plan.md`. Block 2 may start; B2-8 still
+  needs owner approval as a Block 2 row (todo seq 296).
 
 ## Order
 

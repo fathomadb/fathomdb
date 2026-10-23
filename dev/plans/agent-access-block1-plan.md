@@ -1,5 +1,5 @@
 ---
-status: ACTIVE
+status: COMPLETE
 date: 2026-10-18
 depends_on: owner approval of the Block 1 designs, 2026-10-18
 ---
@@ -95,3 +95,31 @@ closes with it. Headroom work is todo seq 306.
 **Todos (Phase B).** Seq 291–307 on `main` (`7bb46310b`, `48c16cb40`), target
 0.8.29. Seq 306–307 were written from the primary `main` checkout, with no
 other writer active there.
+
+**Close fixes (Phase C):**
+
+| Slice | Branch | Landed at | Review | Status |
+| --- | --- | --- | --- | --- |
+| C1 bounded per-term snippet pass and cost receipt | `feat/aa-b1-c1` (`ba899117a`..`e6e7418c8`) | `96fb9b762` | Fable-medium (codex blocked by the harness): PASS-WITH-FIXES, fixed | landed |
+| C3 `#[non_exhaustive]` SDK option and result structs | `feat/aa-b1-c3` (`61ae0c668`..`554db4d2a`) | `32fdc4167` | Fable-medium: PASS-WITH-FIXES, fixed | landed |
+
+- C1: a search issues at most 2 × `max_point_queries` point queries
+  (k = 3: 80 → 38; k = 5: 120 → 40; p50 36–46% lower at k = 3 and 5). A
+  hit's snippet text, not its anchor, can now depend on the run window.
+- C3: 49 construction sites moved to `default()` plus assignment. Stable
+  rustdoc does not check the `E0639` code in the `compile_fail` doctests;
+  they prove only that a literal no longer compiles.
+
+**C exit, at `32fdc4167`:**
+
+| Step | Result |
+| --- | --- |
+| A2 `./scripts/agent-verify.sh` | `agent-test.sh: 196/196 suites passed (skipped=0 excluded=0)` |
+| A5 `npm test` (TS) | `pass 514`, `fail 0` |
+| A6 MCP conformance | suite `Total: 9 passed, 24 failed`, identical per scenario to the baseline; Inspector: 7 tools, closed schemas, named errors on the error paths |
+
+A3 and A4 were not rerun: Phase C touched neither reader dispatch nor
+embedding.
+
+**Follow-ups** are todos seq 306–310 on `main`; seq 291, 293 and 294 are
+done. Block 1 is closed.

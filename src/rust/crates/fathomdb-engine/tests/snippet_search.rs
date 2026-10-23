@@ -670,3 +670,29 @@ fn snippet_point_queries_stay_within_twice_the_cap_with_many_terms() {
     assert_eq!(result.results.len(), 30);
     assert!(queries <= 40, "{queries} point queries for max_point_queries = 20");
 }
+
+// Block 1 close (§ 6.5): the per-term pass is all or nothing. A pool of one
+// cannot hold the two terms of `run cat`, so the hit keeps its approximate
+// snippet: the earlier `running … runs` window, not the `cat` window rule 3
+// would pick.
+#[test]
+fn per_term_pass_that_does_not_fit_keeps_the_approximate_window() {
+    let _guard = lock();
+    let filler = |n: usize| "lorem ".repeat(n);
+    let body = format!(
+        "{}running {}runs {}running {}cat {}",
+        filler(160),
+        filler(5),
+        filler(300),
+        filler(5),
+        filler(300)
+    );
+    let s = store(&[&body]);
+    let narrow =
+        SnippetOptions { max_bytes: 120, max_point_queries: 1, ..SnippetOptions::default() };
+    let result = text(s.engine(), "run cat", 10, Some(&narrow));
+    let snippet = snippet_of(&result, &body);
+    assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
+    assert!(snippet.text.contains("running"), "{snippet:?}");
+    assert!(!snippet.text.contains("cat"), "{snippet:?}");
+}

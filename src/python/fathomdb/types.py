@@ -412,8 +412,10 @@ class SnippetOptions:
     ``max_bytes`` is the output budget in UTF-8 bytes, ellipses included
     (``40..=4000``); ``max_windows`` is ``1..=3``; ``head_bytes`` reserves the
     record start as its own window (``0..=max_bytes // 2``); ``highlights``
-    asks for highlight ranges; ``max_point_queries`` caps per-search span
-    queries in rank order (``0..=255``; later hits get the record start).
+    asks for highlight ranges; ``max_point_queries`` caps the hits per search
+    that get a combined span query, in rank order (``0..=255``; later hits get
+    the record start; the per-term pass draws on a second pool of the same
+    size).
     Search raises ``InvalidArgumentError`` for a value out of range;
     :func:`fathomdb.snippet_for` clamps instead.
     """

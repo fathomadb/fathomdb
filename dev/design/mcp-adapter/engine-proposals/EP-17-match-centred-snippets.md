@@ -27,8 +27,10 @@ and `search_frozen_with_snippets`. The SDK options gain `snippet`, including
 `FrozenSearchOptions`. As built:
 
 - `CompiledQuery.terms` carries the OR operands for the per-term pass.
-- The per-term queries of a hit count as that hit's one
-  `max_point_queries` slot.
+- The per-term queries draw on a second per-search pool of
+  `max_point_queries`, all or nothing per hit (Block 1 close, 2026-10-21;
+  match-centred-snippets.md § 6.5). A search issues at most
+  2 × `max_point_queries` point queries.
 
 Still open: the MCP adapter (S5c), Python and TypeScript parity (S5d), and
 the M1 and M2 measurements.
@@ -85,11 +87,14 @@ agents answer from the wrong text.
      inserts without one (`index_projector.rs:361`).
 2. **Fetch spans only where needed.** After `results.truncate(final_limit)` and
    the identity pass (`search.rs:2265-2286`), in the same reader transaction,
-   walk the final hits in rank order. Run a point query for a hit only if all
-   of the following hold:
+   walk the final hits in rank order. Run a combined point query for a hit
+   only if all of the following hold:
    - the hit is in the map;
    - `body.len() > max_bytes`, or `highlights` is true;
-   - fewer than `max_point_queries` point queries have run so far.
+   - fewer than `max_point_queries` combined point queries have run so far.
+
+   The per-term queries of the exact-identity upgrade come from a second
+   pool (match-centred-snippets.md § 6.5).
 
    The point query is
    `SELECT highlight(<table>, 0, ?open, ?close) FROM <table> WHERE <table> MATCH
@@ -143,8 +148,11 @@ agents answer from the wrong text.
 - **Memory: none new.** The FTS tables use FTS5's defaults: `detail=full`, plus
   a content copy of the body (`fathomdb-schema/src/lib.rs:338-345`,
   `lib.rs:425-430`). Positions and text are already stored.
-- **Compute:** point queries run only for hits that are over budget or that
-  need highlights, at most `max_point_queries` per search.
+- **Compute:** combined span queries run only for hits that are over budget
+  or that need highlights, at most `max_point_queries` per search. The
+  per-term pass of the exact-identity upgrade draws on a second pool of the
+  same size, so a search issues at most 2 × `max_point_queries` point
+  queries, whatever `k` is.
   - About 92% of LoCoMo turns fit in 300 characters, so most hits need none.
   - Each point query costs `k` doclist seeks, one cached content-row read and
     one tokenizer pass over the body. This is estimated at tens of
@@ -168,7 +176,9 @@ agents answer from the wrong text.
   tokens, returns one fragment and puts its markup inline.
 - Exact term identity: the first upgrade is one `highlight()` per OR term, only
   on over-budget hits with `k > 1` whose first window misses spans. It needs no
-  `unsafe`.
+  `unsafe`. Its queries come from a second per-search pool of
+  `max_point_queries`; a hit the pool cannot cover in full keeps its
+  approximate snippet.
   - A custom FTS5 auxiliary function returning `xInst` triples is a later
     option. It runs the same point query, so it improves precision, not cost.
 - A per-search **time** cap is rejected in favour of the hit cap, because a

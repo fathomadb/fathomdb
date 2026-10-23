@@ -205,9 +205,19 @@ Result adds:
   - The budget loop drops whole hits; it never re-cuts a snippet.
   - Cost: the engine's per-search snippet cap (`max_point_queries`) is set
     to the run window, `offset + limit` (at most 100). A search therefore
-    runs at most one `highlight()` point query per long hit in the run
-    window, plus per-term queries for multi-term queries; with `highlights`
-    it also runs one per hit that fits. M1 has not yet measured this cost.
+    runs at most one combined `highlight()` point query per hit in the run
+    window: per long hit, and with `highlights` also per hit that fits.
+    Multi-term queries add per-term queries from a second pool of the same
+    size, so a search runs at most 2 × the run window point queries. A
+    continuation page shows the snippets of an unpaged search over the same
+    window. M1 has not yet measured this cost; the engine receipt is
+    `dev/experiments/agent-access-snippet-cost/`.
+  - A hit's snippet text can depend on the run window. The exact
+    per-term pass reaches only the first `floor(window / k)` hits that need
+    it, for `k` query terms. With `k = 3`, rank 4 shows the approximate
+    window at `limit: 10` and the exact one at `limit: 20`, and continuation
+    pages past that point carry approximate snippets. `snippet_anchor` is
+    unaffected.
   - The text line for a hit carries `anchor=<snippet_anchor>`.
 - `completeness`: one of `complete` (fewer results than `limit`, no
   degradation), `limit_reached` (exactly `limit`; total unknown),

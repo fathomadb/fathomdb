@@ -29,8 +29,11 @@ pub struct SnippetOptions {
     pub head_bytes: u32,
     /// Return highlight ranges into `text`. Default false.
     pub highlights: bool,
-    /// Per-search cap on span point queries; hits past it get the record
-    /// start. Not used by [`snippet_for`]. Default 20.
+    /// Per-search number of hits, in rank order, that get a combined span
+    /// point query; hits past it get the record start. The exact-identity
+    /// per-term pass draws on a second pool of the same size, so a search
+    /// issues at most twice this many point queries. Not used by
+    /// [`snippet_for`]. Default 20.
     pub max_point_queries: u8,
 }
 

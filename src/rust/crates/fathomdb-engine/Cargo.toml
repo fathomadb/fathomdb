@@ -792,3 +792,7 @@ tempfile = "3"
 [[test]]
 name = "snippet_search"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "snippet_cost_receipt"
+required-features = ["test-hooks"]

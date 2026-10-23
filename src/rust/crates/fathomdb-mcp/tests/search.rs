@@ -618,3 +618,55 @@ async fn match_snippets_keep_the_record_head() {
     assert!(snippet.len() <= 300);
     harness.shutdown().await;
 }
+
+/// Block 1 close (match-centred-snippets.md § 6.5): the per-term snippet
+/// pass draws on a per-search pool sized by the run window, so a
+/// continuation page of a multi-term search shows the same snippets as an
+/// unpaged search over the same window (offset + limit).
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_multi_term_continuation_pages_anchor_alike() {
+    let writes: Vec<PreparedWrite> = (0..30)
+        .map(|i| {
+            let mut body = "lorem ".repeat(84);
+            body.push_str("zanzibar ");
+            body.push_str(&"lorem ".repeat(250));
+            body.push_str("quokka ");
+            body.push_str(&"lorem ".repeat(250));
+            body.push_str("marmot ");
+            body.push_str(&"ipsum ".repeat(100));
+            node(&format!("note:{i:02}"), "note", &format!("{body}doc{i}"))
+        })
+        .collect();
+    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let query = "zanzibar quokka marmot";
+    let view = |page: &Value| -> Vec<(Value, Value, Value)> {
+        page["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|hit| (hit["ref"].clone(), hit["snippet"].clone(), hit["snippet_anchor"].clone()))
+            .collect()
+    };
+    let mut page =
+        harness.ok("search", json!({"query": query, "limit": 10, "max_tokens": 20000})).await;
+    let mut offset = 0;
+    let mut pages = 0;
+    loop {
+        let paged = view(&page);
+        if paged.is_empty() {
+            break;
+        }
+        assert_eq!(paged.len(), 10, "page {pages}: {page}");
+        let window = offset + paged.len();
+        let unpaged = harness
+            .ok("search", json!({"query": query, "limit": window, "max_tokens": 20000}))
+            .await;
+        assert_eq!(paged, view(&unpaged)[offset..window], "page {pages} (offset {offset})");
+        offset = window;
+        pages += 1;
+        let Some(next) = page["continuation"].as_str().map(str::to_string) else { break };
+        page = harness.ok("search", json!({"continuation": next, "max_tokens": 20000})).await;
+    }
+    assert_eq!((pages, offset), (3, 30));
+    harness.shutdown().await;
+}

@@ -52,9 +52,13 @@ pub(crate) fn snippets_for_hits(
     terms: &[String],
     options: &SnippetOptions,
 ) -> rusqlite::Result<Vec<SnippetV1>> {
-    // `max_point_queries` caps the hits that get a point query, in rank order;
-    // a hit cap, not a time cap, keeps the output deterministic (§ 6.5).
+    // `max_point_queries` caps the hits that get a combined span query, in
+    // rank order; a hit cap, not a time cap, keeps the output deterministic
+    // (§ 6.5). The rule-3 per-term pass draws on a second pool of the same
+    // size, so a search issues at most 2 × `max_point_queries` point queries
+    // whatever the number of terms.
     let mut budget = usize::from(options.max_point_queries);
+    let mut term_pool = usize::from(options.max_point_queries);
     hits.iter()
         .map(|hit| {
             // Rule 0: spans are needed only to cut the body or to highlight.
@@ -69,14 +73,21 @@ pub(crate) fn snippets_for_hits(
             let approximate = snippet_for(&hit.body, &spans, options);
             // Rule 3: exact identity only where it can change the choice — a
             // body over budget, more than one term, and a span outside every
-            // window. The extra queries ride on this hit's budget.
+            // window. It costs one query per term from the per-term pool, all
+            // or nothing: a hit the pool cannot cover keeps the approximate
+            // snippet.
             let misses_a_span = approximate
                 .spans
                 .iter()
                 .any(|&(a, b)| !approximate.windows.iter().any(|&(wa, wb)| wa <= a && b <= wb));
-            if hit.body.len() <= options.max_bytes as usize || terms.len() < 2 || !misses_a_span {
+            if hit.body.len() <= options.max_bytes as usize
+                || terms.len() < 2
+                || !misses_a_span
+                || term_pool < terms.len()
+            {
                 return Ok(approximate);
             }
+            term_pool -= terms.len();
             let term_spans = terms
                 .iter()
                 .map(|term| Ok(match_spans(tx, table, rowid, term, &hit.body)?.unwrap_or_default()))

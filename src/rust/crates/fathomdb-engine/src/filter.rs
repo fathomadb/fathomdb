@@ -79,12 +79,11 @@ pub enum Predicate {
 /// population slice lands.
 // 0.8.20 Slice 15e fix-2 (Finding 2) — `#[non_exhaustive]`: the `attributes`
 // field was added additively in 0.8.20. Marking the struct non-exhaustive means
-// EXTERNAL crates can no longer use a struct literal `SearchFilter { .. }` and
-// must go through `..Default::default()` (or a constructor), so a FUTURE field
-// add is not a source break for them. Internal (in-workspace) construction is
-// unaffected — `#[non_exhaustive]` only constrains other crates — and every
-// in-crate literal already spreads `..Default::default()`. Governed-surface
-// status: PROPOSED / NOT SIGNED.
+// EXTERNAL crates cannot use a struct expression, `..Default::default()`
+// included; they start from `SearchFilter::default()` and assign fields, so a
+// FUTURE field add is not a source break for them. Construction inside
+// `fathomdb-engine` is unaffected: `#[non_exhaustive]` only constrains other
+// crates. Governed-surface status: PROPOSED / NOT SIGNED.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct SearchFilter {

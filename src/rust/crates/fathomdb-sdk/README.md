@@ -67,13 +67,15 @@ for hybrid search, graph operations, and option defaults.
 
 | Python / TypeScript | Rust |
 | --- | --- |
-| `engine.search(query, rerank_depth=3)` / `engine.search(query, undefined, 3)` | `engine.search(query, SearchOptions { rerank_depth: 3, ..Default::default() })` |
+| `engine.search(query, rerank_depth=3)` / `engine.search(query, undefined, 3)` | `let mut o = SearchOptions::default(); o.rerank_depth = 3; engine.search(query, o)` |
 | `read.get(engine, id)` / `read.get(engine, id)` | `read::get(&engine, id, None)` |
 | `except fathomdb.errors.ClosingError` / `instanceof ClosingError` | `err.kind() == ErrorKind::Closing` |
 | Promise-returning calls (TypeScript) | Synchronous `Result` |
 
 Optional arguments become option structs whose `Default` equals the
-Python/TypeScript defaults. Every error has an `ErrorKind` named after the
+Python/TypeScript defaults. `SearchOptions`, `TextSearchOptions` and
+`FrozenSearchOptions` are `#[non_exhaustive]`, so start from `default()` and
+assign fields. Every error has an `ErrorKind` named after the
 shared error class. The full contract is `dev/interfaces/rust-sdk.md` in the
 repository.
 

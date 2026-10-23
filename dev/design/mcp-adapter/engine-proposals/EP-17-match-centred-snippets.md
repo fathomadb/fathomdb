@@ -194,7 +194,9 @@ agents answer from the wrong text.
     field breaks no external code.
   - The two option structs have public fields
     (`fathomdb-sdk/src/options.rs:57-90`). External struct literals without
-    `..Default::default()` break.
+    `..Default::default()` break. Block 1 later marks both, and
+    `SnippetOptions`, `#[non_exhaustive]`, so external code builds them from
+    `default()` plus field assignment (`dev/interfaces/rust.md`).
 - MCP: `snippet_chars` becomes `snippet_bytes`, a new `snippet_anchor` hit
   field is added, and the MR-040 wording changes from characters to bytes
   (`dev/design/mcp-adapter/requirements.md:359-366`, `dev/interfaces/mcp.md:45`,

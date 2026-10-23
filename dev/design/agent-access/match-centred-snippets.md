@@ -669,9 +669,9 @@ a thin consumer.** The reasons:
 
 ### 7.3 Adapter changes (after EP-17 lands)
 
-- The search tool sets `snippet: Some(SnippetOptions { max_bytes:
-  snippet_bytes, max_windows: 1, head_bytes, highlights: false, .. })` and
-  uses `snippets[i].text`. It deletes `shape::snippet` as the snippet source.
+- The search tool sets `snippet` to a `SnippetOptions::default()` with
+  `max_bytes = snippet_bytes`, `max_windows = 1`, `head_bytes` and
+  `highlights = false`, and uses `snippets[i].text`. It deletes `shape::snippet` as the snippet source.
 - New hit field `snippet_anchor`: `"whole" | "match" | "start"`. `snippet_cut`
   keeps its meaning, true when any of the body is left out, and its source
   becomes `snippets[i].cut`. `dev/interfaces/mcp.md:127` gets updated.
@@ -720,10 +720,14 @@ a thin consumer.** The reasons:
   and `dev/interfaces/rust-sdk.md`.
   - `SearchResult` is `#[non_exhaustive]` (`search_types.rs:137`), so adding
     `snippets` breaks no external code.
-  - `SearchOptions` and `TextSearchOptions` are plain structs with public
-    fields (`fathomdb-sdk/src/options.rs:57-90`). External struct literals
-    that do not use `..Default::default()` stop compiling. Pre-1.0 this is
-    allowed.
+  - `SearchOptions` and `TextSearchOptions` were plain structs with public
+    fields, so adding `snippet` broke external struct literals that did not
+    use `..Default::default()`. Pre-1.0 this is allowed.
+  - Block 1 also marks `SearchOptions`, `TextSearchOptions`,
+    `FrozenSearchOptions`, `SnippetOptions` and `SearchExpandResult`
+    `#[non_exhaustive]` (`dev/interfaces/rust.md`). External code then
+    builds them from `default()` plus field assignment; no struct
+    expression compiles, `..Default::default()` included.
 - **Python and TypeScript:** the same options, sidecar and selector
   (`dev/interfaces/python.md`, `dev/interfaces/typescript.md`), plus the
   parity map entries.

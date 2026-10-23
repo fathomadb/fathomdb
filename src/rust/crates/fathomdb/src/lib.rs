@@ -101,7 +101,8 @@
 //! governed surface is pinned by
 //! `src/conformance/governed-surface-allowlist.json` and any change to it is a
 //! reviewed delta, but that is a change-control promise, not a semver one.
-//! [`PreparedWrite`] and [`SearchFilter`] are `#[non_exhaustive]`.
+//! [`PreparedWrite`], [`SearchFilter`] and [`SearchExpandResult`] are
+//! `#[non_exhaustive]`.
 
 /// Process-start administrative controls that do not require an [`Engine`].
 pub mod admin {

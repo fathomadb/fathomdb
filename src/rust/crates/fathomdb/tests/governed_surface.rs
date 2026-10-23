@@ -112,7 +112,7 @@ const GOVERNED_SURFACE_ALLOWLIST: &[&str] = &[
     "ProjectionRuntimeUnavailabilityReason",
     "ProjectionStatusDenseReadiness",
     // Agent-access Block 1 S3 (EP-03 `embedder_overloaded`) — the
-    // `SearchResult.degradations` report types. AWAITING HITL SIGN-OFF.
+    // `SearchResult.degradations` report types.
     "ArmDegradation",
     "DegradationReason",
 ];

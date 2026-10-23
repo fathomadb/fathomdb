@@ -13,10 +13,10 @@ use crate::errors::EngineError;
 
 /// Snippet settings for one search, and the inputs of [`snippet_for`].
 ///
-/// Fields are public so callers can use struct-update syntax over
-/// [`SnippetOptions::default`]. [`SnippetOptions::validate`] checks the
-/// documented ranges; search entry points reject out-of-range values with
-/// [`EngineError::InvalidArgument`].
+/// `#[non_exhaustive]` with public fields: other crates start from
+/// [`SnippetOptions::default`] and assign fields.
+/// [`SnippetOptions::validate`] checks the documented ranges; search entry
+/// points reject out-of-range values with [`EngineError::InvalidArgument`].
 ///
 /// Another crate cannot build it with a struct expression:
 ///

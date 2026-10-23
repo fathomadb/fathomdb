@@ -168,10 +168,13 @@ search event).
   epoch seconds, read once at the start of the call) and passes it as
   `ReadView.valid_as_of`. The value is reported as `validity_instant` (MR-023.2).
 - **search.**
-  - `mode=text` → `engine.search_text_only(query, TextSearchOptions{view, limit})`.
+  - `mode=text` → `engine.search_text_only(query, options)`, `options` a
+    `TextSearchOptions::default()` with `view` and `limit` set.
     Filters are rejected in text mode. This path never captures telemetry, so
     its responses carry no query id, and feedback on them returns `text_mode`.
-  - `mode=hybrid` → `engine.search(query, SearchOptions{filter, view, limit, explain})`.
+  - `mode=hybrid` → `engine.search(query, options)`, `options` a
+    `SearchOptions::default()` with `filter`, `view`, `limit` and `explain`
+    set.
     When telemetry is enabled, `explain` is forced on, and the query id is taken
     from `result.explanation.correlation_id` when it starts with `q`. The
     explanation is removed from output unless the caller asked for it

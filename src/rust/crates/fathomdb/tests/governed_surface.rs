@@ -97,7 +97,7 @@ const GOVERNED_SURFACE_ALLOWLIST: &[&str] = &[
     "Explanation",
     "QueryTrace",
     "PerHitExplain",
-    // 0.8.20 Slice 5c/5d (R-20-E3/E4, erasure) — AWAITING HITL SIGN-OFF (AC-079).
+    // 0.8.20 Slice 5c/5d (R-20-E3/E4, erasure).
     // `SourceId` is the provenance newtype that replaced `source_id:
     // Option<String>` on `PreparedWrite`; it MUST be here because without the
     // constructor a facade consumer cannot perform a canonical write at all.

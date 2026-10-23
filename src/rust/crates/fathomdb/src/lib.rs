@@ -101,8 +101,10 @@
 //! governed surface is pinned by
 //! `src/conformance/governed-surface-allowlist.json` and any change to it is a
 //! reviewed delta, but that is a change-control promise, not a semver one.
-//! [`PreparedWrite`], [`SearchFilter`] and [`SearchExpandResult`] are
-//! `#[non_exhaustive]`.
+//! Some re-exported types are `#[non_exhaustive]`; the attribute on each type
+//! is authoritative. Many re-exported structs with public fields, such as
+//! [`ReadView`], [`EngineConfig`], [`WriteReceipt`] and [`OpenReport`], are
+//! not, so a field added to one of them is a source break.
 
 /// Process-start administrative controls that do not require an [`Engine`].
 pub mod admin {

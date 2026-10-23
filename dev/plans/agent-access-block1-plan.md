@@ -68,3 +68,30 @@ run one after another.
 | S5c | `feat/aa-b1-s5c` (`dea8c5d2c`..`bec7cc6ac`) | `6f4b80746` | Fable-medium: PASS-WITH-FIXES, fixed (point-query cap scaled to the run window); RED shas re-audited | landed |
 | S6 | gate fixes merged at `f88bf8189` | — | full gate green (196/196); MCP conformance unchanged; LoCoMo smoke A2 8/10, agent 9/10 | done |
 | S5d | `feat/aa-b1-s5d` (`3530d6d15`..`bbf71f2ca`) | `8075dc7cd` | Fable-medium: PASS-WITH-FIXES, fixed; also fixed the S3 Python/TS degradations passthrough gap | landed |
+
+## Close record
+
+The close follows `dev/plans/agent-access-block1-close-plan.md`.
+
+**Consolidation.** All 17 Block 1 branches have no commits outside
+`feat/agent-access-block1` at `b19551556`.
+
+**Stability (Phase A), at `b19551556`:**
+
+| Step | Result |
+| --- | --- |
+| A2 `./scripts/agent-verify.sh` | `agent-test.sh: 196/196 suites passed` |
+| A3 `AGENT_LONG=1 ./scripts/check.sh` | green except AC-013 (release p50 81–82 ms, limit 80 ms); AC-081 passes in release |
+| A4 feature-complete (3090) | `21 run(s), 143 planned test(s): 138 passed, 0 failed, 5 ignored` |
+| A5 `npm test` (TS) | `pass 514, fail 0` |
+| A6 MCP conformance | suite `9 passed, 24 failed`, identical per scenario to the baseline; all 7 tools and the error paths pass under the Inspector |
+| A7 LoCoMo smoke | skipped (priced); todo seq 305 |
+
+**AC-013.** The release bisect puts the extra 2 ms at S4 (`76c783c05`), which
+adds only `hints.rs` and a `pub use`, with no call on the search path. `main`
+measures 79 ms. Owner ruling 2026-10-23: a compiler layout artifact; Block 1
+closes with it. Headroom work is todo seq 306.
+
+**Todos (Phase B).** Seq 291–307 on `main` (`7bb46310b`, `48c16cb40`), target
+0.8.29. Seq 306–307 were written from the primary `main` checkout, with no
+other writer active there.

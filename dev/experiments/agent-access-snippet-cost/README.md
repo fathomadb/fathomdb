@@ -10,8 +10,18 @@ times the search, with snippets off and with snippets on.
 - The sweep and its correctness tests are in
   `src/rust/crates/fathomdb-engine/tests/snippet_cost_receipt.rs`. The sweep
   is the ignored test `snippet_cost_receipt`.
-- `summary-before.json` was taken before the bound, at `19fd87e75` plus the
-  tooling. `summary-after.json` was taken with the bound in place.
+- `summary-before.json` was taken before the bound, at `a9d6d7aed`, the
+  commit that adds the tooling. `summary-after.json` was taken with the bound
+  in place, at `1968e294b`.
+
+## Result
+
+With snippets on and k of 2 or more, a search issued 20 + 20k point queries
+before the bound: 80 at k = 3 and 120 at k = 5. After it, a search issues at
+most 2 × 20 = 40: 38 at k = 3, since six 3-term passes fit the pool of 20, and
+40 at k = 5. One-term searches, and searches with snippets off, are unchanged.
+The p50 latency with snippets on fell by between 36% and 46% at k = 3 and
+k = 5 in every record size. The per-cell numbers are in the two summaries.
 
 ## Sweep
 

@@ -195,7 +195,7 @@ There are two implementer slices, run one after another, because both touch
   - Its type stays `u8`, and its `0..=255` range in Python and TypeScript is
     unchanged.
   - The MCP adapter's setting, one per hit of the run window
-    (`max_point_queries: u8::try_from(run_limit)` in `tools.rs`), is unchanged, so continuation pages stay anchored
+    (`snippet_options.max_point_queries = u8::try_from(run_limit)` in `tools.rs`), is unchanged, so continuation pages stay anchored
     alike.
 - **New bound.** The rule-3 per-term pass draws on a second per-search pool
   of the same size, `max_point_queries`.

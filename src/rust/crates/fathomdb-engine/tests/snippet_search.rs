@@ -152,7 +152,8 @@ fn sidecar_is_some_when_requested() {
 fn entry_points_reject_invalid_snippet_options() {
     let _guard = lock();
     let s = store(&["a short pear note"]);
-    let bad = SnippetOptions { max_bytes: 39, ..SnippetOptions::default() };
+    let mut bad = SnippetOptions::default();
+    bad.max_bytes = 39;
     let context = s
         .engine()
         .freeze_read_context(
@@ -257,7 +258,8 @@ fn t2_porter_stem_match_is_the_window() {
 #[test]
 fn t3_diacritic_match_highlight_covers_the_whole_word() {
     let _guard = lock();
-    let lit = SnippetOptions { highlights: true, ..SnippetOptions::default() };
+    let mut lit = SnippetOptions::default();
+    lit.highlights = true;
     for word in ["Caf\u{e9}", "Cafe\u{301}"] {
         let body = long_body(3000, word, 4096);
         let s = store(&[&body]);
@@ -295,7 +297,8 @@ fn t19_a_body_that_fits_needs_no_point_query() {
     assert_eq!(snippet.anchor, SnippetAnchor::Whole);
     assert!(snippet.spans.is_empty(), "{snippet:?}");
 
-    let lit = SnippetOptions { highlights: true, ..SnippetOptions::default() };
+    let mut lit = SnippetOptions::default();
+    lit.highlights = true;
     let result = text(s.engine(), "pear", 10, Some(&lit));
     assert_eq!(highlight_queries(), 1);
     let snippet = snippet_of(&result, body);
@@ -314,7 +317,8 @@ fn t20_point_query_cap_anchors_the_rest_at_the_start() {
         (0..30).map(|i| format!("{} doc{i}", long_body(3000, "zanzibar", 4096))).collect();
     let refs: Vec<&str> = bodies.iter().map(String::as_str).collect();
     let s = store(&refs);
-    let capped = SnippetOptions { max_point_queries: 20, ..SnippetOptions::default() };
+    let mut capped = SnippetOptions::default();
+    capped.max_point_queries = 20;
     take_slice71_search_statement_trace_for_test();
     let first = text(s.engine(), "zanzibar", 30, Some(&capped));
     assert_eq!(highlight_queries(), 20);
@@ -502,7 +506,8 @@ fn t14_head_window_keeps_the_record_header() {
     }
     let body = format!("{body}zanzibar{}", " again".repeat(300));
     let s = store(&[&body]);
-    let headed = SnippetOptions { head_bytes: 48, ..SnippetOptions::default() };
+    let mut headed = SnippetOptions::default();
+    headed.head_bytes = 48;
     let result = text(s.engine(), "zanzibar", 10, Some(&headed));
     let snippet = snippet_of(&result, &body);
     assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
@@ -531,7 +536,9 @@ fn t16_frozen_results_do_not_depend_on_snippet_options() {
         )
         .expect("freeze");
     let token = context.token.clone();
-    let lit = SnippetOptions { highlights: true, head_bytes: 40, ..SnippetOptions::default() };
+    let mut lit = SnippetOptions::default();
+    lit.highlights = true;
+    lit.head_bytes = 40;
     for explain in [false, true] {
         let off = s
             .engine()
@@ -585,7 +592,8 @@ fn t9_snippet_work_is_read_only_on_the_reader_pool() {
     let blocker = rusqlite::Connection::open(&path).expect("second connection");
     blocker.execute_batch("BEGIN IMMEDIATE").expect("hold the write lock");
     take_slice71_search_statement_trace_for_test();
-    let lit = SnippetOptions { highlights: true, ..SnippetOptions::default() };
+    let mut lit = SnippetOptions::default();
+    lit.highlights = true;
     let text_result = text(&opened.engine, "zanzibar", 10, Some(&lit));
     let hybrid_result = hybrid(&opened.engine, "zanzibar", Some(&lit));
     let trace = take_slice71_search_statement_trace_for_test();
@@ -622,7 +630,8 @@ fn rule3_exact_identity_prefers_the_window_with_both_terms() {
         filler(300)
     );
     let s = store(&[&body]);
-    let narrow = SnippetOptions { max_bytes: 120, ..SnippetOptions::default() };
+    let mut narrow = SnippetOptions::default();
+    narrow.max_bytes = 120;
     let result = text(s.engine(), "run cat", 10, Some(&narrow));
     let snippet = snippet_of(&result, &body);
     assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
@@ -663,7 +672,8 @@ fn snippet_point_queries_stay_within_twice_the_cap_with_many_terms() {
         .collect();
     let refs: Vec<&str> = bodies.iter().map(String::as_str).collect();
     let s = store(&refs);
-    let capped = SnippetOptions { max_point_queries: 20, ..SnippetOptions::default() };
+    let mut capped = SnippetOptions::default();
+    capped.max_point_queries = 20;
     take_slice71_search_statement_trace_for_test();
     let result = text(s.engine(), "zanzibar quokka marmot", 30, Some(&capped));
     let queries = highlight_queries();
@@ -688,8 +698,9 @@ fn per_term_pass_that_does_not_fit_keeps_the_approximate_window() {
         filler(300)
     );
     let s = store(&[&body]);
-    let narrow =
-        SnippetOptions { max_bytes: 120, max_point_queries: 1, ..SnippetOptions::default() };
+    let mut narrow = SnippetOptions::default();
+    narrow.max_bytes = 120;
+    narrow.max_point_queries = 1;
     let result = text(s.engine(), "run cat", 10, Some(&narrow));
     let snippet = snippet_of(&result, &body);
     assert_eq!(snippet.anchor, SnippetAnchor::Match, "{snippet:?}");
@@ -714,7 +725,8 @@ fn snippet_per_term_pool_is_spent_in_whole_passes() {
         .collect();
     let refs: Vec<&str> = bodies.iter().map(String::as_str).collect();
     let s = store(&refs);
-    let capped = SnippetOptions { max_point_queries: 20, ..SnippetOptions::default() };
+    let mut capped = SnippetOptions::default();
+    capped.max_point_queries = 20;
     take_slice71_search_statement_trace_for_test();
     let result = text(s.engine(), "zanzibar quokka marmot", 30, Some(&capped));
     assert_eq!(result.results.len(), 30);

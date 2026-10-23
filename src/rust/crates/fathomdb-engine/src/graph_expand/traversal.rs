@@ -41,7 +41,19 @@ impl From<SnapshotFilterError> for SearchExpandHandlerError {
 /// Slice 20 (G6) — result of [`Engine::search_expand`]: initial search hits
 /// plus nodes reached by bounded BFS expansion that are not already in the
 /// search hit set.
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_engine::SearchExpandResult {
+///     search_hits: Vec::new(),
+///     expanded: Vec::new(),
+///     all_logical_ids: Vec::new(),
+///     degradations: Vec::new(),
+/// };
+/// ```
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct SearchExpandResult {
     /// Original RRF-scored search results (G1+G9 hybrid).
     pub search_hits: Vec<SearchHit>,

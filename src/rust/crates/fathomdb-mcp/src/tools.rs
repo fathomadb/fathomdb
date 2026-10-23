@@ -918,20 +918,20 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     // comes from this search's own correlation id, never the engine-wide
     // `last_telemetry_query_id` (MR-024.6).
     let explain = request.explain || telemetry;
-    let snippet = Some(SnippetOptions {
-        max_bytes: ctx.shared.config.snippet_bytes,
-        max_windows: 1,
-        head_bytes: ctx.shared.config.snippet_head_bytes(),
-        highlights: args.highlights.unwrap_or(false),
-        // One point query per hit of the run window, so every page of a
-        // continuation chain is anchored alike and `highlights` (which also
-        // queries hits that fit) never changes another hit's snippet. The
-        // engine's per-term pool is the same size, so only the first
-        // window / k eligible hits get the exact-identity window: a hit's
-        // snippet text, though not its anchor, can depend on the window, and
-        // a page equals the same ranks of an unpaged search over its window.
-        max_point_queries: u8::try_from(run_limit).unwrap_or(u8::MAX),
-    });
+    let mut snippet_options = SnippetOptions::default();
+    snippet_options.max_bytes = ctx.shared.config.snippet_bytes;
+    snippet_options.max_windows = 1;
+    snippet_options.head_bytes = ctx.shared.config.snippet_head_bytes();
+    snippet_options.highlights = args.highlights.unwrap_or(false);
+    // One point query per hit of the run window, so every page of a
+    // continuation chain is anchored alike and `highlights` (which also
+    // queries hits that fit) never changes another hit's snippet. The
+    // engine's per-term pool is the same size, so only the first
+    // window / k eligible hits get the exact-identity window: a hit's
+    // snippet text, though not its anchor, can depend on the window, and
+    // a page equals the same ranks of an unpaged search over its window.
+    snippet_options.max_point_queries = u8::try_from(run_limit).unwrap_or(u8::MAX);
+    let snippet = Some(snippet_options);
     let started_limit = ctx.run_limit();
     let (answered, run) = bridge::call(
         guard,
@@ -941,21 +941,22 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         &ctx.shared.hooks,
         move |engine| {
             let result = match mode {
-                SearchMode::Text => engine.search_text_only(
-                    &request.query,
-                    TextSearchOptions { view, limit: run_limit, snippet },
-                )?,
-                SearchMode::Hybrid => engine.search(
-                    &request.query,
-                    SearchOptions {
-                        filter: search_filter(&request).map(SearchFilterArg::Search),
-                        explain,
-                        view,
-                        limit: run_limit,
-                        snippet,
-                        ..SearchOptions::default()
-                    },
-                )?,
+                SearchMode::Text => {
+                    let mut options = TextSearchOptions::default();
+                    options.view = view;
+                    options.limit = run_limit;
+                    options.snippet = snippet;
+                    engine.search_text_only(&request.query, options)?
+                }
+                SearchMode::Hybrid => {
+                    let mut options = SearchOptions::default();
+                    options.filter = search_filter(&request).map(SearchFilterArg::Search);
+                    options.explain = explain;
+                    options.view = view;
+                    options.limit = run_limit;
+                    options.snippet = snippet;
+                    engine.search(&request.query, options)?
+                }
             };
             Ok(SearchRun::from_result(result, engine.dense_disabled()))
         },

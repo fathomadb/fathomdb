@@ -54,7 +54,14 @@ impl SearchFilterArg {
 /// `Engine::search` options. `alpha` defaults to 0.3 and `pool_n` to
 /// `rerank_depth`; `limit` must be in `1..=100`. `snippet: Some(..)` fills
 /// `SearchResult::snippets` (EP-17); `None` is the plain search.
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::SearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct SearchOptions {
     pub filter: Option<SearchFilterArg>,
     pub rerank_depth: usize,
@@ -84,7 +91,14 @@ impl Default for SearchOptions {
 }
 
 /// `Engine::search_text_only` options; `snippet` as in [`SearchOptions`].
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::TextSearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct TextSearchOptions {
     pub view: ReadView,
     pub limit: usize,
@@ -113,7 +127,14 @@ impl Default for ProjectedTextSearchOptions {
 
 /// `Engine::search_frozen` options; defaults as [`SearchOptions`]. Snippet
 /// options are presentation, not part of the frozen context.
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::FrozenSearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct FrozenSearchOptions {
     pub rerank_depth: usize,
     pub use_graph_arm: bool,

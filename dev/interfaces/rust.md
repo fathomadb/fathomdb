@@ -594,6 +594,38 @@ provenance — the identifier `Engine::erase_source` consumes — and since TC-3
 governed surface (§ P1), so adding a variant field changes what every binding
 must accept. It is `#[non_exhaustive]`.
 
+### Option and result structs are `#[non_exhaustive]` (agent-access Block 1)
+
+Five structs are `#[non_exhaustive]`: `fathomdb_sdk::SearchOptions`,
+`fathomdb_sdk::TextSearchOptions`, `fathomdb_sdk::FrozenSearchOptions`
+([`rust-sdk.md`](rust-sdk.md)), and `SnippetOptions` and
+`SearchExpandResult` from `fathomdb-engine`. `SearchExpandResult` is
+re-exported by this facade and by `fathomdb-sdk`; `SnippetOptions` by
+`fathomdb-sdk`.
+
+- Another crate cannot build any of them with a struct expression. A full
+  literal and `..Default::default()` both fail with `E0639`. A new field is
+  then not a source break.
+- Option structs follow the `SearchFilter` form: start from `default()` and
+  assign the public fields.
+
+  ```rust
+  let mut snippet = fathomdb_sdk::SnippetOptions::default();
+  snippet.max_bytes = 300;
+  let mut options = fathomdb_sdk::SearchOptions::default();
+  options.limit = 20;
+  options.snippet = Some(snippet);
+  ```
+
+- `SearchExpandResult` is a result. Callers read its fields; only the engine
+  builds it.
+- Adding the attribute is itself a breaking change (TC-103, todos ledger
+  `seq-178`). It lands with Block 1, which already breaks literal
+  construction of the SDK search options by adding `snippet`, so a caller
+  upgrading past Block 1 meets no further break.
+- Python and TypeScript build these structs in Rust; their surface does not
+  change.
+
 ### Versioned identity and provenance (0.8.25 Slice 15)
 
 `PreparedWrite::ProvenancedNode(ProvenancedNodeV1)` and
@@ -1131,9 +1163,10 @@ in Rust, Python and TypeScript:
 `(attribute_name, value)` is an equality predicate over a declared-`filterable`
 projection, lowered pre-KNN into the indexed vec0 metadata column `attr_<hex>`
 (never a post-KNN `json_extract`). Empty ⇒ the byte-identical unfiltered path is
-preserved. The struct is now `#[non_exhaustive]`, so EXTERNAL crates must
-construct it through `..Default::default()` (a further additive field is then not
-a source break). Allowlist MEMBERSHIP in
+preserved. The struct is now `#[non_exhaustive]`, so EXTERNAL crates cannot use
+a struct expression, `..Default::default()` included; they start from
+`SearchFilter::default()` and assign fields (a further additive field is then
+not a source break). Allowlist MEMBERSHIP in
 `src/conformance/governed-surface-allowlist.json` is byte-unchanged (`SearchFilter`
 was already a re-exported type; this is a fields-only + attribute delta, the same
 pattern as `PreparedWrite::Node`'s validity fields). Semantics are **node-scoped**:
@@ -1228,7 +1261,9 @@ types. The search entry points below call the same function for their
 snippet sidecar. The specification is `dev/design/agent-access/match-centred-snippets.md` §§ 6
 and 7.2.
 
-- `SnippetOptions` has public fields and a `Default`:
+- `SnippetOptions` is `#[non_exhaustive]`, with public fields and a
+  `Default`. Other crates start from `SnippetOptions::default()` and assign
+  fields:
   - `max_bytes: u32`, `40..=4000`, default 300. The output budget in UTF-8
     bytes, ellipses included.
   - `max_windows: u8`, `1..=3`, default 1.

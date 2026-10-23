@@ -198,6 +198,12 @@ impls for both. `Unified` is lowered through the public
 `Filter::to_search_filter()`, which refuses a `Json` term with
 `InvalidFilter`.
 
+`SearchOptions`, `TextSearchOptions` and `FrozenSearchOptions` are
+`#[non_exhaustive]`: build one from `default()` and assign fields, as in
+`let mut o = SearchOptions::default(); o.limit = 20;`. A struct expression,
+`..Default::default()` included, does not compile outside `fathomdb-sdk`
+([`rust.md`](rust.md)).
+
 | Struct | Fields and defaults |
 | --- | --- |
 | `SearchOptions` | `filter: Option<SearchFilterArg> = None`, `rerank_depth: usize = 0`, `use_graph_arm: bool = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain: bool = false`, `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None` |

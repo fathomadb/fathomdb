@@ -2,7 +2,7 @@
 title: Compact text block — GPT-6 Astra medium design review
 date: 2026-10-21
 status: ACTIVE
-desc: Read-only GPT-6 Astra (medium) review of compact-text-block.md at 21cfa817e. Verdict PASS-WITH-FIXES; the findings are not yet applied to the design.
+desc: Read-only GPT-6 Astra (medium) review of compact-text-block.md at 21cfa817e. Verdict PASS-WITH-FIXES; every finding is applied in the 2026-10-24 revision (design § 8).
 ---
 
 # Compact text block — GPT-6 Astra medium review
@@ -38,3 +38,8 @@ Recommendations for section 6:
 4. **Fetch:** **Include it after completing its text contract.** Preserve bodies, cut flags, per-item errors and hints. Its gain is unmeasured; eliminating duplicated bodies may substantially increase usable body capacity.
 
 **Verdict: PASS-WITH-FIXES.** The approach is viable; resolve framing, information preservation and accounting before implementation approval.
+
+## Resolution (2026-10-24)
+
+Every finding is applied in the revised design; its § 8 maps each finding to
+the fix and the tests that cover it. No re-review has run on the revision.

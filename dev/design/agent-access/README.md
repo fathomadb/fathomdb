@@ -105,8 +105,8 @@ changes code until its design passes review and the owner approves.
    5. **Owner decision 2026-10-21:** design it; implementation placed in
       0.8.29. Design:
       [compact-text-block.md](compact-text-block.md), GPT-6 Astra review
-      [PASS-WITH-FIXES](compact-text-block-astra-review.md); fixes not yet
-      applied.
+      [PASS-WITH-FIXES](compact-text-block-astra-review.md); fixes applied
+      2026-10-24. Awaiting owner approval of its § 7 before code.
 
 5. **Re-measure without the test-set tuning.** After items 1–3, re-run
    Sonnet 5.5 and Haiku 5.5 subagents on a conversation the prompt was never

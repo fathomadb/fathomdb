@@ -210,14 +210,19 @@ impl Arguments {
                     limit: args.limit,
                 },
             },
-            Self::Hybrid(args) => CallOptions::Hybrid(SearchOptions {
-                view: ReadView { valid_as_of: Some(args.view.valid_as_of), ..ReadView::default() },
-                limit: args.limit,
-                ..SearchOptions::default()
+            Self::Hybrid(args) => CallOptions::Hybrid({
+                let mut options = SearchOptions::default();
+                options.view =
+                    ReadView { valid_as_of: Some(args.view.valid_as_of), ..ReadView::default() };
+                options.limit = args.limit;
+                options
             }),
-            Self::Fts(args) => CallOptions::Fts(TextSearchOptions {
-                view: ReadView { valid_as_of: Some(args.view.valid_as_of), ..ReadView::default() },
-                limit: args.limit,
+            Self::Fts(args) => CallOptions::Fts({
+                let mut options = TextSearchOptions::default();
+                options.view =
+                    ReadView { valid_as_of: Some(args.view.valid_as_of), ..ReadView::default() };
+                options.limit = args.limit;
+                options
             }),
             Self::Read(args) => CallOptions::Read(ReadView {
                 valid_as_of: Some(args.view.valid_as_of),

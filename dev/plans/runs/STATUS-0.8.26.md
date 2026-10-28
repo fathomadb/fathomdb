@@ -16,6 +16,12 @@ qualified commit `f99e002f`; the GitHub Release and crates.io, PyPI, and npm
 packages were published by
 [release run 35485245618](https://github.com/fathomadb/fathomdb/actions/runs/35485245618).
 
+**Tegra wheel (2026-10-03).** `fathomdb==0.8.26+tegra` (SHA-256 `728df862…`)
+was built by Jetson run 37141909082 from `release/0.8.26` at `8c4fdfa9b` and
+published to GitHub Pages. That commit is untagged and reachable only from
+`release/0.8.26`, so keep the branch. 0.8.27 Slice 103 ported its five Tegra
+commits (`f3af72a6a`, hardened in `0569baa09`).
+
 Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, 55, 60, and 65 are complete on the
 0.8.26 release line. Slice 50 bound candidate `68514f70`, local package
 witnesses, 116/116 capable-executor gate, five native platforms, distinct

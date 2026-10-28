@@ -27,8 +27,8 @@ onto forked, published crates:
   slice docs are not on this branch. Depends on Slice 40; lands before
   Slice 42.
 - **Slice 42 (owner ruling 2026-10-16):** make the slice135 descriptor
-  check independent of parallel tests (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 312, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`), and investigate how published
-  Rust artifacts get per-connection page caches (todos ledger seq 313, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Depends on Slice 40;
+  check independent of parallel tests (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 343, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`), and investigate how published
+  Rust artifacts get per-connection page caches (todos ledger seq 344, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Depends on Slice 40;
   lands after Slice 41.
 
 The other entries in the [draft scope](0.8.28-draft-scope.md) are not on the
@@ -95,7 +95,7 @@ unless a placement decision adds a slice; it is never an implicit patch lane.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 42** (`TEST-HYGIENE-PUBLISHED-CACHE`) — slice135 descriptor check independent of parallel tests; published-Rust page-cache investigation (todos ledger seq 312 and 313)
+**IMMEDIATE NEXT: Slice 42** (`TEST-HYGIENE-PUBLISHED-CACHE`) — slice135 descriptor check independent of parallel tests; published-Rust page-cache investigation (todos ledger seq 343 and 344)
 
 **Remaining ladder:** 42.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
@@ -106,7 +106,7 @@ R-CODE-4).
 
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 
-Placed by owner ruling on 2026-10-16 (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 312, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`; todos ledger seq 313, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Branch
+Placed by owner ruling on 2026-10-16 (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 343, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`; todos ledger seq 344, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Branch
 `slice/0.8.28-42-test-hygiene-and-published-cache`, cut from the Slice 40
 branch at `d10ad65d5`. Plan:
 [slice-42/plan.md](0.8.28/features/slice-42/plan.md).

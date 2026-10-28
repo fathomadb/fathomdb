@@ -22,6 +22,6 @@ Step log for [plan.md](plan.md). Commits are on
 
 ## Notes
 
-- Todos ledger seq 312 says "six sibling tests". The binary has four other
+- Todos ledger seq 343 says "six sibling tests". The binary has four other
   tests that are not ignored, and two ignored ones (the negative control
   and the crash victim). The requirements use four.

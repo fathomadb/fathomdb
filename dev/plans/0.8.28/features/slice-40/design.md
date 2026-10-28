@@ -1062,7 +1062,7 @@ that contains `f31f7324`. That exit condition is written into
     behaviour."*;
   - `dev/adr/ADR-0.8.28-sqlite-per-connection-page-cache.md` (new,
     successor note to the 0.7.0 AC-020 ADR's page-cache premise; status
-    *proposed; implementation authorized by owner ruling 2026-10-16 (Slice 40 Unit I, ledger seq 308); acceptance recorded when the Unit I gate passes and the owner confirms*), a
+    *proposed; implementation authorized by owner ruling 2026-10-16 (Slice 40 Unit I, todos ledger seq 339); acceptance recorded when the Unit I gate passes and the owner confirms*), a
     dated addendum in `ADR-0.7.0-ac020-architectural-lever.md` pointing
     to it, and a decision-index row;
   - `dev/design/pinned-override-rot-guard.md`: the vendored crate now

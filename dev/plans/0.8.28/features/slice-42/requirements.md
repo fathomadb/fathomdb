@@ -17,7 +17,7 @@ the options and the method, [test-plan.md](test-plan.md) the runs.
 ### 1.1 Unit A
 
 Todos ledger (`dev/todos-and-considerations-ledger.jsonl`, not the steward
-ledger) seq 312 (`TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`), characterised
+ledger) seq 343 (`TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`), characterised
 on `slice/0.8.28-40-fts-ranking-defects` at `d42c8a7c6`:
 
 - The test is
@@ -50,8 +50,8 @@ on `slice/0.8.28-40-fts-ranking-defects` at `d42c8a7c6`:
 
 ### 1.2 Unit B
 
-Todos ledger seq 313 (`TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`); context
-todos ledger seq 308, 309 and 311; Slice 40 design § 2h;
+Todos ledger seq 344 (`TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`); context
+todos ledger seq 339, 340 and 342; Slice 40 design § 2h;
 [ADR-0.8.28-sqlite-per-connection-page-cache](../../../../adr/ADR-0.8.28-sqlite-per-connection-page-cache.md).
 
 - Slice 40 Unit I removed `-DSQLITE_ENABLE_MEMORY_MANAGEMENT` from the

@@ -54,7 +54,7 @@ for phase 1 is `output.json` in this directory.
 
 ## Follow-ups (not in this slice)
 
-- Slice 42 (owner ruling 2026-10-16), ledger seq 313
+- Slice 42 (owner ruling 2026-10-16), todos ledger seq 344
   (`TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`): investigate how published
   Rust artifacts get per-connection page caches. `cargo install
   fathomdb-cli` and the published crates keep the shared cache. The
@@ -62,7 +62,7 @@ for phase 1 is `output.json` in this directory.
   `libsqlite3-sys`/`rusqlite` (the owner is not keen on non-canonical
   SQLite or on waiting), or the `LIBSQLITE3_FLAGS` override. Other
   routes are to be looked for as well.
-- Slice 42 (owner ruling 2026-10-16), ledger seq 312
+- Slice 42 (owner ruling 2026-10-16), todos ledger seq 343
   (`TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`):
   `slice135_persistent_sqlite_full_preserves_state_until_cap_lifts` fails
   its descriptor assertion in parallel runs of its binary.

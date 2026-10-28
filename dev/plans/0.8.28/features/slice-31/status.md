@@ -27,7 +27,7 @@ fork's `fathomdb/status.md`.
 | 4 Toolchains; CUDA 13.0 | `windchill3` guard: driver 580.178.04, `/usr/local/cuda` → 12.6 (every fork receipt records it before and after). The runfile download was not approved; the 13.0 toolkit cells run on a GCP VM (ruling Q15) |
 | 5 Orin check | done during the fork cells (L4T R36.5.2, 12.6, `~/fathomdb-forks/`) |
 | 6 Slice `.venv` via `scripts/bootstrap.sh` | done 2026-10-13 in the slice worktree: `bash scripts/bootstrap.sh` exit 0, `.venv` on Python 3.12.3 with `src/python[dev]` editable; gitleaks, actionlint 1.7.12, shellcheck 0.11.0 and lychee already present, no apt step. Its `npm install` in `src/ts` reordered two keys in `src/ts/package-lock.json`; restored, not committed |
-| 7 Ledger | done in `80ae2a18e`: steward ledger seq 303–317, todos seq 292–299 |
+| 7 Ledger | done in `80ae2a18e`: steward ledger seq 303–317, todos seq 323–330 |
 
 ## Fork commits and the pin chain
 

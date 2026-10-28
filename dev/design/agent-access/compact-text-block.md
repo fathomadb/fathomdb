@@ -263,6 +263,14 @@ JSON strings to be passed back verbatim.
 14. `text_inventory_covers_every_serialized_output_field`
 15. Property test: for arbitrary hits and references, the parser recovers
     every reference, cut flag and the continuation from the text.
+16. `text_and_structured_results_carry_the_same_kept_fields`. Run every tool
+    under both settings on the same store and request, parse the text, and
+    compare it with `structuredContent` for each field § 3.4 keeps.
+17. MCP conformance passes under both settings, not only the default.
+
+The existing MCP suite reads results through `structuredContent`, so its
+shared harness (`tests/common/mod.rs`) sets `result_format = structured`. It
+keeps covering that path unchanged.
 
 ## 6. Reading the re-measure
 
@@ -284,7 +292,7 @@ effects are measured separately:
   snippets show the record start (`dev/experiments/agent-remeasure/README.md`
   notes it). The server instructions are already correct.
 
-## 7. Decisions (review answers, for owner approval)
+## 7. Decisions (approved by the owner on 2026-10-27)
 
 1. **Default `text`.** The measured agent benefit supports it. It does not
    establish compatibility across clients, which is why § 3.1 requires
@@ -314,5 +322,5 @@ effects are measured separately:
 
 Implementation is placed in 0.8.29
 ([ROADMAP](../../ROADMAP.md) § 0.8.29). It depends on Block 1, which closed
-on 2026-10-23 at `b5f539880` on `feat/agent-access-block1`. Code starts after
-the owner approves § 7.
+on 2026-10-23 at `b5f539880` on `feat/agent-access-block1`. The owner
+approved § 7 on 2026-10-27; the build lands on `dev/0.8.29`.

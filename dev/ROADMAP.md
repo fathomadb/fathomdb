@@ -51,7 +51,7 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 | Release | Status | Theme |
 | --- | --- | --- |
 | **0.8.27** | **Active implementation; Slice 117 complete, 140 next** | Correction-safe source erasure, semantic decomposition, bounded system qualification, and the qualified, unpublished Jetson CUDA Node route are recorded. Slice 160 owns publication and post-publication proof. |
-| **0.8.28** | **Proposed release scope** | Advanced retrieval and continuation, Tegra CUDA memory-pool adoption, plus four owner-placed Slice 135 fault, quality, artifact and latency follow-ups. |
+| **0.8.28** | **Proposed release scope** | Advanced retrieval and continuation, Tegra CUDA memory-pool adoption, four owner-placed Slice 135 follow-ups, cudarc fork delivery, and filtered direct body FTS. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
 | **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
@@ -117,6 +117,7 @@ The source of record is
 are caller-selected advanced reads. D28-08 is owner-placed Tegra pool work;
 D28-09 to D28-12 are the four owner-placed items from the
 [product hygiene roadmap](hygeine-roadmap.md#open-risk-register).
+The owner placed filtered direct body FTS in 0.8.28 as D28-14 on 2026-10-13.
 Automatic routing is outside this scope; default changes require their own
 reviewed contracts and gates.
 
@@ -134,6 +135,8 @@ reviewed contracts and gates.
 | **D28-10** | **Owner-placed (2026-10-09, Slice 135 rank 2):** improve qualified multi-hop evidence reachability. | Held-out support-set gain by hop count without correctness, provenance or lifecycle regression. |
 | **D28-11** | **Owner-placed (2026-10-09, Slice 135 rank 3):** qualify installed CPU–CUDA and Jetson retrieval parity on 0.8.28 release artifacts. | Frozen same-query audit on real hardware; preserve 0.8.27 Slice 117/150 gates. |
 | **D28-12** | **Owner-placed (2026-10-09, Slice 135 rank 7):** attribute and conditionally remediate engine vector, hybrid and populated-open latency leads. | Matched stage/CPU/queue and whole-call boundaries; rerun affected cells after a product change. |
+| **D28-13** | **Owner-placed (2026-10-11):** consume and publish the patched `coreyt/cudarc` fork for crates.io FathomDB consumers. | One cudarc 0.19 in the graph; no vendored tree; installed `tegra-pool` GPU smoke. |
+| **D28-14** | **Owner-placed (2026-10-13):** accept `SearchFilter` on direct node/edge body FTS-only search across Rust, Python, and TypeScript. | Apply metadata and declared attribute eligibility before candidate/result limits; preserve unfiltered ordering, `ReadView`, and no-embedding behavior with real-database tests. |
 
 ### Prework: Tegra CUDA memory-pool study
 

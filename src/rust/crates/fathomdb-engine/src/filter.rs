@@ -735,7 +735,8 @@ pub(crate) fn property_fts_rank_stream_sql(
     rank_mapping: &str,
 ) -> String {
     format!(
-        "SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index), n.logical_id, n.source_id
+        "SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index), n.logical_id, n.source_id,
+                p.rowid
          FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
          WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
            {validity}{eligibility}
@@ -759,7 +760,8 @@ pub(crate) fn property_fts_cohort_stream_sql(
     value_index: usize,
 ) -> String {
     format!(
-        "SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index), n.logical_id, n.source_id
+        "SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index), n.logical_id, n.source_id,
+                p.rowid
          FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
          WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
            {validity}{eligibility}

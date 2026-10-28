@@ -18,6 +18,7 @@ see [Contributing](../contributing/index.md). Package versions are omitted.
 | `fathomdb-embedder` | [src/rust/crates/fathomdb-embedder/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/src/rust/crates/fathomdb-embedder/Cargo.toml) |
 | `fathomdb-embedder-api` | [src/rust/crates/fathomdb-embedder-api/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/src/rust/crates/fathomdb-embedder-api/Cargo.toml) |
 | `fathomdb-engine` | [src/rust/crates/fathomdb-engine/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/src/rust/crates/fathomdb-engine/Cargo.toml) |
+| `fathomdb-mcp` | [src/rust/crates/fathomdb-mcp/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/src/rust/crates/fathomdb-mcp/Cargo.toml) |
 | `fathomdb-napi` | [src/rust/crates/fathomdb-napi/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/src/rust/crates/fathomdb-napi/Cargo.toml) |
 | `fathomdb-py` | [src/rust/crates/fathomdb-py/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/src/rust/crates/fathomdb-py/Cargo.toml) |
 | `fathomdb-query` | [src/rust/crates/fathomdb-query/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/src/rust/crates/fathomdb-query/Cargo.toml) |

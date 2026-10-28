@@ -31,7 +31,7 @@ for e in a.value.elts:
         text = text.replace('npm install --save-exact fathomdb@0.8.26', 'npm install fathomdb@next')
         text += '\nRecorded published route: `npm install fathomdb@latest`.\n'
     if p.as_posix() == 'README.md':
-        text += '\n- Eleven Rust workspace members\n'
+        text += '\n- Twelve Rust workspace members\n'
     dest.write_text(text)
 for p in ['Cargo.toml', 'scripts/release-current.py', 'dev/platform-capabilities.json', 'dev/plans/release-state-0.8.26.json', 'dev/plans/runs/STATUS-0.8.26.md', 'docs/generated/contributor-map.md']:
     shutil.copyfile(root / p, fixture / p)

@@ -141,6 +141,8 @@ mod embedding;
 use embedding::*;
 mod context_pack;
 use context_pack::*;
+mod snippet;
+use snippet::*;
 #[cfg(any(test, feature = "test-hooks"))]
 mod test_support;
 #[cfg(any(test, feature = "test-hooks"))]
@@ -223,10 +225,12 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.12 Slice 15 (OPP-2) — consolidation receipt.
     m.add_class::<PyConsolidateReceipt>()?;
     m.add_class::<PySoftFallback>()?;
+    m.add_class::<PyArmDegradation>()?;
     // C-2 (0.8.19 / TC-8) — typed IdSpace id carrier for SearchHit.id.
     m.add_class::<PyIdSpace>()?;
     m.add_class::<PySearchHit>()?;
     m.add_class::<PySearchResult>()?;
+    m.add_class::<PySnippetV1>()?;
     m.add_class::<PyEvidenceSidecarEntryV1>()?;
     m.add_class::<PyEvidenceSearchResultV1>()?;
     m.add_class::<PyEvidenceContributionV1>()?;
@@ -310,6 +314,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(_pack_context_json, &m)?)?;
     m.add_function(wrap_pyfunction!(_encode_round_body_json, &m)?)?;
     m.add_function(wrap_pyfunction!(_decode_round_body_json, &m)?)?;
+    m.add_function(wrap_pyfunction!(snippet_for, &m)?)?;
 
     #[cfg(any(test, feature = "test-hooks"))]
     m.add_function(wrap_pyfunction!(force_panic_for_test, &m)?)?;

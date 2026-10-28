@@ -17,9 +17,14 @@ pub struct QueryAst {
     pub raw: String,
 }
 
+/// A raw query compiled for FTS5.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompiledQuery {
+    /// The FTS5 MATCH expression: `terms` joined by `" OR "`.
     pub match_expression: String,
+    /// The OR operands as compiled, each a quoted, escaped FTS5 string that
+    /// is itself a valid MATCH expression. Empty when the query has no tokens.
+    pub terms: Vec<String>,
 }
 
 /// Function words stripped from the content-OR query (they add false matches
@@ -87,17 +92,16 @@ fn default_stop_words() -> &'static StopWordSet {
 pub fn compile_text_query_with(raw: impl Into<String>, stop_words: &StopWordSet) -> CompiledQuery {
     let raw = raw.into();
     let content = content_tokens(&raw, stop_words);
-    let match_expression = if content.is_empty() {
+    let terms: Vec<String> = if content.is_empty() {
         raw.split_whitespace()
             .filter(|token| !token.is_empty())
             .map(|token| format!("\"{}\"", token.replace('"', "\"\"")))
-            .collect::<Vec<_>>()
-            .join(" OR ")
+            .collect()
     } else {
-        content.into_iter().map(|token| format!("\"{token}\"")).collect::<Vec<_>>().join(" OR ")
+        content.into_iter().map(|token| format!("\"{token}\"")).collect()
     };
 
-    CompiledQuery { match_expression }
+    CompiledQuery { match_expression: terms.join(" OR "), terms }
 }
 
 /// SHA-256 (lowercase hex) of the default stop list: the 63 built-in words,
@@ -555,5 +559,18 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn terms_are_the_or_operands_as_compiled() {
+        // EP-17: one MATCH operand per OR term, so the engine can run a
+        // per-term highlight() without re-splitting the expression.
+        for raw in ["alpha beta alpha", "who are we", "an \"of", "status of the alpha"] {
+            let compiled = compile_text_query(raw);
+            assert_eq!(compiled.terms.join(" OR "), compiled.match_expression, "{raw}");
+        }
+        assert_eq!(compile_text_query("alpha beta alpha").terms, ["\"alpha\"", "\"beta\""]);
+        assert_eq!(compile_text_query("an \"of").terms, ["\"an\"", "\"\"\"of\""]);
+        assert!(compile_text_query("   ").terms.is_empty());
     }
 }

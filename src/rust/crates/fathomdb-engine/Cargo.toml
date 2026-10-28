@@ -24,6 +24,7 @@ getrandom = "0.3"
 libc = { version = "0.2", optional = true }
 sha2 = "0.11"
 sqlite-vec = "=0.1.9"
+unicode-segmentation = "1.13"
 
 [target.'cfg(windows)'.dependencies]
 dunce = "=1.0.5"
@@ -465,6 +466,10 @@ name = "reader_pool"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "reader_dispatch"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "search_result_shape"
 required-features = ["test-hooks"]
 
@@ -663,6 +668,14 @@ name = "slice90_foreground_dispatch"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "ep03_embedder_overloaded"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "ep03_degradation_bytes"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "slice90_projection_capacity"
 required-features = ["test-hooks"]
 
@@ -802,3 +815,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
 tempfile = "3"
+
+[[test]]
+name = "snippet_search"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "snippet_cost_receipt"
+required-features = ["test-hooks"]

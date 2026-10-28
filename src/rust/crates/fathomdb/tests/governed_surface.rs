@@ -97,7 +97,7 @@ const GOVERNED_SURFACE_ALLOWLIST: &[&str] = &[
     "Explanation",
     "QueryTrace",
     "PerHitExplain",
-    // 0.8.20 Slice 5c/5d (R-20-E3/E4, erasure) — AWAITING HITL SIGN-OFF (AC-079).
+    // 0.8.20 Slice 5c/5d (R-20-E3/E4, erasure).
     // `SourceId` is the provenance newtype that replaced `source_id:
     // Option<String>` on `PreparedWrite`; it MUST be here because without the
     // constructor a facade consumer cannot perform a canonical write at all.
@@ -111,6 +111,10 @@ const GOVERNED_SURFACE_ALLOWLIST: &[&str] = &[
     "ProjectionRuntimeStatusEntry",
     "ProjectionRuntimeUnavailabilityReason",
     "ProjectionStatusDenseReadiness",
+    // Agent-access Block 1 S3 (EP-03 `embedder_overloaded`) — the
+    // `SearchResult.degradations` report types.
+    "ArmDegradation",
+    "DegradationReason",
 ];
 
 /// The permanent five-name recovery denylist. Identical to the single shared
@@ -180,11 +184,14 @@ fn t_074_rust_governed_surface_resolves() {
     let _ = type_name::<fathomdb::ProjectionRuntimeStatusEntry>();
     let _ = type_name::<fathomdb::ProjectionRuntimeUnavailabilityReason>();
     let _ = type_name::<fathomdb::ProjectionStatusDenseReadiness>();
+    // Agent-access Block 1 S3 (EP-03) — search degradation report types.
+    let _ = type_name::<fathomdb::ArmDegradation>();
+    let _ = type_name::<fathomdb::DegradationReason>();
 
     assert_eq!(
         GOVERNED_SURFACE_ALLOWLIST.len(),
-        37,
-        "GOVERNED_SURFACE_ALLOWLIST must list exactly the 37 resolved governed types"
+        39,
+        "GOVERNED_SURFACE_ALLOWLIST must list exactly the 39 resolved governed types"
     );
 }
 

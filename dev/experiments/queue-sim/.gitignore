@@ -1,0 +1,7 @@
+results/*.jsonl
+results/fuzz_*.csv
+results/rtc.csv
+results/*.log
+results/*.stdout
+results/rtc-aborted-run1.*
+results/rtc_lockup.csv

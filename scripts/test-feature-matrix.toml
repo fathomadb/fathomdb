@@ -97,6 +97,14 @@ crate = "fathomdb-engine"
 features = ["test-hooks"]
 
 [[entry]]
+crate = "fathomdb-mcp"
+features = []
+
+[[entry]]
+crate = "fathomdb-mcp"
+features = ["default-embedder"]
+
+[[entry]]
 crate = "fathomdb-query"
 features = []
 

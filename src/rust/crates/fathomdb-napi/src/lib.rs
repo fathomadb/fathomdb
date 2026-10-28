@@ -49,6 +49,8 @@ mod admin;
 pub use admin::*;
 mod read_search;
 pub use read_search::*;
+mod snippet;
+pub use snippet::*;
 mod graph_evidence;
 pub use graph_evidence::*;
 mod write;

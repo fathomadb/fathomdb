@@ -1,0 +1,58 @@
+[
+  {
+    "corpus": "LongMemEval-S (session)",
+    "records": 19195,
+    "wordpieces": 44881453,
+    "today": 1.0,
+    "overflow_510": 5.088512633498307,
+    "chunk_256_192": 12.347590518364157,
+    "record_plus_256": 13.242667361292003,
+    "late_8192": 9.634904923157071,
+    "long_ctx_8192": 1.0,
+    "embed_wp_ratio_full_text": 4.703402143164495,
+    "embed_wp_ratio_8192_cap": 4.7022537872793855,
+    "share_wp_past_8190": 0.00024415430578862945
+  },
+  {
+    "corpus": "LoCoMo (session)",
+    "records": 272,
+    "wordpieces": 185608,
+    "today": 1.0,
+    "overflow_510": 1.8933823529411764,
+    "chunk_256_192": 3.75,
+    "record_plus_256": 4.25,
+    "late_8192": 3.150735294117647,
+    "long_ctx_8192": 1.0,
+    "embed_wp_ratio_full_text": 1.3676810846658316,
+    "embed_wp_ratio_8192_cap": 1.3676810846658316,
+    "share_wp_past_8190": 0.0
+  },
+  {
+    "corpus": "AP-News (article)",
+    "records": 1397,
+    "wordpieces": 1301434,
+    "today": 1.0,
+    "overflow_510": 2.3192555476020043,
+    "chunk_256_192": 5.00572655690766,
+    "record_plus_256": 5.519685039370079,
+    "late_8192": 4.130279169649248,
+    "long_ctx_8192": 1.0,
+    "embed_wp_ratio_full_text": 1.9500410555778647,
+    "embed_wp_ratio_8192_cap": 1.9462831216623613,
+    "share_wp_past_8190": 0.0019271050241502835
+  },
+  {
+    "corpus": "IR-C frozen corpus (doc)",
+    "records": 10506,
+    "wordpieces": 6476105,
+    "today": 1.0,
+    "overflow_510": 1.8300970873786409,
+    "chunk_256_192": 3.532172092137826,
+    "record_plus_256": 3.512278697886922,
+    "late_8192": 2.9706834189986675,
+    "long_ctx_8192": 1.0,
+    "embed_wp_ratio_full_text": 2.3150633611415263,
+    "embed_wp_ratio_8192_cap": 1.8654739779443386,
+    "share_wp_past_8190": 0.19420176170707548
+  }
+]

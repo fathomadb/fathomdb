@@ -2,7 +2,7 @@
 //! arguments. Each `Default` equals the documented Python/TypeScript defaults.
 
 use fathomdb_engine::{
-    EngineConfig, Filter, Predicate, ReadView, SearchFilter, TraversalDirection,
+    EngineConfig, Filter, Predicate, ReadView, SearchFilter, SnippetOptions, TraversalDirection,
 };
 
 use crate::error::Result;
@@ -52,8 +52,16 @@ impl SearchFilterArg {
 }
 
 /// `Engine::search` options. `alpha` defaults to 0.3 and `pool_n` to
-/// `rerank_depth`; `limit` must be in `1..=100`.
+/// `rerank_depth`; `limit` must be in `1..=100`. `snippet: Some(..)` fills
+/// `SearchResult::snippets` (EP-17); `None` is the plain search.
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::SearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct SearchOptions {
     pub filter: Option<SearchFilterArg>,
     pub rerank_depth: usize,
@@ -63,6 +71,7 @@ pub struct SearchOptions {
     pub explain: bool,
     pub view: ReadView,
     pub limit: usize,
+    pub snippet: Option<SnippetOptions>,
 }
 
 impl Default for SearchOptions {
@@ -76,20 +85,29 @@ impl Default for SearchOptions {
             explain: false,
             view: ReadView::default(),
             limit: 10,
+            snippet: None,
         }
     }
 }
 
-/// `Engine::search_text_only` options.
+/// `Engine::search_text_only` options; `snippet` as in [`SearchOptions`].
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::TextSearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct TextSearchOptions {
     pub view: ReadView,
     pub limit: usize,
+    pub snippet: Option<SnippetOptions>,
 }
 
 impl Default for TextSearchOptions {
     fn default() -> Self {
-        Self { view: ReadView::default(), limit: 10 }
+        Self { view: ReadView::default(), limit: 10, snippet: None }
     }
 }
 
@@ -107,8 +125,16 @@ impl Default for ProjectedTextSearchOptions {
     }
 }
 
-/// `Engine::search_frozen` options; defaults as [`SearchOptions`].
+/// `Engine::search_frozen` options; defaults as [`SearchOptions`]. Snippet
+/// options are presentation, not part of the frozen context.
+///
+/// Another crate cannot build it with a struct expression:
+///
+/// ```compile_fail,E0639
+/// let _ = fathomdb_sdk::FrozenSearchOptions { limit: 5, ..Default::default() };
+/// ```
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct FrozenSearchOptions {
     pub rerank_depth: usize,
     pub use_graph_arm: bool,
@@ -116,6 +142,7 @@ pub struct FrozenSearchOptions {
     pub pool_n: Option<usize>,
     pub explain: bool,
     pub limit: usize,
+    pub snippet: Option<SnippetOptions>,
 }
 
 impl Default for FrozenSearchOptions {
@@ -127,6 +154,7 @@ impl Default for FrozenSearchOptions {
             pool_n: None,
             explain: false,
             limit: 10,
+            snippet: None,
         }
     }
 }

@@ -210,7 +210,7 @@ is the **typed governed application surface** this file owns. Three load-bearing
 properties hold (asserted by `src/rust/crates/fathomdb/tests/governed_surface.rs`,
 which binds AC-074 — not a new AC id):
 
-- **P1 — positive allowlist (`GOVERNED_SURFACE_ALLOWLIST`, 37 types):** the
+- **P1 — positive allowlist (`GOVERNED_SURFACE_ALLOWLIST`, 39 types):** the
   facade re-exports exactly the curated governed application surface — the
   original 17: `Engine`, `OpenedEngine`, `OpenReport`, `WriteReceipt`,
   `SearchResult`, `PreparedWrite`, `EngineError`, `EngineOpenError`, the open-path
@@ -233,7 +233,9 @@ which binds AC-074 — not a new AC id):
   pre-slice read semantics exactly. 0.8.20 Slices 5c/5d (R-20-E3 / R-20-E4) add
   the erasure types `SourceId` and `ExciseReport` (the latter moved out of the
   operator-gated block — it is `erase_source`'s return type) — **HITL-SIGNED
-  2026-07-29 (steward `seq-157`)**. Each of those 37 resolves through the facade
+  2026-07-29 (steward `seq-157`)**. Agent-access Block 1 S3 (EP-03) adds the
+  search degradation report types `ArmDegradation` and `DegradationReason`
+  — **HITL-SIGNED 2026-10-19**. Each of those 39 resolves through the facade
   at compile time (`type_name::<…>()`). The facade also `pub use`s additional
   explicitly documented additive groups that are **not members of this
   historical const**; do not infer the full re-export surface from its count.
@@ -566,6 +568,22 @@ The Rust workspace also exposes the semver-stable companion crate
   projection-visible point for the search snapshot
 - hybrid fallback, when present, exposes a typed branch enum whose values are
   owned by `design/retrieval.md`
+- `SearchResult.degradations: Vec<ArmDegradation>` lists requested arms that
+  did not run. It is empty when every requested arm ran. `ArmDegradation
+  { arm: SoftFallbackBranch, reason: DegradationReason }` and
+  `DegradationReason` are `#[non_exhaustive]`; `ArmDegradation::new` builds
+  one and `DegradationReason::as_str` gives the wire word. The one reason
+  today is `EmbedderOverloaded` (`embedder_overloaded`): the query embedding
+  was refused because the embed queue was full (`Saturated`) or expired in
+  that queue (`QueuedExpired`). The search then runs on its other arms and
+  reports `[{Vector, EmbedderOverloaded}]`. Every hybrid read that embeds a
+  query reports it: `search*`, `search_frozen`, `search_with_evidence` (on
+  `EvidenceSearchResultV1.search_result`), and `search_expand` /
+  `search_expand_frozen` (on `SearchExpandResult.degradations`). Results,
+  ranking, `soft_fallback` and `explanation` are unchanged. Other embed
+  failures still leave the list empty. `embed_text` keeps returning
+  `EngineError::Overloaded`. Both types are re-exported by `fathomdb` and
+  `fathomdb-sdk` (EP-03)
 - counter/profile/stress payload shapes are owned by `design/lifecycle.md`
 
 ### `SearchHit.id` is `IdSpace` (C-2, 0.8.19 / TC-8)
@@ -612,6 +630,38 @@ provenance — the identifier `Engine::erase_source` consumes — and since TC-3
 `PreparedWrite` is the caller-supplied input to `Engine::write` and is itself
 governed surface (§ P1), so adding a variant field changes what every binding
 must accept. It is `#[non_exhaustive]`.
+
+### Option and result structs are `#[non_exhaustive]` (agent-access Block 1)
+
+Five structs are `#[non_exhaustive]`: `fathomdb_sdk::SearchOptions`,
+`fathomdb_sdk::TextSearchOptions`, `fathomdb_sdk::FrozenSearchOptions`
+([`rust-sdk.md`](rust-sdk.md)), and `SnippetOptions` and
+`SearchExpandResult` from `fathomdb-engine`. `SearchExpandResult` is
+re-exported by this facade and by `fathomdb-sdk`; `SnippetOptions` by
+`fathomdb-sdk`.
+
+- Another crate cannot build any of them with a struct expression. A full
+  literal and `..Default::default()` both fail with `E0639`. A new field is
+  then not a source break.
+- Option structs follow the `SearchFilter` form: start from `default()` and
+  assign the public fields.
+
+  ```rust
+  let mut snippet = fathomdb_sdk::SnippetOptions::default();
+  snippet.max_bytes = 300;
+  let mut options = fathomdb_sdk::SearchOptions::default();
+  options.limit = 20;
+  options.snippet = Some(snippet);
+  ```
+
+- `SearchExpandResult` is a result. Callers read its fields; only the engine
+  builds it.
+- Adding the attribute is itself a breaking change (TC-103, todos ledger
+  `seq-178`). It lands with Block 1, which already breaks literal
+  construction of the SDK search options by adding `snippet`, so a caller
+  upgrading past Block 1 meets no further break.
+- Python and TypeScript build these structs in Rust; their surface does not
+  change.
 
 ### Versioned identity and provenance (0.8.25 Slice 15)
 
@@ -796,6 +846,11 @@ row-set, the `bm25()` ordering and the scores byte-unchanged.
   pool_n, explain, &ReadView, limit) -> Result<SearchResult, EngineError>`
 - `Engine::search_text_only_view_with_limit(query, &ReadView, limit) -> Result<SearchResult,
   EngineError>`
+- `Engine::search_reranked_view_with_snippets(.., limit, snippet: Option<&SnippetOptions>)`,
+  `Engine::search_text_only_view_with_snippets(query, &ReadView, limit, snippet)` and
+  `Engine::search_frozen_with_snippets(.., limit, snippet)` — the `*_with_limit` and
+  `search_frozen` forms with a trailing snippet option (EP-17, § "Match-centred snippets
+  on search" below). `None` is exactly the plain call.
 
 `search_reranked(q, f, d, g, a, p)` is exactly
 `search_reranked_view(q, f, d, g, a, p, false, &ReadView::default())`.
@@ -1145,9 +1200,10 @@ in Rust, Python and TypeScript:
 `(attribute_name, value)` is an equality predicate over a declared-`filterable`
 projection, lowered pre-KNN into the indexed vec0 metadata column `attr_<hex>`
 (never a post-KNN `json_extract`). Empty ⇒ the byte-identical unfiltered path is
-preserved. The struct is now `#[non_exhaustive]`, so EXTERNAL crates must
-construct it through `..Default::default()` (a further additive field is then not
-a source break). Allowlist MEMBERSHIP in
+preserved. The struct is now `#[non_exhaustive]`, so EXTERNAL crates cannot use
+a struct expression, `..Default::default()` included; they start from
+`SearchFilter::default()` and assign fields (a further additive field is then
+not a source break). Allowlist MEMBERSHIP in
 `src/conformance/governed-surface-allowlist.json` is byte-unchanged (`SearchFilter`
 was already a re-exported type; this is a fields-only + attribute delta, the same
 pattern as `PreparedWrite::Node`'s validity fields). Semantics are **node-scoped**:
@@ -1199,6 +1255,152 @@ and is never silently clamped. The hybrid family also exposes
 `search_explained_with_limit`. Vector candidate fanout is at least the requested limit; the
 private test seam can only raise candidate fanout, never public result cardinality.
 `graph_neighbors` remains separately capped at 50.
+
+## Hints engine subset (ADR-0.8.29-agent-hints-sidecar)
+
+`fathomdb_engine::search_hints(facts: &SearchFacts, out: &mut Vec<Hint>)` is a
+pure function (no SQL, I/O, clock or locks) that appends the suggested next
+actions for one search page. `fathomdb-sdk` re-exports it with its types. No
+engine search path calls it in this stage; the MCP adapter calls it with its
+own page facts, and `SearchResult` is unchanged. The agent vocabulary table
+is `dev/interfaces/mcp.md` § 3; this section documents only the engine subset.
+
+- `SearchFacts::new(returned, limit, mode)`, with `with_degradations(&[(HintArm,
+  HintCause)])` (canonical order; only the first entry is named) and
+  `with_hybrid_available(bool)` (usable embedder, hybrid permitted by
+  configuration, dense arm not disabled). Defaults: no degradation, no hybrid.
+- Emission, at most one hint per reason, in this order:
+  - `Degraded` (`HintAction::None`, `arm`, `cause`) when a degradation entry is
+    present.
+  - `NoResults` (`HintAction::Search`) when `returned` is zero. `mode` is
+    `Some(HintMode::Hybrid)` only for a text-mode search with
+    `hybrid_available`; otherwise `None`.
+  - `MoreResults` (`HintAction::Search`, `limit`) when `returned >= limit`
+    and `limit < HINT_LIMIT_CAP` (100); `limit` is `min(2 × limit, 100)`.
+- `HintCause` carries every cause word a degradation can have:
+  `soft_fallback`, `dense_disabled`, `embedder_unavailable`,
+  `embedder_overloaded`, and the graph-expansion codes
+  `query_seed_text_fallback`, `projection_legacy_unverified`,
+  `projection_processing`, `projection_blocked`, `projection_deferred`,
+  `projection_degraded`. `HintArm` is `vector`, `text`, `text_edge`,
+  `graph_arm` or `graph`. Every type's `as_str()` returns its wire word.
+- `Hint`, `HintAction`, `HintReason`, `HintMode`, `HintArm`, `HintCause` and
+  `SearchFacts` are `#[non_exhaustive]`; new reasons, words and fields are
+  additive.
+
+## Match-centred snippet selector (EP-17)
+
+`fathomdb_engine::snippet_for(body: &str, spans: &[(u32, u32)], options:
+&SnippetOptions) -> SnippetV1` is a pure function (no SQL, I/O, clock,
+floating point or locks). It picks the part of a record body to show for a
+search hit from the hit's match spans. `fathomdb-sdk` re-exports it with its
+types. The search entry points below call the same function for their
+snippet sidecar. The specification is `dev/design/agent-access/match-centred-snippets.md` §§ 6
+and 7.2.
+
+- `SnippetOptions` is `#[non_exhaustive]`, with public fields and a
+  `Default`. Other crates start from `SnippetOptions::default()` and assign
+  fields:
+  - `max_bytes: u32`, `40..=4000`, default 300. The output budget in UTF-8
+    bytes, ellipses included.
+  - `max_windows: u8`, `1..=3`, default 1.
+  - `head_bytes: u32`, `0..=max_bytes / 2`, default 0.
+  - `highlights: bool`, default false.
+  - `max_point_queries: u8`, default 20. The number of hits per search that
+    get a combined span query; the rule-3 per-term pass draws on a second
+    pool of the same size. `snippet_for` does not read it.
+- `SnippetOptions::validate()` returns `EngineError::InvalidArgument` for a
+  value out of range. `snippet_for` itself never fails: it clamps such
+  values into range.
+- Spans are body byte ranges `[start, end)`. `snippet_for` ignores spans
+  that are empty, run past the body, or do not fall on `char` boundaries. It
+  sorts the rest, widens each to grapheme boundaries (an NFD accent belongs to
+  its letter), and merges spans that overlap.
+- `SnippetV1` is `#[non_exhaustive]`:
+  - `text`: at most `max_bytes` bytes.
+  - `anchor`: `SnippetAnchor::Whole`, `Match` or `Start`; `as_str()` gives
+    `whole`, `match` or `start`.
+  - `windows`: the body ranges shown, sorted, disjoint and on grapheme
+    boundaries.
+  - `spans`: the normalised spans.
+  - `highlights`: ranges into `text` of the spans shown in full; empty unless
+    `highlights` is set.
+  - `cut`: true when any of the body is left out.
+- `text` is the windows joined in body order. `"… "` comes before a first
+  window that starts after byte 0, `" … "` goes between windows, and `" …"`
+  follows a last window that ends before the body. `windows` says where an
+  ellipsis is structure; a record can contain `…` itself.
+- Selection:
+  - A body that fits is returned whole (`Whole`).
+  - Without usable spans, the prefix is cut back to a word boundary (`Start`).
+  - Otherwise the window is chosen by distinct span identities (lowercased
+    span text), then span count, then a sentence start within 64 bytes before
+    its first span, then the earlier start.
+  - The window is centred on its spans. Its edges snap to UAX #29 word
+    boundaries without cutting a counted span; past 32 bytes they fall back
+    to a grapheme boundary. The start moves to the bonus sentence start when
+    the budget still reaches the last span.
+  - `head_bytes > 0` adds the record start as its own window. It is cut at
+    the first line break or at the last word boundary at or before
+    `head_bytes`.
+  - `max_windows > 1` adds windows for identities that no window shows. The
+    first window then takes `1 / max_windows` of the budget, but only when
+    a whole span fits that narrower window and at least 80 bytes remain
+    beside it.
+  - Windows 16 bytes apart or less merge. If the merged text does not fit,
+    its end snaps back, never before a counted span or the head's end.
+- Output is deterministic per build. Word, sentence and grapheme boundaries
+  come from `unicode-segmentation`, so a version bump of that crate may
+  change snippet bytes.
+
+## Match-centred snippets on search (EP-17)
+
+`search_reranked_view_with_snippets`, `search_text_only_view_with_snippets`
+and `search_frozen_with_snippets` take `snippet: Option<&SnippetOptions>`.
+The plain entry points are these with `None`.
+
+- `Some(options)` is validated first (`SnippetOptions::validate`;
+  `EngineError::InvalidArgument`). It then fills
+  `SearchResult::snippets: Option<Vec<SnippetV1>>`, one snippet per hit, in
+  `results` order. `None` leaves `snippets` as `None`, and every other field
+  is the same with or without snippets.
+- Work runs after ranking, truncation to the limit, and the identity pass, on
+  the search's reader transaction, with read-only statements only.
+- A text hit's FTS rowid is kept in a search-local map from `write_cursor`
+  to `search_index` or `search_index_edges`, only when snippets are
+  requested. For a mapped hit that needs spans, the engine runs one
+  `highlight()` constrained to that rowid:
+  - Spans are needed when the body is over `max_bytes` or `highlights` is
+    set. A body that fits with highlights off gets the whole body and no
+    query.
+  - Markers are the first pair of U+E000/U+E001, U+F8FE/U+F8FF and
+    U+FDD0/U+FDD1 that the body does not contain. If the body contains all
+    three pairs, or the marked text does not strip back to the body, the hit
+    gets no spans.
+- Exact term identity (rule 3). It applies when the body is over budget, the
+  query has more than one OR term, and some span lies outside every window of
+  the approximate snippet. That is the as-built reading of "the first window
+  misses a span": with a record head, the first window is the head. The
+  engine then runs `highlight()` once per term in `CompiledQuery.terms`, and
+  spans are grouped by term rather than by lowercased text.
+- `max_point_queries` caps how many hits get a combined span query, in rank
+  order. Later hits get the record start (`SnippetAnchor::Start`).
+- The per-term queries draw on a second per-search pool of
+  `max_point_queries` queries, in rank order. A hit's per-term pass runs only
+  if the pool still holds `terms.len()` queries, and then costs that many.
+  Otherwise the hit keeps the snippet built from the combined spans. A search
+  therefore issues at most 2 × `max_point_queries` point queries.
+- Anchor: `Match` only when the hit is in the map and highlighting found a
+  span. `fusion` may keep a vector hit's struct (`branch == Vector`) for a
+  body the text arm also matched, so `branch` is not consulted. Vector-only
+  and graph-arm hits get `Start`.
+- Frozen reads: snippet options are presentation. They are not eligibility
+  and do not enter the frozen context or its token.
+- `search_projected_text` and `bm25f_search` take no snippet option.
+
+`fathomdb_query::CompiledQuery` has `match_expression` and `terms:
+Vec<String>`. `terms` holds the OR operands as compiled, each a quoted,
+escaped FTS5 string, and `match_expression == terms.join(" OR ")`.
 
 ## Errors
 

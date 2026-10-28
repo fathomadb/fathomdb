@@ -1,4 +1,5 @@
 use super::*;
+use crate::search_types::{ArmDegradation, DegradationReason, SoftFallbackBranch};
 
 /// G11 — the fixed projection kind every EDGE body is scheduled under
 /// (`resolve_source_type` maps it to `source_type = 'edge_fact'` in
@@ -132,20 +133,20 @@ pub(crate) fn map_runtime_embedder_error(err: RuntimeEmbedderError) -> EngineErr
 
 /// The query vector for a search. A failed query embedding drops the vector
 /// arm (`Ok(None)`, the sparse fallback), except a CUDA pool kind, which is
-/// raised typed (ruling 33). A provider panic resumes.
+/// raised typed (ruling 33). Queue overload is recorded in `degradations`
+/// (see [`query_vector_or_degradation`]). A provider panic resumes.
 pub(crate) fn search_query_vector(
     dispatcher: &EmbedDispatcher,
     text: &str,
+    degradations: &mut Vec<ArmDegradation>,
 ) -> Result<Option<Vec<f32>>, EngineError> {
     match dispatch_embed_vector(dispatcher, text) {
-        Ok(vector) => Ok(Some(vector)),
-        Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
         Err(DispatchError::Provider(
             error @ (RuntimeEmbedderError::CudaPoolExhausted { .. }
             | RuntimeEmbedderError::CudaContextLost { .. }
             | RuntimeEmbedderError::CudaPrivateBuildRefused { .. }),
         )) => Err(map_runtime_embedder_error(error)),
-        Err(_) => Ok(None),
+        embedded => Ok(query_vector_or_degradation(embedded, degradations)),
     }
 }
 
@@ -156,6 +157,28 @@ pub(crate) fn dispatch_embed_vector(
     match dispatcher.submit_text(text.to_owned())?.wait()? {
         EmbedOutput::One(vector) => Ok(vector),
         EmbedOutput::Batch(_) => unreachable!("single embed request returned a batch"),
+    }
+}
+
+/// The query vector, or `None` with the reason recorded when the embedding was
+/// refused for a reason the search reports instead of failing on. Errors other
+/// than queue overload keep today's silent text-only behaviour; a provider panic
+/// resumes on the caller.
+pub(crate) fn query_vector_or_degradation(
+    embedded: Result<Vec<f32>, DispatchError>,
+    degradations: &mut Vec<ArmDegradation>,
+) -> Option<Vec<f32>> {
+    match embedded {
+        Ok(vector) => Some(vector),
+        Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+        Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
+            degradations.push(ArmDegradation::new(
+                SoftFallbackBranch::Vector,
+                DegradationReason::EmbedderOverloaded,
+            ));
+            None
+        }
+        Err(_) => None,
     }
 }
 

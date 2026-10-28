@@ -34,6 +34,7 @@ from fathomdb._sdk_context_pack import (
     encode_round_body,
     pack_context,
 )
+from fathomdb._sdk_search import snippet_for
 from fathomdb.config import EngineConfig, QueryStopWords
 from fathomdb.engine import Engine
 from fathomdb.errors import (
@@ -134,6 +135,9 @@ from fathomdb.types import (
     SearchFilter,
     SearchHit,
     SearchResult,
+    SnippetAnchor,
+    SnippetOptions,
+    SnippetV1,
     SourceDependencyRegistrationV1,
     SourceDependencyV1,
     SourceLocator,
@@ -141,6 +145,8 @@ from fathomdb.types import (
     WholeBodySourceLocator,
     SoftFallback,
     SoftFallbackBranch,
+    ArmDegradation,
+    DegradationReason,
     StructuralInclusionV1,
     TraversalDirection,
     TraceNodeLifecycleV1,
@@ -257,6 +263,9 @@ __all__ = [
     "SearchFilter",
     "SearchHit",
     "SearchResult",
+    "SnippetAnchor",
+    "SnippetOptions",
+    "SnippetV1",
     "SourceDependencyRegistrationV1",
     "SourceDependencyV1",
     "SourceLocator",
@@ -264,6 +273,8 @@ __all__ = [
     "WholeBodySourceLocator",
     "SoftFallback",
     "SoftFallbackBranch",
+    "ArmDegradation",
+    "DegradationReason",
     "StructuralInclusionV1",
     "TraversalDirection",
     "TraceNodeLifecycleV1",
@@ -281,5 +292,6 @@ __all__ = [
     "pack_context",
     "read",
     "rerank",
+    "snippet_for",
 ]
 __version__ = "0.8.27"

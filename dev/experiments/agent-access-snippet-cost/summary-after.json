@@ -1,0 +1,208 @@
+{
+  "cells": [
+    {
+      "hits": 20,
+      "k": 1,
+      "p50_us": 264,
+      "p95_us": 340,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 2048,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 1,
+      "p50_us": 2459,
+      "p95_us": 2634,
+      "point_queries_max": 20,
+      "point_queries_min": 20,
+      "record_bytes": 2048,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 3,
+      "p50_us": 288,
+      "p95_us": 348,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 2048,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 3,
+      "p50_us": 3324,
+      "p95_us": 3619,
+      "point_queries_max": 38,
+      "point_queries_min": 38,
+      "record_bytes": 2048,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 5,
+      "p50_us": 334,
+      "p95_us": 408,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 2048,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 5,
+      "p50_us": 3282,
+      "p95_us": 3491,
+      "point_queries_max": 40,
+      "point_queries_min": 40,
+      "record_bytes": 2048,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 1,
+      "p50_us": 393,
+      "p95_us": 488,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 10240,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 1,
+      "p50_us": 10314,
+      "p95_us": 10531,
+      "point_queries_max": 20,
+      "point_queries_min": 20,
+      "record_bytes": 10240,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 3,
+      "p50_us": 391,
+      "p95_us": 505,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 10240,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 3,
+      "p50_us": 13977,
+      "p95_us": 14188,
+      "point_queries_max": 38,
+      "point_queries_min": 38,
+      "record_bytes": 10240,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 5,
+      "p50_us": 427,
+      "p95_us": 491,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 10240,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 5,
+      "p50_us": 13299,
+      "p95_us": 13396,
+      "point_queries_max": 40,
+      "point_queries_min": 40,
+      "record_bytes": 10240,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 1,
+      "p50_us": 1979,
+      "p95_us": 2409,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 51200,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 1,
+      "p50_us": 50853,
+      "p95_us": 51362,
+      "point_queries_max": 20,
+      "point_queries_min": 20,
+      "record_bytes": 51200,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 3,
+      "p50_us": 1984,
+      "p95_us": 2596,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 51200,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 3,
+      "p50_us": 68696,
+      "p95_us": 69396,
+      "point_queries_max": 38,
+      "point_queries_min": 38,
+      "record_bytes": 51200,
+      "searches": 200,
+      "snippets": "on"
+    },
+    {
+      "hits": 20,
+      "k": 5,
+      "p50_us": 1928,
+      "p95_us": 2550,
+      "point_queries_max": 0,
+      "point_queries_min": 0,
+      "record_bytes": 51200,
+      "searches": 200,
+      "snippets": "off"
+    },
+    {
+      "hits": 20,
+      "k": 5,
+      "p50_us": 64999,
+      "p95_us": 65757,
+      "point_queries_max": 40,
+      "point_queries_min": 40,
+      "record_bytes": 51200,
+      "searches": 200,
+      "snippets": "on"
+    }
+  ],
+  "label": "after",
+  "limit": 20,
+  "profile": "release",
+  "records": 40,
+  "snippet_options": "SnippetOptions::default()",
+  "warmup": 10
+}

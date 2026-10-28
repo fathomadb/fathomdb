@@ -20,7 +20,7 @@ its separate contract in [`rust.md`](rust.md).
 
 `fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, the option
 structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
-`embed_batch_cls`, the rerank DTOs, the shared DTO re-exports, and the
+`embed_batch_cls`, `snippet_for`, `search_hints`, the rerank DTOs, the shared DTO re-exports, and the
 modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
 privately; there is no `Deref`, accessor or conversion to
 `fathomdb_engine::Engine`. Custom embedder injection (`EmbedderChoice`,
@@ -32,6 +32,7 @@ The checker also refuses these routes to the core:
 - `Engine` trait impls other than `Drop` and `Debug`;
 - public `Engine` fields;
 - glob or core-`Engine` re-exports of `fathomdb_engine`;
+- re-exports of `fathomdb_engine` functions (an SDK function wraps them);
 - extra public modules.
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
@@ -123,11 +124,11 @@ function in every row.
 | `engine.purge` | `purge(&self, logical_id: &str) -> Result<()>` | same |
 | `engine.erase_source` | `erase_source(&self, source_id: &str) -> Result<EraseReport>` | `erase_source`; accepts every Engine-valid `SourceId`, including embedded NUL |
 | `engine.configure_projections` | `configure_projections(&self, specs: &[ProjectionSpec], drop: &[String]) -> Result<ProjectionDelta>` | same |
-| `engine.search` | `search(&self, query: &str, options: SearchOptions) -> Result<SearchResult>` | `search_reranked_view_with_limit` |
-| `engine.search_text_only` | `search_text_only(&self, query: &str, options: TextSearchOptions) -> Result<SearchResult>` | `search_text_only_view_with_limit` |
+| `engine.search` | `search(&self, query: &str, options: SearchOptions) -> Result<SearchResult>` | `search_reranked_view_with_snippets` |
+| `engine.search_text_only` | `search_text_only(&self, query: &str, options: TextSearchOptions) -> Result<SearchResult>` | `search_text_only_view_with_snippets` |
 | `engine.search_projected_text` | `search_projected_text(&self, query: &str, name: &str, options: ProjectedTextSearchOptions) -> Result<SearchResult>` | `search_projected_text_with_limit` |
 | `engine.freeze_read_context` | `freeze_read_context(&self, context: &ReadContextV1) -> Result<FrozenReadContextV1>` | same |
-| `engine.search_frozen` | `search_frozen(&self, query: &str, context: &FrozenReadContextV1, options: FrozenSearchOptions) -> Result<SearchResult>` | `validate_frozen_read_context_for_binding`, then `search_frozen` |
+| `engine.search_frozen` | `search_frozen(&self, query: &str, context: &FrozenReadContextV1, options: FrozenSearchOptions) -> Result<SearchResult>` | `validate_frozen_read_context_for_binding`, then `search_frozen_with_snippets` |
 | `engine.search_expand_frozen` | `search_expand_frozen(&self, query: &str, context: &FrozenReadContextV1, depth: u32, options: SearchExpandOptions) -> Result<SearchExpandResult>` | Same validation, then `search_expand_frozen`. |
 | `engine.search_with_evidence` | `search_with_evidence(&self, &EvidenceSearchRequestV1) -> Result<EvidenceSearchResultV1>` | same |
 | `engine.resolve_evidence` | `resolve_evidence(&self, &EvidenceResolveRequestV1) -> Result<ResolvedEvidenceV1>` | same |
@@ -135,6 +136,12 @@ function in every row.
 | `engine.ingest_with_extractor` | `ingest_with_extractor(&self, cmd: &[&str], documents: &[ExtractDocument]) -> Result<IngestWithExtractorReceipt>` | same |
 | `engine.consolidate_with_provider` | `consolidate_with_provider(&self, cmd: &[&str], axes: &[ConsolidateAxis]) -> Result<ConsolidateReceipt>` | same |
 | `engine.embed` | `embed(&self, text: &str) -> Result<Vec<f32>>` | `embed_text` |
+
+Search results carry the engine's `degradations` list unchanged
+(`ArmDegradation`, `DegradationReason`, re-exported). An overloaded embed queue
+appears as `[{Vector, EmbedderOverloaded}]` with wire word
+`embedder_overloaded`, the same word Python and TypeScript use. See
+[rust](rust.md#caller-visible-data-shapes).
 
 Search through the engine's maintained FTS index returns `Storage` when a
 persisted FTS row cannot be decoded. The rank-stream optimization may retry
@@ -191,12 +198,18 @@ impls for both. `Unified` is lowered through the public
 `Filter::to_search_filter()`, which refuses a `Json` term with
 `InvalidFilter`.
 
+`SearchOptions`, `TextSearchOptions` and `FrozenSearchOptions` are
+`#[non_exhaustive]`: build one from `default()` and assign fields, as in
+`let mut o = SearchOptions::default(); o.limit = 20;`. A struct expression,
+`..Default::default()` included, does not compile outside `fathomdb-sdk`
+([`rust.md`](rust.md)).
+
 | Struct | Fields and defaults |
 | --- | --- |
-| `SearchOptions` | `filter: Option<SearchFilterArg> = None`, `rerank_depth: usize = 0`, `use_graph_arm: bool = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain: bool = false`, `view: ReadView = default`, `limit: usize = 10` |
-| `TextSearchOptions` | `view: ReadView = default`, `limit: usize = 10` |
+| `SearchOptions` | `filter: Option<SearchFilterArg> = None`, `rerank_depth: usize = 0`, `use_graph_arm: bool = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain: bool = false`, `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None` |
+| `TextSearchOptions` | `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None` |
 | `ProjectedTextSearchOptions` | `filter: Option<SearchFilter> = None`, `view: ReadView = default`, `limit: usize = 10` |
-| `FrozenSearchOptions` | `rerank_depth = 0`, `use_graph_arm = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain = false`, `limit = 10` |
+| `FrozenSearchOptions` | `rerank_depth = 0`, `use_graph_arm = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain = false`, `limit = 10`, `snippet = None` |
 | `SearchExpandOptions` | `search_limit: usize = 10` |
 | `ListOptions` | `predicates: Vec<Predicate> = []`, `filter: Option<Filter> = None`, `limit: usize = 100`, `view: Option<ReadView> = None` |
 | `NeighborsOptions` | `direction: TraversalDirection = Both`, `view: Option<ReadView> = None` |
@@ -228,6 +241,8 @@ impls for both. `Unified` is lowered through the public
 | `decode_round_body` | `decode_round_body(body: &str) -> Result<Vec<ContextPart>>`. | `fathomdb_engine::decode_round_body` |
 | `context_item_from_hit` | `context_item_from_hit(hit: &SearchHit, options: ContextHitOptions) -> Result<ContextItem>`. `ContextHitOptions { group, position, order_key, header }` defaults to all `None`. | `IdSpace::to_prefixed` plus `decode_round_body` |
 | — | `embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>>`. With `default-embedder`: empty input returns `[]`; the embedder is a process singleton cached only on success. CUDA pool failures during load or embedding retain their typed CUDA kinds and details; other load failures are `EmbedderNotConfigured`, and other embedding failures are `Embedder`. Without the feature, every call, including one with empty input, returns `EmbedderNotConfigured`. | `CandleBgeEmbedder::new()?.with_pooling(Pooling::Cls)` then `Embedder::embed_batch` |
+| — | `snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1`. Pure; no engine and no `Result`. The rules are in `dev/interfaces/rust.md` § "Match-centred snippet selector". | `fathomdb_engine::snippet_for` (`SnippetOptions`, `SnippetAnchor` and `SnippetV1` re-exported) |
+| — | `search_hints(facts: &SearchFacts<'_>, out: &mut Vec<Hint>)`. The hints engine subset (ADR-0.8.29-agent-hints-sidecar); pure, never panics. | `fathomdb_engine::search_hints` (`HINT_LIMIT_CAP` and the hint types re-exported) |
 
 The namespace functions take `&Engine` first, as the Python and TypeScript
 namespace functions take the engine.

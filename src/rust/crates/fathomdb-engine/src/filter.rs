@@ -79,12 +79,11 @@ pub enum Predicate {
 /// population slice lands.
 // 0.8.20 Slice 15e fix-2 (Finding 2) — `#[non_exhaustive]`: the `attributes`
 // field was added additively in 0.8.20. Marking the struct non-exhaustive means
-// EXTERNAL crates can no longer use a struct literal `SearchFilter { .. }` and
-// must go through `..Default::default()` (or a constructor), so a FUTURE field
-// add is not a source break for them. Internal (in-workspace) construction is
-// unaffected — `#[non_exhaustive]` only constrains other crates — and every
-// in-crate literal already spreads `..Default::default()`. Governed-surface
-// status: PROPOSED / NOT SIGNED.
+// EXTERNAL crates cannot use a struct expression, `..Default::default()`
+// included; they start from `SearchFilter::default()` and assign fields, so a
+// FUTURE field add is not a source break for them. Construction inside
+// `fathomdb-engine` is unaffected: `#[non_exhaustive]` only constrains other
+// crates. Governed-surface status: PROPOSED / NOT SIGNED.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct SearchFilter {
@@ -695,7 +694,7 @@ pub(crate) fn body_fts_rank_sql(
 ) -> String {
     format!(
         "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-         bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
+         bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
          WHERE search_index MATCH ?1 \
            AND cn.superseded_at IS NULL \
@@ -708,7 +707,7 @@ pub(crate) fn body_fts_rank_sql(
 pub(crate) fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
-         ce.logical_id, ce.source_id \
+         ce.logical_id, ce.source_id, sei.rowid \
          FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
          WHERE search_index_edges MATCH ?1 \

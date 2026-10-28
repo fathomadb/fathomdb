@@ -59,7 +59,13 @@ The live engine has three connection roles:
   outside the critical section, and serialize their write commits through the
   shared `commit_gate`; and
 - `ReaderWorkerPool` owns multiple read connections and executes read work in
-  DEFERRED transactions rather than behind the primary writer mutex.
+  DEFERRED transactions rather than behind the primary writer mutex. Each
+  worker keeps its connection for life. Dispatch hands a read to an idle
+  worker when one is waiting, and waits on the round-robin worker only when
+  every worker is busy, so a slow read does not delay reads while another
+  worker is idle
+  ([EP-18](mcp-adapter/engine-proposals/EP-18-reader-dispatch-and-pool-size.md)
+  part A).
 
 SQLite still permits one write transaction at a time. The explicit primary
 writer mutex and projection `commit_gate` make the engine's ordering and

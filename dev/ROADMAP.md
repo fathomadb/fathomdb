@@ -45,6 +45,7 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 | **Review checkpoint** | A date to decide whether to run or promote an experiment; not a product commitment. |
 | **Backlog** | Preserved work with no release slot. Scheduling requires an HITL decision. |
 | **Parked** | Deliberately outside the release path until named evidence or an architecture decision reopens it. |
+| **Requested** | Work the owner has asked to be added, with a recorded reason; no release slot until an HITL decision places it. |
 
 ## Release map
 
@@ -206,6 +207,34 @@ Promotion requires a bounded family that improves held-out answer use without
 correctness, groundedness, attribution, latency, lifecycle, or accepted-default
 regression.
 
+**Placed experiments (owner ruling 2026-10-18), from the agent-access work
+([`design/agent-access/README.md`](design/agent-access/README.md)):**
+
+- **Coalescing concurrent work.** Test whether running identical concurrent
+  calls once (single-flight), or batching a burst's query embeddings on the
+  GPU, pays for itself after the admission queue lands. Today a query embedding
+  takes about 10 ms, so neither is the known bottleneck. See
+  [`design/agent-access/queue-manager-research.md`](design/agent-access/queue-manager-research.md)
+  § 10, question 4.
+- **Hints sidecar default for the SDK.** Hints are on by default for MCP.
+  Measure whether SDK callers benefit and what the overhead is, then decide
+  the SDK default. See
+  [`design/agent-access/hints-sidecar.md`](design/agent-access/hints-sidecar.md)
+  § 10, question 3.
+
+- **MCP compact text block (owner ruling 2026-10-21; implementation placed
+  here, not a checkpoint).** Add a `result_format` setting whose default
+  `text` sends results as a compact text block without `structuredContent`,
+  and counts only that block against the budget. Depends on agent-access
+  Block 1. Design and review gate:
+  [`design/agent-access/compact-text-block.md`](design/agent-access/compact-text-block.md).
+
+- **Re-check the overflow-chunking triggers** (owner ruling 2026-10-19).
+  Overflow chunking (option C) is parked until a trigger fires. Check each
+  trigger in
+  [`design/long-record-embedding.md`](design/long-record-embedding.md)
+  § 7.2 and promote C if one has.
+
 **Placed work, not a checkpoint (owner ruling 2026-10-07):** make FathomDB
 survive a co-resident library resetting the CUDA primary context (todo
 `TC-281155a1-4767-4379-9506-ef97b2ed51a9`). Today cudarc's `CudaSlice` drop
@@ -305,6 +334,34 @@ FathomDB Engine is open against the same file in the same process is unsafe
 because the process contains distinct SQLite library copies. Separate-process
 inspection remains the safe route. This is a documentation obligation, not an
 engine defect or a new release commitment.
+
+## Requested
+
+Requested by the owner; no release slot yet.
+
+- **Chunked embedding for long records** (requested 2026-10-18). The vector
+  arm embeds only the first 512 tokens of each record. Text after that is
+  invisible to vector search, so a long record whose relevant passage comes
+  late can only be found lexically. It also leaves vector-only hits with no
+  match position: the match-centred snippet design has to fall back to the
+  start of the record for them. With chunks, the matching chunk is the
+  natural snippet anchor and that fallback becomes temporary. See
+  [`design/agent-access/match-centred-snippets.md`](design/agent-access/match-centred-snippets.md)
+  § 3.4 and § 10, question 5, and engine proposal
+  [`design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md`](design/mcp-adapter/engine-proposals/EP-17-match-centred-snippets.md).
+  - Findings (2026-10-18), in
+    [`design/long-record-embedding.md`](design/long-record-embedding.md):
+    - Session- and document-level records put 19–37 % of gold past the cut;
+      turn-level records put almost none there.
+    - A preregistered, paired probe moved gold across the cut. The vector
+      arm gains 0.09 R@10 when the gold is visible. Hybrid's pooled effect
+      is 0.000, but that is opposite stratum effects cancelling: moving
+      past-cut gold into the head gains +0.03 on 4 of 133 questions. No
+      answer-level measurement exists yet.
+    - Every chunking option multiplies the O(N) vector scan.
+    - Proposed: a guard now (embedded extent in `orient` and in the EP-17
+      snippet), plus one specified overflow-chunking experiment, parked
+      until a stated trigger fires. Awaiting owner review.
 
 ## Longer-horizon proposals
 

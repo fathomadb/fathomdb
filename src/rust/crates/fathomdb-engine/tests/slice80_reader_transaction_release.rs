@@ -36,7 +36,7 @@ fn in_transaction_refusal_releases_every_reader_snapshot() {
     assert_eq!(
         opened.engine.reader_worker_count_for_test(),
         worker_count,
-        "the round-robin proof assumes the shipped eight-reader pool"
+        "the cursor proof assumes the shipped eight-reader pool"
     );
     #[cfg(debug_assertions)]
     let start = opened.engine.next_reader_worker_index_for_test();

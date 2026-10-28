@@ -72,6 +72,7 @@ from fathomdb.types import (
     SearchExpandResult,
     SearchFilter,
     SearchResult,
+    SnippetOptions,
     SourceDependencyRegistrationV1,
     SourceDependencyV1,
     WriteReceipt,
@@ -304,6 +305,7 @@ class Engine:
         explain: bool = False,
         view: ReadView | None = None,
         limit: int = 10,
+        snippet: SnippetOptions | None = None,
     ) -> SearchResult:
         """Hybrid search with optional CE reranking and optional graph-BFS arm.
 
@@ -338,6 +340,9 @@ class Engine:
                 silently ignored: search hydrates from projection indexes that
                 are not version-complete, so they have no truthful answer.
                 Use ``read.list`` to enumerate history.
+            snippet: EP-17 ``SnippetOptions``. When set, ``SearchResult.snippets``
+                holds one match-centred ``SnippetV1`` per hit; ``None``
+                (default) leaves it ``None`` and the result unchanged.
 
         Returns:
             ``SearchResult`` with RRF-fused (and optionally CE-reranked) hits.
@@ -355,6 +360,7 @@ class Engine:
             explain=explain,
             view=view,
             limit=limit,
+            snippet=snippet,
         )
 
     def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1:
@@ -376,12 +382,15 @@ class Engine:
         pool_n: int | None = None,
         explain: bool = False,
         limit: int = 10,
+        snippet: SnippetOptions | None = None,
     ) -> SearchResult:
         """Search under an Engine-authenticated frozen context.
 
         ``pool_n=None`` uses ``rerank_depth``; this changes the former frozen
         default of zero to match ordinary search and the other SDKs.
         ``explain=True`` returns a finalized non-empty correlation identity.
+        ``snippet`` (EP-17) fills ``SearchResult.snippets``; it is
+        presentation, not part of the frozen context.
         """
         return _sdk_search.search_frozen(
             self,
@@ -393,6 +402,7 @@ class Engine:
             pool_n=pool_n,
             explain=explain,
             limit=limit,
+            snippet=snippet,
         )
 
     def search_with_evidence(
@@ -444,7 +454,12 @@ class Engine:
         return _sdk_search.search_projected_text(self, query, name, filter, view=view, limit=limit)
 
     def search_text_only(
-        self, query: str, view: ReadView | None = None, *, limit: int = 10
+        self,
+        query: str,
+        view: ReadView | None = None,
+        *,
+        limit: int = 10,
+        snippet: SnippetOptions | None = None,
     ) -> SearchResult:
         """0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only / FTS-only search.
 
@@ -456,8 +471,11 @@ class Engine:
         body-deduplicated and ranked before ``limit`` is applied. For one
         immutable selection and effective validity time, smaller accepted limits
         are prefixes of larger limits; this does not extend to hybrid search.
+
+        ``snippet`` (EP-17) fills ``SearchResult.snippets`` with one
+        match-centred ``SnippetV1`` per hit; ``None`` leaves it ``None``.
         """
-        return _sdk_search.search_text_only(self, query, view, limit=limit)
+        return _sdk_search.search_text_only(self, query, view, limit=limit, snippet=snippet)
 
     def dense_disabled(self) -> bool:
         """0.8.18 Slice 5 (R-VEQ-6) — ``True`` iff the engine opened degraded.

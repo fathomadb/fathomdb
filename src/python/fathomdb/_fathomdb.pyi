@@ -104,6 +104,10 @@ class MutationProjectionStatusV1:
 class SoftFallback:
     branch: str
 
+class ArmDegradation:
+    arm: str
+    reason: str
+
 # C-2 (0.8.19 / TC-8) — typed id-space carrier for SearchHit.id.
 class IdSpace:
     # "logical" | "content" | "passage"
@@ -177,6 +181,20 @@ class SearchResult:
     results: list[SearchHit]
     # Opt-in; None unless ordinary or frozen retrieval requests explanation.
     explanation: Explanation | None
+    # None when every requested arm ran.
+    degradations: list[ArmDegradation] | None
+    # EP-17: one per hit when the search passed `snippet`; None otherwise.
+    snippets: list[SnippetV1] | None
+
+class SnippetV1:
+    # UTF-8 byte offsets: windows/spans into the body, highlights into text.
+    text: str
+    # "whole" | "match" | "start"
+    anchor: str
+    windows: list[tuple[int, int]]
+    spans: list[tuple[int, int]]
+    highlights: list[tuple[int, int]]
+    cut: bool
 
 class EvidenceSidecarEntryV1:
     schema_version: int
@@ -477,6 +495,7 @@ class Engine:
         pool_n: int | None = ...,
         explain: bool = ...,
         limit: int = ...,
+        snippet: object | None = ...,
     ) -> SearchResult: ...
     def search_with_evidence(
         self,
@@ -551,6 +570,8 @@ class Engine:
         # than being silently ignored. See `fathomdb.engine.Engine.search`.
         view: ReadView | None = ...,
         limit: int = ...,
+        # EP-17: a `fathomdb.SnippetOptions` (read by attribute).
+        snippet: object | None = ...,
     ) -> SearchResult: ...
     def search_projected_text(
         self,
@@ -566,8 +587,13 @@ class Engine:
     ) -> SearchResult: ...
     # 0.8.18 Slice 5 (R-VEQ-4) — text-only / FTS-only path; takes the same
     # optional validity view as `search` (0.8.20 Slice 15b fix-2).
+    # EP-17: `snippet` is a `fathomdb.SnippetOptions` (read by attribute).
     def search_text_only(
-        self, query: str, view: ReadView | None = ..., limit: int = ...
+        self,
+        query: str,
+        view: ReadView | None = ...,
+        limit: int = ...,
+        snippet: object | None = ...,
     ) -> SearchResult: ...
     def dense_disabled(self) -> bool: ...
     def dense_disabled_reason(self) -> str | None: ...
@@ -637,6 +663,8 @@ class SearchExpandResult:
     search_hits: list[SearchHit]
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
+    # None when every requested search arm ran.
+    degradations: list[ArmDegradation] | None
 
 class RuntimeConfiguration:
     @property
@@ -859,6 +887,18 @@ def rerank(
     measured-parity config. Unlike ``Engine.search(rerank_depth=...)`` — which
     reranks the engine's own capped text pool — this reranks the caller-supplied
     pool with the identical cross-encoder.
+    """
+    ...
+
+def snippet_for(
+    body: str,
+    spans: list[tuple[int, int]],
+    options: object,
+) -> SnippetV1:
+    """EP-17 pure selector; `options` is a `fathomdb.SnippetOptions`.
+
+    Spans that do not fit u32 are ignored; option values are saturated into
+    their field types and clamped into range. Never raises for valid types.
     """
     ...
 

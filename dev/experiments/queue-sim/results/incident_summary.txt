@@ -1,0 +1,12 @@
+('refuse', None, 4, '(10,)') refused 40.4% [p10 36.7 p90 43.3] share in fan-out 100% busy per 10-burst {6: 1951, 7: 28, 8: 16, 9: 6, 10: 6} timeouts 0 ok p99 40.0 ms
+('refuse', None, 4, '(1, 10)') refused 39.3% [p10 36.7 p90 42.9] share in fan-out 100% busy per 10-burst {6: 1894, 7: 31, 8: 15, 9: 6, 10: 1} timeouts 0 ok p99 39.4 ms
+('refuse', None, 7, '(10,)') refused 21.0% [p10 18.6 p90 23.8] share in fan-out 100% busy per 10-burst {3: 1903, 4: 27, 5: 24, 6: 26, 7: 12, 8: 8, 9: 2, 10: 5} timeouts 0 ok p99 64.5 ms
+('refuse', None, 7, '(1, 10)') refused 20.2% [p10 18.4 p90 22.7] share in fan-out 100% busy per 10-burst {3: 1868, 4: 28, 5: 14, 6: 15, 7: 16, 8: 5, 9: 1} timeouts 0 ok p99 63.9 ms
+('fifo_shed', 8, 4, '(10,)') refused 1.2% [p10 0.0 p90 4.8] share in fan-out 100% busy per 10-burst {0: 1904, 1: 28, 2: 16, 3: 14, 4: 13, 5: 11, 6: 8, 7: 6, 8: 5, 9: 1} timeouts 0 ok p99 90.0 ms
+('fifo_shed', 8, 4, '(1, 10)') refused 0.7% [p10 0.0 p90 3.1] share in fan-out 99% busy per 10-burst {0: 1890, 1: 12, 2: 9, 3: 6, 4: 6, 5: 14, 6: 7, 7: 2, 8: 3} timeouts 0 ok p99 88.7 ms
+('fifo_shed', 8, 7, '(10,)') refused 0.3% [p10 0.0 p90 1.0] share in fan-out 100% busy per 10-burst {0: 1973, 1: 15, 2: 6, 3: 4, 4: 2, 5: 5, 6: 2} timeouts 0 ok p99 91.2 ms
+('fifo_shed', 8, 7, '(1, 10)') refused 0.2% [p10 0.0 p90 0.0] share in fan-out 100% busy per 10-burst {0: 1926, 1: 12, 2: 6, 3: 1, 4: 2, 5: 1, 6: 1, 9: 1} timeouts 0 ok p99 89.1 ms
+('fifo_shed', None, 4, '(10,)') refused 0.0% [p10 0.0 p90 0.0] share in fan-out 0% busy per 10-burst {0: 2007} timeouts 0 ok p99 91.2 ms
+('fifo_shed', None, 4, '(1, 10)') refused 0.0% [p10 0.0 p90 0.0] share in fan-out 0% busy per 10-burst {0: 1948} timeouts 0 ok p99 89.1 ms
+('fifo_shed', None, 7, '(10,)') refused 0.0% [p10 0.0 p90 0.0] share in fan-out 0% busy per 10-burst {0: 2007} timeouts 0 ok p99 91.2 ms
+('fifo_shed', None, 7, '(1, 10)') refused 0.0% [p10 0.0 p90 0.0] share in fan-out 0% busy per 10-burst {0: 1948} timeouts 0 ok p99 89.1 ms

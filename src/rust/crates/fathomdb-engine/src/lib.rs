@@ -71,6 +71,11 @@ mod frozen_read;
 mod fusion;
 mod graph_api;
 mod graph_expand;
+mod hints;
+pub use hints::{
+    search_hints, Hint, HintAction, HintArm, HintCause, HintMode, HintReason, SearchFacts,
+    HINT_LIMIT_CAP,
+};
 mod identity;
 mod index_projector;
 mod ingest;
@@ -116,6 +121,9 @@ pub use search_api::take_slice71_search_statement_trace_for_test;
 #[doc(hidden)]
 pub use search_api::vector_phase1_sql_for_test;
 mod search_types;
+mod snippet;
+mod snippet_query;
+pub use snippet::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
 mod structural_state;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
@@ -331,11 +339,12 @@ pub(crate) use search::{prepare_search_statement, CapturedGraphOrigin};
 #[doc(hidden)]
 pub use search_types::vector_fusion_pool_for_test;
 pub use search_types::{
-    Bm25fFieldWeights, Bm25fQueryPlan, Explanation, GraphFrontierStats, PerHitExplain, QueryTrace,
-    SearchHit, SearchResult, SoftFallback, SoftFallbackBranch, StructuralDegradationCodeV1,
-    StructuralDependencyStateV1, StructuralInclusionStateV1, StructuralInclusionV1,
-    StructuralLifecycleStateV1, StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT,
-    MAX_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
+    ArmDegradation, Bm25fFieldWeights, Bm25fQueryPlan, DegradationReason, Explanation,
+    GraphFrontierStats, PerHitExplain, QueryTrace, SearchHit, SearchResult, SoftFallback,
+    SoftFallbackBranch, StructuralDegradationCodeV1, StructuralDependencyStateV1,
+    StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
+    StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT, MAX_SEARCH_RESULT_LIMIT,
+    SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
 };
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]

@@ -208,6 +208,15 @@ helper; see `ADR-0.8.27-python-subscriber-delivery`.
 
 `soft_fallback.branch` uses the typed values owned by `design/retrieval.md`.
 
+`SearchResult.degradations` is `list[ArmDegradation] | None`. It is `None`
+when every requested arm ran. Each `ArmDegradation(arm, reason)` spells `arm`
+like `soft_fallback.branch`. The one `DegradationReason` today is
+`"embedder_overloaded"`: the query embedding was refused because the embed
+queue was full, or it expired in that queue. The search still returns the
+other arms' hits. Ordinary, frozen and evidence searches report it, and so do
+`graph.search_expand` and `search_expand_frozen` on
+`SearchExpandResult.degradations` (same type, same `None` rule).
+
 ### `OpenReport.embedder_gpu_allocation_witness` (0.8.23 Slice 80.6)
 
 `engine.open_report().embedder_gpu_allocation_witness` is a frozen-dataclass
@@ -1057,9 +1066,12 @@ take. It is keyword-only and defaults to `None`.
 
 ```python
 engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False,
-              alpha=None, pool_n=None, explain=False, view=None, limit=10)
-engine.search_text_only(query, view=None, *, limit=10)
+              alpha=None, pool_n=None, explain=False, view=None, limit=10,
+              snippet=None)
+engine.search_text_only(query, view=None, *, limit=10, snippet=None)
 ```
+
+`snippet` is described in § "Match-centred snippets (EP-17)".
 
 `view` is a `fathomdb.types.ReadView` — the same dataclass `read.get` /
 `read.list` / `graph.neighbors` accept, with no new type minted.
@@ -1130,6 +1142,46 @@ limit are the ordered prefix of results at a larger accepted limit. Cross-call c
 `view=ReadView(valid_as_of=...)` must use the same explicit instant; `valid_as_of=None` resolves
 per call. This guarantee does not extend to hybrid `engine.search` APIs.
 
+## Match-centred snippets (EP-17)
+
+The Python peer of `dev/interfaces/rust.md` § "Match-centred snippet selector"
+and § "Match-centred snippets on search". Selection, anchors, point-query
+caps and frozen-read behaviour are the engine's and are not restated here.
+
+```python
+engine.search(query, ..., snippet=None)
+engine.search_text_only(query, view=None, *, limit=10, snippet=None)
+engine.search_frozen(query, context, *, ..., limit=10, snippet=None)
+fathomdb.snippet_for(body, spans, options=None) -> SnippetV1
+```
+
+- `SnippetOptions(max_bytes=300, max_windows=1, head_bytes=0,
+  highlights=False, max_point_queries=20)` is a frozen dataclass. Its
+  constructor raises `TypeError` for a field of the wrong type (`bool` is not
+  an `int`). A search raises `InvalidArgumentError` for a value out of its
+  range (`max_bytes` 40..=4000, `max_windows` 1..=3, `head_bytes`
+  0..=`max_bytes // 2`, `max_point_queries` 0..=255) and `TypeError` for a
+  `snippet` that is not a `SnippetOptions`.
+- With `snippet` set, `SearchResult.snippets` is `list[SnippetV1]`, one per
+  hit in `results` order. Otherwise it is `None`, and every other field is
+  unchanged. Snippet options are presentation: they are not part of a frozen
+  context. `search_projected_text` takes no `snippet`.
+- `SnippetV1(text, anchor, windows, spans, highlights, cut)`. `anchor` is the
+  `SnippetAnchor` literal `"whole"`, `"match"` or `"start"`. `windows`,
+  `spans` and `highlights` are `list[tuple[int, int]]` of **UTF-8 byte**
+  offsets, not `str` indices. `windows` and `spans` index the record body;
+  `highlights` index `text`. Read one as
+  `body.encode("utf-8")[start:end].decode("utf-8")`.
+- `fathomdb.snippet_for` is the pure selector. It needs no engine and does not
+  raise for well-typed arguments: spans that do not lie on the body's
+  characters are ignored, and option values are clamped into range. It raises
+  `TypeError` for a non-`str` body, a span that is not a pair of `int`s, or
+  options that are not a `SnippetOptions`. Like `embed_batch_cls`, it is a
+  package helper outside the governed-operation map.
+- `src/conformance/snippet-for-parity.json` is the shared fixture. Python,
+  TypeScript and the Rust selector must return the same `SnippetV1` for each
+  case.
+
 ## Non-presence
 
 Python does not expose recovery verbs or doctor-only flags. In particular,
@@ -1149,6 +1201,9 @@ eligibility.
 Omitting `pool_n` uses `rerank_depth`, as in ordinary `search` and the
 TypeScript/Rust SDKs. This corrects the former Python frozen-search default of
 zero, which could change ranking for callers that set a positive depth.
+
+`snippet=` on `engine.search_frozen` fills `SearchResult.snippets` (EP-17) and
+does not enter the frozen context.
 
 With `explain=True`, `engine.search_frozen` returns a mapper-valid explanation
 with a non-empty Engine correlation identity. With `explain=False`, explanation

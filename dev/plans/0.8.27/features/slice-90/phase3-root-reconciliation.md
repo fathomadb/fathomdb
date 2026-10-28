@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: d7065f6f041f547a1d124182983f17268a379145
+lib_rs_blob: da946704440c3ebd5c63f25e5e6566641241ed85
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -37,8 +37,13 @@ retained fixtures, producing `0226b8836c929a30793b8913461f5abf341123c2`.
 0.8.28 Slice 41 added the `context_pack` module and its re-exports, the
 `fathomdb_query` stop-word re-exports (`QueryStopWords`, `StopWordBase`,
 `StopWordRejection`, `DEFAULT_STOP_WORDS_SHA256`) and the root storage field
-`query_stop_words`, producing the blob above. The root storage fields are
-now 44; the approved root method inventory is unchanged.
+`query_stop_words`, producing `d7065f6f041f547a1d124182983f17268a379145`.
+Agent-access Block 1 added the `hints`, `snippet` and `snippet_query` module
+declarations and their public re-exports, plus the `ArmDegradation` and
+`DegradationReason` re-exports. On its own branch that gave
+`af36592d1aa97d5a304397fc42b03607ad63db70`; merged onto 0.8.28 in
+`dev/0.8.29` it gives the blob above. The root storage fields are now 44; the
+approved root method inventory is unchanged.
 
 ## Remaining root declarations
 

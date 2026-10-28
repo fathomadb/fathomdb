@@ -33,6 +33,9 @@ const PACKAGE_NON_COMMAND = new Set([
   "mapPerHitExplain",
   "rethrowTyped",
   "searchFilterToFilter",
+  // EP-17 pure selector: like embedBatchCls, a standalone helper outside the
+  // signed governed-operation map.
+  "snippetFor",
   "validateDependencyTraceResponse",
   "validateGraphExpandResult",
 ]);

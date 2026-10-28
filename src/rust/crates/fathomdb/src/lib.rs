@@ -101,7 +101,10 @@
 //! governed surface is pinned by
 //! `src/conformance/governed-surface-allowlist.json` and any change to it is a
 //! reviewed delta, but that is a change-control promise, not a semver one.
-//! [`PreparedWrite`] and [`SearchFilter`] are `#[non_exhaustive]`.
+//! Some re-exported types are `#[non_exhaustive]`; the attribute on each type
+//! is authoritative. Many re-exported structs with public fields, such as
+//! [`ReadView`], [`EngineConfig`], [`WriteReceipt`] and [`OpenReport`], are
+//! not, so a field added to one of them is a source break.
 
 /// Process-start administrative controls that do not require an [`Engine`].
 pub mod admin {
@@ -155,22 +158,23 @@ pub mod admin {
 pub use fathomdb_engine::{
     encode_resolved_graph_evidence_v1, ActuationBatchV1, ActuationError, ActuationErrorReason,
     ActuationOperationV1, ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1,
-    ArtifactRevisionId, BoundaryCrossing, CanonicalHash, ClosureCauseV1, ClosureLookupV1,
-    ClosureOperationId, ClosurePhaseV1, ClosureProofV1, ClosureRootV1, ClosureStatusV1,
-    ComparisonOp, CorruptionDetail, CorruptionKind, CorruptionLocator, CounterSnapshot,
-    DenseReadiness, DependencyClosureError, DependencyClosureErrorReason,
-    DependencyDerivedLookupV1, DependencyError, DependencyErrorReason, DependencyId,
-    DependencyListV1, DependencySourceLookupV1, DependencyTraceDirectionV1, DependencyTraceEdgeV1,
-    DependencyTraceErrorReasonV1, DependencyTraceErrorV1, DependencyTraceNodeV1,
-    DependencyTraceRequestV1, DependencyTraceResultV1, EmbedderRequired, EmbeddingOperation,
-    EmbeddingReadiness, EmbeddingReadinessState, Engine, EngineConfig, EngineConfigurationError,
-    EngineError, EngineOpenError, EvidenceArmV1, EvidenceArtifactClassV1,
-    EvidenceArtifactLifecycleV1, EvidenceContributionV1, EvidenceErrorReasonV1, EvidenceErrorV1,
-    EvidenceGraphOriginV1, EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveRequestV1,
-    EvidenceSearchRequestV1, EvidenceSearchResultV1, EvidenceSidecarEntryV1, ExciseReport,
-    Explanation, ExtractDocument, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason,
-    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
-    GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1, GraphExpandRequestV1, GraphExpandResultV1,
+    ArmDegradation, ArtifactRevisionId, BoundaryCrossing, CanonicalHash, ClosureCauseV1,
+    ClosureLookupV1, ClosureOperationId, ClosurePhaseV1, ClosureProofV1, ClosureRootV1,
+    ClosureStatusV1, ComparisonOp, CorruptionDetail, CorruptionKind, CorruptionLocator,
+    CounterSnapshot, DegradationReason, DenseReadiness, DependencyClosureError,
+    DependencyClosureErrorReason, DependencyDerivedLookupV1, DependencyError,
+    DependencyErrorReason, DependencyId, DependencyListV1, DependencySourceLookupV1,
+    DependencyTraceDirectionV1, DependencyTraceEdgeV1, DependencyTraceErrorReasonV1,
+    DependencyTraceErrorV1, DependencyTraceNodeV1, DependencyTraceRequestV1,
+    DependencyTraceResultV1, EmbedderRequired, EmbeddingOperation, EmbeddingReadiness,
+    EmbeddingReadinessState, Engine, EngineConfig, EngineConfigurationError, EngineError,
+    EngineOpenError, EvidenceArmV1, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1,
+    EvidenceContributionV1, EvidenceErrorReasonV1, EvidenceErrorV1, EvidenceGraphOriginV1,
+    EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
+    EvidenceSearchResultV1, EvidenceSidecarEntryV1, ExciseReport, Explanation, ExtractDocument,
+    FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, GraphEvidenceArtifactV1,
+    GraphEvidenceRefV1, GraphEvidenceResolveRequestV1, GraphEvidenceSidecarEntryV1,
+    GraphEvidenceSidecarV1, GraphExpandRequestV1, GraphExpandResultV1,
     GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
     GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
     GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,

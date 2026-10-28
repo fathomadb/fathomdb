@@ -5,10 +5,12 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from fathomdb._fathomdb import FrozenReadContextV1 as _NativeFrozenReadContextV1
 from fathomdb._fathomdb import ReadContextV1 as _NativeReadContextV1
+from fathomdb._fathomdb import snippet_for as _native_snippet_for
 from fathomdb.errors import (
     FrozenReadError,
     InvalidArgumentError,
@@ -21,6 +23,8 @@ from fathomdb.filter import Filter
 # `fathomdb.engine` only under TYPE_CHECKING, so this is not circular at runtime.
 from fathomdb.read import _to_native_view
 from fathomdb.types import (
+    ArmDegradation,
+    DegradationReason,
     Explanation,
     FrozenReadContextV1,
     IdSpace,
@@ -32,6 +36,8 @@ from fathomdb.types import (
     SearchFilter,
     SearchHit,
     SearchResult,
+    SnippetOptions,
+    SnippetV1,
     SoftFallback,
     SoftFallbackBranch,
     StructuralInclusionV1,
@@ -54,6 +60,7 @@ def _map_native_search_result(result: Any) -> SearchResult:
         if native_exp is not None
         else None
     )
+    degradations = _map_native_degradations(result)
     return SearchResult(
         projection_cursor=result.projection_cursor,
         soft_fallback=soft,
@@ -70,7 +77,112 @@ def _map_native_search_result(result: Any) -> SearchResult:
             for hit in result.results
         ],
         explanation=explanation,
+        degradations=degradations,
+        snippets=_map_native_snippets(result),
     )
+
+
+def snippet_for(
+    body: str,
+    spans: Sequence[tuple[int, int]],
+    options: SnippetOptions | None = None,
+) -> SnippetV1:
+    """EP-17 pure snippet selector, the same function search uses.
+
+    ``spans`` are match spans as UTF-8 byte ranges ``(start, end)`` into
+    ``body``, so ``body.encode("utf-8")[start:end].decode("utf-8")`` is the
+    matched text; spans that are empty, run past the body or split a
+    character are ignored. ``options`` defaults to ``SnippetOptions()``; values out of
+    range are clamped, so this never raises for a well-typed call. No
+    database is involved.
+
+    Raises:
+        TypeError: ``body`` is not a str, a span is not a pair of ints, or
+            ``options`` is not a ``SnippetOptions``.
+    """
+    if not isinstance(body, str):
+        raise TypeError(f"body must be a str, got {type(body).__name__!r}")
+    native_spans: list[tuple[int, int]] = []
+    for span in spans:
+        if (
+            not isinstance(span, (tuple, list))
+            or len(span) != 2
+            or not all(isinstance(v, int) and not isinstance(v, bool) for v in span)
+        ):
+            raise TypeError(f"each span must be a (start, end) pair of ints, got {span!r}")
+        # A span past u32 cannot lie inside a body; it is ignored like any
+        # span that runs past the body.
+        if all(0 <= v <= _U32_MAX for v in span):
+            native_spans.append((span[0], span[1]))
+    if options is None:
+        options = SnippetOptions()
+    _check_snippet_type(options)
+    # The native layer reads i64; saturating there keeps clamping exact.
+    clamped = replace(
+        options,
+        **{name: _clamp_i64(getattr(options, name)) for name in _SNIPPET_INT_FIELDS},
+    )
+    return _map_native_snippet(_native_snippet_for(body, native_spans, clamped))
+
+
+_U32_MAX = 2**32 - 1
+_I64_MIN = -(2**63)
+_I64_MAX = 2**63 - 1
+_SNIPPET_INT_FIELDS = ("max_bytes", "max_windows", "head_bytes", "max_point_queries")
+
+
+def _clamp_i64(value: int) -> int:
+    return max(_I64_MIN, min(_I64_MAX, value))
+
+
+def _check_snippet_type(snippet: object) -> None:
+    if not isinstance(snippet, (SnippetOptions, type(None))):
+        raise TypeError(f"snippet must be a SnippetOptions or None, got {type(snippet).__name__!r}")
+
+
+def _validate_snippet(snippet: object) -> None:
+    """Search-side check: the type, then a refusal for ints the native
+    layer cannot carry (every field range lies far inside i64)."""
+    _check_snippet_type(snippet)
+    if snippet is None:
+        return
+    for name in _SNIPPET_INT_FIELDS:
+        value = getattr(snippet, name)
+        if not _I64_MIN <= value <= _I64_MAX:
+            raise InvalidArgumentError(f"snippet {name} is out of range, got {value}")
+
+
+def _map_native_snippets(result: Any) -> list[SnippetV1] | None:
+    """A native result's EP-17 snippet sidecar, or ``None`` when absent."""
+    native_snippets = getattr(result, "snippets", None)
+    if native_snippets is None:
+        return None
+    return [_map_native_snippet(entry) for entry in native_snippets]
+
+
+def _map_native_snippet(entry: Any) -> SnippetV1:
+    return SnippetV1(
+        text=entry.text,
+        anchor=entry.anchor,
+        windows=[(int(a), int(b)) for a, b in entry.windows],
+        spans=[(int(a), int(b)) for a, b in entry.spans],
+        highlights=[(int(a), int(b)) for a, b in entry.highlights],
+        cut=entry.cut,
+    )
+
+
+def _map_native_degradations(result: Any) -> list[ArmDegradation] | None:
+    """A native result's degradation list, or ``None`` when absent or empty."""
+    native_degradations = getattr(result, "degradations", None)
+    if not native_degradations:
+        return None
+    return [
+        ArmDegradation(
+            arm=cast(SoftFallbackBranch, entry.arm),
+            reason=cast(DegradationReason, entry.reason),
+        )
+        for entry in native_degradations
+    ]
 
 
 def _to_native_read_context(context: ReadContextV1) -> Any:
@@ -391,6 +503,7 @@ def search(
     explain: bool = False,
     view: ReadView | None = None,
     limit: int = 10,
+    snippet: SnippetOptions | None = None,
 ) -> SearchResult:
     # FIX-3: reject bool and non-int before the negative check.
     # bool is a subclass of int in Python so it passes isinstance(x, int);
@@ -423,6 +536,7 @@ def search(
             raise ValueError(f"pool_n must be >= 0, got {pool_n!r}")
     if not isinstance(view, (ReadView, type(None))):
         raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
+    _validate_snippet(snippet)
     limit = _validate_ranked_result_limit("limit", limit)
     native_view = _to_native_view(view)
     # 0.8.11 Slice 40 (#17) — accept the unified Filter on the vec0 search
@@ -439,6 +553,7 @@ def search(
             explain=explain,
             view=native_view,
             limit=limit,
+            snippet=snippet,
         )
     else:
         result = self._native.search(
@@ -455,6 +570,7 @@ def search(
             explain=explain,
             view=native_view,
             limit=limit,
+            snippet=snippet,
         )
     fallback = result.soft_fallback
     soft = (
@@ -486,6 +602,8 @@ def search(
             for hit in result.results
         ],
         explanation=explanation,
+        degradations=_map_native_degradations(result),
+        snippets=_map_native_snippets(result),
     )
 
 
@@ -528,6 +646,7 @@ def search_frozen(
     pool_n: int | None = None,
     explain: bool = False,
     limit: int = 10,
+    snippet: SnippetOptions | None = None,
 ) -> SearchResult:
     if not isinstance(context, FrozenReadContextV1):
         raise TypeError(f"context must be a FrozenReadContextV1, got {type(context).__name__!r}")
@@ -550,6 +669,7 @@ def search_frozen(
             raise InvalidArgumentError(f"pool_n must be >= 0, got {pool_n!r}")
     if not isinstance(explain, bool):
         raise TypeError("explain must be a bool")
+    _validate_snippet(snippet)
     _validate_ranked_result_limit("limit", limit)
     native = self._native.search_frozen(
         query,
@@ -560,6 +680,7 @@ def search_frozen(
         pool_n=rerank_depth if pool_n is None else pool_n,
         explain=explain,
         limit=limit,
+        snippet=snippet,
     )
     return _map_native_search_result(native)
 
@@ -608,12 +729,20 @@ def search_projected_text(
 
 
 def search_text_only(
-    self: Engine, query: str, view: ReadView | None = None, *, limit: int = 10
+    self: Engine,
+    query: str,
+    view: ReadView | None = None,
+    *,
+    limit: int = 10,
+    snippet: SnippetOptions | None = None,
 ) -> SearchResult:
     if not isinstance(view, (ReadView, type(None))):
         raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
+    _validate_snippet(snippet)
     limit = _validate_ranked_result_limit("limit", limit)
-    result = self._native.search_text_only(query, view=_to_native_view(view), limit=limit)
+    result = self._native.search_text_only(
+        query, view=_to_native_view(view), limit=limit, snippet=snippet
+    )
     fallback = result.soft_fallback
     soft = (
         SoftFallback(branch=cast(SoftFallbackBranch, fallback.branch))
@@ -636,4 +765,6 @@ def search_text_only(
             for hit in result.results
         ],
         explanation=None,
+        degradations=_map_native_degradations(result),
+        snippets=_map_native_snippets(result),
     )

@@ -41,6 +41,8 @@ reported filter::slice85_boundary_tests
 governed frozen_read
 reported frozen_read::tests
 reported fusion
+reported hints
+reported hints::tests
 governed graph_api
 governed graph_expand
 governed graph_expand::codec
@@ -91,6 +93,8 @@ reported slice90_close_review_tests
 reported slice90_close_tests
 reported slice90_concurrent_close_tests
 reported slice90_post_probe_real_error_tests
+governed snippet
+governed snippet_query
 governed structural_state
 reported tc5_benchmark
 reported tc5_benchmark::route_trap_tests
@@ -189,6 +193,12 @@ forbid-dependency embed_dispatch::d27_observation runtime_lifecycle
 forbid-dependency embed_dispatch::d27_observation projection_runtime
 forbid-dependency embed_dispatch::d27_observation search
 forbid-dependency search reader_pool
+forbid-dependency snippet search
+forbid-dependency snippet search_api
+forbid-dependency snippet reader_pool
+forbid-dependency snippet_query search
+forbid-dependency snippet_query search_api
+forbid-dependency snippet_query reader_pool
 forbid-cycle search graph_expand
 forbid-cycle read reader_pool
 forbid-cycle graph_expand reader_pool

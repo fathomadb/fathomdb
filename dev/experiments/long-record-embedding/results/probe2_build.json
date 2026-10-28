@@ -1,0 +1,14 @@
+{
+  "candidates": 326,
+  "eligible": {
+    "B": 182,
+    "P": 133
+  },
+  "excluded": {
+    "gold not moved across the cut": 11
+  },
+  "rotated_sessions": 507,
+  "docs": 19195,
+  "embed_wall_s": 316.6,
+  "coverage": 1.0
+}

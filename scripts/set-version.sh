@@ -214,6 +214,7 @@ axis_w = {
     "fathomdb-cli",
     "fathomdb-embedder",
     "fathomdb-engine",
+    "fathomdb-mcp",
     "fathomdb-napi",
     "fathomdb-py",
     "fathomdb-query",
@@ -484,7 +485,7 @@ check_files() {
   # independent and is excluded from this Axis-W loop.
   local lock_crate lock_ver lock_line
   for lock_crate in \
-    fathomdb fathomdb-cli fathomdb-embedder fathomdb-engine \
+    fathomdb fathomdb-cli fathomdb-embedder fathomdb-engine fathomdb-mcp \
     fathomdb-napi fathomdb-py fathomdb-query fathomdb-schema \
     fathomdb-sdk fathomdb-tc5-benchmark; do
     lock_ver="$(read_cargo_lock_package_version "$lock_crate")"

@@ -8,9 +8,14 @@ pub(crate) const READER_POOL_SIZE: usize = 8;
 /// Per `dev/design/engine.md` § Writer / reader split, reader connections
 /// must not serialize behind a single mutex. Each worker thread owns
 /// exactly one read-only `Connection` for its lifetime; `Connection`
-/// objects never cross thread boundaries after startup. `Engine::search`
-/// dispatches a request via a per-worker bounded channel using a
-/// lock-free round-robin counter on the hot path.
+/// objects never cross thread boundaries after startup.
+///
+/// Dispatch is idle-first (EP-18 part A): each worker has a rendezvous
+/// channel, and a request goes to the first worker, starting from a
+/// lock-free round-robin cursor, that is waiting in `recv`. Only when every
+/// worker is busy does the request block on the cursor's worker. There is
+/// no per-worker queue, so a caller that waits does so in `send` rather
+/// than behind queued work in the worker; the latency is the same.
 pub(crate) struct ReaderWorkerPool {
     senders: Vec<SyncSender<ReaderRequest>>,
     handles: Mutex<Option<Vec<JoinHandle<()>>>>,
@@ -473,6 +478,8 @@ pub(crate) type ReaderResponse = Result<
         GraphFrontierStats,
         Option<Explanation>,
         Option<SearchExpandResult>,
+        Vec<ArmDegradation>,
+        Option<Vec<SnippetV1>>,
     ),
     SearchReaderError,
 >;
@@ -493,10 +500,10 @@ pub struct CacheStatusReply {
     pub cache_used_bytes: i32,
 }
 
-/// Per-worker outbound channel capacity. Round-robin dispatch keeps
-/// queue depth at ~0 on hot paths; the small slack absorbs jitter
-/// without a runtime mutex.
-const READER_WORKER_CHANNEL_CAPACITY: usize = 4;
+/// Per-worker channel capacity. Zero makes each channel a rendezvous, so a
+/// non-blocking send succeeds only when that worker is waiting in `recv`:
+/// the idle test that dispatch relies on, without a runtime mutex.
+const READER_WORKER_CHANNEL_CAPACITY: usize = 0;
 
 #[allow(clippy::too_many_arguments)]
 fn reader_worker_loop(
@@ -1043,6 +1050,28 @@ impl ReaderWorkerPool {
             .expect("reader worker must be live for independence control");
     }
 
+    /// Hold every worker on a real snapshot. Worker `i` reports `i` on
+    /// `snapshot_ready` and waits on the `i`-th returned release receiver.
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(crate) fn hold_every_worker_wal_snapshot_bounded(
+        &self,
+        snapshot_ready: &SyncSender<usize>,
+    ) -> Vec<SyncSender<()>> {
+        self.senders
+            .iter()
+            .map(|sender| {
+                let (release_tx, release) = mpsc::sync_channel(1);
+                sender
+                    .send(ReaderRequest::HoldWalSnapshotBounded {
+                        snapshot_ready: snapshot_ready.clone(),
+                        release,
+                    })
+                    .expect("reader worker must be live for independence control");
+                release_tx
+            })
+            .collect()
+    }
+
     #[cfg(test)]
     pub(crate) fn hold_worker_zero_wal_snapshot_with_commit_ack(
         &self,
@@ -1088,6 +1117,8 @@ impl ReaderWorkerPool {
                     let Some(pending) = request.take() else { break };
                     match sender.try_send(pending) {
                         Ok(()) => break,
+                        // On a rendezvous channel `Full` means the worker is
+                        // busy with another request, not that a queue is full.
                         Err(mpsc::TrySendError::Full(pending)) if Instant::now() < deadline => {
                             request = Some(pending);
                             thread::sleep(Duration::from_millis(1));
@@ -1212,9 +1243,12 @@ impl ReaderWorkerPool {
         results
     }
 
-    /// Hot path. Lock-free dispatch: `AtomicUsize::fetch_add` selects
-    /// the worker, then a single `SyncSender::send` enqueues the
-    /// request. No global mutex is taken on the request path.
+    /// Hot path. Lock-free, idle-first dispatch: `AtomicUsize::fetch_add`
+    /// selects a starting worker, then `try_send` offers the request to each
+    /// worker in turn and succeeds at the first one waiting in `recv`. If
+    /// every worker is busy, a blocking `send` waits for the starting
+    /// worker, as round-robin dispatch did. No global mutex is taken on the
+    /// request path.
     // The `Search` variant contains a SyncSender and boxed fields (filter, raw_query);
     // even after FIX-4 (raw_query: Box<str>), the variant remains large due to the
     // SyncSender channel ownership. The Err return is only ever a no-worker/shutdown
@@ -1229,8 +1263,19 @@ impl ReaderWorkerPool {
         if n == 0 {
             return Err(request);
         }
-        let idx = self.next.fetch_add(1, Ordering::Relaxed) % n;
-        self.senders[idx].send(request).map_err(|err| err.0)
+        let start = self.next.fetch_add(1, Ordering::Relaxed) % n;
+        let mut request = request;
+        for offset in 0..n {
+            match self.senders[(start + offset) % n].try_send(request) {
+                Ok(()) => return Ok(()),
+                // A disconnected worker is skipped here; if it is the
+                // starting worker, the blocking send below reports it.
+                Err(mpsc::TrySendError::Full(back) | mpsc::TrySendError::Disconnected(back)) => {
+                    request = back;
+                }
+            }
+        }
+        self.senders[start].send(request).map_err(|err| err.0)
     }
 
     /// Signal every worker to exit and join its thread. Idempotent —
@@ -1241,9 +1286,12 @@ impl ReaderWorkerPool {
             return;
         }
         for sender in &self.senders {
-            // The worker checks shutdown before taking another queued request.
-            // A full queue cannot place this wake-up behind ordinary work.
-            let _ = sender.try_send(ReaderRequest::Shutdown);
+            // Channels are rendezvous, so a non-blocking wake-up would be lost
+            // for a worker that is mid-read. The blocking send waits for that
+            // worker's next `recv`. If a racing dispatch is received first, the
+            // worker sees the shutdown flag and exits, and this send returns
+            // `Err` because the receiver is gone.
+            let _ = sender.send(ReaderRequest::Shutdown);
         }
         if let Ok(mut slot) = self.handles.lock() {
             if let Some(handles) = slot.take() {
@@ -1284,7 +1332,10 @@ use crate::search::{
     read_projected_text_in_tx, read_search_work_in_tx, EvidenceCapture, NoEvidenceCapture,
     ProjectedTextReaderResponse, SearchReaderError, SearchReaderWork,
 };
-use crate::search_types::{Explanation, GraphFrontierStats, SearchHit, SoftFallback};
+use crate::search_types::{
+    ArmDegradation, Explanation, GraphFrontierStats, SearchHit, SoftFallback,
+};
+use crate::snippet::SnippetV1;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::{BoundaryCrossing, ReadView};
@@ -1324,8 +1375,9 @@ impl Engine {
         self.reader_pool.live_count()
     }
 
-    /// Return the worker index that the next round-robin read dispatch will use.
-    /// This test-only witness does not mutate scheduling state.
+    /// Return the round-robin cursor: the worker the next read dispatch offers
+    /// the request to first, and the worker it waits on if every worker is
+    /// busy. This test-only witness does not mutate scheduling state.
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn next_reader_worker_index_for_test(&self) -> usize {

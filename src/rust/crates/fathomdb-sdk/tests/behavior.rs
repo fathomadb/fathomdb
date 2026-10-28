@@ -191,15 +191,18 @@ fn search_defaults_and_argument_validation() {
     assert!(result.results.len() <= 10);
 
     for limit in [0, 101] {
-        let options = SearchOptions { limit, ..SearchOptions::default() };
+        let mut options = SearchOptions::default();
+        options.limit = limit;
         assert_eq!(kind_of(engine.search("alpha", options)), ErrorKind::InvalidArgument);
     }
-    let options = SearchOptions { alpha: Some(f64::NAN), ..SearchOptions::default() };
+    let mut options = SearchOptions::default();
+    options.alpha = Some(f64::NAN);
     assert_eq!(kind_of(engine.search("alpha", options)), ErrorKind::InvalidArgument);
 
     let text = engine.search_text_only("alpha", TextSearchOptions::default()).expect("text");
     assert!(!text.results.is_empty());
-    let options = TextSearchOptions { limit: 0, ..TextSearchOptions::default() };
+    let mut options = TextSearchOptions::default();
+    options.limit = 0;
     assert_eq!(kind_of(engine.search_text_only("alpha", options)), ErrorKind::InvalidArgument);
     engine.close().expect("close");
 }
@@ -209,7 +212,8 @@ fn search_accepts_the_unified_filter() {
     let (_dir, engine) = open_engine();
     seed(&engine);
     let filter = fathomdb_sdk::Filter::default();
-    let options = SearchOptions { filter: Some(filter.into()), ..SearchOptions::default() };
+    let mut options = SearchOptions::default();
+    options.filter = Some(filter.into());
     assert!(!engine.search("alpha", options).expect("search").results.is_empty());
     engine.close().expect("close");
 }
@@ -244,7 +248,8 @@ fn frozen_search_uses_shared_defaults() {
         |r: &fathomdb_sdk::SearchResult| r.results.iter().map(|h| h.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&frozen), ids(&live));
 
-    let options = FrozenSearchOptions { limit: 0, ..FrozenSearchOptions::default() };
+    let mut options = FrozenSearchOptions::default();
+    options.limit = 0;
     assert_eq!(
         kind_of(engine.search_frozen("alpha", &context, options)),
         ErrorKind::InvalidArgument
@@ -601,5 +606,49 @@ fn projected_text_search_reads_a_declared_property_projection() {
         .expect("projected search");
     assert_eq!(result.results.len(), 1);
     assert!(result.results[0].body.contains("needle"));
+    engine.close().expect("close");
+}
+
+/// T-8 (match-centred-snippets.md § 8): through the SDK, the same search twice
+/// gives byte-identical snippets, on the hybrid, text and frozen paths; and
+/// out-of-range snippet options are InvalidArgument.
+#[test]
+fn snippets_are_deterministic_through_the_sdk() {
+    let (_dir, engine) = open_engine();
+    let long = format!("{}zanzibar{}", "lorem ".repeat(500), " ipsum".repeat(200));
+    engine.write(&[node(Some("note:long"), "note", &long, "src-a")]).expect("write long record");
+    engine.drain(10_000).expect("drain");
+    let snippet = Some(fathomdb_sdk::SnippetOptions::default());
+    let context = engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
+        )
+        .expect("freeze");
+    let mut search_options = SearchOptions::default();
+    search_options.snippet = snippet;
+    let mut text_options = TextSearchOptions::default();
+    text_options.snippet = snippet;
+    let mut frozen_options = FrozenSearchOptions::default();
+    frozen_options.snippet = snippet;
+    let run = || {
+        [
+            engine.search("zanzibar", search_options.clone()).expect("search"),
+            engine.search_text_only("zanzibar", text_options.clone()).expect("text"),
+            engine.search_frozen("zanzibar", &context, frozen_options.clone()).expect("frozen"),
+        ]
+    };
+    let (first, second) = (run(), run());
+    for (a, b) in first.iter().zip(&second) {
+        let snippets = a.snippets.as_ref().expect("sidecar");
+        assert_eq!(snippets.len(), a.results.len());
+        assert_eq!(snippets[0].anchor, fathomdb_sdk::SnippetAnchor::Match, "{snippets:?}");
+        assert_eq!(a.snippets, b.snippets);
+    }
+
+    let mut bad = fathomdb_sdk::SnippetOptions::default();
+    bad.max_bytes = 10;
+    let mut options = TextSearchOptions::default();
+    options.snippet = Some(bad);
+    assert_eq!(kind_of(engine.search_text_only("zanzibar", options)), ErrorKind::InvalidArgument);
     engine.close().expect("close");
 }

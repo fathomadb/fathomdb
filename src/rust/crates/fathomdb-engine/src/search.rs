@@ -277,6 +277,8 @@ pub(crate) fn read_projected_text_in_tx(
                 soft_fallback: None,
                 results,
                 explanation: None,
+                degradations: Vec::new(),
+                snippets: None,
             });
         }
     }
@@ -301,7 +303,7 @@ pub(crate) fn read_projected_text_in_tx(
         tx.prepare(&stream_sql)
             .and_then(|mut statement| {
                 let mut rows = statement.query(rusqlite::params_from_iter(params.iter()))?;
-                collect_complete_rank_boundary(&mut rows, limit)
+                collect_complete_rank_boundary(&mut rows, limit, None)
             })
             .ok()
     };
@@ -321,6 +323,8 @@ pub(crate) fn read_projected_text_in_tx(
             soft_fallback: None,
             results,
             explanation: None,
+            degradations: Vec::new(),
+            snippets: None,
         });
     }
     #[cfg(feature = "test-hooks")]
@@ -469,7 +473,7 @@ fn read_projected_cohort_stream(
     record_fts_query_plan_for_test(tx, &sql, &cohort_params);
     let streamed = tx.prepare(&sql).and_then(|mut statement| {
         let mut rows = statement.query(rusqlite::params_from_iter(cohort_params.iter()))?;
-        collect_complete_rank_boundary(&mut rows, limit)
+        collect_complete_rank_boundary(&mut rows, limit, None)
     });
     match streamed {
         Ok((mut results, _crossed_boundary_tie)) => {

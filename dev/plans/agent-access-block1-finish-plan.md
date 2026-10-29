@@ -1,8 +1,8 @@
 ---
 title: Agent access, Block 1 — finish plan and 0.8.29 consolidation
 date: 2026-10-27
-status: PROPOSED
-desc: Consolidates Block 1 and 0.8.28 onto a new dev/0.8.29 branch, then clears the 19 open Block 1 follow-up todos there, then designs and builds Block 2. Owner rulings of 2026-10-27 recorded.
+status: ACTIVE
+desc: Consolidates Block 1 and 0.8.28 onto a new dev/0.8.29 branch, then clears the 19 open Block 1 follow-up todos there, then designs and builds Block 2. Owner rulings of 2026-10-27 recorded. This copy, on dev/0.8.29, is the plan of record.
 inputs:
   - dev/plans/agent-access-block1-plan.md
   - dev/plans/agent-access-block1-close-plan.md
@@ -16,8 +16,20 @@ inputs:
 
 Block 1 closed at `b5f539880` on `feat/agent-access-block1` with 19 open
 todos. This plan moves it to a new integration branch, `dev/0.8.29`, clears
-the todos there, and then runs Block 2 there. No work starts until the owner
-says go.
+the todos there, and then runs Block 2 there.
+
+## Where this stands
+
+A fresh session starts here. Verify each line from git before acting on it.
+
+- **Plan of record.** This file on `dev/0.8.29`. The copy on
+  `feat/agent-access-block1` stopped at `d5768dc07` and is not updated.
+- **Phase 0: done** on 2026-10-28; `dev/0.8.29` head `e336cfc09`. Step 4,
+  the 0.8.29 release state and board, waits until 0.8.28 publishes; see
+  Phase 0.
+- **Phase 1: W4 has started.** The AC-013 regression investigation began on
+  2026-10-29; see W4. No other workstream has started.
+- **Phase 2: not started.** B2-8 (seq 296) still needs owner approval.
 
 ## Owner rulings (2026-10-27)
 
@@ -29,36 +41,47 @@ says go.
 - **Destination.** `dev/0.8.29`. Block 1 does not merge to `main` on its
   own; `main` gets it when 0.8.29 ships.
 
-## Open question
+B2-8 (seq 296) is asked in Phase 2, where it is needed.
 
-1. **0.8.28 timing.** `release/0.8.28` is not on `main`, and it has 419
-   commits that Block 1 lacks. Its one remaining slice, 42, is a test fix and
-   an investigation document. A dry-run merge with Block 1 conflicts in 15
-   files, including `search.rs`, `search_api.rs`, the SDK `lib.rs`, the
-   Python `lib.rs` and TypeScript `binding.ts`.
-   - **Recommended:** merge `release/0.8.28` into `dev/0.8.29` in Phase 0,
-     before any workstream, and merge it again after Slice 42 lands. The
-     conflicts are resolved once, against today's code, and W4 measures
-     AC-013 on the combined build.
-   - Alternative: wait until 0.8.28 lands on `main`. The conflicts then grow
-     with every workstream.
+## Phase 0 — consolidate `dev/0.8.29` (done 2026-10-28)
 
-B2-8 (seq 296) is asked in Phase 4, where it is needed.
+The 0.8.28 timing question was settled by the order of the work. 0.8.28 was
+consolidated first, on `dev/0.8.28`, and `dev/0.8.29` was cut from it.
 
-## Phase 0 — consolidate `dev/0.8.29`
+1. **`dev/0.8.28`.** Cut from `release/0.8.28` at `19704c6a7`, then `main`
+   merged in (`6784421d6`). The todos ledger had forked: `main` and the
+   release line both numbered new rows from 287. `main`'s numbering was kept,
+   and the release-only rows were appended again as seq 320–349, each
+   carrying a `source-seq:<old>` ref. The merge body has the full map.
+   `388202442` updated the docs that cited the old numbers. Cite todos by TC
+   id; seq numbers differ between branches.
+2. **`dev/0.8.29`.** Cut from `dev/0.8.28` at `c02cff1f9`, then
+   `feat/agent-access-block1` merged in at `d5768dc07` (`b2eca660d`).
+   - Four fixes followed: `fa6890c34`, `feee12482`, `507dee704` and
+     `e336cfc09`. The last restores the FTS rowid column. Without it,
+     projected search silently fell back to the full sort.
+   - The decision-index row for the hints-sidecar ADR moved to 66, under a
+     new "Phase 0.8.29" heading. The owner approved this on 2026-10-29.
+3. **Ledger rows.** Taken by union. Todos run 1..349 and the steward ledger
+   1..346, both identical to `dev/0.8.28`.
+4. **Release state and board: deferred.** `scripts/release-current.py`
+   requires exactly one live release, and 0.8.28 is still unpublished.
+   Adding `release-state-0.8.29.json` now would fail that check. Add it when
+   0.8.28 publishes. Until then, this plan is the 0.8.29 ladder.
+5. **Gate at `e336cfc09`.** All green except AC-013:
+   - `agent-verify` passed;
+   - the release `AGENT_LONG` perf gates: 16 pass, AC-013 fails;
+   - feature-complete with CUDA: 166 pass, 0 fail;
+   - TypeScript: 612 of 612;
+   - `fathomdb-mcp` tests: 191 of 191;
+   - MCP conformance: 9 pass, 24 fail, identical in every scenario to the
+     Block 1 baseline.
 
-1. Cut `dev/0.8.29` from `main` at `b815048ce`, in its own worktree.
-2. Merge `feat/agent-access-block1`. It is 2 ledger commits behind `main`.
-3. Merge `release/0.8.28` (open question 1). Take each side's ledger rows
-   by union, never by picking one file.
-4. Add `dev/plans/release-state-0.8.29.json` and
-   `dev/plans/runs/STATUS-0.8.29.md`, with this plan as the ladder.
-5. Gate: `./scripts/agent-verify.sh`, `AGENT_LONG=1 ./scripts/check.sh` in
-   release, the TypeScript tests and MCP conformance. Record the AC-013
-   numbers as the W4 baseline.
+   The AC-013 baseline for W4 is p50 123 ms, p99 135–139 ms and seed time
+   3.9–4.2 s, against an 80 ms p50 limit.
 
-Every workstream after this cuts its branch from the `dev/0.8.29` tip and
-lands back on it.
+`dev/0.8.28` will be merged in again after 0.8.28 Slice 42 lands. Every
+workstream cuts its branch from the `dev/0.8.29` tip and lands back on it.
 
 ## Phase 1 — Block 1 follow-ups (19 todos)
 
@@ -78,9 +101,36 @@ and the full gate once per workstream on a clean tip.
 | W7 | Fusion identical-body merge: ADR draft and Memex duplicate census; no code | 295 | design |
 | W8 | Close: CHANGELOG entry for the `#[non_exhaustive]` break and the `text` default; LoCoMo smoke; item-4 re-run against the built server | 308, 305 | docs + priced |
 
+**W4 re-scoped on 2026-10-29.** The 81–82 ms Block 1 delta is now dwarfed by
+a 0.8.28 regression. Release bisect, AC-013 p50 in ms:
+
+| Code at | p50 (ms) |
+| --- | --- |
+| `main` | 79 |
+| Before the Slice 40 merge (`869d6a9e1^1`) | 78 |
+| After the Slice 40 merge (`869d6a9e1`) | 119 |
+| Before Unit I (`39255751d`) | 80 |
+| Slice 40 Unit I (`65e6eff7e`) | 122 |
+
+Unit I removed `SQLITE_ENABLE_MEMORY_MANAGEMENT` (ADR-0.8.28 page cache).
+That gave each connection its own 2,000 KiB cache, where before all
+connections shared one larger pool. W4 now runs first, ahead of W1, in
+three steps:
+
+1. Measure AC-013 through the MCP server and its queue as well as at the
+   engine. Fix `scripts/perf-experiments/run-ac013.sh` and the
+   perf-canonical workflow, which leave out `--features test-hooks`.
+2. Find the cause with a controlled sweep that has a stated decision rule.
+3. Bring the fix options to the owner. A fix that changes the per-connection
+   cache amends the ADR, so the owner decides.
+
+Todo TC-1b1f69e6 (seq 350 on `dev/0.8.29`) tracks the regression; seq 306
+(TC-016ff172) remains the headroom item.
+
 **Order:**
 
-- W1 first; it steadies the gates the others rely on.
+- W4 steps 1–2 first (owner, 2026-10-29). Then W1, which steadies the
+  gates the others rely on.
 - W2, W3 and W4 one after another; all three touch the engine.
 - W6 after W1, in parallel with W2–W4; it touches only `fathomdb-mcp`.
   Landings stay serialized.

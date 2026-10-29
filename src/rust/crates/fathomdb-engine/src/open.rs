@@ -1371,6 +1371,8 @@ impl Engine {
                 .pragma_update(None, "query_only", "ON")
                 .map_err(|err| map_open_sqlite_error(err, OpenStage::SchemaProbe))?;
             apply_perf_experiment_reader_pragmas(&reader);
+            #[cfg(feature = "test-hooks")]
+            crate::page_trace::maybe_install_page_trace(&reader);
             readers.push(reader);
         }
 

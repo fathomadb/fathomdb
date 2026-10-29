@@ -7,8 +7,8 @@ directory measures the gate at the engine and through the `fathomdb-mcp`
 server, and diagnoses the cause with a pre-registered sweep.
 
 - Pre-registration: [PREREG.md](PREREG.md)
-- Findings: [FINDINGS.md](FINDINGS.md)
-- Summary results: [results.json](results.json)
+- Summary results, every repeat: [results.json](results.json), written by
+  `sweep.py summarize`
 
 Raw logs are not committed. Every command below writes its summary line to
 stdout or stderr; the sweep driver keeps the logs under its `--out` directory.
@@ -34,6 +34,8 @@ AC013_SCALE_TREATMENT=warm LOG_PATH=/tmp/ac013.log \
 - Knobs: `AC013_CORPUS_N`, `AC013_VECTOR_DIM`, `AC013_SCALE_TREATMENT`,
   `LOG_PATH`, and the engine PRAGMA levers below. Exits non-zero when the
   gate fails, after printing the numbers.
+- Produced: the engine baseline and every gate cell of the sweep
+  (`results.json`, arm `gate`).
 
 ### Engine probe: `src/rust/crates/fathomdb-engine/tests/exp_ac013_page_cache.rs`
 
@@ -49,8 +51,12 @@ cargo test --release -p fathomdb-engine --features test-hooks \
 
 - Prints one `AC013_PROBE {json}` line. Its header comment explains each
   field.
-- Knobs: `AC013_CORPUS_N`, `AC013_VECTOR_DIM`, `AC013_SAMPLES`, and the
-  PRAGMA levers.
+- Knobs: `AC013_CORPUS_N`, `AC013_VECTOR_DIM`, `AC013_SAMPLES`, `AC013_ISO`
+  (adds 100 heavy text documents and the hybrid / heavy read / hybrid
+  isolation phase), and the PRAGMA levers.
+- Produced: misses and hits per search (about 141,000 page requests per
+  768-d hybrid search in every cell), text-only cost, store size, RSS
+  (arm `probe`), and the AC-013-shaped isolation ratio (arm `probeiso`).
 
 ### MCP harness: `src/rust/crates/fathomdb-mcp/examples/ac013_mcp.rs`
 
@@ -75,6 +81,9 @@ $B/examples/ac013_mcp sdk  /tmp/ac013-bge.sqlite /tmp/ac013-sdk
 $B/examples/ac013_mcp mcp  /tmp/ac013-bge.sqlite $B/fathomdb-mcp /tmp/ac013-mcp 4,8,16,32 1000
 ```
 
+- `drain` finishes a store whose seed drain timed out
+  (`AC013_DRAIN_TIMEOUT_MS`); on a busy 24-thread CPU, embedding 10,000
+  rows took about 34 minutes. It prints the corpus digest too.
 - `seed` prints the corpus and query digests, seed write and drain time, and
   the node and vector-row counts. The digests must equal the engine probe's.
 - `sdk` prints search and embed-only p50/p99/mean.
@@ -83,8 +92,53 @@ $B/examples/ac013_mcp mcp  /tmp/ac013-bge.sqlite $B/fathomdb-mcp /tmp/ac013-mcp 
   `class/code/reason`, and the queue wait of the calls that waited, from
   the server's debug log. The file header explains what is and is not
   observable.
-- Knobs: `AC013_CORPUS_N`, `AC013_SAMPLES`, `FATHOMDB_MCP_LOG`, and the
-  PRAGMA levers, which the spawned server inherits.
+- Knobs: `AC013_CORPUS_N`, `AC013_SAMPLES`, `AC013_DRAIN_TIMEOUT_MS`,
+  `FATHOMDB_MCP_LOG`, and the PRAGMA levers, which the spawned server
+  inherits.
+- Produced: the MCP baseline at 1 to 32 in flight (arm `mcpconc`), the
+  in-process split of search and query embedding (arm `sdk`), and MCP at 1
+  in flight per cell (arm `mcp`). Its digests equal the probe's
+  (`481020191c2684bb` corpus, `60c6a8fae6acc4d3` queries).
+
+### Sweep driver: `dev/experiments/ac013-page-cache/sweep.py`
+
+Runs a cell table (`cells.json`: build mode × reader / writer PRAGMAs ×
+extra env) against the arms `gate`, `probe`, `probeiso`, `mcp`,
+`mcpconc`, `sdk`, `i6` (REQ40-I6 clause i, the slice40 timing report on
+the tc5-10000 pack) and `iso` (AC40-96 and AC40-97). It waits for 1-minute
+load ≤ `--max-load` before each run, reverses the cell order on odd
+repeats, appends one record per run to `<out>/results.jsonl` with the load
+before and after, and keeps each run's log. `summarize` groups the records
+by cell and arm and adds the paired per-query difference against
+A-r2000. Its docstring lists every option. Tests:
+`python3 -m pytest dev/experiments/ac013-page-cache/test_sweep.py`.
+
+The runs behind `results.json`, from the repository root, with
+`OUT=/tmp/ac013-sweep`, `MM=<restored target>` and
+`STORE=<seeded MCP store>`:
+
+```bash
+D=dev/experiments/ac013-page-cache
+R="--cells $D/cells.json --out $OUT --restored-target $MM --mcp-store $STORE \
+  --tc5-inputs ~/.cache/fathomdb-comp/tc5-10000"
+python3 $D/sweep.py run $R --arms gate --repeats 2
+python3 $D/sweep.py run $R --arms probe --repeats 1 \
+  --only A-r2000,R-r2000,A-r8000,R-r8000,A-mmap256,A-r16000,A-r32000,R-r32000,A-r64000,R-r64000,A384-r2000,A384-r32000
+python3 $D/sweep.py run $R --arms sdk,mcpconc --repeats 2 --only A-r2000
+C=A-mmap256,A-r32000,A-r64000,R-r32000,R-r64000,A-r2000,R-r2000
+python3 $D/sweep.py run $R --arms gate --repeats 1 --repeat-offset 2 --only A-r2000,R-r2000,A-r64000
+python3 $D/sweep.py run $R --arms i6 --repeats 2 --only $C
+python3 $D/sweep.py run $R --arms iso --repeats 1 --only $C
+python3 $D/sweep.py run $R --arms probeiso --repeats 1 --only $C
+AC013_SAMPLES=500 python3 $D/sweep.py run $R --arms mcp --repeats 2 \
+  --only A-r2000,R-r2000,A-mmap256,A-r64000
+python3 $D/sweep.py run $R --arms probeiso --repeats 1 --repeat-offset 1 --only R-r32000,A-r2000
+python3 $D/sweep.py summarize --out $OUT
+```
+
+Before a sweep, build both targets so no run compiles: the `cargo test
+--no-run` and `cargo build` lines above, once plain and once with
+`CARGO_TARGET_DIR=$MM LIBSQLITE3_FLAGS=-DSQLITE_ENABLE_MEMORY_MANAGEMENT`.
 
 ### Engine PRAGMA and build levers
 

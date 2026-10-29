@@ -288,6 +288,7 @@ fn drain(path: &Path) {
     println!(
         "{}",
         json!({"command": "drain", "drain_ms": drained.as_secs_f64() * 1000.0,
+               "corpus_digest": digest(&bodies(CORPUS_SEED, corpus_n())),
                "nodes": nodes, "vector_rows": embedded})
     );
     assert!(nodes == corpus_n() as u64 && embedded == nodes, "embedding incomplete");

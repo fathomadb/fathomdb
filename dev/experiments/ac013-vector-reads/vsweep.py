@@ -6,15 +6,17 @@ Extends the page-cache sweep driver (../ac013-page-cache/sweep.py) with:
 - a shared measurement lock (--lock PATH): each run takes an exclusive
   flock on PATH, then waits for the 1-minute load to fall to --max-load
   inside the lock, so runs never overlap another agent's timed runs;
-- the arms `vreads` (tests/exp_ac013_vector_reads.rs, untraced) and
-  `vtrace` (the same probe with FATHOMDB_PERF_PAGE_TRACE=1);
+- the arms `vreads` (tests/exp_ac013_vector_reads.rs, untraced),
+  `vtrace` (the same probe with FATHOMDB_PERF_PAGE_TRACE=1) and `recall`
+  (perf_gates ac_013b_recall_at_10_floor with AGENT_LONG=1; report-only);
 - `load_flag` on each record: true when the load after the run exceeds
   --flag-load (default 2.5).
 
 Every arm of sweep.py (gate, probe, probeiso, mcp, mcpconc, sdk, i6, iso)
 is available. Cells use sweep.py's format; a candidate is a cell whose
 "env" sets FATHOMDB_PERF_EXPERIMENTS=1 and its knob (README lists the
-knobs). A cell may set "mcp_store" to use its own MCP store.
+knobs). A cell may set "mcp_store" to a file name under --mcp-store-dir
+for its own MCP store (built by examples/ac013_relayout.rs).
 
   python3 dev/experiments/ac013-vector-reads/vsweep.py run \
       --cells dev/experiments/ac013-vector-reads/cells.json --arms gate,vreads \
@@ -53,12 +55,25 @@ def arm_command(arm: str, env: dict, args, run_dir: Path) -> list[str]:
         else:
             env.pop("FATHOMDB_PERF_PAGE_TRACE", None)
         return cargo_test + ["--test", "exp_ac013_vector_reads", "--", "--ignored", "--nocapture"]
+    if arm == "recall":
+        env["AGENT_LONG"] = "1"
+        return cargo_test + ["--test", "perf_gates", "--", "--exact", "ac_013b_recall_at_10_floor",
+                             "--nocapture", "--test-threads=1"]
     return sweep.arm_command(arm, env, args, run_dir)
 
 
 PARSERS = dict(sweep.PARSERS)
 PARSERS["vreads"] = lambda o, e: parse_vreads(o + e)
 PARSERS["vtrace"] = lambda o, e: parse_vreads(o + e)
+
+
+def parse_recall(log: str) -> dict:
+    import re
+    m = re.search(r"RECALL_NUMBERS n=(\d+) samples=(\d+) recall_at_10=([\d.]+)", log)
+    return {"n": int(m[1]), "samples": int(m[2]), "recall_at_10": float(m[3])} if m else {}
+
+
+PARSERS["recall"] = lambda o, e: parse_recall(o + e)
 
 
 def cmd_run(args) -> None:
@@ -76,7 +91,9 @@ def cmd_run(args) -> None:
         for cell in sweep.cell_order(cells, rep):
             for arm in arms:
                 env = sweep.cell_env(cell, os.environ, args.restored_target)
-                args.mcp_store = cell.get("mcp_store", default_store)
+                own = cell.get("mcp_store")
+                args.mcp_store = (str(Path(args.mcp_store_dir or ".") / own) if own
+                                  else default_store)
                 run_dir = out / f"{cell['id']}.{arm}.r{rep}"
                 run_dir.mkdir(exist_ok=True)
                 cmd = arm_command(arm, env, args, run_dir)
@@ -111,14 +128,18 @@ def cmd_run(args) -> None:
 
 def summarize(records: list[dict], control: str) -> dict:
     """Group by cell and arm, every repeat kept; vreads/vtrace condensed."""
-    plain = [r for r in records if r["arm"] not in ("vreads", "vtrace")]
+    plain = [r for r in records if r["arm"] not in ("vreads", "vtrace", "recall")]
     cells = sweep.summarize(plain) if plain else {}
     sweep.paired_against(plain, cells, control=control)
     for r in records:
         cell = cells.setdefault(r["cell"], {"mode": r["mode"], "reader": r["reader"],
                                             "writer": r["writer"]})
         cell["env"] = r.get("env", {})
-        if r["arm"] in ("vreads", "vtrace"):
+        if r["arm"] == "recall":
+            keep = dict(r["result"])
+            keep.update(repeat=r["repeat"], load_before=r["load_before"], exit=r["exit"])
+            cell.setdefault("recall", []).append(keep)
+        elif r["arm"] in ("vreads", "vtrace"):
             res = r["result"]
             keep = {"hybrid": res.get("hybrid"), "text_only": res.get("text_only"),
                     "results_digest": res.get("results_digest"),
@@ -159,7 +180,8 @@ def main() -> None:
     r.add_argument("--out", required=True)
     r.add_argument("--only", help="comma-separated cell ids, run in this order")
     r.add_argument("--restored-target")
-    r.add_argument("--mcp-store")
+    r.add_argument("--mcp-store", help="MCP store for cells without their own")
+    r.add_argument("--mcp-store-dir", help="directory holding the cells' own mcp_store files")
     r.add_argument("--tc5-inputs")
     r.add_argument("--mcp-levels", default="4,8,16,32")
     r.add_argument("--mcp-requests", type=int, default=1000)

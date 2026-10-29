@@ -508,6 +508,22 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         Ok(value != 0)
     }
+
+    /// Read an integer PRAGMA (e.g. `cache_size`) on a freshly opened
+    /// projection/runtime connection, the same open path the projection
+    /// dispatcher and workers use.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn runtime_pragma_for_test(&self, name: &str) -> Result<i64, EngineError> {
+        self.ensure_open()?;
+        let connection = open_runtime_connection(
+            &self.path,
+            ManagedConnectionCategory::RuntimeProbe,
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        connection.pragma_query_value(None, name, |r| r.get(0)).map_err(|_| EngineError::Storage)
+    }
 }
 
 #[cfg(feature = "test-hooks")]

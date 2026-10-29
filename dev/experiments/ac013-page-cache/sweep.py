@@ -28,6 +28,11 @@ Arms (each runs once per cell per repeat):
   probe  tests/exp_ac013_page_cache.rs; records its AC013_PROBE JSON.
   mcp    examples/ac013_mcp mcp <store> at concurrency 1 only
          (FATHOMDB_MCP_LOG=warn); records the c1 phase.
+  mcpconc  the same harness with every phase (c1, then 4,8,16,32 in flight,
+         --mcp-requests calls each; FATHOMDB_MCP_LOG=debug for queue waits);
+         records every phase.
+  sdk    examples/ac013_mcp sdk on the same store, in-process (no MCP);
+         records search and embed-only latency.
   i6     slice40 reader_page_cache_timing_report (REQ40-I6 clause i) on the
          tc5-10000 pack; records per-route after/before p50 ratios.
   iso    slice40 AC40-96/AC40-97 counter tests; records pass/fail.
@@ -112,13 +117,17 @@ def parse_probe(log: str) -> dict:
     return json.loads(m[1]) if m else {}
 
 
-def parse_mcp(stdout: str) -> dict:
+def harness_record(stdout: str, command: str) -> dict:
     for line in stdout.splitlines():
-        if line.startswith("{") and '"command":"mcp"' in line.replace(" ", ""):
-            record = json.loads(line)
-            for phase in record["phases"]:
-                if phase["phase"] == "c1":
-                    return phase
+        if line.startswith("{") and f'"command":"{command}"' in line.replace(" ", ""):
+            return json.loads(line)
+    return {}
+
+
+def parse_mcp(stdout: str) -> dict:
+    for phase in harness_record(stdout, "mcp").get("phases", []):
+        if phase["phase"] == "c1":
+            return phase
     return {}
 
 
@@ -181,6 +190,17 @@ def arm_command(arm: str, env: dict, args, run_dir: Path) -> list[str]:
         bin_dir = target_dir(env) / "release"
         return [str(bin_dir / "examples" / "ac013_mcp"), "mcp", args.mcp_store,
                 str(bin_dir / "fathomdb-mcp"), str(run_dir / "mcp"), "-"]
+    if arm in ("mcpconc", "sdk"):
+        if not args.mcp_store:
+            raise SystemExit(f"arm {arm} needs --mcp-store")
+        bin_dir = target_dir(env) / "release"
+        if arm == "sdk":
+            return [str(bin_dir / "examples" / "ac013_mcp"), "sdk", args.mcp_store,
+                    str(run_dir / "sdk")]
+        env["FATHOMDB_MCP_LOG"] = "debug"
+        return [str(bin_dir / "examples" / "ac013_mcp"), "mcp", args.mcp_store,
+                str(bin_dir / "fathomdb-mcp"), str(run_dir / "mcp"), args.mcp_levels,
+                str(args.mcp_requests)]
     if arm == "i6":
         if not args.tc5_inputs:
             raise SystemExit("arm i6 needs --tc5-inputs")
@@ -197,7 +217,9 @@ def arm_command(arm: str, env: dict, args, run_dir: Path) -> list[str]:
 
 PARSERS = {"gate": lambda o, e: parse_gate(o + e), "probe": lambda o, e: parse_probe(o + e),
            "probeiso": lambda o, e: parse_probe(o + e),
-           "mcp": lambda o, e: parse_mcp(o), "i6": lambda o, e: parse_i6(o + e),
+           "mcp": lambda o, e: parse_mcp(o),
+           "mcpconc": lambda o, e: harness_record(o, "mcp"),
+           "sdk": lambda o, e: harness_record(o, "sdk"), "i6": lambda o, e: parse_i6(o + e),
            "iso": lambda o, e: parse_iso(o + e)}
 
 
@@ -269,6 +291,15 @@ def summarize(records: list[dict]) -> dict:
             keep = {"p50_ms": res.get("ok", {}).get("p50_ms"),
                     "p99_ms": res.get("ok", {}).get("p99_ms"),
                     "rejections": res.get("rejections")}
+        elif r["arm"] == "mcpconc":
+            keep = {ph["phase"]: {"p50_ms": ph["ok"]["p50_ms"], "p99_ms": ph["ok"]["p99_ms"],
+                                  "throughput_per_s": round(ph["throughput_per_s"], 2),
+                                  "rejections": ph["rejections"], "errors": ph["errors"],
+                                  "queue_wait": ph["queue_wait"]}
+                    for ph in res.get("phases", [])}
+        elif r["arm"] == "sdk":
+            keep = {"search": res.get("search"), "embed_only": res.get("embed_only"),
+                    "mean_hits": res.get("mean_hits"), "dense_disabled": res.get("dense_disabled")}
         elif r["arm"] == "i6":
             keep = {route: round(v["max_ratio"], 3) for route, v in res.items()}
         else:
@@ -322,6 +353,8 @@ def main() -> None:
     r.add_argument("--restored-target")
     r.add_argument("--mcp-store")
     r.add_argument("--tc5-inputs")
+    r.add_argument("--mcp-levels", default="4,8,16,32")
+    r.add_argument("--mcp-requests", type=int, default=1000)
     r.add_argument("--max-load", type=float, default=2.0)
     r.set_defaults(func=cmd_run)
     s = sub.add_parser("summarize")

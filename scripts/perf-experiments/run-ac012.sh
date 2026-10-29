@@ -16,11 +16,11 @@ export AGENT_LONG
 export RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
 
 # Build only the perf_gates test binary in release.
-cargo test --release --no-run -p fathomdb-engine --test perf_gates >/dev/null
+cargo test --release --no-run -p fathomdb-engine --features test-hooks --test perf_gates >/dev/null
 
 # Run AC-012 only.
 set +e
-cargo test --release -p fathomdb-engine --test perf_gates -- \
+cargo test --release -p fathomdb-engine --features test-hooks --test perf_gates -- \
   --nocapture --test-threads=1 ac_012 \
   2>&1 | tee "$LOG_PATH"
 status=${PIPESTATUS[0]}

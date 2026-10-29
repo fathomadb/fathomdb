@@ -6,6 +6,8 @@
 #   AGENT_LONG      — must be set to "1" or the test early-returns
 #   AC013_SCALE_TREATMENT — process_cold or warm; invalid values fail closed
 #   LOG_PATH        — log file to tee output to (default ./ac013.log)
+# perf_gates calls test-only Engine constructors, so it builds only with the
+# engine's `test-hooks` feature.
 set -euo pipefail
 
 LOG_PATH="${LOG_PATH:-./ac013.log}"
@@ -14,10 +16,10 @@ AGENT_LONG="${AGENT_LONG:-1}"
 export AGENT_LONG
 export RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
 
-cargo test --release --no-run -p fathomdb-engine --test perf_gates >/dev/null
+cargo test --release --no-run -p fathomdb-engine --features test-hooks --test perf_gates >/dev/null
 
 set +e
-cargo test --release -p fathomdb-engine --test perf_gates -- \
+cargo test --release -p fathomdb-engine --features test-hooks --test perf_gates -- \
   --nocapture --test-threads=1 --exact ac_013_vector_retrieval_latency \
   2>&1 | tee "$LOG_PATH"
 status=${PIPESTATUS[0]}

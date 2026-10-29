@@ -12,5 +12,6 @@
   {"id": "A-r64000", "mode": "absent", "reader": "cache_size=-64000", "writer": ""},
   {"id": "R-r64000", "mode": "restored", "reader": "cache_size=-64000", "writer": ""},
   {"id": "A384-r2000", "mode": "absent", "reader": "", "writer": "", "env": {"AC013_VECTOR_DIM": "384"}},
-  {"id": "A384-r32000", "mode": "absent", "reader": "cache_size=-32000", "writer": "", "env": {"AC013_VECTOR_DIM": "384"}}
+  {"id": "A384-r32000", "mode": "absent", "reader": "cache_size=-32000", "writer": "", "env": {"AC013_VECTOR_DIM": "384"}},
+  {"id": "R-mmap256", "mode": "restored", "reader": "mmap_size=268435456", "writer": ""}
 ]

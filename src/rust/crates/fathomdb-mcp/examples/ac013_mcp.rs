@@ -608,7 +608,12 @@ fn main() {
         ["mcp", store, binary, out, rest @ ..] => {
             let levels: Vec<usize> = rest
                 .first()
-                .map(|s| s.split(',').map(|v| v.parse().expect("level")).collect())
+                .map(|s| {
+                    s.split(',')
+                        .filter(|v| !v.is_empty() && *v != "-")
+                        .map(|v| v.parse().expect("level"))
+                        .collect()
+                })
                 .unwrap_or_else(|| vec![4, 8, 16, 32]);
             let requests = rest.get(1).map(|s| s.parse().expect("requests")).unwrap_or(samples());
             mcp(Path::new(store), Path::new(binary), Path::new(out), &levels, requests);

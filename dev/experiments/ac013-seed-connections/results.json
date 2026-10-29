@@ -1,0 +1,3524 @@
+{
+ "A768-h-c2000": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 478.83246,
+    "drain_ms": 3264.412666,
+    "seed_ms": 3743.2451260000003,
+    "worker_miss_per_vector": 278.7506,
+    "worker_miss_per_batch": 17754.815286624205,
+    "worker_requests_per_vector": 458.5097,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 12.3886,
+    "writer_miss_per_row": 1.3954,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 11332,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.26,
+    "load_peak": 1.26,
+    "load_flag": false
+   },
+   {
+    "write_ms": 507.05291200000005,
+    "drain_ms": 3280.108241,
+    "seed_ms": 3787.161153,
+    "worker_miss_per_vector": 278.8713,
+    "worker_miss_per_batch": 17762.503184713376,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 12.3902,
+    "writer_miss_per_row": 1.0417,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 7795,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.68,
+    "load_peak": 1.68,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c4000": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 475.706371,
+    "drain_ms": 828.2969260000001,
+    "seed_ms": 1304.003297,
+    "worker_miss_per_vector": 7.546,
+    "worker_miss_per_batch": 480.6369426751592,
+    "worker_requests_per_vector": 458.5097,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.3251,
+    "writer_miss_per_row": 1.3681,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 11059,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.26,
+    "load_peak": 1.24,
+    "load_flag": false
+   },
+   {
+    "write_ms": 494.165932,
+    "drain_ms": 826.8346869999999,
+    "seed_ms": 1321.000619,
+    "worker_miss_per_vector": 7.4813,
+    "worker_miss_per_batch": 476.515923566879,
+    "worker_requests_per_vector": 458.5097,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.3232,
+    "writer_miss_per_row": 1.3792,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 11170,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.68,
+    "load_peak": 1.68,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c8000": {
+  "mode": "absent",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 474.85746,
+    "drain_ms": 840.647638,
+    "seed_ms": 1315.505098,
+    "worker_miss_per_vector": 7.5574,
+    "worker_miss_per_batch": 481.3630573248408,
+    "worker_requests_per_vector": 458.5097,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2643,
+    "writer_miss_per_row": 1.5424,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 12802,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.24,
+    "load_peak": 1.24,
+    "load_flag": false
+   },
+   {
+    "write_ms": 504.34177700000004,
+    "drain_ms": 845.5315410000001,
+    "seed_ms": 1349.873318,
+    "worker_miss_per_vector": 7.546,
+    "worker_miss_per_batch": 480.6369426751592,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2633,
+    "writer_miss_per_row": 1.0812,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 8190,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.66,
+    "load_peak": 1.68,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c32000": {
+  "mode": "absent",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 474.148152,
+    "drain_ms": 827.76544,
+    "seed_ms": 1301.913592,
+    "worker_miss_per_vector": 7.4747,
+    "worker_miss_per_batch": 476.09554140127386,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2647,
+    "writer_miss_per_row": 1.4706,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 12084,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.24,
+    "load_peak": 1.24,
+    "load_flag": false
+   },
+   {
+    "write_ms": 468.76327299999997,
+    "drain_ms": 845.823531,
+    "seed_ms": 1314.586804,
+    "worker_miss_per_vector": 7.4758,
+    "worker_miss_per_batch": 476.1656050955414,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2654,
+    "writer_miss_per_row": 1.3661,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 11039,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.66,
+    "load_peak": 1.66,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c64000": {
+  "mode": "absent",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 466.97706,
+    "drain_ms": 847.960998,
+    "seed_ms": 1314.9380580000002,
+    "worker_miss_per_vector": 7.3989,
+    "worker_miss_per_batch": 471.26751592356686,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2627,
+    "writer_miss_per_row": 1.7395,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 14773,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.24,
+    "load_peak": 1.24,
+    "load_flag": false
+   },
+   {
+    "write_ms": 474.180367,
+    "drain_ms": 812.677752,
+    "seed_ms": 1286.8581190000002,
+    "worker_miss_per_vector": 7.5554,
+    "worker_miss_per_batch": 481.2356687898089,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.2652,
+    "writer_miss_per_row": 1.3297,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 10675,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.66,
+    "load_peak": 1.66,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c2000": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 3528.404842,
+    "drain_ms": 173.14615799999999,
+    "seed_ms": 3701.5510000000004,
+    "worker_miss_per_vector": 278.8841,
+    "worker_miss_per_batch": 17763.31847133758,
+    "worker_requests_per_vector": 458.5259,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 10.4225,
+    "writer_miss_per_row": 0.4778,
+    "writer_write_miss": 3174,
+    "writer_drain_miss": 1604,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.3,
+    "load_peak": 1.3,
+    "load_flag": false
+   },
+   {
+    "write_ms": 803.4794069999999,
+    "drain_ms": 2940.311871,
+    "seed_ms": 3743.7912779999997,
+    "worker_miss_per_vector": 278.7712,
+    "worker_miss_per_batch": 17756.12738853503,
+    "worker_requests_per_vector": 458.4096,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 10.4988,
+    "writer_miss_per_row": 0.7848,
+    "writer_write_miss": 2867,
+    "writer_drain_miss": 4981,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.71,
+    "load_peak": 1.71,
+    "load_flag": false
+   }
+  ],
+  "gate": [
+   {
+    "p50_ms": 125,
+    "p99_ms": 143,
+    "p50_us": 125800,
+    "p99_us": 143518,
+    "seed_ms": 3967,
+    "seed_write_ms": 3788,
+    "drain_ms": 179,
+    "repeat": 0,
+    "exit": 101,
+    "load_before": 0.78,
+    "load_peak": 9.28,
+    "load_flag": true
+   },
+   {
+    "p50_ms": 122,
+    "p99_ms": 140,
+    "p50_us": 122789,
+    "p99_us": 140314,
+    "seed_ms": 3716,
+    "seed_write_ms": 3216,
+    "drain_ms": 499,
+    "repeat": 1,
+    "exit": 101,
+    "load_before": 1.47,
+    "load_peak": 1.75,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c4000": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1026.301431,
+    "drain_ms": 242.35491100000002,
+    "seed_ms": 1268.6563419999998,
+    "worker_miss_per_vector": 7.6398,
+    "worker_miss_per_batch": 486.61146496815286,
+    "worker_requests_per_vector": 458.4429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 4.9104,
+    "writer_miss_per_row": 0.4776,
+    "writer_write_miss": 3259,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.3,
+    "load_peak": 1.27,
+    "load_flag": false
+   },
+   {
+    "write_ms": 958.938171,
+    "drain_ms": 302.27556300000003,
+    "seed_ms": 1261.213734,
+    "worker_miss_per_vector": 7.6398,
+    "worker_miss_per_batch": 486.61146496815286,
+    "worker_requests_per_vector": 458.4364,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 5.3063,
+    "writer_miss_per_row": 0.4773,
+    "writer_write_miss": 3256,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.71,
+    "load_peak": 1.71,
+    "load_flag": false
+   }
+  ],
+  "gate": [
+   {
+    "p50_ms": 123,
+    "p99_ms": 133,
+    "p50_us": 123087,
+    "p99_us": 133363,
+    "seed_ms": 1331,
+    "seed_write_ms": 750,
+    "drain_ms": 580,
+    "repeat": 0,
+    "exit": 101,
+    "load_before": 1.71,
+    "load_peak": 1.71,
+    "load_flag": false
+   },
+   {
+    "p50_ms": 122,
+    "p99_ms": 135,
+    "p50_us": 122871,
+    "p99_us": 135996,
+    "seed_ms": 1330,
+    "seed_write_ms": 1211,
+    "drain_ms": 119,
+    "repeat": 1,
+    "exit": 101,
+    "load_before": 1.12,
+    "load_peak": 1.64,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c8000": {
+  "mode": "absent",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1101.994234,
+    "drain_ms": 219.233961,
+    "seed_ms": 1321.228195,
+    "worker_miss_per_vector": 7.6402,
+    "worker_miss_per_batch": 486.6369426751592,
+    "worker_requests_per_vector": 458.4434,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2964865,
+     2951809
+    ],
+    "dispatcher_miss_per_vector": 4.1678,
+    "writer_miss_per_row": 0.4906,
+    "writer_write_miss": 3389,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.27,
+    "load_peak": 1.27,
+    "load_flag": false
+   },
+   {
+    "write_ms": 778.077028,
+    "drain_ms": 570.883585,
+    "seed_ms": 1348.960613,
+    "worker_miss_per_vector": 7.5979,
+    "worker_miss_per_batch": 483.94267515923565,
+    "worker_requests_per_vector": 458.4169,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 6.8798,
+    "writer_miss_per_row": 0.6108,
+    "writer_write_miss": 2882,
+    "writer_drain_miss": 3226,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.77,
+    "load_peak": 1.71,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c32000": {
+  "mode": "absent",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1215.543773,
+    "drain_ms": 125.78346100000002,
+    "seed_ms": 1341.327234,
+    "worker_miss_per_vector": 7.6367,
+    "worker_miss_per_batch": 486.4140127388535,
+    "worker_requests_per_vector": 458.2513,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2951809,
+     2964865
+    ],
+    "dispatcher_miss_per_vector": 3.7027,
+    "writer_miss_per_row": 0.498,
+    "writer_write_miss": 3463,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.27,
+    "load_peak": 1.27,
+    "load_flag": false
+   },
+   {
+    "write_ms": 554.286654,
+    "drain_ms": 810.455552,
+    "seed_ms": 1364.7422060000001,
+    "worker_miss_per_vector": 7.5168,
+    "worker_miss_per_batch": 478.7770700636943,
+    "worker_requests_per_vector": 458.5065,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 10.6612,
+    "writer_miss_per_row": 1.1691,
+    "writer_write_miss": 2863,
+    "writer_drain_miss": 8828,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.77,
+    "load_peak": 1.77,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c64000": {
+  "mode": "absent",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1104.079402,
+    "drain_ms": 205.901992,
+    "seed_ms": 1309.981394,
+    "worker_miss_per_vector": 7.6356,
+    "worker_miss_per_batch": 486.343949044586,
+    "worker_requests_per_vector": 458.2317,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2964865,
+     2951809
+    ],
+    "dispatcher_miss_per_vector": 3.8108,
+    "writer_miss_per_row": 0.4901,
+    "writer_write_miss": 3384,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.27,
+    "load_peak": 1.27,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1154.655113,
+    "drain_ms": 128.314378,
+    "seed_ms": 1282.969491,
+    "worker_miss_per_vector": 7.6363,
+    "worker_miss_per_batch": 486.38853503184714,
+    "worker_requests_per_vector": 458.2509,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2964865,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 3.9124,
+    "writer_miss_per_row": 0.4975,
+    "writer_write_miss": 3458,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.77,
+    "load_peak": 1.77,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-h-c2000": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 471.738929,
+    "drain_ms": 654.324442,
+    "seed_ms": 1126.0633710000002,
+    "worker_miss_per_vector": 4.0471,
+    "worker_miss_per_batch": 257.7770700636943,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 12.3722,
+    "writer_miss_per_row": 3.5795,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 33173,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.25,
+    "load_peak": 1.25,
+    "load_flag": false
+   },
+   {
+    "write_ms": 471.18034,
+    "drain_ms": 653.1899599999999,
+    "seed_ms": 1124.3703,
+    "worker_miss_per_vector": 3.8451,
+    "worker_miss_per_batch": 244.9108280254777,
+    "worker_requests_per_vector": 264.0365,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 12.3681,
+    "writer_miss_per_row": 4.1714,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 39092,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.77,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-h-c4000": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 472.175716,
+    "drain_ms": 667.605639,
+    "seed_ms": 1139.781355,
+    "worker_miss_per_vector": 3.8939,
+    "worker_miss_per_batch": 248.01910828025478,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.3113,
+    "writer_miss_per_row": 4.0564,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 37942,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.25,
+    "load_peak": 1.25,
+    "load_flag": false
+   },
+   {
+    "write_ms": 484.880093,
+    "drain_ms": 636.9684599999999,
+    "seed_ms": 1121.848553,
+    "worker_miss_per_vector": 4.0204,
+    "worker_miss_per_batch": 256.07643312101914,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.3052,
+    "writer_miss_per_row": 3.394,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 31318,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.84,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-h-c8000": {
+  "mode": "absent",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 477.618879,
+    "drain_ms": 657.896203,
+    "seed_ms": 1135.515082,
+    "worker_miss_per_vector": 4.1394,
+    "worker_miss_per_batch": 263.656050955414,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.2563,
+    "writer_miss_per_row": 3.2766,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 30144,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.25,
+    "load_peak": 1.25,
+    "load_flag": false
+   },
+   {
+    "write_ms": 469.746379,
+    "drain_ms": 659.945051,
+    "seed_ms": 1129.69143,
+    "worker_miss_per_vector": 3.9922,
+    "worker_miss_per_batch": 254.28025477707007,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.1053,
+    "writer_miss_per_row": 3.289,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 30268,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.84,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-h-c32000": {
+  "mode": "absent",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 481.790861,
+    "drain_ms": 658.66129,
+    "seed_ms": 1140.4521510000002,
+    "worker_miss_per_vector": 4.0563,
+    "worker_miss_per_batch": 258.3630573248408,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.1059,
+    "writer_miss_per_row": 3.1691,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 29069,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.25,
+    "load_peak": 1.39,
+    "load_flag": false
+   },
+   {
+    "write_ms": 477.063523,
+    "drain_ms": 654.4319419999999,
+    "seed_ms": 1131.495465,
+    "worker_miss_per_vector": 4.0891,
+    "worker_miss_per_batch": 260.45222929936307,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.1075,
+    "writer_miss_per_row": 2.5549,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 22927,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.84,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-h-c64000": {
+  "mode": "absent",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 471.708349,
+    "drain_ms": 658.542648,
+    "seed_ms": 1130.250997,
+    "worker_miss_per_vector": 4.006,
+    "worker_miss_per_batch": 255.15923566878982,
+    "worker_requests_per_vector": 264.0429,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.1041,
+    "writer_miss_per_row": 3.3077,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 30455,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.39,
+    "load_peak": 1.39,
+    "load_flag": false
+   },
+   {
+    "write_ms": 470.210102,
+    "drain_ms": 643.720292,
+    "seed_ms": 1113.930394,
+    "worker_miss_per_vector": 4.006,
+    "worker_miss_per_batch": 255.15923566878982,
+    "worker_requests_per_vector": 264.0365,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.1109,
+    "writer_miss_per_row": 3.222,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 29598,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.83,
+    "load_peak": 1.84,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-o-c2000": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1059.187684,
+    "drain_ms": 60.152338,
+    "seed_ms": 1119.340022,
+    "worker_miss_per_vector": 4.4099,
+    "worker_miss_per_batch": 280.88535031847135,
+    "worker_requests_per_vector": 263.7718,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1654913,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 3.1763,
+    "writer_miss_per_row": 0.4981,
+    "writer_write_miss": 3463,
+    "writer_drain_miss": 1518,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42586112,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.39,
+    "load_peak": 1.39,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1103.530804,
+    "drain_ms": 54.25563,
+    "seed_ms": 1157.7864339999999,
+    "worker_miss_per_vector": 4.4128,
+    "worker_miss_per_batch": 281.0700636942675,
+    "worker_requests_per_vector": 264.0587,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 4.9551,
+    "writer_miss_per_row": 0.465,
+    "writer_write_miss": 3133,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.83,
+    "load_peak": 1.83,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-o-c4000": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 479.65944,
+    "drain_ms": 741.456134,
+    "seed_ms": 1221.115574,
+    "worker_miss_per_vector": 3.8725,
+    "worker_miss_per_batch": 246.656050955414,
+    "worker_requests_per_vector": 264.0379,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.0189,
+    "writer_miss_per_row": 3.7859,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 35237,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.39,
+    "load_peak": 1.39,
+    "load_flag": false
+   },
+   {
+    "write_ms": 746.456007,
+    "drain_ms": 296.66900400000003,
+    "seed_ms": 1043.125011,
+    "worker_miss_per_vector": 4.3952,
+    "worker_miss_per_batch": 279.9490445859873,
+    "worker_requests_per_vector": 263.7522,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 5.4655,
+    "writer_miss_per_row": 0.5425,
+    "writer_write_miss": 3203,
+    "writer_drain_miss": 2222,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.83,
+    "load_peak": 1.83,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-o-c8000": {
+  "mode": "absent",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1055.735522,
+    "drain_ms": 59.866528,
+    "seed_ms": 1115.60205,
+    "worker_miss_per_vector": 4.3928,
+    "worker_miss_per_batch": 279.79617834394907,
+    "worker_requests_per_vector": 263.7514,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1659265,
+     1646209
+    ],
+    "dispatcher_miss_per_vector": 5.0669,
+    "writer_miss_per_row": 0.477,
+    "writer_write_miss": 3166,
+    "writer_drain_miss": 1604,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.39,
+    "load_peak": 1.36,
+    "load_flag": false
+   },
+   {
+    "write_ms": 707.89037,
+    "drain_ms": 379.034043,
+    "seed_ms": 1086.924413,
+    "worker_miss_per_vector": 4.3822,
+    "worker_miss_per_batch": 279.1210191082803,
+    "worker_requests_per_vector": 263.7462,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1646209
+    ],
+    "dispatcher_miss_per_vector": 5.8114,
+    "writer_miss_per_row": 0.6366,
+    "writer_write_miss": 3205,
+    "writer_drain_miss": 3161,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.83,
+    "load_peak": 1.83,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-o-c32000": {
+  "mode": "absent",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 974.208433,
+    "drain_ms": 121.146237,
+    "seed_ms": 1095.3546700000002,
+    "worker_miss_per_vector": 4.4084,
+    "worker_miss_per_batch": 280.78980891719743,
+    "worker_requests_per_vector": 263.7577,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 4.9578,
+    "writer_miss_per_row": 0.4605,
+    "writer_write_miss": 3088,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.36,
+    "load_peak": 1.36,
+    "load_flag": false
+   },
+   {
+    "write_ms": 765.82447,
+    "drain_ms": 408.420655,
+    "seed_ms": 1174.2451250000001,
+    "worker_miss_per_vector": 4.4076,
+    "worker_miss_per_batch": 280.7388535031847,
+    "worker_requests_per_vector": 263.7457,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1646209
+    ],
+    "dispatcher_miss_per_vector": 4.9003,
+    "writer_miss_per_row": 0.452,
+    "writer_write_miss": 3003,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.98,
+    "load_peak": 1.98,
+    "load_flag": false
+   }
+  ]
+ },
+ "A384-o-c64000": {
+  "mode": "absent",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1053.007686,
+    "drain_ms": 76.328773,
+    "seed_ms": 1129.3364589999999,
+    "worker_miss_per_vector": 4.4108,
+    "worker_miss_per_batch": 280.94267515923565,
+    "worker_requests_per_vector": 263.8737,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1654913,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 3.2152,
+    "writer_miss_per_row": 0.4863,
+    "writer_write_miss": 3345,
+    "writer_drain_miss": 1518,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42586112,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.36,
+    "load_peak": 1.36,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1151.317513,
+    "drain_ms": 61.333761,
+    "seed_ms": 1212.651274,
+    "worker_miss_per_vector": 4.4105,
+    "worker_miss_per_batch": 280.92356687898086,
+    "worker_requests_per_vector": 263.8556,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1654913,
+     1646209
+    ],
+    "dispatcher_miss_per_vector": 3.7499,
+    "writer_miss_per_row": 0.462,
+    "writer_write_miss": 3015,
+    "writer_drain_miss": 1605,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42590208,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.98,
+    "load_peak": 1.98,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-h-c2000": {
+  "mode": "restored",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 472.489274,
+    "drain_ms": 1195.168293,
+    "seed_ms": 1667.657567,
+    "worker_miss_per_vector": 7.558,
+    "worker_miss_per_batch": 481.4012738853503,
+    "worker_requests_per_vector": 458.5159,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2912641,
+     2934401
+    ],
+    "dispatcher_miss_per_vector": 12.3332,
+    "writer_miss_per_row": 1.0933,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 9357,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.36,
+    "load_peak": 1.36,
+    "load_flag": false
+   },
+   {
+    "write_ms": 479.108857,
+    "drain_ms": 1229.220026,
+    "seed_ms": 1708.3288830000001,
+    "worker_miss_per_vector": 7.5355,
+    "worker_miss_per_batch": 479.96815286624206,
+    "worker_requests_per_vector": 458.5096,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2912641,
+     2934401
+    ],
+    "dispatcher_miss_per_vector": 12.3378,
+    "writer_miss_per_row": 1.1246,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 9670,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.98,
+    "load_peak": 1.98,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-h-c4000": {
+  "mode": "restored",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 471.07223999999997,
+    "drain_ms": 1176.221761,
+    "seed_ms": 1647.2940010000002,
+    "worker_miss_per_vector": 7.5032,
+    "worker_miss_per_batch": 477.9108280254777,
+    "worker_requests_per_vector": 458.5096,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.277,
+    "writer_miss_per_row": 1.2772,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 11196,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.41,
+    "load_peak": 1.41,
+    "load_flag": false
+   },
+   {
+    "write_ms": 477.3979,
+    "drain_ms": 1192.24968,
+    "seed_ms": 1669.6475799999998,
+    "worker_miss_per_vector": 7.6084,
+    "worker_miss_per_batch": 484.61146496815286,
+    "worker_requests_per_vector": 458.516,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2745,
+    "writer_miss_per_row": 1.1143,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 9567,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 2.0,
+    "load_peak": 2.0,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-h-c8000": {
+  "mode": "restored",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 468.89515,
+    "drain_ms": 1180.825633,
+    "seed_ms": 1649.720783,
+    "worker_miss_per_vector": 7.6238,
+    "worker_miss_per_batch": 485.5923566878981,
+    "worker_requests_per_vector": 458.516,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.2711,
+    "writer_miss_per_row": 0.9952,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 8376,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.41,
+    "load_peak": 1.41,
+    "load_flag": false
+   },
+   {
+    "write_ms": 481.759489,
+    "drain_ms": 1225.3244750000001,
+    "seed_ms": 1707.083964,
+    "worker_miss_per_vector": 7.5219,
+    "worker_miss_per_batch": 479.1019108280255,
+    "worker_requests_per_vector": 458.516,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.2717,
+    "writer_miss_per_row": 1.1343,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 9767,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 2.0,
+    "load_peak": 2.0,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-h-c32000": {
+  "mode": "restored",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 476.664507,
+    "drain_ms": 1154.7276740000002,
+    "seed_ms": 1631.3921810000002,
+    "worker_miss_per_vector": 7.5719,
+    "worker_miss_per_batch": 482.28662420382165,
+    "worker_requests_per_vector": 458.5096,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.2722,
+    "writer_miss_per_row": 1.0813,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 9237,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.41,
+    "load_peak": 1.38,
+    "load_flag": false
+   },
+   {
+    "write_ms": 486.743434,
+    "drain_ms": 1229.9468339999999,
+    "seed_ms": 1716.690268,
+    "worker_miss_per_vector": 7.4452,
+    "worker_miss_per_batch": 474.21656050955414,
+    "worker_requests_per_vector": 458.516,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2669,
+    "writer_miss_per_row": 1.6301,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 14725,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 2.0,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-h-c64000": {
+  "mode": "restored",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 473.46518599999996,
+    "drain_ms": 1183.8371430000002,
+    "seed_ms": 1657.3023289999999,
+    "worker_miss_per_vector": 7.5369,
+    "worker_miss_per_batch": 480.05732484076435,
+    "worker_requests_per_vector": 458.5096,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.2675,
+    "writer_miss_per_row": 1.1259,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 9683,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.38,
+    "load_peak": 1.38,
+    "load_flag": false
+   },
+   {
+    "write_ms": 483.412429,
+    "drain_ms": 1217.14885,
+    "seed_ms": 1700.561279,
+    "worker_miss_per_vector": 7.4861,
+    "worker_miss_per_batch": 476.8216560509554,
+    "worker_requests_per_vector": 458.5096,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 12.2733,
+    "writer_miss_per_row": 1.2734,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 11158,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 1.91,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-o-c2000": {
+  "mode": "restored",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1333.79465,
+    "drain_ms": 175.399449,
+    "seed_ms": 1509.194099,
+    "worker_miss_per_vector": 7.6688,
+    "worker_miss_per_batch": 488.45859872611464,
+    "worker_requests_per_vector": 458.2249,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2908289,
+     2934401
+    ],
+    "dispatcher_miss_per_vector": 3.8484,
+    "writer_miss_per_row": 0.3879,
+    "writer_write_miss": 2362,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58830848,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.38,
+    "load_peak": 1.38,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1239.2022009999998,
+    "drain_ms": 296.016028,
+    "seed_ms": 1535.218229,
+    "worker_miss_per_vector": 7.6688,
+    "worker_miss_per_batch": 488.45859872611464,
+    "worker_requests_per_vector": 458.2183,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2903937,
+     2934401
+    ],
+    "dispatcher_miss_per_vector": 4.0105,
+    "writer_miss_per_row": 0.3587,
+    "writer_write_miss": 2069,
+    "writer_drain_miss": 1518,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58826752,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 1.91,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-o-c4000": {
+  "mode": "restored",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1199.053927,
+    "drain_ms": 283.945651,
+    "seed_ms": 1482.999578,
+    "worker_miss_per_vector": 7.6361,
+    "worker_miss_per_batch": 486.37579617834393,
+    "worker_requests_per_vector": 458.2387,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 4.0059,
+    "writer_miss_per_row": 0.3862,
+    "writer_write_miss": 2345,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.38,
+    "load_peak": 1.35,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1718.181097,
+    "drain_ms": 197.473601,
+    "seed_ms": 1915.654698,
+    "worker_miss_per_vector": 7.5794,
+    "worker_miss_per_batch": 482.7643312101911,
+    "worker_requests_per_vector": 458.5381,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 8.8419,
+    "writer_miss_per_row": 0.3228,
+    "writer_write_miss": 1711,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 2.82,
+    "load_flag": true
+   }
+  ]
+ },
+ "R768-o-c8000": {
+  "mode": "restored",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 756.090843,
+    "drain_ms": 756.885555,
+    "seed_ms": 1512.976398,
+    "worker_miss_per_vector": 7.5417,
+    "worker_miss_per_batch": 480.3630573248408,
+    "worker_requests_per_vector": 458.3212,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 8.2438,
+    "writer_miss_per_row": 0.6966,
+    "writer_write_miss": 1614,
+    "writer_drain_miss": 5352,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.35,
+    "load_peak": 1.35,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1460.57408,
+    "drain_ms": 75.749252,
+    "seed_ms": 1536.323332,
+    "worker_miss_per_vector": 7.6346,
+    "worker_miss_per_batch": 486.28025477707007,
+    "worker_requests_per_vector": 458.2369,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2947457,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 3.7968,
+    "writer_miss_per_row": 0.4164,
+    "writer_write_miss": 2646,
+    "writer_drain_miss": 1518,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58826752,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.84,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-o-c32000": {
+  "mode": "restored",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1447.366914,
+    "drain_ms": 70.329716,
+    "seed_ms": 1517.6966300000001,
+    "worker_miss_per_vector": 7.6338,
+    "worker_miss_per_batch": 486.22929936305735,
+    "worker_requests_per_vector": 458.2613,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2956161
+    ],
+    "dispatcher_miss_per_vector": 3.7927,
+    "writer_miss_per_row": 0.4159,
+    "writer_write_miss": 2641,
+    "writer_drain_miss": 1518,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.35,
+    "load_peak": 1.35,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1453.824623,
+    "drain_ms": 76.851535,
+    "seed_ms": 1530.676158,
+    "worker_miss_per_vector": 7.6344,
+    "worker_miss_per_batch": 486.26751592356686,
+    "worker_requests_per_vector": 458.243,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2969217,
+     2951809
+    ],
+    "dispatcher_miss_per_vector": 3.796,
+    "writer_miss_per_row": 0.416,
+    "writer_write_miss": 2641,
+    "writer_drain_miss": 1519,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58826752,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.84,
+    "load_flag": false
+   }
+  ]
+ },
+ "R768-o-c64000": {
+  "mode": "restored",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1263.4846559999999,
+    "drain_ms": 270.099552,
+    "seed_ms": 1533.584208,
+    "worker_miss_per_vector": 7.6352,
+    "worker_miss_per_batch": 486.31847133757964,
+    "worker_requests_per_vector": 458.2252,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2951809,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 3.7473,
+    "writer_miss_per_row": 0.3901,
+    "writer_write_miss": 2385,
+    "writer_drain_miss": 1516,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58830848,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.4,
+    "load_peak": 1.4,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1487.38434,
+    "drain_ms": 77.816755,
+    "seed_ms": 1565.201095,
+    "worker_miss_per_vector": 7.636,
+    "worker_miss_per_batch": 486.36942675159236,
+    "worker_requests_per_vector": 458.245,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2947457,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 3.935,
+    "writer_miss_per_row": 0.4171,
+    "writer_write_miss": 2652,
+    "writer_drain_miss": 1519,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58830848,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 1.91,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-h-c2000": {
+  "mode": "restored",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 473.229374,
+    "drain_ms": 927.0092119999999,
+    "seed_ms": 1400.238586,
+    "worker_miss_per_vector": 4.1603,
+    "worker_miss_per_batch": 264.9872611464968,
+    "worker_requests_per_vector": 264.0427,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1615745,
+     1602689
+    ],
+    "dispatcher_miss_per_vector": 12.3302,
+    "writer_miss_per_row": 2.5718,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 24142,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.4,
+    "load_peak": 1.4,
+    "load_flag": false
+   },
+   {
+    "write_ms": 473.600838,
+    "drain_ms": 960.357158,
+    "seed_ms": 1433.9579959999999,
+    "worker_miss_per_vector": 4.1383,
+    "worker_miss_per_batch": 263.5859872611465,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1615745,
+     1602689
+    ],
+    "dispatcher_miss_per_vector": 12.3361,
+    "writer_miss_per_row": 2.5204,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 23628,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 1.91,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-h-c4000": {
+  "mode": "restored",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 468.13669699999997,
+    "drain_ms": 949.401684,
+    "seed_ms": 1417.5383809999998,
+    "worker_miss_per_vector": 4.202,
+    "worker_miss_per_batch": 267.64331210191085,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 12.273,
+    "writer_miss_per_row": 2.1355,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 19779,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.4,
+    "load_peak": 1.4,
+    "load_flag": false
+   },
+   {
+    "write_ms": 471.064734,
+    "drain_ms": 932.062553,
+    "seed_ms": 1403.127287,
+    "worker_miss_per_vector": 4.1504,
+    "worker_miss_per_batch": 264.35668789808915,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 12.275,
+    "writer_miss_per_row": 2.409,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 22514,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 1.91,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-h-c8000": {
+  "mode": "restored",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 472.723984,
+    "drain_ms": 954.576042,
+    "seed_ms": 1427.300026,
+    "worker_miss_per_vector": 4.2191,
+    "worker_miss_per_batch": 268.73248407643314,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 12.2714,
+    "writer_miss_per_row": 1.989,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 18314,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.53,
+    "load_peak": 1.53,
+    "load_flag": false
+   },
+   {
+    "write_ms": 479.564099,
+    "drain_ms": 931.1161519999999,
+    "seed_ms": 1410.680251,
+    "worker_miss_per_vector": 4.197,
+    "worker_miss_per_batch": 267.3248407643312,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.2748,
+    "writer_miss_per_row": 2.1573,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 19997,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.55,
+    "load_peak": 1.55,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-h-c32000": {
+  "mode": "restored",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 472.42251699999997,
+    "drain_ms": 930.9775599999999,
+    "seed_ms": 1403.4000770000002,
+    "worker_miss_per_vector": 4.2317,
+    "worker_miss_per_batch": 269.5350318471338,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.2701,
+    "writer_miss_per_row": 1.6312,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 14736,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.53,
+    "load_peak": 1.53,
+    "load_flag": false
+   },
+   {
+    "write_ms": 472.385807,
+    "drain_ms": 924.048538,
+    "seed_ms": 1396.4343450000001,
+    "worker_miss_per_vector": 4.2156,
+    "worker_miss_per_batch": 268.50955414012736,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 12.2733,
+    "writer_miss_per_row": 2.6424,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 24848,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.55,
+    "load_peak": 1.55,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-h-c64000": {
+  "mode": "restored",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 467.400082,
+    "drain_ms": 925.3978440000001,
+    "seed_ms": 1392.7979260000002,
+    "worker_miss_per_vector": 4.0192,
+    "worker_miss_per_batch": 256.0,
+    "worker_requests_per_vector": 264.0428,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 12.2758,
+    "writer_miss_per_row": 2.9855,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 28279,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.53,
+    "load_peak": 1.53,
+    "load_flag": false
+   },
+   {
+    "write_ms": 473.42008000000004,
+    "drain_ms": 968.180303,
+    "seed_ms": 1441.600383,
+    "worker_miss_per_vector": 4.1755,
+    "worker_miss_per_batch": 265.95541401273886,
+    "worker_requests_per_vector": 264.0364,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 12.2731,
+    "writer_miss_per_row": 2.2884,
+    "writer_write_miss": 1576,
+    "writer_drain_miss": 21308,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.55,
+    "load_peak": 1.55,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-o-c2000": {
+  "mode": "restored",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 993.0608669999999,
+    "drain_ms": 312.406083,
+    "seed_ms": 1305.46695,
+    "worker_miss_per_vector": 4.4126,
+    "worker_miss_per_batch": 281.05732484076435,
+    "worker_requests_per_vector": 264.0522,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1615745,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 5.7047,
+    "writer_miss_per_row": 0.3453,
+    "writer_write_miss": 1936,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.89,
+    "load_peak": 1.89,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1000.7621200000001,
+    "drain_ms": 201.881385,
+    "seed_ms": 1202.643505,
+    "worker_miss_per_vector": 4.4096,
+    "worker_miss_per_batch": 280.86624203821657,
+    "worker_requests_per_vector": 263.7775,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1611393,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 4.2334,
+    "writer_miss_per_row": 0.3891,
+    "writer_write_miss": 2374,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -2000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.6,
+    "load_peak": 1.6,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-o-c4000": {
+  "mode": "restored",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1166.845488,
+    "drain_ms": 65.871708,
+    "seed_ms": 1232.717196,
+    "worker_miss_per_vector": 4.4084,
+    "worker_miss_per_batch": 280.78980891719743,
+    "worker_requests_per_vector": 263.7651,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1654913
+    ],
+    "dispatcher_miss_per_vector": 4.1912,
+    "writer_miss_per_row": 0.3961,
+    "writer_write_miss": 2442,
+    "writer_drain_miss": 1519,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42586112,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.89,
+    "load_peak": 1.89,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1198.310385,
+    "drain_ms": 62.680730000000004,
+    "seed_ms": 1260.991115,
+    "worker_miss_per_vector": 4.4071,
+    "worker_miss_per_batch": 280.7070063694268,
+    "worker_requests_per_vector": 263.7762,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1659265,
+     1646209
+    ],
+    "dispatcher_miss_per_vector": 3.8039,
+    "writer_miss_per_row": 0.4172,
+    "writer_write_miss": 2653,
+    "writer_drain_miss": 1519,
+    "runtime_cache_size": -4000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.6,
+    "load_peak": 1.6,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-o-c8000": {
+  "mode": "restored",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 728.897337,
+    "drain_ms": 611.6559080000001,
+    "seed_ms": 1340.553245,
+    "worker_miss_per_vector": 4.3965,
+    "worker_miss_per_batch": 280.03184713375794,
+    "worker_requests_per_vector": 263.7377,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 6.7281,
+    "writer_miss_per_row": 0.4785,
+    "writer_write_miss": 1403,
+    "writer_drain_miss": 3382,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.89,
+    "load_peak": 1.89,
+    "load_flag": false
+   },
+   {
+    "write_ms": 552.282783,
+    "drain_ms": 898.9226890000001,
+    "seed_ms": 1451.205472,
+    "worker_miss_per_vector": 4.2164,
+    "worker_miss_per_batch": 268.56050955414014,
+    "worker_requests_per_vector": 263.917,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 10.0296,
+    "writer_miss_per_row": 1.5439,
+    "writer_write_miss": 1348,
+    "writer_drain_miss": 14091,
+    "runtime_cache_size": -8000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.6,
+    "load_peak": 1.6,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-o-c32000": {
+  "mode": "restored",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1052.368537,
+    "drain_ms": 291.22137,
+    "seed_ms": 1343.589907,
+    "worker_miss_per_vector": 4.4095,
+    "worker_miss_per_batch": 280.859872611465,
+    "worker_requests_per_vector": 263.7723,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1663617,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 4.3668,
+    "writer_miss_per_row": 0.3947,
+    "writer_write_miss": 2430,
+    "writer_drain_miss": 1517,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.89,
+    "load_peak": 1.9,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1167.176131,
+    "drain_ms": 64.731663,
+    "seed_ms": 1231.907794,
+    "worker_miss_per_vector": 4.408,
+    "worker_miss_per_batch": 280.7643312101911,
+    "worker_requests_per_vector": 263.7773,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1646209,
+     1659265
+    ],
+    "dispatcher_miss_per_vector": 4.022,
+    "writer_miss_per_row": 0.3964,
+    "writer_write_miss": 2445,
+    "writer_drain_miss": 1519,
+    "runtime_cache_size": -32000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.56,
+    "load_peak": 1.6,
+    "load_flag": false
+   }
+  ]
+ },
+ "R384-o-c64000": {
+  "mode": "restored",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "384",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 1168.4846890000001,
+    "drain_ms": 55.715173,
+    "seed_ms": 1224.1998620000002,
+    "worker_miss_per_vector": 4.4144,
+    "worker_miss_per_batch": 281.171974522293,
+    "worker_requests_per_vector": 264.0521,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1650561,
+     1663617
+    ],
+    "dispatcher_miss_per_vector": 4.6137,
+    "writer_miss_per_row": 0.3918,
+    "writer_write_miss": 2400,
+    "writer_drain_miss": 1518,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42582016,
+    "memory_management_compiled": 1,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.9,
+    "load_peak": 1.9,
+    "load_flag": false
+   },
+   {
+    "write_ms": 1159.2917439999999,
+    "drain_ms": 69.943309,
+    "seed_ms": 1229.235053,
+    "worker_miss_per_vector": 4.4082,
+    "worker_miss_per_batch": 280.7770700636943,
+    "worker_requests_per_vector": 263.7656,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     1659265,
+     1650561
+    ],
+    "dispatcher_miss_per_vector": 3.4781,
+    "writer_miss_per_row": 0.4169,
+    "writer_write_miss": 2651,
+    "writer_drain_miss": 1518,
+    "runtime_cache_size": -64000,
+    "db_bytes": 42594304,
+    "memory_management_compiled": 1,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.56,
+    "load_peak": 1.56,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c2000-t1": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 497.278271,
+    "drain_ms": 3741.96528,
+    "seed_ms": 4239.2435510000005,
+    "worker_miss_per_vector": 276.5228,
+    "worker_miss_per_batch": 17612.91719745223,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 12.2392,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.9,
+    "load_peak": 1.98,
+    "load_flag": false
+   },
+   {
+    "write_ms": 480.64632800000004,
+    "drain_ms": 3720.598351,
+    "seed_ms": 4201.244679,
+    "worker_miss_per_vector": 276.5228,
+    "worker_miss_per_batch": 17612.91719745223,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 12.2392,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.61,
+    "load_peak": 1.61,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c4000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 500.114203,
+    "drain_ms": 1222.744772,
+    "seed_ms": 1722.8589749999999,
+    "worker_miss_per_vector": 0.256,
+    "worker_miss_per_batch": 16.305732484076433,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     4218241
+    ],
+    "dispatcher_miss_per_vector": 12.0239,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.98,
+    "load_peak": 1.98,
+    "load_flag": false
+   },
+   {
+    "write_ms": 473.183368,
+    "drain_ms": 1243.693098,
+    "seed_ms": 1716.876466,
+    "worker_miss_per_vector": 0.256,
+    "worker_miss_per_batch": 16.305732484076433,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     4218241
+    ],
+    "dispatcher_miss_per_vector": 12.0239,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.61,
+    "load_peak": 1.61,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c8000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 520.836509,
+    "drain_ms": 1196.660044,
+    "seed_ms": 1717.4965530000002,
+    "worker_miss_per_vector": 0.1858,
+    "worker_miss_per_batch": 11.834394904458598,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     8430977
+    ],
+    "dispatcher_miss_per_vector": 12.1087,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.98,
+    "load_peak": 1.99,
+    "load_flag": false
+   },
+   {
+    "write_ms": 470.76520700000003,
+    "drain_ms": 1194.3862379999998,
+    "seed_ms": 1665.151445,
+    "worker_miss_per_vector": 0.1858,
+    "worker_miss_per_batch": 11.834394904458598,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     8430977
+    ],
+    "dispatcher_miss_per_vector": 12.1087,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.67,
+    "load_peak": 1.61,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c32000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 517.4952910000001,
+    "drain_ms": 1243.8280889999999,
+    "seed_ms": 1761.3233799999998,
+    "worker_miss_per_vector": 0.1858,
+    "worker_miss_per_batch": 11.834394904458598,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     33703041
+    ],
+    "dispatcher_miss_per_vector": 11.9573,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.99,
+    "load_peak": 1.99,
+    "load_flag": false
+   },
+   {
+    "write_ms": 478.083641,
+    "drain_ms": 1212.6705229999998,
+    "seed_ms": 1690.754164,
+    "worker_miss_per_vector": 0.1858,
+    "worker_miss_per_batch": 11.834394904458598,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     33703041
+    ],
+    "dispatcher_miss_per_vector": 11.9573,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.67,
+    "load_peak": 1.67,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c64000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 500.223808,
+    "drain_ms": 1275.174268,
+    "seed_ms": 1775.3980760000002,
+    "worker_miss_per_vector": 0.1858,
+    "worker_miss_per_batch": 11.834394904458598,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     43712641
+    ],
+    "dispatcher_miss_per_vector": 11.9573,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.99,
+    "load_peak": 1.99,
+    "load_flag": false
+   },
+   {
+    "write_ms": 480.78479000000004,
+    "drain_ms": 1226.210215,
+    "seed_ms": 1706.995005,
+    "worker_miss_per_vector": 0.1858,
+    "worker_miss_per_batch": 11.834394904458598,
+    "worker_requests_per_vector": 458.5129,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     43712641
+    ],
+    "dispatcher_miss_per_vector": 11.9573,
+    "writer_miss_per_row": 12.2018,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 119396,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.67,
+    "load_peak": 1.67,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c2000-t1": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 535.12118,
+    "drain_ms": 3626.571889,
+    "seed_ms": 4161.693069,
+    "worker_miss_per_vector": 276.6841,
+    "worker_miss_per_batch": 17623.191082802547,
+    "worker_requests_per_vector": 458.5047,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 11.6679,
+    "writer_miss_per_row": 10.9534,
+    "writer_write_miss": 3128,
+    "writer_drain_miss": 106406,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.99,
+    "load_peak": 1.99,
+    "load_flag": false
+   },
+   {
+    "write_ms": 911.9204119999999,
+    "drain_ms": 3220.98825,
+    "seed_ms": 4132.908662,
+    "worker_miss_per_vector": 276.6446,
+    "worker_miss_per_batch": 17620.67515923567,
+    "worker_requests_per_vector": 458.5046,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 10.9042,
+    "writer_miss_per_row": 8.7149,
+    "writer_write_miss": 3235,
+    "writer_drain_miss": 83914,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.72,
+    "load_peak": 1.72,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c4000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 518.90787,
+    "drain_ms": 1158.713945,
+    "seed_ms": 1677.621815,
+    "worker_miss_per_vector": 0.5023,
+    "worker_miss_per_batch": 31.993630573248407,
+    "worker_requests_per_vector": 458.5054,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     4218241
+    ],
+    "dispatcher_miss_per_vector": 11.4153,
+    "writer_miss_per_row": 11.1023,
+    "writer_write_miss": 3210,
+    "writer_drain_miss": 107813,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.99,
+    "load_peak": 1.99,
+    "load_flag": false
+   },
+   {
+    "write_ms": 477.677324,
+    "drain_ms": 1195.6558799999998,
+    "seed_ms": 1673.333204,
+    "worker_miss_per_vector": 0.411,
+    "worker_miss_per_batch": 26.178343949044585,
+    "worker_requests_per_vector": 458.4973,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     4218241
+    ],
+    "dispatcher_miss_per_vector": 11.4855,
+    "writer_miss_per_row": 11.371,
+    "writer_write_miss": 3056,
+    "writer_drain_miss": 110654,
+    "runtime_cache_size": -4000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.79,
+    "load_peak": 1.72,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c8000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-8000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 526.437485,
+    "drain_ms": 1213.352142,
+    "seed_ms": 1739.7896269999999,
+    "worker_miss_per_vector": 0.4596,
+    "worker_miss_per_batch": 29.273885350318473,
+    "worker_requests_per_vector": 458.5055,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     8430977
+    ],
+    "dispatcher_miss_per_vector": 11.2847,
+    "writer_miss_per_row": 10.9616,
+    "writer_write_miss": 3210,
+    "writer_drain_miss": 106406,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.99,
+    "load_peak": 1.99,
+    "load_flag": false
+   },
+   {
+    "write_ms": 479.3282,
+    "drain_ms": 1278.206416,
+    "seed_ms": 1757.5346160000001,
+    "worker_miss_per_vector": 0.2874,
+    "worker_miss_per_batch": 18.305732484076433,
+    "worker_requests_per_vector": 458.5024,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     8430977
+    ],
+    "dispatcher_miss_per_vector": 11.6081,
+    "writer_miss_per_row": 11.7836,
+    "writer_write_miss": 2849,
+    "writer_drain_miss": 114987,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.79,
+    "load_peak": 1.79,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c32000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-32000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 520.2870790000001,
+    "drain_ms": 1448.482308,
+    "seed_ms": 1968.769387,
+    "worker_miss_per_vector": 0.4595,
+    "worker_miss_per_batch": 29.26751592356688,
+    "worker_requests_per_vector": 458.5053,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     33703041
+    ],
+    "dispatcher_miss_per_vector": 11.3446,
+    "writer_miss_per_row": 10.9694,
+    "writer_write_miss": 3288,
+    "writer_drain_miss": 106406,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.99,
+    "load_peak": 1.99,
+    "load_flag": false
+   },
+   {
+    "write_ms": 463.261538,
+    "drain_ms": 1217.233539,
+    "seed_ms": 1680.495077,
+    "worker_miss_per_vector": 0.3631,
+    "worker_miss_per_batch": 23.127388535031848,
+    "worker_requests_per_vector": 458.504,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     33703041
+    ],
+    "dispatcher_miss_per_vector": 11.454,
+    "writer_miss_per_row": 11.3831,
+    "writer_write_miss": 3177,
+    "writer_drain_miss": 110654,
+    "runtime_cache_size": -32000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.79,
+    "load_peak": 1.79,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c64000-t1": {
+  "mode": "absent",
+  "runtime": "cache_size=-64000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap",
+   "AC013_RUNTIME_THREADS": "1"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 669.425535,
+    "drain_ms": 1241.4889549999998,
+    "seed_ms": 1910.9144900000001,
+    "worker_miss_per_vector": 0.5237,
+    "worker_miss_per_batch": 33.35668789808917,
+    "worker_requests_per_vector": 458.3893,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     38847105
+    ],
+    "dispatcher_miss_per_vector": 9.0407,
+    "writer_miss_per_row": 8.602,
+    "writer_write_miss": 3345,
+    "writer_drain_miss": 82675,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 1.91,
+    "load_flag": false
+   },
+   {
+    "write_ms": 466.726601,
+    "drain_ms": 1168.244512,
+    "seed_ms": 1634.971113,
+    "worker_miss_per_vector": 0.3631,
+    "worker_miss_per_batch": 23.127388535031848,
+    "worker_requests_per_vector": 458.5041,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     43460225
+    ],
+    "dispatcher_miss_per_vector": 11.454,
+    "writer_miss_per_row": 11.3831,
+    "writer_write_miss": 3177,
+    "writer_drain_miss": 110654,
+    "runtime_cache_size": -64000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.77,
+    "load_peak": 1.77,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c2000-sdoff": {
+  "mode": "absent",
+  "runtime": "secure_delete=OFF",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 471.095461,
+    "drain_ms": 3262.84251,
+    "seed_ms": 3733.937971,
+    "worker_miss_per_vector": 278.7444,
+    "worker_miss_per_batch": 17754.420382165605,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 12.3858,
+    "writer_miss_per_row": 1.5148,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 12526,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.91,
+    "load_peak": 1.91,
+    "load_flag": false
+   },
+   {
+    "write_ms": 470.810241,
+    "drain_ms": 3299.189594,
+    "seed_ms": 3769.999835,
+    "worker_miss_per_vector": 278.7493,
+    "worker_miss_per_batch": 17754.732484076434,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 12.3848,
+    "writer_miss_per_row": 1.6458,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 13836,
+    "runtime_cache_size": -2000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.77,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c8000-sdoff": {
+  "mode": "absent",
+  "runtime": "cache_size=-8000,secure_delete=OFF",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 10000,
+  "seed": [
+   {
+    "write_ms": 467.006172,
+    "drain_ms": 835.3774109999999,
+    "seed_ms": 1302.383583,
+    "worker_miss_per_vector": 7.5107,
+    "worker_miss_per_batch": 478.38853503184714,
+    "worker_requests_per_vector": 458.5097,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2656,
+    "writer_miss_per_row": 1.3433,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 10811,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.84,
+    "load_flag": false
+   },
+   {
+    "write_ms": 468.918535,
+    "drain_ms": 817.500053,
+    "seed_ms": 1286.418588,
+    "worker_miss_per_vector": 7.541,
+    "worker_miss_per_batch": 480.31847133757964,
+    "worker_requests_per_vector": 458.5161,
+    "worker_batches": 157,
+    "worker_used_bytes": [
+     2956161,
+     2969217
+    ],
+    "dispatcher_miss_per_vector": 12.2615,
+    "writer_miss_per_row": 1.0843,
+    "writer_write_miss": 2622,
+    "writer_drain_miss": 8221,
+    "runtime_cache_size": -8000,
+    "db_bytes": 58822656,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.84,
+    "load_peak": 1.84,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c2000@n100000": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 100000,
+  "seed": [
+   {
+    "write_ms": 6709.510967,
+    "drain_ms": 48587.973366,
+    "seed_ms": 55297.484333,
+    "worker_miss_per_vector": 293.02962,
+    "worker_miss_per_batch": 18747.896353166987,
+    "worker_requests_per_vector": 473.82292,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 115.68168,
+    "writer_miss_per_row": 65.84364,
+    "writer_write_miss": 147928,
+    "writer_drain_miss": 6436436,
+    "runtime_cache_size": -2000,
+    "db_bytes": 577687552,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.24,
+    "load_peak": 2.14,
+    "load_flag": false
+   },
+   {
+    "write_ms": 6778.48252,
+    "drain_ms": 46606.786393,
+    "seed_ms": 53385.268913,
+    "worker_miss_per_vector": 292.78947,
+    "worker_miss_per_batch": 18732.531669865642,
+    "worker_requests_per_vector": 473.82292,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 115.67301,
+    "writer_miss_per_row": 67.27769,
+    "writer_write_miss": 147928,
+    "writer_drain_miss": 6579841,
+    "runtime_cache_size": -2000,
+    "db_bytes": 577687552,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.13,
+    "load_peak": 1.94,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-h-c4000@n100000": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "held"
+  },
+  "corpus_n": 100000,
+  "seed": [
+   {
+    "write_ms": 7940.610895,
+    "drain_ms": 34002.875465000005,
+    "seed_ms": 41943.48636,
+    "worker_miss_per_vector": 2.83799,
+    "worker_miss_per_batch": 181.57325655790146,
+    "worker_requests_per_vector": 473.82292,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2634113,
+     2547073
+    ],
+    "dispatcher_miss_per_vector": 115.292,
+    "writer_miss_per_row": 109.80339,
+    "writer_write_miss": 147928,
+    "writer_drain_miss": 10832411,
+    "runtime_cache_size": -4000,
+    "db_bytes": 577687552,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.12,
+    "load_peak": 1.41,
+    "load_flag": false
+   },
+   {
+    "write_ms": 6730.370767,
+    "drain_ms": 33968.172064,
+    "seed_ms": 40698.542831,
+    "worker_miss_per_vector": 2.83477,
+    "worker_miss_per_batch": 181.36724248240563,
+    "worker_requests_per_vector": 473.82292,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2634113,
+     2547073
+    ],
+    "dispatcher_miss_per_vector": 115.2922,
+    "writer_miss_per_row": 108.02636,
+    "writer_write_miss": 147928,
+    "writer_drain_miss": 10654708,
+    "runtime_cache_size": -4000,
+    "db_bytes": 577687552,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.14,
+    "load_peak": 1.54,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c2000@n100000": {
+  "mode": "absent",
+  "runtime": "",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 100000,
+  "seed": [
+   {
+    "write_ms": 42208.848611999994,
+    "drain_ms": 1184.601805,
+    "seed_ms": 43393.450417,
+    "worker_miss_per_vector": 292.91888,
+    "worker_miss_per_batch": 18740.811260396673,
+    "worker_requests_per_vector": 472.49585,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 11.28328,
+    "writer_miss_per_row": 1.66938,
+    "writer_write_miss": 151786,
+    "writer_drain_miss": 15152,
+    "runtime_cache_size": -2000,
+    "db_bytes": 577740800,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.29,
+    "load_peak": 2.2,
+    "load_flag": false
+   },
+   {
+    "write_ms": 27540.924155999997,
+    "drain_ms": 14865.729067,
+    "seed_ms": 42406.653223,
+    "worker_miss_per_vector": 292.64251,
+    "worker_miss_per_batch": 18723.129238643633,
+    "worker_requests_per_vector": 472.80831,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2111873,
+     2111873
+    ],
+    "dispatcher_miss_per_vector": 36.00469,
+    "writer_miss_per_row": 9.58166,
+    "writer_write_miss": 151125,
+    "writer_drain_miss": 807041,
+    "runtime_cache_size": -2000,
+    "db_bytes": 577712128,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.09,
+    "load_peak": 1.32,
+    "load_flag": false
+   }
+  ]
+ },
+ "A768-o-c4000@n100000": {
+  "mode": "absent",
+  "runtime": "cache_size=-4000",
+  "writer": "",
+  "env": {
+   "AC013_VECTOR_DIM": "768",
+   "AC013_SEED_MODE": "overlap"
+  },
+  "corpus_n": 100000,
+  "seed": [
+   {
+    "write_ms": 7745.069318,
+    "drain_ms": 24817.582473000002,
+    "seed_ms": 32562.651791,
+    "worker_miss_per_vector": 3.99925,
+    "worker_miss_per_batch": 255.87012156110046,
+    "worker_requests_per_vector": 473.47404,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2542721,
+     2629761
+    ],
+    "dispatcher_miss_per_vector": 88.76974,
+    "writer_miss_per_row": 77.29396,
+    "writer_write_miss": 150484,
+    "writer_drain_miss": 7578912,
+    "runtime_cache_size": -4000,
+    "db_bytes": 577687552,
+    "memory_management_compiled": 0,
+    "repeat": 0,
+    "exit": 0,
+    "load_before": 1.15,
+    "load_peak": 1.54,
+    "load_flag": false
+   },
+   {
+    "write_ms": 7321.299988,
+    "drain_ms": 27409.505071000003,
+    "seed_ms": 34730.805059,
+    "worker_miss_per_vector": 4.00605,
+    "worker_miss_per_batch": 256.30518234165066,
+    "worker_requests_per_vector": 473.60674,
+    "worker_batches": 1563,
+    "worker_used_bytes": [
+     2547073,
+     2634113
+    ],
+    "dispatcher_miss_per_vector": 97.83375,
+    "writer_miss_per_row": 84.80972,
+    "writer_write_miss": 149923,
+    "writer_drain_miss": 8331049,
+    "runtime_cache_size": -4000,
+    "db_bytes": 577687552,
+    "memory_management_compiled": 0,
+    "repeat": 1,
+    "exit": 0,
+    "load_before": 1.15,
+    "load_peak": 1.49,
+    "load_flag": false
+   }
+  ]
+ }
+}

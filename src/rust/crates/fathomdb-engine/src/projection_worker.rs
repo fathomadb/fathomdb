@@ -56,6 +56,31 @@ fn report_runtime_native_state_inventory_for_test(
     let _ = respond.send(native_connection_state_for_test(connection, role, index));
 }
 
+#[cfg(feature = "test-hooks")]
+fn record_runtime_cache_status_for_test(
+    shared: &ProjectionRuntimeShared,
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+    jobs: usize,
+) {
+    let (hit, miss, used) = crate::reader_pool::read_cache_status(connection);
+    let mut status =
+        shared.runtime_cache_status.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let entry = status.entry((role, index)).or_insert_with(|| {
+        crate::projection_runtime::RuntimeCacheStatusForTest {
+            role: role.name(),
+            index,
+            ..Default::default()
+        }
+    });
+    entry.cache_hit = i64::from(hit);
+    entry.cache_miss = i64::from(miss);
+    entry.cache_used_bytes = i64::from(used);
+    entry.rounds += 1;
+    entry.jobs += jobs as u64;
+}
+
 fn report_projection_runtime_startup_failure(
     startup: &mpsc::Sender<ProjectionRuntimeStartupMessage>,
     role: ProjectionRuntimeStartupRole,
@@ -303,6 +328,14 @@ pub(crate) fn projection_dispatcher_loop(
             fetched.as_ref().map(|(jobs, _)| dense_arm_live || jobs.is_empty()).unwrap_or(true),
             "no-runtime scan returned embedding jobs despite the no-dispatch contract"
         );
+        #[cfg(feature = "test-hooks")]
+        record_runtime_cache_status_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            fetched.as_ref().map(|(jobs, _)| jobs.len()).unwrap_or(0),
+        );
         match fetched {
             Ok((jobs, _)) if !jobs.is_empty() => {
                 if let Ok(mut state) = shared.state.lock() {
@@ -487,6 +520,14 @@ pub(crate) fn projection_worker_loop(
             }
             Err(_) => Err(rusqlite::Error::InvalidQuery),
         };
+        #[cfg(feature = "test-hooks")]
+        record_runtime_cache_status_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            jobs.len(),
+        );
         if let Err(err) = commit_result {
             // Host subscribers are arbitrary application code. Their panic must
             // not bypass the mandatory state cleanup below, or the durable

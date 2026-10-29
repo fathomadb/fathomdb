@@ -1050,7 +1050,14 @@ impl Engine {
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn runtime_cache_status_for_test(&self) -> Vec<RuntimeCacheStatusForTest> {
-        Vec::new()
+        self.projection_runtime
+            .shared
+            .runtime_cache_status
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .values()
+            .cloned()
+            .collect()
     }
 
     /// Writer-connection page-cache counters `(hit, miss, used_bytes)`.
@@ -1058,7 +1065,10 @@ impl Engine {
     #[doc(hidden)]
     pub fn writer_cache_status_for_test(&self) -> Result<(i64, i64, i64), EngineError> {
         self.ensure_open()?;
-        Ok((0, 0, 0))
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let (hit, miss, used) = crate::reader_pool::read_cache_status(connection);
+        Ok((i64::from(hit), i64::from(miss), i64::from(used)))
     }
 
     #[cfg(any(test, feature = "test-hooks"))]

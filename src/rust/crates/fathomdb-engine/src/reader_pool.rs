@@ -905,7 +905,7 @@ fn read_lookaside_used_hiwtr(connection: &Connection) -> std::os::raw::c_int {
 /// page-cache memory footprint at call time. The caller is expected to
 /// take pre/post snapshots and do delta arithmetic explicitly.
 #[cfg(any(test, feature = "test-hooks"))]
-fn read_cache_status(
+pub(crate) fn read_cache_status(
     connection: &Connection,
 ) -> (std::os::raw::c_int, std::os::raw::c_int, std::os::raw::c_int) {
     let mut hit_current: std::os::raw::c_int = 0;

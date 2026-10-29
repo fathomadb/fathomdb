@@ -16,6 +16,7 @@
 //!
 //! Env knobs: `AC013_CORPUS_N` (default 10,000), `AC013_VECTOR_DIM` (default
 //! 768), `AC013_SAMPLES` (warm-up and timed searches per pass, default 1,000),
+//! `AC013_ISO` (set: add 100 heavy text documents and an isolation phase),
 //! and the engine's PRAGMA levers (`FATHOMDB_PERF_EXPERIMENTS=1` with
 //! `FATHOMDB_PERF_READER_PRAGMAS` / `FATHOMDB_PERF_WRITER_PRAGMAS`, e.g.
 //! `cache_size=-32000`). `LIBSQLITE3_FLAGS=-DSQLITE_ENABLE_MEMORY_MANAGEMENT`
@@ -25,6 +26,14 @@
 //! the timed pass, `cache_hit_per_search` / `cache_miss_per_search` summed
 //! over all readers (SQLite `CACHE_HIT` / `CACHE_MISS` deltas divided by the
 //! search count), and `cache_used_bytes_per_reader` after the pass.
+//! `cache_miss_per_reader` splits the pass's misses by reader, and
+//! `vm_rss_kib` is the process RSS after it. `store` / `store_before_warmup`
+//! give `page_count`, `page_size`, `db_bytes` and the WAL size, so misses ×
+//! page size can be compared with the store's size. With `AC013_ISO`,
+//! `isolation` holds a hybrid pass, one heavy text read on the next reader,
+//! another hybrid pass, and `p50_ratio` (after / before): the AC-013-shaped
+//! form of REQ40-I6. Heavy docs are kind `heavy`, so the vector rows and the
+//! text arm's corpus are unchanged, but the text index is larger.
 //! `memory_management_compiled` is 1 when the shared-group flag is built in.
 //! `corpus_digest` / `query_digest` must match the MCP harness's
 //! (`fathomdb-mcp/examples/ac013_mcp.rs`) for the two to share a workload.
@@ -43,6 +52,8 @@ use tempfile::TempDir;
 fn samples() -> usize {
     std::env::var("AC013_SAMPLES").ok().and_then(|v| v.parse().ok()).unwrap_or(1_000)
 }
+const HEAVY_DOCS: usize = 100;
+const HEAVY_TERM: &str = "ac013heavy";
 const CORPUS_SEED: u64 = 0x0AC0_13D0_13D0;
 const QUERY_SEED: u64 = 0x0AC0_130D_EC0D_E000;
 
@@ -108,6 +119,14 @@ fn synth_chunk_body(rng: &mut SeededRng, vocab: &[String], cumulative: &[f64]) -
         body.push_str(&vocab[zipf_index(rng, cumulative)]);
     }
     body
+}
+
+/// About 40 KB of distinct filler words, so heavy bodies cost their own pages.
+fn heavy_filler(doc: usize) -> String {
+    (0..5_000)
+        .map(|i| format!("h{:x}", (doc * 7919 + i * 104_729) % 1_000_003))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn bodies(seed: u64, count: usize) -> Vec<String> {
@@ -189,6 +208,43 @@ fn sums(status: &[CacheStatusReply]) -> (i64, i64) {
         .fold((0, 0), |(h, m), r| (h + i64::from(r.cache_hit), m + i64::from(r.cache_miss)))
 }
 
+/// The store's size at measurement time: main-file pages, page size, and the
+/// WAL file's bytes and approximate frame count, read from a separate
+/// read-only connection and the file system.
+fn store_stats(path: &std::path::Path) -> serde_json::Value {
+    let connection = rusqlite::Connection::open_with_flags(
+        path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .expect("open read-only");
+    let page_count: i64 = connection.query_row("PRAGMA page_count", [], |r| r.get(0)).unwrap();
+    let page_size: i64 = connection.query_row("PRAGMA page_size", [], |r| r.get(0)).unwrap();
+    drop(connection);
+    let mut wal = path.as_os_str().to_owned();
+    wal.push("-wal");
+    let wal_bytes = std::fs::metadata(&wal).map(|m| m.len()).unwrap_or(0);
+    serde_json::json!({
+        "page_count": page_count,
+        "page_size": page_size,
+        "db_bytes": page_count * page_size,
+        "wal_bytes": wal_bytes,
+        "wal_frames_approx": wal_bytes.saturating_sub(32) / (page_size as u64 + 24),
+    })
+}
+
+/// This process's resident set size in KiB (`VmRSS`), or -1 if unreadable.
+fn vm_rss_kib() -> i64 {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| {
+            status
+                .lines()
+                .find(|l| l.starts_with("VmRSS:"))
+                .and_then(|l| l.split_whitespace().nth(1).and_then(|v| v.parse().ok()))
+        })
+        .unwrap_or(-1)
+}
+
 /// One timed pass: per-search latency and the reader cache deltas over it.
 fn timed_pass(
     engine: &Engine,
@@ -214,6 +270,12 @@ fn timed_pass(
         "cache_hit_per_search": (h1 - h0) as f64 / n,
         "cache_miss_per_search": (m1 - m0) as f64 / n,
         "cache_used_bytes_per_reader": after.iter().map(|r| r.cache_used_bytes).collect::<Vec<_>>(),
+        "cache_miss_per_reader": after
+            .iter()
+            .zip(&before)
+            .map(|(a, b)| a.cache_miss - b.cache_miss)
+            .collect::<Vec<_>>(),
+        "vm_rss_kib": vm_rss_kib(),
     })
 }
 
@@ -250,12 +312,34 @@ fn ac013_page_cache_probe() {
             .collect();
         engine.write(&batch).expect("seed write");
     }
+    // AC013_ISO=1: also write 100 documents with ~40 KB bodies under a term
+    // no corpus body or query contains, as kind `heavy` (not embedded). The
+    // isolation phase below reads all of them in one text search.
+    let iso = std::env::var_os("AC013_ISO").is_some();
+    if iso {
+        let heavy: Vec<PreparedWrite> = (0..HEAVY_DOCS)
+            .map(|i| PreparedWrite::Node {
+                kind: "heavy".to_string(),
+                body: format!("{HEAVY_TERM} {}", heavy_filler(i)),
+                source_id: SourceId::new("test:fixture").expect("test source id"),
+                logical_id: None,
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        for chunk in heavy.chunks(20) {
+            engine.write(chunk).expect("heavy write");
+        }
+    }
     let seed_write = started.elapsed();
     let drain_started = Instant::now();
     engine.drain(1_800_000).expect("drain");
     let drain = drain_started.elapsed();
     assert_eq!(engine.vector_row_count_for_test().expect("vector rows"), n as u64);
 
+    let stats_before = store_stats(&path);
     let warm_before = engine.cache_status_per_worker_for_test("warmup");
     for q in &queries {
         engine.search(q).expect("warmup search");
@@ -267,6 +351,32 @@ fn ac013_page_cache_probe() {
     let text = timed_pass(engine, &queries, "text", |e, q| {
         e.search_text_only(q).expect("text search");
     });
+    // The AC-013-shaped form of REQ40-I6: a hybrid pass, one heavy text read
+    // on the next reader, then another hybrid pass. The ratio is the after
+    // pass's p50 over the before pass's.
+    let isolation = iso.then(|| {
+        let before = timed_pass(engine, &queries, "iso before", |e, q| {
+            e.search(q).expect("hybrid search");
+        });
+        let heavy_reader = engine.next_reader_worker_index_for_test();
+        let heavy = engine.search_text_only_with_limit(HEAVY_TERM, 100).expect("heavy search");
+        assert_eq!(heavy.results.len(), HEAVY_DOCS, "the heavy read returns every heavy doc");
+        let after_heavy = engine.cache_status_per_worker_for_test("after heavy");
+        let after = timed_pass(engine, &queries, "iso after", |e, q| {
+            e.search(q).expect("hybrid search");
+        });
+        let ratio = after["p50_ms"].as_f64().unwrap() / before["p50_ms"].as_f64().unwrap();
+        serde_json::json!({
+            "heavy_reader": heavy_reader,
+            "cache_used_bytes_after_heavy": after_heavy
+                .iter()
+                .map(|r| r.cache_used_bytes)
+                .collect::<Vec<_>>(),
+            "before": before,
+            "after": after,
+            "p50_ratio": ratio,
+        })
+    });
     let (wh0, wm0) = sums(&warm_before);
     let (wh1, wm1) = sums(&warm_after);
     let report = serde_json::json!({
@@ -274,12 +384,15 @@ fn ac013_page_cache_probe() {
         "dim": dim,
         "corpus_digest": digest(&corpus),
         "query_digest": digest(&queries),
+        "store_before_warmup": stats_before,
         "seed_write_ms": ms(seed_write),
         "drain_ms": ms(drain),
         "warmup_cache_hit_per_search": (wh1 - wh0) as f64 / samples() as f64,
         "warmup_cache_miss_per_search": (wm1 - wm0) as f64 / samples() as f64,
+        "store": store_stats(&path),
         "hybrid": hybrid,
         "text_only": text,
+        "isolation": isolation,
         "reader_pragmas": std::env::var("FATHOMDB_PERF_READER_PRAGMAS").unwrap_or_default(),
         "writer_pragmas": std::env::var("FATHOMDB_PERF_WRITER_PRAGMAS").unwrap_or_default(),
         "memory_management_compiled": unsafe {

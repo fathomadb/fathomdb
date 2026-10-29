@@ -66,6 +66,7 @@ def cell_env(cell: dict, base: dict, restored_target: str | None) -> dict:
         env["FATHOMDB_PERF_EXPERIMENTS"] = "1"
         env["FATHOMDB_PERF_READER_PRAGMAS"] = cell.get("reader", "")
         env["FATHOMDB_PERF_WRITER_PRAGMAS"] = cell.get("writer", "")
+    env.update(cell.get("env", {}))
     if cell["mode"] == "restored":
         if not restored_target:
             raise SystemExit(f"cell {cell['id']} needs --restored-target")
@@ -95,7 +96,8 @@ def parse_gate(log: str) -> dict:
         samples = sorted(int(s) for s in m[3].split(","))
         out.update(seed_write_ms=int(m[1]), drain_ms=int(m[2]),
                    p50_us=percentile(samples, 50), p99_us=percentile(samples, 99),
-                   mean_us=sum(samples) / len(samples))
+                   mean_us=sum(samples) / len(samples),
+                   samples_us=[int(s) for s in m[3].split(",")])
     return out
 
 
@@ -168,7 +170,9 @@ def arm_command(arm: str, env: dict, args, run_dir: Path) -> list[str]:
         env["AC013_SCALE_TREATMENT"] = "warm"
         env["LOG_PATH"] = str(run_dir / "gate-tee.log")
         return ["bash", "scripts/perf-experiments/run-ac013.sh"]
-    if arm == "probe":
+    if arm in ("probe", "probeiso"):
+        if arm == "probeiso":
+            env["AC013_ISO"] = "1"
         return cargo_test + ["--test", "exp_ac013_page_cache", "--", "--ignored", "--nocapture"]
     if arm == "mcp":
         if not args.mcp_store:
@@ -192,6 +196,7 @@ def arm_command(arm: str, env: dict, args, run_dir: Path) -> list[str]:
 
 
 PARSERS = {"gate": lambda o, e: parse_gate(o + e), "probe": lambda o, e: parse_probe(o + e),
+           "probeiso": lambda o, e: parse_probe(o + e),
            "mcp": lambda o, e: parse_mcp(o), "i6": lambda o, e: parse_i6(o + e),
            "iso": lambda o, e: parse_iso(o + e)}
 
@@ -240,11 +245,23 @@ def summarize(records: list[dict]) -> dict:
         if r["arm"] == "gate":
             keep = {k: res.get(k) for k in ("p50_ms", "p99_ms", "p50_us", "p99_us",
                                             "seed_ms", "seed_write_ms", "drain_ms")}
+        elif r["arm"] == "probeiso":
+            iso = res.get("isolation") or {}
+            keep = {"before_p50_ms": iso.get("before", {}).get("p50_ms"),
+                    "after_p50_ms": iso.get("after", {}).get("p50_ms"),
+                    "p50_ratio": iso.get("p50_ratio"),
+                    "after_miss_per_reader": iso.get("after", {}).get("cache_miss_per_reader"),
+                    "heavy_reader": iso.get("heavy_reader"),
+                    "vm_rss_kib": iso.get("after", {}).get("vm_rss_kib")}
         elif r["arm"] == "probe":
             keep = {"hybrid_p50_ms": res.get("hybrid", {}).get("p50_ms"),
                     "hybrid_miss_per_search": res.get("hybrid", {}).get("cache_miss_per_search"),
                     "hybrid_hit_per_search": res.get("hybrid", {}).get("cache_hit_per_search"),
                     "text_p50_ms": res.get("text_only", {}).get("p50_ms"),
+                    "text_miss_per_search": res.get("text_only", {}).get("cache_miss_per_search"),
+                    "vm_rss_kib": res.get("hybrid", {}).get("vm_rss_kib"),
+                    "db_bytes": res.get("store", {}).get("db_bytes"),
+                    "wal_frames": res.get("store_before_warmup", {}).get("wal_frames_approx"),
                     "cache_used_bytes_max": max(res.get("hybrid", {}).get(
                         "cache_used_bytes_per_reader", [0]) or [0]),
                     "seed_write_ms": res.get("seed_write_ms"), "drain_ms": res.get("drain_ms")}
@@ -258,7 +275,32 @@ def summarize(records: list[dict]) -> dict:
             keep = res
         keep.update(repeat=r["repeat"], load_before=r["load_before"], exit=r["exit"])
         cell.setdefault(r["arm"], []).append(keep)
+    paired_against(records, cells, control="A-r2000")
     return cells
+
+
+def per_query_median(records: list[dict], cell: str) -> list[float] | None:
+    """Per-query median latency (µs) over a cell's gate repeats, in query order."""
+    runs = [r["result"]["samples_us"] for r in records
+            if r["cell"] == cell and r["arm"] == "gate" and r["result"].get("samples_us")]
+    if not runs:
+        return None
+    return [sorted(col)[len(col) // 2] if len(col) % 2 else
+            (sorted(col)[len(col) // 2 - 1] + sorted(col)[len(col) // 2]) / 2
+            for col in zip(*runs)]
+
+
+def paired_against(records: list[dict], cells: dict, control: str) -> None:
+    """Median over queries of (cell - control) per-query medians, in ms."""
+    base = per_query_median(records, control)
+    if base is None:
+        return
+    for name, cell in cells.items():
+        mine = per_query_median(records, name)
+        if mine is None or len(mine) != len(base):
+            continue
+        diffs = sorted(a - b for a, b in zip(mine, base))
+        cell[f"paired_median_diff_vs_{control}_ms"] = diffs[len(diffs) // 2] / 1000.0
 
 
 def cmd_summarize(args) -> None:

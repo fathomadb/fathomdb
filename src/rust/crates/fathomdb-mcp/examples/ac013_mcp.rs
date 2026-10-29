@@ -6,6 +6,7 @@
 //!
 //! ```text
 //! ac013_mcp seed <store.sqlite>
+//! ac013_mcp drain <store.sqlite>
 //! ac013_mcp sdk  <store.sqlite> <out-dir>
 //! ac013_mcp mcp  <store.sqlite> <fathomdb-mcp binary> <out-dir> [levels] [requests]
 //! ```
@@ -13,7 +14,8 @@
 //! - `seed` writes the gate's corpus (n = `AC013_CORPUS_N`, default 10,000;
 //!   same generator, corpus seed and 1,024-row batches) into a searchable
 //!   vector projection on kind `doc`, drains, and checks that every node has a
-//!   vector row.
+//!   vector row. `drain` reopens a store whose seed drain timed out
+//!   (`AC013_DRAIN_TIMEOUT_MS`) and finishes it.
 //! - `sdk` opens the store with the default embedder in this process and runs
 //!   the gate's loop on `Engine::search` (1,000 warm-up, 1,000 timed, limit
 //!   10), then times `Engine::embed` alone on the same queries.
@@ -149,6 +151,13 @@ fn digest(texts: &[String]) -> String {
     format!("{h:016x}")
 }
 
+/// `AC013_DRAIN_TIMEOUT_MS`, default 30 min (the gate's default). Embedding
+/// 10,000 rows with the default embedder on a busy CPU can take longer; a
+/// timed-out `seed` is finished with `drain`.
+fn drain_timeout_ms() -> u64 {
+    std::env::var("AC013_DRAIN_TIMEOUT_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(1_800_000)
+}
+
 fn corpus_n() -> usize {
     std::env::var("AC013_CORPUS_N").ok().and_then(|v| v.parse().ok()).unwrap_or(10_000)
 }
@@ -245,7 +254,7 @@ fn seed(path: &Path) {
     }
     let seed_write = started.elapsed();
     let drain_started = Instant::now();
-    engine.drain(1_800_000).expect("drain");
+    engine.drain(drain_timeout_ms()).expect("drain");
     let drain = drain_started.elapsed();
     let readiness = read::embedding_readiness(&engine).expect("embedding readiness");
     engine.close().expect("close");
@@ -266,6 +275,22 @@ fn seed(path: &Path) {
         })
     );
     assert!(nodes == n as u64 && embedded == nodes, "embedding incomplete: {nodes} {embedded}");
+}
+
+/// Reopen a store whose `seed` drain timed out and finish embedding it.
+fn drain(path: &Path) {
+    let engine = open(path);
+    let started = Instant::now();
+    engine.drain(drain_timeout_ms()).expect("drain");
+    let drained = started.elapsed();
+    engine.close().expect("close");
+    let (nodes, embedded) = vector_coverage(path);
+    println!(
+        "{}",
+        json!({"command": "drain", "drain_ms": drained.as_secs_f64() * 1000.0,
+               "nodes": nodes, "vector_rows": embedded})
+    );
+    assert!(nodes == corpus_n() as u64 && embedded == nodes, "embedding incomplete");
 }
 
 // --- sdk. --------------------------------------------------------------------
@@ -597,13 +622,14 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let usage = || -> ! {
         eprintln!(
-            "usage: ac013_mcp seed <store> | sdk <store> <out-dir> | \
+            "usage: ac013_mcp seed <store> | drain <store> | sdk <store> <out-dir> | \
              mcp <store> <fathomdb-mcp> <out-dir> [levels] [requests]"
         );
         std::process::exit(2);
     };
     match args.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
         ["seed", store] => seed(Path::new(store)),
+        ["drain", store] => drain(Path::new(store)),
         ["sdk", store, out] => sdk(Path::new(store), Path::new(out)),
         ["mcp", store, binary, out, rest @ ..] => {
             let levels: Vec<usize> = rest

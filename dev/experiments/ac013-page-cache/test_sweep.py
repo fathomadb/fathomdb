@@ -73,3 +73,20 @@ def test_cell_env_sets_levers_and_clears_inherited_ones():
     assert restored["FATHOMDB_PERF_EXPERIMENTS"] == "1"
     assert restored["FATHOMDB_PERF_READER_PRAGMAS"] == "cache_size=-8000"
     assert restored["FATHOMDB_PERF_WRITER_PRAGMAS"] == ""
+
+
+def test_paired_difference_is_the_median_of_per_query_medians():
+    def rec(cell, rep, samples):
+        return {"cell": cell, "mode": "absent", "reader": "", "writer": "", "arm": "gate",
+                "repeat": rep, "load_before": 0, "exit": 0, "result": {"samples_us": samples}}
+    records = [rec("A-r2000", 0, [1000, 2000, 3000]), rec("A-r2000", 1, [3000, 2000, 1000]),
+               rec("X", 0, [500, 1000, 1500]), rec("X", 1, [500, 1000, 1500])]
+    cells = sweep.summarize(records)
+    # Control per-query medians 2000, 2000, 2000; X 500, 1000, 1500 -> diffs -1.5, -1, -0.5 ms.
+    assert cells["X"]["paired_median_diff_vs_A-r2000_ms"] == -1.0
+    assert cells["A-r2000"]["paired_median_diff_vs_A-r2000_ms"] == 0.0
+
+
+def test_cell_env_applies_cell_specific_env():
+    env = sweep.cell_env({"id": "z", "mode": "absent", "env": {"AC013_VECTOR_DIM": "384"}}, {}, None)
+    assert env["AC013_VECTOR_DIM"] == "384"

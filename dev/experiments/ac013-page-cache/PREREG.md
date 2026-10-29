@@ -24,6 +24,20 @@ miss and are re-read through the OS on every search. With
 shared group (capacity: the sum of every connection's limit), and the same
 pages stayed resident.
 
+Mechanism, stated so it can fail: 72,300 misses × 4 KiB is about 283 MB per
+search, several times the whole store (10,000 × 768 × 4 B is about 31 MB of
+f32). So the misses are re-reads, not first reads. The likely source is the
+phase-1 rerank join on `vector_default`: vec0 keeps vectors in chunk blobs
+of 1,024 rows (about 3 MB of f32, some 770 overflow pages), and reading one
+candidate's row walks the chunk's overflow chain from its start. About 192
+candidates × about 385 pages per walk is about 74,000 page reads, which
+matches. A 2,000 KiB cache (about 500 pages) cannot hold one chain, so every
+walk misses. A larger cache masks the walk; it does not remove it.
+
+Predicted knee: one chain is about 3 MB and all ten are about 31 MB, so
+most of the gain should come by -8000 to -32000, with little more at
+-64000. At 384-d, chains and store halve, so the knee should halve.
+
 ## Fixed conditions
 
 - Code: branch `feat/0.8.29-w4-ac013` (`dev/0.8.29` `8aec60ece` plus
@@ -38,20 +52,25 @@ pages stayed resident.
   queue defaults, `FATHOMDB_MCP_LOG=warn`, phase `c1` only.
 - Host: this machine (24 threads, 62 GB). No GPU. A run starts only when the
   1-minute load average is at most 2.0; the driver records the load before
-  and after each run.
+  and after each run. The gate and probe stores live in `/tmp`, which is
+  disk here, not tmpfs; misses are served from the OS page cache.
 
 ## Factors and levels
 
 | Factor | Levels | Why |
 | --- | --- | --- |
 | Page-cache mode | absent (today), restored | The Unit I change itself |
-| Reader `cache_size` | -2000 (default), -8000, -32000, -64000 | Size of a per-connection cache that holds the per-search working set |
+| Reader `cache_size` | -2000 (default), -8000, -16000 (flag absent only), -32000, -64000 | Size of a per-connection cache that holds the per-search working set |
 | Writer `cache_size` | default, -32000 | Seed-time effect; crossed with mode at the default reader size only |
 | Reader `mmap_size` | 268435456, flag absent, default reader size | A memory-mapped read path that bypasses most page-cache misses |
 
-Cells (`cells.json`): the 2 × 4 mode × reader grid, two writer cells, one
-mmap cell. Reader-pool size has no knob (`READER_POOL_SIZE = 8`), so it is
-not a factor.
+| Vector dimension | 768 (gate), 384 (flag absent; default and -32000 only) | Bridges to the MCP arm's 384-d store |
+
+Cells (`cells.json`, 14): the 2 × 4 mode × reader grid, A-r16000, two
+writer cells, one mmap cell and two 384-d cells. The table orders the
+writer, mmap and 384-d cells among the grid cells, so no group runs only at
+one end of a repeat. Reader-pool size has no knob (`READER_POOL_SIZE = 8`),
+so it is not a factor.
 
 The writer PRAGMA hook covers the writer connection only. The projection
 connections that drain the vector rows keep the default `cache_size`, so the
@@ -61,9 +80,13 @@ writer cells test the write path only.
 
 - **gate:** every cell, two repeats, cell order forward in repeat 0 and
   reversed in repeat 1. Flag-absent and flag-restored cells alternate in
-  the table, so A and B arms interleave.
-- **probe:** the eight grid cells and the mmap cell, one repeat (it supplies
-  the cache counters; the gate supplies the latency verdict).
+  the table, so A and B arms interleave. A third repeat for A-r2000,
+  R-r2000 and the best flag-absent level.
+- **probe:** every cell except the two writer cells, one repeat. It supplies
+  the cache counters, the store's `page_count` and WAL frames, and RSS; the
+  gate supplies the latency verdict. The mmap cell is judged by latency
+  only: mapped pages bypass the page cache, so its miss count falls whether
+  or not it helps.
 - **mcp c1:** cells A-r2000, R-r2000, and every flag-absent cell that
   passes the gate, two repeats.
 - **REQ40-I6** for every fix candidate (see the constraint), two repeats.
@@ -75,28 +98,42 @@ writer cells test the write path only.
 
 ## Noise and effect size
 
+- Statistics use microseconds (`p50_us` from the gate's raw samples), not
+  the gate's whole-millisecond print. The primary comparison between two
+  cells is the paired one: for each of the 1,000 queries, the median over
+  the cell's repeats, minus the same for A-r2000, then the median of those
+  differences.
 - Earlier repeat spread at p50 was 1–2 ms. A difference between cells is
   real when it is at least 5 ms and larger than three times the larger of
-  the two cells' repeat ranges.
+  the two cells' p50 repeat ranges (taken as at least 0.5 ms).
 - Seed time: real when at least 500 ms and larger than three times the
   repeat range.
 
 ## Decision rule
 
+The mechanism is judged against in-sweep controls, not against `main`'s
+79 ms from another day and tree. The gate's 80 ms limit is the separate fix
+verdict below.
+
 H1 is **confirmed** when all three hold:
 
-1. Flag absent: some reader `cache_size` level up to -64000 brings gate
-   p50 to 85 ms or less (within 6 ms of `main`'s 79 ms), with probe misses
-   per search at least 80% below A-r2000.
-2. Flag restored at the default size: gate p50 at 85 ms or less, with
-   misses per search at least 80% below A-r2000.
+1. Flag restored at the default size (R-r2000): misses per search at least
+   80% below A-r2000, and p50 lower than A-r2000 by a real amount.
+2. Flag absent: some reader `cache_size` level up to -64000 has misses per
+   search at least 80% below A-r2000 and a paired p50 difference to
+   R-r2000 of at most 5 ms.
 3. Across the flag-absent reader levels, p50 does not rise by a real
    amount as the cache grows.
 
-H1 is **refuted** when no flag-absent level brings p50 within 20 ms of
-79 ms, or misses do not fall by at least 50% at -64000. Anything between
-is **partial**: the report then names what part of the cost the cache does
-not explain.
+H1 is **refuted** when R-r2000 is not faster than A-r2000 by a real amount,
+or when no flag-absent level up to -64000 cuts misses by at least 50%
+although the store (`db_bytes` from the probe) fits in that level. If the
+store does not fit in -64000, the refutation by misses is void, and the
+report says so. Anything between is **partial**: the report then names what
+part of the cost the cache does not explain.
+
+The knee prediction is checked separately: it holds if the flag-absent p50
+at -32000 is within 5 ms of the best level.
 
 ## The constraint on fix candidates
 
@@ -104,12 +141,26 @@ A candidate is a cell whose gate p50 ≤ 80 ms and p99 ≤ 300 ms in both
 repeats. It is acceptable only if:
 
 - REQ40-I6 (i): each after-c01 body pass p50 ≤ 1.15 × the second before
-  pass, on both routes, in both repeats; and
-- AC40-97 passes.
+  pass, on both routes, in both repeats;
+- AC40-97 passes; and
+- probeiso: after/before hybrid p50 ratio ≤ 1.15.
+
+A flag-absent candidate passes the two slice40 checks almost by
+construction (no connection can take another's pages), so its main risk is
+memory; the probe's RSS is reported with each candidate. Under the flag
+restored, the group limit grows with the lever (connections × per-connection
+limit), so isolation must be measured, not assumed.
 
 Each candidate's memory ceiling is reported as per-connection limit ×
 connections (8 readers plus the writer, plus the mmap size where it
 applies).
+
+## Reviewer points not adopted
+
+- A non-capacity fix arm (a rowid-keyed f32 table for the rerank, or a
+  smaller vec0 `chunk_size`) is likely the best candidate, but it is a
+  product change and this task forbids those. FINDINGS lists it as an
+  unmeasured option.
 
 ## EP-18
 

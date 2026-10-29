@@ -582,6 +582,19 @@ pub(crate) fn build_vector_phase1_sql(filter: Option<&SearchFilter>, final_limit
     )
 }
 
+/// Experiment only (`vector_read_experiment.rs`): the phase-1 candidate
+/// SELECT of [`build_vector_phase1_sql`] on its own, with the same
+/// placeholders (`?1` sign-quant query, filters from `?3`).
+pub(crate) fn vector_candidates_sql(filter: Option<&SearchFilter>) -> String {
+    let filter_clause = vector_filter_clause(filter);
+    format!(
+        "SELECT rowid FROM vector_default \
+         WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)){filter_clause} \
+         ORDER BY distance LIMIT {top_k}",
+        top_k = TOP_K_BIT_CANDIDATES,
+    )
+}
+
 /// Compile node eligibility into SQL that executes before ranking or limits.
 pub(crate) fn append_node_eligibility_sql(
     filter: Option<&SearchFilter>,

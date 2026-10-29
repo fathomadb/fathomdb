@@ -1744,219 +1744,230 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             view.view.include_out_of_window,
             view.edge_now(),
         )?;
-    let vector_results = if let Some(query_vector) =
-        query_vector.filter(|_| !vector_eligibility_degraded)
-    {
-        let mut rowids = Vec::new();
-        let bin_vector = query_vector_bin.unwrap_or(query_vector);
-        {
-            // Phase 1: bit-KNN over `embedding_bin` to a top-K candidate
-            // set; Phase 2: f32 rerank on the candidate set via
-            // vec_distance_l2 against the retained `embedding` column.
-            // EU-5a2: ?1 is the (possibly centered) sign-quant input,
-            // ?2 is the un-centered f32 for vec_distance_l2 — both sides
-            // of the f32 cosine use un-centered vectors.
-            // Slice 18: `final_limit` is the caller's public result limit
-            // (default 10, validated through the public API). `candidate_limit`
-            // controls only vector phase-2 fanout: the test-only
-            // `set_search_limit_for_test` seam may raise it for recall tests.
-            // The seam never changes `final_limit`; visible results are still
-            // truncated to that caller-requested limit after ranking.
-            // G10: the metadata filter is appended to this single phase-1
-            // statement (`AND col=?n` from ?3); `filter=None` keeps the SQL
-            // byte-identical to 0.7.2. `?1`/`?2` are the sign-quant + f32 query
-            // vectors; filter values bind at ?3.. in `vector_filter_clause`
-            // order.
-            // fix-3 (F1, codex §9 [P2]) — OVERFETCH the phase-2 rerank so the
-            // validity/existence filter applied at hydration cannot starve the
-            // result set.
-            //
-            // The defect: hydration drops rows that are expired, superseded or
-            // inactive, but it ran on candidates ALREADY truncated to
-            // `final_limit`. If the nearest `final_limit` neighbours were all
-            // out-of-window they consumed every slot and were then dropped, so
-            // valid rows just below the cutoff were never considered — a
-            // default search silently returned too few hits, or none.
-            //
-            // Why overfetch rather than filtering in SQL: the natural fix is to
-            // join `canonical_nodes` into the candidate query, but (i) phase 1
-            // is a `vec0` KNN and ADR-0.8.11 D3 forbids demoting it with
-            // non-metadata predicates, and (ii) an `EXISTS` per candidate
-            // would probe `canonical_nodes_write_cursor_idx` for the whole
-            // pool on EVERY query — a guaranteed cost to fix a degenerate
-            // case.
-            //
-            // Overfetching is free by comparison: phase 2 already computes
-            // `vec_distance_l2` for all `TOP_K_BIT_CANDIDATES` in order to sort
-            // them, so raising the LIMIT only returns more of a result set that
-            // was already materialized. No extra vec0 work, no schema change,
-            // no new index, no second query. The hydration loop below then
-            // stops at `max(final_limit, VECTOR_FUSION_POOL)` SURVIVING hits.
-            //
-            // `max` (not a bare constant) preserves both the test seam's
-            // deeper candidate fanout and the caller's requested result limit.
-            let candidate_limit = candidate_limit.max(final_limit).max(TOP_K_BIT_CANDIDATES);
-            let sql = build_vector_phase1_sql(filter, candidate_limit);
-            let mut params: Vec<rusqlite::types::Value> = vec![
-                rusqlite::types::Value::Text(bin_vector.to_string()),
-                rusqlite::types::Value::Text(query_vector.to_string()),
-            ];
-            params.extend(vector_filter_values(filter));
-            let mut statement = prepare_search_statement(&tx, &sql)?;
-            let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
-            })?;
-            for row in rows {
-                rowids.push(row?);
+    let vector_results =
+        if let Some(query_vector) = query_vector.filter(|_| !vector_eligibility_degraded) {
+            let mut rowids = Vec::new();
+            let bin_vector = query_vector_bin.unwrap_or(query_vector);
+            {
+                // Phase 1: bit-KNN over `embedding_bin` to a top-K candidate
+                // set; Phase 2: f32 rerank on the candidate set via
+                // vec_distance_l2 against the retained `embedding` column.
+                // EU-5a2: ?1 is the (possibly centered) sign-quant input,
+                // ?2 is the un-centered f32 for vec_distance_l2 — both sides
+                // of the f32 cosine use un-centered vectors.
+                // Slice 18: `final_limit` is the caller's public result limit
+                // (default 10, validated through the public API). `candidate_limit`
+                // controls only vector phase-2 fanout: the test-only
+                // `set_search_limit_for_test` seam may raise it for recall tests.
+                // The seam never changes `final_limit`; visible results are still
+                // truncated to that caller-requested limit after ranking.
+                // G10: the metadata filter is appended to this single phase-1
+                // statement (`AND col=?n` from ?3); `filter=None` keeps the SQL
+                // byte-identical to 0.7.2. `?1`/`?2` are the sign-quant + f32 query
+                // vectors; filter values bind at ?3.. in `vector_filter_clause`
+                // order.
+                // fix-3 (F1, codex §9 [P2]) — OVERFETCH the phase-2 rerank so the
+                // validity/existence filter applied at hydration cannot starve the
+                // result set.
+                //
+                // The defect: hydration drops rows that are expired, superseded or
+                // inactive, but it ran on candidates ALREADY truncated to
+                // `final_limit`. If the nearest `final_limit` neighbours were all
+                // out-of-window they consumed every slot and were then dropped, so
+                // valid rows just below the cutoff were never considered — a
+                // default search silently returned too few hits, or none.
+                //
+                // Why overfetch rather than filtering in SQL: the natural fix is to
+                // join `canonical_nodes` into the candidate query, but (i) phase 1
+                // is a `vec0` KNN and ADR-0.8.11 D3 forbids demoting it with
+                // non-metadata predicates, and (ii) an `EXISTS` per candidate
+                // would probe `canonical_nodes_write_cursor_idx` for the whole
+                // pool on EVERY query — a guaranteed cost to fix a degenerate
+                // case.
+                //
+                // Overfetching is free by comparison: phase 2 already computes
+                // `vec_distance_l2` for all `TOP_K_BIT_CANDIDATES` in order to sort
+                // them, so raising the LIMIT only returns more of a result set that
+                // was already materialized. No extra vec0 work, no schema change,
+                // no new index, no second query. The hydration loop below then
+                // stops at `max(final_limit, VECTOR_FUSION_POOL)` SURVIVING hits.
+                //
+                // `max` (not a bare constant) preserves both the test seam's
+                // deeper candidate fanout and the caller's requested result limit.
+                let candidate_limit = candidate_limit.max(final_limit).max(TOP_K_BIT_CANDIDATES);
+                let sql = build_vector_phase1_sql(filter, candidate_limit);
+                let mut params: Vec<rusqlite::types::Value> = vec![
+                    rusqlite::types::Value::Text(bin_vector.to_string()),
+                    rusqlite::types::Value::Text(query_vector.to_string()),
+                ];
+                params.extend(vector_filter_values(filter));
+                let mode = crate::vector_read_experiment::rerank_mode();
+                if mode == crate::vector_read_experiment::RerankMode::Join {
+                    let mut statement = prepare_search_statement(&tx, &sql)?;
+                    let rows = statement
+                        .query_map(rusqlite::params_from_iter(params.iter()), |row| {
+                            Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
+                        })?;
+                    for row in rows {
+                        rowids.push(row?);
+                    }
+                } else {
+                    rowids = crate::vector_read_experiment::phase1(
+                        mode,
+                        &tx,
+                        filter,
+                        candidate_limit,
+                        &params,
+                    )?;
+                }
             }
-        }
-        // G1: carry the canonical row's `write_cursor` (interim id), `kind`,
-        // `body`, and the `vec_distance_l2` rerank score per hit. The
-        // `_fathomdb_vector_rows.rowid` equals the canonical `write_cursor`,
-        // so the candidate rowid IS the hit id.
-        //
-        // G11 (Slice 15) fix: edge bodies are projected into vector_default under
-        // kind = "edge_fact"; their write_cursor is in canonical_edges, not
-        // canonical_nodes. Try canonical_nodes first; fall back to canonical_edges
-        // for edge-fact hits so they are not silently dropped.
-        let mut results = Vec::new();
-        // Cause-A: the two node/edge SELECTs additively fetch `logical_id` so the
-        // hit can carry a stable cross-session id (derive_stable_id). Read-only
-        // additive column — ordering/scores are untouched.
-        // fix-1 (codex §9): co-locate BOTH existence guards. Node supersession
-        // is tombstone-then-insert (`commit_batch`) — the prior `canonical_nodes`
-        // row is kept (same `write_cursor`, `state = 'active'`, `superseded_at`
-        // set) and, unlike the edge path (fix-30), its stale `vector_default` row
-        // is NOT pruned, so the phase-1 bit-KNN can still surface the OLD cursor.
-        // Without `superseded_at IS NULL` here that superseded version would
-        // hydrate and leak stale content through vector search. This matches the
-        // edge branch below and every other retrieval site (design §2: enforce
-        // the exclusion at EVERY retrieval site). It only drops already-superseded
-        // rows → a no-op on the all-active / non-superseded corpus.
-        // TC-31 (0.8.20 Slice 10a): both hydration SELECTs additively fetch the
-        // canonical row's OWN `source_id` so a vector hit carries the provenance
-        // `erase_source` consumes. These statements already read the canonical
-        // row by `write_cursor`, so this is one extra COLUMN on an existing
-        // lookup — NOT an extra query. (Each lookup is one probe of
-        // `canonical_nodes_write_cursor_idx`; TC-31 must not add a second
-        // one.) Read-only additive column — row-set, ordering and scores are
-        // untouched.
-        // fix-2 (codex §9 [P2]): the validity conjunct comes from
-        // `ReadView::validity_sql` — the SAME generator the five read verbs use.
-        // It is NOT hand-rolled here: Slice 10's whole design is that the
-        // predicate exists in exactly ONE place, so no retrieval site can drift
-        // from another. `?1` is the candidate rowid, so `:now` binds at `?2`.
-        // On a corpus that never authored a window every row is NULL/NULL and
-        // the conjunct matches everything ⇒ default behaviour is unchanged.
-        let node_validity = view.validity_sql("canonical_nodes", 2);
-        let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
-        let mut node_stmt = prepare_search_statement(
-            &tx,
-            &format!(
-                "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
+            // G1: carry the canonical row's `write_cursor` (interim id), `kind`,
+            // `body`, and the `vec_distance_l2` rerank score per hit. The
+            // `_fathomdb_vector_rows.rowid` equals the canonical `write_cursor`,
+            // so the candidate rowid IS the hit id.
+            //
+            // G11 (Slice 15) fix: edge bodies are projected into vector_default under
+            // kind = "edge_fact"; their write_cursor is in canonical_edges, not
+            // canonical_nodes. Try canonical_nodes first; fall back to canonical_edges
+            // for edge-fact hits so they are not silently dropped.
+            let mut results = Vec::new();
+            // Cause-A: the two node/edge SELECTs additively fetch `logical_id` so the
+            // hit can carry a stable cross-session id (derive_stable_id). Read-only
+            // additive column — ordering/scores are untouched.
+            // fix-1 (codex §9): co-locate BOTH existence guards. Node supersession
+            // is tombstone-then-insert (`commit_batch`) — the prior `canonical_nodes`
+            // row is kept (same `write_cursor`, `state = 'active'`, `superseded_at`
+            // set) and, unlike the edge path (fix-30), its stale `vector_default` row
+            // is NOT pruned, so the phase-1 bit-KNN can still surface the OLD cursor.
+            // Without `superseded_at IS NULL` here that superseded version would
+            // hydrate and leak stale content through vector search. This matches the
+            // edge branch below and every other retrieval site (design §2: enforce
+            // the exclusion at EVERY retrieval site). It only drops already-superseded
+            // rows → a no-op on the all-active / non-superseded corpus.
+            // TC-31 (0.8.20 Slice 10a): both hydration SELECTs additively fetch the
+            // canonical row's OWN `source_id` so a vector hit carries the provenance
+            // `erase_source` consumes. These statements already read the canonical
+            // row by `write_cursor`, so this is one extra COLUMN on an existing
+            // lookup — NOT an extra query. (Each lookup is one probe of
+            // `canonical_nodes_write_cursor_idx`; TC-31 must not add a second
+            // one.) Read-only additive column — row-set, ordering and scores are
+            // untouched.
+            // fix-2 (codex §9 [P2]): the validity conjunct comes from
+            // `ReadView::validity_sql` — the SAME generator the five read verbs use.
+            // It is NOT hand-rolled here: Slice 10's whole design is that the
+            // predicate exists in exactly ONE place, so no retrieval site can drift
+            // from another. `?1` is the candidate rowid, so `:now` binds at `?2`.
+            // On a corpus that never authored a window every row is NULL/NULL and
+            // the conjunct matches everything ⇒ default behaviour is unchanged.
+            let node_validity = view.validity_sql("canonical_nodes", 2);
+            let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
+            let mut node_stmt = prepare_search_statement(
+                &tx,
+                &format!(
+                    "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
              {node_validity}{node_eligibility} LIMIT 1"
-            ),
-        )?;
-        // fix-2 (codex §9 [P2]): an edge body projected into `vector_default`
-        // (kind = "edge_fact") is hydrated HERE by write_cursor. Gating on
-        // `superseded_at` alone let an EXPIRED edge (`t_invalid <= :now`) surface
-        // its body through the VECTOR arm — the same "validity enforced on
-        // traversal, not on search" gap Slice 15b closed for nodes, now on the
-        // edge-vector read path. Apply the shared `edge_validity_sql` predicate
-        // (the ONE generator every edge read site uses) so no arm can drift.
-        // `?1` is the rowid, so the edge `:now` binds at `?2`; the instant is the
-        // frozen `view.edge_now()` — a bound value, never `datetime('now')`
-        // (the :9161 no-inline-clock rule). edge_now is ALWAYS present, so unlike
-        // node validity this conjunct is unconditional (an edge invalidated in the
-        // past stays excluded even when node existence is relaxed).
-        let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
-        let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
-        let mut edge_stmt = prepare_search_statement(
-            &tx,
-            &format!(
-                "SELECT body, logical_id, source_id FROM canonical_edges \
+                ),
+            )?;
+            // fix-2 (codex §9 [P2]): an edge body projected into `vector_default`
+            // (kind = "edge_fact") is hydrated HERE by write_cursor. Gating on
+            // `superseded_at` alone let an EXPIRED edge (`t_invalid <= :now`) surface
+            // its body through the VECTOR arm — the same "validity enforced on
+            // traversal, not on search" gap Slice 15b closed for nodes, now on the
+            // edge-vector read path. Apply the shared `edge_validity_sql` predicate
+            // (the ONE generator every edge read site uses) so no arm can drift.
+            // `?1` is the rowid, so the edge `:now` binds at `?2`; the instant is the
+            // frozen `view.edge_now()` — a bound value, never `datetime('now')`
+            // (the :9161 no-inline-clock rule). edge_now is ALWAYS present, so unlike
+            // node validity this conjunct is unconditional (an edge invalidated in the
+            // past stays excluded even when node existence is relaxed).
+            let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
+            let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
+            let mut edge_stmt = prepare_search_statement(
+                &tx,
+                &format!(
+                    "SELECT body, logical_id, source_id FROM canonical_edges \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
              {edge_validity}{edge_eligibility} LIMIT 1"
-            ),
-        )?;
-        // The bound parameter list for the node lookup: the candidate rowid,
-        // plus `:now` when (and only when) the view emitted a validity conjunct.
-        // One instant for the whole query — resolved once, above, not per row.
-        let node_params = |rowid: i64| -> Vec<rusqlite::types::Value> {
-            let mut p = vec![rusqlite::types::Value::Integer(rowid)];
-            if let Some(now) = now_param {
-                p.push(rusqlite::types::Value::Integer(now));
+                ),
+            )?;
+            // The bound parameter list for the node lookup: the candidate rowid,
+            // plus `:now` when (and only when) the view emitted a validity conjunct.
+            // One instant for the whole query — resolved once, above, not per row.
+            let node_params = |rowid: i64| -> Vec<rusqlite::types::Value> {
+                let mut p = vec![rusqlite::types::Value::Integer(rowid)];
+                if let Some(now) = now_param {
+                    p.push(rusqlite::types::Value::Integer(now));
+                }
+                p
+            };
+            for (rowid, score) in rowids {
+                // fix-3 (F1): the candidate list is now the OVERFETCHED pool in
+                // exact-L2 order, so the caller's cutoff is applied HERE — after
+                // the validity/existence filter, not before it. Bounded worst case:
+                // at most `TOP_K_BIT_CANDIDATES` hydration probes when nearly every
+                // candidate is filtered out; exactly `max(final_limit,
+                // VECTOR_FUSION_POOL)` when nothing is. Ordering is unchanged — the
+                // surviving rows are still emitted nearest-first. The pool floor
+                // makes every limit up to the pool fuse the same vector list, so a
+                // smaller limit is a prefix of a larger one; fusion still truncates
+                // to `final_limit`.
+                if results.len() >= final_limit.max(VECTOR_FUSION_POOL) {
+                    break;
+                }
+                if let Some((kind, body, logical_id, source_id)) = node_stmt
+                    .query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, Option<String>>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                        ))
+                    })
+                    .optional()?
+                {
+                    let id = derive_stable_id(logical_id.as_deref(), &body);
+                    results.push(SearchHit {
+                        id,
+                        write_cursor: rowid as u64,
+                        kind,
+                        body,
+                        score,
+                        branch: SoftFallbackBranch::Vector,
+                        // TC-31: the NODE's own provenance (a node hit is erased by
+                        // the document it was written from).
+                        source_id,
+                        ce_score: None,
+                    });
+                } else if let Some((body, logical_id, source_id)) = edge_stmt
+                    .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, Option<String>>(1)?,
+                            row.get::<_, Option<String>>(2)?,
+                        ))
+                    })
+                    .optional()?
+                {
+                    let id = derive_stable_id(logical_id.as_deref(), &body);
+                    results.push(SearchHit {
+                        id,
+                        write_cursor: rowid as u64,
+                        kind: "edge_fact".to_string(),
+                        body,
+                        score,
+                        branch: SoftFallbackBranch::TextEdge,
+                        // TC-31: the EDGE's own provenance — consistent with the
+                        // graph arm's existing edge-source semantics.
+                        source_id,
+                        ce_score: None,
+                    });
+                }
             }
-            p
+            results
+        } else {
+            Vec::new()
         };
-        for (rowid, score) in rowids {
-            // fix-3 (F1): the candidate list is now the OVERFETCHED pool in
-            // exact-L2 order, so the caller's cutoff is applied HERE — after
-            // the validity/existence filter, not before it. Bounded worst case:
-            // at most `TOP_K_BIT_CANDIDATES` hydration probes when nearly every
-            // candidate is filtered out; exactly `max(final_limit,
-            // VECTOR_FUSION_POOL)` when nothing is. Ordering is unchanged — the
-            // surviving rows are still emitted nearest-first. The pool floor
-            // makes every limit up to the pool fuse the same vector list, so a
-            // smaller limit is a prefix of a larger one; fusion still truncates
-            // to `final_limit`.
-            if results.len() >= final_limit.max(VECTOR_FUSION_POOL) {
-                break;
-            }
-            if let Some((kind, body, logical_id, source_id)) = node_stmt
-                .query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, Option<String>>(2)?,
-                        row.get::<_, Option<String>>(3)?,
-                    ))
-                })
-                .optional()?
-            {
-                let id = derive_stable_id(logical_id.as_deref(), &body);
-                results.push(SearchHit {
-                    id,
-                    write_cursor: rowid as u64,
-                    kind,
-                    body,
-                    score,
-                    branch: SoftFallbackBranch::Vector,
-                    // TC-31: the NODE's own provenance (a node hit is erased by
-                    // the document it was written from).
-                    source_id,
-                    ce_score: None,
-                });
-            } else if let Some((body, logical_id, source_id)) = edge_stmt
-                .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, Option<String>>(1)?,
-                        row.get::<_, Option<String>>(2)?,
-                    ))
-                })
-                .optional()?
-            {
-                let id = derive_stable_id(logical_id.as_deref(), &body);
-                results.push(SearchHit {
-                    id,
-                    write_cursor: rowid as u64,
-                    kind: "edge_fact".to_string(),
-                    body,
-                    score,
-                    branch: SoftFallbackBranch::TextEdge,
-                    // TC-31: the EDGE's own provenance — consistent with the
-                    // graph arm's existing edge-source semantics.
-                    source_id,
-                    ce_score: None,
-                });
-            }
-        }
-        results
-    } else {
-        Vec::new()
-    };
     let vector_rows_visible = !vector_results.is_empty();
     let soft_fallback = if vector_eligibility_degraded {
         Some(SoftFallback { branch: SoftFallbackBranch::Vector })

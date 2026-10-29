@@ -100,6 +100,9 @@ fn vector_partition_create_sql(
     for col in attr_cols {
         attrs.push_str(&format!(",{col} TEXT"));
     }
+    if let Some(n) = crate::vector_read_experiment::vec0_chunk_size_option() {
+        attrs.push_str(&format!(",chunk_size={n}"));
+    }
     format!(
         "CREATE VIRTUAL TABLE {guard}{DEFAULT_VECTOR_PARTITION} USING vec0(\
             embedding float[{dimension}],\
@@ -113,7 +116,8 @@ fn vector_partition_create_sql(
 }
 
 fn create_vector_partition(connection: &Connection, dimension: u32) -> rusqlite::Result<()> {
-    connection.execute_batch(&vector_partition_create_sql(dimension, true, &[]))
+    connection.execute_batch(&vector_partition_create_sql(dimension, true, &[]))?;
+    crate::vector_read_experiment::ensure_f32_table(connection)
 }
 
 /// 0.8.20 Slice 15e — encode an arbitrary registry attribute NAME into a vec0-safe

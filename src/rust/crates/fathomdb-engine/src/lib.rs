@@ -137,6 +137,7 @@ pub use telemetry::CounterSnapshot;
 mod temporal;
 mod test_hooks;
 mod vector_equivalence;
+mod vector_read_experiment;
 mod vector_storage;
 mod wal_attribution;
 mod wal_runtime;

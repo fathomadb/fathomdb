@@ -947,12 +947,37 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
 
 const PROJECTION_CANDIDATE_PAGE: usize = 256;
 
+/// Experiment knob (`dev/experiments/ac013-seed-drain/`): with
+/// `FATHOMDB_PERF_EXPERIMENTS` set, `FATHOMDB_PERF_DRAIN_SCAN=armlimit` gives
+/// each `UNION ALL` arm of the scheduler scan and the candidate-page query its
+/// own `ORDER BY write_cursor LIMIT page`, so an arm streams in cursor-index
+/// order and stops after one page instead of feeding every pending row into
+/// the outer sort. The outer `ORDER BY ... LIMIT page` over at most two pages
+/// returns the same rows. Read on every call so one process can compare both.
+fn drain_scan_arm_limit() -> bool {
+    std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
+        && std::env::var("FATHOMDB_PERF_DRAIN_SCAN").ok().as_deref() == Some("armlimit")
+}
+
+/// Wrap one `UNION ALL` arm in its own ordered, limited subquery when
+/// `arm_limit` is set.
+fn union_arm(arm: String, order_by: &str, arm_limit: bool) -> String {
+    if arm_limit {
+        format!("SELECT * FROM ({arm} ORDER BY {order_by} LIMIT {PROJECTION_CANDIDATE_PAGE})")
+    } else {
+        arm
+    }
+}
+
 /// The scheduler's pending-job page query (`?1` page cursor, `?2` edge
 /// validity instant).
 fn scheduler_scan_sql() -> String {
-    format!(
-        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
-             SELECT canonical_nodes.write_cursor AS write_cursor,
+    scheduler_scan_sql_for(drain_scan_arm_limit())
+}
+
+fn scheduler_scan_sql_for(arm_limit: bool) -> String {
+    let node_arm = union_arm(
+        "SELECT canonical_nodes.write_cursor AS write_cursor,
                     canonical_nodes.kind AS kind,
                     canonical_nodes.body AS body
              FROM canonical_nodes
@@ -961,43 +986,74 @@ fn scheduler_scan_sql() -> String {
              LEFT JOIN _fathomdb_projection_terminal
                ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
              WHERE canonical_nodes.write_cursor > ?1
-               AND _fathomdb_projection_terminal.write_cursor IS NULL
+               AND _fathomdb_projection_terminal.write_cursor IS NULL"
+            .to_string(),
+        "canonical_nodes.write_cursor",
+        arm_limit,
+    );
+    // The persisted projection cursor remains the healthy fast path. TC-33:
+    // `?1` is the page cursor and the edge validity instant binds at `?2`.
+    let edge_arm = union_arm(
+        format!(
+            "SELECT ce.write_cursor AS write_cursor,
+                    'edge_fact' AS kind,
+                    ce.body AS body
+             {edge_from}
+               AND ce.write_cursor > ?1",
+            edge_from = pending_edge_projection_from_where(2),
+        ),
+        "ce.write_cursor",
+        arm_limit,
+    );
+    format!(
+        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
+             {node_arm}
 
              UNION ALL
 
-             SELECT ce.write_cursor AS write_cursor,
-                    'edge_fact' AS kind,
-                    ce.body AS body
              {edge_arm}
-               AND ce.write_cursor > ?1
          ) AS pending
          CROSS JOIN _fathomdb_projection_generation_current AS current
          WHERE current.singleton=1
          ORDER BY pending.write_cursor
-         LIMIT {PROJECTION_CANDIDATE_PAGE}",
-        // The persisted projection cursor remains the healthy fast path. TC-33:
-        // `?1` is the page cursor and the edge validity instant binds at `?2`.
-        edge_arm = pending_edge_projection_from_where(2),
+         LIMIT {PROJECTION_CANDIDATE_PAGE}"
     )
 }
 
 /// The pending-member page query shared by readiness and `drain`'s probe
 /// (`?1` after, `?2` through or NULL, `?3` edge validity instant).
 fn candidate_page_sql() -> String {
-    format!(
-        "SELECT pending.write_cursor,pending.kind FROM (
-           SELECT n.write_cursor,n.kind
+    candidate_page_sql_for(drain_scan_arm_limit())
+}
+
+fn candidate_page_sql_for(arm_limit: bool) -> String {
+    let node_arm = union_arm(
+        "SELECT n.write_cursor,n.kind
            FROM canonical_nodes n
            JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
            LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
            WHERE n.write_cursor>?1 AND (?2 IS NULL OR n.write_cursor<=?2)
-             AND pt.write_cursor IS NULL
-           UNION ALL
-           SELECT ce.write_cursor,'edge_fact'
+             AND pt.write_cursor IS NULL"
+            .to_string(),
+        "n.write_cursor",
+        arm_limit,
+    );
+    let edge_arm = union_arm(
+        format!(
+            "SELECT ce.write_cursor,'edge_fact'
            {}
-             AND ce.write_cursor>?1 AND (?2 IS NULL OR ce.write_cursor<=?2)
-         ) AS pending ORDER BY pending.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE}",
-        pending_edge_projection_from_where(3),
+             AND ce.write_cursor>?1 AND (?2 IS NULL OR ce.write_cursor<=?2)",
+            pending_edge_projection_from_where(3),
+        ),
+        "ce.write_cursor",
+        arm_limit,
+    );
+    format!(
+        "SELECT pending.write_cursor,pending.kind FROM (
+           {node_arm}
+           UNION ALL
+           {edge_arm}
+         ) AS pending ORDER BY pending.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE}"
     )
 }
 

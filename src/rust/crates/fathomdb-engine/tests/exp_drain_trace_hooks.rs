@@ -144,3 +144,67 @@ fn projection_scan_query_plans_cover_scheduler_and_candidate_page() {
     }
     opened.engine.close().expect("close");
 }
+
+/// Scheduler-scan page requests per run, from the dispatcher's trace rows.
+fn scheduler_scan_requests_per_run(rows: &[fathomdb_engine::PageTraceRow]) -> f64 {
+    let scans: Vec<_> = rows
+        .iter()
+        .filter(|row| {
+            row.role == "projection_dispatcher"
+                && row.sql.starts_with("SELECT pending.write_cursor, pending.kind, pending.body")
+        })
+        .collect();
+    let runs: u64 = scans.iter().map(|row| row.runs).sum();
+    let requests: i64 = scans.iter().map(|row| row.exclusive_hit + row.exclusive_miss).sum();
+    assert!(runs > 0, "the dispatcher ran its scan: {rows:#?}");
+    requests as f64 / runs as f64
+}
+
+fn held_seed_and_drain_traced(name: &str, rows: usize) -> Vec<fathomdb_engine::PageTraceRow> {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("{name}{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("open");
+    let engine = &opened.engine;
+    engine.configure_vector_kind_for_test("doc").expect("vector kind");
+    engine.set_projection_scheduler_frozen_for_test(true);
+    let batch: Vec<PreparedWrite> = (0..rows)
+        .map(|i| PreparedWrite::Node {
+            kind: "doc".to_string(),
+            body: format!("armlimit body {i} {}", "padding ".repeat(40)),
+            source_id: SourceId::new("test:fixture").expect("source"),
+            logical_id: None,
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        })
+        .collect();
+    engine.write(&batch).expect("write");
+    let _ = take_page_trace_for_test();
+    engine.set_projection_scheduler_frozen_for_test(false);
+    engine.drain(60_000).expect("drain");
+    let trace = take_page_trace_for_test();
+    assert_eq!(engine.vector_row_count_for_test().expect("vector rows"), rows as u64);
+    opened.engine.close().expect("close");
+    trace
+}
+
+#[test]
+fn drain_scan_armlimit_bounds_scheduler_scan_reads_by_page_not_backlog() {
+    let _guard = LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    std::env::set_var("FATHOMDB_PERF_PAGE_TRACE", "dispatcher");
+    std::env::set_var("FATHOMDB_PERF_EXPERIMENTS", "1");
+    std::env::set_var("FATHOMDB_PERF_DRAIN_SCAN", "armlimit");
+    let trace = held_seed_and_drain_traced("armlimit", 4_000);
+    std::env::remove_var("FATHOMDB_PERF_DRAIN_SCAN");
+    std::env::remove_var("FATHOMDB_PERF_EXPERIMENTS");
+    std::env::remove_var("FATHOMDB_PERF_PAGE_TRACE");
+    // Without the knob every scan reads the whole pending backlog (about
+    // 2,000 rows on average here); with it a scan reads one 256-row page per
+    // arm plus the rows it skips.
+    let per_run = scheduler_scan_requests_per_run(&trace);
+    assert!(
+        per_run < 800.0,
+        "scheduler scan requests per run {per_run:.0} must not track the backlog"
+    );
+}

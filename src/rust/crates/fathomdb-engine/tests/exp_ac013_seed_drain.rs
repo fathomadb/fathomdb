@@ -42,7 +42,9 @@
 //! cumulative counters at each tick); `writer` cache deltas over the write and
 //! the drain; `runtime` per-connection cache counters; `trace_by_role` and
 //! `trace` (top statements by exclusive page requests, with `ns`); `store`
-//! sizes; `digest` of the projected store; `knobs`.
+//! sizes; `digest` of the projected store; `query_plans` (`EXPLAIN QUERY
+//! PLAN` of the scheduler scan and the candidate-page query on the engine
+//! connection after the drain); `knobs`.
 
 #![cfg(feature = "test-hooks")]
 
@@ -441,6 +443,12 @@ fn ac013_seed_drain_probe() {
         entry.2 += row.exclusive_miss;
         entry.3 += row.exclusive_ns;
     }
+    let query_plans: Vec<serde_json::Value> = engine
+        .projection_scan_query_plans_for_test()
+        .expect("query plans")
+        .into_iter()
+        .map(|(name, _, plan)| serde_json::json!({ "name": name, "plan": plan }))
+        .collect();
     let jobs = phase.worker_jobs.max(1);
     let report = serde_json::json!({
         "n": n,
@@ -478,6 +486,7 @@ fn ac013_seed_drain_probe() {
             "requests_per_run": (row.exclusive_hit + row.exclusive_miss) as f64
                 / row.runs.max(1) as f64,
         })).collect::<Vec<_>>(),
+        "query_plans": query_plans,
         "knobs": knobs(),
     });
     opened.engine.close().expect("close");

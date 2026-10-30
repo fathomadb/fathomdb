@@ -947,13 +947,44 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
 
 const PROJECTION_CANDIDATE_PAGE: usize = 256;
 
-fn pending_projection_candidate_page(
-    connection: &Connection,
-    after_cursor: u64,
-    through_cursor: Option<u64>,
-    effective_at: i64,
-) -> rusqlite::Result<Vec<(u64, String)>> {
-    let sql = format!(
+/// The scheduler's pending-job page query (`?1` page cursor, `?2` edge
+/// validity instant).
+fn scheduler_scan_sql() -> String {
+    format!(
+        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
+             SELECT canonical_nodes.write_cursor AS write_cursor,
+                    canonical_nodes.kind AS kind,
+                    canonical_nodes.body AS body
+             FROM canonical_nodes
+             JOIN _fathomdb_vector_kinds
+               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
+             LEFT JOIN _fathomdb_projection_terminal
+               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
+             WHERE canonical_nodes.write_cursor > ?1
+               AND _fathomdb_projection_terminal.write_cursor IS NULL
+
+             UNION ALL
+
+             SELECT ce.write_cursor AS write_cursor,
+                    'edge_fact' AS kind,
+                    ce.body AS body
+             {edge_arm}
+               AND ce.write_cursor > ?1
+         ) AS pending
+         CROSS JOIN _fathomdb_projection_generation_current AS current
+         WHERE current.singleton=1
+         ORDER BY pending.write_cursor
+         LIMIT {PROJECTION_CANDIDATE_PAGE}",
+        // The persisted projection cursor remains the healthy fast path. TC-33:
+        // `?1` is the page cursor and the edge validity instant binds at `?2`.
+        edge_arm = pending_edge_projection_from_where(2),
+    )
+}
+
+/// The pending-member page query shared by readiness and `drain`'s probe
+/// (`?1` after, `?2` through or NULL, `?3` edge validity instant).
+fn candidate_page_sql() -> String {
+    format!(
         "SELECT pending.write_cursor,pending.kind FROM (
            SELECT n.write_cursor,n.kind
            FROM canonical_nodes n
@@ -967,7 +998,16 @@ fn pending_projection_candidate_page(
              AND ce.write_cursor>?1 AND (?2 IS NULL OR ce.write_cursor<=?2)
          ) AS pending ORDER BY pending.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE}",
         pending_edge_projection_from_where(3),
-    );
+    )
+}
+
+fn pending_projection_candidate_page(
+    connection: &Connection,
+    after_cursor: u64,
+    through_cursor: Option<u64>,
+    effective_at: i64,
+) -> rusqlite::Result<Vec<(u64, String)>> {
+    let sql = candidate_page_sql();
     connection
         .prepare_cached(&sql)?
         .query_map(params![after_cursor, through_cursor, effective_at], |row| {
@@ -1085,35 +1125,7 @@ fn next_pending_projection_jobs(
     // The UNION is ordered by write_cursor so projection proceeds in
     // insertion order across nodes and edges.
     //
-    let sql = format!(
-        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
-             SELECT canonical_nodes.write_cursor AS write_cursor,
-                    canonical_nodes.kind AS kind,
-                    canonical_nodes.body AS body
-             FROM canonical_nodes
-             JOIN _fathomdb_vector_kinds
-               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
-             LEFT JOIN _fathomdb_projection_terminal
-               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
-             WHERE canonical_nodes.write_cursor > ?1
-               AND _fathomdb_projection_terminal.write_cursor IS NULL
-
-             UNION ALL
-
-             SELECT ce.write_cursor AS write_cursor,
-                    'edge_fact' AS kind,
-                    ce.body AS body
-             {edge_arm}
-               AND ce.write_cursor > ?1
-         ) AS pending
-         CROSS JOIN _fathomdb_projection_generation_current AS current
-         WHERE current.singleton=1
-         ORDER BY pending.write_cursor
-         LIMIT {PROJECTION_CANDIDATE_PAGE}",
-        // The persisted projection cursor remains the healthy fast path. TC-33:
-        // `?1` is the page cursor and the edge validity instant binds at `?2`.
-        edge_arm = pending_edge_projection_from_where(2),
-    );
+    let sql = scheduler_scan_sql();
     let mut statement = connection.prepare_cached(&sql)?;
     // SQLite starts the implicit read transaction at statement execution; do
     // not call this a transaction before `query_map` succeeds.
@@ -1264,4 +1276,32 @@ pub(crate) fn pending_embedding_work(
         *count = count.saturating_add(1);
     }
     Ok(counts.into_iter().collect())
+}
+
+/// `EXPLAIN QUERY PLAN` of the scheduler scan and the candidate-page query on
+/// `connection`, as `(name, sql, plan lines)`.
+#[cfg(feature = "test-hooks")]
+pub(crate) fn projection_scan_query_plans(
+    connection: &Connection,
+) -> rusqlite::Result<Vec<(String, String, Vec<String>)>> {
+    let mut out = Vec::new();
+    for (name, sql) in
+        [("scheduler_scan", scheduler_scan_sql()), ("candidate_page", candidate_page_sql())]
+    {
+        let mut statement = connection.prepare(&format!("EXPLAIN QUERY PLAN {sql}"))?;
+        let count = statement.parameter_count();
+        let nulls: Vec<rusqlite::types::Value> = vec![rusqlite::types::Value::Null; count];
+        let plan = statement
+            .query_map(rusqlite::params_from_iter(nulls.iter()), |row| {
+                Ok(format!(
+                    "{}|{}|{}",
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(3)?
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        out.push((name.to_string(), sql, plan));
+    }
+    Ok(out)
 }

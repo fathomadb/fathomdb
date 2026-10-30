@@ -1060,6 +1060,21 @@ impl Engine {
             .collect()
     }
 
+    /// `EXPLAIN QUERY PLAN` of the projection scheduler scan and the
+    /// candidate-page query on the engine connection, as
+    /// `(name, sql, "id|parent|detail" lines)`.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn projection_scan_query_plans_for_test(
+        &self,
+    ) -> Result<Vec<(String, String, Vec<String>)>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        crate::projection_worker::projection_scan_query_plans(connection)
+            .map_err(|_| EngineError::Storage)
+    }
+
     /// Writer-connection page-cache counters `(hit, miss, used_bytes)`.
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]

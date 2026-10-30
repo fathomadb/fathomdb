@@ -206,6 +206,19 @@ pub(crate) fn open_runtime_connection(
     // setting the pragma only on the writer left a GDPR-erasure leak here.
     connection.pragma_update(None, "secure_delete", "ON")?;
     apply_perf_experiment_runtime_pragmas(&connection);
+    #[cfg(feature = "test-hooks")]
+    crate::page_trace::maybe_install_page_trace_for(
+        &connection,
+        match category {
+            ManagedConnectionCategory::Writer => crate::page_trace::TraceRole::Writer,
+            ManagedConnectionCategory::ReaderWorker => crate::page_trace::TraceRole::Reader,
+            ManagedConnectionCategory::ProjectionDispatcher => {
+                crate::page_trace::TraceRole::Dispatcher
+            }
+            ManagedConnectionCategory::ProjectionWorker => crate::page_trace::TraceRole::Worker,
+            ManagedConnectionCategory::RuntimeProbe => crate::page_trace::TraceRole::Probe,
+        },
+    );
     Ok(connection)
 }
 

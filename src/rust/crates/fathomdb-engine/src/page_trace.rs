@@ -1,8 +1,11 @@
-//! Per-statement page-cache attribution for reader connections (experiment
-//! tooling, `dev/experiments/ac013-vector-reads/`).
+//! Per-statement page-cache attribution (experiment tooling,
+//! `dev/experiments/ac013-vector-reads/` and `dev/experiments/ac013-seed-drain/`).
 //!
-//! When `FATHOMDB_PERF_PAGE_TRACE` is set at open, every reader connection
-//! gets an `sqlite3_trace_v2` (`STMT` | `PROFILE`) callback. At each
+//! `FATHOMDB_PERF_PAGE_TRACE`, read when a connection opens, selects the
+//! connection roles to trace: `1` (or any value that names no role) traces
+//! the reader connections only; otherwise it is a comma-separated list of
+//! `reader`, `writer`, `dispatcher`, `worker`, `probe`, or `all`. Each traced
+//! connection gets an `sqlite3_trace_v2` (`STMT` | `PROFILE`) callback. At each
 //! statement start it records the connection's cumulative
 //! `SQLITE_DBSTATUS_CACHE_HIT` / `_CACHE_MISS`; at each statement end it
 //! records the delta. Statements that start while another is open on the
@@ -31,6 +34,9 @@ use rusqlite::Connection;
 #[doc(hidden)]
 #[derive(Clone, Debug, Default)]
 pub struct PageTraceRow {
+    /// Connection role: `reader`, `writer`, `projection_dispatcher`,
+    /// `projection_worker` or `runtime_probe`.
+    pub role: &'static str,
     /// Whitespace-collapsed SQL text (at most 240 characters).
     pub sql: String,
     /// Runs that started while another statement was open on the connection.
@@ -41,14 +47,69 @@ pub struct PageTraceRow {
     pub inclusive_miss: i64,
     pub exclusive_hit: i64,
     pub exclusive_miss: i64,
+    pub ns: u64,
+    pub exclusive_ns: u64,
+}
+
+/// Connection roles the tracer distinguishes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TraceRole {
+    Reader = 1,
+    Writer = 2,
+    Dispatcher = 3,
+    Worker = 4,
+    Probe = 5,
+}
+
+impl TraceRole {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Reader => "reader",
+            Self::Writer => "writer",
+            Self::Dispatcher => "projection_dispatcher",
+            Self::Worker => "projection_worker",
+            Self::Probe => "runtime_probe",
+        }
+    }
+
+    fn from_ctx(ctx: *mut c_void) -> Self {
+        match ctx as usize {
+            2 => Self::Writer,
+            3 => Self::Dispatcher,
+            4 => Self::Worker,
+            5 => Self::Probe,
+            _ => Self::Reader,
+        }
+    }
+
+    fn selector(self) -> &'static str {
+        match self {
+            Self::Reader => "reader",
+            Self::Writer => "writer",
+            Self::Dispatcher => "dispatcher",
+            Self::Worker => "worker",
+            Self::Probe => "probe",
+        }
+    }
+}
+
+fn role_selected(raw: &str, role: TraceRole) -> bool {
+    let names: Vec<&str> = raw.split(',').map(str::trim).collect();
+    let known = ["reader", "writer", "dispatcher", "worker", "probe", "all"];
+    if !names.iter().any(|name| known.contains(name)) {
+        return role == TraceRole::Reader;
+    }
+    names.iter().any(|name| *name == "all" || *name == role.selector())
 }
 
 struct Frame {
+    db: usize,
     stmt: usize,
     hit0: i64,
     miss0: i64,
     child_hit: i64,
     child_miss: i64,
+    child_ns: u64,
     nested: bool,
 }
 
@@ -56,7 +117,8 @@ thread_local! {
     static STACK: RefCell<Vec<Frame>> = const { RefCell::new(Vec::new()) };
 }
 
-static AGGREGATE: Mutex<BTreeMap<String, PageTraceRow>> = Mutex::new(BTreeMap::new());
+static AGGREGATE: Mutex<BTreeMap<(&'static str, String), PageTraceRow>> =
+    Mutex::new(BTreeMap::new());
 
 fn cache_counters(db: *mut rusqlite::ffi::sqlite3) -> (i64, i64) {
     let mut hit: c_int = 0;
@@ -98,9 +160,9 @@ fn sql_key(stmt: *mut rusqlite::ffi::sqlite3_stmt) -> String {
 
 unsafe extern "C" fn trace_callback(
     event: c_uint,
-    _ctx: *mut c_void,
+    ctx: *mut c_void,
     p: *mut c_void,
-    _x: *mut c_void,
+    x: *mut c_void,
 ) -> c_int {
     let stmt = p.cast::<rusqlite::ffi::sqlite3_stmt>();
     if stmt.is_null() {
@@ -112,42 +174,59 @@ unsafe extern "C" fn trace_callback(
     if event == rusqlite::ffi::SQLITE_TRACE_STMT as c_uint {
         STACK.with(|stack| {
             let mut stack = stack.borrow_mut();
-            let nested = !stack.is_empty();
+            let nested = stack.iter().any(|frame| frame.db == db as usize);
             stack.push(Frame {
+                db: db as usize,
                 stmt: stmt as usize,
                 hit0: hit,
                 miss0: miss,
                 child_hit: 0,
                 child_miss: 0,
+                child_ns: 0,
                 nested,
             });
         });
     } else if event == rusqlite::ffi::SQLITE_TRACE_PROFILE as c_uint {
+        let ns = if x.is_null() {
+            0
+        } else {
+            // SAFETY: for PROFILE events `x` points to the run's wall time in
+            // nanoseconds (`sqlite3_uint64`).
+            unsafe { *x.cast::<u64>() }
+        };
         let finished = STACK.with(|stack| {
             let mut stack = stack.borrow_mut();
             let position = stack.iter().rposition(|frame| frame.stmt == stmt as usize)?;
             let frame = stack.remove(position);
             let inclusive_hit = hit - frame.hit0;
             let inclusive_miss = miss - frame.miss0;
-            if position > 0 {
-                let parent = &mut stack[position - 1];
+            // The parent is the innermost open statement on the same
+            // connection; another connection's frame on this thread has its
+            // own counters.
+            if let Some(parent) = stack[..position].iter_mut().rev().find(|f| f.db == frame.db) {
                 parent.child_hit += inclusive_hit;
                 parent.child_miss += inclusive_miss;
+                parent.child_ns += ns;
             }
             Some((frame, inclusive_hit, inclusive_miss))
         });
         if let Some((frame, inclusive_hit, inclusive_miss)) = finished {
+            let role = TraceRole::from_ctx(ctx).name();
             let key = sql_key(stmt);
             if let Ok(mut aggregate) = AGGREGATE.lock() {
-                let row = aggregate
-                    .entry(key.clone())
-                    .or_insert_with(|| PageTraceRow { sql: key, ..PageTraceRow::default() });
+                let row = aggregate.entry((role, key.clone())).or_insert_with(|| PageTraceRow {
+                    role,
+                    sql: key,
+                    ..PageTraceRow::default()
+                });
                 row.runs += 1;
                 row.nested_runs += u64::from(frame.nested);
                 row.inclusive_hit += inclusive_hit;
                 row.inclusive_miss += inclusive_miss;
                 row.exclusive_hit += inclusive_hit - frame.child_hit;
                 row.exclusive_miss += inclusive_miss - frame.child_miss;
+                row.ns += ns;
+                row.exclusive_ns += ns.saturating_sub(frame.child_ns);
             }
         }
     }
@@ -158,18 +237,29 @@ unsafe extern "C" fn trace_callback(
 /// is set. Called at reader open, before the engine's profile callback; the
 /// two coexist because `sqlite3_profile` keeps the `trace_v2` mask bits.
 pub(crate) fn maybe_install_page_trace(connection: &Connection) {
-    if std::env::var_os("FATHOMDB_PERF_PAGE_TRACE").is_none() {
+    maybe_install_page_trace_for(connection, TraceRole::Reader);
+}
+
+/// Install the tracer on a connection of `role` when `FATHOMDB_PERF_PAGE_TRACE`
+/// selects that role. Must run before any `sqlite3_profile` install on the
+/// same connection: `sqlite3_trace_v2` replaces the trace mask.
+pub(crate) fn maybe_install_page_trace_for(connection: &Connection, role: TraceRole) {
+    let Ok(raw) = std::env::var("FATHOMDB_PERF_PAGE_TRACE") else {
+        return;
+    };
+    if !role_selected(&raw, role) {
         return;
     }
     let mask = (rusqlite::ffi::SQLITE_TRACE_STMT | rusqlite::ffi::SQLITE_TRACE_PROFILE) as c_uint;
-    // SAFETY: the callback uses no user data and only thread-local and
-    // process-global state, so it stays valid for the connection's lifetime.
+    // SAFETY: the context is a role tag, never dereferenced; the callback
+    // uses only thread-local and process-global state, so it stays valid for
+    // the connection's lifetime.
     unsafe {
         rusqlite::ffi::sqlite3_trace_v2(
             connection.handle(),
             mask,
             Some(trace_callback),
-            std::ptr::null_mut(),
+            role as usize as *mut c_void,
         );
     }
 }

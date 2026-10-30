@@ -1099,6 +1099,11 @@ impl Engine {
         // legal window to set it on a fresh DB. Gated on
         // Runs only when FATHOMDB_PERF_EXPERIMENTS is present.
         apply_perf_experiment_writer_pragmas(&connection);
+        #[cfg(feature = "test-hooks")]
+        crate::page_trace::maybe_install_page_trace_for(
+            &connection,
+            crate::page_trace::TraceRole::Writer,
+        );
         // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — standing
         // `secure_delete=ON` on the writer, applied at EVERY open (fresh + migrated).
         // It zeroes every page freed by a future DELETE, so the Slice-10 `purge`

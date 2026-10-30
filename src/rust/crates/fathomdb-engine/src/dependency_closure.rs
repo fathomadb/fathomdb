@@ -925,9 +925,16 @@ pub(crate) fn vector_arm_requires_fallback(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
-    let direct_state_unsafe: bool = crate::prepare_search_statement(
+    let direct_state_unsafe: bool = crate::scale_search_experiment::cached_eligibility(
         connection,
-        "SELECT EXISTS(\
+        crate::scale_search_experiment::EligibilityScan::VectorDirectStateUnsafe,
+        include_superseded,
+        include_inactive,
+        include_out_of_window,
+        || {
+            crate::prepare_search_statement(
+                connection,
+                "SELECT EXISTS(\
            SELECT 1 FROM _fathomdb_vector_rows vr \
            LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' \
            LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' \
@@ -940,15 +947,17 @@ pub(crate) fn vector_arm_requires_fallback(
                     OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) \
                                   OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))))) \
            LIMIT 1)",
-    )?
-    .query_row(
-        params![
-            effective_at,
-            i64::from(include_superseded),
-            i64::from(include_inactive),
-            i64::from(include_out_of_window),
-        ],
-        |row| row.get(0),
+            )?
+            .query_row(
+                params![
+                    effective_at,
+                    i64::from(include_superseded),
+                    i64::from(include_inactive),
+                    i64::from(include_out_of_window),
+                ],
+                |row| row.get(0),
+            )
+        },
     )?;
     if direct_state_unsafe {
         return Ok(true);
@@ -1019,22 +1028,31 @@ pub(crate) fn all_nodes_directly_eligible(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
-    let unsafe_row: bool = crate::prepare_search_statement(
+    let unsafe_row: bool = crate::scale_search_experiment::cached_eligibility(
         connection,
-        "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE \
+        crate::scale_search_experiment::EligibilityScan::AllNodesDirectlyEligible,
+        include_superseded,
+        include_inactive,
+        include_out_of_window,
+        || {
+            crate::prepare_search_statement(
+                connection,
+                "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE \
            (?2=0 AND n.superseded_at IS NOT NULL) OR \
            (?3=0 AND n.state!='active') OR \
            (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR \
                       (n.valid_until IS NOT NULL AND n.valid_until<=?1))) LIMIT 1)",
-    )?
-    .query_row(
-        params![
-            effective_at,
-            i64::from(include_superseded),
-            i64::from(include_inactive),
-            i64::from(include_out_of_window),
-        ],
-        |row| row.get(0),
+            )?
+            .query_row(
+                params![
+                    effective_at,
+                    i64::from(include_superseded),
+                    i64::from(include_inactive),
+                    i64::from(include_out_of_window),
+                ],
+                |row| row.get(0),
+            )
+        },
     )?;
     Ok(!unsafe_row)
 }

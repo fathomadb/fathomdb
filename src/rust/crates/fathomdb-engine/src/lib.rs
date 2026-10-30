@@ -136,9 +136,13 @@ mod structural_state;
 pub mod tc5_benchmark;
 mod telemetry;
 pub use telemetry::CounterSnapshot;
+mod scale_search_experiment;
 mod temporal;
 mod test_hooks;
 mod vector_equivalence;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use scale_search_experiment::eligibility_cache_stats_for_test;
 mod vector_read_experiment;
 mod vector_storage;
 mod wal_attribution;

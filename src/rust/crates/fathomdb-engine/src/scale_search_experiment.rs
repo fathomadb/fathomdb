@@ -13,6 +13,9 @@
 //!   read), and the view flags. An answer is cached only when it cannot
 //!   depend on the instant: the view includes out-of-window rows, or the
 //!   snapshot has no node validity window and no edge `t_invalid`.
+//! - `FATHOMDB_PERF_FTS_ROWID_CURSOR=1`: body-FTS rows (`search_index`) are
+//!   inserted with `rowid = write_cursor` (the projector path only; a
+//!   prototype for new stores).
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -28,6 +31,11 @@ fn knob(name: &str) -> Option<String> {
 pub(crate) fn eligibility_cache_enabled() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
     *ON.get_or_init(|| knob("FATHOMDB_PERF_ELIGIBILITY").as_deref() == Some("cache"))
+}
+
+pub(crate) fn fts_rowid_is_cursor() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| knob("FATHOMDB_PERF_FTS_ROWID_CURSOR").is_some())
 }
 
 /// Which direct-eligibility scan an answer belongs to.

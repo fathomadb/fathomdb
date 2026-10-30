@@ -11,6 +11,8 @@
 //! cost is subtracted from the parent's, so `exclusive` sums to the
 //! connection total over the traced window. Page reads made outside any
 //! statement are not attributed here; compare with the per-worker totals.
+//! The `PROFILE` event's elapsed nanoseconds are attributed the same way
+//! (`inclusive_ns` / `exclusive_ns`).
 //!
 //! Page requests made through `sqlite3_blob_read` inside a `vec0` callback
 //! belong to the innermost statement open at that moment: the KNN scan's
@@ -41,6 +43,12 @@ pub struct PageTraceRow {
     pub inclusive_miss: i64,
     pub exclusive_hit: i64,
     pub exclusive_miss: i64,
+    /// Elapsed nanoseconds from `SQLITE_TRACE_PROFILE`, summed over runs. A
+    /// run's time spans its first step to its reset, so it includes the
+    /// caller's work between steps (row decoding in a `query_map` closure).
+    pub inclusive_ns: u64,
+    /// `inclusive_ns` minus the time of statements nested inside it.
+    pub exclusive_ns: u64,
 }
 
 struct Frame {
@@ -49,6 +57,7 @@ struct Frame {
     miss0: i64,
     child_hit: i64,
     child_miss: i64,
+    child_ns: u64,
     nested: bool,
 }
 
@@ -100,7 +109,7 @@ unsafe extern "C" fn trace_callback(
     event: c_uint,
     _ctx: *mut c_void,
     p: *mut c_void,
-    _x: *mut c_void,
+    x: *mut c_void,
 ) -> c_int {
     let stmt = p.cast::<rusqlite::ffi::sqlite3_stmt>();
     if stmt.is_null() {
@@ -119,10 +128,14 @@ unsafe extern "C" fn trace_callback(
                 miss0: miss,
                 child_hit: 0,
                 child_miss: 0,
+                child_ns: 0,
                 nested,
             });
         });
     } else if event == rusqlite::ffi::SQLITE_TRACE_PROFILE as c_uint {
+        // SAFETY: for PROFILE events `x` points to the statement's elapsed
+        // time as an `sqlite3_uint64` of nanoseconds.
+        let ns = if x.is_null() { 0 } else { unsafe { *x.cast::<u64>() } };
         let finished = STACK.with(|stack| {
             let mut stack = stack.borrow_mut();
             let position = stack.iter().rposition(|frame| frame.stmt == stmt as usize)?;
@@ -133,6 +146,7 @@ unsafe extern "C" fn trace_callback(
                 let parent = &mut stack[position - 1];
                 parent.child_hit += inclusive_hit;
                 parent.child_miss += inclusive_miss;
+                parent.child_ns += ns;
             }
             Some((frame, inclusive_hit, inclusive_miss))
         });
@@ -148,6 +162,8 @@ unsafe extern "C" fn trace_callback(
                 row.inclusive_miss += inclusive_miss;
                 row.exclusive_hit += inclusive_hit - frame.child_hit;
                 row.exclusive_miss += inclusive_miss - frame.child_miss;
+                row.inclusive_ns += ns;
+                row.exclusive_ns += ns.saturating_sub(frame.child_ns);
             }
         }
     }

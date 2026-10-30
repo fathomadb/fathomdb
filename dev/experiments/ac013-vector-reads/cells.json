@@ -1,0 +1,7 @@
+[
+  {"id": "BASE", "mode": "absent", "reader": "", "writer": "", "mcp_store": "base-vacuumed.sqlite"},
+  {"id": "CHUNKED", "mode": "absent", "reader": "", "writer": "", "env": {"FATHOMDB_PERF_EXPERIMENTS": "1", "FATHOMDB_PERF_VECTOR_RERANK": "chunked"}, "mcp_store": "base-vacuumed.sqlite"},
+  {"id": "CS64", "mode": "absent", "reader": "", "writer": "", "env": {"FATHOMDB_PERF_EXPERIMENTS": "1", "FATHOMDB_PERF_VEC0_CHUNK_SIZE": "64"}, "mcp_store": "cs64.sqlite"},
+  {"id": "CS256", "mode": "absent", "reader": "", "writer": "", "env": {"FATHOMDB_PERF_EXPERIMENTS": "1", "FATHOMDB_PERF_VEC0_CHUNK_SIZE": "256"}, "mcp_store": "cs256.sqlite"},
+  {"id": "F32T", "mode": "absent", "reader": "", "writer": "", "env": {"FATHOMDB_PERF_EXPERIMENTS": "1", "FATHOMDB_PERF_VECTOR_RERANK": "f32table", "FATHOMDB_PERF_VECTOR_F32_TABLE": "1"}, "mcp_store": "f32t.sqlite"}
+]

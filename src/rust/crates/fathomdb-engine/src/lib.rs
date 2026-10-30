@@ -83,6 +83,11 @@ pub mod lifecycle;
 mod mean;
 mod open;
 mod operator;
+#[cfg(feature = "test-hooks")]
+mod page_trace;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use page_trace::{take_page_trace_for_test, PageTraceRow};
 mod pagination;
 mod projection_commit;
 mod projection_generation;
@@ -132,6 +137,7 @@ pub use telemetry::CounterSnapshot;
 mod temporal;
 mod test_hooks;
 mod vector_equivalence;
+mod vector_read_experiment;
 mod vector_storage;
 mod wal_attribution;
 mod wal_runtime;

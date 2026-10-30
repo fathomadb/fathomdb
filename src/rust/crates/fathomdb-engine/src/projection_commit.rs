@@ -292,6 +292,7 @@ pub(crate) fn commit_projection_outcomes(
                          ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '')",
                         params![cursor, blob, centered_blob, source_type, kind, now_unix],
                     )?;
+                    crate::vector_read_experiment::write_f32_row(&tx, *cursor as i64, blob)?;
                 } else {
                     let body: String = tx
                         .query_row(
@@ -318,6 +319,7 @@ pub(crate) fn commit_projection_outcomes(
                     ];
                     pv.extend(attr_vals);
                     tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;
+                    crate::vector_read_experiment::write_f32_row(&tx, *cursor as i64, blob)?;
                 }
                 record_projection_terminal(&tx, *cursor, "up_to_date")?;
                 visibility_changed = true;

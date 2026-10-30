@@ -16,12 +16,26 @@
 //! - `FATHOMDB_PERF_FTS_ROWID_CURSOR=1`: body-FTS rows (`search_index`) are
 //!   inserted with `rowid = write_cursor` (the projector path only; a
 //!   prototype for new stores).
+//! - `FATHOMDB_PERF_TEXT_ARM=deferred`: on the Slice 71 deferred-identity
+//!   hybrid route (no filter, dependencies, relaxed view, reweighting,
+//!   rerank, graph arm, explain, snippets or expansion, every node directly
+//!   eligible), the text arm reads `rowid, bm25()` for every match and FTS
+//!   content only for the rows that can reach the fused top `final_limit`;
+//!   see [`fuse_deferred_content`]. Needs `FATHOMDB_PERF_FTS_ROWID_CURSOR`
+//!   stores; any row whose rowid is not its cursor falls back to the complete
+//!   path.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
+use std::collections::HashSet;
+
 use rusqlite::{Connection, OptionalExtension};
+
+use crate::fusion::{fuse_rrf, RRF_K, RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR};
+use crate::identity::IdSpace;
+use crate::search_types::{SearchHit, SoftFallbackBranch};
 
 fn knob(name: &str) -> Option<String> {
     std::env::var_os("FATHOMDB_PERF_EXPERIMENTS")?;
@@ -36,6 +50,11 @@ pub(crate) fn eligibility_cache_enabled() -> bool {
 pub(crate) fn fts_rowid_is_cursor() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
     *ON.get_or_init(|| knob("FATHOMDB_PERF_FTS_ROWID_CURSOR").is_some())
+}
+
+pub(crate) fn text_arm_deferred() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| knob("FATHOMDB_PERF_TEXT_ARM").as_deref() == Some("deferred"))
 }
 
 /// Which direct-eligibility scan an answer belongs to.
@@ -155,4 +174,210 @@ pub(crate) fn cached_eligibility(
         }
     }
     Ok(answer)
+}
+
+fn record_route(_route: &str) {
+    #[cfg(feature = "test-hooks")]
+    crate::search::record_fts_route_for_test(_route);
+}
+
+fn text_hit(body: String, kind: String, cursor: u64, score: f64) -> SearchHit {
+    SearchHit {
+        id: IdSpace::content(String::new()),
+        body,
+        kind,
+        write_cursor: cursor,
+        score,
+        branch: SoftFallbackBranch::Text,
+        source_id: None,
+        ce_score: None,
+    }
+}
+
+/// The complete deferred-identity text list (`search.rs`): every match,
+/// sorted by bm25 then cursor.
+fn complete_text_candidates(
+    tx: &Connection,
+    match_expression: &str,
+) -> rusqlite::Result<Vec<SearchHit>> {
+    let mut statement = tx.prepare_cached(
+        "SELECT body, kind, write_cursor, bm25(search_index) FROM search_index \
+         WHERE search_index MATCH ?1",
+    )?;
+    let mut hits = statement
+        .query_map([match_expression], |row| {
+            Ok(text_hit(row.get(0)?, row.get(1)?, row.get::<_, i64>(2)? as u64, row.get(3)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    hits.sort_by(|l, r| {
+        l.score.total_cmp(&r.score).then_with(|| l.write_cursor.cmp(&r.write_cursor))
+    });
+    Ok(hits)
+}
+
+/// The fused list `fuse_rrf(vector_hits, complete text list ++ edge_hits)`
+/// would produce, exact in its first `final_limit` entries (the caller
+/// truncates there), reading FTS content only where it can matter.
+///
+/// Why it is exact, with `rowid = write_cursor`:
+/// - The text rank of a body is the position of its first row in
+///   (bm25, cursor) order. Rows with the same body tokenize identically, so
+///   they share one bm25 value; the first row of a vector hit's body is found
+///   by reading bodies only inside its own bm25 tie group, up to its row.
+/// - A text-only body at position i scores `3/(31+i)`, strictly falling in
+///   i, so the top `final_limit` can hold only the first `final_limit` new
+///   text-only bodies in rank order; the walk stops there.
+/// - Scores are computed with the same expressions and addition order as
+///   `fuse_three_arms`, and entries sort on the same keys.
+///
+/// Falls back to the complete path (returns it, records
+/// `hybrid_deferred_content_fallback`) when a vector hit has no FTS row with
+/// its own cursor and body, a fetched row's rowid is not its cursor, or the
+/// walk meets a vector body before its computed rank.
+pub(crate) fn fuse_deferred_content(
+    tx: &Connection,
+    match_expression: &str,
+    vector_hits: Vec<SearchHit>,
+    edge_hits: Vec<SearchHit>,
+    final_limit: usize,
+) -> rusqlite::Result<Vec<SearchHit>> {
+    if let Some(fused) =
+        deferred_fusion(tx, match_expression, &vector_hits, &edge_hits, final_limit)?
+    {
+        record_route("hybrid_deferred_content");
+        return Ok(fused);
+    }
+    record_route("hybrid_deferred_content_fallback");
+    let mut text = complete_text_candidates(tx, match_expression)?;
+    text.extend(edge_hits);
+    Ok(fuse_rrf(vector_hits, text))
+}
+
+fn deferred_fusion(
+    tx: &Connection,
+    match_expression: &str,
+    vector_hits: &[SearchHit],
+    edge_hits: &[SearchHit],
+    final_limit: usize,
+) -> rusqlite::Result<Option<Vec<SearchHit>>> {
+    let mut scored: Vec<(i64, f64)> = tx
+        .prepare_cached(
+            "SELECT rowid, bm25(search_index) FROM search_index WHERE search_index MATCH ?1",
+        )?
+        .query_map([match_expression], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    scored.sort_by(|l, r| l.1.total_cmp(&r.1).then_with(|| l.0.cmp(&r.0)));
+    let matched = scored.len();
+    let mut content =
+        tx.prepare_cached("SELECT body, kind, write_cursor FROM search_index WHERE rowid = ?1")?;
+    let mut fetch = |rowid: i64| -> rusqlite::Result<Option<(String, String)>> {
+        let row = content
+            .query_row([rowid], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
+            })
+            .optional()?;
+        Ok(row.and_then(|(body, kind, cursor)| (cursor == rowid).then_some((body, kind))))
+    };
+
+    struct Entry {
+        hit: SearchHit,
+        score: f64,
+        in_vector: bool,
+        order: usize,
+    }
+    let mut entries: Vec<Entry> = Vec::new();
+    let mut entry_of_body: HashMap<String, usize> = HashMap::new();
+    for (rank0, hit) in vector_hits.iter().enumerate() {
+        if entry_of_body.contains_key(&hit.body) {
+            continue;
+        }
+        let score = RRF_WEIGHT_VECTOR / (RRF_K + (rank0 as f64 + 1.0));
+        entry_of_body.insert(hit.body.clone(), entries.len());
+        let order = entries.len();
+        entries.push(Entry { hit: hit.clone(), score, in_vector: true, order });
+    }
+
+    let wanted: HashSet<i64> = entries.iter().map(|e| e.hit.write_cursor as i64).collect();
+    let mut position: HashMap<i64, usize> = HashMap::with_capacity(wanted.len());
+    for (i, (rowid, _)) in scored.iter().enumerate() {
+        if wanted.contains(rowid) {
+            position.insert(*rowid, i);
+        }
+    }
+    let mut rank_of_body: HashMap<String, usize> = HashMap::new();
+    for entry in &mut entries {
+        let cursor = entry.hit.write_cursor as i64;
+        match fetch(cursor)? {
+            Some((body, _)) if body == entry.hit.body => {}
+            _ => return Ok(None),
+        }
+        let mut rank = None;
+        if let Some(&p) = position.get(&cursor) {
+            let bits = scored[p].1.to_bits();
+            let mut q = p;
+            while q > 0 && scored[q - 1].1.to_bits() == bits {
+                q -= 1;
+            }
+            for i in q..p {
+                let Some((body, _)) = fetch(scored[i].0)? else {
+                    return Ok(None);
+                };
+                if body == entry.hit.body {
+                    rank = Some(i);
+                    break;
+                }
+            }
+            rank = rank.or(Some(p));
+        } else if let Some(j) = edge_hits.iter().position(|e| e.body == entry.hit.body) {
+            rank = Some(matched + j);
+        }
+        if let Some(rank) = rank {
+            entry.score += RRF_WEIGHT_TEXT / (RRF_K + (rank as f64 + 1.0));
+            rank_of_body.insert(entry.hit.body.clone(), rank);
+        }
+    }
+
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut text_only = 0usize;
+    let mut i = 0usize;
+    while text_only < final_limit && i < matched + edge_hits.len() {
+        let hit = if i < matched {
+            let (rowid, score) = scored[i];
+            let Some((body, kind)) = fetch(rowid)? else {
+                return Ok(None);
+            };
+            text_hit(body, kind, rowid as u64, score)
+        } else {
+            edge_hits[i - matched].clone()
+        };
+        if entry_of_body.contains_key(&hit.body) {
+            if !seen.contains(&hit.body) && rank_of_body.get(&hit.body) != Some(&i) {
+                return Ok(None);
+            }
+            seen.insert(hit.body);
+        } else if seen.insert(hit.body.clone()) {
+            let score = RRF_WEIGHT_TEXT / (RRF_K + (i as f64 + 1.0));
+            let order = entries.len();
+            entries.push(Entry { hit, score, in_vector: false, order });
+            text_only += 1;
+        }
+        i += 1;
+    }
+
+    entries.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| b.in_vector.cmp(&a.in_vector))
+            .then_with(|| a.order.cmp(&b.order))
+    });
+    Ok(Some(
+        entries
+            .into_iter()
+            .map(|mut e| {
+                e.hit.score = e.score;
+                e.hit
+            })
+            .collect(),
+    ))
 }

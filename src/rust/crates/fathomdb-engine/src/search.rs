@@ -728,7 +728,7 @@ pub(crate) fn append_json_witness_for_test(variable: &str, value: &serde_json::V
 }
 
 #[cfg(feature = "test-hooks")]
-fn record_fts_route_for_test(route: &str) {
+pub(crate) fn record_fts_route_for_test(route: &str) {
     append_json_witness_for_test(
         "FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST",
         &serde_json::json!({"route": route}),
@@ -1993,6 +1993,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
     let mut deferred_text_identity = false;
+    let deferred_content: bool;
     // EP-17: the search-local `write_cursor → (table, rowid)` map, filled only
     // when snippets are requested.
     let mut fts_rows = FtsRows::new();
@@ -2155,7 +2156,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         } else {
             None
         };
-        let deferred_candidates = if defer_text_identity {
+        deferred_content = defer_text_identity
+            && snippet.is_none()
+            && expand_depth.is_none()
+            && crate::scale_search_experiment::text_arm_deferred();
+        let deferred_candidates = if deferred_content {
+            Some(Vec::new())
+        } else if defer_text_identity {
             let now_binding =
                 now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
@@ -2194,7 +2201,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         if let Some(candidates) = deferred_candidates {
             deferred_text_identity = true;
             #[cfg(feature = "test-hooks")]
-            record_fts_route_for_test("hybrid_deferred_identity");
+            if !deferred_content {
+                record_fts_route_for_test("hybrid_deferred_identity");
+            }
             candidates
         } else if let Some((candidates, _crossed_boundary_tie)) = rank_stream_candidates {
             #[cfg(feature = "test-hooks")]
@@ -2541,7 +2550,18 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // off by default), then pass through the identity rerank seam. The
         // vector-empty `soft_fallback` signal was computed above, BEFORE this
         // branch-collapse.
-        let fused = apply_recency_reweight(fuse_rrf(vector_results, text_results), recency_enabled);
+        let fused = if deferred_content {
+            crate::scale_search_experiment::fuse_deferred_content(
+                &tx,
+                &compiled.match_expression,
+                vector_results,
+                text_results,
+                final_limit,
+            )?
+        } else {
+            fuse_rrf(vector_results, text_results)
+        };
+        let fused = apply_recency_reweight(fused, recency_enabled);
         // F9 — importance (node) / confidence (edge) reweight, OFF by default.
         // Same placement as the graph-arm branch: after recency, before CE rerank.
         let (imp_map, conf_map) = if importance_enabled || explain {

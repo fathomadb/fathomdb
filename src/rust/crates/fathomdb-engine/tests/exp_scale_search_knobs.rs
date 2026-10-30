@@ -93,3 +93,46 @@ fn eligibility_cache_hits_on_an_unchanged_snapshot_and_misses_after_a_write() {
     );
     opened.engine.close().expect("close");
 }
+
+#[test]
+fn fts_rows_take_the_write_cursor_as_rowid() {
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    knobs_on();
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("fts_rowid{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("open");
+    let engine = &opened.engine;
+    // A body-less edge takes a cursor and writes no body-FTS row, so with
+    // auto-assigned rowids the node rows would be off by one.
+    engine
+        .write(&[PreparedWrite::Edge {
+            kind: "links".to_string(),
+            from: "a".to_string(),
+            to: "b".to_string(),
+            source_id: SourceId::new("test:fixture").expect("source"),
+            logical_id: None,
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        }])
+        .expect("edge");
+    let batch: Vec<PreparedWrite> = (0..5).map(|i| node(format!("numbat {i}"), None)).collect();
+    engine.write(&batch).expect("nodes");
+    engine.drain(60_000).expect("drain");
+    opened.engine.close().expect("close");
+    let connection = rusqlite::Connection::open(&path).expect("reopen");
+    let rows: Vec<(i64, i64)> = connection
+        .prepare("SELECT rowid, write_cursor FROM search_index ORDER BY rowid")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(rows.len(), 5);
+    for (rowid, cursor) in rows {
+        assert_eq!(rowid, cursor, "FATHOMDB_PERF_FTS_ROWID_CURSOR keys FTS rows by cursor");
+    }
+}

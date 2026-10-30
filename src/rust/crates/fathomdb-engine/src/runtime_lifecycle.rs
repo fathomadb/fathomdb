@@ -78,15 +78,24 @@ impl Engine {
                 };
             }
         }
-        if self.projection_runtime.wait_for_idle(timeout_ms, || match self.connection.try_lock() {
-            Ok(connection) => Some(
-                connection
-                    .as_ref()
-                    .and_then(|connection| connection_has_pending_projection_work(connection).ok())
-                    .unwrap_or(true),
-            ),
-            Err(std::sync::TryLockError::WouldBlock) => None,
-            Err(std::sync::TryLockError::Poisoned(_)) => Some(true),
+        if self.projection_runtime.wait_for_idle(timeout_ms, || {
+            #[cfg(feature = "test-hooks")]
+            let probe_started = std::time::Instant::now();
+            let pending = match self.connection.try_lock() {
+                Ok(connection) => Some(
+                    connection
+                        .as_ref()
+                        .and_then(|connection| {
+                            connection_has_pending_projection_work(connection).ok()
+                        })
+                        .unwrap_or(true),
+                ),
+                Err(std::sync::TryLockError::WouldBlock) => None,
+                Err(std::sync::TryLockError::Poisoned(_)) => Some(true),
+            };
+            #[cfg(feature = "test-hooks")]
+            crate::drain_trace::drain_probe(probe_started, pending);
+            pending
         }) {
             Ok(())
         } else {

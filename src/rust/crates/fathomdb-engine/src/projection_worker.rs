@@ -298,6 +298,8 @@ pub(crate) fn projection_dispatcher_loop(
             shared.admission_capacity.saturating_sub(state.active_jobs + state.queued_jobs)
         };
         let fetch_cap = budget.clamp(1, shared.admission_capacity);
+        #[cfg(feature = "test-hooks")]
+        let scan_started = Instant::now();
         // A session without a configured runtime dispatches no embedding jobs.
         // Its pending rows stay recoverable for a later configured session; see
         // `next_pending_projection_jobs` for the Slice-30 no-dispatch boundary.
@@ -327,6 +329,11 @@ pub(crate) fn projection_dispatcher_loop(
         debug_assert!(
             fetched.as_ref().map(|(jobs, _)| dense_arm_live || jobs.is_empty()).unwrap_or(true),
             "no-runtime scan returned embedding jobs despite the no-dispatch contract"
+        );
+        #[cfg(feature = "test-hooks")]
+        crate::drain_trace::dispatcher_scan(
+            scan_started,
+            fetched.as_ref().map(|(jobs, _)| jobs.len()).unwrap_or(0),
         );
         #[cfg(feature = "test-hooks")]
         record_runtime_cache_status_for_test(
@@ -603,7 +610,11 @@ fn run_projection_jobs(
     jobs: &[ProjectionJob],
     worker_idx: usize,
 ) -> rusqlite::Result<()> {
+    #[cfg(feature = "test-hooks")]
+    let embed_started = Instant::now();
     let outcomes = embed_projection_batch(shared, jobs);
+    #[cfg(feature = "test-hooks")]
+    crate::drain_trace::worker_embed(embed_started, jobs.len());
     commit_projection_outcomes(connection, &outcomes, shared, worker_idx)
 }
 
@@ -1134,9 +1145,13 @@ fn next_pending_projection_jobs(
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let page_len = page.len();
+            #[cfg(feature = "test-hooks")]
+            crate::drain_trace::dispatcher_page(page_len);
             for job in page {
                 after_cursor = job.cursor;
                 if in_flight.contains(&job.cursor) {
+                    #[cfg(feature = "test-hooks")]
+                    crate::drain_trace::dispatcher_inflight_skip();
                     continue;
                 }
                 if projection_generation::dense_member_kind_at(connection, job.cursor, effective_at)

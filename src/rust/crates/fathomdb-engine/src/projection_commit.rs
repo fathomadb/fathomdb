@@ -131,7 +131,13 @@ pub(crate) fn commit_projection_outcomes(
     let mc = identity_requires_mean_centering(embedder_identity);
     // EU-5f — serialize the whole commit across workers so the at-pin
     // re-quantize sees a totally-ordered history (see `commit_gate`).
+    #[cfg(feature = "test-hooks")]
+    let gate_started = Instant::now();
     let _gate = shared.commit_gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    #[cfg(feature = "test-hooks")]
+    crate::drain_trace::worker_gate_wait(gate_started);
+    #[cfg(feature = "test-hooks")]
+    let commit_started = Instant::now();
     #[cfg(feature = "test-hooks")]
     if let Some((waiting, release)) = shared
         .projection_worker_before_write_lock_pause
@@ -453,6 +459,8 @@ pub(crate) fn commit_projection_outcomes(
     }
     drop(trigger_guard);
     tx.commit()?;
+    #[cfg(feature = "test-hooks")]
+    crate::drain_trace::worker_commit(commit_started);
     // Commit and the accumulator transition become visible together. On every
     // earlier error the transaction and the local candidate drop, leaving the
     // runtime state exactly as it was before this attempt.

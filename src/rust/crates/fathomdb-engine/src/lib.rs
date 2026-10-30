@@ -76,6 +76,8 @@ pub use hints::{
     search_hints, Hint, HintAction, HintArm, HintCause, HintMode, HintReason, SearchFacts,
     HINT_LIMIT_CAP,
 };
+#[cfg(feature = "test-hooks")]
+mod drain_trace;
 mod identity;
 mod index_projector;
 mod ingest;
@@ -83,6 +85,11 @@ pub mod lifecycle;
 mod mean;
 mod open;
 mod operator;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use drain_trace::{
+    drain_phase_trace_for_test, reset_drain_phase_trace_for_test, DrainPhaseTrace,
+};
 #[cfg(feature = "test-hooks")]
 mod page_trace;
 #[cfg(feature = "test-hooks")]

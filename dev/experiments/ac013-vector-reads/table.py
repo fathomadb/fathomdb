@@ -5,8 +5,9 @@
 
 One Markdown row per cell, every repeat listed: gate p50 / p99 / seed (ms),
 probe page requests and misses per hybrid search, phase-1 (vector statement)
-requests and misses from the trace, whether the results digest equals BASE's
-in every run, ac_013b recall, REQ40-I6 worst route ratio per repeat, AC40-97,
+requests and misses from the trace plus page requests made outside any
+statement (direct blob reads), whether the results digest equals BASE's
+(at the same corpus size) in every run, ac_013b recall, REQ40-I6 worst route ratio per repeat, AC40-97,
 MCP p50 / p99 at 1 in flight, and the checkpointed store size. A trailing
 `*` marks a run whose load after exceeded the flag threshold.
 """
@@ -27,11 +28,17 @@ def star(entry: dict) -> str:
     return "*" if entry.get("load_flag") else ""
 
 
-def vector_stage(trace: dict | None) -> tuple[float, float] | None:
-    """Exclusive requests and misses per search of the vector-stage statements."""
+def vector_stage(entry: dict) -> tuple[float, float] | None:
+    """Exclusive requests and misses per search of the vector-stage statements,
+    plus the requests made outside any statement (the CHUNKED cell's direct
+    blob reads): the probe's reader total minus the trace's attributed total."""
+    trace = entry.get("trace")
     if not trace:
         return None
-    req = miss = 0.0
+    hybrid = entry.get("hybrid") or {}
+    total_req = hybrid.get("cache_hit_per_search", 0) + hybrid.get("cache_miss_per_search", 0)
+    req = max(total_req - trace["exclusive_requests_per_search"], 0.0)
+    miss = max(hybrid.get("cache_miss_per_search", 0) - trace["exclusive_miss_per_search"], 0.0)
     for s in trace["statements"]:
         sql = s["sql"]
         if (sql.startswith(PHASE1) or sql.startswith(CANDIDATES) or ROWIDS in sql
@@ -55,15 +62,17 @@ def fmt_list(values, digits=0) -> str:
 
 def main() -> None:
     cells = json.load(open(sys.argv[1]))
-    base_digest = {e.get("results_digest") for e in cells.get("BASE", {}).get("vreads", [])}
     rows = []
     for name, c in cells.items():
+        suffix = name[name.index("@"):] if "@" in name else ""
+        base = cells.get("BASE" + suffix, {})
+        base_digest = {e.get("results_digest") for e in base.get("vreads", []) + base.get("vtrace", [])}
         gate = c.get("gate", [])
         vr = c.get("vreads", [])
         vt = c.get("vtrace", [])
         digests = {e.get("results_digest") for e in vr + vt}
         same = "yes" if digests and digests <= base_digest else ("—" if not digests else "NO")
-        stage = [vector_stage(e.get("trace")) for e in vt]
+        stage = [vector_stage(e) for e in vt]
         rows.append([
             name,
             ", ".join(f"{e.get('p50_ms')}{star(e)}" for e in gate) or "—",

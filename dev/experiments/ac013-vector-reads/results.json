@@ -1,0 +1,3795 @@
+{
+ "BASE": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 123,
+    "p99_ms": 134,
+    "p50_us": 123018,
+    "p99_us": 134411,
+    "seed_ms": 3898,
+    "seed_write_ms": 3054,
+    "drain_ms": 843,
+    "repeat": 0,
+    "load_before": 1.24,
+    "exit": 101,
+    "load_after": 1.12,
+    "load_flag": false
+   },
+   {
+    "p50_ms": 123,
+    "p99_ms": 134,
+    "p50_us": 123413,
+    "p99_us": 134377,
+    "seed_ms": 3953,
+    "seed_write_ms": 3473,
+    "drain_ms": 480,
+    "repeat": 1,
+    "load_before": 1.06,
+    "exit": 101,
+    "load_after": 1.17,
+    "load_flag": false
+   }
+  ],
+  "iso": [
+   {
+    "a_heavy_read_stays_inside_its_own_page_cache": "ok",
+    "other_readers_keep_their_page_caches_after_a_heavy_read": "ok",
+    "repeat": 0,
+    "load_before": 1.43,
+    "exit": 0,
+    "load_after": 1.39,
+    "load_flag": false
+   }
+  ],
+  "mcp": [
+   {
+    "p50_ms": 408.89,
+    "p99_ms": 515.423,
+    "rejections": 0,
+    "repeat": 0,
+    "load_before": 1.05,
+    "exit": 0,
+    "load_after": 2.7,
+    "load_flag": true
+   },
+   {
+    "p50_ms": 410.146,
+    "p99_ms": 512.685,
+    "rejections": 0,
+    "repeat": 1,
+    "load_before": 1.82,
+    "exit": 0,
+    "load_after": 3.36,
+    "load_flag": true
+   }
+  ],
+  "i6": [
+   {
+    "defect-c": 1.022,
+    "cohort": 0.967,
+    "repeat": 0,
+    "load_before": 1.79,
+    "exit": 0,
+    "load_after": 1.66,
+    "load_flag": false
+   },
+   {
+    "defect-c": 1.001,
+    "cohort": 1.023,
+    "repeat": 1,
+    "load_before": 1.24,
+    "exit": 0,
+    "load_after": 1.22,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": 0.0,
+  "env": {},
+  "vreads": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 68691.48,
+     "cache_miss_per_search": 72335.908,
+     "mean_ms": 122.96836442999998,
+     "p50_ms": 122.9696,
+     "p99_ms": 134.357239
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 40.079277723,
+     "p50_ms": 40.228761,
+     "p99_ms": 47.691139
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 798.91564,
+    "drain_ms": 2948.158136,
+    "db_bytes": 58822656,
+    "file_bytes_checkpointed": 58822656,
+    "n": 10000,
+    "repeat": 0,
+    "load_before": 1.25,
+    "load_after": 1.47,
+    "exit": 0
+   },
+   {
+    "hybrid": {
+     "cache_hit_per_search": 68690.512,
+     "cache_miss_per_search": 72336.246,
+     "mean_ms": 122.832219354,
+     "p50_ms": 122.69474,
+     "p99_ms": 134.545364
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 39.962801903,
+     "p50_ms": 40.017129999999995,
+     "p99_ms": 47.828717
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3544.267418,
+    "drain_ms": 171.487645,
+    "db_bytes": 58822656,
+    "file_bytes_checkpointed": 58822656,
+    "n": 10000,
+    "repeat": 1,
+    "load_before": 1.17,
+    "load_after": 1.18,
+    "exit": 0
+   }
+  ],
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 68688.211,
+     "cache_miss_per_search": 72341.113,
+     "mean_ms": 140.961390317,
+     "p50_ms": 140.954083,
+     "p99_ms": 153.29444
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 47.396605433,
+     "p50_ms": 47.489399,
+     "p99_ms": 54.961876
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3495.4787619999997,
+    "drain_ms": 170.034769,
+    "db_bytes": 58822656,
+    "file_bytes_checkpointed": 58822656,
+    "n": 10000,
+    "trace": {
+     "exclusive_miss_per_search": 72341.113,
+     "exclusive_requests_per_search": 141029.324,
+     "statements": [
+      {
+       "excl_miss_per_search": 67315.35,
+       "excl_requests_per_search": 75666.94,
+       "incl_miss_per_search": 67630.018,
+       "incl_requests_per_search": 76473.94,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "WITH candidates AS ( SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192 ) SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 FROM candidates c JOIN vector_def"
+      },
+      {
+       "excl_miss_per_search": 1564.948,
+       "excl_requests_per_search": 30813.518,
+       "incl_miss_per_search": 1592.948,
+       "incl_requests_per_search": 51161.646,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 28.0,
+       "excl_requests_per_search": 20000.0,
+       "incl_miss_per_search": 28.0,
+       "incl_requests_per_search": 20000.0,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 1494.178,
+       "excl_requests_per_search": 11144.0,
+       "incl_miss_per_search": 1494.178,
+       "incl_requests_per_search": 11144.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 1431.724,
+       "excl_requests_per_search": 1437.0,
+       "incl_miss_per_search": 1431.724,
+       "incl_requests_per_search": 1437.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 292.668,
+       "excl_requests_per_search": 768.0,
+       "incl_miss_per_search": 292.668,
+       "incl_requests_per_search": 768.0,
+       "nested_runs_per_search": 384.0,
+       "runs_per_search": 384.0,
+       "sql": "SELECT id, chunk_id, chunk_offset FROM \"main\".\"vector_default_rowids\" WHERE rowid = ?"
+      },
+      {
+       "excl_miss_per_search": 3.0,
+       "excl_requests_per_search": 696.256,
+       "incl_miss_per_search": 3.0,
+       "incl_requests_per_search": 696.256,
+       "nested_runs_per_search": 348.128,
+       "runs_per_search": 348.128,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 139.382,
+       "excl_requests_per_search": 360.82,
+       "incl_miss_per_search": 1735.33,
+       "incl_requests_per_search": 51870.594,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 23.476,
+       "excl_requests_per_search": 50.0,
+       "incl_miss_per_search": 23.476,
+       "incl_requests_per_search": 50.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 23.387,
+       "excl_requests_per_search": 49.79,
+       "incl_miss_per_search": 23.387,
+       "incl_requests_per_search": 49.79,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.958,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 22.0,
+       "excl_requests_per_search": 39.0,
+       "incl_miss_per_search": 22.0,
+       "incl_requests_per_search": 39.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 663.935,
+     "exclusive_requests_per_search": 47202.484,
+     "statements": [
+      {
+       "excl_miss_per_search": 330.363,
+       "excl_requests_per_search": 23598.742,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 1.12,
+       "excl_requests_per_search": 20202.0,
+       "incl_miss_per_search": 1.12,
+       "incl_requests_per_search": 20202.0,
+       "nested_runs_per_search": 10101.0,
+       "runs_per_search": 10101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 192.962,
+       "excl_requests_per_search": 1178.02,
+       "incl_miss_per_search": 193.1,
+       "incl_requests_per_search": 1728.148,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 136.257,
+       "excl_requests_per_search": 1174.338,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 0.024,
+       "excl_requests_per_search": 1044.384,
+       "incl_miss_per_search": 0.024,
+       "incl_requests_per_search": 1044.384,
+       "nested_runs_per_search": 522.192,
+       "runs_per_search": 522.192,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 1.593,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 1.593,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 0,
+    "load_before": 1.18,
+    "load_after": 1.11,
+    "exit": 0
+   }
+  ],
+  "recall": [
+   {
+    "n": 10000,
+    "samples": 1000,
+    "recall_at_10": 0.0036,
+    "repeat": 0,
+    "load_before": 1.09,
+    "exit": 0
+   }
+  ]
+ },
+ "CHUNKED": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 65,
+    "p99_ms": 71,
+    "p50_us": 65002,
+    "p99_us": 71212,
+    "seed_ms": 3869,
+    "seed_write_ms": 1951,
+    "drain_ms": 1918,
+    "repeat": 0,
+    "load_before": 1.69,
+    "exit": 0,
+    "load_after": 1.24,
+    "load_flag": false
+   },
+   {
+    "p50_ms": 65,
+    "p99_ms": 71,
+    "p50_us": 65311,
+    "p99_us": 71566,
+    "seed_ms": 3732,
+    "seed_write_ms": 2887,
+    "drain_ms": 845,
+    "repeat": 1,
+    "load_before": 1.1,
+    "exit": 0,
+    "load_after": 1.25,
+    "load_flag": false
+   }
+  ],
+  "iso": [
+   {
+    "a_heavy_read_stays_inside_its_own_page_cache": "ok",
+    "other_readers_keep_their_page_caches_after_a_heavy_read": "ok",
+    "repeat": 0,
+    "load_before": 1.15,
+    "exit": 0,
+    "load_after": 1.13,
+    "load_flag": false
+   }
+  ],
+  "mcp": [
+   {
+    "p50_ms": 388.209,
+    "p99_ms": 489.844,
+    "rejections": 0,
+    "repeat": 0,
+    "load_before": 2.0,
+    "exit": 0,
+    "load_after": 3.2,
+    "load_flag": true
+   },
+   {
+    "p50_ms": 386.279,
+    "p99_ms": 486.198,
+    "rejections": 0,
+    "repeat": 1,
+    "load_before": 2.0,
+    "exit": 0,
+    "load_after": 2.55,
+    "load_flag": true
+   }
+  ],
+  "i6": [
+   {
+    "defect-c": 0.993,
+    "cohort": 1.011,
+    "repeat": 0,
+    "load_before": 1.66,
+    "exit": 0,
+    "load_after": 1.61,
+    "load_flag": false
+   },
+   {
+    "defect-c": 1.027,
+    "cohort": 1.04,
+    "repeat": 1,
+    "load_before": 1.29,
+    "exit": 0,
+    "load_after": 1.24,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": -58.0055,
+  "env": {
+   "FATHOMDB_PERF_EXPERIMENTS": "1",
+   "FATHOMDB_PERF_VECTOR_RERANK": "chunked"
+  },
+  "vreads": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 60264.656,
+     "cache_miss_per_search": 11895.857,
+     "mean_ms": 64.662932025,
+     "p50_ms": 64.67906599999999,
+     "p99_ms": 71.22252599999999
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 39.959148653,
+     "p50_ms": 40.078027,
+     "p99_ms": 47.949278
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 1072.026176,
+    "drain_ms": 3492.357986,
+    "db_bytes": 58822656,
+    "file_bytes_checkpointed": 58822656,
+    "n": 10000,
+    "repeat": 0,
+    "load_before": 1.61,
+    "load_after": 1.12,
+    "exit": 0
+   },
+   {
+    "hybrid": {
+     "cache_hit_per_search": 60264.44,
+     "cache_miss_per_search": 11896.073,
+     "mean_ms": 65.175559959,
+     "p50_ms": 65.184592,
+     "p99_ms": 71.385434
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 39.834985679,
+     "p50_ms": 39.992541,
+     "p99_ms": 47.813393000000005
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3596.2145039999996,
+    "drain_ms": 170.569085,
+    "db_bytes": 58822656,
+    "file_bytes_checkpointed": 58822656,
+    "n": 10000,
+    "repeat": 1,
+    "load_before": 1.25,
+    "load_after": 1.06,
+    "exit": 0
+   }
+  ],
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 60264.655,
+     "cache_miss_per_search": 11895.857,
+     "mean_ms": 82.685289142,
+     "p50_ms": 82.70862199999999,
+     "p99_ms": 88.84576600000001
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 47.250905503,
+     "p50_ms": 47.402316,
+     "p99_ms": 55.325655000000005
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3784.4653749999998,
+    "drain_ms": 172.45041899999998,
+    "db_bytes": 58822656,
+    "file_bytes_checkpointed": 58822656,
+    "n": 10000,
+    "trace": {
+     "exclusive_miss_per_search": 4765.801,
+     "exclusive_requests_per_search": 64978.384,
+     "statements": [
+      {
+       "excl_miss_per_search": 1564.948,
+       "excl_requests_per_search": 30813.518,
+       "incl_miss_per_search": 1592.948,
+       "incl_requests_per_search": 51161.646,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 28.0,
+       "excl_requests_per_search": 20000.0,
+       "incl_miss_per_search": 28.0,
+       "incl_requests_per_search": 20000.0,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 1494.178,
+       "excl_requests_per_search": 11144.0,
+       "incl_miss_per_search": 1494.178,
+       "incl_requests_per_search": 11144.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 1431.724,
+       "excl_requests_per_search": 1437.0,
+       "incl_miss_per_search": 1431.724,
+       "incl_requests_per_search": 1437.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 3.0,
+       "excl_requests_per_search": 696.256,
+       "incl_miss_per_search": 3.0,
+       "incl_requests_per_search": 696.256,
+       "nested_runs_per_search": 348.128,
+       "runs_per_search": 348.128,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 32.706,
+       "excl_requests_per_search": 384.0,
+       "incl_miss_per_search": 32.706,
+       "incl_requests_per_search": 384.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 192.0,
+       "sql": "SELECT chunk_id, chunk_offset FROM vector_default_rowids WHERE rowid = ?1"
+      },
+      {
+       "excl_miss_per_search": 139.382,
+       "excl_requests_per_search": 360.82,
+       "incl_miss_per_search": 1735.33,
+       "incl_requests_per_search": 51870.594,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 23.476,
+       "excl_requests_per_search": 50.0,
+       "incl_miss_per_search": 23.476,
+       "incl_requests_per_search": 50.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 23.387,
+       "excl_requests_per_search": 49.79,
+       "incl_miss_per_search": 23.387,
+       "incl_requests_per_search": 49.79,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.958,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 22.0,
+       "excl_requests_per_search": 39.0,
+       "incl_miss_per_search": 22.0,
+       "incl_requests_per_search": 39.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 22.0,
+       "incl_requests_per_search": 39.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 192.0,
+       "sql": "SELECT vec_distance_l2(?1, ?2)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT vec_f32(?1)"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 663.935,
+     "exclusive_requests_per_search": 47202.484,
+     "statements": [
+      {
+       "excl_miss_per_search": 330.363,
+       "excl_requests_per_search": 23598.742,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 1.12,
+       "excl_requests_per_search": 20202.0,
+       "incl_miss_per_search": 1.12,
+       "incl_requests_per_search": 20202.0,
+       "nested_runs_per_search": 10101.0,
+       "runs_per_search": 10101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 192.962,
+       "excl_requests_per_search": 1178.02,
+       "incl_miss_per_search": 193.1,
+       "incl_requests_per_search": 1728.148,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 136.257,
+       "excl_requests_per_search": 1174.338,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 0.024,
+       "excl_requests_per_search": 1044.384,
+       "incl_miss_per_search": 0.024,
+       "incl_requests_per_search": 1044.384,
+       "nested_runs_per_search": 522.192,
+       "runs_per_search": 522.192,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 1.593,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 1.593,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 0,
+    "load_before": 1.11,
+    "load_after": 1.02,
+    "exit": 0
+   }
+  ],
+  "recall": [
+   {
+    "n": 10000,
+    "samples": 1000,
+    "recall_at_10": 0.0036,
+    "repeat": 0,
+    "load_before": 1.39,
+    "exit": 0
+   }
+  ]
+ },
+ "CS64": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 62,
+    "p99_ms": 69,
+    "p50_us": 62965,
+    "p99_us": 69763,
+    "seed_ms": 1042,
+    "seed_write_ms": 989,
+    "drain_ms": 52,
+    "repeat": 0,
+    "load_before": 1.35,
+    "exit": 0,
+    "load_after": 1.29,
+    "load_flag": false
+   },
+   {
+    "p50_ms": 63,
+    "p99_ms": 69,
+    "p50_us": 63105,
+    "p99_us": 69595,
+    "seed_ms": 1171,
+    "seed_write_ms": 1116,
+    "drain_ms": 54,
+    "repeat": 1,
+    "load_before": 1.16,
+    "exit": 0,
+    "load_after": 1.1,
+    "load_flag": false
+   }
+  ],
+  "iso": [
+   {
+    "a_heavy_read_stays_inside_its_own_page_cache": "ok",
+    "other_readers_keep_their_page_caches_after_a_heavy_read": "ok",
+    "repeat": 0,
+    "load_before": 1.13,
+    "exit": 0,
+    "load_after": 1.12,
+    "load_flag": false
+   }
+  ],
+  "mcp": [
+   {
+    "p50_ms": 387.135,
+    "p99_ms": 484.808,
+    "rejections": 0,
+    "repeat": 0,
+    "load_before": 1.64,
+    "exit": 0,
+    "load_after": 3.18,
+    "load_flag": true
+   },
+   {
+    "p50_ms": 389.432,
+    "p99_ms": 487.791,
+    "rejections": 0,
+    "repeat": 1,
+    "load_before": 1.74,
+    "exit": 0,
+    "load_after": 2.0,
+    "load_flag": false
+   }
+  ],
+  "i6": [
+   {
+    "defect-c": 1.039,
+    "cohort": 0.97,
+    "repeat": 0,
+    "load_before": 1.61,
+    "exit": 0,
+    "load_after": 1.52,
+    "load_flag": false
+   },
+   {
+    "defect-c": 1.001,
+    "cohort": 1.022,
+    "repeat": 1,
+    "load_before": 1.31,
+    "exit": 0,
+    "load_after": 1.29,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": -60.06,
+  "env": {
+   "FATHOMDB_PERF_EXPERIMENTS": "1",
+   "FATHOMDB_PERF_VEC0_CHUNK_SIZE": "64"
+  },
+  "vreads": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 61472.848,
+     "cache_miss_per_search": 9700.612,
+     "mean_ms": 62.589774632,
+     "p50_ms": 62.546991999999996,
+     "p99_ms": 69.11562
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 40.042594487,
+     "p50_ms": 40.191761,
+     "p99_ms": 47.823418
+    },
+    "results_digest": "4d4a989d2c4858ea",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 1081.317327,
+    "drain_ms": 52.048997,
+    "db_bytes": 58671104,
+    "file_bytes_checkpointed": 58671104,
+    "n": 10000,
+    "repeat": 0,
+    "load_before": 1.63,
+    "load_after": 1.15,
+    "exit": 0
+   },
+   {
+    "hybrid": {
+     "cache_hit_per_search": 61474.24,
+     "cache_miss_per_search": 9685.323,
+     "mean_ms": 62.86642155,
+     "p50_ms": 62.88247499999999,
+     "p99_ms": 69.358204
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 39.798471963,
+     "p50_ms": 39.978258000000004,
+     "p99_ms": 47.634775999999995
+    },
+    "results_digest": "4d4a989d2c4858ea",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 476.898326,
+    "drain_ms": 623.414896,
+    "db_bytes": 58658816,
+    "file_bytes_checkpointed": 58658816,
+    "n": 10000,
+    "repeat": 1,
+    "load_before": 1.42,
+    "load_after": 1.1,
+    "exit": 0
+   }
+  ],
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 61473.577,
+     "cache_miss_per_search": 9698.939,
+     "mean_ms": 80.479071303,
+     "p50_ms": 80.468079,
+     "p99_ms": 87.126507
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 47.16559427,
+     "p50_ms": 47.259758,
+     "p99_ms": 54.813387
+    },
+    "results_digest": "4d4a989d2c4858ea",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 958.967585,
+    "drain_ms": 110.455771,
+    "db_bytes": 58667008,
+    "file_bytes_checkpointed": 58667008,
+    "n": 10000,
+    "trace": {
+     "exclusive_miss_per_search": 9698.939,
+     "exclusive_requests_per_search": 71172.516,
+     "statements": [
+      {
+       "excl_miss_per_search": 1564.948,
+       "excl_requests_per_search": 30813.518,
+       "incl_miss_per_search": 1592.948,
+       "incl_requests_per_search": 51161.646,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 28.0,
+       "excl_requests_per_search": 20000.0,
+       "incl_miss_per_search": 28.0,
+       "incl_requests_per_search": 20000.0,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 1494.178,
+       "excl_requests_per_search": 11144.0,
+       "incl_miss_per_search": 1494.178,
+       "incl_requests_per_search": 11144.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 4681.42,
+       "excl_requests_per_search": 5500.132,
+       "incl_miss_per_search": 4987.846,
+       "incl_requests_per_search": 6617.132,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "WITH candidates AS ( SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192 ) SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 FROM candidates c JOIN vector_def"
+      },
+      {
+       "excl_miss_per_search": 1431.726,
+       "excl_requests_per_search": 1437.0,
+       "incl_miss_per_search": 1431.726,
+       "incl_requests_per_search": 1437.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 113.426,
+       "excl_requests_per_search": 768.0,
+       "incl_miss_per_search": 113.426,
+       "incl_requests_per_search": 768.0,
+       "nested_runs_per_search": 384.0,
+       "runs_per_search": 384.0,
+       "sql": "SELECT id, chunk_id, chunk_offset FROM \"main\".\"vector_default_rowids\" WHERE rowid = ?"
+      },
+      {
+       "excl_miss_per_search": 3.0,
+       "excl_requests_per_search": 696.256,
+       "incl_miss_per_search": 3.0,
+       "incl_requests_per_search": 696.256,
+       "nested_runs_per_search": 348.128,
+       "runs_per_search": 348.128,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 139.382,
+       "excl_requests_per_search": 360.82,
+       "incl_miss_per_search": 1735.33,
+       "incl_requests_per_search": 51870.594,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 193.0,
+       "excl_requests_per_search": 349.0,
+       "incl_miss_per_search": 193.0,
+       "incl_requests_per_search": 349.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 23.472,
+       "excl_requests_per_search": 50.0,
+       "incl_miss_per_search": 23.472,
+       "incl_requests_per_search": 50.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 23.387,
+       "excl_requests_per_search": 49.79,
+       "incl_miss_per_search": 23.387,
+       "incl_requests_per_search": 49.79,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.958,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 663.935,
+     "exclusive_requests_per_search": 47202.484,
+     "statements": [
+      {
+       "excl_miss_per_search": 330.363,
+       "excl_requests_per_search": 23598.742,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 1.12,
+       "excl_requests_per_search": 20202.0,
+       "incl_miss_per_search": 1.12,
+       "incl_requests_per_search": 20202.0,
+       "nested_runs_per_search": 10101.0,
+       "runs_per_search": 10101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 192.962,
+       "excl_requests_per_search": 1178.02,
+       "incl_miss_per_search": 193.1,
+       "incl_requests_per_search": 1728.148,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 136.257,
+       "excl_requests_per_search": 1174.338,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 0.024,
+       "excl_requests_per_search": 1044.384,
+       "incl_miss_per_search": 0.024,
+       "incl_requests_per_search": 1044.384,
+       "nested_runs_per_search": 522.192,
+       "runs_per_search": 522.192,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 1.593,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 1.593,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 0,
+    "load_before": 1.02,
+    "load_after": 1.19,
+    "exit": 0
+   }
+  ],
+  "recall": [
+   {
+    "n": 10000,
+    "samples": 1000,
+    "recall_at_10": 0.0036,
+    "repeat": 0,
+    "load_before": 1.13,
+    "exit": 0
+   }
+  ]
+ },
+ "CS256": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 75,
+    "p99_ms": 82,
+    "p50_us": 75711,
+    "p99_us": 82830,
+    "seed_ms": 1113,
+    "seed_write_ms": 939,
+    "drain_ms": 174,
+    "repeat": 0,
+    "load_before": 1.54,
+    "exit": 0,
+    "load_after": 1.15,
+    "load_flag": false
+   },
+   {
+    "p50_ms": 76,
+    "p99_ms": 83,
+    "p50_us": 76105,
+    "p99_us": 83415,
+    "seed_ms": 1119,
+    "seed_write_ms": 1041,
+    "drain_ms": 78,
+    "repeat": 1,
+    "load_before": 1.39,
+    "exit": 0,
+    "load_after": 1.14,
+    "load_flag": false
+   }
+  ],
+  "iso": [
+   {
+    "a_heavy_read_stays_inside_its_own_page_cache": "ok",
+    "other_readers_keep_their_page_caches_after_a_heavy_read": "ok",
+    "repeat": 0,
+    "load_before": 1.19,
+    "exit": 0,
+    "load_after": 1.19,
+    "load_flag": false
+   }
+  ],
+  "mcp": [
+   {
+    "p50_ms": 393.611,
+    "p99_ms": 495.382,
+    "rejections": 0,
+    "repeat": 0,
+    "load_before": 1.7,
+    "exit": 0,
+    "load_after": 1.65,
+    "load_flag": false
+   },
+   {
+    "p50_ms": 395.961,
+    "p99_ms": 496.55,
+    "rejections": 0,
+    "repeat": 1,
+    "load_before": 1.65,
+    "exit": 0,
+    "load_after": 7.16,
+    "load_flag": true
+   }
+  ],
+  "i6": [
+   {
+    "defect-c": 1.027,
+    "cohort": 1.022,
+    "repeat": 0,
+    "load_before": 1.52,
+    "exit": 0,
+    "load_after": 1.47,
+    "load_flag": false
+   },
+   {
+    "defect-c": 0.993,
+    "cohort": 1.028,
+    "repeat": 1,
+    "load_before": 1.37,
+    "exit": 0,
+    "load_after": 1.31,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": -47.229,
+  "env": {
+   "FATHOMDB_PERF_EXPERIMENTS": "1",
+   "FATHOMDB_PERF_VEC0_CHUNK_SIZE": "256"
+  },
+  "vreads": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 63851.772,
+     "cache_miss_per_search": 21411.12,
+     "mean_ms": 75.509386283,
+     "p50_ms": 75.483097,
+     "p99_ms": 82.78320599999999
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 40.090715247,
+     "p50_ms": 40.208071,
+     "p99_ms": 48.141193
+    },
+    "results_digest": "4d4a989d2c4858ea",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 1095.310242,
+    "drain_ms": 79.627401,
+    "db_bytes": 58994688,
+    "file_bytes_checkpointed": 58994688,
+    "n": 10000,
+    "repeat": 0,
+    "load_before": 1.45,
+    "load_after": 1.09,
+    "exit": 0
+   },
+   {
+    "hybrid": {
+     "cache_hit_per_search": 63854.465,
+     "cache_miss_per_search": 21426.158,
+     "mean_ms": 75.019522415,
+     "p50_ms": 75.000475,
+     "p99_ms": 81.74881400000001
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 39.729728977,
+     "p50_ms": 39.830237999999994,
+     "p99_ms": 47.493899
+    },
+    "results_digest": "4d4a989d2c4858ea",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 474.23510200000004,
+    "drain_ms": 692.6300130000001,
+    "db_bytes": 58994688,
+    "file_bytes_checkpointed": 58994688,
+    "n": 10000,
+    "repeat": 1,
+    "load_before": 1.29,
+    "load_after": 1.03,
+    "exit": 0
+   }
+  ],
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 63856.212,
+     "cache_miss_per_search": 21427.345,
+     "mean_ms": 93.996097762,
+     "p50_ms": 93.94335600000001,
+     "p99_ms": 100.31768000000001
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 47.317944016,
+     "p50_ms": 47.404785999999994,
+     "p99_ms": 54.999832
+    },
+    "results_digest": "4d4a989d2c4858ea",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 1019.034833,
+    "drain_ms": 80.873596,
+    "db_bytes": 58994688,
+    "file_bytes_checkpointed": 58994688,
+    "n": 10000,
+    "trace": {
+     "exclusive_miss_per_search": 21427.345,
+     "exclusive_requests_per_search": 85283.557,
+     "statements": [
+      {
+       "excl_miss_per_search": 1564.948,
+       "excl_requests_per_search": 30813.518,
+       "incl_miss_per_search": 1592.948,
+       "incl_requests_per_search": 51161.646,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 28.0,
+       "excl_requests_per_search": 20000.0,
+       "incl_miss_per_search": 28.0,
+       "incl_requests_per_search": 20000.0,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 16507.67,
+       "excl_requests_per_search": 19822.173,
+       "incl_miss_per_search": 16716.251,
+       "incl_requests_per_search": 20728.173,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "WITH candidates AS ( SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192 ) SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 FROM candidates c JOIN vector_def"
+      },
+      {
+       "excl_miss_per_search": 1494.178,
+       "excl_requests_per_search": 11144.0,
+       "incl_miss_per_search": 1494.178,
+       "incl_requests_per_search": 11144.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 1431.725,
+       "excl_requests_per_search": 1437.0,
+       "incl_miss_per_search": 1431.725,
+       "incl_requests_per_search": 1437.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 144.581,
+       "excl_requests_per_search": 768.0,
+       "incl_miss_per_search": 144.581,
+       "incl_requests_per_search": 768.0,
+       "nested_runs_per_search": 384.0,
+       "runs_per_search": 384.0,
+       "sql": "SELECT id, chunk_id, chunk_offset FROM \"main\".\"vector_default_rowids\" WHERE rowid = ?"
+      },
+      {
+       "excl_miss_per_search": 3.0,
+       "excl_requests_per_search": 696.256,
+       "incl_miss_per_search": 3.0,
+       "incl_requests_per_search": 696.256,
+       "nested_runs_per_search": 348.128,
+       "runs_per_search": 348.128,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 139.382,
+       "excl_requests_per_search": 360.82,
+       "incl_miss_per_search": 1735.33,
+       "incl_requests_per_search": 51870.594,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 64.0,
+       "excl_requests_per_search": 138.0,
+       "incl_miss_per_search": 64.0,
+       "incl_requests_per_search": 138.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 23.474,
+       "excl_requests_per_search": 50.0,
+       "incl_miss_per_search": 23.474,
+       "incl_requests_per_search": 50.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 23.387,
+       "excl_requests_per_search": 49.79,
+       "incl_miss_per_search": 23.387,
+       "incl_requests_per_search": 49.79,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.958,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 663.935,
+     "exclusive_requests_per_search": 47202.484,
+     "statements": [
+      {
+       "excl_miss_per_search": 330.363,
+       "excl_requests_per_search": 23598.742,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 1.12,
+       "excl_requests_per_search": 20202.0,
+       "incl_miss_per_search": 1.12,
+       "incl_requests_per_search": 20202.0,
+       "nested_runs_per_search": 10101.0,
+       "runs_per_search": 10101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 192.962,
+       "excl_requests_per_search": 1178.02,
+       "incl_miss_per_search": 193.1,
+       "incl_requests_per_search": 1728.148,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 136.257,
+       "excl_requests_per_search": 1174.338,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 0.024,
+       "excl_requests_per_search": 1044.384,
+       "incl_miss_per_search": 0.024,
+       "incl_requests_per_search": 1044.384,
+       "nested_runs_per_search": 522.192,
+       "runs_per_search": 522.192,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 1.593,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 1.593,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 0,
+    "load_before": 1.19,
+    "load_after": 1.83,
+    "exit": 0
+   }
+  ],
+  "recall": [
+   {
+    "n": 10000,
+    "samples": 1000,
+    "recall_at_10": 0.0036,
+    "repeat": 0,
+    "load_before": 1.12,
+    "exit": 0
+   }
+  ]
+ },
+ "F32T": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 56,
+    "p99_ms": 62,
+    "p50_us": 56272,
+    "p99_us": 62525,
+    "seed_ms": 4096,
+    "seed_write_ms": 3902,
+    "drain_ms": 194,
+    "repeat": 0,
+    "load_before": 1.32,
+    "exit": 0,
+    "load_after": 1.14,
+    "load_flag": false
+   },
+   {
+    "p50_ms": 57,
+    "p99_ms": 63,
+    "p50_us": 57272,
+    "p99_us": 63567,
+    "seed_ms": 4160,
+    "seed_write_ms": 3964,
+    "drain_ms": 196,
+    "repeat": 1,
+    "load_before": 1.79,
+    "exit": 0,
+    "load_after": 1.52,
+    "load_flag": false
+   }
+  ],
+  "iso": [
+   {
+    "a_heavy_read_stays_inside_its_own_page_cache": "ok",
+    "other_readers_keep_their_page_caches_after_a_heavy_read": "ok",
+    "repeat": 0,
+    "load_before": 1.05,
+    "exit": 0,
+    "load_after": 1.05,
+    "load_flag": false
+   }
+  ],
+  "mcp": [
+   {
+    "p50_ms": 386.779,
+    "p99_ms": 490.716,
+    "rejections": 0,
+    "repeat": 0,
+    "load_before": 1.65,
+    "exit": 0,
+    "load_after": 4.07,
+    "load_flag": true
+   },
+   {
+    "p50_ms": 386.074,
+    "p99_ms": 489.121,
+    "rejections": 0,
+    "repeat": 1,
+    "load_before": 1.59,
+    "exit": 0,
+    "load_after": 4.17,
+    "load_flag": true
+   }
+  ],
+  "i6": [
+   {
+    "defect-c": 0.981,
+    "cohort": 1.003,
+    "repeat": 0,
+    "load_before": 1.47,
+    "exit": 0,
+    "load_after": 1.4,
+    "load_flag": false
+   },
+   {
+    "defect-c": 0.98,
+    "cohort": 0.982,
+    "repeat": 1,
+    "load_before": 1.4,
+    "exit": 0,
+    "load_after": 1.37,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": -66.449,
+  "env": {
+   "FATHOMDB_PERF_EXPERIMENTS": "1",
+   "FATHOMDB_PERF_VECTOR_RERANK": "f32table",
+   "FATHOMDB_PERF_VECTOR_F32_TABLE": "1"
+  },
+  "vreads": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 60226.635,
+     "cache_miss_per_search": 4950.749,
+     "mean_ms": 56.058026336,
+     "p50_ms": 56.150506,
+     "p99_ms": 61.995312
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 39.994080917,
+     "p50_ms": 40.088614,
+     "p99_ms": 47.696779
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3525.0957280000002,
+    "drain_ms": 549.136018,
+    "db_bytes": 99876864,
+    "file_bytes_checkpointed": 99876864,
+    "n": 10000,
+    "repeat": 0,
+    "load_before": 1.54,
+    "load_after": 1.13,
+    "exit": 0
+   },
+   {
+    "hybrid": {
+     "cache_hit_per_search": 60226.635,
+     "cache_miss_per_search": 4950.749,
+     "mean_ms": 60.564060144,
+     "p50_ms": 57.32961,
+     "p99_ms": 114.568111
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 40.221169797,
+     "p50_ms": 40.339000999999996,
+     "p99_ms": 48.468507
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3533.345306,
+    "drain_ms": 550.388015,
+    "db_bytes": 99880960,
+    "file_bytes_checkpointed": 99880960,
+    "n": 10000,
+    "repeat": 1,
+    "load_before": 1.52,
+    "load_after": 2.87,
+    "exit": 0
+   },
+   {
+    "hybrid": {
+     "cache_hit_per_search": 60226.635,
+     "cache_miss_per_search": 4950.749,
+     "mean_ms": 56.168367435,
+     "p50_ms": 56.19297,
+     "p99_ms": 62.459874
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 39.810048066,
+     "p50_ms": 39.952413,
+     "p99_ms": 47.407164
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3525.069712,
+    "drain_ms": 534.6444329999999,
+    "db_bytes": 99876864,
+    "file_bytes_checkpointed": 99876864,
+    "n": 10000,
+    "repeat": 2,
+    "load_before": 1.05,
+    "load_after": 1.07,
+    "exit": 0
+   }
+  ],
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 60226.635,
+     "cache_miss_per_search": 4950.749,
+     "mean_ms": 73.101704837,
+     "p50_ms": 73.12699,
+     "p99_ms": 79.342869
+    },
+    "text_only": {
+     "cache_hit_per_search": 23270.17,
+     "cache_miss_per_search": 333.572,
+     "mean_ms": 47.168374395,
+     "p50_ms": 47.303696,
+     "p99_ms": 54.984328
+    },
+    "results_digest": "9d58de26e10bf5bb",
+    "ids_digest": "81d55824f18d31f4",
+    "seed_write_ms": 3476.959486,
+    "drain_ms": 533.757473,
+    "db_bytes": 99876864,
+    "file_bytes_checkpointed": 99876864,
+    "n": 10000,
+    "trace": {
+     "exclusive_miss_per_search": 4950.749,
+     "exclusive_requests_per_search": 65177.384,
+     "statements": [
+      {
+       "excl_miss_per_search": 1564.948,
+       "excl_requests_per_search": 30813.518,
+       "incl_miss_per_search": 1592.948,
+       "incl_requests_per_search": 51161.646,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 28.0,
+       "excl_requests_per_search": 20000.0,
+       "incl_miss_per_search": 28.0,
+       "incl_requests_per_search": 20000.0,
+       "nested_runs_per_search": 10000.0,
+       "runs_per_search": 10000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 1494.178,
+       "excl_requests_per_search": 11144.0,
+       "incl_miss_per_search": 1494.178,
+       "incl_requests_per_search": 11144.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 1431.724,
+       "excl_requests_per_search": 1437.0,
+       "incl_miss_per_search": 1431.724,
+       "incl_requests_per_search": 1437.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 3.0,
+       "excl_requests_per_search": 696.256,
+       "incl_miss_per_search": 3.0,
+       "incl_requests_per_search": 696.256,
+       "nested_runs_per_search": 348.128,
+       "runs_per_search": 348.128,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 214.995,
+       "excl_requests_per_search": 576.0,
+       "incl_miss_per_search": 214.995,
+       "incl_requests_per_search": 576.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 192.0,
+       "sql": "SELECT vec_distance_l2(embedding, ?2) FROM _fathomdb_vector_f32 WHERE rowid = ?1"
+      },
+      {
+       "excl_miss_per_search": 139.382,
+       "excl_requests_per_search": 360.82,
+       "incl_miss_per_search": 1735.33,
+       "incl_requests_per_search": 51870.594,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 20.135,
+       "excl_requests_per_search": 50.0,
+       "incl_miss_per_search": 20.135,
+       "incl_requests_per_search": 50.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 23.387,
+       "excl_requests_per_search": 49.79,
+       "incl_miss_per_search": 23.387,
+       "incl_requests_per_search": 49.79,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.958,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 13.0,
+       "excl_requests_per_search": 30.0,
+       "incl_miss_per_search": 13.0,
+       "incl_requests_per_search": 30.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 15.0,
+       "excl_requests_per_search": 16.0,
+       "incl_miss_per_search": 15.0,
+       "incl_requests_per_search": 16.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 13.0,
+       "incl_requests_per_search": 30.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT vec_f32(?1)"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 663.935,
+     "exclusive_requests_per_search": 47202.484,
+     "statements": [
+      {
+       "excl_miss_per_search": 330.363,
+       "excl_requests_per_search": 23598.742,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 1.12,
+       "excl_requests_per_search": 20202.0,
+       "incl_miss_per_search": 1.12,
+       "incl_requests_per_search": 20202.0,
+       "nested_runs_per_search": 10101.0,
+       "runs_per_search": 10101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 192.962,
+       "excl_requests_per_search": 1178.02,
+       "incl_miss_per_search": 193.1,
+       "incl_requests_per_search": 1728.148,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 136.257,
+       "excl_requests_per_search": 1174.338,
+       "incl_miss_per_search": 330.363,
+       "incl_requests_per_search": 23598.742,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 0.024,
+       "excl_requests_per_search": 1044.384,
+       "incl_miss_per_search": 0.024,
+       "incl_requests_per_search": 1044.384,
+       "nested_runs_per_search": 522.192,
+       "runs_per_search": 522.192,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 1.593,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 1.593,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.808,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.808,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 0,
+    "load_before": 1.83,
+    "load_after": 1.19,
+    "exit": 0
+   }
+  ],
+  "recall": [
+   {
+    "n": 10000,
+    "samples": 1000,
+    "recall_at_10": 0.0036,
+    "repeat": 0,
+    "load_before": 1.19,
+    "exit": 0
+   }
+  ]
+ },
+ "BASE@n=100000": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 674,
+    "p99_ms": 736,
+    "p50_us": 674048,
+    "p99_us": 736913,
+    "seed_ms": 44196,
+    "seed_write_ms": 33814,
+    "drain_ms": 10381,
+    "repeat": 10,
+    "load_before": 0.8,
+    "exit": 0,
+    "load_after": 1.2,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": 550.811,
+  "env": {},
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 692871.6433333333,
+     "cache_miss_per_search": 121626.71,
+     "mean_ms": 831.5491024033333,
+     "p50_ms": 832.0294339999999,
+     "p99_ms": 890.7843290000001
+    },
+    "text_only": {
+     "cache_hit_per_search": 207703.17333333334,
+     "cache_miss_per_search": 5016.593333333333,
+     "mean_ms": 466.16477664666667,
+     "p50_ms": 466.399641,
+     "p99_ms": 541.8596719999999
+    },
+    "results_digest": "13fca8d1ecbb4b36",
+    "ids_digest": "201a878a48fbc9c0",
+    "seed_write_ms": 16914.775532,
+    "drain_ms": 29596.679948999998,
+    "db_bytes": 577691648,
+    "file_bytes_checkpointed": 577691648,
+    "n": 100000,
+    "trace": {
+     "exclusive_miss_per_search": 121626.71,
+     "exclusive_requests_per_search": 814498.3533333334,
+     "statements": [
+      {
+       "excl_miss_per_search": 16495.87,
+       "excl_requests_per_search": 304997.1,
+       "incl_miss_per_search": 16788.296666666665,
+       "incl_requests_per_search": 506045.82,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 15054.183333333332,
+       "excl_requests_per_search": 214380.0,
+       "incl_miss_per_search": 15054.183333333332,
+       "incl_requests_per_search": 214380.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 292.0,
+       "excl_requests_per_search": 200000.0,
+       "incl_miss_per_search": 292.0,
+       "incl_requests_per_search": 200000.0,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 74730.29333333333,
+       "excl_requests_per_search": 76430.53,
+       "incl_miss_per_search": 75101.63333333333,
+       "incl_requests_per_search": 77421.53,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "WITH candidates AS ( SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192 ) SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 FROM candidates c JOIN vector_def"
+      },
+      {
+       "excl_miss_per_search": 14354.203333333333,
+       "excl_requests_per_search": 14356.0,
+       "incl_miss_per_search": 14354.203333333333,
+       "incl_requests_per_search": 14356.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 11.426666666666666,
+       "excl_requests_per_search": 2097.44,
+       "incl_miss_per_search": 11.426666666666666,
+       "incl_requests_per_search": 2097.44,
+       "nested_runs_per_search": 1048.72,
+       "runs_per_search": 1048.72,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 249.09333333333333,
+       "excl_requests_per_search": 1122.3033333333333,
+       "incl_miss_per_search": 17048.39,
+       "incl_requests_per_search": 508216.8433333333,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 330.34,
+       "excl_requests_per_search": 768.0,
+       "incl_miss_per_search": 330.34,
+       "incl_requests_per_search": 768.0,
+       "nested_runs_per_search": 384.0,
+       "runs_per_search": 384.0,
+       "sql": "SELECT id, chunk_id, chunk_offset FROM \"main\".\"vector_default_rowids\" WHERE rowid = ?"
+      },
+      {
+       "excl_miss_per_search": 41.0,
+       "excl_requests_per_search": 223.0,
+       "incl_miss_per_search": 41.0,
+       "incl_requests_per_search": 223.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 32.59,
+       "excl_requests_per_search": 60.0,
+       "incl_miss_per_search": 32.59,
+       "incl_requests_per_search": 60.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 32.71,
+       "excl_requests_per_search": 59.98,
+       "incl_miss_per_search": 32.71,
+       "incl_requests_per_search": 59.98,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.996666666666666,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 10029.186666666666,
+     "exclusive_requests_per_search": 425434.5333333333,
+     "statements": [
+      {
+       "excl_miss_per_search": 5012.593333333333,
+       "excl_requests_per_search": 212714.76666666666,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 378.46,
+       "excl_requests_per_search": 200202.0,
+       "incl_miss_per_search": 378.46,
+       "incl_requests_per_search": 200202.0,
+       "nested_runs_per_search": 100101.0,
+       "runs_per_search": 100101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 2844.46,
+       "excl_requests_per_search": 6119.403333333334,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 1770.2733333333333,
+       "excl_requests_per_search": 3247.2033333333334,
+       "incl_miss_per_search": 1868.0133333333333,
+       "incl_requests_per_search": 4497.923333333333,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 19.4,
+       "excl_requests_per_search": 3146.16,
+       "incl_miss_per_search": 19.4,
+       "incl_requests_per_search": 3146.16,
+       "nested_runs_per_search": 1573.08,
+       "runs_per_search": 1573.08,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 10,
+    "load_before": 1.19,
+    "load_after": 1.07,
+    "exit": 0
+   }
+  ]
+ },
+ "CHUNKED@n=100000": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 634,
+    "p99_ms": 696,
+    "p50_us": 634951,
+    "p99_us": 696709,
+    "seed_ms": 41449,
+    "seed_write_ms": 41311,
+    "drain_ms": 137,
+    "repeat": 10,
+    "load_before": 1.2,
+    "exit": 0,
+    "load_after": 1.12,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": 511.2845,
+  "env": {
+   "FATHOMDB_PERF_EXPERIMENTS": "1",
+   "FATHOMDB_PERF_VECTOR_RERANK": "chunked"
+  },
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 690997.7766666666,
+     "cache_miss_per_search": 88808.53666666667,
+     "mean_ms": 799.4374238066666,
+     "p50_ms": 799.324783,
+     "p99_ms": 854.4745889999999
+    },
+    "text_only": {
+     "cache_hit_per_search": 207703.17333333334,
+     "cache_miss_per_search": 5016.593333333333,
+     "mean_ms": 465.50853238666673,
+     "p50_ms": 467.39126699999997,
+     "p99_ms": 536.869779
+    },
+    "results_digest": "13fca8d1ecbb4b36",
+    "ids_digest": "201a878a48fbc9c0",
+    "seed_write_ms": 40468.061155999996,
+    "drain_ms": 139.079497,
+    "db_bytes": 577716224,
+    "file_bytes_checkpointed": 577716224,
+    "n": 100000,
+    "trace": {
+     "exclusive_miss_per_search": 46713.04666666667,
+     "exclusive_requests_per_search": 737683.8233333334,
+     "statements": [
+      {
+       "excl_miss_per_search": 16495.87,
+       "excl_requests_per_search": 304997.1,
+       "incl_miss_per_search": 16788.296666666665,
+       "incl_requests_per_search": 506045.82,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 15054.183333333332,
+       "excl_requests_per_search": 214380.0,
+       "incl_miss_per_search": 15054.183333333332,
+       "incl_requests_per_search": 214380.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 292.0,
+       "excl_requests_per_search": 200000.0,
+       "incl_miss_per_search": 292.0,
+       "incl_requests_per_search": 200000.0,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 14354.203333333333,
+       "excl_requests_per_search": 14356.0,
+       "incl_miss_per_search": 14354.203333333333,
+       "incl_requests_per_search": 14356.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 11.426666666666666,
+       "excl_requests_per_search": 2097.44,
+       "incl_miss_per_search": 11.426666666666666,
+       "incl_requests_per_search": 2097.44,
+       "nested_runs_per_search": 1048.72,
+       "runs_per_search": 1048.72,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 249.09333333333333,
+       "excl_requests_per_search": 1122.3033333333333,
+       "incl_miss_per_search": 17048.39,
+       "incl_requests_per_search": 508216.8433333333,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 146.97,
+       "excl_requests_per_search": 384.0,
+       "incl_miss_per_search": 146.97,
+       "incl_requests_per_search": 384.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 192.0,
+       "sql": "SELECT chunk_id, chunk_offset FROM vector_default_rowids WHERE rowid = ?1"
+      },
+      {
+       "excl_miss_per_search": 41.0,
+       "excl_requests_per_search": 223.0,
+       "incl_miss_per_search": 41.0,
+       "incl_requests_per_search": 223.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 32.59,
+       "excl_requests_per_search": 60.0,
+       "incl_miss_per_search": 32.59,
+       "incl_requests_per_search": 60.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 32.71,
+       "excl_requests_per_search": 59.98,
+       "incl_miss_per_search": 32.71,
+       "incl_requests_per_search": 59.98,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.996666666666666,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 41.0,
+       "incl_requests_per_search": 223.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 192.0,
+       "sql": "SELECT vec_distance_l2(?1, ?2)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT vec_f32(?1)"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 10029.186666666666,
+     "exclusive_requests_per_search": 425434.5333333333,
+     "statements": [
+      {
+       "excl_miss_per_search": 5012.593333333333,
+       "excl_requests_per_search": 212714.76666666666,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 378.46,
+       "excl_requests_per_search": 200202.0,
+       "incl_miss_per_search": 378.46,
+       "incl_requests_per_search": 200202.0,
+       "nested_runs_per_search": 100101.0,
+       "runs_per_search": 100101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 2844.46,
+       "excl_requests_per_search": 6119.403333333334,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 1770.2733333333333,
+       "excl_requests_per_search": 3247.2033333333334,
+       "incl_miss_per_search": 1868.0133333333333,
+       "incl_requests_per_search": 4497.923333333333,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 19.4,
+       "excl_requests_per_search": 3146.16,
+       "incl_miss_per_search": 19.4,
+       "incl_requests_per_search": 3146.16,
+       "nested_runs_per_search": 1573.08,
+       "runs_per_search": 1573.08,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 10,
+    "load_before": 1.07,
+    "load_after": 1.13,
+    "exit": 0
+   }
+  ]
+ },
+ "F32T@n=100000": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 585,
+    "p99_ms": 647,
+    "p50_us": 585942,
+    "p99_us": 647013,
+    "seed_ms": 44241,
+    "seed_write_ms": 44075,
+    "drain_ms": 165,
+    "repeat": 10,
+    "load_before": 1.12,
+    "exit": 0,
+    "load_after": 1.25,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": 461.8875,
+  "env": {
+   "FATHOMDB_PERF_EXPERIMENTS": "1",
+   "FATHOMDB_PERF_VECTOR_RERANK": "f32table",
+   "FATHOMDB_PERF_VECTOR_F32_TABLE": "1"
+  },
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 690985.9033333333,
+     "cache_miss_per_search": 46897.92,
+     "mean_ms": 745.42042804,
+     "p50_ms": 745.1786860000001,
+     "p99_ms": 805.5530269999999
+    },
+    "text_only": {
+     "cache_hit_per_search": 207703.17333333334,
+     "cache_miss_per_search": 5016.593333333333,
+     "mean_ms": 466.0975422833333,
+     "p50_ms": 465.667581,
+     "p99_ms": 540.6296609999999
+    },
+    "results_digest": "13fca8d1ecbb4b36",
+    "ids_digest": "201a878a48fbc9c0",
+    "seed_write_ms": 41711.211383,
+    "drain_ms": 1581.679703,
+    "db_bytes": 988356608,
+    "file_bytes_checkpointed": 988356608,
+    "n": 100000,
+    "trace": {
+     "exclusive_miss_per_search": 46897.92,
+     "exclusive_requests_per_search": 737883.8233333334,
+     "statements": [
+      {
+       "excl_miss_per_search": 16495.87,
+       "excl_requests_per_search": 304997.1,
+       "incl_miss_per_search": 16788.296666666665,
+       "incl_requests_per_search": 506045.82,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 15055.183333333332,
+       "excl_requests_per_search": 214381.0,
+       "incl_miss_per_search": 15055.183333333332,
+       "incl_requests_per_search": 214381.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 292.0,
+       "excl_requests_per_search": 200000.0,
+       "incl_miss_per_search": 292.0,
+       "incl_requests_per_search": 200000.0,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 14354.203333333333,
+       "excl_requests_per_search": 14356.0,
+       "incl_miss_per_search": 14354.203333333333,
+       "incl_requests_per_search": 14356.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 11.426666666666666,
+       "excl_requests_per_search": 2097.44,
+       "incl_miss_per_search": 11.426666666666666,
+       "incl_requests_per_search": 2097.44,
+       "nested_runs_per_search": 1048.72,
+       "runs_per_search": 1048.72,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 249.09333333333333,
+       "excl_requests_per_search": 1122.3033333333333,
+       "incl_miss_per_search": 17048.39,
+       "incl_requests_per_search": 508216.8433333333,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 326.09,
+       "excl_requests_per_search": 576.0,
+       "incl_miss_per_search": 326.09,
+       "incl_requests_per_search": 576.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 192.0,
+       "sql": "SELECT vec_distance_l2(embedding, ?2) FROM _fathomdb_vector_f32 WHERE rowid = ?1"
+      },
+      {
+       "excl_miss_per_search": 32.0,
+       "excl_requests_per_search": 214.0,
+       "incl_miss_per_search": 32.0,
+       "incl_requests_per_search": 214.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 31.343333333333334,
+       "excl_requests_per_search": 60.0,
+       "incl_miss_per_search": 31.343333333333334,
+       "incl_requests_per_search": 60.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 32.71,
+       "excl_requests_per_search": 59.98,
+       "incl_miss_per_search": 32.71,
+       "incl_requests_per_search": 59.98,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.996666666666666,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 15.0,
+       "excl_requests_per_search": 16.0,
+       "incl_miss_per_search": 15.0,
+       "incl_requests_per_search": 16.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 32.0,
+       "incl_requests_per_search": 214.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT vec_f32(?1)"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 10029.186666666666,
+     "exclusive_requests_per_search": 425434.5333333333,
+     "statements": [
+      {
+       "excl_miss_per_search": 5012.593333333333,
+       "excl_requests_per_search": 212714.76666666666,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 378.46,
+       "excl_requests_per_search": 200202.0,
+       "incl_miss_per_search": 378.46,
+       "incl_requests_per_search": 200202.0,
+       "nested_runs_per_search": 100101.0,
+       "runs_per_search": 100101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 2844.46,
+       "excl_requests_per_search": 6119.403333333334,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 1770.2733333333333,
+       "excl_requests_per_search": 3247.2033333333334,
+       "incl_miss_per_search": 1868.0133333333333,
+       "incl_requests_per_search": 4497.923333333333,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 19.4,
+       "excl_requests_per_search": 3146.16,
+       "incl_miss_per_search": 19.4,
+       "incl_requests_per_search": 3146.16,
+       "nested_runs_per_search": 1573.08,
+       "runs_per_search": 1573.08,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 10,
+    "load_before": 1.18,
+    "load_after": 1.09,
+    "exit": 0
+   }
+  ]
+ },
+ "CS64@n=100000": {
+  "mode": "absent",
+  "reader": "",
+  "writer": "",
+  "gate": [
+   {
+    "p50_ms": 598,
+    "p99_ms": 658,
+    "p50_us": 598766,
+    "p99_us": 658403,
+    "seed_ms": 13766,
+    "seed_write_ms": 13662,
+    "drain_ms": 103,
+    "repeat": 10,
+    "load_before": 0.91,
+    "exit": 0,
+    "load_after": 1.04,
+    "load_flag": false
+   }
+  ],
+  "paired_median_diff_vs_BASE_ms": 475.3515,
+  "env": {
+   "FATHOMDB_PERF_EXPERIMENTS": "1",
+   "FATHOMDB_PERF_VEC0_CHUNK_SIZE": "64"
+  },
+  "vtrace": [
+   {
+    "hybrid": {
+     "cache_hit_per_search": 694866.78,
+     "cache_miss_per_search": 53586.1,
+     "mean_ms": 764.2270427733333,
+     "p50_ms": 765.674184,
+     "p99_ms": 818.605583
+    },
+    "text_only": {
+     "cache_hit_per_search": 207703.17333333334,
+     "cache_miss_per_search": 5016.593333333333,
+     "mean_ms": 464.33526170000005,
+     "p50_ms": 464.780519,
+     "p99_ms": 538.312937
+    },
+    "results_digest": "13fca8d1ecbb4b36",
+    "ids_digest": "201a878a48fbc9c0",
+    "seed_write_ms": 13690.634783,
+    "drain_ms": 88.539029,
+    "db_bytes": 581509120,
+    "file_bytes_checkpointed": 581509120,
+    "n": 100000,
+    "trace": {
+     "exclusive_miss_per_search": 53586.1,
+     "exclusive_requests_per_search": 748452.88,
+     "statements": [
+      {
+       "excl_miss_per_search": 16495.87,
+       "excl_requests_per_search": 304997.1,
+       "incl_miss_per_search": 16788.296666666665,
+       "incl_requests_per_search": 506045.82,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 15058.183333333332,
+       "excl_requests_per_search": 214384.0,
+       "incl_miss_per_search": 15058.183333333332,
+       "incl_requests_per_search": 214384.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' WHERE (vr.kind"
+      },
+      {
+       "excl_miss_per_search": 292.0,
+       "excl_requests_per_search": 200000.0,
+       "incl_miss_per_search": 292.0,
+       "incl_requests_per_search": 200000.0,
+       "nested_runs_per_search": 100000.0,
+       "runs_per_search": 100000.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 14354.203333333333,
+       "excl_requests_per_search": 14356.0,
+       "incl_miss_per_search": 14354.203333333333,
+       "incl_requests_per_search": 14356.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE (?2=0 AND n.superseded_at IS NOT NULL) OR (?3=0 AND n.state!='active') OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))) L"
+      },
+      {
+       "excl_miss_per_search": 5070.19,
+       "excl_requests_per_search": 5680.056666666666,
+       "incl_miss_per_search": 7057.0233333333335,
+       "incl_requests_per_search": 11372.056666666667,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "WITH candidates AS ( SELECT rowid FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) ORDER BY distance LIMIT 192 ) SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 FROM candidates c JOIN vector_def"
+      },
+      {
+       "excl_miss_per_search": 1803.0,
+       "excl_requests_per_search": 4924.0,
+       "incl_miss_per_search": 1803.0,
+       "incl_requests_per_search": 4924.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "select chunk_id, validity, rowids from \"main\".\"vector_default_chunks\""
+      },
+      {
+       "excl_miss_per_search": 11.426666666666666,
+       "excl_requests_per_search": 2097.44,
+       "incl_miss_per_search": 11.426666666666666,
+       "incl_requests_per_search": 2097.44,
+       "nested_runs_per_search": 1048.72,
+       "runs_per_search": 1048.72,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 249.09333333333333,
+       "excl_requests_per_search": 1122.3033333333333,
+       "incl_miss_per_search": 17048.39,
+       "incl_requests_per_search": 508216.8433333333,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index WHERE search_index MATCH ?1 AND (?2 IS NULL OR ?2 IS NOT NULL)"
+      },
+      {
+       "excl_miss_per_search": 183.83333333333334,
+       "excl_requests_per_search": 768.0,
+       "incl_miss_per_search": 183.83333333333334,
+       "incl_requests_per_search": 768.0,
+       "nested_runs_per_search": 384.0,
+       "runs_per_search": 384.0,
+       "sql": "SELECT id, chunk_id, chunk_offset FROM \"main\".\"vector_default_rowids\" WHERE rowid = ?"
+      },
+      {
+       "excl_miss_per_search": 32.59,
+       "excl_requests_per_search": 60.0,
+       "incl_miss_per_search": 32.59,
+       "incl_requests_per_search": 60.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 10.0,
+       "sql": "SELECT kind, body, logical_id, source_id FROM canonical_nodes WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active' AND (canonical_nodes.valid_from IS NULL OR canonical_nodes.valid_from <= ?2) AND (canonical_nodes.valid_unt"
+      },
+      {
+       "excl_miss_per_search": 32.71,
+       "excl_requests_per_search": 59.98,
+       "incl_miss_per_search": 32.71,
+       "incl_requests_per_search": 59.98,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 9.996666666666666,
+       "sql": "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 2.0,
+       "runs_per_search": 2.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "trace_text_only": {
+     "exclusive_miss_per_search": 10029.186666666666,
+     "exclusive_requests_per_search": 425434.5333333333,
+     "statements": [
+      {
+       "excl_miss_per_search": 5012.593333333333,
+       "excl_requests_per_search": 212714.76666666666,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT search_index.body, search_index.kind, search_index.write_cursor, bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor WHERE "
+      },
+      {
+       "excl_miss_per_search": 378.46,
+       "excl_requests_per_search": 200202.0,
+       "incl_miss_per_search": 378.46,
+       "incl_requests_per_search": 200202.0,
+       "nested_runs_per_search": 100101.0,
+       "runs_per_search": 100101.0,
+       "sql": "SELECT sz FROM 'main'.'search_index_docsize' WHERE id=?"
+      },
+      {
+       "excl_miss_per_search": 2844.46,
+       "excl_requests_per_search": 6119.403333333334,
+       "incl_miss_per_search": 5012.593333333333,
+       "incl_requests_per_search": 212714.76666666666,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT rowid, rank FROM 'main'.'search_index' ORDER BY bm25(\"search_index\") ASC"
+      },
+      {
+       "excl_miss_per_search": 1770.2733333333333,
+       "excl_requests_per_search": 3247.2033333333334,
+       "incl_miss_per_search": 1868.0133333333333,
+       "incl_requests_per_search": 4497.923333333333,
+       "nested_runs_per_search": 101.0,
+       "runs_per_search": 101.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_content' T WHERE T.'rowid'=?"
+      },
+      {
+       "excl_miss_per_search": 19.4,
+       "excl_requests_per_search": 3146.16,
+       "incl_miss_per_search": 19.4,
+       "incl_requests_per_search": 3146.16,
+       "nested_runs_per_search": 1573.08,
+       "runs_per_search": 1573.08,
+       "sql": "SELECT pgno FROM 'main'.'search_index_idx' WHERE segid=? AND term<=? ORDER BY term DESC LIMIT 1"
+      },
+      {
+       "excl_miss_per_search": 2.0,
+       "excl_requests_per_search": 3.0,
+       "incl_miss_per_search": 2.0,
+       "incl_requests_per_search": 3.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT value FROM _fathomdb_open_state WHERE key = ?1"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 1.0,
+       "excl_requests_per_search": 1.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 1.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT T.'rowid', T.c0, T.c1, T.c2 FROM 'main'.'search_index_edges_content' T WHERE T.'rowid' >= ? AND T.'rowid' <= ? ORDER BY T.'rowid' ASC"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "BEGIN DEFERRED"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "COMMIT"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 3.0,
+       "runs_per_search": 3.0,
+       "sql": "PRAGMA 'main'.data_version"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 1.0,
+       "incl_requests_per_search": 1.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)"
+      },
+      {
+       "excl_miss_per_search": 0.0,
+       "excl_requests_per_search": 0.0,
+       "incl_miss_per_search": 0.0,
+       "incl_requests_per_search": 0.0,
+       "nested_runs_per_search": 0.0,
+       "runs_per_search": 1.0,
+       "sql": "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), ce.logical_id, ce.source_id, sei.rowid FROM search_index_edges sei JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor WHERE search_index_edges MATCH ?1 AND ce"
+      }
+     ]
+    },
+    "repeat": 10,
+    "load_before": 1.13,
+    "load_after": 1.18,
+    "exit": 0
+   }
+  ]
+ }
+}

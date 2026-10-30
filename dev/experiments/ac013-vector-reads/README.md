@@ -99,21 +99,38 @@ OUT=/tmp/tests dev/experiments/ac013-vector-reads/run-tests.sh CHUNKED \
 
 ## Commands behind results.json
 
-With `OUT`, `LOCK` (the shared measurement lock), `STORES` (the relayout
-stores) and `TC5=~/.cache/fathomdb-comp/tc5-10000`:
+In run order, with `OUT` (sweep output), `LOCK` (the shared measurement
+lock), `STORES` (the relayout stores) and `TC5=~/.cache/fathomdb-comp/tc5-10000`.
+Runs at `AC013_CORPUS_N=100000` use repeat numbers from 10 and appear in
+the summary as `<cell>@n=100000`.
 
 ```bash
 D=dev/experiments/ac013-vector-reads
 R="--cells $D/cells.json --out $OUT --lock $LOCK --mcp-store-dir $STORES --tc5-inputs $TC5"
-python3 $D/vsweep.py run $R --arms vtrace --repeats 1
 python3 $D/vsweep.py run $R --arms gate,vreads --repeats 2
+python3 $D/vsweep.py run $R --arms vtrace --repeats 1
+AC013_CORPUS_N=100000 AC013_SAMPLES=300 python3 $D/vsweep.py run $R --arms vtrace \
+  --repeats 1 --only BASE,CHUNKED,CS64,F32T --repeat-offset 10
 python3 $D/vsweep.py run $R --arms recall,iso --repeats 1
-python3 $D/vsweep.py run $R --arms i6 --repeats 2
 AC013_SAMPLES=500 python3 $D/vsweep.py run $R --arms mcp --repeats 2
-AC013_CORPUS_N=100000 python3 $D/vsweep.py run $R --arms gate --repeats 1 --only BASE,F32T,CHUNKED,CS64
-AC013_CORPUS_N=100000 AC013_SAMPLES=300 python3 $D/vsweep.py run $R --arms vtrace --repeats 1 --only BASE,F32T,CHUNKED,CS64
+python3 $D/vsweep.py run $R --arms i6 --repeats 2
+AC013_CORPUS_N=100000 python3 $D/vsweep.py run $R --arms gate --repeats 1 \
+  --only BASE,F32T,CHUNKED --repeat-offset 10
+python3 $D/vsweep.py run $R --arms vreads --repeats 1 --only F32T --repeat-offset 2
+AC013_CORPUS_N=100000 python3 $D/vsweep.py run $R --arms gate --repeats 1 \
+  --only CS64 --repeat-offset 10
 python3 $D/vsweep.py summarize --out $OUT > $D/results.json
+python3 $D/table.py $D/results.json
 ```
+
+The per-query diff behind "999 of 1,000 identical" for the chunk-size
+cells: run the probe with `AC013_RESULTS_OUT=<file>` once per cell and
+compare the files line by line.
+
+### Table script: `dev/experiments/ac013-vector-reads/table.py`
+
+Prints the candidate table from `results.json`, every repeat listed; its
+docstring defines each column.
 
 Before a sweep, build so no run compiles: `cargo test --release -p
 fathomdb-engine --features test-hooks --no-run` for the `perf_gates`,

@@ -27,7 +27,7 @@ A fresh session starts here. Verify each line from git before acting on it.
 - **Phase 0: done** on 2026-10-28; `dev/0.8.29` head `e336cfc09`. Step 4,
   the 0.8.29 release state and board, waits until 0.8.28 publishes; see
   Phase 0.
-- **Phase 1: W4 has started.** The AC-013 regression investigation began on
+- **Phase 1: W4 in progress.** The AC-013 regression investigation began on
   2026-10-29; see W4. No other workstream has started.
 - **Phase 2: not started.** B2-8 (seq 296) still needs owner approval.
 
@@ -126,6 +126,28 @@ three steps:
 
 Todo TC-1b1f69e6 (seq 350 on `dev/0.8.29`) tracks the regression; seq 306
 (TC-016ff172) remains the headroom item.
+
+**W4 status, 2026-10-30.** Steps 1–2 are done. The results are on
+`exp/0.8.29-ac013-vector-reads` (`cadcff392`) and
+`exp/0.8.29-ac013-seed-connections` (`8666ee72a`); the rationale is in
+`dev/experiments/ac013-page-cache/WHY-AND-BLAST-RADIUS.md`.
+
+- **Cause.** vec0 reads and writes walk the overflow chain of a 3 MB
+  chunk blob, once per candidate and once per insert. A 2 MB cache cannot
+  hold that chain.
+- **Owner rulings.**
+  - Existing stores need no backward compatibility, so a rebuild to the
+    new layout is acceptable.
+  - 64-row vec0 chunks (CS64) are the lead fix: p50 62 ms, seed 1.1 s.
+- **Before any fix is built,** two costs that grow with store size must be
+  investigated, then the fix re-evaluated against all findings:
+  - the n=100000 seed-drain cost, which grows with the pending backlog
+    (TC-68169770, seq 351);
+  - search at n=100000, about 600 ms, dominated by the text arm and the
+    O(N) eligibility scans (TC-b23a5ead, seq 352).
+
+  Both run on `exp/0.8.29-ac013-scale`, which merges both experiment
+  branches.
 
 **Order:**
 

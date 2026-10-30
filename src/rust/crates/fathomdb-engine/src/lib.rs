@@ -99,6 +99,8 @@ pub use projection_registry::{
     ProjectionVector,
 };
 mod projection_runtime;
+#[cfg(feature = "test-hooks")]
+pub use projection_runtime::RuntimeCacheStatusForTest;
 pub use projection_runtime::{
     ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason,
     ProjectionStatusDenseReadiness,

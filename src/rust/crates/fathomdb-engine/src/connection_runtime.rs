@@ -205,7 +205,40 @@ pub(crate) fn open_runtime_connection(
     // DELETEs (shadow-table rewrites), so its freed pages must be scrubbed too;
     // setting the pragma only on the writer left a GDPR-erasure leak here.
     connection.pragma_update(None, "secure_delete", "ON")?;
+    apply_perf_experiment_runtime_pragmas(&connection);
     Ok(connection)
+}
+
+/// Apply optional projection/runtime-connection PRAGMAs when
+/// `FATHOMDB_PERF_EXPERIMENTS` is present. Reads comma-separated
+/// `name=value` entries from `FATHOMDB_PERF_RUNTIME_PRAGMAS`; invalid entries
+/// and PRAGMA failures are reported to stderr without failing the open.
+pub(crate) fn apply_perf_experiment_runtime_pragmas(connection: &Connection) {
+    if std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_none() {
+        return;
+    }
+    let raw = match std::env::var("FATHOMDB_PERF_RUNTIME_PRAGMAS") {
+        Ok(s) if !s.is_empty() => s,
+        _ => return,
+    };
+    for entry in raw.split(',') {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        let Some((name, value)) = entry.split_once('=').map(|(n, v)| (n.trim(), v.trim())) else {
+            eprintln!("perf-experiment: bad runtime pragma entry (expect name=value): {entry}");
+            continue;
+        };
+        if name.is_empty() {
+            eprintln!("perf-experiment: empty pragma name in runtime entry: {entry}");
+            continue;
+        }
+        match connection.pragma_update(None, name, value) {
+            Ok(()) => eprintln!("perf-experiment: applied PRAGMA {name}={value} on runtime"),
+            Err(err) => eprintln!("perf-experiment: runtime PRAGMA {name}={value} failed: {err}"),
+        }
+    }
 }
 
 pub(crate) fn register_sqlite_vec_extension() {
@@ -507,6 +540,22 @@ impl Engine {
             .query_row("PRAGMA secure_delete", [], |r| r.get(0))
             .map_err(|_| EngineError::Storage)?;
         Ok(value != 0)
+    }
+
+    /// Read an integer PRAGMA (e.g. `cache_size`) on a freshly opened
+    /// projection/runtime connection, the same open path the projection
+    /// dispatcher and workers use.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn runtime_pragma_for_test(&self, name: &str) -> Result<i64, EngineError> {
+        self.ensure_open()?;
+        let connection = open_runtime_connection(
+            &self.path,
+            ManagedConnectionCategory::RuntimeProbe,
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        connection.pragma_query_value(None, name, |r| r.get(0)).map_err(|_| EngineError::Storage)
     }
 }
 

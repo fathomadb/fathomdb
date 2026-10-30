@@ -250,6 +250,28 @@ pub(crate) struct ProjectionRuntimeShared {
     /// close joins workers, used with `projection_commit_failure_pause`.
     #[cfg(any(test, feature = "test-hooks"))]
     projection_stop_ack: Mutex<Option<Arc<Barrier>>>,
+    /// Latest page-cache counters per runtime connection, refreshed after
+    /// each dispatcher scan and each worker commit batch.
+    #[cfg(feature = "test-hooks")]
+    pub(crate) runtime_cache_status:
+        Mutex<BTreeMap<(WalAttributionRole, usize), RuntimeCacheStatusForTest>>,
+}
+
+/// Page-cache counters of one projection runtime connection
+/// (`SQLITE_DBSTATUS_CACHE_HIT` / `_MISS` / `_USED`, monotonic since open),
+/// plus how many scans or commit batches it has run and how many jobs those
+/// carried.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RuntimeCacheStatusForTest {
+    pub role: &'static str,
+    pub index: usize,
+    pub cache_hit: i64,
+    pub cache_miss: i64,
+    pub cache_used_bytes: i64,
+    pub rounds: u64,
+    pub jobs: u64,
 }
 
 impl std::fmt::Debug for ProjectionRuntimeShared {
@@ -479,6 +501,8 @@ impl ProjectionRuntime {
             projection_worker_before_write_lock_pause: Mutex::new(None),
             #[cfg(any(test, feature = "test-hooks"))]
             projection_stop_ack: Mutex::new(None),
+            #[cfg(feature = "test-hooks")]
+            runtime_cache_status: Mutex::new(BTreeMap::new()),
         });
 
         let (startup_send, startup_receive) = mpsc::channel();
@@ -1019,6 +1043,32 @@ impl Engine {
     #[doc(hidden)]
     pub fn acknowledge_projection_stop_for_test(&self, acknowledged: Arc<Barrier>) {
         self.projection_runtime.acknowledge_projection_stop_for_test(acknowledged);
+    }
+
+    /// Page-cache counters of every projection runtime connection that has
+    /// run at least one scan or commit batch, in (role, index) order.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn runtime_cache_status_for_test(&self) -> Vec<RuntimeCacheStatusForTest> {
+        self.projection_runtime
+            .shared
+            .runtime_cache_status
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .values()
+            .cloned()
+            .collect()
+    }
+
+    /// Writer-connection page-cache counters `(hit, miss, used_bytes)`.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn writer_cache_status_for_test(&self) -> Result<(i64, i64, i64), EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let (hit, miss, used) = crate::reader_pool::read_cache_status(connection);
+        Ok((i64::from(hit), i64::from(miss), i64::from(used)))
     }
 
     #[cfg(any(test, feature = "test-hooks"))]

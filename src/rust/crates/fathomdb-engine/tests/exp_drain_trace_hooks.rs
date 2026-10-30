@@ -128,3 +128,19 @@ fn drain_phase_trace_times_scan_embed_commit_and_drain_probe() {
     reset_drain_phase_trace_for_test();
     assert_eq!(drain_phase_trace_for_test().worker_jobs, 0, "reset clears the counters");
 }
+
+#[test]
+fn projection_scan_query_plans_cover_scheduler_and_candidate_page() {
+    let _guard = LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("plans{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("open");
+    let plans = opened.engine.projection_scan_query_plans_for_test().expect("plans");
+    let names: Vec<&str> = plans.iter().map(|(name, _, _)| name.as_str()).collect();
+    assert_eq!(names, ["scheduler_scan", "candidate_page"], "{plans:#?}");
+    for (name, sql, plan) in &plans {
+        assert!(sql.contains("ORDER BY pending.write_cursor"), "{name}: {sql}");
+        assert!(plan.iter().any(|line| line.contains("canonical_nodes")), "{name}: {plan:#?}");
+    }
+    opened.engine.close().expect("close");
+}

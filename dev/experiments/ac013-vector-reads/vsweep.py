@@ -62,6 +62,15 @@ def arm_command(arm: str, env: dict, args, run_dir: Path) -> list[str]:
     return sweep.arm_command(arm, env, args, run_dir)
 
 
+WORKLOAD_KEYS = ("AC013_CORPUS_N", "AC013_VECTOR_DIM", "AC013_SAMPLES")
+
+
+def cell_key(record: dict) -> str:
+    """Cell id, suffixed with the corpus size when it is not the gate's 10,000."""
+    n = record.get("workload", {}).get("AC013_CORPUS_N")
+    return record["cell"] if n in (None, "10000") else f"{record['cell']}@n={n}"
+
+
 PARSERS = dict(sweep.PARSERS)
 PARSERS["vreads"] = lambda o, e: parse_vreads(o + e)
 PARSERS["vtrace"] = lambda o, e: parse_vreads(o + e)
@@ -115,6 +124,8 @@ def cmd_run(args) -> None:
                 record = {"cell": cell["id"], "mode": cell["mode"],
                           "reader": cell.get("reader", ""), "writer": cell.get("writer", ""),
                           "env": cell.get("env", {}),
+                          "workload": {k: os.environ[k] for k in WORKLOAD_KEYS
+                                       if k in os.environ},
                           "arm": arm, "repeat": rep, "exit": code,
                           "load_before": load_before, "load_after": load_after,
                           "load_flag": load_after > args.flag_load,
@@ -128,6 +139,7 @@ def cmd_run(args) -> None:
 
 def summarize(records: list[dict], control: str) -> dict:
     """Group by cell and arm, every repeat kept; vreads/vtrace condensed."""
+    records = [dict(r, cell=cell_key(r)) for r in records]
     plain = [r for r in records if r["arm"] not in ("vreads", "vtrace", "recall")]
     cells = sweep.summarize(plain) if plain else {}
     sweep.paired_against(plain, cells, control=control)

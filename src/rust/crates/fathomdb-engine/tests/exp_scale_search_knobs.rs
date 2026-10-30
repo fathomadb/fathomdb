@@ -136,3 +136,101 @@ fn fts_rows_take_the_write_cursor_as_rowid() {
         assert_eq!(rowid, cursor, "FATHOMDB_PERF_FTS_ROWID_CURSOR keys FTS rows by cursor");
     }
 }
+
+/// 260 documents whose bm25 falls with their repeat count, two duplicate
+/// bodies, limit 100: the Slice 71 deep-overlap fixture. Returns the path.
+fn seed_deep_overlap(dir: &TempDir, name: &str) -> std::path::PathBuf {
+    let path = dir.path().join(format!("{name}{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("open");
+    opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+    let mut writes: Vec<PreparedWrite> = (1..=260)
+        .map(|rank| {
+            node(
+                format!("{} document-{rank}", "deferredhybrid ".repeat(rank)),
+                (rank != 259).then(|| format!("deferred-{rank}")),
+            )
+        })
+        .collect();
+    writes.push(node("deferredhybrid duplicate body".into(), Some("dup-a".into())));
+    writes.push(node("deferredhybrid duplicate body".into(), Some("dup-b".into())));
+    opened.engine.write(&writes).expect("seed");
+    opened.engine.drain(60_000).expect("drain");
+    opened.engine.close().expect("close");
+    path
+}
+
+fn routes_of(witness: &std::path::Path) -> String {
+    std::fs::read_to_string(witness).unwrap_or_default()
+}
+
+#[test]
+fn deferred_content_text_arm_matches_the_complete_ranking() {
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    knobs_on();
+    let dir = TempDir::new().expect("tempdir");
+    let path = seed_deep_overlap(&dir, "deferred_content");
+    let witness = dir.path().join("routes.jsonl");
+    std::env::set_var("FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST", &witness);
+    std::env::remove_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST");
+    let opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("reopen");
+    let mut optimized = Vec::new();
+    for (query, limit) in
+        [("deferredhybrid", 100), ("deferredhybrid duplicate", 10), ("document", 5)]
+    {
+        optimized.push(opened.engine.search_with_limit(query, limit).expect("optimized"));
+    }
+    let optimized_routes = routes_of(&witness);
+    std::env::set_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", "1");
+    let mut control = Vec::new();
+    for (query, limit) in
+        [("deferredhybrid", 100), ("deferredhybrid duplicate", 10), ("document", 5)]
+    {
+        control.push(opened.engine.search_with_limit(query, limit).expect("control"));
+    }
+    std::env::remove_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST");
+    std::env::remove_var("FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST");
+    opened.engine.close().expect("close");
+    assert!(optimized[0].results.iter().any(|h| h.branch == SoftFallbackBranch::Vector));
+    assert_eq!(optimized, control, "deferred content must preserve the complete ranking");
+    assert_eq!(
+        optimized_routes.matches("hybrid_deferred_content\"").count(),
+        3,
+        "every optimized search takes the deferred-content route: {optimized_routes}"
+    );
+}
+
+#[test]
+fn deferred_content_falls_back_when_an_fts_rowid_is_not_its_cursor() {
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    knobs_on();
+    let dir = TempDir::new().expect("tempdir");
+    let path = seed_deep_overlap(&dir, "deferred_fallback");
+    let ownerless = format!("{} ownerless", "deferredhybrid ".repeat(300));
+    let connection = rusqlite::Connection::open(&path).expect("open for injection");
+    connection
+        .execute(
+            "INSERT INTO search_index(body, kind, write_cursor) VALUES (?1, 'doc', 999999)",
+            [&ownerless],
+        )
+        .expect("ownerless row with an auto rowid");
+    drop(connection);
+    let witness = dir.path().join("routes.jsonl");
+    std::env::set_var("FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST", &witness);
+    std::env::remove_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST");
+    let opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("reopen");
+    let optimized = opened.engine.search_with_limit("deferredhybrid", 100).expect("optimized");
+    let optimized_routes = routes_of(&witness);
+    std::env::set_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", "1");
+    let control = opened.engine.search_with_limit("deferredhybrid", 100).expect("control");
+    std::env::remove_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST");
+    std::env::remove_var("FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST");
+    opened.engine.close().expect("close");
+    assert!(optimized.results.iter().any(|h| h.body == ownerless), "ownerless row ranks");
+    assert_eq!(optimized, control);
+    assert!(
+        optimized_routes.contains("hybrid_deferred_content_fallback"),
+        "a row whose rowid is not its cursor forces the complete path: {optimized_routes}"
+    );
+}

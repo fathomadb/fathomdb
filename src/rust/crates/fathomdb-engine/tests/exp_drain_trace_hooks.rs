@@ -3,16 +3,21 @@
 //!
 //! `FATHOMDB_PERF_PAGE_TRACE=all` must trace every connection role, not only
 //! the readers: the writer, the projection dispatcher, the projection workers
-//! and runtime probes, keyed by role. The tracer aggregate and the env are
-//! process-global, so this binary holds one test per concern and serializes
-//! them on `LOCK`.
+//! and runtime probes, keyed by role. The drain phase counters
+//! (`drain_phase_trace_for_test`) must time the dispatcher scan, the worker
+//! embed, commit-gate wait and commit, and `drain`'s pending-work probe. The
+//! tracer aggregate, the counters and the env are process-global, so this
+//! binary holds one test per concern and serializes them on `LOCK`.
 
 #![cfg(feature = "test-hooks")]
 
 use std::sync::{Arc, Mutex};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{take_page_trace_for_test, Engine, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{
+    drain_phase_trace_for_test, reset_drain_phase_trace_for_test, take_page_trace_for_test, Engine,
+    InitialState, PreparedWrite, SourceId,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -103,4 +108,23 @@ fn page_trace_one_keeps_reader_only_scope() {
         described.iter().all(|d| d.contains("role: \"reader\"")),
         "FATHOMDB_PERF_PAGE_TRACE=1 traces readers only: {described:#?}"
     );
+}
+
+#[test]
+fn drain_phase_trace_times_scan_embed_commit_and_drain_probe() {
+    let _guard = LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    reset_drain_phase_trace_for_test();
+    let rows = 7;
+    seed_and_drain("phase_trace", rows, false);
+    let trace = drain_phase_trace_for_test();
+    assert_eq!(trace.worker_jobs, rows as u64, "{trace:?}");
+    assert_eq!(trace.dispatcher_jobs, rows as u64, "{trace:?}");
+    assert!(trace.worker_batches >= 1 && trace.dispatcher_scans >= 1, "{trace:?}");
+    assert!(trace.worker_embed_ns > 0 && trace.worker_commit_ns > 0, "{trace:?}");
+    assert!(trace.dispatcher_scan_ns > 0, "{trace:?}");
+    assert!(trace.drain_probes >= 1, "drain probed pending work at least once: {trace:?}");
+    assert!(trace.drain_probe_pending < trace.drain_probes, "the last probe saw none: {trace:?}");
+    assert!(trace.drain_probe_ns > 0, "{trace:?}");
+    reset_drain_phase_trace_for_test();
+    assert_eq!(drain_phase_trace_for_test().worker_jobs, 0, "reset clears the counters");
 }

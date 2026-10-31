@@ -60,10 +60,27 @@ fi
 
 # --- minimal REAL PyPI index ----------------------------------------------
 cat >"$TMP/minipypi.py" <<'PY'
-import sys, cgi, io, os
+import sys, os
+from email.parser import BytesParser
+from email.policy import HTTP
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs
 STORE = set()  # (name, version)
 POST_LOG = os.environ.get("POST_LOG")
+def form_value(content_type, body, field):
+    # The first value of a form field, as cgi.FieldStorage.getvalue gave for
+    # single-valued fields; cgi is gone from Python 3.13.
+    if content_type.lower().startswith("application/x-www-form-urlencoded"):
+        values = parse_qs(body.decode("utf-8"), keep_blank_values=True).get(field)
+        return values[0] if values else None
+    message = BytesParser(policy=HTTP).parsebytes(
+        b"Content-Type: " + content_type.encode("latin-1") + b"\r\n\r\n" + body)
+    if not message.is_multipart():
+        return None
+    for part in message.iter_parts():
+        if part.get_param("name", header="content-disposition") == field:
+            return part.get_payload(decode=True).decode("utf-8")
+    return None
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
@@ -79,12 +96,9 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         ln = int(self.headers.get("content-length", 0))
         body = self.rfile.read(ln)
-        fs = cgi.FieldStorage(fp=io.BytesIO(body), headers=self.headers,
-            environ={"REQUEST_METHOD": "POST",
-                     "CONTENT_TYPE": self.headers.get("content-type", ""),
-                     "CONTENT_LENGTH": str(ln)})
-        name = (fs.getvalue("name") or "").lower().replace("_", "-")
-        ver = fs.getvalue("version") or ""
+        content_type = self.headers.get("content-type", "")
+        name = (form_value(content_type, body, "name") or "").lower().replace("_", "-")
+        ver = form_value(content_type, body, "version") or ""
         if POST_LOG:
             with open(POST_LOG, "a") as fh: fh.write("%s %s\n" % (name, ver))
         if (name, ver) in STORE:

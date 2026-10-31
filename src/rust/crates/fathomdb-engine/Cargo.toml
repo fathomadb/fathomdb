@@ -16,7 +16,7 @@ fathomdb-embedder.workspace = true
 fathomdb-embedder-api.workspace = true
 fathomdb-query.workspace = true
 fathomdb-schema.workspace = true
-rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint"] }
 jsonschema = { version = "0.18", default-features = false }
 serde_json = "1"
 serde = "1"
@@ -797,7 +797,7 @@ required-features = ["test-hooks"]
 dirs = "5"
 libc = "0.2"
 proptest = "1"
-rusqlite = { version = "0.40", features = ["bundled", "fallible_uint", "hooks"] }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint", "hooks"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"

@@ -693,10 +693,12 @@ fn reader_worker_loop(
             ReaderRequest::GraphExpand(request) => {
                 #[cfg(feature = "test-hooks")]
                 if request.test_controls.count_sql_statements {
-                    connection.trace_v2(
-                        rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
-                        Some(graph_expand::count_graph_expand_sql_statement),
-                    );
+                    connection
+                        .trace_v2(
+                            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+                            Some(graph_expand::count_graph_expand_sql_statement),
+                        )
+                        .expect("install the graph-expand SQL statement counter");
                 }
                 let result = graph_expand::read_graph_expand_with_stop_words_in_tx(
                     &mut connection,
@@ -712,7 +714,12 @@ fn reader_worker_loop(
                 );
                 #[cfg(feature = "test-hooks")]
                 if request.test_controls.count_sql_statements {
-                    connection.trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+                    connection
+                        .trace_v2(
+                            rusqlite::trace::TraceEventCodes::empty(),
+                            None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+                        )
+                        .expect("clear the graph-expand SQL statement counter");
                 }
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = request.respond.send(result);

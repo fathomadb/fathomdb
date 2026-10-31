@@ -2987,12 +2987,18 @@ mod tests {
     fn graph_nonce_generation_executes_no_sql_statement() {
         // Raw connections must share Engine's configure-before-open ordering.
         crate::configure_runtime_for_open().unwrap();
-        let connection = Connection::open_in_memory().unwrap();
+        let mut connection = Connection::open_in_memory().unwrap();
         NONCE_SQL_STATEMENTS.store(0, Ordering::SeqCst);
         connection
-            .trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT, Some(count_nonce_sql));
+            .trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT, Some(count_nonce_sql))
+            .expect("install the nonce SQL statement counter");
         let nonce = random_nonce().unwrap();
-        connection.trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+        connection
+            .trace_v2(
+                rusqlite::trace::TraceEventCodes::empty(),
+                None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+            )
+            .expect("clear the nonce SQL statement counter");
         assert_ne!(nonce, [0; 16]);
         assert_eq!(NONCE_SQL_STATEMENTS.load(Ordering::SeqCst), 0);
     }

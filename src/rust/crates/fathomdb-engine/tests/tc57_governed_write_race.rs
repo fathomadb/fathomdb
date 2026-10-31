@@ -463,10 +463,8 @@ fn tc57_mechanism_stale_snapshot_upgrade_is_busy_snapshot_517() {
 fn tc57_mechanism_held_write_lock_upgrade_is_unretryable_busy_5() {
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("mechanism_held.sqlite");
-    let (a, b) = wal_pair(&path);
+    let (mut a, b) = wal_pair(&path);
 
-    // `Connection::busy_handler` takes a bare `fn` pointer, so the counter must
-    // be a static rather than a captured `Arc`.
     PROMOTE_HANDLER_CALLS.store(0, Ordering::SeqCst);
     a.busy_handler(Some(promote_busy_handler)).expect("busy handler a");
 
@@ -520,7 +518,7 @@ fn tc57_mechanism_held_write_lock_upgrade_is_unretryable_busy_5() {
 fn tc57_mechanism_control_write_first_is_retryable() {
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("mechanism_control.sqlite");
-    let (a, b) = wal_pair(&path);
+    let (a, mut b) = wal_pair(&path);
 
     WRITE_FIRST_HANDLER_CALLS.store(0, Ordering::SeqCst);
     b.busy_handler(Some(write_first_busy_handler)).expect("busy handler b");

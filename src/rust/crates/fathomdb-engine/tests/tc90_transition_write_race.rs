@@ -836,7 +836,7 @@ fn tc90_mechanism_transition_sql_shape_on_real_schema_is_busy_5() {
     let dir = TempDir::new().expect("tempdir");
     let path = seeded_engine_db(&dir, "tc90_mech_sql", "tc90-mech");
 
-    let a = rusqlite::Connection::open(&path).expect("open a");
+    let mut a = rusqlite::Connection::open(&path).expect("open a");
     let b = rusqlite::Connection::open(&path).expect("open b");
     TRANSITION_HANDLER_CALLS.store(0, Ordering::SeqCst);
     a.busy_timeout(Duration::from_secs(5)).expect("busy timeout a");

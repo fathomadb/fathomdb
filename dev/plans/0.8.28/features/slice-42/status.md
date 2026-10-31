@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — status
-status: PLANNED (phase 1 docs rewritten 2026-10-31; awaiting design review; no code yet)
+status: IN_PROGRESS (R-DES APPROVE-WITH-FIXES applied 2026-10-31; phase 2 started)
 target_release: 0.8.28
 observed_on: 2026-10-31
 ---
@@ -14,7 +14,7 @@ Step log for [plan.md](plan.md). Commits are on
 | Step | State (2026-10-31) |
 | --- | --- |
 | P1 phase 1 docs | done: this directory rewritten for the Unit B re-scope; master-plan Slice 42 section updated |
-| R-DES design review | not started |
+| R-DES design review | APPROVE-WITH-FIXES on `d6cfab127` (no P1); ten findings applied, see [review.md](review.md) |
 | A Unit A | not started (Q-A1 ruled 2026-10-16; line numbers re-checked at `59079d5c5`, unchanged) |
 | B-RED/GREEN | not started |
 | R-CODE | not started |

@@ -116,7 +116,9 @@ cargo test -p fathomdb-engine --features test-hooks --test slice40_reader_page_c
 
 Expected: one `libsqlite3-sys`, both crates from crates.io, clean check
 and clippy, AC40-95 to AC40-97 pass. The live pinned-override check
-fails here (design § 2.6); that is expected until B-GREEN-2.
+fails here (design § 2.6); that is expected until B-GREEN-2. Run
+`python3 scripts/check-pinned-override-rot.py`, quote its failure line
+verbatim in the B-GREEN-1 commit body, and record the sha in status.md.
 
 ### 3.2 Pinned-override guard (AC42-09, AC42-10)
 
@@ -126,9 +128,11 @@ python -m pytest tests/experiments/test_sdk_rust_patch_policy.py
 python3 scripts/check-pinned-override-rot.py
 ```
 
-- B-RED-2: the shell test fails on the new refusal case (the checker
-  admits the root `libsqlite3-sys` patch), and the pytest fails on the
-  driver refusal assertion.
+- B-RED-2: the shell test fails on the first of its two new cases;
+  the checker run directly on the other case's fixture shows that case
+  fails too (case a: rc 0, the patch is admitted; case b: "missing
+  approved SQLite patch libsqlite3-sys"); the pytest fails on the driver
+  refusal assertion. The evidence names exactly these.
 - B-GREEN-2: all three pass. Then `git ls-files third_party` prints
   nothing, and `git grep -n -A3 '^\[patch' -- '*Cargo.toml'` shows no
   `libsqlite3-sys` key. `bash scripts/security/gitleaks-current.sh` (or
@@ -138,10 +142,12 @@ python3 scripts/check-pinned-override-rot.py
 ### 3.3 Windows guard predicate (AC42-12)
 
 ```bash
-cargo test -p fathomdb-engine --lib local_verbatim_path_needs_newer_sqlite
+cargo test -p fathomdb-engine --lib local_verbatim_path_needs_newer_sqlite_decides_by_version_alone
 ```
 
-- B-RED-3: does not compile (E0425 for the new function and constant).
+- B-RED-3: does not compile; quote the `error[E0425]` lines for
+  `local_verbatim_path_needs_newer_sqlite` and
+  `SQLITE_LOCAL_VERBATIM_WAL_FIX`.
 - B-GREEN-3: passes on Linux. Then
   `git grep -n FATHOMDB_WIN_VERBATIM_SHM_SAFE -- src scripts` prints
   nothing.
@@ -202,7 +208,7 @@ memory note). Transfer an exact export of the final tree under an owned
 temporary path, verify its hash on both sides, and remove it afterwards.
 
 ```powershell
-cargo test -p fathomdb-engine --lib -- local_verbatim_path_needs_newer_sqlite sqlite_runtime_path_simplifies_only_safe_local_drive_paths unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths windows_trailing_component_cannot_change_database_identity engine_open_refuses_trailing_dot_before_database_or_lock_creation local_canonical_path_does_not_strand_idle_wal_readers --nocapture
+cargo test -p fathomdb-engine --lib -- local_verbatim_path_needs_newer_sqlite_decides_by_version_alone sqlite_runtime_path_simplifies_only_safe_local_drive_paths unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths windows_trailing_component_cannot_change_database_identity engine_open_refuses_trailing_dot_before_database_or_lock_creation local_canonical_path_does_not_strand_idle_wal_readers --nocapture
 cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact
 ```
 

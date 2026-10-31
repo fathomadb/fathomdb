@@ -124,8 +124,9 @@ Checked on 2026-10-31 against the registry sources:
   Windows.
 - **REQ42-B6. MSRV unchanged.** The workspace `rust-version` stays 1.95.
 - **REQ42-B7. Records.** The quality roadmap's patch line, the page-cache
-  ADR, the Rust interface docs, the Rust install doc, the pinned-override
-  design note and the CHANGELOG describe the new state. No live file
+  ADR and decision-index row 64, the Rust interface docs, the Rust
+  install doc, the pinned-override design note, `dev/deps/rusqlite.md`,
+  the release state and the CHANGELOG describe the new state. No live file
   cites the deleted crate or the marker.
 - **REQ42-B8. Perf baseline.** The `AGENT_LONG` perf gates run once on
   the final tree. Their numbers are recorded as the 0.8.28 baseline on
@@ -151,11 +152,11 @@ Checked on 2026-10-31 against the registry sources:
 | AC42-06 | REQ42-A3 | The Unit A commit's diff touches only the lines ruled in Q-A1 |
 | AC42-07 | REQ42-B1 | New test `bundled_sqlite_is_3_54_1_or_later` fails at its RED sha (reports 3053002) and passes after the bump |
 | AC42-08 | REQ42-B1 | `Cargo.lock` lists `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1, once each, with the crates.io source and checksum; `cargo tree -i libsqlite3-sys --workspace` shows one registry 0.39.1 |
-| AC42-09 | REQ42-B2 | The pinned-override tests that require a `libsqlite3-sys` patch to be refused (root and SDK driver) fail at their RED sha and pass after; `scripts/check-pinned-override-rot.py` passes on the final tree |
+| AC42-09 | REQ42-B2 | The two new shell cases (a root `libsqlite3-sys` patch is refused; a tree without it passes) and the SDK-driver pytest refusal fail at their RED sha and pass after; `scripts/check-pinned-override-rot.py` passes on the final tree |
 | AC42-10 | REQ42-B2 | `git ls-files third_party` is empty; no `Cargo.toml` in the repository has a `libsqlite3-sys` key under `[patch]` |
 | AC42-11 | REQ42-B3 | A scratch crate outside the workspace, with a path dependency on this branch's `fathomdb-engine` and no patch: `cargo tree -i libsqlite3-sys` shows registry 0.39.1, and AC40-95 to AC40-97 pass. The same crate at the slice base shows registry 0.38.2 and AC40-95 fails |
 | AC42-12 | REQ42-B4 | New portable test of the version-only predicate fails at its RED sha and passes after; `git grep FATHOMDB_WIN_VERBATIM_SHM_SAFE -- src scripts` is empty |
-| AC42-13 | REQ42-B4, B5 | On Windows (the local VM): the engine's Windows tests pass, including `local_canonical_path_does_not_strand_idle_wal_readers` with no version skip, `unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths` and `engine_open_refuses_trailing_dot_before_database_or_lock_creation` |
+| AC42-13 | REQ42-B4, B5 | On Windows (the local VM): the engine's Windows tests pass, including `local_canonical_path_does_not_strand_idle_wal_readers` with no version skip, `unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths` and `engine_open_refuses_trailing_dot_before_database_or_lock_creation`. Local disks only; a mapped network drive takes SQLite's shared lock handle by design (design § 2.1) |
 | AC42-14 | REQ42-B5, B6 | On the final tree: `cargo clippy --workspace --all-targets -- -D warnings -A missing-docs`, `cargo check --workspace --all-targets`, and `./scripts/agent-verify.sh` pass on toolchain 1.95.0; the vector suites (sqlite-vec) are among the passing tests |
 | AC42-15 | REQ42-B7 | `./scripts/agent-lint-md.sh` and `./scripts/agent-lint-docs.sh` pass; `git grep -n "libsqlite3-sys-0.38.1"` finds no live file (the historical-evidence paths in test-plan § 4.6 excepted) |
 | AC42-16 | REQ42-B8 | `AGENT_LONG=1` perf-gate results on the final tree, with host, commit, SQLite version and load recorded in `status.md` |

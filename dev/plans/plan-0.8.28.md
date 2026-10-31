@@ -127,9 +127,9 @@ Requirements and acceptance criteria are per slice:
   `requirements.md` and reviewed by R-REQ.
 - Slice 40: REQ40 and AC40 in
   [slice-40/requirements.md](0.8.28/features/slice-40/requirements.md).
-- Slice 42: REQ42 and AC42-01 to AC42-12 in
-  [slice-42/requirements.md](0.8.28/features/slice-42/requirements.md).
-  Unit B's requirements are rewritten for the re-scope.
+- Slice 42: REQ42 and AC42-01 to AC42-16 in
+  [slice-42/requirements.md](0.8.28/features/slice-42/requirements.md),
+  rewritten for the Unit B re-scope.
 - Slices 50 to 90: REQ and AC in each slice's `requirements.md`, written
   and reviewed before design.
 

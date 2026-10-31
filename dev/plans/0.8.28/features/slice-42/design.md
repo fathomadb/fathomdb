@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — design
-status: PLANNED (rewritten 2026-10-31 for the Unit B re-scope; Q-A1 ruled 2026-10-16; awaiting design review)
+status: PLANNED (rewritten 2026-10-31 for the Unit B re-scope; R-DES APPROVE-WITH-FIXES applied)
 target_release: 0.8.28
 observed_on: 2026-10-31
 ---
@@ -115,6 +115,13 @@ Read from the registry sources in `~/.cargo/registry`:
   drive letter, a colon and a separator, and 1 for every other `\\` path.
   That is the logic the
   vendored crate backports from 3.53.3 (check-in `246f46614f`).
+- 3.54.x also has `winIsRemoteVolume` (3.54.1 `sqlite3.c` line 52543),
+  OR'd with `winIsUNCPath` when `winOpenSharedMemory` picks the lock
+  handle (line 52581). The vendored 3.53.2 has no such function. So a
+  `\\?\X:\` path on a mapped network drive (`DRIVE_REMOTE`) now takes
+  the shared lock handle, as a UNC path does. That is upstream's intended
+  network-volume handling, not the local-path defect; AC42-13 covers
+  local disks only.
 - `rusqlite` 0.41.1 requires `libsqlite3-sys` `^0.39.0`, so any
   resolution of `rusqlite` 0.41 bundles 3.54.0 or later without the flag.
 - MSRV: `rusqlite` 0.41.1 declares 1.89, `libsqlite3-sys` 0.39.1 declares
@@ -192,9 +199,10 @@ live reference moves with it:
 | `src/rust/crates/{fathomdb-cli,fathomdb-schema,fathomdb-engine}/Cargo.toml` | `rusqlite` `"0.40"` → `"0.41"` (four lines; the engine has a dependency and a dev-dependency). The lockfile pins 0.41.1; `"0.41"` matches the file's style and every 0.41 release bundles a SQLite with the fix and without the flag (§ 2.1) |
 | `scripts/check-pinned-override-rot.py` | Delete the `SQLITE_*` constants, the SQLite branch of `sdk_driver_duplicate_patch`, and the SQLite branches of `validate_cargo_pins` (the expected key, the missing-patch message, the lock, manifest, license and digest checks). A `libsqlite3-sys` patch then falls through to the existing "unsupported Cargo override/git source" failure |
 | `scripts/pinned-override-rot.json` | Delete `cargo_sqlite_exception`; rewrite the `cargo` description to name two admitted mechanisms (the `candle-kernels` Git patch and the fork registry pins) |
-| `scripts/tests/test_check_pinned_override_rot.sh` | Drop the fixture's vendored-tree copy and SQLite lock stub (around lines 203–224), the SQLite drift cases (around 525–559) and the driver SQLite patch (around 697); add the refusal cases of § 2.6 |
-| `tests/experiments/test_sdk_rust_patch_policy.py` | The driver SQLite patch becomes an assertion of refusal (§ 2.6) |
-| `dev/design/pinned-override-rot-guard.md` | Remove the `libsqlite3-sys` 0.38.1 admission (line 67) |
+| `scripts/tests/test_check_pinned_override_rot.sh` | B-RED-2 adds the two refusal cases of § 2.6. B-GREEN-2 deletes the obsolete SQLite fixtures and cases: `seed_sqlite_fixture` (lines 198–224) and its two callers, the lock stub, the drift, build and path cases (528–564), and the driver's SQLite patch line and `missing-sqlite` case (696–697, 738–740) |
+| `tests/experiments/test_sdk_rust_patch_policy.py` | B-RED-2: the driver SQLite patch becomes an assertion of refusal (§ 2.6) |
+| `dev/design/pinned-override-rot-guard.md` | Rewrite R4 (lines 59–75) to the two admitted mechanisms, the `candle-kernels` Git patch and the fork registry pins, mirroring the new `cargo` description in `pinned-override-rot.json`. The `cudarc` 0.19.7 clause there is stale since Slice 31 and goes too |
+| `scripts/slice135_pilot.py` | Line 34: drop `"third_party"` from `SOURCE_PATHS` (docs commit). `REQUIRED_SOURCE_PATHS` is `SOURCE_PATHS[:3]`, which does not include it |
 | `scripts/security/gitleaks-current.toml` and `check-gitleaks-current-config.py` | Delete the two "Vendored SQLite" allowlists in both, together (the checker requires the config to equal its expected list). They name only files that no longer exist |
 | `.gitattributes` | Delete the `third_party/libsqlite3-sys-0.38.1/** -whitespace` entry and its comment |
 | `.markdownlint-cli2.jsonc`, `scripts/agent-lint-md.sh` | Delete the two vendored README/Upgrade excludes |
@@ -249,6 +257,10 @@ pub(crate) fn local_verbatim_path_needs_newer_sqlite(
 - Deleted: `sqlite_local_verbatim_path_requires_patched_vfs`,
   `sqlite_local_verbatim_vfs_is_patched`, and every mention of the
   marker.
+- The comment in `sqlite_runtime_path` (lines 115–116, "special and long
+  paths retain their verbatim form for the bundled VFS correction") is
+  reworded: they keep their verbatim form, which SQLite 3.53.3 and later
+  handle as a local path.
 - The threshold stays 3.53.3. It is the fix's release, and 3.54.0 and
   3.54.1 contain the fix (§ 2.1). Workspace and published builds link
   3.54.x, so the check refuses nothing there; it still protects a
@@ -287,19 +299,27 @@ base:
 ### 2.6 TDD: RED and GREEN commits
 
 One RED commit per behaviour, each failing at its own sha for the stated
-reason, with the evidence in its body; then its GREEN. Order:
+reason, with "RED evidence:" in its body; then its GREEN. Test-plan § 3
+has the commands. Order:
 
 | # | Commit | Fails at its sha because | GREEN |
 | --- | --- | --- | --- |
 | B-RED-1 | New engine test target `tests/slice42_sqlite_bump.rs` with `bundled_sqlite_is_3_54_1_or_later`: `rusqlite::version_number() >= 3_054_001`, with the version in the message | The linked SQLite is 3.53.2 (3053002) | B-GREEN-1: manifests, lockfile, removal of both `libsqlite3-sys` patch lines, the § 2.2 migration |
-| B-RED-2 | Pinned-override tests: `test_sdk_rust_patch_policy.py` asserts that the driver's `libsqlite3-sys` patch is refused; `test_check_pinned_override_rot.sh` asserts that a root `libsqlite3-sys` path patch fails as "unsupported Cargo override", and that a tree with no SQLite patch passes; the vendored-tree fixture and SQLite drift cases go | The checker still admits, and requires, the vendored patch | B-GREEN-2: the checker and JSON (§ 2.3), deletion of `third_party/`, the gitleaks, `.gitattributes` and markdown-lint entries, `pinned-override-rot-guard.md` |
-| B-RED-3 | Portable unit test of `local_verbatim_path_needs_newer_sqlite`: true for an unsimplifiable `\\?\C:\` path at 3_053_002; false at 3_053_003 and 3_054_001; false when simplifiable; false for `\\server\share\…` and `\\?\UNC\…`; and `SQLITE_LOCAL_VERBATIM_WAL_FIX == 3_053_003` | The function and constant do not exist (E0425); this is the guard rework's stated reason | B-GREEN-3: § 2.4 |
+| B-RED-2 | Two new cases in `test_check_pinned_override_rot.sh`: (a) a root `libsqlite3-sys` path patch fails as "unsupported Cargo override/git source Cargo.toml:patch.crates-io.libsqlite3-sys"; (b) a tree without the SQLite patch passes (it replaces the "missing approved SQLite patch" expectation). `test_sdk_rust_patch_policy.py` asserts that the driver's `libsqlite3-sys` patch is refused | (a) the checker admits the patch (rc 0); (b) the checker requires it; the pytest assertion fails because the guard admits the driver patch | B-GREEN-2: the checker and JSON (§ 2.3), deletion of `third_party/`, the gitleaks, `.gitattributes` and markdown-lint entries, `pinned-override-rot-guard.md`, and deletion of the obsolete SQLite fixtures and cases in the shell test |
+| B-RED-3 | Portable unit test `local_verbatim_path_needs_newer_sqlite_decides_by_version_alone` in `connection_runtime.rs`: true for an unsimplifiable `\\?\C:\` path at 3_053_002; false at 3_053_003 and 3_054_001; false when simplifiable; false for `\\server\share\…` and `\\?\UNC\…`; and `SQLITE_LOCAL_VERBATIM_WAL_FIX == 3_053_003` | The function and constant do not exist; the evidence quotes the E0425 lines | B-GREEN-3: § 2.4 |
+
+The test script stops at its first failing case, so B-RED-2's evidence
+quotes the script's failure for one case and the checker's output run
+directly on the other case's fixture. It names exactly those two cases
+and the pytest assertion.
 
 Between B-GREEN-1 and B-GREEN-2 the live pinned-override check fails
 ("missing approved SQLite patch"): the bump removes the patch it
-requires. B-GREEN-1's body says so; B-GREEN-2 closes it. Moving the
-checker first does not avoid this: a checker that refuses the patch
-fails on a tree that still has it.
+requires. `scripts/agent-lint.sh` (line 101) and `ci.yml` (line 1387)
+both run that check. B-GREEN-1's body quotes the checker's failure line
+verbatim, and status.md records that sha for bisectors. B-GREEN-2 closes
+it. Moving the checker first does not avoid this: a checker that refuses
+the patch fails on a tree that still has it.
 
 The per-connection cache for published consumers (REQ42-B3) has no new
 committed test. In the workspace, AC40-95 to AC40-97 already pin it. For
@@ -332,6 +352,19 @@ or after.
   `rusqlite` 0.41 (SQLite 3.54.1)"; in the Slice 40 page-cache entry,
   replace the registry caveat with "Since Slice 42 this also holds for
   `cargo install` and the published Rust crates".
+- `dev/adr/ADR-0.6.0-decision-index.md` row 64 (line 168): replace
+  "published Rust crates documented (`LIBSQLITE3_FLAGS`), not mitigated"
+  with "published Rust crates get it from `libsqlite3-sys` 0.39"; status
+  "accepted; exit completed 0.8.28 Slice 42".
+- `dev/deps/rusqlite.md`: the "Version pin" line becomes `0.41.1`, features
+  `bundled, fallible_uint` (plus `hooks` and `trace` under the engine's
+  `test-hooks`).
+- `dev/plans/release-state-0.8.28.json` (line 16, the Slice 42 evidence)
+  and `dev/plans/plan-0.8.28.md` (line 184): "both exit conditions in
+  `third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md`" becomes "the exit
+  conditions in the retired patch note (git history at `59079d5c5`)".
+  After the JSON edit, `./scripts/check-release-state-views.sh --write`,
+  and the regenerated views go in the same commit.
 - `dev/plans/plan-0.8.28.md` § Slice 42 is kept in step with this file.
 
 ### 2.8 Verification beyond the unit tests

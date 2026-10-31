@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — test plan
-status: PLANNED (rewritten 2026-10-31 for the Unit B re-scope; awaiting design review)
+status: IN_PROGRESS (R-DES APPROVE-WITH-FIXES applied; runs recorded in status.md)
 target_release: 0.8.28
 observed_on: 2026-10-31
 ---

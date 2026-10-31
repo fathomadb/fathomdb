@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — goal
-status: PLANNED (phase 1 docs rewritten 2026-10-31; awaiting design review)
+status: IN_PROGRESS (phase 2 done 2026-10-31; awaiting codex code review; not landed)
 target_release: 0.8.28
 observed_on: 2026-10-31
 ---

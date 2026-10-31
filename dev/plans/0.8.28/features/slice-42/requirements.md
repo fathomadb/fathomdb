@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — requirements and acceptance criteria
-status: PLANNED (rewritten 2026-10-31 for the Unit B re-scope; Q-A1 ruled 2026-10-16; awaiting design review)
+status: IN_PROGRESS (R-DES APPROVE-WITH-FIXES applied; implemented 2026-10-31; results in status.md)
 target_release: 0.8.28
 observed_on: 2026-10-31
 ---

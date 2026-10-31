@@ -858,21 +858,29 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths() {
-        use super::connection_runtime::sqlite_local_verbatim_path_requires_patched_vfs;
+        use super::connection_runtime::{
+            local_verbatim_path_needs_newer_sqlite, sqlite_runtime_path,
+        };
 
         let short = Path::new(r"\\?\C:\ci\safe\db.sqlite");
         let reserved = Path::new(r"\\?\C:\ci\NUL.txt");
         let trailing_dot = Path::new(r"\\?\C:\ci\trailing.");
         let long = format!(r"\\?\C:\{}\db.sqlite", "segment1234\\".repeat(27));
         let unc = Path::new(r"\\server\share\db.sqlite");
+        let needs_newer = |path: &Path, version| {
+            local_verbatim_path_needs_newer_sqlite(
+                &path.to_string_lossy(),
+                sqlite_runtime_path(path) != path,
+                version,
+            )
+        };
 
-        assert!(!sqlite_local_verbatim_path_requires_patched_vfs(short, 3_053_002, false));
+        assert!(!needs_newer(short, 3_053_002));
         for path in [reserved, trailing_dot, Path::new(&long)] {
-            assert!(sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_002, false));
-            assert!(!sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_002, true));
-            assert!(!sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_003, false));
+            assert!(needs_newer(path, 3_053_002));
+            assert!(!needs_newer(path, 3_053_003));
         }
-        assert!(!sqlite_local_verbatim_path_requires_patched_vfs(unc, 3_053_002, false));
+        assert!(!needs_newer(unc, 3_053_002));
     }
 
     #[cfg(windows)]
@@ -914,11 +922,11 @@ mod tests {
     #[test]
     fn local_canonical_path_does_not_strand_idle_wal_readers() {
         crate::configure_runtime_for_open().unwrap();
-        if !super::connection_runtime::sqlite_local_verbatim_vfs_is_patched()
-            && rusqlite::version_number() < 3_053_003
-        {
-            return;
-        }
+        assert!(
+            rusqlite::version_number() >= super::connection_runtime::SQLITE_LOCAL_VERBATIM_WAL_FIX,
+            "linked SQLite {} predates the local verbatim-path WAL fix",
+            rusqlite::version()
+        );
         for database in 0..3 {
             let dir = TempDir::new().expect("tempdir");
             let path = canonical_database_path(&dir.path().join(format!("wal-{database}.sqlite")))

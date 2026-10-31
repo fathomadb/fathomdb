@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — status
-status: IN_PROGRESS (implementation and verification done 2026-10-31; awaiting codex code review; not landed)
+status: IN_PROGRESS (codex R-CODE CONCERN fixed 2026-10-31; gate blockers fixed; not landed)
 target_release: 0.8.28
 observed_on: 2026-10-31
 ---
@@ -17,7 +17,7 @@ Step log for [plan.md](plan.md). Commits are on
 | R-DES design review | APPROVE-WITH-FIXES on `d6cfab127` (no P1); ten findings applied in `c7b275daf`, see [review.md](review.md) (finding 9 reverted in `ae7061bfe`) |
 | A Unit A | done: `fb5f60055` |
 | B-RED/GREEN | done: three pairs, docs, and five fix commits (table below) |
-| R-CODE codex review | not started |
+| R-CODE codex review | CONCERN on `59079d5c5..16550b4ba` (one medium: the D27 runner's hard-coded rusqlite 0.40); fixed in `562477d70` / `1ea86b182`, see [code-review.md](code-review.md) |
 | V verification | done except the platform legs carried to final verification (below) |
 | L land | not started |
 
@@ -37,8 +37,14 @@ Step log for [plan.md](plan.md). Commits are on
 | `c903321c3` | fix | module-boundary classification for `connection_runtime::tests` (superseded by `ffae52b18`) |
 | `ffae52b18` | fix | predicate test moved unchanged into `lib.rs` tests, because the Windows WAL attribution guard strips `mod tests {` to end of file; policy line removed again |
 | `ae7061bfe` | fix | `scripts/slice135_pilot.py` restored (its SHA-256 is frozen by the S02-L campaign) |
-| `246367c61` | fix | `test_sqlite_dependency_contract.sh` moved to 0.41 (missed in B-RED-1; RED evidence: it fails against the base export) |
+| `246367c61` | fix | `test_sqlite_dependency_contract.sh` moved to 0.41. A follow-up correction, not an independent RED: the contract was missed in B-RED-1, and its failure evidence was produced against the base export, not at its own parent |
 | `7d48766dd` | fix | Slice 90 root inventory records the new `lib.rs` blob |
+| `16550b4ba` | docs | verification results and status |
+| `09ea0d668` | RED | a durable Slice 90 archive root relocated behind a symlink must validate (fails with the live AC-073 "bundle directory must be canonical and absolute"); guard: a symlink inside the archive is still refused |
+| `ceaa7e409` | GREEN | `durable_bundle_directory()` resolves the archive root once; bundles inside must still be canonical |
+| `0e4ad3efd` | docs | board line 93 lists the remaining slice ids ("42, 50, 60, 70, 80, 90"), which the board-currency checker reads as a list |
+| `562477d70` | RED | codex finding: the D27 runner's generated manifest must take rusqlite from the selected checkout (the 0.41 case fails) |
+| `1ea86b182` | GREEN | `rusqlite_requirement()` reads the selected engine manifest; one audit-test fixture gained an engine manifest |
 
 The RED shas were audited in throwaway exports (`git archive <sha>`):
 `a64a1c6b0` fails with 3053002; `3dfe21d61` fails on "a root libsqlite3-sys

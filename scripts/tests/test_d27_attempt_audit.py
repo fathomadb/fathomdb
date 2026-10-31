@@ -217,6 +217,9 @@ class AttemptAuditTests(unittest.TestCase):
             output = Path(directory)
             binary = output / "binary"
             binary.write_bytes(b"test binary")
+            engine = output / "src/rust/crates/fathomdb-engine"
+            engine.mkdir(parents=True)
+            (engine / "Cargo.toml").write_text('[dependencies]\nrusqlite = { version = "0.40" }\n')
             environment = copy.deepcopy(self.raw["environment_start"])
 
             def fake_run(_binary, env):

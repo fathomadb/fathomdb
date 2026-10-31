@@ -16,6 +16,11 @@ import subprocess
 import sys
 import threading
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 fallback, as the other release gates.
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
@@ -111,9 +116,25 @@ def git_sha(source: Path) -> str:
     return sha
 
 
+def rusqlite_requirement(source: Path) -> str:
+    """Return the selected checkout's engine rusqlite requirement.
+
+    The external crate must ask for the same rusqlite major as the engine it
+    builds: both pull a libsqlite3-sys that links "sqlite3", and Cargo admits
+    one such crate per graph.
+    """
+    manifest = tomllib.loads((source / "src/rust/crates/fathomdb-engine/Cargo.toml").read_text())
+    spec = manifest.get("dependencies", {}).get("rusqlite")
+    version = spec.get("version") if isinstance(spec, dict) else spec
+    if not isinstance(version, str) or not version:
+        raise ValueError("selected engine manifest has no rusqlite version requirement")
+    return version
+
+
 def build_manifest(source: Path, directory: Path) -> Path:
     """Select exact-source path dependencies in an external Cargo test crate."""
     rust = source / "src/rust/crates"
+    rusqlite = json.dumps(rusqlite_requirement(source))
     manifest = directory / "Cargo.toml"
     manifest.write_text(
         "[package]\nname = \"d27-runtime-runner\"\nversion = \"0.1.0\"\nedition = \"2021\"\n"
@@ -123,7 +144,7 @@ def build_manifest(source: Path, directory: Path) -> Path:
         f"fathomdb-engine = {{ path = {json.dumps(str(rust / 'fathomdb-engine'))} }}\n"
         f"fathomdb-embedder-api = {{ path = {json.dumps(str(rust / 'fathomdb-embedder-api'))} }}\n"
         f"fathomdb-schema = {{ path = {json.dumps(str(rust / 'fathomdb-schema'))} }}\n"
-        "serde_json = \"1\"\nrusqlite = { version = \"0.40\", features = [\"bundled\"] }\n"
+        f"serde_json = \"1\"\nrusqlite = {{ version = {rusqlite}, features = [\"bundled\"] }}\n"
         "tempfile = \"3\"\n"
         "[[test]]\nname = \"d27_runtime_workload\"\n"
         f"path = {json.dumps(str(WORKLOAD))}\n"

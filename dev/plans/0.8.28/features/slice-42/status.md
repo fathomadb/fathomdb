@@ -45,6 +45,9 @@ Step log for [plan.md](plan.md). Commits are on
 | `0e4ad3efd` | docs | board line 93 lists the remaining slice ids ("42, 50, 60, 70, 80, 90"), which the board-currency checker reads as a list |
 | `562477d70` | RED | codex finding: the D27 runner's generated manifest must take rusqlite from the selected checkout (the 0.41 case fails) |
 | `1ea86b182` | GREEN | `rusqlite_requirement()` reads the selected engine manifest; one audit-test fixture gained an engine manifest |
+| `998882c1a` | docs | code review record and the gate-blocker commits |
+| `40f7f3722` | docs | final gate record |
+| `2c9bf6817` | fix | the PyPI round-trip suite's mini index no longer imports `cgi` (removed in Python 3.13). The existing suite is the RED: it failed under the 3.13 `.venv` |
 
 The RED shas were audited in throwaway exports (`git archive <sha>`):
 `a64a1c6b0` fails with 3053002; `3dfe21d61` fails on "a root libsqlite3-sys
@@ -67,7 +70,7 @@ patch is unsupported" and the pytest; `d1078aa76` fails with six E0425.
 | AC42-11 | pass: [results/registry-consumer](results/registry-consumer/README.md). Base: registry 0.38.2, 3.53.2, flag on, AC40-95 to AC40-97 fail. Final: registry 0.39.1, 3.54.1, flag off, all pass |
 | AC42-12 | RED at `d1078aa76`; passes from `98f06d928`; the marker is gone from `src` and `scripts` |
 | AC42-13 | pass on the Windows VM: [results/windows](results/windows/README.md). Three Windows lib tests fail or hang on both the base and the final tree (pre-existing; listed there) |
-| AC42-14 | lint, typecheck and security pass; test 203 of 204 suites, the one failure being a pre-existing Python 3.13 incompatibility (see the full gate below) |
+| AC42-14 | lint, typecheck and security pass; test 203 of 204 suites at `998882c1a`, and the remaining suite after its Python 3.13 fix in `2c9bf6817` (see the full gate below) |
 | AC42-15 | lint-md (apart from the environmental item), lint-docs and lychee pass; the AC42-15 search prints only the deliberate hits named in test-plan § 4.6 |
 | AC42-16 | recorded: [results/agent-long-perf-baseline.md](results/agent-long-perf-baseline.md). AC-013 at n = 10,000 fails (p50 128 ms against 80 ms) on both base and final: the known regression for Slices 50 to 90 |
 
@@ -91,7 +94,7 @@ not on the loader path, and the `fathomdb-py --lib` test binary links it.
 | lint | pass, including module boundaries, workspace clippy, rustfmt, the pinned-override check, `check-runtime-checkpoints` (fixed in `ceaa7e409`), lint-md and lychee |
 | typecheck | pass (Rust, Python, TypeScript) |
 | security (`STRICT=1 AC037_LIVE_OPTIONAL=1`) | pass: 0 violations, 0 blockers, 1 allowed downgrade (AC-037 live netns layer unavailable here). AC-036 ran under strace in the sandbox: "no successful listen() captured", so no unsandboxed rerun was needed |
-| test (`--tier=all`) | 203 suites pass and 1 fails, `test-pypi-publish-roundtrip` |
+| test (`--tier=all`) | 203 suites pass and 1 fails, `test-pypi-publish-roundtrip`; fixed in `2c9bf6817` and passes on rerun (below) |
 
 That one failure is deterministic, not a flake. The suite's minimal PyPI
 server imports `cgi`, which Python 3.13 removed. Inside the gate `python3` is
@@ -100,8 +103,25 @@ PyPI index failed to bind"); `PATH=.venv/bin:$PATH bash
 scripts/tests/test_pypi_publish_roundtrip.sh` reproduces the failure, and
 `.venv/bin/python -c "import cgi"` raises `ModuleNotFoundError`. Run
 standalone with system Python 3.12 at `998882c1a`, the suite passes ("All
-PyPI REAL round-trip tests passed"). It is outside Slice 42 and fails on any
-3.13 virtual environment.
+PyPI REAL round-trip tests passed"). It failed on any 3.13 virtual
+environment.
+
+**Rerun after the fix (owner rule: rerun only failed suites).** `2c9bf6817`
+replaces `cgi` with `email.parser` / `urllib.parse` (owner decision
+2026-10-31: fix it in this slice as gate hygiene). The suite was rerun in the
+gate's environment at `2c9bf6817`, with the checkout `.venv` first on `PATH`
+through `use_checkout_venv_python_path`, so `python3` was the venv's 3.13.13,
+and with the `LD_LIBRARY_PATH` export above:
+
+```bash
+bash -c '. scripts/lib/agent-python-env.sh; use_checkout_venv_python_path "$PWD"; bash scripts/tests/test_pypi_publish_roundtrip.sh'
+```
+
+Result: "All PyPI REAL round-trip tests passed", rc 0. It also passes under
+system Python 3.12. With the 203 suites that passed at `998882c1a`, every
+suite in `agent-test --tier=all` has now passed: lint, typecheck, security
+and test are green. The 998882c1a run plus this one-suite rerun is not a
+single uninterrupted run.
 
 The suites that failed on the first run all pass in this one:
 `test-sqlite-dependency-contract`, `test-slice90-root-reconciliation`,
@@ -125,6 +145,5 @@ The suites that failed on the first run all pass in this one:
 - Pre-existing Windows failures: two slice90 startup-fault tests fail, and
   `current_opener_holds_lock_before_admission_classification` hangs, on both
   trees ([results/windows](results/windows/README.md)).
-- `test-pypi-publish-roundtrip` imports `cgi` and fails under Python 3.13 (above).
 - The worktree bootstrap picks uv CPython 3.13, so `fathomdb-py --lib` needs
-  `LD_LIBRARY_PATH` to run, and the PyPI round-trip suite fails.
+  `LD_LIBRARY_PATH` to run.

@@ -318,8 +318,8 @@ fn deferred_fusion(
             while q > 0 && scored[q - 1].1.to_bits() == bits {
                 q -= 1;
             }
-            for i in q..p {
-                let Some((body, _)) = fetch(scored[i].0)? else {
+            for (i, &(rowid, _)) in scored.iter().enumerate().take(p).skip(q) {
+                let Some((body, _)) = fetch(rowid)? else {
                     return Ok(None);
                 };
                 if body == entry.hit.body {

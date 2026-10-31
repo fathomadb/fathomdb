@@ -4,7 +4,9 @@
 #   S=<scratch>/ac013 dev/experiments/ac013-seed-drain/run-sweep.sh <step>
 #
 # Steps: timed (PREREG run 1), big (run 2, n=300k; pass ONLY=CS64-AL to drop
-# CS64), trace (run 3), vreads (run 4's AC-013 search digests). Run from the
+# CS64), trace (run 3), vreads (run 4's AC-013 search digests), extra (not
+# pre-registered: a third timed CS64-AL repeat at 300k after its first two
+# disagreed by 1.7x, and one traced CS64-AL run at 300k for attribution). Run from the
 # repository root with CARGO_TARGET_DIR set as for the build. OUT defaults to
 # $S/drain/sweep; LOCK to $S/measure.lock.
 set -euo pipefail
@@ -41,6 +43,10 @@ case "$step" in
         "$OUT/vreads/$cell.log" "$cell"
     done
     cmp "$OUT/vreads/CS64.hits" "$OUT/vreads/CS64-AL.hits" && echo "per-query hits identical"
+    ;;
+  extra)
+    python3 "$D/drain_sweep.py" run "${R[@]}" --repeats 1 --repeat-offset 2 --n 300000 --only CS64-AL
+    python3 "$D/drain_sweep.py" run "${R[@]}" --repeats 1 --n 300000 --trace --only CS64-AL
     ;;
   *) echo "unknown step $step" >&2; exit 2 ;;
 esac

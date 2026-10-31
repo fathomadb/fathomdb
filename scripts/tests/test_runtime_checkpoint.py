@@ -355,6 +355,41 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("sealed test executable SHA-256 mismatch", result.stdout)
 
+    def test_durable_archive_root_relocated_behind_a_symlink_validates(self) -> None:
+        # Cold-storage relocation replaces data/0.8.26 with a symlink to another
+        # volume; the archive root may move, the bundles inside it may not.
+        # The relocated volume stays inside the fixture repository so the D27
+        # verifier still finds the fixture's source commits from the bundle.
+        checkpoint = self.pass_checkpoint()
+        self.historical_bundle_paths(checkpoint, retain=True)
+        archive = self.root / "data/0.8.26"
+        relocated = self.root / "cold-volume/fathomdb-0.8.26"
+        relocated.parent.mkdir()
+        shutil.move(str(archive), relocated)
+        archive.symlink_to(relocated, target_is_directory=True)
+
+        result = self.run_gate()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+        (relocated / "qualification-evidence/slice-90/ac073-bundle/target/release/deps/"
+         "eu7_real_corpus_ac-test").write_bytes(b"tampered")
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("sealed test executable SHA-256 mismatch", result.stdout)
+
+    def test_symlinked_bundle_inside_durable_archive_is_refused(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        durable_root = self.historical_bundle_paths(checkpoint, retain=True)
+        elsewhere = tempfile.TemporaryDirectory()
+        self.addCleanup(elsewhere.cleanup)
+        moved = Path(elsewhere.name) / "ac073-bundle"
+        shutil.move(str(durable_root / "ac073-bundle"), moved)
+        (durable_root / "ac073-bundle").symlink_to(moved, target_is_directory=True)
+
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("bundle directory must be canonical and absolute", result.stdout)
+
     def test_historical_bundles_absent_reports_skipped_after_receipt_validation(self) -> None:
         checkpoint = self.pass_checkpoint()
         self.historical_bundle_paths(checkpoint, retain=False)

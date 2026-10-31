@@ -67,42 +67,47 @@ patch is unsupported" and the pytest; `d1078aa76` fails with six E0425.
 | AC42-11 | pass: [results/registry-consumer](results/registry-consumer/README.md). Base: registry 0.38.2, 3.53.2, flag on, AC40-95 to AC40-97 fail. Final: registry 0.39.1, 3.54.1, flag off, all pass |
 | AC42-12 | RED at `d1078aa76`; passes from `98f06d928`; the marker is gone from `src` and `scripts` |
 | AC42-13 | pass on the Windows VM: [results/windows](results/windows/README.md). Three Windows lib tests fail or hang on both the base and the final tree (pre-existing; listed there) |
-| AC42-14 | see the full gate below |
+| AC42-14 | lint, typecheck and security pass; test 203 of 204 suites, the one failure being a pre-existing Python 3.13 incompatibility (see the full gate below) |
 | AC42-15 | lint-md (apart from the environmental item), lint-docs and lychee pass; the AC42-15 search prints only the deliberate hits named in test-plan § 4.6 |
 | AC42-16 | recorded: [results/agent-long-perf-baseline.md](results/agent-long-perf-baseline.md). AC-013 at n = 10,000 fails (p50 128 ms against 80 ms) on both base and final: the known regression for Slices 50 to 90 |
 
 ## Full gate (AC42-14)
 
-`./scripts/agent-verify.sh` ran on `c903321c3`. Its lint step cannot pass in
-this environment: `agent-lint-md.sh` fails at `check-runtime-checkpoints`
-(`release-state-0.8.27.json` slice 90 AC-073, "bundle directory must be
-canonical and absolute", a cold-drive symlink; known and not fixed here), and
-the gate stops there. Every lint step before it passed, so the remaining steps
-were run directly in the same order:
+Final run: `./scripts/agent-verify.sh` on the clean tree at `998882c1a`
+(2026-10-31, 14:12 to 14:35, windchill3, load 2 to 6 on a shared host):
 
-- the lint-md steps after the failing one: pass;
-- `agent-typecheck.sh`: pass;
-- `STRICT=1 AC037_LIVE_OPTIONAL=1 agent-security.sh`: pass, AC-036 included,
-  so no unsandboxed rerun was needed;
-- `agent-test.sh --tier=all`: seven failing suites, handled as follows.
+```bash
+export LD_LIBRARY_PATH="$(.venv/bin/python -c 'import sysconfig;print(sysconfig.get_config_var("LIBDIR"))')"
+AGENT_VERBOSE=1 ./scripts/agent-verify.sh
+```
 
-| Suite | Cause | Now |
-| --- | --- | --- |
-| `test-sqlite-dependency-contract` | Slice 42: the contract still pinned 0.40 | fixed in `246367c61`, passes |
-| `test-slice90-root-reconciliation` | Slice 42: the `lib.rs` blob changed | fixed in `7d48766dd`, passes |
-| `test-windows-wal-attribution-ci-job` | Slice 42: the new `connection_runtime::tests` module defeated its fixture | fixed in `ffae52b18`, passes (343 PASS) |
-| `test-slice135-harness` | Slice 42: review finding 9 changed a frozen helper | reverted in `ae7061bfe`, passes (287 passed) |
-| `test-pypi-publish-roundtrip` | "minimal PyPI index failed to bind" (local bind, transient) | passes on rerun |
-| `test-rust` | only `-p fathomdb-py --lib`: the worktree `.venv` uses uv CPython 3.13 and `libpython3.13.so.1.0` is not on the loader path | passes with `LD_LIBRARY_PATH` set to that Python's `LIBDIR` (26 passed); environmental |
-| `test-check-board-currency` | the board line "Ladder remaining: 42 to 90" (`STATUS-0.8.28.md` line 93) is read as `{42}`; the board and the state are unchanged from `59079d5c5` | pre-existing; not fixed here |
+The `LD_LIBRARY_PATH` export is environmental. This worktree's `.venv` (from
+`scripts/bootstrap.sh`) uses uv CPython 3.13, whose `libpython3.13.so.1.0` is
+not on the loader path, and the `fathomdb-py --lib` test binary links it.
 
-After the fixes, `agent-lint.sh` (every step before the environmental one,
-including module boundaries, workspace clippy and rustfmt),
-`cargo test -p fathomdb-engine --lib` (111 passed) and the rerun suites pass on
-`7d48766dd`. Workspace `cargo check` and `cargo clippy --all-targets -D
-warnings` were clean at `15d564788` and `98f06d928`, and engine clippy at
-`ffae52b18`. The full gate was not repeated end to end, so this is not a
-single uninterrupted green run.
+| Verb | Result |
+| --- | --- |
+| preflight | pass |
+| lint | pass, including module boundaries, workspace clippy, rustfmt, the pinned-override check, `check-runtime-checkpoints` (fixed in `ceaa7e409`), lint-md and lychee |
+| typecheck | pass (Rust, Python, TypeScript) |
+| security (`STRICT=1 AC037_LIVE_OPTIONAL=1`) | pass: 0 violations, 0 blockers, 1 allowed downgrade (AC-037 live netns layer unavailable here). AC-036 ran under strace in the sandbox: "no successful listen() captured", so no unsandboxed rerun was needed |
+| test (`--tier=all`) | 203 suites pass and 1 fails, `test-pypi-publish-roundtrip` |
+
+That one failure is deterministic, not a flake. The suite's minimal PyPI
+server imports `cgi`, which Python 3.13 removed. Inside the gate `python3` is
+this `.venv`'s 3.13, so the server dies before printing its port ("minimal
+PyPI index failed to bind"); `PATH=.venv/bin:$PATH bash
+scripts/tests/test_pypi_publish_roundtrip.sh` reproduces the failure, and
+`.venv/bin/python -c "import cgi"` raises `ModuleNotFoundError`. Run
+standalone with system Python 3.12 at `998882c1a`, the suite passes ("All
+PyPI REAL round-trip tests passed"). It is outside Slice 42 and fails on any
+3.13 virtual environment.
+
+The suites that failed on the first run all pass in this one:
+`test-sqlite-dependency-contract`, `test-slice90-root-reconciliation`,
+`test-check-board-currency`, `test-windows-wal-attribution-ci-job`,
+`test-slice135-harness`, `test-runtime-checkpoints` and `test-rust`
+(fathomdb-py included).
 
 ## Carried to 0.8.28 final verification
 
@@ -120,6 +125,6 @@ single uninterrupted green run.
 - Pre-existing Windows failures: two slice90 startup-fault tests fail, and
   `current_opener_holds_lock_before_admission_classification` hangs, on both
   trees ([results/windows](results/windows/README.md)).
-- Pre-existing `test-check-board-currency` failure on the 0.8.28 board.
+- `test-pypi-publish-roundtrip` imports `cgi` and fails under Python 3.13 (above).
 - The worktree bootstrap picks uv CPython 3.13, so `fathomdb-py --lib` needs
-  `LD_LIBRARY_PATH` to run.
+  `LD_LIBRARY_PATH` to run, and the PyPI round-trip suite fails.

@@ -90,7 +90,7 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 80 | `include_superseded` and `include_inactive` on search | Not started. |
 | 90 | D28-14 filtered direct body FTS | Not started. |
 
-Ladder remaining: 42 to 90. Slices 41 and 42 were added by owner rulings on
+Ladder remaining: 42, 50, 60, 70, 80, 90. Slices 41 and 42 were added by owner rulings on
 2026-10-16, and Slices 50 to 90 on 2026-10-31.
 
 ## Boundaries

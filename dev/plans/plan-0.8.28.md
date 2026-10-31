@@ -167,15 +167,15 @@ publication decision (Slice 31 plan W8 and R-CODE-4).
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 
 Placed by owner ruling on 2026-10-16 (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 343, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`; todos ledger seq 344, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Branch
-`slice/0.8.28-42-test-hygiene-and-published-cache`, cut from the Slice 40
-branch at `d10ad65d5`. Plan:
+`slice/0.8.28-42-test-hygiene-and-published-cache`, fast-forwarded to
+`dev/0.8.28` at `59079d5c5`. Plan:
 [slice-42/plan.md](0.8.28/features/slice-42/plan.md).
 
 - **Unit A.** `slice135_persistent_sqlite_full_preserves_state_until_cap_lifts`
   counts every open descriptor in the process, so it fails in 9 of 10
   parallel runs while its sibling tests open engines. The design counts
   only descriptors under the test's own directory: one helper and two
-  changed lines, subject to owner ruling Q-A1. Done when 30 parallel runs
+  changed lines, as owner ruling Q-A1 approved. Done when 30 parallel runs
   pass and a deliberately leaked descriptor still fails the check.
 - **Unit B, re-scoped on 2026-10-31.** `libsqlite3-sys` 0.39.1
   (`rusqlite` 0.41.1) bundles SQLite 3.54.1 and no longer sets
@@ -191,17 +191,21 @@ branch at `d10ad65d5`. Plan:
 
   Published crates and `cargo install` then get per-connection caches
   without a forked SQLite.
-  - **Risks to check:** `rusqlite` 0.41 API changes; sqlite-vec 0.1.9 on
-    SQLite 3.54.1; the minimum supported Rust version; and the Windows
-    WAL path on the local Windows VM.
+  - **Risks checked in phase 1 (2026-10-31):** `rusqlite` 0.41 makes
+    `trace_v2` and `busy_handler` take `&mut self` and generic
+    callbacks, which breaks five test-hook calls and three test calls;
+    sqlite-vec 0.1.9 passed the engine and schema suites on SQLite
+    3.54.1 in a probe; the minimum supported Rust version is unchanged
+    (the new crates need 1.89 and 1.88); the Windows WAL path is
+    checked on the local Windows VM.
   - **Verification:** the full gate, the Unit I tests (AC40-95 to AC40-97)
     built from a scratch consumer of the registry crates, the Windows
     verbatim-path tests, and the `AGENT_LONG` perf gates as a new
     baseline.
 
 Slice 42 lands first, so Slices 50 to 90 measure on the SQLite that ships.
-The slice plan, requirements and test plan are revised for Unit B before
-work starts.
+The slice documents were rewritten for the re-scope on 2026-10-31; a
+design review comes before any code.
 
 ## Slices 50 to 90 — the vector read-path fix
 

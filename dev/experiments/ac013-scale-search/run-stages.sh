@@ -5,8 +5,9 @@
 #   OUT=<scratch out dir> LOCK=<measurement lock> LME=<dir from lme_corpus.py> \
 #   dev/experiments/ac013-scale-search/run-stages.sh A [B ...]
 #
-# Stage C at 1M also needs GATE_BIN unset; stage E needs GATE_BIN (a prebuilt
-# perf_gates test binary).
+# Stage C takes C_NS (default "100000 1000000"; amendment 1 ran 100000 and
+# 300000) and C_ARGS (extra ssweep flags). Stage E needs GATE_BIN (a prebuilt
+# perf_gates test binary) and E_BEST.
 set -euo pipefail
 D="$(cd "$(dirname "$0")" && pwd)"
 : "${BIN:?}" "${SHA:?}" "${OUT:?}" "${LOCK:?}" "${LME:?}"

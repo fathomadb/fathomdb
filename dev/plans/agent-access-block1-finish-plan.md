@@ -182,6 +182,18 @@ Todo TC-1b1f69e6 (seq 350 on `dev/0.8.29`) tracks the regression; seq 306
   - Embedding with bge uses the RTX 3090 (`cuda:0`), not the CPU; GPU and
     CPU output have proven equivalent.
   - R8: bring options for simulating it within the disk limit.
+- **Owner rulings, 2026-10-31, second set.**
+  - Vector eligibility moves into the vector table: lifecycle and validity
+    become vec0 columns, filtered inside the KNN.
+  - `include_superseded` on search ships in 0.8.28 with the defect fix.
+  - Stores are not upgraded. A store in the old format is refused at open.
+  - The 100,000-record AC is tracked, not gated, with a p50 ≤ 80 ms and
+    p99 ≤ 300 ms target.
+  - Slice numbering starts at 20. R items are grouped into slices by how
+    each fix is applied, its blast radius and its verification, not one R
+    per slice.
+  - 0.8.28 uses the same slice process as 0.8.29.
+  - R8 uses option A: a benchmark of the vector table alone.
 
 **Order:**
 

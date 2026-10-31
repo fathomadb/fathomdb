@@ -154,12 +154,13 @@ it is never an implicit patch lane.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 42** (`TEST-HYGIENE-SQLITE-BUMP`) — slice135 descriptor check independent of parallel tests (Unit A); adopt rusqlite 0.41.1 and libsqlite3-sys 0.39.1, retire the vendored libsqlite3-sys (Unit B, re-scoped 2026-10-31)
+**IMMEDIATE NEXT: Slice 50** (`DRAIN-SCAN-BOUND`) — Bound the pending-work scans per UNION ALL arm (armlimit) so drain is linear in the backlog; fix the dense-disabled drain that never finishes (todo 289 on dev/0.8.29)
 
-**Remaining ladder:** 42 → 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
-`0ec01bc22`. Slice 42 is next, then Slices 50 to 90. After them come
+`0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
+Slices 50 to 90 are next, in order. After them come
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).

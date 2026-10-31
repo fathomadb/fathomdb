@@ -12,7 +12,7 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 42 (TEST-HYGIENE-SQLITE-BUMP), NOT_STARTED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 50 (DRAIN-SCAN-BOUND), NOT_STARTED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
 Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
@@ -40,7 +40,7 @@ Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 42 (TEST-HYGIENE-SQLITE-BUMP)** — slice135 descriptor check independent of parallel tests (Unit A); adopt rusqlite 0.41.1 and libsqlite3-sys 0.39.1, retire the vendored libsqlite3-sys (Unit B, re-scoped 2026-10-31). **Remaining ladder:** 42 → 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 50 (DRAIN-SCAN-BOUND)** — Bound the pending-work scans per UNION ALL arm (armlimit) so drain is linear in the backlog; fix the dense-disabled drain that never finishes (todo 289 on dev/0.8.29). **Remaining ladder:** 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
@@ -83,14 +83,14 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 31 | cudarc and Candle forks from crates.io (D28-13) | Complete on `release/0.8.28` at `1ceefddd894c041b0a8622856dc2677be3e49c88`; R-CODE-4 fixes on `slice/0.8.28-31-post`; [status](../0.8.28/features/slice-31/status.md). |
 | 40 | FTS ranking, latency and page-cache defects (COMP benchmarks) | Complete on `release/0.8.28` at `869d6a9e100d40841efc5cb56688040f4b645e42`; Unit I gate passed and ADR-0.8.28-sqlite-per-connection-page-cache accepted; [status](../0.8.28/features/slice-40/status.md). |
 | 41 | SDK context pack, full-render override, configurable query stop words | Complete on `release/0.8.28` at `0ec01bc22197c641566830ef7b5ee6f446994f21`; [status](../0.8.28/features/slice-41/status.md). |
-| 42 | slice135 descriptor check (Unit A); adopt `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1 and retire the vendored crate (Unit B, re-scoped 2026-10-31) | Not started; [plan](../0.8.28/features/slice-42/plan.md) predates the re-scope. |
+| 42 | slice135 descriptor check (Unit A); adopt `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1 and retire the vendored crate (Unit B, re-scoped 2026-10-31) | Complete on `dev/0.8.28` and `release/0.8.28`, code head `fdbb74e10`; SQLite 3.54.1 from the registry, Windows verbatim-path tests pass on the local VM; AC-013 still fails as at the base (Slices 50 to 90); [status](../0.8.28/features/slice-42/status.md). |
 | 50 | Bound the pending-work scans (armlimit); dense-disabled drain fix | Not started. |
 | 60 | Store format 35: 64-row vec0 chunks, `search_index` rowid = `write_cursor`, refuse version-34 stores | Not started; R8 benchmark and eu7 recall come first. |
 | 70 | Vector eligibility inside vec0 (lifecycle and validity columns) | Not started. |
 | 80 | `include_superseded` and `include_inactive` on search | Not started. |
 | 90 | D28-14 filtered direct body FTS | Not started. |
 
-Ladder remaining: 42, 50, 60, 70, 80, 90. Slices 41 and 42 were added by owner rulings on
+Ladder remaining: 50, 60, 70, 80, 90. Slices 41 and 42 were added by owner rulings on
 2026-10-16, and Slices 50 to 90 on 2026-10-31.
 
 ## Boundaries

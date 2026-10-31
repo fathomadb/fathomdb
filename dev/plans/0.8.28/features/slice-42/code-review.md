@@ -41,3 +41,26 @@ Rust/Windows tests and RED commits were inspected, not rerun. Recorded verificat
 | --- | --- |
 | medium — the D27 runner hard-codes `rusqlite` 0.40 | Fixed. The script's SHA-256 is not frozen: the D27 verifier rebuilds the runner bundle from git at each receipt's source sha, and `check-runtime-checkpoints.py` still passes. RED `562477d70` (the generated manifest follows the selected checkout: 0.40 for a historical source, 0.41 for a current one, and this checkout's engine requirement); GREEN `1ea86b182` (`rusqlite_requirement` reads the selected engine manifest; one audit-test fixture gained an engine manifest) |
 | note — the dependency-contract update is a follow-up correction | Agreed and recorded in status.md: `246367c61` corrects a contract missed in B-RED-1; its failure evidence was produced against the base export, not at its own parent |
+
+## Follow-up round (16550b4ba..fdbb74e10)
+
+Reviewer: codex gpt-6-astra, reasoning high, read-only, on an export of
+`fdbb74e10`. Verdict: CONCERN, one finding.
+
+- **medium — `scripts/check-runtime-checkpoints.py:646-654`.** A symlink
+  placed at `ac073-bundle/target`, `release` or `deps` passes the
+  directory and leaf checks when the binary hash matches; the new test
+  covers only the bundle directory itself. Codex states the gap predates
+  this delta and is not a hash bypass.
+
+Passed on inspection: the root relocation (redirecting the root does not
+bypass the retained receipt, binary or raw-evidence hashes); the D27
+dependency selection (0.40 historical, 0.41 current; workspace
+inheritance and a missing manifest raise rather than fall back); the PyPI
+parser (matches `cgi.FieldStorage` for `name`, `version` and missing
+fields, multipart and urlencoded); the RED evidence; no assertion
+weakened.
+
+| Finding | Disposition |
+| --- | --- |
+| medium — nested symlinks inside the AC-073 bundle | Not fixed in this slice. Pre-existing, not introduced by the relocation fix, and the hashes still bind the evidence. Owner policy for measurement tooling (2026-10-15) is to test measurement correctness and skip tamper guards. |

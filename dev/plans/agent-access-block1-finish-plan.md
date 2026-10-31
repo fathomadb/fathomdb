@@ -148,6 +148,24 @@ Todo TC-1b1f69e6 (seq 350 on `dev/0.8.29`) tracks the regression; seq 306
 
   Both run on `exp/0.8.29-ac013-scale`, which merges both experiment
   branches.
+- **Drain finding.** Two pending-work queries sort the whole backlog on
+  every run, so drain is O(N²). The `armlimit` prototype makes it O(N):
+  at n=100000 the drain falls from 33 s to 5.7 s
+  (`exp/0.8.29-ac013-scale-drain` `aa30085fc`).
+- **Owner rulings, 2026-10-30.**
+  - The AC-013 fix lands on `dev/0.8.28`, to unblock 0.8.28. TC-1b1f69e6
+    is retargeted to 0.8.28. Add its slice to
+    `release-state-0.8.28.json` when the build starts.
+  - Queued for 0.8.29:
+    - hoist the per-row `sqlite_master` read in the worker commit
+      (TC-0be48ca9);
+    - the 300k write-phase growth (TC-1807591f);
+    - 300k seeding in the gate shape (TC-9a8e5f68);
+    - re-trace the 300k drain outlier (TC-dbf46d9e);
+    - the query-embedding cost in MCP calls (TC-b5959972).
+  - The gate's 10k cap and its synthetic data wait for the recommendation.
+  - MCP throughput levelling at about 8 calls/s is expected; it is not
+    queued.
 
 **Order:**
 

@@ -6,6 +6,11 @@ from pathlib import Path
 import tempfile
 import unittest
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 fallback, as the other release gates.
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "d27-runtime-runner.py"
@@ -32,6 +37,34 @@ class D27RunnerTests(unittest.TestCase):
             self.assertEqual(len({row["logical_id"] for row in rows}), 10_000)
             self.assertTrue(all(len(row["body"].encode()) == 512 for row in rows))
             self.assertEqual(len({word for row in rows for word in row["body"].split()}), 1024)
+
+    def test_manifest_takes_rusqlite_requirement_from_selected_checkout(self):
+        # A historical source keeps its own rusqlite; a current one needs the
+        # same major as its engine, or two libsqlite3-sys crates both link
+        # "sqlite3" and Cargo cannot resolve the external test crate.
+        for requirement in ("0.40", "0.41"):
+            with self.subTest(requirement=requirement), tempfile.TemporaryDirectory() as directory:
+                source = Path(directory) / "source"
+                engine = source / "src/rust/crates/fathomdb-engine"
+                engine.mkdir(parents=True)
+                (engine / "Cargo.toml").write_text(
+                    '[package]\nname = "fathomdb-engine"\n\n[dependencies]\n'
+                    f'rusqlite = {{ version = "{requirement}", features = ["bundled", "fallible_uint"] }}\n'
+                )
+                crate = Path(directory) / "crate"
+                crate.mkdir()
+                manifest = tomllib.loads(runner.build_manifest(source, crate).read_text())
+                self.assertEqual(manifest["dependencies"]["rusqlite"]["version"], requirement)
+                self.assertEqual(manifest["dependencies"]["rusqlite"]["features"], ["bundled"])
+
+    def test_manifest_for_this_checkout_matches_its_engine_rusqlite(self):
+        engine = tomllib.loads((ROOT / "src/rust/crates/fathomdb-engine/Cargo.toml").read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = tomllib.loads(runner.build_manifest(ROOT, Path(directory)).read_text())
+        self.assertEqual(
+            manifest["dependencies"]["rusqlite"]["version"],
+            engine["dependencies"]["rusqlite"]["version"],
+        )
 
     def test_v2_runner_bundle_contains_exact_selected_protocol_bytes(self):
         bundled = runner.runner_bundle_bytes(PROTOCOL_V2)

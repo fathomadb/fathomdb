@@ -220,9 +220,12 @@ requirements say otherwise.
     in `projection_worker.rs` gets its own `ORDER BY write_cursor LIMIT`.
     That makes drain linear in the backlog: at n=100000 the held drain
     falls from 33 s to 5.7 s (`exp/0.8.29-ac013-scale-drain` `aa30085fc`).
+    That figure is for 64-row chunks (Slice 60). On format 34 the slice
+    measures linearity under a rule it states before the run.
   - It also fixes the drain that never finishes on a dense-disabled store
-    with pending vector rows (todo 289 on `dev/0.8.29`), which is in the
-    same queries.
+    with pending vector rows (todo 289 on `dev/0.8.29`). That defect is
+    in `Engine::drain`, not in the two queries
+    ([slice 50 design](0.8.28/features/slice-50/design.md) § 2).
   - **Verification:** a query-plan test; drain cost per vector flat from
     10k to 100k; projected stores identical to the shipped scan; a node
     and edge ordering case; the drain and readiness suites.

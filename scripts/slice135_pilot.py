@@ -31,7 +31,7 @@ RESOURCE_FORMAT = (
     "user_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nfs_inputs=%I\nfs_outputs=%O\n"
     "major_faults=%F\nswap_events=%W\n"
 )
-SOURCE_PATHS = ("Cargo.toml", "Cargo.lock", "src/rust")
+SOURCE_PATHS = ("Cargo.toml", "Cargo.lock", "src/rust", "third_party")
 REQUIRED_SOURCE_PATHS = SOURCE_PATHS[:3]
 CORPUS = "".join(
     f"doc-{index}:needle memory document {index} for bounded search\n"

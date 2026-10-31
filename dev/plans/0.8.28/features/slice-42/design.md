@@ -202,7 +202,7 @@ live reference moves with it:
 | `scripts/tests/test_check_pinned_override_rot.sh` | B-RED-2 adds the two refusal cases of § 2.6. B-GREEN-2 deletes the obsolete SQLite fixtures and cases: `seed_sqlite_fixture` (lines 198–224) and its two callers, the lock stub, the drift, build and path cases (528–564), and the driver's SQLite patch line and `missing-sqlite` case (696–697, 738–740) |
 | `tests/experiments/test_sdk_rust_patch_policy.py` | B-RED-2: the driver SQLite patch becomes an assertion of refusal (§ 2.6) |
 | `dev/design/pinned-override-rot-guard.md` | Rewrite R4 (lines 59–75) to the two admitted mechanisms, the `candle-kernels` Git patch and the fork registry pins, mirroring the new `cargo` description in `pinned-override-rot.json`. The `cudarc` 0.19.7 clause there is stale since Slice 31 and goes too |
-| `scripts/slice135_pilot.py` | Line 34: drop `"third_party"` from `SOURCE_PATHS` (docs commit). `REQUIRED_SOURCE_PATHS` is `SOURCE_PATHS[:3]`, which does not include it |
+| `scripts/slice135_pilot.py` | Unchanged. Its `SOURCE_PATHS` still names `third_party`, but the S02-L campaign freezes the helper's SHA-256, and `REQUIRED_SOURCE_PATHS` (`SOURCE_PATHS[:3]`) does not include it, so the missing directory is harmless |
 | `scripts/security/gitleaks-current.toml` and `check-gitleaks-current-config.py` | Delete the two "Vendored SQLite" allowlists in both, together (the checker requires the config to equal its expected list). They name only files that no longer exist |
 | `.gitattributes` | Delete the `third_party/libsqlite3-sys-0.38.1/** -whitespace` entry and its comment |
 | `.markdownlint-cli2.jsonc`, `scripts/agent-lint-md.sh` | Delete the two vendored README/Upgrade excludes |

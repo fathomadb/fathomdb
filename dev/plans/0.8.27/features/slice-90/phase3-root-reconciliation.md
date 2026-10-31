@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: d7065f6f041f547a1d124182983f17268a379145
+lib_rs_blob: 12e4a6448f727d4afd940a9386d4c4e7d1e05f09
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -37,7 +37,10 @@ retained fixtures, producing `0226b8836c929a30793b8913461f5abf341123c2`.
 0.8.28 Slice 41 added the `context_pack` module and its re-exports, the
 `fathomdb_query` stop-word re-exports (`QueryStopWords`, `StopWordBase`,
 `StopWordRejection`, `DEFAULT_STOP_WORDS_SHA256`) and the root storage field
-`query_stop_words`, producing the blob above. The root storage fields are
+`query_stop_words`, producing `d7065f6f041f547a1d124182983f17268a379145`.
+0.8.28 Slice 42 changed only the root `tests` module (the Windows
+verbatim-path guard tests moved to the version-only predicate, and its
+portable test joined them), producing the blob above. The root storage fields are
 now 44; the approved root method inventory is unchanged.
 
 ## Remaining root declarations

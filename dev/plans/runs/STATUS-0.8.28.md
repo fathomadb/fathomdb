@@ -65,9 +65,9 @@ Ruled on 2026-10-30 and 2026-10-31 (release state, `decisions.ruled`):
   goes in 0.8.30.
 - **D28-12** is met for vector and hybrid latency; populated-open latency
   moves to 0.8.29.
-- **Execution.** 0.8.28 is a planned release, run as a separate effort in
-  parallel with 0.8.29. Slices land on `dev/0.8.28` and are merged
-  forward into `dev/0.8.29`.
+- **Execution.** 0.8.28 is a planned release. Slices 42 to 90 run
+  serially; 0.8.29 starts when 0.8.28 enters final verification, and
+  `dev/0.8.28` is merged forward then.
 - **B2-8 storage** goes in Slice 60's format 35: a per-vector span table
   and an `Embedder` truncation method. The reporting is 0.8.29 Block 2.
 - **Overflow chunking** stays parked, but format 35 and Slice 70 are built

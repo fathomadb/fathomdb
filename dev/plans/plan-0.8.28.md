@@ -2,7 +2,7 @@
 title: FathomDB 0.8.28 — Tegra CUDA pool, forked cudarc, and the vector read-path fix
 status: ACTIVE
 target_release: 0.8.28
-execution_model: direct; no Steward or Orchestrator; run as a separate effort in parallel with 0.8.29 (owner 2026-10-31)
+execution_model: direct; no Steward or Orchestrator; Slices 42 to 90 run serially before 0.8.29 starts; 0.8.29 starts when 0.8.28 enters final verification (owner 2026-10-31)
 ---
 
 # FathomDB 0.8.28 — Tegra CUDA pool, forked cudarc, and the vector read-path fix
@@ -53,13 +53,17 @@ their slices.
 
 ## Execution
 
-0.8.28 is a planned release, run as a separate effort in parallel with
-0.8.29 (owner 2026-10-31).
+0.8.28 is a planned release. Its slices run serially and finish before
+0.8.29 work starts (owner 2026-10-31, revising the earlier parallel plan).
 
 - **Branches.** Slices 42 to 90 are cut from `dev/0.8.28` and land back
-  on it.
-- **Forward merges.** Each landed slice is merged forward into
-  `dev/0.8.29`.
+  on it, one at a time.
+- **Hand-over to 0.8.29.** When Slice 90 lands and 0.8.28 enters final
+  verification (the platform matrix on Windows, Linux, Tegra and macOS,
+  CI, the registry dry runs and publication), 0.8.29 work starts. It does
+  not wait for verification or publication to finish.
+- **Forward merges.** `dev/0.8.28` is merged into `dev/0.8.29` at the
+  hand-over, and again for any fix that final verification lands.
 - **Ledgers.** Todos are written on `dev/0.8.29` only, so the seq numbers
   do not fork again; cite todos by TC id.
 - **Release branch.** `release/0.8.28` is fast-forwarded to `dev/0.8.28`

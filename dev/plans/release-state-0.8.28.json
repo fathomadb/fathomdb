@@ -1,6 +1,6 @@
 {
   "release": "0.8.28",
-  "release_kind": "active release; Slices 30, 31, 40 and 41 complete; Slices 42 to 90 open on dev/0.8.28; a planned release run as a separate effort in parallel with 0.8.29; tag push not authorized",
+  "release_kind": "active release; Slices 30, 31, 40 and 41 complete; Slices 42 to 90 open on dev/0.8.28; a planned release; slices run serially, and 0.8.29 starts when 0.8.28 enters final verification; tag push not authorized",
   "board": "dev/plans/runs/STATUS-0.8.28.md",
   "plan": "dev/plans/plan-0.8.28.md",
   "active_ref": "refs/heads/release/0.8.28",
@@ -43,7 +43,7 @@
       {"id": "d28-01-07-candidates", "title": "No D28-01 to D28-07 candidate enters 0.8.28; all go to the 0.8.29 candidate-selection review checkpoint.", "source": "repository owner 2026-10-31 (dev/plans/0.8.28-0.8.29-slice-proposal.md on dev/0.8.29; todo TC-1b1f69e6)"},
       {"id": "ac013-fix-placement", "title": "The AC-013 fix lands on dev/0.8.28: R1 CS64, R2 armlimit, R3 no worker cache_size (ADR-0.8.28 stays as written); no backward compatibility, a version-34 store is refused at open; the node-supersession vector defect is fixed by lifecycle and validity columns in vec0, with include_superseded and include_inactive on search.", "source": "repository owner 2026-10-30 and 2026-10-31 (todo TC-1b1f69e6; dev/experiments/ac013-page-cache/RECOMMENDATION.md on dev/0.8.29)"},
       {"id": "slice-42-unit-b-rescope", "title": "Slice 42 Unit B becomes the rusqlite 0.41.1 / libsqlite3-sys 0.39.1 adoption and retires the vendored libsqlite3-sys.", "source": "repository owner 2026-10-31 (dev/plans/0.8.28-0.8.29-slice-proposal.md on dev/0.8.29; todo TC-1b1f69e6)"},
-      {"id": "release-0.8.28-execution", "title": "0.8.28 is a planned release, executed as a separate effort in parallel with 0.8.29 work; each landed 0.8.28 slice is merged forward into dev/0.8.29.", "source": "repository owner 2026-10-31 (dev/plans/0.8.28-0.8.29-slice-proposal.md on dev/0.8.29; todo TC-1b1f69e6)"},
+      {"id": "release-0.8.28-execution", "title": "0.8.28 is a planned release. Slices 42 to 90 run serially; 0.8.29 work starts when 0.8.28 enters final verification (platform matrix, CI, registry publication) rather than waiting for it to finish. dev/0.8.28 is merged forward at that hand-over and for any later verification fix. Revised by the owner on 2026-10-31 from the earlier parallel plan.", "source": "repository owner 2026-10-31 (dev/plans/0.8.28-0.8.29-slice-proposal.md on dev/0.8.29; todo TC-1b1f69e6)"},
       {"id": "b2-8-guard-storage", "title": "Long-record guard B2-8 approved: its storage (a per-vector span table filled with head windows, and an Embedder truncation-offset method) ships in Slice 60's format 35; the orient and snippet reporting is 0.8.29 Block 2.", "source": "repository owner 2026-10-31 (todo TC-5b647921)"},
       {"id": "overflow-chunking-readiness", "title": "Overflow chunking stays parked behind its tripwires, but format 35 and Slice 70 are built so it can be enabled without another format break; latency cost and the CS64 crossing must be weighed at re-evaluation (dev/design/overflow-chunking-reevaluation.md on dev/0.8.29).", "source": "repository owner 2026-10-31"}
     ]

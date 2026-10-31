@@ -530,21 +530,3 @@ pub(super) fn record_writer_pragma_witness_for_test(connection: &Connection) {
         append_json_witness_for_test("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", &observation);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn local_verbatim_path_needs_newer_sqlite_decides_by_version_alone() {
-        let local = r"\\?\C:\ci\NUL.txt";
-        assert_eq!(SQLITE_LOCAL_VERBATIM_WAL_FIX, 3_053_003);
-        assert!(local_verbatim_path_needs_newer_sqlite(local, false, 3_053_002));
-        assert!(!local_verbatim_path_needs_newer_sqlite(local, false, 3_053_003));
-        assert!(!local_verbatim_path_needs_newer_sqlite(local, false, 3_054_001));
-        assert!(!local_verbatim_path_needs_newer_sqlite(local, true, 3_053_002));
-        for remote in [r"\\server\share\db.sqlite", r"\\?\UNC\server\share\db.sqlite"] {
-            assert!(!local_verbatim_path_needs_newer_sqlite(remote, false, 3_053_002));
-        }
-    }
-}

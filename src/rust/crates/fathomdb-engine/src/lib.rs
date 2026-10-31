@@ -855,6 +855,23 @@ mod tests {
         assert_eq!(sqlite_runtime_path(Path::new(&long)), Path::new(&long));
     }
 
+    #[test]
+    fn local_verbatim_path_needs_newer_sqlite_decides_by_version_alone() {
+        use super::connection_runtime::{
+            local_verbatim_path_needs_newer_sqlite, SQLITE_LOCAL_VERBATIM_WAL_FIX,
+        };
+
+        let local = r"\\?\C:\ci\NUL.txt";
+        assert_eq!(SQLITE_LOCAL_VERBATIM_WAL_FIX, 3_053_003);
+        assert!(local_verbatim_path_needs_newer_sqlite(local, false, 3_053_002));
+        assert!(!local_verbatim_path_needs_newer_sqlite(local, false, 3_053_003));
+        assert!(!local_verbatim_path_needs_newer_sqlite(local, false, 3_054_001));
+        assert!(!local_verbatim_path_needs_newer_sqlite(local, true, 3_053_002));
+        for remote in [r"\\server\share\db.sqlite", r"\\?\UNC\server\share\db.sqlite"] {
+            assert!(!local_verbatim_path_needs_newer_sqlite(remote, false, 3_053_002));
+        }
+    }
+
     #[cfg(windows)]
     #[test]
     fn unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths() {

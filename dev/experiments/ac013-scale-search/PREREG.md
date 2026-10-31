@@ -83,3 +83,16 @@ a verdict, repeated.
    phase-1 time exceeds BASE's by >= 10% at the largest n measured.
 6. **Gate.** Stage E reports the AC-013 gate p50 for CS64 and the best cell;
    it does not change the verdicts above.
+
+## Amendment 1 (2026-10-30 22:20, before the stage C reruns)
+
+- **1M dropped.** The first 1M seed (BASE+ELIG, traced) ran 18 minutes and
+  had written a 4.0 GB store plus a 6.8 GB WAL, over the 10 GB budget, with
+  the shared disk at 24 GB free. It was stopped and its store deleted. Stage
+  C's large n becomes 300k (`C_LARGE_N=300000`), same cells, samples and
+  passes.
+- **Stage C 100k is repeated.** Its first BASE+ELIG traced run failed in the
+  seed write (`seed write: Storage`, once; the untraced run of the same cell
+  then passed), and three of its runs ended above load 2. Rule 5 decides on
+  these runs, so stage C runs once more at 100k (`--repeat-offset 1`) and the
+  verdict uses runs that end at load <= 2 where one exists.

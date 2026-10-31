@@ -41,9 +41,9 @@ stage_Bt() {
 }
 
 stage_C() {
-  for n in 100000 ${C_LARGE_N:-1000000}; do
-    sw --only BASE+ELIG,CS64+ELIG --corpus syn --n $n --samples 200 --passes vector --trace
-    sw --only BASE+ELIG,CS64+ELIG --corpus syn --n $n --samples 200 --passes vector
+  for n in ${C_NS:-100000 1000000}; do
+    sw --only BASE+ELIG,CS64+ELIG --corpus syn --n $n --samples 200 --passes vector --trace ${C_ARGS:-}
+    sw --only BASE+ELIG,CS64+ELIG --corpus syn --n $n --samples 200 --passes vector ${C_ARGS:-}
   done
 }
 

@@ -55,6 +55,20 @@ fn fd_count() -> Option<usize> {
     std::fs::read_dir("/dev/fd").ok().map(|entries| entries.count())
 }
 
+fn fd_count_under(dir: &Path) -> Option<usize> {
+    if !cfg!(target_os = "linux") {
+        return None;
+    }
+    let root = dir.canonicalize().expect("canonical test directory");
+    let entries = std::fs::read_dir("/proc/self/fd").expect("read /proc/self/fd");
+    Some(
+        entries
+            .filter_map(|entry| std::fs::read_link(entry.ok()?.path()).ok())
+            .filter(|target| target.starts_with(&root))
+            .count(),
+    )
+}
+
 fn wal_bytes(path: &Path) -> Option<u64> {
     let wal = PathBuf::from(format!("{}-wal", path.display()));
     std::fs::metadata(wal).ok().map(|meta| meta.len())
@@ -363,7 +377,7 @@ fn slice135_bounded_sqlite_full_write_rolls_back_and_reopens() {
 fn slice135_persistent_sqlite_full_preserves_state_until_cap_lifts() {
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("persistent-sqlite-full.sqlite");
-    let fd_before = fd_count();
+    let fd_before = fd_count_under(dir.path());
     let opened = Engine::open(&path).expect("open");
     opened.engine.write(&[node("base")]).expect("seed write");
     opened.engine.drain(10_000).expect("seed projection");
@@ -426,7 +440,7 @@ fn slice135_persistent_sqlite_full_preserves_state_until_cap_lifts() {
         .query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0))
         .expect("canonical row count");
     let check = integrity(&path);
-    let fd_after = fd_count();
+    let fd_after = fd_count_under(dir.path());
     eprintln!(
         "SLICE135_ROBUSTNESS {}",
         json!({"case":"persistent_sqlite_full_write", "fault_point":"three governed writes while max_page_count remains page_count+1", "page_count":pages, "max_page_count":limit, "before":before, "attempt_errors":errors, "states_after_each_failure":states, "reopened":reopened_state, "expected_reopened":expected, "physical_canonical_rows":physical_rows, "integrity_check":check, "fd_before":fd_before, "fd_after":fd_after})

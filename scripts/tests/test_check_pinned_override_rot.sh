@@ -519,11 +519,31 @@ if [ "$RC" -ne 0 ]; then
 fi
 pass 'approved candle-kernels patch and fork registry pins pass'
 
-sqlite_missing="$(make_candle_fixture sqlite-missing approved)"
-touch "$sqlite_missing/.omit-sqlite-patch"
-run_fixture "$sqlite_missing"
-expect_failure 'missing approved SQLite patch libsqlite3-sys' \
-  'missing local SQLite backport is rejected'
+# 0.8.28 Slice 42: the workspace resolves the crates.io libsqlite3-sys, so a
+# tree without a SQLite patch passes and a reintroduced one is unsupported.
+sqlite_root_patch="$(make_candle_fixture sqlite-root-patch approved)"
+python3 - "$sqlite_root_patch/Cargo.toml" <<'PY'
+from pathlib import Path
+import sys
+
+manifest = Path(sys.argv[1])
+text = manifest.read_text(encoding="utf-8")
+patch = 'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }\n'
+if "[patch.crates-io]\n" not in text:
+    raise SystemExit("fixture manifest has no [patch.crates-io] table")
+manifest.write_text(text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1), encoding="utf-8")
+PY
+run_fixture "$sqlite_root_patch"
+expect_failure 'unsupported Cargo override/git source Cargo.toml:patch.crates-io.libsqlite3-sys' \
+  'a root libsqlite3-sys patch is unsupported'
+
+sqlite_absent="$(make_candle_fixture sqlite-absent approved)"
+touch "$sqlite_absent/.omit-sqlite-patch"
+run_fixture "$sqlite_absent"
+if [ "$RC" -ne 0 ]; then
+  fail "a tree without a SQLite patch must pass, got rc=$RC output=$OUT"
+fi
+pass 'a tree without a SQLite patch passes'
 
 sqlite_drift="$(make_candle_fixture sqlite-drift approved)"
 run_fixture "$sqlite_drift"

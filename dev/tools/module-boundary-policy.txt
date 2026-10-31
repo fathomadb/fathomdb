@@ -24,6 +24,7 @@ reported actuation::tests
 reported consolidation
 reported context_pack
 reported connection_runtime
+reported connection_runtime::tests
 reported data_plane_integrity
 reported dependency
 reported dependency_closure

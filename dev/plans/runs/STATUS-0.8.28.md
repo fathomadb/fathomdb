@@ -68,6 +68,10 @@ Ruled on 2026-10-30 and 2026-10-31 (release state, `decisions.ruled`):
 - **Execution.** 0.8.28 is a planned release, run as a separate effort in
   parallel with 0.8.29. Slices land on `dev/0.8.28` and are merged
   forward into `dev/0.8.29`.
+- **B2-8 storage** goes in Slice 60's format 35: a per-vector span table
+  and an `Embedder` truncation method. The reporting is 0.8.29 Block 2.
+- **Overflow chunking** stays parked, but format 35 and Slice 70 are built
+  so it can be enabled without another format break.
 
 The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 

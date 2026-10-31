@@ -222,10 +222,23 @@ requirements say otherwise.
     rowid = `write_cursor`; a version-34 store is refused at open
     (`IncompatibleSchemaVersion`, with no upgrade path); the rebuild verbs
     and vector re-centring on the new layout.
+  - **Long-record guard, storage half (B2-8, owner 2026-10-31).** A
+    vector-span table, one row per vector: `write_cursor`, window number,
+    byte start, byte end, and the record's body length. Format 35 fills
+    only the head window. The `Embedder` trait gains a method that reports
+    where it truncated, defaulting to unknown. The table is shaped for
+    overflow chunking, so enabling chunking later re-projects long records
+    without another format break. The `orient` and snippet reporting is
+    0.8.29 Block 2.
   - **Before the format is frozen:**
     - a benchmark of the vector table alone to 2M rows (R8 option A), to
-      confirm 64 rows against 128 and 256;
+      confirm 64 rows against 128 and 256. Include row counts multiplied
+      by overflow chunking (about 5.1 vectors per record on LongMemEval
+      sessions), because chunking would reach CS64's crossing near 1.2M
+      rows at about 235k records;
     - eu7 recall with bge on the RTX 3090.
+  - **Chunking stays parked.** The re-evaluation record is
+    `dev/design/overflow-chunking-reevaluation.md` on `dev/0.8.29`.
   - **ADR:** a successor to ADR-0.7.0-vector-binary-quant.
   - **Verification:** AC-013 (p50 about 63 ms, limit 80), `ac_013b`, the
     refusal test, the shape-sentinel and rebuild tests, and identical
@@ -236,6 +249,9 @@ requirements say otherwise.
     columns, written at insert. They are kept current wherever lifecycle
     changes: `write_commit.rs`, `record_lifecycle.rs`,
     `dependency_closure.rs` and `consolidation.rs`.
+  - **Keyed by record.** Every lifecycle update and every erasure applies
+    to all vector rows of the record (`write_cursor`), not to one vector
+    row, so overflow chunks can be added later without new upkeep paths.
   - **Filter:** the KNN filters on them. sqlite-vec has no `IS NULL` and
     no `OR`, so an unbounded window uses min/max sentinels.
   - **The scan goes:** the store-wide vector-row eligibility scan is

@@ -29,7 +29,7 @@ ADR records the decision before Phase 3 interface drafts begin.
 
 - Crates using it: fathomdb-engine, fathomdb-schema, fathomdb (dev)
 - Surface used: `Connection`, `Transaction`, `params!`, `prepare_cached`, extension loading (sqlite-vec), backup API, optional `trace` feature
-- Version pin: `0.32.1` features=`bundled, load_extension, backup`; latest 0.33.x available
+- Version pin: `0.41.1` (0.8.28 Slice 42) features=`bundled, fallible_uint` (plus `hooks` and `trace` under the engine's `test-hooks`); bundles SQLite 3.54.1 through the crates.io `libsqlite3-sys` 0.39.1
 
 ## Maintenance signals
 

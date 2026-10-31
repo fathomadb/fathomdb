@@ -462,20 +462,18 @@ pool_n: 0, include_explanation: false, limit: 10}`;
 
 ## SQLite runtime configuration
 
-SQLite page cache (0.8.28 Slice 40). Artifacts built from this repository
-(the Python wheel, the npm addon and a CLI built from this workspace) build
-the bundled SQLite without
-`SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite connection keeps its own
-page cache of SQLite's default 2,000 KiB. A Rust build that resolves the
-registry `libsqlite3-sys` keeps SQLite's shared page cache, where one large
-read can slow later reads until the engine is reopened. rusqlite removed the
-flag upstream (commit `f31f7324`); Rust consumers get the fix from the first
-`libsqlite3-sys` release that contains it, and until then
-`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives the
-same behaviour as the workspace build. `cargo install fathomdb-cli` is such a
-registry build: it keeps the shared page cache until a `libsqlite3-sys` release
-contains `f31f7324`, unless `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`
-is set for the install.
+SQLite page cache (0.8.28 Slices 40 and 42). Every build bundles SQLite
+3.54.1 from the crates.io `libsqlite3-sys` 0.39.1 (through `rusqlite` 0.41),
+which is built without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite
+connection keeps its own page cache of SQLite's default 2,000 KiB. That holds
+for the Python wheel, the npm addon, `cargo install fathomdb-cli` and every
+consumer of the published Rust crates; no build flag is needed. A consumer that
+links its own SQLite instead of the bundled one (for example through
+`LIBSQLITE3_SYS_USE_PKG_CONFIG`) gets that library's page-cache mode. The
+0.8.27 registry crates still resolve `libsqlite3-sys` 0.38 and share one page
+cache across connections; for them,
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives one
+page cache per connection.
 
 ## Search behaviour in 0.8.28 (Slice 40)
 

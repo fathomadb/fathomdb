@@ -250,6 +250,9 @@ git grep -n "libsqlite3-sys-0.38.1" -- . \
   ':!dev/todos-and-considerations-ledger.jsonl' ':!dev/steward'
 ```
 
-Expected: the lints pass and the search prints nothing. The excluded
-paths are historical records, the append-only ledgers, and this slice's
-own docs.
+Expected: the lints pass. The excluded paths are historical records, the
+append-only ledgers, and this slice's own docs. The search may print only
+these deliberate hits: the page-cache ADR's exit note (a git-history
+pointer), the dated repository grounding line of
+`dev/research/sqlite-memstatus-contention-ac020-research.md`, and the two
+pinned-override tests that build the retired patch as a refusal fixture.

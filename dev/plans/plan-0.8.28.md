@@ -180,8 +180,8 @@ Placed by owner ruling on 2026-10-16 (todos ledger (`dev/todos-and-consideration
 - **Unit B, re-scoped on 2026-10-31.** `libsqlite3-sys` 0.39.1
   (`rusqlite` 0.41.1) bundles SQLite 3.54.1 and no longer sets
   `SQLITE_ENABLE_MEMORY_MANAGEMENT`. SQLite 3.54.1 also includes the
-  3.53.3 Windows WAL path fix, so both exit conditions in
-  `third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md` are met. Unit B
+  3.53.3 Windows WAL path fix, so the exit conditions in the retired patch
+  note (git history at `59079d5c5`) are met. Unit B
   makes these changes:
   - adopt `rusqlite` 0.41.1;
   - delete the vendored crate and its `[patch.crates-io]` entry;

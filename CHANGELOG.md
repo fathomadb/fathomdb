@@ -85,6 +85,13 @@ AC-050c) gates merges against this invariant.
 
 ### Changed
 
+- (Slice 42) Updated the SQLite stack to `rusqlite` 0.41 and the crates.io
+  `libsqlite3-sys` 0.39 (SQLite 3.54.1); the vendored `libsqlite3-sys`
+  0.38.1 is gone. `fathomdb_schema::migrate` takes a `rusqlite` 0.41
+  `Connection`, and a Rust consumer cannot also link `rusqlite` 0.40 (both
+  link the native `sqlite3`). On Windows the engine refuses an
+  unsimplifiable local `\\?\C:\` database path only when the linked SQLite
+  predates 3.53.3, which can only happen with a non-bundled SQLite.
 - (Slice 40) The text-query compiler also drops the fragments that
   splitting on an apostrophe leaves ("s", "t", "ll", "re", "ve", "m", as in
   "Cow's", "don't", "we'll", "they're", "I've", "I'm") and the short function
@@ -167,11 +174,9 @@ AC-050c) gates merges against this invariant.
   reopened (about 2.5× slower reads afterwards). Results are unchanged. The
   page-cache ceiling is unchanged (2,000 KiB per connection, twelve
   connections per engine by default), but resident page memory can now
-  rise toward it, up to about 24 MB per engine. Rust builds that resolve
-  the registry `libsqlite3-sys` keep the shared cache until a release
-  contains rusqlite commit `f31f7324`; until then,
-  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives
-  the same behaviour.
+  rise toward it, up to about 24 MB per engine. Since Slice 42 this also
+  holds for `cargo install fathomdb-cli` and the published Rust crates,
+  which now build the crates.io `libsqlite3-sys` 0.39 without the flag.
 - (Slice 40) Search ranking: each fusion arm (vector, text, graph) now
   credits a body at most once, at the rank of its first occurrence. Before,
   rows sharing a byte-identical body each added a term, so a duplicated

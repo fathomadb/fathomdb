@@ -22,6 +22,10 @@ the todos there, and then runs Block 2 there.
 
 A fresh session starts here. Verify each line from git before acting on it.
 
+- **Superseded as the ladder of record on 2026-10-31.** The 0.8.29 ladder
+  is `dev/plans/plan-0.8.29.md`, which maps W1–W8 and Block 2 to slices.
+  This file keeps Phase 0's record and the W4 (AC-013) rulings.
+
 - **Plan of record.** This file on `dev/0.8.29`. The copy on
   `feat/agent-access-block1` stopped at `d5768dc07` and is not updated.
 - **Phase 0: done** on 2026-10-28; `dev/0.8.29` head `e336cfc09`. Step 4,

@@ -69,8 +69,9 @@ the TC id is the stable reference.
 | 60 | Slice 80 (search view flags) | MCP exposes the flags that Slice 80 adds to the engine |
 | 70 | Slice 70 | Degradation labels must describe the new fallback behaviour |
 | 100 | Slice 70 | Erasure must remove the new vec0 columns |
+| 80, 90 | Slice 60 (the vector-span table) | B2-8 reports coverage from the table that format 35 ships |
 
-Slices 0 to 20, 80 and 110 depend on nothing in 0.8.28.
+Slices 0 to 20 and 110 depend on nothing in 0.8.28. The Block 2 design (Slice 80) can start before 0.8.28 Slice 60 lands.
 
 ## Quality-roadmap consultation
 
@@ -210,7 +211,11 @@ The checkpoint is a planning decision, so it sits in Slice 9.
   - the two placed experiments (coalescing concurrent work, and the SDK
     hints default);
   - D28-01 to D28-07;
-  - D28-10.
+  - D28-10;
+  - two overflow-chunking measurements: the answer-level check behind
+    tripwire T1, which needs no chunk vectors, and chunking's latency
+    re-measured on format 35 at overflow-multiplied row counts
+    (`dev/design/overflow-chunking-reevaluation.md` §§ 3, 4.4).
 - **One constraint.** An authorized retrieval experiment preregisters
   against a build that contains 0.8.28 Slice 70, because restoring the
   vector arm in stores with superseded nodes changes retrieval baselines.
@@ -220,14 +225,14 @@ The checkpoint is a planning decision, so it sits in Slice 9.
 | Slice | Short | Contents | Folds in |
 | ---: | --- | --- | --- |
 | 0–10 | PREWORK | Above | — |
-| 20 | TEST-HYGIENE | Parallel-safe tests (`tc57`, `slice50_evidence`, `slice40_fresh_database_cutover`); the `fathomdb-mcp` dead_code warning; the `before_enqueue` hook and queue test 23 | W1: 309 (tc57 half; the slice135 half is 0.8.28 Slice 42), 290, 307, 300 |
+| 20 | TEST-HYGIENE | Parallel-safe tests (`tc57`, `slice50_evidence`, `slice40_fresh_database_cutover`); the `fathomdb-mcp` dead_code warning; the `before_enqueue` hook and queue test 23; the chunking tripwire T2 test, pinning the fusion weights, the default embedder and its 512-wordpiece cut, whose failure names the re-evaluation record | W1: 309 (tc57 half; the slice135 half is 0.8.28 Slice 42), 290, 307, 300 |
 | 30 | SCALE-MEASUREMENT | AC-083 harness and entry; drain-linearity check; re-measured baselines; the Block 1 measurement todos; the 300k and outlier traces; query-embedding cost; populated-open latency | R7; W5: 298, 299, 303, 304; 355, 356, 357, 358, 360 (TC-a3ad0d49) |
 | 40 | ELIGIBILITY-CACHE | Cache the remaining eligibility answer (`all_nodes_directly_eligible`) per read-visibility generation; read the vector attribute columns once per worker batch | R4; R6 (354, TC-0be48ca9) |
-| 50 | TEXT-ARM | Fusion identity ADR first (distinct records with byte-identical bodies); then the deferred-content text arm with its fusion variant; record-start snippets skip full-body segmentation | W7: 295; R5 (code half); W4: 292 |
+| 50 | TEXT-ARM | Fusion identity ADR first (distinct records with byte-identical bodies; the vector stage yields one candidate per record, so overflow chunks cannot crowd the pool); then the deferred-content text arm with its fusion variant; record-start snippets skip full-body segmentation | W7: 295; R5 (code half); W4: 292 |
 | 60 | MCP-SURFACE | The compact text block with `text` as default (17 RED tests); `include_superseded` and `include_inactive` on MCP search | W6: 316/317; the MCP half of 0.8.28 Slice 80 |
 | 70 | DEGRADATION-SDK | EP-03 degradation labels for an arm timeout and an absent embedder; facade re-exports; UTF-8 byte offsets documented; `SnippetOptions` binding parity | W2: 301; W3: 297, 310 |
-| 80 | BLOCK2-DESIGN | One design for B2-1 to B2-8; check B2-7 against the built queue; B2-1 agrees with compact text | B2-8 approval (seq 296) |
-| 90 | BLOCK2-BUILD | Build Block 2 | — |
+| 80 | BLOCK2-DESIGN | One design for B2-1 to B2-8; check B2-7 against the built queue; B2-1 agrees with compact text. B2-8 reads the span table that 0.8.28 Slice 60 ships, and reports the snippet's scored extent as a byte span | B2-8 (TC-5b647921, approved 2026-10-31) |
+| 90 | BLOCK2-BUILD | Build Block 2, including B2-8's `orient` coverage and snippet span | — |
 | 100 | ERASURE-INTERRUPTION | D28-09: erasure interrupted inside a transaction or WAL checkpoint, with reopened-state and physical-erasure oracles | D28-09 |
 | 110 | CUDA-CONTEXT-RESET | Survive a CUDA context reset, designed from the 0.8.28 Slice 30 instrumentation data | 281, 285 |
 | 120 | CLOSE | CHANGELOG (the `#[non_exhaustive]` break, the `text` default, the view flags); LoCoMo agent smoke (priced, approved); release qualification | W8: 308/319, 305 |
@@ -245,13 +250,13 @@ The checkpoint is a planning decision, so it sits in Slice 9.
 - **Slice 70 comes before Block 2,** because B2-3 ("hybrid fell back to
   text") needs truthful degradation labels.
 - **Engine slices land one at a time:** 40, 50, 70, 100 and 110.
+- **Overflow chunking** stays parked. Its tripwires and the costs to weigh
+  are in `dev/design/overflow-chunking-reevaluation.md`.
 - **Todo 306** (AC-013 headroom) closes with 0.8.28 Slice 60. **Todo 289**
   (drain) moved to 0.8.28 Slice 50.
 
 ## Open questions for the owner
 
-- **B2-8.** Approve the long-record guard (seq 296) as a Block 2 row,
-  before Slice 80.
 - **Concurrent releases.** How two live releases are tracked. Slice 0
   proposes and Slice 9 rules.
 

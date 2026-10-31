@@ -32,6 +32,11 @@ desc: >
 > **Load-bearing caveat.** The entire recommendation hinges on **experiment E1**
 > (overhead attribution). If E1's predicted result (the scan is per-row-overhead-bound,
 > not bandwidth-bound) does not hold, the ranking changes. Run E1 first.
+>
+> **Dependent decision (2026-10-31).** The exact-scan kernel landing is
+> tripwire T3 for overflow chunking. The kernel's slice must read
+> `dev/design/overflow-chunking-reevaluation.md` and record the re-evaluation
+> there.
 
 ---
 

@@ -26,6 +26,14 @@ EP-17 snippet). Park overflow chunking (option C, § 7.2) until one of its
 triggers fires. The guard is not built yet; where it lands is open (§ 9,
 question 2).
 
+**Owner decisions, 2026-10-31.** B2-8 (the guard) is approved: its storage,
+a per-vector span table shaped for chunking, ships in 0.8.28's format 35,
+and its reporting in 0.8.29 Block 2 (§ 9, question 2 answered). Chunking
+stays parked, but the store is built ready for it. **Before any chunking
+decision, read `dev/design/overflow-chunking-reevaluation.md`**, which
+holds the tripwires, how they are monitored, and the costs that must be
+weighed. Some numbers below are stale for format 35 (that file, § 4.4).
+
 Paths are relative to `src/rust/crates/` unless given in full. Every number
 below comes from `dev/experiments/long-record-embedding/results/` unless a
 source is cited.
@@ -432,6 +440,9 @@ brief (a packed exact-scan kernel) targets.
    multiplies rows (§ 6, F).
 
 ### 7.2 The one fix to specify: overflow chunking (C), parked
+
+When a trigger below fires, start from
+`dev/design/overflow-chunking-reevaluation.md`.
 
 C is the option to keep ready:
 

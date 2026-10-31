@@ -53,6 +53,10 @@ discovers mid-release.)
   [ ] Read `dev/notes/fathomdb-quality-testing-roadmap.md` and record which
       recommendations fit this release, which are deferred, and what new
       evidence changes the assessment (§ 1). Consultation adds no gate.
+  [ ] Checked the standing tripwires: overflow chunking
+      (`dev/design/overflow-chunking-reevaluation.md` § 3). Record on the
+      plan whether any fired; a fired one is placed as a re-evaluation
+      slice under that file's § 6.
   [ ] Ran the CUDA version review (`dev/design/cuda-version-support-review.md`):
       usage data collected, importance table re-checked against
       `ADR-0.8.28-cuda-version-support-policy.md`, changes ratified (§ 1).

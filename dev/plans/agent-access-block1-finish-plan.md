@@ -194,6 +194,12 @@ Todo TC-1b1f69e6 (seq 350 on `dev/0.8.29`) tracks the regression; seq 306
     per slice.
   - 0.8.28 uses the same slice process as 0.8.29.
   - R8 uses option A: a benchmark of the vector table alone.
+- **Owner rulings, 2026-10-31, third set.**
+  - The storage half of R5, `search_index` rowid = `write_cursor`, moves
+    into the 0.8.28 store-format slice.
+  - `include_inactive` on search joins `include_superseded` in 0.8.28
+    Slice 80.
+  - MCP search exposes both flags in 0.8.28.
 
 **Order:**
 

@@ -166,6 +166,22 @@ Todo TC-1b1f69e6 (seq 350 on `dev/0.8.29`) tracks the regression; seq 306
   - The gate's 10k cap and its synthetic data wait for the recommendation.
   - MCP throughput levelling at about 8 calls/s is expected; it is not
     queued.
+- **Owner rulings, 2026-10-31.** These are on
+  `dev/experiments/ac013-page-cache/RECOMMENDATION.md` (`1d41d6da0`). No
+  work starts before an explicit "go".
+  - R1 (CS64), R2 (armlimit) and R3 (drop the worker cache) are approved
+    for `dev/0.8.28`.
+  - The node-supersession vector defect is resolved on 0.8.28. Losing
+    vector hits on old versions needs to be understood first, including
+    whether a parameter should make old versions vector-searchable.
+  - R4, R5 and R6 are approved for 0.8.29 as slices numbered in steps of
+    10. Each slice runs requirements and AC, design, design review, TDD
+    (RED then GREEN), and code review.
+  - R7 is approved: a new AC at 100,000 records, on LongMemEval if it is
+    appropriate.
+  - Embedding with bge uses the RTX 3090 (`cuda:0`), not the CPU; GPU and
+    CPU output have proven equivalent.
+  - R8: bring options for simulating it within the disk limit.
 
 **Order:**
 

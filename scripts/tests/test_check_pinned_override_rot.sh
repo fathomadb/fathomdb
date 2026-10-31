@@ -12,8 +12,7 @@ pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 
 # The schema-5 Cargo shape (0.8.28 Slice 31, design § 3.4): the root patch
-# table holds only candle-kernels by git at K9 (plus the SQLite path patch the
-# seed adds); the embedder pins the Candle fork crates and cudarc-fathomdb
+# table holds only candle-kernels by git at K9; the embedder pins the Candle fork crates and cudarc-fathomdb
 # exactly (R-CODE-4: Candle requires cudarc-fathomdb only as a caret
 # requirement); Cargo.lock holds each fork crate once,
 # from crates.io, with its published checksum.
@@ -195,39 +194,8 @@ PY
   printf '%s' "$fixture"
 }
 
-seed_sqlite_fixture() {
-  local fixture="$1"
-  if [ "$fixture" = "$REPO_ROOT" ] || [ -e "$fixture/.omit-sqlite-patch" ]; then
-    return
-  fi
-  mkdir -p "$fixture/third_party/libsqlite3-sys-0.38.1"
-  if [ ! -e "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c" ]; then
-    cp -a "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/." \
-      "$fixture/third_party/libsqlite3-sys-0.38.1/"
-  fi
-  python3 - "$fixture" <<'PY'
-from pathlib import Path
-import sys
-
-root = Path(sys.argv[1])
-manifest = root / "Cargo.toml"
-if manifest.exists():
-    text = manifest.read_text(encoding="utf-8")
-    patch = 'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }\n'
-    if 'libsqlite3-sys = ' not in text and "[patch.crates-io]\n" in text:
-        text = text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1)
-        manifest.write_text(text, encoding="utf-8")
-lock = root / "Cargo.lock"
-if lock.exists():
-    text = lock.read_text(encoding="utf-8")
-    if 'name = "libsqlite3-sys"' not in text:
-        lock.write_text(text + '\n[[package]]\nname = "libsqlite3-sys"\nversion = "0.38.1"\n', encoding="utf-8")
-PY
-}
-
 run_fixture() {
   local fixture="$1"
-  seed_sqlite_fixture "$fixture"
   set +e
   OUT="$(bash "$CHECKER" --root "$fixture" 2>&1)"
   RC=$?
@@ -245,7 +213,6 @@ make_and_run_fixture() {
 # with the fixture's digest; ordinary fixtures always use the real anchor.
 run_fixture_with_reanchored_snapshot() {
   local fixture="$1"
-  seed_sqlite_fixture "$fixture"
   local fixture_checker="$fixture/check-pinned-override-rot.py"
   python3 - "$REPO_ROOT/scripts/check-pinned-override-rot.py" "$fixture" "$fixture_checker" <<'PY'
 import hashlib
@@ -538,50 +505,11 @@ expect_failure 'unsupported Cargo override/git source Cargo.toml:patch.crates-io
   'a root libsqlite3-sys patch is unsupported'
 
 sqlite_absent="$(make_candle_fixture sqlite-absent approved)"
-touch "$sqlite_absent/.omit-sqlite-patch"
 run_fixture "$sqlite_absent"
 if [ "$RC" -ne 0 ]; then
   fail "a tree without a SQLite patch must pass, got rc=$RC output=$OUT"
 fi
 pass 'a tree without a SQLite patch passes'
-
-sqlite_drift="$(make_candle_fixture sqlite-drift approved)"
-run_fixture "$sqlite_drift"
-if [ "$RC" -ne 0 ]; then
-  fail "exact local SQLite backport must pass, got rc=$RC output=$OUT"
-fi
-printf '\n' >>"$sqlite_drift/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c"
-run_fixture "$sqlite_drift"
-expect_failure 'SQLite vendored amalgamation SHA-256 drift' \
-  'modified local SQLite amalgamation is rejected'
-
-sqlite_build="$(make_candle_fixture sqlite-build approved)"
-run_fixture "$sqlite_build"
-if [ "$RC" -ne 0 ]; then
-  fail "exact local SQLite vendor tree must pass, got rc=$RC output=$OUT"
-fi
-printf '\n' >>"$sqlite_build/third_party/libsqlite3-sys-0.38.1/build.rs"
-run_fixture "$sqlite_build"
-expect_failure 'SQLite vendor tree SHA-256 drift' \
-  'modified SQLite build script is rejected'
-
-sqlite_path="$(make_candle_fixture sqlite-path approved)"
-run_fixture "$sqlite_path"
-if [ "$RC" -ne 0 ]; then
-  fail "exact local SQLite path must pass, got rc=$RC output=$OUT"
-fi
-python3 - "$sqlite_path/Cargo.toml" <<'PY'
-from pathlib import Path
-import sys
-path = Path(sys.argv[1])
-path.write_text(path.read_text().replace(
-    'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }',
-    'libsqlite3-sys = { path = "third_party/unreviewed-sqlite" }',
-))
-PY
-run_fixture "$sqlite_path"
-expect_failure 'SQLite patch is not the approved local path source' \
-  'SQLite patch path drift is rejected'
 
 # The kernel patch is the driverless-linkage boundary. Its omission must fail
 # even if the remaining public Candle crates retain their governed source.
@@ -699,8 +627,8 @@ expect_failure 'unsupported Cargo override/git source Cargo.toml:patch.crates-io
 
 # The standalone Rust SDK driver (experiments/sdk_drivers/rust) is its own
 # Cargo workspace, so it must repeat the root patch set. It may repeat only the
-# approved root sources: libsqlite3-sys at the vendored path and candle-kernels
-# at the approved revision. A stale copy of an older root set is unsupported.
+# approved root source, candle-kernels at the approved revision. A stale copy
+# of an older root set is unsupported.
 write_sdk_driver() {
   local fixture="$1" mode="$2"
   python3 - "$fixture" "$mode" <<'PY'
@@ -713,8 +641,6 @@ git = "https://github.com/coreyt/candle-fathomdb.git"
 k9 = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
 old_rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 patches = []
-if mode != "missing-sqlite":
-    patches.append('libsqlite3-sys = { path = "../../../third_party/libsqlite3-sys-0.38.1" }')
 if mode != "missing-kernels":
     patches.append(f'candle-kernels = {{ git = "{git}", rev = "{k9}" }}')
 if mode == "stale-cudarc":
@@ -742,7 +668,7 @@ make_and_run_driver_fixture driver-approved approved
 if [ "$RC" -ne 0 ]; then
   fail "SDK driver repeating only the approved root patches must pass, got rc=$RC output=$OUT"
 fi
-pass 'SDK driver duplicating the approved sqlite and candle-kernels patches passes'
+pass 'SDK driver duplicating the approved candle-kernels patch passes'
 
 make_and_run_driver_fixture driver-stale-cudarc stale-cudarc
 expect_failure 'unsupported Cargo override/git source experiments/sdk_drivers/rust/Cargo.toml:patch.crates-io.cudarc' \
@@ -751,10 +677,6 @@ expect_failure 'unsupported Cargo override/git source experiments/sdk_drivers/ru
 make_and_run_driver_fixture driver-stale-candle stale-candle
 expect_failure 'unsupported Cargo override/git source experiments/sdk_drivers/rust/Cargo.toml:patch.crates-io.candle-core-fathomdb' \
   'SDK driver with a stale Candle fork git patch is rejected'
-
-make_and_run_driver_fixture driver-missing-sqlite missing-sqlite
-expect_failure 'missing SDK driver duplicate Cargo patch libsqlite3-sys' \
-  'SDK driver missing the sqlite duplicate is rejected'
 
 make_and_run_driver_fixture driver-missing-kernels missing-kernels
 expect_failure 'missing SDK driver duplicate Cargo patch candle-kernels' \

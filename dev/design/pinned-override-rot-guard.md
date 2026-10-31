@@ -57,23 +57,23 @@ come, so a pin outlives its reason and silently holds the tree back.
   convention is the shape; the guard should require *a* rationale, not a
   particular prose style.
 - **R4 — the Cargo exceptions are reproducible and explicitly bounded.** The
-  only supported Cargo exceptions are three root `[patch.crates-io]` entries.
-  The Candle cohort (`candle-core-fathomdb`, `candle-kernels`,
-  `candle-nn-fathomdb`, `candle-transformers-fathomdb`) must use the one
-  checker-owned coreyt/candle-fathomdb immutable revision, version `0.10.2`,
-  and exact `git+…?rev=…#…` `Cargo.lock` source; a missing member, split
-  revision, or lock-source disagreement fails. Two local vendor copies are
-  admitted only at their exact path, version, licenses, local `Cargo.lock`
-  package, and checker-owned vendored-tree digest: `libsqlite3-sys` 0.38.1
-  with the SQLite Windows WAL path backport (plus its amalgamation digest)
-  and the bundled build without `SQLITE_ENABLE_MEMORY_MANAGEMENT`;
-  and `cudarc` 0.19.7 with the Tegra allocator fallback, compiled only for
-  aarch64 Linux (plus its upstream
-  crate checksum and patch note). Any other Cargo `[patch]`, `[replace]`, or
-  direct Git dependency fails as unsupported rather than being interpreted by
-  a general package-ID parser. Repository `.cargo/config.toml` and
-  `.cargo/config` are also fail-closed: any `[patch]` table or an unparseable
-  candidate fails, while ordinary non-patch configuration remains valid.
+  only supported Cargo exceptions are two mechanisms. The root
+  `[patch.crates-io]` table holds one entry, `candle-kernels`, at the one
+  checker-owned coreyt/candle-fathomdb immutable revision (the fork's 0.11.0
+  publication commit), replacing crates.io `candle-kernels` 0.10.2, with the
+  exact `git+…?rev=…#…` `Cargo.lock` source; a missing entry, another
+  revision, or a lock-source disagreement fails. The embedder pins
+  FathomDB's fork crates from crates.io exactly (`cudarc-fathomdb`, reached
+  only through Candle, and the Candle fork crates), and `Cargo.lock` must
+  hold each once, from crates.io, with its published checksum. The
+  standalone SDK driver may repeat only the root patch. Any other Cargo
+  `[patch]`, `[replace]`, or direct Git dependency fails as unsupported
+  rather than being interpreted by a general package-ID parser; that
+  includes a `libsqlite3-sys` patch, since 0.8.28 Slice 42 moved the
+  workspace to the crates.io `libsqlite3-sys`. Repository
+  `.cargo/config.toml` and `.cargo/config` are also fail-closed: any
+  `[patch]` table or an unparseable candidate fails, while ordinary
+  non-patch configuration remains valid.
 
 ## Design constraints
 
@@ -101,9 +101,9 @@ npm GitHub Advisory snapshot does not support a Rust vulnerability assertion.
 It is not a substitute for a Rust advisory scan and must never be phrased as
 "no known vulnerabilities"; changing the immutable revision requires a fresh
 human advisory review and a deliberate guard redesign.
-`cargo_sqlite_exception` and `cargo_cudarc_exception` record the two local
-vendor copies; changing either tree changes its digest and needs the checker
-constant and metadata updated together. `scripts/governed-
+`cargo_fork_registry_pins` records the exact crates.io fork pins; no local
+vendor copy is admitted (the `cudarc` copy left in 0.8.28 Slice 31 and the
+`libsqlite3-sys` copy in Slice 42). `scripts/governed-
 surface-pin.json` pins repository contract content rather than an external
 dependency version, so its integrity remains owned by
 `scripts/check-governed-surface-pin.sh`.
@@ -118,11 +118,11 @@ dependency version, so its integrity remains owned by
 - Red-first is required: the test must construct a pin that has become
   vulnerable and prove the guard fails on it. Re-pinning js-yaml back to 4.2.0
   in a fixture is the exact historical case and makes the regression concrete.
-- Cargo fixtures must prove the narrow exceptions: the approved four-package
-  Candle cohort passes, but a missing/split/revision/lock drift fails; a
-  missing, re-pathed, or modified SQLite or cudarc vendor copy fails, as does
-  an unlicensed or registry-locked cudarc copy; and any `[replace]` or direct
-  Git dependency is unsupported.
+- Cargo fixtures must prove the narrow exceptions: the approved
+  `candle-kernels` patch and fork registry pins pass, but a missing entry, a
+  revision or lock drift, or a fork pin with another version or checksum
+  fails; a `libsqlite3-sys` or `cudarc` patch, any `[replace]`, and any
+  direct Git dependency are unsupported.
 - The guard runs where it can act — this is cheap and static, so it belongs in
   the fast, always-on tier alongside the other governance gates, not behind the
   ~35-minute `verify`.

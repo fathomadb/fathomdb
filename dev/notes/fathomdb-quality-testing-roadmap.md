@@ -35,8 +35,10 @@ retrieval eligibility, evidence, erasure, provider transitions and three SDK
 boundaries. SQLite's transaction atomicity does not establish that those
 composed operations recover correctly or report truthful completion. A
 structurally valid SQLite file can still contain the wrong FathomDB state.
-This checkout also carries a [targeted Windows SQLite VFS patch](../../third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md),
-so its exact downstream behavior deserves regression coverage.
+Since 0.8.28 Slice 42 this checkout builds SQLite from the crates.io
+`libsqlite3-sys` 0.39.1 (SQLite 3.54.1) with no local patch. The Windows
+local-verbatim-path WAL tests stay as regression coverage for the upstream fix
+that replaced the former vendored Windows VFS patch.
 
 ## What to adopt from SQLite
 

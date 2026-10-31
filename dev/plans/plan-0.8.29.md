@@ -2,7 +2,7 @@
 title: FathomDB 0.8.29 — agent access, search at scale, and candidate selection
 status: ACTIVE
 target_release: 0.8.29
-execution_model: direct; no Steward or Orchestrator; runs in parallel with the separate 0.8.28 effort (owner 2026-10-31)
+execution_model: direct; no Steward or Orchestrator; starts when 0.8.28 enters final verification (owner 2026-10-31)
 ---
 
 # FathomDB 0.8.29 — agent access, search at scale, and candidate selection
@@ -47,19 +47,25 @@ the TC id is the stable reference.
 
 - **Branch:** `dev/0.8.29`, cut from `dev/0.8.28` at `c02cff1f9`. Every
   slice cuts from its tip and lands back on it.
-- **0.8.28 runs in parallel** as a separate effort on `dev/0.8.28`. Each
-  landed 0.8.28 slice is merged forward into `dev/0.8.29`; the first such
-  merge was `47683bfe2`.
+- **When 0.8.29 starts.** 0.8.28 runs its Slices 42 to 90 serially
+  first. 0.8.29 starts when 0.8.28 enters final verification (the platform
+  matrix, CI, registry dry runs and publication); it does not wait for
+  those to finish (owner 2026-10-31). `dev/0.8.28` is merged forward at
+  that point and again for any verification fix.
 - **Schema baseline:** 34 today, and 35 once 0.8.28 Slice 60 merges
   forward. A version-34 store is refused at open; there is no upgrade
   path.
-- **Release state.** There is no `release-state-0.8.29.json` yet.
-  `scripts/release-current.py` allows exactly one live release, and 0.8.28
-  is live. Slice 0 settles how two concurrent releases are tracked. Until
-  then this plan is the ladder of record.
+- **Release state.** `scripts/release-current.py` allows exactly one live
+  release, and 0.8.28 stays live until its published receipt is recorded.
+  While 0.8.28 finishes verification and publication, this plan is the
+  ladder of record. `release-state-0.8.29.json` and its board are created
+  once 0.8.28 records its receipt.
 - **Publication:** not authorized by this plan.
 
 ## Cross-release dependencies
+
+Every 0.8.28 slice lands before 0.8.29 starts, so these are met at the
+start. They record why the order matters.
 
 | 0.8.29 slice | Needs from 0.8.28 | Why |
 | --- | --- | --- |
@@ -70,8 +76,6 @@ the TC id is the stable reference.
 | 70 | Slice 70 | Degradation labels must describe the new fallback behaviour |
 | 100 | Slice 70 | Erasure must remove the new vec0 columns |
 | 80, 90 | Slice 60 (the vector-span table) | B2-8 reports coverage from the table that format 35 ships |
-
-Slices 0 to 20 and 110 depend on nothing in 0.8.28. The Block 2 design (Slice 80) can start before 0.8.28 Slice 60 lands.
 
 ## Quality-roadmap consultation
 
@@ -144,11 +148,11 @@ adds a slice; it is never an implicit patch lane.
 These follow the 0.8.26 and 0.8.27 prework, scaled down. Each of Slices 0
 to 8 is one read-only pass that produces one durable register and changes
 no product code, dependency, environment, CI or accepted contract. They can
-run while 0.8.28 slices land.
+run while 0.8.28 finishes final verification.
 
 - **Slice 0 — environment and project infrastructure.**
-  - **Two releases at once.** How two concurrent live releases are tracked:
-    `release-current.py`, the release-state views and the board.
+  - **Release hand-over.** Create the 0.8.29 release state and board
+    once 0.8.28 records its published receipt.
   - **Hosts and resources:** GPU use (`cuda:0` only, never the K620), disk
     headroom (the AC-013 runs reached 97%), and the LongMemEval data
     location and hash.
@@ -257,10 +261,10 @@ The checkpoint is a planning decision, so it sits in Slice 9.
 
 ## Open questions for the owner
 
-- **Concurrent releases.** How two live releases are tracked. Slice 0
-  proposes and Slice 9 rules.
+None.
 
 ## Immediate next slice
 
-Nothing starts before the owner's explicit "go". Then Slices 0 to 8 and
-Slice 20 can start while 0.8.28 runs.
+Nothing starts before the owner's explicit "go". 0.8.28 Slice 42 goes
+first; 0.8.29 Slices 0 to 8 and 20 start when 0.8.28 enters final
+verification.

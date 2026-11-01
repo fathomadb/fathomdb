@@ -1,7 +1,10 @@
-use fathomdb_embedder_api::EmbedderIdentity;
-use fathomdb_engine::{configure_runtime, Engine, EngineOpenError, RuntimeSqliteMode};
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+use fathomdb_engine::{
+    configure_runtime, Engine, EngineOpenError, OpenedEngine, RuntimeSqliteMode, TestEmbedderChoice,
+};
 use fathomdb_schema::{SCHEMA_VERSION, SQLITE_SUFFIX};
-use rusqlite::{params, Connection};
+use rusqlite::Connection;
+use std::sync::Arc;
 use tempfile::TempDir;
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
@@ -16,31 +19,34 @@ fn set_user_version(conn: &Connection, version: u32) {
     conn.pragma_update(None, "user_version", version).unwrap();
 }
 
-fn create_profile(conn: &Connection, name: &str, revision: &str, dimension: u32) {
-    // EU-5a2 — `mean_vec BLOB NULL` column (schema migration step 10).
-    // The test simulates a workspace at SCHEMA_VERSION, so the shape
-    // must match what the engine reads.
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS _fathomdb_embedder_profiles(
-            profile TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            revision TEXT NOT NULL,
-            dimension INTEGER NOT NULL,
-            mean_vec BLOB
-        )",
-        [],
+struct IdentityOnlyEmbedder(EmbedderIdentity);
+
+impl Embedder for IdentityOnlyEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        self.0.clone()
+    }
+
+    fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+        panic!("profile admission must not invoke embedding")
+    }
+}
+
+fn open_with_identity(
+    path: &std::path::Path,
+    identity: EmbedderIdentity,
+) -> Result<OpenedEngine, EngineOpenError> {
+    Engine::open_with_test_choice_for_test(
+        path,
+        TestEmbedderChoice::Caller(Arc::new(IdentityOnlyEmbedder(identity))),
     )
-    .unwrap();
-    conn.execute(
-        "INSERT INTO _fathomdb_embedder_profiles(profile, name, revision, dimension)
-         VALUES('default', ?1, ?2, ?3)
-         ON CONFLICT(profile) DO UPDATE SET
-             name=excluded.name,
-             revision=excluded.revision,
-             dimension=excluded.dimension",
-        params![name, revision, dimension],
+}
+
+fn supplied_identity() -> EmbedderIdentity {
+    EmbedderIdentity::new(
+        "fathomdb-bge-small-en-v1.5",
+        "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        384,
     )
-    .unwrap();
 }
 
 #[test]
@@ -109,12 +115,14 @@ fn ac_048_rejects_stored_embedder_identity_mismatch() {
     configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "identity");
-    Engine::open(&path).unwrap().engine.close().unwrap();
-    let conn = Connection::open(&path).unwrap();
-    create_profile(&conn, "other-embedder", "rev-b", 384);
-    drop(conn);
+    open_with_identity(&path, EmbedderIdentity::new("other-embedder", "rev-b", 384))
+        .unwrap()
+        .engine
+        .close()
+        .unwrap();
 
-    let err = Engine::open(&path).expect_err("identity mismatch must fail open");
+    let err = open_with_identity(&path, supplied_identity())
+        .expect_err("identity mismatch must fail open");
 
     match err {
         EngineOpenError::EmbedderIdentityMismatch { stored, supplied } => {
@@ -138,20 +146,24 @@ fn ac_048b_rejects_stored_embedder_dimension_mismatch() {
     configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "dimension");
-    Engine::open(&path).unwrap().engine.close().unwrap();
-    let conn = Connection::open(&path).unwrap();
     // EU-5b: store the bge-small identity at a non-default dimension so the
     // open path surfaces `EmbedderDimensionMismatch` (the name+revision both
     // match the engine's default; only the dimension drifts).
-    create_profile(
-        &conn,
-        "fathomdb-bge-small-en-v1.5",
-        "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
-        768,
-    );
-    drop(conn);
+    open_with_identity(
+        &path,
+        EmbedderIdentity::new(
+            "fathomdb-bge-small-en-v1.5",
+            "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+            768,
+        ),
+    )
+    .unwrap()
+    .engine
+    .close()
+    .unwrap();
 
-    let err = Engine::open(&path).expect_err("dimension mismatch must fail open");
+    let err = open_with_identity(&path, supplied_identity())
+        .expect_err("dimension mismatch must fail open");
 
     match err {
         EngineOpenError::EmbedderDimensionMismatch { stored, supplied } => {

@@ -124,3 +124,12 @@ obsolete refused-handle options from active scope. Independent Astra design
 review: APPROVE, no P1/P2 findings. Clarified that bounds limit accepted arm
 output, not rejected index visits; scaling remains a measured qualification.
 Implementation proceeds with baseline-equivalence guards and scan-cost RED/GREEN.
+
+Scan RED `4d1134da6`: plan lacked bounded arm co-routines; VM ratios were
+7.7782 scheduler and 7.8626 candidate. GREEN `65b8fd281`: all five focused
+tests pass, including 64 generated every-cursor cases and three public-write
+ordering/drain layouts. Both VM ratios are exactly 1.0 (26,978 scheduler;
+24,314 candidate). LIMIT=1 fails randomized equivalence; DESC fails the
+600-row arm-dominant ordering guard. Mutations and their regression artifact
+were removed. Module-boundary validation passes. Scaling qualification and
+independent final verification remain pending.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — test plan
-status: revised for Unit S implementation; awaiting design review
+status: Astra design approved; Unit S implemented; qualification in progress
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -95,8 +95,9 @@ sorts on its own, or scans instead, would read the whole arm before its
   - a superseded edge;
   - an edge with `t_invalid` in the past or the future.
 
-  A random subset gets a terminal (`up_to_date` or `failed`). Both
-  arm-dominant layouts are weighted in: runs of more than 256 of one arm.
+  A random subset gets a terminal (`up_to_date` or `failed`). The separate
+  deterministic ordering cases cover both arm-dominant layouts with runs
+  of 600 rows from one arm.
 - **Check.** For every `after` in `0..=k` and `through` in
   `{None, Some(after + d)}` with random `d`, the hook's rows equal the
   reference SQL's rows on the raw connection, at the same
@@ -106,8 +107,8 @@ sorts on its own, or scans instead, would read the whole arm before its
   test file.
 
 **AC50-04, mutation checks** (uncommitted, after S-GREEN): set an arm's
-`LIMIT` to 1, then order an arm `DESC`. Each must make the property test
-fail. Record the failing case, then revert.
+`LIMIT` to 1, then order an arm `DESC`. The LIMIT mutation must fail the randomized equivalence check; DESC must
+fail the deterministic arm-dominant equivalence guard. Record the failing case, then revert.
 
 **`slice50_node_edge_ordering_cases`**, through the public write path
 (`FixedEmbedder` that fails for bodies containing `fail`, retry delays
@@ -119,7 +120,10 @@ fail. Record the failing case, then revert.
   superseded node, one superseded edge, and one edge with a past
   `t_invalid`.
 
-For each, scheduler and candidate pages from every 50th cursor equal the
+Ordinary canonical nodes remain projection members when superseded; edge
+supersession and expiry remove edge membership. The expected set preserves
+that existing distinction. For each, scheduler and candidate pages from
+every 50th cursor equal the
 reference. Then unfreeze and `drain(30_000)`:
 
 - `_fathomdb_vector_rows` cursors equal the expected eligible set
@@ -169,7 +173,6 @@ The Python and TypeScript drain and readiness tests run in the full gate.
     - `SLICE50_DIM` (default 768);
     - `SLICE50_MODE`, `held` (default) or `overlap`;
     - `SLICE50_DRAIN_TIMEOUT_MS` (default 3,600,000);
-    - `SLICE50_DIGEST` (default 1).
   - **Output:** one `SLICE50_DRAIN {json}` line with `n`, `dim`, `mode`,
     `write_ms`, `drain_ms`, `us_per_vector`, `sqlite_version`,
     `vector_rows`, `projection_cursor` and `digest`.
@@ -181,12 +184,12 @@ The Python and TypeScript drain and readiness tests run in the full gate.
     copy the head's probe file in, then build in release
     (`cargo test --release -p fathomdb-engine --features test-hooks --test slice50_drain_scaling --no-run`).
     It records the binary path and the sha.
-  - `run --n 10000,30000,100000 --repeats 2`: interleaves the labels and
+  - `run` (fixed 10k, 30k, 100k; two repeats): interleaves the labels and
     reverses their order on odd repeats. Each run:
     - holds a `flock` and waits for 1-minute load ≤ 2;
     - records the load before, at its peak and after;
     - flags a run whose load exceeds 2.5.
-  - `summarize` writes `results/results.json`. `analyze` applies § 4.3.
+  - `analyze` writes the scratch `results.json` and applies § 4.3.
 - **`dev/plans/0.8.28/features/slice-50/tools/test_drain_scaling.py`.**
   Unit tests of the parsing, median and rule functions. They test
   measurement correctness only, with no tamper or drift guards (owner

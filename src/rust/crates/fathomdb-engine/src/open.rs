@@ -892,18 +892,8 @@ impl Engine {
                 }
                 report.reranker_device_resolution = reranker_device_resolution;
 
-                // 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — run the
-                // open-time self-check on the FINAL post-recovery connection (the
-                // mean is already pinned/recovered inside open_locked, U1-b). First
-                // registration persists the 45 UN-centered f32 references; a
-                // subsequent open re-embeds + asserts P1 (mean-centered flip count,
-                // floor 0) and P2 (un-centered L2 ε). Divergence ⇒ degraded-open
-                // (`dense_disabled=true`), surfaced on the OpenReport (R-VEQ-6); the
-                // query-time refusal fires later at `search_inner_with_stats`.
-                // A durable declaration is a prospective dense arm even before
-                // it has enrolled a kind. Check it before the boot graft below:
-                // a refused backend may leave the declaration at rest, but must
-                // not enrol, requeue, dispatch, or write any dense work.
+                // Verify after existing mean recovery and before projection startup.
+                // The existing cache may accept; an actual refusal returns no engine.
                 let prospective_dense_arm =
                     vector_projection_declared(&connection).map_err(|_| EngineOpenError::Io {
                         message: "could not inspect declared vector projection on open".to_string(),
@@ -933,14 +923,13 @@ impl Engine {
                     report.embedder_mean_vec_pinned,
                     prospective_dense_arm,
                 )
-                .map_err(|error| {
+                .inspect_err(|error| {
                     if let Some(subscriber) = initial_subscriber.as_ref() {
-                        emit_open_error_event(subscriber, &error);
+                        emit_open_error_event(subscriber, error);
                     }
-                    error
                 })?;
 
-                let dense_runtime_usable = usable_dense_runtime(runtime_embedder.as_deref(), false);
+                let dense_runtime_usable = runtime_embedder.is_some();
                 let boot_graft_enqueued = if dense_runtime_usable {
                     boot_graft_declared_vector_backfill(startup.connection()).map_err(|_| {
                         EngineOpenError::Io {
@@ -1085,9 +1074,7 @@ impl Engine {
                         telemetry_enabled: AtomicBool::new(false),
                         explanation_open_nonce: mint_explanation_open_nonce(),
                         explanation_sequence: AtomicU64::new(0),
-                        dense_disabled: AtomicBool::new(false),
-                        dense_disabled_reason: Mutex::new(None),
-                        vector_equivalence_refusals: AtomicU64::new(0),
+
                         #[cfg(any(test, feature = "test-hooks"))]
                         force_next_commit_failure: AtomicBool::new(false),
                         #[cfg(any(test, feature = "test-hooks"))]
@@ -1397,11 +1384,6 @@ impl Engine {
             embedder_events: Vec::new(),
             embedder_mean_centering_required,
             embedder_mean_vec_pinned,
-            // 0.8.18 Slice 5 — set by the #5 self-check in `open_with_migrations`
-            // (which has the runtime embedder in scope). `open_locked` returns the
-            // non-degraded default; the probe runs after this returns.
-            dense_disabled: false,
-            dense_disabled_reason: None,
             embedder_device_resolution: None,
             reranker_device_resolution: None,
             // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
@@ -1787,20 +1769,6 @@ pub struct OpenReport {
     /// step 10; the value is dimension-validated (§0.2) at open time
     /// and fails closed via `EmbedderIdentityMismatch` on drift.
     pub embedder_mean_vec_pinned: bool,
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6) — degraded-open
-    /// observability. `true` iff the open-time #5 self-check re-embedded the 45
-    /// committed probes and found a divergence beyond the frozen D4 floor (a
-    /// Phase-1 mean-centered `embedding_bin` sign flip OR a Phase-2 un-centered
-    /// L2 over `VECTOR_EQUIVALENCE_L2_EPSILON`). When `true`, `Engine::open`
-    /// SUCCEEDED but every vector-dependent arm refuses at query time with
-    /// `EngineError::VectorEquivalenceMismatch`; the text-only/FTS-only path stays
-    /// serviceable. The state is RE-DERIVED at every open (the probe re-runs), so
-    /// a reopen with a still-divergent backend stays degraded (never silently
-    /// re-enables dense) and a reopen with a matching backend clears it.
-    pub dense_disabled: bool,
-    /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
-    /// tripped: P1 flip count or P2 L2). `None` when `dense_disabled == false`.
-    pub dense_disabled_reason: Option<String>,
     /// Strict CPU/CUDA policy resolution used to construct the default
     /// embedder. `None` when the caller supplied an embedder or selected none.
     /// A present report is the one selection passed into default-embedder

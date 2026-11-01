@@ -532,8 +532,6 @@ impl Engine {
         validate_semantics(request)?;
         let projection_runtime_state = if self.runtime_embedder.is_none() {
             ProjectionRuntimeStateV1::Absent
-        } else if self.dense_disabled.load(AtomicOrdering::Acquire) {
-            ProjectionRuntimeStateV1::Refused
         } else {
             ProjectionRuntimeStateV1::Usable
         };

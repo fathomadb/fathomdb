@@ -114,13 +114,6 @@ impl Engine {
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?
         };
         request.context.context.view.reject_existence_relaxation_on_search()?;
-        let dense_disabled_reason = self.dense_disabled.load(Ordering::Acquire).then(|| {
-            self.dense_disabled_reason
-                .lock()
-                .ok()
-                .and_then(|guard| guard.clone())
-                .unwrap_or_else(|| "open-time #5 vector-equivalence self-check failed".to_string())
-        });
         let result_limit = request.limit as usize;
         let candidate_limit = self
             .projection_runtime
@@ -142,8 +135,6 @@ impl Engine {
             request.pool_n as usize,
             if self.runtime_embedder.is_none() {
                 ProjectionRuntimeStateV1::Absent
-            } else if self.dense_disabled.load(Ordering::Acquire) {
-                ProjectionRuntimeStateV1::Refused
             } else {
                 ProjectionRuntimeStateV1::Usable
             },
@@ -152,7 +143,6 @@ impl Engine {
             FrozenQueryRuntime::new(
                 Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
-                dense_disabled_reason,
                 Arc::clone(&self.read_visibility_generation),
             ),
         );
@@ -176,10 +166,6 @@ impl Engine {
             }
             Err(SearchReaderError::FrozenRead(_)) => {
                 return Err(EngineError::Evidence(EvidenceErrorV1::unavailable()))
-            }
-            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                return Err(EngineError::VectorEquivalenceMismatch { reason });
             }
             Err(SearchReaderError::WriteValidation) => return Err(EngineError::WriteValidation),
             Err(SearchReaderError::InvalidArgument(msg)) => {
@@ -478,26 +464,8 @@ impl Engine {
         expand_depth: Option<u32>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
         self.ensure_open()?;
-        // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the SINGLE
-        // vector-dependent choke point. If the open-time self-check found a
-        // divergence beyond the D4 floor, refuse EVERY vector-dependent arm
-        // (search / search_expand / explain-rerank / graph-arm all funnel here)
-        // BEFORE any embedding / vector SQL / graph seeding / CE rerank — no
-        // silent partial results. The text-only/FTS-only path
-        // (`search_text_only`) does NOT route through here, so FTS stays
-        // serviceable in degraded mode.
         let is_frozen = frozen_binding.is_some();
-        let dense_disabled_reason =
-            self.dense_disabled.load(Ordering::Acquire).then(|| {
-                self.dense_disabled_reason.lock().ok().and_then(|g| g.clone()).unwrap_or_else(
-                    || "open-time #5 vector-equivalence self-check failed".to_string(),
-                )
-            });
         if !is_frozen {
-            if let Some(reason) = dense_disabled_reason.as_ref() {
-                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                return Err(EngineError::VectorEquivalenceMismatch { reason: reason.clone() });
-            }
             if query.trim().is_empty() {
                 return Err(EngineError::WriteValidation);
             }
@@ -562,7 +530,6 @@ impl Engine {
             Box::new(FrozenQueryRuntime::new(
                 Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
-                dense_disabled_reason,
                 Arc::clone(&self.read_visibility_generation),
             ))
         });
@@ -601,8 +568,6 @@ impl Engine {
                 explain,
                 if self.runtime_embedder.is_none() {
                     ProjectionRuntimeStateV1::Absent
-                } else if self.dense_disabled.load(Ordering::Acquire) {
-                    ProjectionRuntimeStateV1::Refused
                 } else {
                     ProjectionRuntimeStateV1::Usable
                 },
@@ -633,10 +598,6 @@ impl Engine {
                 }
                 Err(SearchReaderError::FrozenRead(error)) => {
                     return Err(EngineError::FrozenRead(error));
-                }
-                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                    self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                    return Err(EngineError::VectorEquivalenceMismatch { reason });
                 }
                 Err(SearchReaderError::WriteValidation) => {
                     return Err(EngineError::WriteValidation);
@@ -1062,9 +1023,6 @@ impl Engine {
                 Err(SearchReaderError::FrozenRead(error)) => {
                     return Err(EngineError::FrozenRead(error));
                 }
-                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                    return Err(EngineError::VectorEquivalenceMismatch { reason });
-                }
                 Err(SearchReaderError::WriteValidation) => {
                     return Err(EngineError::WriteValidation);
                 }
@@ -1135,9 +1093,6 @@ impl Engine {
             }
             Err(SearchReaderError::RerankerDevicePolicy(error)) => Err(EngineError::from(error)),
             Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
-            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                Err(EngineError::VectorEquivalenceMismatch { reason })
-            }
             Err(SearchReaderError::WriteValidation) => Err(EngineError::WriteValidation),
             Err(SearchReaderError::InvalidArgument(msg)) => {
                 Err(EngineError::InvalidArgument { msg })
@@ -1147,30 +1102,6 @@ impl Engine {
                 Err(EngineError::Storage)
             }
         }
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — degraded-open observability accessor. `true` iff
-    /// the open-time #5 self-check found a vector-equivalence divergence and every
-    /// vector-dependent arm is refusing. Mirrors `OpenReport.dense_disabled`; read
-    /// lock-free.
-    #[must_use]
-    pub fn dense_disabled(&self) -> bool {
-        self.dense_disabled.load(Ordering::Acquire)
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state
-    /// (which representation tripped), or `None` when dense is healthy.
-    #[must_use]
-    pub fn dense_disabled_reason(&self) -> Option<String> {
-        self.dense_disabled_reason.lock().ok().and_then(|g| g.clone())
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: number of query-time
-    /// vector-dependent-arm refusals raised because the engine opened degraded.
-    /// Observable pre/post-query.
-    #[must_use]
-    pub fn vector_equivalence_refusal_count(&self) -> u64 {
-        self.vector_equivalence_refusals.load(Ordering::Relaxed)
     }
 
     /// Shared event-wrapped body for [`search_reranked`][Engine::search_reranked]

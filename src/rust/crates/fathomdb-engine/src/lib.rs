@@ -366,7 +366,7 @@ pub use test_hooks::{
 };
 #[cfg(any(test, feature = "test-hooks"))]
 pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactionPauseForTest};
-use vector_equivalence::{run_vector_equivalence_probe, usable_dense_runtime};
+use vector_equivalence::run_vector_equivalence_probe;
 #[cfg(any(test, feature = "test-hooks", feature = "operator"))]
 use vector_storage::load_default_profile;
 use vector_storage::{
@@ -553,21 +553,6 @@ pub struct Engine {
     telemetry_enabled: AtomicBool,
     explanation_open_nonce: u128,
     explanation_sequence: AtomicU64,
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4/6) — degraded-open
-    /// latch, re-derived at every open by the #5 self-check. `true` ⇒ every
-    /// vector-dependent arm refuses at the `search_inner_with_stats` choke point
-    /// with `EngineError::VectorEquivalenceMismatch`. Read lock-free on the query
-    /// hot path (a single `Relaxed`/`Acquire` load); the text-only/FTS-only path
-    /// never reads it.
-    dense_disabled: AtomicBool,
-    /// R-VEQ-6 — the human-readable reason attached to the query-time refusal (and
-    /// surfaced on `OpenReport.dense_disabled_reason`). Set once at open; read only
-    /// when `dense_disabled` is `true`.
-    dense_disabled_reason: Mutex<Option<String>>,
-    /// R-VEQ-6 — telemetry counter: number of query-time vector-dependent-arm
-    /// refusals raised because the engine opened in the `dense_disabled` state.
-    /// Observable pre/post-query via `vector_equivalence_refusal_count`.
-    vector_equivalence_refusals: AtomicU64,
     #[cfg(any(test, feature = "test-hooks"))]
     force_next_commit_failure: AtomicBool,
     #[cfg(any(test, feature = "test-hooks"))]

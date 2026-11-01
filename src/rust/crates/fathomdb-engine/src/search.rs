@@ -171,7 +171,6 @@ impl SearchReaderWork {
 pub(crate) struct FrozenQueryRuntime {
     embed_dispatch: Arc<EmbedDispatcher>,
     embedder_identity: EmbedderIdentity,
-    dense_disabled_reason: Option<String>,
     observed_generation: Arc<AtomicU64>,
 }
 
@@ -179,10 +178,9 @@ impl FrozenQueryRuntime {
     pub(crate) fn new(
         embed_dispatch: Arc<EmbedDispatcher>,
         embedder_identity: EmbedderIdentity,
-        dense_disabled_reason: Option<String>,
         observed_generation: Arc<AtomicU64>,
     ) -> Self {
-        Self { embed_dispatch, embedder_identity, dense_disabled_reason, observed_generation }
+        Self { embed_dispatch, embedder_identity, observed_generation }
     }
 }
 
@@ -532,7 +530,6 @@ pub(crate) enum SearchReaderError {
     InvalidFilter(String),
     RerankerDevicePolicy(RerankerDevicePolicyError),
     FrozenRead(FrozenReadError),
-    VectorEquivalenceMismatch(String),
     WriteValidation,
     InvalidArgument(String),
 }
@@ -1614,9 +1611,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 "alpha must be a finite number".to_string(),
             ));
         }
-        if let Some(reason) = runtime.dense_disabled_reason.as_ref() {
-            return Err(SearchReaderError::VectorEquivalenceMismatch(reason.clone()));
-        }
         if raw_query.trim().is_empty() || raw_query.as_bytes().contains(&0) {
             return Err(SearchReaderError::WriteValidation);
         }
@@ -2553,9 +2547,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                                 match status.readiness {
                                     ProjectionReadinessV1::Blocked => {
                                         Some(StructuralDegradationCodeV1::ProjectionBlocked)
-                                    }
-                                    ProjectionReadinessV1::Deferred => {
-                                        Some(StructuralDegradationCodeV1::ProjectionDeferred)
                                     }
                                     _ => None,
                                 }

@@ -590,7 +590,6 @@ fn map_projection_readiness(readiness: ProjectionReadinessV1) -> GraphProjection
         ProjectionReadinessV1::Ready => GraphProjectionReadinessV1::Ready,
         ProjectionReadinessV1::Processing => GraphProjectionReadinessV1::Processing,
         ProjectionReadinessV1::Blocked => GraphProjectionReadinessV1::Blocked,
-        ProjectionReadinessV1::Deferred => GraphProjectionReadinessV1::Deferred,
         ProjectionReadinessV1::Degraded => GraphProjectionReadinessV1::Degraded,
     }
 }

@@ -14,8 +14,6 @@ pub enum EmbeddingReadinessState {
     Ready,
     /// A usable embedder is processing eligible work.
     Processing,
-    /// Work exists but the session is unavailable for a non-configuration reason.
-    Deferred,
     /// Work exists and this session has no configured embedder.
     Blocked,
 }
@@ -27,7 +25,6 @@ impl EmbeddingReadinessState {
         match self {
             Self::Ready => "ready",
             Self::Processing => "processing",
-            Self::Deferred => "deferred",
             Self::Blocked => "blocked",
         }
     }
@@ -161,7 +158,7 @@ pub(crate) fn dispatch_embed_vector(
 
 impl Engine {
     pub(crate) fn usable_dense_runtime(&self) -> bool {
-        self.runtime_embedder.is_some() && !self.dense_disabled.load(Ordering::Acquire)
+        self.runtime_embedder.is_some()
     }
 
     /// 0.7.2 PR-2b — NON-test observation seam. Drains and returns every

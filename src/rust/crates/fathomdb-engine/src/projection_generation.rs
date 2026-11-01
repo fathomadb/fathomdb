@@ -91,7 +91,6 @@ pub enum ProjectionReadinessV1 {
     Ready,
     Processing,
     Blocked,
-    Deferred,
     Degraded,
 }
 
@@ -103,7 +102,6 @@ impl ProjectionReadinessV1 {
             Self::Ready => "ready",
             Self::Processing => "processing",
             Self::Blocked => "blocked",
-            Self::Deferred => "deferred",
             Self::Degraded => "degraded",
         }
     }
@@ -114,7 +112,6 @@ impl ProjectionReadinessV1 {
 pub enum ProjectionRuntimeStateV1 {
     Absent,
     Usable,
-    Refused,
 }
 
 impl ProjectionRuntimeStateV1 {
@@ -124,7 +121,6 @@ impl ProjectionRuntimeStateV1 {
         match self {
             Self::Absent => "absent",
             Self::Usable => "usable",
-            Self::Refused => "refused",
         }
     }
 }
@@ -1382,7 +1378,7 @@ pub(crate) fn status_in_snapshot(
     } else {
         match runtime_state {
             ProjectionRuntimeStateV1::Absent => ProjectionReadinessV1::Blocked,
-            ProjectionRuntimeStateV1::Refused => ProjectionReadinessV1::Deferred,
+
             ProjectionRuntimeStateV1::Usable => ProjectionReadinessV1::Processing,
         }
     };
@@ -1500,8 +1496,6 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let runtime_state = if self.runtime_embedder.is_none() {
             ProjectionRuntimeStateV1::Absent
-        } else if self.dense_disabled.load(std::sync::atomic::Ordering::SeqCst) {
-            ProjectionRuntimeStateV1::Refused
         } else {
             ProjectionRuntimeStateV1::Usable
         };
@@ -1562,8 +1556,6 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let runtime_state = if self.runtime_embedder.is_none() {
             ProjectionRuntimeStateV1::Absent
-        } else if self.dense_disabled.load(std::sync::atomic::Ordering::SeqCst) {
-            ProjectionRuntimeStateV1::Refused
         } else {
             ProjectionRuntimeStateV1::Usable
         };
@@ -1665,7 +1657,7 @@ impl Engine {
             Completion::Pending => {
                 let readiness = match runtime_state {
                     ProjectionRuntimeStateV1::Absent => ProjectionReadinessV1::Blocked,
-                    ProjectionRuntimeStateV1::Refused => ProjectionReadinessV1::Deferred,
+
                     ProjectionRuntimeStateV1::Usable => ProjectionReadinessV1::Processing,
                 };
                 (readiness, true, false)
@@ -1784,8 +1776,6 @@ impl Engine {
         let runtime_embedder_available = self.usable_dense_runtime();
         let runtime_unavailability_reason = if runtime_embedder_available {
             ProjectionRuntimeUnavailabilityReason::None
-        } else if self.dense_disabled.load(Ordering::Acquire) {
-            ProjectionRuntimeUnavailabilityReason::VectorEquivalenceDisabled
         } else {
             ProjectionRuntimeUnavailabilityReason::NoRuntime
         };
@@ -1842,10 +1832,7 @@ impl Engine {
         let pending_count = pending.iter().map(|(_, count)| *count).sum();
         let affected_kinds: Vec<String> = pending.iter().map(|(kind, _)| kind.clone()).collect();
         let usable_embedder = self.usable_dense_runtime();
-        // The scheduler intentionally drops a runtime that equivalence refused,
-        // but it remains attached to this Engine. Only an actually absent
-        // configuration is the typed caller-remediable outcome; a refused or
-        // failed live runtime remains an operational deferred condition.
+        // Returned engines have either an admitted provider or explicit None.
         let blocked = if !pending.is_empty() && self.runtime_embedder.is_none() {
             Some(embedder_required_for(&affected_kinds))
         } else {
@@ -1855,10 +1842,8 @@ impl Engine {
             EmbeddingReadinessState::Blocked
         } else if pending.is_empty() {
             EmbeddingReadinessState::Ready
-        } else if usable_embedder {
-            EmbeddingReadinessState::Processing
         } else {
-            EmbeddingReadinessState::Deferred
+            EmbeddingReadinessState::Processing
         };
         Ok(EmbeddingReadiness { state, usable_embedder, pending_count, affected_kinds, blocked })
     }
@@ -1949,11 +1934,7 @@ mod tests {
         let sidecars = [None, Some(("doc", true)), Some(("doc", false)), Some(("wrong", true))];
         let physicals =
             [None, Some(("article", "doc")), Some(("wrong", "doc")), Some(("article", "wrong"))];
-        let runtimes = [
-            ProjectionRuntimeStateV1::Absent,
-            ProjectionRuntimeStateV1::Usable,
-            ProjectionRuntimeStateV1::Refused,
-        ];
+        let runtimes = [ProjectionRuntimeStateV1::Absent, ProjectionRuntimeStateV1::Usable];
 
         for terminal in terminals {
             for sidecar in sidecars {

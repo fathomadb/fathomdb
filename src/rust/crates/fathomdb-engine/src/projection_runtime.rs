@@ -11,8 +11,6 @@ pub enum ProjectionRuntimeUnavailabilityReason {
     None,
     /// This engine session was opened without an attached embedder.
     NoRuntime,
-    /// The attached embedder failed the existing vector-equivalence guard.
-    VectorEquivalenceDisabled,
 }
 
 impl ProjectionRuntimeUnavailabilityReason {
@@ -21,7 +19,6 @@ impl ProjectionRuntimeUnavailabilityReason {
         match self {
             Self::None => "none",
             Self::NoRuntime => "no_runtime",
-            Self::VectorEquivalenceDisabled => "vector_equivalence_disabled",
         }
     }
 }

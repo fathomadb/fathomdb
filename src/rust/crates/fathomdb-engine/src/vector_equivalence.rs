@@ -55,12 +55,6 @@ fn vector_equivalence_probes() -> Vec<&'static str> {
         .collect()
 }
 
-/// A dense runtime can schedule, repair, and report readiness only when an
-/// embedder is attached and the open-time equivalence guard accepted it.
-pub(crate) fn usable_dense_runtime(embedder: Option<&dyn Embedder>, dense_disabled: bool) -> bool {
-    embedder.is_some() && !dense_disabled
-}
-
 fn probe_storage(message: String) -> EngineOpenError {
     EngineOpenError::Io { message }
 }
@@ -106,41 +100,10 @@ fn probe_embed(
     Err(EngineOpenError::VectorVerification { probe_ordinal, cause })
 }
 
-/// 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — the open-time
-/// self-check. Per `dev/design/0.8.18-slice-0-vector-equivalence-publish-design.md`
-/// §U1 + `dev/adr/ADR-0.8.18-vector-equivalence-self-check.md`.
-///
-/// Runs AFTER open-time mean-recovery/requantize + `ensure_vector_partition`
-/// (U1-b) so it reads the FINAL live `mean_vec`. Two paths:
-///
-///  - **First accepted vector arm** (probe table empty): re-embed the 45
-///    committed probes with the LIVE embedder and verify the in-memory
-///    **UN-centered f32 reference vectors** + embedder identity (R-VEQ-1)
-///    before persisting them. Store f32 ONLY — the P1 bits are NEVER persisted
-///    (U1-d). A rejected prospective arm writes neither the baseline nor cache.
-///  - **Subsequent open** (probe table populated): re-embed the 45 probes and
-///    assert BOTH dense-pipeline representations against the stored references:
-///    **(P1)** the Phase-1 mean-centered `embedding_bin` sign-flip count via the
-///    SAME `vec_quantize_binary(sign(x − mean_vec))` path as
-///    `build_vector_phase1_sql` (floor = 0, exact); **(P2)** the un-centered
-///    Phase-2 L2 (`vec_distance_l2` semantics) within `VECTOR_EQUIVALENCE_L2_EPSILON`.
-///    Divergence beyond EITHER floor ⇒ `dense_disabled=true` (R-VEQ-2/3).
-///
-/// Mean-centering is gated by `identity_requires_mean_centering(identity)` ∧
-/// `mean_pinned`, applied symmetrically to reference + reembed (un-centered
-/// fallback otherwise; NoopEmbedder no-op) — R-VEQ-3c.
-///
-/// Fail-SAFE, never fail-open (0.8.18 Slice 5 fix-1, DEFECT #1): any inability to
-/// RUN or VERIFY the probe — a probe embed that panics/errors/returns wrong-dim, a
-/// malformed/missing reference row, an unreadable pinned mean, or a
-/// `vec_quantize_binary`/L2 SQL failure — yields `dense_disabled=true` with a clear
-/// reason (refuse the un-verifiable dense/fused arm; the text-only/FTS path still
-/// serves). `Engine::open` still SUCCEEDS (never wedges on a panicking caller
-/// embedder). The distinct-identity cross-vendor refusal (`check_embedder_profile`)
-/// remains the PRIMARY gate; this probe is ADDITIVE-ONLY (R-VEQ-5), but on the
-/// vector arm it fails CLOSED, not open — same-identity backend drift on an
-/// un-verifiable arm is exactly what #5 must catch (R-VEQ-4 "loud typed refuse,
-/// never silent").
+/// Apply the existing enrolled/prospective-arm gate and persistent verdict cache.
+/// A refusal carries a typed open error; no attached-but-refused engine is returned.
+/// The post-recovery mean, frozen numeric limits and first-enrollment policy remain
+/// the existing comparison inputs.
 pub(crate) fn run_vector_equivalence_probe(
     connection: &Connection,
     embedder: Option<&EmbedDispatcher>,

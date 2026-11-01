@@ -167,3 +167,23 @@ fn timeout_failure_preserves_typed_cause() {
 fn malformed_output_preserves_typed_cause() {
     assert_eq!(verification_failure(3), fathomdb_engine::VectorVerificationFailure::InvalidOutput);
 }
+
+#[test]
+fn invalid_baseline_is_distinct_from_numeric_mismatch() {
+    use fathomdb_engine::EngineOpenError;
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("invalid.fathomdb");
+    verified_historic_store(&path);
+    rusqlite::Connection::open(&path)
+        .unwrap()
+        .execute("DELETE FROM _fathomdb_embed_probe WHERE probe_ordinal=7", [])
+        .unwrap();
+    let error =
+        Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider)).err().unwrap();
+    match error {
+        EngineOpenError::VectorVerification { cause, .. } => {
+            assert_eq!(cause.code(), "invalid_state")
+        }
+        other => panic!("invalid references must not be reported as numeric mismatch: {other:?}"),
+    }
+}

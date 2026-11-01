@@ -1,5 +1,4 @@
 use super::*;
-use fathomdb_engine::TestEmbedderChoice;
 
 /// Opaque, dev-only reader-snapshot rendezvous for the Slice 65 installed
 /// binding control. It is compiled only with `test-hooks`, never shipped.
@@ -66,6 +65,7 @@ pub(super) fn native_raw_wal_checkpoint_for_test(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fathomdb_engine::TestEmbedderChoice;
 
     #[test]
     fn engine_config_from_py_preserves_each_requested_field_and_omission() {

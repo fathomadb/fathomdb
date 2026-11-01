@@ -1,5 +1,4 @@
 use super::*;
-use fathomdb_engine::TestEmbedderChoice;
 
 // ===== Test hooks =====================================================
 
@@ -124,6 +123,7 @@ pub(crate) fn call_panicking_engine_for_test() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fathomdb_engine::TestEmbedderChoice;
     use proptest::prelude::*;
 
     fn rewrite_schema_header(path: &std::path::Path, version: u32) {

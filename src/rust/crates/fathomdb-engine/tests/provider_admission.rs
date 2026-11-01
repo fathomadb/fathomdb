@@ -226,3 +226,43 @@ fn rejected_registered_population_publishes_no_reference_authority() {
         .close()
         .unwrap();
 }
+
+#[test]
+fn historical_selector_remains_inspectable_but_cannot_activate_a_provider() {
+    use fathomdb_engine::{ProjectionRole, ProjectionSpec, ProjectionVector};
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("historic-selector.fathomdb");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider)).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "body".into(),
+                roles: [ProjectionRole::Searchable].into(),
+                fts: None,
+                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    opened.engine.close().unwrap();
+    rusqlite::Connection::open(&path).unwrap().execute(
+        "UPDATE _fathomdb_projection_registry SET vector_embedder='historical-alternative' WHERE name='body'", []
+    ).unwrap();
+    let inspected = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
+    assert_eq!(
+        inspected.engine.read_projections().unwrap()[0]
+            .vector
+            .as_ref()
+            .unwrap()
+            .embedder
+            .as_deref(),
+        Some("historical-alternative")
+    );
+    inspected.engine.close().unwrap();
+    assert!(
+        Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider)).is_err(),
+        "historical selector cannot silently activate the attached default pipeline"
+    );
+}

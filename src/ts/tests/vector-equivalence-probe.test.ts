@@ -1,16 +1,4 @@
-// 0.8.18 Slice 5 (#5 vector-equivalence probe) — TypeScript SDK surface parity (X1).
-//
-// Mirror of `src/python/tests/test_vector_equivalence_probe.py`. Verifies the TS
-// binding surfaces the #5 vector-equivalence probe contract at Py↔TS parity:
-//   - `VectorEquivalenceMismatchError` is an exported leaf of `FathomDbError`.
-//   - `OpenReport` surfaces `denseDisabled` (+ `denseDisabledReason`); a healthy
-//     open reports `denseDisabled === false` (R-VEQ-6).
-//   - the `Engine.searchTextOnly` FTS-only path exists and serves.
-//   - the degraded-observability accessors exist and report the healthy default.
-//
-// The DIVERGENCE behaviour is proven at the engine layer in Rust
-// (`fathomdb-engine/tests/vector_equivalence_probe.rs`); this suite pins the SDK
-// SURFACE parity.
+// Actual vector verification refusal returns no Engine; report no longer has degraded state.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -25,18 +13,16 @@ test("VectorEquivalenceMismatchError is a FathomDbError leaf carrying a reason",
   assert.equal(err.reason, "P1 flips=3");
 });
 
-test("openReport surfaces denseDisabled (default false) + accessors", async () => {
+test("openReport and engine have no obsolete refused-open state", async () => {
   const engine = await Engine.open(freshDbPath());
   try {
     const report = engine.openReport();
-    assert.equal(report.denseDisabled, false);
-    assert.equal(report.denseDisabledReason, null);
-    assert.equal(engine.denseDisabled(), false);
-    assert.equal(engine.denseDisabledReason(), null);
-    assert.equal(engine.vectorEquivalenceRefusalCount(), 0);
-  } finally {
-    await engine.close();
-  }
+    assert.equal("denseDisabled" in report, false);
+    assert.equal("denseDisabledReason" in report, false);
+    assert.equal("denseDisabled" in engine, false);
+    assert.equal("denseDisabledReason" in engine, false);
+    assert.equal("vectorEquivalenceRefusalCount" in engine, false);
+  } finally { await engine.close(); }
 });
 
 test("searchTextOnly serves the FTS-only path", async () => {

@@ -94,8 +94,6 @@ def test_open_report_maps_present_auto_cpu_device_resolution() -> None:
         embedder_events=[],
         embedder_mean_centering_required=False,
         embedder_mean_vec_pinned=False,
-        dense_disabled=False,
-        dense_disabled_reason=None,
         embedder_device_resolution=SimpleNamespace(
             requested_policy="auto",
             cuda_compiled=True,
@@ -167,8 +165,6 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
         embedder_events=[],
         embedder_mean_centering_required=False,
         embedder_mean_vec_pinned=False,
-        dense_disabled=False,
-        dense_disabled_reason=None,
         embedder_device_resolution=_native_cuda_resolution(
             SimpleNamespace(
                 path="private",
@@ -291,8 +287,6 @@ def test_open_report_maps_a_present_gpu_allocation_witness() -> None:
         embedder_events=[],
         embedder_mean_centering_required=False,
         embedder_mean_vec_pinned=False,
-        dense_disabled=False,
-        dense_disabled_reason=None,
         embedder_device_resolution=None,
         reranker_device_resolution=None,
         embedder_gpu_allocation_witness=witness,

@@ -12,8 +12,6 @@ const ENGINE_NON_COMMAND = new Set([
   "attachSubscriber",
   "config",
   "counters",
-  "denseDisabled",
-  "denseDisabledReason",
   "drain",
   "enableTelemetry",
   "lastTelemetryQueryId",
@@ -21,7 +19,6 @@ const ENGINE_NON_COMMAND = new Set([
   "recordFeedback",
   "setProfiling",
   "setSlowThresholdMs",
-  "vectorEquivalenceRefusalCount",
 ]);
 const PACKAGE_NON_COMMAND = new Set([
   "embedBatchCls",

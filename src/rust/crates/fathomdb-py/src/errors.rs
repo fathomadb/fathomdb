@@ -697,6 +697,27 @@ mod vector_open_tests {
     use fathomdb_engine::VectorVerificationFailure;
 
     #[test]
+    fn refused_open_state_is_absent_from_native_report_and_engine() {
+        Python::initialize();
+        Python::attach(|py| {
+            for name in ["dense_disabled", "dense_disabled_reason"] {
+                assert!(
+                    !py.get_type::<PyOpenReport>().hasattr(name).unwrap(),
+                    "obsolete report field {name}"
+                );
+            }
+            for name in
+                ["dense_disabled", "dense_disabled_reason", "vector_equivalence_refusal_count"]
+            {
+                assert!(
+                    !py.get_type::<PyEngine>().hasattr(name).unwrap(),
+                    "obsolete engine method {name}"
+                );
+            }
+        });
+    }
+
+    #[test]
     fn invalid_stored_verification_state_preserves_detail_in_python() {
         Python::initialize();
         let error = engine_open_error_to_py(EngineOpenError::VectorVerification {

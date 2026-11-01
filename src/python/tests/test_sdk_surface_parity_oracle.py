@@ -20,8 +20,6 @@ ENGINE_NON_COMMAND = {
     "attach_logging_subscriber",
     "config",
     "counters",
-    "dense_disabled",
-    "dense_disabled_reason",
     "drain",
     "enable_telemetry",
     "last_telemetry_query_id",
@@ -30,7 +28,6 @@ ENGINE_NON_COMMAND = {
     "record_feedback",
     "set_profiling",
     "set_slow_threshold_ms",
-    "vector_equivalence_refusal_count",
 }
 PACKAGE_NON_COMMAND = {"embed_batch_cls"}
 ADMIN_NON_COMMAND = {"configure_runtime"}

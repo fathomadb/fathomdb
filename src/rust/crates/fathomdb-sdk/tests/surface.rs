@@ -97,9 +97,6 @@ fn engine_search_signatures() {
 
 #[test]
 fn engine_instrumentation_signatures() {
-    let _: fn(&Engine) -> bool = Engine::dense_disabled;
-    let _: fn(&Engine) -> Option<String> = Engine::dense_disabled_reason;
-    let _: fn(&Engine) -> u64 = Engine::vector_equivalence_refusal_count;
     let _: fn(&Engine, &str) -> Result<()> = Engine::enable_telemetry;
     let _: fn(&Engine) -> Option<String> = Engine::last_telemetry_query_id;
     let _: fn(&Engine, &str, &[u64], &[u64], &str) -> Result<()> = Engine::record_feedback;

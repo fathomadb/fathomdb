@@ -268,3 +268,14 @@ fn historical_selector_remains_inspectable_but_cannot_activate_a_provider() {
         "historical selector cannot silently activate the attached default pipeline"
     );
 }
+
+#[test]
+fn production_choices_are_exhaustively_default_or_none() {
+    fn closed(choice: fathomdb_engine::EmbedderChoice) {
+        match choice {
+            fathomdb_engine::EmbedderChoice::Default => (),
+            fathomdb_engine::EmbedderChoice::None => (),
+        }
+    }
+    closed(fathomdb_engine::EmbedderChoice::None);
+}

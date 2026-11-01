@@ -120,7 +120,6 @@ fn sample(
     let started = Instant::now();
     let opened = Engine::open_with_embedder_for_test(&path, counter.clone()).unwrap();
     let open_ms = started.elapsed().as_secs_f64() * 1000.0;
-    assert!(!opened.report.dense_disabled, "{:?}", opened.report.dense_disabled_reason);
     let calls = counter.calls.load(Ordering::SeqCst);
     assert_eq!(calls, if fresh { 45 } else { 0 });
     let close = Instant::now();

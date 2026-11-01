@@ -65,7 +65,6 @@ fn source_readiness(value: &str) -> ProjectionReadinessV1 {
         "ready" => ProjectionReadinessV1::Ready,
         "processing" => ProjectionReadinessV1::Processing,
         "blocked" => ProjectionReadinessV1::Blocked,
-        "deferred" => ProjectionReadinessV1::Deferred,
         "degraded" => ProjectionReadinessV1::Degraded,
         _ => panic!("fixture readiness"),
     }
@@ -94,6 +93,11 @@ fn graph_expand_maps_injected_source_projection_statuses_through_production_mapp
         .unwrap();
 
     for state in fixture.states {
+        // Generic graph codecs retain this reserved vocabulary, but an ordinary
+        // successful open no longer exposes a refused-provider source state.
+        if state.readiness == "deferred" {
+            continue;
+        }
         let result = opened
             .engine
             .graph_expand_with_projection_generation_for_test(

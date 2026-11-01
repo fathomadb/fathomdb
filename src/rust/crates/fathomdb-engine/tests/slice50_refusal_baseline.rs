@@ -170,7 +170,6 @@ fn case(operation: &str, state: &str, repeat: usize) {
     setup.engine.drain(5000).unwrap();
     setup.engine.close().unwrap();
     let baseline = Engine::open_with_embedder_for_test(&path, runtime(&identity, false)).unwrap();
-    assert!(!baseline.report.dense_disabled);
     baseline.engine.close().unwrap();
     let pending = state != "refused_empty";
     let seed = Engine::open(&path).unwrap();
@@ -188,14 +187,35 @@ fn case(operation: &str, state: &str, repeat: usize) {
     }
     let probe_runtime = runtime(&identity, state != "accepted_ready");
     let open_start = Instant::now();
-    let opened = if state == "absent_pending" {
-        Engine::open(&path).unwrap()
+    let result = if state == "absent_pending" {
+        Engine::open(&path)
     } else {
-        Engine::open_with_embedder_for_test(&path, probe_runtime.clone()).unwrap()
+        Engine::open_with_embedder_for_test(&path, probe_runtime.clone())
     };
+    // Historical refused-engine measurements remain in committed data. Under
+    // the successful-open policy these cases terminate at admission instead.
+    if state.starts_with("refused") {
+        let error = result.err().expect("divergent provider must fail open");
+        assert!(matches!(
+            error,
+            fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }
+        ));
+        println!(
+            "REFUSAL_ADMISSION {}",
+            json!({"operation": operation, "state": state,
+            "repeat":repeat,"open_ms":open_start.elapsed().as_secs_f64()*1000.0,
+            "error":format!("{error:?}"),"operation_invoked":false})
+        );
+        let recovered =
+            Engine::open_with_embedder_for_test(&path, runtime(&identity, false)).unwrap();
+        recovered.engine.drain(5000).unwrap();
+        assert_eq!(recovered.engine.read_embedding_readiness().unwrap().pending_count, 0);
+        recovered.engine.close().unwrap();
+        return;
+    }
+    let opened = result.unwrap();
     let open_ms = open_start.elapsed().as_secs_f64() * 1000.0;
     let open_calls = probe_runtime.calls.load(Ordering::SeqCst);
-    assert_eq!(opened.report.dense_disabled, state.starts_with("refused"));
     // Accepted control settles its seed before the measured call; it does not test rebuild admission races.
     if state == "accepted_ready" {
         opened.engine.drain(5000).unwrap();
@@ -246,14 +266,13 @@ fn case(operation: &str, state: &str, repeat: usize) {
     opened.engine.close().unwrap();
     // Every case must remain openable and drainable with the original accepted backend.
     let recovered = Engine::open_with_embedder_for_test(&path, runtime(&identity, false)).unwrap();
-    assert!(!recovered.report.dense_disabled);
     recovered.engine.drain(5000).unwrap();
     let recovered_ready = recovered.engine.read_embedding_readiness().unwrap();
     assert_eq!(recovered_ready.pending_count, 0);
     println!(
         "REFUSAL_RECOVERY {}",
         json!({"operation":operation,"state":state,"repeat":repeat,
-        "pending":recovered_ready.pending_count,"dense_disabled":recovered.report.dense_disabled})
+        "pending":recovered_ready.pending_count,"provider_accepted":true})
     );
     recovered.engine.close().unwrap();
 }

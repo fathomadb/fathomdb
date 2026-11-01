@@ -158,7 +158,7 @@ fn absent_embedder_does_not_dispatch_body_edge_into_a_failed_terminal() {
 }
 
 #[test]
-fn equivalence_refused_embedder_defers_work_without_relabelling_it_as_missing_configuration() {
+fn equivalence_refused_open_preserves_pending_work_for_explicit_recovery() {
     let dir = TempDir::new().expect("tempdir");
     let path = db_path(&dir, "refused_embedder");
     Engine::open(&path).expect("create profile").engine.close().expect("close profile setup");
@@ -182,7 +182,6 @@ fn equivalence_refused_embedder_defers_work_without_relabelling_it_as_missing_co
             Arc::new(ControlledEmbedder::faithful(identity.clone())),
         )
         .expect("persist accepted equivalence baseline");
-        assert!(!opened.report.dense_disabled, "fixture: faithful runtime is accepted");
         opened.engine.close().expect("close baseline runtime");
     }
     make_probe_verdict_stale(&path);
@@ -192,21 +191,20 @@ fn equivalence_refused_embedder_defers_work_without_relabelling_it_as_missing_co
         opened.engine.close().expect("close pending-work session");
     }
 
-    let opened = Engine::open_with_embedder_for_test(
+    let result = Engine::open_with_embedder_for_test(
         &path,
         Arc::new(ControlledEmbedder::divergent(identity)),
-    )
-    .expect("equivalence refusal leaves the engine serviceable");
-    assert!(opened.report.dense_disabled, "fixture: runtime was refused by equivalence");
+    );
+    assert!(matches!(
+        result,
+        Err(fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. })
+    ));
+    let opened = Engine::open(&path).expect("explicit no-provider pending-work inspection");
     let readiness = opened.engine.read_embedding_readiness().expect("readiness");
-    assert_eq!(readiness.state, EmbeddingReadinessState::Deferred);
+    assert_eq!(readiness.state, EmbeddingReadinessState::Blocked);
     assert!(!readiness.usable_embedder);
     assert_eq!(readiness.pending_count, 1);
-    assert!(readiness.blocked.is_none(), "a refused attached runtime is not missing configuration");
-    let error =
-        opened.engine.drain(0).expect_err("deferred work cannot drain while runtime is refused");
-    assert!(
-        !matches!(error, EngineError::EmbedderRequired(_)),
-        "only an absent configured runtime is FDB_EMBEDDER_REQUIRED"
-    );
+    assert!(readiness.blocked.is_some());
+    assert!(matches!(opened.engine.drain(0), Err(EngineError::EmbedderRequired(_))));
+    opened.engine.close().unwrap();
 }

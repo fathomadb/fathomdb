@@ -1,11 +1,21 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — status
-status: PLANNED (phase 1 docs committed 2026-10-31; awaiting Fable design review and owner rulings D50-1, D50-2)
+status: design investigation; built-in-provider replacement proposed; no implementation authorized
 target_release: 0.8.28
-observed_on: 2026-10-31
+observed_on: 2026-11-01
 ---
 
 # Slice 50 status
+
+> **Current direction (2026-11-01):** owner scope `seq-355` limits production
+> providers to the built-in implementation before 1.x. Read the revised
+> [user needs, requirements and AC](built-in-provider-requirements.md),
+> [design and extension inventory](built-in-provider-design.md), and
+> [design work plan](built-in-provider-plan.md) before the original phase-1
+> material below. Unit S is unchanged. Unit D / D50-1 / D50-2 are historical,
+> unselected options, held without implementation; their recommendations are
+> not the current proposal. The replacement contract and release placement
+> require owner review before production changes.
 
 Step log for [plan.md](plan.md). Commits are on
 `slice/0.8.28-50-drain-scan-bound` (base `544bf74f8`, `dev/0.8.28`). Not
@@ -16,7 +26,7 @@ owner-requested characterization does not implement D50-1 or D50-2.
 | --- | --- |
 | P1 phase 1 docs | done (this commit) |
 | R-DES Fable design review | not started |
-| O owner rulings D50-1, D50-2 | open (design § 2.3, § 2.4) |
+| O replacement contract | built-in-provider proposal awaiting owner review; D50-1/D50-2 held unselected |
 | H hook RED/GREEN | not started |
 | S scan RED/GREEN | not started |
 | T scaling tool | not started |
@@ -44,7 +54,7 @@ is submitted for owner review before implementation. The owner-requested
 now quantify the cache decision (steward `seq-352`); production pooling stays
 Mean under the existing ruling. No policy change is implemented.
 
-## Open owner rulings
+## Historical unselected drain options
 
 - **D50-1.** On a dense-disabled store with pending vector rows, `drain`
   returns promptly. What it returns: A `Err(Scheduler)` (recommended),
@@ -70,5 +80,17 @@ Mean under the existing ruling. No policy change is implemented.
   `transition` took 30.000 s, then returned `Err(Scheduler)` (scratch
   probe). That is the reason for D50-2.
 
-Scratch probes ran in a `git archive` export of `544bf74f8` in the
-session scratch directory. Nothing from them is committed.
+Original phase-1 scratch probes ran in a `git archive` export of `544bf74f8`.
+The later recovered probe record, characterization tools/data and fresh-open
+measurements are committed in the experiment directories linked above.
+
+## Built-in-provider design proposal
+
+Owner scope `seq-355` and proposal record `seq-356`. Astra-medium developed the
+[built-in-provider contract](built-in-provider-design.md); the integrated
+[requirements/AC](built-in-provider-requirements.md) and
+[work plan](built-in-provider-plan.md) accompany it. Final
+[Astra integration review](built-in-provider-astra-review.md): coherent proposal
+for owner review; the three consistency corrections were applied. No production
+source, dependency, schema or ladder-completion change. Detailed contract and
+release placement remain pending owner review before implementation.

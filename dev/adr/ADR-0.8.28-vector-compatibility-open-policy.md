@@ -1,6 +1,6 @@
 ---
-title: Vector compatibility failure at open and explicit recovery access
-date: 2026-10-31
+title: Built-in provider verification, open failure and explicit recovery access
+date: 2026-11-01
 status: proposed; owner review required; no implementation authorized
 target_release: 0.8.28
 desc: Replace automatic degraded-open while retaining vector compatibility checks
@@ -10,30 +10,38 @@ desc: Replace automatic degraded-open while retaining vector compatibility check
 
 ## Recommendation and authority
 
-**Reject provider-enabled open when required vector verification fails.** Keep
-explicit no-provider access for valid stores, and keep the compatibility check.
-Do not automatically retry the failed open without its provider. This proposal
-implements no behavior and supersedes no accepted decision until approved.
+**Support only the pinned built-in BGE-small/Mean engine provider before 1.x,
+and reject provider-enabled open when required vector verification fails.**
+Keep deliberate no-provider access to valid stores, retain the compatibility
+check, and use bounded process-local numerical evidence to avoid repeated
+inference for unchanged relevant opens. No automatic fallback after failure.
 
-Owner investigation direction: steward ledger `seq-350`. Evidence:
-[108 baseline observations](../experiments/slice50-refusal-baseline/analysis.md).
-The replacement contract, recovery behavior and implementation scope below are
-submitted for review together. Release placement remains subject to the owner.
-D50-1/D50-2 remain unimplemented; approval of investigation did not select them.
-Proposal record: steward `seq-351`, measurement `seq-352`, lifecycle follow-up
-`seq-353`; pending release-state decision
-`vector-compatibility-open-contract`. This gates this policy implementation,
-not publication authorization or unrelated release work.
+Owner scope ruling: steward `seq-355`; user-provider support is a long-term goal,
+not a pre-1.x feature. The owner commissioned the revised
+[built-in-provider contract and extension inventory](../plans/0.8.28/features/slice-50/built-in-provider-design.md),
+[user needs/requirements/AC](../plans/0.8.28/features/slice-50/built-in-provider-requirements.md)
+and [work plan](../plans/0.8.28/features/slice-50/built-in-provider-plan.md).
+Astra-medium developed and reviewed the design. This ADR is proposed; detailed
+mechanisms, public API removals, fork/dependency work, open/recovery behavior
+and release placement require owner review before implementation.
 
-Upon acceptance, supersede only degraded-open clauses R-VEQ-4/6 in
-[ADR-0.8.18](ADR-0.8.18-vector-equivalence-self-check.md) and the corresponding
-probe-failure clauses in
-[ADR-0.8.27 runtime topology](ADR-0.8.27-engine-owned-runtime-topology.md).
-Retain identity/dimension gates, thresholds, async writes, resource ownership,
-provider deadlines and bounded cleanup. Any revised verification cadence must explicitly address
-the TC-68 cached-acceptance rule (the 0.8.20 plan/design). Cadence and reuse
-remain undecided pending the measured startup cost and SDK/MCP lifecycle review. Respect the existing
-[corruption-on-open policy](ADR-0.6.0-corruption-open-behavior.md).
+Evidence and history: [108 baseline observations](../experiments/slice50-refusal-baseline/analysis.md),
+[fresh-open timing and lifecycle findings](../experiments/fresh-open-verification/findings.md),
+and steward `seq-350` through `seq-356`. Release-state decision
+`vector-compatibility-open-contract` remains unruled. D50-1/D50-2 are historical,
+unselected options; Unit S's scan optimization remains separate.
+
+Upon acceptance, explicitly supersede degraded-open clauses R-VEQ-4/6 of
+[ADR-0.8.18](ADR-0.8.18-vector-equivalence-self-check.md), corresponding
+probe-failure clauses of [ADR-0.8.27](ADR-0.8.27-engine-owned-runtime-topology.md),
+and TC-68's persistent cached-acceptance rule. Narrow the public provider promise
+in [ADR-0.6.0 embedder protocol](ADR-0.6.0-embedder-protocol.md), and make the
+[embedder design's](../design/embedder.md) automatic mean pin/recovery
+compatibility-conditioned on a proposed mean. Retain finite thresholds,
+identity/dimension/integrity gates, async canonical writes, dispatch ownership,
+deadlines and bounded cleanup. Respect the
+[corruption-on-open policy](ADR-0.6.0-corruption-open-behavior.md) and
+[embedder-owned vector identity](ADR-0.6.0-vector-identity-embedder-owned.md).
 
 ## Proposed open contract
 
@@ -44,7 +52,9 @@ remain undecided pending the measured startup cost and SDK/MCP lifecycle review.
 | Required verification cannot run or complete | Return a typed open error preserving the cause; no engine handle. |
 | Verification metadata is structurally invalid | Refuse ordinary admission with structured corruption/state detail; do not reinterpret as a numeric mismatch. |
 | Caller explicitly selects no provider; store passes applicable integrity checks | Open for existing canonical/text operations, with no vector provider or verification claim. |
-| Attached provider; no stored/prospective vector arm | Preserve existing probe-not-required behavior and first-enrollment rules. |
+| Built-in enabled; no stored/prospective dense arm and no baseline | No probes; preserve explicit unbaselined first-enrollment residual. |
+| Built-in enabled; baseline retained after removing all dense kinds | Check or reuse exact evidence before later reenrollment can serve dense work. |
+| Caller requests another engine provider | Unsupported production surface before 1.x; no caller-provider admission route. |
 
 Success is **not** a guarantee against subsequent provider failure, nor a claim
 that all projections have caught up. No live engine is returned in the
@@ -58,43 +68,49 @@ stores on dev/0.8.29 instead default to idle close after 60 seconds and enforce
 one open store; switching can reopen stores on sequential requests. Thus a
 fresh check on every open can become a recurring query-path cost.
 
-Do not select unconditional fresh-per-open verification from these measurements
-alone. Verification reuse/invalidation and the MCP resource lifecycle must be
-reviewed together before implementation. A process/session cache would need to
-bind acceptance to the actual runtime and current store verification inputs;
-the current persistent hash omits live backend/device/library/pooling changes.
-Retaining a provider across closes also changes the engine-owned resource
-contract. Neither alternative is designed or approved here.
+The revised contract chooses a first relevant live check per process/state/runtime,
+then bounded reuse across engine/model close and reconstruction. Retire on-disk
+marker authority. The cache holds at most 16 positive entries and 2 MiB accounted
+payload; each contains the successful check's 45 uncentered live outputs
+(69,120 bytes), fixed digests and metadata, without models or database resources.
+Each active baselined engine holds one evidence set independently of LRU eviction.
+No ordinary call repeats the 45 probes. Exact keying, context validity, epoch
+fencing, bounds and state transitions are specified in the companion design.
 
-Retain exact thresholds and the accepted initial-enrollment residual. Vector-less
-and no-provider opens remain outside the live-probe requirement. No repeated
-45-probe check is proposed on each engine call. No cache retention/removal,
-idle-timeout change or runtime-sharing change has been implemented or approved.
+This depends on net-new sealed construction from actual owned verified asset
+bytes and immutable per-runtime strict-F32 Candle execution. A constructor
+snapshot of mutable global settings cannot prove stability. Fork work must be
+independently qualified before adoption; no fork change is implemented here.
 
-An absent baseline is not automatically corruption: it is legitimate during
-first enrollment. An unreadable arm-registration query must propagate failure,
-not be treated as an empty arm. Validate applicable stored metadata independently
-of model inference; selecting no provider must not bypass known corruption.
+Automatic pin/recovery compares the proposed mean against retained live outputs
+and stored references without provider inference inside a transaction. On a
+rejected optional candidate, retain the accepted current mean and continue valid
+projections, with one queryable/event advisory and suppressed automatic retries
+per accepted-state token. Explicit recompute returns a typed rollback error.
+For existing baselines, check current state before optional open-time mean
+recovery; do not commit a rejected candidate by reopening. This explicitly
+changes the old unconditional automatic pin/recovery policy on rejection.
+Baseline-bearing ordinary no-provider open defers automatic mean recovery;
+explicit no-provider recompute makes no numeric acceptance claim.
 
-## Astra-medium review of process-local reuse
+A relevant provider-enabled open has either a registered/durable dense arm or
+an existing probe baseline. Truly vector-less and no-provider opens do no live
+probes; retained baselines cannot evade checking by temporary kind removal.
+Retain legitimate initial-enrollment absence of references and its explicit
+historical-provenance residual. An unreadable arm-registration query propagates
+failure; it cannot masquerade as an empty arm. Structural validation is separate
+from inference and never bypassed by no-provider selection.
 
-The owner-requested [independent Astra-medium review](../plans/0.8.28/features/slice-50/verification-reuse-astra-review.md)
-returned **SOUND_DIRECTION_NEEDS_DESIGN**. It reviewed first-check-per-process
-reuse keyed to store state and actual runtime, retaining only verification
-metadata across model/database close. It did not approve implementation.
+## Astra-medium design and review
 
-The smallest candidate to specify next is built-in-provider cross-construction
-reuse with a versioned descriptor bound to the assets and execution regime
-actually loaded. There is no generic provider descriptor or immutability
-contract today. In-process numerical flags can change; process lifetime alone
-is not evidence that the embedding function stayed fixed. Custom providers
-need an explicit stability policy rather than trusting identity or addresses.
-
-Resolve live-session mean/baseline invalidation versus verified-at-admission
-semantics; commit-coherent positive publication; bounded metadata-only cache
-ownership and eviction; and failed-open/late-result rules. No cache lock may
-span inference or database work. The review records the source witnesses and
-minimum tests. These are unresolved design requirements, not passing guarantees.
+The earlier [reuse review](../plans/0.8.28/features/slice-50/verification-reuse-astra-review.md)
+returned SOUND_DIRECTION_NEEDS_DESIGN. At the owner's request, Astra then
+proposed and [reviewed the integrated design](../plans/0.8.28/features/slice-50/built-in-provider-astra-review.md). It proposed the [built-in-only contract](../plans/0.8.28/features/slice-50/built-in-provider-design.md)
+and audited extension paths. The proposal closes production injection, contains
+retained evaluation seams, specifies actual-construction provenance, immutable
+execution, finite numerical evidence, bounded ownership/concurrency, context-loss
+invalidation and transactional mean decisions. It is a concrete successor
+proposal, not acceptance or a claim that those mechanisms exist today.
 
 ## Error and durable-state contract
 
@@ -108,8 +124,9 @@ Expose stable, structured open failures across Rust, Python, TypeScript and CLI:
   parsing of the current human-readable refusal reason.
 - **Invalid reference/profile/required mean:** structured invalid-state or
   corruption detail with locator and remediation hint. SQL I/O failure retains
-  its storage classification. An invalid cache marker alone triggers a fresh
-  comparison, rather than proving reference corruption.
+  its storage classification. A malformed legacy on-disk cache marker is ignored and proves neither
+  acceptance nor reference corruption; the new process evidence rules decide
+  whether fresh comparison is required.
 
 Precise enum/class names are implementation design; the distinctions above
 are the proposed public contract. Initial subscribers must receive the error,
@@ -118,15 +135,16 @@ contract tests change in the same implementation. Remove obsolete refusal-only
 live-engine branches/report fields across surfaces; add no compatibility shims.
 
 Failed verification preserves existing reference vectors, stored vector data,
-pinned mean and declared identity. It may invalidate a stale success marker;
-it must never publish a success marker or bless the failing backend. Stage a
+pinned mean and declared identity. Legacy success markers have no admission authority;
+failure must never publish process acceptance or bless the failing backend. Stage a
 new complete baseline in memory and publish it only after acceptance on both
 registered and prospective-arm paths. Partial or rejected baselines are not
 published; late inference results cannot alter references or verdicts.
 
-This is **not** whole-open rollback: ordinary startup maintenance/recovery and
-supported migration can precede verification. Their existing durable effects
-remain governed by their own contracts. Do not promise byte-identical files
+This is **not** whole-open rollback: ordinary startup maintenance and
+supported migration can precede verification. Baseline-bearing automatic mean
+recovery follows the prospective compatibility ordering above; other recovery
+effects retain their own contracts. Do not promise byte-identical files
 after failure or invent a schema migration for this policy change.
 
 ## Cleanup contract
@@ -158,7 +176,7 @@ flag, automatic fallback or recovery verbs to the governed SDK.
 
 For an existing store, no-provider admission must validate and use the stored
 profile identity/dimension as metadata, not compare it with an invented BGE
-provider. This is a required correction for custom-identity stores. When a
+provider. This is a required correction for well-formed historic unsupported-identity stores. When a
 provider is actually supplied, strict identity/dimension matching still applies.
 New-store profile creation remains governed by existing defaults.
 
@@ -195,7 +213,7 @@ a numeric compatibility repair or a way to authorize a changed backend.
 
 Add a CLI-only **proposed** `doctor check-vector-compatibility` diagnostic that
 can explicitly run a fresh comparison despite the cache, without ordinary
-Engine admission or reference/cache mutation. Reuse locked, WAL-aware diagnostic
+Engine admission or database/reference mutation. Reuse locked, WAL-aware diagnostic
 admission; never ignore uncheckpointed WAL to obtain an apparently clean view.
 Use an explicitly selected supported provider (initially the pinned default);
 return unsupported-provider detail for a custom identity the CLI cannot load,
@@ -209,11 +227,12 @@ Report `baseline_not_established` when first-enrollment references legitimately
 do not exist; a read-only diagnostic must not populate them or label that state
 corruption. Report whether ordinary admission would reuse a cached verdict.
 
-A read-only diagnostic does not itself revoke admission. Current TC-68 can
-still accept a cached verdict after fresh diagnosis fails. Under a future fresh
-admission rule, ordinary open would compare again; any future verification-reuse
-rule must specify invalidation and treatment of that known failed diagnosis.
-The lifecycle/cadence decision remains pending; do not imply this gap is fixed.
+A failed fresh diagnostic clears in-process positive evidence and increments
+the publication epoch without changing the database. Its store admission lock
+excludes a concurrent live engine of that store. A coherent successful fresh
+comparison may repopulate bounded evidence; an absent baseline cannot. Context
+loss also invalidates the affected live runtime at the boundaries in the design;
+clearing cache entries alone cannot revive or validate an existing runtime.
 
 No-provider access is not a corruption bypass. If ordinary integrity admission
 fails, use CLI diagnostics and the supported offline recovery/backup route;
@@ -254,7 +273,7 @@ coverage so the new admission rule cannot make both rebuild commands unusable.
 
 | Area | Exists today | Required change after approval |
 | --- | --- | --- |
-| Verification | Identity gates, numeric probe, cached acceptance | Classified rejection; preserve limits; settle verification reuse and SDK/MCP reopen cost before selecting cadence. |
+| Verification | Identity gates, numeric probe, cached acceptance | Classified rejection; preserve limits; bounded built-in evidence reuse, immutable runtime and explicit invalidation. |
 | Cleanup | Post-probe guard and bounded provider-only retention | Wire new rejection through guards and initial-subscriber reporting. |
 | Baseline publication | Prospective arm stages before acceptance; registered arm persists first | Make first-baseline publication acceptance-conditional on both paths. |
 | No-provider access | SDK selectors and CLI doctor/recover | Validate stored profile without fictitious provider identity; retain corruption refusal. |
@@ -294,7 +313,7 @@ Before landing implementation, require behavior-specific RED/GREEN tests for:
    existing concurrency guards. Unsupported custom provider/feature combinations
    refuse clearly before mutation; cover CPU-only default-provider feature
    wiring as well as CUDA-enabled builds.
-5. CLI fresh diagnosis despite a cached verdict, immutable reference/cache state,
+5. CLI fresh diagnosis despite a cached verdict, immutable database/reference state,
    absent-baseline result, WAL-aware admission, error mapping and SDK parity;
    vector-less, no-provider and first-enrollment behavior explicitly covered.
    Test the selected verification-reuse/invalidation contract across MCP idle
@@ -319,9 +338,10 @@ the attached-but-unusable state; that is a wider and more fragile contract.
 Accepting failed verification or resetting references is outside the safety
 constraint and is not proposed.
 
-Owner review is requested for the failure/recovery contract and the unresolved
-verification-reuse/lifecycle design before implementation. An approved runtime-keyed
-verdict cache or unconditional fresh cadence is not assumed. In-place backend rotation,
-whole-open rollback, verification of vector-less opens, and removing healthy
-store-wide drain barriers are not implied by approval. Existing accepted ADRs
-remain authoritative until a successor is approved.
+Owner review is requested for the revised built-in-provider contract, its
+extension-path dispositions, compatibility-conditioned automatic mean policy,
+bounded evidence cache and fork stability prerequisite before implementation.
+The user-provider exclusion is ruled; these mechanisms and release placement
+are proposed. In-place backend rotation, whole-open rollback and removing
+healthy store-wide drain barriers are not implied. Existing accepted ADRs remain
+authoritative until the successor is approved.

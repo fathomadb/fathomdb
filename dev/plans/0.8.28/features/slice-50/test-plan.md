@@ -1,11 +1,21 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — test plan
-status: PLANNED (phase 1, 2026-10-31; awaiting Fable design review and owner rulings D50-1, D50-2)
+status: design investigation; built-in-provider replacement proposed; no implementation authorized
 target_release: 0.8.28
-observed_on: 2026-10-31
+observed_on: 2026-11-01
 ---
 
 # Slice 50 test plan
+
+> **Current direction (2026-11-01):** owner scope `seq-355` limits production
+> providers to the built-in implementation before 1.x. Read the revised
+> [user needs, requirements and AC](built-in-provider-requirements.md),
+> [design and extension inventory](built-in-provider-design.md), and
+> [design work plan](built-in-provider-plan.md) before the original phase-1
+> material below. Unit S is unchanged. Unit D / D50-1 / D50-2 are historical,
+> unselected options, held without implementation; their recommendations are
+> not the current proposal. The replacement contract and release placement
+> require owner review before production changes.
 
 Each run records the host, `nproc`, the 1-minute load, the commit and the
 command. Results go in [status.md](status.md). Scaling logs and results go

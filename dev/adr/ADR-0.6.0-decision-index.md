@@ -170,7 +170,9 @@ Slice-0 gate before Slices 15 and 25 open.
 
 Proposed, owner review pending: [vector compatibility open policy and explicit
 recovery access](ADR-0.8.28-vector-compatibility-open-policy.md). Investigation
-authorized at steward `seq-350`; replacement contract is not yet accepted.
+authorized at steward `seq-350`; built-in-only scope before 1.x ruled at
+`seq-355`. The revised built-in-provider contract, extension closures, evidence
+cache, runtime stability and recovery policy remain proposed, not accepted.
 
 ## Categories
 

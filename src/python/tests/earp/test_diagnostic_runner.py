@@ -215,7 +215,7 @@ def test_fetched_embedder_is_blocked_without_a_network_fetch() -> None:
     """A real fetch is forbidden by policy, so the decision is factored out and
     driven by a synthetic report -- otherwise this path is untestable."""
     witnesses, blockers = classify_open(
-        {"embedder_download_ms": 1234, "dense_disabled": False, "embedder_events": []}
+        {"embedder_download_ms": 1234, "embedder_events": []}
     )
     assert any(b.code is BlockerCode.EMBEDDER_FETCHED for b in blockers)
     assert witnesses
@@ -225,25 +225,20 @@ def test_cache_hit_is_not_blocked() -> None:
     _witnesses, blockers = classify_open(
         {
             "embedder_download_ms": None,
-            "dense_disabled": False,
             "embedder_events": [{"kind": "DefaultEmbedderCacheHit"}],
         }
     )
     assert blockers == ()
 
 
-def test_dense_disabled_is_blocked() -> None:
-    """S7 amendment: `dense_disabled` blocks only when the scenario DECLARED a
-    dense projection (matching earp.md's "typed blocker when dense retrieval
-    was required"); otherwise the degraded open is witness-recorded, not
-    blocking -- the witness value carries the full report either way."""
-    report = {"embedder_download_ms": None, "dense_disabled": True, "embedder_events": []}
-    _witnesses, blockers = classify_open(report, dense_required=True)
-    assert any(b.code is BlockerCode.DENSE_DISABLED for b in blockers)
-
-    witnesses, blockers = classify_open(report, dense_required=False)
-    assert not any(b.code is BlockerCode.DENSE_DISABLED for b in blockers)
-    assert {w.name: w.value for w in witnesses}["open_report"]["dense_disabled"] is True
+def test_successful_open_witness_has_no_refused_handle_state() -> None:
+    """Actual refusal raises before a report exists; successful reports stay truthful."""
+    report = {"embedder_download_ms": None, "query_backend": "sqlite", "embedder_events": []}
+    witnesses, blockers = classify_open(report)
+    assert blockers == ()
+    assert {w.name: w.value for w in witnesses}["open_report"] == report
+    assert "dense_disabled" not in report
+    assert "dense_disabled_reason" not in report
 
 
 # --- AC-8: lifecycle --------------------------------------------------------

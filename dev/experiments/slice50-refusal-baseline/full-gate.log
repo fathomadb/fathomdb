@@ -1,0 +1,2 @@
+FAIL verify preflight: checkout-owned .venv/bin/python is missing; prepare this checkout before full verification.
+FAIL verify at step=preflight (0s elapsed)

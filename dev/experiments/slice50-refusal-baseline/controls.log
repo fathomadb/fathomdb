@@ -1,0 +1,30 @@
+   Compiling fathomdb-engine v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.04s
+     Running tests/slice30_embedding_readiness.rs (target/debug/deps/slice30_embedding_readiness-226cf189d5bb3fb5)
+
+running 3 tests
+test body_bearing_edge_without_embedder_reports_blocked_and_drain_is_immediate_typed_feedback ... ok
+test equivalence_refused_embedder_defers_work_without_relabelling_it_as_missing_configuration ... ok
+test absent_embedder_does_not_dispatch_body_edge_into_a_failed_terminal ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+
+     Running tests/tc68_probe_fingerprint_cache.rs (target/debug/deps/tc68_probe_fingerprint_cache-f5eb1069d79a5725)
+
+running 13 tests
+test measured_zero_enrolled_kinds_costs_zero_probe_embeds ... ok
+test residual_same_identity_backend_drift_is_not_caught_on_a_cached_open ... ok
+test a_replayed_verdict_marker_is_defeated_by_a_mutated_baseline ... ok
+test verified_reopen_performs_zero_probe_embeds ... ok
+test a_replayed_verdict_marker_is_defeated_by_a_rewritten_pinned_mean ... ok
+test a_missing_cache_entry_falls_back_to_running_the_probe ... ok
+test an_unreadable_cache_entry_falls_back_to_running_the_probe ... ok
+test a_tampered_reference_baseline_reruns_the_probe_and_refuses_dense ... ok
+test a_marker_matching_the_current_state_serves_a_drifted_backend ... ok
+test a_divergence_on_a_rerun_still_disables_dense ... ok
+test a_rewritten_pinned_mean_reruns_the_full_probe ... ok
+test measured_population_open_cost_is_flat_in_the_enrolled_kind_count ... ok
+test a_forged_stored_baseline_defeats_the_probe_even_when_it_fully_runs ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s
+

@@ -9,7 +9,8 @@ observed_on: 2026-10-31
 
 Step log for [plan.md](plan.md). Commits are on
 `slice/0.8.28-50-drain-scan-bound` (base `544bf74f8`, `dev/0.8.28`). Not
-pushed, not landed.
+landed. Phase-1 docs were pushed at `ac83688a1`; the subsequent
+owner-requested characterization does not implement D50-1 or D50-2.
 
 | Step | State (2026-10-31) |
 | --- | --- |
@@ -24,6 +25,16 @@ pushed, not landed.
 | R-CODE codex review | not started |
 | V verification | not started |
 | L land | not started |
+
+## Owner-requested characterization
+
+The owner requested baseline tests and committed tools/data before ruling on
+the drain options. Tools: `5fb45c24a`; purge fixture correction: `caecfb831`.
+[Experiment and analysis](../../../../experiments/slice50-refusal-baseline/README.md)
+record the refused/empty, refused/pending, absent/pending and accepted/ready
+matrix, recovered original probe output, and the design history. Engine source
+is unchanged. D50-1/D50-2 implementation and slice design review remain paused.
+This investigation is not a slice close or release verification.
 
 ## Open owner rulings
 

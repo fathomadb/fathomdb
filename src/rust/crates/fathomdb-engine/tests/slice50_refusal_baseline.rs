@@ -175,6 +175,9 @@ fn case(operation: &str, state: &str, repeat: usize) {
     let pending = state != "refused_empty";
     let seed = Engine::open(&path).unwrap();
     seed.engine.write(&[node("note", "target")]).unwrap();
+    if operation == "purge" {
+        seed.engine.transition("target", LifecycleState::Deleted, None).unwrap();
+    }
     if pending {
         seed.engine.write(&[edge()]).unwrap();
     }
@@ -220,7 +223,7 @@ fn case(operation: &str, state: &str, repeat: usize) {
     println!(
         "REFUSAL_BASELINE {}",
         json!({"operation": operation,"state": state,"repeat": repeat,
-        "open_ms": open_ms,"probe_calls_at_open": open_calls,"open_report": format!("{:?}",opened.report),
+        "open_ms": open_ms,"embed_calls_at_open_return": open_calls,"open_report": format!("{:?}",opened.report),
         "elapsed_ms": elapsed_ms,"result":classify(&result),"result_debug":format!("{result:?}"),
         "readiness_before":format!("{ready_before:?}"),"readiness_after":format!("{ready_after:?}"),
         "pending_before":ready_before.pending_count,"pending_after":ready_after.pending_count,

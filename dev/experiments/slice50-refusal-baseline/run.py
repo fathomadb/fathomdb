@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--operation", choices=OPERATIONS)
     args = parser.parse_args()
     if args.repeats < 1 or args.threads < 1:
         parser.error("repeats and threads must be positive")
@@ -29,6 +30,11 @@ def main():
     command = ["cargo", "test", "--offline", "-p", "fathomdb-engine", "--features",
                "test-hooks,operator", "--test", "slice50_refusal_baseline", "--",
                "--ignored", "--nocapture", f"--test-threads={args.threads}"]
+    if args.operation:
+        command.insert(command.index("--"), args.operation)
+    operations = [args.operation] if args.operation else OPERATIONS
+    probe_sha256 = hashlib.sha256(PROBE.read_bytes()).hexdigest()
+    runner_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     env = os.environ.copy()
     env["REFUSAL_REPEATS"] = str(args.repeats)
     started = datetime.now(timezone.utc).isoformat()
@@ -44,7 +50,7 @@ def main():
     def key(row):
         return row["operation"], row["state"], row["repeat"]
 
-    expected = {(op, state, rep) for op in OPERATIONS for state in STATES
+    expected = {(op, state, rep) for op in operations for state in STATES
                 for rep in range(args.repeats)}
     complete = (len(records) == len(expected) == len(recoveries)
                 and {key(row) for row in records} == expected
@@ -53,8 +59,9 @@ def main():
               "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "git_status": subprocess.check_output(["git", "status", "--short"], cwd=ROOT, text=True),
               "host": platform.platform(), "command": command, "repeats": args.repeats,
-              "probe_sha256": hashlib.sha256(PROBE.read_bytes()).hexdigest(),
-              "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              "probe_sha256": probe_sha256,
+              "runner_sha256": runner_sha256,
+              "operations": operations,
               "rustc": subprocess.check_output(["rustc", "--version"], text=True).strip(),
               "exit_code": completed.returncode, "complete": complete,
               "records": sorted(records, key=key), "recoveries": sorted(recoveries, key=key)}

@@ -1,0 +1,37 @@
+---
+title: ADR-0.8.28 — Store format 35 vector layout and coverage
+status: proposed; owner scope approved, layout qualification pending
+date: 2026-11-01
+target_release: 0.8.28
+---
+
+# Store format 35 vector layout and coverage
+
+Successor to [ADR-0.7.0-vector-binary-quant](ADR-0.7.0-vector-binary-quant.md)
+for physical chunk layout and vector identity. The binary-candidate plus
+original-f32 rerank algorithm, candidate count, mean-centering and recall
+floor remain unchanged. Owner scope is recorded in the 0.8.28 master plan
+and release state (2026-10-31).
+
+Per-connection caches expose vec0's large chunk overflow-chain cost.
+Format 35 uses `chunk_size=64` in all vector partition creation paths,
+subject to Slice 60's 64/128/256 comparison through 2M vector rows and real
+BGE recall qualification. It also pins node body FTS rowid to write cursor.
+Version-34 stores are refused at open without migration or compatibility
+shims. Operators rebuild projections only within a current-format store.
+
+The format separates vector ID from record cursor, removes the one-vector
+storage uniqueness restriction, and records head-window byte coverage in a
+per-vector span table. Embedder-reported UTF-8 offsets distinguish unknown
+coverage from full coverage. The public trait addition advances independent embedder-api Axis E from
+0.7.0 to 0.8.0. Spans participate in physical completeness and read-visibility
+validation. Only the head is produced. Overflow chunking,
+record-grouped candidate selection and lifecycle upkeep for future multiple
+windows remain assigned follow-on work; this ADR does not enable them.
+
+The [Slice 60 design](../plans/0.8.28/features/slice-60/design.md) specifies
+constraints, transactional upkeep and the trait contract. The
+[plan](../plans/0.8.28/features/slice-60/plan.md) fixes the measurement rule.
+Acceptance is conditional on those tests and qualification; measured
+large-scale crossings and Hamming-cutoff ties must be recorded honestly.
+No F32T copy, ANN structure, cache increase or embedder swap is introduced.

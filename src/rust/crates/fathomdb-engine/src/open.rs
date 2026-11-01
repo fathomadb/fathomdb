@@ -820,6 +820,7 @@ impl Engine {
             plan.migrations,
             allow_populated_legacy_projection_bootstrap,
             &embedder_identity,
+            runtime_embedder.is_some(),
             query_stop_words.sha256(),
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
@@ -828,6 +829,7 @@ impl Engine {
 
         match open_result {
             Ok((connection, readers, mut report, reader_lookaside_rcs)) => {
+                let embedder_identity = report.default_embedder.clone();
                 // EU-5b — splice the loader's measurements + structured
                 // events into the report. The loader path is the only
                 // surface that produces these today; caller-supplied
@@ -1068,6 +1070,7 @@ impl Engine {
         migrations: &'static [fathomdb_schema::Migration],
         allow_populated_legacy_projection_bootstrap: bool,
         embedder_identity: &EmbedderIdentity,
+        provider_attached: bool,
         stop_words_sha256: &str,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
@@ -1164,6 +1167,21 @@ impl Engine {
                 }
             })?;
         }
+        // Without a provider, the profile describes stored data rather than a
+        // claimed execution backend. Attached providers still match strictly.
+        let stored_identity = if provider_attached {
+            None
+        } else {
+            connection
+                .query_row(
+                    "SELECT name, revision, dimension FROM _fathomdb_embedder_profiles WHERE profile = 'default'",
+                    [],
+                    |row| Ok(EmbedderIdentity::new(row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, u32>(2)?)),
+                )
+                .optional()
+                .map_err(|error| map_open_sqlite_error(error, OpenStage::EmbedderIdentity))?
+        };
+        let embedder_identity = stored_identity.as_ref().unwrap_or(embedder_identity);
         let mut embedder_mean_vec_pinned = check_embedder_profile(&connection, embedder_identity)?;
         ensure_vector_partition(&mut connection, embedder_identity.dimension).map_err(|_| {
             EngineOpenError::Io { message: "could not initialize vector partition".to_string() }

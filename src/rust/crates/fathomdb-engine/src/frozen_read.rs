@@ -31,7 +31,7 @@ const SERVING_DOMAIN_V2: &[u8] = b"fathomdb.projection-serving-binding.v2\0";
 const SERVING_DOMAIN_V3: &[u8] = b"fathomdb.projection-serving-binding.v3\0";
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
-const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 18] = [
+const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 19] = [
     ("cn", "canonical_nodes"),
     ("ce", "canonical_edges"),
     ("ar", "_fathomdb_artifact_revisions"),
@@ -50,6 +50,7 @@ const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 18] = [
     ("pc", "_fathomdb_projection_generation_current"),
     ("oc", "operational_collections"),
     ("os", "operational_state"),
+    ("vs", "_fathomdb_vector_spans"),
 ];
 
 /// Versioned search eligibility and validity requested by a caller.
@@ -373,7 +374,9 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
             return Err("invalid frozen-read branch-sensitive state".to_string());
         }
     }
-    let trigger_tables = if schema_version >= 33 {
+    let trigger_tables = if schema_version >= 35 {
+        &VISIBILITY_TRIGGER_TABLES[..19]
+    } else if schema_version >= 33 {
         &VISIBILITY_TRIGGER_TABLES[..18]
     } else if schema_version >= 32 {
         &VISIBILITY_TRIGGER_TABLES[..16]

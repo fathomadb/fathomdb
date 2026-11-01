@@ -916,6 +916,19 @@ impl Engine {
                         }));
                     }
                 }
+                #[cfg(test)]
+                let visibility_fault = take_post_probe_visibility_fault_for_test(&canonical_path);
+                #[cfg(test)]
+                if let Some(fault) = visibility_fault.as_ref() {
+                    startup.embed_dispatch.set_drain_budget_ms_for_test(40);
+                    fault
+                        .observed
+                        .send((
+                            startup.embed_dispatch.accounting().expect("provider accounting"),
+                            Arc::clone(&managed_connections),
+                        ))
+                        .expect("report visibility fault observation");
+                }
                 run_vector_equivalence_probe(
                     startup.connection(),
                     runtime_embedder.as_ref().map(|_| embed_dispatch.as_ref()),
@@ -943,21 +956,13 @@ impl Engine {
 
                 let next_cursor = load_next_cursor(startup.connection());
                 #[cfg(test)]
-                if let Some(fault) = take_post_probe_visibility_fault_for_test(&canonical_path) {
-                    startup.embed_dispatch.set_drain_budget_ms_for_test(40);
+                if visibility_fault.is_some() {
                     startup
                         .connection()
                         .execute_batch(
                             "DELETE FROM _fathomdb_read_visibility_state WHERE singleton=1",
                         )
                         .expect("inject missing visibility singleton");
-                    fault
-                        .observed
-                        .send((
-                            startup.embed_dispatch.accounting().expect("provider accounting"),
-                            Arc::clone(&managed_connections),
-                        ))
-                        .expect("report visibility fault");
                 }
                 let read_visibility_generation = frozen_read::load_visibility_generation(
                     startup.connection(),

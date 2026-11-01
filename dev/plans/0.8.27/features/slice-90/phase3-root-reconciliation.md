@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 12e4a6448f727d4afd940a9386d4c4e7d1e05f09
+lib_rs_blob: f6f73b382d09ae69316640c6f287df90699b5113
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -40,14 +40,20 @@ retained fixtures, producing `0226b8836c929a30793b8913461f5abf341123c2`.
 `query_stop_words`, producing `d7065f6f041f547a1d124182983f17268a379145`.
 0.8.28 Slice 42 changed only the root `tests` module (the Windows
 verbatim-path guard tests moved to the version-only predicate, and its
-portable test joined them), producing the blob above. The root storage fields are
-now 44; the approved root method inventory is unchanged.
+portable test joined them), producing `12e4a6448f727d4afd940a9386d4c4e7d1e05f09`.
+0.8.28 Slice 50 implements owner `seq-359`'s narrow provider-admission policy:
+actual verification refusal fails open without returning an attached engine,
+removing the `dense_disabled`, `dense_disabled_reason`, and
+`vector_equivalence_refusals` storage fields. It also adds the
+`provider_admission_tests` unit-test module and the corresponding root
+composition changes, producing the blob above. The root storage fields are
+now 41; the approved root method inventory is unchanged.
 
 ## Remaining root declarations
 
 | Declaration | Disposition |
 | --- | --- |
-| `Engine` and its 44 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
+| `Engine` and its 41 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
@@ -55,12 +61,12 @@ now 44; the approved root method inventory is unchanged.
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
-The exact 44 storage fields are grouped here to prevent a generic
+The exact 41 storage fields are grouped here to prevent a generic
 "remaining state" exemption:
 
 | Storage role | Root field names |
 | --- | --- |
-| Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence`, `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusals` |
+| Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence` |
 | Connections and lifecycle | `closed`, `close_lock`, `lock`, `connection`, `reader_pool`, `profile_contexts`, `reader_lookaside_rcs`, `managed_connections`, `writer_connection_registration`, `actual_checkpoint_observations`, `binding_native_state_observations`, `wal_attribution` |
 | Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
 | Embed dispatch state | `runtime_embedder`, `embed_dispatch` |
@@ -69,6 +75,7 @@ The exact 44 storage fields are grouped here to prevent a generic
 
 Root also composes module declarations, imports, and public re-exports. The
 remaining `#[cfg(test)]` modules are `gpu_allocation_witness_opt_in_tests`,
+`provider_admission_tests`,
 `slice20_fix1_tests`, `slice90_close_tests`,
 `slice90_concurrent_close_tests`, `slice90_close_review_tests`,
 `slice90_post_probe_real_error_tests`, and `tests`. They are test containers,

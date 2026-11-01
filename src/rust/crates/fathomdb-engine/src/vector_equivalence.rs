@@ -581,7 +581,7 @@ fn probe_check_stored_baseline(
                 ));
             }
             Err(_) => {
-                return Err(probe_invalid_state(
+                return Err(probe_storage(
                     "could not read the pinned mean_vec; cannot verify P1 (dense arm refused)"
                         .to_string(),
                 ));

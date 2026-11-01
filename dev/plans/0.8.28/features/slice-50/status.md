@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — status
-status: implementation reviewed and held-drain qualification passed; final verification pending
+status: complete; verified and landed on dev/0.8.28
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -88,11 +88,34 @@ universal sparse-backlog scaling claim is made.
 
 ## Final verification and landing
 
-Pending independent verification on the final clean candidate, then landing
-on `dev/0.8.28` and cleanup of the existing slice branch/worktree. No full-gate
-pass or Slice 50 completion is claimed yet. Slices 60–90, release final
-verification, publication and the separately deferred provider-free rebuild
-defect are outside this work.
+Independent verification completed on `ecea4a1e79afe4cf7f5583914d405806767474ff`.
+All 205 registered suites have passing coverage through the original run,
+scoped resumptions and repairs. The original full gate was interrupted by
+filesystem exhaustion (exit 143); this is **not a single full-gate pass**.
+
+- Lint, workspace Clippy, typecheck and security passed.
+- Rust workspace: 2,156 passed, 55 ignored across 334 targets.
+- Python: 1,701 passed, 40 skipped; two additional cases passed unchanged
+  using this candidate's noneditable CUDA wheel and verified native receipt.
+- TypeScript: 593 passed, six skipped; one additional case passed unchanged
+  using this candidate's CUDA NAPI artifact. The three binding failures were
+  CPU-only gate artifacts under the required CUDA setting; RTX 3090 use was
+  witnessed on the scoped reruns, without CPU fallback.
+- Independent affected suites: 166 passed; measurement-tool tests: seven
+  passed. Independent 100k overlap passed (write 41.764 s, drain 0.145 s),
+  with matching digest. The earlier unexplained overlap failure remains
+  disclosed above; neither successful retry establishes its cause.
+- The root source inventory was refreshed for the new test-hook re-exports;
+  its unchanged checker passed. Six disk-blocked preflight suites passed
+  after owner-authorized old build-cache cleanup. All unfinished suites ran.
+- Final Markdown and generated release-state validation passed.
+
+Verification logs and scoped results are retained under `/tmp/slice50-*`,
+including `slice50-resume-results.json`. Source is complete at the full SHA
+above; the closure record advances the release ladder to Slice 60. Landing
+is on `dev/0.8.28`, with the local release reference synchronized for the
+state-owned board. The slice worktree and branch are removed after landing.
+Slices 60–90, release final qualification and publication remain separate.
 
 ## Follow-on planning finding
 

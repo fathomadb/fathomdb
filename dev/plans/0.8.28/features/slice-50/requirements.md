@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — requirements and acceptance criteria
-status: Astra design approved; Unit S implemented; qualification in progress
+status: complete; implemented and verified
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---

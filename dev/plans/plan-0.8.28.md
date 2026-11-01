@@ -154,13 +154,13 @@ it is never an implicit patch lane.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`DRAIN-SCAN-BOUND`) — Bounded pending-work scans; approved built-in-provider failed-open contract (provider subunit complete)
+**IMMEDIATE NEXT: Slice 60** (`STORE-FORMAT-35`) — Store format 35: 64-row vec0 chunks, search_index rowid = write_cursor, refuse version-34 stores at open, rebuild verbs on the new layout; successor ADR to ADR-0.7.0-vector-binary-quant
 
-**Remaining ladder:** 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
-Slices 50 to 90 are next, in order. After them come
+Slice 50 is complete on `dev/0.8.28`; Slices 60 to 90 are next, in order. After them come
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).

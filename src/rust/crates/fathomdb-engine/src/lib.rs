@@ -785,6 +785,9 @@ impl Engine {
 }
 
 #[cfg(test)]
+mod provider_admission_tests;
+
+#[cfg(test)]
 mod slice20_fix1_tests;
 
 #[cfg(test)]

@@ -116,3 +116,11 @@ The separate Astra-medium review approved the exact source; all failures in the
 205-suite full run have scoped repairs and passing reruns. The original full
 run remains nonzero, so this is not a whole-gate pass at final HEAD.
 Slice 50 remains IN_PROGRESS pending scan Unit S.
+
+## Scan Unit S execution (2026-11-01)
+
+Reconciled requirements, design and test plan against `630af0bfc`; retired the
+obsolete refused-handle options from active scope. Independent Astra design
+review: APPROVE, no P1/P2 findings. Clarified that bounds limit accepted arm
+output, not rejected index visits; scaling remains a measured qualification.
+Implementation proceeds with baseline-equivalence guards and scan-cost RED/GREEN.

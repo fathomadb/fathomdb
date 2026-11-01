@@ -1,41 +1,20 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — design
-status: design investigation; built-in-provider replacement proposed; no implementation authorized
+status: revised for Unit S implementation; awaiting design review
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
 # Slice 50 design (`DRAIN-SCAN-BOUND`)
 
-> **Current direction (2026-11-01, scope correction `seq-357`):** close
-> production provider escape paths and propose typed failed open on actual
-> verification refusal. Preserve existing TC-68 persistent cache, probe cadence,
-> gate, residual, mean and runtime behavior. The broader evidence-cache/runtime
-> proposal is superseded. Read [requirements/AC](built-in-provider-requirements.md),
-> [design/inventory](built-in-provider-design.md) and [plan](built-in-provider-plan.md).
-> Unit S is unchanged. Unit D / D50-1 / D50-2 remain historical unselected
-> options, held without implementation. Separate independent review and owner
-> contract/release-placement approval are required before production changes.
-
-Unit S (§ 1) bounds the two pending-work scans. Unit D (§ 2) makes
-`drain` prompt on a dense-disabled store. § 3 covers the test hooks, § 4
-the interactions with other slices, and § 5 the commit sequence. Line
-numbers refer to the slice base `544bf74f8`. Requirements and evidence
+The current scope is scan Unit S. The [plan](plan.md) enumerates changes
+since the draft. The provider contract is already implemented; historical
+D50-1/D50-2 designs remain in git history and are not selected. Requirements
 are in [requirements.md](requirements.md).
 
-## 0. What exists today and what is new
-
-| Piece | Today | This slice |
-| --- | --- | --- |
-| Scheduler scan SQL | inline in `next_pending_projection_jobs` (`projection_worker.rs` 1033–1062) | moved into `scheduler_scan_sql()` (text unchanged), then each arm bounded |
-| Candidate-page SQL | inline in `pending_projection_candidate_page` (898–916) | moved into `candidate_page_sql()` (text unchanged), then each arm bounded |
-| Edge-arm fragment | `pending_edge_projection_from_where` (882) | unchanged |
-| Page loops, in-flight skip, `dense_member_kind_at`, below-watermark rewind | 927–1134 | unchanged |
-| `write_cursor` indexes | `canonical_nodes_write_cursor_idx`, `canonical_edges_write_cursor_idx` (`fathomdb-schema` lib.rs 955–956) | unchanged; the arms already use them |
-| `drain` | `runtime_lifecycle.rs` 57–95 | new dense-disabled branch (§ 2) |
-| Internal settles | `drain_for_non_embedding_mutation` (102), `freeze_projection_for_erasure` (`erasure.rs` 550) | changed only if D50-2 approves (§ 2.4) |
-| Scan test hook | none on this branch. The experiment branch's `projection_scan_query_plans_for_test` and page tracer are not here | new `projection_scan_page_for_test` (§ 3) |
-| Scaling probe | none on this branch (`exp_ac013_seed_drain.rs` lives on the experiment branch) | new `slice50_drain_scaling.rs` and driver (test-plan § 4) |
+The production change extracts the two existing SQL statements into private
+builders and bounds each compound arm. The edge fragment and every caller's
+eligibility, pagination, in-flight and watermark logic stay unchanged.
 
 ## 1. Unit S: bounded scans
 
@@ -199,7 +178,7 @@ What the plans show:
 - **The defect is the missing bound.** The top-level temp B-tree pulls
   every row out of `CO-ROUTINE pending` before `LIMIT` applies.
 - **After the fix.** Each arm is a `CO-ROUTINE (subquery-N)` under its
-  compound member. Its index walk stops at 256 rows, and the edge arm's
+  compound member. Its index walk stops at 256 matching rows, and the edge arm's
   one-row `_fathomdb_vector_kinds` outer loop keeps `ce` in index order.
   The top-level sort sees at most 512 rows.
 - **What a plan test can check** (AC50-01):
@@ -267,128 +246,15 @@ stores, with and without a `through` bound: every page was identical.
 
 ### 1.5 Cost after the fix
 
-One scan call costs O(page plus rejected rows). Rejected rows are pending
-rows that the arm predicates pass but the Rust eligibility check drops,
-for example superseded nodes, which the node arm does not filter. That is
-the same set the shipped loop pages over, so the total work over a drain
-is O(N + rejected), not O(N²).
+One scan call costs O(page plus rejected rows). SQL predicates may reject arbitrarily many index entries before collecting
+a page; Rust eligibility checks may reject further returned candidates.
+The bound limits accepted rows entering the outer sort to 512. It removes
+the full-backlog sort on every page, but does not assert a bound on rejected
+index entries or prove linear whole-drain cost for every eligibility layout.
 
 `pending_embedding_work` still pages over every pending member, because
-it counts them. Each page now costs one page instead of the whole
-backlog. No memory is added, and the temp B-tree shrinks to two pages.
-
-## 2. Unit D: dense-disabled drain
-
-### 2.1 The rule
-
-A session is **dense-disabled** when it holds a runtime that the
-equivalence guard refused:
-
-```rust
-self.runtime_embedder.is_some() && self.dense_disabled.load(Acquire)
-```
-
-This is `!usable_dense_runtime()` minus the absent case.
-
-- `dense_disabled` is set once at open (`open.rs` 874, from the probe)
-  and never stored again.
-- The projection runtime is then built without an embedder (`open.rs`
-  927–928), so no dispatcher scan returns jobs and no worker can embed.
-- The engine holds the database lock, so no other process can embed the
-  rows either.
-- Waiting can therefore never clear the pending rows in this session.
-
-### 2.2 The change in `drain`
-
-`drain` gains one branch after the absent-runtime branch (63–79), before
-`wait_for_idle` (81):
-
-```rust
-if self.runtime_embedder.is_some() && self.dense_disabled.load(Ordering::Acquire) {
-    // A refused runtime is never handed to the scheduler, so no worker of
-    // this session can embed a pending row: waiting cannot clear one.
-    let pending = {
-        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = guard.as_ref().ok_or(EngineError::Closing)?;
-        connection_has_pending_projection_work(connection).map_err(|_| EngineError::Storage)?
-    };
-    if !self.projection_runtime.wait_for_workers_idle(timeout_ms) {
-        return Err(EngineError::Scheduler);
-    }
-    return if pending { /* D50-1 */ } else { Ok(()) };
-}
-```
-
-- The probe is the same predicate `wait_for_idle` and readiness use, so
-  the branch cannot disagree with them about what is pending.
-  `connection_has_pending_projection_work` stops at the first eligible
-  row. Unit S makes that O(page).
-- `wait_for_workers_idle` returns at once on such a session. It is kept
-  so the branch never returns while a worker could still be committing.
-- The absent-runtime branch and the usable-runtime path are unchanged
-  (REQ50-D2).
-
-**Callers that see the change.**
-
-- Public `drain` in Rust, Python and TypeScript. The bindings call
-  `Engine::drain` and map its error, so they need no change unless
-  D50-1 picks C.
-- `fathomdb-mcp` (on `dev/0.8.29`) calls `drain` on idle close, store
-  switch and shutdown. It logs a failed drain and closes anyway
-  (`registry.rs` 845–853 there), so its close no longer stalls.
-- The internal settles (§ 2.4).
-- Readiness, status and the pending counters do not call `drain`, so
-  they are unchanged (REQ50-D4).
-
-### 2.3 Owner ruling D50-1: what `drain` returns
-
-On a dense-disabled store with pending vector rows, `drain` returns
-promptly under every option. The open question is what it returns.
-
-| Option | Result | Public change | Existing records |
-| --- | --- | --- | --- |
-| **A** (recommended) | `Err(EngineError::Scheduler)` at once | latency only; the result is what callers get today after `timeout_ms` | `slice30_embedding_readiness.rs` 207 still passes; the interface wording "a bounded `drain` may return `EngineError::Scheduler`" stays true and gains "immediately" |
-| B | `Ok(())` at once ("not drainable" rows are excluded) | result changes from `Err` to `Ok` | contradicts the Slice 30 test at 207 (a test change needs the owner) and the interface's "retains ordinary bounded behavior"; `Ok` would no longer mean the rows are done, even though readiness says `Deferred` |
-| C | a new typed error (for example `EmbedderRefused`) at once | new public variant in Rust, Python, TypeScript and the error docs | needs an interface-doc and errors-doc change; widest blast radius |
-
-**Recommendation: A.**
-
-- It is the smallest change that ends the stall.
-- It keeps "public results identical" in the strict sense: same `Err`,
-  without the wait.
-- It keeps the Slice 30 contract that refused-runtime work is
-  operational deferral, not success.
-- The todo's "treat pending vector rows as not drainable" reads as "do
-  not wait for them". It does not say "report success".
-
-B would make `drain`'s `Ok` mean "nothing more will happen" rather than
-"done", and C needs binding work for little gain over A plus
-`read_embedding_readiness`. Under A, the MCP close path keeps logging
-one warning per close of such a store, now without the stall.
-
-### 2.4 Owner ruling D50-2: the internal settles
-
-Today, on a refused store with pending vector rows, the callers below
-wait 30 s and fail with `Err(Scheduler)`. That was measured for
-`transition`. Under D50-1 option A they fail at once instead. Under
-option B they would proceed. For an absent runtime they already proceed,
-because no worker can commit.
-
-| Caller | Today (refused, pending) | Proposed if approved |
-| --- | --- | --- |
-| `transition` (`record_lifecycle.rs` 214), `configure_projections` (`projection_registry.rs` 1543), lifecycle actuation (`actuation.rs` 1988): all via `drain_for_non_embedding_mutation` | 30 s, then `Err(Scheduler)`; the mutation fails | treat refused as absent: `wait_for_workers_idle`, then proceed |
-| erasure: `purge` and `erase_source` / `excise_source` (`freeze_projection_for_erasure`, `erasure.rs` 550, called at 667 and 994) | 30 s, then `Err(Scheduler)`; the erasure fails | the `no_configured_embedder` path: freeze, `wait_for_workers_idle`, then the erasure transaction removes the rows |
-| operator rebuild (`run_rebuild`, `projection_rebuild.rs` 70) | 30 s, then `Err(Scheduler)` | unchanged result, now prompt (option A); a vector rebuild with a refused runtime cannot re-embed, so refusing is the safer outcome |
-
-The change for the first two rows is a check of `self.dense_disabled`
-next to the existing `EmbedderRequired` handling. It does not inspect
-which `Scheduler` error `drain` returned.
-
-**Recommendation: approve, in this slice.** The cause is the same as
-todo 289, a deferral treated as a wait. The fix sits next to it, and
-erasure that cannot run on a refused store is a reliability gap. Each
-caller family gets its own RED (AC50-11). If the owner declines, Unit D
-stops at § 2.2, and a todo records the internal callers.
+it counts them. Each page bounds accepted arm output while still visiting index entries
+rejected by its predicates. No memory is added, and the temp B-tree shrinks to two pages.
 
 ## 3. Test hooks
 
@@ -426,7 +292,7 @@ pub fn projection_scan_page_for_test(
 - Placement: the hook lives in `projection_runtime.rs`, beside
   `set_projection_scheduler_frozen_for_test`. The SQL builders stay
   `pub(crate)` in `projection_worker.rs`. The lint verb (module
-  boundaries) runs on the H-GREEN commit, because Slice 42 met a
+  boundaries) runs after the extraction, because Slice 42 met a
   module-boundary classification failure for a new test module.
 
 The property test (AC50-03) writes rows on a second raw connection to
@@ -457,20 +323,15 @@ state" check that the master plan's quality section names.
   wrapper is added to both builders the same way, and AC50-03 covers
   both.
 
-## 5. Commit sequence
+## 5. Implementation and review
 
-Each RED fails at its own sha for the stated reason, with "RED
-evidence:" in its body. The RED shas are audited in `git archive`
-exports.
+Extract unchanged SQL and add the test-only hook first. Baseline-equivalence
+checks establish the oracle; then plan and VM-step tests must fail before
+per-arm bounds are added. The test reference is a frozen copy of baseline SQL,
+not a rewritten expected query derived from the new implementation. One
+behavioral RED/GREEN pair covers the same bound in both scan consumers.
 
-| # | Kind | What | Fails at RED because |
-| --- | --- | --- | --- |
-| 1 | H-RED | test calling `projection_scan_page_for_test` | compile error: no such method (test infrastructure) |
-| 2 | H-GREEN | SQL moved into `scheduler_scan_sql()` and `candidate_page_sql()` (text unchanged); the hook | — |
-| 3 | S-RED | AC50-01 plan test, AC50-02 cost test; AC50-03 property test and AC50-05 ordering cases as guards (see test-plan § 3.3) | plan: no bounded arm co-routine; cost: ratio ≈ 7–8 > 1.5 |
-| 4 | S-GREEN | per-arm `ORDER BY write_cursor LIMIT` in both builders; the plan-requirement comment | — |
-| 5 | tool | scaling probe, driver, analysis and its unit tests (test-plan § 4) | (tool; not a behaviour change) |
-| 6 | D-RED | AC50-09 | `drain(5_000)` takes about 5 s |
-| 7 | D-GREEN | § 2.2 with the D50-1 result | — |
-| 8–9 | D2-RED/GREEN × caller family | AC50-11 (only if D50-2 approves) | each caller takes 30 s, then `Err(Scheduler)` |
-| 10 | docs | interface-doc refused-drain passages, CHANGELOG, status, release state | — |
+Astra reviews this design before implementation and the final diff after
+implementation. A separate verification agent checks the final result and
+runs the planned tests. The scaling probe uses the existing public test APIs
+on baseline `630af0bfc` and head, without a production runtime toggle.

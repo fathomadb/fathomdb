@@ -1,65 +1,62 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — plan
-status: design investigation; built-in-provider replacement proposed; no implementation authorized
+status: revised for Unit S implementation; awaiting design review
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
 # Slice 50 plan (`DRAIN-SCAN-BOUND`)
 
-> **Current direction (2026-11-01, scope correction `seq-357`):** close
-> production provider escape paths and propose typed failed open on actual
-> verification refusal. Preserve existing TC-68 persistent cache, probe cadence,
-> gate, residual, mean and runtime behavior. The broader evidence-cache/runtime
-> proposal is superseded. Read [requirements/AC](built-in-provider-requirements.md),
-> [design/inventory](built-in-provider-design.md) and [plan](built-in-provider-plan.md).
-> Unit S is unchanged. Unit D / D50-1 / D50-2 remain historical unselected
-> options, held without implementation. Separate independent review and owner
-> contract/release-placement approval are required before production changes.
+Baseline: `630af0bfcb0c5779d436ddbd5ffe3a0e876574b5` on `dev/0.8.28`.
+Complete the remaining scan Unit S using the existing slice worktree. The
+provider subunit is complete; its [record](built-in-provider-implementation-record.md)
+remains authoritative. No Steward or Orchestrator workflow is used.
 
-Branch `slice/0.8.28-50-drain-scan-bound`, cut from `dev/0.8.28` at
-`544bf74f8`; worktree `../fathomdb-worktrees/slice-0.8.28-50`.
+## Changes since the draft and disposition
 
-- **Unit S** bounds each `UNION ALL` arm of the scheduler scan and the
-  candidate-page query in `projection_worker.rs`
-  ([design.md](design.md) § 1).
-- **Unit D** stops `Engine::drain` waiting for vector work that a
-  dense-disabled session cannot do (todo 289; design § 2). With owner
-  approval (D50-2), it also covers the internal settles.
+1. The original `ac83688a1` plan used baseline `544bf74f8` and proposed
+   two units: scan bounds and a refused-runtime drain change. SQL inspection
+   at the new baseline confirms both scan statements remain unbounded.
+   Retain Unit S, its equivalence proof, VM-step check and scaling study.
+2. Characterization (`2990ebbf1`, `5d0dacea5`) moved the refused-runtime
+   question from drain behavior to successful-open policy. Owner `seq-359`
+   approved the narrow provider contract. Its implementation is complete
+   through `db2baf1ec`, recorded at the current baseline. Actual refusal now
+   fails open without returning an Engine. Reject implementing the obsolete
+   D50-1/D50-2 choices or copying the now-invalid refused-handle fixtures.
+3. Existing TC-68 cache behavior and Mean pooling are preserved by that
+   completed subunit. Unit S changes neither provider admission nor cache,
+   runtime configuration, errors or binding surfaces.
+4. Slice 42 supplied SQLite 3.54.1. The prototype's 33 s to 5.7 s result
+   used Slice 60's 64-row layout; this slice still uses format 34 and
+   1,024-row chunks. Measure on the current baseline and default cache;
+   retain the predeclared scaling thresholds, without claiming the prototype
+   timing or the later AC-013 latency goal.
+5. Allocated D28-12 latency work is divided across Slices 50–70; only
+   pending-scan work belongs here. Release-state rulings move D28-01–07,
+   D28-09–11 and populated-open work elsewhere; D28-14 is Slice 90.
+   No draft candidate adds work to this slice.
+6. Simplify the draft's ceremony: one private SQL-builder extraction and
+   test hook, then one scan RED/GREEN pair; no artificial compile-failure
+   commit for a test hook. Equivalence guards may pass at RED and are
+   identified as guards. Independent Astra reviews design and code; a
+   separate agent verifies. Avoid unrelated long latency gates already
+   known to need Slices 60–90.
 
-Requirements and AC: [requirements.md](requirements.md). Runs:
-[test-plan.md](test-plan.md). Progress: [status.md](status.md).
+## Execution
 
-## Steps
+1. Review [requirements](requirements.md), [design](design.md) and
+   [test plan](test-plan.md) with an Astra design review; address findings.
+2. Extract the two SQL builders unchanged, add a test-only page/plan/VM-step
+   hook and equivalence fixtures. Establish that guards reproduce baseline.
+3. Commit failing plan/cost tests (RED); bound each arm (GREEN). Preserve
+   predicates, generation join, pagination, in-flight handling and rewind.
+4. Commit the reproducible scaling probe and small driver/analysis with
+   measurement correctness tests. Run paired current-baseline/head cells.
+5. Astra code review; a separate test agent runs the affected suites and
+   one final full gate. Fix findings with scoped reruns.
+6. Record actual results and limitations in status, CHANGELOG and release
+   state. Merge to `dev/0.8.28`, then clean the slice worktree and branch.
 
-| Step | Who | What | Done when |
-| --- | --- | --- | --- |
-| P1 | implementer | Phase 1: requirements, design, test plan, this plan, status; release-state `design_refs` | Committed; `./scripts/check-release-state-views.sh` and `./scripts/agent-lint-md.sh` pass |
-| R-DES | Fable reviewer (orchestrator runs it) | Design review of requirements, AC, design and test plan | Verdict recorded in `review.md`; findings applied |
-| O | owner | Rulings D50-1 (design § 2.3) and D50-2 (design § 2.4) | Recorded in `status.md` and the design |
-| H | implementer | H-RED, then H-GREEN: SQL builders and scan hook (design § 3) | RED fails to compile at its own sha; GREEN passes; lint verb passes |
-| S | implementer | S-RED, then S-GREEN (design § 1.2) | AC50-01 and AC50-02 fail at S-RED and pass at S-GREEN; AC50-03 to AC50-05 pass at both; AC50-04 mutations recorded |
-| T | implementer | Tool commit: scaling probe, driver, analysis and README (test-plan § 4.1) | Tool unit tests pass; the probe builds at base and head |
-| D | implementer | D-RED, then D-GREEN; then D2 pairs if D50-2 approves | Each RED fails at its own sha for the stated reason (timing evidence in the body); GREEN passes |
-| DOC | implementer | Interface-doc refused-drain passages, CHANGELOG, status, release state | `./scripts/agent-lint-md.sh` passes |
-| R-CODE | codex (orchestrator runs it) | Code review of the slice branch | APPROVE, or findings fixed and re-reviewed |
-| V | implementer | Scaling run (test-plan § 4), suites (§ 3.5), full gate (§ 5), `AGENT_LONG` perf gates once | AC50-06 to AC50-08, AC50-12 to AC50-14 recorded |
-| L | orchestrator | Land on `dev/0.8.28`; update the release state and the board with the full landing sha | Landed sha recorded |
-
-## Rules
-
-- **TDD.** One RED commit per behaviour, failing at its own sha for the
-  stated reason, with "RED evidence:" in its body; then its GREEN. No
-  coverage commits that pass on arrival. The equivalence guards land
-  inside S-RED, and the commit body says why they pass there
-  (test-plan § 2). RED shas are audited in `git archive` exports.
-- **Tests stay fixed.** Existing tests are not edited. The Slice 30
-  refused-runtime fixture is copied into the new test file, not changed
-  in place. Under D50-1 option B, the Slice 30 assertion at line 207
-  would need an owner-approved change.
-- **Scope.** No schema change, no env gate, no change to the arm
-  predicates or the page loops (REQ50-S3).
-- **Measurement tools** are committed (owner rule, 2026-10-29). BGE
-  runs only on the RTX 3090 `cuda:0`; this slice's own tests do not
-  use BGE (test-plan § 1).
-- No push, no tag, no ledger writes from the implementer.
+No schema, public production API, CUDA policy, cache or binding change is
+needed. The test hook is behind `test-hooks`; its contract is in the design.

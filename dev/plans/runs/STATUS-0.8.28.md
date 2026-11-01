@@ -40,7 +40,7 @@ Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Continue Slice 50 (DRAIN-SCAN-BOUND)** — Bound the pending-work scans per UNION ALL arm (armlimit) so drain is linear in the backlog; fix the dense-disabled drain that never finishes (todo 289 on dev/0.8.29). **Remaining ladder:** 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Continue Slice 50 (DRAIN-SCAN-BOUND)** — Bounded pending-work scans; approved built-in-provider failed-open contract (provider subunit complete). **Remaining ladder:** 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured

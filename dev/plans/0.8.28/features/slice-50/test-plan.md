@@ -1,38 +1,27 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — test plan
-status: design investigation; built-in-provider replacement proposed; no implementation authorized
+status: revised for Unit S implementation; awaiting design review
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
 # Slice 50 test plan
 
-> **Current direction (2026-11-01, scope correction `seq-357`):** close
-> production provider escape paths and propose typed failed open on actual
-> verification refusal. Preserve existing TC-68 persistent cache, probe cadence,
-> gate, residual, mean and runtime behavior. The broader evidence-cache/runtime
-> proposal is superseded. Read [requirements/AC](built-in-provider-requirements.md),
-> [design/inventory](built-in-provider-design.md) and [plan](built-in-provider-plan.md).
-> Unit S is unchanged. Unit D / D50-1 / D50-2 remain historical unselected
-> options, held without implementation. Separate independent review and owner
-> contract/release-placement approval are required before production changes.
-
 Each run records the host, `nproc`, the 1-minute load, the commit and the
-command. Results go in [status.md](status.md). Scaling logs and results go
-under `results/` in this directory.
+command. Results go in [status.md](status.md). Generated scaling logs and results
+go under an external scratch directory, not tracked source.
 
 ## 1. Run rules
 
 - **No BGE in this slice's own tests.** The new tests and the scaling
   probe use deterministic synthetic embedders on the CPU (a fixed or
   FNV-seeded vector, as `perf_gates.rs` does), so they need no GPU.
-- **The full gate is different.** Its default-embedder targets encode
-  with BGE. That run follows the owner rule of 2026-10-31:
-  - build with `embed-cuda` and set `FATHOMDB_EMBED_DEVICE=cuda:0`;
-  - exclude the K620 with `FATHOMDB_GPU_EXCLUDE`;
-  - check `nvidia-smi` for room before the run, and confirm the RTX 3090
-    engaged during it;
-  - never run it on the CPU or on the K620.
+- **Full gate:** run unchanged `agent-verify.sh`; its Rust workspace target
+  uses default features and its Python fixtures skip network model runs.
+  New scan tests and scaling use synthetic CPU embedders. If a separate
+  BGE target is needed, build it explicitly with `embed-cuda`, select only
+  an available RTX 3090 via `CUDA_VISIBLE_DEVICES`, and set
+  `FATHOMDB_EMBED_DEVICE=cuda:0`; never use the K620 or CPU for BGE.
 - **ptrace.** `strace` (AC-036 in the full gate) is authorized. If the
   sandbox denies `PTRACE_TRACEME`, rerun the unchanged gate unconfined.
 - **Own virtual environment.** The full gate runs from this worktree's own
@@ -43,47 +32,18 @@ under `results/` in this directory.
   and the RED audits live in the session scratch directory. Uncommitted
   mutation checks (AC50-04) are reverted before any commit.
 
-## 2. RED tests, one per behaviour
+## 2. RED/GREEN and baseline guards
 
-All tests run on a real SQLite database. Nothing is mocked.
+Extract SQL unchanged and add the design's test-only hook. Baseline guards
+compare returned pages and establish that the frozen reference is faithful.
+Then commit the failing plan and VM-step tests before changing SQL. The
+behavioral failure is an unbounded scan, not a missing test API.
 
-| Commit | Test (file) | AC | Fails at RED because | Runtime |
-| --- | --- | --- | --- | --- |
-| H-RED | `slice50_scan_hook_reports_production_pages` (`tests/slice50_drain_scan_bound.rs`) | infrastructure | compile error: `projection_scan_page_for_test` does not exist (E0599) | — |
-| S-RED | `slice50_scan_plans_bound_each_arm` (same file) | AC50-01 | neither scan has a `CO-ROUTINE` under its compound members | < 1 s |
-| S-RED | `slice50_scan_page_cost_is_independent_of_backlog` (same file) | AC50-02 | VM-step ratio about 7–8 against a limit of 1.5 | 10–30 s (debug) |
-| D-RED | `slice50_refused_runtime_drain_does_not_wait_for_timeout` (`tests/slice50_refused_drain.rs`) | AC50-09 | `drain(5_000)` returns after about 5 s | about 5 s at RED |
-| D2-RED (if D50-2) | `slice50_refused_runtime_transition_proceeds`, `…_configure_projections_proceeds`, `…_lifecycle_actuation_proceeds`, `…_erasure_proceeds` (same file) | AC50-11 | each waits 30 s, then returns `Err(Scheduler)` | 30 s each at RED |
+Property and ordering guards can pass before GREEN. They check semantics
+preserved by the optimization, and are not claimed as new failing behavior.
+All fixtures use real SQLite; no database mocks or generated golden oracles.
 
-The guards below are expected to pass at their RED sha. They land in the
-S-RED commit beside the failing tests. The S-RED body names which
-assertions fail and which pass, and why.
-
-- **AC50-03, the property test.** It compares the production scans with
-  the shipped SQL kept verbatim in the test. At S-RED both are the same
-  text, so a pass there shows that the reference reproduces production.
-  After S-GREEN the same pass shows that the bounded scan equals the
-  shipped one.
-- **AC50-04.** Uncommitted mutations show that AC50-03 can fail.
-- **AC50-05, the ordering cases.**
-
-These are refactor oracles for REQ50-S2. They are not coverage of a new
-behaviour, so they are not labelled RED.
-
-## 3. Unit tests in detail
-
-### 3.1 Hook (H-RED, H-GREEN)
-
-`slice50_scan_hook_reports_production_pages`:
-
-- Store: an engine with `FixedEmbedder`, `configure_vector_kind_for_test("doc")`,
-  the dispatcher frozen, then 300 nodes and 30 body edges written.
-- `projection_scan_page_for_test` for both scans from cursor 0 returns
-  256 rows in increasing cursor order, `vm_steps > 0`, and a non-empty
-  plan.
-- `sql` names the production text: it contains
-  `ORDER BY pending.write_cursor`, and for the scheduler
-  `CROSS JOIN _fathomdb_projection_generation_current`.
+## 3. Tests
 
 ### 3.2 Plan (AC50-01)
 
@@ -190,50 +150,13 @@ Also:
 
 The Python and TypeScript drain and readiness tests run in the full gate.
 
-### 3.6 Unit D (AC50-09, AC50-10, AC50-11)
-
-Fixture: the refused-runtime setup of
-`slice30_embedding_readiness.rs::equivalence_refused_embedder_defers_work_without_relabelling_it_as_missing_configuration`:
-
-1. a faithful open that registers `doc`;
-2. a second faithful open that records the accepted baseline;
-3. a stale verdict;
-4. a session without a runtime that writes a body edge and a `note` node
-   with `logical_id`;
-5. a divergent open, `dense_disabled == true`.
-
-The fixture is copied into the new test file. The Slice 30 file is not
-edited.
-
-- **AC50-09.** `drain(5_000)` returns within 1 s with the D50-1 result
-  (A: `Err(EngineError::Scheduler)`). At RED it takes about 5.0 s (the
-  scratch probe measured 3.000 s for `drain(3_000)`). The test asserts
-  `elapsed < 1 s` first, so the RED reason is the wait.
-- **AC50-10.** The same fixture with no pending rows: `drain(5_000)` is
-  `Ok` within 1 s. It passes at RED (guard). The existing Slice 30
-  tests, including `drain(0).expect_err` at line 207, pass unchanged
-  under option A.
-- **AC50-11** (only if D50-2 approves). On the fixture with pending rows,
-  each of these returns `Ok` within 1 s:
-  - `transition("n1", Deleted, None)`;
-  - `configure_projections` with an unchanged spec;
-  - lifecycle actuation of `n1`;
-  - `erase_source` of the edge's source (`purge` shares the same
-    freeze, `erasure.rs` 667 and 994).
-
-  At RED each returns `Err(Scheduler)` after 30 s (`transition`: measured
-  30.000 s). One RED/GREEN pair per caller family: the three
-  `drain_for_non_embedding_mutation` callers share one change, and
-  erasure has its own. The erasure test also checks that the pending
-  edge's rows are gone afterwards.
-
 ## 4. Scaling measurement (AC50-07, AC50-08, AC50-14)
 
 ### 4.1 Tools (committed in the tool commit)
 
 - **`src/rust/crates/fathomdb-engine/tests/slice50_drain_scaling.rs`.**
   `#![cfg(feature = "test-hooks")]`, one `#[ignore]` test.
-  - It uses only APIs that exist at the base `544bf74f8`:
+  - It uses only APIs that exist at the base `630af0bfc`:
     `open_with_embedder_for_test`, `configure_vector_kind_for_test`,
     `set_projection_scheduler_frozen_for_test`, `write`, `drain` and
     `close`, plus raw `rusqlite`. The same file therefore compiles and
@@ -275,7 +198,7 @@ edited.
 
 - **Format.** Format 34 (1,024-row vec0 chunks), the default runtime
   cache, two workers, 768-d.
-- **Timed runs.** Labels `base` (`544bf74f8`) and `head` (the slice
+- **Timed runs.** Labels `base` (`630af0bfc`) and `head` (the slice
   head) at n = 10k, 30k and 100k, held mode, two repeats, untraced.
 - **Reported only.** One `overlap` run per label at 100k, the gate's
   shape.
@@ -320,7 +243,6 @@ About 30 min in all.
 - `./scripts/agent-verify.sh` once, on the final clean tree, from this
   worktree's `.venv`, with the § 1 GPU rule. Rerun only failed suites.
 - `./scripts/agent-lint-md.sh` and `./scripts/check-release-state-views.sh`.
-- The `AGENT_LONG` perf gates (`perf_gates.rs`) run once on the final
-  tree for the record: AC-013 seed and drain times and AC-018. No
-  latency claim is made. AC-013 at n = 10k is known to fail at the base
-  (p50 128 ms), and Slices 60 to 90 address it.
+- Do not rerun unrelated `AGENT_LONG` search-latency gates for this SQL-only
+  optimization. AC-013 needs later Slices 60–90; the paired drain scaling
+  study directly measures this slice's performance requirement.

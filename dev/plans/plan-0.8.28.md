@@ -154,7 +154,7 @@ it is never an implicit patch lane.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`DRAIN-SCAN-BOUND`) — Bound the pending-work scans per UNION ALL arm (armlimit) so drain is linear in the backlog; fix the dense-disabled drain that never finishes (todo 289 on dev/0.8.29)
+**IMMEDIATE NEXT: Slice 50** (`DRAIN-SCAN-BOUND`) — Bounded pending-work scans; approved built-in-provider failed-open contract (provider subunit complete)
 
 **Remaining ladder:** 50 → 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
@@ -222,10 +222,10 @@ requirements say otherwise.
     falls from 33 s to 5.7 s (`exp/0.8.29-ac013-scale-drain` `aa30085fc`).
     That figure is for 64-row chunks (Slice 60). On format 34 the slice
     measures linearity under a rule it states before the run.
-  - It also fixes the drain that never finishes on a dense-disabled store
-    with pending vector rows (todo 289 on `dev/0.8.29`). That defect is
-    in `Engine::drain`, not in the two queries
-    ([slice 50 design](0.8.28/features/slice-50/design.md) § 2).
+  - The provider subunit is complete at `630af0bfc`: actual verification
+    refusal fails open without returning a dense-disabled Engine. Historical
+    D50-1/D50-2 drain proposals are unselected. Remaining work is scan Unit S;
+    see the [reconciled slice plan](0.8.28/features/slice-50/plan.md).
   - **Verification:** a query-plan test; drain cost per vector flat from
     10k to 100k; projected stores identical to the shipped scan; a node
     and edge ordering case; the drain and readiness suites.
@@ -300,7 +300,7 @@ requirements say otherwise.
 | 40 | FTS ranking, latency and page-cache defects (COMP benchmarks) | [slice-40/plan.md](0.8.28/features/slice-40/plan.md) |
 | 41 | SDK context pack, full-render override, configurable query stop words (reserved; docs on `slice/0.8.28-41-sdk-evidence-helper`) | not on this branch |
 | 42 | slice135 descriptor check; `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1 (Unit B re-scoped) | [slice-42/plan.md](0.8.28/features/slice-42/plan.md) |
-| 50 | Bounded pending-work scans; dense-disabled drain fix | to be written |
+| 50 | Bounded pending-work scans; provider contract complete | [Plan](0.8.28/features/slice-50/plan.md) |
 | 60 | Store format 35 (64-row chunks, `search_index` rowid, refusal at open) | to be written |
 | 70 | Vector eligibility inside vec0 | to be written |
 | 80 | `include_superseded` and `include_inactive` on search | to be written |

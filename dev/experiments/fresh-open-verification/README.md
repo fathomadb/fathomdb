@@ -110,7 +110,8 @@ WHERE key = 'vector_equivalence_verified_fingerprint';
 ```
 
 The stored profile declares name/revision/dimension; nullable `mean_vec` stores
-the centering vector (1536 bytes for 384 f32 dimensions). References contain
+the centering vector (1536 bytes for 384 f32 dimensions), not the Mean/CLS
+pooling selection. References contain
 45 probe texts and uncentered f32 vectors, captured under that identity. The
 cache marker hashes declared identity, stored mean/references, probe fixture,
 thresholds and recipe. It does not identify the full running implementation.
@@ -139,6 +140,8 @@ function identity; it is not proof that a production store suffered such a swap.
 
 ## Results
 
-Results will distinguish verification cost from model construction and will
-not claim a CPU/CUDA equivalence calibration or a fleet failure probability.
-The cache decision remains pending measured costs and owner review.
+[Findings and recommendation](findings.md) report all 80 measured opens and
+recover the settled pooling decision. [Raw data](results/results.json) distinguish
+verification cost from model construction. These runs do not establish CPU/CUDA
+numeric equivalence or a fleet mismatch probability. Cache policy remains
+pending owner review of the measured startup costs.

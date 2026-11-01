@@ -20,7 +20,7 @@ Owner investigation direction: steward ledger `seq-350`. Evidence:
 The replacement contract, recovery behavior and implementation scope below are
 submitted for review together. Release placement remains subject to the owner.
 D50-1/D50-2 remain unimplemented; approval of investigation did not select them.
-Proposal record: steward `seq-351`; pending release-state decision
+Proposal record: steward `seq-351`, measurement update `seq-352`; pending release-state decision
 `vector-compatibility-open-contract`. This gates this policy implementation,
 not publication authorization or unrelated release work.
 
@@ -29,7 +29,9 @@ Upon acceptance, supersede only degraded-open clauses R-VEQ-4/6 in
 probe-failure clauses in
 [ADR-0.8.27 runtime topology](ADR-0.8.27-engine-owned-runtime-topology.md).
 Retain identity/dimension gates, thresholds, async writes, resource ownership,
-provider deadlines and bounded cleanup. Respect the existing
+provider deadlines and bounded cleanup. The revised proposal also supersedes
+the cached-acceptance rule of TC-68 (the 0.8.20 plan/design), subject to owner
+approval of the measured startup cost. Respect the existing
 [corruption-on-open policy](ADR-0.6.0-corruption-open-behavior.md).
 
 ## Proposed open contract
@@ -48,12 +50,19 @@ that all projections have caught up. No live engine is returned in the
 attached-but-refused state. A provider error never becomes implicit permission
 to serve vectors or silently open in a different mode.
 
-Preserve current verification cadence for this change: TC-68 may accept a
-cached verdict without exercising the current backend. Retain the exact
-thresholds and the accepted initial-enrollment residual (baseline capture at
-the next relevant open). Do not claim every successful open freshly verifies
-this backend. Changing either cadence or enrollment is a separate decision;
-backend/device/library changes are not currently cache inputs.
+Following the owner-requested [fresh-open measurement](../experiments/fresh-open-verification/findings.md),
+recommend a fresh comparison at each relevant provider-enabled open rather than
+TC-68 cached acceptance. Measured added median cost is 0.16–0.18 s on the RTX 3090
+and 2.37–2.56 s on the tested CPU; the CPU startup budget needs owner approval.
+A stored success marker may remain diagnostic evidence, but does not authorize
+skipping the live comparison. No 45-probe work is added to individual calls.
+
+Retain exact thresholds and the accepted initial-enrollment residual (baseline
+capture at the next relevant open). Vector-less/no-provider opens remain outside
+the live-probe requirement. If this startup cost is unacceptable, a replacement
+cache needs a separately specified embedding-function/runtime identity; the
+current cache omits backend/device/library/pooling changes. Neither retention
+nor removal has been implemented or approved by the measurement authorization.
 
 An absent baseline is not automatically corruption: it is legitimate during
 first enrollment. An unreadable arm-registration query must propagate failure,
@@ -173,12 +182,12 @@ Report `baseline_not_established` when first-enrollment references legitimately
 do not exist; a read-only diagnostic must not populate them or label that state
 corruption. Report whether ordinary admission would reuse a cached verdict.
 
-Because this diagnostic is non-mutating and TC-68 cadence is retained, it does
-**not** invalidate an existing cache marker. A fresh failed diagnostic can
-coexist with subsequent cached acceptance by ordinary open. Explicitly expose
-that residual in output and instructions: stop using the diagnosed backend;
-repair/restore it before reopening. Do not imply diagnosis revokes admission.
-Strengthening that guarantee requires a separate cache-policy decision.
+Under the recommended fresh-per-open policy, the diagnostic need not invalidate
+a cache marker: ordinary admission performs its own live comparison. The
+current implementation still uses TC-68; until this change is approved and
+implemented, a fresh failed diagnostic could coexist with cached acceptance.
+If the owner selects a future caching alternative, that implication needs an
+explicit contract; do not imply a read-only diagnostic itself revokes admission.
 
 No-provider access is not a corruption bypass. If ordinary integrity admission
 fails, use CLI diagnostics and the supported offline recovery/backup route;
@@ -219,7 +228,7 @@ coverage so the new admission rule cannot make both rebuild commands unusable.
 
 | Area | Exists today | Required change after approval |
 | --- | --- | --- |
-| Verification | Identity gates, numeric probe, cached acceptance | Replace degraded-open with classified rejection; preserve cadence and limits. |
+| Verification | Identity gates, numeric probe, cached acceptance | Classified rejection and fresh comparison per relevant open; preserve limits; owner approves CPU startup cost. |
 | Cleanup | Post-probe guard and bounded provider-only retention | Wire new rejection through guards and initial-subscriber reporting. |
 | Baseline publication | Prospective arm stages before acceptance; registered arm persists first | Make first-baseline publication acceptance-conditional on both paths. |
 | No-provider access | SDK selectors and CLI doctor/recover | Validate stored profile without fictitious provider identity; retain corruption refusal. |
@@ -261,8 +270,9 @@ Before landing implementation, require behavior-specific RED/GREEN tests for:
    wiring as well as CUDA-enabled builds.
 5. CLI fresh diagnosis despite a cached verdict, immutable reference/cache state,
    absent-baseline result, WAL-aware admission, error mapping and SDK parity;
-   cached-acceptance caveat in diagnosis output; accepted cached and
-   first-enrollment behavior explicitly covered as unchanged residuals.
+   valid cached markers cannot bypass the required live comparison; vector-less,
+   no-provider and first-enrollment behavior explicitly covered. Verify that
+   repeated calls on an accepted engine do not repeat the 45-probe check.
 
 These are proposed tests, not passing claims. The existing real-error unwind
 unit test was rerun unchanged: 1 passed, 111 filtered out (0.36 s). It establishes
@@ -282,8 +292,9 @@ the attached-but-unusable state; that is a wider and more fragile contract.
 Accepting failed verification or resetting references is outside the safety
 constraint and is not proposed.
 
-Owner approval is requested for this replacement contract and recovery scope
-before implementation. Cache coverage strengthening, in-place backend rotation,
+Owner approval is requested for this replacement contract, fresh-per-open
+startup cost and recovery scope before implementation. A replacement runtime-keyed
+verdict cache, in-place backend rotation,
 whole-open rollback, verification of vector-less opens, and removing healthy
 store-wide drain barriers are not implied by approval. Existing accepted ADRs
 remain authoritative until a successor is approved.

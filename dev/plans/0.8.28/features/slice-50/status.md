@@ -39,7 +39,10 @@ Owner direction following characterization: steward ledger `seq-350`,
 release-state decision `slice-50-successful-open-investigation`. The replacement
 open contract remains undecided; existing ADRs remain in force.
 The [replacement contract proposal](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md)
-is submitted for owner review before implementation.
+is submitted for owner review before implementation. The owner-requested
+[fresh-open timing results](../../../../experiments/fresh-open-verification/findings.md)
+now quantify the cache decision (steward `seq-352`); production pooling stays
+Mean under the existing ruling. No policy change is implemented.
 
 ## Open owner rulings
 

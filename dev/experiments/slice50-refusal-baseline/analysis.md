@@ -173,6 +173,14 @@ contains the proposed open/error/cleanup contract, explicit access and recovery
 path, code delta, and acceptance tests. It is pending owner review, not an
 accepted change or permission to implement.
 
+## Fresh-open measurement follow-up
+
+[Measured startup costs and pooling audit](../fresh-open-verification/findings.md)
+now inform the cache choice. The replacement draft recommends fresh checks per
+relevant open, with the CPU cost explicitly pending owner review. The earlier
+suggestion below to review cache invalidation separately is refined by that
+measurement; no cache behavior has changed.
+
 ## Recommendation
 
 Retain the ability to reject unverified or incompatible vector output. A fixed

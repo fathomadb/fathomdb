@@ -26,7 +26,7 @@
   "decisions": {
     "unruled": [
       {"id": "release-0.8.28-publication", "title": "Authorize the v* tag push and publication of 0.8.28 after the ladder and release qualification pass."},
-      {"id": "vector-compatibility-open-contract", "title": "Approve or revise the proposed vector compatibility open contract and explicit recovery path before its implementation.", "source": "dev/adr/ADR-0.8.28-vector-compatibility-open-policy.md; steward ledger seq-351", "halts_run": false}
+      {"id": "vector-compatibility-open-contract", "title": "Approve or revise the proposed open/recovery contract, including the measured fresh-per-open CPU startup cost and cache decision, before implementation.", "source": "dev/adr/ADR-0.8.28-vector-compatibility-open-policy.md; dev/experiments/fresh-open-verification/findings.md; steward ledger seq-351 and seq-352", "halts_run": false}
     ],
     "ruled": [
       {"id": "slice-31-fork-first", "title": "Do the cudarc and Candle fork work first, inside each fork, before the FathomDB alignment.", "source": "repository owner 2026-10-12 (Q14, seq-313)"},

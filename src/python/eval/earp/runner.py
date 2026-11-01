@@ -99,23 +99,11 @@ def load_fixture(path: Path) -> list[dict[str, Any]]:
     return items
 
 
-def classify_open(
-    report: Mapping[str, Any], *, dense_required: bool = False
-) -> tuple[tuple[Witness, ...], tuple[Blocker, ...]]:
-    """Turn an open report into witnesses and blockers.
+def classify_open(report: Mapping[str, Any]) -> tuple[tuple[Witness, ...], tuple[Blocker, ...]]:
+    """Capture a successful open report and any weight-download policy blocker.
 
-    A pure function over a mapping, deliberately: a real embedder fetch is
-    forbidden by the default-deny network policy, so if this decision lived
-    inline in the run path its blocker branch could never be exercised.
-    (`vector_equivalence_refusal_count()` is an Engine METHOD, so the runner
-    reads it at capture time and carries it in the projection witnesses --
-    it never enters this function.)
-
-    S7 amendment: `dense_disabled` is the typed blocker only when the scenario
-    declared a `vector: true` projection (`dense_required`) -- per `earp.md`,
-    "a typed blocker when dense retrieval was REQUIRED". Otherwise the
-    condition is witness-recorded, not blocking: the open-report witness below
-    carries the full report either way.
+    Actual verification refusal raises before a report or engine exists and is
+    recorded by the runner's ordinary typed failure path.
     """
     witnesses: list[Witness] = []
     blockers: list[Blocker] = []
@@ -141,19 +129,6 @@ def classify_open(
                 ),
                 stage="runner.open",
                 detail={"embedder_download_ms": download_ms},
-            )
-        )
-    if report.get("dense_disabled") and dense_required:
-        blockers.append(
-            Blocker(
-                code=BlockerCode.DENSE_DISABLED,
-                message=(
-                    "the engine opened degraded: the vector-equivalence self-check "
-                    "found a divergence, so vector-dependent arms refuse at query "
-                    "time -- and this scenario declared a dense projection"
-                ),
-                stage="runner.open",
-                detail={"reason": report.get("dense_disabled_reason")},
             )
         )
     return tuple(witnesses), tuple(blockers)
@@ -227,10 +202,10 @@ def _poll_readiness(
     itself is -- and are never polled-for.
 
     Settled states (S10, stated rather than an accident of the comparison):
-    `ready` AND `unavailable` -- the Slice-21 absent-or-equivalence-refused
-    runtime never resolves by waiting, so the poll exits immediately for it
-    and never emits DENSE_READINESS_TIMEOUT; only `embedding` spins. Blocked-
-    verdict coverage for the degraded open comes from DENSE_DISABLED instead.
+    `ready` AND `unavailable` -- an absent runtime never resolves by waiting,
+    so the poll exits immediately for it and never emits
+    DENSE_READINESS_TIMEOUT; only `embedding` spins. Actual verification
+    refusal fails open before polling.
     """
     while True:
         specs, elapsed = view()
@@ -319,7 +294,6 @@ def run_diagnostic(
     hit_doc_ids: list[str] = []
     engine = None
     declared = scenario.projections
-    dense_required = any(projection.vector for projection in declared)
     projection_witnesses: ProjectionWitnesses | None = None
 
     try:
@@ -328,21 +302,11 @@ def run_diagnostic(
             use_default_embedder=scenario.use_default_embedder,
         )
         report_value = _report_mapping(engine.open_report())
-        open_witnesses, open_blockers = classify_open(
-            report_value, dense_required=dense_required
-        )
+        open_witnesses, open_blockers = classify_open(report_value)
         witnesses.extend(open_witnesses)
         blockers.extend(open_blockers)
-        # The refusal count is an Engine method, not an open-report field, so
-        # it is read here at capture time and carried in the witness -- which
-        # keeps classify_open a pure function over the report mapping.
         projection_witnesses = ProjectionWitnesses(
-            open_report={
-                "dense_disabled": bool(report_value["dense_disabled"]),
-                "dense_disabled_reason": report_value["dense_disabled_reason"],
-                "query_backend": report_value["query_backend"],
-                "refusal_count": engine.vector_equivalence_refusal_count(),
-            }
+            open_report={"query_backend": report_value["query_backend"]}
         )
 
         if declared:
@@ -452,8 +416,8 @@ def run_diagnostic(
 
         if declared:
             # S10: capture `read.projection_status` ONCE -- after the poll
-            # settles (including on the DENSE_READINESS_TIMEOUT / degraded-open
-            # blocked paths, the S7 delta-witness precedent) and BEFORE the
+            # settles (including DENSE_READINESS_TIMEOUT blocked paths, the
+            # S7 delta-witness precedent) and BEFORE the
             # query, so a query-time FAILED run still carries it while a
             # poll-raise skips capture. Projection-less runs never capture
             # (absent, not empty). Supplementary: the three true sources above
@@ -548,8 +512,6 @@ def _report_mapping(report: Any) -> dict[str, Any]:
         "schema_version_after": report.schema_version_after,
         "query_backend": report.query_backend,
         "embedder_download_ms": report.embedder_download_ms,
-        "dense_disabled": report.dense_disabled,
-        "dense_disabled_reason": report.dense_disabled_reason,
         "embedder_events": [dict(event) for event in report.embedder_events],
     }
 

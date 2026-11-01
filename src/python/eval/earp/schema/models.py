@@ -92,8 +92,8 @@ class WitnessSource(str, Enum):
     interchangeable: `vector_dense_readiness` comes only from
     `read.projections()`, `vector_unsupported_kinds` only from the
     `ProjectionDelta` that `configure_projections` returns, and
-    `dense_disabled` only from `open_report`. Conflating them was a defect in
-    the pre-review design."""
+    successful-open observations only from `open_report`. Historical records
+    can also carry the retired `dense_disabled` observation."""
 
     OPEN_REPORT = "open_report"
     READ_PROJECTIONS = "read_projections"
@@ -166,7 +166,7 @@ class BlockerCode(str, Enum):
     METRIC_NOT_MEASURABLE = "metric_not_measurable"
     #: `vector_dense_readiness` stayed "embedding" past the declared timeout.
     DENSE_READINESS_TIMEOUT = "dense_readiness_timeout"
-    #: `open_report.dense_disabled` -- the vector-equivalence degraded open.
+    #: Historical records only: vector-equivalence degraded-open blocker.
     DENSE_DISABLED = "dense_disabled"
     #: Kinds the vector writer can never embed, from the projection delta.
     VECTOR_UNSUPPORTED_KINDS = "vector_unsupported_kinds"
@@ -274,9 +274,8 @@ class ProjectionWitnesses:
     "not captured".
     """
 
-    #: From `open_report()` at open time (+ the refusal count, an Engine method
-    #: read by the runner at capture time): dense_disabled,
-    #: dense_disabled_reason, query_backend, refusal_count.
+    #: Successful `open_report()` query backend. Historical records may retain
+    #: retired dense-disabled and refusal-count observations.
     open_report: Mapping[str, Any]
     #: The `ProjectionDelta` exactly as `configure_projections` returned it,
     #: including the NON-DISJOINT built/deferred lists -- "in built" must never

@@ -87,12 +87,9 @@
               "type": "object",
               "additionalProperties": false,
               "required": [
-                "dense_disabled",
-                "dense_disabled_reason",
-                "query_backend",
-                "refusal_count"
+                "query_backend"
               ],
-              "description": "From open_report() at open time; refusal_count from Engine.vector_equivalence_refusal_count(), read by the runner at capture time.",
+              "description": "Successful open_report() observations. Retired dense_disabled, dense_disabled_reason and refusal_count properties remain optional for historical records; current runners do not emit them.",
               "properties": {
                 "dense_disabled": {
                   "type": "boolean"
@@ -594,7 +591,7 @@
             "answer_arm",
             "projection_status"
           ],
-          "description": "Not interchangeable: vector_dense_readiness comes only from read_projections, vector_unsupported_kinds only from projection_delta, dense_disabled only from open_report. answer_arm (S9) carries the visible-skip witness, the cheap-validate witness, and the ledger-preflight witness — one source, three named witnesses. projection_status (S10) is the supplementary read.projection_status snapshot; it never replaces the three true projection sources."
+          "description": "Not interchangeable: vector_dense_readiness comes only from read_projections, vector_unsupported_kinds only from projection_delta, successful-open observations only from open_report. Historical dense_disabled observations remain readable. answer_arm (S9) carries the visible-skip witness, the cheap-validate witness, and the ledger-preflight witness — one source, three named witnesses. projection_status (S10) is the supplementary read.projection_status snapshot; it never replaces the three true projection sources."
         },
         "call_path": {
           "type": "string"

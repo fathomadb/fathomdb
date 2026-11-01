@@ -697,6 +697,27 @@ mod vector_open_tests {
     use fathomdb_engine::VectorVerificationFailure;
 
     #[test]
+    fn invalid_stored_verification_state_preserves_detail_in_python() {
+        Python::initialize();
+        let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+            probe_ordinal: 0,
+            cause: VectorVerificationFailure::InvalidState {
+                message: "stored reference detail".into(),
+            },
+        });
+        Python::attach(|py| {
+            assert_eq!(
+                error.value(py).getattr("cause_code").unwrap().extract::<String>().unwrap(),
+                "invalid_state"
+            );
+            assert_eq!(
+                error.value(py).getattr("cause_message").unwrap().extract::<String>().unwrap(),
+                "stored reference detail"
+            );
+        });
+    }
+
+    #[test]
     fn vector_verification_failure_preserves_python_context_and_provider() {
         Python::initialize();
         let error = engine_open_error_to_py(EngineOpenError::VectorVerification {

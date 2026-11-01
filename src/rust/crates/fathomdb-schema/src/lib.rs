@@ -242,7 +242,7 @@ pub const MIGRATIONS: &[Migration] = &[
               CREATE TABLE IF NOT EXISTS _fathomdb_vector_rows(
                   rowid INTEGER PRIMARY KEY,
                   kind TEXT NOT NULL,
-                  write_cursor INTEGER NOT NULL UNIQUE
+                  write_cursor INTEGER NOT NULL
               );",
     },
     Migration {
@@ -1338,7 +1338,24 @@ pub const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         step_id: 35,
-        sql: "-- MIGRATION-ACCRETION-EXEMPTION: fresh-format-35 sentinel; prior stores are refused before migration.\nSELECT 1;",
+        sql: concat!("-- MIGRATION-ACCRETION-EXEMPTION: fresh-format-35 vector coverage; prior stores are refused before migration. No stored content is migrated.
+              CREATE INDEX _fathomdb_vector_rows_cursor_idx ON _fathomdb_vector_rows(write_cursor);
+              CREATE TABLE _fathomdb_vector_spans(
+                  vector_rowid INTEGER PRIMARY KEY,
+                  write_cursor INTEGER NOT NULL CHECK(write_cursor>0),
+                  window_number INTEGER NOT NULL CHECK(window_number>=0),
+                  byte_start INTEGER NOT NULL CHECK(byte_start>=0),
+                  byte_end INTEGER,
+                  body_length INTEGER NOT NULL CHECK(body_length>=0),
+                  UNIQUE(write_cursor,window_number),
+                  CHECK(byte_start<=body_length),
+                  CHECK(byte_end IS NULL OR (byte_start<=byte_end AND byte_end<=body_length))
+              );
+              CREATE TRIGGER _fathomdb_vector_spans_mapping_delete
+              AFTER DELETE ON _fathomdb_vector_rows
+              BEGIN DELETE FROM _fathomdb_vector_spans WHERE vector_rowid=OLD.rowid; END;\n",
+              "CREATE TRIGGER _fathomdb_read_visibility_vs_ai AFTER INSERT ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\nCREATE TRIGGER _fathomdb_read_visibility_vs_au AFTER UPDATE ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\nCREATE TRIGGER _fathomdb_read_visibility_vs_ad AFTER DELETE ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n"
+        ),
     },
 ];
 

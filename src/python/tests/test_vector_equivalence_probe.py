@@ -53,5 +53,6 @@ def test_vector_verification_constructor_preserves_typed_provider_payload() -> N
     assert error.cause_message == "original detail"
     assert error.provider_kind == "cuda_pool_exhausted"
     assert error.provider_error is provider
+    assert isinstance(error.provider_error, CudaPoolExhaustedError)
     assert error.provider_error.ordinal == 2
     assert error.provider_error.max_size_bytes == 12345

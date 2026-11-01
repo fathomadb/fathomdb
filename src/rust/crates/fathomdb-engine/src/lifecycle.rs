@@ -464,6 +464,23 @@ fn sqlite_extended_code_name_from_int(extended: i32) -> &'static str {
 }
 
 pub(crate) fn emit_open_error_event(subscriber: &Arc<dyn Subscriber>, err: &EngineOpenError) {
+    let diagnostic = match err {
+        EngineOpenError::VectorEquivalenceMismatch { .. } => {
+            Some((EventSource::Engine, EventCategory::Error, "VectorEquivalenceMismatchError"))
+        }
+        EngineOpenError::VectorVerification { .. } => {
+            Some((EventSource::Engine, EventCategory::Error, "VectorVerificationError"))
+        }
+        EngineOpenError::Io { .. } => {
+            Some((EventSource::SqliteInternal, EventCategory::Io, "IoError"))
+        }
+        _ => None,
+    };
+    if let Some((source, category, code)) = diagnostic {
+        let event = Event { phase: Phase::Failed, source, category, code: Some(code) };
+        // Host callbacks cannot replace the original open failure.
+        let _ = catch_unwind(AssertUnwindSafe(|| subscriber.on_event(&event)));
+    }
     if let EngineOpenError::Corruption(detail) = err {
         let code = match detail.locator {
             CorruptionLocator::OpaqueSqliteError { sqlite_extended_code } => {

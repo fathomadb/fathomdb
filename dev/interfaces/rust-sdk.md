@@ -536,3 +536,13 @@ Chronological}`, `ContextPack`, `ContextPackEntry`, `ContextPartEntry`,
 `position` is `Option<u64>`; counts are `usize`, so negative counts cannot
 be expressed. Characters are Unicode scalar values (`str::chars`). The
 shared conformance fixture is `src/conformance/context-pack-fixtures.json`.
+
+## Vector verification open failures
+
+An actual numeric refusal returns `Error::Open(EngineOpenError::VectorEquivalenceMismatch { reason })`
+with `ErrorKind::VectorEquivalenceMismatch`. An inability to verify returns
+`Error::Open(EngineOpenError::VectorVerification { probe_ordinal, cause })` and
+`ErrorKind::VectorVerification` (`VectorVerificationError`). No engine is returned.
+The reexported `VectorVerificationFailure` preserves the original typed provider
+error, including CUDA payloads; verification context is never flattened into
+`Error::Cuda`. `Error::source()` exposes the original open error.

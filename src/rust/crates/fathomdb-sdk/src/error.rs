@@ -331,6 +331,8 @@ fn open_kind(error: &EngineOpenError) -> ErrorKind {
         EngineOpenError::CudaPoolExhausted { .. } => ErrorKind::CudaPoolExhausted,
         EngineOpenError::CudaContextLost { .. } => ErrorKind::CudaContextLost,
         EngineOpenError::CudaPrivateBuildRefused { .. } => ErrorKind::CudaPrivateBuildRefused,
+        EngineOpenError::VectorEquivalenceMismatch { .. } => ErrorKind::VectorEquivalenceMismatch,
+        EngineOpenError::VectorVerification { .. } => ErrorKind::VectorVerification,
         EngineOpenError::Io { .. } => ErrorKind::Storage,
     }
 }
@@ -452,6 +454,7 @@ error_kinds! {
     DependencyTrace => "DependencyTraceError",
     GraphExpansion => "GraphExpansionError",
     VectorEquivalenceMismatch => "VectorEquivalenceMismatchError",
+    VectorVerification => "VectorVerificationError",
     InvalidArgument => "InvalidArgumentError",
     IllegalTransition => "IllegalTransitionError",
     NotLifecycleAddressable => "NotLifecycleAddressableError",

@@ -288,3 +288,6 @@ pub mod governed_surface_method_absence_proof {}
 #[cfg(not(debug_assertions))]
 #[doc(hidden)]
 pub mod release_surface_raw_sql_absence_proof {}
+
+/// Typed cause of an open-time vector verification failure; no engine is returned.
+pub use fathomdb_engine::VectorVerificationFailure;

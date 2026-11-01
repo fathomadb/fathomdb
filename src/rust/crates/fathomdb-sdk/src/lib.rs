@@ -172,3 +172,6 @@ pub use fathomdb_schema::MigrationStepReport;
 /// ```
 #[doc(hidden)]
 pub mod core_surface_absence_proof {}
+
+/// Typed cause of an open-time vector verification failure; no engine is returned.
+pub use fathomdb_engine::VectorVerificationFailure;

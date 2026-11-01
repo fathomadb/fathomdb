@@ -22,9 +22,9 @@ PROBE = Path("src/rust/crates/fathomdb-engine/tests/slice50_drain_scaling.rs")
 def parse_probe(output: str) -> dict:
     """Return the single probe JSON record; reject missing or duplicate records."""
     records = [
-        json.loads(line.removeprefix("SLICE50_DRAIN "))
+        json.loads(line.split("SLICE50_DRAIN ", 1)[1])
         for line in output.splitlines()
-        if line.startswith("SLICE50_DRAIN ")
+        if "SLICE50_DRAIN " in line
     ]
     if len(records) != 1:
         raise ValueError(f"expected one probe record, got {len(records)}")

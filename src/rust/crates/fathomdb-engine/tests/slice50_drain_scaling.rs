@@ -137,10 +137,11 @@ impl Embedder for VaryingEmbedder {
 
 fn digest(connection: &Connection) -> String {
     let mut hash = Sha256::new();
-    // Join by write_cursor for a logical projected-state digest, excluding
-    // created_at timestamps. Include every other vector column.
+    // Hash complete tables independently: a join would hide orphan vectors
+    // and dangling mappings. Only nondeterministic created_at is excluded.
     for sql in [
-        "SELECT r.rowid,r.write_cursor,r.kind,v.rowid,v.source_type,v.kind,v.status,v.embedding,v.embedding_bin FROM _fathomdb_vector_rows r JOIN vector_default v ON v.rowid=r.rowid ORDER BY r.write_cursor",
+        "SELECT rowid,write_cursor,kind FROM _fathomdb_vector_rows ORDER BY rowid",
+        "SELECT rowid,source_type,kind,status,embedding,embedding_bin FROM vector_default ORDER BY rowid",
         "SELECT write_cursor,state FROM _fathomdb_projection_terminal ORDER BY write_cursor",
         "SELECT key,value FROM _fathomdb_open_state WHERE key='projection_cursor'",
     ] {

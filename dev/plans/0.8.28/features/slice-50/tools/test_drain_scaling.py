@@ -12,6 +12,12 @@ class MeasurementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_probe("no measurement")
 
+    def test_parser_accepts_single_thread_libtest_prefix(self):
+        self.assertEqual(
+            parse_probe('test slice50_drain_scaling ... SLICE50_DRAIN {"n": 100}'),
+            {"n": 100},
+        )
+
     def test_rules_use_medians_and_paired_digest(self):
         rows = [
             dict(

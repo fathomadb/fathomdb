@@ -35,13 +35,17 @@ fn seed(path: &std::path::Path, identity: &EmbedderIdentity) {
 fn verification_mean_read_failure_is_storage_not_invalid_state() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("mean-read.fathomdb");
-    let identity = EmbedderIdentity::new("fathomdb-bge-small-en-v1.5", "test", 2);
+    let identity = EmbedderIdentity::new("fathomdb-bge-small-en-v1.5", "test", 8);
     seed(&path, &identity);
     let mut connection = Connection::open(&path).unwrap();
-    connection.authorizer(Some(|context: AuthContext<'_>| match context.action {
-        AuthAction::Read { table_name: "_fathomdb_embedder_profiles", .. } => Authorization::Deny,
-        _ => Authorization::Allow,
-    }));
+    connection
+        .authorizer(Some(|context: AuthContext<'_>| match context.action {
+            AuthAction::Read { table_name: "_fathomdb_embedder_profiles", .. } => {
+                Authorization::Deny
+            }
+            _ => Authorization::Allow,
+        }))
+        .unwrap();
     let dispatch = EmbedDispatcher::new(
         Some(Arc::new(Provider { identity: identity.clone(), value: 1.0 })),
         1,

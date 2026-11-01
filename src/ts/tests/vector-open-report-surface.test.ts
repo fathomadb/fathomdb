@@ -26,3 +26,11 @@ function surface(engine: Engine, native: NativeEngine, report: OpenReport, nativ
   native.vectorEquivalenceRefusalCount();
 }
 void surface;
+
+import type { ProjectionRuntimeStateV1, ProjectionRuntimeUnavailabilityReason } from "../src/projection.js";
+// @ts-expect-error failed opens have no projection runtime state
+const refused: ProjectionRuntimeStateV1 = "refused";
+// @ts-expect-error actual verification refusal returns no runtime status
+const disabled: ProjectionRuntimeUnavailabilityReason = "vector_equivalence_disabled";
+void refused;
+void disabled;

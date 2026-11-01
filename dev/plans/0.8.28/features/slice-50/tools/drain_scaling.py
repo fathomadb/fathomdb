@@ -109,6 +109,11 @@ def build(args: argparse.Namespace) -> None:
     with tarfile.open(archive) as source:
         source.extractall(export, filter="data")
     shutil.copy2(REPO / PROBE, export / PROBE)
+    # Git archive preserves commit timestamps. A shared target can otherwise
+    # consider the second revision older than the first revision's artifacts.
+    for source_file in export.rglob("*"):
+        if source_file.is_file() and not source_file.is_symlink():
+            source_file.touch()
     env = dict(os.environ, CARGO_TARGET_DIR=str(args.target.resolve()))
     command = [
         "cargo",

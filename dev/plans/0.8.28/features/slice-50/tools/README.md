@@ -18,7 +18,8 @@ python3 dev/plans/0.8.28/features/slice-50/tools/drain_scaling.py --scratch /tmp
 ```
 
 Build exports contain the selected source plus this checkout's probe. Builds
-share one serialized Cargo target to limit disk consumption, copying each
+refresh exported source timestamps and share one serialized Cargo target to
+limit disk consumption, copying each
 finished binary before building the next label. Use a new scratch directory
 for another experiment. Do not run other Cargo builds against that target
 concurrently. The source commit and copied executable are recorded per label.

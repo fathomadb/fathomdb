@@ -286,3 +286,70 @@ fn slice50_node_edge_ordering_cases() {
         }
     }
 }
+
+#[test]
+fn slice50_scan_plans_bound_each_arm() {
+    let mut f = Fixture::new();
+    f.seed_raw(&(0..2500).map(|i| if i % 5 == 0 { 4 } else { 0 }).collect::<Vec<_>>(), &[]);
+    for scan in SCANS {
+        let page = f.engine.projection_scan_page_for_test(scan, 0, None, NOW).unwrap();
+        let plan: Vec<_> = page
+            .plan
+            .iter()
+            .map(|line| {
+                let mut fields = line.splitn(3, '|');
+                (
+                    fields.next().unwrap().parse::<u64>().unwrap(),
+                    fields.next().unwrap().parse::<u64>().unwrap(),
+                    fields.next().unwrap(),
+                )
+            })
+            .collect();
+        let arms: Vec<_> = plan
+            .iter()
+            .filter(|(_, _, detail)| *detail == "LEFT-MOST SUBQUERY" || *detail == "UNION ALL")
+            .collect();
+        assert_eq!(arms.len(), 2, "{scan:?}: {:?}", page.plan);
+        for (id, _, _) in arms {
+            assert!(
+                plan.iter()
+                    .any(|(_, parent, detail)| parent == id && detail.starts_with("CO-ROUTINE")),
+                "{scan:?}: arm {id} is not bounded: {:?}",
+                page.plan
+            );
+        }
+        for (_, parent, detail) in &plan {
+            if detail.contains("USE TEMP B-TREE") {
+                assert_eq!(*parent, 0, "arm-local sort: {:?}", page.plan);
+            }
+        }
+        for index in ["canonical_nodes_write_cursor_idx", "canonical_edges_write_cursor_idx"] {
+            assert!(
+                plan.iter()
+                    .any(|(_, _, detail)| detail.contains(index)
+                        && detail.contains("write_cursor>?")),
+                "missing range index {index}: {:?}",
+                page.plan
+            );
+        }
+    }
+}
+
+#[test]
+fn slice50_scan_page_cost_is_independent_of_backlog() {
+    let mut small = Fixture::new();
+    let mut large = Fixture::new();
+    small.seed_raw(&(0..2500).map(|i| if i % 5 == 0 { 4 } else { 0 }).collect::<Vec<_>>(), &[]);
+    large.seed_raw(&(0..20000).map(|i| if i % 5 == 0 { 4 } else { 0 }).collect::<Vec<_>>(), &[]);
+    let ratios: Vec<_> = SCANS
+        .into_iter()
+        .map(|scan| {
+            let a = small.engine.projection_scan_page_for_test(scan, 0, None, NOW).unwrap();
+            let b = large.engine.projection_scan_page_for_test(scan, 0, None, NOW).unwrap();
+            let ratio = f64::from(b.vm_steps) / f64::from(a.vm_steps);
+            eprintln!("{scan:?}: small={} large={} ratio={ratio:.4}", a.vm_steps, b.vm_steps);
+            ratio
+        })
+        .collect();
+    assert!(ratios.iter().all(|r| *r <= 1.5), "page cost scales with backlog: {ratios:?}");
+}

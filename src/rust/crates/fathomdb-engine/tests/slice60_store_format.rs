@@ -107,3 +107,23 @@ fn body_fts_rowid_tracks_cursor_gaps_and_rebuild() {
         assert!(rows.iter().all(|(rowid, cursor)| rowid == cursor), "{rows:?}");
     }
 }
+
+#[test]
+fn projected_heads_store_unknown_coverage_and_rebuild_it() {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("spans.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[node("héllo"), node("世界")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    for rebuild in [false, true] {
+        if rebuild {
+            opened.engine.rebuild_vec0().unwrap();
+            opened.engine.drain(10_000).unwrap();
+        }
+        let rows: Vec<(i64,i64,i64,i64,Option<i64>,i64)> = conn.prepare("SELECT vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length FROM _fathomdb_vector_spans ORDER BY write_cursor").unwrap().query_map([], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))).unwrap().collect::<Result<_,_>>().unwrap();
+        assert_eq!(rows, [(1, 1, 0, 0, None, 6), (2, 2, 0, 0, None, 6)]);
+    }
+}

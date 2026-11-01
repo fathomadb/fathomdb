@@ -187,3 +187,42 @@ fn invalid_baseline_is_distinct_from_numeric_mismatch() {
         other => panic!("invalid references must not be reported as numeric mismatch: {other:?}"),
     }
 }
+
+struct ChangesDuringPopulation(std::sync::atomic::AtomicUsize);
+impl Embedder for ChangesDuringPopulation {
+    fn identity(&self) -> EmbedderIdentity {
+        HistoricProvider.identity()
+    }
+    fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+        let call = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(vec![if call < 45 { 1.0 } else { -1.0 }; 384])
+    }
+}
+
+#[test]
+fn rejected_registered_population_publishes_no_reference_authority() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("population.fathomdb");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("note").unwrap();
+    opened.engine.close().unwrap();
+    let error = Engine::open_with_embedder_for_test(
+        &path,
+        Arc::new(ChangesDuringPopulation(std::sync::atomic::AtomicUsize::new(0))),
+    )
+    .err()
+    .expect("population confirmation must reject changing output");
+    assert!(matches!(error, fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }));
+    let db = rusqlite::Connection::open(&path).unwrap();
+    let references: i64 =
+        db.query_row("SELECT count(*) FROM _fathomdb_embed_probe", [], |row| row.get(0)).unwrap();
+    assert_eq!(references, 0, "rejected registered references must never seed a later open");
+    let markers: i64 = db.query_row("SELECT count(*) FROM _fathomdb_open_state WHERE key='vector_equivalence_verified_fingerprint'", [], |row| row.get(0)).unwrap();
+    assert_eq!(markers, 0);
+    drop(db);
+    Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider))
+        .expect("compatible retry must establish a clean baseline")
+        .engine
+        .close()
+        .unwrap();
+}

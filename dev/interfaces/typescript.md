@@ -245,10 +245,7 @@ CUDA selection), the ordered process-visible CUDA device inventory
 (`visibleOrdinal`, UUID, name, compute capability), optional selected UUID,
 and the optional automatic-fallback `reason`. Ordinals are
 `CUDA_VISIBLE_DEVICES`-relative, never inferred host ordinals. It is present
-for default-embedder opens and the internal
-`EmbedderChoice::CallerWithDeviceResolution` path; an ONNX caller uses that
-path when it needs its final session outcome reported. It is `null` when no
-resolution was supplied. Forced CUDA is an open rejection, never a CPU report.
+for built-in default-embedder opens and is `null` when no provider is configured. Forced CUDA is an open rejection, never a CPU report.
 
 The readonly additive fields are `visibleCudaDevices: readonly CudaVisibleDevice[]`
 (each `visibleOrdinal`, `uuid`, `name`, `computeCapability`) and
@@ -555,7 +552,7 @@ when a committed receipt has pending projection cursors in the current schema.
 `ProjectionRuntimeStatus` is
 `{ runtimeEmbedderAvailable, runtimeUnavailabilityReason, projections,
 vectorUnsupportedKinds }`. `ProjectionRuntimeUnavailabilityReason` is exactly
-`"none" | "no_runtime" | "vector_equivalence_disabled"`; `"none"` occurs
+`"none" | "no_runtime"`; `"none"` occurs
 exactly when the runtime is available. Each sorted
 `ProjectionRuntimeStatusEntry` is `{ name, denseReadiness }`, with
 `ProjectionStatusDenseReadiness` exactly `"not_declared" | "unavailable" |
@@ -582,7 +579,7 @@ are camelCase per this file's casing rule.
 `read.embeddingReadiness(engine): Promise<EmbeddingReadiness>` is an additive,
 HITL-authorized governed read. It is a pure current view: it neither configures
 an embedder nor wakes, schedules, or drains work. `EmbeddingReadiness` is
-`{ state: "ready" | "processing" | "deferred" | "blocked",
+`{ state: "ready" | "processing" | "blocked",
 usableEmbedder: boolean, pendingCount: number, affectedKinds: string[],
 code: "FDB_EMBEDDER_REQUIRED" | null,
 operation: "graph_edge_body_projection" | "vector_projection" | null,
@@ -595,12 +592,10 @@ the three nullable fields are `null` and `remediations` is empty. `"blocked"`
 occurs only when pending work exists and the engine was opened without a
 configured runtime. In that condition `engine.drain(...)` rejects immediately
 with `EmbedderRequiredError` carrying the same camelCase fields; callers must
-not parse the message. An attached runtime refused by identity/equivalence
-checks leaves outstanding work as operational `"deferred"` behavior and is
-never recast as this configuration error. A worker that exhausts its retries
-instead records a durable `failed` terminal; once the scheduler is idle,
-`engine.drain(...)` may resolve normally. Neither operational path is
-`EmbedderRequiredError`.
+not parse the message. Actual identity/equivalence refusal fails open and
+returns no engine. A later worker that exhausts its retries records a durable
+`failed` terminal; once the scheduler is idle,
+`engine.drain(...)` may resolve normally. That worker outcome is not `EmbedderRequiredError`.
 
 ### `fts` / `vector` require the `searchable` role (0.8.20 Slice 23, R-20-SV)
 
@@ -685,13 +680,12 @@ on commit) so they have no readiness axis at all; `searchable→vector` is async
 and rebuild-durable, so it carries one.
 
 - **Exactly three spellings: `"unavailable"`, `"embedding"`, and `"ready"`.**
-  Their signed target meanings are no usable dense runtime (absent or
-  equivalence-refused), usable runtime with eligible outstanding work, and
+  Their signed target meanings are no usable dense runtime (absent), usable runtime with eligible outstanding work, and
   usable quiescent work, respectively. `"pending"` is
   DELIBERATELY not one of them — that token is RESERVED for the orthogonal
   **admission** axis (quarantine/trust, an app judgment). Do not reuse the word.
 - **Runtime selection.** `read.projections` first applies one usable-dense-
-  runtime predicate: no runtime or an equivalence refusal yields
+  runtime predicate: no runtime yields
   `"unavailable"`. With a usable runtime it derives `"embedding"` /
   `"ready"` from the shared outstanding-work predicate. This adds no schema
   step or stored readiness field.
@@ -754,7 +748,7 @@ Rust, Python and TypeScript:
   `{email, article, paper, meeting, note, todo, doc}`. Rows of ANY other `kind`
   are accepted and stay lexically searchable, but get **no vector** and are not
   counted as outstanding work, so readiness reaches `"ready"` only with a usable
-  dense runtime. An absent or equivalence-refused runtime instead selects
+  dense runtime. An absent runtime instead selects
   `"unavailable"`. This is **not** an error condition: `engine.write` does not
   reject them, nothing rejects, and there is no verb to ask about it.
 - **Idempotent.** Re-applying an already-satisfied declaration re-embeds nothing
@@ -789,10 +783,8 @@ Rust, Python and TypeScript:
   work outstanding, and this session cannot satisfy it. The write is **accepted**
   and stays lexically searchable, but `vectorDenseReadiness` reads
   `"unavailable"` and `drain` rejects with typed `EmbedderRequiredError`
-  (`FDB_EMBEDDER_REQUIRED`) immediately when configuration is absent. An
-  attached-but-equivalence-refused runtime remains an operational unavailable
-  condition and is not relabelled as configuration feedback for the rest of that
-  session, however long you wait. It is **not** lost: no failure is recorded and
+  (`FDB_EMBEDDER_REQUIRED`) immediately when configuration is absent. Actual verification refusal
+  fails open before any handle is returned. It is **not** lost: no failure is recorded and
   no terminal is written, so the next session opened WITH an approved runtime
   embeds it through the ordinary scheduler — no re-apply, no operator `rebuild`.
   The configuration outcome is immediate; it is not a timeout and does not
@@ -1000,40 +992,62 @@ are downloaded from HuggingFace and cached under
 `dev/adr/ADR-0.7.1-default-embedder-weight-fetch.md` for the network-
 surface scope (opt-in only; sha256-verified; visible via
 `OpenReport.embedderEvents`). The default (`useDefaultEmbedder: false`
-or omitted) opens without an embedder; subsequent vector writes reject
-with `EmbedderNotConfiguredError`.
+or omitted) opens without an embedder; eligible dense writes remain deferred under the ordinary no-runtime contract.
 
-### `denseDisabled` and the cached equivalence verdict (0.8.20 Slice 22, TC-68)
+### Built-in provider admission and cached verification
 
-`OpenReport.denseDisabled` / `engine.denseDisabled()` still mean "the dense arm is
-refusing", and the typed query-time `VectorEquivalenceMismatchError` and the
-`searchTextOnly` fallback are unchanged. **What changed is when the check behind
-them runs.** The 0.8.18 vector-equivalence self-check used to re-embed its 45
-probes on *every* open; since 0.8.20 the engine caches that verdict against a
-fingerprint of the embedder identity, the pinned mean vector, the probe fixture,
-the divergence floors and the stored reference baseline. An open whose fingerprint
-is unchanged does **zero** probe embeds — the dominant cost of opening a
-vector-indexed workspace with a live embedder — and reuses the previous verdict.
+Production engine admission supports only the pinned built-in BGE/Mean provider
+or explicit no-provider access. User-specified providers are unsupported before
+1.x and are not promised for 1.0. Device selection is separate from provider
+selection. Low-level embedder traits, standalone/test/evaluation constructors and
+ONNX evaluation support do not grant production engine admission; feature
+unification does not restore caller-provider injection. Standalone CLS embedding
+remains a separate supported helper and does not select the engine's Mean provider.
+Loader construction, supported device policy, ambient precision behavior and
+mean pin/recompute/recovery ordering are unchanged.
 
-Read `denseDisabled` accordingly: it reports the arm's status **as verified at the
-last open whose fingerprint differed**, not a fresh re-verification at this open. A
-backend that drifts without changing its declared identity (the same model moved
-between CPU and GPU, or rebuilt against a new library) is therefore no longer
-caught per-open. An identity *change* is unaffected: it still rejects the open with
-`EmbedderIdentityMismatchError`, ahead of any cache. An unreadable or absent cached
-verdict runs the probe rather than trusting it. Full rationale and the residual:
-`dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md`.
+New projection declarations accept only omitted/null embedder selectors. Every
+string is rejected before mutation, including empty strings, `default` and model
+names. Historical stored strings remain verbatim on reads with no provider;
+re-applying such a declaration is refused rather than silently selecting BGE.
+Vector configuration carries no provider identity string.
 
-**Scope.** The self-check guards **accidental** backend drift and a corrupt
-baseline. It is **not** tamper evidence: an actor with write access to the database
-file can rewrite the stored probe baseline — which defeats the check even when it
-runs in full, exactly as it did before the cache — or the cached marker, or the
-vectors themselves. Nothing at rest is authenticated. Do not read `denseDisabled`
-as a tamper signal. **The cache does make one of those routes cheaper** (a forged
-marker needs only a publicly computable digest; re-authoring the baseline needs the
-other backend's 45 exact embeddings), bounded by the residual above: a
-same-identity drift is already served off an honestly recorded marker, no forgery
-required. Threat model, concession and bound: §8.3–§8.5 of the design note above.
+The existing checker gate remains: an effective registered vector kind or durable
+prospective dense declaration engages verification; a retained baseline alone
+introduces no new probe gate. No-provider and ordinary vector-less opens use zero
+probes. Preserve the 45-probe fixture, structural validation, identity/dimension
+rules, P1 zero binary flips and P2 maximum uncentered L2 `1e-5`. Ordinary clean
+first population performs 90 embeddings (45 references plus 45 confirmation), a
+fresh check of an existing baseline performs 45, and a valid cached open performs
+zero. Rejected first population does not publish its new references.
+
+The persistent TC-68 marker remains authoritative for cached acceptance. The
+fingerprint recipe and inputs remain unchanged: stored identity, pinned mean,
+probe fixture, divergence floors and stored reference baseline. Missing, stale or
+malformed markers retain existing validation/recheck behavior; a marker-write
+failure remains a successful verified open with possible rechecking later. A
+process restart, MCP idle close, or A/B/A reconstruction does not force a fresh
+check. Cached acceptance is **not fresh verification in this process**.
+
+A valid marker can hide same-identity backend, pooling, device or library drift
+because those runtime facts are not fingerprint inputs. Closing provider injection
+does not remove that residual. Finite probes establish neither universal numerical
+equivalence nor historical vector provenance; stored references and the marker
+are not authenticated. This change adds no process cache, new fingerprint inputs,
+per-call numerical check, runtime descriptor or cache revocation policy. The
+existing cache rationale and threat model remain in
+[TC-68](../design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md).
+
+An actual checker refusal fails open and returns no engine or successful report.
+There is no automatic provider-free retry. A caller deliberately selects the
+existing no-provider option for canonical/text/lifecycle/erasure access, subject
+to normal integrity checks and deferred dense-work rules. Existing historical
+profiles are validated as metadata without pretending they use BGE. No-provider
+mean recovery and explicit recompute keep their existing behavior and make no
+numerical compatibility claim. No-provider access is ordinary mutable access,
+not forensic mode or a repaired dense backend. Existing operator rebuild behavior
+can invalidate dense state without a usable provider; this change neither fixes
+nor certifies that path safe and adds no diagnostic CLI.
 
 `OpenReport` carries four embedder-related fields surfaced by EU-6
 (camelCase per TS convention): `embedderDownloadMs`, `embedderEvents`,
@@ -1369,6 +1383,21 @@ An inability to verify rejects with `VectorVerificationError`, a `FathomDbError`
 leaf carrying `probeOrdinal`, `causeCode`, `causeMessage`, `providerKind` and
 `providerError`. No engine is returned and there is no automatic provider-free retry.
 `providerError` is the original translated `EmbedderError`/CUDA leaf, or `null`
-for non-provider failures. `providerKind` distinguishes `failed`, `timeout`,
+for non-provider failures; the error's standard `cause` also points to that leaf
+when present. `providerKind` distinguishes `failed`, `timeout`,
 `cuda_pool_exhausted`, `cuda_context_lost`, `cuda_private_build_refused`; it is
 `null` when there is no provider error.
+
+Cause codes are `not_configured`, `saturated`, `queued_expired`, `started_timeout`,
+`provider`, `invalid_output`, `panic`, `invalid_state`, `closing`, `cancelled`.
+The ordinal is zero-based for stored probes; `0` also denotes whole-baseline
+or required-mean preflight failure and need not identify the first probe. Panic
+and invalid-state messages retain their original detail. Existing invalid-profile
+metadata and I/O classifications are unchanged. Actual refusal has no successful
+report, so degraded-open fields, engine accessors and query-refusal counters are
+removed. Projection runtime state is only absent/usable and unavailable reason
+only none/no_runtime. Later runtime errors retain their existing behavior.
+
+These removals do not change `ProjectionDelta.deferred`, durable pending work,
+or retained graph/structural codec vocabulary (`deferred`/`projection_deferred`).
+Only mappings derived from the removed refused-open runtime state disappear.

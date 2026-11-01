@@ -186,3 +186,25 @@ characters (`nonce[16] || ciphertext[300] || mac[32]`), 704 characters total.
 The evidence sidecar and resolver carry no write cursor; the pre-existing graph
 target `writeCursor` is unchanged. `includeOutOfWindow: true` is refused at
 `/context/context/view/includeOutOfWindow` for evidence-bearing expansion.
+
+## Built-in provider admission and verification metadata
+
+Production provider admission is pinned BGE/Mean or explicit none; no arbitrary
+provider selection is supported before 1.x. New projection embedder strings are
+rejected before mutation, while omitted/null selectors remain valid. Existing
+stored strings, profiles, probe references and TC-68 markers are retained without
+migration, relabeling or provider substitution. Well-formed historical metadata
+remains inspectable under deliberate no-provider access, subject to normal
+integrity validation; re-applying an unsupported historical selector is refused.
+
+The checker gate, fingerprint recipe and inputs, persistent-marker authority and
+90/45/0 ordinary embedding cadence remain unchanged. A valid marker remains
+reusable across restart and MCP reconstruction; cached acceptance is not fresh
+verification in this process and can hide same-identity backend/device/library
+drift. Marker-write failure retains its best-effort behavior. An actual refusal
+returns the typed open error and no engine; newly rejected first-population
+references are not published. This adds no new cache, descriptor or schema step.
+[Full limits and error payloads](rust.md#built-in-provider-admission-and-cached-verification)
+include deliberate mutable no-provider access and the unrepaired provider-free
+dense rebuild defect. Loader/device, Mean/CLS distinction and mean recovery
+ordering remain unchanged; none of this authenticates historical vector provenance.

@@ -8,7 +8,10 @@
 //!
 //! FathomDB embeds SQLite (FTS5 + `sqlite-vec`) in your process — there is no
 //! server and no sidecar. One `Engine` owns the writer thread, a reader pool,
-//! the projection scheduler and (optionally) an in-process embedder.
+//! the projection scheduler and (optionally) the pinned built-in BGE/Mean provider.
+//! Production provider choice is Default or None; low-level trait implementations
+//! and standalone CLS helpers do not grant engine admission before 1.x. Actual
+//! vector verification refusal returns a typed open error and no Engine.
 //!
 //! # Do you want this crate?
 //!

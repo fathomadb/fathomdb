@@ -231,7 +231,7 @@ _install_typed_init(CudaPrivateBuildRefusedError, ("ordinal", "message"))
 _install_typed_init(
     EmbedderRequiredError, ("code", "operation", "state", "remediations", "documentation_url")
 )
-# 0.8.18 Slice 5 — the query-time refusal carries the divergence `reason`.
+# Numeric refusal reuses the existing class and preserves its divergence reason.
 _install_typed_init(VectorEquivalenceMismatchError, ("reason",))
 _install_typed_init(VectorVerificationError, ("probe_ordinal", "cause_code", "cause_message", "provider_kind", "provider_error"))
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb payloads.

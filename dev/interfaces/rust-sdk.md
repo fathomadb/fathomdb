@@ -23,8 +23,7 @@ structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
 `embed_batch_cls`, the rerank DTOs, the shared DTO re-exports, and the
 modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
 privately; there is no `Deref`, accessor or conversion to
-`fathomdb_engine::Engine`. Custom embedder injection (`EmbedderChoice`,
-`open_with_choice*`), the operator/recovery seam, raw SQL, test hooks and the
+`fathomdb_engine::Engine`. Custom embedder injection, the operator/recovery seam, raw SQL, test hooks and the
 Rust-only search overloads are not reachable.
 
 The checker also refuses these routes to the core:
@@ -355,7 +354,8 @@ TypeScript base is `FathomDbError`.
   `runtime_configuration_error_to_py` in `fathomdb-py/src/errors.rs`. The
   TypeScript mapping is equivalent.
 - **Open errors:** `EngineConfiguration` → `InvalidArgument`; `Io` →
-  `Storage`.
+  `Storage`; `VectorEquivalenceMismatch` → the existing same-named kind;
+  `VectorVerification` → `VectorVerificationError`.
 - **Core variants.** A core variant compiled only with `operator` →
   `ErrorKind::Engine`, as in Python, through an
   `#[allow(unreachable_patterns)]` catch-all. That arm would also absorb a
@@ -549,3 +549,25 @@ error, including CUDA payloads; verification context is never flattened into
 Actual verification refusal returns no engine or successful `OpenReport`. The
 obsolete `dense_disabled`, `dense_disabled_reason` report fields and engine
 accessors, and `vector_equivalence_refusal_count` instrumentation are removed.
+
+Production open selects only pinned BGE/Mean or deliberate no-provider access
+(`OpenOptions.use_default_embedder`); custom engine providers are unsupported
+before 1.x. All string projection selectors are rejected before mutation;
+omitted/null remains supported. Historical selectors remain truthful on reads
+and cannot silently select BGE. Standalone CLS, loader/device/precision and
+mean-recovery behavior are unchanged.
+
+The existing persistent cache, probe gate, recipe and cadence are preserved:
+90 embeddings for clean first population, 45 for a fresh baseline check, zero
+for a valid persisted marker, ordinary vector-less or no-provider opens. Restart
+and MCP idle/A/B/A reopening preserve cached acceptance, which is not fresh
+verification in this process and can hide same-identity backend/device/library
+drift. Full limits and deliberate mutable no-provider access, including the
+unrepaired provider-free dense rebuild defect, are specified in
+[Rust provider admission](rust.md#built-in-provider-admission-and-cached-verification).
+
+The verification cause codes and zero-based ordinal/preflight-zero convention
+match the [core open error contract](rust.md#vector-verification-open-errors).
+The source chain continues through `EngineOpenError` and the typed verification
+cause to the original provider error. Successful projection runtime state is
+`Absent`/`Usable`; obsolete refused-open modes are removed.

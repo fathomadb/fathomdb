@@ -466,6 +466,8 @@ to its class.
 | `EngineOpenError::CudaPoolExhausted{..}`         | 70        | unrecoverable |
 | `EngineOpenError::CudaContextLost{..}`           | 70        | unrecoverable |
 | `EngineOpenError::CudaPrivateBuildRefused{..}`   | 70        | unrecoverable |
+| `EngineOpenError::VectorEquivalenceMismatch{..}` | 70        | unrecoverable |
+| `EngineOpenError::VectorVerification{..}`        | 70        | unrecoverable |
 | `EngineOpenError::Io{..}`                        | 70        | unrecoverable |
 
 ## JSON output wrapping
@@ -522,3 +524,13 @@ carries `code`, `message`, `payload` with the existing class name and typed CUDA
 fields (context ids are decimal strings). Non-provider failures set both provider
 fields to `null`. This mapping adds no diagnostic command and does not certify
 provider-free dense rebuild safe.
+
+Cause codes and the zero-based stored-probe ordinal/preflight-zero convention
+match the [Rust open error contract](rust.md#vector-verification-open-errors).
+Provider kind distinguishes failed/timeout and specific CUDA pool variants. The
+existing checker/cache, 90/45/0 probe cadence and persisted-marker restart/MCP
+reuse are unchanged; cached acceptance is not a fresh process check and retains
+the same-identity backend-drift residual. Production providers are built-in BGE/Mean
+or deliberate none, with no custom admission before 1.x; loader/device and
+standalone CLS behavior remain unchanged. See the
+[complete admission limits](rust.md#built-in-provider-admission-and-cached-verification).

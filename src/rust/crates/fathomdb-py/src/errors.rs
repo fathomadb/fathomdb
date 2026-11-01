@@ -635,3 +635,87 @@ pub(super) fn runtime_configuration_error_to_py(error: RustRuntimeConfigurationE
         exc
     })
 }
+
+#[cfg(test)]
+mod vector_open_tests {
+    use super::*;
+    use fathomdb_engine::VectorVerificationFailure;
+
+    #[test]
+    fn vector_verification_failure_preserves_python_context_and_provider() {
+        Python::initialize();
+        let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::Provider(
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal: 2,
+                    max_size_bytes: 12345,
+                    message: "original allocator detail".into(),
+                },
+            ),
+        });
+        Python::attach(|py| {
+            assert!(error.is_instance_of::<VectorVerificationError>(py));
+            let value = error.value(py);
+            assert_eq!(value.getattr("probe_ordinal").unwrap().extract::<u32>().unwrap(), 7);
+            assert_eq!(
+                value.getattr("cause_code").unwrap().extract::<String>().unwrap(),
+                "provider"
+            );
+            let provider = value.getattr("provider_error").unwrap();
+            assert!(provider.is_instance_of::<CudaPoolExhaustedError>());
+            assert_eq!(provider.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 2);
+            assert_eq!(
+                provider.getattr("max_size_bytes").unwrap().extract::<u64>().unwrap(),
+                12345
+            );
+            assert_eq!(
+                provider.getattr("message").unwrap().extract::<String>().unwrap(),
+                "original allocator detail"
+            );
+        });
+    }
+
+    #[test]
+    fn numeric_refusal_retains_python_mismatch_class() {
+        Python::initialize();
+        let error = engine_open_error_to_py(EngineOpenError::VectorEquivalenceMismatch {
+            reason: "P1 flips=3".into(),
+        });
+        Python::attach(|py| {
+            assert!(error.is_instance_of::<VectorEquivalenceMismatchError>(py));
+            assert_eq!(
+                error.value(py).getattr("reason").unwrap().extract::<String>().unwrap(),
+                "P1 flips=3"
+            );
+        });
+    }
+
+    #[test]
+    fn dispatch_refusal_and_panic_remain_distinct_in_python() {
+        Python::initialize();
+        for cause in [
+            VectorVerificationFailure::StartedTimeout,
+            VectorVerificationFailure::InvalidOutput,
+            VectorVerificationFailure::Panic { message: "original panic".into() },
+        ] {
+            let code = cause.code();
+            let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause,
+            });
+            Python::attach(|py| {
+                let value = error.value(py);
+                assert!(error.is_instance_of::<VectorVerificationError>(py));
+                assert_eq!(value.getattr("cause_code").unwrap().extract::<String>().unwrap(), code);
+                assert!(value.getattr("provider_error").unwrap().is_none());
+                if code == "panic" {
+                    assert_eq!(
+                        value.getattr("cause_message").unwrap().extract::<String>().unwrap(),
+                        "original panic"
+                    );
+                }
+            });
+        }
+    }
+}

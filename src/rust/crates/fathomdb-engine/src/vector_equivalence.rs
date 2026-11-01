@@ -55,30 +55,55 @@ fn vector_equivalence_probes() -> Vec<&'static str> {
         .collect()
 }
 
-/// 0.8.18 Slice 5 — outcome of the open-time #5 self-check.
-pub(crate) struct VectorEquivalenceOutcome {
-    pub(crate) dense_disabled: bool,
-    pub(crate) reason: Option<String>,
-}
-
 /// A dense runtime can schedule, repair, and report readiness only when an
 /// embedder is attached and the open-time equivalence guard accepted it.
 pub(crate) fn usable_dense_runtime(embedder: Option<&dyn Embedder>, dense_disabled: bool) -> bool {
     embedder.is_some() && !dense_disabled
 }
 
-/// 0.8.18 Slice 5 — embed one probe through the engine's bounded dispatcher.
-/// The probe runs at open time on the writer connection before projection workers
-/// spawn. A caller-supplied embedder that panics, errors, times out, or returns
-/// a wrong-dimension vector yields `None`; the callers then fail-safe — a `None` at population
-/// or check time means the vector arm cannot be established/verified, so dense is
-/// REFUSED (`dense_disabled=true`), never silently served. `Engine::open` still
-/// succeeds (no wedge; ADR-0.6.0 Invariant-5 posture, mirrored open-side).
-fn probe_embed(embedder: &EmbedDispatcher, text: &str, dimension: usize) -> Option<Vec<f32>> {
-    match embedder.submit_text(text.to_owned()).and_then(EmbedReply::wait) {
-        Ok(EmbedOutput::One(vector)) if vector.len() == dimension => Some(vector),
-        _ => None,
+fn probe_storage(message: String) -> EngineOpenError {
+    EngineOpenError::Io { message }
+}
+
+fn probe_invalid_state(message: String) -> EngineOpenError {
+    EngineOpenError::VectorVerification {
+        // Zero identifies whole-baseline preflight when no individual inference
+        // probe was reached; the message carries the affected table/state.
+        probe_ordinal: 0,
+        cause: VectorVerificationFailure::InvalidState { message },
     }
+}
+
+fn probe_mismatch(reason: String) -> EngineOpenError {
+    EngineOpenError::VectorEquivalenceMismatch { reason }
+}
+
+fn probe_embed(
+    embedder: &EmbedDispatcher,
+    text: &str,
+    dimension: usize,
+    probe_ordinal: u32,
+) -> Result<Vec<f32>, EngineOpenError> {
+    let outcome = embedder.submit_text(text.to_owned()).and_then(EmbedReply::wait);
+    let cause = match outcome {
+        Ok(EmbedOutput::One(vector)) if vector.len() == dimension => return Ok(vector),
+        Ok(_) | Err(DispatchError::InvalidOutput) => VectorVerificationFailure::InvalidOutput,
+        Err(DispatchError::NotConfigured) => VectorVerificationFailure::NotConfigured,
+        Err(DispatchError::Saturated) => VectorVerificationFailure::Saturated,
+        Err(DispatchError::QueuedExpired) => VectorVerificationFailure::QueuedExpired,
+        Err(DispatchError::StartedTimeout) => VectorVerificationFailure::StartedTimeout,
+        Err(DispatchError::Provider(error)) => VectorVerificationFailure::Provider(error),
+        Err(DispatchError::Panic(payload)) => VectorVerificationFailure::Panic {
+            message: payload
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| payload.downcast_ref::<&str>().map(|message| (*message).to_owned()))
+                .unwrap_or_else(|| "non-string provider panic".to_owned()),
+        },
+        Err(DispatchError::Closing) => VectorVerificationFailure::Closing,
+        Err(DispatchError::Cancelled) => VectorVerificationFailure::Cancelled,
+    };
+    Err(EngineOpenError::VectorVerification { probe_ordinal, cause })
 }
 
 /// 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — the open-time
@@ -122,8 +147,8 @@ pub(crate) fn run_vector_equivalence_probe(
     identity: &EmbedderIdentity,
     mean_pinned: bool,
     prospective_dense_arm: bool,
-) -> VectorEquivalenceOutcome {
-    let not_disabled = VectorEquivalenceOutcome { dense_disabled: false, reason: None };
+) -> Result<(), EngineOpenError> {
+    let not_disabled = Ok(());
 
     // No runtime embedder means no dense arm to guard (EmbedderChoice::None).
     // The probe is inert; dense writes/queries already fail with
@@ -169,16 +194,7 @@ pub(crate) fn run_vector_equivalence_probe(
     // probe. Its preflight is read-only until acceptance: a refusal must leave no
     // reference baseline or verdict-cache mutation behind for a later open.
     let prospective_preflight = prospective_dense_arm && !vector_kind_registered;
-    match probe_populate_or_check(
-        connection,
-        embedder,
-        identity,
-        mean_pinned,
-        prospective_preflight,
-    ) {
-        Ok(()) => not_disabled,
-        Err(reason) => VectorEquivalenceOutcome { dense_disabled: true, reason: Some(reason) },
-    }
+    probe_populate_or_check(connection, embedder, identity, mean_pinned, prospective_preflight)
 }
 
 /// 0.8.18 Slice 5 — either PERSIST the baseline (probe table empty) or CHECK
@@ -190,20 +206,22 @@ fn probe_populate_or_check(
     identity: &EmbedderIdentity,
     mean_pinned: bool,
     prospective_preflight: bool,
-) -> Result<(), String> {
+) -> Result<(), EngineOpenError> {
     let probes = vector_equivalence_probes();
     if probes.is_empty() {
         // Fail-SAFE: the compiled-in probe fixture is empty ⇒ nothing to verify
         // the vector arm against. (Defensive; the fixture is drift-guarded
         // non-empty at 45 probes.)
-        return Err(
-            "vector-equivalence probe fixture is empty; cannot verify the dense arm".to_string()
-        );
+        return Err(probe_invalid_state(
+            "vector-equivalence probe fixture is empty; cannot verify the dense arm".to_string(),
+        ));
     }
 
     let existing: i64 = connection
         .query_row("SELECT COUNT(*) FROM _fathomdb_embed_probe", [], |r| r.get(0))
-        .map_err(|e| format!("could not read the probe reference table: {e}; cannot verify"))?;
+        .map_err(|e| {
+            probe_storage(format!("could not read the probe reference table: {e}; cannot verify"))
+        })?;
 
     if existing == 0 {
         let pending_baseline = collect_probe_baseline(embedder, identity, &probes)?;
@@ -253,36 +271,32 @@ fn collect_probe_baseline(
     embedder: &EmbedDispatcher,
     identity: &EmbedderIdentity,
     probes: &[&str],
-) -> Result<Vec<StoredProbeRow>, String> {
+) -> Result<Vec<StoredProbeRow>, EngineOpenError> {
     let dimension = identity.dimension as usize;
     let mut rows = Vec::with_capacity(probes.len());
     for (ordinal, probe) in probes.iter().enumerate() {
-        match probe_embed(embedder, probe, dimension) {
-            Some(vector) => rows.push((
-                ordinal as i64,
-                (*probe).to_string(),
-                encode_vector_blob(&vector),
-                identity.name.clone(),
-                identity.revision.clone(),
-                identity.dimension as i64,
-            )),
-            None => {
-                return Err(format!(
-                    "embedder failed to produce a reference vector for probe {ordinal}; \
-                     cannot establish a vector-equivalence baseline (dense arm refused)"
-                ));
-            }
-        }
+        let vector = probe_embed(embedder, probe, dimension, ordinal as u32)?;
+        rows.push((
+            ordinal as i64,
+            (*probe).to_string(),
+            encode_vector_blob(&vector),
+            identity.name.clone(),
+            identity.revision.clone(),
+            identity.dimension as i64,
+        ));
     }
     Ok(rows)
 }
 
 /// Persist a complete accepted baseline atomically. A failed transaction leaves no
 /// partial reference set for a future open to trust.
-fn persist_probe_baseline(connection: &Connection, rows: &[StoredProbeRow]) -> Result<(), String> {
-    let tx = connection
-        .unchecked_transaction()
-        .map_err(|e| format!("could not open the probe-baseline transaction: {e}"))?;
+fn persist_probe_baseline(
+    connection: &Connection,
+    rows: &[StoredProbeRow],
+) -> Result<(), EngineOpenError> {
+    let tx = connection.unchecked_transaction().map_err(|e| {
+        probe_storage(format!("could not open the probe-baseline transaction: {e}"))
+    })?;
     for (ordinal, probe, blob, name, revision, dim) in rows {
         tx.execute(
             "INSERT OR REPLACE INTO _fathomdb_embed_probe(
@@ -291,9 +305,9 @@ fn persist_probe_baseline(connection: &Connection, rows: &[StoredProbeRow]) -> R
              ) VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
             params![ordinal, probe, blob, name, revision, dim],
         )
-        .map_err(|e| format!("could not persist the probe baseline: {e}"))?;
+        .map_err(|e| probe_storage(format!("could not persist the probe baseline: {e}")))?;
     }
-    tx.commit().map_err(|e| format!("could not commit the probe baseline: {e}"))?;
+    tx.commit().map_err(|e| probe_storage(format!("could not commit the probe baseline: {e}")))?;
     Ok(())
 }
 
@@ -479,7 +493,7 @@ fn probe_check_against_baseline(
     mean_pinned: bool,
     probes: &[&str],
     clear_cache_on_error: bool,
-) -> Result<(), String> {
+) -> Result<(), EngineOpenError> {
     let outcome = load_stored_probe_baseline(connection).and_then(|stored| {
         probe_check_stored_baseline(connection, embedder, identity, mean_pinned, probes, &stored)
     });
@@ -498,13 +512,15 @@ fn probe_check_against_baseline(
     }
 }
 
-fn load_stored_probe_baseline(connection: &Connection) -> Result<Vec<StoredProbeRow>, String> {
+fn load_stored_probe_baseline(
+    connection: &Connection,
+) -> Result<Vec<StoredProbeRow>, EngineOpenError> {
     let mut stmt = connection
         .prepare(
             "SELECT probe_ordinal, probe_text, reference_vec, embedder_name, embedder_revision, dim \
              FROM _fathomdb_embed_probe ORDER BY probe_ordinal",
         )
-        .map_err(|e| format!("could not read the stored probe references: {e}; cannot verify"))?;
+        .map_err(|e| probe_storage(format!("could not read the stored probe references: {e}; cannot verify")))?;
     stmt.query_map([], |row| {
         Ok((
             row.get::<_, i64>(0)?,
@@ -516,7 +532,13 @@ fn load_stored_probe_baseline(connection: &Connection) -> Result<Vec<StoredProbe
         ))
     })
     .and_then(|rows| rows.collect::<rusqlite::Result<Vec<_>>>())
-    .map_err(|e| format!("could not read the stored probe references: {e}; cannot verify"))
+    .map_err(|error| {
+        if error.sqlite_error().is_some() {
+            probe_storage(format!("could not read stored probe references: {error}"))
+        } else {
+            probe_invalid_state(format!("malformed _fathomdb_embed_probe references: {error}"))
+        }
+    })
 }
 
 /// 0.8.18 Slice 5 — the check proper. Fail-SAFE (fix-1 DEFECT #1): a probe embed
@@ -548,7 +570,7 @@ fn probe_check_stored_baseline(
     mean_pinned: bool,
     probes: &[&str],
     stored: &[StoredProbeRow],
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, EngineOpenError> {
     let dimension = identity.dimension as usize;
 
     // Resolve the live mean. Fail-SAFE: if centering is required + pinned but the
@@ -558,15 +580,17 @@ fn probe_check_stored_baseline(
         match read_pinned_mean_vec(connection, identity.dimension) {
             Ok(Some(mean)) => Some(mean),
             Ok(None) => {
-                return Err("mean-centering is required and pinned but mean_vec is absent; \
+                return Err(probe_invalid_state(
+                    "mean-centering is required and pinned but mean_vec is absent; \
                      cannot verify P1 (dense arm refused)"
-                    .to_string());
+                        .to_string(),
+                ));
             }
             Err(_) => {
-                return Err(
+                return Err(probe_invalid_state(
                     "could not read the pinned mean_vec; cannot verify P1 (dense arm refused)"
                         .to_string(),
-                );
+                ));
             }
         }
     } else {
@@ -586,38 +610,38 @@ fn probe_check_stored_baseline(
     // refused); the text-only/FTS path still serves. The stored baseline must be
     // EXACTLY the committed probe set, in order, under the current identity.
     if stored.len() != probes.len() {
-        return Err(format!(
+        return Err(probe_invalid_state(format!(
             "the probe reference table has {} rows but the committed fixture defines {}; \
              the stored baseline is incomplete or corrupt — cannot verify the dense arm (refused)",
             stored.len(),
             probes.len()
-        ));
+        )));
     }
     for (idx, (ordinal, probe_text, ref_blob, name, revision, dim)) in stored.iter().enumerate() {
         // Contiguous 0-based ordinals, one per committed probe (no gaps/dupes).
         if *ordinal != idx as i64 {
-            return Err(format!(
+            return Err(probe_invalid_state(format!(
                 "probe reference ordinals are non-contiguous (row {idx} carries ordinal {ordinal}); \
                  the stored baseline is corrupt — cannot verify the dense arm (refused)"
-            ));
+            )));
         }
         // The stored text MUST be the committed fixture text at this ordinal —
         // otherwise a tampered probe_text re-embeds and verifies against ITSELF,
         // masking drift (the exact fail-open this fix closes).
         if probe_text != probes[idx] {
-            return Err(format!(
+            return Err(probe_invalid_state(format!(
                 "probe reference {ordinal} text does not match the committed fixture; \
                  the stored baseline is tampered or corrupt — cannot verify the dense arm (refused)"
-            ));
+            )));
         }
         // Well-formed f32[dim] reference (4*dim little-endian bytes).
         if ref_blob.len() != dimension * 4 {
-            return Err(format!(
+            return Err(probe_invalid_state(format!(
                 "probe reference {ordinal} is malformed (len {} != {}); \
                  cannot verify the dense arm (refused)",
                 ref_blob.len(),
                 dimension * 4
-            ));
+            )));
         }
         // The stored embedder identity/dim must match the CURRENT expected identity
         // (defence-in-depth beyond `check_embedder_profile`: catches a baseline row
@@ -626,12 +650,12 @@ fn probe_check_stored_baseline(
             || name != &identity.name
             || revision != &identity.revision
         {
-            return Err(format!(
+            return Err(probe_invalid_state(format!(
                 "probe reference {ordinal} was captured under embedder {name}/{revision}/dim={dim} \
                  but the current embedder is {}/{}/dim={}; the stored baseline does not match — \
                  cannot verify the dense arm (refused)",
                 identity.name, identity.revision, identity.dimension
-            ));
+            )));
         }
     }
 
@@ -658,12 +682,7 @@ fn probe_check_stored_baseline(
 
     for (ordinal, probe_text, ref_blob, _, _, _) in stored {
         let reference = decode_vector_blob(ref_blob);
-        let reembed = probe_embed(embedder, probe_text, dimension).ok_or_else(|| {
-            format!(
-                "embedder failed/panicked re-embedding probe {ordinal}; \
-                 cannot verify the dense arm (refused)"
-            )
-        })?;
+        let reembed = probe_embed(embedder, probe_text, dimension, *ordinal as u32)?;
 
         // (P2) un-centered L2 — `vec_distance_l2(embedding, vec_f32(query))`.
         let l2 = l2_distance(&reembed, &reference);
@@ -679,10 +698,14 @@ fn probe_check_stored_baseline(
             None => (reference.clone(), reembed.clone()),
         };
         let ref_bits = quantize_binary_via_sql(connection, &ref_c).ok_or_else(|| {
-            format!("vec_quantize_binary SQL failed for probe {ordinal}; cannot verify P1")
+            probe_storage(format!(
+                "vec_quantize_binary SQL failed for probe {ordinal}; cannot verify P1"
+            ))
         })?;
         let reembed_bits = quantize_binary_via_sql(connection, &reembed_c).ok_or_else(|| {
-            format!("vec_quantize_binary SQL failed for probe {ordinal}; cannot verify P1")
+            probe_storage(format!(
+                "vec_quantize_binary SQL failed for probe {ordinal}; cannot verify P1"
+            ))
         })?;
         total_flips = total_flips.saturating_add(hamming_bytes(&ref_bits, &reembed_bits));
     }
@@ -691,11 +714,11 @@ fn probe_check_stored_baseline(
     let p2_tripped = max_l2 > VECTOR_EQUIVALENCE_L2_EPSILON;
     if p1_tripped || p2_tripped {
         let probe_hint = worst_probe.as_deref().unwrap_or("<unknown>");
-        return Err(format!(
+        return Err(probe_mismatch(format!(
             "P1 mean-centered embedding_bin flips={total_flips} (floor={VECTOR_EQUIVALENCE_P1_FLIP_FLOOR}), \
              P2 max un-centered L2={max_l2:.3e} (epsilon={VECTOR_EQUIVALENCE_L2_EPSILON:.3e}); \
              worst probe {probe_hint:?}"
-        ));
+        )));
     }
 
     // The caller persists this accepted fingerprint only after its enclosing arm

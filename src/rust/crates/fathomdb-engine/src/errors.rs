@@ -83,6 +83,8 @@ pub enum VectorVerificationFailure {
     InvalidOutput,
     /// The provider panicked; the original string payload is preserved when available.
     Panic { message: String },
+    /// Stored verification metadata cannot be interpreted as the committed baseline.
+    InvalidState { message: String },
     /// Dispatch was already closing.
     Closing,
     /// The request was cancelled before completion.
@@ -100,8 +102,29 @@ impl VectorVerificationFailure {
             Self::Provider(_) => "provider",
             Self::InvalidOutput => "invalid_output",
             Self::Panic { .. } => "panic",
+            Self::InvalidState { .. } => "invalid_state",
             Self::Closing => "closing",
             Self::Cancelled => "cancelled",
+        }
+    }
+}
+
+impl Display for VectorVerificationFailure {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Provider(error) => write!(f, "provider: {error}"),
+            Self::Panic { message } => write!(f, "provider panic: {message}"),
+            Self::InvalidState { message } => write!(f, "invalid verification state: {message}"),
+            other => f.write_str(other.code()),
+        }
+    }
+}
+
+impl Error for VectorVerificationFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Provider(error) => Some(error),
+            _ => None,
         }
     }
 }
@@ -137,6 +160,8 @@ pub enum EngineOpenError {
         reason: String,
     },
     /// Required numeric verification could not complete; no engine is returned.
+    /// `probe_ordinal` is zero for whole-baseline preflight failures; the cause
+    /// names the affected state, not a claimed successful inference of probe zero.
     VectorVerification {
         probe_ordinal: u32,
         cause: VectorVerificationFailure,
@@ -265,7 +290,14 @@ impl Display for EngineOpenError {
     }
 }
 
-impl Error for EngineOpenError {}
+impl Error for EngineOpenError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::VectorVerification { cause, .. } => Some(cause),
+            _ => None,
+        }
+    }
+}
 
 fn write_pool_exhausted(
     f: &mut Formatter<'_>,

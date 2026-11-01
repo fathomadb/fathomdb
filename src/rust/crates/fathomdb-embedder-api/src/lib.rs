@@ -121,3 +121,11 @@ mod tests {
         assert_eq!(exhausted.clone(), exhausted);
     }
 }
+
+impl std::fmt::Display for EmbedderError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{self:?}")
+    }
+}
+
+impl std::error::Error for EmbedderError {}

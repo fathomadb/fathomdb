@@ -599,7 +599,7 @@ fn vector_verification_to_py(
 ) -> PyErr {
     use fathomdb_engine::VectorVerificationFailure as Cause;
     let message = match &cause {
-        Cause::Panic { message } => message.clone(),
+        Cause::Panic { message } | Cause::InvalidState { message } => message.clone(),
         Cause::Provider(
             fathomdb_embedder_api::EmbedderError::Failed { message }
             | fathomdb_embedder_api::EmbedderError::CudaPoolExhausted { message, .. }

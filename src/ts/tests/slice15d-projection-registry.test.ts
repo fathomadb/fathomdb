@@ -547,7 +547,7 @@ test("fix-4 CONTROL — a consistent spec round-trips verbatim via read.projecti
       fts: true,
       ftsTokenizer: "unicode61",
       vector: true,
-      vectorEmbedder: undefined,
+      vectorEmbedder: null,
     };
     const delta = await engine.configureProjections([sent]);
     assert.equal(delta.unchanged, false);

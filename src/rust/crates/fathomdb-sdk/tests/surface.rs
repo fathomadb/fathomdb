@@ -254,6 +254,7 @@ const SHARED_ERROR_CLASSES: [&str; 45] = [
     "DependencyTraceError",
     "GraphExpansionError",
     "VectorEquivalenceMismatchError",
+    "VectorVerificationError",
     "InvalidArgumentError",
     "IllegalTransitionError",
     "NotLifecycleAddressableError",

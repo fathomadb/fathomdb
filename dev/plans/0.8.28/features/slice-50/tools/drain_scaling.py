@@ -11,6 +11,7 @@ from pathlib import Path
 import shutil
 import statistics
 import subprocess
+import sys
 import tarfile
 import threading
 import time
@@ -109,11 +110,6 @@ def build(args: argparse.Namespace) -> None:
     with tarfile.open(archive) as source:
         source.extractall(export, filter="data")
     shutil.copy2(REPO / PROBE, export / PROBE)
-    # Git archive preserves commit timestamps. A shared target can otherwise
-    # consider the second revision older than the first revision's artifacts.
-    for source_file in export.rglob("*"):
-        if source_file.is_file() and not source_file.is_symlink():
-            source_file.touch()
     env = dict(os.environ, CARGO_TARGET_DIR=str(args.target.resolve()))
     command = [
         "cargo",
@@ -130,6 +126,11 @@ def build(args: argparse.Namespace) -> None:
     ]
     with (args.scratch / "build.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        # Git archive preserves commit timestamps. A shared target can otherwise
+        # consider the second revision older than the first revision's artifacts.
+        for source_file in export.rglob("*"):
+            if source_file.is_file() and not source_file.is_symlink():
+                source_file.touch()
         result = subprocess.run(
             command, cwd=export, env=env, text=True, stdout=subprocess.PIPE, check=True
         )
@@ -173,6 +174,10 @@ def run_one(binary: str, label: str, n: int, repeat: int, mode: str) -> dict:
             capture_output=True,
             check=True,
         )
+    except subprocess.CalledProcessError as error:
+        sys.stderr.write(error.stdout or "")
+        sys.stderr.write(error.stderr or "")
+        raise
     finally:
         stop.set()
         sampler.join()

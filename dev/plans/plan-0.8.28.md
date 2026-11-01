@@ -218,8 +218,8 @@ requirements say otherwise.
   - Each `UNION ALL` arm of `next_pending_projection_jobs` and
     `pending_projection_candidate_page`
     in `projection_worker.rs` gets its own `ORDER BY write_cursor LIMIT`.
-    That makes drain linear in the backlog: at n=100000 the held drain
-    falls from 33 s to 5.7 s (`exp/0.8.29-ac013-scale-drain` `aa30085fc`).
+    That removes repeated full-backlog sorting: in the prototype at
+    n=100000 the held drain falls from 33 s to 5.7 s (`exp/0.8.29-ac013-scale-drain` `aa30085fc`).
     That figure is for 64-row chunks (Slice 60). On format 34 the slice
     measures linearity under a rule it states before the run.
   - The provider subunit is complete at `630af0bfc`: actual verification
@@ -279,6 +279,17 @@ requirements say otherwise.
   - `include_superseded` and `include_inactive` are honoured on search in
     Rust, Python and TypeScript. Edges keep their vector rows on
     supersession.
+  - **Historical dense completeness:** retaining existing edge vectors is
+    insufficient when an edge is superseded before embedding. The slice
+    design must define consistent historical dense membership for nodes and
+    edges, covering supersession before drain, after drain and in flight,
+    plus reopen/rebuild when historical vectors are already missing. Reconcile
+    skipped/`up_to_date` terminals so missing historical vectors do not count
+    as complete. Historical search is enabled only by `include_superseded`;
+    default exclusions remain unchanged. Define an explicit fallback or
+    completion contract when projections are unavailable; do not silently
+    claim complete vector history. This is a design obligation, not a
+    prescribed data migration or additional Slice 50 production change.
   - The interface docs change, replacing the "refused" rule in
     `dev/interfaces/rust.md`.
   - MCP exposure is 0.8.29 Slice 60, because `fathomdb-mcp` is not on this

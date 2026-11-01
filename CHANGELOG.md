@@ -167,6 +167,10 @@ AC-050c) gates merges against this invariant.
 
 ### Fixed
 
+- Bound both pending-projection scan arms before their merged cursor sort.
+  Scheduler and readiness scans retain their existing results while avoiding
+  repeated sorting of the full pending backlog.
+
 - (Slice 40) A large read no longer slows later reads on the same engine.
   Each SQLite connection now has its own page cache: the bundled build
   drops `SQLITE_ENABLE_MEMORY_MANAGEMENT`, which made one connection's

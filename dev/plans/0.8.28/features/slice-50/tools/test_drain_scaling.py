@@ -1,7 +1,11 @@
 """Measurement parser and decision-rule checks."""
 
 import unittest
-from drain_scaling import analyze, parse_probe
+from contextlib import redirect_stderr
+from io import StringIO
+import subprocess
+from unittest.mock import patch
+from drain_scaling import analyze, parse_probe, run_one
 
 
 class MeasurementTests(unittest.TestCase):
@@ -78,6 +82,20 @@ class MeasurementTests(unittest.TestCase):
             for us in [150 if label == "head" and n == 100000 else 100]
         ]
         self.assertFalse(analyze(rows)["linear"])
+
+    def test_probe_failure_preserves_diagnostics(self):
+        error = subprocess.CalledProcessError(
+            101, ["probe"], output="probe stdout", stderr="probe failure"
+        )
+        output = StringIO()
+        with (
+            patch("drain_scaling.subprocess.run", side_effect=error),
+            redirect_stderr(output),
+        ):
+            with self.assertRaises(subprocess.CalledProcessError):
+                run_one("probe", "head", 100, 0, "overlap")
+        self.assertIn("probe stdout", output.getvalue())
+        self.assertIn("probe failure", output.getvalue())
 
     def test_missing_cell_is_not_a_pass(self):
         with self.assertRaises(ValueError):

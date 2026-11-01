@@ -35,6 +35,9 @@ record the refused/empty, refused/pending, absent/pending and accepted/ready
 matrix, recovered original probe output, and the design history. Engine source
 is unchanged. D50-1/D50-2 implementation and slice design review remain paused.
 This investigation is not a slice close or release verification.
+Owner direction following characterization: steward ledger `seq-350`,
+release-state decision `slice-50-successful-open-investigation`. The replacement
+open contract remains undecided; existing ADRs remain in force.
 
 ## Open owner rulings
 

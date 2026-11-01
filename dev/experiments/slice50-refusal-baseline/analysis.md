@@ -159,6 +159,13 @@ its current rerun is captured in [controls.log](controls.log). This is distinct
 from the intentionally invalidated cache used to produce refused fixtures.
 An open failure policy alone would not correct this coverage limitation.
 
+## Owner direction after characterization
+
+Authority: steward ledger `seq-350` (owner, 2026-10-31), recorded in release
+state as `slice-50-successful-open-investigation`. This authorizes investigation
+of the proposed policy change; a replacement open contract remains undecided.
+The accepted ADRs still govern behavior. D50-1/D50-2 remain unimplemented.
+
 ## Recommendation
 
 Retain the ability to reject unverified or incompatible vector output. A fixed

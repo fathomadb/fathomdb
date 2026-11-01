@@ -342,6 +342,7 @@ export type StructuralDegradationCodeV1 =
   | "soft_fallback_text_edge"
   | "projection_legacy_unverified"
   | "projection_blocked"
+  | "projection_deferred"
   | "graph_bound_reached";
 
 export interface StructuralInclusionV1 {
@@ -440,6 +441,7 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
       "soft_fallback_text_edge",
       "projection_legacy_unverified",
       "projection_blocked",
+      "projection_deferred",
       "graph_bound_reached",
     ] as const;
     let previous = -1;

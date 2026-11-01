@@ -612,7 +612,7 @@ def _map_native_graph_expand_result(result: Any) -> GraphExpandResultV1:
                         "projection_readiness",
                         f"{base}/projectionReadiness",
                     ),
-                    {"not_applicable", "ready", "processing", "blocked", "degraded"},
+                    {"not_applicable", "ready", "processing", "blocked", "deferred", "degraded"},
                     f"{base}/projectionReadiness",
                 ),
             ),

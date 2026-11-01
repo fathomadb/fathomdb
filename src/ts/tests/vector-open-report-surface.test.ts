@@ -34,3 +34,11 @@ const refused: ProjectionRuntimeStateV1 = "refused";
 const disabled: ProjectionRuntimeUnavailabilityReason = "vector_equivalence_disabled";
 void refused;
 void disabled;
+
+import type { ProjectionReadinessV1, EmbeddingReadinessState } from "../src/projection.js";
+// @ts-expect-error refused-runtime projection deferral no longer exists
+const deferredProjection: ProjectionReadinessV1 = "deferred";
+// @ts-expect-error refused-runtime embedding deferral no longer exists
+const deferredEmbedding: EmbeddingReadinessState = "deferred";
+void deferredProjection;
+void deferredEmbedding;

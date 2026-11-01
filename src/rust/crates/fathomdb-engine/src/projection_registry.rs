@@ -119,7 +119,8 @@ impl DenseReadiness {
 /// separate flag that could tear (see [`derive_dense_readiness`]).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ProjectionVector {
-    /// Optional embedder override; `None` ⇒ the engine's shipped default.
+    /// Historical read metadata; caller declarations must leave this `None`.
+    /// Production engine providers are fixed to the built-in implementation before 1.x.
     pub embedder: Option<String>,
     /// 0.8.20 Slice 20 (R-20-DR) — **READ METADATA, engine-set.** Populated by
     /// [`Engine::read_projections`]; `None` on every caller-authored spec.
@@ -1248,6 +1249,9 @@ fn apply_projection_config(
     // pattern (drops apply first, then the fresh spec builds), so it is allowed.
     let mut seen_spec_names: BTreeSet<&str> = BTreeSet::new();
     for spec in specs {
+        if spec.vector.as_ref().is_some_and(|vector| vector.embedder.is_some()) {
+            return Err(EngineError::WriteValidation);
+        }
         if !is_valid_attribute_name(&spec.name) {
             return Err(EngineError::InvalidArgument {
                 msg: format!("invalid projection attribute name: {:?}", spec.name),

@@ -28,7 +28,6 @@ StructuralDegradationCodeV1 = Literal[
     "soft_fallback_text_edge",
     "projection_legacy_unverified",
     "projection_blocked",
-    "projection_deferred",
     "graph_bound_reached",
 ]
 TraversalDirection = Literal["outgoing", "incoming", "both"]
@@ -38,7 +37,7 @@ GraphProjectionOriginV1 = Literal[
     "not_applicable", "fresh", "legacy_unverified", "configuration", "rebuild"
 ]
 GraphProjectionReadinessV1 = Literal[
-    "not_applicable", "ready", "processing", "blocked", "deferred", "degraded"
+    "not_applicable", "ready", "processing", "blocked", "degraded"
 ]
 GraphExpansionDegradationCodeV1 = Literal[
     "query_seed_text_fallback",

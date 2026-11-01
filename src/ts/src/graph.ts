@@ -146,7 +146,7 @@ export type GraphReadModeV1 = "current" | "frozen";
 export type GraphProjectionOriginV1 =
   "not_applicable" | "fresh" | "legacy_unverified" | "configuration" | "rebuild";
 export type GraphProjectionReadinessV1 =
-  "not_applicable" | "ready" | "processing" | "blocked" | "deferred" | "degraded";
+  "not_applicable" | "ready" | "processing" | "blocked" | "degraded";
 export type GraphExpansionDegradationCodeV1 =
   | "query_seed_text_fallback"
   | "projection_legacy_unverified"
@@ -481,7 +481,7 @@ export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
       ),
       projectionReadiness: graphEnum(
         graphField(object, "projectionReadiness", `${base}/projectionReadiness`),
-        ["not_applicable", "ready", "processing", "blocked", "deferred", "degraded"] as const,
+        ["not_applicable", "ready", "processing", "blocked", "degraded"] as const,
         `${base}/projectionReadiness`,
       ),
       degradationCodes,

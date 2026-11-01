@@ -236,7 +236,6 @@ def _map_structural_explanation(value: Any) -> StructuralInclusionV1:
         "soft_fallback_text_edge",
         "projection_legacy_unverified",
         "projection_blocked",
-        "projection_deferred",
         "graph_bound_reached",
     )
     previous = -1

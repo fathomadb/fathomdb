@@ -246,10 +246,12 @@ fn historical_selector_remains_inspectable_but_cannot_activate_a_provider() {
             &[],
         )
         .unwrap();
-    opened.engine.close().unwrap();
     rusqlite::Connection::open(&path).unwrap().execute(
         "UPDATE _fathomdb_projection_registry SET vector_embedder='historical-alternative' WHERE name='body'", []
     ).unwrap();
+    // Keep the persisted historical declaration and serving generation consistent.
+    opened.engine.transition_projection_generation_for_test().unwrap();
+    opened.engine.close().unwrap();
     let inspected = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     assert_eq!(
         inspected.engine.read_projections().unwrap()[0]

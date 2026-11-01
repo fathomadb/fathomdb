@@ -369,3 +369,52 @@ proptest::proptest! {
         reopened.engine.close().unwrap();
     }
 }
+
+fn malformed_none_profile_is_structured_corruption(update: &str) {
+    use fathomdb_engine::{CorruptionKind, CorruptionLocator, EngineOpenError, OpenStage};
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("malformed-profile.fathomdb");
+    Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider))
+        .unwrap()
+        .engine
+        .close()
+        .unwrap();
+    rusqlite::Connection::open(&path).unwrap().execute_batch(update).unwrap();
+    let error = Engine::open_with_choice(&path, EmbedderChoice::None)
+        .expect_err("malformed profile must be rejected");
+    match error {
+        EngineOpenError::Corruption(detail) => {
+            assert_eq!(detail.kind, CorruptionKind::EmbedderIdentityDrift);
+            assert_eq!(detail.stage, OpenStage::EmbedderIdentity);
+            assert_eq!(
+                detail.locator,
+                CorruptionLocator::TableRow { table: "_fathomdb_embedder_profiles", rowid: 0 }
+            );
+            assert_eq!(detail.recovery_hint.code, "E_CORRUPT_EMBEDDER_IDENTITY");
+            assert_eq!(
+                detail.recovery_hint.doc_anchor,
+                "design/recovery.md#embedder-identity-drift"
+            );
+        }
+        other => panic!("preserve profile corruption classification, got {other:?}"),
+    }
+}
+
+#[test]
+fn none_rejects_malformed_profile_name_as_corruption() {
+    malformed_none_profile_is_structured_corruption(
+        "UPDATE _fathomdb_embedder_profiles SET name=X'00' WHERE profile='default'",
+    );
+}
+#[test]
+fn none_rejects_malformed_profile_revision_as_corruption() {
+    malformed_none_profile_is_structured_corruption(
+        "UPDATE _fathomdb_embedder_profiles SET revision=X'00' WHERE profile='default'",
+    );
+}
+#[test]
+fn none_rejects_malformed_profile_dimension_as_corruption() {
+    malformed_none_profile_is_structured_corruption(
+        "UPDATE _fathomdb_embedder_profiles SET dimension=-1 WHERE profile='default'",
+    );
+}

@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use std::sync::atomic::Ordering;
 
 use crate::embedding::embedder_required_for;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
@@ -1878,7 +1877,8 @@ impl Engine {
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn projection_generation_status_full_owner_scan_count_for_test(&self) -> u64 {
-        self.projection_generation_status_full_owner_scan_count.load(Ordering::Relaxed)
+        self.projection_generation_status_full_owner_scan_count
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Return `EXPLAIN QUERY PLAN` details for the production status queries.

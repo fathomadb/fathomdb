@@ -9,6 +9,10 @@ superseded_for_runtime_policy_by: ADR-0.8.23-dual-runtime-device-policy
 
 # ADR-0.8.16 — Cross-vendor ONNX embedder backend (OrtBgeEmbedder)
 
+> **Partial supersession (0.8.28, owner seq-359):**
+> [`ADR-0.8.28-vector-compatibility-open-policy`](ADR-0.8.28-vector-compatibility-open-policy.md).
+> ONNX remains available for standalone/offline evaluation behind its existing feature gate. Caller/CallerWithDeviceResolution production attachment is closed before 1.x; explicit test/evaluation admission is separate.
+
 **Status: SIGNED** (HITL coreyt, 2026-07-08 — Slice-0 gate). ONNX-equivalence measurement AC minted; Slices
 10→15 may proceed. Design context: `dev/design/0.8.16-slice-0-f9-onnx-design.md` (§5 equivalence plan, §6
 ONNX decision).

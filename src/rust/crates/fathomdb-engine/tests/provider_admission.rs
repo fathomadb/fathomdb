@@ -131,8 +131,7 @@ fn verification_failure(fault: u8) -> fathomdb_engine::VectorVerificationFailure
         fathomdb_engine::TestEmbedderChoice::Caller(Arc::new(FaultProvider(fault))),
         EngineConfig { embedder_call_timeout_ms: Some(100), ..Default::default() },
     )
-    .err()
-    .expect("verification failure must return no Engine");
+    .expect_err("verification failure must return no Engine");
     let recovered = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     recovered.engine.close().unwrap();
     match error {
@@ -210,8 +209,7 @@ fn rejected_registered_population_publishes_no_reference_authority() {
         &path,
         Arc::new(ChangesDuringPopulation(std::sync::atomic::AtomicUsize::new(0))),
     )
-    .err()
-    .expect("population confirmation must reject changing output");
+    .expect_err("population confirmation must reject changing output");
     assert!(matches!(error, fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }));
     let db = rusqlite::Connection::open(&path).unwrap();
     let references: i64 =

@@ -689,11 +689,11 @@ impl CandleBgeEmbedder {
         })
     }
 
-    /// Select the pooling strategy (default [`Pooling::Mean`]). Does NOT change
-    /// the embedder identity (pooling is not part of the model identity), so
-    /// stored vectors from a different pooling are incompatible — use only on a
-    /// fresh workspace / in measurement harnesses until the CLS↔binary-floor gate
-    /// is settled.
+    /// Select pooling for standalone use, tests or offline evaluation.
+    /// The default is [`Pooling::Mean`]; this does not change the identity.
+    /// Production engine Default always uses its pinned Mean construction and
+    /// cannot attach an instance made by this constructor. The supported
+    /// standalone CLS helper uses this independently of engine admission.
     pub fn with_pooling(mut self, pooling: Pooling) -> Self {
         self.pooling = pooling;
         self

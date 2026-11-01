@@ -465,10 +465,8 @@ impl Engine {
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
         self.ensure_open()?;
         let is_frozen = frozen_binding.is_some();
-        if !is_frozen {
-            if query.trim().is_empty() {
-                return Err(EngineError::WriteValidation);
-            }
+        if !is_frozen && query.trim().is_empty() {
+            return Err(EngineError::WriteValidation);
         }
 
         // 0.8.20 Slice 15e fix-2 finding 1 [P2] — every filter attribute name is
@@ -930,16 +928,10 @@ impl Engine {
         )
     }
 
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the explicit
-    /// **text-only / FTS-only** search path. It does NOT embed the query and does
-    /// NOT route through the vector-dependent choke point
-    /// [`search_inner_with_stats`][Engine::search_inner_with_stats], so it NEVER
-    /// raises [`EngineError::VectorEquivalenceMismatch`] and stays serviceable when
-    /// the engine opened in the degraded `dense_disabled` state (the D2 "keep FTS
-    /// servable" contract; codex R2 U1-2). Results come from the node- and
-    /// edge-body FTS branches only — no vector recall, no CE rerank, no graph arm.
-    /// Available regardless of degraded state; when dense is healthy it is simply a
-    /// text-only view of the same corpus. Matching node- and edge-body
+    /// Search node and edge bodies using FTS only, without embedding the query,
+    /// vector recall, CE reranking or graph expansion. Available on a successfully
+    /// opened engine, including an explicit no-provider recovery session after
+    /// failed compatibility admission. Matching node- and edge-body
     /// candidates are body-deduplicated and deterministically ranked before
     /// the requested result limit is applied.
     ///

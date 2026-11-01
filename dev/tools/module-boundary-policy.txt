@@ -90,6 +90,7 @@ reported slice20_fix1_tests
 reported slice90_close_review_tests
 reported slice90_close_tests
 reported slice90_concurrent_close_tests
+reported provider_admission_tests
 reported slice90_post_probe_real_error_tests
 governed structural_state
 reported tc5_benchmark
@@ -119,8 +120,6 @@ field close_lock root
 field closed root
 field connection root
 field counters root
-field dense_disabled root
-field dense_disabled_reason root
 field embed_dispatch embed_dispatch
 field erasure_before_primary_lock_hook root
 field explanation_open_nonce telemetry
@@ -152,7 +151,6 @@ field slow_threshold_ms root
 field subscribers root
 field telemetry telemetry
 field telemetry_enabled telemetry
-field vector_equivalence_refusals root
 field wal_attribution wal_attribution
 field writer_connection_registration root
 owner ReaderWorkerPool reader_pool

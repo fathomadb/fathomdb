@@ -424,8 +424,7 @@ fn refused_prospective_arm_is_globally_mutation_free_before_graft() {
     let divergent = CountingEmbedder::divergent(identity);
     let calls = Arc::clone(&divergent.calls);
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(divergent))
-        .err()
-        .expect("verification refusal must return no engine");
+        .expect_err("verification refusal must return no engine");
     assert!(matches!(
         opened,
         fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }
@@ -466,8 +465,7 @@ fn refused_cold_prospective_population_never_persists_a_baseline() {
     let failing = CountingEmbedder::failing_on(identity, 46);
     let calls = Arc::clone(&failing.calls);
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(failing))
-        .err()
-        .expect("verification refusal must return no engine");
+        .expect_err("verification refusal must return no engine");
     assert!(matches!(
         opened,
         fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }
@@ -521,8 +519,7 @@ fn registered_arm_refusal_still_clears_a_stale_probe_verdict() {
 
     let opened =
         Engine::open_with_embedder_for_test(&path, Arc::new(CountingEmbedder::divergent(identity)))
-            .err()
-            .expect("verification refusal must return no engine");
+            .expect_err("verification refusal must return no engine");
     assert!(matches!(
         opened,
         fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }

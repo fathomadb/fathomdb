@@ -504,8 +504,7 @@ fn a_tampered_reference_baseline_reruns_the_probe_and_refuses_dense() {
         &path,
         Arc::new(CountingRefEmbedder { calls: calls.clone() }),
     )
-    .err()
-    .expect("tampered baseline must fail open");
+    .expect_err("tampered baseline must fail open");
     assert_eq!(
         calls.load(Ordering::SeqCst) - before,
         PROBE_COUNT,

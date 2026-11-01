@@ -474,19 +474,10 @@ pub enum EngineError {
     InvalidArgument {
         msg: String,
     },
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — the open-time
-    /// self-check re-embedded the 45 committed probes with the live backend and
-    /// found a divergence beyond the frozen D4 floor (a Phase-1 mean-centered
-    /// `embedding_bin` sign flip, OR a Phase-2 un-centered L2 distance over
-    /// `VECTOR_EQUIVALENCE_L2_EPSILON`). `Engine::open` succeeded into a degraded
-    /// state (`dense_disabled = true`); this query-time error is raised at the
-    /// single choke point [`Engine::search_inner_with_stats`] BEFORE any embedding
-    /// / vector SQL / graph seeding / CE rerank, refusing EVERY vector-dependent
-    /// arm (`search`, `search_expand`, explain/rerank, graph-arm). The explicit
-    /// text-only/FTS-only path ([`Engine::search_text_only`]) stays serviceable.
-    /// Sibling of the open-time `EngineOpenError::EmbedderIdentityMismatch`; per
-    /// ADR-0.8.18 codex R2 U1-1 the refusal surfaces as an `EngineError` (queries
-    /// never surface `EngineOpenError`). `reason` carries a human-readable summary.
+    /// Low-level mismatch vocabulary retained for error interoperation.
+    /// The compatibility checker emits [`EngineOpenError::VectorEquivalenceMismatch`]
+    /// during admission and never returns an engine in a refused-provider state.
+    /// This runtime variant is not emitted by that checker.
     VectorEquivalenceMismatch {
         reason: String,
     },

@@ -68,7 +68,7 @@ pub struct EmbedderRequired {
 /// A Rust-owned, pure current report for embedding readiness.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmbeddingReadiness {
-    /// `ready`, `processing`, `deferred`, or `blocked`.
+    /// `ready`, `processing`, or `blocked`.
     pub state: EmbeddingReadinessState,
     /// Whether this session can use its dense runtime now.
     pub usable_embedder: bool,

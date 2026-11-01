@@ -9,6 +9,10 @@ status: accepted (HITL seq-295)
 
 # ADR-0.8.27 — Engine-owned synchronous runtime topology
 
+> **Partial supersession (0.8.28, owner seq-359):**
+> [`ADR-0.8.28-vector-compatibility-open-policy`](ADR-0.8.28-vector-compatibility-open-policy.md).
+> The degraded-open clauses below are superseded: actual verification refusal fails open without an engine. Original-error preservation, database cleanup, bounded provider-only retention, dispatch capacities and deadlines remain unchanged.
+
 **Status:** accepted by owner ruling `seq-295`, following the architectural
 direction selected at `seq-293`.
 

@@ -111,12 +111,12 @@ pub(crate) fn run_vector_equivalence_probe(
     mean_pinned: bool,
     prospective_dense_arm: bool,
 ) -> Result<(), EngineOpenError> {
-    let not_disabled = Ok(());
+    let not_checked = Ok(());
 
     // No runtime embedder means no dense arm to guard (EmbedderChoice::None).
     // The probe is inert; dense writes/queries already fail with
     // EmbedderNotConfigured.
-    let Some(embedder) = embedder else { return not_disabled };
+    let Some(embedder) = embedder else { return not_checked };
 
     // Gate: the probe engages once the workspace has either a REGISTERED vector
     // kind (`_fathomdb_vector_kinds` non-empty) or a durable prospective vector
@@ -150,7 +150,7 @@ pub(crate) fn run_vector_equivalence_probe(
         .query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds)", [], |r| r.get(0))
         .unwrap_or(false);
     if !vector_kind_registered && !prospective_dense_arm {
-        return not_disabled;
+        return not_checked;
     }
 
     // A cold declared arm must earn its durable enrolment only after a successful
@@ -161,8 +161,8 @@ pub(crate) fn run_vector_equivalence_probe(
 }
 
 /// 0.8.18 Slice 5 — either PERSIST the baseline (probe table empty) or CHECK
-/// against it (probe table populated). `Err(reason)` ⇒ refuse the dense arm
-/// (`dense_disabled=true`); `Ok(())` ⇒ dense served. Fail-SAFE throughout.
+/// against it (probe table populated). A typed error refuses engine admission;
+/// success permits the remaining open stages.
 fn probe_populate_or_check(
     connection: &Connection,
     embedder: &EmbedDispatcher,
@@ -390,7 +390,7 @@ fn probe_verification_fingerprint(
 /// it stops working at the next change to any fingerprint input.
 ///
 /// The equivalence probe is a **correctness self-check against backend drift, not
-/// tamper evidence**; `dense_disabled` is not a tamper signal. Threat model, with
+/// tamper evidence**; a mismatch is not a tamper signal. Threat model, with
 /// the concession and the bound: §8.4/§8.5 of
 /// `dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md`.
 fn probe_verification_is_cached(connection: &Connection, fingerprint: &str) -> bool {
@@ -563,8 +563,8 @@ fn probe_check_stored_baseline(
     // probe_text verified against itself and a short table verified only the rows
     // present — both fail-OPEN. Atomic population stops the ENGINE from writing a
     // partial set; this closes external corruption, a manual edit, and a future
-    // migration bug the engine did not author. Any mismatch ⇒ fail CLOSED (dense
-    // refused); the text-only/FTS path still serves. The stored baseline must be
+    // migration bug the engine did not author. Any mismatch refuses admission.
+    // Deliberate no-provider access remains separate. The stored baseline must be
     // EXACTLY the committed probe set, in order, under the current identity.
     if stored.len() != probes.len() {
         return Err(probe_invalid_state(format!(

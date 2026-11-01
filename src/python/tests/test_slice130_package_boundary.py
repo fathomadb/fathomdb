@@ -108,11 +108,110 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     for declaration in declared:
         assert declaration["path"] not in expected
         expected[declaration["path"]] = declaration
+
+    # Owner seq-359 replaces attached-but-refused engines with typed failed opens.
+    provider_removals = {
+        f"{namespace}.Engine.{name}": {
+            "kind": "python-method",
+            "path": f"{namespace}.Engine.{name}",
+            "signature": signature,
+        }
+        for namespace in ("fathomdb", "fathomdb.engine")
+        for name, signature in (
+            ("dense_disabled", "def dense_disabled(self) -> bool"),
+            ("dense_disabled_reason", "def dense_disabled_reason(self) -> str | None"),
+            ("vector_equivalence_refusal_count", "def vector_equivalence_refusal_count(self) -> int"),
+        )
+    }
+    for name, signature in (
+        ("dense_disabled", "dense_disabled: bool = False"),
+        ("dense_disabled_reason", "dense_disabled_reason: str | None = None"),
+    ):
+        path_name = f"fathomdb.types.OpenReport.{name}"
+        provider_removals[path_name] = {
+            "kind": "python-attribute", "path": path_name, "signature": signature,
+        }
+    assert len(provider_removals) == 8
+    for path_name, old_row in provider_removals.items():
+        assert expected.pop(path_name) == old_row
+
+    provider_literals = {
+        "EmbeddingReadinessState": (
+            "Literal['ready', 'processing', 'deferred', 'blocked']",
+            "Literal['ready', 'processing', 'blocked']",
+        ),
+        "ProjectionReadinessV1": (
+            "Literal['ready', 'processing', 'blocked', 'deferred', 'degraded']",
+            "Literal['ready', 'processing', 'blocked', 'degraded']",
+        ),
+        "ProjectionRuntimeStateV1": (
+            "Literal['absent', 'usable', 'refused']", "Literal['absent', 'usable']",
+        ),
+        "ProjectionRuntimeUnavailabilityReason": (
+            "Literal['none', 'no_runtime', 'vector_equivalence_disabled']",
+            "Literal['none', 'no_runtime']",
+        ),
+    }
+    assert len(provider_literals) == 4
+    for name, (old_literal, new_literal) in provider_literals.items():
+        path_name = f"fathomdb.{name}"
+        old_row = {
+            "kind": "python-value", "path": path_name, "signature": f"{name} = {old_literal}",
+        }
+        assert expected[path_name] == old_row
+        expected[path_name] = {**old_row, "signature": f"{name} = {new_literal}"}
+    verification_error = {
+        "kind": "python-value",
+        "path": "fathomdb.errors.VectorVerificationError",
+        "signature": "VectorVerificationError = _VectorVerificationError",
+    }
+    assert verification_error["path"] not in expected
+    expected[verification_error["path"]] = verification_error
     observed = {row["path"]: row for row in declarations}
-    assert len(declarations) == len(observed) == len(expected) == 1132 + len(declared)
+    assert len(declarations) == len(observed) == len(expected) == 1132 + len(declared) - 8 + 1
     assert observed == expected
 
     stub = (package / "_fathomdb.pyi").read_text()
+    verification_error_stub = (
+        "class VectorVerificationError(EngineError):\n"
+        '    """Open failed because vector verification could not complete; no engine exists."""\n'
+        "    probe_ordinal: int | None\n"
+        "    cause_code: str | None\n"
+        "    cause_message: str | None\n"
+        "    provider_kind: str | None\n"
+        "    provider_error: EmbedderError | None\n"
+        "    def __init__(self, *args: Any, probe_ordinal: int | None = ..., "
+        "cause_code: str | None = ..., cause_message: str | None = ..., "
+        "provider_kind: str | None = ..., provider_error: EmbedderError | None = ...) -> None: ...\n\n"
+    )
+    lifecycle_comment = (
+        "# OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors. Parity-safe\n"
+    )
+    provider_stub_deltas = (
+        (
+            "    embedder_mean_vec_pinned: bool\n"
+            "    dense_disabled: bool\n"
+            "    dense_disabled_reason: str | None\n"
+            "    embedder_device_resolution: DeviceResolution | None\n",
+            "    embedder_mean_vec_pinned: bool\n"
+            "    embedder_device_resolution: DeviceResolution | None\n",
+        ),
+        (
+            "    def dense_disabled(self) -> bool: ...\n"
+            "    def dense_disabled_reason(self) -> str | None: ...\n"
+            "    def vector_equivalence_refusal_count(self) -> int: ...\n"
+            "    # 0.8.8 Slice 15 (OPP-9) — opt-in local telemetry capture.\n",
+            "    # 0.8.8 Slice 15 (OPP-9) — opt-in local telemetry capture.\n",
+        ),
+        (
+            "# 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.\n",
+            "# Actual numeric verification refusal fails open with its original reason.\n",
+        ),
+        (lifecycle_comment, verification_error_stub + lifecycle_comment),
+    )
+    for old_stub, approved_stub in provider_stub_deltas:
+        assert stub.count(approved_stub) == 1
+        stub = stub.replace(approved_stub, old_stub, 1)
     prefix, marker, tail = stub.partition("    def search_frozen(\n")
     assert marker and "    def search_frozen(\n" not in tail
     frozen, suffix = tail.split("    ) -> SearchResult: ...\n", 1)

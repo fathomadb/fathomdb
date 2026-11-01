@@ -5,6 +5,13 @@ target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
+
+> **SUPERSEDED BY SCOPE `seq-357` (2026-11-01).** This historical review concerns
+> the withdrawn runtime/evidence-cache proposal and is not approval of the current
+> [narrow design](built-in-provider-design.md). Its original findings are preserved;
+> the [separate narrow-scope review](built-in-provider-narrow-review.md) records
+> the current independent verdict.
+
 # Astra-medium design record
 
 Reviewer/designer: `gpt-6-astra`, medium reasoning, continued agent

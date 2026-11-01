@@ -171,8 +171,13 @@ Slice-0 gate before Slices 15 and 25 open.
 Proposed, owner review pending: [vector compatibility open policy and explicit
 recovery access](ADR-0.8.28-vector-compatibility-open-policy.md). Investigation
 authorized at steward `seq-350`; built-in-only scope before 1.x ruled at
-`seq-355`. The revised built-in-provider contract, extension closures, evidence
-cache, runtime stability and recovery policy remain proposed, not accepted.
+`seq-355`, narrowed by `seq-357` to preserve existing checks, persistent TC-68
+cache/cadence and runtime/mean behavior. Production provider closure, typed
+failed open on actual refusal and necessary no-provider metadata validation are
+proposed; detailed contract and release placement remain unapproved. The earlier
+evidence-cache/runtime-stability proposal is superseded. Separate independent
+[review](../plans/0.8.28/features/slice-50/built-in-provider-narrow-review.md)
+returned APPROVE_FOR_OWNER_REVIEW; owner contract approval remains pending.
 
 ## Categories
 

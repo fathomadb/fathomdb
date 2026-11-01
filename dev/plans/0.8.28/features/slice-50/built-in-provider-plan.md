@@ -1,50 +1,68 @@
 ---
-title: Built-in provider contract — design work plan
-status: proposed; design work authorized; production implementation not authorized
+title: Built-in provider — revised narrow work plan
+status: proposed; seq-357 scope correction; no implementation authorization
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
-# Built-in provider design work plan
+# Built-in provider work plan
 
-Owner scope: steward `seq-355`. User-specified embedders are a long-term goal,
-unsupported before 1.x. The owner commissioned Astra-medium to develop the
-replacement contract, enumerate existing extension paths, update needs and
-requirements/acceptance criteria, and bring the result back before implementation.
-This work does not place a new implementation unit in the release ladder.
+Owner `seq-355` excludes user providers before 1.x; `seq-357` explicitly preserves
+the existing checker and persistent cache. The previous evidence-cache, immutable
+runtime and mean-policy package exceeded scope and is superseded. Detailed
+contract and release placement remain unapproved. Unit S is unchanged;
+D50-1/D50-2 stay held, not alternative implementation instructions.
 
-## Design sequence
+Separate [independent Astra-medium review](built-in-provider-narrow-review.md)
+completed: APPROVE_FOR_OWNER_REVIEW, no P1/P2 findings. The revised contract is
+ready for owner consideration; production implementation remains unauthorized.
 
-1. Audit actual production entry points, declarations, loader/construction paths,
-   alternative backends, standalone helpers, test hooks and accepted ADRs.
-   Give every discovered extension path a close/eliminate or contained/deferred
-   disposition, with a source witness and a future verification requirement.
-2. Specify the built-in runtime contract: actual loaded assets and fixed vector
-   function, execution stability, verification cadence, coherent store-state
-   identity, first enrollment, live mean changes and failed-open recovery.
-3. Specify positive-result cache ownership, exact bounds, eviction, invalidation,
-   concurrency and publication ordering independently of database/model lifetime.
-4. Update user needs and traceable feature requirements/acceptance criteria;
-   reconcile Slice 50's old Unit D documents and the proposed successor ADR.
-5. Have Astra check the integrated contract for contradictions and missing
-   closure paths. Record scoped document/state/ledger validation and push the
-   concrete proposal for owner review.
-6. Stop before production source, dependency, schema or behavior changes.
+## Authorized design work
 
-## Implementation sequence proposed for later approval
+1. Astra-medium revises [design](built-in-provider-design.md),
+   [requirements/AC](built-in-provider-requirements.md), successor proposal and
+   current-direction records. Preserve historical evidence/reviews with a scope
+   supersession banner; do not change source, tests, dependencies or release state.
+2. Author stops writing. A separate Astra-medium reviewer checks the complete
+   revised package against `seq-357`: existing cache/gate/counts/residual,
+   production boundary closure, minimal failed-open atomicity and honest recovery
+   limits. The author cannot supply its own independent verdict.
+3. Root integrates review corrections, runs scoped Markdown validation and brings
+   the concrete proposal to the owner. No new measurement campaign is required.
+4. Obtain owner approval of contract and release placement before implementation.
+   Record the known provider-free rebuild defect for separate owner disposition;
+   it is neither fixed nor declared safe by this proposal.
 
-After contract and release placement are approved, delegate implementation in
-isolated worktrees, one writer per checkout. Implement behavior-specific RED
-then GREEN pairs in dependency order: surface closure; stable construction and
-runtime; store verification-state transitions; bounded reuse; typed failed-open
-and cleanup; recovery/diagnostics/binding parity. Do not carry D50-1/D50-2 forward
-as an alternative implementation without a fresh owner ruling. Unit S's scan
-optimization retains its separate requirements and existing review gate.
+## Later implementation, only if approved
 
-Tests must encode the approved contract; intentional supersession of old
-behavior tests must be explicit, never an edit to make a fix pass. Preserve
-committed characterization and timing data as historical baseline evidence.
-Run scoped checks during work; run the full strict agent gate once on the final
-code tree. The current slice checkout has no checkout-owned `.venv`; its
-previous full-gate attempt stopped at that preflight, so setup is a prerequisite
-to a future full verification claim. Do not borrow another checkout's venv.
+Delegate isolated implementation worktrees under repository discipline. Use
+behavior-specific failing-first tests, staged for review, then implementation:
+
+1. Close production caller variants and projection selectors; preserve contained
+   test/evaluation injection and supported standalone helpers. Update interfaces.
+2. Preserve checker/cache/gate/mean behavior with existing tests and focused
+   cadence/residual assertions. Do not revise fingerprint inputs or cache policy.
+3. Carry typed verification causes to open; stage registered first-baseline
+   confirmation before publication as the minimal rejected-open atomicity change.
+4. Route actual refusal through existing guard/dispatch cleanup; update subscribers
+   and binding errors. Correct no-provider stored-profile validation only where
+   necessary for deliberate access; no diagnostic CLI or rebuild orchestration.
+5. Independent code review and final strict `agent-verify.sh` after appropriate
+   scoped development checks. Existing checkout lacks its own `.venv`; setup is
+   prerequisite to full verification, not permission to borrow another checkout's.
+
+Intentional supersession of old degraded-open/provider-surface tests must be
+identified explicitly; do not change tests merely to make fixes pass. Preserve
+existing TC-68 residual tests, normal cached-open counts, first-enrollment and
+mean semantics. Code review must reject incidental stronger guarantees or feature
+cleanup. No commits, pushes or implementation are authorized by the design task
+itself; normal root workflow handles reviewable records separately.
+
+Existing cache regression anchors in `tc68_probe_fingerprint_cache.rs`:
+`verified_reopen_performs_zero_probe_embeds`,
+`a_rewritten_pinned_mean_reruns_the_full_probe`,
+`an_unreadable_cache_entry_falls_back_to_running_the_probe`,
+`a_missing_cache_entry_falls_back_to_running_the_probe`, and
+`residual_same_identity_backend_drift_is_not_caught_on_a_cached_open`.
+Preserve their cache outcomes; intentionally adapt only assertions that formerly
+expected a returned refused handle to the approved typed failed-open contract.

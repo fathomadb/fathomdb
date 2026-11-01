@@ -7,6 +7,13 @@ reviewer: gpt-6-astra
 reasoning_effort: medium
 ---
 
+
+> **SUPERSEDED BY SCOPE `seq-357` (2026-11-01).** This historical review concerns
+> the withdrawn runtime/evidence-cache proposal and is not approval of the current
+> [narrow design](built-in-provider-design.md). Its original findings are preserved;
+> the [separate narrow-scope review](built-in-provider-narrow-review.md) records
+> the current independent verdict.
+
 # Process-local verification reuse review
 
 Owner requested an independent Astra-medium review. Reviewer ran as

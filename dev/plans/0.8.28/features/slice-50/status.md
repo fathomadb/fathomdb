@@ -7,15 +7,15 @@ observed_on: 2026-11-01
 
 # Slice 50 status
 
-> **Current direction (2026-11-01):** owner scope `seq-355` limits production
-> providers to the built-in implementation before 1.x. Read the revised
-> [user needs, requirements and AC](built-in-provider-requirements.md),
-> [design and extension inventory](built-in-provider-design.md), and
-> [design work plan](built-in-provider-plan.md) before the original phase-1
-> material below. Unit S is unchanged. Unit D / D50-1 / D50-2 are historical,
-> unselected options, held without implementation; their recommendations are
-> not the current proposal. The replacement contract and release placement
-> require owner review before production changes.
+> **Current direction (2026-11-01, scope correction `seq-357`):** close
+> production provider escape paths and propose typed failed open on actual
+> verification refusal. Preserve existing TC-68 persistent cache, probe cadence,
+> gate, residual, mean and runtime behavior. The broader evidence-cache/runtime
+> proposal is superseded. Read [requirements/AC](built-in-provider-requirements.md),
+> [design/inventory](built-in-provider-design.md) and [plan](built-in-provider-plan.md).
+> Unit S is unchanged. Unit D / D50-1 / D50-2 remain historical unselected
+> options, held without implementation. Separate independent review and owner
+> contract/release-placement approval are required before production changes.
 
 Step log for [plan.md](plan.md). Commits are on
 `slice/0.8.28-50-drain-scan-bound` (base `544bf74f8`, `dev/0.8.28`). Not
@@ -51,7 +51,8 @@ open contract remains undecided; existing ADRs remain in force.
 The [replacement contract proposal](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md)
 is submitted for owner review before implementation. The owner-requested
 [fresh-open timing results](../../../../experiments/fresh-open-verification/findings.md)
-now quantify the cache decision (steward `seq-352`); production pooling stays
+quantify the earlier fresh-check proposal (steward `seq-352`); `seq-357` preserves
+the existing persistent cache and cadence. Production pooling stays
 Mean under the existing ruling. No policy change is implemented.
 
 ## Historical unselected drain options
@@ -86,11 +87,15 @@ measurements are committed in the experiment directories linked above.
 
 ## Built-in-provider design proposal
 
-Owner scope `seq-355` and proposal record `seq-356`. Astra-medium developed the
-[built-in-provider contract](built-in-provider-design.md); the integrated
+Owner scope `seq-355`, prior proposal `seq-356`, and scope correction `seq-357`.
+Astra-medium revised the [contract](built-in-provider-design.md),
 [requirements/AC](built-in-provider-requirements.md) and
-[work plan](built-in-provider-plan.md) accompany it. Final
-[Astra integration review](built-in-provider-astra-review.md): coherent proposal
-for owner review; the three consistency corrections were applied. No production
-source, dependency, schema or ladder-completion change. Detailed contract and
-release placement remain pending owner review before implementation.
+[plan](built-in-provider-plan.md) to preserve existing checks/cache behavior and
+close production provider gaps, with typed failed-open behavior proposed only on
+actual refusal. Prior [integration review](built-in-provider-astra-review.md)
+and [reuse review](verification-reuse-astra-review.md) are superseded historical
+records, not current approval. Separate [independent Astra-medium review](built-in-provider-narrow-review.md)
+returned APPROVE_FOR_OWNER_REVIEW with no P1/P2 findings; contract and release
+placement still require owner review before code. No source,
+dependency, schema or release-ladder completion change. The known provider-free
+dense rebuild defect remains deferred for separate owner disposition.

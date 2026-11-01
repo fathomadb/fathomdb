@@ -1,341 +1,168 @@
 ---
-title: Built-in provider — proposed admission, stability and verification reuse contract
-status: proposed by Astra-medium; owner review required; no implementation authorized
+title: Built-in provider — narrow admission and failed-open proposal
+status: proposed; revised scope seq-357; independent review APPROVE_FOR_OWNER_REVIEW; owner approval pending
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
 # Built-in provider contract
 
-## 1. Recommendation and authority
+## 1. Scope and authority
 
-Support exactly the pinned BGE-small/Mean engine provider, plus explicit
-no-provider admission, before 1.x. Close production caller injection; retain
-only specifically contained test/evaluation seams. Keep the numerical
-compatibility check. Avoid repeated inference on unchanged MCP reopens by
-retaining bounded successful numerical evidence independently of model lifetime.
+Owner scope `seq-355` excludes user-specified engine embedders before 1.x.
+Correction `seq-357` requires preserving existing verification and cache behavior.
+This proposal closes production provider escape paths and converts an actual
+verification refusal into a typed failed open. It does not strengthen the checker
+into a continuing runtime guarantee. Detailed contract and release placement
+still require owner review before code; D50-1/D50-2 remain held, and Unit S is
+unchanged. The previous bounded-evidence/runtime-stability proposal is superseded.
 
-The owner ruled the pre-1.x scope and commissioned this design at steward
-`seq-355`. Astra-medium developed the proposal read-only against `14dbbd57a`;
-the main thread integrated requirements and records. Detailed mechanisms,
-failed-open/recovery policy, dependency work and release placement remain
-proposed. This is not permission to implement D50-1/D50-2 or change the ladder.
+Read [requirements and AC](built-in-provider-requirements.md),
+[plan](built-in-provider-plan.md), and the
+[proposed successor ADR](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
+The prior broad-scope reviews are historical. A separate Astra-medium reviewer
+reviewed this revision after its author stopped writing: [APPROVE_FOR_OWNER_REVIEW](built-in-provider-narrow-review.md),
+with no P1/P2 findings. Owner contract and release-placement approval remain pending.
 
-Companion documents: [needs, requirements and AC](built-in-provider-requirements.md),
-[work plan](built-in-provider-plan.md), and the
-[proposed open/recovery ADR](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
-The prior [Astra review](verification-reuse-astra-review.md) found the direction
-sound but required these stability/invalidation rules. This revision changes
-its metadata-only cache candidate to a bounded numerical-evidence cache.
-
-**Reuse invariant:** a cached pass represents the specified finite test for
-an exact committed store verification state and an immutable built-in execution
-regime. It is not universal equivalence for every future input, tamper evidence,
-proof of historical vector provenance or protection against arbitrary external
-SQLite/process-memory modification.
-
-## 2. Supported production surface and extension inventory
+## 2. Preserve the existing checker and cache
 
 Source witnesses below are relative to `src/rust/crates/`, inspected at
-`14dbbd57a`. Dispositions are proposed implementation work. No listed source
-path has been changed by this design. Future user-provider integration is
-eligible for separate design at 1.x or later, not promised for 1.0.
+`ae231e3c8`. This document changes no source.
 
-| Path / current behavior | Proposed disposition and containment |
+`fathomdb-engine/src/vector_equivalence.rs:119–180` owns the current gate:
+no provider means no probes; a registered vector kind or durable prospective
+dense declaration engages verification. Preserve the gate, including the
+first-enrollment residual and existing behavior when no kinds/declaration remain.
+A retained baseline alone does not become a new reason to probe. Do not add
+synchronous probes to canonical writes or checks to every inference call.
+
+Preserve the fixture, structural validation, identity/dimension rules, P1 zero
+binary flips and P2 uncentered maximum L2 `1e-5`. Preserve the fingerprint recipe
+and inputs, comparison algorithm, marker lookup and publication/error behavior.
+The persistent TC-68 marker remains authoritative for cached acceptance.
+`vector_equivalence.rs:347–375` hashes stored verification inputs, not the live
+backend; `:425–465` implements persistent lookup, best-effort recording and
+existing registered/prospective error invalidation differences. No incidental
+fingerprint or marker correctness changes are bundled into this work.
+
+For ordinary clean cases, first population embeds 45 references and confirms them
+with 45 further embeddings (90 total); a fresh check of an existing baseline
+uses 45; a valid cached open uses zero. Vector-less/no-provider opens use zero.
+A process restart does not invalidate a valid persisted marker. MCP idle closure
+and A/B/A reconstruction retain existing cached behavior without a new cache.
+Missing/stale/malformed markers and changed existing fingerprint inputs retain
+their current validation and recheck behavior. Marker-write failure remains a
+successful verified open with possible rechecking later, not a new refusal.
+
+The cache does not define validity or extend the check's assurance. The existing
+policy accepts its known residual: a valid marker can hide same-identity backend,
+pooling, device or library drift because those runtime facts are not fingerprint
+inputs. Closing injection narrows supported choices; it does not eliminate that
+residual. The marker is not authenticated and the finite probes do not establish
+universal equivalence or historical vector provenance. See the explicit source
+comments at `vector_equivalence.rs:387–424` and the accepted TC-68 design.
+
+Pinned BGE/Mean, supported device selection, loader behavior, ambient Candle
+precision behavior, mean pin/recompute/recovery ordering and context-error policy
+remain unchanged. No immutable runtime descriptor, owned asset snapshot, new
+Candle fork, context-health registry, retained probe outputs, process cache,
+capacity/TTL/LRU, epoch, or diagnostic cache revocation is required.
+
+## 3. Production boundary and retained seams
+
+Only production `EmbedderChoice::Default` and `None` remain. User providers may be
+considered at 1.x or later, with a separate contract; they are not promised for 1.0.
+Device choice is not provider choice. Retained low-level helpers need not become
+private or move features merely to enforce a boundary already closed at admission.
+
+| Existing path | Disposition and minimum containment |
 | --- | --- |
-| `fathomdb-engine/src/open.rs:1999` `EmbedderChoice::{Default,Caller,CallerWithDeviceResolution,None}`; dispatch `:525` | **Close:** production enum has only `Default`/`None`. Remove both caller variants and misleading recovery advice at `:1647`. Feature unification must not reintroduce them. Distinct hidden test/evaluation openers may inject providers, never mint production reuse evidence. |
-| `fathomdb-embedder-api/src/lib.rs:79` public `Embedder` trait | **Retain, deferred integration:** low-level internal/test abstraction, not a supported user-provider engine contract. Annotate trait/crate docs and remove plugin instructions. No generic descriptor/stability API for third-party providers in this change. |
-| `fathomdb-embedder/src/candle_bge.rs:539–697` public constructors, `LoadedWeights` paths, `with_pooling` | **Close engine escape paths:** only the internal pinned factory can construct an engine-admissible runtime/evidence descriptor. Public standalone/evaluation construction has no admission capability. Keep standalone CLS where needed; engine Mean cannot be overridden. Replace path-based provenance on the supported path with owned verified bytes. |
-| `fathomdb-embedder/src/lib.rs:206`, `nomic.rs:19` Nomic available with ordinary default-provider feature | **Retain deferred:** move implementation/exports behind a named non-default evaluation feature. No production engine route, no production cache capability. Keep its research data. |
-| `fathomdb-embedder/src/lib.rs:183–210`, `ort_bge.rs` and `onnx-embedder` feature | **Retain deferred:** offline/evaluation only, consistent with signed ONNX scope. Preserve comparison fixtures; remove engine caller injection and production configuration promises. No silent ONNX substitution. |
-| `fathomdb-embedder/src/lib.rs:219` `NoopEmbedder` | **Retain test support:** gate public test export; ordinary features do not expose it as a production option. It is not a recovery provider. |
-| `fathomdb-engine/src/open.rs:696` test opener; PyO3/N-API `test_support.rs` | **Retain contained:** explicit non-default test support and separate factory provenance. Shipping package/artifact feature tests prove no test exports. Fake identity equality cannot acquire the built-in production capability. |
-| `fathomdb-engine/src/vector_storage.rs:643–645` `write_vector_for_test` | **Retain contained:** already gated by `cfg(any(test, feature = "test-hooks"))` at this HEAD. Preserve this gate and test shipped-feature closure; never describe it as a production vector import API. |
-| `fathomdb-engine/src/projection_registry.rs:121` `ProjectionVector.embedder`; stored `vector_embedder`, destructive-change check `:1188` | **Close selection, retain stored metadata:** new caller declarations accept only omitted/null `embedder`; reject every string, including empty string, `default` and model names, before mutation. Keep field for truthful historical read metadata, annotate as reserved/unavailable for selection. Preserve old strings verbatim on read; unsupported historic read→configure is intentionally refused, not silently normalized. No identity strings move into vector configuration. |
-| Rust SDK `standalone.rs:88,138`; PyO3 `embedding.rs:179,190`; N-API `embedding.rs:19,30` standalone `embed_batch_cls` | **Retain explicitly separate helper:** CLS output is not an engine-provider selector or a compatible producer of engine-managed Mean vectors. No Mean cache sharing. Update documentation that could imply interchangeability. |
-| `fathomdb-embedder/src/loader.rs:316,373,564` configurable loader hooks; `tc5-benchmark` local-asset constructors | **Retain contained:** existing non-default loader-test/benchmark features serve tests/evaluation only. They cannot forge engine-admissible built-in provenance even when Cargo unifies features. Keep explicit device attestation and pinned benchmark asset rules. |
-| SDK Rust `engine.rs:56`, PyO3/N-API engine open, MCP SDK open | **Retain:** default/none already fits. Never retry a failed provider-enabled open without a provider automatically. MCP ownership, idle close and max-open-store behavior remain intact. |
-| CPU/CUDA policy and separately compiled device capabilities; reranker provider/runtime | **Retain supported policy:** device choice is not user embedder selection. No new backend is authorized here. Reranker remains a separate function; shared Candle settings must not affect immutable BGE execution. Other enabled execution backends require equivalent stability qualification before reuse. |
-| `_fathomdb_embedder_profiles`, `_fathomdb_vector_kinds`, `_fathomdb_embed_probe`, profile/mean helpers keyed to names | **Retain data model:** inspect well-formed historic profiles without provider substitution. Built-in-enabled open requires matching supported identity/dimension and references. Do not relabel/delete old custom identities or assume a profile row proves every historic writer. Replace name-only capability assumptions with the internal supported-runtime record where runtime behavior is required. |
+| Engine `open.rs:1999–2026`, caller dispatch `:525–557` | **Close** `Caller` and `CallerWithDeviceResolution` production variants. Feature unification must not restore them. Keep `Default`/`None`; remove misleading caller-Noop recovery advice at `:1647`. |
+| Engine `projection_registry.rs:121–123`, stored selector comparison `:1188` | **Close** new provider selection: new declarations accept omitted/null `embedder` only; reject every string, including `default`, empty and model names, before mutation. Keep old stored strings verbatim for inspection; do not relabel them or execute a substitute BGE provider. Unsupported historical read-to-configure is intentionally refused. No vector-config identity strings are introduced. |
+| Embedder API `lib.rs:79–96` trait | **Retain** low-level abstraction for dispatch, tests and evaluation; annotate that implementation is not production engine admission. No generic stability/descriptor API. |
+| Embedder `candle_bge.rs:539–697` constructors and `with_pooling`; `loader.rs:148` paths | **Retain** existing standalone/test/evaluation construction and loader semantics. Production Default retains its existing pinned Mean construction; no caller object can be attached. No new provenance capability or owned-byte constructor is needed. |
+| Embedder `lib.rs:206–210`: Nomic and optional ONNX | **Retain deferred** evaluation backends and current feature gates; annotate no supported production engine attachment before 1.x. Preserve offline evaluation data and accepted ONNX boundary. Do not gratuitously reorganize features. |
+| Embedder `lib.rs:219–240`: Noop | **Retain** low-level test fixture with explicit non-production annotation. Production caller closure removes its engine route; no new feature gate solely for cosmetic hiding. |
+| Engine `open.rs:696`; Python/Node `test_support.rs` | **Retain** distinct hidden test/evaluation openers where needed, behind existing appropriate non-default support gates. They may inject fakes for failure tests; normal admission stays closed even when those features unify. Preserve current checker behavior in test engines rather than inventing a second verification system. |
+| Engine `vector_storage.rs:643–645` `write_vector_for_test` | **Retain** existing test/test-hooks gate and shipping-feature exclusion; no production vector-import route. |
+| Embedder loader hooks (`loader-test-hooks`) and `tc5-benchmark` constructors | **Retain** current non-default evaluation boundaries and attestation purpose. No production open accepts their caller-created providers. |
+| SDK `standalone.rs:88,138`; Python `embedding.rs:179,190`; Node `embedding.rs:19,30` | **Retain supported** standalone CLS helper, explicitly distinct from engine Mean. It returns vectors; it does not select or inject an engine provider. No helper removal or new cache separation machinery. |
+| SDK `engine.rs:56–58`, Python/Node opens and MCP SDK open | **Retain** default/none selection, handle ownership and lifecycle; never automatically retry without a provider. |
+| Device policy, reranker and shared Candle settings | **Retain** current behavior and qualification. No new device/provider grammar, precision freeze or per-call health instrumentation. |
+| Persisted profiles, probe references and kinds | **Retain** data and schema. Well-formed historical unsupported profiles remain inspectable without a provider; no implicit migration, relabeling or BGE substitution. |
 
-For every retained seam, add an annotation citing this contract, its test/eval
-purpose, exact gating feature and unsupported engine-integration status. Keep
-this table as the disposition record; source comments link here rather than
-inventing independent roadmaps. Surface tests must exercise the shipping feature
-sets and feature-unified builds: documentation hiding is not access control.
+Update interface, crate and relevant design annotations where this boundary
+supersedes old promises. In particular, the accepted embedder-protocol ADR's
+user-provider promise needs a successor scope clause; retain its dispatch rules.
+The ONNX ADR remains historical evaluation authority, not a production escape.
+Test feature closure at the actual shipping artifacts and ordinary API, without
+requiring all public low-level symbols to disappear. No pre-1.0 compatibility shim.
 
-The implementation must update `dev/interfaces/{rust,rust-sdk,python,typescript,cli}.md`,
-`dev/design/{embedder,bindings}.md`, crate/feature docs and misleading examples.
-Upon owner approval, the successor ADR narrows the public-provider promise in
-`ADR-0.6.0-embedder-protocol.md` while retaining dispatch invariants; it records
-the offline/evaluation-only ONNX boundary. It retains
-`ADR-0.6.0-vector-identity-embedder-owned.md`: configuration is not identity.
-No backward-compatibility shim is proposed for removed pre-1.0 admission APIs.
+## 4. Actual refusal becomes failed open
 
-## 3. Construction and runtime stability
+Run the existing admission/check/cache flow. If it accepts or is inapplicable,
+return the engine normally. If it actually refuses, return a classified error
+and no Engine, rather than `dense_disabled` degraded-open. A cache hit remains
+acceptance; do not force an uncached check to justify this new error policy.
 
-### Immutable built-in execution
+Distinguish numeric mismatch, cannot-verify causes (provider error, panic,
+timeout/admission failure, malformed output), and invalid reference/profile/mean
+state. Preserve underlying typed causes through the checker and bindings rather
+than parsing today's reason string. These plumbing changes must not alter which
+inputs pass, fail or skip. Initial subscribers receive the error. Remove only
+obsolete refused-open state/report branches; later runtime errors keep their
+existing operation behavior. No every-call compatibility guarantee or automatic
+provider fallback.
 
-The installed Candle fork consults mutable process-global
-`gemm_reduced_precision_f32()` when selecting CUDA GEMM computation
-(`candle-core-fathomdb-0.11.0/src/cuda_backend/mod.rs:2482,2488,2526`).
-Resetting it at startup, checking before/after inference, or locking only
-FathomDB callers cannot freeze it against concurrent outside calls.
+At `open.rs:867–878`, the current probe precedes construction of
+`OpenPostProbeGuard`. Establish cleanup ownership before the new early return.
+Preserve engine-owned dispatch, existing single bounded cleanup budget, original
+error, SQLite/readers/callback/lock release and late-result discard. A still-running
+provider can retain only existing provider/request/accounting resources, never
+database authority. No new cleanup topology or renewed retry budget.
 
-**Propose separately qualified fork work:** an immutable per-runtime strict-F32
-execution policy, propagated through device clones/tensors and every built-in
-BGE matmul, including batched paths. The supported runtime must not consult the
-legacy global flag. Leave unrelated Candle consumers' legacy behavior intact.
-Audit the actual execution path for other ambient numerical controls; remove
-their influence or fix them in the same immutable regime. A list of sampled
-environment values is not a stability mechanism. No fork mutation, publication,
-new dependency pin or expanded hardware qualification is authorized by drafting
-this proposal. Follow the existing fork-first qualification process after
-approval; no driver/toolkit changes are needed by this design.
+### Minimal first-baseline atomicity
 
-### Construction-bound descriptor
+`vector_equivalence.rs:206–242` stages and confirms prospective references before
+publication, but registered-arm first population persists before confirmation.
+Propose applying the existing stage/check/persist ordering to registered first
+population too: a failed open must not leave newly created, rejected references
+as the next open's authority. This is directly necessary failed-open failure
+atomicity, not a new enrollment or verification regime. Preserve 90 ordinary
+first-population calls, checker inputs, thresholds and subsequent marker behavior.
+Preserve existing registered versus prospective marker-error handling. Existing
+references are never replaced on failure. Test confirmation failure and storage
+failure explicitly; make no whole-open rollback promise. Ordinary earlier mean
+recovery/migrations keep their current durable effects and ordering.
 
-A sealed internal record, created only by the supported factory, contains:
+## 5. Deliberate no-provider access and deferred work
 
-- Versioned descriptor recipe and actual consumed config/tokenizer/weight hashes.
-- Fixed Mean pooling; tokenizer normalization and special-token/truncation
-  behavior (512-token window); unit normalization and F32 numerical policy.
-- Effective backend and execution regime, including effective CUDA device
-  identity/capability and resolved runtime provenance where applicable.
-- Implementation identity within the cache's loaded build/library domain.
-  Fixed process implementation may be implicit in that domain; no executable
-  rehash is required. `auto` is a request, not an effective backend identity.
+Use existing None/default-off selectors. Correct no-provider admission to validate
+an existing stored profile as metadata rather than compare it with fictitious BGE
+identity (`open.rs:557`, profile validation near `:2125`). Preserve integrity and
+corruption refusal; do not promise arbitrary damaged databases can open. New-store
+profile creation stays under existing defaults. This is ordinary mutable access,
+not forensic mode: canonical/text/lifecycle/erasure behavior and deferred dense
+work remain governed by existing rules. No-provider startup mean recovery and
+explicit recompute retain existing behavior, with no numerical verification claim.
 
-Do not key ordinary reconstruction reuse on provider addresses, context allocation
-IDs or caller-supplied device reports. Context loss is handled by invalidation.
-The factory hashes and constructs from the **same immutable owned bytes/backing**
-and checks the pinned expected hashes. Existing `LoadedWeights` paths followed
-by later reads/mmap (`loader.rs:148`; `candle_bge.rs:625–676`) do not meet this
-contract. Parsing, tokenization and tensor construction must use the owned
-snapshot; mutable file-backed mappings cannot remain runtime authority.
-Do not retain loader mappings/files in the evidence cache.
+No-provider access is not a repaired dense backend. Existing doctor identity checks,
+structural diagnostics, export and rebuild do not establish numerical compatibility.
+The known provider-free rebuild invalidation defect remains disclosed: current
+operator rebuild can invalidate dense state without a usable provider, and CLI
+recovery currently opens without one. This proposal neither fixes nor certifies
+that path safe. Root/owner must separately disposition it; do not expand this
+change into dense rebuild admission, orchestration or a new diagnostic CLI.
 
-No new durable per-store full-runtime schema is needed for this process-local
-optimization. Existing identity/profile/references remain authoritative data;
-the runtime descriptor supplements rather than rewrites their identity. Future
-persistent provenance/rotation is separate work. Re-measure complete construction
-cost and transient memory introduced by owned snapshots; earlier timing did not
-measure this proposed constructor.
-
-## 4. Verification cadence and bounded evidence cache
-
-### When checks happen
-
-A relevant open has the provider enabled and either a registered/durable dense
-arm or an existing probe baseline. An existing baseline still requires checking
-when all kinds were removed, so later reenrollment cannot bypass its obligations.
-Validate reference structure and current store state under admitted-store
-ownership, with the compatibility-conditioned mean recovery ordering in §5.
-It computes:
-
-- Store verification digest over profile identity/dimension, reference rows and
-  texts, live mean/centering state, compiled fixture, thresholds and recipe.
-- Internal runtime descriptor digest and store scope. Hash the canonical absolute
-  path, never an MCP alias; read current persisted comparison inputs under store
-  ownership on every open. Different paths miss; a replacement at the same path
-  with changed comparison inputs misses. Exact comparison-state replacement may
-  reuse the same finite numerical verdict; this is not historical provenance or
-  file-incarnation proof. No new schema UUID/file-identity mechanism is needed.
-
-An exact positive hit can reuse the completed finite verdict and its evidence,
-after confirming the current runtime/context is still valid.
-A miss performs the full live check; changed mean is a verdict miss even when
-an already-admitted engine can validate that proposed mean from its retained
-numerical evidence. Changes of baseline, fixture, thresholds or recipe cannot
-inherit an old verdict. No on-disk success marker alone authorizes acceptance;
-retire TC-68's persisted-marker bypass, without requiring a schema migration or
-removing historic data by a migration.
-
-No-provider opens and truly vector-less opens (no registered/durable dense arm
-and no probe baseline) perform no probes. Existing references
-are still structurally validated where applicable; absence of a currently
-registered arm is not permission to ignore known corrupt verification state.
-Ordinary calls on an accepted engine do not perform 45 probes or hash model
-assets. Later provider failures remain normal classified operation failures.
-
-### Exact cache bounds and ownership
-
-Use a process-local cache in one loaded engine-library domain. Independent
-library copies may miss independently; no cross-library sharing is promised.
-Maximum **16 positive entries** and **2 MiB accounted payload**, evicting least
-recently used entries until both constraints hold. Account fixed keys, evidence
-and entry data; separately bound container overhead by the 16-entry limit.
-No dynamically retained path strings, negative entries, refresh workers or
-unbounded tombstone/history maps.
-
-Each entry retains 45 uncentered live probe vectors from the successful check:
-`45 × 384 × 4 = 69,120 bytes`. Read reference vectors from the database when
-needed; do not duplicate them in global entries. If implementation adds payload,
-it must account for it rather than assuming all 16 entries fit. A hit must carry
-the immutable evidence belonging to its exact runtime/reference/fixture domain.
-
-Each active baselined engine keeps one immutable evidence reference, even if its
-LRU entry is evicted: **69,120 bytes per active engine plus fixed metadata**.
-This state is separately bounded per active engine and released on close; active
-engine count remains the host's existing resource policy. Cache bookkeeping
-must not retain engine/provider/dispatcher/device/SQLite/lock owners. Cached
-evidence can outlive a model, not keep the model alive. First-enrollment sessions
-hold no claimed verified evidence until they actually obtain it.
-
-### Concurrency, publication and invalidation
-
-Cache mutex covers only lookup, LRU bookkeeping, epoch update and publication.
-No inference, SQLite operation, callback or cleanup runs while it is held.
-Duplicate concurrent verification is acceptable; no single-flight initially.
-Capture a cache-wide monotonic invalidation epoch before fresh checking. Publish
-only after accepted comparison and matching baseline/arm durable commitment,
-only if the epoch and relevant engine/store generation still match. Checked
-generation overflow disables reuse rather than wrapping into an old validity.
-
-A failed fresh diagnostic or runtime-invalidating event increments the epoch
-and clears all positive entries. Whole-cache invalidation is conservative and
-bounded. It fences already-running publication; a later independent fresh check
-can pass normally. Diagnostic admission uses the same store ownership, so it
-cannot conflict with a live engine of that store. It changes no database data.
-No failure, panic, timeout, malformed output, cancellation or late worker result
-can publish positive acceptance. A successful diagnostic may publish only a
-coherent completed verdict; absent baseline cannot become acceptance.
-
-Context/device loss additionally invalidates the **affected live runtime**, not
-just global cache entries. Its context identity plus shared-by-clones health and
-generation are engine-owned. Validate that context at admission/cache hit,
-provider execution boundaries and before accepting numerical evidence for a
-state transition. A lost/replaced context rejects the next affected operation
-regardless of which engine first detected it; idle engines need no eager
-broadcast. Stop admitting work on the invalid runtime, discard obsolete results,
-report the typed cause, and clear process positives through the epoch. No global
-provider-retaining device→engine registry. Reconstruction is allowed only if
-existing context policy permits it; otherwise require process restart. Never
-silently detach/replace the provider or clear durable work. Recoverable ordinary
-allocation errors do not alone prove numerical drift. General context-boundary
-validation is net-new; measure its overhead and preserve the existing CUDA pool
-policy's process-poisoning rules.
-
-## 5. Store transitions and live mean rules
-
-| Event | Required behavior |
+| In scope | Deferred / unchanged |
 | --- | --- |
-| Relevant open with existing baseline | Exact hit or fresh check against current committed state, followed by compatibility-conditioned candidate recovery before dense admission. |
-| Missing baseline at relevant open | Collect/stage complete baseline, confirm it, then publish baseline/arm and positive evidence only after acceptance and durable commitment. No partial/rejected baseline. |
-| Vector-less open, then first enrollment with no baseline | Session is **unbaselined, built in this session**. Fixed built-in runtime may produce vectors and initial mean; no cached/verified claim. Preserve async canonical writes and the accepted next-relevant-open baseline residual. |
-| Existing baseline when new kinds are enrolled | Same supported runtime and current accepted mean/reference domain; no new model choice. Enrollment transaction cannot publish a prospective token before commit. |
-| Automatic pin in a baselined session | Compare retained live outputs to stored references under the candidate mean with unchanged P1/P2 rules. Accept and commit it, or reject only the candidate mean and continue projecting under the previously accepted mean/uncentered state. No model inference under transaction/commit locks. |
-| Explicit mean recompute in a baselined provider session | Same candidate-mean validation, atomic update and requantization. On failure rollback, return typed compatibility failure and retain old valid state. |
-| Baseline-bearing ordinary no-provider open | Defer automatic mean recovery because it cannot validate a candidate. Do not install a previously rejected mean through this route. Existing current state remains inspectable if integrity permits. |
-| No-provider mean recompute | Approved metadata maintenance may proceed atomically; no numeric pass. Clear process acceptance and require checking current state at next provider-enabled relevant open. |
-| Open-time automatic mean recovery with existing baseline | Verify the current committed state first, then condition the proposed recovery mean on the same prospective comparison. A rejected candidate cannot be committed by reopening. Invalid current state still fails open. Other startup effects retain their own contracts; no whole-open rollback promise. |
-| Reference replacement/backend rotation | No ordinary API for blessing a new function. Restore compatible runtime/backup or reconstruct a separate store; full rotation requires a separate approved design. |
+| Production default/none boundary; selector rejection; retained-seam annotations | General user-provider support, feature cleanup not needed for closure |
+| Typed refusal/no handle; existing bounded cleanup; minimal rejected-baseline atomicity | D50-1/D50-2 drain changes, general runtime validity enforcement |
+| Necessary no-provider stored-profile validation correction | New diagnostic command, cache revocation, dense rebuild orchestration and the known rebuild defect |
+| Existing checker/cache/mean/loader/device behavior and explicit residuals | New cache/fingerprint/cadence, precision fork, asset snapshots, mean advisories/reordering |
 
-Successful candidate-mean comparison reuses the live numerical outputs observed
-under the immutable runtime; it does not make new live-inference observations.
-P1 recomputes sign bits with the proposed mean; P2 remains the uncentered L2
-comparison. Publish new engine store digest/evidence only after commit, then
-optionally publish global reuse. Rollback retains old mean and verdict. Existing
-atomic foundations are `projection_commit.rs:325–358`, `mean.rs:414–456`,
-and open recovery at `open.rs:1284–1294`.
-
-**Automatic mean pin becomes compatibility-conditioned.** This explicitly
-supersedes the unconditional automatic threshold-pin rule on rejection only;
-normal successful pin behavior and threshold stay unchanged. A rejected optional
-candidate does not mean the current accepted embedding/mean state failed.
-Do not turn it into a terminal projection failure or stop otherwise valid work:
-that would recreate the measured impossible-progress drain/mutation state.
-Continue committing projections under the old accepted mean (including None),
-without marking the rejected candidate accepted or requantizing under it.
-
-Latch one bounded `MeanPinRejected` advisory per active baselined engine accepted
-state token (runtime/reference domain plus current mean). Expose it as a typed
-event and queryable current-engine status with candidate rejection detail and
-actual mean-pinned state. Suppress further automatic candidates under that token,
-even as corpus size/candidate means change. Explicit recompute can retry on
-operator request; successful state renewal clears the advisory. Close/reopen is
-a new admission attempt and may try once after validating current state. No
-silent timer retry, unbounded candidate history or new durable latch/schema.
-Document that an unpinned mean can remain unpinned, with its measured centering
-benefit unavailable until an admissible update. Drain/readiness follow actual
-projection completion under the accepted state; they do not claim the rejected
-mean was installed. Canonical data and non-embedding operations remain usable.
-
-This requires changing open-time recovery ordering for baseline-bearing stores:
-current-state verification precedes any optional mean recovery commit. Otherwise
-a subsequent open could commit the rejected candidate before checking it.
-No-provider deliberate recompute remains explicit maintenance with no verdict;
-its committed mean must earn admission at the next provider-enabled open.
-
-The unbaselined state preserves an explicit accepted residual: the runtime that
-establishes the next baseline does not retroactively prove which runtime built
-earlier rows. Do not promise otherwise or inject synchronous probes into the
-first canonical write. If a baseline already exists, dropping the last kind and
-re-enrolling cannot discard its verification obligations. Frozen/read paths
-must retain coherent mean/vector snapshots across accepted mean transactions;
-reuse the existing commit/snapshot ordering and test concurrent readers.
-
-## 6. Open failure and deliberate recovery
-
-Retain the proposed successor ADR's typed mismatch / cannot-verify / invalid-state
-classification and failed-open unwind. Establish cleanup ownership before an
-error return; release SQLite owners and store lock, close dispatch admission,
-and retain only provider/request/accounting resources within the existing
-bounded drain contract. No late publication and no automatic mode switch.
-
-Explicit no-provider access uses stored profile metadata, including well-formed
-unsupported historic profiles, without inventing a BGE provider. It remains
-ordinary mutable access subject to integrity checks. Text/canonical/lifecycle/
-erasure work and truthful pending dense state remain available. Known corruption
-still refuses admission. An unsupported historic identity never gets BGE dense
-execution merely because metadata inspection succeeds.
-
-Dense rebuild requires a supported, compatible provider before dense invalidation,
-even with zero backlog; pure-text repair stays provider-free. Add deliberate
-built-in CLI selection and truthful completion, including CPU feature forwarding.
-CLI numeric diagnosis must run without successful provider-enabled admission,
-force fresh inference, preserve database/reference state and respect WAL/store
-ownership. Unsupported historic providers receive structural inspection plus
-unsupported-provider detail, not an invented numeric verdict. Failed fresh
-diagnosis revokes in-process reuse through the epoch mechanism above.
-
-These are proposed public behavior changes, not already-approved safety-policy
-supersession. No bypass flag, automatic rebaseline or in-place provider rotation.
-
-## 7. Existing foundation, implementation sequence and verification
-
-| Exists today | Net-new after contract approval |
-| --- | --- |
-| Pinned default loader, Mean constructor, identity/profile gates | Sealed engine-admissible factory, owned consumed asset snapshot and actual-runtime descriptor; close injection/selection gaps. |
-| Finite P1/P2 check, references, store admission lock, TC-68 marker | Retire marker authority; bounded numerical evidence and commit/epoch-fenced positive reuse. |
-| Mean pin/recompute atomic requantization | Prospective-mean numerical validation, engine evidence publication, compatibility-conditioned automatic recovery/pin and bounded rejection advisory. |
-| Engine-owned dispatch, deadlines, late-result discard, unwind guards | Stable per-runtime Candle policy, live runtime invalidation and typed failed-open conversion through guards. |
-| Explicit no-provider selectors, structural doctor and operator rebuilds | Correct historic-profile no-provider admission, live diagnosis and supported-provider dense rebuild orchestration. |
-
-Proposed dependency order: surface closure → independent fork stability
-qualification → construction provenance → store-state/evidence transitions →
-bounded cache/concurrency → failed-open/recovery/binding integration. Each
-behavior gets a failing RED before GREEN; intentional old-contract test
-supersession is identified explicitly. Do not write a passing coverage commit
-and call it RED. Keep test/eval fake providers distinct from real-provider proof.
-
-The [acceptance matrix](built-in-provider-requirements.md#proposed-acceptance-criteria)
-covers release-feature closure, actual bytes, concurrent precision toggles,
-45-inference first relevant open versus unchanged reconstruction, MCP idle and
-A/B/A, restart/eviction, exact bounds/resource release, mean transitions,
-rollback, failed diagnostics, context loss and late publication. Property tests
-cover digest encoding and state/commit/eviction interleavings; real SQLite and
-built-in CPU/CUDA tests supply integration evidence. Other enabled backends
-require equivalent execution-policy qualification before reuse.
-
-Re-run complete factory/open and warm reconstruction measurements after the new
-constructor exists, including snapshot transient memory, cache memory, mean
-check time and MCP reopen scenarios. Keep all tools/data committed. The prior
-0.16–0.18 s GPU / 2.37–2.56 s CPU added verification medians motivate reuse;
-they do not predict this constructor's total latency or production reopen rate.
-No new pooling sweep is needed: Mean is settled.
-
-Scoped validators during design/code work; independent code review and full
-strict `agent-verify.sh` on the final code tree after checkout-owned tooling
-preflight. This document makes no new behavioral pass claim. Owner review of
-this contract and release placement is the next gate before implementation.
+The owner's less-than-3-percent probability is a qualitative planning assumption,
+not a measured supported-production incident rate. Existing timing/characterization
+remain historical evidence; no new measurement campaign or pooling study is needed
+for this scope. No production source, executable, dependency or schema work is
+approved by these documents.

@@ -7,15 +7,15 @@ observed_on: 2026-11-01
 
 # Slice 50 requirements and acceptance criteria
 
-> **Current direction (2026-11-01):** owner scope `seq-355` limits production
-> providers to the built-in implementation before 1.x. Read the revised
-> [user needs, requirements and AC](built-in-provider-requirements.md),
-> [design and extension inventory](built-in-provider-design.md), and
-> [design work plan](built-in-provider-plan.md) before the original phase-1
-> material below. Unit S is unchanged. Unit D / D50-1 / D50-2 are historical,
-> unselected options, held without implementation; their recommendations are
-> not the current proposal. The replacement contract and release placement
-> require owner review before production changes.
+> **Current direction (2026-11-01, scope correction `seq-357`):** close
+> production provider escape paths and propose typed failed open on actual
+> verification refusal. Preserve existing TC-68 persistent cache, probe cadence,
+> gate, residual, mean and runtime behavior. The broader evidence-cache/runtime
+> proposal is superseded. Read [requirements/AC](built-in-provider-requirements.md),
+> [design/inventory](built-in-provider-design.md) and [plan](built-in-provider-plan.md).
+> Unit S is unchanged. Unit D / D50-1 / D50-2 remain historical unselected
+> options, held without implementation. Separate independent review and owner
+> contract/release-placement approval are required before production changes.
 
 Slice 50 (`DRAIN-SCAN-BOUND`) has two units:
 

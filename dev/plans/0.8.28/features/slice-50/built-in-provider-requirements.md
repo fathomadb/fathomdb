@@ -1,67 +1,56 @@
 ---
-title: Built-in provider — user needs, requirements and acceptance criteria
-status: proposed; owner contract review required before implementation
+title: Built-in provider — narrow requirements and acceptance criteria
+status: proposed; scope corrected by seq-357; independent review APPROVE_FOR_OWNER_REVIEW; owner approval pending
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
 # Built-in provider requirements
 
-Scope authority: steward `seq-355`. The detailed contract in
-[built-in-provider-design.md](built-in-provider-design.md) is proposed, not
-implemented or approved. These are feature-local identifiers, not additions to
-locked `dev/acceptance.md`. Slice 50 Unit S keeps its existing requirements.
-The original Unit D requirements remain historical unselected options; this
-proposal replaces their attached-but-refused premise if approved.
+Scope: owner `seq-355`, corrected by `seq-357`. This replaces the broader evidence
+cache/runtime-stability proposal. The [design](built-in-provider-design.md) is
+proposed, not implementation authority. Feature-local IDs below do not amend
+locked `dev/acceptance.md`. Unit S remains separate; D50-1/D50-2 remain held.
 
 ## User needs
 
-| Need | User outcome |
+| Need | Outcome |
 | --- | --- |
-| N1 Correct vector results | Reject incompatible supported admission under the specified check; report its finite-test limits and accepted first-enrollment residual. |
-| N2 Predictable supported configuration | Use the shipped pinned BGE-small/Mean implementation, or explicitly select no provider. No user embedder/plugin selection before 1.x. |
-| N3 Responsive repeated use | SDK calls reuse their open engine; MCP idle close and A/B/A switching can release resources without paying repeated full probe inference for unchanged verified state. |
-| N4 Useful failure and recovery | A required failed check gives a classified error before returning a handle. Valid text/canonical access and deliberate diagnosis remain possible. |
-| N5 Honest durability | Failed checks and rolled-back changes never publish acceptance, replace references or conceal pending projection work. |
-| N6 Bounded resource use | Verification reuse retains bounded numerical evidence, without keeping models, workers, database ownership or handles alive. |
-| N7 Managed future extension | Preserve only specifically contained internal/test/evaluation seams; future user providers require a separate contract and qualification at 1.x or later. |
+| N1 Supported configuration | Production engine uses pinned BGE/Mean or explicit no provider; no user embedder selection before 1.x. |
+| N2 Existing correctness policy | Preserve identity/integrity/numeric checks, persistent cached acceptance and explicitly documented residuals. |
+| N3 Useful failure | Actual verification refusal returns a classified error and no unusable handle; caller deliberately chooses valid no-provider access. |
+| N4 Predictable cost/lifecycle | Preserve existing probe cadence, cached reopen behavior and engine-owned cleanup, including MCP idle/A/B/A. |
+| N5 Bounded scope | Close escape paths without new cache/runtime infrastructure, mean policy, diagnostic command or repair promises. |
 
 ## Requirements
 
 | ID | Contract | Needs |
 | --- | --- | --- |
-| BIP-R1 | Production engine admission exposes only the pinned built-in provider and explicit no-provider mode. Remove caller-provider admission and close every alternate path listed in the design inventory. CPU/CUDA device selection within the built-in implementation remains governed by existing device policy. | N2, N7 |
-| BIP-R2 | Keep strict identity/dimension, structural integrity and numeric compatibility checks. Preserve 45 probes, zero P1 binary flips and P2 maximum uncentered L2 `1e-5`. A relevant open means provider-enabled with a registered/durable dense arm or existing probe baseline; it uses a completed check for its exact store/runtime state or performs fresh inference. A persisted success marker alone cannot authorize acceptance. | N1, N5 |
-| BIP-R3 | Construct the built-in runtime from the exact verified asset bytes it consumes, with fixed Mean pooling, tokenizer/truncation/preprocessing, unit normalization, F32 policy and effective device identity. All numerical settings that can change BGE execution are immutable for its lifetime. Claimed identity, constructor settings and object addresses are insufficient evidence. | N1, N2 |
-| BIP-R4 | Bind reuse to committed store profile, references, mean/centering state, fixture, thresholds and recipe plus the actual runtime descriptor. Missing evidence means a miss. A changed mean misses the old verdict; an admitted engine may validate its proposed mean using retained numerical evidence without fresh inference. Preserve explicit first-enrollment semantics and asynchronous canonical writes. | N1, N3, N5 |
-| BIP-R5 | Every supported mean/reference/enrollment transition has a defined invalidation and publication rule. No inference under a cache lock or SQLite write transaction. A rejected candidate mean is not installed. Explicit recompute returns a typed rollback error; automatic pin/recovery retains the previously accepted mean, continues valid projection work and exposes one bounded rejection advisory while suppressing automatic retries under that accepted-state token. Baseline-bearing ordinary no-provider open defers automatic mean recovery; explicit no-provider maintenance creates no verification claim. The explicitly unbaselined first-enrollment residual is not a failed check. | N1, N5 |
-| BIP-R6 | Bound the process evidence cache to 16 entries and 2 MiB accounted payload, with 69,120 bytes of evidence plus fixed metadata per active baselined engine; retain no resource-owning objects. Eviction/restart is a safe miss. No background refresh, provider retention or MCP idle/capacity change is required. | N3, N6 |
-| BIP-R7 | Concurrent checks may duplicate inference. Lookup/publication holds only a short cache lock. Publish only after successful comparison and matching durable commit; reject obsolete generation, cancelled, timed-out, panicked, malformed and late results. A fresh failed diagnostic cannot leave an applicable reusable positive verdict. Runtime-invalidating device/context loss also revokes affected live runtime admission; context validity is checked at cache/admission, execution and state-renewal boundaries. Cache clearing alone is insufficient. | N1, N5, N6 |
-| BIP-R8 | Required mismatch or inability to verify returns a typed open failure and no handle. Preserve database release, dispatch ownership, bounded provider-only cleanup, original error reporting and subscriber notification. Success does not guarantee projection catch-up or absence of later provider errors. | N1, N4 |
-| BIP-R9 | Explicit no-provider admission validates stored profiles as data, including well-formed unsupported historic identities; it does not fabricate a BGE provider or bypass corruption. Preserve valid canonical/text/erasure operations and visible deferred dense work. Dense rebuild requires supported compatible provider admission before invalidation. | N4, N5 |
-| BIP-R10 | Keep live numeric diagnosis independent of successful engine admission and non-mutating to store references/data. Distinguish numeric mismatch, provider failure, invalid state, unsupported stored provider and legitimate absent baseline. Intentional function changes require reconstruction or a separately designed complete rotation workflow. | N1, N4 |
-| BIP-R11 | Every retained extension seam has a named purpose, feature/visibility containment, an annotation naming this contract and a test proving it cannot attach an alternate provider to a production engine. Update affected public interfaces and successor ADRs together; add no compatibility shims. | N2, N7 |
-| BIP-R12 | Commit rerunnable tools and raw results for complete open/model reconstruction, fresh/memoized verification, mean validation, A/B/A reopen and memory bounds. Compare against the existing measurements without mislabeling them as cold startup or a fleet failure rate. | N3, N6 |
+| BIP-R1 | Production admission exposes Default/None only. Close Caller/CallerWithDeviceResolution and reject all string projection embedder selectors before mutation; omitted/null remains valid. Distinct contained test/evaluation openers may inject fakes. Retain appropriate public low-level/standalone helpers without gratuitous feature cleanup. | N1, N5 |
+| BIP-R2 | Preserve existing probe gate, structural validation, identity/dimension checks, 45-probe fixture, P1 zero flips and P2 maximum uncentered L2 `1e-5`. Preserve first-enrollment residual and current no-arm/no-provider behavior. | N2 |
+| BIP-R3 | Preserve persistent TC-68 marker authority, fingerprint inputs/recipe, cache validation, recording/error behavior and cadence. No process cache, key changes, restart refresh, retained outputs, TTL/LRU/epoch or diagnostic revocation. A valid marker can still hide same-identity backend drift. | N2, N4 |
+| BIP-R4 | Preserve built-in Mean, device policy, loader construction, global precision behavior, context-error handling, automatic mean pin/recovery and explicit recompute semantics. No new immutable runtime or continuing numerical guarantee. | N2, N4, N5 |
+| BIP-R5 | Convert actual checker refusal to typed failed open/no Engine, preserving causes and subscriber/binding reporting. Accepted cached opens and inapplicable checks remain accepted. Later runtime errors retain existing operation behavior; no automatic fallback. | N3 |
+| BIP-R6 | Establish existing guard ownership before refusal return. Release database/readers/callback/lock ownership and preserve existing bounded dispatch cleanup and late-result discard; retain original error. | N3, N4 |
+| BIP-R7 | Stage and confirm newly collected registered-arm references before publication, using existing prospective-path discipline, so rejected first population cannot seed later admission. Preserve existing references and marker-error rules; no whole-open rollback or mean-recovery reorder. | N2, N3 |
+| BIP-R8 | Explicit no-provider admission validates existing stored profile metadata without fictitious BGE identity or corruption bypass. Preserve canonical/text/lifecycle/erasure/deferred-work behavior. Do not certify existing provider-free dense rebuild safe. | N3, N5 |
+| BIP-R9 | Update superseded provider promises and inventory annotations with source witnesses. Defer diagnostic CLI, rebuild defect/orchestration and stronger runtime guarantees for separate owner disposition. Prior broad reviews are historical; require a separate review of this revision before owner contract/release-placement approval. | N1, N5 |
 
 ## Proposed acceptance criteria
 
-| ID | Requirement | Observable evidence required after approval |
+| ID | Requirements | Evidence required after approval |
 | --- | --- | --- |
-| BIP-A1 | R1, R11 | Production admission APIs accept only built-in/none regardless of enabled features; fake, ONNX, Nomic, modified-pooling and forged device-report providers cannot attach through them. Distinct test/evaluation openers may inject providers but cannot mint production reuse evidence. Package feature/re-export checks keep those openers out of shipped artifacts. |
-| BIP-A2 | R1, R9, R11 | All bindings reject unsupported vector provider selectors before durable changes; default declarations round-trip. Well-formed old unsupported metadata can be inspected without a provider; it never causes substitute BGE dense execution. |
-| BIP-A3 | R3 | Construction tests bind digests to consumed bytes; mutation/replacement between loader validation and construction is rejected or irrelevant to the owned snapshot. Changes in each runtime descriptor component cannot inherit an acceptance entry. |
-| BIP-A4 | R2, R3 | Real built-in CPU/CUDA tests preserve limits. Concurrent global precision mutation cannot alter strict built-in execution; cover every BGE matmul path. Any other enabled backend needs equivalent stability qualification before reuse. |
-| BIP-A5 | R2, R4, R6 | First relevant process open runs probes despite a valid old on-disk marker; unchanged close/reconstruction, idle reopen and A/B/A reuse valid evidence with no new probe inference. Restart, capacity eviction, incompatible runtime or changed store input causes a verdict miss; proposed-mean renewal uses the separate evidence rule, never an old-mean pass. |
-| BIP-A6 | R4, R5 | Cover automatic mean pin, explicit recompute, open recovery, projection enrollment, reference/fixture/threshold changes and rollback. Proposed means are checked against current evidence as designed; no stale or pre-commit publication, no dispatcher call in the write transaction, and canonical writes stay asynchronous. Rejected automatic candidates remain uninstalled through close/reopen recovery, while projections, drain and non-embedding mutations progress under the old accepted state; advisory/retry suppression is bounded and observable. |
-| BIP-A7 | R5, R7 | Deterministic concurrency tests prove failed diagnostics revoke reuse, generation changes defeat stale publication, duplicate checks are safe, and cancellation/panic/timeout/malformed/late results cannot publish a pass. Context loss revokes affected live evidence and fences results; recoverable allocation errors do not spuriously invalidate it. Property tests cover state/commit/eviction interleavings. |
-| BIP-A8 | R6 | Fill beyond both cache bounds; assert strict limits and safe misses. After close, provider/model/dispatcher/database/lock owners release even while evidence remains cached; healthy active-engine evidence remains valid if its LRU entry is evicted; runtime invalidation revokes its admission separately. |
-| BIP-A9 | R8 | Separate RED/GREEN cases for mismatch, error, panic, timeout and malformed output: no returned handle, typed cause/subscriber parity, database ownership reacquirable, original error retained through bounded cleanup and no late mutation. |
-| BIP-A10 | R9, R10 | Real database tests cover no-provider FTS/canonical/lifecycle/configuration/erasure and corruption refusal; dense rebuild rejects before invalidation without a provider, pure-text rebuild succeeds, explicit built-in CLI rebuild completes truthfully, and live diagnostic preserves database state/WAL correctness. |
-| BIP-A11 | R2, R4, R8 | Truly vector-less (no dense arm/declaration or baseline) and no-provider opens do no probes; a retained baseline remains relevant even after all kinds are removed; first-enrollment residual is explicit and tested. Repeated ordinary calls do not rerun 45 probes. Later normal inference failures retain normal typed operation errors rather than changing provider mode. |
-| BIP-A12 | R11, R12 | Inventory dispositions have matching code/doc annotations and closure evidence. Behavior-specific RED evidence, focused suites, meaningful measurements, independent code review and final strict `agent-verify.sh` all recorded. No scoped pass is called full-workspace green. |
+| BIP-A1 | R1 | Consumer/API tests reject production Caller/CallerWithDeviceResolution even with unified support features. Needed test/evaluation injection remains distinct and absent from shipped normal admission. Standalone CLS, low-level helpers and CPU/CUDA selection remain usable under their existing contracts. |
+| BIP-A2 | R1, R8 | Each binding rejects every string projection selector, including empty/default/model names, before durable mutation. Omitted/null declarations round-trip. Historical strings/profile metadata remain truthful on no-provider reads and cannot silently select BGE. |
+| BIP-A3 | R2, R3 | Existing checker/cache regression suite retains thresholds, structural-validation ordering, exact fingerprint/recipe and marker semantics. Ordinary clean first population performs 90 embeddings, fresh existing-baseline check 45, valid cached open zero; zero on current vectorless/no-provider paths. |
+| BIP-A4 | R2, R3 | A valid persisted marker still accepts across process restart and unchanged MCP idle/A/B/A reopen with zero probes. Missing/stale/malformed marker and changes to existing fingerprint inputs keep current behavior. Marker-write failure does not turn a verified pass into failure. Same-identity backend-drift residual test remains explicit and passing; no new baseline-only/no-kinds probe gate. |
+| BIP-A5 | R4 | Existing loader/device/global-precision and mean pin/recompute/recovery tests retain behavior; source/dependency review confirms no fork, owned-asset snapshot, descriptor, retained outputs, cache capacity/epoch, context-health machinery or mean advisory/reorder. No every-call numeric check. |
+| BIP-A6 | R5, R6 | Separate failing-first cases for actual mismatch, provider error, panic, timeout and malformed result produce typed causes, no Engine, and subscriber/binding parity. Cached acceptance is not forcibly rechecked. Database ownership is reacquirable; original error and bounded cleanup survive slow/late provider completion. |
+| BIP-A7 | R7 | Registered first-population confirmation failure leaves no newly rejected references or success marker; prospective behavior stays unchanged. Existing references survive refusal, registered/prospective marker handling remains as before, successful population retains 90 calls. Storage-failure tests prove atomic reference publication; do not assert whole-open byte identity or undo earlier recovery. |
+| BIP-A8 | R8 | Real database tests cover well-formed supported/historical profiles under None, corruption refusal, valid canonical/text/lifecycle/erasure and visible deferred dense work. Existing mean/recovery behavior stays intact. Tests/docs do not imply provider-free dense rebuild is repaired. |
+| BIP-A9 | R9 | Independent Astra-medium review follows author's completed revision; all retained seams have appropriate annotation/containment evidence. Record RED/GREEN and scoped checks, independent code review and final strict full gate for later approved code. Documentation-only review runs Markdown validators, not a full code gate. |
 
-All criteria are proposed checks, not current pass claims. Existing
-[characterization](../../../../experiments/slice50-refusal-baseline/analysis.md)
-and [timing data](../../../../experiments/fresh-open-verification/findings.md)
-remain the baseline. Detailed execution order and owner gate are in
-[built-in-provider-plan.md](built-in-provider-plan.md).
+These criteria are not pass claims. Use the existing characterization and timing
+records as evidence, not a new campaign. The owner's probability below 3% is a
+qualitative planning assumption, not a measured failure rate. See the
+[plan](built-in-provider-plan.md) for review and implementation gates.

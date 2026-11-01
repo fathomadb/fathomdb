@@ -144,7 +144,6 @@ partial successful result. See [retrieval](../design/retrieval.md).
 Shared non-command members are reproduced with core semantics:
 
 - `drain(timeout_ms: u64)`
-- `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusal_count`
 - `enable_telemetry(sink_path)`, `last_telemetry_query_id`
 - `record_feedback(query_id, relevant_ids, irrelevant_ids, label_source)`
 - `counters`
@@ -546,3 +545,7 @@ with `ErrorKind::VectorEquivalenceMismatch`. An inability to verify returns
 The reexported `VectorVerificationFailure` preserves the original typed provider
 error, including CUDA payloads; verification context is never flattened into
 `Error::Cuda`. `Error::source()` exposes the original open error.
+
+Actual verification refusal returns no engine or successful `OpenReport`. The
+obsolete `dense_disabled`, `dense_disabled_reason` report fields and engine
+accessors, and `vector_equivalence_refusal_count` instrumentation are removed.

@@ -449,32 +449,14 @@ class Engine:
         """0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only / FTS-only search.
 
         Does NOT embed the query and NEVER raises
-        ``VectorEquivalenceMismatchError``, so it stays serviceable when the engine
-        opened in the degraded ``dense_disabled`` state (the D2 "keep FTS servable"
-        contract). It does not invoke vector recall, CE reranking, or the graph
+        ``VectorEquivalenceMismatchError``. Deliberate provider-free opens retain
+        this path. It does not invoke vector recall, CE reranking, or the graph
         arm. Matching node- and edge-body FTS candidates are deterministically
         body-deduplicated and ranked before ``limit`` is applied. For one
         immutable selection and effective validity time, smaller accepted limits
         are prefixes of larger limits; this does not extend to hybrid search.
         """
         return _sdk_search.search_text_only(self, query, view, limit=limit)
-
-    def dense_disabled(self) -> bool:
-        """0.8.18 Slice 5 (R-VEQ-6) — ``True`` iff the engine opened degraded.
-
-        The open-time #5 self-check found a vector-equivalence divergence and every
-        vector-dependent arm now refuses at query time with
-        ``VectorEquivalenceMismatchError``. Mirrors ``OpenReport.dense_disabled``.
-        """
-        return _sdk_instrumentation.dense_disabled(self)
-
-    def dense_disabled_reason(self) -> str | None:
-        """0.8.18 Slice 5 (R-VEQ-6) — reason for the degraded state, or ``None``."""
-        return _sdk_instrumentation.dense_disabled_reason(self)
-
-    def vector_equivalence_refusal_count(self) -> int:
-        """0.8.18 Slice 5 (R-VEQ-6) — count of query-time dense-arm refusals."""
-        return _sdk_instrumentation.vector_equivalence_refusal_count(self)
 
     def enable_telemetry(self, sink_path: str) -> None:
         """0.8.8 Slice 15 (OPP-9) — enable opt-in local telemetry capture to a

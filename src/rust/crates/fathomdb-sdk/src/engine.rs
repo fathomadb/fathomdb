@@ -338,21 +338,6 @@ impl Engine {
         Ok(self.core.embed_text(text)?)
     }
 
-    /// Whether the dense arm is disabled for this open.
-    pub fn dense_disabled(&self) -> bool {
-        self.core.dense_disabled()
-    }
-
-    /// Why the dense arm is disabled, if it is.
-    pub fn dense_disabled_reason(&self) -> Option<String> {
-        self.core.dense_disabled_reason()
-    }
-
-    /// Query-time dense refusals since open.
-    pub fn vector_equivalence_refusal_count(&self) -> u64 {
-        self.core.vector_equivalence_refusal_count()
-    }
-
     /// Enable opt-in local telemetry capture to a JSONL file.
     pub fn enable_telemetry(&self, sink_path: &str) -> Result<()> {
         guard::text(sink_path)?;

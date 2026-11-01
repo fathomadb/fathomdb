@@ -1463,14 +1463,6 @@ class OpenReport:
     embedder_events: list[EmbedderEvent] = field(default_factory=list)
     embedder_mean_centering_required: bool = False
     embedder_mean_vec_pinned: bool = False
-    # 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6) — ``True`` iff the
-    # open-time self-check found a vector-equivalence divergence and every
-    # vector-dependent arm now refuses at query time with
-    # ``VectorEquivalenceMismatchError``. The ``search_text_only`` path stays
-    # serviceable. ``dense_disabled_reason`` carries the divergence summary
-    # (``None`` when healthy).
-    dense_disabled: bool = False
-    dense_disabled_reason: str | None = None
     embedder_device_resolution: DeviceResolution | None = None
     reranker_device_resolution: DeviceResolution | None = None
     # 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation

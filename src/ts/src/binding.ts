@@ -648,9 +648,6 @@ export interface NativeOpenReport {
   embedderEvents: NativeEmbedderEvent[];
   embedderMeanCenteringRequired: boolean;
   embedderMeanVecPinned: boolean;
-  // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6).
-  denseDisabled: boolean;
-  denseDisabledReason: string | null;
   embedderDeviceResolution: NativeEmbedderDeviceResolution | null;
   rerankerDeviceResolution?: NativeEmbedderDeviceResolution | null;
   // 0.8.23 Slice 80.6 (D-80.6-6) — `null` means no witness was taken, never
@@ -841,9 +838,6 @@ export interface NativeEngine {
     view?: NativeReadView,
     limit?: number,
   ): Promise<NativeSearchResult>;
-  denseDisabled(): boolean;
-  denseDisabledReason(): string | null;
-  vectorEquivalenceRefusalCount(): number;
   close(): Promise<void>;
   drain(timeoutMs: number): Promise<void>;
   counters(): NativeCounterSnapshot;

@@ -306,8 +306,6 @@ def _map_open_report(native: Any) -> OpenReport:
         embedder_events=list(native.embedder_events),
         embedder_mean_centering_required=native.embedder_mean_centering_required,
         embedder_mean_vec_pinned=native.embedder_mean_vec_pinned,
-        dense_disabled=native.dense_disabled,
-        dense_disabled_reason=native.dense_disabled_reason,
         embedder_device_resolution=(
             None
             if device_resolution is None

@@ -14,18 +14,6 @@ if TYPE_CHECKING:
     from fathomdb.engine import Engine
 
 
-def dense_disabled(self: Engine) -> bool:
-    return self._native.dense_disabled()
-
-
-def dense_disabled_reason(self: Engine) -> str | None:
-    return self._native.dense_disabled_reason()
-
-
-def vector_equivalence_refusal_count(self: Engine) -> int:
-    return self._native.vector_equivalence_refusal_count()
-
-
 def enable_telemetry(self: Engine, sink_path: str) -> None:
     if not isinstance(sink_path, str):
         raise TypeError(f"sink_path must be a str, got {type(sink_path).__name__!r}")

@@ -174,14 +174,6 @@ export interface OpenReport {
   /** EU-5a2 — dynamic workspace state (`mean_vec IS NOT NULL` after the
    *  256-doc threshold crossing). */
   readonly embedderMeanVecPinned: boolean;
-  /** 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6) — `true` iff the
-   *  open-time self-check found a vector-equivalence divergence and every
-   *  vector-dependent arm now refuses at query time with
-   *  `VectorEquivalenceMismatchError`. The `searchTextOnly` path stays
-   *  serviceable. */
-  readonly denseDisabled: boolean;
-  /** R-VEQ-6 — reason for `denseDisabled`, or `null` when dense is healthy. */
-  readonly denseDisabledReason: string | null;
   /** Strict CPU/CUDA selection used to construct the embedder, or `null` when
    *  no embedder was configured. */
   readonly embedderDeviceResolution: DeviceResolution | null;
@@ -440,8 +432,6 @@ export function mapOpenReport(r: NativeOpenReport): OpenReport {
     embedderEvents: r.embedderEvents.map(mapEmbedderEvent),
     embedderMeanCenteringRequired: r.embedderMeanCenteringRequired,
     embedderMeanVecPinned: r.embedderMeanVecPinned,
-    denseDisabled: r.denseDisabled,
-    denseDisabledReason: r.denseDisabledReason ?? null,
     embedderDeviceResolution: r.embedderDeviceResolution
       ? mapDeviceResolution(r.embedderDeviceResolution)
       : null,
@@ -496,18 +486,6 @@ export type SubscriberEvent =
     };
 
 export type SubscriberCallback = (event: SubscriberEvent) => void;
-
-export function denseDisabled(nativeEngine: NativeEngine): boolean {
-    return nativeEngine.denseDisabled();
-  }
-
-export function denseDisabledReason(nativeEngine: NativeEngine): string | null {
-    return nativeEngine.denseDisabledReason() ?? null;
-  }
-
-export function vectorEquivalenceRefusalCount(nativeEngine: NativeEngine): number {
-    return nativeEngine.vectorEquivalenceRefusalCount();
-  }
 
 export function openReport(nativeEngine: NativeEngine): OpenReport {
     return interceptSync(() => mapOpenReport(nativeEngine.openReport()));

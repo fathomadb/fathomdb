@@ -22,7 +22,7 @@ import {
   searchProjectedText,
 } from "./search.js";
 import { traceDependency, searchWithEvidence, resolveEvidence, resolveGraphEvidence } from "./evidence.js";
-import { denseDisabled, denseDisabledReason, vectorEquivalenceRefusalCount, openReport } from "./open.js";
+import { openReport } from "./open.js";
 import { embed } from "./embedding.js";
 import {
   enableTelemetry,
@@ -419,8 +419,8 @@ export class Engine {
   /**
    * 0.8.18 Slice 5 (#5 vector-equivalence probe) — the explicit text-only /
    * FTS-only search path. It does NOT embed the query and NEVER throws
-   * `VectorEquivalenceMismatchError`, so it stays serviceable when the engine
-   * opened in the degraded `denseDisabled` state. It does not invoke vector
+   * `VectorEquivalenceMismatchError`. Deliberate provider-free opens retain this
+   * path. It does not invoke vector
    * recall, CE reranking, or the graph arm. Matching node- and edge-body FTS
    * candidates are deterministically body-deduplicated and ranked before
    * `limit` is applied. For one immutable selection and effective validity time,
@@ -436,25 +436,6 @@ export class Engine {
     filter?: SearchFilter,
     view?: SearchOptions,
   ): Promise<SearchResult> { return searchProjectedText(this.#native, query, name, filter, view); }
-
-  /**
-   * 0.8.18 Slice 5 (R-VEQ-6) — `true` iff the engine opened degraded (the #5
-   * self-check found a vector-equivalence divergence and every dense arm is
-   * refusing). Mirrors `OpenReport.denseDisabled`.
-   */
-  denseDisabled(): boolean { return denseDisabled(this.#native); }
-
-  /**
-   * 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state,
-   * or `null` when dense is healthy.
-   */
-  denseDisabledReason(): string | null { return denseDisabledReason(this.#native); }
-
-  /**
-   * 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: query-time dense-arm refusals
-   * raised because the engine opened degraded.
-   */
-  vectorEquivalenceRefusalCount(): number { return vectorEquivalenceRefusalCount(this.#native); }
 
   async close(): Promise<void> {
     await intercept(() => this.#native.close());

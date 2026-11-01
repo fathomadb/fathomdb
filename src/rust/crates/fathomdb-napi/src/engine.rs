@@ -556,8 +556,8 @@ impl Engine {
 
     /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the explicit
     /// text-only / FTS-only search path. Does NOT embed the query and NEVER raises
-    /// `FDB_VECTOR_EQUIVALENCE_MISMATCH`, so it stays serviceable when the engine
-    /// opened in the degraded `denseDisabled` state. Matching node- and edge-body
+    /// `FDB_VECTOR_EQUIVALENCE_MISMATCH`. Deliberate provider-free opens retain
+    /// this path. Matching node- and edge-body
     /// FTS candidates are deterministically body-deduplicated and ranked before
     /// `limit`; no vector recall, CE rerank, or graph arm runs on this path.
     #[napi]
@@ -584,28 +584,6 @@ impl Engine {
             call_engine(move || engine.search_text_only_view_with_limit(&query, &view, limit))
                 .await?;
         Ok(SearchResult::from_rust(result))
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — `true` iff the engine opened degraded (the #5
-    /// self-check found a vector-equivalence divergence and every dense arm is
-    /// refusing). Mirrors `OpenReport.denseDisabled`.
-    #[napi]
-    pub fn dense_disabled(&self) -> bool {
-        self.inner.dense_disabled()
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state,
-    /// or `null` when dense is healthy.
-    #[napi]
-    pub fn dense_disabled_reason(&self) -> Option<String> {
-        self.inner.dense_disabled_reason()
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: query-time dense-arm refusals
-    /// raised because the engine opened degraded.
-    #[napi]
-    pub fn vector_equivalence_refusal_count(&self) -> i64 {
-        self.inner.vector_equivalence_refusal_count() as i64
     }
 
     #[napi(ts_return_type = "Promise<void>")]

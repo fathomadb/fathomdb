@@ -228,3 +228,38 @@ fn slice50_drain_scaling() {
     );
     engine.close().unwrap();
 }
+
+fn digest_fixture() -> (TempDir, Engine, Connection) {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("digest{SQLITE_SUFFIX}"));
+    let engine = Engine::open_with_embedder_for_test(&path, Arc::new(VaryingEmbedder::new(8)))
+        .unwrap()
+        .engine;
+    engine.configure_vector_kind_for_test("doc").unwrap();
+    let raw = Connection::open(path).unwrap();
+    (dir, engine, raw)
+}
+
+#[test]
+fn digest_detects_orphan_vector_row() {
+    let (_dir, _engine, raw) = digest_fixture();
+    let before = digest(&raw);
+    let vector: Vec<u8> = [1.0f32, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        .into_iter()
+        .flat_map(f32::to_le_bytes)
+        .collect();
+    raw.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status) VALUES(1000,?1,vec_quantize_binary(?1),'document','doc',0,'')",[vector]).unwrap();
+    assert_ne!(digest(&raw), before, "unregistered vec0 row must affect whole-store digest");
+}
+
+#[test]
+fn digest_detects_dangling_vector_mapping() {
+    let (_dir, _engine, raw) = digest_fixture();
+    let before = digest(&raw);
+    raw.execute(
+        "INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) VALUES(1000,'doc',1000)",
+        [],
+    )
+    .unwrap();
+    assert_ne!(digest(&raw), before, "dangling mapping must affect whole-store digest");
+}

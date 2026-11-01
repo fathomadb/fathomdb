@@ -1,6 +1,6 @@
 ---
 title: Built-in provider — revised narrow work plan
-status: implementation approved by owner seq-359; separate Astra-medium implementation review gates landing
+status: provider implementation complete; scan Unit S remains open
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -19,7 +19,7 @@ completed: APPROVE_FOR_OWNER_REVIEW, no P1/P2 findings. The revised contract is
 approved for implementation at `seq-359`. The [implementation handoff](built-in-provider-implementation-brief.md)
 names the isolated worktree and TDD/review requirements.
 
-## Authorized design work
+## Completed design sequence
 
 1. Astra-medium revises [design](built-in-provider-design.md),
    [requirements/AC](built-in-provider-requirements.md), successor proposal and
@@ -35,7 +35,7 @@ names the isolated worktree and TDD/review requirements.
    Record the known provider-free rebuild defect for separate owner disposition;
    it is neither fixed nor declared safe by this proposal.
 
-## Later implementation, only if approved
+## Approved implementation sequence
 
 Delegate isolated implementation worktrees under repository discipline. Use
 behavior-specific failing-first tests, staged for review, then implementation:
@@ -50,8 +50,8 @@ behavior-specific failing-first tests, staged for review, then implementation:
    and binding errors. Correct no-provider stored-profile validation only where
    necessary for deliberate access; no diagnostic CLI or rebuild orchestration.
 5. Independent code review and final strict `agent-verify.sh` after appropriate
-   scoped development checks. Existing checkout lacks its own `.venv`; setup is
-   prerequisite to full verification, not permission to borrow another checkout's.
+   scoped development checks. The integration checkout owns its `.venv` and candidate native
+   receipt; verification and scoped repairs are recorded below.
 
 Intentional supersession of old degraded-open/provider-surface tests must be
 identified explicitly; do not change tests merely to make fixes pass. Preserve
@@ -69,3 +69,6 @@ Existing cache regression anchors in `tc68_probe_fingerprint_cache.rs`:
 `residual_same_identity_backend_drift_is_not_caught_on_a_cached_open`.
 Preserve their cache outcomes; intentionally adapt only assertions that formerly
 expected a returned refused handle to the approved typed failed-open contract.
+
+Implementation completed under owner `seq-359`: see the
+[implementation and verification record](built-in-provider-implementation-record.md).

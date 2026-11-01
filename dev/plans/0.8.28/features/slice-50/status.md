@@ -1,40 +1,38 @@
 ---
 title: FathomDB 0.8.28 Slice 50 — status
-status: design investigation; built-in-provider replacement proposed; no implementation authorized
+status: provider subunit complete; scan Unit S remains open
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
 
 # Slice 50 status
 
-> **Current direction (2026-11-01, scope correction `seq-357`):** close
-> production provider escape paths and propose typed failed open on actual
-> verification refusal. Preserve existing TC-68 persistent cache, probe cadence,
-> gate, residual, mean and runtime behavior. The broader evidence-cache/runtime
-> proposal is superseded. Read [requirements/AC](built-in-provider-requirements.md),
-> [design/inventory](built-in-provider-design.md) and [plan](built-in-provider-plan.md).
-> Unit S is unchanged. Unit D / D50-1 / D50-2 remain historical unselected
-> options, held without implementation. Separate independent review and owner
-> contract/release-placement approval are required before production changes.
+> **Current direction (2026-11-01, owner `seq-359`):** the narrowed
+> built-in-provider contract is implemented at `db2baf1ec420dae6680315fcb911ca30e94ddc32`, with separate
+> Astra-medium APPROVE and full verification coverage plus scoped repairs.
+> Existing cache behavior is preserved. See the
+> [implementation record](built-in-provider-implementation-record.md).
+> Scan Unit S remains open; D50-1/D50-2 remain held and unimplemented.
 
 Step log for [plan.md](plan.md). Commits are on
-`slice/0.8.28-50-drain-scan-bound` (base `544bf74f8`, `dev/0.8.28`). Not
-landed. Phase-1 docs were pushed at `ac83688a1`; the subsequent
+`slice/0.8.28-50-drain-scan-bound` (base `544bf74f8`, `dev/0.8.28`). The
+provider subunit is recorded below; the scan work remains open. Phase-1 docs
+were pushed at `ac83688a1`; the subsequent
 owner-requested characterization does not implement D50-1 or D50-2.
 
-| Step | State (2026-10-31) |
+| Step | State (2026-11-01) |
 | --- | --- |
-| P1 phase 1 docs | done (this commit) |
-| R-DES Fable design review | not started |
-| O replacement contract | approved at seq-359; isolated TDD implementation in progress; D50-1/D50-2 held unselected |
+| P1 phase 1 docs | done at ac83688a1 |
+| R-DES design review | narrow provider contract independently reviewed; scan Unit S review not started |
+| O replacement contract | complete at db2baf1ec; separate Astra-medium APPROVE; D50-1/D50-2 held unselected |
 | H hook RED/GREEN | not started |
 | S scan RED/GREEN | not started |
 | T scaling tool | not started |
 | D drain RED/GREEN (and D2 pairs) | not started |
-| DOC records | not started |
-| R-CODE codex review | not started |
-| V verification | not started |
-| L land | not started |
+| DOC records | provider implementation record complete; scan records pending |
+| R-CODE independent review | provider subunit Astra-medium APPROVE; scan review pending |
+| V verification | provider full-run coverage plus scoped repairs complete; scan qualification pending |
+| L source | provider subunit db2baf1ec; scan work remains open |
 
 ## Owner-requested characterization
 
@@ -42,18 +40,18 @@ The owner requested baseline tests and committed tools/data before ruling on
 the drain options. Tools: `5fb45c24a`; purge fixture correction: `caecfb831`.
 [Experiment and analysis](../../../../experiments/slice50-refusal-baseline/README.md)
 record the refused/empty, refused/pending, absent/pending and accepted/ready
-matrix, recovered original probe output, and the design history. Engine source
-is unchanged. D50-1/D50-2 implementation and slice design review remain paused.
+matrix, recovered original probe output, and the design history. That characterization changed no engine source. D50-1/D50-2 remain held;
+the later approved provider implementation is recorded below.
 This investigation is not a slice close or release verification.
 Owner direction following characterization: steward ledger `seq-350`,
 release-state decision `slice-50-successful-open-investigation`. The replacement
-open contract remains undecided; existing ADRs remain in force.
+open contract was subsequently approved at `seq-359` and implemented as recorded below.
 The [replacement contract proposal](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md)
-is submitted for owner review before implementation. The owner-requested
+was subsequently accepted at `seq-359`. The owner-requested
 [fresh-open timing results](../../../../experiments/fresh-open-verification/findings.md)
 quantify the earlier fresh-check proposal (steward `seq-352`); `seq-357` preserves
 the existing persistent cache and cadence. Production pooling stays
-Mean under the existing ruling. No policy change is implemented.
+Mean under the existing ruling. The later narrowed implementation preserves that policy.
 
 ## Historical unselected drain options
 
@@ -96,8 +94,8 @@ actual refusal. Prior [integration review](built-in-provider-astra-review.md)
 and [reuse review](verification-reuse-astra-review.md) are superseded historical
 records, not current approval. Separate [independent Astra-medium review](built-in-provider-narrow-review.md)
 returned APPROVE_FOR_OWNER_REVIEW with no P1/P2 findings; contract and release
-placement still require owner review before code. No source,
-dependency, schema or release-ladder completion change. The known provider-free
+placement were subsequently approved at `seq-359`. Source implementation is
+recorded below; no schema or release-ladder completion change is implied. The known provider-free
 dense rebuild defect remains deferred for separate owner disposition.
 
 ## Approved narrow implementation
@@ -109,3 +107,12 @@ Implementation worktree: `../slice-0.8.28-50-provider-contract`, branch
 cache settings and behavior remain fixed. Separate Astra-medium implementation
 review and final strict verification gate landing on `dev/0.8.28`. This does not
 close scan Unit S, advance the Slice 50 ladder or authorize later slice work.
+
+## Provider subunit completed
+
+Source `db2baf1ec420dae6680315fcb911ca30e94ddc32` implements the approved narrow contract.
+[Implementation, TDD, review and verification record](built-in-provider-implementation-record.md).
+The separate Astra-medium review approved the exact source; all failures in the
+205-suite full run have scoped repairs and passing reruns. The original full
+run remains nonzero, so this is not a whole-gate pass at final HEAD.
+Slice 50 remains IN_PROGRESS pending scan Unit S.

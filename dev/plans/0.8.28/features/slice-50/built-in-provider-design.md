@@ -1,6 +1,6 @@
 ---
 title: Built-in provider — narrow admission and failed-open proposal
-status: approved by owner seq-359; implementation in progress; separate Astra-medium code review required before landing
+status: implemented; separate Astra-medium APPROVE; verification recorded
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -166,3 +166,6 @@ not a measured supported-production incident rate. Existing timing/characterizat
 remain historical evidence; no new measurement campaign or pooling study is needed
 for this scope. Owner `seq-359` authorizes this narrowed implementation; excluded redesigns
 remain outside scope. Separate Astra-medium implementation review precedes landing.
+
+Implementation completed under owner `seq-359`: see the
+[implementation and verification record](built-in-provider-implementation-record.md).

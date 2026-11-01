@@ -1,6 +1,6 @@
 ---
 title: Built-in provider — narrow requirements and acceptance criteria
-status: approved by owner seq-359; implementation in progress; separate Astra-medium code review required before landing
+status: implemented; separate Astra-medium APPROVE; verification recorded
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -54,3 +54,6 @@ These criteria are not pass claims. Use the existing characterization and timing
 records as evidence, not a new campaign. The owner's probability below 3% is a
 qualitative planning assumption, not a measured failure rate. See the
 [plan](built-in-provider-plan.md) for review and implementation gates.
+
+Implementation completed under owner `seq-359`: see the
+[implementation and verification record](built-in-provider-implementation-record.md).

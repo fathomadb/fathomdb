@@ -1,0 +1,1168 @@
+{
+  "schema": "fathomdb.provider-implementation-evidence/v1",
+  "approved_baseline": "2d63cee3c1071dd14f3e1deb44adfddc21672f19",
+  "core": {
+    "baseline": "2d63cee3c1071dd14f3e1deb44adfddc21672f19",
+    "branch": "impl/0.8.28-built-in-provider-contract",
+    "head": "eaab30bcae00a33f96c3032042f19b88880702a9",
+    "commit_range": "2d63cee3c1071dd14f3e1deb44adfddc21672f19..eaab30bcae00a33f96c3032042f19b88880702a9",
+    "checkout_clean": true,
+    "red_green_pairs": [
+      {
+        "behavior": "None reads historical profile metadata",
+        "red": "0b4f483f062eb8823e7c0c7aced1ecf640537b2e",
+        "green": "a3a003e0b9657e5baddeec32148df1fc6a40c5ae",
+        "red_command_result_evidence": "test(engine): require explicit None to admit stored provider metadata (RED)\n\nRED evidence: cargo test --offline -p fathomdb-engine --features test-hooks --test provider_admission fails none_admits_historic_profile_as_metadata_without_substitution with EmbedderIdentityMismatch: historic-provider was compared with fictitious BGE identity.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): validate stored profile metadata for explicit None (GREEN)\n\nGREEN: provider_admission::none_admits_historic_profile_as_metadata_without_substitution passes. No-provider startup and reports use validated stored identity; attached providers still match strictly. Cache, mean recovery order and new-store defaults are unchanged.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Reject all string projection selectors",
+        "red": "95f62623513425b5798cc49619aa78d67b3862cb",
+        "green": "5d0cba599a7c41c76c85b34060f1dfad0d7a664f",
+        "red_command_result_evidence": "test(engine): reject projection provider selectors before mutation (RED)\n\nRED evidence: provider_admission::string_projection_provider_selectors_are_rejected_before_mutation fails: unsupported selector empty string must be rejected. Cases include default, model name and arbitrary provider strings.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): close projection provider selectors before writes (GREEN)\n\nGREEN: provider_admission tests pass for every reserved string selector and preserve omitted/default None declarations. Validation happens before projection mutation; historical read metadata remains untouched.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Actual numeric refusal fails open",
+        "red": "af1b959db44c1a478552f2614be981623dd380ca",
+        "green": "17092e0aa772a928c3752d53bcf7431c69ed3c64",
+        "red_command_result_evidence": "test(engine): require actual verification refusal to fail open (RED)\n\nRED evidence: provider_admission::numeric_refusal_returns_no_engine_and_releases_admission fails actual numeric refusal must return no Engine. Existing degraded-open returns a handle instead.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): reject actual vector verification refusal at open (GREEN)\n\nGREEN: provider_admission numeric refusal now returns no Engine and the database admission lock is immediately reacquirable. The existing post-probe guard owns database resources before rejection. Add stable typed verification-cause surface for the next failing-first classification cases and binding parity; cached acceptance behavior is untouched.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Typed dispatch refusal causes",
+        "red": "a28023b13bf5d8f4bf1ec29434b20dcd854142b8",
+        "green": "1f6cecb530bb6fbdaf24af19b1d19db2ba11ae19",
+        "red_command_result_evidence": "test(engine): preserve dispatch causes on verification failure (RED)\n\nRED evidence: provider_admission provider_failure_preserves_typed_cause, panic_failure_preserves_typed_cause, timeout_failure_preserves_typed_cause and malformed_output_preserves_typed_cause all fail: expected typed cannot-verify cause at probe zero, got VectorEquivalenceMismatch. The four distinct failing cases exercise the one cause-propagation behavior without changing their oracles.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): preserve typed verification failure causes (GREEN)\n\nGREEN: provider_admission runs 8 tests successfully, including distinct provider/panic/started-timeout/invalid-output and invalid-reference cases. Probe errors carry typed causes and original provider error chains; numeric mismatch stays distinct, SQL failures remain I/O. Fingerprint/cache functions and gate conditions are unchanged.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Invalid baseline distinct from numeric mismatch",
+        "red": "c79071b245fc6f28d99d89b87bd11fabd3b12308",
+        "green": "1f6cecb530bb6fbdaf24af19b1d19db2ba11ae19",
+        "red_command_result_evidence": "test(engine): distinguish invalid references from numeric mismatch (RED)\n\nRED evidence: provider_admission::invalid_baseline_is_distinct_from_numeric_mismatch fails with VectorEquivalenceMismatch for a 44-row incomplete baseline instead of structured invalid_state. Reference completeness remains a pre-cache check.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): preserve typed verification failure causes (GREEN)\n\nGREEN: provider_admission runs 8 tests successfully, including distinct provider/panic/started-timeout/invalid-output and invalid-reference cases. Probe errors carry typed causes and original provider error chains; numeric mismatch stays distinct, SQL failures remain I/O. Fingerprint/cache functions and gate conditions are unchanged.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Registered population confirmation before publication",
+        "red": "67b779d917a9904fe35825f3b56ce938bba0e7d0",
+        "green": "7e8a531402a8b208bde0babf3cc7b92d05235238",
+        "red_command_result_evidence": "test(engine): reject first-baseline publication before acceptance (RED)\n\nRED evidence: provider_admission::rejected_registered_population_publishes_no_reference_authority fails references=45 expected 0 after confirmation rejects a changed provider. A compatible retry must establish clean references.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): publish registered baseline only after acceptance (GREEN)\n\nGREEN: provider_admission runs 9 tests successfully, including rejected first population leaving zero references/marker and compatible retry. Registered confirmation errors still clear the marker, prospective errors preserve it; ordinary population remains 45 collection plus 45 confirmation.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Unreadable verification mean is storage",
+        "red": "4428929ce64684a4b23da3aa6e3ba9c289d03404",
+        "green": "5ed63e16fda6581bd6e692a499431f6afc3c314e",
+        "red_command_result_evidence": "test(engine): correct mean-read RED fixture quantization width\n\nThe preceding RED fixture stopped during setup because 2-dimensional binary quantization is unsupported, so that run did not prove the intended failure. Correct fixture to 8 dimensions and require authorizer installation success; assertions unchanged. RED evidence: focused mean-read test now reaches authorization denial and fails with VectorVerification InvalidState instead of expected Io.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): retain storage classification for unreadable verification mean (GREEN)\n\nGREEN: real SQLite authorizer-denial mean-read test passes. Only failure classification changes; mean resolution algorithm, recovery order and cache fingerprint remain unchanged.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Initial subscriber receives verification refusal",
+        "red": "8492ae1ab7351a0fb4748ec7da4e2098e9b53f74",
+        "green": "d49d21b60e307464b119384522ff50fd74884248",
+        "red_command_result_evidence": "test(engine): require initial subscriber notification on verification refusal (RED)\n\nRED evidence: provider_admission_tests::initial_subscriber_receives_actual_verification_refusal fails events.len()=0 expected1 after numeric rejection. It requires Failed/Engine/Error and VectorEquivalenceMismatchError.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): notify initial subscriber of verification rejection (GREEN)\n\nGREEN: provider_admission_tests pass (SQL read classification and exactly one Failed/Engine/Error rejection event). Host callback panics cannot replace the new open error; existing corruption event handling is retained.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Historical selectors cannot activate provider",
+        "red": "3bb315ed0946771699e25e8b10e5008625bf6d0b",
+        "green": "6022f99386649ca8ea1be6cf91ba4d056de49fd2",
+        "red_command_result_evidence": "test(engine): preserve historical fixture generation invariants (RED correction)\n\nThe previous historical-selector RED run stopped at generation corruption after a raw registry edit, so it did not prove activation closure. Use the existing generation transition hook to build consistent historical metadata, without changing assertions. RED evidence: focused test now reaches and fails historical selector cannot silently activate the attached default pipeline; explicit None inspection succeeds.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): prevent historical selector provider activation (GREEN)\n\nGREEN: all10 provider admission tests pass. Unsupported stored selectors remain readable under explicit None but cannot activate an attached default pipeline, regardless of numerical cache acceptance. Boundary validation does not alter the checker gate or persistent marker.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Production enum closed under support feature unification",
+        "red": "3fb128572d9ba26af4847eb1d53e7636725a2f3b",
+        "green": "573d74efc27c10f84b4369686847ac7cc2e7b4d5",
+        "red_command_result_evidence": "test(engine): close production choices under unified test features (RED)\n\nRED evidence: provider_admission::production_choices_are_exhaustively_default_or_none fails E0004 because production EmbedderChoice still exposes Caller and CallerWithDeviceResolution, even with test-hooks enabled. The consumer match must become exhaustive without a wildcard.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "fix(engine): restrict production provider admission to default or none (GREEN)\n\nGREEN: exhaustive production choice consumer passes with test-hooks enabled; all11 admission tests and cargo check -p fathomdb-engine --all-targets --features test-hooks pass. Caller injection moves to explicit feature-gated TestEmbedderChoice/open_for_test APIs; production enum never regains Caller under feature unification. Existing Rust fake/evaluation fixtures and installed-binding test_support intentionally migrate constructor names only, preserving their underlying assertions and cache behavior.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Returned reports/runtime have no refused mode",
+        "red": "090e26e28721fec42d3ad75efc9153419b94be31",
+        "green": "6272d10f807f02ff4d7b62d857e66bdec7ac474a",
+        "red_command_result_evidence": "test(engine): remove returned refused-mode contract (RED)\n\nRED evidence: returned_engine_report_and_runtime_have_no_refused_mode fails E0027 for obsolete OpenReport dense_disabled fields and E0004 for Refused / VectorEquivalenceDisabled enum cases. The exhaustive consumer contract requires only valid returned-engine states, without wildcard or compatibility fields.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "Remove returned refused-provider state from engine contracts\n\nGREEN evidence: cargo test --offline -p fathomdb-engine --features test-hooks --test provider_admission passed all 12 tests, including exhaustive report/runtime consumer. Actual verification refusal already fails open, so returned engine modes and counters were unreachable. Preserve generic graph deferred vocabulary and genuine projection delta accounting. Also use inspect_err for unchanged subscriber delivery.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Early failed-open cleanup observation and bounded retention",
+        "red": "b34ac672b92e773f21354cec0aa5598b62495b31",
+        "green": "060d0b8b8ced7bad164a18f8a00947d62777cf1b",
+        "red_command_result_evidence": "Test early verification unwind and later startup error separately\n\nRED evidence: cargo test --offline -p fathomdb-engine --features test-hooks --lib verification_timeout_precedes_later_visibility_fault -- --nocapture failed at fault observation: Timeout. The former test intentionally relied on the now-removed degraded open reaching a later fault hook; move observation before verification so the same retained-worker, zero-SQLite-owner, released-lock invariants are testable for the earlier failure. A separate accepted-provider case preserves the original later visibility-error check. Use eight-dimensional valid quantization fixtures.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "Observe startup cleanup before early verification failure in tests\n\nGREEN evidence: cargo test --offline -p fathomdb-engine --features test-hooks --lib slice90_post_probe_real_error_tests passed both tests. Only cfg(test) observation and shortened test drain budget move before verification; the injected visibility fault still happens after accepted verification. Production cleanup policy and budget are unchanged.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      },
+      {
+        "behavior": "Malformed None profile keeps structured corruption",
+        "red": "40b5a92f2807b9f6a6a6b77131335b8351c4bc1f",
+        "green": "d04e3e597ea88cb03eff247dedf5407dd8860349",
+        "red_command_result_evidence": "Test malformed None profile retains structured corruption classification\n\nRED evidence: cargo test --offline -p fathomdb-engine --features test-hooks --test provider_admission none_rejects_malformed -- --nocapture failed all3 cases: preserve profile corruption classification, got Io { message: \"could not open database\" }. Real SQLite stores BLOB name/revision and negative dimension in the non-STRICT profile table. Assert existing kind, stage, TableRow locator, recovery code and anchor rather than generic I/O.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR",
+        "green_command_result_evidence": "Preserve structured profile corruption for explicit None admission\n\nGREEN evidence: cargo test --offline -p fathomdb-engine --features test-hooks --test provider_admission none_rejects_malformed passed all3 real SQLite cases. Typed row decoding failures retain the existing EmbedderIdentityDrift/TableRow/stage/recovery detail; SQLite execution failures retain normal SQL mapping. Stored identity remains truthful metadata rather than a supplied BGE claim. Also clarify report docs for retained test/evaluation injection.\n\nClaude-Session: https://claude.ai/code/session_01HAqKQcR62Rjh5vugftD9JR"
+      }
+    ],
+    "focused_checks": [
+      {
+        "command": "cargo clippy --offline -p fathomdb-engine --all-targets --features test-hooks -- -D warnings",
+        "result": "PASS final HEAD source"
+      },
+      {
+        "command": "cargo check --offline -p fathomdb-engine --all-targets --features test-hooks",
+        "result": "PASS"
+      },
+      {
+        "command": "cargo test --offline -p fathomdb-engine --features test-hooks --lib",
+        "result": "PASS 115 tests"
+      },
+      {
+        "command": "cargo test --offline -p fathomdb-engine --features test-hooks --test provider_admission --test tc68_probe_fingerprint_cache",
+        "result": "PASS final HEAD: 17 admission +13 cache tests"
+      },
+      {
+        "command": "cargo test --offline -p fathomdb-engine --features test-hooks --test vector_equivalence_probe --test tc68_probe_fingerprint_cache --test slice21_projection_runtime_state --test slice22_projection_status --test slice30_embedding_readiness --test slice60_fix4_projection",
+        "result": "PASS 50 tests:24+13+6+3+3+1"
+      },
+      {
+        "command": "cargo test --offline -p fathomdb-engine --features test-hooks --test pr2b_mean_recompute",
+        "result": "PASS 1"
+      },
+      {
+        "command": "cargo check --offline -p fathomdb-engine --all-targets --features test-hooks,tc5-benchmark",
+        "result": "PASS"
+      },
+      {
+        "command": "cargo check --offline -p fathomdb-engine --all-targets --features test-hooks,fathomdb-embedder/onnx-embedder",
+        "result": "PASS"
+      },
+      {
+        "command": "cargo check --offline -p fathomdb-tc5-benchmark --all-targets --features tc5-benchmark",
+        "result": "PASS final source; no warnings after unused import correction"
+      },
+      {
+        "command": "./scripts/agent-lint-md.sh",
+        "result": "PASS"
+      },
+      {
+        "command": "./scripts/check-module-boundaries.sh",
+        "result": "PASS:93 modules,18 governed,104 reviewed configurations"
+      },
+      {
+        "command": "Direct baseline source comparison of hash_fingerprint_field, probe_verification_fingerprint, probe_verification_is_cached, record_probe_verification, clear_probe_verification",
+        "result": "PASS: all five function bodies exactly equal approved baseline"
+      },
+      {
+        "command": "git diff --check 2d63cee3c1071dd14f3e1deb44adfddc21672f19..HEAD",
+        "result": "PASS"
+      }
+    ],
+    "test_adaptations": [
+      "Existing degraded-open tests intentionally superseded: assert typed failed open/no Engine; explicit None supplies deliberate FTS/status recovery. Preserve numerical P1/P2/mean oracles, cache counts/marker semantics/residuals, snapshots and retry recovery.",
+      "Old startup-fault fixture now uses accepted8d provider to reach later startup fault and preserve profile/SQLite/lock checks. Earlier timeout test separately retains bounded provider-only worker/accounting/zero SQLite-owner/released lock evidence. cfg(test) observation moves before probe; production budget unchanged.",
+      "Timeout integration fixtures release providers asynchronously at150ms within unchanged30s cleanup budget; provider call still times out at50ms and late results cannot publish baseline/marker.",
+      "Generic graph deferred vocabulary/golden JSON/test seam retained; ordinary source projection readiness mapping cannot emit removed refused-provider Deferred.",
+      "Historical characterization data untouched. Ignored measurement runner now records failed admission without invoking operations on nonexistent Engine.",
+      "Rust fake-provider consumers migrated mechanically to gated TestEmbedderChoice and explicit hidden test/evaluation openers. Normal EmbedderChoice stays only Default/None even with unified support features."
+    ],
+    "deviations": [
+      "d8f1d2235 was an invalid RED fixture (dimension2 failed quantization during seeding). Corrected in4428929ce to valid8d and actual mean-read authorization denial before GREEN5ed63e16f; initial failure is not claimed as contract RED.",
+      "1c4a2c026 was an invalid RED fixture (raw selector edit left serving generation stale). Corrected in3bb315ed0 using existing generation transition hook before actual activation RED and GREEN6022f9938; original failure is not counted as contract RED.",
+      "88669732c adds passing regression/property coverage for already-TDD implemented contracts, not a new RED claim: SQLite publication rollback/retry and arbitrary selector rejection/null roundtrip."
+    ],
+    "remaining": [
+      "Parent integrates separately owned binding helper3ec5eb6aa, runs final strict full agent-verify and independent Astra-medium implementation review before landing.",
+      "No full workspace gate claim from this child; no push or landing performed.",
+      "Known provider-free dense rebuild invalidation defect remains deliberately deferred; no D50-1/D50-2 or Unit S implementation."
+    ],
+    "blockers": []
+  },
+  "bindings": {
+    "worktree": "/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50-provider-bindings",
+    "branch": "impl/0.8.28-provider-bindings",
+    "baseline": "17092e0aa772a928c3752d53bcf7431c69ed3c64",
+    "head": "3ec5eb6aa540af0101691f2d7066ebd8383cb5cf",
+    "clean": true,
+    "own_commits": [
+      {
+        "sha": "302f67a5ddcc2b74591b313f61f3ebf5a6d474bf",
+        "subject": "test(sdk): pin typed vector verification open failures (RED)"
+      },
+      {
+        "sha": "f2afdf1aa88992b792ae3ec523745482ae8705f3",
+        "subject": "test(sdk): correct shared class fixture length"
+      },
+      {
+        "sha": "2d3c90a6f00e74c158f4fba58f20697c0d17da2c",
+        "subject": "feat(sdk): preserve typed vector open refusal causes (GREEN)"
+      },
+      {
+        "sha": "d601922bf2a1a45c385cbca7d85ebedbf7973c67",
+        "subject": "test(python): pin typed verification failure translation (RED)"
+      },
+      {
+        "sha": "718405b452350fa6b5a966caf2763e8be4ec1735",
+        "subject": "test(typescript): pin verification class and provider payload (RED)"
+      },
+      {
+        "sha": "56ce86febdde5467a4318ae22e1482f7c0fa4ad9",
+        "subject": "test(bindings): preserve original provider failure kinds (RED)"
+      },
+      {
+        "sha": "c89ad965601ecca740205f9c45b3e32b40f2837a",
+        "subject": "feat(python): translate typed vector open refusals (GREEN)"
+      },
+      {
+        "sha": "6232da2d73cb0f3589383fb8b38bcdc66b7a53c5",
+        "subject": "feat(node): preserve typed vector verification refusal context (GREEN)"
+      },
+      {
+        "sha": "2b75d6823077cfc22bba090d60b7b97449b327c3",
+        "subject": "test(python): retain invalid verification state detail (RED)"
+      },
+      {
+        "sha": "8ecdf05c5516394860b0ceb68cf1c9282a1092cb",
+        "subject": "test(cli): pin classified vector open refusal JSON (RED)"
+      },
+      {
+        "sha": "48dcd81572fedad4f6e5fc6b7fb734780f5328e5",
+        "subject": "fix(python): retain invalid verification state detail (GREEN)"
+      },
+      {
+        "sha": "36c81ee5e3359f37afbf926c55610b464de25196",
+        "subject": "test(cli): pin original provider detail envelope (RED)"
+      },
+      {
+        "sha": "b5949315935480f8d015c8e419706be5c1bebb77",
+        "subject": "feat(cli): emit typed vector verification open refusals (GREEN)"
+      },
+      {
+        "sha": "caa94f2c4f071f552c7c2f6d67666b624874d15a",
+        "subject": "test(bindings): remove refused-handle report contract (RED)"
+      },
+      {
+        "sha": "d45dc7afa7e015b3aa1a583770f488143302d099",
+        "subject": "refactor(bindings): remove obsolete refused-open report state (GREEN)"
+      },
+      {
+        "sha": "a0ea6831b30deb131a29dd2dcb2e5ec6394215bd",
+        "subject": "test(earp): omit obsolete refused-open observations (RED)"
+      },
+      {
+        "sha": "7c750b66a3a7281cc5602ebdb3510ec51f51b5a3",
+        "subject": "fix(earp): record successful-open observations without refused state (GREEN)"
+      },
+      {
+        "sha": "cc1f00d2adc6414f2f1469f450d842851538df5e",
+        "subject": "test(bindings): retire impossible refused runtime status values (RED)"
+      },
+      {
+        "sha": "63a13e61c463b512135581e05735f1eace2b93ea",
+        "subject": "refactor(bindings): remove refused runtime status modes (GREEN)"
+      },
+      {
+        "sha": "9ecd8ab44b3b5e7ff7bd63f7287fae130af1460b",
+        "subject": "test(bindings): cover provider selector admission across SDKs"
+      },
+      {
+        "sha": "3b120f3ef03de4ec616bed15704f0971d9d6aca2",
+        "subject": "test(typescript): use canonical null in default-selector fixture"
+      },
+      {
+        "sha": "46c109243d57ddea15fe8b99a21d89540f3eb854",
+        "subject": "test(bindings): retire refused-runtime readiness deferral (RED)"
+      },
+      {
+        "sha": "5d452c82e1cfb130b1c765bd4df7d0c3c7848a4f",
+        "subject": "refactor(bindings): remove refused-runtime readiness deferral (GREEN)"
+      },
+      {
+        "sha": "4e1233d1e4c60daa888c5672c742a8c72e5ecb53",
+        "subject": "test(bindings): retire refused graph and structural readouts (RED)"
+      },
+      {
+        "sha": "e559c3864a26826abee4ca87ae724774b9ebe8e6",
+        "subject": "refactor(bindings): remove refused graph and structural readouts (GREEN)"
+      },
+      {
+        "sha": "c4f833efd29f6e983f61106bb22c364fabe0e9d3",
+        "subject": "revert: preserve retained graph and structural wire vocabulary"
+      },
+      {
+        "sha": "a5a26236d4a7a1e5b3a12471f05e9085bd08c4d2",
+        "subject": "revert: withdraw graph absence assertions outside approved scope"
+      },
+      {
+        "sha": "b9d43418b00805968cdd9048f3417414422f9a3d",
+        "subject": "test(python): narrow the preserved provider leaf explicitly"
+      },
+      {
+        "sha": "3ec5eb6aa540af0101691f2d7066ebd8383cb5cf",
+        "subject": "docs(bindings): specify built-in admission and failed-open limits"
+      }
+    ],
+    "dependency_commits": [
+      {
+        "local_sha": "30cfdf5df128a749f2586573f0cf60db2fd6c819",
+        "original_sha": "1f6cecb530bb6fbdaf24af19b1d19db2ba11ae19",
+        "reason": "Root-authorized typed core cause/source-chain dependency; do not cherry-pick as own work, root integration already has core original."
+      }
+    ],
+    "cherry_pick_commits": [
+      "302f67a5ddcc2b74591b313f61f3ebf5a6d474bf",
+      "f2afdf1aa88992b792ae3ec523745482ae8705f3",
+      "2d3c90a6f00e74c158f4fba58f20697c0d17da2c",
+      "d601922bf2a1a45c385cbca7d85ebedbf7973c67",
+      "718405b452350fa6b5a966caf2763e8be4ec1735",
+      "56ce86febdde5467a4318ae22e1482f7c0fa4ad9",
+      "c89ad965601ecca740205f9c45b3e32b40f2837a",
+      "6232da2d73cb0f3589383fb8b38bcdc66b7a53c5",
+      "2b75d6823077cfc22bba090d60b7b97449b327c3",
+      "8ecdf05c5516394860b0ceb68cf1c9282a1092cb",
+      "48dcd81572fedad4f6e5fc6b7fb734780f5328e5",
+      "36c81ee5e3359f37afbf926c55610b464de25196",
+      "b5949315935480f8d015c8e419706be5c1bebb77",
+      "caa94f2c4f071f552c7c2f6d67666b624874d15a",
+      "d45dc7afa7e015b3aa1a583770f488143302d099",
+      "a0ea6831b30deb131a29dd2dcb2e5ec6394215bd",
+      "7c750b66a3a7281cc5602ebdb3510ec51f51b5a3",
+      "cc1f00d2adc6414f2f1469f450d842851538df5e",
+      "63a13e61c463b512135581e05735f1eace2b93ea",
+      "9ecd8ab44b3b5e7ff7bd63f7287fae130af1460b",
+      "3b120f3ef03de4ec616bed15704f0971d9d6aca2",
+      "46c109243d57ddea15fe8b99a21d89540f3eb854",
+      "5d452c82e1cfb130b1c765bd4df7d0c3c7848a4f",
+      "4e1233d1e4c60daa888c5672c742a8c72e5ecb53",
+      "e559c3864a26826abee4ca87ae724774b9ebe8e6",
+      "c4f833efd29f6e983f61106bb22c364fabe0e9d3",
+      "a5a26236d4a7a1e5b3a12471f05e9085bd08c4d2",
+      "b9d43418b00805968cdd9048f3417414422f9a3d",
+      "3ec5eb6aa540af0101691f2d7066ebd8383cb5cf"
+    ],
+    "red_green_evidence": [
+      {
+        "red": "302f67a5ddcc2b74591b313f61f3ebf5a6d474bf",
+        "green": "2d3c90a6f00e74c158f4fba58f20697c0d17da2c",
+        "behavior": "Rust SDK typed open classification and original provider payload",
+        "red_evidence": "E0004 missing numeric/vector-verification mappings; SDK tests require original typed provider without CUDA flattening."
+      },
+      {
+        "red": "d601922bf2a1a45c385cbca7d85ebedbf7973c67",
+        "green": "c89ad965601ecca740205f9c45b3e32b40f2837a",
+        "behavior": "Python typed verification class and provider translation",
+        "red_evidence": "E0425 missing VectorVerificationError and E0004 missing open mappings."
+      },
+      {
+        "red": "718405b452350fa6b5a966caf2763e8be4ec1735",
+        "green": "6232da2d73cb0f3589383fb8b38bcdc66b7a53c5",
+        "behavior": "TypeScript class and nested provider translation",
+        "red_evidence": "TS2305 errors.js has no exported VectorVerificationError."
+      },
+      {
+        "red": "56ce86febdde5467a4318ae22e1482f7c0fa4ad9",
+        "green": "6232da2d73cb0f3589383fb8b38bcdc66b7a53c5",
+        "behavior": "Native Node envelope and provider-kind parity",
+        "red_evidence": "E0004 missing numeric/vector-verification open mappings; Py/TS class failures persisted before implementation."
+      },
+      {
+        "red": "2b75d6823077cfc22bba090d60b7b97449b327c3",
+        "green": "48dcd81572fedad4f6e5fc6b7fb734780f5328e5",
+        "behavior": "Python InvalidState original detail",
+        "red_evidence": "Assertion left=invalid_state, right=stored reference detail."
+      },
+      {
+        "red": "8ecdf05c5516394860b0ceb68cf1c9282a1092cb",
+        "green": "b5949315935480f8d015c8e419706be5c1bebb77",
+        "behavior": "CLI class/code/detail/exit mapping",
+        "red_evidence": "E0425 missing engine_open_error_json and E0004 missing open code mappings."
+      },
+      {
+        "red": "36c81ee5e3359f37afbf926c55610b464de25196",
+        "green": "b5949315935480f8d015c8e419706be5c1bebb77",
+        "behavior": "CLI original provider payload",
+        "red_evidence": "E0425 missing JSON encoder and E0004 missing vector open mappings."
+      },
+      {
+        "red": "caa94f2c4f071f552c7c2f6d67666b624874d15a",
+        "green": "d45dc7afa7e015b3aa1a583770f488143302d099",
+        "behavior": "Remove refused-handle report fields and methods",
+        "red_evidence": "Native Python assertion obsolete report field dense_disabled; TypeScript unused @ts-expect-error negative API checks."
+      },
+      {
+        "red": "a0ea6831b30deb131a29dd2dcb2e5ec6394215bd",
+        "green": "7c750b66a3a7281cc5602ebdb3510ec51f51b5a3",
+        "behavior": "EARP current observations/schema after report removal",
+        "red_evidence": "Schema assertion required obsolete fields; sanctioned native run additionally failed AttributeError on current runner dense_disabled access."
+      },
+      {
+        "red": "cc1f00d2adc6414f2f1469f450d842851538df5e",
+        "green": "63a13e61c463b512135581e05735f1eace2b93ea",
+        "behavior": "Remove refused runtime status/reason modes",
+        "red_evidence": "Literal membership contains refused; generation decoder DID NOT RAISE ProjectionGenerationError."
+      },
+      {
+        "red": "46c109243d57ddea15fe8b99a21d89540f3eb854",
+        "green": "5d452c82e1cfb130b1c765bd4df7d0c3c7848a4f",
+        "behavior": "Remove only Refused-derived projection/embedding readiness Deferred",
+        "red_evidence": "Readiness literal has extra deferred; decoder DID NOT RAISE ProjectionGenerationError."
+      }
+    ],
+    "withdrawn_scope": {
+      "red": "4e1233d1e4c60daa888c5672c742a8c72e5ecb53",
+      "green": "e559c3864a26826abee4ca87ae724774b9ebe8e6",
+      "reverse_order_reverts": [
+        "c4f833efd29f6e983f61106bb22c364fabe0e9d3",
+        "a5a26236d4a7a1e5b3a12471f05e9085bd08c4d2"
+      ],
+      "valid_required_red_evidence": false,
+      "reason": "Root withdrew mistaken graph-vocabulary removal after tracing retained graph codec and test/evaluation producers. GraphProjectionReadinessV1::Deferred, GraphExpansionDegradationCodeV1::ProjectionDeferred and StructuralDegradationCodeV1::ProjectionDeferred restored verbatim; no net graph/search source changes."
+    },
+    "test_authoring_corrections": [
+      {
+        "commit": "f2afdf1aa88992b792ae3ec523745482ae8705f3",
+        "reason": "Shared class fixture array length 45->46; assertions unchanged."
+      },
+      {
+        "commit": "3b120f3ef03de4ec616bed15704f0971d9d6aca2",
+        "reason": "Use canonical explicit null instead of undefined for supported default-provider exact roundtrip; equality assertions retained."
+      },
+      {
+        "commit": "b9d43418b00805968cdd9048f3417414422f9a3d",
+        "reason": "Strengthen preserved-provider constructor test with concrete isinstance narrowing for Pyright; numeric assertions retained."
+      }
+    ],
+    "checks": [
+      {
+        "name": "Rust SDK mapping+surface",
+        "result": "18 passed",
+        "command": "CARGO_TARGET_DIR=/tmp/fathomdb-provider-bindings-target cargo test -p fathomdb-sdk --test surface --test vector_open_errors --offline"
+      },
+      {
+        "name": "PyO3 mapping+native absent report surface",
+        "result": "6 passed",
+        "command": "PYO3_PYTHON=$PWD/.venv/bin/python CARGO_TARGET_DIR=/tmp/fathomdb-provider-bindings-target cargo test -p fathomdb-py --lib vector_open_tests --offline"
+      },
+      {
+        "name": "Native Node error mapping",
+        "result": "3 passed",
+        "command": "CARGO_TARGET_DIR=/tmp/fathomdb-provider-bindings-target cargo test -p fathomdb-napi --lib vector_open_tests --offline"
+      },
+      {
+        "name": "CLI new mapping/provider tests",
+        "result": "2 focused passed; 27/28 lib tests passed sandboxed; unchanged doctor_gpu_process_matrix passed unconfined",
+        "note": "No fixture/source weakening for sandbox subprocess failure."
+      },
+      {
+        "name": "Python facade/error/report/selector/typing/active EARP suite",
+        "result": "108 passed, 1 expected opt-in integration skip",
+        "log": "/tmp/fathomdb-provider-bindings-python-final.log",
+        "skip": "FDB_EARP_INTEGRATION=1 required to load cached real default embedder; default gate intentionally skips."
+      },
+      {
+        "name": "TypeScript focused native suites",
+        "result": "73 passed",
+        "log": "/tmp/fathomdb-provider-bindings-node-tests.log"
+      },
+      {
+        "name": "Restored graph/readiness Python subset",
+        "result": "25 passed",
+        "log": "/tmp/fathomdb-provider-bindings-graph-restored.log"
+      },
+      {
+        "name": "Restored graph native Node subset",
+        "result": "12 passed",
+        "log": "/tmp/fathomdb-provider-bindings-node-graph-restored.log"
+      },
+      {
+        "name": "TypeScript full compile",
+        "result": "passed",
+        "command": "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.json"
+      },
+      {
+        "name": "Focused Pyright",
+        "result": "0 errors, 0 warnings",
+        "log": "/tmp/fathomdb-provider-bindings-pyright-focused.log"
+      },
+      {
+        "name": "Pinned Ruff 0.15.17 changed Python files",
+        "result": "passed"
+      },
+      {
+        "name": "Markdown gate",
+        "result": "passed",
+        "command": "./scripts/agent-lint-md.sh",
+        "log": "/tmp/fathomdb-provider-bindings-md.log"
+      },
+      {
+        "name": "git diff --check and final status",
+        "result": "passed; clean"
+      },
+      {
+        "name": "Scoped clippy",
+        "result": "blocked by inherited core manual_inspect in engine/src/open.rs:878; diagnostic forwarded unaltered to root",
+        "log": "/tmp/fathomdb-provider-bindings-clippy.log"
+      },
+      {
+        "name": "Broad Python pyright attempt",
+        "result": "Optional NumPy missing outside changed scope; owned narrowing issue fixed; focused scope passed",
+        "log": "/tmp/fathomdb-provider-bindings-pyright.log"
+      }
+    ],
+    "native_receipt": {
+      "candidate_sha": "a0ea6831b30deb131a29dd2dcb2e5ec6394215bd",
+      "module_path": "/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50-provider-bindings/src/python/fathomdb/_fathomdb.abi3.so",
+      "module_sha256": "3a45b67d03c7d937e861d15c78c81f2d8db298421c8cf3f60390f9301aa3dd4a",
+      "nonce": "provider-bindings-focused-20261101",
+      "schema": "fathomdb.python-test-hooks-receipt/v1"
+    },
+    "native_build_policy": "Own checkout-owned .venv (Python3.12), sanctioned conftest noneditable wheel, own receipt/nonce and isolated /tmp/fathomdb-provider-bindings-target; no editable install, borrowed native binding or shared virtual environment. Own NAPI artifact built with existing npm build:native:debug.",
+    "test_adaptations": [
+      "Explicit approved supersession: refused open has no Engine/OpenReport; old healthy false/None/zero report and method fixtures removed and replaced with absence assertions.",
+      "Existing string bge-small roundtrip fixture now uses supported None/null default; all tokenizer/readiness/exact roundtrip assertions retained. New string-rejection regression tests already pass against central engine validation, and are not claimed RED.",
+      "Active EARP emits only real successful-open query_backend observations; historical schema properties remain optional for reading existing data, with no synthetic false/zero aliases and no archived measurement edits.",
+      "Only Refused-derived runtime/status/readiness modes removed; actuation refused, real ProjectionDelta.deferred, durable/async deferral and retained graph codecs remain.",
+      "Unchanged compiler diagnostics preserved; independent Astra review and one final strict integrated gate remain root-owned."
+    ],
+    "interfaces_updated": [
+      "dev/interfaces/rust.md",
+      "dev/interfaces/rust-sdk.md",
+      "dev/interfaces/python.md",
+      "dev/interfaces/typescript.md",
+      "dev/interfaces/cli.md",
+      "dev/interfaces/wire.md"
+    ],
+    "blockers": [],
+    "integration_notes": [
+      "Integrate own commits with latest core API/report closure and core clippy fix before final gate. Own branch intentionally carries only the earlier typed core dependency; no core source edits performed.",
+      "Root has assigned existing dev/design/errors.md class matrix update to core; all binding interface docs are complete here.",
+      "No push, merge, landing, release state/board/ledger/ADR mutation or independent review was performed by this helper.",
+      "Stop writing after stable head; root may cherry-pick own commits. Reverted graph commits are preserved for audit, excluded from required RED evidence."
+    ],
+    "pushed_refs": [],
+    "writing_stopped": true
+  },
+  "original_to_integrated_sha": {
+    "69449f15f39334941d5294ecf19a96e38ff3f2fa": "4898be36ace02b08ab063b1efa82583f66473ca4",
+    "07d05d13d9f7df35cc67d97ee4c4cbe89647d517": "831e9a79d80fea1af4f911d8cc1ebd8e80853407",
+    "3ec5eb6aa540af0101691f2d7066ebd8383cb5cf": "afb1f0680efd3798fba4c171eb9623a4606a6b16",
+    "b9d43418b00805968cdd9048f3417414422f9a3d": "4247c3c7ce9a58999d13b76bb72dc1d4ca4b4b03",
+    "a5a26236d4a7a1e5b3a12471f05e9085bd08c4d2": "51cefe697917594628bcdb222527faea15efb42f",
+    "c4f833efd29f6e983f61106bb22c364fabe0e9d3": "cd2fea17d4899556f1ed262d1dc0d5596b3db20e",
+    "e559c3864a26826abee4ca87ae724774b9ebe8e6": "cc16946fa1caeba2483253f773c577c5296bad53",
+    "4e1233d1e4c60daa888c5672c742a8c72e5ecb53": "5edfaad6e24b2c3820e43a87fcf83807d3d1f2e8",
+    "5d452c82e1cfb130b1c765bd4df7d0c3c7848a4f": "c80d90d4041ee7a0a57debf6fe8eb59ba6c9578e",
+    "46c109243d57ddea15fe8b99a21d89540f3eb854": "c592f97368ca3d76420928e8132fed16c2d0fa5f",
+    "3b120f3ef03de4ec616bed15704f0971d9d6aca2": "1b945119fe02709f9b86f782ff47a162271f1e82",
+    "9ecd8ab44b3b5e7ff7bd63f7287fae130af1460b": "3d3a030684f635a1f703b7a7d5803d091eb51137",
+    "63a13e61c463b512135581e05735f1eace2b93ea": "8e6bacc13a64a447d7ce1f9ca0c6d6a8bed67492",
+    "cc1f00d2adc6414f2f1469f450d842851538df5e": "dd1e10c7ad39d4b60f66bc0d7815cc2c9a8cbc61",
+    "7c750b66a3a7281cc5602ebdb3510ec51f51b5a3": "446c0c44d89e1a2db1f835bcfc1cb3860c425a08",
+    "a0ea6831b30deb131a29dd2dcb2e5ec6394215bd": "2b0a1e569cf681f360b4aeb2a359d7ea1d1f2519",
+    "d45dc7afa7e015b3aa1a583770f488143302d099": "e83eb2e54e3d54e6df4e97ce8833d7a2be056472",
+    "caa94f2c4f071f552c7c2f6d67666b624874d15a": "ff84bc0b090918fbef651c064eb67eac3accb226",
+    "b5949315935480f8d015c8e419706be5c1bebb77": "f119ef64681d1442131296f6b9166f28eb4cc3c9",
+    "36c81ee5e3359f37afbf926c55610b464de25196": "3748db7beb7516b1f6ecf48f959a9161fad92388",
+    "48dcd81572fedad4f6e5fc6b7fb734780f5328e5": "7427782ef6390edcc930c5c992396c1850f0464b",
+    "8ecdf05c5516394860b0ceb68cf1c9282a1092cb": "bbb3986d2837d10865efe0be1c98b00ea4d625bf",
+    "2b75d6823077cfc22bba090d60b7b97449b327c3": "e36f138d43a6e821ec1cb0ee7a601ad34d475fc3",
+    "6232da2d73cb0f3589383fb8b38bcdc66b7a53c5": "5e1cfbd2e29ea484c6253ac356801c051c58a34b",
+    "c89ad965601ecca740205f9c45b3e32b40f2837a": "1f75aad9e9ecc15b7f149afde7595878509c6f6f",
+    "56ce86febdde5467a4318ae22e1482f7c0fa4ad9": "008979e4b021be3536573fa161b94fbc07cb0cd2",
+    "718405b452350fa6b5a966caf2763e8be4ec1735": "275e8b26c0f2656b7b32002f242906af8f8c2d66",
+    "d601922bf2a1a45c385cbca7d85ebedbf7973c67": "32f6a0451977bac8e72517857f8d124f9a207e03",
+    "2d3c90a6f00e74c158f4fba58f20697c0d17da2c": "a83c03c7c69dfccc241bcfe81920609341e873df",
+    "f2afdf1aa88992b792ae3ec523745482ae8705f3": "07baa00857a925d690215625b90c6753fc446f3d",
+    "302f67a5ddcc2b74591b313f61f3ebf5a6d474bf": "b034734f3645cb48cceacdb66606fd7770756bac",
+    "eaab30bcae00a33f96c3032042f19b88880702a9": "b8bb7e56f3c90764313f1af1ec7859968dc4fc50",
+    "d04e3e597ea88cb03eff247dedf5407dd8860349": "416d1e54a14caa91d03c621c4a7de652044468ee",
+    "40b5a92f2807b9f6a6a6b77131335b8351c4bc1f": "5110aa4af6cc803c6e25b6f65a611f7a41eedc86",
+    "88669732c8924247a73b858a3e3eeb0d844a7b2a": "419ad4728bfd47b1109361b8862c95e87a4b8e9e",
+    "060d0b8b8ced7bad164a18f8a00947d62777cf1b": "1704d6393829ce667b45ad0903b033a0c5f39ff5",
+    "b34ac672b92e773f21354cec0aa5598b62495b31": "d6e8e04f0eaa94508554c4bb36a98b0c9ce837a6",
+    "5e8f89455ccbb60e57651eb5152afaacf4915b12": "d279620c9261d0e29216783e729b5ed703a4a20f",
+    "6272d10f807f02ff4d7b62d857e66bdec7ac474a": "2d2a60ae711f6c81b18f650c2c4ba9fc49b1b9c8",
+    "090e26e28721fec42d3ad75efc9153419b94be31": "3fd1bcc3c7f0a55584fd53c4aae7503843c2e473",
+    "573d74efc27c10f84b4369686847ac7cc2e7b4d5": "d4a6c7e557acb8b6bdb303a79d13e615f5de5de2",
+    "3fb128572d9ba26af4847eb1d53e7636725a2f3b": "e6d8fe04d2df1e67ccd7b4d9bc58056fab4bce17",
+    "6022f99386649ca8ea1be6cf91ba4d056de49fd2": "4bfc44ccb14d5792b05cc8af85249608c0ace8ea",
+    "3bb315ed0946771699e25e8b10e5008625bf6d0b": "1ad9893beb9af713b05592c4f2adcac734347555",
+    "1c4a2c026130c5b9932a33318e612b50691d504d": "22567b5052a05375268667c1c2df4021a8f4a415",
+    "d49d21b60e307464b119384522ff50fd74884248": "ba7184538cf3b184f2d674bc9c1c887782644d02",
+    "8492ae1ab7351a0fb4748ec7da4e2098e9b53f74": "9547f84f826e923ee9775b7e79f117b5b9908c5c",
+    "5ed63e16fda6581bd6e692a499431f6afc3c314e": "bbee3aadb057ae8115545f3f0ab66f6c80703591",
+    "4428929ce64684a4b23da3aa6e3ba9c289d03404": "3ea133dcdeb7ad1415f2519fc25d1a9feb206ec8",
+    "d8f1d223530056ce09c82f7306f4bf9f25ef9596": "da517f53c6fac3b64cecf35b754bbdd76bf7da58",
+    "7e8a531402a8b208bde0babf3cc7b92d05235238": "0745d80065bdbeeaf8c1c8d237d6b687b6d20158",
+    "67b779d917a9904fe35825f3b56ce938bba0e7d0": "0924148c4a2033ef18d1ed04a063c8080ac73ac9",
+    "1f6cecb530bb6fbdaf24af19b1d19db2ba11ae19": "6cfedac51958df6d90515c7b0ab91c0d1d297bdd",
+    "c79071b245fc6f28d99d89b87bd11fabd3b12308": "69048aff5cbf258e0f386f7d4c87a5297407e7ac",
+    "a28023b13bf5d8f4bf1ec29434b20dcd854142b8": "2d704a977748829e9053009514a774b6bedb6444",
+    "17092e0aa772a928c3752d53bcf7431c69ed3c64": "c2922c68e402b620d998dae117548ffab5f81f1e",
+    "af1b959db44c1a478552f2614be981623dd380ca": "fbf4fdb793a25b10d4643bfd58edde5d23912197",
+    "5d0cba599a7c41c76c85b34060f1dfad0d7a664f": "19c09aa586f84117d46bb9c8ed15eea12c318a3e",
+    "95f62623513425b5798cc49619aa78d67b3862cb": "f708cc889caa37e96e1f215294540e3a20bd6b01",
+    "a3a003e0b9657e5baddeec32148df1fc6a40c5ae": "ec21a4bb61f8cf641c2cc3c9b61f2bd5c772ed7b",
+    "0b4f483f062eb8823e7c0c7aced1ecf640537b2e": "daede29eb4bff92bf180ddf4df4624b6acaa0812",
+    "80d47ce8aea99310debfa494cf662e5ce3cfad58": "c1ac0748cb555420feb86c0cc7860e0ed4e42fff",
+    "02a4267c9e7d4df859120bce49e98f2f02b9d5d9": "db2baf1ec420dae6680315fcb911ca30e94ddc32",
+    "20d95c16d11320c92004497930642a164fee72e7": "3c1ef96ae12842534cf3ad2f1d18011b63476004",
+    "9347957efcc4c1cd4d1089fb343851abbf4ef632": "a00f2c2a3ae7b1af14b2f890c81d8cf00a4607d6",
+    "04eb401d4e700f706ab267f92919dc46e7a4f370": "ac3cbebe7a9fe72df0ceb6e14fd863896837b1c5",
+    "0e490011af0a0a43a8a41003122da07eeb3dd7ad": "119932f9df34127bc9297bfa93aaae9d5a856e80",
+    "bcdc105c7e5bcbb7ce1b695572843990d2e6aef4": "ebd93afdd306b6b04313f476fd0ce814b65acdd6"
+  },
+  "gate_fixes": {
+    "baseline": "afb1f0680efd3798fba4c171eb9623a4606a6b16",
+    "head": "02a4267c9e7d4df859120bce49e98f2f02b9d5d9",
+    "branch": "impl/0.8.28-provider-gate-fix",
+    "worktree": "/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-provider-gate-fix",
+    "status": "ready-for-independent-review",
+    "changed_files": [
+      "src/rust/crates/fathomdb-embedder-api/src/lib.rs"
+    ],
+    "change": "Exact existing Display/Error impl block moved before cfg(test) module; implementation and test bytes preserved.",
+    "red": {
+      "baseline": "afb1f0680efd3798fba4c171eb9623a4606a6b16",
+      "suite": "strict lint-rust",
+      "exit_code": 101,
+      "diagnostic": "error: items after a test module; -D clippy::items-after-test-module implied by -D warnings",
+      "log": "/tmp/fathomdb-agent-lint-rust-2095454.log"
+    },
+    "checks": [
+      {
+        "command": "CARGO_TARGET_DIR=/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/target cargo clippy --offline -p fathomdb-embedder-api --all-targets -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "CARGO_TARGET_DIR=/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/target cargo test --offline -p fathomdb-embedder-api",
+        "exit_code": 0,
+        "unit_tests_passed": 1,
+        "doctests": 0
+      },
+      {
+        "command": "cargo fmt --all -- --check",
+        "exit_code": 0
+      },
+      {
+        "command": "exact-block-move comparison against baseline",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      },
+      {
+        "command": "pre-commit hooks (no bypass)",
+        "exit_code": 0
+      }
+    ],
+    "full_workspace_gate": "Not rerun; root owns unchanged strict gate continuation.",
+    "clean_worktree": true,
+    "pushed": false,
+    "prior_head": "9347957efcc4c1cd4d1089fb343851abbf4ef632",
+    "root_already_has_prior_fix": true,
+    "additional_fix": {
+      "parent": "07d05d13d9f7df35cc67d97ee4c4cbe89647d517",
+      "head": "69449f15f39334941d5294ecf19a96e38ff3f2fa",
+      "changed_files": [
+        "src/rust/crates/fathomdb-engine/tests/slice50_refusal_baseline.rs"
+      ],
+      "change": "Only err().expect(message) replaced by expect_err(message); refusal oracle and message preserved.",
+      "red": {
+        "suite": "strict lint-rust",
+        "exit_code": 101,
+        "diagnostic": "error: called .err().expect() on a Result value; clippy::err-expect implied by -D warnings",
+        "log": "/tmp/fathomdb-agent-lint-rust-2101061.log"
+      },
+      "checks": [
+        {
+          "command": "CARGO_TARGET_DIR=/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/target cargo clippy --workspace --all-targets --quiet -- -D warnings",
+          "exit_code": 0
+        },
+        {
+          "command": "cargo fmt --all -- --check",
+          "exit_code": 0
+        },
+        {
+          "command": "git diff --check",
+          "exit_code": 0
+        },
+        {
+          "command": "exact one-line replacement comparison against prior commit",
+          "exit_code": 0
+        },
+        {
+          "command": "pre-commit hooks (no bypass)",
+          "exit_code": 0
+        }
+      ],
+      "runtime_tests": "Not rerun: mechanical assertion idiom correction compiled by all-targets workspace Clippy; ignored characterization matrix unchanged.",
+      "clean_worktree": true
+    },
+    "feature_closure_fix": {
+      "parent": "69449f15f39334941d5294ecf19a96e38ff3f2fa",
+      "head": "80d47ce8aea99310debfa494cf662e5ce3cfad58",
+      "changed_files": [
+        "src/rust/crates/fathomdb-engine/Cargo.toml",
+        "src/rust/crates/fathomdb-engine/tests/slice40_fts_ranking.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice41_context_pack.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice806_gpu_allocation_witness_report.rs"
+      ],
+      "production_source_changed": false,
+      "assertion_bodies_changed": false,
+      "red": {
+        "suite": "typecheck-rust-engine-default-tests",
+        "exit_code": 101,
+        "diagnostics": "E0432/E0599: gated TestEmbedderChoice and open_with_test_* used by default integration targets",
+        "full_unaltered_log": "/tmp/fathomdb-agent-typecheck-rust-engine-default-tests-2114205.log",
+        "additional_mixed_target_log": "/tmp/fathomdb-provider-gate-default-check.log"
+      },
+      "inventory": "All engine tests/*.rs containing TestEmbedderChoice/open_with_test_* audited against required-features plus file/function cfg. Targets either require test-hooks/tc5-benchmark or gate injection per file/function. Six pure-injection targets now require existing test-hooks feature. Mixed slice40/slice41/slice806 retain non-injected default cases. Two ordinary Default calls use production API.",
+      "gated_targets": [
+        "slice20_dense_readiness",
+        "slice23_text_limit_prefix_stability",
+        "slice35_actuation_performance",
+        "slice135_graph_arm_row_error",
+        "slice135_node_fts_error",
+        "slice135_edge_fts_error"
+      ],
+      "workspace_coverage": "Workspace Cargo test unifies test-hooks from existing fathomdb-napi and fathomdb-py dev-dependencies; no runner flags changed.",
+      "target_dir": "/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/target",
+      "checks": [
+        {
+          "command": "env RUSTFLAGS=\"${RUSTFLAGS:-} -Dwarnings\" cargo check -p fathomdb-engine --all-targets",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-default-check-final.log"
+        },
+        {
+          "command": "env RUSTFLAGS=\"${RUSTFLAGS:-} -Dwarnings\" cargo check --release -p fathomdb-engine --lib --tests",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-release-default-check.log"
+        },
+        {
+          "command": "env RUSTFLAGS=\"${RUSTFLAGS:-} -Dwarnings\" cargo check --release -p fathomdb-engine --lib --tests --features test-hooks,operator",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-release-hooks-check.log"
+        },
+        {
+          "command": "cargo test --offline -p fathomdb-engine --features test-hooks --test slice20_dense_readiness --test slice23_text_limit_prefix_stability --test slice35_actuation_performance --test slice135_graph_arm_row_error --test slice135_node_fts_error --test slice135_edge_fts_error --test slice40_fts_ranking --test slice41_context_pack --test slice806_gpu_allocation_witness_report -- --include-ignored --test-threads=1",
+          "exit_code": 0,
+          "passed": 60,
+          "failed": 0,
+          "ignored": 0,
+          "log": "/tmp/fathomdb-provider-gate-affected-hooks-tests.log"
+        },
+        {
+          "command": "cargo test --offline -p fathomdb-engine --test slice40_fts_ranking --test slice41_context_pack --test slice806_gpu_allocation_witness_report -- --test-threads=1",
+          "exit_code": 0,
+          "passed": 36,
+          "failed": 0,
+          "ignored": 0,
+          "log": "/tmp/fathomdb-provider-gate-affected-default-tests.log"
+        },
+        {
+          "command": "cargo clippy --workspace --all-targets --quiet -- -D warnings",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-workspace-clippy-final.log"
+        },
+        {
+          "command": "pre-commit hooks incl cargo fmt --check (no bypass)",
+          "exit_code": 0
+        },
+        {
+          "command": "git diff --check",
+          "exit_code": 0
+        }
+      ],
+      "default_coverage": {
+        "slice40_fts_ranking": 12,
+        "slice41_context_pack": 23,
+        "slice806_gpu_allocation_witness_report": 1
+      },
+      "hook_coverage": {
+        "slice135_edge_fts_error": 1,
+        "slice135_graph_arm_row_error": 1,
+        "slice135_node_fts_error": 1,
+        "slice20_dense_readiness": 8,
+        "slice23_text_limit_prefix_stability": 2,
+        "slice35_actuation_performance": 1,
+        "slice40_fts_ranking": 19,
+        "slice41_context_pack": 24,
+        "slice806_gpu_allocation_witness_report": 3
+      },
+      "clean_worktree": true
+    },
+    "cherry_pick_commits": [
+      "20d95c16d11320c92004497930642a164fee72e7",
+      "02a4267c9e7d4df859120bce49e98f2f02b9d5d9"
+    ],
+    "self_dev_and_inventory_fixes": {
+      "head": "04eb401d4e700f706ab267f92919dc46e7a4f370",
+      "commits": [
+        {
+          "sha": "bcdc105c7e5bcbb7ce1b695572843990d2e6aef4",
+          "change": "Engine self dev-dependency enables test-hooks during default tests; remove only slice20 required-features gate."
+        },
+        {
+          "sha": "0e490011af0a0a43a8a41003122da07eeb3dd7ad",
+          "change": "Cargo-generated single self dev-dependency edge in lockfile."
+        },
+        {
+          "sha": "04eb401d4e700f706ab267f92919dc46e7a4f370",
+          "change": "Separate authorized inventory maintenance: 44 to 41 fields, exactly three approved field removals, reviewed root blob, added cfg(test) module; exact membership/blob/root-method assertions preserved."
+        }
+      ],
+      "red_logs": [
+        "/tmp/fathomdb-agent-test-preflight-landing-2134362.log",
+        "/tmp/fathomdb-agent-test-slice90-root-reconciliation-2134362.log"
+      ],
+      "checks": [
+        {
+          "command": "cargo test --offline -p fathomdb-engine --test slice20_dense_readiness -- --test-threads=1",
+          "exit_code": 0,
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-default-proofs.log"
+        },
+        {
+          "command": "cargo check --offline --manifest-path /tmp/fathomdb-provider-gate-production-consumer/Cargo.toml --bin provider-production-consumer",
+          "exit_code": 0,
+          "control": "Normal external consumer compiles production Default/None/open_with_choice and exhaustive closed choices match",
+          "log": "/tmp/fathomdb-provider-gate-selfdev-production-positive.log"
+        },
+        {
+          "command": "normal external consumer cargo check --bin test-choice",
+          "expected_exit_code": 101,
+          "verified_specific_diagnostic": "E0432 unresolved import fathomdb_engine::TestEmbedderChoice; configured out",
+          "log": "/tmp/fathomdb-provider-gate-selfdev-production-test-choice.log"
+        },
+        {
+          "command": "normal external consumer cargo check --bin test-opener",
+          "expected_exit_code": 101,
+          "verified_specific_diagnostic": "E0599 open_with_test_choice_for_test unavailable",
+          "log": "/tmp/fathomdb-provider-gate-selfdev-production-test-opener.log"
+        },
+        {
+          "command": "normal external consumer cargo check --bin embedder-opener",
+          "expected_exit_code": 101,
+          "verified_specific_diagnostic": "E0599 open_with_embedder_for_test unavailable",
+          "log": "/tmp/fathomdb-provider-gate-selfdev-production-embedder-opener.log"
+        },
+        {
+          "command": "env RUSTFLAGS=\"${RUSTFLAGS:-} -Dwarnings\" cargo check -p fathomdb-engine --all-targets",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-default-check.log"
+        },
+        {
+          "command": "env RUSTFLAGS=\"${RUSTFLAGS:-} -Dwarnings\" cargo check --release -p fathomdb-engine --lib --tests",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-release-default-check.log"
+        },
+        {
+          "command": "env RUSTFLAGS=\"${RUSTFLAGS:-} -Dwarnings\" cargo check --release -p fathomdb-engine --lib --tests --features test-hooks,operator",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-release-hooks-check.log"
+        },
+        {
+          "command": "cargo clippy --workspace --all-targets --quiet -- -D warnings",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-workspace-clippy.log"
+        },
+        {
+          "command": "python3 scripts/tests/test_slice90_root_reconciliation.py",
+          "exit_code": 0,
+          "passed": 8,
+          "log": "/tmp/fathomdb-provider-gate-root-reconciliation.log"
+        },
+        {
+          "command": "./scripts/agent-lint-md.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-root-inventory-markdown.log"
+        },
+        {
+          "command": "bash scripts/check-c1-conformance.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-conformance.log"
+        },
+        {
+          "command": "bash scripts/tests/test_preflight_landing.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-preflight-landing.log"
+        },
+        {
+          "command": "bash scripts/tests/test_check_board_currency.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-board-currency.log"
+        },
+        {
+          "command": "bash scripts/tests/test_check_ledgers.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-ledgers.log"
+        },
+        {
+          "command": "bash scripts/tests/test_check_governed_surface_pin.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-governed-surface-pin.log"
+        },
+        {
+          "command": "bash scripts/tests/test_check_c1_conformance.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-c1-conformance.log"
+        },
+        {
+          "command": "bash scripts/tests/test_check_transcript_hygiene.sh",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-selfdev-transcript-hygiene.log"
+        }
+      ],
+      "reviewed_lib_rs_blob": "f6f73b382d09ae69316640c6f287df90699b5113",
+      "production_source_changed": false,
+      "test_behavior_oracles_changed": false,
+      "inventory_spec_update_explicitly_authorized": true,
+      "conformance_checker_or_pins_changed": false,
+      "test_seam_available_to_normal_consumer": false,
+      "clean_worktree": true,
+      "all_cargo_commands_finished": true,
+      "full_gate": "Root owns current strict full gate and independent Astra review; not claimed by scoped checks."
+    },
+    "compatibility_fixture_fix": {
+      "parent": "04eb401d4e700f706ab267f92919dc46e7a4f370",
+      "head": "9347957efcc4c1cd4d1089fb343851abbf4ef632",
+      "changed_files": [
+        "src/rust/crates/fathomdb-engine/tests/compatibility.rs"
+      ],
+      "red_log": "/tmp/fathomdb-agent-test-rust-2134362.log",
+      "red_lines": "330-375",
+      "original_mismatch_oracles_byte_identical": true,
+      "production_source_changed": false,
+      "checks": [
+        {
+          "command": "cargo test --offline -p fathomdb-engine --test compatibility -- --test-threads=1",
+          "exit_code": 0,
+          "passed": 9,
+          "log": "/tmp/fathomdb-provider-gate-compat-default-tests.log"
+        },
+        {
+          "command": "cargo test --offline -p fathomdb-engine --features operator,test-hooks --test compatibility -- --test-threads=1",
+          "exit_code": 0,
+          "passed": 9,
+          "log": "/tmp/fathomdb-provider-gate-compat-workspace-features-tests.log"
+        },
+        {
+          "command": "cargo clippy --workspace --all-targets --quiet -- -D warnings",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-compat-workspace-clippy.log"
+        },
+        {
+          "command": "original mismatch assertion block comparison against04eb401d4",
+          "exit_code": 0
+        }
+      ],
+      "workspace_features": [
+        "default",
+        "operator",
+        "test-hooks"
+      ],
+      "workspace_features_log": "/tmp/fathomdb-provider-gate-compat-workspace-features.json",
+      "clean_worktree": true
+    },
+    "python_explicit_delta_fix": {
+      "head": "20d95c16d11320c92004497930642a164fee72e7",
+      "changed_files": [
+        "src/python/tests/test_slice130_package_boundary.py"
+      ],
+      "exact_approved_delta": {
+        "removed_rows": 8,
+        "added_alias_rows": 1,
+        "changed_literal_rows": 4
+      },
+      "frozen_baseline_and_additions_registry_unchanged": true,
+      "historical_stub_sha256_unchanged": "8207f193cd1781c4c866188f29ac6854f6f34e29c183ca842d4a7273f9f442b7",
+      "count_duplicate_full_equality_preserved": true,
+      "native_stub_checked_reverse_deltas": 4,
+      "red_log": "/tmp/fathomdb-agent-test-python-2134362.log",
+      "checks": [
+        {
+          "command": "exact AST-extracted test_python_declarations_match_pre_move_baseline_with_approved_deltas function, stdlib globals, no native import",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-python-explicit-delta.log"
+        },
+        {
+          "command": "ruff check src/python/tests/test_slice130_package_boundary.py",
+          "exit_code": 0
+        },
+        {
+          "command": "pre-commit ruff hook, no bypass",
+          "exit_code": 0
+        }
+      ],
+      "actual_pytest": "Root-owned installed venv; not run from this checkout, no borrowed venv or regenerated goldens.",
+      "production_python_source_changed": false
+    },
+    "native_import_fix": {
+      "head": "02a4267c9e7d4df859120bce49e98f2f02b9d5d9",
+      "parent": "20d95c16d11320c92004497930642a164fee72e7",
+      "change": "Only relocate existing TestEmbedderChoice imports into existing cfg(test) modules in PyO3 and NAPI test_support.",
+      "changed_files": [
+        "src/rust/crates/fathomdb-py/src/test_support.rs",
+        "src/rust/crates/fathomdb-napi/src/test_support.rs"
+      ],
+      "red_logs": [
+        "/tmp/fathomdb-provider-gate-native-py-red.log",
+        "/tmp/fathomdb-provider-gate-native-napi-red.log"
+      ],
+      "checks": [
+        {
+          "command": "cargo clippy --offline -p fathomdb-py --lib --features test-hooks,pyo3/extension-module,default-embedder,default-reranker -- -D warnings",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-native-py-green.log"
+        },
+        {
+          "command": "cargo clippy --offline -p fathomdb-napi --lib --features test-hooks,default-embedder,default-reranker -- -D warnings",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-native-napi-green.log"
+        },
+        {
+          "command": "cargo clippy --workspace --all-targets --quiet -- -D warnings",
+          "exit_code": 0,
+          "log": "/tmp/fathomdb-provider-gate-native-workspace-clippy.log"
+        },
+        {
+          "command": "cargo fmt --all -- --check",
+          "exit_code": 0
+        },
+        {
+          "command": "pre-commit fmt hook, no bypass",
+          "exit_code": 0
+        }
+      ],
+      "behavior_changed": false,
+      "clean_worktree": true,
+      "own_cargo_processes_finished": true
+    }
+  },
+  "source_candidate": "db2baf1ec420dae6680315fcb911ca30e94ddc32",
+  "verification": {
+    "whole_run": {
+      "command": "AGENT_VERBOSE=1 ./scripts/agent-verify.sh",
+      "source_candidate": "c1ac0748cb555420feb86c0cc7860e0ed4e42fff",
+      "exit_code": 1,
+      "registered": 205,
+      "ran": 205,
+      "passed": 195,
+      "failed": 10,
+      "skipped_suites": 0,
+      "excluded_suites": 0,
+      "elapsed_seconds": 1720,
+      "log": "/tmp/fathomdb-provider-final-verify-c1ac0748c.log"
+    },
+    "structural_repairs": [
+      {
+        "suite": "preflight-landing",
+        "command": [
+          "bash",
+          "scripts/tests/test_preflight_landing.sh"
+        ],
+        "exit_code": 0,
+        "log": "/tmp/fathomdb-provider-final-preflight-landing.log"
+      },
+      {
+        "suite": "ledgers",
+        "command": [
+          "bash",
+          "scripts/tests/test_check_ledgers.sh"
+        ],
+        "exit_code": 0,
+        "log": "/tmp/fathomdb-provider-final-ledgers.log"
+      },
+      {
+        "suite": "slice90-root-reconciliation",
+        "command": [
+          "python3",
+          "scripts/tests/test_slice90_root_reconciliation.py"
+        ],
+        "exit_code": 0,
+        "log": "/tmp/fathomdb-provider-final-slice90-root-reconciliation.log"
+      },
+      {
+        "suite": "governed-surface-pin",
+        "command": [
+          "bash",
+          "scripts/tests/test_check_governed_surface_pin.sh"
+        ],
+        "exit_code": 0,
+        "log": "/tmp/fathomdb-provider-final-governed-surface-pin.log"
+      },
+      {
+        "suite": "transcript-hygiene",
+        "command": [
+          "bash",
+          "scripts/tests/test_check_transcript_hygiene.sh"
+        ],
+        "exit_code": 0,
+        "log": "/tmp/fathomdb-provider-final-transcript-hygiene.log"
+      },
+      {
+        "suite": "board-currency",
+        "command": [
+          "bash",
+          "scripts/tests/test_check_board_currency.sh"
+        ],
+        "exit_code": 0,
+        "log": "/tmp/fathomdb-provider-final-board-currency.log"
+      },
+      {
+        "suite": "c1-conformance",
+        "command": [
+          "bash",
+          "scripts/tests/test_check_c1_conformance.sh"
+        ],
+        "exit_code": 0,
+        "log": "/tmp/fathomdb-provider-final-c1-conformance.log"
+      }
+    ],
+    "compatibility": {
+      "source_candidate": "db2baf1ec420dae6680315fcb911ca30e94ddc32",
+      "command": "cargo test --locked -p fathomdb-engine --test compatibility --features operator,test-hooks -- --test-threads=1",
+      "exit_code": 0,
+      "passed": 9,
+      "log": "/tmp/fathomdb-provider-final-compatibility.log"
+    },
+    "python": {
+      "source_candidate": "db2baf1ec420dae6680315fcb911ca30e94ddc32",
+      "exit_code": 0,
+      "passed": 1707,
+      "skipped": 36,
+      "log": "/tmp/fathomdb-provider-final-python-suite.log",
+      "receipt": {
+        "candidate_sha": "db2baf1ec420dae6680315fcb911ca30e94ddc32",
+        "module_path": "/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/src/python/fathomdb/_fathomdb.abi3.so",
+        "module_sha256": "504130bf08e7f13c1254f0544f19bba75af8d1ebeaa97bf2e90e67cf1e8e4b13",
+        "nonce": "provider-final-db2baf1ec-20261101",
+        "schema": "fathomdb.python-test-hooks-receipt/v1"
+      },
+      "receipt_verifier_exit_code": 0
+    },
+    "slice135": {
+      "source_candidate": "a00f2c2a3",
+      "exit_code": 0,
+      "passed": 287,
+      "skipped": 1,
+      "subtests_passed": 7,
+      "log": "/tmp/fathomdb-provider-slice135-repair.log"
+    },
+    "package_installation_repair": {
+      "method": "sanctioned candidate_wheel_command noneditable test-hooks wheel, pip install --no-deps into this checkout-owned .venv",
+      "exit_code": 0,
+      "focused_tests_passed": 41,
+      "log": "/tmp/fathomdb-provider-python-install-repairs.log"
+    },
+    "coverage_statement": "Completed original full verification run plus scoped repairs of every failed suite. The original whole run was nonzero; no whole-gate pass at final HEAD is claimed. No whole rerun after narrow repairs, per standing owner gate-frequency policy and independent Astra assessment.",
+    "workspace_feature_witness": "/tmp/fathomdb-provider-c1ac-engine-features.log: original workspace already enabled engine test-hooks through PyO3/NAPI dev dependencies.",
+    "independent_review": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium",
+      "source_candidate": "db2baf1ec420dae6680315fcb911ca30e94ddc32",
+      "verdict": "APPROVE",
+      "remaining_p1_p2": 0
+    }
+  }
+}

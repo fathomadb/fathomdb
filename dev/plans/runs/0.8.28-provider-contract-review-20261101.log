@@ -1,0 +1,233 @@
+# Independent Astra-medium implementation review
+
+Verdict: **APPROVE**
+
+Final reviewed candidate: `db2baf1ec420dae6680315fcb911ca30e94ddc32`.
+Source baseline: `2d63cee3c1071dd14f3e1deb44adfddc21672f19`.
+Reviewed checkout: `/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50`.
+
+The reviewer was separate from the authors, performed read-only source/history
+inspection, and made no repository changes. This report is the only reviewer
+artifact written, outside the checkout at the root agent's explicit request.
+No remaining P1/P2 findings. Landing remains contingent on the root-owned strict
+verification gate; this review does not certify that gate as passed.
+
+## Contract and scope
+
+Reviewed the accepted vector-compatibility-open-policy ADR, approved narrow
+requirements/design/plan at owner seq-359, relevant repository instructions and
+memory, both implementation closure records, and integrated source against the
+baseline. The implementation preserves the approved persistent-cache policy and
+does not add a process cache, runtime descriptor, precision freeze, new provider
+grammar, mean-recovery reorder, diagnostic CLI or dense-rebuild repair.
+
+## Finding and resolution
+
+The preliminary review found one P2 in immutable core commit `88669732c`:
+the new explicit-None stored-profile preread converted malformed name/revision/
+dimension decoding errors into generic I/O before the existing corruption
+validator could classify them. SQLite's non-STRICT profile table permits BLOB
+names/revisions and a negative dimension. This lost the existing
+`EmbedderIdentityDrift`, stage, table-row locator and recovery hint.
+
+Resolved by original RED `40b5a92f2` / GREEN `d04e3e597`, integrated as
+`5110aa4af` / `416d1e54a`. The three real-SQLite regression tests assert the
+original structured classification, locator and recovery fields. The corrected
+decoder at `src/rust/crates/fathomdb-engine/src/open.rs:1234` distinguishes typed
+row-decoding failures from SQLite execution errors. The final candidate retains
+this fix. No stronger profile validator was requested or introduced.
+
+## Full implementation assessment
+
+- Production `EmbedderChoice` exposes only Default/None (`open.rs:2064`).
+  Injection uses separately gated `TestEmbedderChoice` and explicit
+  test/evaluation openers. Support-feature unification does not restore caller
+  variants to normal admission. Low-level traits, standalone CLS, Noop,
+  Nomic/ONNX and existing evaluation seams retain their scoped roles.
+- New string projection selectors are rejected before projection mutation.
+  Historical selectors remain truthful under None and cannot silently activate
+  the attached provider. Explicit None uses stored identity metadata while
+  retaining corruption rejection and existing mean-recovery behavior.
+- `OpenPostProbeGuard` owns database resources before verification
+  (`open.rs:902`, `:932`). Existing dispatcher cleanup and the 30-second
+  production budget remain unchanged. Test-only observation moves before early
+  rejection; separate early-timeout and later-startup-fault tests retain
+  database-owner, admission-lock and retained-provider assertions.
+- Registered references are confirmed before atomic publication
+  (`vector_equivalence.rs:193`, `:205`, `:250`). Rejected newly collected
+  references cannot seed subsequent admission. Existing references and
+  registered/prospective marker-error differences are preserved. This does not
+  claim whole-open rollback.
+- Independently compared `hash_fingerprint_field`,
+  `probe_verification_fingerprint`, `probe_verification_is_cached`,
+  `record_probe_verification` and `clear_probe_verification` against baseline:
+  all five bodies are byte-identical in the integrated implementation. Probe
+  gate, numeric thresholds, structural ordering, marker authority/error rules,
+  ordinary 90/45/0 cadence and persisted-marker restart reuse remain intact.
+  The accepted same-identity backend-drift residual remains explicit.
+- Numeric mismatch, typed verification causes and storage failures remain
+  distinct. SDK, Python, NAPI/TypeScript and CLI mappings preserve original
+  provider context/payloads and source/cause chains. Initial subscribers receive
+  actual checker-refusal reporting; callback panic cannot replace that error.
+- Obsolete refused-handle reports, methods and readiness modes are removed.
+  Independent graph/structural deferred vocabulary and actual pending/deferred
+  work semantics remain. The accidentally proposed graph removals were reverted
+  and are not counted as required RED evidence.
+- Interface documents and ADR supersession describe admission, cached
+  verification limits and deliberate mutable None access. The known
+  provider-free dense-rebuild invalidation defect remains expressly deferred;
+  this review neither fixes nor certifies that path safe.
+
+## TDD evidence assessment
+
+Reviewed behavior-specific RED/GREEN commit bodies and test source for admission,
+numeric refusal, provider/panic/timeout/output classification, invalid references,
+reference publication, subscriber reporting, removal of obsolete surfaces and
+binding mappings. Sampled original RED source/history including `302f67a5d`,
+`718405b45`, `56ce86feb`, `caa94f2c4` and the core sequence. Invalid initial
+mean-width and historical-generation fixtures have explicit correction commits
+that reach the intended failure before GREEN. Supplemental passing property and
+regression coverage is identified as such rather than represented as RED.
+The review-found P2 has its own actual failing-first regression and correction.
+
+## Candidate and corrective-delta review history
+
+1. `afb1f0680efd3798fba4c171eb9623a4606a6b16`: full integrated implementation
+   APPROVE after the malformed-profile P2 resolution. Binding-owned source and
+   interface files matched the independently inspected completed binding branch.
+2. `831e9a79d80fea1af4f911d8cc1ebd8e80853407`: APPROVE. Sole delta moves the
+   existing eight lines of `EmbedderError` Display/Error implementations before
+   the test module to satisfy strict Clippy. Bodies and tests are unchanged;
+   no lint suppression or behavioral change.
+3. `4898be36ace02b08ab063b1efa82583f66473ca4`: APPROVE. Sole delta replaces
+   `.err().expect(...)` with `.expect_err(...)` in the refusal characterization
+   runner. Same message, expected error and subsequent typed-error oracle.
+4. `c1ac0748cb555420feb86c0cc7860e0ed4e42fff`: APPROVE. Reviewed the complete
+   four-file corrective delta for isolated default-feature compilation. Six
+   targets using injected providers now explicitly require `test-hooks`.
+   Mixed Slice 40/41/806 files gate only injection-dependent cases/helpers and
+   imports; pure fusion/codec/property cases and ordinary plain-open coverage
+   remain available. Existing `default-embedder` cases now call production
+   `open_with_choice(Default)` rather than the gated test opener. No production
+   injection route is exposed, no assertion body is weakened, and existing
+   default-embedder cases are not newly hidden behind `test-hooks`.
+
+## Verification limits
+
+The reviewer checked git identity, clean status, source/history, complete
+corrective deltas and cache-helper identity. Native builds, focused runtime
+execution, strict full verification and release-feature checks are author/root
+owned; their reported results are not independent reviewer execution claims.
+No benchmark campaign or publication verification was performed. Final strict
+gate success is still required before landing.
+
+## Further strict-gate correction: default proofs and root inventory
+
+Reviewed fixer candidate `04eb401d4e700f706ab267f92919dc46e7a4f370`
+against `c1ac0748cb555420feb86c0cc7860e0ed4e42fff`: exactly four files change.
+No P1/P2 findings in this corrective delta. Final integrated SHA/tree confirmation
+remains pending at the time of this appendix.
+
+The strict gate exposed an additional C1 constraint not established by the prior
+source-only delta review: the pinned Slice 20 atomicity/nonblocking proofs must
+remain runnable by default Cargo test, so a whole-target required-features gate
+was inappropriate for that particular target. The correction removes that gate
+and adds a self dev-dependency enabling the existing `test-hooks` feature for
+engine development/test targets. The corresponding lockfile records only that
+self edge. No production source, C1 checker, contract pin or proof body changes.
+With workspace resolver 2, this dev-dependency does not propagate through an
+ordinary external production dependency. The reviewer inspected the external
+consumer sources and author-run compiler logs: normal Default/None compiles;
+`TestEmbedderChoice`, `open_with_test_choice_for_test` and
+`open_with_embedder_for_test` each fail as unavailable. The author-run default
+Slice 20 execution log contains all eight passing tests, including both pinned
+proofs. These are reviewed evidence, not independent reviewer executions.
+
+The remaining two files reconcile the deliberate root-storage inventory with
+owner-approved source removals. The documented field count and assertion change
+44 to 41 by removing exactly `dense_disabled`, `dense_disabled_reason` and
+`vector_equivalence_refusals`; the current lib.rs blob and test-module inventory
+are recorded. Exact count, exact field membership, exact source-blob checks and
+root-method restrictions remain. This is maintenance for approved API/state
+removal, not relaxation of the invariant or regeneration of a golden oracle.
+The author-run eight-test reconciliation log passes. No production provider
+injection route or new runtime behavior is introduced by this delta.
+
+## Verification coverage assessment
+
+Under the standing `full-gate-run-frequency.md` instruction, completing the
+original full run at c1ac plus final-source reruns of every failed suite and
+targeted checks for the four-file correction is adequate; that correction alone
+does not require repeating the whole gate. This assessment requires confirmation
+that the original workspace Rust run already unified `test-hooks`, that all its
+remaining stages finish, and that every additional failure is resolved and its
+suite rerun. Default readiness execution, strict default/release compile matrix,
+workspace Clippy and external normal-consumer closure specifically address the
+dev-feature change. Broad production changes or materially different execution
+feature coverage would require reassessment.
+
+The final verification record must name source SHAs and retain the original
+nonzero gate result. It may describe completed verification coverage with scoped
+repairs; it must not claim that a whole `agent-verify` invocation passed at the
+final HEAD when that invocation was not performed. The reviewer has not run or
+certified those checks, and this policy assessment is not a pass result.
+
+The reviewer subsequently inspected
+`/tmp/fathomdb-provider-c1ac-engine-features.log`: the original workspace engine
+test graph already enables `test-hooks` through the existing NAPI and Python
+dev-dependencies. This confirms the feature-unification condition above; the
+original full-run completion and remaining results are still root-owned.
+
+## Compatibility fixture correction
+
+Reviewed integrated `a00f2c2a3ae7b1af14b2f890c81d8cf00a4607d6`.
+Its tree differs from reviewed `04eb401d4` only in `tests/compatibility.rs`.
+The two profile-mismatch tests now create internally consistent historical
+profiles/generations through a contained identity-only test provider, then reopen
+with an attached pinned-BGE identity. The old use of provider-free `Engine::open`
+no longer tests stored-versus-attached-provider mismatch under approved BIP-R8;
+raw profile mutation also breaks generation integrity. The original
+`EmbedderIdentityMismatch` and `EmbedderDimensionMismatch` assertion blocks are
+preserved. The fixture panics if embedding is requested, retaining rejection
+before inference. No production implementation or corruption checks change.
+No P1/P2 findings in this delta; final combined candidate confirmation remains
+pending subsequent Python fixture work.
+
+Root reported the original full run completed with 205 suites run, 195 passing
+and 10 failing. This is a nonzero whole-run result, not a final-tree full pass.
+The review does not certify remaining Python setup/fixture repairs or their
+reruns before examining the final candidate and evidence.
+
+## Final integrated source approval
+
+**APPROVE** candidate `db2baf1ec420dae6680315fcb911ca30e94ddc32`.
+No remaining P1/P2 findings. Verified clean staging HEAD and exact tree equality
+with fixer `02a4267c9e7d4df859120bce49e98f2f02b9d5d9`. The previously reviewed
+self-dev-dependency, inventory and compatibility corrections are integrated.
+
+Reviewed the complete remaining three-file delta after a00f2c2a3:
+
+- `test_slice130_package_boundary.py` explicitly declares exactly eight
+  approved removals, four literal changes and the verification-error alias.
+  Each removal checks the original row, each literal checks its original
+  spelling, and exact declaration count/equality remain. Native-stub comparison
+  reverses only explicitly listed approved blocks, requires each replacement
+  block exactly once, then compares against the existing frozen hash. Historical
+  baseline JSON and hashes remain unchanged. This preserves a strict boundary
+  oracle while expressing the owner-approved API supersession; it does not
+  regenerate a snapshot or exempt unrelated differences.
+- PyO3/NAPI `TestEmbedderChoice` imports move into their existing test modules.
+  No implementation, public surface or assertion changes. This corrects
+  test-only imports for native feature builds without exposing injection.
+
+The reviewer inspected the seven root-owned structural-suite rerun records in
+`/tmp/fathomdb-provider-final-scoped-suites.json`, all exit zero, and confirmed
+the shared conformance fixtures and C1 checker are unchanged from the original
+source baseline. These remain author/root execution evidence. At this source
+approval, root's full Python rerun on the final candidate, using its own freshly
+built native artifact/receipt and checkout-owned environment, is still pending.
+
+Prior full-run and scoped-repair coverage assessment remains applicable. The
+original c1ac full run is nonzero; do not describe it as a whole strict-gate pass
+at db2baf1ec. This is final independent source approval, conditional for landing
+on completion and successful disposition of the remaining root-owned validation.

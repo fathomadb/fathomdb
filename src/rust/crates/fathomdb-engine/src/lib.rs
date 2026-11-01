@@ -184,7 +184,7 @@ pub use embedding::{
 pub use erasure::{ExciseRecordReport, ExciseReport};
 pub use errors::{
     CorruptionDetail, CorruptionKind, CorruptionLocator, EngineError, EngineOpenError, OpenStage,
-    RecoveryHint,
+    RecoveryHint, VectorVerificationFailure,
 };
 pub use evidence::{
     encode_resolved_graph_evidence_v1, EvidenceArmV1, EvidenceArtifactClassV1,

@@ -66,6 +66,46 @@ pub struct RecoveryHint {
     pub doc_anchor: &'static str,
 }
 
+/// Typed dispatch cause when an open-time vector verification cannot complete.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VectorVerificationFailure {
+    /// No provider was configured for the requested verification.
+    NotConfigured,
+    /// The bounded dispatcher had no admission capacity.
+    Saturated,
+    /// The request deadline elapsed before provider execution.
+    QueuedExpired,
+    /// Provider execution exceeded its request deadline.
+    StartedTimeout,
+    /// The provider returned its original typed failure.
+    Provider(RuntimeEmbedderError),
+    /// The provider returned an unexpected output shape or dimension.
+    InvalidOutput,
+    /// The provider panicked; the original string payload is preserved when available.
+    Panic { message: String },
+    /// Dispatch was already closing.
+    Closing,
+    /// The request was cancelled before completion.
+    Cancelled,
+}
+
+impl VectorVerificationFailure {
+    /// Stable machine-readable cause code; provider details remain in the variant.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::NotConfigured => "not_configured",
+            Self::Saturated => "saturated",
+            Self::QueuedExpired => "queued_expired",
+            Self::StartedTimeout => "started_timeout",
+            Self::Provider(_) => "provider",
+            Self::InvalidOutput => "invalid_output",
+            Self::Panic { .. } => "panic",
+            Self::Closing => "closing",
+            Self::Cancelled => "cancelled",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineOpenError {
     RuntimeConfiguration(RuntimeConfigurationError),
@@ -91,6 +131,15 @@ pub enum EngineOpenError {
     EmbedderDimensionMismatch {
         stored: u32,
         supplied: u32,
+    },
+    /// The numeric compatibility comparison rejected this runtime.
+    VectorEquivalenceMismatch {
+        reason: String,
+    },
+    /// Required numeric verification could not complete; no engine is returned.
+    VectorVerification {
+        probe_ordinal: u32,
+        cause: VectorVerificationFailure,
     },
     /// Embedder runtime returned a typed error during `Engine::open`.
     Embedder(RuntimeEmbedderError),
@@ -162,6 +211,8 @@ impl Display for EngineOpenError {
                 f,
                 "embedder vector dimension mismatch: stored {stored}, supplied {supplied}",
             ),
+            Self::VectorEquivalenceMismatch { reason } => write!(f, "vector compatibility mismatch: {reason}"),
+            Self::VectorVerification { probe_ordinal, cause } => write!(f, "vector verification could not complete at probe {probe_ordinal}: {} ({cause:?})", cause.code()),
             Self::Embedder(err) => match err {
                 RuntimeEmbedderError::Timeout => write!(f, "embedder timeout during open"),
                 RuntimeEmbedderError::Failed { message } => {

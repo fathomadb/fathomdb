@@ -866,8 +866,10 @@ impl Engine {
                     vector_projection_declared(&connection).map_err(|_| EngineOpenError::Io {
                         message: "could not inspect declared vector projection on open".to_string(),
                     })?;
+                let mut startup =
+                    OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
                 let veq = run_vector_equivalence_probe(
-                    &connection,
+                    startup.connection(),
                     runtime_embedder.as_ref().map(|_| embed_dispatch.as_ref()),
                     &embedder_identity,
                     report.embedder_mean_vec_pinned,
@@ -876,8 +878,15 @@ impl Engine {
                 report.dense_disabled = veq.dense_disabled;
                 report.dense_disabled_reason = veq.reason.clone();
 
-                let mut startup =
-                    OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
+                if veq.dense_disabled {
+                    let error = EngineOpenError::VectorEquivalenceMismatch {
+                        reason: veq.reason.unwrap_or_else(|| "verification refused".to_owned()),
+                    };
+                    if let Some(subscriber) = initial_subscriber.as_ref() {
+                        emit_open_error_event(subscriber, &error);
+                    }
+                    return Err(error);
+                }
 
                 let dense_runtime_usable =
                     usable_dense_runtime(runtime_embedder.as_deref(), veq.dense_disabled);

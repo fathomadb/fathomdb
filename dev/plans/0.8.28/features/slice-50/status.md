@@ -26,7 +26,7 @@ owner-requested characterization does not implement D50-1 or D50-2.
 | --- | --- |
 | P1 phase 1 docs | done (this commit) |
 | R-DES Fable design review | not started |
-| O replacement contract | built-in-provider proposal awaiting owner review; D50-1/D50-2 held unselected |
+| O replacement contract | approved at seq-359; isolated TDD implementation in progress; D50-1/D50-2 held unselected |
 | H hook RED/GREEN | not started |
 | S scan RED/GREEN | not started |
 | T scaling tool | not started |
@@ -99,3 +99,13 @@ returned APPROVE_FOR_OWNER_REVIEW with no P1/P2 findings; contract and release
 placement still require owner review before code. No source,
 dependency, schema or release-ladder completion change. The known provider-free
 dense rebuild defect remains deferred for separate owner disposition.
+
+## Approved narrow implementation
+
+Owner approval: steward `seq-359`, following the separate narrow design review.
+Implementation worktree: `../slice-0.8.28-50-provider-contract`, branch
+`impl/0.8.28-built-in-provider-contract`, source baseline `2d63cee3c`.
+[Handoff](built-in-provider-implementation-brief.md) pins scope and TDD. Existing
+cache settings and behavior remain fixed. Separate Astra-medium implementation
+review and final strict verification gate landing on `dev/0.8.28`. This does not
+close scan Unit S, advance the Slice 50 ladder or authorize later slice work.

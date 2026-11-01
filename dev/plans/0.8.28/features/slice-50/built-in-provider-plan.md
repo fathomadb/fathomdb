@@ -1,6 +1,6 @@
 ---
 title: Built-in provider — revised narrow work plan
-status: proposed; seq-357 scope correction; no implementation authorization
+status: implementation approved by owner seq-359; separate Astra-medium implementation review gates landing
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -9,13 +9,15 @@ observed_on: 2026-11-01
 
 Owner `seq-355` excludes user providers before 1.x; `seq-357` explicitly preserves
 the existing checker and persistent cache. The previous evidence-cache, immutable
-runtime and mean-policy package exceeded scope and is superseded. Detailed
-contract and release placement remain unapproved. Unit S is unchanged;
+runtime and mean-policy package exceeded scope and is superseded. The owner approved the narrowed
+contract and implementation at `seq-359`, with landing on `dev/0.8.28` gated by
+separate Astra-medium code review. Unit S is unchanged;
 D50-1/D50-2 stay held, not alternative implementation instructions.
 
 Separate [independent Astra-medium review](built-in-provider-narrow-review.md)
 completed: APPROVE_FOR_OWNER_REVIEW, no P1/P2 findings. The revised contract is
-ready for owner consideration; production implementation remains unauthorized.
+approved for implementation at `seq-359`. The [implementation handoff](built-in-provider-implementation-brief.md)
+names the isolated worktree and TDD/review requirements.
 
 ## Authorized design work
 
@@ -55,8 +57,9 @@ Intentional supersession of old degraded-open/provider-surface tests must be
 identified explicitly; do not change tests merely to make fixes pass. Preserve
 existing TC-68 residual tests, normal cached-open counts, first-enrollment and
 mean semantics. Code review must reject incidental stronger guarantees or feature
-cleanup. No commits, pushes or implementation are authorized by the design task
-itself; normal root workflow handles reviewable records separately.
+cleanup. Owner `seq-359` authorizes implementation commits and the existing repository
+workflow handles landing/push after independent review; no tag/publication or
+later ladder work is authorized.
 
 Existing cache regression anchors in `tc68_probe_fingerprint_cache.rs`:
 `verified_reopen_performs_zero_probe_embeds`,

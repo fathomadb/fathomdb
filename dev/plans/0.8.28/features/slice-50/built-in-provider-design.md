@@ -1,6 +1,6 @@
 ---
 title: Built-in provider — narrow admission and failed-open proposal
-status: proposed; revised scope seq-357; independent review APPROVE_FOR_OWNER_REVIEW; owner approval pending
+status: approved by owner seq-359; implementation in progress; separate Astra-medium code review required before landing
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -13,8 +13,8 @@ Owner scope `seq-355` excludes user-specified engine embedders before 1.x.
 Correction `seq-357` requires preserving existing verification and cache behavior.
 This proposal closes production provider escape paths and converts an actual
 verification refusal into a typed failed open. It does not strengthen the checker
-into a continuing runtime guarantee. Detailed contract and release placement
-still require owner review before code; D50-1/D50-2 remain held, and Unit S is
+into a continuing runtime guarantee. The owner approved this narrowed contract and implementation at `seq-359`;
+separate Astra-medium implementation review gates landing on `dev/0.8.28`; D50-1/D50-2 remain held, and Unit S is
 unchanged. The previous bounded-evidence/runtime-stability proposal is superseded.
 
 Read [requirements and AC](built-in-provider-requirements.md),
@@ -22,7 +22,7 @@ Read [requirements and AC](built-in-provider-requirements.md),
 [proposed successor ADR](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
 The prior broad-scope reviews are historical. A separate Astra-medium reviewer
 reviewed this revision after its author stopped writing: [APPROVE_FOR_OWNER_REVIEW](built-in-provider-narrow-review.md),
-with no P1/P2 findings. Owner contract and release-placement approval remain pending.
+with no P1/P2 findings. Owner approval followed at `seq-359`; implementation review remains required before landing.
 
 ## 2. Preserve the existing checker and cache
 
@@ -164,5 +164,5 @@ change into dense rebuild admission, orchestration or a new diagnostic CLI.
 The owner's less-than-3-percent probability is a qualitative planning assumption,
 not a measured supported-production incident rate. Existing timing/characterization
 remain historical evidence; no new measurement campaign or pooling study is needed
-for this scope. No production source, executable, dependency or schema work is
-approved by these documents.
+for this scope. Owner `seq-359` authorizes this narrowed implementation; excluded redesigns
+remain outside scope. Separate Astra-medium implementation review precedes landing.

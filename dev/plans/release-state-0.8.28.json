@@ -25,8 +25,7 @@
   "remaining_ladder": [50, 60, 70, 80, 90],
   "decisions": {
     "unruled": [
-      {"id": "release-0.8.28-publication", "title": "Authorize the v* tag push and publication of 0.8.28 after the ladder and release qualification pass."},
-      {"id": "vector-compatibility-open-contract", "title": "Review the narrow built-in-provider boundary and typed failed-open/minimum recovery contract before implementation; preserve existing cache settings and behavior.", "source": "dev/adr/ADR-0.8.28-vector-compatibility-open-policy.md; dev/plans/0.8.28/features/slice-50/built-in-provider-design.md; steward ledger seq-357 (scope correction), seq-358 (separate Astra-medium review)", "halts_run": false}
+      {"id": "release-0.8.28-publication", "title": "Authorize the v* tag push and publication of 0.8.28 after the ladder and release qualification pass."}
     ],
     "ruled": [
       {"id": "slice-31-fork-first", "title": "Do the cudarc and Candle fork work first, inside each fork, before the FathomDB alignment.", "source": "repository owner 2026-10-12 (Q14, seq-313)"},
@@ -49,7 +48,8 @@
       {"id": "overflow-chunking-readiness", "title": "Overflow chunking stays parked behind its tripwires, but format 35 and Slice 70 are built so it can be enabled without another format break; latency cost and the CS64 crossing must be weighed at re-evaluation (dev/design/overflow-chunking-reevaluation.md on dev/0.8.29).", "source": "repository owner 2026-10-31"},
       {"id": "slice-50-successful-open-investigation", "title": "Investigate the successful-open policy while planning to retain the compatibility check.", "source": "repository owner 2026-10-31 (steward ledger seq-350; dev/experiments/slice50-refusal-baseline/analysis.md)"},
       {"id": "pre-1x-built-in-embedder-only", "title": "User-specified embedders remain a long-term goal but are not supported before 1.x; commission a built-in-provider design with extension-path dispositions, updated user needs/requirements/AC, runtime stability/invalidation, cache bounds and verification before implementation.", "source": "repository owner 2026-11-01 (steward ledger seq-355)"},
-      {"id": "slice-50-cache-preserving-scope", "title": "Narrow the built-in-provider proposal, retain existing cache settings and behavior, and have original Astra revise requirements/design/AC then a separate Astra-medium review it before owner contract approval and implementation.", "source": "repository owner 2026-11-01 (steward ledger seq-357)"}
+      {"id": "slice-50-cache-preserving-scope", "title": "Narrow the built-in-provider proposal, retain existing cache settings and behavior, and have original Astra revise requirements/design/AC then a separate Astra-medium review it before owner contract approval and implementation.", "source": "repository owner 2026-11-01 (steward ledger seq-357)"},
+      {"id": "vector-compatibility-open-contract", "title": "Approve the narrowed built-in-provider contract and implementation with TDD, existing cache settings/behavior preserved and separate Astra-medium review before landing.", "source": "repository owner 2026-11-01 (steward ledger seq-359; approved contract 2d63cee3c)"}
     ]
   },
   "release_readiness": null,

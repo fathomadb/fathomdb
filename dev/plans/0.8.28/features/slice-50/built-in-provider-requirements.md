@@ -1,6 +1,6 @@
 ---
 title: Built-in provider — narrow requirements and acceptance criteria
-status: proposed; scope corrected by seq-357; independent review APPROVE_FOR_OWNER_REVIEW; owner approval pending
+status: approved by owner seq-359; implementation in progress; separate Astra-medium code review required before landing
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -9,7 +9,7 @@ observed_on: 2026-11-01
 
 Scope: owner `seq-355`, corrected by `seq-357`. This replaces the broader evidence
 cache/runtime-stability proposal. The [design](built-in-provider-design.md) is
-proposed, not implementation authority. Feature-local IDs below do not amend
+approved for implementation at `seq-359`, with separate Astra-medium code review before landing. Feature-local IDs below do not amend
 locked `dev/acceptance.md`. Unit S remains separate; D50-1/D50-2 remain held.
 
 ## User needs

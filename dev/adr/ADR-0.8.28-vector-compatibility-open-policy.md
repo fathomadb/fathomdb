@@ -3,34 +3,34 @@ title: ADR-0.8.28-vector-compatibility-open-policy
 date: 2026-11-01
 target_release: 0.8.28
 desc: Close production provider gaps and reject open on actual verification refusal while preserving TC-68 cache behavior
-status: proposed; scope corrected by seq-357; owner contract and release-placement approval pending
+status: accepted by owner seq-359; scope corrected by seq-357; implementation and separate code review pending
 ---
 
 # Vector compatibility admission and deliberate access
 
-## Authority and decision proposed
+## Authority and accepted decision
 
 Owner `seq-355` excludes user-specified engine embedders before 1.x. Correction
 `seq-357` preserves existing checks and cache settings/behavior and rejects the
-expanded runtime/evidence-cache proposal. This ADR proposes production
+expanded runtime/evidence-cache proposal. The owner accepted this ADR and implementation at `seq-359`: production
 Default/None admission and a typed failed open when the existing checker actually
 refuses. It does not make every open a fresh check or promise ongoing runtime
-compatibility. Detailed contract and release placement require owner review
-before code. D50-1/D50-2 remain held; Unit S remains separate.
+compatibility. Implementation lands on `dev/0.8.28` only after the requested separate
+Astra-medium implementation review. D50-1/D50-2 remain held; Unit S remains separate.
 
 The current [design and inventory](../plans/0.8.28/features/slice-50/built-in-provider-design.md),
 [requirements/AC](../plans/0.8.28/features/slice-50/built-in-provider-requirements.md)
 and [plan](../plans/0.8.28/features/slice-50/built-in-provider-plan.md) define this
 narrow proposal. Prior Astra reuse/integration reviews are superseded historical
 reviews. A separate [independent Astra-medium review](../plans/0.8.28/features/slice-50/built-in-provider-narrow-review.md)
-returned APPROVE_FOR_OWNER_REVIEW with no P1/P2 findings; owner approval remains pending.
+returned APPROVE_FOR_OWNER_REVIEW with no P1/P2 findings; owner approval followed at `seq-359`.
 
-Upon approval, supersede the degraded-open portions of
+Owner approval at `seq-359` supersedes the degraded-open portions of
 `ADR-0.8.18-vector-equivalence-self-check.md` and
 `ADR-0.8.27-engine-owned-runtime-topology.md`, and narrow the user-provider promise
 of `ADR-0.6.0-embedder-protocol.md`. Retain engine-owned dispatch, deadlines,
 cleanup and identity ownership. Existing accepted ADRs remain authoritative
-until the successor is approved. TC-68 fingerprint/cache/cadence is not superseded.
+except for the explicitly superseded clauses accepted here. TC-68 fingerprint/cache/cadence is not superseded.
 
 ## Preserve verification and cache behavior
 
@@ -163,4 +163,4 @@ actual refusal, existing cache/gate/counts/residual, minimal first-baseline
 atomicity, cleanup and no-provider profile validation. Retain current mean,
 loader/device/global precision behavior. Independent code review and the final
 strict full gate apply to approved code work; Markdown-only design work uses
-scoped validators. No production/dependency/schema change is authorized here.
+scoped validators. The narrowed implementation is authorized at `seq-359`; excluded redesigns remain unauthorized.

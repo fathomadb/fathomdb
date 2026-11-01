@@ -404,15 +404,42 @@ export class ErasureIncompleteError extends FathomDbError {
   }
 }
 
-// 0.8.18 Slice 5 (#5 vector-equivalence probe) — the open-time self-check found a
-// vector-equivalence divergence beyond the D4 floor, so every vector-dependent arm
-// refuses at query time. The text-only/FTS-only path (`searchTextOnly`) stays
-// serviceable. Leaf parity with `EmbedderIdentityMismatchError`.
+/** The open-time check found numeric vector divergence; open returns no Engine. */
 export class VectorEquivalenceMismatchError extends FathomDbError {
   readonly reason: string;
   constructor(message: string, reason: string) {
     super(message);
     this.reason = reason;
+  }
+}
+
+/** Stable cause of an open-time verification failure. */
+export type VectorVerificationCauseCode =
+  | "not_configured" | "saturated" | "queued_expired" | "started_timeout"
+  | "provider" | "invalid_output" | "panic" | "invalid_state" | "closing" | "cancelled";
+
+/** Open could not verify vectors; no Engine is returned. Provider payloads retain their leaf class. */
+export class VectorVerificationError extends FathomDbError {
+  readonly probeOrdinal: number;
+  readonly causeCode: VectorVerificationCauseCode;
+  readonly causeMessage: string;
+  readonly providerKind: string | null;
+  readonly providerError: EmbedderError | null;
+
+  constructor(message: string, payload: {
+    probeOrdinal: number;
+    causeCode: VectorVerificationCauseCode;
+    causeMessage: string;
+    providerKind?: string | null;
+    providerError?: EmbedderError | null;
+  }) {
+    super(message);
+    this.probeOrdinal = payload.probeOrdinal;
+    this.causeCode = payload.causeCode;
+    this.causeMessage = payload.causeMessage;
+    this.providerKind = payload.providerKind ?? null;
+    this.providerError = payload.providerError ?? null;
+    if (this.providerError !== null) this.cause = this.providerError;
   }
 }
 
@@ -512,6 +539,7 @@ type ErrorCode =
   | "FDB_INVALID_ARGUMENT"
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense refusal.
   | "FDB_VECTOR_EQUIVALENCE_MISMATCH"
+  | "FDB_VECTOR_VERIFICATION"
   // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors.
   | "FDB_ILLEGAL_TRANSITION"
   | "FDB_NOT_LIFECYCLE_ADDRESSABLE"
@@ -707,6 +735,17 @@ function build(envelope: Envelope): Error {
       return new PageError(envelope.message, String(p.reason ?? ""), String(p.fieldPath ?? ""));
     case "FDB_INVALID_ARGUMENT":
       return new InvalidArgumentError(envelope.message);
+    case "FDB_VECTOR_VERIFICATION": {
+      const providerEnvelope = p.providerError as Envelope | null | undefined;
+      const providerError = providerEnvelope == null ? null : build(providerEnvelope);
+      return new VectorVerificationError(envelope.message, {
+        probeOrdinal: Number(p.probeOrdinal),
+        causeCode: String(p.causeCode) as VectorVerificationCauseCode,
+        causeMessage: String(p.causeMessage ?? ""),
+        providerKind: typeof p.providerKind === "string" ? p.providerKind : null,
+        providerError: providerError instanceof EmbedderError ? providerError : null,
+      });
+    }
     case "FDB_VECTOR_EQUIVALENCE_MISMATCH":
       return new VectorEquivalenceMismatchError(envelope.message, String(p.reason ?? ""));
     case "FDB_ILLEGAL_TRANSITION":

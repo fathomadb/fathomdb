@@ -1361,3 +1361,14 @@ contract, and the output is identical across the three SDKs.
 - **Tagged bodies** carry the hazards listed in `python.md`; a
   `String.prototype.split(/\r?\n/)` on a tagged body keeps the markers on each
   line, so use `decodeRoundBody`.
+
+## Vector verification open errors
+
+An actual numeric refusal rejects open with `VectorEquivalenceMismatchError.reason`.
+An inability to verify rejects with `VectorVerificationError`, a `FathomDbError`
+leaf carrying `probeOrdinal`, `causeCode`, `causeMessage`, `providerKind` and
+`providerError`. No engine is returned and there is no automatic provider-free retry.
+`providerError` is the original translated `EmbedderError`/CUDA leaf, or `null`
+for non-provider failures. `providerKind` distinguishes `failed`, `timeout`,
+`cuda_pool_exhausted`, `cuda_context_lost`, `cuda_private_build_refused`; it is
+`null` when there is no provider error.

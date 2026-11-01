@@ -522,6 +522,7 @@ required-features = ["test-hooks"]
 
 [[test]]
 name = "slice20_dense_readiness"
+required-features = ["test-hooks"]
 
 [[test]]
 name = "slice20_graph_traversal"
@@ -805,4 +806,24 @@ tempfile = "3"
 
 [[test]]
 name = "provider_admission"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice23_text_limit_prefix_stability"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_actuation_performance"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_graph_arm_row_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_node_fts_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_edge_fts_error"
 required-features = ["test-hooks"]

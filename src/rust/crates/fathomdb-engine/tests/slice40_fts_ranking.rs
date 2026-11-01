@@ -14,16 +14,21 @@
 //! `Engine::search_text_only*` on a real database (no mocking).
 
 use std::collections::{HashMap, HashSet};
+#[cfg(feature = "test-hooks")]
 use std::sync::Arc;
 
+#[cfg(feature = "test-hooks")]
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
-    fuse_rrf, fuse_three_arms, Engine, IdSpace, InitialState, PreparedWrite, SearchHit,
-    SoftFallbackBranch, SourceId, TestEmbedderChoice, RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT,
-    RRF_WEIGHT_VECTOR,
+    fuse_rrf, fuse_three_arms, IdSpace, SearchHit, SoftFallbackBranch, RRF_K, RRF_WEIGHT_GRAPH,
+    RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
 };
+#[cfg(feature = "test-hooks")]
+use fathomdb_engine::{Engine, InitialState, PreparedWrite, SourceId, TestEmbedderChoice};
+#[cfg(feature = "test-hooks")]
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
+#[cfg(feature = "test-hooks")]
 use tempfile::TempDir;
 
 fn hit(cursor: u64, body: &str, branch: SoftFallbackBranch) -> SearchHit {
@@ -346,6 +351,7 @@ proptest! {
 // End to end through `Engine::search_text_only*` (real database)
 // ---------------------------------------------------------------------------
 
+#[cfg(feature = "test-hooks")]
 fn open(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {
     Engine::open_with_test_choice_for_test(
         dir.path().join(format!("{name}{SQLITE_SUFFIX}")),
@@ -354,6 +360,7 @@ fn open(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {
     .expect("open")
 }
 
+#[cfg(feature = "test-hooks")]
 fn node(logical_id: &str, body: &str) -> PreparedWrite {
     PreparedWrite::Node {
         kind: "doc".to_string(),
@@ -367,9 +374,12 @@ fn node(logical_id: &str, body: &str) -> PreparedWrite {
     }
 }
 
+#[cfg(feature = "test-hooks")]
 const DUP_QUERY: &str = "s40dup";
+#[cfg(feature = "test-hooks")]
 const DUP_BODY: &str = "s40dup duplicate document body";
 
+#[cfg(feature = "test-hooks")]
 fn distinct_body(i: usize) -> String {
     // Same token count as `DUP_BODY`, so every row has the same bm25 and the
     // FTS rank is write order (bm25 ties break on write_cursor).
@@ -378,6 +388,7 @@ fn distinct_body(i: usize) -> String {
 
 /// Twenty distinct rows with a byte-identical pair written 13th and 14th: the
 /// pair sits at FTS ranks 13/14, the measured NFCorpus shape.
+#[cfg(feature = "test-hooks")]
 fn write_duplicate_corpus(engine: &Engine) {
     let mut writes: Vec<PreparedWrite> =
         (0..12).map(|i| node(&format!("D{i:02}"), &distinct_body(i))).collect();
@@ -391,6 +402,7 @@ fn write_duplicate_corpus(engine: &Engine) {
 /// AC40-11: through the direct text-only API, the duplicate pair does not win
 /// rank 1, and the top 10 are the first ten distinct rows in FTS rank order.
 #[test]
+#[cfg(feature = "test-hooks")]
 fn text_only_duplicate_bodies_do_not_win_rank_one() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_dup_rank");
@@ -412,6 +424,7 @@ fn text_only_duplicate_bodies_do_not_win_rank_one() {
 /// AC40-12: the duplicate pair surfaces once, at its first-occurrence place,
 /// and every result body is distinct.
 #[test]
+#[cfg(feature = "test-hooks")]
 fn text_only_duplicate_body_surfaces_once_at_first_occurrence() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_dup_place");
@@ -431,6 +444,7 @@ fn text_only_duplicate_body_surfaces_once_at_first_occurrence() {
 /// AC40-13: with more distinct matching bodies than the limit, the caller gets
 /// exactly `limit` results, all distinct, even with a duplicate pair present.
 #[test]
+#[cfg(feature = "test-hooks")]
 fn text_only_duplicate_bodies_still_fill_the_limit() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_dup_limit");
@@ -453,6 +467,7 @@ fn text_only_duplicate_bodies_still_fill_the_limit() {
 /// the fix the query compiled to `"vitamin"` alone and the tie broke on write
 /// order, putting the "c" row first.
 #[test]
+#[cfg(feature = "test-hooks")]
 fn text_only_single_char_token_ranks_matching_row_first() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_short_token");
@@ -479,6 +494,7 @@ fn text_only_single_char_token_ranks_matching_row_first() {
 /// AC40-15: a 2-character alphanumeric token ("d3") and a 1-digit token ("1")
 /// each lift the row that carries them.
 #[test]
+#[cfg(feature = "test-hooks")]
 fn text_only_two_char_and_digit_tokens_rank_matching_rows_first() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_short_token_2");
@@ -514,6 +530,7 @@ fn text_only_two_char_and_digit_tokens_rank_matching_rows_first() {
 /// fragment "s" matches every row with a possessive, but the row carrying
 /// the topical terms still ranks first, and the query does not error.
 #[test]
+#[cfg(feature = "test-hooks")]
 fn text_only_possessive_query_ranks_topical_row_first() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_possessive");
@@ -541,6 +558,7 @@ fn text_only_possessive_query_ranks_topical_row_first() {
 /// AC40-16: short tokens mixed with FTS5 control syntax never raise an error
 /// (AC-038 injection safety with short tokens).
 #[test]
+#[cfg(feature = "test-hooks")]
 fn text_only_short_tokens_with_fts5_control_syntax_never_error() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_short_injection");

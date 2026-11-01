@@ -166,6 +166,13 @@ state as `slice-50-successful-open-investigation`. This authorizes investigation
 of the proposed policy change; a replacement open contract remains undecided.
 The accepted ADRs still govern behavior. D50-1/D50-2 remain unimplemented.
 
+## Replacement contract proposal
+
+[Draft successor ADR](../../adr/ADR-0.8.28-vector-compatibility-open-policy.md)
+contains the proposed open/error/cleanup contract, explicit access and recovery
+path, code delta, and acceptance tests. It is pending owner review, not an
+accepted change or permission to implement.
+
 ## Recommendation
 
 Retain the ability to reject unverified or incompatible vector output. A fixed

@@ -1,0 +1,9 @@
+   Compiling fathomdb-engine v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.13s
+     Running unittests src/lib.rs (target/debug/deps/fathomdb_engine-0fa3a4de7de278c4)
+
+running 1 test
+test slice90_post_probe_real_error_tests::real_post_probe_visibility_error_uses_shared_unwind_and_retains_provider_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 111 filtered out; finished in 0.36s
+

@@ -168,6 +168,10 @@ Slice-0 gate before Slices 15 and 25 open.
 | 64 | architecture | Build the bundled SQLite without `SQLITE_ENABLE_MEMORY_MANAGEMENT` so each connection has its own page cache and no global page-cache mutex; no page-cache knob, ceiling unchanged; published Rust crates get it from `libsqlite3-sys` 0.39; corrects the page-cache premise of ADR-0.7.0-ac020-architectural-lever | accepted (owner conditional approval 2026-10-16; Unit I gate passed 2026-10-17 at `d10ad65d5`); exit completed 0.8.28 Slice 42 | ADR-0.8.28-sqlite-per-connection-page-cache.md |
 | 65 | interface | Ship an opt-in role-tagged round body as a stored-bytes format: each part is U+001E plus a role code (U+0010 none, U+0011 user, U+0012 assistant, U+0013 system, U+0014 tool) and its text, joined by `\n`; nothing writes it unless the caller encodes; FTS tokens and scores and default-embedder vectors match the plain body (tested); hazards (`str.splitlines()`, XON/XOFF, XML 1.0, byte-level body dedupe) documented; withdrawing it would need a data migration | accepted (owner, 2026-10-16; can be revisited) | none; `dev/plans/0.8.28/features/slice-41/design.md` § 3 and `dev/interfaces/python.md` § Context pack |
 
+Proposed, owner review pending: [vector compatibility open policy and explicit
+recovery access](ADR-0.8.28-vector-compatibility-open-policy.md). Investigation
+authorized at steward `seq-350`; replacement contract is not yet accepted.
+
 ## Categories
 
 acceptance | architecture | design | interface.

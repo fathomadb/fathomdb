@@ -38,6 +38,8 @@ This investigation is not a slice close or release verification.
 Owner direction following characterization: steward ledger `seq-350`,
 release-state decision `slice-50-successful-open-investigation`. The replacement
 open contract remains undecided; existing ADRs remain in force.
+The [replacement contract proposal](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md)
+is submitted for owner review before implementation.
 
 ## Open owner rulings
 

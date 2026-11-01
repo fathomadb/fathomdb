@@ -48,7 +48,7 @@ RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
 
 ## Open decisions
 
-There are <!-- BEGIN GENERATED release-state:0.8.28:status-live-open-count -->ONE<!-- END GENERATED release-state:0.8.28:status-live-open-count --> live open decisions:
+There are <!-- BEGIN GENERATED release-state:0.8.28:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.28:status-live-open-count --> live open decisions:
 
 - authorize the `v*` tag push and publication after the ladder and
   release qualification pass.

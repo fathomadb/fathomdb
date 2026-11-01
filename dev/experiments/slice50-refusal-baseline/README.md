@@ -72,6 +72,9 @@ completion or full-workspace green claim follows from this experiment.
 - [controls.log](controls.log): three readiness and thirteen cache tests.
 - [vector-checks.log](vector-checks.log): twenty-four equivalence tests,
   including degraded FTS, vector refusal, errors, panics and probe timeouts.
+- [open-policy-cleanup.log](open-policy-cleanup.log): unchanged real-error unwind
+  unit test rerun for the [replacement contract proposal](../../adr/ADR-0.8.28-vector-compatibility-open-policy.md);
+  1 passed, not validation of an implemented replacement.
 - [full-gate.log](full-gate.log): full gate stopped at missing checkout-owned
   `.venv` preflight. Focused Rust checks do not replace full verification.
 

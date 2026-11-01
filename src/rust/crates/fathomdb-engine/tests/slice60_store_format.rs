@@ -66,3 +66,44 @@ fn current_format_refuses_old_vec0_shape() {
     drop(conn);
     assert!(Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).is_err());
 }
+
+fn node(body: &str) -> fathomdb_engine::PreparedWrite {
+    fathomdb_engine::PreparedWrite::Node {
+        kind: "doc".into(),
+        body: body.into(),
+        source_id: fathomdb_engine::SourceId::new("test:slice60").unwrap(),
+        logical_id: None,
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    }
+}
+
+#[test]
+fn body_fts_rowid_tracks_cursor_gaps_and_rebuild() {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("fts.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write_vector_for_test("doc", "cursor gap").unwrap();
+    opened.engine.write(&[node("alpha"), node("beta")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    for rebuild in [false, true] {
+        if rebuild {
+            opened.engine.rebuild_projections().unwrap();
+            opened.engine.drain(10_000).unwrap();
+        }
+        let rows: Vec<(i64, i64)> = conn
+            .prepare("SELECT rowid,write_cursor FROM search_index ORDER BY write_cursor")
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|(rowid, cursor)| rowid == cursor), "{rows:?}");
+    }
+}

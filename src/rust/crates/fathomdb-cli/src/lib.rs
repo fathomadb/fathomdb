@@ -2562,6 +2562,34 @@ mod tests {
     }
 
     #[test]
+    fn vector_open_refusals_have_stable_class_payload_and_exit_code() {
+        use fathomdb::VectorVerificationFailure;
+        let numeric = EngineOpenError::VectorEquivalenceMismatch { reason: "P1 flips=3".into() };
+        assert_eq!(engine_open_error_code(&numeric), "VectorEquivalenceMismatchError");
+        assert_eq!(engine_open_error_json("inspect", &numeric)["reason"], "P1 flips=3");
+        let error = EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::StartedTimeout,
+        };
+        assert_eq!(engine_open_error_code(&error), "VectorVerificationError");
+        assert_eq!(outcome_to_exit_code(engine_open_error_to_outcome(&error)), 70);
+        let payload = engine_open_error_json("inspect", &error);
+        assert_eq!(payload["probeOrdinal"], 7);
+        assert_eq!(payload["causeCode"], "started_timeout");
+        assert!(payload["providerError"].is_null());
+        let state = EngineOpenError::VectorVerification {
+            probe_ordinal: 0,
+            cause: VectorVerificationFailure::InvalidState {
+                message: "stored reference detail".into(),
+            },
+        };
+        let payload = engine_open_error_json("inspect", &state);
+        assert_eq!(payload["causeCode"], "invalid_state");
+        assert_eq!(payload["causeMessage"], "stored reference detail");
+        assert!(payload["providerError"].is_null());
+    }
+
+    #[test]
     fn outcome_mapping_covers_cli_md_exit_classes() {
         assert_eq!(outcome_to_exit_code(CliOutcome::Clean), 0);
         assert_eq!(outcome_to_exit_code(CliOutcome::RecoveryAcceptedLoss), 64);

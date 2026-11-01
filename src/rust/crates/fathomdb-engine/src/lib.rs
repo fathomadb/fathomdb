@@ -93,6 +93,8 @@ pub use projection_runtime::{
     ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason,
     ProjectionStatusDenseReadiness,
 };
+#[cfg(feature = "test-hooks")]
+pub use projection_runtime::{ProjectionScanForTest, ProjectionScanPageForTest};
 mod projection_worker;
 mod provenance;
 mod provider;

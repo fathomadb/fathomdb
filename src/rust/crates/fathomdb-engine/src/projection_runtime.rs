@@ -1,5 +1,29 @@
 use super::*;
 
+/// Production pending scan selected by the test-only page inspector.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug)]
+pub enum ProjectionScanForTest {
+    /// Scheduler candidates, including their current projection generation.
+    Scheduler,
+    /// Readiness candidates, optionally bounded above by a cursor.
+    CandidatePage,
+}
+
+/// One execution of the production pending scan on the engine connection.
+#[cfg(feature = "test-hooks")]
+#[derive(Debug)]
+pub struct ProjectionScanPageForTest {
+    /// Exact production query text.
+    pub sql: String,
+    /// Returned cursor and kind pairs, in query order.
+    pub rows: Vec<(u64, String)>,
+    /// SQLite virtual-machine steps for this execution only.
+    pub vm_steps: i32,
+    /// Query-plan entries encoded as `id|parent|detail`.
+    pub plan: Vec<String>,
+}
+
 /// The reason [`ProjectionRuntimeStatus::runtime_embedder_available`] is false.
 ///
 /// This facade is deliberately distinct from the internal lifecycle
@@ -1016,6 +1040,63 @@ impl Engine {
     #[doc(hidden)]
     pub fn acknowledge_projection_stop_for_test(&self, acknowledged: Arc<Barrier>) {
         self.projection_runtime.acknowledge_projection_stop_for_test(acknowledged);
+    }
+
+    /// Execute a production pending-scan page at a fixed validity instant.
+    ///
+    /// `through_cursor` applies only to `CandidatePage`; scheduler scans ignore
+    /// it. Uses a fresh statement so VM steps cover exactly this execution.
+    /// Returns `Closing` for a closed engine and `Storage` for lock/SQL errors.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn projection_scan_page_for_test(
+        &self,
+        scan: ProjectionScanForTest,
+        after_cursor: u64,
+        through_cursor: Option<u64>,
+        effective_at: i64,
+    ) -> Result<ProjectionScanPageForTest, EngineError> {
+        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_ref().ok_or(EngineError::Closing)?;
+        let (sql, values) = match scan {
+            ProjectionScanForTest::Scheduler => (
+                projection_worker::scheduler_scan_sql(),
+                vec![rusqlite::types::Value::from(after_cursor as i64), effective_at.into()],
+            ),
+            ProjectionScanForTest::CandidatePage => (
+                projection_worker::candidate_page_sql(),
+                vec![
+                    rusqlite::types::Value::from(after_cursor as i64),
+                    through_cursor
+                        .map(|v| rusqlite::types::Value::from(v as i64))
+                        .unwrap_or(rusqlite::types::Value::Null),
+                    effective_at.into(),
+                ],
+            ),
+        };
+        let run = || -> rusqlite::Result<_> {
+            let mut statement = connection.prepare(&sql)?;
+            let rows = statement
+                .query_map(rusqlite::params_from_iter(&values), |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let vm_steps = statement.get_status(rusqlite::StatementStatus::VmStep);
+            let plan = connection
+                .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))?
+                .query_map(rusqlite::params_from_iter(&values), |row| {
+                    Ok(format!(
+                        "{}|{}|{}",
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, String>(3)?
+                    ))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok((rows, vm_steps, plan))
+        };
+        let (rows, vm_steps, plan) = run().map_err(|_| EngineError::Storage)?;
+        Ok(ProjectionScanPageForTest { sql, rows, vm_steps, plan })
     }
 
     #[cfg(any(test, feature = "test-hooks"))]

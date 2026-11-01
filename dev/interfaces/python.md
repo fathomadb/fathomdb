@@ -1407,3 +1407,14 @@ are bit-identical (tested). It is a stored-bytes format: see
 - `resolve_evidence` returns the stored bytes, markers included.
 - Per-branch body de-duplication (Slice 40) compares stored bytes. Two rows
   whose plain texts match but whose tags differ count as different bodies.
+
+## Vector verification open errors
+
+An actual numeric refusal raises `VectorEquivalenceMismatchError(reason=...)`.
+An inability to verify raises `VectorVerificationError`, an `EngineError` leaf,
+with `probe_ordinal`, `cause_code`, `cause_message`, `provider_kind` and
+`provider_error`. No engine is returned and there is no automatic provider-free retry.
+`provider_error` is the original translated `EmbedderError`/CUDA leaf and is
+also `__cause__`; it is `None` for non-provider failures. `provider_kind` preserves
+`failed`, `timeout` or the specific `cuda_pool_exhausted`, `cuda_context_lost`,
+`cuda_private_build_refused` variant and is otherwise `None`.

@@ -356,6 +356,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("GraphExpansionError", py.get_type::<GraphExpansionError>())?;
     m.add("InvalidArgumentError", py.get_type::<InvalidArgumentError>())?;
     m.add("VectorEquivalenceMismatchError", py.get_type::<VectorEquivalenceMismatchError>())?;
+    m.add("VectorVerificationError", py.get_type::<VectorVerificationError>())?;
     m.add("IllegalTransitionError", py.get_type::<IllegalTransitionError>())?;
     m.add("NotLifecycleAddressableError", py.get_type::<NotLifecycleAddressableError>())?;
     m.add("ErasureIncompleteError", py.get_type::<ErasureIncompleteError>())?;

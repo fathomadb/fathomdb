@@ -47,6 +47,7 @@ create_exception!(_fathomdb, DependencyTraceError, EngineError);
 create_exception!(_fathomdb, GraphExpansionError, EngineError);
 // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
+create_exception!(_fathomdb, VectorVerificationError, EngineError);
 // Slice 20 (G5/G6) — traversal depth > 3 or other out-of-range argument.
 create_exception!(_fathomdb, InvalidArgumentError, EngineError);
 // OPP-12 Phase-1 (0.8.19 Slice 10) — an illegal lifecycle `transition`/`purge`
@@ -552,6 +553,12 @@ pub(super) fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             });
             exc
         }
+        EngineOpenError::VectorEquivalenceMismatch { reason } => {
+            let exc = VectorEquivalenceMismatchError::new_err(format!("vector equivalence mismatch: {reason}"));
+            Python::attach(|py| { let _ = exc.value(py).setattr("reason", reason); });
+            exc
+        }
+        EngineOpenError::VectorVerification { probe_ordinal, cause } => vector_verification_to_py(probe_ordinal, cause),
         EngineOpenError::Embedder(err) => embedder_api_error_to_py(err, "embedder error during open"),
         EngineOpenError::EmbedDevicePolicy(error) => {
             let exc = EmbedDevicePolicyError::new_err(error.to_string());
@@ -584,6 +591,54 @@ pub(super) fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             StorageError::new_err(format!("database I/O error: {message}"))
         }
     }
+}
+
+fn vector_verification_to_py(
+    probe_ordinal: u32,
+    cause: fathomdb_engine::VectorVerificationFailure,
+) -> PyErr {
+    use fathomdb_engine::VectorVerificationFailure as Cause;
+    let message = match &cause {
+        Cause::Panic { message } => message.clone(),
+        Cause::Provider(
+            fathomdb_embedder_api::EmbedderError::Failed { message }
+            | fathomdb_embedder_api::EmbedderError::CudaPoolExhausted { message, .. }
+            | fathomdb_embedder_api::EmbedderError::CudaPrivateBuildRefused { message, .. },
+        ) => message.clone(),
+        Cause::Provider(error) => format!("{error:?}"),
+        _ => cause.code().to_string(),
+    };
+    let exc = VectorVerificationError::new_err(format!(
+        "vector verification could not complete at probe {probe_ordinal}: {message}"
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("probe_ordinal", probe_ordinal);
+        let _ = value.setattr("cause_code", cause.code());
+        let _ = value.setattr("cause_message", message);
+        if let Cause::Provider(provider) = cause {
+            let kind = match &provider {
+                fathomdb_embedder_api::EmbedderError::Failed { .. } => "failed",
+                fathomdb_embedder_api::EmbedderError::Timeout => "timeout",
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted { .. } => {
+                    "cuda_pool_exhausted"
+                }
+                fathomdb_embedder_api::EmbedderError::CudaContextLost { .. } => "cuda_context_lost",
+                fathomdb_embedder_api::EmbedderError::CudaPrivateBuildRefused { .. } => {
+                    "cuda_private_build_refused"
+                }
+                _ => "unknown",
+            };
+            let provider = embedder_api_error_to_py(provider, "vector verification provider");
+            let _ = value.setattr("provider_kind", kind);
+            let _ = value.setattr("provider_error", provider.value(py));
+            exc.set_cause(py, Some(provider));
+        } else {
+            let _ = value.setattr("provider_kind", py.None());
+            let _ = value.setattr("provider_error", py.None());
+        }
+    });
+    exc
 }
 
 pub(super) fn corruption_to_py(detail: CorruptionDetail) -> PyErr {

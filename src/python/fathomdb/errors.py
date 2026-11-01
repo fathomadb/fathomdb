@@ -110,6 +110,7 @@ from fathomdb._fathomdb import (
 )
 from fathomdb._fathomdb import (
     VectorEquivalenceMismatchError as _VectorEquivalenceMismatchError,
+    VectorVerificationError as _VectorVerificationError,
 )
 from fathomdb._fathomdb import (
     IllegalTransitionError as _IllegalTransitionError,
@@ -170,6 +171,7 @@ InvalidFilterError = _InvalidFilterError
 InvalidArgumentError = _InvalidArgumentError
 # 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
 VectorEquivalenceMismatchError = _VectorEquivalenceMismatchError
+VectorVerificationError = _VectorVerificationError
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors. Parity-safe
 # field names (S7): `from_state`/`to_state` (never `from`, a Python keyword).
 IllegalTransitionError = _IllegalTransitionError
@@ -231,6 +233,7 @@ _install_typed_init(
 )
 # 0.8.18 Slice 5 — the query-time refusal carries the divergence `reason`.
 _install_typed_init(VectorEquivalenceMismatchError, ("reason",))
+_install_typed_init(VectorVerificationError, ("probe_ordinal", "cause_code", "cause_message", "provider_kind", "provider_error"))
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb payloads.
 _install_typed_init(IllegalTransitionError, ("from_state", "to_state", "legal"))
 _install_typed_init(NotLifecycleAddressableError, ("id_space",))
@@ -294,6 +297,7 @@ __all__ = [
     "SchemaValidationError",
     "StorageError",
     "VectorEquivalenceMismatchError",
+    "VectorVerificationError",
     "VectorError",
     "WriteValidationError",
 ]

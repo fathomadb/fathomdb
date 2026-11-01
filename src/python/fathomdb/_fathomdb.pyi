@@ -1054,6 +1054,15 @@ class VectorEquivalenceMismatchError(EngineError):
     reason: str | None
     def __init__(self, *args: Any, reason: str | None = ...) -> None: ...
 
+class VectorVerificationError(EngineError):
+    """Open failed because vector verification could not complete; no engine exists."""
+    probe_ordinal: int | None
+    cause_code: str | None
+    cause_message: str | None
+    provider_kind: str | None
+    provider_error: EmbedderError | None
+    def __init__(self, *args: Any, probe_ordinal: int | None = ..., cause_code: str | None = ..., cause_message: str | None = ..., provider_kind: str | None = ..., provider_error: EmbedderError | None = ...) -> None: ...
+
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors. Parity-safe
 # field names (S7): `from_state`/`to_state` (never `from`, a Python keyword).
 class IllegalTransitionError(EngineError):

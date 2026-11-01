@@ -19,9 +19,9 @@ contract is [`rust-sdk.md`](rust-sdk.md) (0.8.27 Slice 132).
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
 All public `Engine::open*` routes bootstrap a missing or zero-length path at
-schema 34. A non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 34. Any other version returns
-`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 34 }` before
+schema 35. A non-empty database is admitted only when its effective committed
+`PRAGMA user_version` is exactly 35. Any other version returns
+`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 35 }` before
 product mutation or migration events. There is no public automatic-upgrade
 route; the custom migration seam is private to explicitly feature-gated engine
 tests and is not forwarded by the facade.

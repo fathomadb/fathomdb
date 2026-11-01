@@ -20,7 +20,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 34;
+pub const SCHEMA_VERSION: u32 = 35;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -1335,6 +1335,10 @@ pub const MIGRATIONS: &[Migration] = &[
     Migration {
         step_id: 34,
         sql: "-- MIGRATION-ACCRETION-EXEMPTION: 0.8.26 fresh-database-only release sentinel; content-free marker only, no historical row, schema, or projection change.\nSELECT 1;",
+    },
+    Migration {
+        step_id: 35,
+        sql: "-- MIGRATION-ACCRETION-EXEMPTION: fresh-format-35 sentinel; prior stores are refused before migration.\nSELECT 1;",
     },
 ];
 

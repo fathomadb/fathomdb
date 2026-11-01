@@ -42,19 +42,6 @@ pub(crate) fn ensure_vector_partition(
     connection: &mut Connection,
     dimension: u32,
 ) -> rusqlite::Result<()> {
-    // 0.7.0 Pack 1 schema per dev/design/0.7.0-vector-quant-pack1.md D1/D2:
-    // f32 `embedding` + binary-quant sibling `embedding_bin` + `source_type`
-    // partition key + `kind` + `created_at`. The vec0 column type is
-    // dim-parameterized, so the reshape lives here rather than in the
-    // SQL-only migration framework — see fathomdb-schema migration step 9
-    // and dev/plans/runs/0.7.0-PVQ-P1-IMPL-output.json for the deviation
-    // from the design memo's "Choose (a)" guidance.
-    //
-    // Three paths:
-    //   (1) no vector_default       -> CREATE at new shape.
-    //   (2) old single-column shape -> stage + drop + recreate at new shape
-    //                                  + repopulate with vec_quantize_binary.
-    //   (3) already new shape       -> no-op.
     let existing_sql: Option<String> = connection
         .query_row(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name=?1",
@@ -63,19 +50,24 @@ pub(crate) fn ensure_vector_partition(
         )
         .optional()?;
 
-    // Slice 10 / G10 — 3-way shape-sentinel (fixes the prior
-    // `contains("embedding_bin")` no-op that hid the `status` column from
-    // existing Pack-1 DBs):
-    //   `status` present       -> Pack-2 (current) shape, no-op.
-    //   `embedding_bin` present -> Pack-1 -> stage + recreate + back-fill status.
-    //   neither                 -> legacy single-column -> migrate to current.
     match existing_sql {
         None => create_vector_partition(connection, dimension),
-        Some(sql) if sql.contains("status") => Ok(()),
-        Some(sql) if sql.contains("embedding_bin") => {
-            migrate_vector_partition_pack1_to_pack2(connection, dimension)
+        Some(sql) => {
+            let attrs = actual_vector_attr_columns(connection)?;
+            let expected = vector_partition_create_sql(dimension, false, &attrs);
+            let normalize = |sql: &str| {
+                sql.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_lowercase()
+            };
+            let actual = normalize(&sql);
+            let expected = normalize(&expected);
+            if actual.split_once("usingvec0").map(|(_, shape)| shape)
+                == expected.split_once("usingvec0").map(|(_, shape)| shape)
+            {
+                Ok(())
+            } else {
+                Err(rusqlite::Error::InvalidQuery)
+            }
         }
-        Some(_) => migrate_vector_partition_to_pack1(connection, dimension),
     }
 }
 
@@ -87,9 +79,8 @@ pub(crate) fn ensure_vector_partition(
 ///
 /// 0.8.20 Slice 15e — `attr_cols` are the declared-`filterable` attribute columns
 /// (byte-safe `attr_<hex>` identifiers, see [`attr_vec0_column`]), each a PLAIN
-/// `TEXT` metadata column (never aux `+`), appended after `status`. **When
-/// `attr_cols` is empty the produced SQL is byte-identical to the shipped shape**
-/// — every existing caller passes `&[]`, so no shipped behaviour changes.
+/// `TEXT` metadata column (never aux `+`), appended after `status`. Every
+/// partition, including attribute reshapes, uses the format-35 chunk size.
 fn vector_partition_create_sql(
     dimension: u32,
     if_not_exists: bool,
@@ -107,7 +98,7 @@ fn vector_partition_create_sql(
             source_type TEXT partition key,\
             kind TEXT,\
             created_at INTEGER,\
-            status TEXT{attrs}\
+            status TEXT{attrs},chunk_size=64\
          )"
     )
 }
@@ -219,7 +210,7 @@ pub(crate) fn delete_vector_partition_row(
 
 /// 0.8.20 Slice 15e — reconcile the live `vector_default` attribute columns with
 /// the registry's `filterable` set (TC-46: HITL-ratified NON-DESTRUCTIVE reshape,
-/// following the shipped `migrate_vector_partition_pack1_to_pack2` precedent).
+/// within the current store format).
 ///
 /// Diffs the DESIRED columns (from the registry) against the ACTUAL columns (on
 /// the live table). When they already match — which is EVERY idempotent
@@ -326,8 +317,7 @@ pub(crate) fn refresh_vector_attr_values_for_row(
 ///      comparable to new rows.
 ///
 /// Runs on `conn` directly (the caller owns the transaction). Transactional
-/// atomicity + reader isolation are the caller's responsibility, exactly as for
-/// `migrate_vector_partition_pack1_to_pack2`.
+/// atomicity and reader isolation are the caller's responsibility.
 fn reshape_vector_partition_nondestructive(
     conn: &Connection,
     dimension: u32,
@@ -422,57 +412,9 @@ fn reshape_vector_partition_nondestructive(
     Ok(())
 }
 
-/// Slice 10 / G10 — stage + recreate + back-fill upgrade of an existing
-/// **Pack-1** `vector_default` (has `embedding_bin`, lacks `status`) to the
-/// Pack-2 shape. The existing `embedding_bin` blob is preserved verbatim (it may
-/// be mean-centered; re-quantizing from `embedding` would drop the centering),
-/// and `status` back-fills NULL. Same transactional discipline as
-/// `migrate_vector_partition_to_pack1`: a single `Connection::transaction()`;
-/// reader handles are not opened until `ensure_vector_partition` returns, and
-/// cross-process access is serialized by the sidecar lock, so readers never see
-/// a partial reshape.
-fn migrate_vector_partition_pack1_to_pack2(
-    connection: &mut Connection,
-    dimension: u32,
-) -> rusqlite::Result<()> {
-    let tx = connection.transaction()?;
-    tx.execute_batch(
-        "CREATE TABLE _fathomdb_vector_pack2_stage (
-             rowid         INTEGER PRIMARY KEY,
-             embedding     BLOB NOT NULL,
-             embedding_bin BLOB NOT NULL,
-             source_type   TEXT,
-             kind          TEXT,
-             created_at    INTEGER
-         );
-         INSERT INTO _fathomdb_vector_pack2_stage(
-             rowid, embedding, embedding_bin, source_type, kind, created_at
-         )
-             SELECT rowid, embedding, embedding_bin, source_type, kind, created_at
-             FROM vector_default;
-         DROP TABLE vector_default;",
-    )?;
-    tx.execute_batch(&vector_partition_create_sql(dimension, false, &[]))?;
-    // `vec_bit(...)` re-tags the staged blob with the BIT subtype vec0's bit
-    // column requires (a raw blob loses the subtype and fails the type check).
-    // This preserves the existing (possibly mean-centered) bits verbatim — no
-    // re-quantize, so centering survives the upgrade. `status` back-fills the
-    // empty-string sentinel (vec0 TEXT metadata is NOT NULL-able; reserved-gap
-    // candidate 13).
-    tx.execute_batch(
-        "INSERT INTO vector_default(
-             rowid, embedding, embedding_bin, source_type, kind, created_at, status
-         )
-             SELECT rowid, embedding, vec_bit(embedding_bin), source_type, kind, created_at, ''
-             FROM _fathomdb_vector_pack2_stage;
-         DROP TABLE _fathomdb_vector_pack2_stage;",
-    )?;
-    tx.commit()
-}
-
 /// SQL fragment implementing the D3 `kind -> source_type` map.
-/// Used both by the Pack 1 reshape migration and by the drift-detection
-/// unit test that pins it to [`resolve_source_type`].
+/// Historical mapping oracle for the drift-detection unit test.
+#[cfg(test)]
 pub(crate) const KIND_TO_SOURCE_TYPE_CASE_SQL: &str = "CASE s.kind
     WHEN 'email'   THEN 'email'
     WHEN 'article' THEN 'article'
@@ -483,64 +425,6 @@ pub(crate) const KIND_TO_SOURCE_TYPE_CASE_SQL: &str = "CASE s.kind
     WHEN 'doc'     THEN 'article'
     ELSE 'article'
 END";
-
-/// Pack 1 in-place reshape of `vector_default`. Stages the existing
-/// f32 corpus + each row's `kind`, drops the old single-column vec0
-/// table, recreates at the runtime `dimension` with the Pack 1
-/// columns, then repopulates with SQL-side `vec_quantize_binary` +
-/// the D3 `kind -> source_type` mapping. The preflight CHECK on
-/// unknown kinds has already run as migration step 9 by the time we
-/// get here.
-///
-/// Atomicity: the DROP+CREATE+repopulate sequence runs inside a
-/// rusqlite `Connection::transaction()` (DEFERRED begin per rusqlite
-/// `transaction.rs:417`). Cross-process serialization is provided by
-/// the engine's sidecar `acquire_lock` at `open_with_migrations`
-/// (`lib.rs:1127` area); reader handles are not opened until
-/// `ensure_vector_partition` returns (`lib.rs:1241` area), so readers
-/// never observe a partial reshape.
-fn migrate_vector_partition_to_pack1(
-    connection: &mut Connection,
-    dimension: u32,
-) -> rusqlite::Result<()> {
-    let tx = connection.transaction()?;
-    tx.execute_batch(
-        "CREATE TABLE _fathomdb_vector_migration_v0_7_0 (
-             rowid     INTEGER PRIMARY KEY,
-             embedding BLOB NOT NULL,
-             kind      TEXT NOT NULL
-         );
-         INSERT INTO _fathomdb_vector_migration_v0_7_0(rowid, embedding, kind)
-             SELECT v.rowid, v.embedding, r.kind
-             FROM vector_default v
-             JOIN _fathomdb_vector_rows r ON r.rowid = v.rowid;
-         DROP TABLE vector_default;",
-    )?;
-    // Slice 10 / G10 — recreate directly at the Pack-2 shape (adds `status`), so
-    // a legacy single-column DB lands the current shape in one reshape.
-    tx.execute_batch(&vector_partition_create_sql(dimension, false, &[]))?;
-    // `status` back-fills the empty-string sentinel (vec0 TEXT metadata is NOT
-    // NULL-able; reserved-gap candidate 13). Legacy single-column DBs predate
-    // mean-centering, so re-quantizing from the un-centered `embedding` is
-    // correct here.
-    let repopulate_sql = format!(
-        "INSERT INTO vector_default(
-             rowid, embedding, embedding_bin, source_type, kind, created_at, status
-         )
-         SELECT
-             s.rowid,
-             s.embedding,
-             vec_quantize_binary(s.embedding),
-             {KIND_TO_SOURCE_TYPE_CASE_SQL},
-             s.kind,
-             strftime('%s', 'now'),
-             ''
-         FROM _fathomdb_vector_migration_v0_7_0 s;
-         DROP TABLE _fathomdb_vector_migration_v0_7_0;"
-    );
-    tx.execute_batch(&repopulate_sql)?;
-    tx.commit()
-}
 
 pub(crate) fn encode_vector_blob(vector: &[f32]) -> Vec<u8> {
     vector.iter().flat_map(|value| value.to_le_bytes()).collect()

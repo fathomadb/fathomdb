@@ -62,7 +62,7 @@ Ownership split:
 
 - a missing or zero-length path bootstraps directly to schema 34
 - a non-empty database opens only when its effective committed
-  `PRAGMA user_version` is exactly 34; schema 33, future versions, and
+  `PRAGMA user_version` is exactly 35; schema 34 and earlier, future versions, and
   non-empty zero-version SQLite files return the typed incompatible-schema
   error before product mutation
 - there is no public automatic migration, compatibility reader, translator,

@@ -1093,7 +1093,7 @@ mod tests {
         assert!(!older_installed_schema, "the losing older opener must not install schema 33");
         let opened = current.join().expect("current opener thread").expect("current open");
         assert_eq!(opened.report.schema_version_before, 0);
-        assert_eq!(opened.report.schema_version_after, 34);
+        assert_eq!(opened.report.schema_version_after, 35);
         assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(34));
         opened.engine.close().expect("close current engine");
     }

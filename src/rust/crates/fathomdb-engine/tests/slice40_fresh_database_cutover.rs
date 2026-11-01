@@ -76,7 +76,7 @@ fn assert_incompatible(result: Result<fathomdb_engine::OpenedEngine, EngineOpenE
     match result.expect_err("non-current database must be refused") {
         EngineOpenError::IncompatibleSchemaVersion { seen: actual, supported } => {
             assert_eq!(actual, seen);
-            assert_eq!(supported, 34);
+            assert_eq!(supported, 35);
         }
         other => panic!("expected IncompatibleSchemaVersion, got {other:?}"),
     }
@@ -143,8 +143,8 @@ fn slice40_fresh_process_open_child() {
     match mode.as_str() {
         "open-current" => {
             let opened = Engine::open(path).unwrap();
-            assert_eq!(opened.report.schema_version_before, 34);
-            assert_eq!(opened.report.schema_version_after, 34);
+            assert_eq!(opened.report.schema_version_before, 35);
+            assert_eq!(opened.report.schema_version_after, 35);
             assert!(opened.report.migration_steps.is_empty());
             opened.engine.close().unwrap();
         }
@@ -153,7 +153,7 @@ fn slice40_fresh_process_open_child() {
             let fresh_path = PathBuf::from(std::env::var_os(OPEN_CHILD_SECOND_PATH).unwrap());
             let opened = Engine::open(fresh_path).unwrap();
             assert_eq!(opened.report.schema_version_before, 0);
-            assert_eq!(opened.report.schema_version_after, 34);
+            assert_eq!(opened.report.schema_version_after, 35);
             opened.engine.close().unwrap();
         }
         other => panic!("unknown open child mode: {other}"),
@@ -179,7 +179,7 @@ fn fresh_process_reopens_current_wal_with_and_without_shm() {
         connection.pragma_update(None, "journal_mode", "DELETE").unwrap();
         connection.pragma_update(None, "user_version", 33).unwrap();
         connection.close().unwrap();
-        run_wal_child(&db, 34);
+        run_wal_child(&db, 35);
         if remove_shm {
             fs::remove_file(sidecar(&db, "-shm")).unwrap();
         }
@@ -200,21 +200,21 @@ fn schema_33_refusal_does_not_poison_fresh_open_in_same_process() {
 
 #[test]
 fn schema_34_bootstraps_fresh_and_reopens_without_migration() {
-    assert_eq!(SCHEMA_VERSION, 34);
-    assert_eq!(MIGRATIONS.last().map(|migration| migration.step_id), Some(34));
-    assert_eq!(MIGRATIONS.len(), 34);
+    assert_eq!(SCHEMA_VERSION, 35);
+    assert_eq!(MIGRATIONS.last().map(|migration| migration.step_id), Some(35));
+    assert_eq!(MIGRATIONS.len(), 35);
 
     let dir = TempDir::new().unwrap();
     let db = path(&dir, "fresh");
     let fresh = Engine::open(&db).unwrap();
     assert_eq!(fresh.report.schema_version_before, 0);
-    assert_eq!(fresh.report.schema_version_after, 34);
-    assert_eq!(fresh.report.migration_steps.last().map(|step| step.step_id), Some(34));
+    assert_eq!(fresh.report.schema_version_after, 35);
+    assert_eq!(fresh.report.migration_steps.last().map(|step| step.step_id), Some(35));
     fresh.engine.close().unwrap();
 
     let reopened = Engine::open(&db).unwrap();
-    assert_eq!(reopened.report.schema_version_before, 34);
-    assert_eq!(reopened.report.schema_version_after, 34);
+    assert_eq!(reopened.report.schema_version_before, 35);
+    assert_eq!(reopened.report.schema_version_after, 35);
     assert!(reopened.report.migration_steps.is_empty());
     reopened.engine.close().unwrap();
 }
@@ -254,7 +254,7 @@ fn schema_33_without_a_lock_sidecar_creates_only_the_persistent_lock_namespace()
 
 #[test]
 fn future_and_nonempty_zero_version_databases_are_refused() {
-    for (name, version) in [("future", 35), ("foreign", 0)] {
+    for (name, version) in [("future", 36), ("foreign", 0)] {
         let dir = TempDir::new().unwrap();
         let db = path(&dir, name);
         create_versioned_sqlite(&db, version);
@@ -276,13 +276,13 @@ fn current_wal_state_is_admitted_with_and_without_shm() {
         connection.pragma_update(None, "journal_mode", "DELETE").unwrap();
         connection.pragma_update(None, "user_version", 33).unwrap();
         connection.close().unwrap();
-        run_wal_child(&db, 34);
+        run_wal_child(&db, 35);
         if remove_shm {
             fs::remove_file(sidecar(&db, "-shm")).unwrap();
         }
 
         let recovered = Engine::open(&db).unwrap();
-        assert_eq!(recovered.report.schema_version_before, 34);
+        assert_eq!(recovered.report.schema_version_before, 35);
         assert!(recovered.report.migration_steps.is_empty());
         recovered.engine.close().unwrap();
     }

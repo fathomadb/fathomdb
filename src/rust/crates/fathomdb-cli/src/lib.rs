@@ -2562,6 +2562,27 @@ mod tests {
     }
 
     #[test]
+    fn cli_verification_provider_payload_retains_original_cuda_details() {
+        use fathomdb::VectorVerificationFailure;
+        let error = EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::Provider(
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal: 2,
+                    max_size_bytes: 12345,
+                    message: "original allocator detail".into(),
+                },
+            ),
+        };
+        let payload = engine_open_error_json("inspect", &error);
+        assert_eq!(payload["providerKind"], "cuda_pool_exhausted");
+        assert_eq!(payload["providerError"]["code"], "CudaPoolExhaustedError");
+        assert_eq!(payload["providerError"]["payload"]["ordinal"], 2);
+        assert_eq!(payload["providerError"]["payload"]["maxSizeBytes"], 12345);
+        assert_eq!(payload["providerError"]["payload"]["message"], "original allocator detail");
+    }
+
+    #[test]
     fn vector_open_refusals_have_stable_class_payload_and_exit_code() {
         use fathomdb::VectorVerificationFailure;
         let numeric = EngineOpenError::VectorEquivalenceMismatch { reason: "P1 flips=3".into() };

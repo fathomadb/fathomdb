@@ -922,6 +922,7 @@ dependencies = [
  "clap",
  "fathomdb",
  "fathomdb-embedder",
+ "fathomdb-embedder-api",
  "rusqlite",
  "serde",
  "serde_json",

@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: f6f73b382d09ae69316640c6f287df90699b5113
+lib_rs_blob: c182b0b20f9c96582aa5fe84773beb5a270f294a
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -48,6 +48,10 @@ removing the `dense_disabled`, `dense_disabled_reason`, and
 `provider_admission_tests` unit-test module and the corresponding root
 composition changes, producing the blob above. The root storage fields are
 now 41; the approved root method inventory is unchanged.
+
+0.8.28 Slice 50 scan qualification adds the `test-hooks` re-exports
+`ProjectionScanPageForTest` and `ProjectionScanForTest`, producing
+`c182b0b20f9c96582aa5fe84773beb5a270f294a`. Production root storage is unchanged.
 
 ## Remaining root declarations
 

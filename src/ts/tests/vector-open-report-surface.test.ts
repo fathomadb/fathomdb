@@ -42,3 +42,12 @@ const deferredProjection: ProjectionReadinessV1 = "deferred";
 const deferredEmbedding: EmbeddingReadinessState = "deferred";
 void deferredProjection;
 void deferredEmbedding;
+
+import type { GraphProjectionReadinessV1 } from "../src/graph.js";
+import type { StructuralDegradationCodeV1 } from "../src/search.js";
+// @ts-expect-error graph readout cannot describe a refused runtime
+const graphDeferred: GraphProjectionReadinessV1 = "deferred";
+// @ts-expect-error structural readout cannot describe a refused runtime
+const structuralDeferred: StructuralDegradationCodeV1 = "projection_deferred";
+void graphDeferred;
+void structuralDeferred;

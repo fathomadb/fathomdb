@@ -4,7 +4,7 @@ import { validateFfiTree } from "./validation.js";
 // Private projection owner for the TypeScript SDK package root.
 
 export type ProjectionReadinessV1 = "ready" | "processing" | "blocked" | "deferred" | "degraded";
-export type ProjectionRuntimeStateV1 = "absent" | "usable" | "refused";
+export type ProjectionRuntimeStateV1 = "absent" | "usable";
 export type ProjectionGenerationOriginV1 =
   "fresh" | "legacy_unverified" | "configuration" | "rebuild";
 
@@ -137,7 +137,7 @@ export interface ProjectionDelta {
 
 /** Reason an open engine session has no usable dense runtime. */
 export type ProjectionRuntimeUnavailabilityReason =
-  "none" | "no_runtime" | "vector_equivalence_disabled";
+  "none" | "no_runtime";
 
 /** Dense status for one declared projection in {@link ProjectionRuntimeStatus}. */
 export type ProjectionStatusDenseReadiness = "not_declared" | "unavailable" | "embedding" | "ready";

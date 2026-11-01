@@ -50,7 +50,7 @@ GraphExpansionDegradationCodeV1 = Literal[
 ]
 
 #: Engine-set dense-projection readiness values. ``"unavailable"`` means an
-#: absent or equivalence-refused runtime; ``"embedding"`` / ``"ready"`` apply
+#: absent runtime; ``"embedding"`` / ``"ready"`` apply
 #: only with a usable runtime. ``"pending"`` is deliberately absent: it belongs
 #: to the orthogonal admission axis, not readiness.
 DenseReadiness = Literal["unavailable", "embedding", "ready"]
@@ -58,7 +58,7 @@ DenseReadiness = Literal["unavailable", "embedding", "ready"]
 #: Reason an open engine session cannot use the shared dense runtime. ``"none"``
 #: occurs exactly when :attr:`ProjectionRuntimeStatus.runtime_embedder_available`
 #: is true.
-ProjectionRuntimeUnavailabilityReason = Literal["none", "no_runtime", "vector_equivalence_disabled"]
+ProjectionRuntimeUnavailabilityReason = Literal["none", "no_runtime"]
 EmbeddingReadinessState = Literal["ready", "processing", "deferred", "blocked"]
 EmbeddingOperation = Literal["graph_edge_body_projection", "vector_projection"]
 
@@ -282,7 +282,7 @@ class ActuationReceiptV1:
 
 
 ProjectionReadinessV1 = Literal["ready", "processing", "blocked", "deferred", "degraded"]
-ProjectionRuntimeStateV1 = Literal["absent", "usable", "refused"]
+ProjectionRuntimeStateV1 = Literal["absent", "usable"]
 ProjectionGenerationOriginV1 = Literal["fresh", "legacy_unverified", "configuration", "rebuild"]
 
 
@@ -929,7 +929,7 @@ class ProjectionSpec:
     #: ``filterable`` / ``searchable→FTS`` are same-transaction (non-stale on
     #: commit) so they carry no readiness; ``searchable→vector`` is async and
     #: rebuild-durable, so it does. With no usable dense runtime (absent or
-    #: equivalence-refused), it is ``"unavailable"``. Otherwise the value is
+    #: absent), it is ``"unavailable"``. Otherwise the value is
     #: DERIVED from outstanding projection work, never stored — which is what makes
     #: ``{vector-insert ∧ readiness := ready}`` atomic by construction: a
     #: ``"ready"`` reading can never be observed with the vector row absent.

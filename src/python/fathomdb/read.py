@@ -83,7 +83,7 @@ from fathomdb.types import (
 
 _PROJECTION_ORIGINS = frozenset({"fresh", "legacy_unverified", "configuration", "rebuild"})
 _PROJECTION_READINESS = frozenset({"ready", "processing", "blocked", "deferred", "degraded"})
-_PROJECTION_RUNTIME_STATES = frozenset({"absent", "usable", "refused"})
+_PROJECTION_RUNTIME_STATES = frozenset({"absent", "usable"})
 
 
 def _projection_enum(value: str, allowed: frozenset[str], field_path: str) -> str:

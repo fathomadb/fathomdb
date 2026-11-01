@@ -612,7 +612,7 @@ export const read = {
       ),
       runtimeState: projectionResponseEnum(
         value.runtimeState,
-        ["absent", "usable", "refused"] as const,
+        ["absent", "usable"] as const,
         "/runtimeState",
       ),
     };
@@ -639,7 +639,7 @@ export const read = {
       ),
       runtimeState: projectionResponseEnum(
         value.runtimeState,
-        ["absent", "usable", "refused"] as const,
+        ["absent", "usable"] as const,
         "/runtimeState",
       ),
     };

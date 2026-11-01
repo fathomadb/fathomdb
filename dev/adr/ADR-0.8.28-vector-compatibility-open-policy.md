@@ -76,6 +76,26 @@ first enrollment. An unreadable arm-registration query must propagate failure,
 not be treated as an empty arm. Validate applicable stored metadata independently
 of model inference; selecting no provider must not bypass known corruption.
 
+## Astra-medium review of process-local reuse
+
+The owner-requested [independent Astra-medium review](../plans/0.8.28/features/slice-50/verification-reuse-astra-review.md)
+returned **SOUND_DIRECTION_NEEDS_DESIGN**. It reviewed first-check-per-process
+reuse keyed to store state and actual runtime, retaining only verification
+metadata across model/database close. It did not approve implementation.
+
+The smallest candidate to specify next is built-in-provider cross-construction
+reuse with a versioned descriptor bound to the assets and execution regime
+actually loaded. There is no generic provider descriptor or immutability
+contract today. In-process numerical flags can change; process lifetime alone
+is not evidence that the embedding function stayed fixed. Custom providers
+need an explicit stability policy rather than trusting identity or addresses.
+
+Resolve live-session mean/baseline invalidation versus verified-at-admission
+semantics; commit-coherent positive publication; bounded metadata-only cache
+ownership and eviction; and failed-open/late-result rules. No cache lock may
+span inference or database work. The review records the source witnesses and
+minimum tests. These are unresolved design requirements, not passing guarantees.
+
 ## Error and durable-state contract
 
 Expose stable, structured open failures across Rust, Python, TypeScript and CLI:

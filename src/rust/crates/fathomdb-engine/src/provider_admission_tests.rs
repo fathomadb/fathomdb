@@ -61,3 +61,40 @@ fn verification_mean_read_failure_is_storage_not_invalid_state() {
         "SQL read failure must retain storage classification: {error:?}"
     );
 }
+
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct Events(Mutex<Vec<lifecycle::Event>>);
+impl lifecycle::Subscriber for Events {
+    fn on_event(&self, event: &lifecycle::Event) {
+        self.0.lock().unwrap().push(event.clone());
+    }
+}
+
+#[test]
+fn initial_subscriber_receives_actual_verification_refusal() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("subscriber.fathomdb");
+    let identity = EmbedderIdentity::new("subscriber-provider", "test", 8);
+    seed(&path, &identity);
+    let events = Arc::new(Events::default());
+    let subscriber: Arc<dyn lifecycle::Subscriber> = events.clone();
+    let error = Engine::open_with_embedder_and_subscriber(
+        &path,
+        identity.clone(),
+        Some(Arc::new(Provider { identity, value: -1.0 })),
+        None,
+        Some(subscriber),
+        &mut |_| {},
+    )
+    .err()
+    .unwrap();
+    assert!(matches!(error, EngineOpenError::VectorEquivalenceMismatch { .. }));
+    let events = events.0.lock().unwrap();
+    assert_eq!(events.len(), 1, "initial subscriber must receive exactly one refusal");
+    assert_eq!(events[0].phase, lifecycle::Phase::Failed);
+    assert_eq!(events[0].source, lifecycle::EventSource::Engine);
+    assert_eq!(events[0].category, lifecycle::EventCategory::Error);
+    assert_eq!(events[0].code, Some("VectorEquivalenceMismatchError"));
+}

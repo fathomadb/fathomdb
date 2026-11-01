@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
-    fuse_rrf, fuse_three_arms, EmbedderChoice, Engine, IdSpace, InitialState, PreparedWrite,
-    SearchHit, SoftFallbackBranch, SourceId, RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT,
+    fuse_rrf, fuse_three_arms, Engine, IdSpace, InitialState, PreparedWrite, SearchHit,
+    SoftFallbackBranch, SourceId, TestEmbedderChoice, RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT,
     RRF_WEIGHT_VECTOR,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
@@ -347,9 +347,9 @@ proptest! {
 // ---------------------------------------------------------------------------
 
 fn open(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {
-    Engine::open_with_choice(
+    Engine::open_with_test_choice_for_test(
         dir.path().join(format!("{name}{SQLITE_SUFFIX}")),
-        EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
     )
     .expect("open")
 }

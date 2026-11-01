@@ -1,7 +1,9 @@
 //! Slice 20 exact-result contracts for the production FTS rank stream.
 
 use fathomdb_embedder::NoopEmbedder;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{
+    Engine, EngineError, InitialState, PreparedWrite, SourceId, TestEmbedderChoice,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::params;
 use serde_json::Value;
@@ -45,9 +47,9 @@ fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
 }
 
 fn open(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {
-    Engine::open_with_choice(
+    Engine::open_with_test_choice_for_test(
         db_path(dir, name),
-        EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
     )
     .expect("open")
 }

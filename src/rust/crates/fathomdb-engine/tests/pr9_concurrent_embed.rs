@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::Embedder;
 use fathomdb_engine::lifecycle::ProjectionStatus;
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite};
+use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice};
 use tempfile::TempDir;
 
 #[path = "support/corpus_subset.rs"]
@@ -90,8 +90,9 @@ fn sustained_seed_default_pool_completes_and_is_correct() {
 
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("pr9_concurrent.sqlite");
-    let opened = Engine::open_with_choice(&path, EmbedderChoice::Caller(embedder.clone()))
-        .expect("open with real bge embedder");
+    let opened =
+        Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::Caller(embedder.clone()))
+            .expect("open with real bge embedder");
     let engine = Arc::new(opened.engine);
     assert_eq!(
         opened.report.default_embedder.name, "fathomdb-bge-small-en-v1.5",

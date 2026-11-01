@@ -70,7 +70,7 @@ use corpus_subset::{
 };
 use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite};
+use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice};
 use serde_json::json;
 use tempfile::TempDir;
 
@@ -552,9 +552,9 @@ fn eu8_ir_validation() {
     ));
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("eu8_ir.sqlite");
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
+        TestEmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
     )
     .expect("open with real bge embedder");
     assert_eq!(

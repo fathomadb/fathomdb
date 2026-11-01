@@ -2,7 +2,9 @@
 #![cfg(feature = "test-hooks")]
 
 use fathomdb_embedder::NoopEmbedder;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{
+    Engine, EngineError, InitialState, PreparedWrite, SourceId, TestEmbedderChoice,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -11,9 +13,11 @@ use tempfile::TempDir;
 fn malformed_importance_must_not_produce_neutral_explanation() {
     let dir = TempDir::new().expect("temporary database");
     let path = dir.path().join(format!("importance-explanation{SQLITE_SUFFIX}"));
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect("open");
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("open");
     let receipt = opened
         .engine
         .write(&[PreparedWrite::Node {

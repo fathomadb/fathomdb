@@ -6,7 +6,9 @@
 //! RRF input and changed its first ten results.
 
 use fathomdb_embedder::NoopEmbedder;
-use fathomdb_engine::{EmbedderChoice, Engine, InitialState, PreparedWrite, ReadView, SourceId};
+use fathomdb_engine::{
+    Engine, InitialState, PreparedWrite, ReadView, SourceId, TestEmbedderChoice,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -18,9 +20,9 @@ fn db_path(dir: &TempDir) -> std::path::PathBuf {
 }
 
 fn open(dir: &TempDir) -> fathomdb_engine::OpenedEngine {
-    Engine::open_with_choice(
+    Engine::open_with_test_choice_for_test(
         db_path(dir),
-        EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
     )
     .expect("open")
 }

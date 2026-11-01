@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    EmbedderChoice, Engine, EngineConfig, EngineError, InitialState, PreparedWrite, ReadContextV1,
-    ReadView, SearchFilter, SourceId,
+    Engine, EngineConfig, EngineError, InitialState, PreparedWrite, ReadContextV1, ReadView,
+    SearchFilter, SourceId, TestEmbedderChoice,
 };
 
 #[derive(Debug)]
@@ -97,9 +97,9 @@ fn document(body: &str) -> PreparedWrite {
 fn eight_reader_burst_keeps_vector_only_search_results() {
     let directory = tempfile::tempdir().expect("test directory");
     let database = directory.path().join("eight-reader-burst.sqlite");
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(Arc::new(ShortServiceEmbedder)),
+        TestEmbedderChoice::Caller(Arc::new(ShortServiceEmbedder)),
         EngineConfig::default(),
     )
     .expect("open")
@@ -169,9 +169,9 @@ fn direct_embed_started_timeout_uses_engine_dispatch_deadline() {
     let database = directory.path().join("direct-timeout.sqlite");
     let (release, held) = mpsc::channel();
     let provider = Arc::new(ParkedEmbedder { release: Mutex::new(held) });
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
     )
     .expect("open");
@@ -187,9 +187,9 @@ fn direct_embed_started_timeout_uses_engine_dispatch_deadline() {
 fn direct_embed_started_error_and_panic_preserve_error_contract_and_worker_reuse() {
     let directory = tempfile::tempdir().expect("test directory");
     let database = directory.path().join("direct-failure.sqlite");
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
+        TestEmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
         EngineConfig::default(),
     )
     .expect("open")
@@ -210,9 +210,9 @@ fn direct_embed_saturation_and_queued_expiry_are_overloaded() {
     let provider =
         Arc::new(FirstCallHeld { calls: AtomicUsize::new(0), entered, release: Mutex::new(held) });
     let engine = Arc::new(
-        Engine::open_with_choice_and_config(
+        Engine::open_with_test_choice_and_config_for_test(
             database,
-            EmbedderChoice::Caller(provider.clone()),
+            TestEmbedderChoice::Caller(provider.clone()),
             EngineConfig {
                 embedder_pool_size: Some(1),
                 embedder_call_timeout_ms: Some(120),
@@ -256,9 +256,9 @@ fn close_cancels_started_direct_embed_waiter() {
     let provider =
         Arc::new(FirstCallHeld { calls: AtomicUsize::new(0), entered, release: Mutex::new(held) });
     let engine = Arc::new(
-        Engine::open_with_choice_and_config(
+        Engine::open_with_test_choice_and_config_for_test(
             database,
-            EmbedderChoice::Caller(provider),
+            TestEmbedderChoice::Caller(provider),
             EngineConfig { embedder_call_timeout_ms: Some(5_000), ..EngineConfig::default() },
         )
         .expect("open")
@@ -313,9 +313,9 @@ fn ordinary_search_uses_sparse_fallback_after_started_provider_timeout() {
         entered,
         release: Mutex::new(held),
     });
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig { embedder_call_timeout_ms: Some(80), ..EngineConfig::default() },
     )
     .expect("open")
@@ -336,9 +336,9 @@ fn ordinary_search_uses_sparse_fallback_after_started_provider_timeout() {
 fn ordinary_and_frozen_search_keep_sparse_fallback_on_provider_error() {
     let directory = tempfile::tempdir().expect("test directory");
     let database = directory.path().join("search-failure.sqlite");
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
+        TestEmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
         EngineConfig::default(),
     )
     .expect("open")
@@ -368,9 +368,9 @@ fn ordinary_and_frozen_search_keep_sparse_fallback_on_provider_error() {
 fn ordinary_search_provider_panic_reaches_caller_boundary() {
     let directory = tempfile::tempdir().expect("test directory");
     let database = directory.path().join("ordinary-panic.sqlite");
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
+        TestEmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
         EngineConfig::default(),
     )
     .expect("open")
@@ -387,9 +387,9 @@ fn ordinary_search_provider_panic_reaches_caller_boundary() {
 fn frozen_search_provider_panic_unwinds_reader_owner_boundary() {
     let directory = tempfile::tempdir().expect("test directory");
     let database = directory.path().join("frozen-panic.sqlite");
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
+        TestEmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
         EngineConfig::default(),
     )
     .expect("open")
@@ -422,9 +422,9 @@ fn frozen_sparse_fallback_keeps_reader_snapshot_across_provider_wait() {
         release: Mutex::new(held),
     });
     let engine = Arc::new(
-        Engine::open_with_choice_and_config(
+        Engine::open_with_test_choice_and_config_for_test(
             database,
-            EmbedderChoice::Caller(provider),
+            TestEmbedderChoice::Caller(provider),
             EngineConfig { embedder_call_timeout_ms: Some(300), ..EngineConfig::default() },
         )
         .expect("open")

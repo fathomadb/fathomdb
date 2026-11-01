@@ -14,8 +14,8 @@ use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
     decode_round_body, decode_round_body_json, encode_round_body, encode_round_body_json,
     pack_context, pack_context_json, ContextItem, ContextOrder, ContextPack, ContextPackEntry,
-    ContextPart, ContextPolicy, ContextSource, ContextTier, EmbedderChoice, Engine, InitialState,
-    PreparedWrite, SourceId,
+    ContextPart, ContextPolicy, ContextSource, ContextTier, Engine, InitialState, PreparedWrite,
+    SourceId, TestEmbedderChoice,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
@@ -711,9 +711,9 @@ fn ranked(result: &fathomdb_engine::SearchResult) -> Ranked {
 }
 
 fn open_noop(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {
-    Engine::open_with_choice(
+    Engine::open_with_test_choice_for_test(
         dir.path().join(format!("{name}{SQLITE_SUFFIX}")),
-        EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
     )
     .expect("open")
 }
@@ -760,9 +760,9 @@ fn tagged_and_plain_corpora_fuse_identically() {
     };
     let dir = TempDir::new().expect("tempdir");
     let open = |name: &str| {
-        Engine::open_with_choice(
+        Engine::open_with_test_choice_for_test(
             dir.path().join(format!("{name}{SQLITE_SUFFIX}")),
-            EmbedderChoice::Default,
+            TestEmbedderChoice::Default,
         )
     };
     let (plain, tagged) = match (open("slice41_hplain"), open("slice41_htagged")) {

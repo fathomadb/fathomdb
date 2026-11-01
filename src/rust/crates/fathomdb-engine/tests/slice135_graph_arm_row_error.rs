@@ -3,7 +3,8 @@
 
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
-    EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, SoftFallbackBranch, SourceId,
+    Engine, EngineError, InitialState, PreparedWrite, SoftFallbackBranch, SourceId,
+    TestEmbedderChoice,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::sync::Arc;
@@ -26,9 +27,11 @@ fn node(id: &str, body: &str) -> PreparedWrite {
 fn malformed_graph_edge_source_must_not_silently_drop_reachable_node() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("graph-row-error{SQLITE_SUFFIX}"));
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .unwrap();
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .unwrap();
     opened
         .engine
         .write(&[
@@ -74,10 +77,12 @@ fn malformed_graph_edge_source_must_not_silently_drop_reachable_node() {
     assert_eq!(physical, "blob");
     drop(connection);
 
-    let reopened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .unwrap()
-            .engine;
+    let reopened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .unwrap()
+    .engine;
     let observed = reopened.search_reranked("slice135graphanchorprobe", None, 0, true, 0.3, 0);
     assert!(
         matches!(observed, Err(EngineError::Storage)),

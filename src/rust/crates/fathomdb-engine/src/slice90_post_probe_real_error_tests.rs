@@ -1,6 +1,6 @@
 use super::{
-    acquire_lock_without_metadata_mutation, install_post_probe_visibility_fault_for_test,
-    EmbedderChoice, Engine, EngineConfig, EngineOpenError,
+    acquire_lock_without_metadata_mutation, install_post_probe_visibility_fault_for_test, Engine,
+    EngineConfig, EngineOpenError, TestEmbedderChoice,
 };
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::sync::{mpsc, Arc, Mutex};
@@ -40,9 +40,9 @@ impl Embedder for HeldProvider {
 fn real_post_probe_visibility_error_uses_shared_unwind_and_retains_provider_only() {
     let dir = TempDir::new().expect("temp db");
     let path = dir.path().join("visibility-error.sqlite");
-    let initial = Engine::open_with_choice_and_config(
+    let initial = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(Arc::new(FixedProvider)),
+        TestEmbedderChoice::Caller(Arc::new(FixedProvider)),
         EngineConfig::default(),
     )
     .expect("first open");
@@ -58,9 +58,9 @@ fn real_post_probe_visibility_error_uses_shared_unwind_and_retains_provider_only
         std::thread::sleep(Duration::from_millis(300));
         release_tx.send(()).expect("release provider if still held");
     });
-    let result = Engine::open_with_choice_and_config(
+    let result = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
     );
     let error = match result {

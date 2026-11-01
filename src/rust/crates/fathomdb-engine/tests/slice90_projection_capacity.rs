@@ -6,7 +6,9 @@ use std::time::Duration;
 use std::time::Instant;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, EngineError, PreparedWrite, SourceId};
+use fathomdb_engine::{
+    Engine, EngineConfig, EngineError, PreparedWrite, SourceId, TestEmbedderChoice,
+};
 use tempfile::TempDir;
 
 const DIMENSION: u32 = 8;
@@ -85,9 +87,9 @@ fn timed_out_provider_keeps_slot_and_later_work_durable_until_return() {
         entered,
         release: Mutex::new(release_rx),
     });
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &database,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         EngineConfig {
             embedder_pool_size: Some(1),
             embedder_call_timeout_ms: Some(80),
@@ -136,9 +138,9 @@ fn projection_wait_cancels_on_close_and_reopen_recovers_pending_row() {
         embedder_call_timeout_ms: Some(5_000),
         ..EngineConfig::default()
     };
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &database,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         config.clone(),
     )
     .expect("open");
@@ -202,9 +204,12 @@ fn projection_wait_cancels_on_close_and_reopen_recovers_pending_row() {
     assert!(admission.is_ok(), "database admission lock before provider release: {admission:?}");
     assert!(close_result.is_ok(), "close after provider release: {close_result:?}");
 
-    let reopened =
-        Engine::open_with_choice_and_config(&database, EmbedderChoice::Caller(provider), config)
-            .expect("reopen");
+    let reopened = Engine::open_with_test_choice_and_config_for_test(
+        &database,
+        TestEmbedderChoice::Caller(provider),
+        config,
+    )
+    .expect("reopen");
     reopened.engine.drain(4_000).expect("pending row recovers");
     assert!(reopened.engine.has_vector_for_cursor_for_test(receipt.cursor).expect("vector"));
     assert_eq!(
@@ -221,9 +226,9 @@ fn provider_retry_delay_uses_one_absolute_deadline_during_wake_storm() {
     let (retry_started, retry_rx) = mpsc::channel();
     let provider =
         Arc::new(FailOnceTimed { calls: AtomicUsize::new(0), first_failed, retry_started });
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &database,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         EngineConfig { embedder_call_timeout_ms: Some(1_000), ..EngineConfig::default() },
     )
     .expect("open");
@@ -259,9 +264,9 @@ fn close_interrupts_long_provider_retry_wait_and_preserves_pending_row() {
     let (retry_started, retry_rx) = mpsc::channel();
     let provider =
         Arc::new(FailOnceTimed { calls: AtomicUsize::new(0), first_failed, retry_started });
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &database,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         EngineConfig::default(),
     )
     .expect("open");
@@ -277,9 +282,9 @@ fn close_interrupts_long_provider_retry_wait_and_preserves_pending_row() {
     assert!(started.elapsed() < Duration::from_secs(1), "close must wake retry wait promptly");
     assert!(retry_rx.try_recv().is_err(), "retry may not start after close");
 
-    let reopened = Engine::open_with_choice_and_config(
+    let reopened = Engine::open_with_test_choice_and_config_for_test(
         &database,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         EngineConfig::default(),
     )
     .expect("reopen");

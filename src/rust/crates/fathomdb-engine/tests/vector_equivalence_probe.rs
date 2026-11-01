@@ -19,7 +19,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, EngineError};
+use fathomdb_engine::{Engine, EngineConfig, EngineError, TestEmbedderChoice};
 use tempfile::TempDir;
 
 const DIM: usize = 384;
@@ -658,9 +658,9 @@ fn timed_out_population_probe_degrades_open_without_persisting_baseline() {
     let provider =
         Arc::new(FirstProbeParked { calls: AtomicUsize::new(0), release: Mutex::new(held) });
     let started = Instant::now();
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
     )
     .expect("timeout must degrade open rather than fail it");
@@ -686,9 +686,9 @@ fn timed_out_verification_preserves_baseline_and_drops_late_result() {
     let provider =
         Arc::new(FirstProbeParked { calls: AtomicUsize::new(0), release: Mutex::new(held) });
     let started = Instant::now();
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
     )
     .expect("timed-out verification degrades open");

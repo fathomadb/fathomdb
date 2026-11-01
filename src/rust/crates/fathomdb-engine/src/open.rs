@@ -523,7 +523,49 @@ impl Engine {
             .map_err(EngineOpenError::EngineConfiguration)?;
         match choice {
             EmbedderChoice::Default => Self::open_default_embedder(path, config),
-            EmbedderChoice::Caller(embedder) => {
+            EmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
+                path,
+                default_embedder_identity(),
+                None,
+                None,
+                None,
+                &mut |_| {},
+                config,
+            ),
+        }
+    }
+
+    /// Open a test/evaluation engine with injected provider behavior.
+    /// This entry point is absent from ordinary production features.
+    #[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+    #[doc(hidden)]
+    pub fn open_with_test_choice_for_test(
+        path: impl Into<PathBuf>,
+        choice: TestEmbedderChoice,
+    ) -> Result<OpenedEngine, EngineOpenError> {
+        Self::open_with_test_choice_and_config_for_test(path, choice, EngineConfig::default())
+    }
+
+    /// Open with an embedder choice and per-engine settings. Invalid settings
+    /// fail before path, lock, provider, or SQLite side effects.
+    #[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+    #[doc(hidden)]
+    pub fn open_with_test_choice_and_config_for_test(
+        path: impl Into<PathBuf>,
+        choice: TestEmbedderChoice,
+        config: EngineConfig,
+    ) -> Result<OpenedEngine, EngineOpenError> {
+        ResolvedRuntimeConfiguration::resolve(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        crate::runtime_configuration::resolve_query_stop_words(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        // Before the embedder choice: the default embedder's device probe
+        // builds the process's first CUDA device.
+        crate::runtime_configuration::claim_cuda_pool(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        match choice {
+            TestEmbedderChoice::Default => Self::open_default_embedder(path, config),
+            TestEmbedderChoice::Caller(embedder) => {
                 let identity = embedder.identity();
                 Self::open_with_embedder_and_subscriber_config(
                     path,
@@ -535,7 +577,7 @@ impl Engine {
                     config,
                 )
             }
-            EmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution } => {
+            TestEmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution } => {
                 let identity = embedder.identity();
                 Self::open_with_embedder_and_subscriber_config(
                     path,
@@ -554,7 +596,7 @@ impl Engine {
                     config,
                 )
             }
-            EmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
+            TestEmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
                 path,
                 default_embedder_identity(),
                 None,
@@ -1682,7 +1724,7 @@ fn table_exists(connection: &Connection, table: &str) -> bool {
 // pinned bge-small variant. Pre-existing 0.7.0 workspaces opened with
 // `EmbedderChoice::Default` will fail-closed on identity mismatch per
 // ADR-0.6.0-vector-identity-embedder-owned; callers can still hold an
-// older noop profile by supplying `EmbedderChoice::Caller(NoopEmbedder)`.
+// historic profiles remain available through explicit no-provider metadata access.
 pub(crate) const DEFAULT_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";
 pub(crate) const DEFAULT_EMBEDDER_REVISION: &str = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a";
 pub(crate) const DEFAULT_EMBEDDER_DIMENSION: u32 = 384;
@@ -2026,13 +2068,24 @@ fn run_requested_gpu_allocation_witness(
     ))
 }
 
-/// Caller-facing selector for the embedder used by an opened engine
-/// (`dev/design/embedder.md` §0).
-// Built once per open and moved into it, so the size of the device
-// resolution variant costs nothing; boxing it would change the public shape.
-#[allow(clippy::large_enum_variant)]
+/// Supported production provider selection before 1.x.
 #[derive(Clone)]
 pub enum EmbedderChoice {
+    /// Load the pinned built-in BGE/Mean implementation. Requires `default-embedder`.
+    Default,
+    /// Open without a provider, validating existing profile metadata without inference.
+    None,
+}
+
+/// Hidden provider injection for explicitly enabled tests and offline evaluation.
+/// It is not accepted by production engine admission.
+// Built once per open and moved into it, so the size of the device
+// resolution variant costs nothing; boxing it would change the public shape.
+#[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+#[doc(hidden)]
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone)]
+pub enum TestEmbedderChoice {
     /// Use the engine's default embedder. With the `default-embedder`
     /// Cargo feature enabled, this materializes a `CandleBgeEmbedder`
     /// via the EU-3 loader at `Engine::open`; on first use the loader
@@ -2040,7 +2093,7 @@ pub enum EmbedderChoice {
     /// `ADR-0.7.1-default-embedder-weight-fetch`. Without the feature,
     /// this returns `EmbedderError::Failed` directing the caller to
     /// rebuild with `--features default-embedder` or supply
-    /// `EmbedderChoice::Caller`.
+    /// `TestEmbedderChoice::Caller`.
     Default,
     /// Caller supplies the embedder instance. The supplied embedder's
     /// `identity()` becomes the workspace's default-profile identity.

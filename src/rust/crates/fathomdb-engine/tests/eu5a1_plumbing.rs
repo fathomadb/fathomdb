@@ -1,9 +1,9 @@
 //! EU-5a1 plumbing tests — plumbing-only first half of EU-5a.
 //!
 //! These tests assert the type-system plumbing for the EU-5 campaign:
-//! the public `EmbedderChoice` enum exposed on `Engine.open`, the four
+//! the public `TestEmbedderChoice` enum exposed on `Engine.open`, the four
 //! new `OpenReport` fields (per `dev/design/embedder.md` §0.6 + §7), and
-//! the `EmbedderChoice::Default` materialization path (success once
+//! the `TestEmbedderChoice::Default` materialization path (success once
 //! EU-5b lands the lock-flip; gated behind the `default-embedder`
 //! feature).
 //!
@@ -13,7 +13,7 @@
 use std::sync::Arc;
 
 use fathomdb_embedder::NoopEmbedder;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineError};
+use fathomdb_engine::{Engine, EngineError, TestEmbedderChoice};
 use tempfile::TempDir;
 
 fn fixture_path(name: &str) -> (TempDir, std::path::PathBuf) {
@@ -25,30 +25,32 @@ fn fixture_path(name: &str) -> (TempDir, std::path::PathBuf) {
 #[cfg(feature = "default-embedder")]
 #[test]
 fn open_with_embedder_choice_default_succeeds_with_bge_identity() {
-    // EU-5b: EmbedderChoice::Default materialises the pinned bge-small
+    // EU-5b: TestEmbedderChoice::Default materialises the pinned bge-small
     // embedder via the EU-3 loader + EU-4 CandleBgeEmbedder. The opened
     // workspace reports the bge-small identity. Cold-open downloads
     // ~133 MB from huggingface.co.
     let (_dir, path) = fixture_path("eu5a1_default_success");
-    let opened = Engine::open_with_choice(&path, EmbedderChoice::Default)
-        .expect("EmbedderChoice::Default must succeed after EU-5b lands");
+    let opened = Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::Default)
+        .expect("TestEmbedderChoice::Default must succeed after EU-5b lands");
     assert_eq!(opened.report.default_embedder.name, "fathomdb-bge-small-en-v1.5");
 }
 
 #[test]
 fn open_with_embedder_choice_caller_succeeds_with_noop() {
     let (_dir, path) = fixture_path("eu5a1_caller_noop");
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect("open with caller-supplied noop");
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("open with caller-supplied noop");
     assert_eq!(opened.report.default_embedder.name, "fathomdb-noop");
 }
 
 #[test]
 fn open_with_embedder_choice_none_succeeds_but_vector_write_fails() {
     let (_dir, path) = fixture_path("eu5a1_none");
-    let opened = Engine::open_with_choice(&path, EmbedderChoice::None)
-        .expect("open with EmbedderChoice::None must succeed");
+    let opened = Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::None)
+        .expect("open with TestEmbedderChoice::None must succeed");
     opened.engine.configure_vector_kind_for_test("doc").expect("configure vector kind");
     let err = opened
         .engine
@@ -64,9 +66,11 @@ fn open_report_embedder_mean_centering_required_false_for_noop() {
     // at which point this becomes true for the Default choice — but the
     // capability for a caller-supplied NoopEmbedder remains false.
     let (_dir, path) = fixture_path("eu5a1_mc_required_noop");
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect("open");
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("open");
     assert!(!opened.report.embedder_mean_centering_required);
 }
 
@@ -78,9 +82,11 @@ fn open_report_embedder_mean_vec_pinned_false_in_eu5a1() {
     // This assertion will be re-anchored in EU-5a2 to reflect actual
     // workspace state.
     let (_dir, path) = fixture_path("eu5a1_mc_pinned_noop");
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect("open");
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("open");
     assert!(!opened.report.embedder_mean_vec_pinned);
 }
 
@@ -90,9 +96,11 @@ fn open_report_embedder_download_ms_none_and_events_empty_for_caller_supplied() 
     // download timing surface and the structured event stream are both
     // empty. EU-5b wires these for the Default path.
     let (_dir, path) = fixture_path("eu5a1_download_events");
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect("open");
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("open");
     assert!(opened.report.embedder_download_ms.is_none());
     assert!(opened.report.embedder_events.is_empty());
 }

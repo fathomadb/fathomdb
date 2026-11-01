@@ -623,6 +623,9 @@ mod gpu_allocation_witness_opt_in_tests {
 }
 
 pub use lifecycle::Subscription;
+#[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+#[doc(hidden)]
+pub use open::TestEmbedderChoice;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
 
 impl Engine {
@@ -814,12 +817,11 @@ mod tests {
         acquire_lock_without_metadata_mutation, derive_stable_id,
         install_admission_locked_hook_for_test, native_connection_state_for_test,
         prepare_search_statement, resolve_source_type, retain_complete_rank_boundary_candidates,
-        DeviceResolution, EmbedderChoice, Engine, EngineConfig, EngineError, EngineOpenError,
-        IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
-        NativeTransactionState, PreparedWrite, ProjectionRuntime,
-        ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
-        SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
-        PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,
+        DeviceResolution, Engine, EngineConfig, EngineError, EngineOpenError, IdSpace, IdSpaceKind,
+        InitialState, LoaderInfo, ManagedConnectionRegistry, NativeTransactionState, PreparedWrite,
+        ProjectionRuntime, ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole,
+        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, TestEmbedderChoice,
+        WalAttributionCollector, WalAttributionRole, PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -1383,9 +1385,9 @@ mod tests {
             selected_cuda_uuid: None,
             reason: Some(DeviceResolutionReason::CudaProbeFailed),
         };
-        let opened = Engine::open_with_choice(
+        let opened = Engine::open_with_test_choice_for_test(
             dir.path().join("caller-device-resolution.sqlite"),
-            EmbedderChoice::CallerWithDeviceResolution {
+            TestEmbedderChoice::CallerWithDeviceResolution {
                 embedder: Arc::new(NoopEmbedder::default()),
                 device_resolution: resolution.clone(),
             },
@@ -1436,9 +1438,9 @@ mod tests {
         let dir = TempDir::new().expect("temp dir");
         for count in [1_u64, 2, 4, 64] {
             let path = dir.path().join(format!("projection-{count}.sqlite"));
-            let opened = Engine::open_with_choice_and_config(
+            let opened = Engine::open_with_test_choice_and_config_for_test(
                 path,
-                EmbedderChoice::None,
+                TestEmbedderChoice::None,
                 EngineConfig { scheduler_runtime_threads: Some(count), ..EngineConfig::default() },
             )
             .expect("configured open");
@@ -1520,9 +1522,9 @@ mod tests {
             entered: AtomicBool::new(false),
             cvar: Condvar::new(),
         });
-        let opened = Engine::open_with_choice_and_config(
+        let opened = Engine::open_with_test_choice_and_config_for_test(
             dir.path().join("projection-admission.sqlite"),
-            EmbedderChoice::Caller(Arc::new(ProjectionAdmissionEmbedder(Arc::clone(&gate)))),
+            TestEmbedderChoice::Caller(Arc::new(ProjectionAdmissionEmbedder(Arc::clone(&gate)))),
             EngineConfig { scheduler_runtime_threads: Some(1), ..EngineConfig::default() },
         )
         .expect("configured open");
@@ -1667,9 +1669,9 @@ mod tests {
     fn configured_projection_workers_are_isolated_between_open_engines() {
         let dir = TempDir::new().expect("temp dir");
         let open = |name, count| {
-            Engine::open_with_choice_and_config(
+            Engine::open_with_test_choice_and_config_for_test(
                 dir.path().join(name),
-                EmbedderChoice::None,
+                TestEmbedderChoice::None,
                 EngineConfig { scheduler_runtime_threads: Some(count), ..EngineConfig::default() },
             )
             .expect("configured engine")

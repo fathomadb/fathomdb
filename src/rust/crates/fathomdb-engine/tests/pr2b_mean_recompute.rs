@@ -21,7 +21,7 @@ use fathomdb_embedder::EmbedderEvent;
 #[cfg(feature = "operator")]
 use fathomdb_embedder::MeanRecomputeTrigger;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite, MEAN_VEC_PIN_THRESHOLD};
+use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice, MEAN_VEC_PIN_THRESHOLD};
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -117,7 +117,8 @@ fn open_caller(
     path: &std::path::Path,
     embedder: Arc<dyn Embedder>,
 ) -> fathomdb_engine::OpenedEngine {
-    Engine::open_with_choice(path, EmbedderChoice::Caller(embedder)).expect("open")
+    Engine::open_with_test_choice_for_test(path, TestEmbedderChoice::Caller(embedder))
+        .expect("open")
 }
 
 /// Write `count` `doc` nodes (bodies built by `body`) through the PRODUCTION

@@ -2,9 +2,9 @@ use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::lifecycle::{Event, Phase, Subscriber};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1, ActuationReceiptV1,
-    ArtifactRevisionId, CanonicalHash, EmbedderChoice, Engine, EngineError, InitialState,
-    PreparedWrite, ProvenancedEdgeV1, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId,
-    SourceLocator, SourceRevisionId, SourceVersionId, Subscription, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState, PreparedWrite,
+    ProvenancedEdgeV1, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, Subscription, TestEmbedderChoice, WriteProvenanceV1,
     WriteReceipt,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
@@ -102,9 +102,9 @@ fn derived_edge(index: usize) -> ProvenancedEdgeV1 {
 
 fn open_arm(dir: &TempDir, name: &str) -> (PathBuf, Engine, Arc<SlowSink>, Subscription, u64) {
     let db_path = path(dir, name);
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         &db_path,
-        EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
     )
     .unwrap();
     let sink = Arc::new(SlowSink::default());

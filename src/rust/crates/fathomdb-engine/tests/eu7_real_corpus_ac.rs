@@ -63,9 +63,9 @@
 //! ## Production-path fidelity
 //!
 //! The harness constructs the **real** `CandleBgeEmbedder` and supplies
-//! it via `EmbedderChoice::Caller`. Because its identity name is
+//! it via `TestEmbedderChoice::Caller`. Because its identity name is
 //! `fathomdb-bge-small-en-v1.5`, the engine's mean-centering apply paths
-//! engage exactly as they do for `EmbedderChoice::Default` (identity-
+//! engage exactly as they do for `TestEmbedderChoice::Default` (identity-
 //! gated; see `identity_requires_mean_centering`), the mean pins at
 //! `MEAN_VEC_PIN_THRESHOLD` (256) docs, and retrieval runs the locked
 //! K=192 bit-KNN + f32 rerank pipeline. Holding the embedder `Arc` lets
@@ -112,7 +112,7 @@ use std::time::{Duration, Instant};
 use corpus_subset::{load_subset_or_skip, Doc};
 use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite};
+use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice};
 use serde_json::json;
 use tempfile::TempDir;
 
@@ -814,9 +814,9 @@ fn eu7_real_corpus_ac_validation() {
 
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("eu7_corpus.sqlite");
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
+        TestEmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
     )
     .expect("open with real bge embedder");
     let engine = Arc::new(opened.engine);

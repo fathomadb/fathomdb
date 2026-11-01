@@ -1,4 +1,5 @@
 use super::*;
+use fathomdb_engine::TestEmbedderChoice;
 
 /// Opaque, dev-only reader-snapshot rendezvous for the Slice 65 installed
 /// binding control. It is compiled only with `test-hooks`, never shipped.
@@ -392,9 +393,9 @@ mod tests {
                 selected_cuda_uuid: Some("GPU-test".to_string()),
                 reason: None,
             };
-            let opened = RustEngine::open_with_choice(
+            let opened = RustEngine::open_with_test_choice_for_test(
                 directory.path().join("python-device-resolution.sqlite"),
-                EmbedderChoice::CallerWithDeviceResolution {
+                TestEmbedderChoice::CallerWithDeviceResolution {
                     embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
                     device_resolution: resolution,
                 },

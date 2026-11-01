@@ -126,9 +126,9 @@ fn verification_failure(fault: u8) -> fathomdb_engine::VectorVerificationFailure
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("failure.fathomdb");
     verified_historic_store(&path);
-    let error = Engine::open_with_choice_and_config(
+    let error = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(Arc::new(FaultProvider(fault))),
+        fathomdb_engine::TestEmbedderChoice::Caller(Arc::new(FaultProvider(fault))),
         EngineConfig { embedder_call_timeout_ms: Some(100), ..Default::default() },
     )
     .err()

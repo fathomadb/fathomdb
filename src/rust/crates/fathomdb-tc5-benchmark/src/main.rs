@@ -19,7 +19,7 @@ use fathomdb_embedder::{
 use fathomdb_embedder_api::{Embedder, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     tc5_benchmark::{RouteObserver, VectorStageRequest, VectorStageScope},
-    EmbedderChoice, Engine,
+    Engine, TestEmbedderChoice,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -381,8 +381,11 @@ fn execute_with_factory(
     );
     let embedding_device = embedder.device_label();
     let embedder: Arc<dyn Embedder> = Arc::new(BoxedEmbedder { inner: embedder });
-    let opened = Engine::open_with_choice(&manifest.database, EmbedderChoice::Caller(embedder))
-        .map_err(|_| "cannot open qualified benchmark database".to_string())?;
+    let opened = Engine::open_with_test_choice_for_test(
+        &manifest.database,
+        TestEmbedderChoice::Caller(embedder),
+    )
+    .map_err(|_| "cannot open qualified benchmark database".to_string())?;
     let stage = opened
         .engine
         .tc5_vector_stage(VectorStageRequest {

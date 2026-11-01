@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, PreparedWrite, SourceId};
+use fathomdb_engine::{Engine, EngineConfig, PreparedWrite, SourceId, TestEmbedderChoice};
 use fathomdb_schema::SQLITE_SUFFIX;
 
 const DIMENSION: u32 = 8;
@@ -213,9 +213,9 @@ fn retained_batch_child() {
         batch_calls: AtomicUsize::new(0),
         individual_calls: AtomicUsize::new(0),
     });
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         database,
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
         EngineConfig {
             embedder_pool_size: Some(1),
             embedder_call_timeout_ms: Some(50),

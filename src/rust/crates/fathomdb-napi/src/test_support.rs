@@ -1,4 +1,5 @@
 use super::*;
+use fathomdb_engine::TestEmbedderChoice;
 
 // ===== Test hooks =====================================================
 
@@ -401,9 +402,9 @@ mod tests {
             selected_cuda_uuid: Some("GPU-test".to_string()),
             reason: None,
         };
-        let opened = RustEngine::open_with_choice(
+        let opened = RustEngine::open_with_test_choice_for_test(
             directory.path().join("napi-device-resolution.sqlite"),
-            EmbedderChoice::CallerWithDeviceResolution {
+            TestEmbedderChoice::CallerWithDeviceResolution {
                 embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
                 device_resolution: resolution,
             },

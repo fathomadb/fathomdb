@@ -279,3 +279,43 @@ fn production_choices_are_exhaustively_default_or_none() {
     }
     closed(fathomdb_engine::EmbedderChoice::None);
 }
+
+#[test]
+fn returned_engine_report_and_runtime_have_no_refused_mode() {
+    use fathomdb_engine::{
+        OpenReport, ProjectionRuntimeStateV1, ProjectionRuntimeUnavailabilityReason,
+    };
+    fn runtime(state: ProjectionRuntimeStateV1) {
+        match state {
+            ProjectionRuntimeStateV1::Absent => (),
+            ProjectionRuntimeStateV1::Usable => (),
+        }
+    }
+    fn unavailable(reason: ProjectionRuntimeUnavailabilityReason) {
+        match reason {
+            ProjectionRuntimeUnavailabilityReason::None => (),
+            ProjectionRuntimeUnavailabilityReason::NoRuntime => (),
+        }
+    }
+    runtime(ProjectionRuntimeStateV1::Absent);
+    unavailable(ProjectionRuntimeUnavailabilityReason::NoRuntime);
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(dir.path().join("normal.fathomdb")).unwrap();
+    let OpenReport {
+        schema_version_before: _,
+        schema_version_after: _,
+        migration_steps: _,
+        embedder_warmup_ms: _,
+        query_backend: _,
+        default_embedder: _,
+        embedder_download_ms: _,
+        embedder_events: _,
+        embedder_mean_centering_required: _,
+        embedder_mean_vec_pinned: _,
+        embedder_device_resolution: _,
+        reranker_device_resolution: _,
+        embedder_gpu_allocation_witness: _,
+        stop_words_sha256: _,
+    } = &opened.report;
+    opened.engine.close().unwrap();
+}

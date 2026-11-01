@@ -677,6 +677,29 @@ mod vector_open_tests {
     }
 
     #[test]
+    fn python_failed_provider_and_timeout_retain_original_kind() {
+        Python::initialize();
+        for (provider, kind) in [
+            (
+                fathomdb_embedder_api::EmbedderError::Failed { message: "original detail".into() },
+                "failed",
+            ),
+            (fathomdb_embedder_api::EmbedderError::Timeout, "timeout"),
+        ] {
+            let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause: VectorVerificationFailure::Provider(provider),
+            });
+            Python::attach(|py| {
+                assert_eq!(
+                    error.value(py).getattr("provider_kind").unwrap().extract::<String>().unwrap(),
+                    kind
+                );
+            });
+        }
+    }
+
+    #[test]
     fn numeric_refusal_retains_python_mismatch_class() {
         Python::initialize();
         let error = engine_open_error_to_py(EngineOpenError::VectorEquivalenceMismatch {

@@ -650,3 +650,82 @@ pub(crate) fn runtime_configuration_error_to_napi(error: RustRuntimeConfiguratio
 pub(crate) fn panic_error() -> Error {
     typed_error(CODE_PANIC, "engine panic (see logs)", JsonValue::Null)
 }
+
+#[cfg(test)]
+mod vector_open_tests {
+    use super::*;
+    use fathomdb_engine::VectorVerificationFailure;
+
+    #[test]
+    fn verification_envelope_preserves_provider_context_and_payload() {
+        let error = engine_open_error_to_napi(EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::Provider(
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal: 2,
+                    max_size_bytes: 12345,
+                    message: "original allocator detail".into(),
+                },
+            ),
+        });
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["code"], "FDB_VECTOR_VERIFICATION");
+        assert_eq!(envelope["payload"]["probeOrdinal"], 7);
+        assert_eq!(envelope["payload"]["causeCode"], "provider");
+        assert_eq!(envelope["payload"]["providerKind"], "cuda_pool_exhausted");
+        assert_eq!(envelope["payload"]["providerError"]["code"], "FDB_CUDA_POOL_EXHAUSTED");
+        assert_eq!(envelope["payload"]["providerError"]["payload"]["ordinal"], 2);
+        assert_eq!(envelope["payload"]["providerError"]["payload"]["maxSizeBytes"], 12345);
+        assert_eq!(
+            envelope["payload"]["providerError"]["payload"]["message"],
+            "original allocator detail"
+        );
+    }
+
+    #[test]
+    fn failed_provider_and_provider_timeout_remain_distinct() {
+        for (provider, kind) in [
+            (
+                fathomdb_embedder_api::EmbedderError::Failed { message: "original detail".into() },
+                "failed",
+            ),
+            (fathomdb_embedder_api::EmbedderError::Timeout, "timeout"),
+        ] {
+            let error = engine_open_error_to_napi(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause: VectorVerificationFailure::Provider(provider),
+            });
+            let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+            assert_eq!(envelope["payload"]["providerKind"], kind);
+            assert_eq!(envelope["payload"]["providerError"]["code"], "FDB_EMBEDDER");
+        }
+    }
+
+    #[test]
+    fn numeric_refusal_and_dispatch_failure_have_distinct_envelopes() {
+        let error = engine_open_error_to_napi(EngineOpenError::VectorEquivalenceMismatch {
+            reason: "P1 flips=3".into(),
+        });
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["code"], "FDB_VECTOR_EQUIVALENCE_MISMATCH");
+        assert_eq!(envelope["payload"]["reason"], "P1 flips=3");
+        for cause in [
+            VectorVerificationFailure::StartedTimeout,
+            VectorVerificationFailure::InvalidOutput,
+            VectorVerificationFailure::Panic { message: "original panic".into() },
+        ] {
+            let code = cause.code();
+            let error = engine_open_error_to_napi(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause,
+            });
+            let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+            assert_eq!(envelope["code"], "FDB_VECTOR_VERIFICATION");
+            assert_eq!(envelope["payload"]["causeCode"], code);
+            assert!(envelope["payload"]["providerError"].is_null());
+            if code == "panic" {
+                assert_eq!(envelope["payload"]["causeMessage"], "original panic");
+            }
+        }
+    }
+}

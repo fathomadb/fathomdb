@@ -195,7 +195,7 @@ fn case(operation: &str, state: &str, repeat: usize) {
     // Historical refused-engine measurements remain in committed data. Under
     // the successful-open policy these cases terminate at admission instead.
     if state.starts_with("refused") {
-        let error = result.err().expect("divergent provider must fail open");
+        let error = result.expect_err("divergent provider must fail open");
         assert!(matches!(
             error,
             fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }

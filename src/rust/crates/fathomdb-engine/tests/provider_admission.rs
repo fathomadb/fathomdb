@@ -62,3 +62,43 @@ fn string_projection_provider_selectors_are_rejected_before_mutation() {
         opened.engine.close().unwrap();
     }
 }
+
+fn verified_historic_store(path: &std::path::Path) {
+    let opened = Engine::open_with_embedder_for_test(path, Arc::new(HistoricProvider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("note").unwrap();
+    opened.engine.close().unwrap();
+    Engine::open_with_embedder_for_test(path, Arc::new(HistoricProvider))
+        .unwrap()
+        .engine
+        .close()
+        .unwrap();
+    rusqlite::Connection::open(path)
+        .unwrap()
+        .execute(
+            "DELETE FROM _fathomdb_open_state WHERE key='vector_equivalence_verified_fingerprint'",
+            [],
+        )
+        .unwrap();
+}
+
+struct DivergentProvider;
+impl Embedder for DivergentProvider {
+    fn identity(&self) -> EmbedderIdentity {
+        HistoricProvider.identity()
+    }
+    fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+        Ok(vec![-1.0; 384])
+    }
+}
+
+#[test]
+fn numeric_refusal_returns_no_engine_and_releases_admission() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("refused.fathomdb");
+    verified_historic_store(&path);
+    let attempt = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentProvider));
+    assert!(attempt.is_err(), "actual numeric refusal must return no Engine");
+    let recovered = Engine::open_with_choice(&path, EmbedderChoice::None)
+        .expect("failed open must release database ownership for deliberate None access");
+    recovered.engine.close().unwrap();
+}

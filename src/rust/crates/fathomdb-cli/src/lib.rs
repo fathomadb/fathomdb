@@ -1985,14 +1985,76 @@ fn emit_data_plane_integrity_error_fields(
 
 fn emit_engine_open_error(verb: &str, err: &EngineOpenError) -> i32 {
     let outcome = engine_open_error_to_outcome(err);
-    let payload = json!({
-        "status": "error",
-        "verb": verb,
-        "code": engine_open_error_code(err),
-        "detail": err.to_string(),
-    });
-    println!("{payload}");
+    println!("{}", engine_open_error_json(verb, err));
     outcome_to_exit_code(outcome)
+}
+
+fn engine_open_error_json(verb: &str, err: &EngineOpenError) -> Value {
+    let mut payload = json!({
+        "status": "error", "verb": verb,
+        "code": engine_open_error_code(err), "detail": err.to_string(),
+    });
+    match err {
+        EngineOpenError::VectorEquivalenceMismatch { reason } => {
+            payload["reason"] = json!(reason);
+        }
+        EngineOpenError::VectorVerification { probe_ordinal, cause } => {
+            use fathomdb::VectorVerificationFailure as Cause;
+            use fathomdb_embedder_api::EmbedderError as Provider;
+            payload["probeOrdinal"] = json!(probe_ordinal);
+            payload["causeCode"] = json!(cause.code());
+            payload["causeMessage"] = json!(match cause {
+                Cause::Panic { message } | Cause::InvalidState { message } => message.clone(),
+                Cause::Provider(
+                    Provider::Failed { message }
+                    | Provider::CudaPoolExhausted { message, .. }
+                    | Provider::CudaPrivateBuildRefused { message, .. },
+                ) => message.clone(),
+                Cause::Provider(error) => format!("{error:?}"),
+                _ => cause.code().to_string(),
+            });
+            let (kind, provider) = match cause {
+                Cause::Provider(error) => {
+                    let (kind, code, details) = match error {
+                        Provider::Failed { message } => {
+                            ("failed", "EmbedderError", json!({ "message": message }))
+                        }
+                        Provider::Timeout => ("timeout", "EmbedderError", Value::Null),
+                        Provider::CudaPoolExhausted { ordinal, max_size_bytes, message } => (
+                            "cuda_pool_exhausted",
+                            "CudaPoolExhaustedError",
+                            json!({ "ordinal": ordinal, "maxSizeBytes": max_size_bytes, "message": message }),
+                        ),
+                        Provider::CudaContextLost {
+                            recorded_context_id,
+                            current_context_id,
+                            driver_error,
+                            operation,
+                        } => (
+                            "cuda_context_lost",
+                            "CudaContextLostError",
+                            json!({ "recordedContextId": recorded_context_id.to_string(), "currentContextId": current_context_id.map(|id| id.to_string()), "driverError": driver_error, "operation": operation }),
+                        ),
+                        Provider::CudaPrivateBuildRefused { ordinal, message } => (
+                            "cuda_private_build_refused",
+                            "CudaPrivateBuildRefusedError",
+                            json!({ "ordinal": ordinal, "message": message }),
+                        ),
+                        _ => ("unknown", "EmbedderError", Value::Null),
+                    };
+                    (
+                        json!(kind),
+                        json!({ "code": code, "message": error.to_string(), "payload": details }),
+                    )
+                }
+                _ => (Value::Null, Value::Null),
+            };
+            payload["providerKind"] = kind;
+            payload["providerError"] = provider;
+        }
+        _ => {}
+    }
+    payload
 }
 
 fn engine_error_code(err: &EngineError) -> &'static str {
@@ -2059,6 +2121,8 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
         EngineOpenError::CudaPoolExhausted { .. } => "CudaPoolExhaustedError",
         EngineOpenError::CudaContextLost { .. } => "CudaContextLostError",
         EngineOpenError::CudaPrivateBuildRefused { .. } => "CudaPrivateBuildRefusedError",
+        EngineOpenError::VectorEquivalenceMismatch { .. } => "VectorEquivalenceMismatchError",
+        EngineOpenError::VectorVerification { .. } => "VectorVerificationError",
         EngineOpenError::Io { .. } => "IoError",
     }
 }

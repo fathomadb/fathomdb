@@ -510,3 +510,15 @@ Errors use the same schema, `status:"error"`, `verb:"data-plane-integrity"`,
 `inspection_lock_missing`, `inspection_not_quiescent`,
 `runtime_configuration`, and `database_schema_mismatch`; corruption remains
 `integrity_corrupt`. Existing doctor verbs and their envelopes are unchanged.
+
+## Vector verification open failures
+
+Actual numeric refusal emits `code: "VectorEquivalenceMismatchError"` with
+`reason`. An inability to verify emits `code: "VectorVerificationError"` with
+`probeOrdinal`, `causeCode`, `causeMessage`, `providerKind` and `providerError`.
+Both use the existing error envelope (`status`, `verb`, `code`, `detail`) and
+unrecoverable exit `70`; no engine is returned. The optional provider envelope
+carries `code`, `message`, `payload` with the existing class name and typed CUDA
+fields (context ids are decimal strings). Non-provider failures set both provider
+fields to `null`. This mapping adds no diagnostic command and does not certify
+provider-free dense rebuild safe.

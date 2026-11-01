@@ -868,6 +868,22 @@ impl Engine {
                     })?;
                 let mut startup =
                     OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
+                if runtime_embedder.is_some() {
+                    let registry =
+                        load_projection_registry(startup.connection()).map_err(|_| {
+                            EngineOpenError::Io {
+                                message: "could not inspect stored vector provider selection"
+                                    .to_owned(),
+                            }
+                        })?;
+                    if let Some((name, _)) = registry.iter().find(|(_, projection)| {
+                        projection.vector_declared && projection.vector_embedder.is_some()
+                    }) {
+                        return Err(EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
+                            message: format!("projection {name:?} has an unsupported historical embedder selector; select no provider for metadata access"),
+                        }));
+                    }
+                }
                 run_vector_equivalence_probe(
                     startup.connection(),
                     runtime_embedder.as_ref().map(|_| embed_dispatch.as_ref()),

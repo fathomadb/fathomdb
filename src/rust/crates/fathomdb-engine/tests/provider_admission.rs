@@ -33,3 +33,32 @@ fn none_admits_historic_profile_as_metadata_without_substitution() {
     );
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn string_projection_provider_selectors_are_rejected_before_mutation() {
+    use fathomdb_engine::{EngineError, ProjectionRole, ProjectionSpec, ProjectionVector};
+    for selector in ["", "default", "fathomdb-bge-small-en-v1.5", "another-model"] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("selector.fathomdb");
+        let opened = Engine::open(&path).unwrap();
+        let spec = ProjectionSpec {
+            name: "body".into(),
+            roles: [ProjectionRole::Searchable].into(),
+            fts: None,
+            vector: Some(ProjectionVector {
+                embedder: Some(selector.into()),
+                dense_readiness: None,
+            }),
+            source: None,
+        };
+        assert!(
+            matches!(
+                opened.engine.configure_projections(&[spec], &[]),
+                Err(EngineError::WriteValidation)
+            ),
+            "unsupported selector {selector:?} must be rejected"
+        );
+        assert!(opened.engine.read_projections().unwrap().is_empty());
+        opened.engine.close().unwrap();
+    }
+}

@@ -225,31 +225,25 @@ fn probe_populate_or_check(
 
     if existing == 0 {
         let pending_baseline = collect_probe_baseline(embedder, identity, &probes)?;
-        if prospective_preflight {
-            // A declaration alone is not an enrolled arm. Verify the in-memory
-            // reference set first; on every refusal path this has performed reads
-            // and embed calls only. Persist both the baseline and its cache marker
-            // only after the verdict has been accepted.
-            let cache_update = probe_check_stored_baseline(
-                connection,
-                embedder,
-                identity,
-                mean_pinned,
-                &probes,
-                &pending_baseline,
-            )?;
-            persist_probe_baseline(connection, &pending_baseline)?;
-            if let Some(fingerprint) = cache_update {
-                record_probe_verification(connection, &fingerprint);
-            }
-            Ok(())
-        } else {
-            // A registered arm preserves the established Slice 5 behavior:
-            // persist its first baseline, then confirm that durable baseline
-            // before serving dense.
-            persist_probe_baseline(connection, &pending_baseline)?;
-            probe_check_against_baseline(connection, embedder, identity, mean_pinned, &probes, true)
+        // A rejected open cannot publish its newly collected references. Keep
+        // registered/prospective cache-error effects distinct as before.
+        let checked = probe_check_stored_baseline(
+            connection,
+            embedder,
+            identity,
+            mean_pinned,
+            &probes,
+            &pending_baseline,
+        );
+        if checked.is_err() && !prospective_preflight {
+            clear_probe_verification(connection);
         }
+        let cache_update = checked?;
+        persist_probe_baseline(connection, &pending_baseline)?;
+        if let Some(fingerprint) = cache_update {
+            record_probe_verification(connection, &fingerprint);
+        }
+        Ok(())
     } else {
         // A prospective refusal must preserve even a stale prior marker: the
         // proposed arm was never accepted, so it cannot mutate durable state.

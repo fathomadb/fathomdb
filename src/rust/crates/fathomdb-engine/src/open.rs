@@ -874,8 +874,8 @@ impl Engine {
                 let embedder_identity = report.default_embedder.clone();
                 // EU-5b — splice the loader's measurements + structured
                 // events into the report. The loader path is the only
-                // surface that produces these today; caller-supplied
-                // embedders and EmbedderChoice::None leave them as the
+                // surface that produces these today; test/evaluation
+                // providers and EmbedderChoice::None leave them as the
                 // open_locked defaults (None / empty).
                 if let Some(info) = loader_info {
                     if info.download_ms.is_some() {
@@ -1231,7 +1231,25 @@ impl Engine {
                     |row| Ok(EmbedderIdentity::new(row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, u32>(2)?)),
                 )
                 .optional()
-                .map_err(|error| map_open_sqlite_error(error, OpenStage::EmbedderIdentity))?
+                .map_err(|error| match error {
+                    rusqlite::Error::FromSqlConversionFailure(..)
+                    | rusqlite::Error::IntegralValueOutOfRange(..)
+                    | rusqlite::Error::Utf8Error(..)
+                    | rusqlite::Error::InvalidColumnType(..) => {
+                        EngineOpenError::Corruption(CorruptionDetail {
+                            kind: CorruptionKind::EmbedderIdentityDrift,
+                            stage: OpenStage::EmbedderIdentity,
+                            locator: CorruptionLocator::TableRow {
+                                table: "_fathomdb_embedder_profiles", rowid: 0,
+                            },
+                            recovery_hint: RecoveryHint {
+                                code: "E_CORRUPT_EMBEDDER_IDENTITY",
+                                doc_anchor: "design/recovery.md#embedder-identity-drift",
+                            },
+                        })
+                    }
+                    other => map_open_sqlite_error(other, OpenStage::EmbedderIdentity),
+                })?
         };
         let embedder_identity = stored_identity.as_ref().unwrap_or(embedder_identity);
         let mut embedder_mean_vec_pinned = check_embedder_profile(&connection, embedder_identity)?;
@@ -1751,21 +1769,21 @@ pub struct OpenReport {
     /// time so callers see the full first-use cost.
     ///
     /// `Some(ms)` when network bytes flowed (`bytes_downloaded > 0`);
-    /// `None` for caller-supplied embedders (loader bypassed) and on
+    /// `None` for injected test/evaluation providers (loader bypassed) and on
     /// full cache hits (no bytes flowed). For pure per-file network
     /// analysis, use the `DefaultEmbedderDownload` events on
     /// [`embedder_events`](Self::embedder_events) — each event carries
     /// the file's bytes + sha256 + cache path.
     pub embedder_download_ms: Option<u64>,
     /// Structured loader events (`dev/design/embedder.md` §7). Empty for
-    /// caller-supplied embedders; populated from `LoadedWeights.events`
+    /// injected test/evaluation providers; populated from `LoadedWeights.events`
     /// for the Default path.
     pub embedder_events: Vec<EmbedderEvent>,
     /// Static identity capability (`dev/design/embedder.md` §0.6). True
     /// iff the live embedder identity is the bge-small default, which is
     /// the only identity that ships with the EU-5a2 mean-centering apply
     /// paths. `false` for `fathomdb-noop` and for any other
-    /// caller-supplied identity. EU-5b's identity flip makes the Default
+    /// injected test/evaluation identity. EU-5b's identity flip makes the Default
     /// path return `true` here.
     pub embedder_mean_centering_required: bool,
     /// Dynamic workspace state (`dev/design/embedder.md` §0.6). True iff
@@ -1775,7 +1793,7 @@ pub struct OpenReport {
     /// and fails closed via `EmbedderIdentityMismatch` on drift.
     pub embedder_mean_vec_pinned: bool,
     /// Strict CPU/CUDA policy resolution used to construct the default
-    /// embedder. `None` when the caller supplied an embedder or selected none.
+    /// embedder. `None` for injected test/evaluation providers or None.
     /// A present report is the one selection passed into default-embedder
     /// construction; forced CUDA failures return
     /// [`EngineOpenError::EmbedDevicePolicy`] rather than report CPU.

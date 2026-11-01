@@ -828,3 +828,7 @@ required-features = ["test-hooks"]
 [[test]]
 name = "slice135_edge_fts_error"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "slice60_store_format"
+required-features = ["operator", "test-hooks"]

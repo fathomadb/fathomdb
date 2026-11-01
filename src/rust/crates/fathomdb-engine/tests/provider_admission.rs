@@ -102,3 +102,68 @@ fn numeric_refusal_returns_no_engine_and_releases_admission() {
         .expect("failed open must release database ownership for deliberate None access");
     recovered.engine.close().unwrap();
 }
+
+struct FaultProvider(u8);
+impl Embedder for FaultProvider {
+    fn identity(&self) -> EmbedderIdentity {
+        HistoricProvider.identity()
+    }
+    fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+        match self.0 {
+            0 => Err(EmbedderError::Failed { message: "intentional provider failure".into() }),
+            1 => panic!("intentional verification panic"),
+            2 => {
+                std::thread::sleep(std::time::Duration::from_millis(250));
+                Ok(vec![1.0; 384])
+            }
+            _ => Ok(vec![1.0; 3]),
+        }
+    }
+}
+
+fn verification_failure(fault: u8) -> fathomdb_engine::VectorVerificationFailure {
+    use fathomdb_engine::{EngineConfig, EngineOpenError};
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("failure.fathomdb");
+    verified_historic_store(&path);
+    let error = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(Arc::new(FaultProvider(fault))),
+        EngineConfig { embedder_call_timeout_ms: Some(100), ..Default::default() },
+    )
+    .err()
+    .expect("verification failure must return no Engine");
+    let recovered = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
+    recovered.engine.close().unwrap();
+    match error {
+        EngineOpenError::VectorVerification { probe_ordinal: 0, cause } => cause,
+        other => panic!("expected typed cannot-verify cause at probe zero, got {other:?}"),
+    }
+}
+
+#[test]
+fn provider_failure_preserves_typed_cause() {
+    assert_eq!(
+        verification_failure(0),
+        fathomdb_engine::VectorVerificationFailure::Provider(EmbedderError::Failed {
+            message: "intentional provider failure".into()
+        })
+    );
+}
+#[test]
+fn panic_failure_preserves_typed_cause() {
+    assert_eq!(
+        verification_failure(1),
+        fathomdb_engine::VectorVerificationFailure::Panic {
+            message: "intentional verification panic".into()
+        }
+    );
+}
+#[test]
+fn timeout_failure_preserves_typed_cause() {
+    assert_eq!(verification_failure(2), fathomdb_engine::VectorVerificationFailure::StartedTimeout);
+}
+#[test]
+fn malformed_output_preserves_typed_cause() {
+    assert_eq!(verification_failure(3), fathomdb_engine::VectorVerificationFailure::InvalidOutput);
+}

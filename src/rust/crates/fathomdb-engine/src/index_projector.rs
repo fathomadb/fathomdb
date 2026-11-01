@@ -358,8 +358,10 @@ pub(crate) fn project_canonical_node_row(
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
-        tx.prepare_cached("INSERT INTO search_index(body, kind, write_cursor) VALUES(?1, ?2, ?3)")?
-            .execute(params![body, kind, cursor])?;
+        tx.prepare_cached(
+            "INSERT INTO search_index(rowid, body, kind, write_cursor) VALUES(?3, ?1, ?2, ?3)",
+        )?
+        .execute(params![body, kind, cursor])?;
         // F5 (0.8.14 Slice 10) — same coexisting `searchable->FTS` target also
         // populates the multi-column `search_index_v2` (kind/body/status) so a
         // BM25F query can field-weight the lexical arm. Written SYNCHRONOUSLY in

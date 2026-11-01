@@ -319,3 +319,53 @@ fn returned_engine_report_and_runtime_have_no_refused_mode() {
     } = &opened.report;
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn reference_publication_storage_failure_rolls_back_all_rows_and_allows_retry() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("publication.fathomdb");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("note").unwrap();
+    opened.engine.close().unwrap();
+    let db = rusqlite::Connection::open(&path).unwrap();
+    db.execute_batch("CREATE TRIGGER reject_probe_publication BEFORE INSERT ON _fathomdb_embed_probe WHEN NEW.probe_ordinal = 22 BEGIN SELECT RAISE(ABORT, 'intentional publication storage failure'); END;").unwrap();
+    drop(db);
+    let result = Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider));
+    assert!(matches!(result, Err(fathomdb_engine::EngineOpenError::Io { .. })));
+    let db = rusqlite::Connection::open(&path).unwrap();
+    assert_eq!(
+        db.query_row("SELECT count(*) FROM _fathomdb_embed_probe", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    assert_eq!(db.query_row("SELECT count(*) FROM _fathomdb_open_state WHERE key='vector_equivalence_verified_fingerprint'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+    db.execute_batch("DROP TRIGGER reject_probe_publication").unwrap();
+    drop(db);
+    Engine::open_with_embedder_for_test(&path, Arc::new(HistoricProvider))
+        .unwrap()
+        .engine
+        .close()
+        .unwrap();
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::test_runner::Config::with_cases(16))]
+    #[test]
+    fn projection_selector_rejection_and_null_declaration_roundtrip(selector in ".{0,64}") {
+        use fathomdb_engine::{EngineError, ProjectionRole, ProjectionSpec, ProjectionVector};
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("projection-roundtrip.fathomdb");
+        let opened = Engine::open(&path).unwrap();
+        let mut spec = ProjectionSpec { name: "body".into(), roles: [ProjectionRole::Searchable].into(), fts: None,
+            vector: Some(ProjectionVector { embedder: Some(selector), dense_readiness: None }), source: None };
+        proptest::prop_assert!(matches!(opened.engine.configure_projections(&[spec.clone()], &[]), Err(EngineError::WriteValidation)));
+        proptest::prop_assert!(opened.engine.read_projections().unwrap().is_empty());
+        spec.vector.as_mut().unwrap().embedder = None;
+        opened.engine.configure_projections(&[spec], &[]).unwrap();
+        let before = opened.engine.read_projections().unwrap();
+        opened.engine.close().unwrap();
+        let reopened = Engine::open(&path).unwrap();
+        proptest::prop_assert_eq!(reopened.engine.read_projections().unwrap(), before);
+        reopened.engine.close().unwrap();
+    }
+}

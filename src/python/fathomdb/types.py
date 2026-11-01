@@ -59,7 +59,7 @@ DenseReadiness = Literal["unavailable", "embedding", "ready"]
 #: occurs exactly when :attr:`ProjectionRuntimeStatus.runtime_embedder_available`
 #: is true.
 ProjectionRuntimeUnavailabilityReason = Literal["none", "no_runtime"]
-EmbeddingReadinessState = Literal["ready", "processing", "deferred", "blocked"]
+EmbeddingReadinessState = Literal["ready", "processing", "blocked"]
 EmbeddingOperation = Literal["graph_edge_body_projection", "vector_projection"]
 
 #: Projection-status dense readiness. ``"not_declared"`` is distinct from
@@ -281,7 +281,7 @@ class ActuationReceiptV1:
     closure_operation_ids: tuple[str, ...]
 
 
-ProjectionReadinessV1 = Literal["ready", "processing", "blocked", "deferred", "degraded"]
+ProjectionReadinessV1 = Literal["ready", "processing", "blocked", "degraded"]
 ProjectionRuntimeStateV1 = Literal["absent", "usable"]
 ProjectionGenerationOriginV1 = Literal["fresh", "legacy_unverified", "configuration", "rebuild"]
 
@@ -920,6 +920,7 @@ class ProjectionSpec:
     #: ``True`` when the ``searchable→vector`` sub-target is declared.
     vector: bool = False
     #: Optional embedder override; ``None`` = engine default (only with ``vector``).
+    # New declarations accept only None; historical strings remain readable.
     vector_embedder: str | None = None
     #: 0.8.22 Slice 21 (F5) — **READ METADATA, engine-set.** ``"unavailable"``,
     #: ``"embedding"``, or ``"ready"`` when returned by
@@ -928,8 +929,8 @@ class ProjectionSpec:
     #:
     #: ``filterable`` / ``searchable→FTS`` are same-transaction (non-stale on
     #: commit) so they carry no readiness; ``searchable→vector`` is async and
-    #: rebuild-durable, so it does. With no usable dense runtime (absent or
-    #: absent), it is ``"unavailable"``. Otherwise the value is
+    #: rebuild-durable, so it does. With no configured runtime it is
+    #: ``"unavailable"``. Otherwise the value is
     #: DERIVED from outstanding projection work, never stored — which is what makes
     #: ``{vector-insert ∧ readiness := ready}`` atomic by construction: a
     #: ``"ready"`` reading can never be observed with the vector row absent.

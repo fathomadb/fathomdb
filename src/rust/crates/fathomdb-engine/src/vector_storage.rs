@@ -98,7 +98,7 @@ fn vector_partition_create_sql(
             source_type TEXT partition key,\
             kind TEXT,\
             created_at INTEGER,\
-            status TEXT{attrs},chunk_size=64\
+            status TEXT,lifecycle INTEGER,valid_from INTEGER,valid_until INTEGER{attrs},chunk_size=64\
          )"
     )
 }
@@ -329,7 +329,7 @@ fn reshape_vector_partition_nondestructive(
     // lost, even for a column being dropped).
     let mut stage_defs = String::new();
     let mut stage_names =
-        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status");
+        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until");
     for col in actual_cols {
         stage_defs.push_str(&format!(",\n             {col} TEXT"));
         stage_names.push_str(&format!(", {col}"));
@@ -342,7 +342,10 @@ fn reshape_vector_partition_nondestructive(
              source_type   TEXT,
              kind          TEXT,
              created_at    INTEGER,
-             status        TEXT{stage_defs}
+             status        TEXT,
+             lifecycle     INTEGER,
+             valid_from    INTEGER,
+             valid_until   INTEGER{stage_defs}
          );
          INSERT INTO _fathomdb_vector_reshape_stage({stage_names})
              SELECT {stage_names} FROM {DEFAULT_VECTOR_PARTITION};
@@ -358,9 +361,9 @@ fn reshape_vector_partition_nondestructive(
     // `canonical_attributes` (the `''` sentinel only where genuinely absent —
     // condition #3).
     let mut insert_cols =
-        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status");
+        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until");
     let mut select_exprs = String::from(
-        "rowid, embedding, vec_bit(embedding_bin), source_type, kind, created_at, status",
+        "rowid, embedding, vec_bit(embedding_bin), source_type, kind, created_at, status, lifecycle, valid_from, valid_until",
     );
     for col in desired_cols {
         insert_cols.push_str(&format!(", {col}"));
@@ -615,8 +618,8 @@ impl Engine {
             vector_attr_insert_fragments(&tx, "", 7).map_err(|_| EngineError::Storage)?;
         let sql = format!(
             "INSERT INTO vector_default(
-                rowid, embedding, embedding_bin, source_type, kind, created_at, status{cols_sql}
-             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, ''{ph_sql})"
+                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
+             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',0,-9223372036854775808,9223372036854775807{ph_sql})"
         );
         let mut pv: Vec<rusqlite::types::Value> = vec![
             rusqlite::types::Value::Integer(cursor as i64),
@@ -734,4 +737,26 @@ impl Engine {
             )
             .map_err(|_| EngineError::Storage)
     }
+}
+
+pub(crate) fn vector_validity_bounds(from: Option<i64>, until: Option<i64>) -> (i64, i64) {
+    match until {
+        Some(i64::MIN) => (i64::MAX, i64::MIN),
+        Some(end) => (from.unwrap_or(i64::MIN), end - 1),
+        None => (from.unwrap_or(i64::MIN), i64::MAX),
+    }
+}
+
+pub(crate) fn vector_eligibility_for_cursor(
+    conn: &Connection,
+    cursor: i64,
+) -> rusqlite::Result<(i64, i64, i64)> {
+    let canonical: Option<(i64, Option<i64>, Option<i64>)> = conn.query_row(
+        "SELECT (CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END) + (CASE WHEN state='active' THEN 0 ELSE 1 END),valid_from,valid_until FROM canonical_nodes WHERE write_cursor=?1
+         UNION ALL SELECT CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END,NULL,t_invalid FROM canonical_edges WHERE write_cursor=?1 LIMIT 1",
+        [cursor], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)),
+    ).optional()?;
+    let (lifecycle, from, until) = canonical.unwrap_or((0, None, None));
+    let (from, until) = vector_validity_bounds(from, until);
+    Ok((lifecycle, from, until))
 }

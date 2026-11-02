@@ -305,12 +305,14 @@ pub(crate) fn commit_projection_outcomes(
                 // `write_cursor` (== rowid) — but ONLY when attr columns exist, so
                 // the common no-filterable hot path stays byte-identical and does
                 // NO extra lookup.
+                let (lifecycle, valid_from, valid_until) =
+                    vector_storage::vector_eligibility_for_cursor(&tx, *cursor as i64)?;
                 if actual_vector_attr_columns(&tx)?.is_empty() {
                     tx.execute(
                         "INSERT INTO vector_default(
-                            rowid, embedding, embedding_bin, source_type, kind, created_at, status
-                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '')",
-                        params![cursor, blob, centered_blob, source_type, kind, now_unix],
+                            rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until
+                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9)",
+                        params![cursor, blob, centered_blob, source_type, kind, now_unix,lifecycle,valid_from,valid_until],
                     )?;
                 } else {
                     let body: String = tx
@@ -322,11 +324,11 @@ pub(crate) fn commit_projection_outcomes(
                         .optional()?
                         .unwrap_or_default();
                     let (cols_sql, ph_sql, attr_vals) =
-                        vector_attr_insert_fragments(&tx, &body, 7)?;
+                        vector_attr_insert_fragments(&tx, &body, 10)?;
                     let sql = format!(
                         "INSERT INTO vector_default(
-                            rowid, embedding, embedding_bin, source_type, kind, created_at, status{cols_sql}
-                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, ''{ph_sql})"
+                            rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
+                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9{ph_sql})"
                     );
                     let mut pv: Vec<rusqlite::types::Value> = vec![
                         rusqlite::types::Value::Integer(*cursor as i64),
@@ -335,6 +337,9 @@ pub(crate) fn commit_projection_outcomes(
                         rusqlite::types::Value::Text(source_type.to_string()),
                         rusqlite::types::Value::Text(kind.to_string()),
                         rusqlite::types::Value::Integer(now_unix),
+                        rusqlite::types::Value::Integer(lifecycle),
+                        rusqlite::types::Value::Integer(valid_from),
+                        rusqlite::types::Value::Integer(valid_until),
                     ];
                     pv.extend(attr_vals);
                     tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;

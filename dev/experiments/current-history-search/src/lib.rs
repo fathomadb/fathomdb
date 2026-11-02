@@ -142,16 +142,17 @@ impl Store {
                 active INTEGER NOT NULL, valid_from INTEGER NOT NULL, valid_to INTEGER);
             INSERT OR IGNORE INTO sources VALUES('source',1,1,0,NULL);
             CREATE TABLE IF NOT EXISTS assertions(
-                id INTEGER PRIMARY KEY, claim TEXT NOT NULL, body TEXT NOT NULL,
+                id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT NOT NULL, body TEXT NOT NULL,
                 family TEXT NOT NULL, properties TEXT NOT NULL, source TEXT NOT NULL REFERENCES sources(id),
                 from_id TEXT, to_id TEXT, vf INTEGER NOT NULL, vt INTEGER,
                 kf INTEGER NOT NULL, kt INTEGER, active INTEGER NOT NULL DEFAULT 1,
                 accepted INTEGER NOT NULL DEFAULT 1, intent TEXT NOT NULL,
                 CHECK(vt IS NULL OR vf<vt), CHECK(kt IS NULL OR kf<kt));
             CREATE INDEX IF NOT EXISTS claim_head ON assertions(claim,kt);
-            CREATE TABLE IF NOT EXISTS projections(id INTEGER PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS projections(id INTEGER PRIMARY KEY AUTOINCREMENT,
                 version INTEGER NOT NULL REFERENCES assertions(id), family TEXT NOT NULL,
-                name TEXT NOT NULL, text TEXT NOT NULL);")?;
+                name TEXT NOT NULL, text TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS projection_owner ON projections(version,family);")?;
         if conn.query_row("SELECT count(*) FROM config", [], |r| r.get::<_, i64>(0))? == 0 {
             conn.execute("INSERT INTO config VALUES(?1,0)", [now])?;
         }
@@ -168,6 +169,10 @@ impl Store {
 
     /// Atomically append a whole-interval revision and maintain both projections.
     pub fn put(&mut self, change: Change) -> Result<()> {
+        self.put_inner(change, false)
+    }
+
+    fn put_inner(&mut self, change: Change, fault: bool) -> Result<()> {
         let tx = self.conn.transaction()?;
         validate_change(&tx, &change)?;
         let originals = current_claim(&tx, &change.claim)?;
@@ -203,6 +208,9 @@ impl Store {
             }
         }
         insert_assertion(&tx, &change)?;
+        if fault {
+            return Err(reject("injected failure after canonical/history insertion"));
+        }
         refresh_current_claim(&tx, &change.claim)?;
         tx.execute("UPDATE config SET known=?1", [change.known])?;
         tx.commit()?;
@@ -211,33 +219,93 @@ impl Store {
 
     /// Inject a failure after canonical/history insertion to qualify rollback.
     pub fn put_fault(&mut self, change: Change) -> Result<()> {
-        self.put(change)
+        self.put_inner(change, true)
     }
 
-    /// Set source authority at the current read-snapshot boundary.
+    /// Set current source authority atomically with affected current projections.
     pub fn configure_source(
         &mut self,
-        _id: &str,
-        _allowed: bool,
-        _active: bool,
-        _valid_from: i64,
-        _valid_to: Option<i64>,
+        id: &str,
+        allowed: bool,
+        active: bool,
+        valid_from: i64,
+        valid_to: Option<i64>,
     ) -> Result<()> {
+        if id.is_empty() || valid_to.is_some_and(|end| end <= valid_from) {
+            return Err(reject("invalid source interval"));
+        }
+        let tx = self.conn.transaction()?;
+        tx.execute("INSERT INTO sources VALUES(?1,?2,?3,?4,?5) ON CONFLICT(id) DO UPDATE SET
+            allowed=excluded.allowed,active=excluded.active,valid_from=excluded.valid_from,valid_to=excluded.valid_to",
+            params![id,allowed,active,valid_from,valid_to])?;
+        let claims = source_claims(&tx, id)?;
+        for claim in claims {
+            remove_current_claim(&tx, &claim)?;
+            refresh_current_claim(&tx, &claim)?;
+        }
+        tx.commit()?;
         Ok(())
     }
 
-    /// Change current assertion admission without changing the historical text.
-    pub fn set_active(&mut self, _claim: &str, _active: bool) -> Result<()> {
+    /// Change current assertion admission atomically with its current projections.
+    pub fn set_active(&mut self, claim: &str, active: bool) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        remove_current_claim(&tx, claim)?;
+        tx.execute(
+            "UPDATE assertions SET active=?1 WHERE claim=?2 AND kt IS NULL",
+            params![active, claim],
+        )?;
+        refresh_current_claim(&tx, claim)?;
+        tx.commit()?;
         Ok(())
     }
 
-    /// Remove all versions and projections for a source; this POC is logical storage only.
-    pub fn erase_source(&mut self, _id: &str) -> Result<()> {
+    /// Remove every version and projection for a source; physical erasure is unqualified.
+    pub fn erase_source(&mut self, id: &str) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        for family in Family::all() {
+            for prefix in ["all", "current"] {
+                tx.execute(&format!("DELETE FROM {prefix}_{} WHERE rowid IN
+                    (SELECT p.id FROM projections p JOIN assertions a ON a.id=p.version WHERE a.source=?1)",family.label()),[id])?;
+            }
+        }
+        tx.execute(
+            "DELETE FROM projections WHERE version IN (SELECT id FROM assertions WHERE source=?1)",
+            [id],
+        )?;
+        tx.execute("DELETE FROM assertions WHERE source=?1", [id])?;
+        tx.execute("UPDATE sources SET allowed=0,active=0 WHERE id=?1", [id])?;
+        tx.commit()?;
         Ok(())
     }
 
-    /// Reconstruct all lexical projections from canonical assertions and authority.
+    /// Reconstruct both index families from retained canonical versions and authority.
     pub fn rebuild(&mut self) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        for family in Family::all() {
+            tx.execute(&format!("DELETE FROM all_{}", family.label()), [])?;
+            tx.execute(&format!("DELETE FROM current_{}", family.label()), [])?;
+        }
+        tx.execute("DELETE FROM projections", [])?;
+        let claims = {
+            let mut stmt = tx.prepare("SELECT DISTINCT claim FROM assertions ORDER BY claim")?;
+            let claims = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            claims
+        };
+        for claim in claims {
+            for (version, c, _) in claim_versions(&tx, &claim, false)? {
+                insert_projection(&tx, version, c.family, "", &c.body)?;
+                if c.family == Family::Node {
+                    for (name, text) in &c.properties {
+                        insert_projection(&tx, version, Family::Property, name, text)?;
+                    }
+                }
+            }
+            refresh_current_claim(&tx, &claim)?;
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -385,13 +453,29 @@ impl Store {
     }
 }
 
+fn source_claims(conn: &Connection, source: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT DISTINCT claim FROM assertions WHERE source=?1")?;
+    let result = stmt
+        .query_map([source], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(result)
+}
+
 fn current_claim(conn: &Connection, claim: &str) -> Result<Vec<(i64, Change, bool)>> {
+    claim_versions(conn, claim, true)
+}
+
+fn claim_versions(
+    conn: &Connection,
+    claim: &str,
+    head_only: bool,
+) -> Result<Vec<(i64, Change, bool)>> {
     let mut stmt = conn.prepare(
         "SELECT id,body,family,properties,source,from_id,to_id,vf,vt,kf,intent,active
-        FROM assertions WHERE claim=?1 AND kt IS NULL ORDER BY vf",
+        FROM assertions WHERE claim=?1 AND (?2=0 OR kt IS NULL) ORDER BY vf,id",
     )?;
     let mut result = Vec::new();
-    let mut rows = stmt.query([claim])?;
+    let mut rows = stmt.query(params![claim, head_only])?;
     while let Some(r) = rows.next()? {
         let family = match r.get::<_, String>(2)?.as_str() {
             "nodes" => Family::Node,

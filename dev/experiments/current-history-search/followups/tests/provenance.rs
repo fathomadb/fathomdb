@@ -176,3 +176,70 @@ fn temporal_claim_kind_is_immutable() {
     assert!(ledger.change_prepared(PreparedWrite::ProvenancedNode(node), (20, 40), false).is_err());
     ledger.engine.close().unwrap();
 }
+
+#[test]
+fn historical_backend_rechecks_current_source_and_evidence_authority() {
+    use current_history_followups::{fixture, history};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("backend-authority.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    engine.write(&[source()]).unwrap();
+    let receipt = engine.write(&[derived("assertion-r1", "needle")]).unwrap();
+    engine.drain(10_000).unwrap();
+    let cursor = receipt.row_cursors[0];
+    let cut = receipt.cursor;
+    engine.execute_for_test(&format!("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER,version INTEGER,commit_cut INTEGER); INSERT INTO poc_versions VALUES({cursor},0,0,{cut}); CREATE TABLE poc_temporal_fragments(cursor INTEGER,ordinal INTEGER,v0 INTEGER,v1 INTEGER,k0 INTEGER,k1 INTEGER); INSERT INTO poc_temporal_fragments VALUES({cursor},0,0,100,{cut},NULL);")).unwrap();
+    let mut main =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    main.execute_batch("PRAGMA query_only=ON").unwrap();
+    let (selected, hydrate) = fixture::queries("node", 0, "prior");
+    {
+        let tx = main.transaction().unwrap();
+        assert_eq!(
+            history::search(&tx, &selected, &hydrate, "needle", 10, true, || Ok(()))
+                .unwrap()
+                .documents,
+            1
+        );
+    }
+    let context = engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView { include_superseded: true, ..Default::default() },
+                SearchFilter::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let issued = engine
+        .search_with_evidence(&EvidenceSearchRequestV1 {
+            schema_version: 1,
+            query: "needle".into(),
+            context: context.clone(),
+            rerank_depth: 0,
+            use_graph_arm: false,
+            alpha: 0.3,
+            pool_n: 0,
+            include_explanation: false,
+            limit: 10,
+        })
+        .unwrap();
+    assert_eq!(issued.evidence[0].artifact_revision_id, "assertion-r1");
+    engine.transition("authority", LifecycleState::Deleted, None).unwrap();
+    {
+        let tx = main.transaction().unwrap();
+        let denied =
+            history::search(&tx, &selected, &hydrate, "needle", 10, true, || Ok(())).unwrap();
+        assert_eq!(denied.documents, 0);
+        assert!(denied.hits.is_empty());
+    }
+    assert!(engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: issued.evidence[0].evidence_ref.clone(),
+            context
+        })
+        .is_err());
+    engine.close().unwrap();
+}

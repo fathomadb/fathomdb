@@ -152,3 +152,64 @@ fn real_temporal_selector_feeds_corrected_and_prior_native_corpora() {
     }
     ledger.engine.close().unwrap();
 }
+
+#[test]
+fn abandoned_receiver_keeps_owned_snapshot_until_worker_finishes_even_after_engine_close() {
+    use fathomdb_engine::*;
+    use std::sync::mpsc;
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("receiver.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: "needle owned".into(),
+            logical_id: Some("owner".into()),
+            source_id: SourceId::new("source").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .unwrap();
+    engine.drain(10_000).unwrap();
+    let (ready, wait_ready) = mpsc::sync_channel(1);
+    let (release, wait_release) = mpsc::sync_channel(1);
+    let (reply, receiver) = mpsc::sync_channel(1);
+    let reader_path = path.clone();
+    let worker = std::thread::spawn(move || {
+        let mut main =
+            Connection::open_with_flags(reader_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        main.execute_batch("PRAGMA query_only=ON").unwrap();
+        let tx = main.transaction().unwrap();
+        let result = history::search(
+            &tx,
+            "SELECT write_cursor,body,1 FROM canonical_nodes",
+            "SELECT body FROM canonical_nodes WHERE write_cursor=?1",
+            "needle",
+            10,
+            true,
+            || {
+                ready.send(())?;
+                wait_release.recv_timeout(Duration::from_secs(5))?;
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(result.hits[0].body, "needle owned");
+        assert!(reply.send(result.hits.len()).is_err());
+    });
+    wait_ready.recv_timeout(Duration::from_secs(5)).unwrap();
+    drop(receiver);
+    assert!(
+        matches!(engine.erase_source("source"),Err(EngineError::ErasureIncomplete{ref stage,..}) if stage=="wal_checkpoint")
+    );
+    engine.close().unwrap();
+    release.send(()).unwrap();
+    worker.join().unwrap();
+    let reopened = Engine::open(&path).unwrap().engine;
+    reopened.erase_source("source").unwrap();
+    reopened.close().unwrap();
+}

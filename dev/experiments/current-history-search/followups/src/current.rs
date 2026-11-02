@@ -190,6 +190,7 @@ impl CurrentStore {
         };
         let source_eligibility = include_str!("source_authority.sql")
             .replace("f.revision", "n.write_cursor")
+            .replace("f.source", "n.source_id")
             .replace("?4", &valid.to_string());
         let sql=format!("BEGIN IMMEDIATE;
             {bootstrap_frontier}

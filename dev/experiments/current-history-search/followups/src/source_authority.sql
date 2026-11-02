@@ -19,3 +19,5 @@ NOT EXISTS (
    )
  )
 )
+
+AND NOT EXISTS(SELECT 1 FROM _fathomdb_dependency_closures bucket WHERE bucket.root_kind='source_bucket' AND bucket.root_value=f.source AND bucket.phase!='complete')

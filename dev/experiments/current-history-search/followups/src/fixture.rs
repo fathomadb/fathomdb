@@ -118,6 +118,7 @@ pub fn queries(family: &str, history: usize, view: &str) -> (String, String) {
         .as_secs();
     let authority = include_str!("source_authority.sql")
         .replace("f.revision", "n.write_cursor")
+        .replace("f.source", "n.source_id")
         .replace("?4", &now.to_string());
     let chosen = format!("({chosen}) AND ({authority})");
     if family == "property" {

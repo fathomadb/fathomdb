@@ -12,7 +12,7 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 60 (STORE-FORMAT-35), NOT_STARTED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 70 (VECTOR-ELIGIBILITY-NATIVE), NOT_STARTED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) · 60 (`e240efd4b91b8e3ba4ea53dc3edea73639f44747`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
 Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
@@ -36,11 +36,16 @@ Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
   CUDA cells pass. The lock-set guard waits on the cudarc fork's records-only
   run.
 
+Slice 60 is complete at qualified candidate
+`e240efd4b91b8e3ba4ea53dc3edea73639f44747`; see its
+[status](../0.8.28/features/slice-60/status.md) for accepted format 35,
+Astra reviews, independent checks, scale and GPU recall qualification.
+
 ## Immediate next action
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 60 (STORE-FORMAT-35)** — Store format 35: 64-row vec0 chunks, search_index rowid = write_cursor, refuse version-34 stores at open, rebuild verbs on the new layout; successor ADR to ADR-0.7.0-vector-binary-quant. **Remaining ladder:** 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 70 (VECTOR-ELIGIBILITY-NATIVE)** — Vector eligibility inside vec0: lifecycle, valid_from and valid_until metadata columns kept current at every lifecycle write; KNN filters on them; the store-wide vector-row eligibility scan is removed. **Remaining ladder:** 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
@@ -95,7 +100,7 @@ Ladder remaining: 60, 70, 80, 90. Slices 41 and 42 were added by owner rulings o
 
 ## Boundaries
 
-- Schema moves to 35 in Slice 60 with no upgrade path: a version-34 store
+- Schema is 35 after Slice 60 with no upgrade path: a version-34 store
   is refused at open (owner 2026-10-31).
 - The `v*` tag push for 0.8.28 is not authorized.
 - The forks' own crates are published under owner rulings of 2026-10-13;

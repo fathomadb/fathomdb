@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 60 — requirements and acceptance
-status: approved; implementation awaiting final review and qualification
+status: COMPLETE; Astra reviewed and independently qualified
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---
@@ -39,4 +39,4 @@ AC-075 remains binding at 95% CI-high >= 0.90 on the frozen 7,667-document
 query-source-first TC-5 GPU bridge (real documents, zero synthetic rows),
 with the same dataset, model, queries,
 bootstrap and retrieval parameters. There is no baseline waiver or threshold
-change. Candidate qualification remains pending until that run succeeds.
+change. The candidate-bound run passed; see [status](status.md) for the result and evidence.

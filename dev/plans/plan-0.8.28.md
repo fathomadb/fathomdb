@@ -154,13 +154,13 @@ it is never an implicit patch lane.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 60** (`STORE-FORMAT-35`) — Store format 35: 64-row vec0 chunks, search_index rowid = write_cursor, refuse version-34 stores at open, rebuild verbs on the new layout; successor ADR to ADR-0.7.0-vector-binary-quant
+**IMMEDIATE NEXT: Slice 70** (`VECTOR-ELIGIBILITY-NATIVE`) — Vector eligibility inside vec0: lifecycle, valid_from and valid_until metadata columns kept current at every lifecycle write; KNN filters on them; the store-wide vector-row eligibility scan is removed
 
-**Remaining ladder:** 60 → 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
-Slice 50 is complete on `dev/0.8.28`; Slices 60 to 90 are next, in order. After them come
+Slice 60 is complete on `dev/0.8.28`; Slices 70 to 90 are next, in order. After them come
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
@@ -242,19 +242,17 @@ requirements say otherwise.
     overflow chunking, so enabling chunking later re-projects long records
     without another format break. The `orient` and snippet reporting is
     0.8.29 Block 2.
-  - **Before the format is frozen:**
-    - a benchmark of the vector table alone to 2M rows (R8 option A), to
-      confirm 64 rows against 128 and 256. Include row counts multiplied
-      by overflow chunking (about 5.1 vectors per record on LongMemEval
-      sessions), because chunking would reach CS64's crossing near 1.2M
-      rows at about 235k records;
-    - eu7 recall with bge on the RTX 3090.
-  - **Chunking stays parked.** The re-evaluation record is
-    `dev/design/overflow-chunking-reevaluation.md` on `dev/0.8.29`.
-  - **ADR:** a successor to ADR-0.7.0-vector-binary-quant.
-  - **Verification:** AC-013 (p50 about 63 ms, limit 80), `ac_013b`, the
-    refusal test, the shape-sentinel and rebuild tests, and identical
-    results.
+  - **Qualified and frozen:** all 30 vector-only 64/128/256 cells through
+    2M rows passed the decision rule; CS64 wins all ten size/dimension pairs.
+    AC-013 p50/p99 is 59/67 ms. Candidate-bound TC-5 GPU recall is 0.958,
+    CI [0.938, 0.974], meeting the unchanged criterion. Requested legacy
+    EU7 failures remain diagnostic evidence; `ac_013b` is report-only.
+    The historical comparison with 1024-row chunks was not remeasured.
+  - **Chunking stays parked.** The storage identity supports later windows;
+    allocation, grouping and lifecycle behavior remain follow-on work.
+  - **Accepted ADR and qualification:**
+    [Slice 60 status](0.8.28/features/slice-60/status.md), including scale,
+    cache/concurrency caveats, cutoff ties and independent verification.
   - Closes todo 306 (TC-016ff172).
 - **Slice 70 — vector eligibility inside vec0 (`VECTOR-ELIGIBILITY-NATIVE`).**
   - **Columns:** `lifecycle`, `valid_from` and `valid_until` metadata

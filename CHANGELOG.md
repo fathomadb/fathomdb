@@ -14,6 +14,10 @@ AC-050c) gates merges against this invariant.
 
 ### Added
 
+- (Slice 60) Per-vector head coverage distinguishes known UTF-8 byte endpoints
+  from unknown coverage. `fathomdb-embedder-api` 0.8.0 adds the default-unknown
+  `Embedder::truncation_offset` method; Candle BGE reports its actual endpoint.
+
 - A private CUDA memory pool on the Jetson AGX Orin 64 GB, behind the new
   `tegra-pool` Cargo feature (implied by `embed-cuda` and `rerank-cuda`
   since Slice 31). In `tegra-pool` builds every
@@ -84,6 +88,10 @@ AC-050c) gates merges against this invariant.
   built-in list's hash. Unset, compilation is unchanged.
 
 ### Changed
+
+- (Slice 60) Store format 35 uses 64-row vector chunks and cursor-keyed node
+  body FTS rows. Prior stores, including format 34, are refused without an
+  automatic migration. Rebuild and recenter maintain vector coverage.
 
 - (Slice 42) Updated the SQLite stack to `rusqlite` 0.41 and the crates.io
   `libsqlite3-sys` 0.39 (SQLite 3.54.1); the vendored `libsqlite3-sys`

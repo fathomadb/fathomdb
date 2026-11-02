@@ -122,3 +122,68 @@ proptest::proptest! {
         ledger.engine.close().unwrap();
     }
 }
+
+fn ordinary(claim: &str, body: &str) -> fathomdb_engine::PreparedWrite {
+    fathomdb_engine::PreparedWrite::Node {
+        kind: "doc".into(),
+        body: body.into(),
+        source_id: fathomdb_engine::SourceId::new("source").unwrap(),
+        logical_id: Some(claim.into()),
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    }
+}
+
+#[test]
+fn invalid_temporal_input_cannot_attach_intent_to_a_later_ordinary_write() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("invalid.sqlite")).unwrap();
+    assert!(ledger.change("claim", "intended", "", (0, 100), false).is_err());
+    ledger.engine.write(&[ordinary("claim", "ordinary")]).unwrap();
+    assert_eq!(
+        ledger
+            .read
+            .query_row("SELECT COUNT(*) FROM poc_fragments", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn interrupted_staging_cannot_survive_reopen_or_bind_an_unrelated_payload() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("interrupted.sqlite");
+    let ledger = Ledger::open(&path).unwrap();
+    ledger.engine.execute_for_test("INSERT INTO poc_intent VALUES('claim',0,100,0)").unwrap();
+    ledger.engine.close().unwrap();
+    drop(ledger);
+    let ledger = Ledger::open(&path).unwrap();
+    ledger.engine.write(&[ordinary("claim", "ordinary")]).unwrap();
+    assert_eq!(
+        ledger
+            .read
+            .query_row("SELECT COUNT(*) FROM poc_fragments", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn claim_source_is_immutable_and_unknown_batch_interior_is_not_a_knowledge_cut() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("cuts.sqlite")).unwrap();
+    ledger.change("claim", "A", "source", (0, 100), false).unwrap();
+    assert!(ledger.change("claim", "source hijack", "other-source", (0, 100), false).is_err());
+    let receipt =
+        ledger.engine.write(&[ordinary("first", "first"), ordinary("second", "second")]).unwrap();
+    assert!(receipt.row_cursors[0] < receipt.cursor);
+    assert!(
+        ledger.selected("claim", 10, receipt.row_cursors[0] as i64).is_err(),
+        "row cursor inside an atomic batch is not an authenticated temporal commit cut"
+    );
+    ledger.engine.close().unwrap();
+}

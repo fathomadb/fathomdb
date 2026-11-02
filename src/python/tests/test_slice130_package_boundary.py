@@ -212,6 +212,23 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     for old_stub, approved_stub in provider_stub_deltas:
         assert stub.count(approved_stub) == 1
         stub = stub.replace(approved_stub, old_stub, 1)
+    # Slice 80 changes only this view-contract comment; preserve the declaration
+    # checksum and every unapproved byte in the frozen baseline comparison.
+    historical_view_comment = (
+        "        # Optional lifecycle and validity view. Defaults to active,\n"
+        "        # non-superseded rows valid at query time. The existence flags compose\n"
+        "        # independently; unavailable dense history reports vector soft fallback.\n"
+        "        # See `fathomdb.engine.Engine.search`.\n"
+    )
+    original_view_comment = (
+        "        # 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — optional VALIDITY view.\n"
+        "        # `None` (default) is the strict view: active-only, non-superseded, and\n"
+        "        # valid AT QUERY TIME. The EXISTENCE flags (`include_superseded` /\n"
+        "        # `include_inactive`) raise `InvalidArgumentError` on this path rather\n"
+        "        # than being silently ignored. See `fathomdb.engine.Engine.search`.\n"
+    )
+    assert stub.count(historical_view_comment) == 1
+    stub = stub.replace(historical_view_comment, original_view_comment, 1)
     prefix, marker, tail = stub.partition("    def search_frozen(\n")
     assert marker and "    def search_frozen(\n" not in tail
     frozen, suffix = tail.split("    ) -> SearchResult: ...\n", 1)

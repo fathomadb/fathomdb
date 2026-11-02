@@ -5,3 +5,5 @@ pub mod ledger;
 pub mod history;
 
 pub mod fixture;
+
+pub mod metrics;

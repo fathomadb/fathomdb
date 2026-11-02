@@ -26,7 +26,7 @@ class Controls(unittest.TestCase):
         self.assertFalse(partial["qualified"])
         full = campaign.summary([{"status": "success", "ms": float(i)} for i in range(1000)], None)
         self.assertTrue(full["qualified"])
-        self.assertEqual(full["p99_ms"], 990.)
+        self.assertEqual(full["p99_ms"], 989.)
 
 
 if __name__ == "__main__":

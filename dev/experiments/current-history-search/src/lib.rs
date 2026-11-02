@@ -910,6 +910,14 @@ fn order_hits(hits: &mut Vec<Hit>, limit: usize) {
     hits.truncate(limit);
 }
 
+fn percentiles(_samples: &[f64]) -> Result<(f64, f64)> {
+    Ok((0.0, 0.0))
+}
+
+fn sweep(_records: &[usize], _history: &[usize], _samples: usize) -> Result<serde_json::Value> {
+    Ok(serde_json::json!({}))
+}
+
 /// Run the reproducible synthetic POC cost sweep; errors stop the run.
 pub fn run_benchmark() -> Result<()> {
     Ok(())

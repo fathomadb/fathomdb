@@ -666,3 +666,35 @@ fn review_archive_applies_source_validity_at_its_explicit_authority_instant() {
         "source's half-open authority interval ends at archive now"
     );
 }
+
+#[test]
+fn h7_measurement_math_uses_all_samples_and_rejects_an_empty_trial() {
+    assert_eq!(percentiles(&[10.0, 1.0, 2.0]).unwrap(), (2.0, 10.0));
+    assert_eq!(percentiles(&[7.0]).unwrap(), (7.0, 7.0));
+    assert!(percentiles(&[]).is_err());
+}
+
+#[test]
+fn h7_small_sweep_counts_real_rows_and_measures_every_backend_and_scope() {
+    let report = sweep(&[4], &[2], 3).unwrap();
+    assert_eq!(report["format"], "current-history-poc-v1");
+    let storage = &report["storage"][0];
+    assert_eq!(storage["current_rows"]["nodes"], 4);
+    assert_eq!(storage["current_rows"]["edges"], 4);
+    assert_eq!(storage["current_rows"]["properties"], 8);
+    assert_eq!(storage["all_rows"]["nodes"], 12);
+    assert_eq!(storage["all_rows"]["edges"], 12);
+    assert_eq!(storage["all_rows"]["properties"], 24);
+    let cells = report["cells"].as_array().unwrap();
+    assert_eq!(cells.len(), 18, "nine current cells and nine historical/clock cells");
+    for scope in ["current", "corrected_history", "prior_belief", "clock_fallback"] {
+        for backend in ["partitioned", "custom", "materialized"] {
+            assert!(cells.iter().any(|c| c["scope"] == scope && c["backend"] == backend));
+        }
+    }
+    for cell in cells {
+        assert_eq!(cell["samples"], 3);
+        assert!(cell["p95_ms"].as_f64().unwrap() >= cell["p50_ms"].as_f64().unwrap());
+        assert!(cell["max_score_delta"].as_f64().unwrap() < 1e-12);
+    }
+}

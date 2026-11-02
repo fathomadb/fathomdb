@@ -751,8 +751,7 @@ pub(crate) fn apply_batch_in_transaction(
                 // re-ingest of the same edge logical_id SUPERSEDES, never forks).
                 // No-op when logical_id is None.
                 if let Some(logical_id) = logical_id {
-                    // fix-30 [P2]: collect prior active cursors BEFORE tombstoning
-                    // so stale vector_default rows can be pruned.
+                    // Retained vectors must receive the canonical supersession metadata.
                     let prior_g0 = prior_edge_cursors_by_logical_id(tx, logical_id)?;
                     tx.execute(
                         "UPDATE canonical_edges SET superseded_at = ?1
@@ -760,31 +759,7 @@ pub(crate) fn apply_batch_in_transaction(
                         params![cursor, logical_id],
                     )?;
                     for sc in &prior_g0 {
-                        vector_storage::delete_vector_record_rows(tx, *sc)?;
-                        // Coalesced canonical writes disable the cleanup trigger.
-                        tx.execute(
-                            "DELETE FROM _fathomdb_vector_spans WHERE write_cursor=?1",
-                            [sc],
-                        )?;
-                        tx.execute(
-                            "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
-                            [sc],
-                        )?;
-                        // fix-32 [P2]: record terminal so advance_projection_cursor
-                        // can walk past this now-superseded cursor.
-                        // TC-45: the token MUST be 'up_to_date', NOT 'superseded'.
-                        // The terminal table (schema step 7) carries
-                        // CHECK(state IN ('failed','up_to_date')) and the writer is
-                        // INSERT OR IGNORE, which SILENTLY SKIPS a CHECK-violating
-                        // row — so 'superseded' was dropped without error and this
-                        // cursor stalled forever (nothing backfills it: the job
-                        // query and the pending-work probe both exclude superseded
-                        // edges). 'up_to_date' is the CHECK-valid, non-'failed'
-                        // terminal and is semantically exact here: the row is
-                        // tombstoned and its vector shadow just deleted, so there is
-                        // no further projection work for this cursor. Same reasoning
-                        // and same token as the step-23 backfill (fix-4, TC-33).
-                        record_projection_terminal(tx, *sc as u64, "up_to_date")?;
+                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                     }
                 }
                 // G11 — invalidate-not-accumulate: for fact-edges (body IS NOT NULL),
@@ -793,7 +768,7 @@ pub(crate) fn apply_batch_in_transaction(
                 // logical_id tombstone: it is keyed on the triple, not the identity.
                 // Regular edges (body=None) skip this path — they retain G0 semantics.
                 if body.is_some() {
-                    // fix-30 [P2]: collect and prune vector shadow for the superseded edge.
+                    // Update all vector rows for superseded endpoint facts.
                     let prior_g11 = prior_edge_cursors_by_triple(tx, from, to, kind)?;
                     tx.execute(
                         "UPDATE canonical_edges SET superseded_at = ?1
@@ -801,23 +776,7 @@ pub(crate) fn apply_batch_in_transaction(
                         params![cursor, from, to, kind],
                     )?;
                     for sc in &prior_g11 {
-                        vector_storage::delete_vector_record_rows(tx, *sc)?;
-                        // Coalesced canonical writes disable the cleanup trigger.
-                        tx.execute(
-                            "DELETE FROM _fathomdb_vector_spans WHERE write_cursor=?1",
-                            [sc],
-                        )?;
-                        tx.execute(
-                            "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
-                            [sc],
-                        )?;
-                        // fix-32 [P2]: mark terminal so projection cursor can advance.
-                        // TC-45: 'up_to_date', NOT 'superseded' — see the identical
-                        // note on the G0 prune loop above. The step-7 CHECK admits
-                        // only ('failed','up_to_date') and INSERT OR IGNORE swallows
-                        // a violating row, so 'superseded' never landed and wedged
-                        // the shared readiness watermark.
-                        record_projection_terminal(tx, *sc as u64, "up_to_date")?;
+                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                     }
                 }
                 let temporal_fallback_i: Option<i64> =

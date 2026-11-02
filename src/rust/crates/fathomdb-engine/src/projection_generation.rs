@@ -949,11 +949,10 @@ pub(crate) fn dense_member_kind_at(
         .query_row([cursor], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let Some((body, superseded_at, t_invalid)) = edge else {
+    let Some((body, _superseded_at, t_invalid)) = edge else {
         return Ok(None);
     };
     if body.is_none()
-        || superseded_at.is_some()
         || t_invalid.is_some_and(|end| end <= effective_at)
         || !super::dependency_closure::projection_owner_is_eligible_at(
             connection,
@@ -1054,7 +1053,7 @@ fn unregistered_edge_completion_sql() -> &'static str {
         LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=e.write_cursor
         LEFT JOIN vector_default vd ON vd.rowid=e.write_cursor
         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind='edge_fact'
-        WHERE e.body IS NOT NULL AND e.superseded_at IS NULL
+        WHERE e.body IS NOT NULL
           AND (e.t_invalid IS NULL OR e.t_invalid>?1)
           AND NOT EXISTS(
             SELECT 1 FROM _fathomdb_artifact_revisions r
@@ -1165,7 +1164,7 @@ fn empty_physical_fast_path(
     let (edge_count, first_edge): (u64, Option<u64>) = connection
         .query_row(
             "SELECT COUNT(*),MIN(write_cursor) FROM canonical_edges
-             WHERE body IS NOT NULL AND superseded_at IS NULL
+             WHERE body IS NOT NULL
                AND (t_invalid IS NULL OR t_invalid>?1)",
             [effective_at],
             |row| Ok((row.get(0)?, row.get(1)?)),
@@ -1411,7 +1410,7 @@ pub(crate) fn next_status_membership_boundary(
         .query_row(
             "WITH boundaries(boundary) AS (\
                SELECT t_invalid FROM canonical_edges \
-               WHERE body IS NOT NULL AND superseded_at IS NULL \
+               WHERE body IS NOT NULL \
                  AND t_invalid>?1 \
                UNION ALL \
                SELECT source_node.valid_from \

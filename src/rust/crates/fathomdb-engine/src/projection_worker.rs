@@ -904,7 +904,7 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
          LEFT JOIN _fathomdb_projection_terminal pt
            ON pt.write_cursor = ce.write_cursor
          WHERE ce.body IS NOT NULL
-           AND ce.superseded_at IS NULL{}
+           {}
            AND pt.write_cursor IS NULL",
         edge_validity_sql("ce", now_idx)
     )
@@ -1201,8 +1201,6 @@ pub(crate) fn connection_has_pending_projection_work(
     // G11 (Slice 15) fix-1 [P2] — also check canonical_edges for edge bodies
     // that were not projected before the engine closed. Without this check,
     // drain() returns idle while edge vectors remain unembedded on reopen.
-    // fix-31 [P2]: exclude superseded edges from the pending check so the
-    // scheduler does not pick up stale tombstoned rows as projection work.
     // 0.8.12 Slice A (R-CON-2 named default-ON blocker; Slice-20 codex §9
     // [P2]) — also exclude t_invalid-excluded (recency-consolidated) edges,
     // mirroring `next_pending_projection_jobs`'s edge arm. Required: without

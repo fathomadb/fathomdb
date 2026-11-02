@@ -211,7 +211,15 @@ pub(crate) fn commit_projection_outcomes(
     let effective_at = current_epoch_seconds();
     for outcome in outcomes {
         match outcome {
-            ProjectionOutcome::Success { cursor, kind, blob, bin_blob, generation_id } => {
+            ProjectionOutcome::Success {
+                cursor,
+                kind,
+                blob,
+                bin_blob,
+                body_length,
+                byte_end,
+                generation_id,
+            } => {
                 if current_generation_id != *generation_id {
                     continue;
                 }
@@ -261,6 +269,10 @@ pub(crate) fn commit_projection_outcomes(
                     "INSERT INTO _fathomdb_vector_rows(rowid, kind, write_cursor) \
                      VALUES(?1, ?2, ?3)",
                     params![cursor, kind, cursor],
+                )?;
+                tx.execute(
+                    "INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) VALUES(?1,?1,0,0,?2,?3)",
+                    params![cursor, byte_end, body_length],
                 )?;
                 // EU-5a2/EU-5f — sign-quant input is the mean-subtracted
                 // vector iff a mean is live (`current_mean`); otherwise the
@@ -479,11 +491,21 @@ impl Engine {
         let vector =
             vec![0.25_f32; self.projection_runtime.shared.embedder_identity.dimension as usize];
         let blob = encode_vector_blob(&vector);
+        let body_length: usize = {
+            let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = guard.as_ref().ok_or(EngineError::Closing)?;
+            connection.query_row(
+                "SELECT length(CAST(body AS BLOB)) FROM canonical_nodes WHERE write_cursor=?1 UNION ALL SELECT length(CAST(body AS BLOB)) FROM canonical_edges WHERE write_cursor=?1 LIMIT 1",
+                [cursor], |row| row.get(0),
+            ).optional().map_err(|_| EngineError::Storage)?.unwrap_or(0)
+        };
         let outcome = ProjectionOutcome::Success {
             cursor,
             kind: kind.to_string(),
             blob: blob.clone(),
             bin_blob: blob,
+            body_length,
+            byte_end: None,
             generation_id,
         };
         let mut connection = open_runtime_connection(

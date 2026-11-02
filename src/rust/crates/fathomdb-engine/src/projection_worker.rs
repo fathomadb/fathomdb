@@ -530,6 +530,8 @@ pub(crate) enum ProjectionOutcome {
         kind: String,
         blob: Vec<u8>,
         bin_blob: Vec<u8>,
+        body_length: usize,
+        byte_end: Option<usize>,
         generation_id: ProjectionGenerationId,
     },
     Failure {
@@ -644,6 +646,8 @@ fn embed_projection_batch(
                 kind: job.kind.clone(),
                 bin_blob: blob.clone(),
                 blob,
+                body_length: job.body.len(),
+                byte_end: None,
                 generation_id: job.generation_id.clone(),
             }
         })
@@ -835,6 +839,8 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
             kind: job.kind.clone(),
             blob,
             bin_blob,
+            body_length: job.body.len(),
+            byte_end: None,
             generation_id: job.generation_id.clone(),
         };
     }

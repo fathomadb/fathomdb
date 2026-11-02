@@ -599,6 +599,10 @@ impl Engine {
             params![cursor, kind, cursor],
         )
         .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) VALUES(?1,?1,0,0,NULL,?2)",
+            params![cursor, text.len()],
+        ).map_err(|_| EngineError::Storage)?;
         // Slice 10 / G10 — `status` ships an empty-string sentinel only: vec0 TEXT
         // metadata columns are NOT NULL-able ("Expected text for TEXT metadata
         // column"), so the "no real population yet" state is `''`, not NULL.

@@ -1,6 +1,7 @@
 # Formal implementation and hypothesis protocol
 
-Status: Astra reviewed; proceed with the refinements below before qualification.
+Status: COMPLETE — Astra reviewed; hypotheses tested and independently verified.
+Implementation and outcomes: [results.md](results.md).
 
 ## Scope and intended contract
 

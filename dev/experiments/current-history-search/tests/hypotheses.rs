@@ -60,3 +60,75 @@ fn h1_current_node_edge_and_property_scores_ignore_excluded_revisions() {
         }
     }
 }
+
+fn at(valid: i64, known: Option<i64>) -> View {
+    View::Snapshot { valid, known }
+}
+fn bodies(store: &Store, valid: i64, known: Option<i64>) -> Vec<String> {
+    store
+        .search_view("Paris OR London OR Lyon", Family::Node, None, 20, at(valid, known))
+        .unwrap()
+        .into_iter()
+        .map(|h| h.body)
+        .collect()
+}
+
+#[test]
+fn h2_late_world_change_preserves_previous_truth_and_prior_belief() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("world.sqlite"), 80).unwrap();
+    let mut original = change("address", "Paris", Family::Node, 10);
+    original.intent = Intent::Initial;
+    store.put(original).unwrap();
+    let mut moved = change("address", "London", Family::Node, 70);
+    moved.valid_from = 60;
+    moved.intent = Intent::WorldChange;
+    store.put(moved).unwrap();
+    assert_eq!(bodies(&store, 59, None), ["Paris"]);
+    assert_eq!(bodies(&store, 60, None), ["London"]);
+    assert_eq!(
+        bodies(&store, 65, Some(69)),
+        ["Paris"],
+        "late knowledge is not the world change time"
+    );
+    assert_eq!(bodies(&store, 65, Some(70)), ["London"]);
+}
+
+#[test]
+fn h2_partial_correction_and_nested_retraction_do_not_resurrect_errors() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("correction.sqlite"), 40).unwrap();
+    let mut original = change("address", "Paris", Family::Node, 10);
+    original.valid_to = Some(100);
+    original.intent = Intent::Initial;
+    store.put(original).unwrap();
+    let mut corrected = change("address", "Lyon", Family::Node, 20);
+    corrected.valid_from = 30;
+    corrected.valid_to = Some(60);
+    corrected.intent = Intent::Correction;
+    store.put(corrected).unwrap();
+    for (valid, expected) in
+        [(0, "Paris"), (29, "Paris"), (30, "Lyon"), (59, "Lyon"), (60, "Paris"), (99, "Paris")]
+    {
+        assert_eq!(bodies(&store, valid, None), [expected]);
+    }
+    assert!(bodies(&store, 100, None).is_empty());
+    assert_eq!(bodies(&store, 40, Some(19)), ["Paris"]);
+    assert_eq!(bodies(&store, 40, Some(20)), ["Lyon"]);
+    let mut retracted = change("address", "Lyon", Family::Node, 30);
+    retracted.valid_from = 35;
+    retracted.valid_to = Some(45);
+    retracted.intent = Intent::Retraction;
+    store.put(retracted).unwrap();
+    assert!(
+        bodies(&store, 40, None).is_empty(),
+        "withdrawal must not fall through to original Paris"
+    );
+    assert_eq!(bodies(&store, 34, None), ["Lyon"]);
+    assert_eq!(bodies(&store, 45, None), ["Lyon"]);
+    assert_eq!(bodies(&store, 40, Some(29)), ["Lyon"]);
+    let archive = store
+        .search_view("Paris", Family::Node, None, 20, View::Archive { include_retracted: true })
+        .unwrap();
+    assert!(!archive.is_empty(), "audit can retrieve the original incorrect assertion");
+}

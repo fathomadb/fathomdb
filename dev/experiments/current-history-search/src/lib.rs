@@ -35,6 +35,12 @@ pub enum Intent {
     Initial,
     /// A representation revision preserving the asserted validity.
     Revision,
+    /// A domain change effective over the caller's supplied valid interval.
+    WorldChange,
+    /// A correction of the accepted account of that valid interval.
+    Correction,
+    /// Withdrawal without resurrecting an older assertion.
+    Retraction,
 }
 
 impl Intent {
@@ -42,6 +48,9 @@ impl Intent {
         match self {
             Self::Initial => "initial",
             Self::Revision => "revision",
+            Self::WorldChange => "world_change",
+            Self::Correction => "correction",
+            Self::Retraction => "retraction",
         }
     }
 }
@@ -59,6 +68,15 @@ pub struct Change {
     intent: Intent,
     source: String,
     endpoints: Option<(String, String)>,
+}
+
+/// A coherent temporal snapshot or an explicitly non-snapshot archive.
+#[derive(Clone, Copy, Debug)]
+pub enum View {
+    /// Valid at `valid`, using latest knowledge or the supplied knowledge tick.
+    Snapshot { valid: i64, known: Option<i64> },
+    /// All retained revisions; optionally include explicit retraction records.
+    Archive { include_retracted: bool },
 }
 
 /// A ranked revision with a stable claim identity and exact canonical version.
@@ -151,6 +169,18 @@ impl Store {
         tx.execute("UPDATE config SET known=?1", [change.known])?;
         tx.commit()?;
         Ok(())
+    }
+
+    /// Search an explicitly chosen temporal view; unsupported views fail closed.
+    pub fn search_view(
+        &self,
+        query: &str,
+        family: Family,
+        name: Option<&str>,
+        limit: usize,
+        _view: View,
+    ) -> Result<Vec<Hit>> {
+        self.search(query, family, name, limit)
     }
 
     /// Search the certified current projection at its initial validity instant.

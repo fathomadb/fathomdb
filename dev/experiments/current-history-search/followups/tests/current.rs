@@ -196,3 +196,22 @@ fn zero_limit_never_emits_a_native_match() {
     assert!(store.search("needle", 50, 0).unwrap().rows.is_empty());
     store.close().unwrap();
 }
+
+#[test]
+fn first_search_without_explicit_bootstrap_cannot_certify_unseeded_frontier() {
+    use current_history_followups::current::CurrentStore;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("implicit.sqlite");
+    let engine = fathomdb_engine::Engine::open(&path).unwrap().engine;
+    engine
+        .write(&[
+            timed("a", "needle old", None, Some(100)),
+            timed("b", "needle future", Some(100), None),
+        ])
+        .unwrap();
+    engine.close().unwrap();
+    let store = CurrentStore::open(&path).unwrap();
+    assert_eq!(store.search("needle", 50, 10).unwrap().rows[0].body, "needle old");
+    assert_eq!(store.search("needle", 100, 10).unwrap().rows[0].body, "needle future");
+    store.close().unwrap();
+}

@@ -34,3 +34,12 @@ fn actual_family_counts_payloads_and_selection_axes_are_explicit() {
         }
     }
 }
+
+#[test]
+fn interrupted_fixture_is_never_reused_as_complete() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("partial.sqlite");
+    let engine = fathomdb_engine::Engine::open(&path).unwrap().engine;
+    engine.close().unwrap();
+    assert!(fixture::build(&path, "node", 4, 128, 100).is_err());
+}

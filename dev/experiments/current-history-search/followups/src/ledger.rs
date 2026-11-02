@@ -1,6 +1,6 @@
 use fathomdb_engine::{Engine, InitialState, PreparedWrite, SourceId};
 use rusqlite::{Connection, OpenFlags};
-use std::path::Path;
+use std::{path::Path, sync::Mutex};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -8,16 +8,17 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + S
 pub struct Ledger {
     pub engine: Engine,
     pub read: Connection,
+    admission: Mutex<()>,
 }
 
 impl Ledger {
     /// Create a real engine database and install only experiment-owned tables.
     pub fn open(path: &Path) -> Result<Self> {
         let engine = Engine::open(path)?.engine;
-        engine.execute_for_test("CREATE TABLE IF NOT EXISTS poc_fragments(fragment INTEGER PRIMARY KEY,claim TEXT NOT NULL,revision INTEGER NOT NULL,source TEXT NOT NULL,v0 INTEGER NOT NULL,v1 INTEGER NOT NULL,k0 INTEGER NOT NULL,k1 INTEGER,withdrawn INTEGER NOT NULL);")?;
+        engine.execute_for_test(include_str!("ledger.sql"))?;
         let read = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         read.execute_batch("PRAGMA query_only=ON")?;
-        Ok(Self { engine, read })
+        Ok(Self { engine, read, admission: Mutex::new(()) })
     }
 
     /// Submit the actual governed node write; the candidate associates interval intent.
@@ -26,22 +27,33 @@ impl Ledger {
         claim: &str,
         body: &str,
         source: &str,
-        _valid: (i64, i64),
-        _withdrawn: bool,
+        valid: (i64, i64),
+        withdrawn: bool,
     ) -> Result<u64> {
-        Ok(self
-            .engine
-            .write(&[PreparedWrite::Node {
-                kind: "doc".into(),
-                body: body.into(),
-                logical_id: Some(claim.into()),
-                source_id: SourceId::new(source)?,
-                state: InitialState::Active,
-                reason: None,
-                valid_from: None,
-                valid_until: None,
-            }])?
-            .row_cursors[0])
+        let _admission = self.admission.lock().map_err(|_| "admission poisoned")?;
+        let claim_literal = claim.replace('\'', "''");
+        self.engine.execute_for_test(&format!(
+            "INSERT INTO poc_intent VALUES('{claim_literal}',{},{},{})",
+            valid.0,
+            valid.1,
+            i64::from(withdrawn)
+        ))?;
+        let result = self.engine.write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: body.into(),
+            logical_id: Some(claim.into()),
+            source_id: SourceId::new(source)?,
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }]);
+        if result.is_err() {
+            self.engine.execute_for_test(&format!(
+                "DELETE FROM poc_intent WHERE claim='{claim_literal}'"
+            ))?;
+        }
+        Ok(result?.row_cursors[0])
     }
 
     /// Exact canonical revision selected by a half-open valid/knowledge scope.

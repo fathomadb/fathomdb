@@ -67,7 +67,6 @@ impl Engine {
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, frozen)?
         };
-        frozen.context.view.reject_existence_relaxation_on_search()?;
         self.search_inner_with_frozen_binding_and_stats(
             query,
             Some(frozen.context.eligibility.clone()),
@@ -113,7 +112,6 @@ impl Engine {
             frozen_read::authenticate(connection, &request.context)
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?
         };
-        request.context.context.view.reject_existence_relaxation_on_search()?;
         let result_limit = request.limit as usize;
         let candidate_limit = self
             .projection_runtime
@@ -326,7 +324,6 @@ impl Engine {
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, frozen)?
         };
-        frozen.context.view.reject_existence_relaxation_on_search()?;
         let (_search, _stats, expanded) = self.search_inner_with_frozen_binding_and_expansion(
             query,
             Some(frozen.context.eligibility.clone()),
@@ -979,7 +976,6 @@ impl Engine {
     ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
         self.ensure_open()?;
-        view.reject_existence_relaxation_on_search()?;
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -1060,7 +1056,6 @@ impl Engine {
     ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
         self.ensure_open()?;
-        view.reject_existence_relaxation_on_search()?;
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -1116,7 +1111,6 @@ impl Engine {
         // fix-2: refuse an existence-relaxing view BEFORE any work (and before the
         // Started event), so the refusal is a pure argument error rather than a
         // half-emitted query lifecycle.
-        view.reject_existence_relaxation_on_search()?;
         self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Search, None);
         let started = Instant::now();
         let outcome = self.search_inner(

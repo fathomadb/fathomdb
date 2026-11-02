@@ -708,26 +708,47 @@ pub(crate) fn body_fts_rank_sql(
     eligibility: &str,
     limit_clause: &str,
 ) -> String {
+    body_fts_rank_sql_view(
+        validity,
+        lifecycle,
+        eligibility,
+        limit_clause,
+        &crate::ReadView::default(),
+    )
+}
+
+pub(crate) fn body_fts_rank_sql_view(
+    validity: &str,
+    lifecycle: &str,
+    eligibility: &str,
+    limit_clause: &str,
+    view: &crate::ReadView,
+) -> String {
+    let existence = view.ownerless_existence_sql("cn");
     format!(
         "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
          bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
-         WHERE search_index MATCH ?1 \
-           AND cn.superseded_at IS NULL \
-           AND (cn.state = 'active' OR cn.state IS NULL)\
-           {validity}{lifecycle}{eligibility} \
+         WHERE search_index MATCH ?1 {existence}{validity}{lifecycle}{eligibility} \
          ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
     )
 }
 
 pub(crate) fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
+    edge_fts_rank_sql_view(validity, eligibility, &crate::ReadView::default())
+}
+
+pub(crate) fn edge_fts_rank_sql_view(
+    validity: &str,
+    eligibility: &str,
+    view: &crate::ReadView,
+) -> String {
+    let existence = view.edge_existence_sql("ce");
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
-         ce.logical_id, ce.source_id \
-         FROM search_index_edges sei \
+         ce.logical_id, ce.source_id FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
-         WHERE search_index_edges MATCH ?1 \
-           AND ce.superseded_at IS NULL{validity}{eligibility} \
+         WHERE search_index_edges MATCH ?1 {existence}{validity}{eligibility} \
          ORDER BY bm25(search_index_edges), sei.write_cursor"
     )
 }

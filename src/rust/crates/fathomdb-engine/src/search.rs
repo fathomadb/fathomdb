@@ -1748,13 +1748,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // from another. `?1` is the candidate rowid, so `:now` binds at `?2`.
         // On a corpus that never authored a window every row is NULL/NULL and
         // the conjunct matches everything ⇒ default behaviour is unchanged.
+        let node_existence = view.view.existence_sql("canonical_nodes");
         let node_validity = view.validity_sql("canonical_nodes", 2);
         let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
         let mut node_stmt = prepare_search_statement(
             &tx,
             &format!(
                 "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
-             WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
+             WHERE write_cursor = ?1{node_existence}\
              {node_validity}{node_eligibility} LIMIT 1"
             ),
         )?;
@@ -1770,13 +1771,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // (the :9161 no-inline-clock rule). edge_now is ALWAYS present, so unlike
         // node validity this conjunct is unconditional (an edge invalidated in the
         // past stays excluded even when node existence is relaxed).
+        let edge_existence = view.view.edge_existence_sql("canonical_edges");
         let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
         let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
         let mut edge_stmt = prepare_search_statement(
             &tx,
             &format!(
                 "SELECT body, logical_id, source_id FROM canonical_edges \
-             WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
+             WHERE write_cursor = ?1 AND body IS NOT NULL{edge_existence}\
              {edge_validity}{edge_eligibility} LIMIT 1"
             ),
         )?;
@@ -1958,6 +1960,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // with no DEFAULT), so both disjuncts are TRUE for every row and the
         // row-set, the `bm25(search_index), write_cursor` ordering and the
         // scores are all byte-unchanged.
+        let text_existence = view.view.ownerless_existence_sql("cn");
         let text_validity = view.validity_sql("cn", 2);
         let text_eligibility = read_dependency_eligibility("cn", 2);
         let mut text_params: Vec<rusqlite::types::Value> =
@@ -1991,8 +1994,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 view.view.include_out_of_window,
                 view.edge_now(),
             )?;
-        let join_sql =
-            body_fts_rank_sql(&text_validity, &text_eligibility, &text_filter, &limit_clause);
+        let join_sql = crate::filter::body_fts_rank_sql_view(
+            &text_validity,
+            &text_eligibility,
+            &text_filter,
+            &limit_clause,
+            &view.view,
+        );
         let rank_stream_requested =
             direct_text_candidate_limit.is_some() && filter.is_none() && !force_full_sort;
         let rank_stream_eligible = rank_stream_requested
@@ -2018,9 +2026,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                  bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
                  WHERE search_index MATCH ?1 \
-                   AND cn.superseded_at IS NULL \
-                   AND (cn.state = 'active' OR cn.state IS NULL)\
-                   {text_validity}{text_eligibility}{text_filter} \
+                   {text_existence}{text_validity}{text_eligibility}{text_filter} \
                    AND rank MATCH '{rank_mapping}' \
                  ORDER BY rank"
             );
@@ -2223,7 +2229,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         ];
         let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
         let edge_eligibility = format!("{edge_dependency}{edge_filter}");
-        let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
+        let edge_sql =
+            crate::filter::edge_fts_rank_sql_view(&edge_validity, &edge_eligibility, &view.view);
         let mut stmt = prepare_search_statement(&tx, &edge_sql)?;
         let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
             let body = row.get::<_, String>(0)?;
@@ -2590,11 +2597,10 @@ use crate::embedding::search_query_vector;
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
-    append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
-    build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter,
-    property_fts_cohort_stream_sql, property_fts_rank_sql, property_fts_rank_stream_sql,
-    validate_filter_attributes_on_snapshot, vector_filter_values, SearchFilter,
-    SnapshotFilterError,
+    append_edge_eligibility_sql, append_node_eligibility_sql, build_vector_phase1_sql,
+    hit_attributes_pass_filter, property_fts_cohort_stream_sql, property_fts_rank_sql,
+    property_fts_rank_stream_sql, validate_filter_attributes_on_snapshot, vector_filter_values,
+    SearchFilter, SnapshotFilterError,
 };
 use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
 use crate::fusion::{

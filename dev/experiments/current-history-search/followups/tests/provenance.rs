@@ -96,3 +96,36 @@ fn exact_intrinsic_revision_and_source_authority_survive_fragment_selection() {
     );
     ledger.engine.close().unwrap();
 }
+
+#[test]
+fn declared_derived_revision_requires_positive_source_link() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("missing-link.sqlite")).unwrap();
+    ledger.engine.write(&[source()]).unwrap();
+    let cut = ledger.change_prepared(derived("assertion-r1", "body"), (0, 100), false).unwrap();
+    ledger
+        .engine
+        .execute_for_test(
+            "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='assertion-r1'",
+        )
+        .unwrap();
+    assert!(ledger.selected("claim", 10, cut as i64).unwrap().is_empty());
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn temporal_adapter_refuses_independent_canonical_validity_windows() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("double-window.sqlite")).unwrap();
+    ledger.engine.write(&[source()]).unwrap();
+    let PreparedWrite::ProvenancedNode(mut node) = derived("assertion-r1", "body") else {
+        unreachable!()
+    };
+    node.valid_from = Some(1);
+    assert!(ledger.change_prepared(PreparedWrite::ProvenancedNode(node), (0, 100), false).is_err());
+    assert_eq!(
+        ledger.engine.query_i64_col_for_test("SELECT COUNT(*) FROM poc_claims").unwrap(),
+        vec![0]
+    );
+    ledger.engine.close().unwrap();
+}

@@ -1,10 +1,18 @@
-CREATE TABLE IF NOT EXISTS poc_intent(claim TEXT PRIMARY KEY,v0 INTEGER NOT NULL,v1 INTEGER NOT NULL CHECK(v0<v1),withdrawn INTEGER NOT NULL CHECK(withdrawn IN (0,1)));
+CREATE TEMP TABLE IF NOT EXISTS poc_operation(claim TEXT PRIMARY KEY,body TEXT NOT NULL,source TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS poc_claims(claim TEXT PRIMARY KEY,source TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS poc_cuts(cut INTEGER PRIMARY KEY);
+INSERT OR IGNORE INTO poc_cuts VALUES(0);
+CREATE TEMP TABLE IF NOT EXISTS poc_intent(claim TEXT PRIMARY KEY,v0 INTEGER NOT NULL,v1 INTEGER NOT NULL CHECK(v0<v1),withdrawn INTEGER NOT NULL CHECK(withdrawn IN (0,1)));
 CREATE TABLE IF NOT EXISTS poc_fragments(fragment INTEGER PRIMARY KEY,claim TEXT NOT NULL,revision INTEGER NOT NULL,source TEXT NOT NULL,v0 INTEGER NOT NULL,v1 INTEGER NOT NULL CHECK(v0<v1),k0 INTEGER NOT NULL,k1 INTEGER CHECK(k1 IS NULL OR k0<k1),withdrawn INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS poc_claim_knowledge ON poc_fragments(claim,k1,v0,v1);
 CREATE INDEX IF NOT EXISTS poc_revision ON poc_fragments(revision);
-CREATE TRIGGER IF NOT EXISTS poc_temporal_insert AFTER INSERT ON canonical_nodes
-WHEN EXISTS(SELECT 1 FROM poc_intent WHERE claim=NEW.logical_id)
+CREATE TEMP TRIGGER IF NOT EXISTS poc_temporal_insert AFTER INSERT ON main.canonical_nodes
+WHEN EXISTS(SELECT 1 FROM poc_intent i JOIN poc_operation o ON i.claim=o.claim
+WHERE i.claim=NEW.logical_id AND o.body=NEW.body AND o.source=NEW.source_id)
 BEGIN
+  SELECT CASE WHEN EXISTS(SELECT 1 FROM poc_claims WHERE claim=NEW.logical_id AND source<>NEW.source_id) THEN RAISE(ABORT,'claim source is immutable') END;
+  INSERT OR IGNORE INTO poc_claims VALUES(NEW.logical_id,NEW.source_id);
+  INSERT INTO poc_cuts VALUES(NEW.write_cursor);
   INSERT INTO poc_fragments(claim,revision,source,v0,v1,k0,withdrawn)
     SELECT f.claim,f.revision,f.source,f.v0,i.v0,NEW.write_cursor,f.withdrawn
     FROM poc_fragments f JOIN poc_intent i ON i.claim=f.claim
@@ -23,6 +31,7 @@ BEGIN
     SELECT claim,NEW.write_cursor,NEW.source_id,v0,v1,NEW.write_cursor,withdrawn
     FROM poc_intent WHERE claim=NEW.logical_id;
   DELETE FROM poc_intent WHERE claim=NEW.logical_id;
+  DELETE FROM poc_operation WHERE claim=NEW.logical_id;
 END;
 CREATE TRIGGER IF NOT EXISTS poc_temporal_erase AFTER DELETE ON canonical_nodes
 BEGIN DELETE FROM poc_fragments WHERE revision=OLD.write_cursor; END;

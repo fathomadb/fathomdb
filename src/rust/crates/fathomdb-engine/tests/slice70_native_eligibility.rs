@@ -262,3 +262,39 @@ fn atomic_actuation_updates_native_lifecycle() {
         1
     );
 }
+
+#[test]
+fn purge_refuses_an_unmapped_head_without_deleting_canonical_state() {
+    use fathomdb_engine::LifecycleState;
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("orphan-head.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[node("item", None, None)]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    opened.engine.transition("l:item", LifecycleState::Deleted, Some("retired".into())).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    conn.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor=1", []).unwrap();
+    assert!(
+        opened.engine.purge("l:item").is_err(),
+        "unmapped vector ownership must not report successful erasure"
+    );
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM canonical_nodes WHERE write_cursor=1", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM vector_default WHERE rowid=1", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM search_index WHERE write_cursor=1", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+}

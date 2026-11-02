@@ -97,7 +97,9 @@ fn projection_physical_tuple_is_empty(
     let vector_count: u64 = connection
         .prepare_cached("SELECT COUNT(*) FROM vector_default WHERE rowid=?1")?
         .query_row([cursor], |row| row.get(0))?;
-    Ok(sidecar_count == 0 && vector_count == 0)
+    Ok(sidecar_count == 0
+        && vector_count == 0
+        && crate::vector_spans::count_for_cursor(connection, cursor)? == 0)
 }
 
 fn projection_tuple_corruption() -> rusqlite::Error {

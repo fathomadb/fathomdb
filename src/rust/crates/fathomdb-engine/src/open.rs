@@ -1183,6 +1183,11 @@ impl Engine {
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
             .map_err(map_migration_error)?;
         validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
+        if migration.schema_version_after >= 35 {
+            crate::vector_spans::validate(&connection, None).map_err(|_| EngineOpenError::Io {
+                message: "vector span tuple is partial or mismatched".to_string(),
+            })?;
+        }
         frozen_read::validate_on_open(&connection, migration.schema_version_after)
             .map_err(|message| EngineOpenError::Io { message })?;
         dependency_closure::validate_closure_state_on_open(

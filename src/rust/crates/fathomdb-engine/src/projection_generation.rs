@@ -377,6 +377,7 @@ fn bootstrap_is_fresh(connection: &Connection) -> Result<bool, EngineError> {
         "_fathomdb_projection_terminal",
         "_fathomdb_vector_kinds",
         "_fathomdb_vector_rows",
+        "_fathomdb_vector_spans",
         "_fathomdb_embed_probe",
         "search_index",
         "search_index_v2",
@@ -741,6 +742,7 @@ fn member_completion(
     is_edge: bool,
     runtime_state: ProjectionRuntimeStateV1,
 ) -> Result<Completion, EngineError> {
+    crate::vector_spans::validate(connection, Some(cursor))?;
     let terminal: Option<String> = connection
         .query_row(
             "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
@@ -1293,6 +1295,7 @@ fn physical_completion(
     runtime_state: ProjectionRuntimeStateV1,
     observed_boundary: u64,
 ) -> Result<CompletionSummary, EngineError> {
+    crate::vector_spans::validate(connection, None)?;
     validate_registered_provenance_integrity(connection)?;
     let cross_owner_cursor: bool = connection
         .query_row(

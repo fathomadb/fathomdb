@@ -94,6 +94,7 @@ pub(crate) fn restore_registered_derived_projections(
     {
         return Ok(false);
     }
+    crate::vector_spans::validate(tx, Some(cursor as u64))?;
     let terminal: Option<String> = tx
         .query_row(
             "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",

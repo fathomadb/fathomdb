@@ -126,6 +126,7 @@ pub use telemetry::CounterSnapshot;
 mod temporal;
 mod test_hooks;
 mod vector_equivalence;
+mod vector_spans;
 mod vector_storage;
 mod wal_attribution;
 mod wal_runtime;
@@ -1094,7 +1095,7 @@ mod tests {
         let opened = current.join().expect("current opener thread").expect("current open");
         assert_eq!(opened.report.schema_version_before, 0);
         assert_eq!(opened.report.schema_version_after, 35);
-        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(34));
+        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(35));
         opened.engine.close().expect("close current engine");
     }
 

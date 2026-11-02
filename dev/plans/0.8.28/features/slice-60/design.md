@@ -130,7 +130,8 @@ Use real SQLite stores for shape/refusal, rowid gaps, rebuild/reopen,
 recentring, erasure and transactional spans. Property tests generate valid
 UTF-8 bodies and ranges and verify round trips and rejected boundaries.
 Use small deterministic tokenizer fixtures for offset semantics and actual
-BGE eu7 for numerical behavior. Exercise dispatch timeout, late result,
+BGE TC-5 GPU bridge for binding numerical qualification; retain the requested
+legacy eu7 measurement separately. Exercise dispatch timeout, late result,
 provider failure, batch cardinality and generation-change regressions.
 Run affected schema, vector-shape, mean/recenter, projection, provider,
 readiness, erasure and rebuild suites; the final gate checks shared crate
@@ -141,3 +142,23 @@ Reuse the experiment's deterministic vector generator and two-stage query.
 Document parameters in its README, test percentile/row-count correctness,
 keep output outside git, and summarize results in status. Astra reviews the
 design before code and the final implementation before slice closure.
+
+## Candidate-bound recall oracle
+
+Astra reviewed the authoritative Slice 85 protocol and accepted dispatch ADR
+referenced in [requirements](requirements.md#recall-qualification-reconciliation).
+Use the existing TC-5 GPU v2 runner unchanged except for explicit product
+release 0.8.28 to workspace package 0.8.27 support. The current Cargo workspace
+version is 0.8.27; do not claim a 0.8.28 package exists or relabel a prior run.
+Require a fresh candidate configuration binding the actual source SHA, wheel,
+CLI and benchmark digests, candidate interpreter and model assets. Existing
+digest/runtime checks remain mandatory; missing or mismatched bindings fail.
+
+The frozen 7,667-real-document bridge (zero synthetic rows), same-model exact
+f32 ground truth, k192
+vector candidates, top10, 100 queries and 1,000 bootstrap resamples remain
+unchanged. AC-075 uses its established 95% CI-high >= 0.90 criterion. The 17,272-row
+primary need not be repeated for this slice. Preserve the actual legacy EU7
+failure (CI-high 0.897 at 1,000 rows) as diagnostic evidence, not a passing
+qualification or a substitute baseline. This correction does not change
+AC-013, the chunk-layout experiment or any acceptance threshold.

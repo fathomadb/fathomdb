@@ -37,7 +37,7 @@ that existing checkout, with one writer. No Steward or Orchestrator.
    that permissive policy with a current-layout check.
 6. CS64 evidence stops at 300k rows and has a Hamming-cutoff tie difference.
    Qualify 64/128/256 to 2M vector rows before freezing; report tie-aware
-   equivalence and eu7 recall, not a false byte-identical ranking promise.
+   equivalence and governed TC-5 recall; retain the requested eu7 diagnostic.
    Keep one short status record, no generated benchmark data in git.
 
 ## Work sequence
@@ -55,7 +55,9 @@ that existing checkout, with one writer. No Steward or Orchestrator.
 4. Keep a reproducible vector-only 2M benchmark in the repo, adapted from
    the AC-013 prototypes; test measurement correctness. Run AC-013,
    report-only ac_013b, and real BGE eu7 on RTX 3090. Record actual results
-   and decide the layout using the rule below before accepting the ADR.
+   and run the candidate-bound TC-5 bridge specified in the reconciled
+   requirements for binding recall qualification. Decide the layout using
+   the rule below before accepting the ADR.
 5. Astra code review and a separate test agent verify the affected suites.
    Run the full agent gate once on the final code tree; fix individual
    findings with scoped reruns, without repeated full regressions.

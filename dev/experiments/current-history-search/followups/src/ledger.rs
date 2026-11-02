@@ -96,7 +96,13 @@ impl Ledger {
                     .into(),
             );
         }
-        Ok(self.read.prepare("SELECT f.revision,n.body FROM poc_fragments f JOIN canonical_nodes n ON n.write_cursor=f.revision WHERE n.state='active' AND f.claim=?1 AND f.v0<=?2 AND ?2<f.v1 AND f.k0<=?3 AND (f.k1 IS NULL OR ?3<f.k1) AND f.withdrawn=0 ORDER BY f.fragment")?
-            .query_map(rusqlite::params![claim, valid, known], |r| Ok((r.get(0)?,r.get(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?)
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
+        let sql=format!("SELECT f.revision,n.body FROM poc_fragments f JOIN canonical_nodes n ON n.write_cursor=f.revision WHERE n.state='active' AND f.claim=?1 AND f.v0<=?2 AND ?2<f.v1 AND f.k0<=?3 AND (f.k1 IS NULL OR ?3<f.k1) AND f.withdrawn=0 AND ({}) ORDER BY f.fragment",include_str!("source_authority.sql"));
+        Ok(self
+            .read
+            .prepare(&sql)?
+            .query_map(rusqlite::params![claim, valid, known, now], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?)
     }
 }

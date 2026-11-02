@@ -8,9 +8,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 
 use crate::errors::EngineError;
-use crate::filter::{
-    append_node_eligibility_sql, validate_filter_attributes_on_snapshot, SearchFilter,
-};
+use crate::filter::{validate_filter_attributes_on_snapshot, SearchFilter};
 use crate::frozen_read;
 use crate::identity::IdSpaceKind;
 use crate::projection_generation::{
@@ -463,7 +461,14 @@ fn load_node(
     if let Some(now) = view.now_param() {
         params.push(rusqlite::types::Value::Integer(now));
     }
-    let eligibility = append_node_eligibility_sql(Some(filter), "n", &mut params);
+    let eligibility = crate::filter::append_node_eligibility_sql_view(
+        tx,
+        Some(filter),
+        "n",
+        &mut params,
+        &view.view,
+    )
+    .map_err(|_| EngineError::Storage)?;
     let sql = format!(
         "SELECT n.kind,n.body,n.write_cursor FROM canonical_nodes n WHERE n.logical_id=?1{}{} ORDER BY n.write_cursor DESC LIMIT 1",
         view.node_sql("n", 2), eligibility

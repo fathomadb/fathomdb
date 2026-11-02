@@ -299,3 +299,101 @@ fn h5_clock_only_boundary_invalidates_native_partition_but_certified_fallback_is
         ["future", "stays"].into_iter().collect()
     );
 }
+
+fn edge_change(
+    id: &str,
+    body: &str,
+    from: &str,
+    to: &str,
+    known: i64,
+    valid_from: i64,
+    valid_to: Option<i64>,
+) -> Change {
+    let mut c = change(id, body, Family::Edge, known);
+    c.endpoints = Some((from.into(), to.into()));
+    c.valid_from = valid_from;
+    c.valid_to = valid_to;
+    c
+}
+
+#[test]
+fn h3_graph_never_combines_noncoexisting_edges_and_resolves_both_clocks() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("graph.sqlite"), 15).unwrap();
+    for (id, known) in [("A", 1), ("B", 2), ("C", 3)] {
+        store.put(change(id, id, Family::Node, known)).unwrap();
+    }
+    store.put(edge_change("ab", "connect", "A", "B", 4, 0, Some(20))).unwrap();
+    store.put(edge_change("bc", "connect", "B", "C", 5, 30, None)).unwrap();
+    assert_eq!(store.graph("A", at(15, None), 3, 10).unwrap(), [("B".into(), "B".into(), 1)]);
+    assert!(store.graph("A", at(35, None), 3, 10).unwrap().is_empty());
+    store.put(edge_change("bc-window", "connect", "B", "C", 6, 10, Some(18))).unwrap();
+    assert_eq!(
+        store.graph("A", at(15, None), 3, 10).unwrap(),
+        [("B".into(), "B".into(), 1), ("C".into(), "C".into(), 2)]
+    );
+    assert_eq!(store.graph("A", at(18, None), 3, 10).unwrap().len(), 1);
+    let mut correction = change("B", "B corrected", Family::Node, 7);
+    correction.intent = Intent::Correction;
+    store.put(correction).unwrap();
+    assert_eq!(store.graph("A", at(15, None), 3, 10).unwrap()[0].1, "B corrected");
+    assert_eq!(store.graph("A", at(15, Some(6)), 3, 10).unwrap()[0].1, "B");
+    assert!(store.graph("A", View::Archive { include_retracted: true }, 3, 10).is_err());
+}
+
+#[test]
+fn h1_h3_revision_multiplicity_cannot_consume_default_seed_or_graph_slots() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("seeds.sqlite"), 50).unwrap();
+    for (id, known) in [("A", 1), ("B", 2), ("C", 3)] {
+        store.put(change(id, id, Family::Node, known)).unwrap();
+    }
+    for known in 4..30 {
+        store.put(edge_change("ab", "alpha oldword oldword", "A", "B", known, 0, None)).unwrap();
+    }
+    store.put(edge_change("ab", "alpha", "A", "B", 30, 0, None)).unwrap();
+    store.put(edge_change("bc", "beta", "B", "C", 31, 0, None)).unwrap();
+    let before = store.lexical_seeds("alpha OR beta", at(50, None), 3).unwrap();
+    assert_eq!(before.len(), 3, "unique endpoints are capped after grouping");
+    let ranked = identity_scores(
+        &store
+            .search_backend(
+                "alpha OR beta",
+                Family::Edge,
+                None,
+                1,
+                at(50, None),
+                Backend::Partitioned,
+            )
+            .unwrap(),
+    );
+    for known in 32..55 {
+        store.put(edge_change("ab", "alpha oldword oldword", "A", "B", known, 0, None)).unwrap();
+    }
+    store.put(edge_change("ab", "alpha", "A", "B", 55, 0, None)).unwrap();
+    assert_eq!(store.lexical_seeds("alpha OR beta", at(50, None), 3).unwrap(), before);
+    assert_eq!(
+        identity_scores(
+            &store
+                .search_backend(
+                    "alpha OR beta",
+                    Family::Edge,
+                    None,
+                    1,
+                    at(50, None),
+                    Backend::Partitioned
+                )
+                .unwrap()
+        ),
+        ranked
+    );
+    assert_eq!(
+        store
+            .graph("A", at(50, None), 3, 2)
+            .unwrap()
+            .iter()
+            .map(|t| t.0.as_str())
+            .collect::<Vec<_>>(),
+        ["B", "C"]
+    );
+}

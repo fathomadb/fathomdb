@@ -209,6 +209,22 @@ impl Store {
         Ok(())
     }
 
+    /// Expand a single temporal snapshot; archive unions have no snapshot meaning.
+    pub fn graph(
+        &self,
+        _seed: &str,
+        _view: View,
+        _depth: usize,
+        _limit: usize,
+    ) -> Result<Vec<(String, String, usize)>> {
+        Ok(Vec::new())
+    }
+
+    /// Select unique eligible endpoint seeds from ranked edge text before a cap.
+    pub fn lexical_seeds(&self, _query: &str, _view: View, _limit: usize) -> Result<Vec<String>> {
+        Ok(Vec::new())
+    }
+
     /// Compare one backend under an explicitly selected temporal view.
     pub fn search_backend(
         &self,

@@ -520,3 +520,21 @@ impl Engine {
             .map_err(|_| EngineError::Storage)
     }
 }
+
+#[cfg(test)]
+mod span_trigger_tests {
+    use super::*;
+
+    #[test]
+    fn owned_span_cleanup_allows_coalescing_but_custom_span_triggers_do_not() {
+        crate::configure_runtime_for_open().unwrap();
+        let connection = Connection::open_in_memory().unwrap();
+        fathomdb_schema::migrate(&connection).unwrap();
+        assert!(projection_batch_has_no_custom_triggers(&connection).unwrap());
+        for temp in ["", "TEMP "] {
+            connection.execute_batch(&format!("CREATE {temp}TRIGGER custom_span AFTER INSERT ON _fathomdb_vector_spans BEGIN SELECT 1; END;")).unwrap();
+            assert!(!projection_batch_has_no_custom_triggers(&connection).unwrap());
+            connection.execute_batch("DROP TRIGGER custom_span").unwrap();
+        }
+    }
+}

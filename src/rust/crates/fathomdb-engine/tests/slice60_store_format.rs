@@ -246,3 +246,30 @@ fn missing_span_cleanup_trigger_is_refused() {
 fn altered_span_cleanup_trigger_is_refused() {
     assert_cleanup_authority_required(true);
 }
+
+#[test]
+fn custom_span_trigger_runs_and_invalidates_frozen_reads() {
+    use fathomdb_engine::{ReadContextV1, ReadView, SearchFilter};
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("custom-span.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let conn = Connection::open(&path).unwrap();
+    conn.execute_batch("CREATE TRIGGER custom_span AFTER INSERT ON _fathomdb_vector_spans BEGIN UPDATE canonical_nodes SET reason='span-trigger' WHERE write_cursor=NEW.write_cursor; END;").unwrap();
+    let (reached, release) = opened.engine.pause_projection_worker_before_write_lock_for_test();
+    opened.engine.write(&[node("hello")]).unwrap();
+    reached.wait();
+    let frozen = opened.engine.freeze_read_context(
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
+    release.wait();
+    let frozen = frozen.unwrap();
+    opened.engine.drain(10_000).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT reason FROM canonical_nodes", [], |r| r.get::<_, String>(0))
+            .unwrap(),
+        "span-trigger"
+    );
+    assert!(opened.engine.validate_frozen_read_context_for_binding(&frozen).is_err());
+}

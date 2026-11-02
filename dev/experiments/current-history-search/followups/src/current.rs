@@ -32,7 +32,7 @@ use std::{
         mpsc, Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 /// Native current-family collector result. Scores are native BM25, not hybrid RRF.
@@ -145,10 +145,19 @@ impl CurrentStore {
     }
     /// Bootstrap the current family from dirty canonical rows and initial bounds.
     pub fn bootstrap(&self, valid: i64) -> Result<()> {
-        self.publish(valid, true)
+        self.publish(valid, true, Instant::now() + Duration::from_secs(600))
     }
-    fn publish(&self, valid: i64, bootstrap: bool) -> Result<()> {
-        let _guard = self.admission.lock().unwrap();
+    fn publish(&self, valid: i64, bootstrap: bool, deadline: Instant) -> Result<()> {
+        let _guard = loop {
+            if Instant::now() >= deadline {
+                return Err(Failure::Deadline.into());
+            }
+            match self.admission.try_lock() {
+                Ok(guard) => break guard,
+                Err(std::sync::TryLockError::WouldBlock) => thread::sleep(Duration::from_millis(1)),
+                Err(_) => return Err("admission poisoned".into()),
+            }
+        };
         self.writer_contacts.fetch_add(1, Ordering::Relaxed);
         if self.closed.load(Ordering::Acquire) {
             return Err(Failure::Closed.into());
@@ -208,9 +217,9 @@ impl CurrentStore {
         query: &str,
         valid: i64,
         limit: usize,
-        _budget: Duration,
+        budget: Duration,
     ) -> std::result::Result<ReadResult, Failure> {
-        self.search(query, valid, limit)
+        self.search_until(query, valid, limit, None, Instant::now() + budget)
     }
     /// Test-only snapshot rendezvous on the same candidate collector.
     pub fn search_paused(
@@ -218,7 +227,17 @@ impl CurrentStore {
         query: &str,
         valid: i64,
         limit: usize,
+        pause: Option<Pause>,
+    ) -> std::result::Result<ReadResult, Failure> {
+        self.search_until(query, valid, limit, pause, Instant::now() + Duration::from_secs(5))
+    }
+    fn search_until(
+        &self,
+        query: &str,
+        valid: i64,
+        limit: usize,
         mut pause: Option<Pause>,
+        deadline: Instant,
     ) -> std::result::Result<ReadResult, Failure> {
         for _ in 0..3 {
             if self.closed.load(Ordering::Acquire) {
@@ -226,24 +245,44 @@ impl CurrentStore {
             }
             let (reply, receive) = mpsc::sync_channel(1);
             let worker = self.next.fetch_add(1, Ordering::Relaxed) % self.senders.len();
-            self.senders[worker]
-                .send(Work::Query(Request {
-                    query: query.into(),
-                    valid,
-                    limit,
-                    pause: pause.take(),
-                    reply,
-                }))
-                .map_err(|_| Failure::Closed)?;
-            match receive.recv().map_err(|_| Failure::Closed)? {
-                Err(Failure::RefreshRequired) => self.publish(valid, false).map_err(|e| {
-                    if e.downcast_ref::<Failure>() == Some(&Failure::BackwardTime) {
-                        Failure::BackwardTime
-                    } else {
-                        Failure::Storage(e.to_string())
+            let mut work = Work::Query(Request {
+                query: query.into(),
+                valid,
+                limit,
+                pause: pause.take(),
+                reply,
+            });
+            loop {
+                if Instant::now() >= deadline {
+                    return Err(Failure::Deadline);
+                }
+                match self.senders[worker].try_send(work) {
+                    Ok(()) => break,
+                    Err(mpsc::TrySendError::Full(returned)) => {
+                        work = returned;
+                        thread::sleep(Duration::from_millis(1));
                     }
-                })?,
-                result => return result,
+                    Err(mpsc::TrySendError::Disconnected(_)) => return Err(Failure::Closed),
+                }
+            }
+            match receive.recv_timeout(deadline.saturating_duration_since(Instant::now())).map_err(
+                |e| match e {
+                    mpsc::RecvTimeoutError::Timeout => Failure::Deadline,
+                    _ => Failure::Closed,
+                },
+            )? {
+                Err(Failure::RefreshRequired) => {
+                    self.publish(valid, false, deadline).map_err(|e| {
+                        if let Some(failure) = e.downcast_ref::<Failure>() {
+                            failure.clone()
+                        } else {
+                            Failure::Storage(e.to_string())
+                        }
+                    })?
+                }
+                result => {
+                    return if Instant::now() >= deadline { Err(Failure::Deadline) } else { result }
+                }
             }
         }
         Err(Failure::RetryLimit)
@@ -292,7 +331,7 @@ fn read_current(
         let mut statement=tx.prepare("SELECT rowid,body,bm25(poc_current) FROM poc_current WHERE poc_current MATCH ?1 ORDER BY bm25(poc_current),rowid")?;
         let mut rows = Vec::new();
         let mut bodies = std::collections::HashSet::new();
-        if !compiled.match_expression.is_empty() {
+        if request.limit > 0 && !compiled.match_expression.is_empty() {
             let mut cursor = statement.query([compiled.match_expression])?;
             while let Some(row) = cursor.next()? {
                 let body: String = row.get(1)?;

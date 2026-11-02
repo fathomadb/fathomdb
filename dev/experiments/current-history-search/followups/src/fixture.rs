@@ -28,7 +28,7 @@ pub fn build(path: &Path, family: &str, history: usize, bytes: usize, n: usize) 
         };
     }
     let engine = Engine::open_with_embedder_for_test(path, Arc::new(Fixed))?.engine;
-    engine.execute_for_test("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER NOT NULL,version INTEGER NOT NULL); CREATE INDEX poc_versions_selection ON poc_versions(version,ordinal);")?;
+    engine.execute_for_test("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER NOT NULL,version INTEGER NOT NULL,commit_cut INTEGER NOT NULL); CREATE INDEX poc_versions_selection ON poc_versions(version,ordinal);")?;
     if family == "edge" {
         for start in (0..=n).step_by(1000) {
             let endpoints = (start..(start + 1000).min(n + 1))
@@ -61,13 +61,18 @@ pub fn build(path: &Path, family: &str, history: usize, bytes: usize, n: usize) 
                 .row_cursors
                 .iter()
                 .enumerate()
-                .map(|(i, c)| format!("({c},{},{version})", start + i))
+                .map(|(i, c)| format!("({c},{},{version},{})", start + i, receipt.cursor))
                 .collect::<Vec<_>>()
                 .join(",");
             engine.execute_for_test(&format!("INSERT INTO poc_versions VALUES {values}"))?;
         }
         engine.drain(600_000)?;
     }
+    // Import a completed fixture from real batch high-water receipts; this is not a production write protocol.
+    engine.execute_for_test(&format!("CREATE TABLE poc_temporal_fragments(cursor INTEGER NOT NULL,ordinal INTEGER NOT NULL,v0 INTEGER NOT NULL,v1 INTEGER NOT NULL,k0 INTEGER NOT NULL,k1 INTEGER);
+        INSERT INTO poc_temporal_fragments SELECT cursor,ordinal,CASE WHEN version={history} AND {history}>0 AND ordinal<10 THEN 20 ELSE 0 END,100,commit_cut,LEAD(commit_cut) OVER(PARTITION BY ordinal ORDER BY version) FROM poc_versions;
+        INSERT INTO poc_temporal_fragments SELECT old.cursor,old.ordinal,0,20,new.commit_cut,NULL FROM poc_versions old JOIN poc_versions new ON old.ordinal=new.ordinal AND new.version={history} WHERE {history}>0 AND old.version={history}-1 AND old.ordinal<10;
+        CREATE INDEX poc_temporal_selection ON poc_temporal_fragments(cursor,k0,k1,v0,v1);"))?;
     engine.execute_for_test("CREATE TABLE poc_fixture_complete(complete INTEGER NOT NULL); INSERT INTO poc_fixture_complete VALUES(1);")?;
     engine.close()?;
     Ok(())
@@ -88,17 +93,33 @@ pub fn payload(bytes: usize, ordinal: usize, version: usize) -> String {
 pub fn queries(family: &str, history: usize, view: &str) -> (String, String) {
     let table = if family == "edge" { "canonical_edges" } else { "canonical_nodes" };
     let active = if family == "edge" { "1" } else { "n.state='active'" };
+    let temporal = |valid: i64, known: String| {
+        format!("EXISTS(SELECT 1 FROM poc_temporal_fragments f WHERE f.cursor=n.write_cursor AND f.v0<={valid} AND {valid}<f.v1 AND f.k0<=({known}) AND (f.k1 IS NULL OR ({known})<f.k1))")
+    };
+    let latest = "SELECT MAX(commit_cut) FROM poc_versions".to_string();
     let chosen = match view {
-        "current" => format!("v.version={history} AND {active}"),
-        "corrected" => {
-            format!("v.version=CASE WHEN v.ordinal<10 THEN 0 ELSE {history} END AND {active}")
-        }
-        "prior" => format!("v.version={} AND {active}", history / 2),
-        "inactive" => format!("v.version={history}"),
+        "current" => format!("{} AND {active}", temporal(30, latest)),
+        "corrected" => format!("{} AND {active}", temporal(10, latest)),
+        "prior" => format!(
+            "{} AND {active}",
+            temporal(
+                10,
+                format!("SELECT MAX(commit_cut) FROM poc_versions WHERE version={}", history / 2)
+            )
+        ),
+        "inactive" => "n.superseded_at IS NULL".into(),
         "superseded" => active.into(),
         "archive" | "both" => "1".into(),
         _ => panic!("unknown view"),
     };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock before epoch")
+        .as_secs();
+    let authority = include_str!("source_authority.sql")
+        .replace("f.revision", "n.write_cursor")
+        .replace("?4", &now.to_string());
+    let chosen = format!("({chosen}) AND ({authority})");
     if family == "property" {
         (format!("SELECT n.write_cursor*2+p.name,json_extract(n.body,CASE p.name WHEN 0 THEN '$.p1' ELSE '$.p2' END),p.name=0 FROM {table} n JOIN poc_versions v ON v.cursor=n.write_cursor CROSS JOIN (SELECT 0 name UNION ALL SELECT 1) p WHERE {chosen}"),format!("SELECT body FROM {table} WHERE write_cursor=(?1/2)"))
     } else {

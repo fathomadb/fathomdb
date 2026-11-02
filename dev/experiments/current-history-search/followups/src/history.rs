@@ -21,7 +21,7 @@ pub struct Search {
 /// Selection columns are unique id, indexed scalar and output eligibility; hydration
 /// accepts the id as ?1 on the same held main snapshot. No shared private cache.
 pub fn search(
-    main: &Connection,
+    main: &rusqlite::Transaction<'_>,
     selection: &str,
     hydrate: &str,
     query: &str,

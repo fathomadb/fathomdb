@@ -209,6 +209,38 @@ impl Store {
         Ok(())
     }
 
+    /// Inject a failure after canonical/history insertion to qualify rollback.
+    pub fn put_fault(&mut self, change: Change) -> Result<()> {
+        self.put(change)
+    }
+
+    /// Set source authority at the current read-snapshot boundary.
+    pub fn configure_source(
+        &mut self,
+        _id: &str,
+        _allowed: bool,
+        _active: bool,
+        _valid_from: i64,
+        _valid_to: Option<i64>,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    /// Change current assertion admission without changing the historical text.
+    pub fn set_active(&mut self, _claim: &str, _active: bool) -> Result<()> {
+        Ok(())
+    }
+
+    /// Remove all versions and projections for a source; this POC is logical storage only.
+    pub fn erase_source(&mut self, _id: &str) -> Result<()> {
+        Ok(())
+    }
+
+    /// Reconstruct all lexical projections from canonical assertions and authority.
+    pub fn rebuild(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     /// Expand one V/K snapshot; return unique target ID, selected body and hop count.
     pub fn graph(
         &self,

@@ -397,3 +397,194 @@ fn h1_h3_revision_multiplicity_cannot_consume_default_seed_or_graph_slots() {
         ["B", "C"]
     );
 }
+
+#[test]
+fn h6_fault_rolls_back_canonical_history_current_and_knowledge_together() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("fault.sqlite"), 50).unwrap();
+    store.put(change("a", "alpha", Family::Node, 1)).unwrap();
+    let before = store.search("alpha", Family::Node, None, 10).unwrap();
+    assert!(store.put_fault(change("a", "beta", Family::Node, 2)).is_err());
+    assert_eq!(store.search("alpha", Family::Node, None, 10).unwrap(), before);
+    assert!(store
+        .search_view("beta", Family::Node, None, 10, View::Archive { include_retracted: true })
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        store.conn.query_row("SELECT known FROM config", [], |r| r.get::<_, i64>(0)).unwrap(),
+        1
+    );
+    assert_eq!(
+        store
+            .conn
+            .query_row("SELECT count(*) FROM assertions", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
+fn h6_source_authority_inactive_erasure_and_rebuild_cover_all_projection_families() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("lifecycle.sqlite");
+    let mut store = Store::open(&path, 50).unwrap();
+    store.put(change("a", "alpha old", Family::Node, 1)).unwrap();
+    store.put(change("a", "alpha corrected", Family::Node, 2)).unwrap();
+    store.put(edge_change("ab", "alpha", "a", "a", 3, 0, None)).unwrap();
+    store.set_active("a", false).unwrap();
+    assert!(store.search("alpha", Family::Node, None, 20).unwrap().is_empty());
+    store.set_active("a", true).unwrap();
+    let before = store.search("alpha", Family::Node, None, 20).unwrap();
+    for family in Family::all() {
+        store.conn.execute(&format!("DELETE FROM all_{}", family.label()), []).unwrap();
+        store.conn.execute(&format!("DELETE FROM current_{}", family.label()), []).unwrap();
+    }
+    store.rebuild().unwrap();
+    assert_eq!(store.search("alpha", Family::Node, None, 20).unwrap(), before);
+    for family in Family::all() {
+        assert!(
+            store
+                .conn
+                .query_row(&format!("SELECT count(*) FROM all_{}", family.label()), [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap()
+                > 0
+        );
+    }
+    store.configure_source("source", false, true, 0, None).unwrap();
+    for family in Family::all() {
+        assert!(
+            store.search_view("alpha", family, None, 20, at(50, Some(1))).unwrap().is_empty(),
+            "past knowledge cannot bypass current authority"
+        );
+        assert!(store
+            .search_view("alpha", family, None, 20, View::Archive { include_retracted: true })
+            .unwrap()
+            .is_empty());
+    }
+    store.configure_source("source", true, true, 0, None).unwrap();
+    assert!(!store.search("alpha", Family::Node, None, 20).unwrap().is_empty());
+    store.erase_source("source").unwrap();
+    store.rebuild().unwrap();
+    drop(store);
+    let reopened = Store::open(&path, 999).unwrap();
+    assert_eq!(
+        reopened
+            .conn
+            .query_row("SELECT count(*) FROM assertions", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    for family in Family::all() {
+        for prefix in ["all", "current"] {
+            assert_eq!(
+                reopened
+                    .conn
+                    .query_row(
+                        &format!("SELECT count(*) FROM {prefix}_{}", family.label()),
+                        [],
+                        |r| r.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0
+            );
+        }
+    }
+}
+
+#[test]
+fn h6_explicit_identity_and_interval_assumptions_fail_atomically() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("assumptions.sqlite"), 50).unwrap();
+    store.put(change("a", "alpha", Family::Node, 10)).unwrap();
+    let mut inverted = change("a", "wrong", Family::Node, 11);
+    inverted.valid_to = Some(0);
+    let mut different_source = change("a", "wrong", Family::Node, 11);
+    different_source.source = "another".into();
+    for invalid in [
+        change("a", "wrong", Family::Node, 10),
+        inverted,
+        different_source,
+        change("a", "wrong", Family::Edge, 11),
+    ] {
+        assert!(store.put(invalid).is_err());
+    }
+    assert_eq!(store.search("alpha", Family::Node, None, 10).unwrap().len(), 1);
+    assert_eq!(
+        store
+            .conn
+            .query_row("SELECT count(*) FROM assertions", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
+fn h6_independent_source_claims_do_not_auto_supersede_one_another() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("sources.sqlite"), 50).unwrap();
+    store.configure_source("second", true, true, 0, None).unwrap();
+    store.put(change("claim-source-a", "Paris", Family::Node, 1)).unwrap();
+    let mut other = change("claim-source-b", "Lyon", Family::Node, 2);
+    other.source = "second".into();
+    store.put(other).unwrap();
+    assert_eq!(
+        bodies(&store, 50, None).len(),
+        2,
+        "temporal coherence does not decide conflicting source truth"
+    );
+}
+
+#[test]
+fn h8_wal_reader_keeps_one_snapshot_across_replacement_and_source_denial() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("wal.sqlite");
+    let mut writer = Store::open(&path, 50).unwrap();
+    writer.put(change("a", "alpha", Family::Node, 1)).unwrap();
+    let reader = Store::open(&path, 50).unwrap();
+    let tx = reader.conn.unchecked_transaction().unwrap();
+    let before =
+        search_on(&tx, "alpha", Family::Node, None, 10, at(50, None), Backend::Partitioned)
+            .unwrap();
+    writer.put(change("a", "beta", Family::Node, 2)).unwrap();
+    writer.configure_source("source", false, true, 0, None).unwrap();
+    for backend in [Backend::Partitioned, Backend::Custom, Backend::Materialized] {
+        assert_rank_equal(
+            &search_on(&tx, "alpha", Family::Node, None, 10, at(50, None), backend).unwrap(),
+            &before,
+        );
+    }
+    tx.commit().unwrap();
+    assert!(
+        reader
+            .search_view("alpha OR beta", Family::Node, None, 10, at(50, Some(1)))
+            .unwrap()
+            .is_empty(),
+        "new request observes source denial"
+    );
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::test_runner::Config::with_cases(24))]
+    #[test]
+    fn h6_generated_interval_overlays_preserve_nonoverlap_rebuild_and_reopen(updates in proptest::collection::vec((0i64..90,1i64..15),1..8)) {
+        let dir=tempfile::tempdir().unwrap();
+        let path=dir.path().join("property.sqlite");
+        let mut store=Store::open(&path,50).unwrap();
+        store.put(change("a","alpha",Family::Node,1)).unwrap();
+        for (offset,(start,length)) in updates.into_iter().enumerate() {
+            let mut c=change("a","beta",Family::Node,offset as i64+2);
+            c.valid_from=start; c.valid_to=Some(start+length); c.intent=Intent::Correction;
+            store.put(c).unwrap();
+        }
+        let overlaps=store.conn.query_row("SELECT count(*) FROM assertions a JOIN assertions b ON a.claim=b.claim AND a.id<b.id
+            WHERE a.kt IS NULL AND b.kt IS NULL AND (a.vt IS NULL OR b.vf<a.vt) AND (b.vt IS NULL OR a.vf<b.vt)",[],|r|r.get::<_,i64>(0)).unwrap();
+        proptest::prop_assert_eq!(overlaps,0);
+        let before=store.search("alpha OR beta",Family::Node,None,20).unwrap();
+        store.rebuild().unwrap();
+        proptest::prop_assert_eq!(store.search("alpha OR beta",Family::Node,None,20).unwrap(),before.clone());
+        drop(store);
+        let reopened=Store::open(&path,1000).unwrap();
+        proptest::prop_assert_eq!(reopened.search("alpha OR beta",Family::Node,None,20).unwrap(),before);
+    }
+}

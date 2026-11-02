@@ -115,3 +115,82 @@ fn superseded_edges_are_dense_members_before_and_after_drain() {
         }
     }
 }
+
+#[test]
+fn reopen_repairs_legacy_skipped_edge_history_and_rebuild_preserves_it() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("reopen.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened
+        .engine
+        .write(&[
+            node("a", "endpoint a", InitialState::Active),
+            node("b", "endpoint b", InitialState::Active),
+            edge("fact", "legacy historical fact"),
+        ])
+        .unwrap();
+    opened.engine.write(&[edge("fact", "current fact")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    opened.engine.close().unwrap();
+    drop(opened);
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    conn.execute("DELETE FROM vector_default WHERE rowid=3", []).unwrap();
+    conn.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor=3", []).unwrap();
+    conn.execute("DELETE FROM search_index_edges WHERE write_cursor=3", []).unwrap();
+    drop(conn);
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    for rebuild in [false, true] {
+        if rebuild {
+            opened.engine.rebuild_projections().unwrap();
+            opened.engine.drain(10_000).unwrap();
+        }
+        let result = opened.engine.search_text_only_view("legacy", &view(true, false)).unwrap();
+        assert_eq!(result.results.len(), 1, "rebuild={rebuild}: {result:?}");
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM _fathomdb_vector_rows WHERE kind='edge_fact'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
+    }
+    opened.engine.close().unwrap();
+}
+
+#[test]
+fn full_rebuild_keeps_expired_edge_lexical_history_for_past_views() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("expired.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    let mut old = edge("fact", "expired historical fact");
+    if let PreparedWrite::Edge { t_invalid, .. } = &mut old {
+        *t_invalid = Some(2_000);
+    }
+    opened
+        .engine
+        .write(&[
+            node("a", "endpoint a", InitialState::Active),
+            node("b", "endpoint b", InitialState::Active),
+            old,
+        ])
+        .unwrap();
+    opened.engine.write(&[edge("fact", "current fact")]).unwrap();
+    opened.engine.rebuild_projections().unwrap();
+    let historical =
+        ReadView { valid_as_of: Some(1_000), include_superseded: true, ..ReadView::default() };
+    assert_eq!(
+        opened.engine.search_text_only_view("expired", &historical).unwrap().results.len(),
+        1
+    );
+    assert!(opened
+        .engine
+        .search_text_only_view("expired", &view(true, false))
+        .unwrap()
+        .results
+        .is_empty());
+    opened.engine.close().unwrap();
+}

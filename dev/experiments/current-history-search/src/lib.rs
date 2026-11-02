@@ -136,7 +136,7 @@ impl Store {
     /// Open/create the experiment format; `now` initializes its materialized view.
     pub fn open(path: &Path, now: i64) -> Result<Self> {
         let conn = Connection::open(path)?;
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA temp_store=MEMORY;
             CREATE TABLE IF NOT EXISTS config(now INTEGER NOT NULL, known INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS sources(id TEXT PRIMARY KEY, allowed INTEGER NOT NULL,
                 active INTEGER NOT NULL, valid_from INTEGER NOT NULL, valid_to INTEGER);
@@ -398,6 +398,7 @@ impl Store {
     }
 
     /// Compare one backend under an explicitly selected temporal view.
+    #[allow(clippy::too_many_arguments)]
     pub fn search_backend(
         &self,
         query: &str,
@@ -753,6 +754,7 @@ fn native_search(
     Ok(hits)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn search_on(
     conn: &Connection,
     query: &str,
@@ -910,16 +912,310 @@ fn order_hits(hits: &mut Vec<Hit>, limit: usize) {
     hits.truncate(limit);
 }
 
-fn percentiles(_samples: &[f64]) -> Result<(f64, f64)> {
-    Ok((0.0, 0.0))
+fn percentiles(samples: &[f64]) -> Result<(f64, f64)> {
+    if samples.is_empty() || samples.iter().any(|s| !s.is_finite() || *s < 0.0) {
+        return Err(reject("invalid measurement samples"));
+    }
+    let mut sorted = samples.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let rank = |p: f64| sorted[((p * sorted.len() as f64).ceil() as usize).saturating_sub(1)];
+    Ok((rank(0.5), rank(0.95)))
 }
 
-fn sweep(_records: &[usize], _history: &[usize], _samples: usize) -> Result<serde_json::Value> {
-    Ok(serde_json::json!({}))
+impl Backend {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Partitioned => "partitioned",
+            Self::Custom => "custom",
+            Self::Materialized => "materialized",
+        }
+    }
+    fn all() -> [Self; 3] {
+        [Self::Partitioned, Self::Custom, Self::Materialized]
+    }
 }
 
-/// Run the reproducible synthetic POC cost sweep; errors stop the run.
+struct Workload {
+    records: usize,
+    history: usize,
+    scope: &'static str,
+    view: View,
+    family: Family,
+    name: Option<&'static str>,
+}
+
+fn compare_results(actual: &[Hit], expected: &[Hit]) -> Result<f64> {
+    if actual.len() != expected.len() {
+        return Err(reject("benchmark ranker result count mismatch"));
+    }
+    let mut delta = 0.0f64;
+    for (a, b) in actual.iter().zip(expected) {
+        if a.claim != b.claim || a.version != b.version || a.body != b.body {
+            return Err(reject("benchmark ranker identity/order mismatch"));
+        }
+        delta = delta.max((a.score - b.score).abs());
+    }
+    if delta >= 1e-12 {
+        return Err(reject("benchmark ranker score mismatch"));
+    }
+    Ok(delta)
+}
+
+fn measure(store: &Store, w: Workload, samples: usize) -> Result<Vec<serde_json::Value>> {
+    let query = "alpha OR beta";
+    let reference =
+        store.search_backend(query, w.family, w.name, 10, w.view, Backend::Materialized)?;
+    let mut times = [Vec::new(), Vec::new(), Vec::new()];
+    let mut deltas = [0.0f64; 3];
+    for backend in Backend::all() {
+        compare_results(
+            &store.search_backend(query, w.family, w.name, 10, w.view, backend)?,
+            &reference,
+        )?;
+    }
+    for sample in 0..samples {
+        for offset in 0..3 {
+            let index = (sample + offset) % 3;
+            let start = std::time::Instant::now();
+            let actual =
+                store.search_backend(query, w.family, w.name, 10, w.view, Backend::all()[index])?;
+            let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+            deltas[index] = deltas[index].max(compare_results(&actual, &reference)?);
+            times[index].push(elapsed);
+        }
+    }
+    let docs = documents_view(&store.conn, w.family, w.view)?;
+    let current = current_ids(&store.conn, w.family)?;
+    let certified = current == docs.iter().map(|d| d.id).collect::<BTreeSet<_>>();
+    let mut native_times = Vec::new();
+    if certified {
+        for _ in 0..samples {
+            let start = std::time::Instant::now();
+            let actual = native_search(
+                &store.conn,
+                &format!("current_{}", w.family.label()),
+                query,
+                &docs,
+                w.name,
+                10,
+            )?;
+            native_times.push(start.elapsed().as_secs_f64() * 1000.0);
+            compare_results(&actual, &reference)?;
+        }
+    }
+    let native_attribution = if certified {
+        let (p50, p95) = percentiles(&native_times)?;
+        serde_json::json!({"p50_ms":p50,"p95_ms":p95,"includes_membership_selection":false})
+    } else {
+        serde_json::Value::Null
+    };
+    let mut rows = Vec::new();
+    for (index, backend) in Backend::all().iter().enumerate() {
+        let (p50, p95) = percentiles(&times[index])?;
+        rows.push(serde_json::json!({"records":w.records,"history":w.history,"scope":w.scope,"family":w.family.label(),
+            "backend":backend.label(),"route":match backend {Backend::Partitioned if certified=>"native",Backend::Partitioned=>"custom_fallback",Backend::Custom=>"custom",Backend::Materialized=>"private_memory"},
+            "samples":samples,"p50_ms":p50,"p95_ms":p95,"max_score_delta":deltas[index],
+            "selected_documents":docs.len(),"top_claims":reference.iter().map(|h|h.claim.as_str()).collect::<Vec<_>>(),
+            "reference_scores":reference.iter().map(|h|h.score).collect::<Vec<_>>(),
+            "native_rank_only_attribution":if *backend==Backend::Partitioned {native_attribution.clone()} else {serde_json::Value::Null}}));
+    }
+    Ok(rows)
+}
+
+fn current_ids(conn: &Connection, family: Family) -> Result<BTreeSet<i64>> {
+    let mut stmt = conn.prepare(&format!("SELECT rowid FROM current_{}", family.label()))?;
+    let ids =
+        stmt.query_map([], |r| r.get::<_, i64>(0))?.collect::<rusqlite::Result<BTreeSet<_>>>()?;
+    Ok(ids)
+}
+
+fn workload_change(
+    id: &str,
+    body: &str,
+    family: Family,
+    known: i64,
+    source: &str,
+    endpoints: Option<(String, String)>,
+) -> Change {
+    Change {
+        claim: id.into(),
+        body: body.into(),
+        family,
+        known,
+        source: source.into(),
+        endpoints,
+        properties: BTreeMap::from([
+            ("summary".into(), body.into()),
+            ("notes".into(), "auxiliary alpha beta baseline property".into()),
+        ]),
+        valid_from: 0,
+        valid_to: None,
+        intent: Intent::Revision,
+    }
+}
+
+fn seed(path: &Path, records: usize, history: usize) -> Result<(Store, i64, f64)> {
+    let mut store = Store::open(path, 50)?;
+    store.configure_source("short", true, true, 0, Some(60))?;
+    let start = std::time::Instant::now();
+    let mut known = 0i64;
+    for index in 0..records {
+        let node = format!("node-{index:06}");
+        let edge = format!("edge-{index:06}");
+        let source = if index % 2 == 0 { "short" } else { "source" };
+        let endpoints = Some((node.clone(), format!("node-{:06}", (index + 1) % records)));
+        for revision in 0..history {
+            let old = "alpha oldword repeated historical payload ".repeat(3 + revision % 5);
+            known += 1;
+            store.put(workload_change(&node, &old, Family::Node, known, source, None))?;
+            known += 1;
+            store.put(workload_change(
+                &edge,
+                &old,
+                Family::Edge,
+                known,
+                source,
+                endpoints.clone(),
+            ))?;
+        }
+        let body = match index % 4 {
+            0 => "alpha",
+            1 => "alpha alpha bridge",
+            2 => "beta beta extra",
+            _ => "gamma filler",
+        };
+        known += 1;
+        store.put(workload_change(&node, body, Family::Node, known, source, None))?;
+        known += 1;
+        store.put(workload_change(&edge, body, Family::Edge, known, source, endpoints))?;
+    }
+    Ok((store, known, start.elapsed().as_secs_f64() * 1000.0))
+}
+
+fn storage(
+    store: &Store,
+    records: usize,
+    history: usize,
+    write_ms: f64,
+) -> Result<serde_json::Value> {
+    let mut current = serde_json::Map::new();
+    let mut all = serde_json::Map::new();
+    for family in Family::all() {
+        for (prefix, map) in [("current", &mut current), ("all", &mut all)] {
+            let count = store.conn.query_row(
+                &format!("SELECT count(*) FROM {prefix}_{}", family.label()),
+                [],
+                |r| r.get::<_, i64>(0),
+            )?;
+            map.insert(family.label().into(), count.into());
+        }
+    }
+    store.conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")?;
+    let pages = store.conn.query_row("PRAGMA page_count", [], |r| r.get::<_, i64>(0))?;
+    let page_size = store.conn.query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0))?;
+    Ok(serde_json::json!({"records":records,"history":history,"seed_write_ms":write_ms,
+        "combined_database_bytes":pages*page_size,"current_rows":current,"all_rows":all}))
+}
+
+fn sweep(records: &[usize], history: &[usize], samples: usize) -> Result<serde_json::Value> {
+    if records.is_empty() || history.is_empty() || records.contains(&0) || samples == 0 {
+        return Err(reject("nonempty axes and positive records/samples required"));
+    }
+    let dir = tempfile::tempdir()?;
+    let mut cells = Vec::new();
+    let mut storage_rows = Vec::new();
+    for &count in records {
+        for &revisions in history {
+            let (store, _, write_ms) = seed(
+                &dir.path().join(format!("baseline-{count}-{revisions}.sqlite")),
+                count,
+                revisions,
+            )?;
+            storage_rows.push(storage(&store, count, revisions, write_ms)?);
+            for family in Family::all() {
+                cells.extend(measure(
+                    &store,
+                    Workload {
+                        records: count,
+                        history: revisions,
+                        scope: "current",
+                        view: View::Snapshot { valid: 50, known: None },
+                        family,
+                        name: if family == Family::Property { Some("summary") } else { None },
+                    },
+                    samples,
+                )?);
+            }
+        }
+    }
+    let diagnostic_history = if history.contains(&4) { 4 } else { history[0] };
+    let (mut store, known, write_ms) =
+        seed(&dir.path().join("diagnostic.sqlite"), records[0], diagnostic_history)?;
+    let mut correction =
+        workload_change("node-000000", "beta corrected", Family::Node, known + 1, "short", None);
+    correction.valid_from = 20;
+    correction.valid_to = Some(40);
+    correction.intent = Intent::Correction;
+    let diagnostic_write = std::time::Instant::now();
+    store.put(correction)?;
+    let mut future =
+        workload_change("future", "alpha future", Family::Node, known + 2, "source", None);
+    future.valid_from = 60;
+    store.put(future)?;
+    let diagnostic_write_ms = write_ms + diagnostic_write.elapsed().as_secs_f64() * 1000.0;
+    for (scope, view) in [
+        ("corrected_history", View::Snapshot { valid: 30, known: None }),
+        ("prior_belief", View::Snapshot { valid: 30, known: Some(known) }),
+        ("clock_fallback", View::Snapshot { valid: 60, known: None }),
+    ] {
+        cells.extend(measure(
+            &store,
+            Workload {
+                records: records[0],
+                history: diagnostic_history,
+                scope,
+                view,
+                family: Family::Node,
+                name: None,
+            },
+            samples,
+        )?);
+    }
+    let diagnostic_storage = storage(&store, records[0], diagnostic_history, diagnostic_write_ms)?;
+    let source_id =
+        store.conn.query_row("SELECT sqlite_source_id()", [], |r| r.get::<_, String>(0))?;
+    Ok(
+        serde_json::json!({"format":"current-history-poc-v1","sqlite_version":rusqlite::version(),"sqlite_source_id":source_id,
+        "records_axis":records,"history_axis":history,"samples":samples,"limit":10,"query":"alpha OR beta",
+        "timing":"end-to-end including selection, certification/statistics, corpus build, ranking, hydration, drop; warm serial rotated order",
+        "storage_scope":"combined canonical + all three all-version/current projection families; not per-backend footprint",
+        "storage":storage_rows,"diagnostic_storage":diagnostic_storage,"cells":cells}),
+    )
+}
+
+/// Run the fixed synthetic sweep, accepting `--records`, `--history`, `--samples`.
+/// Emits one JSON report to stdout; invalid arguments or parity failures return errors.
 pub fn run_benchmark() -> Result<()> {
+    let mut records = vec![128, 512];
+    let mut history = vec![0, 4, 16];
+    let mut samples = 15;
+    let mut args = std::env::args().skip(1);
+    while let Some(arg) = args.next() {
+        let value = args.next().ok_or_else(|| reject("missing option value"))?;
+        match arg.as_str() {
+            "--records" => {
+                records =
+                    value.split(',').map(str::parse).collect::<std::result::Result<Vec<_>, _>>()?
+            }
+            "--history" => {
+                history =
+                    value.split(',').map(str::parse).collect::<std::result::Result<Vec<_>, _>>()?
+            }
+            "--samples" => samples = value.parse()?,
+            _ => return Err(reject("unknown option")),
+        }
+    }
+    println!("{}", serde_json::to_string_pretty(&sweep(&records, &history, samples)?)?);
     Ok(())
 }
 

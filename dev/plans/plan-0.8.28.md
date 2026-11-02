@@ -154,13 +154,13 @@ it is never an implicit patch lane.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 70** (`VECTOR-ELIGIBILITY-NATIVE`) — Vector eligibility inside vec0: lifecycle, valid_from and valid_until metadata columns kept current at every lifecycle write; KNN filters on them; the store-wide vector-row eligibility scan is removed
+**IMMEDIATE NEXT: Slice 80** (`SEARCH-VIEW-FLAGS`) — include_superseded and include_inactive honoured on search in Rust, Python and TypeScript; edges keep their vector rows on supersession. MCP exposure follows in 0.8.29
 
-**Remaining ladder:** 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
-Slice 60 is complete on `dev/0.8.28`; Slices 70 to 90 are next, in order. After them come
+Slices 60 and 70 are complete on `dev/0.8.28`; Slices 80 and 90 are next, in order. After them come
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
@@ -266,13 +266,15 @@ requirements say otherwise.
     no `OR`, so an unbounded window uses min/max sentinels.
   - **The scan goes:** the store-wide vector-row eligibility scan is
     removed.
-  - **What it fixes:** today any superseded, inactive or out-of-window
-    vector-bearing node turns the vector arm off. In a 10k store with 10
+  - **Fixed:** previously any superseded, inactive or out-of-window
+    vector-bearing node turned the vector arm off. In a 10k store with 10
     supersessions, 500 of 500 searches fell back to text.
-  - **Cost:** the vec0 attribute budget drops from 13 to 10.
+  - **Cost:** the vec0 attribute budget is ten.
   - **Verification:** a RED test per cause; the Slice 35 eligibility
     suites; native filtering compared with the reference scan; identical
-    results on clean stores.
+    results on clean stores. Astra reviews, 64 independent focused tests and
+    the scoped gate campaign pass; AC-013 p50/p99 is 55/63 ms.
+    [Slice 70 status](0.8.28/features/slice-70/status.md).
 - **Slice 80 — search view flags (`SEARCH-VIEW-FLAGS`).**
   - `include_superseded` and `include_inactive` are honoured on search in
     Rust, Python and TypeScript. Edges keep their vector rows on

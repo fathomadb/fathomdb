@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 70 — eligibility design
-status: approved by Astra; implementation verification pending
+status: COMPLETE; Astra reviewed and independently verified
 target_release: 0.8.28
 ---
 

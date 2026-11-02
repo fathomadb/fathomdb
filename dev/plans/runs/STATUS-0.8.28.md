@@ -12,7 +12,7 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 70 (VECTOR-ELIGIBILITY-NATIVE), NOT_STARTED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) · 60 (`e240efd4b91b8e3ba4ea53dc3edea73639f44747`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 80 (SEARCH-VIEW-FLAGS), NOT_STARTED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) · 60 (`e240efd4b91b8e3ba4ea53dc3edea73639f44747`) · 70 (`398d5c1edaf58d0d2dd68ac13136f3939130059a`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
 Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
@@ -45,7 +45,7 @@ Astra reviews, independent checks, scale and GPU recall qualification.
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 70 (VECTOR-ELIGIBILITY-NATIVE)** — Vector eligibility inside vec0: lifecycle, valid_from and valid_until metadata columns kept current at every lifecycle write; KNN filters on them; the store-wide vector-row eligibility scan is removed. **Remaining ladder:** 70 → 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 80 (SEARCH-VIEW-FLAGS)** — include_superseded and include_inactive honoured on search in Rust, Python and TypeScript; edges keep their vector rows on supersession. MCP exposure follows in 0.8.29. **Remaining ladder:** 80 → 90.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
@@ -91,11 +91,11 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 42 | slice135 descriptor check (Unit A); adopt `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1 and retire the vendored crate (Unit B, re-scoped 2026-10-31) | Complete on `dev/0.8.28` and `release/0.8.28` at `fdbb74e109f02cbda7b8b8ff575be90e011b2803`; SQLite 3.54.1 from the registry, Windows verbatim-path tests pass on the local VM; AC-013 still fails as at the base (Slices 50 to 90); [status](../0.8.28/features/slice-42/status.md). |
 | 50 | Bounded pending-work scans; narrowed provider contract | Complete on `dev/0.8.28` at `ecea4a1e79afe4cf7f5583914d405806767474ff`; Astra reviews, paired scaling and independent verification pass with documented scoped repairs. [Status](../0.8.28/features/slice-50/status.md). |
 | 60 | Store format 35: 64-row vec0 chunks, `search_index` rowid = `write_cursor`, refuse version-34 stores | Complete on `dev/0.8.28` and `release/0.8.28` at `e240efd4b91b8e3ba4ea53dc3edea73639f44747`; Astra reviews and independent verification pass; [status](../0.8.28/features/slice-60/status.md). |
-| 70 | Vector eligibility inside vec0 (lifecycle and validity columns) | Not started. |
+| 70 | Vector eligibility inside vec0 (lifecycle and validity columns) | Complete on `dev/0.8.28` and `release/0.8.28` at `398d5c1edaf58d0d2dd68ac13136f3939130059a`; Astra reviews, independent verification and AC-013 pass; [status](../0.8.28/features/slice-70/status.md). |
 | 80 | `include_superseded` and `include_inactive` on search | Not started. |
 | 90 | D28-14 filtered direct body FTS | Not started. |
 
-Ladder remaining: 70, 80, 90. Slices 41 and 42 were added by owner rulings on
+Ladder remaining: 80, 90. Slices 41 and 42 were added by owner rulings on
 2026-10-16, and Slices 50 to 90 on 2026-10-31.
 
 ## Boundaries

@@ -2,8 +2,8 @@ use crate::errors::EngineError;
 use crate::projection_registry::ProjectionRole;
 use crate::projection_registry::{encode_attr_vec0_present, load_projection_registry};
 use crate::search_types::TOP_K_BIT_CANDIDATES;
+use crate::temporal::ReadView;
 use crate::vector_storage::{attr_vec0_column, resolve_source_type};
-use crate::ReadView;
 use rusqlite::{params, Connection, OptionalExtension};
 
 // ===== G4 filter grammar types (Slice 35) ===============================

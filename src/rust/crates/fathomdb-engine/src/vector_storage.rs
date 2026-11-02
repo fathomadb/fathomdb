@@ -863,17 +863,27 @@ pub(crate) fn delete_vector_record_rows(conn: &Connection, cursor: i64) -> rusql
 }
 
 #[cfg(test)]
-proptest::proptest! {
-    #[test]
-    fn slice70_inclusive_bounds_match_nullable_reference(
-        from in proptest::option::of(proptest::prelude::any::<i64>()),
-        until in proptest::option::of(proptest::prelude::any::<i64>()),
-        now in proptest::prelude::any::<i64>(),
-    ) {
-        let (lower,upper)=vector_validity_bounds(from,until);
-        proptest::prop_assert_eq!(lower<=now && upper>=now,
-            from.is_none_or(|start|start<=now) && until.is_none_or(|end|end>now));
-    }
+#[test]
+fn slice70_inclusive_bounds_match_nullable_reference() {
+    let strategy = (
+        proptest::option::of(proptest::prelude::any::<i64>()),
+        proptest::option::of(proptest::prelude::any::<i64>()),
+        proptest::prelude::any::<i64>(),
+    );
+    proptest::test_runner::TestRunner::default()
+        .run(&strategy, |(from, until, now)| {
+            let (lower, upper) = vector_validity_bounds(from, until);
+            let expected =
+                from.is_none_or(|start| start <= now) && until.is_none_or(|end| end > now);
+            if (lower <= now && upper >= now) == expected {
+                Ok(())
+            } else {
+                Err(proptest::test_runner::TestCaseError::fail(
+                    "inclusive bounds differ from nullable canonical predicate",
+                ))
+            }
+        })
+        .unwrap();
 }
 
 #[cfg(test)]

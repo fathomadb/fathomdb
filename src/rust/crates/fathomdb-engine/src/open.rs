@@ -1529,8 +1529,7 @@ fn prune_orphaned_edge_vectors(connection: &Connection) -> rusqlite::Result<()> 
     connection.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
         let sidecar: std::collections::HashSet<i64> = {
-            let mut statement =
-                connection.prepare("SELECT write_cursor FROM _fathomdb_vector_rows")?;
+            let mut statement = connection.prepare("SELECT rowid FROM _fathomdb_vector_rows")?;
             let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;
             let mut set = std::collections::HashSet::new();
             for r in rows {

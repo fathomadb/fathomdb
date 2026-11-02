@@ -760,7 +760,7 @@ pub(crate) fn apply_batch_in_transaction(
                         params![cursor, logical_id],
                     )?;
                     for sc in &prior_g0 {
-                        delete_vector_partition_row(tx, *sc)?;
+                        vector_storage::delete_vector_record_rows(tx, *sc)?;
                         // Coalesced canonical writes disable the cleanup trigger.
                         tx.execute(
                             "DELETE FROM _fathomdb_vector_spans WHERE write_cursor=?1",
@@ -801,7 +801,7 @@ pub(crate) fn apply_batch_in_transaction(
                         params![cursor, from, to, kind],
                     )?;
                     for sc in &prior_g11 {
-                        delete_vector_partition_row(tx, *sc)?;
+                        vector_storage::delete_vector_record_rows(tx, *sc)?;
                         // Coalesced canonical writes disable the cleanup trigger.
                         tx.execute(
                             "DELETE FROM _fathomdb_vector_spans WHERE write_cursor=?1",

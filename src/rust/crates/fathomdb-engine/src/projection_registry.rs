@@ -365,7 +365,7 @@ fn delete_row_owned_projection(
     write_cursor: i64,
 ) -> rusqlite::Result<usize> {
     if projection.table == DEFAULT_VECTOR_PARTITION {
-        return delete_vector_partition_row(tx, write_cursor);
+        return vector_storage::delete_vector_record_rows(tx, write_cursor);
     }
     let sql = format!("DELETE FROM {} WHERE {} = ?1", projection.table, projection.cursor_column);
     tx.execute(&sql, [write_cursor])

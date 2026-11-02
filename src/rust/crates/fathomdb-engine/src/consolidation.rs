@@ -432,7 +432,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         // vec0 rowid is the canonical row's write_cursor. TC-76: via the one
         // vec0-delete primitive ([`delete_vector_partition_row`]).
-        delete_vector_partition_row(tx, cursor).map_err(|_| EngineError::Storage)?;
+        vector_storage::delete_vector_record_rows(tx, cursor).map_err(|_| EngineError::Storage)?;
         tx.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1", [cursor])
             .map_err(|_| EngineError::Storage)?;
         if !keep_terminal {

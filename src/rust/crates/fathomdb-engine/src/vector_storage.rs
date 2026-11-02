@@ -273,7 +273,7 @@ pub(crate) fn refresh_vector_attr_values_for_row(
     rowid: i64,
     body: &str,
 ) -> rusqlite::Result<()> {
-    let (cols_sql, _, mut values) = vector_attr_insert_fragments(conn, body, 1)?;
+    let (cols_sql, _, values) = vector_attr_insert_fragments(conn, body, 1)?;
     if cols_sql.is_empty() {
         return Ok(());
     }
@@ -284,14 +284,18 @@ pub(crate) fn refresh_vector_attr_values_for_row(
         .map(|(index, col)| format!("{col} = ?{}", index + 1))
         .collect::<Vec<_>>()
         .join(", ");
-    values.push(rusqlite::types::Value::Integer(rowid));
-    let rowid_index = values.len();
-    conn.execute(
-        &format!(
-            "UPDATE {DEFAULT_VECTOR_PARTITION} SET {assignments} WHERE rowid = ?{rowid_index}"
-        ),
-        rusqlite::params_from_iter(values.iter()),
-    )?;
+    let rowid_index = values.len() + 1;
+    let ids = vector_ids_for_cursor(conn, rowid)?;
+    for id in ids {
+        let mut row_values = values.clone();
+        row_values.push(rusqlite::types::Value::Integer(id));
+        conn.execute(
+            &format!(
+                "UPDATE {DEFAULT_VECTOR_PARTITION} SET {assignments} WHERE rowid = ?{rowid_index}"
+            ),
+            rusqlite::params_from_iter(row_values.iter()),
+        )?;
+    }
     Ok(())
 }
 
@@ -397,7 +401,7 @@ fn reshape_vector_partition_nondestructive(
                     let escaped = name.replace('\'', "''");
                     select_exprs.push_str(&format!(
                         ", COALESCE((SELECT char(1) || ca.attr_value FROM canonical_attributes ca \
-                         WHERE ca.write_cursor = _fathomdb_vector_reshape_stage.rowid \
+                         WHERE ca.write_cursor = (SELECT vr.write_cursor FROM _fathomdb_vector_rows vr WHERE vr.rowid = _fathomdb_vector_reshape_stage.rowid) \
                            AND ca.attr_name = '{escaped}' LIMIT 1), '')"
                     ));
                 }
@@ -785,6 +789,13 @@ pub(crate) fn slice70_mapping_fixture(with_attribute: bool) -> Connection {
     let opened = Engine::open(dir.path().join("init.sqlite")).unwrap();
     let conn = Connection::open_in_memory().unwrap();
     fathomdb_schema::migrate(&conn).unwrap();
+    if with_attribute {
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_registry(name,roles) VALUES('owner','filterable')",
+            [],
+        )
+        .unwrap();
+    }
     let attrs = if with_attribute { vec![attr_vec0_column("owner")] } else { vec![] };
     conn.execute_batch(&vector_partition_create_sql(8, false, &attrs)).unwrap();
     let blob = encode_vector_blob(&[1.0; 8]);
@@ -842,4 +853,18 @@ fn slice70_attribute_backfill_uses_record_mapping() {
         .collect::<rusqlite::Result<Vec<_>>>()
         .unwrap();
     assert_eq!(values, vec!["\u{1}alice"; 2]);
+}
+
+pub(crate) fn vector_ids_for_cursor(conn: &Connection, cursor: i64) -> rusqlite::Result<Vec<i64>> {
+    conn.prepare_cached("SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor=?1")?
+        .query_map([cursor], |r| r.get(0))?
+        .collect()
+}
+
+pub(crate) fn delete_vector_record_rows(conn: &Connection, cursor: i64) -> rusqlite::Result<usize> {
+    let mut count = 0;
+    for id in vector_ids_for_cursor(conn, cursor)? {
+        count += delete_vector_partition_row(conn, id)?;
+    }
+    Ok(count)
 }

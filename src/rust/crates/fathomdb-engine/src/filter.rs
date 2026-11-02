@@ -652,6 +652,39 @@ pub(crate) fn append_node_eligibility_sql(
     sql
 }
 
+pub(crate) fn append_node_eligibility_sql_view(
+    connection: &Connection,
+    filter: Option<&SearchFilter>,
+    alias: &str,
+    params: &mut Vec<rusqlite::types::Value>,
+    view: &ReadView,
+) -> rusqlite::Result<String> {
+    if !view.include_superseded && !view.include_inactive {
+        return Ok(append_node_eligibility_sql(filter, alias, params));
+    }
+    let Some(filter) = filter else {
+        return Ok(String::new());
+    };
+    let mut base = filter.clone();
+    base.attributes.clear();
+    let mut sql = append_node_eligibility_sql(Some(&base), alias, params);
+    if !filter.attributes.is_empty() {
+        let registry = load_projection_registry(connection)?;
+        for (name, value) in &filter.attributes {
+            let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+            let path = crate::projection_registry::projection_json_path(name, stored);
+            params.push(rusqlite::types::Value::Text(path));
+            let scalar = crate::projection_registry::scalar_attribute_sql(
+                &format!("{alias}.body"),
+                &format!("?{}", params.len()),
+            );
+            params.push(rusqlite::types::Value::Text(value.clone()));
+            sql.push_str(&format!(" AND {scalar} = ?{}", params.len()));
+        }
+    }
+    Ok(sql)
+}
+
 /// Compile edge-hit eligibility before edge FTS ranking.
 pub(crate) fn append_edge_eligibility_sql(
     filter: Option<&SearchFilter>,

@@ -656,7 +656,7 @@ fn attribute_json_path(name: &str) -> String {
 /// list of literal object-member names; it is never a caller-provided JSONPath.
 /// Every segment is validated before persistence, and the resulting path is
 /// always bound as a parameter rather than interpolated into SQL.
-fn projection_json_path(name: &str, stored: &StoredProjection) -> String {
+pub(crate) fn projection_json_path(name: &str, stored: &StoredProjection) -> String {
     match &stored.source {
         None => attribute_json_path(name),
         Some(segments) => {
@@ -1035,6 +1035,15 @@ pub(crate) fn encode_attr_vec0_present(value: &str) -> String {
 /// filter routed pre-KNN sees exactly what the EAV path stored). Returns `None`
 /// for an absent / null / object / array / non-JSON extraction (⇒ the `''`
 /// sentinel at the vec0 column, ⇒ fail-to-match).
+pub(crate) fn scalar_attribute_sql(body: &str, path: &str) -> String {
+    format!(
+        "CASE WHEN json_valid({body}) THEN CASE json_type({body}, {path})
+        WHEN 'true' THEN 'true' WHEN 'false' THEN 'false'
+        WHEN 'null' THEN NULL WHEN 'object' THEN NULL WHEN 'array' THEN NULL
+        ELSE CAST(json_extract({body}, {path}) AS TEXT) END END"
+    )
+}
+
 pub(crate) fn extract_scalar_attribute(
     conn: &Connection,
     body: &str,
@@ -1044,18 +1053,9 @@ pub(crate) fn extract_scalar_attribute(
     let path = projection_json_path(name, stored);
     let value: Option<String> = conn
         .query_row(
-            "SELECT CASE WHEN json_valid(?1) THEN
-                 CASE json_type(?1, ?2)
-                     WHEN 'true'   THEN 'true'
-                     WHEN 'false'  THEN 'false'
-                     WHEN 'null'   THEN NULL
-                     WHEN 'object' THEN NULL
-                     WHEN 'array'  THEN NULL
-                     ELSE CAST(json_extract(?1, ?2) AS TEXT)
-                 END
-             END",
+            &format!("SELECT {}", scalar_attribute_sql("?1", "?2")),
             params![body, path],
-            |row| row.get::<_, Option<String>>(0),
+            |row| row.get(0),
         )
         .unwrap_or(None);
     Ok(value)

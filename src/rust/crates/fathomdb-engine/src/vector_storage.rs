@@ -391,11 +391,18 @@ fn reshape_vector_partition_nondestructive(
                     // marker, NOT `''`. An ABSENT row (no canonical_attributes row) is
                     // the COALESCE default `''` (condition #3). `canonical_attributes`
                     // itself stays RAW — only this vec0 column is encoded.
-                    let escaped = name.replace('\'', "''");
+                    let registry = load_projection_registry(conn)?;
+                    let stored = registry.get(&name).ok_or(rusqlite::Error::InvalidQuery)?;
+                    let path = crate::projection_registry::projection_json_path(&name, stored)
+                        .replace('\'', "''");
+                    let scalar = crate::projection_registry::scalar_attribute_sql(
+                        "cn.body",
+                        &format!("'{path}'"),
+                    );
                     select_exprs.push_str(&format!(
-                        ", COALESCE((SELECT char(1) || ca.attr_value FROM canonical_attributes ca \
-                         WHERE ca.write_cursor = (SELECT vr.write_cursor FROM _fathomdb_vector_rows vr WHERE vr.rowid = _fathomdb_vector_reshape_stage.rowid) \
-                           AND ca.attr_name = '{escaped}' LIMIT 1), '')"
+                        ", COALESCE((SELECT char(1) || {scalar} FROM canonical_nodes cn \
+                         JOIN _fathomdb_vector_rows vr ON vr.write_cursor=cn.write_cursor \
+                         WHERE vr.rowid=_fathomdb_vector_reshape_stage.rowid LIMIT 1), '')"
                     ));
                 }
                 // A desired column always decodes (built by `attr_vec0_column`); if it

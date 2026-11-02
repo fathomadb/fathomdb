@@ -261,7 +261,8 @@ fn late_attribute_declaration_populates_historical_vectors() {
     let mut declaration = property();
     for (source, wanted) in [(None, "retired"), (Some(vec!["nested".into()]), "changed")] {
         declaration.source = source;
-        opened.engine.configure_projections(&[declaration.clone()], &[]).unwrap();
+        let drop = if declaration.source.is_some() { vec!["summary".to_string()] } else { vec![] };
+        opened.engine.configure_projections(&[declaration.clone()], &drop).unwrap();
         opened.engine.set_vector_stage_only_for_test(true);
         let mut filter = fathomdb_engine::SearchFilter::default();
         filter.attributes = vec![("summary".into(), wanted.into())];

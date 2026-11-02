@@ -157,12 +157,17 @@ impl CurrentStore {
         if valid < current {
             return Err(Failure::BackwardTime.into());
         }
-        let next = if bootstrap {
-            self.engine.query_i64_col_for_test(&format!("SELECT COALESCE(MIN(boundary),9223372036854775807) FROM (SELECT valid_from boundary FROM canonical_nodes UNION ALL SELECT valid_until FROM canonical_nodes) WHERE boundary>{valid}"))?[0]
+        let bootstrap_dirty = if bootstrap {
+            "INSERT OR IGNORE INTO poc_dirty SELECT write_cursor FROM canonical_nodes;"
         } else {
-            i64::MAX
+            ""
         };
+        let next = self.engine.query_i64_col_for_test(&format!(
+            "SELECT COALESCE(MIN(at),9223372036854775807) FROM poc_frontier WHERE at>{valid}"
+        ))?[0];
         let sql=format!("BEGIN IMMEDIATE;
+            {bootstrap_dirty}
+            INSERT OR IGNORE INTO poc_dirty SELECT cursor FROM poc_frontier WHERE at>{current} AND at<={valid};
             DELETE FROM poc_current WHERE rowid IN (SELECT cursor FROM poc_dirty);
             INSERT INTO poc_current(rowid,body) SELECT n.write_cursor,n.body FROM poc_dirty d JOIN canonical_nodes n ON n.write_cursor=d.cursor WHERE n.state='active' AND n.superseded_at IS NULL AND (n.valid_from IS NULL OR n.valid_from<={valid}) AND (n.valid_until IS NULL OR n.valid_until>{valid});
             DELETE FROM poc_dirty;

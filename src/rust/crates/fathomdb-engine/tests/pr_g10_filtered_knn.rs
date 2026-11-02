@@ -3,7 +3,7 @@
 //! `Option<SearchFilter>` prunes in the single phase-1 candidates statement;
 //! `filter=None` emits SQL **byte-identical to 0.7.2** (the pinned behavior-compat
 //! invariant); `status` is a plain `TEXT` metadata column (aux hard-errors under a
-//! KNN `WHERE`) and lands on an existing **Pack-1** DB via the 3-way shape-sentinel;
+//! KNN `WHERE`) and existing **Pack-1** shapes are refused without reshaping;
 //! `status` ships an empty-string sentinel only (vec0 TEXT metadata is NOT NULL-able),
 //! so filtering `status=Some("open")` prunes every row.
 //! No mocking of the database.
@@ -16,7 +16,7 @@ use fathomdb_engine::{
     TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
-// Only used by `sentinel_backfills_status_on_simulated_pack1_db`, gated
+// Only used by `sentinel_refuses_simulated_pack1_without_mutation`, gated
 // `#[cfg(debug_assertions)]` below for its `Engine::execute_for_test` hook.
 #[cfg(debug_assertions)]
 use rusqlite::Connection;
@@ -227,7 +227,7 @@ fn aux_status_column_hard_errors_under_knn_where() {
 // Uses `Engine::execute_for_test`, a debug-build-only hook.
 #[cfg(debug_assertions)]
 #[test]
-fn sentinel_backfills_status_on_simulated_pack1_db() {
+fn sentinel_refuses_simulated_pack1_without_mutation() {
     let (_dir, path) = fixture("g10_pack1_sentinel");
 
     // 1. Fresh open lands the Pack-2 shape (with status).
@@ -256,35 +256,19 @@ fn sentinel_backfills_status_on_simulated_pack1_db() {
         opened.engine.close().unwrap();
     }
 
-    // 3. Reopen: the sentinel sees embedding_bin (no status) => stage + recreate
-    //    + back-fill. status must now exist; the seeded row must survive.
-    {
-        let opened =
-            Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("reopen");
-        opened.engine.close().unwrap();
-    }
-
+    // Format 35 refuses an obsolete physical shape without changing its rows.
+    let before = std::fs::read(&path).expect("read closed database");
+    assert!(Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), before);
     let conn = Connection::open(&path).expect("raw reopen");
     let table_sql: String = conn
-        .query_row(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name='vector_default'",
-            [],
-            |row| row.get(0),
-        )
-        .expect("read table sql");
-    assert!(table_sql.contains("status"), "status column must land on the Pack-1 DB:\n{table_sql}");
+        .query_row("SELECT sql FROM sqlite_master WHERE name='vector_default'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert!(!table_sql.contains("status"));
     let kind: String = conn
         .query_row("SELECT kind FROM vector_default WHERE rowid=1", [], |row| row.get(0))
-        .expect("seeded row preserved");
-    assert_eq!(kind, "doc", "back-fill preserves the existing row");
-    // vec0 TEXT metadata columns are NOT NULL-able, so the "no population yet"
-    // back-fill value is the empty-string sentinel `''`, not NULL (forced
-    // deviation from the prompt's "NULL plumbing"; reserved-gap candidate 13).
-    let status: String = conn
-        .query_row("SELECT status FROM vector_default WHERE rowid=1", [], |row| row.get(0))
-        .expect("status column readable");
-    assert_eq!(
-        status, "",
-        "status back-fills the empty-string sentinel (no population source yet)"
-    );
+        .unwrap();
+    assert_eq!(kind, "doc");
 }

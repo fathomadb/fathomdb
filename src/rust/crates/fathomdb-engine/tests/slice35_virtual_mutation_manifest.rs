@@ -121,13 +121,13 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
         ("\"INSERT INTO search_index_edges(", 1),
         ("\"INSERT INTO property_search_index(", 1),
         ("\"DELETE FROM property_search_index", 1),
-        ("\"INSERT INTO vector_default(", 6),
+        ("\"INSERT INTO vector_default(", 4),
         ("\"INSERT OR IGNORE INTO vector_default(", 0),
         ("\"UPDATE {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"INSERT INTO {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"CREATE VIRTUAL TABLE {guard}{DEFAULT_VECTOR_PARTITION}", 1),
         ("DROP TABLE {DEFAULT_VECTOR_PARTITION}", 1),
-        ("DROP TABLE vector_default", 2),
+        ("DROP TABLE vector_default", 0),
         ("\"DELETE FROM {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"DELETE FROM {} WHERE {}", 1),
         ("\"DELETE FROM {}\"", 1),
@@ -211,8 +211,7 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
     );
     contains_all("truncate_row_projections_in", &["ROW_OWNED_PROJECTIONS", "DELETE FROM {}"]);
 
-    // The remaining vec0 INSERTs are schema/open reshapes. They execute before
-    // a Slice-35 token can be minted and therefore cannot evade a live token.
-    contains_all("migrate_vector_partition_pack1_to_pack2", &["INSERT INTO vector_default("]);
-    contains_all("migrate_vector_partition_to_pack1", &["INSERT INTO vector_default("]);
+    // Old-shape data migrations are forbidden after the format-35 cutover.
+    assert!(!SOURCE.contains("fn migrate_vector_partition_pack1_to_pack2("));
+    assert!(!SOURCE.contains("fn migrate_vector_partition_to_pack1("));
 }

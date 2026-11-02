@@ -41,6 +41,10 @@ crate = "fathomdb-embedder"
 features = ["tc5-benchmark"]
 
 [[entry]]
+crate = "fathomdb-embedder-api"
+features = []
+
+[[entry]]
 crate = "fathomdb-engine"
 features = []
 

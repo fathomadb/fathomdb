@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: c182b0b20f9c96582aa5fe84773beb5a270f294a
+lib_rs_blob: 134eb0297ed28407e04df0efa2e1a66d9786eb99
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -94,3 +94,7 @@ free function, trait, or implementation body. There are zero unresolved
 root-owned production items against the accepted map. Feature-qualified
 public/hidden surface comparison and the full release gate remain separate
 candidate checks.
+
+0.8.28 Slice 60 adds the private `vector_spans` module declaration and updates
+the current schema-version fixture to 35; root field and method ownership
+remain unchanged. The inventory blob above tracks those changes.

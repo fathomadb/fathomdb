@@ -36,7 +36,12 @@ impl Ledger {
         }
         let _admission = self.admission.lock().map_err(|_| "admission poisoned")?;
         let q = |text: &str| text.replace('\'', "''");
-        self.engine.execute_for_test(&format!("BEGIN; INSERT INTO poc_operation VALUES('{}','{}','{}'); INSERT INTO poc_intent VALUES('{}',{},{},{}); COMMIT;",q(claim),q(body),q(source),q(claim),valid.0,valid.1,i64::from(withdrawn)))?;
+        let staged = self.engine.execute_for_test(&format!("BEGIN; INSERT INTO poc_operation VALUES('{}','{}','{}'); INSERT INTO poc_intent VALUES('{}',{},{},{}); COMMIT;",q(claim),q(body),q(source),q(claim),valid.0,valid.1,i64::from(withdrawn)));
+        if let Err(error) = staged {
+            self.engine.execute_for_test("ROLLBACK")?;
+            self.engine.execute_for_test("DELETE FROM poc_intent; DELETE FROM poc_operation;")?;
+            return Err(error.into());
+        }
         let result = self.engine.write(&[PreparedWrite::Node {
             kind: "doc".into(),
             body: body.into(),

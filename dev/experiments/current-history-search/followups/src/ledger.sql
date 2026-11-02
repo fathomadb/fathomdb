@@ -1,3 +1,4 @@
+PRAGMA temp_store=MEMORY;
 CREATE TEMP TABLE IF NOT EXISTS poc_operation(claim TEXT PRIMARY KEY,body TEXT NOT NULL,source TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS poc_claims(claim TEXT PRIMARY KEY,source TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS poc_cuts(cut INTEGER PRIMARY KEY);
@@ -34,4 +35,7 @@ BEGIN
   DELETE FROM poc_operation WHERE claim=NEW.logical_id;
 END;
 CREATE TRIGGER IF NOT EXISTS poc_temporal_erase AFTER DELETE ON canonical_nodes
-BEGIN DELETE FROM poc_fragments WHERE revision=OLD.write_cursor; END;
+BEGIN
+DELETE FROM poc_fragments WHERE revision=OLD.write_cursor;
+DELETE FROM poc_claims WHERE claim=OLD.logical_id AND NOT EXISTS(SELECT 1 FROM poc_fragments f WHERE f.claim=poc_claims.claim);
+END;

@@ -778,3 +778,68 @@ pub(crate) fn refresh_vector_eligibility_for_cursor(
     }
     Ok(())
 }
+
+#[cfg(test)]
+pub(crate) fn slice70_mapping_fixture(with_attribute: bool) -> Connection {
+    let dir = tempfile::TempDir::new().unwrap();
+    let opened = Engine::open(dir.path().join("init.sqlite")).unwrap();
+    let conn = Connection::open_in_memory().unwrap();
+    fathomdb_schema::migrate(&conn).unwrap();
+    let attrs = if with_attribute { vec![attr_vec0_column("owner")] } else { vec![] };
+    conn.execute_batch(&vector_partition_create_sql(8, false, &attrs)).unwrap();
+    let blob = encode_vector_blob(&[1.0; 8]);
+    for id in [101, 102] {
+        conn.execute("INSERT INTO _fathomdb_vector_rows VALUES(?1,'doc',10)", [id]).unwrap();
+        let attr =
+            if with_attribute { format!(",{}", attr_vec0_column("owner")) } else { String::new() };
+        let value = if with_attribute { ",''" } else { "" };
+        conn.execute(&format!("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until{attr}) VALUES(?1,?2,vec_quantize_binary(?2),'article','doc',0,'',0,-9223372036854775808,9223372036854775807{value})"),params![id,blob]).unwrap();
+    }
+    opened.engine.close().unwrap();
+    conn
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_record_erasure_removes_all_mapped_vector_ids() {
+    let conn = slice70_mapping_fixture(false);
+    erase_row_projections(&conn, 10).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM vector_default", [], |r| r.get::<_, i64>(0)).unwrap(),
+        0
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_attribute_refresh_uses_record_mapping() {
+    let conn = slice70_mapping_fixture(true);
+    refresh_vector_attr_values_for_row(&conn, 10, r#"{"owner":"alice"}"#).unwrap();
+    let col = attr_vec0_column("owner");
+    let values = conn
+        .prepare(&format!("SELECT {col} FROM vector_default"))
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(values, vec!["\u{1}alice"; 2]);
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_attribute_backfill_uses_record_mapping() {
+    let conn = slice70_mapping_fixture(false);
+    conn.execute("INSERT INTO canonical_attributes VALUES(10,'owner','alice')", []).unwrap();
+    let col = attr_vec0_column("owner");
+    reshape_vector_partition_nondestructive(&conn, 8, std::slice::from_ref(&col), &[], false)
+        .unwrap();
+    let values = conn
+        .prepare(&format!("SELECT {col} FROM vector_default"))
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(values, vec!["\u{1}alice"; 2]);
+}

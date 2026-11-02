@@ -1,5 +1,5 @@
 use rusqlite::{params, Connection};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -209,20 +209,96 @@ impl Store {
         Ok(())
     }
 
-    /// Expand a single temporal snapshot; archive unions have no snapshot meaning.
+    /// Expand one V/K snapshot; return unique target ID, selected body and hop count.
     pub fn graph(
         &self,
-        _seed: &str,
-        _view: View,
-        _depth: usize,
-        _limit: usize,
+        seed: &str,
+        view: View,
+        depth: usize,
+        limit: usize,
     ) -> Result<Vec<(String, String, usize)>> {
-        Ok(Vec::new())
+        if matches!(view, View::Archive { .. }) {
+            return Err(reject("archive union is not a graph snapshot"));
+        }
+        let tx = self.conn.unchecked_transaction()?;
+        let nodes = documents_view(&tx, Family::Node, view)?
+            .into_iter()
+            .map(|d| (d.claim.clone(), d))
+            .collect::<BTreeMap<_, _>>();
+        if !nodes.contains_key(seed) || limit == 0 {
+            return Ok(Vec::new());
+        }
+        let edges = documents_view(&tx, Family::Edge, view)?;
+        let mut adjacency: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for edge in edges {
+            let endpoints = tx.query_row(
+                "SELECT from_id,to_id FROM assertions WHERE id=?1",
+                [edge.version],
+                |r| Ok((r.get::<_, Option<String>>(0)?, r.get::<_, Option<String>>(1)?)),
+            )?;
+            if let (Some(from), Some(to)) = endpoints {
+                if nodes.contains_key(&from) && nodes.contains_key(&to) {
+                    adjacency.entry(from).or_default().insert(to);
+                }
+            }
+        }
+        let mut visited = BTreeSet::from([seed.to_string()]);
+        let mut queue = VecDeque::from([(seed.to_string(), 0usize)]);
+        let mut targets = Vec::new();
+        while let Some((node, hop)) = queue.pop_front() {
+            if hop >= depth {
+                continue;
+            }
+            if let Some(neighbors) = adjacency.get(&node) {
+                for target in neighbors {
+                    if visited.insert(target.clone()) {
+                        targets.push((target.clone(), nodes[target].body.clone(), hop + 1));
+                        if targets.len() == limit {
+                            return Ok(targets);
+                        }
+                        queue.push_back((target.clone(), hop + 1));
+                    }
+                }
+            }
+        }
+        tx.commit()?;
+        Ok(targets)
     }
 
-    /// Select unique eligible endpoint seeds from ranked edge text before a cap.
-    pub fn lexical_seeds(&self, _query: &str, _view: View, _limit: usize) -> Result<Vec<String>> {
-        Ok(Vec::new())
+    /// Select unique admitted endpoint IDs from ranked edge text before its cap.
+    pub fn lexical_seeds(&self, query: &str, view: View, limit: usize) -> Result<Vec<String>> {
+        if matches!(view, View::Archive { .. }) {
+            return Err(reject("archive union has no graph seeds"));
+        }
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+        let tx = self.conn.unchecked_transaction()?;
+        let nodes = documents_view(&tx, Family::Node, view)?
+            .into_iter()
+            .map(|d| d.claim)
+            .collect::<BTreeSet<_>>();
+        let ranked =
+            search_on(&tx, query, Family::Edge, None, usize::MAX, view, Backend::Partitioned)?;
+        let mut seen = BTreeSet::new();
+        let mut seeds = Vec::new();
+        for hit in ranked {
+            let (from, to) = tx.query_row(
+                "SELECT from_id,to_id FROM assertions WHERE id=?1",
+                [hit.version],
+                |r| Ok((r.get::<_, Option<String>>(0)?, r.get::<_, Option<String>>(1)?)),
+            )?;
+            for id in [from, to].into_iter().flatten() {
+                if nodes.contains(&id) && seen.insert(id.clone()) {
+                    seeds.push(id);
+                    if seeds.len() == limit {
+                        return Ok(seeds);
+                    }
+                }
+            }
+        }
+        tx.commit()?;
+        Ok(seeds)
     }
 
     /// Compare one backend under an explicitly selected temporal view.

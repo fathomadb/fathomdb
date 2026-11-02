@@ -136,26 +136,28 @@ fn current_family_tracks_source_boundaries_and_actual_source_revocation() {
     let dir = tempfile::tempdir().unwrap();
     let store = CurrentStore::open(&dir.path().join("current-source.sqlite")).unwrap();
     let PreparedWrite::ProvenancedNode(mut canonical) = source() else { unreachable!() };
-    canonical.valid_until = Some(100);
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    canonical.valid_until = Some(now + 100);
     store
         .write(&[PreparedWrite::ProvenancedNode(canonical), derived("assertion-r1", "needle")])
         .unwrap();
-    store.bootstrap(50).unwrap();
-    assert_eq!(store.search("needle", 50, 10).unwrap().rows.len(), 1);
+    store.bootstrap(now).unwrap();
+    assert_eq!(store.search("needle", now, 10).unwrap().rows.len(), 1);
     assert!(
-        store.search("needle", 100, 10).unwrap().rows.is_empty(),
+        store.search("needle", now + 100, 10).unwrap().rows.is_empty(),
         "source expiry must remove dependent rows"
     );
     store.close().unwrap();
 
     let store = CurrentStore::open(&dir.path().join("current-revoke.sqlite")).unwrap();
     store.write(&[source(), derived("assertion-r1", "needle")]).unwrap();
-    store.bootstrap(50).unwrap();
+    store.bootstrap(now).unwrap();
     store
         .with_writer(|engine| engine.transition("authority", LifecycleState::Deleted, None))
         .unwrap();
     assert!(
-        store.search("needle", 50, 10).unwrap().rows.is_empty(),
+        store.search("needle", now, 10).unwrap().rows.is_empty(),
         "source revocation invalidates and refreshes dependencies"
     );
     store.close().unwrap();

@@ -1,9 +1,9 @@
 NOT EXISTS (
  SELECT 1 FROM _fathomdb_artifact_revisions ar
- JOIN _fathomdb_source_links link ON link.artifact_revision_id=ar.revision_id
+ LEFT JOIN _fathomdb_source_links link ON link.artifact_revision_id=ar.revision_id
  WHERE ar.write_cursor=f.revision AND ar.artifact_role='derived_semantic'
  AND (
-   NOT EXISTS (
+   link.artifact_revision_id IS NULL OR NOT EXISTS (
     SELECT 1 FROM _fathomdb_artifact_revisions source
     JOIN canonical_nodes source_node ON source_node.write_cursor=source.write_cursor
     WHERE source.revision_id=link.source_revision_id AND source.artifact_role='canonical_source'

@@ -54,6 +54,20 @@ impl Ledger {
         valid: (i64, i64),
         withdrawn: bool,
     ) -> Result<u64> {
+        let independent_window = match &write {
+            PreparedWrite::Node { valid_from, valid_until, .. } => {
+                valid_from.is_some() || valid_until.is_some()
+            }
+            PreparedWrite::ProvenancedNode(node) => {
+                node.valid_from.is_some() || node.valid_until.is_some()
+            }
+            _ => false,
+        };
+        if independent_window {
+            return Err(
+                "temporal adapter owns validity; canonical owner windows are unsupported".into()
+            );
+        }
         let (claim, body, source) = match &write {
             PreparedWrite::Node { logical_id: Some(id), body, source_id, .. } => {
                 (id.as_str(), body.as_str(), source_id.as_str())

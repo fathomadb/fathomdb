@@ -500,3 +500,53 @@ fn frozen_expansion_uses_historical_attributes_and_keeps_historical_edge_hits() 
     assert!(result.search_hits.iter().any(|hit| hit.body == "oldedgequery"), "{result:?}");
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn relaxed_property_views_preserve_bm25_when_no_rows_are_added() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("property-rank.sqlite");
+    let opened = Engine::open(&path).unwrap();
+    let mut notes = property();
+    notes.name = "notes".into();
+    let mut scope = property();
+    scope.name = "scope".into();
+    scope.fts = None;
+    opened.engine.configure_projections(&[property(), notes, scope], &[]).unwrap();
+    let mut future = node(
+        "future",
+        r#"{"summary":"needle needle","notes":"needle long unrelated notes corpus terms","scope":"other"}"#,
+        InitialState::Active,
+    );
+    if let PreparedWrite::Node { valid_from, .. } = &mut future {
+        *valid_from = Some(i64::MAX);
+    }
+    opened.engine.write(&[
+        node("a",r#"{"summary":"needle","notes":"unrelated corpus","scope":"keep"}"#,InitialState::Active),
+        node("b",r#"{"summary":"needle needle long text","notes":"needle needle needle","scope":"keep"}"#,InitialState::Active),future,
+    ]).unwrap();
+    let mut filter = fathomdb_engine::SearchFilter::default();
+    filter.attributes = vec![("scope".into(), "keep".into())];
+    for selected_filter in [None, Some(filter)] {
+        let strict = opened
+            .engine
+            .search_projected_text(
+                "needle",
+                "summary",
+                selected_filter.clone(),
+                &ReadView::default(),
+            )
+            .unwrap();
+        let signature = |result: fathomdb_engine::SearchResult| {
+            result.results.into_iter().map(|hit| (hit.body, hit.score)).collect::<Vec<_>>()
+        };
+        let expected = signature(strict);
+        for v in [view(true, false), view(false, true), view(true, true)] {
+            let result = opened
+                .engine
+                .search_projected_text("needle", "summary", selected_filter.clone(), &v)
+                .unwrap();
+            assert_eq!(signature(result), expected, "{v:?}");
+        }
+    }
+    opened.engine.close().unwrap();
+}

@@ -2473,3 +2473,76 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
         }
     }
 }
+
+#[cfg(test)]
+mod historical_reconciliation_tests {
+    use super::*;
+
+    fn reconciliation_steps(count: usize) -> u64 {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opened =
+            Engine::open_without_embedder_for_test(dir.path().join("history.sqlite")).unwrap();
+        let source = SourceId::new("test:history-scaling").unwrap();
+        let mut writes = vec![];
+        for id in ["a", "b"] {
+            writes.push(PreparedWrite::Node {
+                kind: "doc".into(),
+                body: id.into(),
+                logical_id: Some(id.into()),
+                source_id: source.clone(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            });
+        }
+        for i in 0..count {
+            writes.push(PreparedWrite::Edge {
+                kind: "link".into(),
+                from: "a".into(),
+                to: "b".into(),
+                source_id: source.clone(),
+                logical_id: Some(format!("edge{i}")),
+                body: Some(format!("history{i}")),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            });
+        }
+        opened.engine.write(&writes).unwrap();
+        let counter = Arc::new(AtomicU64::new(0));
+        let observed = counter.clone();
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let conn = guard.as_mut().unwrap();
+        conn.progress_handler(
+            1,
+            Some(move || {
+                observed.fetch_add(1, Ordering::Relaxed);
+                false
+            }),
+        )
+        .unwrap();
+        reconcile_edge_history_on_boot(conn).unwrap();
+        conn.progress_handler(0, Option::<fn() -> bool>::None).unwrap();
+        let steps = counter.load(Ordering::Relaxed);
+        drop(guard);
+        opened.engine.close().unwrap();
+        steps
+    }
+
+    #[test]
+    fn historical_boot_reconciliation_scales_linearly() {
+        let small = reconciliation_steps(64);
+        let large = reconciliation_steps(256);
+        eprintln!(
+            "historical reconciliation VM steps: 64={small}, 256={large}, ratio={:.3}",
+            large as f64 / small as f64
+        );
+        assert!(
+            large < small * 6,
+            "four times the history must not approach quadratic reconciliation work"
+        );
+    }
+}

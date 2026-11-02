@@ -814,3 +814,58 @@ fn retained_consolidated_history_changes_edge_corpus_statistics_consistently() {
     assert_eq!(scores(&conn), retained);
     reopened.engine.close().unwrap();
 }
+
+#[test]
+fn lexical_only_boot_repair_invalidates_frozen_tokens_once() {
+    use fathomdb_engine::{ReadContextV1, SearchFilter};
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("lexical-repair-generation.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    let old = opened.engine.write(&[edge("history", "repairneedle old")]).unwrap().row_cursors[0];
+    opened.engine.write(&[edge("history", "current")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let context = ReadContextV1::new(view(true, false), SearchFilter::default()).unwrap();
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute("DELETE FROM search_index_edges WHERE write_cursor=?1", [old]).unwrap();
+    assert_eq!(
+        raw.query_row(
+            "SELECT COUNT(*) FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+            [old],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        1
+    );
+    assert_eq!(
+        raw.query_row(
+            "SELECT COUNT(*) FROM _fathomdb_vector_spans WHERE write_cursor=?1",
+            [old],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        1
+    );
+    let old_context = opened.engine.freeze_read_context(&context).unwrap();
+    assert!(opened
+        .engine
+        .search_text_only_view("repairneedle", &context.view)
+        .unwrap()
+        .results
+        .is_empty());
+    opened.engine.close().unwrap();
+    drop(opened);
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    assert!(
+        opened.engine.validate_frozen_read_context_for_binding(&old_context).is_err(),
+        "lexical repair must invalidate an authenticated pre-repair token"
+    );
+    let hits = opened.engine.search_text_only_view("repairneedle", &context.view).unwrap();
+    assert_eq!(hits.results.len(), 1);
+    assert_eq!(hits.results[0].write_cursor, old);
+    let repaired_context = opened.engine.freeze_read_context(&context).unwrap();
+    opened.engine.close().unwrap();
+    drop(opened);
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.validate_frozen_read_context_for_binding(&repaired_context).unwrap();
+    opened.engine.close().unwrap();
+}

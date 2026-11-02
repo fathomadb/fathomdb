@@ -631,7 +631,14 @@ fn resolve_seeds(
             if let Some(now) = view.now_param() {
                 params.push(rusqlite::types::Value::Integer(now));
             }
-            let eligibility = append_node_eligibility_sql(Some(filter), "cn", &mut params);
+            let eligibility = crate::filter::append_node_eligibility_sql_view(
+                tx,
+                Some(filter),
+                "cn",
+                &mut params,
+                &view.view,
+            )
+            .map_err(|_| EngineError::Storage)?;
             params.push(rusqlite::types::Value::Integer(i64::from(*ranked_limit)));
             let limit_index = params.len();
             let sql = format!(

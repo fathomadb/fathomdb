@@ -19,6 +19,11 @@ def grid():
                         ["node", "edge", "property"]))
 
 
+def stress_grid():
+    """Revised diagnostic order, explicitly separate from the original grid."""
+    return []
+
+
 def stop_reason(cell_seconds, campaign_seconds, rss):
     if campaign_seconds >= CAMPAIGN_SECONDS:
         return "campaign_time"

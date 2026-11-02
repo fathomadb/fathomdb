@@ -588,3 +588,81 @@ proptest::proptest! {
         proptest::prop_assert_eq!(reopened.search("alpha OR beta",Family::Node,None,20).unwrap(),before);
     }
 }
+
+#[test]
+fn review_current_claim_admission_consistently_gates_every_knowledge_view() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("admission.sqlite"), 50).unwrap();
+    store.put(change("a", "alpha", Family::Node, 1)).unwrap();
+    store.put(change("a", "beta", Family::Node, 2)).unwrap();
+    store.set_active("a", false).unwrap();
+    assert!(
+        store.search_view("alpha", Family::Node, None, 10, at(50, Some(1))).unwrap().is_empty(),
+        "current admission must gate superseded rows too"
+    );
+    assert!(store
+        .search_view(
+            "alpha OR beta",
+            Family::Node,
+            None,
+            10,
+            View::Archive { include_retracted: true }
+        )
+        .unwrap()
+        .is_empty());
+    store.put(change("a", "gamma", Family::Node, 3)).unwrap();
+    assert!(
+        store.search("gamma", Family::Node, None, 10).unwrap().is_empty(),
+        "new versions do not reset current admission"
+    );
+    store.set_active("a", true).unwrap();
+    assert_eq!(
+        store.search_view("alpha", Family::Node, None, 10, at(50, Some(1))).unwrap().len(),
+        1
+    );
+}
+
+#[test]
+fn review_initial_and_structural_revision_cannot_rewrite_validity_silently() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("intent.sqlite"), 50).unwrap();
+    store.put(change("a", "alpha", Family::Node, 1)).unwrap();
+    let mut duplicate_initial = change("a", "beta", Family::Node, 2);
+    duplicate_initial.intent = Intent::Initial;
+    assert!(store.put(duplicate_initial).is_err(), "initial cannot supersede an existing claim");
+    let mut shifted_revision = change("a", "beta", Family::Node, 2);
+    shifted_revision.valid_from = 20;
+    assert!(store.put(shifted_revision).is_err(), "structural revision must preserve the interval");
+    assert_eq!(store.search("alpha", Family::Node, None, 10).unwrap().len(), 1);
+}
+
+#[test]
+fn review_ineligible_endpoint_cannot_contribute_lexical_graph_seeds() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("endpoint.sqlite"), 50).unwrap();
+    store.put(change("A", "A", Family::Node, 1)).unwrap();
+    let mut b = change("B", "B", Family::Node, 2);
+    b.valid_to = Some(40);
+    store.put(b).unwrap();
+    store.put(edge_change("ab", "needle", "A", "B", 3, 0, None)).unwrap();
+    assert!(
+        store.lexical_seeds("needle", at(50, None), 10).unwrap().is_empty(),
+        "an edge with no coherent endpoint pair cannot seed graph retrieval"
+    );
+    assert!(store.graph("A", at(50, None), 2, 10).unwrap().is_empty());
+}
+
+#[test]
+fn review_archive_applies_source_validity_at_its_explicit_authority_instant() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("archive-authority.sqlite"), 50).unwrap();
+    store.put(change("a", "alpha", Family::Node, 1)).unwrap();
+    store.configure_source("source", true, true, 0, Some(50)).unwrap();
+    assert!(
+        store
+            .search_view("alpha", Family::Node, None, 10, View::Archive { include_retracted: true })
+            .unwrap()
+            .is_empty(),
+        "source's half-open authority interval ends at archive now"
+    );
+}

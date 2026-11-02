@@ -95,3 +95,30 @@ fn nested_retraction_late_future_and_atomic_fault_preserve_prior_account() {
     assert_eq!(reopened.selected("claim", 5, late as i64).unwrap(), vec![(late, "late".into())]);
     reopened.engine.close().unwrap();
 }
+
+proptest::proptest! {
+    #![proptest_config(proptest::test_runner::Config::with_cases(16))]
+    #[test]
+    fn fragment_roundtrip_matches_last_explicit_covering_assertion(ops in proptest::collection::vec((0i64..20,1i64..20,proptest::bool::ANY),1..14)) {
+        let dir=tempfile::tempdir().unwrap();
+        let path=dir.path().join("property.sqlite");
+        let ledger=Ledger::open(&path).unwrap();
+        let mut changes=Vec::new();
+        for (i,(start,len,withdraw)) in ops.into_iter().enumerate() {
+            let body=format!("payload{i}");
+            let cursor=ledger.change("claim",&body,"source",(start,start+len),withdraw).unwrap();
+            changes.push((cursor,start,start+len,withdraw,body));
+        }
+        ledger.engine.close().unwrap();drop(ledger);
+        let ledger=Ledger::open(&path).unwrap();
+        ledger.engine.rebuild_projections().unwrap();
+        for known in changes.iter().map(|c|c.0) {
+            for valid in 0..40 {
+                let expected=changes.iter().rev().find(|c|c.0<=known && c.1<=valid && valid<c.2)
+                    .filter(|c|!c.3).map(|c|(c.0,c.4.clone())).into_iter().collect::<Vec<_>>();
+                proptest::prop_assert_eq!(ledger.selected("claim",valid,known as i64).unwrap(),expected);
+            }
+        }
+        ledger.engine.close().unwrap();
+    }
+}

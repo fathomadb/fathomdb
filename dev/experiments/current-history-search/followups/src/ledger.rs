@@ -58,7 +58,7 @@ impl Ledger {
 
     /// Exact canonical revision selected by a half-open valid/knowledge scope.
     pub fn selected(&self, claim: &str, valid: i64, known: i64) -> Result<Vec<(u64, String)>> {
-        Ok(self.read.prepare("SELECT f.revision,n.body FROM poc_fragments f JOIN canonical_nodes n ON n.write_cursor=f.revision WHERE f.claim=?1 AND f.v0<=?2 AND ?2<f.v1 AND f.k0<=?3 AND (f.k1 IS NULL OR ?3<f.k1) AND f.withdrawn=0 ORDER BY f.fragment")?
+        Ok(self.read.prepare("SELECT f.revision,n.body FROM poc_fragments f JOIN canonical_nodes n ON n.write_cursor=f.revision WHERE n.state='active' AND f.claim=?1 AND f.v0<=?2 AND ?2<f.v1 AND f.k0<=?3 AND (f.k1 IS NULL OR ?3<f.k1) AND f.withdrawn=0 ORDER BY f.fragment")?
             .query_map(rusqlite::params![claim, valid, known], |r| Ok((r.get(0)?,r.get(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 }

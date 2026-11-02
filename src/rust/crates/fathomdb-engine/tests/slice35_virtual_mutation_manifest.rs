@@ -121,7 +121,10 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
         ("\"INSERT INTO search_index_edges(", 1),
         ("\"INSERT INTO property_search_index(", 1),
         ("\"DELETE FROM property_search_index", 1),
-        ("\"INSERT INTO vector_default(", 4),
+        // Four writer sites plus three cfg(test) fixture insertions.
+        ("\"INSERT INTO vector_default(", 7),
+        // One metadata writer plus four cfg(test) fixture updates.
+        ("\"UPDATE vector_default", 5),
         ("\"INSERT OR IGNORE INTO vector_default(", 0),
         ("\"UPDATE {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"INSERT INTO {DEFAULT_VECTOR_PARTITION}", 1),
@@ -171,7 +174,7 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
     );
     contains_all(
         "prune_edge_projection_shadows",
-        &["DELETE FROM search_index_edges", "delete_vector_partition_row", "_fathomdb_vector_rows"],
+        &["DELETE FROM search_index_edges", "delete_vector_record_rows", "_fathomdb_vector_rows"],
     );
     contains_all(
         "write_vector_for_test",
@@ -192,6 +195,17 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
             "INSERT INTO vector_default(",
             "record_projection_terminal",
         ],
+    );
+    for owner in [
+        "slice70_mapping_fixture",
+        "slice70_future_invalidation_refreshes_native_edge_deadline",
+        "slice70_relaxed_node_windows_still_filter_expired_edges",
+    ] {
+        contains_all(owner, &["INSERT INTO vector_default("]);
+    }
+    contains_all(
+        "refresh_vector_eligibility_for_cursor",
+        &["vector_eligibility_for_cursor", "_fathomdb_vector_rows", "UPDATE vector_default"],
     );
     contains_all(
         "refresh_vector_attr_values_for_row",

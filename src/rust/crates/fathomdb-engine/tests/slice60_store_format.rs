@@ -186,3 +186,63 @@ fn assert_coverage(invalid: bool) {
         }
     }
 }
+
+fn assert_bad_span_rejected(mutation: &str, populated: bool) {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("corrupt-span.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    if populated {
+        opened.engine.write(&[node("écho")]).unwrap();
+        opened.engine.drain(10_000).unwrap();
+    }
+    let conn = Connection::open(&path).unwrap();
+    conn.execute_batch(mutation).unwrap();
+    assert!(opened.engine.read_projection_generation_status().is_err(), "{mutation}");
+    drop(conn);
+    drop(opened);
+    assert!(
+        Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).is_err(),
+        "reopen: {mutation}"
+    );
+}
+
+#[test]
+fn missing_span_is_not_complete() {
+    assert_bad_span_rejected("DELETE FROM _fathomdb_vector_spans", true);
+}
+#[test]
+fn mismatched_span_body_length_is_not_complete() {
+    assert_bad_span_rejected("UPDATE _fathomdb_vector_spans SET body_length=99", true);
+}
+#[test]
+fn persisted_non_utf8_span_is_not_complete() {
+    assert_bad_span_rejected("UPDATE _fathomdb_vector_spans SET byte_end=1", true);
+}
+#[test]
+fn orphan_span_cannot_hide_in_empty_fast_path() {
+    assert_bad_span_rejected("INSERT INTO _fathomdb_vector_spans VALUES(99,99,0,0,NULL,0)", false);
+}
+
+fn assert_cleanup_authority_required(alter: bool) {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("cleanup.sqlite");
+    drop(Engine::open(&path).unwrap());
+    let conn = Connection::open(&path).unwrap();
+    conn.execute_batch("DROP TRIGGER _fathomdb_vector_spans_mapping_delete;").unwrap();
+    if alter {
+        conn.execute_batch("CREATE TRIGGER _fathomdb_vector_spans_mapping_delete AFTER DELETE ON _fathomdb_vector_rows BEGIN SELECT 1; END;").unwrap();
+    }
+    drop(conn);
+    assert!(Engine::open(&path).is_err());
+}
+#[test]
+fn missing_span_cleanup_trigger_is_refused() {
+    assert_cleanup_authority_required(false);
+}
+#[test]
+fn altered_span_cleanup_trigger_is_refused() {
+    assert_cleanup_authority_required(true);
+}

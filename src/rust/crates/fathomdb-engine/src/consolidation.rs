@@ -311,36 +311,9 @@ impl Engine {
                         params![ts, edge_ref],
                     )
                     .map_err(|_| EngineError::Storage)?;
-                    // fix-1 [P1]: prune the STATIC projection shadow rows so the
-                    // consolidated-away edge stops surfacing in FTS/vector — but
-                    // ONLY when the edge is ended as of the engine's "now",
-                    // mirroring the graph-traversal filter `edge_validity_sql`.
-                    // A future-dated t_invalid keeps the edge valid ⇒ keep the
-                    // projection. NON-DESTRUCTIVE: the canonical_edges row + body
-                    // survive (ADR-0.8.12 §2.1).
-                    //
-                    // TC-33: this used to be `SELECT datetime(?1) <= datetime('now')`
-                    // — an inline clock, AND a misleading error class: junk made
-                    // the SELECT yield SQL NULL, so `r.get::<bool>` failed as
-                    // `EngineError::Storage`. Both timestamps are integers now, so
-                    // the comparison is plain Rust against the bound `:now` seam.
                     if let Some(cursor) = active_cursor {
                         vector_storage::refresh_vector_eligibility_for_cursor(&tx, cursor)
                             .map_err(|_| EngineError::Storage)?;
-                        let ended = ts <= current_epoch_seconds();
-                        if ended {
-                            // fix-2 [P2]: KEEP the projection terminal row. The
-                            // canonical_edges row stays NON-superseded (invalidate
-                            // is metadata-only), and `database_has_pending_projection_work`
-                            // flags any non-superseded edge that has a body but no
-                            // terminal as pending; since `next_pending_projection_jobs`
-                            // only scans cursors ABOVE the stored projection cursor, an
-                            // already-projected invalidated edge would never be requeued
-                            // and `drain()`/`wait_for_idle` would hang forever. Dropping
-                            // the FTS/vec shadows (below) hides it from active retrieval;
-                            // retaining the terminal keeps the scheduler idle.
-                            Self::prune_edge_projection_shadows(&tx, cursor, true)?;
-                        }
                     }
                     receipt.edges_invalidated = receipt.edges_invalidated.saturating_add(1);
                 }
@@ -357,14 +330,9 @@ impl Engine {
                         params![cursor, edge_ref],
                     )
                     .map_err(|_| EngineError::Storage)?;
-                    // fix-1 [P1]: a superseded edge is unconditionally out of the
-                    // active set (graph traversal filters `superseded_at IS NULL`),
-                    // so prune its FTS/vector projection shadow rows to match.
                     if let Some(active_cursor) = active_cursor {
-                        // A superseded row is excluded from the pending-work check
-                        // (`superseded_at IS NOT NULL`), so dropping its terminal too
-                        // is safe (matches the excise pattern) and cannot phantom-pend.
-                        Self::prune_edge_projection_shadows(&tx, active_cursor, false)?;
+                        vector_storage::refresh_vector_eligibility_for_cursor(&tx, active_cursor)
+                            .map_err(|_| EngineError::Storage)?;
                     }
                     receipt.edges_superseded = receipt.edges_superseded.saturating_add(1);
                 }
@@ -399,50 +367,6 @@ impl Engine {
         )
         .optional()
         .map_err(|_| EngineError::Storage)
-    }
-
-    /// fix-1 [P1] — prune the STATIC projection shadow rows for a canonical
-    /// row's `write_cursor` so a consolidated-away edge stops surfacing in
-    /// FTS/vector retrieval. Mirrors the excision pattern at
-    /// `excise_source_inner` (invalidate-not-delete: the canonical row + body
-    /// are NEVER touched here).
-    ///
-    /// `keep_terminal` retains the `_fathomdb_projection_terminal` marker — set it
-    /// when the canonical row stays NON-superseded (an `invalidate` verdict), so the
-    /// projection scheduler still treats the cursor as done (fix-2 [P2]); clear it
-    /// when the row is superseded (excluded from the pending-work scan anyway).
-    ///
-    /// FIXED (0.8.12 Slice A, R-CON-2 named default-ON blocker; Slice-20 codex
-    /// §9 [P2]): a full `rebuild_projections` re-projects every non-superseded
-    /// edge with a body from `canonical_edges` — this used to re-materialise an
-    /// invalidated edge's FTS/vec shadows even though graph traversal excludes
-    /// it via the `t_invalid > now` filter. The FTS rebuild SELECT
-    /// (`rebuild_shadow_state`), the vec projection queue
-    /// (`next_pending_projection_jobs`), and the pending-work probe
-    /// (`database_has_pending_projection_work`) now all carry the same
-    /// `edge_validity_sql` filter as graph traversal (TC-33: INTEGER compare
-    /// against the bound `:now`, formerly `datetime(t_invalid) > datetime('now')`),
-    /// so a rebuild is durable across the recency exclusion.
-    fn prune_edge_projection_shadows(
-        tx: &rusqlite::Transaction<'_>,
-        cursor: i64,
-        keep_terminal: bool,
-    ) -> Result<(), EngineError> {
-        tx.execute("DELETE FROM search_index_edges WHERE write_cursor = ?1", [cursor])
-            .map_err(|_| EngineError::Storage)?;
-        // Resolve every vector ID through the record mapping, using the shared
-        // vec0-delete primitive ([`delete_vector_partition_row`]).
-        vector_storage::delete_vector_record_rows(tx, cursor).map_err(|_| EngineError::Storage)?;
-        tx.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1", [cursor])
-            .map_err(|_| EngineError::Storage)?;
-        if !keep_terminal {
-            tx.execute(
-                "DELETE FROM _fathomdb_projection_terminal WHERE write_cursor = ?1",
-                [cursor],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        }
-        Ok(())
     }
 }
 

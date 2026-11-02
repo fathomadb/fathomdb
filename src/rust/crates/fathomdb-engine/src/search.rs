@@ -450,13 +450,15 @@ fn historical_dense_incomplete(tx: &Connection, view: FrozenView) -> rusqlite::R
     let rows = stmt.query_map(params![view.edge_now(), declared], |r| {
         Ok((r.get::<_, u64>(0)?, r.get::<_, String>(1)?, r.get::<_, bool>(2)?))
     })?;
+    let mut incomplete = false;
     for row in rows {
         let (cursor, kind, edge) = row?;
         if !edge && !crate::kind_is_vector_committable(&kind) {
             continue;
         }
         if crate::projection_commit::projection_physical_tuple_is_empty(tx, cursor)? {
-            return Ok(true);
+            incomplete = true;
+            continue;
         }
         let completion = crate::projection_generation::member_completion(
             tx,
@@ -467,10 +469,10 @@ fn historical_dense_incomplete(tx: &Connection, view: FrozenView) -> rusqlite::R
         )
         .map_err(|_| rusqlite::Error::InvalidQuery)?;
         if completion != crate::projection_generation::Completion::Complete {
-            return Ok(true);
+            incomplete = true;
         }
     }
-    Ok(false)
+    Ok(incomplete)
 }
 
 /// Largest attribute cohort that takes the cohort-prefiltered rank stream.
@@ -1454,7 +1456,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             &view.view,
         )?;
         let mut active_stmt = tx.prepare(&format!(
-            "SELECT kind, body, write_cursor FROM canonical_nodes \
+            "SELECT kind, body, write_cursor, source_id FROM canonical_nodes \
              WHERE logical_id = ?1{active_existence}\
              {active_validity}{active_eligibility}{active_filter} ORDER BY write_cursor DESC LIMIT 1"
         ))?;
@@ -1462,12 +1464,22 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             stats.seeds_considered += 1;
             let mut active_params = active_params_template.clone();
             active_params[0] = rusqlite::types::Value::Text(lid.clone());
-            let row: Option<(String, String, i64)> = active_stmt
+            let row: Option<(String, String, i64, Option<String>)> = active_stmt
                 .query_row(rusqlite::params_from_iter(active_params.iter()), |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, Option<String>>(3)?,
+                    ))
                 })
                 .optional()?;
-            if let Some((kind, body, write_cursor)) = row {
+            if let Some((kind, body, write_cursor, selected_source)) = row {
+                let source_id = if matches!(&graph_origin, CapturedGraphOrigin::EntitySeed) {
+                    selected_source
+                } else {
+                    source_id
+                };
                 stats.seeds_resolved += 1;
                 if visited.insert(lid.clone()) {
                     // Cause-A: the seed's `logical_id` is in hand (`lid`) — derive the
@@ -1822,9 +1834,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             String::new()
         }
     };
-    let history_incomplete = (view.view.include_superseded || view.view.include_inactive)
+    let history_incomplete = if (view.view.include_superseded || view.view.include_inactive)
         && direct_text_candidate_limit.is_none()
-        && (query_vector.is_none() || historical_dense_incomplete(&tx, view)?);
+    {
+        let incomplete = historical_dense_incomplete(&tx, view)?;
+        query_vector.is_none() || incomplete
+    } else {
+        false
+    };
     let vector_eligibility_degraded = history_incomplete
         || query_vector.is_some()
             && dependency_closure::vector_arm_requires_fallback(

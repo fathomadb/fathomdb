@@ -240,7 +240,7 @@ pub(crate) fn reconcile_vector_attr_columns(
     Ok(true)
 }
 
-/// Rebuild vec0 attribute metadata from the canonical EAV projection while
+/// Rebuild vec0 attribute metadata from canonical bodies and registry sources while
 /// preserving the existing column set. A changed nested source can leave the
 /// `attr_<hex>` schema untouched while changing every value behind that column.
 pub(crate) fn refresh_vector_attr_values(
@@ -369,28 +369,15 @@ fn reshape_vector_partition_nondestructive(
             // metadata is `''`-sentinelled, but COALESCE defends the stage table).
             select_exprs.push_str(&format!(", COALESCE({col}, '')"));
         } else {
-            // New column — back-fill from the ALREADY-populated `canonical_attributes`
-            // (fix-1 finding 2 [P2]). `configure_projections` runs `backfill_attribute`
-            // (which fills `canonical_attributes` from each active row's body) BEFORE
-            // this reshape, so a pre-existing row whose body carries the attribute is
-            // immediately filterable — no false negative until a re-embed. The `''`
-            // sentinel (condition #3) is used ONLY where the attribute is genuinely
-            // ABSENT for that row (no `canonical_attributes` row ⇒ COALESCE → '').
-            // The EAV value equals the vec0 write-time value by construction (both go
-            // through `extract_scalar_attribute`), so pre-existing and freshly-written
-            // rows share one filter semantics.
+            // Mapped historical/inactive vectors outlive the current-only EAV
+            // projection. Re-derive their scalar values from canonical bodies.
             match decode_attr_vec0_column(col) {
                 Some(name) => {
                     // vec0/execute_batch takes no bind params; embed the decoded name
                     // as a SQL string literal, escaping single quotes.
                     //
-                    // fix-3 [P2] — a PRESENT row (a canonical_attributes row exists)
-                    // encodes its RAW `attr_value` as `\x01 || attr_value` (`char(1) ||
-                    // ca.attr_value`), matching the write-time vec0 encoding so a
-                    // pre-existing present-empty row (attr_value='') becomes the bare
-                    // marker, NOT `''`. An ABSENT row (no canonical_attributes row) is
-                    // the COALESCE default `''` (condition #3). `canonical_attributes`
-                    // itself stays RAW — only this vec0 column is encoded.
+                    // Present values use the same marker encoding as writes;
+                    // absent values use the empty sentinel, including history.
                     let registry = load_projection_registry(conn)?;
                     let stored = registry.get(&name).ok_or(rusqlite::Error::InvalidQuery)?;
                     let path = crate::projection_registry::projection_json_path(&name, stored)

@@ -553,6 +553,14 @@ pub(crate) fn build_search_result(
                     frozen.context.view.include_out_of_window,
                     frozen.context.view.include_superseded,
                 )?;
+                if !source_revision_is_eligible(
+                    connection,
+                    &source_revision,
+                    frozen.effective_valid_at,
+                    frozen.context.view.include_out_of_window,
+                )? {
+                    return Err(EvidenceErrorV1::unavailable().into());
+                }
                 crate::validate_dependency_chain(
                     connection,
                     &source_revision,
@@ -577,6 +585,7 @@ pub(crate) fn build_search_result(
             frozen.context.view.include_out_of_window,
         )?;
         authorize_intrinsic_lifecycle(connection, &stored, artifact_class, &frozen.context.view)?;
+        authorize_source_access(connection, &stored, &frozen.context.eligibility)?;
         if stored.completeness != "complete" {
             return Err(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceIncomplete,
@@ -779,22 +788,7 @@ pub(crate) fn resolve(
     if !artifact_eligible {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    // A source is a separately authorized canonical artifact. Domain-oriented
-    // kind/source-type constraints select the returned artifact, while access-
-    // bearing metadata and declared attributes constrain both artifact and bytes.
-    let mut source_filter = eligibility.clone();
-    source_filter.kind = None;
-    source_filter.source_type = None;
-    if !crate::text_hit_passes_filter(
-        connection,
-        stored.source_cursor,
-        &stored.source_kind,
-        Some(&source_filter),
-    )
-    .map_err(|_| EngineError::Storage)?
-    {
-        return Err(EvidenceErrorV1::unavailable().into());
-    }
+    authorize_source_access(connection, &stored, eligibility)?;
     if stored.completeness != "complete" {
         return Err(
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
@@ -859,6 +853,30 @@ pub(crate) fn resolve(
         retrieval_contribution: payload.contribution,
         dependency,
     })
+}
+
+fn authorize_source_access(
+    connection: &Connection,
+    stored: &StoredEvidence,
+    eligibility: &crate::SearchFilter,
+) -> Result<(), EngineError> {
+    // A source is a separately authorized canonical artifact. Domain-oriented
+    // kind/source-type constraints select the returned artifact, while access-
+    // bearing metadata and declared attributes constrain both artifact and bytes.
+    let mut source_filter = eligibility.clone();
+    source_filter.kind = None;
+    source_filter.source_type = None;
+    if !crate::text_hit_passes_filter(
+        connection,
+        stored.source_cursor,
+        &stored.source_kind,
+        Some(&source_filter),
+    )
+    .map_err(|_| EngineError::Storage)?
+    {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    Ok(())
 }
 
 fn authorize_intrinsic_lifecycle(

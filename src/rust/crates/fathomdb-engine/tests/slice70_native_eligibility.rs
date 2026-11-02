@@ -83,3 +83,64 @@ fn lifecycle_metadata_tracks_delete_reactivation_and_supersession() {
     opened.engine.drain(10_000).unwrap();
     assert_eq!(state(), 2);
 }
+
+fn assert_dense_survives(cause: &str) {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("native.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let mut writes = (0..200)
+        .map(|i| {
+            node(
+                &format!("excluded{i}"),
+                (cause == "future").then_some(i64::MAX),
+                (cause == "expired").then_some(0),
+            )
+        })
+        .collect::<Vec<_>>();
+    writes.push(node("eligible", None, None));
+    opened.engine.write(&writes).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    if cause == "superseded" {
+        let replacements = (0..200)
+            .map(|i| node(&format!("excluded{i}"), Some(i64::MAX), None))
+            .collect::<Vec<_>>();
+        opened.engine.write(&replacements).unwrap();
+        opened.engine.drain(10_000).unwrap();
+    }
+    if cause == "inactive" {
+        for i in 0..200 {
+            opened
+                .engine
+                .transition(
+                    &format!("l:excluded{i}"),
+                    fathomdb_engine::LifecycleState::Deleted,
+                    Some("test".into()),
+                )
+                .unwrap();
+        }
+    }
+    opened.engine.set_vector_stage_only_for_test(true);
+    let result = opened.engine.search("query with no lexical match").unwrap();
+    assert_eq!(result.results.len(), 1, "{cause}: {result:?}");
+    assert_eq!(result.results[0].id.value, "eligible");
+    assert_eq!(result.results[0].branch, fathomdb_engine::SoftFallbackBranch::Vector);
+    assert!(result.soft_fallback.is_none(), "{cause}: {result:?}");
+}
+
+#[test]
+fn expired_rows_do_not_disable_or_starve_dense_knn() {
+    assert_dense_survives("expired");
+}
+#[test]
+fn future_rows_do_not_disable_or_starve_dense_knn() {
+    assert_dense_survives("future");
+}
+#[test]
+fn superseded_rows_do_not_disable_or_starve_dense_knn() {
+    assert_dense_survives("superseded");
+}
+#[test]
+fn inactive_rows_do_not_disable_or_starve_dense_knn() {
+    assert_dense_survives("inactive");
+}

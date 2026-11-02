@@ -832,3 +832,7 @@ required-features = ["test-hooks"]
 [[test]]
 name = "slice60_store_format"
 required-features = ["operator", "test-hooks"]
+
+[[test]]
+name = "slice70_native_eligibility"
+required-features = ["operator", "test-hooks"]

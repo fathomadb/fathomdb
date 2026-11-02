@@ -739,7 +739,7 @@ impl Engine {
 
     /// G10 — hybrid `search` with an optional closed [`SearchFilter`]. `None`
     /// (or an all-`None` filter) is the unfiltered path whose phase-1 SQL is
-    /// byte-identical to 0.7.2. The filter prunes the vector branch in the
+    /// subject to native lifecycle and validity eligibility. The filter prunes the vector branch in the
     /// single phase-1 candidates statement and constrains the text branch by the
     /// same metadata. Ranking is the unconditional G9 RRF fusion.
     pub fn search_filtered(
@@ -761,7 +761,7 @@ impl Engine {
         // sugar through the unified `Filter` type, then lower back to the vec0
         // backend's `SearchFilter` (D4). The round-trip is lossless +
         // canonical-order-preserving, so the produced phase-1 SQL stays
-        // byte-identical to 0.7.2 on the `None`/all-`None` path. `SearchFilter`
+        // guarded by native lifecycle and validity on every path. `SearchFilter`
         // never carries a `Json` term, so `to_search_filter` never rejects here.
         //
         // 0.8.20 Slice 15e — the unified `Filter`/`FilterTerm` grammar does not yet
@@ -1383,8 +1383,7 @@ impl Engine {
 }
 
 /// Test seam — exposes [`build_vector_phase1_sql`] at the production
-/// `SEARCH_RERANK_LIMIT` so `pr_g10_filtered_knn.rs` can pin the `filter=None`
-/// byte-identity and the appended predicates.
+/// `SEARCH_RERANK_LIMIT` so tests can pin pre-cap eligibility and filter bindings.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 #[must_use]

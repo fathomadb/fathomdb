@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 70 — native vector eligibility
-status: draft for Astra review
+status: approved by Astra; implementation verification pending
 target_release: 0.8.28
 ---
 

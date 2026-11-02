@@ -430,7 +430,7 @@ impl Engine {
     ) -> Result<(), EngineError> {
         tx.execute("DELETE FROM search_index_edges WHERE write_cursor = ?1", [cursor])
             .map_err(|_| EngineError::Storage)?;
-        // vec0 rowid is the canonical row's write_cursor. TC-76: via the one
+        // Resolve every vector ID through the record mapping, using the shared
         // vec0-delete primitive ([`delete_vector_partition_row`]).
         vector_storage::delete_vector_record_rows(tx, cursor).map_err(|_| EngineError::Storage)?;
         tx.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1", [cursor])
@@ -444,4 +444,68 @@ impl Engine {
         }
         Ok(())
     }
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_future_invalidation_refreshes_native_edge_deadline() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("edge-deadline.sqlite");
+    let opened = Engine::open(&path).unwrap();
+    let node = |id: &str| PreparedWrite::Node {
+        logical_id: Some(id.into()),
+        kind: "doc".into(),
+        body: "body".into(),
+        source_id: SourceId::new("test:slice70").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    };
+    opened
+        .engine
+        .write(&[
+            node("left"),
+            node("right"),
+            PreparedWrite::Edge {
+                logical_id: Some("edge".into()),
+                kind: "link".into(),
+                from: "left".into(),
+                to: "right".into(),
+                body: Some("edge body".into()),
+                source_id: SourceId::new("test:slice70").unwrap(),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            },
+        ])
+        .unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let dim = default_profile_dimension(&conn).unwrap();
+    let vector = serde_json::to_string(&vec![1.0f32; dim as usize]).unwrap();
+    conn.execute("INSERT INTO _fathomdb_vector_rows VALUES(3,'edge_fact',3)", []).unwrap();
+    conn.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(3,vec_f32(?1),vec_quantize_binary(vec_f32(?1)),'edge_fact','edge_fact',0,'',0,-9223372036854775808,9223372036854775807)",[vector]).unwrap();
+    let cluster = [ConsolidateCandidateEdge {
+        edge_ref: "edge".into(),
+        body: Some("edge body".into()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        source_doc_id: None,
+        extractor_model_id: None,
+    }];
+    opened.engine.apply_consolidate_verdicts(&cluster,&[serde_json::json!({"edge_ref":"edge","verdict":"invalidate","t_invalid":"2099-01-01T00:00:00Z"})],&mut ConsolidateReceipt::default()).unwrap();
+    let end = conn
+        .query_row("SELECT t_invalid FROM canonical_edges WHERE write_cursor=3", [], |r| {
+            r.get::<_, i64>(0)
+        })
+        .unwrap();
+    assert_eq!(
+        conn.query_row("SELECT valid_until FROM vector_default WHERE rowid=3", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        end - 1
+    );
 }

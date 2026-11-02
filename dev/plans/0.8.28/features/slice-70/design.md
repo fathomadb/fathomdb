@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 70 — eligibility design
-status: draft for Astra review
+status: approved by Astra; implementation verification pending
 target_release: 0.8.28
 ---
 
@@ -69,3 +69,19 @@ record and a true orphan for attribute refresh, reshape backfill, erasure
 and orphan detection. A pre-extension format-35 partition lacking the three
 columns must fail open before serving or reshaping without partial mutation;
 test the physical admission guard rather than relying on version alone.
+
+## Relaxed node validity and edge expiry
+
+Existing edge reads always enforce `t_invalid`, including when node windows
+are relaxed. For `include_out_of_window`, run disjoint native node/edge KNN
+arms: nodes use `kind!='edge_fact'` without bounds, edges use
+`kind='edge_fact'` with both bounds. Each arm takes the existing binary cap
+192, then the union takes the global 192 nearest Hamming candidates before
+unchanged f32 rerank. The default view keeps a single KNN. Bind the same
+frozen instant on both paths. Astra reviewed this refinement; both bounds
+also exclude the encoded empty interval at i64 MIN. No extra metadata column
+or change to the existing binary cap is needed.
+
+sqlite-vec metadata upkeep uses mapped-ID enumeration plus per-rowid UPDATE;
+its unconstrained/subquery UPDATE path does not support these assignments.
+The indexed mapping bounds ordinary single-record upkeep without corpus scans.

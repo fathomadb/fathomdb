@@ -71,16 +71,9 @@ pub(crate) fn ensure_vector_partition(
     }
 }
 
-/// The current (Pack-2) `vector_default` vec0 shape. Slice 10 / G10 adds a plain
-/// `status TEXT` metadata column — **not** aux (`+status`): aux columns
-/// hard-error under a KNN `WHERE`, and the G10 filter constrains `status` in the
-/// phase-1 KNN statement. `status` ships NULL plumbing only (no population source
-/// yet).
-///
-/// 0.8.20 Slice 15e — `attr_cols` are the declared-`filterable` attribute columns
-/// (byte-safe `attr_<hex>` identifiers, see [`attr_vec0_column`]), each a PLAIN
-/// `TEXT` metadata column (never aux `+`), appended after `status`. Every
-/// partition, including attribute reshapes, uses the format-35 chunk size.
+/// Format-35 layout: plain metadata is filtered inside KNN; attributes share
+/// the sixteen-column metadata budget with six built-in metadata columns.
+/// Every partition, including attribute reshapes, uses 64-row chunks.
 fn vector_partition_create_sql(
     dimension: u32,
     if_not_exists: bool,
@@ -305,8 +298,8 @@ pub(crate) fn refresh_vector_attr_values_for_row(
 ///
 /// THE FOUR LOAD-BEARING CONDITIONS (any one broken ⇒ silently wrong results):
 ///   1. `rowid` is listed EXPLICITLY in the re-insert (a vec0 row maps to its node
-///      by `rowid == write_cursor`; auto-assigned rowids would decouple every
-///      embedding from its node);
+///      through the vector-row mapping; auto-assigned IDs would decouple
+///      embeddings from their owners);
 ///   2. each attribute column is PLAIN `TEXT` metadata (via
 ///      [`vector_partition_create_sql`]), never a vec0 `aux`/`+` column (aux
 ///      hard-errors a filtered KNN);
@@ -867,4 +860,58 @@ pub(crate) fn delete_vector_record_rows(conn: &Connection, cursor: i64) -> rusql
         count += delete_vector_partition_row(conn, id)?;
     }
     Ok(count)
+}
+
+#[cfg(test)]
+proptest::proptest! {
+    #[test]
+    fn slice70_inclusive_bounds_match_nullable_reference(
+        from in proptest::option::of(proptest::prelude::any::<i64>()),
+        until in proptest::option::of(proptest::prelude::any::<i64>()),
+        now in proptest::prelude::any::<i64>(),
+    ) {
+        let (lower,upper)=vector_validity_bounds(from,until);
+        proptest::prop_assert_eq!(lower<=now && upper>=now,
+            from.is_none_or(|start|start<=now) && until.is_none_or(|end|end>now));
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_mapped_lifecycle_rollback_and_recenter_preserve_metadata() {
+    let mut conn = slice70_mapping_fixture(false);
+    conn.execute("INSERT INTO canonical_nodes(write_cursor,kind,body,state,valid_from,valid_until) VALUES(10,'doc','body','active',5,20)",[]).unwrap();
+    refresh_vector_eligibility_for_cursor(&conn, 10).unwrap();
+    {
+        let tx = conn.transaction().unwrap();
+        tx.execute(
+            "UPDATE canonical_nodes SET state='deleted',superseded_at=50 WHERE write_cursor=10",
+            [],
+        )
+        .unwrap();
+        refresh_vector_eligibility_for_cursor(&tx, 10).unwrap();
+        for id in [101, 102] {
+            assert_eq!(
+                tx.query_row("SELECT lifecycle FROM vector_default WHERE rowid=?1", [id], |r| r
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                3
+            );
+        }
+        tx.rollback().unwrap();
+    }
+    let tx = conn.transaction().unwrap();
+    let rows = vec![(101, encode_vector_blob(&[1.0; 8])), (102, encode_vector_blob(&[1.0; 8]))];
+    crate::mean::run_pin_and_requantize_pass(&tx, &rows, &[0.1; 8]).unwrap();
+    for id in [101, 102] {
+        let actual=tx.query_row("SELECT lifecycle,valid_from,valid_until,embedding FROM vector_default WHERE rowid=?1",[id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,r.get::<_,Vec<u8>>(3)?))).unwrap();
+        assert_eq!(actual, (0, 5, 19, encode_vector_blob(&[1.0; 8])));
+    }
+    assert_eq!(
+        tx.query_row("SELECT state FROM canonical_nodes WHERE write_cursor=10", [], |r| r
+            .get::<_, String>(0))
+            .unwrap(),
+        "active"
+    );
+    tx.rollback().unwrap();
 }

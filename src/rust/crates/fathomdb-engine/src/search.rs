@@ -1701,9 +1701,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 rusqlite::types::Value::Text(query_vector.to_string()),
             ];
             params.extend(vector_filter_values(filter));
-            if !view.view.include_out_of_window {
-                params.push(rusqlite::types::Value::Integer(view.edge_now()));
-            }
+            params.push(rusqlite::types::Value::Integer(view.edge_now()));
             let mut statement = prepare_search_statement(&tx, &sql)?;
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
@@ -1714,8 +1712,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         }
         // G1: carry the canonical row's `write_cursor` (interim id), `kind`,
         // `body`, and the `vec_distance_l2` rerank score per hit. The
-        // `_fathomdb_vector_rows.rowid` equals the canonical `write_cursor`,
-        // so the candidate rowid IS the hit id.
+        // Production still emits only head vectors with ID equal to the record
+        // cursor. Future window grouping/hydration is a separate feature.
         //
         // G11 (Slice 15) fix: edge bodies are projected into vector_default under
         // kind = "edge_fact"; their write_cursor is in canonical_edges, not

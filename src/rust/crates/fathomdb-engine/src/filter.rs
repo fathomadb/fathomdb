@@ -574,24 +574,27 @@ pub(crate) fn build_vector_phase1_sql(
         (true, false) => " AND lifecycle IN (0,2)",
         (true, true) => "",
     });
-    if !view.include_out_of_window {
-        let index = vector_filter_values(filter).len() + 3;
-        filter_clause.push_str(&format!(" AND valid_from<=?{index} AND valid_until>=?{index}"));
-    }
+    let index = vector_filter_values(filter).len() + 3;
+    let temporal = format!(" AND valid_from<=?{index} AND valid_until>=?{index}");
+    let knn = |extra: &str| {
+        format!(
+        "SELECT rowid,distance FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)){filter_clause}{extra} ORDER BY distance LIMIT {TOP_K_BIT_CANDIDATES}"
+    )
+    };
+    let candidates = if view.include_out_of_window {
+        // Edge expiry remains mandatory when node windows are relaxed. Each
+        // disjoint arm contributes enough candidates for the same global cap.
+        let nodes = knn(" AND kind!='edge_fact'");
+        let edges = knn(&format!(" AND kind='edge_fact'{temporal}"));
+        format!("SELECT rowid FROM (SELECT * FROM ({nodes}) UNION ALL SELECT * FROM ({edges})) ORDER BY distance LIMIT {TOP_K_BIT_CANDIDATES}")
+    } else {
+        knn(&temporal)
+    };
     format!(
-        "WITH candidates AS (
-                     SELECT rowid
-                     FROM vector_default
-                     WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)){filter_clause}
-                     ORDER BY distance
-                     LIMIT {top_k}
-                 )
-                 SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2
-                 FROM candidates c
-                 JOIN vector_default v ON v.rowid = c.rowid
-                 ORDER BY l2
-                 LIMIT {final_limit}",
-        top_k = TOP_K_BIT_CANDIDATES,
+        "WITH candidates AS ({candidates})
+         SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2
+         FROM candidates c JOIN vector_default v ON v.rowid=c.rowid
+         ORDER BY l2 LIMIT {final_limit}"
     )
 }
 
@@ -1075,4 +1078,80 @@ fn slice70_relaxed_node_windows_still_filter_expired_edges() {
         .unwrap();
     ids.sort_unstable();
     assert_eq!(ids, [101, 102]);
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_native_view_matrix_and_endpoint_bounds() {
+    let conn = crate::vector_storage::slice70_mapping_fixture(false);
+    let vector = serde_json::to_string(&vec![1.0f32; 8]).unwrap();
+    for code in 0..4i64 {
+        for id in [101, 102] {
+            conn.execute(
+                "UPDATE vector_default SET lifecycle=?1 WHERE rowid=?2",
+                params![code, id],
+            )
+            .unwrap();
+        }
+        for superseded in [false, true] {
+            for inactive in [false, true] {
+                let view = ReadView {
+                    include_superseded: superseded,
+                    include_inactive: inactive,
+                    include_out_of_window: superseded ^ inactive,
+                    ..ReadView::default()
+                };
+                let filter = SearchFilter {
+                    kind: Some("doc".into()),
+                    source_type: Some("article".into()),
+                    created_after: Some(0),
+                    status: Some(String::new()),
+                    ..SearchFilter::default()
+                };
+                let sql = build_vector_phase1_sql(Some(&filter), 192, &view);
+                let mut values = vec![
+                    rusqlite::types::Value::Text(vector.clone()),
+                    rusqlite::types::Value::Text(vector.clone()),
+                ];
+                values.extend(vector_filter_values(Some(&filter)));
+                values.push(rusqlite::types::Value::Integer(1));
+                let ids = conn
+                    .prepare(&sql)
+                    .unwrap()
+                    .query_map(rusqlite::params_from_iter(values), |r| r.get::<_, i64>(0))
+                    .unwrap()
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .unwrap();
+                let expected = (superseded || code & 2 == 0) && (inactive || code & 1 == 0);
+                assert_eq!(ids.len(), if expected { 2 } else { 0 }, "code{code} {view:?}");
+            }
+        }
+    }
+    for id in [101, 102] {
+        conn.execute("UPDATE vector_default SET lifecycle=0 WHERE rowid=?1", [id]).unwrap();
+    }
+    for (from, until) in
+        [(None, None), (None, Some(i64::MIN)), (None, Some(i64::MAX)), (Some(i64::MAX), None)]
+    {
+        let (lower, upper) = crate::vector_storage::vector_validity_bounds(from, until);
+        for id in [101, 102] {
+            conn.execute(
+                "UPDATE vector_default SET valid_from=?1,valid_until=?2 WHERE rowid=?3",
+                params![lower, upper, id],
+            )
+            .unwrap();
+        }
+        for now in [i64::MIN, -1, 0, i64::MAX] {
+            let sql = build_vector_phase1_sql(None, 192, &ReadView::default());
+            let ids = conn
+                .prepare(&sql)
+                .unwrap()
+                .query_map(params![vector, vector, now], |r| r.get::<_, i64>(0))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap();
+            let expected = from.is_none_or(|v| v <= now) && until.is_none_or(|v| v > now);
+            assert_eq!(ids.len(), if expected { 2 } else { 0 }, "{from:?} {until:?} at{now}");
+        }
+    }
 }

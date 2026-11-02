@@ -14,6 +14,10 @@ AC-050c) gates merges against this invariant.
 
 ### Added
 
+- (Slice 70) Dense KNN filters lifecycle and validity before its candidate cap;
+  ineligible vectors no longer disable unrelated eligible dense results.
+  Record-mapped updates and erasure maintain all vector IDs atomically.
+
 - (Slice 60) Per-vector head coverage distinguishes known UTF-8 byte endpoints
   from unknown coverage. `fathomdb-embedder-api` 0.8.0 adds the default-unknown
   `Embedder::truncation_offset` method; Candle BGE reports its actual endpoint.

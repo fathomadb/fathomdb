@@ -36,3 +36,22 @@ The [qualified status](../plans/0.8.28/features/slice-60/status.md) records
 passing AC-013, the unchanged TC-5 recall criterion, all 30 scale cells and
 cutoff ties. The historical CS64-versus-1024 crossing was not remeasured.
 No F32T copy, ANN structure, cache increase or embedder swap is introduced.
+
+## Slice 70 native eligibility
+
+The unpublished format-35 layout adds plain INTEGER `lifecycle`, `valid_from`
+and `valid_until` vec0 metadata. Lifecycle preserves inactive/superseded bits;
+zero is current and active. Nullable canonical bounds become inclusive
+min/max-sentinel bounds, including an exact empty interval for finite MIN.
+Edges derive their upper bound from `t_invalid`. Canonical mutations update
+all vector IDs of the record atomically. Rebuild, reshape and recenter
+preserve metadata and spans. The filterable attribute budget is ten.
+
+Native eligibility precedes the binary 192-candidate cap, replacing the
+store-wide direct-eligibility scan and its all-or-nothing dense fallback.
+Source-dependency/barrier fallback remains. A relaxed node window uses
+separate native node/edge candidate arms with a global cap to preserve the
+existing unconditional edge-expiry rule. Public historical view admission and
+membership remain Slice 80. Pre-extension format-35 layouts are refused;
+there is no migration. The [Slice 70 design](../plans/0.8.28/features/slice-70/design.md)
+records the Astra-reviewed implementation and boundary tests.

@@ -1753,3 +1753,19 @@ embedding. Projection dispatch captures coverage inside its normal deadline
 and failure boundary, and the engine stores it atomically with each vector.
 Candle BGE reports exact head coverage; providers that cannot report it
 remain unknown. This is metadata, not a new provider admission surface.
+
+## Native vector eligibility (format 35)
+
+Dense search applies direct lifecycle and validity eligibility inside vec0
+before its binary candidate cap. Superseded, inactive and out-of-window
+vectors do not disable dense retrieval for unrelated eligible records.
+Source dependency and unfinished closure barriers retain their conservative
+fallback. Canonical hydration checks remain in place.
+
+The internal projection stores lifecycle bits and inclusive validity bounds;
+unknown canonical endpoints use min/max sentinels. Updates and erasure resolve
+all vector IDs through record identity. The vec0 layout supports at most ten
+filterable attributes; an over-capacity configuration fails atomically.
+`include_out_of_window` keeps its node-window behavior and the existing
+unconditional edge-expiry check. Public `include_superseded` and
+`include_inactive` search admission remains refused until Slice 80.

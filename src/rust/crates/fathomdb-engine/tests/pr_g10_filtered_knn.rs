@@ -1,8 +1,7 @@
-//! Slice 10 / G10 — metadata-filtered KNN + the byte-identical-unfiltered pin.
+//! Metadata-filtered KNN with native lifecycle and validity eligibility.
 //!
 //! `Option<SearchFilter>` prunes in the single phase-1 candidates statement;
-//! `filter=None` emits SQL **byte-identical to 0.7.2** (the pinned behavior-compat
-//! invariant); `status` is a plain `TEXT` metadata column (aux hard-errors under a
+//! Default eligibility precedes the candidate cap (Slice 70); `status` is a plain `TEXT` metadata column (aux hard-errors under a
 //! KNN `WHERE`) and existing **Pack-1** shapes are refused without reshaping;
 //! `status` ships an empty-string sentinel only (vec0 TEXT metadata is NOT NULL-able),
 //! so filtering `status=Some("open")` prunes every row.
@@ -42,41 +41,15 @@ fn fixture(name: &str) -> (TempDir, std::path::PathBuf) {
     (dir, path)
 }
 
-/// The phase-1 candidate SQL the engine ran at 0.7.2 (before G10), with the
-/// `top_k`/`final_limit` interpolated. The `filter=None` builder output must be
-/// byte-for-byte this string — the documented behavior-compat invariant.
-fn frozen_0_7_2_phase1_sql() -> String {
-    format!(
-        "WITH candidates AS (
-                     SELECT rowid
-                     FROM vector_default
-                     WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1))
-                     ORDER BY distance
-                     LIMIT {top_k}
-                 )
-                 SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2
-                 FROM candidates c
-                 JOIN vector_default v ON v.rowid = c.rowid
-                 ORDER BY l2
-                 LIMIT {final_limit}",
-        top_k = TOP_K_BIT_CANDIDATES,
-        final_limit = SEARCH_RERANK_LIMIT,
-    )
-}
-
 #[test]
-fn unfiltered_phase1_sql_byte_identical_to_0_7_2() {
-    assert_eq!(
-        vector_phase1_sql_for_test(None),
-        frozen_0_7_2_phase1_sql(),
-        "filter=None must emit byte-identical phase-1 SQL to 0.7.2"
-    );
-    // An all-`None` filter struct is also the unfiltered path.
-    assert_eq!(
-        vector_phase1_sql_for_test(Some(&SearchFilter::default())),
-        frozen_0_7_2_phase1_sql(),
-        "an all-None SearchFilter must also be byte-identical"
-    );
+fn unfiltered_phase1_sql_applies_native_eligibility_before_cap() {
+    let sql = vector_phase1_sql_for_test(None);
+    assert_eq!(sql, vector_phase1_sql_for_test(Some(&SearchFilter::default())));
+    let cap = sql.find(&format!("LIMIT {TOP_K_BIT_CANDIDATES}")).unwrap();
+    for predicate in ["lifecycle=0", "valid_from<=?3", "valid_until>=?3"] {
+        assert!(sql.find(predicate).unwrap() < cap, "{predicate} must precede KNN cap: {sql}");
+    }
+    assert!(sql.ends_with(&format!("LIMIT {SEARCH_RERANK_LIMIT}")));
 }
 
 #[test]

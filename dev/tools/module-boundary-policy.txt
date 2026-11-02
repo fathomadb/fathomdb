@@ -62,10 +62,12 @@ reported operator::data_plane
 reported pagination
 reported pagination::tests
 reported projection_commit
+reported projection_commit::span_trigger_tests
 reported projection_generation
 reported projection_generation::tests
 reported projection_rebuild
 reported projection_registry
+reported projection_registry::span_erasure_tests
 reported projection_runtime
 reported projection_worker
 reported provenance
@@ -105,6 +107,7 @@ reported test_hooks::reader_search_hook
 reported test_hooks::slice15_erasure_lock_hook
 reported test_hooks::slice72_test_hooks
 reported vector_equivalence
+reported vector_spans
 reported vector_storage
 governed wal_attribution
 reported wal_runtime

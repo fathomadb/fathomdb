@@ -141,11 +141,12 @@ impl Store {
             CREATE TABLE IF NOT EXISTS sources(id TEXT PRIMARY KEY, allowed INTEGER NOT NULL,
                 active INTEGER NOT NULL, valid_from INTEGER NOT NULL, valid_to INTEGER);
             INSERT OR IGNORE INTO sources VALUES('source',1,1,0,NULL);
+            CREATE TABLE IF NOT EXISTS claim_admission(claim TEXT PRIMARY KEY,active INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS assertions(
                 id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT NOT NULL, body TEXT NOT NULL,
                 family TEXT NOT NULL, properties TEXT NOT NULL, source TEXT NOT NULL REFERENCES sources(id),
                 from_id TEXT, to_id TEXT, vf INTEGER NOT NULL, vt INTEGER,
-                kf INTEGER NOT NULL, kt INTEGER, active INTEGER NOT NULL DEFAULT 1,
+                kf INTEGER NOT NULL, kt INTEGER,
                 accepted INTEGER NOT NULL DEFAULT 1, intent TEXT NOT NULL,
                 CHECK(vt IS NULL OR vf<vt), CHECK(kt IS NULL OR kf<kt));
             CREATE INDEX IF NOT EXISTS claim_head ON assertions(claim,kt);
@@ -177,7 +178,7 @@ impl Store {
         validate_change(&tx, &change)?;
         let originals = current_claim(&tx, &change.claim)?;
         remove_current_claim(&tx, &change.claim)?;
-        for (id, old, active) in originals {
+        for (id, old, _) in originals {
             let overlaps = old.valid_to.is_none_or(|end| change.valid_from < end)
                 && change.valid_to.is_none_or(|end| old.valid_from < end);
             if !overlaps {
@@ -188,22 +189,14 @@ impl Store {
                 let mut left = old.clone();
                 left.valid_to = Some(change.valid_from);
                 left.known = change.known;
-                let fragment = insert_assertion(&tx, &left)?;
-                tx.execute(
-                    "UPDATE assertions SET active=?1 WHERE id=?2",
-                    params![active, fragment],
-                )?;
+                insert_assertion(&tx, &left)?;
             }
             if let Some(end) = change.valid_to {
                 if old.valid_to.is_none_or(|old_end| end < old_end) {
                     let mut right = old.clone();
                     right.valid_from = end;
                     right.known = change.known;
-                    let fragment = insert_assertion(&tx, &right)?;
-                    tx.execute(
-                        "UPDATE assertions SET active=?1 WHERE id=?2",
-                        params![active, fragment],
-                    )?;
+                    insert_assertion(&tx, &right)?;
                 }
             }
         }
@@ -251,10 +244,7 @@ impl Store {
     pub fn set_active(&mut self, claim: &str, active: bool) -> Result<()> {
         let tx = self.conn.transaction()?;
         remove_current_claim(&tx, claim)?;
-        tx.execute(
-            "UPDATE assertions SET active=?1 WHERE claim=?2 AND kt IS NULL",
-            params![active, claim],
-        )?;
+        tx.execute("UPDATE claim_admission SET active=?1 WHERE claim=?2", params![active, claim])?;
         refresh_current_claim(&tx, claim)?;
         tx.commit()?;
         Ok(())
@@ -273,6 +263,7 @@ impl Store {
             "DELETE FROM projections WHERE version IN (SELECT id FROM assertions WHERE source=?1)",
             [id],
         )?;
+        tx.execute("DELETE FROM claim_admission WHERE claim IN (SELECT claim FROM assertions WHERE source=?1)",[id])?;
         tx.execute("DELETE FROM assertions WHERE source=?1", [id])?;
         tx.execute("UPDATE sources SET allowed=0,active=0 WHERE id=?1", [id])?;
         tx.commit()?;
@@ -388,6 +379,11 @@ impl Store {
                 [hit.version],
                 |r| Ok((r.get::<_, Option<String>>(0)?, r.get::<_, Option<String>>(1)?)),
             )?;
+            if !from.as_ref().is_some_and(|id| nodes.contains(id))
+                || !to.as_ref().is_some_and(|id| nodes.contains(id))
+            {
+                continue;
+            }
             for id in [from, to].into_iter().flatten() {
                 if nodes.contains(&id) && seen.insert(id.clone()) {
                     seeds.push(id);
@@ -471,7 +467,7 @@ fn claim_versions(
     head_only: bool,
 ) -> Result<Vec<(i64, Change, bool)>> {
     let mut stmt = conn.prepare(
-        "SELECT id,body,family,properties,source,from_id,to_id,vf,vt,kf,intent,active
+        "SELECT id,body,family,properties,source,from_id,to_id,vf,vt,kf,intent,(SELECT active FROM claim_admission ca WHERE ca.claim=assertions.claim)
         FROM assertions WHERE claim=?1 AND (?2=0 OR kt IS NULL) ORDER BY vf,id",
     )?;
     let mut result = Vec::new();
@@ -530,7 +526,9 @@ fn documents_view(conn: &Connection, family: Family, view: View) -> Result<Vec<D
         View::Archive { include_retracted } => {
             let mut stmt=conn.prepare("SELECT p.id,a.claim,a.id,a.body,p.name,p.text,a.source,a.intent,a.vf,a.vt,a.kf,a.kt,a.accepted
                 FROM projections p JOIN assertions a ON a.id=p.version JOIN sources s ON s.id=a.source
-                WHERE p.family=?1 AND a.active=1 AND (a.accepted=1 OR ?2=1) AND s.allowed=1 AND s.active=1
+                WHERE p.family=?1 AND EXISTS(SELECT 1 FROM claim_admission ca WHERE ca.claim=a.claim AND ca.active=1)
+                AND (a.accepted=1 OR ?2=1) AND s.allowed=1 AND s.active=1
+                AND s.valid_from<=(SELECT now FROM config) AND (s.valid_to IS NULL OR (SELECT now FROM config)<s.valid_to)
                 ORDER BY a.claim,a.id,p.name")?;
             let rows = stmt
                 .query_map(params![family.label(), include_retracted], |r| {
@@ -573,10 +571,26 @@ fn validate_change(conn: &Connection, c: &Change) -> Result<()> {
             return Err(reject("claim type/source/endpoints are immutable"));
         }
     }
+    let existing: i64 =
+        conn.query_row("SELECT count(*) FROM assertions WHERE claim=?1", [&c.claim], |r| r.get(0))?;
+    if existing > 0 && matches!(c.intent, Intent::Initial) {
+        return Err(reject("Initial cannot replace an existing claim"));
+    }
+    if existing > 0 && matches!(c.intent, Intent::Revision) {
+        let current = current_claim(conn, &c.claim)?;
+        if !current.iter().any(|(_, old, _)| {
+            old.valid_from == c.valid_from
+                && old.valid_to == c.valid_to
+                && !matches!(old.intent, Intent::Retraction)
+        }) {
+            return Err(reject("Revision must preserve one existing accepted fragment interval"));
+        }
+    }
     Ok(())
 }
 
 fn insert_assertion(conn: &Connection, c: &Change) -> Result<i64> {
+    conn.execute("INSERT OR IGNORE INTO claim_admission VALUES(?1,1)", [&c.claim])?;
     conn.execute(
         "INSERT INTO assertions(claim,body,family,properties,source,from_id,to_id,vf,vt,kf,intent)
         VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
@@ -641,7 +655,7 @@ fn remove_current_claim(conn: &Connection, claim: &str) -> Result<()> {
 }
 
 fn eligible_sql() -> &'static str {
-    "a.active=1 AND a.accepted=1 AND a.vf<=?1 AND (a.vt IS NULL OR ?1<a.vt)
+    "EXISTS(SELECT 1 FROM claim_admission ca WHERE ca.claim=a.claim AND ca.active=1) AND a.accepted=1 AND a.vf<=?1 AND (a.vt IS NULL OR ?1<a.vt)
      AND ((?2 IS NULL AND a.kt IS NULL) OR (?2 IS NOT NULL AND a.kf<=?2 AND (a.kt IS NULL OR ?2<a.kt)))
      AND s.allowed=1 AND s.active=1 AND s.valid_from<=?1 AND (s.valid_to IS NULL OR ?1<s.valid_to)"
 }

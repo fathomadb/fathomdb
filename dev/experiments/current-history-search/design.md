@@ -29,7 +29,8 @@ be implemented as a recency penalty.
 
 `assertions` stores a stable application claim ID, version ID, node/edge type,
 body, scalar properties, source ID, endpoints where applicable, valid interval
-[Vfrom,Vto), knowledge interval [Kfrom,Kto), active state and assertion status.
+[Vfrom,Vto), knowledge interval [Kfrom,Kto) and assertion status. A separate current
+per-claim admission table gates every version; it is not historical truth.
 NULL upper bounds mean infinity. Knowledge times are explicit monotonic logical
 ticks, not inferred wall-clock event times. Each change has one transaction tick.
 Application-supplied valid time may precede, equal or follow that tick.
@@ -186,3 +187,19 @@ not accomplishments of this isolated experiment.
   Add corrected-history, prior-belief and clock-fallback cells to the fixed
   sweep. Shared disk and write totals cover all coexisting POC indexes and do
   not estimate an individual backend's footprint.
+
+## Implementation review corrections
+
+Astra's four direct witnesses require current per-claim admission to gate all
+versions, exact accepted-fragment validity for structural revisions, both
+eligible endpoints for graph seeds, and source validity for archive access.
+Admission is a current policy, like source authorization: prior-belief reads
+reconstruct assertions but never restore former authorization/admission.
+First ingest may be labeled Revision when importing an externally revised
+record; Initial is only legal for a new claim. Existing Revision must match
+one accepted current fragment exactly and cannot fill retracted or disjoint
+gaps. Other interval changes require explicit world-change/correction intent.
+Archive source validity is evaluated at the experiment's explicit current
+instant (`config.now`) inside the same held read snapshot. Snapshot source
+validity is evaluated at its selected V; current allowed/active/admission
+policy applies in both. Erasure removes the claim admission record too.

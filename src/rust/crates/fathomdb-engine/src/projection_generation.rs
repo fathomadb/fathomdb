@@ -738,7 +738,7 @@ pub(crate) fn current_generation(connection: &Connection) -> Result<GenerationRo
     Ok(GenerationRow { id, digest, boundary, origin })
 }
 
-fn member_completion(
+pub(crate) fn member_completion(
     connection: &Connection,
     cursor: u64,
     expected_kind: &str,

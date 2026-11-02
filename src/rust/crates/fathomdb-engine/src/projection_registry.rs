@@ -2443,6 +2443,15 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
                     [cursor],
                 )?;
                 rewind = Some(rewind.map_or(cursor, |old: u64| old.min(cursor)));
+            } else {
+                crate::projection_generation::member_completion(
+                    connection,
+                    cursor,
+                    "edge_fact",
+                    true,
+                    crate::ProjectionRuntimeStateV1::Usable,
+                )
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
             }
         }
         if let Some(cursor) = rewind {

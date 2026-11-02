@@ -432,6 +432,47 @@ fn read_historical_projected_text(
     })
 }
 
+fn historical_dense_incomplete(tx: &Connection, view: FrozenView) -> rusqlite::Result<bool> {
+    let node_predicate = view.node_sql("n", 1);
+    let edge_predicate = format!(
+        "{}{}",
+        view.view.edge_existence_sql("e"),
+        edge_validity_sql_for_view("e", 1, &view.view)
+    );
+    let declared = crate::vector_projection_declared(tx)?;
+    let mut stmt = tx.prepare(&format!(
+        "SELECT n.write_cursor,n.kind,0 FROM canonical_nodes n
+        WHERE n.row_kind IN ('leaf','coverage') {node_predicate}
+        AND (?2 OR EXISTS(SELECT 1 FROM _fathomdb_vector_kinds vk WHERE vk.kind=n.kind))
+        UNION ALL SELECT e.write_cursor,'edge_fact',1 FROM canonical_edges e
+        WHERE e.body IS NOT NULL {edge_predicate}"
+    ))?;
+    let rows = stmt.query_map(params![view.edge_now(), declared], |r| {
+        Ok((r.get::<_, u64>(0)?, r.get::<_, String>(1)?, r.get::<_, bool>(2)?))
+    })?;
+    for row in rows {
+        let (cursor, kind, edge) = row?;
+        if !edge && !crate::kind_is_vector_committable(&kind) {
+            continue;
+        }
+        if crate::projection_commit::projection_physical_tuple_is_empty(tx, cursor)? {
+            return Ok(true);
+        }
+        let completion = crate::projection_generation::member_completion(
+            tx,
+            cursor,
+            &kind,
+            edge,
+            ProjectionRuntimeStateV1::Usable,
+        )
+        .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        if completion != crate::projection_generation::Completion::Complete {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// Largest attribute cohort that takes the cohort-prefiltered rank stream.
 /// Fixed by the Slice 40 H3 rule from a plan probe, before measurement; the
 /// engine timing report in the Slice 40 test plan (§ 3g.4) shows the same
@@ -1261,6 +1302,9 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             &mut edge_seed_params,
             &view.view,
         )?;
+        let from_existence = view.view.existence_sql("ef");
+        let to_existence = view.view.existence_sql("et");
+        let edge_seed_existence = view.view.edge_existence_sql("ce");
         let from_validity = view.validity_sql("ef", endpoint_now_index);
         let to_validity = view.validity_sql("et", endpoint_now_index);
         let from_dependency = dependency_closure::read_eligibility_sql(
@@ -1282,13 +1326,13 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
              FROM search_index_edges sei \
              JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
              WHERE search_index_edges MATCH ?1 \
-               AND ce.superseded_at IS NULL{} \
+               {edge_seed_existence}{} \
                AND (ce.temporal_fallback IS NULL OR ce.temporal_fallback = 0) \
                AND (EXISTS(SELECT 1 FROM canonical_nodes ef WHERE ef.logical_id=ce.from_id \
-                    AND ef.superseded_at IS NULL AND ef.state='active'\
+                    {from_existence}\
                     {from_validity}{from_dependency}{from_filter}) \
                  OR EXISTS(SELECT 1 FROM canonical_nodes et WHERE et.logical_id=ce.to_id \
-                    AND et.superseded_at IS NULL AND et.state='active'\
+                    {to_existence}\
                     {to_validity}{to_dependency}{to_filter})) \
              ORDER BY bm25(search_index_edges), sei.write_cursor \
              LIMIT ?2",
@@ -1332,6 +1376,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         // Provenance = the node's own `source_id` (the session it was extracted from).
         {
             // `?1` MATCH, `?2` LIMIT ⇒ `:now` binds at `?3`.
+            let seed_existence = view.view.existence_sql("cn");
             let seed_validity = view.validity_sql("cn", 3);
             let seed_eligibility = dependency_closure::read_eligibility_sql(
                 "cn",
@@ -1359,9 +1404,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                  FROM search_index si \
                  JOIN canonical_nodes cn ON cn.write_cursor = si.write_cursor \
                  WHERE search_index MATCH ?1 \
-                   AND cn.superseded_at IS NULL \
-                   AND cn.state = 'active' \
-                   AND cn.logical_id IS NOT NULL\
+                   {seed_existence} AND cn.logical_id IS NOT NULL\
                    {seed_validity}{seed_eligibility}{seed_filter} \
                  ORDER BY bm25(search_index), si.write_cursor \
                  LIMIT ?2"
@@ -1390,6 +1433,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         // 0, hop_score 1.0) — so an edge-only query match surfaces the connected ENTITY
         // nodes, not just the fact body (codex §9 [P2]). Seeds whose body is already in
         // the two-arm result are skipped; the cap is respected.
+        let active_existence = view.view.existence_sql("canonical_nodes");
         let active_validity = view.validity_sql("canonical_nodes", 2);
         let active_eligibility = dependency_closure::read_eligibility_sql(
             "canonical_nodes",
@@ -1411,8 +1455,8 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         )?;
         let mut active_stmt = tx.prepare(&format!(
             "SELECT kind, body, write_cursor FROM canonical_nodes \
-             WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-             {active_validity}{active_eligibility}{active_filter} LIMIT 1"
+             WHERE logical_id = ?1{active_existence}\
+             {active_validity}{active_eligibility}{active_filter} ORDER BY write_cursor DESC LIMIT 1"
         ))?;
         for (lid, source_id, seed_confidence, graph_origin) in candidate_seeds {
             stats.seeds_considered += 1;
@@ -1461,6 +1505,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     // holds the depth-0 emitted seeds; BFS appends the reachable neighbors.
     // Both statements are prepared ONCE outside the loops — re-preparing inside
     // would issue O(frontier_size × neighbors) sqlite3_prepare_v2 calls.
+    let edge_existence = view.view.edge_existence_sql("e");
     let target_node = view.node_sql("target", 3);
     let mut edge_params_template = vec![
         rusqlite::types::Value::Text(String::new()),
@@ -1493,12 +1538,11 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         &format!(
             "SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor \
              FROM canonical_edges e \
-             JOIN canonical_nodes target ON target.logical_id = \
-               CASE WHEN e.from_id = ?1 THEN e.to_id ELSE e.from_id END \
              WHERE (e.from_id = ?1 OR e.to_id = ?1) \
-               AND e.superseded_at IS NULL{} \
+               {edge_existence}{} \
                AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
-               {target_node}{target_filter} \
+               AND EXISTS(SELECT 1 FROM canonical_nodes target WHERE target.logical_id = \
+               CASE WHEN e.from_id = ?1 THEN e.to_id ELSE e.from_id END {target_node}{target_filter}) \
              ORDER BY e.write_cursor \
              LIMIT 64",
             edge_validity_sql_for_view("e", 2, &view.view)
@@ -1506,6 +1550,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     )?;
     // Fetch write_cursor alongside kind+body so graph-arm hits carry a real id
     // for apply_recency_reweight (id=0 would force min_id=0 and distort span).
+    let body_existence = view.view.existence_sql("canonical_nodes");
     let body_validity = view.validity_sql("canonical_nodes", 2);
     let body_eligibility = dependency_closure::read_eligibility_sql(
         "canonical_nodes",
@@ -1527,9 +1572,9 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     )?;
     let mut body_stmt = tx.prepare(&format!(
         "SELECT kind, body, write_cursor FROM canonical_nodes \
-         WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
+         WHERE logical_id = ?1{body_existence}\
          {body_validity}{body_eligibility}{body_filter} \
-         LIMIT 1"
+         ORDER BY write_cursor DESC LIMIT 1"
     ))?;
 
     'frontier: while let Some((lid, depth)) = frontier.pop_front() {
@@ -1777,15 +1822,19 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             String::new()
         }
     };
-    let vector_eligibility_degraded = query_vector.is_some()
-        && dependency_closure::vector_arm_requires_fallback(
-            &tx,
-            has_source_dependencies,
-            view.view.include_superseded,
-            view.view.include_inactive,
-            view.view.include_out_of_window,
-            view.edge_now(),
-        )?;
+    let history_incomplete = (view.view.include_superseded || view.view.include_inactive)
+        && direct_text_candidate_limit.is_none()
+        && (query_vector.is_none() || historical_dense_incomplete(&tx, view)?);
+    let vector_eligibility_degraded = history_incomplete
+        || query_vector.is_some()
+            && dependency_closure::vector_arm_requires_fallback(
+                &tx,
+                has_source_dependencies,
+                view.view.include_superseded,
+                view.view.include_inactive,
+                view.view.include_out_of_window,
+                view.edge_now(),
+            )?;
     let vector_results = if let Some(query_vector) =
         query_vector.filter(|_| !vector_eligibility_degraded)
     {

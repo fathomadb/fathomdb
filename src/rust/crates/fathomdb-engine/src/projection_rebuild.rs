@@ -153,6 +153,13 @@ impl Engine {
             rows
         };
         for (cursor, kind, body) in edge_rows {
+            if !dependency_closure::projection_owner_is_eligible_at(
+                &tx,
+                cursor as u64,
+                current_epoch_seconds(),
+            )? {
+                continue;
+            }
             let has_body = body.is_some();
             project_canonical_edge_row(&tx, cursor as u64, &kind, body.as_deref(), pass)
                 .map_err(|_| EngineError::Storage)?;

@@ -1,9 +1,9 @@
 """Bounded experiment controller; budgets are not production defaults."""
 from itertools import product
+import argparse
 import json
 from pathlib import Path
 import subprocess
-import sys
 import time
 
 REQUESTS = 1000
@@ -21,7 +21,11 @@ def grid():
 
 def stress_grid():
     """Revised diagnostic order, explicitly separate from the original grid."""
-    return []
+    return [(h, 4096, callers, view, family)
+            for h, callers, view in [(16, 8, "both"), (16, 1, "both"),
+                                     (0, 1, "both"), (4, 1, "both"),
+                                     (16, 1, "corrected"), (16, 1, "prior")]
+            for family in ["node", "edge", "property"]]
 
 
 def stop_reason(cell_seconds, campaign_seconds, rss):
@@ -57,16 +61,34 @@ def rss_bytes(pid):
 
 
 def main():
-    binary = Path(sys.argv[1]).resolve()
-    root = Path(sys.argv[2]).resolve()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("binary", type=Path)
+    parser.add_argument("root", type=Path)
+    parser.add_argument("--stress", action="store_true")
+    parser.add_argument("--prior-debit", type=int, default=0)
+    args = parser.parse_args()
+    if not 0 <= args.prior_debit <= CAMPAIGN_SECONDS:
+        parser.error("prior debit must fit the original campaign budget")
+    binary = args.binary.resolve()
+    root = args.root.resolve()
+    selected_grid = stress_grid() if args.stress else grid()
     root.mkdir(parents=True, exist_ok=True)
     cells = [{"cell": list(cell), "status": "not_run", "scheduled": REQUESTS,
-              "success": 0, "error": 0, "unfinished": REQUESTS} for cell in grid()]
+              "success": 0, "error": 0, "unfinished": REQUESTS} for cell in selected_grid]
+    (root / "phase-manifest.json").write_text(json.dumps({
+        "profile": "stress_diagnostic" if args.stress else "original_grid",
+        "prior_debit_s": args.prior_debit,
+        "remaining_combined_s": CAMPAIGN_SECONDS - args.prior_debit,
+        "scheduled_per_cell": REQUESTS, "cell_seconds": CELL_SECONDS,
+        "rss_stop_bytes": RSS_BYTES, "cells": selected_grid,
+        "runtime": "explicit Performance for fresh and cached fixtures",
+        "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+    }, indent=2) + "\n")
     report = root / "campaign.json"
     report.write_text(json.dumps(cells, indent=2) + "\n")
     started = time.monotonic()
     for index, entry in enumerate(cells):
-        if time.monotonic() - started >= CAMPAIGN_SECONDS:
+        if args.prior_debit + time.monotonic() - started >= CAMPAIGN_SECONDS:
             break
         h, payload, callers, view, family = entry["cell"]
         stem = f"{index:03}-{family}-H{h}-B{payload}-C{callers}-{view}"
@@ -79,7 +101,7 @@ def main():
             process = subprocess.Popen([str(binary), family, str(h), str(payload), str(callers), view, str(root / "fixtures")], stdout=stdout, stderr=stderr)
             while process.poll() is None:
                 peak = max(peak, rss_bytes(process.pid))
-                termination = stop_reason(time.monotonic() - begin, time.monotonic() - started, peak)
+                termination = stop_reason(time.monotonic() - begin, args.prior_debit + time.monotonic() - started, peak)
                 if termination:
                     process.terminate()
                     try:
@@ -105,6 +127,7 @@ def main():
         report.write_text(json.dumps(cells, indent=2) + "\n")
         print(json.dumps(entry), flush=True)
     print(json.dumps({"campaign_elapsed_s": time.monotonic() - started,
+                      "combined_charged_s": args.prior_debit + time.monotonic() - started,
                       "complete": sum(c["status"] == "complete" for c in cells),
                       "incomplete": sum(c["status"] == "incomplete" for c in cells),
                       "not_run": sum(c["status"] == "not_run" for c in cells)}), flush=True)

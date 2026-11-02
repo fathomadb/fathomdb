@@ -18,6 +18,10 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     std::fs::create_dir_all(root)?;
     let path = root.join(format!("fixture-{family}-{h}-{bytes}.sqlite"));
     fixture::build(&path, family, h, bytes, 10_000)?;
+    eprintln!(
+        "runtime_profile={:?}",
+        fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance)?
+    );
     let (selection, hydrate) = fixture::queries(family, h, view);
     let grouping =
         if family == "property" { history::Grouping::Revision } else { history::Grouping::Body };

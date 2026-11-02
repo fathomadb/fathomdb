@@ -90,12 +90,12 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 41 | SDK context pack, full-render override, configurable query stop words | Complete on `release/0.8.28` at `0ec01bc22197c641566830ef7b5ee6f446994f21`; [status](../0.8.28/features/slice-41/status.md). |
 | 42 | slice135 descriptor check (Unit A); adopt `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1 and retire the vendored crate (Unit B, re-scoped 2026-10-31) | Complete on `dev/0.8.28` and `release/0.8.28` at `fdbb74e109f02cbda7b8b8ff575be90e011b2803`; SQLite 3.54.1 from the registry, Windows verbatim-path tests pass on the local VM; AC-013 still fails as at the base (Slices 50 to 90); [status](../0.8.28/features/slice-42/status.md). |
 | 50 | Bounded pending-work scans; narrowed provider contract | Complete on `dev/0.8.28` at `ecea4a1e79afe4cf7f5583914d405806767474ff`; Astra reviews, paired scaling and independent verification pass with documented scoped repairs. [Status](../0.8.28/features/slice-50/status.md). |
-| 60 | Store format 35: 64-row vec0 chunks, `search_index` rowid = `write_cursor`, refuse version-34 stores | Not started; R8 benchmark and eu7 recall come first. |
+| 60 | Store format 35: 64-row vec0 chunks, `search_index` rowid = `write_cursor`, refuse version-34 stores | Complete on `dev/0.8.28` and `release/0.8.28` at `e240efd4b91b8e3ba4ea53dc3edea73639f44747`; Astra reviews and independent verification pass; [status](../0.8.28/features/slice-60/status.md). |
 | 70 | Vector eligibility inside vec0 (lifecycle and validity columns) | Not started. |
 | 80 | `include_superseded` and `include_inactive` on search | Not started. |
 | 90 | D28-14 filtered direct body FTS | Not started. |
 
-Ladder remaining: 60, 70, 80, 90. Slices 41 and 42 were added by owner rulings on
+Ladder remaining: 70, 80, 90. Slices 41 and 42 were added by owner rulings on
 2026-10-16, and Slices 50 to 90 on 2026-10-31.
 
 ## Boundaries

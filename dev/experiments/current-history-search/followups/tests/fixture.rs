@@ -43,3 +43,41 @@ fn interrupted_fixture_is_never_reused_as_complete() {
     engine.close().unwrap();
     assert!(fixture::build(&path, "node", 4, 128, 100).is_err());
 }
+
+#[test]
+fn corrected_and_prior_select_explicit_intervals_and_committed_receipt_cuts() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("temporal.sqlite");
+    fixture::build(&path, "node", 4, 128, 100).unwrap();
+    let main = rusqlite::Connection::open(path).unwrap();
+    let (selection, _) = fixture::queries("node", 4, "corrected");
+    let selected = main
+        .prepare(&selection)
+        .unwrap()
+        .query_map([], |r| r.get::<_, i64>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    for cursor in selected {
+        let (ordinal, version): (i64, i64) = main
+            .query_row("SELECT ordinal,version FROM poc_versions WHERE cursor=?1", [cursor], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(version, if ordinal < 10 { 3 } else { 4 });
+    }
+    let cut: i64 = main
+        .query_row("SELECT MAX(commit_cut) FROM poc_versions WHERE version=2", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        main.query_row(
+            "SELECT COUNT(DISTINCT commit_cut) FROM poc_versions WHERE commit_cut=?1",
+            [cut],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        1
+    );
+    let count:i64=main.query_row("SELECT COUNT(*) FROM poc_temporal_fragments WHERE v0<=10 AND 10<v1 AND k0<=?1 AND (k1 IS NULL OR ?1<k1)",[cut],|r|r.get(0)).unwrap();
+    assert_eq!(count, 100);
+}

@@ -10,8 +10,9 @@ blast_radius: canonical identity and temporal assertions; lexical projections; w
 
 This is the production design candidate following the
 [qualified POC](../experiments/current-history-search/results.md).
-The design is revised after the POC; additional experiments have not been run.
-The POC is complete. Production implementation has not started; performance
+The design is revised after the original POC and the
+[follow-up experiments](../experiments/current-history-search/followups/RESULTS.md).
+P1/P2 provide scoped evidence; P3 is PARTIAL. Production implementation has not started; performance
 acceptance is UNQUALIFIED. The [additional POC proposal](../experiments/current-history-search/next-poc-plan.md)
 identifies the evidence needed before selecting production schema and routing.
 This document describes proposed behavior; [retrieval.md](retrieval.md) continues
@@ -238,3 +239,29 @@ Do not infer a pass from 512-node/15-sample p50/p95 measurements, kernel-only
 attribution, standalone surrogate queries or extrapolation. Report end-to-end
 p50/p99 and failures. Existing acceptance fixtures/thresholds are unchanged;
 supplemental history and clock tests extend evidence rather than rewrite them.
+
+## Follow-up qualification boundary
+
+The [follow-up results](../experiments/current-history-search/followups/RESULTS.md)
+separate the three functional aspects from P1/P2/P3 probes, record all revised
+campaign outcomes, and supersede any assumption that these probes are still unrun.
+Healthy current-node reads isolate exact score/order and work from excluded history;
+refresh, full public ranking/graph paths and integrated AC-076/081 remain unqualified.
+P1 and P2 are not composed: production must prove partial/future-fragment selection
+with old A current at V10 and new B selected at V30 before adopting the routing.
+
+Universal private historical rebuilding is not selected. First probe a certified
+native full-history fast path for exactly matching admitted statistical scopes;
+then compare term-scoped persistent statistics or finite partitions for arbitrary
+V/K against the private native reference. Authority, validity, all-name property
+statistics and exact projection membership must be certified, not just counts.
+Private MEMORY storage does not certify main-reader temp behavior; body dedup can
+hydrate more than K; repetitive-payload RSS is not a general memory bound. There
+is no accepted historical SLO or validated production cap from campaign budgets.
+
+The ordinary-Engine node-FTS residual-term finding is a production adoption blocker.
+Logical row removal plus WAL truncation is insufficient. Remediation must address
+registered-table secure-delete policy and already retained terms, then qualify
+rollback/WAL retry, visibility and unrelated-row preservation, cost and compatibility.
+No production erasure rewrite is part of these experiments. Candidate-only P2
+secure deletion qualifies fresh fixtures; it does not repair the shipping finding.

@@ -272,6 +272,17 @@ fn property_grouping_matches_real_engine_for_identical_owners_and_revisions() {
         result.hits.iter().map(|h| h.id as u64).collect::<Vec<_>>(),
         reference.results.iter().map(|h| h.write_cursor).collect::<Vec<_>>()
     );
+    let body_grouped = history::search_options(
+        &tx,
+        "SELECT write_cursor,json_extract(body,'$.p1'),1 FROM canonical_nodes",
+        "SELECT body FROM canonical_nodes WHERE write_cursor=?1",
+        "needle",
+        history::Options { limit: 2, grouping: history::Grouping::Body, ..Default::default() },
+        || Ok(()),
+    )
+    .unwrap();
+    assert_eq!(body_grouped.hits.len(), 1);
+    assert_eq!(body_grouped.hits[0].id, result.hits[0].id);
     drop(tx);
     engine.close().unwrap();
 }

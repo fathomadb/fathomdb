@@ -1,6 +1,6 @@
 # Proposed follow-up POC before production implementation
 
-Status: PROPOSED — not executed or production-qualified.
+Status: EXECUTED WITH LIMITATIONS — P1/P2 scoped evidence; P3 campaign PARTIAL; not production-qualified.
 Owner request: apply design changes and propose any additional work needed.
 Production design: [current-history-search.md](../../design/current-history-search.md).
 Existing isolated POC remains complete at `4b6bc1053`; its
@@ -14,7 +14,9 @@ and resource assumptions; they do not repeat the already-passed basic temporal
 oracles. Keep the production engine unchanged except for a disposable/test-only
 candidate seam needed to exercise real constraints and routing. No new release
 slice, permanent public method or schema migration is authorized by this proposal.
-The user has requested a proposal; no new POC code is being implemented now.
+The user subsequently authorized implementation and measurement. The protocol below
+is retained as the planned scope; [follow-up results](followups/RESULTS.md) record
+actual coverage, revised diagnostic controls, failures and unresolved boundaries.
 
 ## P1 — Temporal mapping against real identity/lifecycle constraints
 

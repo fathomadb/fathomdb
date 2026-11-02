@@ -101,8 +101,8 @@ with scoped repairs, not a claim that the initial invocation passed.
 The real boot-repair defect found during qualification is fixed: lexical-only
 restoration advances visibility within its transaction, invalidating prior
 frozen tokens. Failure rolls back both changes; no-op reopen preserves tokens.
-Independent repair, rollback and reopen tests passed. No verification failures
-remain. Release platform/long-run qualification and publication remain later
+Independent repair, rollback and reopen tests passed. No failures from that
+qualification campaign remained. Release platform/long-run qualification and publication remain later
 release work; Slice 90 is next.
 
 Logs: `/tmp/slice80-full-verify.log`, `/tmp/slice80-lint-resume.log`,
@@ -111,3 +111,14 @@ Logs: `/tmp/slice80-full-verify.log`, `/tmp/slice80-lint-resume.log`,
 `/tmp/slice80-property-lifecycle.log`, `/tmp/slice80-scaling-green.log`,
 `/tmp/slice80-final-python.log`.
 No new worktree or branch was created. No tag or publication is authorized.
+
+## Subsequent physical-erasure finding
+
+The original feature and gate qualification above remains a historical result.
+A later independently reviewed ordinary-Engine diagnostic found that successful
+source erasure removed canonical/content/MATCH rows and truncated WAL, yet retained
+the target term in live node-FTS shadow blocks. Earlier logical-row checks did not
+establish complete physical at-rest erasure. The shipping projection path predates
+this experiment; production remains unchanged. This is a production follow-up and
+adoption blocker, recorded with the opt-in failing witness and remediation scope
+in [follow-up results](../../../../experiments/current-history-search/followups/RESULTS.md#erasure-findings).

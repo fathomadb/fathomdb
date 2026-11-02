@@ -3,3 +3,5 @@ pub mod current;
 pub mod ledger;
 
 pub mod history;
+
+pub mod fixture;

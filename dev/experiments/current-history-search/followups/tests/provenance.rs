@@ -243,3 +243,38 @@ fn historical_backend_rechecks_current_source_and_evidence_authority() {
         .is_err());
     engine.close().unwrap();
 }
+
+#[test]
+fn reused_historical_selector_resolves_source_authority_once_per_request() {
+    use current_history_followups::{fixture, history};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("authority-clock.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    let PreparedWrite::ProvenancedNode(mut canonical) = source() else { unreachable!() };
+    canonical.valid_until = Some(now + 100);
+    engine.write(&[PreparedWrite::ProvenancedNode(canonical)]).unwrap();
+    let receipt = engine.write(&[derived("assertion-r1", "needle")]).unwrap();
+    let cursor = receipt.row_cursors[0];
+    let cut = receipt.cursor;
+    engine.execute_for_test(&format!("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER,version INTEGER,commit_cut INTEGER); INSERT INTO poc_versions VALUES({cursor},0,0,{cut}); CREATE TABLE poc_temporal_fragments(cursor INTEGER,ordinal INTEGER,v0 INTEGER,v1 INTEGER,k0 INTEGER,k1 INTEGER); INSERT INTO poc_temporal_fragments VALUES({cursor},0,0,100,{cut},NULL);")).unwrap();
+    let mut main =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let (selected, hydrate) = fixture::queries("node", 0, "prior");
+    for (authority, expected) in [(now, 1), (now + 100, 0)] {
+        let tx = main.transaction().unwrap();
+        let result = history::search_options(
+            &tx,
+            &selected,
+            &hydrate,
+            "needle",
+            history::Options { authority_epoch: Some(authority), ..Default::default() },
+            || Ok(()),
+        )
+        .unwrap();
+        assert_eq!(result.documents, expected);
+    }
+    engine.close().unwrap();
+}

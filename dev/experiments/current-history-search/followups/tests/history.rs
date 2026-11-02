@@ -213,3 +213,61 @@ fn abandoned_receiver_keeps_owned_snapshot_until_worker_finishes_even_after_engi
     reopened.erase_source("source").unwrap();
     reopened.close().unwrap();
 }
+
+#[test]
+fn property_grouping_matches_real_engine_for_identical_owners_and_revisions() {
+    use fathomdb_engine::*;
+    use std::collections::BTreeSet;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("property-duplicates.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "p1".into(),
+                roles: BTreeSet::from([ProjectionRole::Searchable]),
+                fts: Some(ProjectionFts { tokenizer: None }),
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let write = |id: &str| PreparedWrite::Node {
+        kind: "doc".into(),
+        body: r#"{"p1":"needle identical"}"#.into(),
+        logical_id: Some(id.into()),
+        source_id: SourceId::new("source").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    };
+    engine.write(&[write("a"), write("b")]).unwrap();
+    engine.write(&[write("a")]).unwrap();
+    engine.drain(10_000).unwrap();
+    let reference = engine
+        .search_projected_text(
+            "needle",
+            "p1",
+            None,
+            &ReadView { include_superseded: true, ..Default::default() },
+        )
+        .unwrap();
+    assert_eq!(reference.results.len(), 3);
+    let mut main =
+        Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    let tx = main.transaction().unwrap();
+    let result = history::search_options(
+        &tx,
+        "SELECT write_cursor,json_extract(body,'$.p1'),1 FROM canonical_nodes",
+        "SELECT body FROM canonical_nodes WHERE write_cursor=?1",
+        "needle",
+        history::Options { grouping: history::Grouping::Revision, ..Default::default() },
+        || Ok(()),
+    )
+    .unwrap();
+    assert_eq!(result.hits.len(), reference.results.len());
+    drop(tx);
+    engine.close().unwrap();
+}

@@ -7,13 +7,13 @@ fn actual_family_counts_payloads_and_selection_axes_are_explicit() {
         fixture::build(&path, family, 4, 128, 100).unwrap();
         let main = rusqlite::Connection::open(&path).unwrap();
         for (view, expected) in [
-            ("current", if family == "edge" { 100 } else { 99 }),
-            ("corrected", if family == "edge" { 100 } else { 99 }),
-            ("prior", if family == "edge" { 100 } else { 99 }),
-            ("archive", 500),
-            ("inactive", 100),
-            ("superseded", if family == "edge" { 500 } else { 495 }),
-            ("both", 500),
+            ("current", 100),
+            ("corrected", 100),
+            ("prior", 100),
+            ("archive", if family == "edge" { 500 } else { 505 }),
+            ("inactive", if family == "edge" { 100 } else { 101 }),
+            ("superseded", 500),
+            ("both", if family == "edge" { 500 } else { 505 }),
         ] {
             let (select, hydrate) = fixture::queries(family, 4, view);
             let tx = main.unchecked_transaction().unwrap();
@@ -79,7 +79,7 @@ fn corrected_and_prior_select_explicit_intervals_and_committed_receipt_cuts() {
         1
     );
     let count:i64=main.query_row("SELECT COUNT(*) FROM poc_temporal_fragments WHERE v0<=10 AND 10<v1 AND k0<=?1 AND (k1 IS NULL OR ?1<k1)",[cut],|r|r.get(0)).unwrap();
-    assert_eq!(count, 100);
+    assert_eq!(count, 101);
 }
 
 #[test]

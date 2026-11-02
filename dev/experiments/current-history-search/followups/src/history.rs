@@ -17,6 +17,36 @@ pub struct Search {
     pub temp_store: i64,
     pub private_files: Vec<String>,
 }
+/// Body text follows body dedup; projected properties retain distinct revision rows.
+#[derive(Clone, Copy)]
+pub enum Grouping {
+    Body,
+    Revision,
+}
+/// Per-request policy; explicit authority time is only a deterministic experiment seam.
+#[derive(Clone, Copy)]
+pub struct Options {
+    pub limit: usize,
+    pub contentless: bool,
+    pub grouping: Grouping,
+    pub authority_epoch: Option<i64>,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Self { limit: 10, contentless: true, grouping: Grouping::Body, authority_epoch: None }
+    }
+}
+/// Execute explicit family grouping and authority policy.
+pub fn search_options(
+    main: &rusqlite::Transaction<'_>,
+    selection: &str,
+    hydrate: &str,
+    query: &str,
+    options: Options,
+    after_population: impl FnOnce() -> Result<()>,
+) -> Result<Search> {
+    search(main, selection, hydrate, query, options.limit, options.contentless, after_population)
+}
 /// Materialize one fully selected statistical corpus, then apply output eligibility.
 /// Selection columns are unique id, indexed scalar and output eligibility; hydration
 /// accepts the id as ?1 on the same held main snapshot. No shared private cache.

@@ -268,35 +268,10 @@ pub const MIGRATIONS: &[Migration] = &[
               CREATE INDEX IF NOT EXISTS canonical_edges_source_id_idx
                   ON canonical_edges(source_id);",
     },
-    // 0.7.0 Pack 1 — Vector binary-quantization data encoding.
-    // Per `dev/design/0.7.0-vector-quant-pack1.md` D4 (fix-3). Stages
-    // the existing f32 corpus + kind mapping into a regular SQL table,
-    // drops + recreates `vector_default` with the new schema (sibling
-    // `embedding_bin bit[768]`, `source_type TEXT partition key`,
-    // `kind TEXT`, `created_at INTEGER`), then repopulates with
-    // SQL-side `vec_quantize_binary` and the D3 CASE mapping. A
-    // prefix CHECK-constraint preflight aborts the migration if any
-    // `_fathomdb_vector_rows.kind` is outside the locked vocabulary.
-    //
-    // `<dim>=768` is hardcoded against the default profile
-    // (`load_default_profile` -> `DEFAULT_EMBEDDER_DIMENSION` in
-    // fathomdb-engine). The design notes this constraint and defers
-    // a runtime-dim migration to 0.7.1.
+    // Historical registry preflight retained for fresh bootstrap. Public open
+    // refuses non-current stores before this registry can run on their content.
     Migration {
         step_id: 9,
-        // SQL-side: D4 fix-3.1 preflight only. The vec0 reshape itself is
-        // dim-aware and lives in the engine crate's
-        // `ensure_vector_partition_pack1` (called by `ensure_vector_partition`
-        // immediately after `migrate_with_event_sink` returns). Splitting the
-        // preflight (SQL, in-tx with `apply_one`) from the reshape (Rust,
-        // dim-driven by `_fathomdb_embedder_profiles.dimension`) is required
-        // because `fathomdb-schema::Migration` is a `&'static str` with no
-        // runtime parameterization, and the existing dim=8 / dim=384 test
-        // suite must stay GREEN. The reshape is idempotent across crashes:
-        // if open fails between this step's commit (user_version=9) and the
-        // Rust reshape, the next open re-detects the old shape and replays
-        // the reshape. See dev/plans/runs/0.7.0-PVQ-P1-IMPL-output.json
-        // for the design-memo deviation note.
         sql: "CREATE TEMP TABLE _vec0_migration_assertion(
                   check_passes INTEGER NOT NULL CHECK(check_passes = 1)
               );

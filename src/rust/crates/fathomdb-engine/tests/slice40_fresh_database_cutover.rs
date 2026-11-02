@@ -199,7 +199,7 @@ fn schema_33_refusal_does_not_poison_fresh_open_in_same_process() {
 }
 
 #[test]
-fn schema_34_bootstraps_fresh_and_reopens_without_migration() {
+fn schema_35_bootstraps_fresh_and_reopens_without_migration() {
     assert_eq!(SCHEMA_VERSION, 35);
     assert_eq!(MIGRATIONS.last().map(|migration| migration.step_id), Some(35));
     assert_eq!(MIGRATIONS.len(), 35);
@@ -289,36 +289,38 @@ fn current_wal_state_is_admitted_with_and_without_shm() {
 }
 
 #[test]
-fn refused_schema_33_wal_state_restores_existing_or_missing_shm() {
-    for remove_shm in [false, true] {
-        for include_lock in [false, true] {
-            let dir = TempDir::new().unwrap();
-            let name = format!(
-                "old-{}-{}",
-                if remove_shm { "no-shm" } else { "shm" },
-                if include_lock { "lock" } else { "no-lock" }
-            );
-            let db = path(&dir, &name);
-            create_versioned_sqlite(&db, 32);
-            if include_lock {
-                fs::write(sidecar(&db, ".lock"), b"historical-lock-bytes").unwrap();
-            }
-            run_wal_child(&db, 33);
-            if remove_shm {
-                fs::remove_file(sidecar(&db, "-shm")).unwrap();
-            }
-            let mut before = directory_bytes(&dir);
+fn refused_prior_schema_wal_state_restores_existing_or_missing_shm() {
+    for version in [33, 34] {
+        for remove_shm in [false, true] {
+            for include_lock in [false, true] {
+                let dir = TempDir::new().unwrap();
+                let name = format!(
+                    "old-{}-{}",
+                    if remove_shm { "no-shm" } else { "shm" },
+                    if include_lock { "lock" } else { "no-lock" }
+                );
+                let db = path(&dir, &name);
+                create_versioned_sqlite(&db, 32);
+                if include_lock {
+                    fs::write(sidecar(&db, ".lock"), b"historical-lock-bytes").unwrap();
+                }
+                run_wal_child(&db, version);
+                if remove_shm {
+                    fs::remove_file(sidecar(&db, "-shm")).unwrap();
+                }
+                let mut before = directory_bytes(&dir);
 
-            assert_incompatible(Engine::open(&db), 33);
-            let mut after = directory_bytes(&dir);
-            let lock_name = format!("{name}.sqlite.lock");
-            if include_lock {
-                assert_eq!(after.get(&lock_name), Some(&b"historical-lock-bytes".to_vec()));
-            } else {
-                assert_eq!(after.remove(&lock_name), Some(Vec::new()));
-                before.remove(&lock_name);
+                assert_incompatible(Engine::open(&db), version);
+                let mut after = directory_bytes(&dir);
+                let lock_name = format!("{name}.sqlite.lock");
+                if include_lock {
+                    assert_eq!(after.get(&lock_name), Some(&b"historical-lock-bytes".to_vec()));
+                } else {
+                    assert_eq!(after.remove(&lock_name), Some(Vec::new()));
+                    before.remove(&lock_name);
+                }
+                assert_eq!(after, before);
             }
-            assert_eq!(after, before);
         }
     }
 }

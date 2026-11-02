@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 60 — plan
-status: draft; awaiting Astra design review
+status: approved; implementation awaiting final review and qualification
 target_release: 0.8.28
 observed_on: 2026-11-01
 ---

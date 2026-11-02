@@ -27,7 +27,7 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.26 development line `fathomdb-schema::SCHEMA_VERSION` is **34**. Step 28
+0.8.28 development line `fathomdb-schema::SCHEMA_VERSION` is **35**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -58,9 +58,14 @@ Ownership split:
 - `design/migrations.md` owns how successful migrations advance it
 - `design/engine.md` owns when it is read on the open path
 
+Format 35 adds per-vector UTF-8 head spans, permits distinct vector IDs for
+future windows of one record, uses 64-row vec0 chunks, and keys node body
+FTS rowids by write cursor. No format-34 content is migrated. Coverage and
+vectors are committed and removed together; unknown coverage is NULL.
+
 ## Compatibility contract
 
-- a missing or zero-length path bootstraps directly to schema 34
+- a missing or zero-length path bootstraps directly to schema 35
 - a non-empty database opens only when its effective committed
   `PRAGMA user_version` is exactly 35; schema 34 and earlier, future versions, and
   non-empty zero-version SQLite files return the typed incompatible-schema

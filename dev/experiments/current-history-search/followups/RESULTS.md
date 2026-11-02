@@ -32,6 +32,8 @@ A standalone ledger pass plus a current-index pass does not establish that behav
 
 ## P2 observations
 
+The first table is the preserved **pre-secure-delete** measurement.
+
 All three T012-derived governed-identity fixtures had 10,000 current nodes and
 1,000/1,000 successful measured requests. Healthy writer contacts were zero;
 certificate work was 16 VM steps and the per-query ranking VM arrays were equal.
@@ -41,6 +43,33 @@ certificate work was 16 VM steps and the per-query ranking VM arrays were equal.
 | 0 | 0.639309 | 1.642525 | 89.683245 | 93.085927 |
 | 4 | 0.615193 | 1.583613 | 123.122256 | 94.360797 |
 | 16 | 0.602489 | 1.578474 | 246.910693 | 106.230826 |
+
+The final fresh-fixture run at `49b7386824394de3087d569395d59f03f3736c78`
+uses the secure-delete-enabled candidate. All three fixtures again completed
+1,000/1,000 healthy requests with zero errors, zero healthy writer contacts,
+16 certificate VM steps and identical ranking VM arrays. No request budget was
+widened and no failed attempt was replaced; the process exited successfully.
+
+| Prior versions | Final p50 ms | Final p99 ms | Bootstrap ms | Boundary refresh ms | Burst setup + refresh ms |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0 | 0.569617 | 1.525195 | 86.007950 | 4585.382135 | 8586.308922 |
+| 4 | 0.605104 | 1.574397 | 126.294234 | 4622.973263 | 8620.899360 |
+| 16 | 0.600446 | 1.609774 | 241.080749 | 4621.354279 | 8647.404873 |
+
+The tested full boundary reconciliation now takes about 4.6 seconds, versus
+93–106 ms before per-table secure deletion: approximately 43–49 times these
+observations. This is not a statistically precise universal overhead estimate.
+Healthy read isolation survives, but secure deletion makes the current full-family
+refresh strategy unsuitable for a low-latency writer/boundary assumption. An
+incremental maintenance design and delete/update cost qualification are required;
+these measurements do not establish them. The five-second request budget was not
+exceeded here, and executing publication still has no hard interruption bound.
+
+Final raw output is `p2-erasure-final-raw.jsonl`, boundary output is
+`p2-erasure-final-boundaries.jsonl`, and fresh fixtures are in `p2-erasure-final/`
+under `/tmp/current-history-followups-results`. Earlier `p2-final/` evidence is
+preserved separately. Exact score/order replay also passed on copies of the final
+fresh fixtures in `p2-erasure-isolation/`.
 
 Replay on copies of the measured stores compared actual current
 (logical_id, body, state, source_id) tuples, then all 1,000 original seeded queries.
@@ -185,3 +214,27 @@ FTS inventory checks. G11 competing-claim scope, canonical head versus fragments
 atomic batch cuts and evidence fragment carriers require successor contracts.
 Prototype intent/certificate/runtime/cache findings are distinct from shipping
 findings; the ordinary-Engine residual-term witness is explicitly shipping.
+
+## Verification record
+
+At frozen `49b7386824394de3087d569395d59f03f3736c78`, independent verification
+passed 43 Rust tests (plus 16 generated ledger cases within the property test),
+three controller tests, formatting and clippy. One opt-in shipping diagnostic is
+ignored by the default suite and separately reproduced its known physical-erasure
+FAIL. Candidate RED `e88742bd3` was independently compiled and reproduced the
+immediate stale cache row before the GREEN. The exact 3,000-record score replay
+and 10,000-head tuple comparison were independently checked. Scoped Markdown
+validation passed. Production Rust/schema/bindings were not modified and no
+shipping full-workspace acceptance gate is claimed for these standalone probes.
+
+## Next evidence: secure bulk refresh
+
+Incremental maintenance can avoid full reconciliation for an ordinary single
+write, but does not eliminate 10,000 removals at a simultaneous expiry boundary.
+The observed secure-delete cost therefore needs a separate bounded bulk-refresh
+and repair probe before production strategy selection. Compare transactional
+fresh-projection rebuild/swap or a valid bulk-clear mechanism with the current
+reference while preserving certificate publication, pinned snapshots, erasure
+ownership, rollback and WAL completion semantics. Measure the complete burst,
+including construction and publication; do not hide it in warmup or widen request
+budgets to make it qualify. No such optimization is implemented or qualified here.

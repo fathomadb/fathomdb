@@ -1,4 +1,4 @@
-# Proposed follow-up POC before production implementation
+# Follow-up POC protocol and execution record
 
 Status: EXECUTED WITH LIMITATIONS — P1/P2 scoped evidence; P3 campaign PARTIAL; not production-qualified.
 Owner request: apply design changes and propose any additional work needed.
@@ -186,4 +186,19 @@ Use tests appropriate to each change; do not rerun full regressions for each
 finding. Run the required final production gate once on the completed candidate,
 then scoped repairs if necessary. Astra reviews design/code and interpretation;
 an independent tester verifies results. Any GitHub CI inspection/action uses gh.
-No P1/P2/P3 experiment or acceptance result is claimed by this proposal.
+P1/P2 scoped experiments have executed; P3 resources are PARTIAL under the recorded
+combined budget. Final secure-delete P2 fixtures preserve healthy read isolation
+but expose about 4.6-second full boundary refresh. See [results](followups/RESULTS.md)
+for executed coverage and failures. No integrated production acceptance result is claimed.
+
+## Next evidence: secure bulk refresh
+
+Incremental maintenance can avoid full reconciliation for an ordinary single
+write, but does not eliminate 10,000 removals at a simultaneous expiry boundary.
+The observed secure-delete cost therefore needs a separate bounded bulk-refresh
+and repair probe before production strategy selection. Compare transactional
+fresh-projection rebuild/swap or a valid bulk-clear mechanism with the current
+reference while preserving certificate publication, pinned snapshots, erasure
+ownership, rollback and WAL completion semantics. Measure the complete burst,
+including construction and publication; do not hide it in warmup or widen request
+budgets to make it qualify. No such optimization is implemented or qualified here.

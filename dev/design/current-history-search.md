@@ -20,13 +20,13 @@ to describe shipped behavior. No release slice or accepted ADR is changed here.
 
 ## Changes considered and applied
 
-| Change | POC evidence | Applied production decision | Outstanding evidence |
+| Change | Evidence after follow-ups | Production direction | Outstanding evidence |
 | --- | --- | --- | --- |
-| Eliminate history scans from normal current search | Scores isolate correctly, but node p50 grows 1.14 to 7.83 ms at fixed current size | Current-index-first routing; bounded metadata certification; winner hydration only; no full-history selection, vocabulary scan or corpus copy on a certified default read | P2 certificate/refresh probe |
-| Define validity-boundary refresh and fallback | A clock-only boundary invalidates the partition without any write | Writer-owned incremental refresh; same-snapshot certificate validation; no stale read; bounded handoff/retry; explicit resource failure if correct completion is unavailable | P2 races, boundary bursts and admission costs |
-| Reconsider historical backend | Private materialization beats the naive custom scorer in diagnostic cells | Keep native selected-corpus materialization as the leading candidate; full-vocabulary custom scorer remains a reference; limits/lifecycle must be measured before selection | P3 backend, grammar and resource probe |
-| Implement temporal semantics explicitly | Partial corrections, retractions, prior belief and graph coherence pass in the isolated format | Separate claim identity, assertion revision and temporal fragments; preserve source policy; bridge to existing identity with an additive temporal ledger candidate | P1 schema/contract compatibility probe and successor ADR |
-| Make existing acceptance criteria binding | Original 15-sample small-corpus timings cannot pass production ACs | AC-076 and AC-081a/b/c qualify actual integrated engine paths; vector/stress/fidelity gates remain independently binding in their blast radius | Prescribed acceptance runs after candidate integration |
+| Eliminate history scans from normal current search | Initial selector scaled with history; P2 native node collector now preserves exact score/order and VM work across H0/4/16 with sub-2-ms healthy-read p99 | Current-index-first routing with bounded metadata certification; no history selection, vocabulary scan or corpus copy on certified default reads; body dedup may hydrate more than K | Integrated node/edge/public-ranking/graph-seed qualification; P1 fragment composition |
+| Define validity-boundary refresh and fallback | P2 snapshot/coalescing/admission witnesses pass, but secure-delete full boundary refresh takes about 4.6 s | Same-snapshot certificate validation and writer-owned publication; incremental ordinary-write maintenance plus a separate bounded secure bulk-refresh/repair strategy | Simultaneous-expiry/bulk-repair comparison preserving erasure, rollback, pinned snapshots and WAL; no hard bound on executing publication yet |
+| Reconsider historical backend | Initial private materialization beat a naive scorer; P3 full-corpus stress is costly and campaign PARTIAL | Private native materialization is a reference and explicitly bounded candidate, not the universal selected backend; first test certified native full-history routing, then term-scoped persistent statistics or finite partitions for arbitrary V/K | Exact scope/authority/all-name property certification; grammar parity and complete cost comparison; no validated production cap or historical SLO |
+| Implement temporal semantics explicitly | Isolated graph oracle passed; P1 real-schema node ledger and P3 receipt-cut fixture selectors pass within stated restrictions | Separate claim identity, assertion revision and temporal fragments; preserve source policy; additive ledger remains a candidate | Successor contracts for competing claims, head/fragment mapping, arbitrary atomic batches and evidence carrier; P1/P2 composition and real temporal graph remain unqualified |
+| Make existing acceptance criteria binding | Follow-ups provide scoped experiments, not integrated production acceptance | AC-076 and AC-081a/b/c qualify actual integrated engine paths; vector/stress/fidelity gates remain independently binding in their blast radius | Prescribed unchanged acceptance runs after candidate integration |
 
 ## Required meanings and statistical scope
 
@@ -231,7 +231,7 @@ placement is inferred from this design revision.
 | AC-081b | Unchanged eight-reader/1,600-search fixture <=100 ms; warning >=80 ms | NOT TESTED for candidate |
 | AC-081c | A distinct engine reader completes while its peer holds a live snapshot | NOT TESTED for candidate; POC WAL consistency is not this test |
 | AC-072/073/075 | Existing vector latency, real-corpus stress and vector fidelity gates remain independently applicable to affected integrated paths | Not established by lexical POC |
-| Supplemental current/history costs | Fixed current size/history ratios, clock/source boundary bursts, historical backend resources, writes/rebuild/erase/close | Proposed in P2/P3; no new public threshold declared |
+| Supplemental current/history costs | Fixed current size/history ratios, clock/source boundary bursts, historical backend resources, writes/rebuild/erase/close | P2 fresh-fixture SCOUT executed: healthy reads isolate, secure bulk refresh about 4.6 s; P3 resource campaign PARTIAL; no new public threshold declared |
 
 Thresholds/fixtures come from [acceptance.md](../acceptance.md) and the
 [absolute-read ADR](../adr/ADR-0.8.25-absolute-read-performance-successor.md).
@@ -265,3 +265,22 @@ registered-table secure-delete policy and already retained terms, then qualify
 rollback/WAL retry, visibility and unrelated-row preservation, cost and compatibility.
 No production erasure rewrite is part of these experiments. Candidate-only P2
 secure deletion qualifies fresh fixtures; it does not repair the shipping finding.
+
+The final fresh P2 run retains sub-2-ms healthy-read p99 for its scoped native
+node workload, but secure-delete-enabled full boundary reconciliation takes about
+4.6 seconds versus 93–106 ms in the earlier candidate. This writer cost blocks
+adopting the conservative full-refresh strategy as a low-latency design. Incremental
+maintenance must be designed and qualified; the current result is healthy-read
+isolation evidence, not production writer or boundary acceptance.
+
+## Next evidence: secure bulk refresh
+
+Incremental maintenance can avoid full reconciliation for an ordinary single
+write, but does not eliminate 10,000 removals at a simultaneous expiry boundary.
+The observed secure-delete cost therefore needs a separate bounded bulk-refresh
+and repair probe before production strategy selection. Compare transactional
+fresh-projection rebuild/swap or a valid bulk-clear mechanism with the current
+reference while preserving certificate publication, pinned snapshots, erasure
+ownership, rollback and WAL completion semantics. Measure the complete burst,
+including construction and publication; do not hide it in warmup or widen request
+budgets to make it qualify. No such optimization is implemented or qualified here.

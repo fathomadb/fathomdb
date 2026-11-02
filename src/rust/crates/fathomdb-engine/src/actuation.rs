@@ -1818,6 +1818,8 @@ fn apply_lifecycle(
             params![operation.to_state.as_str(), new_reason, operation.logical_id],
         )
         .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
+    vector_storage::refresh_vector_eligibility_for_cursor(connection, write_cursor)
+        .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     purge_row_projections_for_cursor_in(
         connection,
         write_cursor,

@@ -760,3 +760,21 @@ pub(crate) fn vector_eligibility_for_cursor(
     let (from, until) = vector_validity_bounds(from, until);
     Ok((lifecycle, from, until))
 }
+
+pub(crate) fn refresh_vector_eligibility_for_cursor(
+    conn: &Connection,
+    cursor: i64,
+) -> rusqlite::Result<()> {
+    let (lifecycle, from, until) = vector_eligibility_for_cursor(conn, cursor)?;
+    let ids = conn
+        .prepare_cached("SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor=?1")?
+        .query_map([cursor], |r| r.get::<_, i64>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for id in ids {
+        conn.execute(
+            "UPDATE vector_default SET lifecycle=?1,valid_from=?2,valid_until=?3 WHERE rowid=?4",
+            params![lifecycle, from, until, id],
+        )?;
+    }
+    Ok(())
+}

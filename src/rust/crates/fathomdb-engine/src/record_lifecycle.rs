@@ -297,6 +297,8 @@ impl Engine {
         .map_err(|_| EngineError::Storage)?;
 
         if let Some((_, cursor, _, body, _)) = &current {
+            vector_storage::refresh_vector_eligibility_for_cursor(&tx, *cursor)
+                .map_err(|_| EngineError::Storage)?;
             purge_row_projections_for_cursor_in(
                 &tx,
                 *cursor,

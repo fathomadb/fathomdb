@@ -677,6 +677,7 @@ pub(crate) fn apply_batch_in_transaction(
                     // `canonical_nodes WHERE superseded_at IS NULL` join, so purging
                     // them here would be a behaviour change outside this fix's scope.
                     for sc in &prior_g0 {
+                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                         purge_row_projections_for_cursor_in(
                             tx,
                             *sc,

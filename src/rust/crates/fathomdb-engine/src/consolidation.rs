@@ -325,6 +325,8 @@ impl Engine {
                     // `EngineError::Storage`. Both timestamps are integers now, so
                     // the comparison is plain Rust against the bound `:now` seam.
                     if let Some(cursor) = active_cursor {
+                        vector_storage::refresh_vector_eligibility_for_cursor(&tx, cursor)
+                            .map_err(|_| EngineError::Storage)?;
                         let ended = ts <= current_epoch_seconds();
                         if ended {
                             // fix-2 [P2]: KEEP the projection terminal row. The

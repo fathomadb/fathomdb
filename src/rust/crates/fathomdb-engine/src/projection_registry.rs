@@ -2425,6 +2425,7 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
             cursors.collect::<rusqlite::Result<_>>()?
         };
         let mut rewind = None;
+        let mut lexical_restored = false;
         for (cursor, kind, body, _, _, terminal) in rows {
             if !crate::dependency_closure::projection_owner_is_eligible_at(connection, cursor, now)
                 .map_err(|_| rusqlite::Error::InvalidQuery)?
@@ -2436,6 +2437,7 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
                     "INSERT INTO search_index_edges(body,kind,write_cursor) VALUES(?1,?2,?3)",
                     params![body, kind, cursor],
                 )?;
+                lexical_restored = true;
             }
             if terminal.as_deref() == Some("up_to_date")
                 && crate::projection_commit::projection_physical_tuple_is_empty(connection, cursor)?
@@ -2455,6 +2457,9 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
                 )
                 .map_err(|_| rusqlite::Error::InvalidQuery)?;
             }
+        }
+        if lexical_restored {
+            crate::write_commit::advance_read_visibility(connection)?;
         }
         if let Some(cursor) = rewind {
             let below = cursor.saturating_sub(1);

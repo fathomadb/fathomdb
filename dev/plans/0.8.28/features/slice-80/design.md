@@ -31,7 +31,10 @@ terminals, rewind below the lowest pending historical cursor, and let the
 ordinary bounded worker project them. Do not treat partial sidecar/vector/span
 state as a legitimate skip, or clear genuine failed terminals. Rebuild uses
 the same historical membership and reconstructs searchable historical FTS.
-This repairs derived projections, with no canonical migration or new tables.
+Lexical restoration advances frozen-read visibility once in the same transaction,
+even when vector tuples need no repair; unchanged reopen does not advance it.
+Validation failure rolls back both lexical repair and visibility. This repairs
+derived projections, with no canonical migration or new tables.
 
 Search must not infer complete historical vectors from a stale terminal or
 watermark. Use existing physical completion and soft-fallback reporting; when

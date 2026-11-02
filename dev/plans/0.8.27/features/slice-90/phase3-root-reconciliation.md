@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 134eb0297ed28407e04df0efa2e1a66d9786eb99
+lib_rs_blob: 53f4187db2a9d2025fffdc78310d0edc2799dcf9
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -98,3 +98,8 @@ candidate checks.
 0.8.28 Slice 60 adds the private `vector_spans` module declaration and updates
 the current schema-version fixture to 35; root field and method ownership
 remain unchanged. The inventory blob above tracks those changes.
+
+0.8.28 Slice 80 adds the feature-gated private property corpus rendezvous
+re-exports (`arm_property_corpus_hook_for_test`, `PropertyCorpusPauseForTest`).
+Root field and method ownership remain unchanged; the inventory blob above
+tracks this composition-only update.

@@ -79,23 +79,13 @@ fn seed(engine: &Engine) {
     engine.write(&writes).expect("seed competing edges");
 }
 
-/// Count edge-FTS hits for a term, split into (updated_hits, stale_hits) by matching the logical_id
-/// suffix via a join back to canonical_edges.
-fn fts_hits(conn: &Connection, term: &str) -> (u64, u64) {
-    // search_index_edges.write_cursor == canonical_edges.write_cursor. FTS5 MATCH requires the table
-    // name (not an alias), so match in a subquery and join back by write_cursor.
-    let count = |suffix: &str| -> u64 {
-        conn.query_row(
-            "SELECT COUNT(*) FROM canonical_edges e \
-             WHERE e.logical_id LIKE ?2 \
-               AND e.write_cursor IN \
-                   (SELECT write_cursor FROM search_index_edges WHERE search_index_edges MATCH ?1)",
-            rusqlite::params![term, suffix],
-            |r| r.get(0),
-        )
-        .unwrap()
+/// Count actual current-view retrieval hits by stable logical identity suffix.
+fn fts_hits(engine: &Engine, term: &str) -> (u64, u64) {
+    let result = engine.search_text_only_with_limit(term, 100).unwrap();
+    let count = |suffix: &str| {
+        result.results.iter().filter(|hit| hit.id.value.ends_with(suffix)).count() as u64
     };
-    (count("%-updated"), count("%-stale"))
+    (count("-updated"), count("-stale"))
 }
 
 #[test]
@@ -107,15 +97,9 @@ fn consolidation_removes_stale_contradictions_without_lossiness() {
 
     let conn = Connection::open(&path).unwrap();
 
-    // SCOPE (honest): this measures ACTIVE edge-FTS retrieval IMMEDIATELY after consolidation. It does
-    // NOT claim durability across an operator `rebuild_projections()` — the Slice-15 fix-2 KNOWN
-    // LIMITATION means a rebuild re-materialises an invalidated (non-superseded) edge's FTS/vec shadows.
-    // That fragility is a NAMED blocker-before-default-ON in `consolidation-value-test-results.md` and is
-    // one reason the value verdict is STAY-OFF. (rebuild_projections is operator-feature-gated and not
-    // reachable from this default-feature test, so the rebuild path is asserted by code-path analysis +
-    // the elevated blocker, not exercised here.)
+    // Measure current retrieval; raw FTS intentionally also retains history.
     // --- Consolidation OFF (baseline): both stale and updated facts are retrievable. ---
-    let (off_updated, off_stale) = fts_hits(&conn, "works");
+    let (off_updated, off_stale) = fts_hits(&opened.engine, "works");
     let n = SUBJECTS.len() as u64;
     assert_eq!(off_updated, n, "every updated fact retrievable OFF");
     assert_eq!(
@@ -137,7 +121,17 @@ fn consolidation_removes_stale_contradictions_without_lossiness() {
     let receipt = opened.engine.consolidate_with_provider(&cmd_refs, &axes).expect("consolidate");
     assert_eq!(receipt.edges_invalidated, n, "one stale fact invalidated per axis");
 
-    let (on_updated, on_stale) = fts_hits(&conn, "works");
+    assert_eq!(
+        conn.query_row(
+            "SELECT COUNT(*) FROM search_index_edges WHERE search_index_edges MATCH 'works'",
+            [],
+            |row| row.get::<_, u64>(0)
+        )
+        .unwrap(),
+        2 * n,
+        "lexical history remains physically retained"
+    );
+    let (on_updated, on_stale) = fts_hits(&opened.engine, "works");
     let on_precision = on_updated as f64 / (on_updated + on_stale).max(1) as f64;
 
     // Mechanism: stale contradictions are hidden from retrieval (precision → 1.0) ...

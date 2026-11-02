@@ -421,9 +421,29 @@ fn reopen_refuses_partial_historical_vector_tuple() {
     drop(opened);
     let conn = rusqlite::Connection::open(&path).unwrap();
     conn.execute("DELETE FROM vector_default WHERE rowid=3", []).unwrap();
+    conn.execute("DELETE FROM search_index_edges WHERE write_cursor=3", []).unwrap();
+    let generation: i64 = conn
+        .query_row("SELECT generation FROM _fathomdb_read_visibility_state", [], |r| r.get(0))
+        .unwrap();
     drop(conn);
     let reopened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider));
     assert!(reopened.is_err(), "partial historical projections must fail open");
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT COUNT(*) FROM search_index_edges WHERE write_cursor=3", [], |r| r
+            .get::<_, i64>(
+            0
+        ))
+        .unwrap(),
+        0,
+        "failed tuple validation rolls lexical repair back"
+    );
+    assert_eq!(
+        conn.query_row("SELECT generation FROM _fathomdb_read_visibility_state", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        generation
+    );
 }
 
 #[test]

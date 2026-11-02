@@ -765,6 +765,31 @@ for control in \
 done
 
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
+  if property_corpus_audit_out="$(PYTHONPATH="$SCRIPT_DIR" python3 - "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" <<'PY_GATE'
+from pathlib import Path
+import sys
+from slice65_managed_connection_owners import owner_errors, source_inventory
+
+sources = source_inventory(Path(sys.argv[1]))
+assert not owner_errors(sources), owner_errors(sources)
+source = sources["search.rs"]
+anchor = "let corpus = Connection::open_in_memory()?;"
+assert source.count(anchor) == 1
+for replacement in (
+    'let corpus = Connection::open("/tmp/property-corpus.sqlite")?;',
+    'let extra = Connection::open_in_memory()?; let corpus = Connection::open_in_memory()?;',
+):
+    errors = owner_errors(sources | {"search.rs": source.replace(anchor, replacement, 1)})
+    assert any("direct SQLite open outside sole audited factory" in error for error in errors), errors
+unrelated = source + "\nfn unrelated_private_open() { let _ = Connection::open_in_memory(); }\n"
+errors = owner_errors(sources | {"search.rs": unrelated})
+assert any("direct SQLite open outside sole audited factory" in error for error in errors), errors
+PY_GATE
+)"; then
+    pass "private property corpus allowance rejects file, duplicate and unrelated opens"
+  else
+    fail "private property corpus opener audit mutation ($property_corpus_audit_out)"
+  fi
   TMPROOT="$(mktemp -d)"
   MANAGED_READER_DEBUG_MUTATED="$TMPROOT/wal-with-default-debug-hook.rs"
   python3 - "$WAL_RUNTIME_SOURCE" "$MANAGED_READER_DEBUG_MUTATED" <<'PY_GATE'

@@ -72,9 +72,9 @@ impl Fixture {
     }
 }
 
-// Frozen source from 630af0bfc: the shared edge fragment plus its expanded
-// default-view temporal/dependency predicates. It does not call a production
-// SQL builder, so changes to the bounded query cannot alter this oracle.
+// Independent historical edge-membership oracle: superseded bodies remain
+// members, with unchanged expiry and strict source-dependency predicates. It
+// does not call a production SQL builder, preserving bounded-query independence.
 fn baseline_edge(now: usize) -> String {
     format!(
         r#"FROM canonical_edges ce
@@ -83,7 +83,6 @@ fn baseline_edge(now: usize) -> String {
          LEFT JOIN _fathomdb_projection_terminal pt
            ON pt.write_cursor = ce.write_cursor
          WHERE ce.body IS NOT NULL
-           AND ce.superseded_at IS NULL
            AND (ce.t_invalid IS NULL OR ce.t_invalid > ?{now})
            AND NOT EXISTS(
              SELECT 1 FROM _fathomdb_artifact_revisions closure_owner
@@ -256,8 +255,8 @@ fn slice50_node_edge_ordering_cases() {
             }
         }
         // Ordinary canonical nodes remain projection members when superseded;
-        // query-time eligibility is separate. Edges filter supersession here.
-        let expected = f.raw.prepare("SELECT write_cursor FROM canonical_nodes WHERE body NOT LIKE '%fail%' UNION ALL SELECT write_cursor FROM canonical_edges WHERE superseded_at IS NULL AND t_invalid IS NULL AND body NOT LIKE '%fail%' ORDER BY write_cursor").unwrap().query_map([],|r|r.get::<_,u64>(0)).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
+        // query-time eligibility is separate. Edges retain supersession too; expiry stays excluded.
+        let expected = f.raw.prepare("SELECT write_cursor FROM canonical_nodes WHERE body NOT LIKE '%fail%' UNION ALL SELECT write_cursor FROM canonical_edges WHERE t_invalid IS NULL AND body NOT LIKE '%fail%' ORDER BY write_cursor").unwrap().query_map([],|r|r.get::<_,u64>(0)).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
         f.engine.set_projection_scheduler_frozen_for_test(false);
         f.engine.drain(30_000).unwrap();
         let actual = f

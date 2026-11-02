@@ -275,7 +275,7 @@ fn custom_span_trigger_runs_and_invalidates_frozen_reads() {
 }
 
 #[test]
-fn edge_supersession_removes_spans_under_coalesced_writes() {
+fn edge_supersession_retains_spans_until_source_erasure() {
     use fathomdb_engine::{PreparedWrite, SourceId};
     fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
     for logical in [false, true] {
@@ -307,6 +307,13 @@ fn edge_supersession_removes_spans_under_coalesced_writes() {
             .unwrap(),
             1
         );
+        let old_vector: i64 = conn
+            .query_row(
+                "SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+                [old],
+                |r| r.get(0),
+            )
+            .unwrap();
         opened.engine.write(&[edge(true)]).unwrap();
         opened.engine.drain(10_000).unwrap();
         assert_eq!(
@@ -316,14 +323,52 @@ fn edge_supersession_removes_spans_under_coalesced_writes() {
                 |r| r.get::<_, u64>(0)
             )
             .unwrap(),
-            0
+            1
         );
         assert_eq!(
             conn.query_row("SELECT COUNT(*) FROM _fathomdb_vector_spans", [], |r| r
                 .get::<_, u64>(0))
                 .unwrap(),
-            1
+            2
         );
+        assert_eq!(
+            conn.query_row(
+                "SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+                [old],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            old_vector
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT lifecycle FROM vector_default WHERE rowid=?1",
+                [old_vector],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
+        assert!(opened.engine.search_text_only("old").unwrap().results.is_empty());
+        let history = fathomdb_engine::ReadView { include_superseded: true, ..Default::default() };
+        let hits = opened.engine.search_text_only_view("old", &history).unwrap();
+        assert_eq!(hits.results.len(), 1);
+        assert_eq!(hits.results[0].write_cursor, old);
+        opened.engine.erase_source("test:slice60").unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM _fathomdb_vector_spans", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        assert!(opened.engine.search_text_only_view("old", &history).unwrap().results.is_empty());
+        opened.engine.close().unwrap();
     }
 }
 

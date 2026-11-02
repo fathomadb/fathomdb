@@ -837,7 +837,18 @@ fn slice70_attribute_refresh_uses_record_mapping() {
 #[test]
 fn slice70_attribute_backfill_uses_record_mapping() {
     let conn = slice70_mapping_fixture(false);
-    conn.execute("INSERT INTO canonical_attributes VALUES(10,'owner','alice')", []).unwrap();
+    conn.execute(
+        "INSERT INTO _fathomdb_projection_registry(name,roles) VALUES('owner','filterable')",
+        [],
+    )
+    .unwrap();
+    conn.execute("INSERT INTO canonical_nodes(write_cursor,kind,body,state,superseded_at) VALUES(10,'doc',?1,'deleted',11)", [r#"{"owner":"alice"}"#]).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT COUNT(*) FROM canonical_attributes", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+
     let col = attr_vec0_column("owner");
     reshape_vector_partition_nondestructive(&conn, 8, std::slice::from_ref(&col), &[], false)
         .unwrap();

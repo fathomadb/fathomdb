@@ -118,7 +118,7 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
     for (needle, count) in [
         ("\"INSERT INTO search_index(", 1),
         ("\"INSERT INTO search_index_v2(", 1),
-        ("\"INSERT INTO search_index_edges(", 1),
+        ("\"INSERT INTO search_index_edges(", 2),
         ("\"INSERT INTO property_search_index(", 1),
         ("\"DELETE FROM property_search_index", 1),
         // Four writer sites plus three cfg(test) fixture insertions.
@@ -173,8 +173,16 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
         &["DELETE FROM property_search_index", "DELETE FROM canonical_attributes"],
     );
     contains_all(
-        "prune_edge_projection_shadows",
-        &["DELETE FROM search_index_edges", "delete_vector_record_rows", "_fathomdb_vector_rows"],
+        "reconcile_edge_history_on_boot",
+        &[
+            "BEGIN IMMEDIATE",
+            "INSERT INTO search_index_edges(",
+            "lexical_restored = true",
+            "if lexical_restored",
+            "write_commit::advance_read_visibility(connection)",
+            "COMMIT",
+            "ROLLBACK",
+        ],
     );
     contains_all(
         "write_vector_for_test",

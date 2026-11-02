@@ -36,6 +36,9 @@ RO_FLAGS = (
     "rusqlite::OpenFlags::SQLITE_OPEN_URI,"
 )
 EXPECTED_RAW_OPENS = Counter({
+    # Per-call private property FTS corpus: no database path or persistent-store role.
+    # Exact owner, constructor, empty arguments and count; file opens remain forbidden.
+    ("search.rs", "open_historical_property_corpus", "open_in_memory", ""): 1,
     ("connection_runtime.rs", "open_managed_connection", "open", "path"): 1,
     ("open.rs", "read_effective_schema_version", "open_with_flags", "read_only_sqlite_uri(path)," + RO_FLAGS): 1,
     # Slice 103 shares WAL admission across truncate and owed-erasure recovery.

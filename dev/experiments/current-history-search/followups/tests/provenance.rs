@@ -162,3 +162,17 @@ fn current_family_tracks_source_boundaries_and_actual_source_revocation() {
     );
     store.close().unwrap();
 }
+
+#[test]
+fn temporal_claim_kind_is_immutable() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("kind.sqlite")).unwrap();
+    ledger.engine.write(&[source()]).unwrap();
+    ledger.change_prepared(derived("assertion-r1", "body"), (0, 100), false).unwrap();
+    let PreparedWrite::ProvenancedNode(mut node) = derived("assertion-r2", "other") else {
+        unreachable!()
+    };
+    node.kind = "different-type".into();
+    assert!(ledger.change_prepared(PreparedWrite::ProvenancedNode(node), (20, 40), false).is_err());
+    ledger.engine.close().unwrap();
+}

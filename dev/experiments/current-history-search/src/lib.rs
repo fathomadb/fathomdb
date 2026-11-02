@@ -1,5 +1,5 @@
 use rusqlite::{params, Connection};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -219,10 +219,10 @@ impl Store {
         view: View,
         backend: Backend,
     ) -> Result<Vec<Hit>> {
-        match backend {
-            Backend::Partitioned => self.search_view(query, family, name, limit, view),
-            _ => Err(reject("ranker not implemented")),
-        }
+        let tx = self.conn.unchecked_transaction()?;
+        let hits = search_on(&tx, query, family, name, limit, view, backend)?;
+        tx.commit()?;
+        Ok(hits)
     }
 
     /// Search a coherent temporal selection or explicit archive under one read snapshot.
@@ -234,12 +234,7 @@ impl Store {
         limit: usize,
         view: View,
     ) -> Result<Vec<Hit>> {
-        let tx = self.conn.unchecked_transaction()?;
-        let docs = documents_view(&tx, family, view)?;
-        let hits =
-            native_search(&tx, &format!("all_{}", family.label()), query, &docs, name, limit)?;
-        tx.commit()?;
-        Ok(hits)
+        self.search_backend(query, family, name, limit, view, Backend::Partitioned)
     }
 
     /// Search the certified current projection at its initial validity instant.
@@ -252,9 +247,15 @@ impl Store {
     ) -> Result<Vec<Hit>> {
         let tx = self.conn.unchecked_transaction()?;
         let now = tx.query_row("SELECT now FROM config", [], |r| r.get::<_, i64>(0))?;
-        let docs = documents(&tx, family, now, None)?;
-        let hits =
-            native_search(&tx, &format!("current_{}", family.label()), query, &docs, name, limit)?;
+        let hits = search_on(
+            &tx,
+            query,
+            family,
+            name,
+            limit,
+            View::Snapshot { valid: now, known: None },
+            Backend::Partitioned,
+        )?;
         tx.commit()?;
         Ok(hits)
     }
@@ -525,6 +526,156 @@ fn native_search(
                 });
             }
         }
+    }
+    order_hits(&mut hits, limit);
+    Ok(hits)
+}
+
+fn search_on(
+    conn: &Connection,
+    query: &str,
+    family: Family,
+    name: Option<&str>,
+    limit: usize,
+    view: View,
+    backend: Backend,
+) -> Result<Vec<Hit>> {
+    match_expression(query)?;
+    let docs = documents_view(conn, family, view)?;
+    match backend {
+        Backend::Materialized => materialized_search(query, &docs, name, limit),
+        Backend::Custom => custom_search(conn, query, family, &docs, name, limit),
+        Backend::Partitioned => {
+            let table = format!("current_{}", family.label());
+            let indexed = {
+                let mut stmt = conn.prepare(&format!("SELECT rowid FROM {table}"))?;
+                let ids = stmt
+                    .query_map([], |r| r.get::<_, i64>(0))?
+                    .collect::<rusqlite::Result<BTreeSet<_>>>()?;
+                ids
+            };
+            let selected = docs.iter().map(|d| d.id).collect::<BTreeSet<_>>();
+            if selected == indexed {
+                native_search(conn, &table, query, &docs, name, limit)
+            } else {
+                custom_search(conn, query, family, &docs, name, limit)
+            }
+        }
+    }
+}
+
+fn materialized_search(
+    query: &str,
+    docs: &[Document],
+    name: Option<&str>,
+    limit: usize,
+) -> Result<Vec<Hit>> {
+    let mut memory = Connection::open_in_memory()?;
+    memory.execute_batch("PRAGMA temp_store=MEMORY;
+        CREATE VIRTUAL TABLE selected USING fts5(text, tokenize='porter unicode61 remove_diacritics 2');")?;
+    {
+        let tx = memory.transaction()?;
+        {
+            let mut insert = tx.prepare("INSERT INTO selected(rowid,text) VALUES(?1,?2)")?;
+            for doc in docs {
+                insert.execute(params![doc.id, doc.text])?;
+            }
+        }
+        tx.commit()?;
+    }
+    let hits = native_search(&memory, "selected", query, docs, name, limit)?;
+    drop(memory);
+    Ok(hits)
+}
+
+fn normalized_query_terms(query: &str) -> Result<Vec<String>> {
+    match_expression(query)?;
+    let memory = Connection::open_in_memory()?;
+    memory.execute_batch("PRAGMA temp_store=MEMORY;
+        CREATE VIRTUAL TABLE tokens USING fts5(text, tokenize='porter unicode61 remove_diacritics 2');
+        CREATE VIRTUAL TABLE vocabulary USING fts5vocab(tokens,'instance');")?;
+    for (index, word) in query.split_whitespace().step_by(2).enumerate() {
+        memory.execute(
+            "INSERT INTO tokens(rowid,text) VALUES(?1,?2)",
+            params![index as i64 + 1, word],
+        )?;
+    }
+    let mut stmt = memory.prepare("SELECT term FROM vocabulary ORDER BY doc,offset")?;
+    let terms =
+        stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(terms)
+}
+
+fn custom_search(
+    conn: &Connection,
+    query: &str,
+    family: Family,
+    docs: &[Document],
+    name: Option<&str>,
+    limit: usize,
+) -> Result<Vec<Hit>> {
+    let terms = normalized_query_terms(query)?;
+    if docs.is_empty() {
+        return Ok(Vec::new());
+    }
+    let by_id = docs.iter().map(|d| (d.id, d)).collect::<BTreeMap<_, _>>();
+    let mut lengths = docs.iter().map(|d| (d.id, 0usize)).collect::<BTreeMap<_, _>>();
+    let term_set = terms.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    let mut frequencies: BTreeMap<(i64, String), usize> = BTreeMap::new();
+    let mut df: BTreeMap<String, usize> = BTreeMap::new();
+    {
+        let mut stmt = conn.prepare(&format!(
+            "SELECT doc,term,count(*) FROM vocab_{} GROUP BY doc,term",
+            family.label()
+        ))?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            let id = row.get::<_, i64>(0)?;
+            if let Some(length) = lengths.get_mut(&id) {
+                let term = row.get::<_, String>(1)?;
+                let count = row.get::<_, i64>(2)? as usize;
+                *length += count;
+                if term_set.contains(term.as_str()) {
+                    frequencies.insert((id, term.clone()), count);
+                    *df.entry(term).or_default() += 1;
+                }
+            }
+        }
+    }
+    let average = lengths.values().sum::<usize>() as f64 / docs.len() as f64;
+    let mut hits = Vec::new();
+    let mut stmt = conn.prepare(&format!(
+        "SELECT rowid FROM all_{} WHERE all_{} MATCH ?1",
+        family.label(),
+        family.label()
+    ))?;
+    let rows = stmt.query_map([match_expression(query)?], |r| r.get::<_, i64>(0))?;
+    for row in rows {
+        let id = row?;
+        let Some(doc) = by_id.get(&id) else {
+            continue;
+        };
+        if name.is_some_and(|n| n != doc.name) {
+            continue;
+        }
+        let mut score = 0.0;
+        for term in &terms {
+            let tf = *frequencies.get(&(id, term.clone())).unwrap_or(&0) as f64;
+            if tf == 0.0 {
+                continue;
+            }
+            let count = *df.get(term).unwrap_or(&0) as f64;
+            let idf = ((docs.len() as f64 - count + 0.5) / (count + 0.5)).ln().max(1e-6);
+            let norm = lengths[&id] as f64 / average;
+            score -= idf * tf * 2.2 / (tf + 1.2 * (0.25 + 0.75 * norm));
+        }
+        hits.push(Hit {
+            claim: doc.claim.clone(),
+            version: doc.version,
+            body: doc.body.clone(),
+            score,
+            provenance: doc.provenance.clone(),
+        });
     }
     order_hits(&mut hits, limit);
     Ok(hits)

@@ -740,12 +740,11 @@ framing; 15 is landed and 20/25 are unblocked.)*
 >    column hard-**errors** every filtered KNN query (see the `aux` note on `fn vector_partition_create_sql`
 >    in `src/rust/crates/fathomdb-engine/src/vector_storage.rs`).
 > 3. **Back-fill old rows with the `''` sentinel** (vec0 TEXT metadata is NOT-NULL-able — the `''` back-fill
->    in `fn vector_partition_create_sql`'s callers, e.g. the `status` sentinel in
->    `fn migrate_vector_partition_pack1_to_pack2`) so they cleanly fail-to-match a filter rather than erroring.
+>    in `fn reshape_vector_partition_nondestructive` for missing declared attributes) so they cleanly fail-to-match a filter rather than erroring.
 > 4. **Copy `embedding_bin` verbatim via `vec_bit(...)` — do NOT re-quantize.** Re-deriving bits from the
 >    raw `embedding` leaves old rows quantized **un-centered** while new rows stay mean-centered ⇒
 >    incomparable Hamming distances, silent recall corruption, no error (the `vec_bit(embedding_bin)`
->    re-insert inside `fn migrate_vector_partition_pack1_to_pack2` in
+>    re-insert inside `fn reshape_vector_partition_nondestructive` in
 >    `src/rust/crates/fathomdb-engine/src/vector_storage.rs`, and the anti-pattern to avoid — the
 >    DELETE+INSERT re-quantize in `fn run_pin_and_requantize_pass` in `src/rust/crates/fathomdb-engine/src/mean.rs`).
 >

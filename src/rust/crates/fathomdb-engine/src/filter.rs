@@ -842,6 +842,38 @@ pub(crate) fn property_fts_cohort_stream_sql(
     )
 }
 
+pub(crate) fn text_hit_passes_filter_view(
+    tx: &Connection,
+    id: u64,
+    kind: &str,
+    filter: Option<&SearchFilter>,
+    view: &ReadView,
+) -> rusqlite::Result<bool> {
+    let Some(filter) = filter else { return Ok(true) };
+    if (!view.include_superseded && !view.include_inactive) || filter.attributes.is_empty() {
+        return text_hit_passes_filter(tx, id, kind, Some(filter));
+    }
+    let mut base = filter.clone();
+    base.attributes.clear();
+    if !text_hit_passes_filter(tx, id, kind, Some(&base))? {
+        return Ok(false);
+    }
+    let body: Option<String> = tx
+        .query_row("SELECT body FROM canonical_nodes WHERE write_cursor=?1", [id], |r| r.get(0))
+        .optional()?;
+    let Some(body) = body else { return Ok(false) };
+    let registry = load_projection_registry(tx)?;
+    for (name, wanted) in &filter.attributes {
+        let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+        if crate::projection_registry::extract_scalar_attribute(tx, &body, name, stored)?.as_ref()
+            != Some(wanted)
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 /// G10 — does a text-branch hit satisfy the filter? The vector branch is
 /// pruned in-SQL; the text branch is constrained here against the same metadata:
 /// `kind` directly, `source_type` via [`resolve_source_type`], and

@@ -16,8 +16,7 @@ use sha2::{Digest, Sha256};
 use crate::write_commit::load_next_cursor;
 use crate::{
     edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, projection_generation,
-    text_hit_passes_filter, valid_caller_identity, Engine, EngineError, FrozenReadContextV1,
-    LifecycleState, ReadContextV1,
+    valid_caller_identity, Engine, EngineError, FrozenReadContextV1, LifecycleState, ReadContextV1,
 };
 #[cfg(feature = "test-hooks")]
 use crate::{filter::SearchFilter, telemetry, temporal::ReadView};
@@ -368,11 +367,12 @@ fn visible_artifact(
         let visible = (context.view.include_inactive || state == LifecycleState::Active)
             && (context.view.include_superseded || superseded.is_none())
             && (context.view.include_out_of_window || valid)
-            && text_hit_passes_filter(
+            && crate::filter::text_hit_passes_filter_view(
                 connection,
                 u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
                 &kind,
                 Some(&context.eligibility),
+                &context.view,
             )
             .map_err(|_| EngineError::Storage)?;
         (

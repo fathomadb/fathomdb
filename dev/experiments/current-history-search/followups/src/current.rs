@@ -152,6 +152,10 @@ impl CurrentStore {
         if self.closed.load(Ordering::Acquire) {
             return Err(Failure::Closed.into());
         }
+        let compatible = self.engine.query_i64_col_for_test(&format!("SELECT COUNT(*) FROM poc_certificate c JOIN _fathomdb_read_visibility_state v ON v.singleton=c.singleton WHERE c.singleton=1 AND c.published_at<={valid} AND {valid}<c.next_boundary AND c.visibility=v.generation AND c.scope='strict-v1'"))?[0] == 1;
+        if compatible {
+            return Ok(());
+        }
         let current =
             self.engine.query_i64_col_for_test("SELECT published_at FROM poc_certificate")?[0];
         if valid < current {

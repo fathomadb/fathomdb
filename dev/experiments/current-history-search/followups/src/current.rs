@@ -161,25 +161,29 @@ impl CurrentStore {
         if valid < current {
             return Err(Failure::BackwardTime.into());
         }
-        let bootstrap_dirty = if bootstrap {
-            "INSERT OR IGNORE INTO poc_dirty SELECT write_cursor FROM canonical_nodes;"
+        let bootstrap_frontier = if bootstrap {
+            "INSERT OR IGNORE INTO poc_frontier SELECT valid_from,write_cursor FROM canonical_nodes WHERE valid_from IS NOT NULL; INSERT OR IGNORE INTO poc_frontier SELECT valid_until,write_cursor FROM canonical_nodes WHERE valid_until IS NOT NULL;"
         } else {
             ""
         };
-        let next = self.engine.query_i64_col_for_test(&format!(
-            "SELECT COALESCE(MIN(at),9223372036854775807) FROM poc_frontier WHERE at>{valid}"
-        ))?[0];
+        let generation_changed=self.engine.query_i64_col_for_test("SELECT c.visibility!=v.generation FROM poc_certificate c JOIN _fathomdb_read_visibility_state v ON v.singleton=c.singleton WHERE c.singleton=1")?[0] != 0;
+        let reconcile = if generation_changed {
+            "INSERT OR IGNORE INTO poc_dirty SELECT rowid FROM poc_current; INSERT OR IGNORE INTO poc_dirty SELECT write_cursor FROM canonical_nodes INDEXED BY poc_current_heads WHERE superseded_at IS NULL;"
+        } else {
+            ""
+        };
         let source_eligibility = include_str!("source_authority.sql")
             .replace("f.revision", "n.write_cursor")
             .replace("?4", &valid.to_string());
         let sql=format!("BEGIN IMMEDIATE;
-            {bootstrap_dirty}
+            {bootstrap_frontier}
+            {reconcile}
             INSERT OR IGNORE INTO poc_dirty SELECT cursor FROM poc_frontier WHERE at>{current} AND at<={valid};
             INSERT OR IGNORE INTO poc_dirty SELECT ar.write_cursor FROM poc_dirty d JOIN _fathomdb_artifact_revisions source ON source.write_cursor=d.cursor AND source.artifact_class='node' JOIN _fathomdb_source_links link ON link.source_revision_id=source.revision_id JOIN _fathomdb_artifact_revisions ar ON ar.revision_id=link.artifact_revision_id AND ar.artifact_class='node';
             DELETE FROM poc_current WHERE rowid IN (SELECT cursor FROM poc_dirty);
             INSERT INTO poc_current(rowid,body) SELECT n.write_cursor,n.body FROM poc_dirty d JOIN canonical_nodes n ON n.write_cursor=d.cursor WHERE n.state='active' AND n.superseded_at IS NULL AND (n.valid_from IS NULL OR n.valid_from<={valid}) AND (n.valid_until IS NULL OR n.valid_until>{valid}) AND ({source_eligibility});
             DELETE FROM poc_dirty;
-            UPDATE poc_certificate SET published_at={valid},next_boundary={next},visibility=(SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton=1),scope='strict-v1' WHERE singleton=1;
+            UPDATE poc_certificate SET published_at={valid},next_boundary=(SELECT COALESCE(MIN(at),9223372036854775807) FROM poc_frontier WHERE at>{valid}),visibility=(SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton=1),scope='strict-v1' WHERE singleton=1;
             COMMIT;");
         if let Err(error) = self.engine.execute_for_test(&sql) {
             let _ = self.engine.execute_for_test("ROLLBACK");

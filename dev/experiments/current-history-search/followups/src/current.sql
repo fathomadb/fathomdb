@@ -27,3 +27,5 @@ CREATE TRIGGER IF NOT EXISTS poc_closure_update AFTER UPDATE ON _fathomdb_depend
  INSERT OR IGNORE INTO poc_dirty SELECT ar.write_cursor FROM _fathomdb_source_links link JOIN _fathomdb_artifact_revisions ar ON ar.revision_id=link.artifact_revision_id WHERE ar.artifact_class='node' AND ((NEW.root_kind='source_revision' AND link.source_revision_id=NEW.root_value) OR (NEW.root_kind='source_bucket' AND link.source_id=NEW.root_value)); END;
 CREATE TRIGGER IF NOT EXISTS poc_closure_delete AFTER DELETE ON _fathomdb_dependency_closures BEGIN
  INSERT OR IGNORE INTO poc_dirty SELECT ar.write_cursor FROM _fathomdb_source_links link JOIN _fathomdb_artifact_revisions ar ON ar.revision_id=link.artifact_revision_id WHERE ar.artifact_class='node' AND ((OLD.root_kind='source_revision' AND link.source_revision_id=OLD.root_value) OR (OLD.root_kind='source_bucket' AND link.source_id=OLD.root_value)); END;
+
+CREATE INDEX IF NOT EXISTS poc_current_heads ON canonical_nodes(write_cursor) WHERE superseded_at IS NULL;

@@ -451,3 +451,52 @@ fn pending_history_cannot_mask_a_later_corrupt_tuple() {
     opened.engine.drain(10_000).unwrap();
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn frozen_expansion_uses_historical_attributes_and_keeps_historical_edge_hits() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("expanded.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_projections(&[property()], &[]).unwrap();
+    let mut relation = edge("relation", "unused");
+    if let PreparedWrite::Edge { body, .. } = &mut relation {
+        *body = None;
+    }
+    opened
+        .engine
+        .write(&[
+            node("a", r#"{"summary":"same","text":"anchorquery"}"#, InitialState::Active),
+            node("b", r#"{"summary":"same","text":"old neighbor"}"#, InitialState::Active),
+            relation,
+        ])
+        .unwrap();
+    opened
+        .engine
+        .write(&[node(
+            "b",
+            r#"{"summary":"different","text":"new neighbor"}"#,
+            InitialState::Active,
+        )])
+        .unwrap();
+    let mut filter = fathomdb_engine::SearchFilter::default();
+    filter.attributes = vec![("summary".into(), "same".into())];
+    let context = fathomdb_engine::ReadContextV1::new(view(true, false), filter).unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let result = opened.engine.search_expand_frozen("anchorquery", &frozen, 1, 10).unwrap();
+    assert!(
+        result.expanded.iter().any(|(node, _)| node.body.contains("old neighbor")),
+        "{result:?}"
+    );
+    opened.engine.write(&[edge("fact", "oldedgequery")]).unwrap();
+    opened.engine.write(&[edge("fact", "newedgequery")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let frozen = opened
+        .engine
+        .freeze_read_context(
+            &fathomdb_engine::ReadContextV1::new(view(true, false), Default::default()).unwrap(),
+        )
+        .unwrap();
+    let result = opened.engine.search_expand_frozen("oldedgequery", &frozen, 1, 10).unwrap();
+    assert!(result.search_hits.iter().any(|hit| hit.body == "oldedgequery"), "{result:?}");
+    opened.engine.close().unwrap();
+}

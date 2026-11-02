@@ -77,7 +77,13 @@ mapping, vector, span and terminal in one transaction. Batch and scalar
 paths obey the same contract; failures/deferred work leave no span.
 
 All deletion paths already remove vector mappings; the mapping-delete
-trigger removes associated spans. Rebuild resets them and projection
+trigger removes associated spans. Canonical write batches can disable
+triggers while coalescing visibility: both edge-supersession deletion
+paths explicitly delete spans by record cursor in the same transaction.
+The low-level vec0-delete helper stays vector-only because mean recentering
+uses it before reinsertion and must preserve spans. Both canonical and
+projection coalescing authenticate the owned cleanup trigger before
+allowlisting it, and detect custom span triggers in main and TEMP schemas. Rebuild resets them and projection
 repopulates them. Attribute reshapes preserve mapping and spans. Test-only
 vector insertion also records unknown/full coverage from its supplied text
 so physical invariants remain usable by benchmark and regression fixtures.

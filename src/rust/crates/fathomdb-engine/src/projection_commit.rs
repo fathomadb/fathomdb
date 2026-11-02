@@ -3,23 +3,29 @@ use crate::mean::MEAN_VEC_PIN_THRESHOLD;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+    // Only the authenticated DELETE-only cleanup trigger is harmless while
+    // insertion visibility is coalesced. TEMP/name-spoofed triggers stay custom.
+    if !crate::vector_spans::cleanup_trigger_is_valid(connection)? {
+        return Ok(false);
+    }
     let unexpected: bool = connection
         .prepare_cached(
             "SELECT EXISTS(
              SELECT 1 FROM sqlite_master
              WHERE type='trigger'
                AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','_fathomdb_projection_terminal',
                    '_fathomdb_embedder_profiles','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state',
                    'vector_default'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
+               AND name!='_fathomdb_vector_spans_mapping_delete'
              UNION ALL
              SELECT 1 FROM sqlite_temp_master
              WHERE type='trigger'
                AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','_fathomdb_projection_terminal',
                    '_fathomdb_embedder_profiles','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state',
                    'vector_default'

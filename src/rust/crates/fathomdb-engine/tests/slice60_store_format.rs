@@ -273,3 +273,97 @@ fn custom_span_trigger_runs_and_invalidates_frozen_reads() {
     );
     assert!(opened.engine.validate_frozen_read_context_for_binding(&frozen).is_err());
 }
+
+#[test]
+fn edge_supersession_removes_spans_under_coalesced_writes() {
+    use fathomdb_engine::{PreparedWrite, SourceId};
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    for logical in [false, true] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("edge-spans.sqlite");
+        let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+        let edge = |new: bool| PreparedWrite::Edge {
+            kind: "rel".into(),
+            from: "a".into(),
+            to: if logical && new { "c" } else { "b" }.into(),
+            source_id: SourceId::new("test:slice60").unwrap(),
+            logical_id: logical.then(|| "same-edge".into()),
+            body: Some(if new { "new" } else { "old" }.into()),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        };
+        let old = opened.engine.write(&[edge(false)]).unwrap().row_cursors[0];
+        opened.engine.drain(10_000).unwrap();
+        let conn = Connection::open(&path).unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM _fathomdb_vector_spans WHERE write_cursor=?1",
+                [old],
+                |r| r.get::<_, u64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        opened.engine.write(&[edge(true)]).unwrap();
+        opened.engine.drain(10_000).unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM _fathomdb_vector_spans WHERE write_cursor=?1",
+                [old],
+                |r| r.get::<_, u64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM _fathomdb_vector_spans", [], |r| r
+                .get::<_, u64>(0))
+                .unwrap(),
+            1
+        );
+    }
+}
+
+struct MeanProvider;
+impl Embedder for MeanProvider {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new(
+            "fathomdb-bge-small-en-v1.5",
+            "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+            384,
+        )
+    }
+    fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+        Ok(vec![0.125; 384])
+    }
+    fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError> {
+        Ok(Some(input.len()))
+    }
+}
+
+#[test]
+fn automatic_mean_pin_and_manual_recenter_preserve_spans_and_f32() {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("recenter-spans.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(MeanProvider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let count = fathomdb_engine::MEAN_VEC_PIN_THRESHOLD + 1;
+    opened
+        .engine
+        .write(&(0..count).map(|i| node(&format!("body {i}"))).collect::<Vec<_>>())
+        .unwrap();
+    opened.engine.drain(30_000).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let rows = || {
+        conn.prepare("SELECT s.write_cursor,s.byte_end,s.body_length,v.embedding FROM _fathomdb_vector_spans s JOIN vector_default v ON v.rowid=s.vector_rowid ORDER BY s.write_cursor").unwrap().query_map([],|r|Ok((r.get::<_,u64>(0)?,r.get::<_,u64>(1)?,r.get::<_,u64>(2)?,r.get::<_,Vec<u8>>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap()
+    };
+    let before = rows();
+    assert_eq!(before.len() as u64, count);
+    assert!(before.iter().all(|(_, end, length, _)| end == length));
+    opened.engine.recompute_mean().unwrap();
+    assert_eq!(rows(), before);
+}

@@ -47,3 +47,13 @@ pub(crate) fn count_for_cursor(connection: &Connection, cursor: u64) -> rusqlite
         |row| row.get(0),
     )
 }
+
+pub(crate) fn cleanup_trigger_is_valid(connection: &Connection) -> rusqlite::Result<bool> {
+    let sql: Option<String> = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='_fathomdb_vector_spans_mapping_delete'",
+        [], |row| row.get(0),
+    ).optional()?;
+    let expected = "CREATE TRIGGER _fathomdb_vector_spans_mapping_delete AFTER DELETE ON _fathomdb_vector_rows BEGIN DELETE FROM _fathomdb_vector_spans WHERE vector_rowid=OLD.rowid; END";
+    let normalize = |sql: &str| sql.split_whitespace().collect::<Vec<_>>().join(" ");
+    Ok(sql.as_deref().map(normalize).as_deref() == Some(&normalize(expected)))
+}

@@ -393,6 +393,9 @@ impl Drop for TriggerStateGuard<'_> {
 }
 
 fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+    if !crate::vector_spans::cleanup_trigger_is_valid(connection)? {
+        return Ok(false);
+    }
     let unexpected: bool = connection
         .prepare_cached(
             "SELECT EXISTS(
@@ -404,10 +407,11 @@ fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
                    'canonical_attributes','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','operational_mutations',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
+               AND name!='_fathomdb_vector_spans_mapping_delete'
              UNION ALL
              SELECT 1 FROM sqlite_temp_master
              WHERE type='trigger'
@@ -417,7 +421,7 @@ fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
                    'canonical_attributes','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','operational_mutations',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
@@ -756,6 +760,11 @@ pub(crate) fn apply_batch_in_transaction(
                     )?;
                     for sc in &prior_g0 {
                         delete_vector_partition_row(tx, *sc)?;
+                        // Coalesced canonical writes disable the cleanup trigger.
+                        tx.execute(
+                            "DELETE FROM _fathomdb_vector_spans WHERE write_cursor=?1",
+                            [sc],
+                        )?;
                         tx.execute(
                             "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
                             [sc],
@@ -792,6 +801,11 @@ pub(crate) fn apply_batch_in_transaction(
                     )?;
                     for sc in &prior_g11 {
                         delete_vector_partition_row(tx, *sc)?;
+                        // Coalesced canonical writes disable the cleanup trigger.
+                        tx.execute(
+                            "DELETE FROM _fathomdb_vector_spans WHERE write_cursor=?1",
+                            [sc],
+                        )?;
                         tx.execute(
                             "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
                             [sc],

@@ -417,12 +417,9 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
         return Err("unexpected frozen-read visibility trigger".to_string());
     }
     if schema_version >= 35 {
-        let sql: Option<String> = connection.query_row(
-            "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='_fathomdb_vector_spans_mapping_delete'",
-            [], |row| row.get(0),
-        ).optional().map_err(|error| error.to_string())?;
-        let expected = "CREATE TRIGGER _fathomdb_vector_spans_mapping_delete AFTER DELETE ON _fathomdb_vector_rows BEGIN DELETE FROM _fathomdb_vector_spans WHERE vector_rowid=OLD.rowid; END";
-        if sql.as_deref().map(normalize_sql).as_deref() != Some(&normalize_sql(expected)) {
+        if !crate::vector_spans::cleanup_trigger_is_valid(connection)
+            .map_err(|error| error.to_string())?
+        {
             return Err("missing or altered vector span cleanup trigger".to_string());
         }
     }

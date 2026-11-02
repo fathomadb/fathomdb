@@ -86,6 +86,18 @@ pub trait Embedder: Send + Sync {
 
     fn embed(&self, input: &str) -> Result<Vector, EmbedderError>;
 
+    /// Report the exclusive UTF-8 byte end represented by the head embedding.
+    ///
+    /// `None` means coverage is unknown. `Some(input.len())` means the whole
+    /// input is represented, including empty input; a smaller offset identifies
+    /// truncation. Known offsets must be within `input` and on a UTF-8 boundary.
+    /// Use exactly the tokenizer and truncation policy used by [`Self::embed`].
+    /// Return an error if that coverage cannot be computed reliably. This method
+    /// must not mutate provider configuration or perform model inference.
+    fn truncation_offset(&self, _input: &str) -> Result<Option<usize>, EmbedderError> {
+        Ok(None)
+    }
+
     /// Embed many inputs in one call. The default implementation loops [`embed`],
     /// so every backend works unchanged; backends with a true batched forward
     /// (e.g. the candle GPU path) override this to amortize per-call overhead and

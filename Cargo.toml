@@ -57,7 +57,7 @@ internal_docs = ["dev"]
 [workspace.dependencies]
 fathomdb              = { path = "src/rust/crates/fathomdb",              version = "0.8.27" }
 fathomdb-embedder     = { path = "src/rust/crates/fathomdb-embedder",     version = "0.8.27" }
-fathomdb-embedder-api = { path = "src/rust/crates/fathomdb-embedder-api", version = "0.7.0" }
+fathomdb-embedder-api = { path = "src/rust/crates/fathomdb-embedder-api", version = "0.8.0" }
 fathomdb-engine       = { path = "src/rust/crates/fathomdb-engine",       version = "0.8.27" }
 fathomdb-query        = { path = "src/rust/crates/fathomdb-query",        version = "0.8.27" }
 fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       version = "0.8.27" }

@@ -1741,3 +1741,15 @@ operation `EngineError::VectorEquivalenceMismatch` and its binding class remain.
 These removals do not change `ProjectionDelta.deferred`, durable pending work,
 or retained graph/structural codec vocabulary (`deferred`/`projection_deferred`).
 Only mappings derived from the removed refused-open runtime state disappear.
+
+## Embedder head coverage (format 35)
+
+The independent `fathomdb-embedder-api` 0.8.0 trait adds
+`truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError>`.
+The default returns unknown (`None`). A known exclusive UTF-8 byte end must
+be within the input and on a character boundary; the input byte length means
+full coverage. The provider uses the same tokenizer/truncation policy as
+embedding. Projection dispatch captures coverage inside its normal deadline
+and failure boundary, and the engine stores it atomically with each vector.
+Candle BGE reports exact head coverage; providers that cannot report it
+remain unknown. This is metadata, not a new provider admission surface.

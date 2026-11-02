@@ -195,3 +195,90 @@ fn full_rebuild_keeps_expired_edge_lexical_history_for_past_views() {
         .is_empty());
     opened.engine.close().unwrap();
 }
+
+fn property() -> fathomdb_engine::ProjectionSpec {
+    fathomdb_engine::ProjectionSpec {
+        name: "summary".into(),
+        roles: std::collections::BTreeSet::from([
+            fathomdb_engine::ProjectionRole::Searchable,
+            fathomdb_engine::ProjectionRole::Filterable,
+        ]),
+        fts: Some(fathomdb_engine::ProjectionFts { tokenizer: None }),
+        vector: None,
+        source: None,
+    }
+}
+#[test]
+fn historical_property_search_and_filters_use_canonical_values() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("property.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_projections(&[property()], &[]).unwrap();
+    opened
+        .engine
+        .write(&[node("item", r#"{"summary":"café running"}"#, InitialState::Active)])
+        .unwrap();
+    opened
+        .engine
+        .write(&[
+            node("item", r#"{"summary":"current"}"#, InitialState::Active),
+            node("pending", r#"{"summary":"café pending"}"#, InitialState::Pending),
+        ])
+        .unwrap();
+    let history = view(true, true);
+    let result = opened.engine.search_projected_text("cafe", "summary", None, &history).unwrap();
+    assert_eq!(result.results.len(), 2, "{result:?}");
+    assert!(opened
+        .engine
+        .search_projected_text("cafe", "summary", None, &ReadView::default())
+        .unwrap()
+        .results
+        .is_empty());
+    let mut filter = fathomdb_engine::SearchFilter::default();
+    filter.attributes = vec![("summary".into(), "café running".into())];
+    let result = opened
+        .engine
+        .search_reranked_view("running", Some(filter.clone()), 0, false, 0.3, 0, false, &history)
+        .unwrap();
+    assert_eq!(result.results.len(), 1, "{result:?}");
+    let result =
+        opened.engine.search_projected_text("run", "summary", Some(filter), &history).unwrap();
+    assert_eq!(result.results.len(), 1, "{result:?}");
+    opened.engine.close().unwrap();
+}
+#[test]
+fn late_attribute_declaration_populates_historical_vectors() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("late-attr.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened
+        .engine
+        .write(&[node("item", r#"{"summary":"retired","nested":"changed"}"#, InitialState::Active)])
+        .unwrap();
+    opened.engine.write(&[node("item", r#"{"summary":"current"}"#, InitialState::Active)]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let mut declaration = property();
+    for (source, wanted) in [(None, "retired"), (Some(vec!["nested".into()]), "changed")] {
+        declaration.source = source;
+        opened.engine.configure_projections(&[declaration.clone()], &[]).unwrap();
+        opened.engine.set_vector_stage_only_for_test(true);
+        let mut filter = fathomdb_engine::SearchFilter::default();
+        filter.attributes = vec![("summary".into(), wanted.into())];
+        let result = opened
+            .engine
+            .search_reranked_view(
+                "unmatched",
+                Some(filter),
+                0,
+                false,
+                0.3,
+                0,
+                false,
+                &view(true, false),
+            )
+            .unwrap();
+        assert_eq!(result.results.len(), 1, "source={:?}: {result:?}", declaration.source);
+    }
+    opened.engine.close().unwrap();
+}

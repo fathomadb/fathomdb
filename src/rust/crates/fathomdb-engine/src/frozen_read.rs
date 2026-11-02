@@ -416,12 +416,11 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     if count != i64::try_from(trigger_tables.len() * 3).unwrap_or(i64::MAX) {
         return Err("unexpected frozen-read visibility trigger".to_string());
     }
-    if schema_version >= 35 {
-        if !crate::vector_spans::cleanup_trigger_is_valid(connection)
+    if schema_version >= 35
+        && !crate::vector_spans::cleanup_trigger_is_valid(connection)
             .map_err(|error| error.to_string())?
-        {
-            return Err("missing or altered vector span cleanup trigger".to_string());
-        }
+    {
+        return Err("missing or altered vector span cleanup trigger".to_string());
     }
     if schema_version >= 33 {
         validate_page_index(

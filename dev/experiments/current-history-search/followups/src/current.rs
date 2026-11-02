@@ -93,6 +93,7 @@ pub struct CurrentStore {
     closed: AtomicBool,
     pub refreshes: AtomicU64,
     pub writer_contacts: AtomicU64,
+    pub waiting_refreshes: AtomicUsize,
 }
 impl CurrentStore {
     /// Open an experiment database, preserving the actual schema and canonical writer.
@@ -129,6 +130,7 @@ impl CurrentStore {
             closed: AtomicBool::new(false),
             refreshes: AtomicU64::new(0),
             writer_contacts: AtomicU64::new(0),
+            waiting_refreshes: AtomicUsize::new(0),
         })
     }
     /// Serialize actual canonical writes with candidate publication.
@@ -154,7 +156,10 @@ impl CurrentStore {
             }
             match self.admission.try_lock() {
                 Ok(guard) => break guard,
-                Err(std::sync::TryLockError::WouldBlock) => thread::sleep(Duration::from_millis(1)),
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    self.waiting_refreshes.fetch_add(1, Ordering::Relaxed);
+                    thread::sleep(Duration::from_millis(1));
+                }
                 Err(_) => return Err("admission poisoned".into()),
             }
         };
@@ -171,7 +176,7 @@ impl CurrentStore {
         if valid < current {
             return Err(Failure::BackwardTime.into());
         }
-        let bootstrap_frontier = if bootstrap {
+        let bootstrap_frontier = if bootstrap || current == i64::MIN {
             "INSERT OR IGNORE INTO poc_frontier SELECT valid_from,write_cursor FROM canonical_nodes WHERE valid_from IS NOT NULL; INSERT OR IGNORE INTO poc_frontier SELECT valid_until,write_cursor FROM canonical_nodes WHERE valid_until IS NOT NULL;"
         } else {
             ""

@@ -215,3 +215,42 @@ fn first_search_without_explicit_bootstrap_cannot_certify_unseeded_frontier() {
     assert_eq!(store.search("needle", 100, 10).unwrap().rows[0].body, "needle future");
     store.close().unwrap();
 }
+
+#[test]
+fn queued_refresh_releases_snapshot_before_actual_erase_and_repair() {
+    use current_history_followups::current::CurrentStore;
+    use std::sync::{atomic::Ordering, Arc};
+    use std::time::{Duration, Instant};
+    for erase in [true, false] {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(CurrentStore::open(&dir.path().join("queued.sqlite")).unwrap());
+        store
+            .write(&[
+                timed("a", "needle old", None, Some(100)),
+                timed("b", "needle future", Some(100), None),
+            ])
+            .unwrap();
+        store.bootstrap(50).unwrap();
+        let query = store.with_writer(|engine| {
+            let reader = store.clone();
+            let query = std::thread::spawn(move || reader.search("needle", 100, 10));
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while store.waiting_refreshes.load(Ordering::Relaxed) == 0 {
+                assert!(Instant::now() < deadline);
+                std::thread::yield_now();
+            }
+            if erase {
+                engine.erase_source("source").unwrap();
+            } else {
+                engine.rebuild_projections().unwrap();
+            }
+            query
+        });
+        let result = query.join().unwrap().unwrap();
+        assert_eq!(result.rows.len(), usize::from(!erase));
+        if !erase {
+            assert_eq!(result.rows[0].body, "needle future");
+        }
+        store.close().unwrap();
+    }
+}

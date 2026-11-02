@@ -14,7 +14,18 @@ impl Embedder for Fixed {
 /// Actual engine fixture; historical rows come from governed supersession writes.
 pub fn build(path: &Path, family: &str, history: usize, bytes: usize, n: usize) -> Result<()> {
     if path.exists() {
-        return Ok(());
+        let connection = rusqlite::Connection::open_with_flags(
+            path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?;
+        let complete = connection
+            .query_row("SELECT complete FROM poc_fixture_complete", [], |r| r.get::<_, bool>(0))
+            .unwrap_or(false);
+        return if complete {
+            Ok(())
+        } else {
+            Err("incomplete fixture retained; refuse reuse".into())
+        };
     }
     let engine = Engine::open_with_embedder_for_test(path, Arc::new(Fixed))?.engine;
     engine.execute_for_test("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER NOT NULL,version INTEGER NOT NULL); CREATE INDEX poc_versions_selection ON poc_versions(version,ordinal);")?;
@@ -57,6 +68,7 @@ pub fn build(path: &Path, family: &str, history: usize, bytes: usize, n: usize) 
         }
         engine.drain(600_000)?;
     }
+    engine.execute_for_test("CREATE TABLE poc_fixture_complete(complete INTEGER NOT NULL); INSERT INTO poc_fixture_complete VALUES(1);")?;
     engine.close()?;
     Ok(())
 }

@@ -2,6 +2,7 @@ use current_history_followups::history;
 use rusqlite::Connection;
 #[test]
 fn contentless_native_preserves_full_compiler_statistics_and_snapshot_identity() {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
     let main = Connection::open_in_memory().unwrap();
     main.execute_batch("CREATE TABLE docs(id INTEGER PRIMARY KEY,body TEXT,eligible INTEGER);")
         .unwrap();
@@ -63,4 +64,61 @@ fn contentless_native_preserves_full_compiler_statistics_and_snapshot_identity()
             assert!(compact.hits.iter().all(|h| h.id != 9));
         }
     }
+}
+
+#[test]
+fn private_corpus_holds_one_snapshot_and_drops_on_error_before_erasure_retry() {
+    use fathomdb_engine::*;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("lifecycle.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    let write = |body: &str| PreparedWrite::Node {
+        kind: "doc".into(),
+        body: body.into(),
+        logical_id: Some("claim".into()),
+        source_id: SourceId::new("source").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    };
+    engine.write(&[write("needle old")]).unwrap();
+    engine.drain(10_000).unwrap();
+    let mut main =
+        Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    main.execute_batch("PRAGMA query_only=ON").unwrap();
+    let select="SELECT write_cursor,body,1 FROM canonical_nodes WHERE state='active' AND superseded_at IS NULL";
+    let hydrate = "SELECT body FROM canonical_nodes WHERE write_cursor=?1";
+    {
+        let tx = main.transaction().unwrap();
+        let old = history::search(&tx, select, hydrate, "needle", 10, true, || {
+            engine.write(&[write("needle new")])?;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(old.hits[0].body, "needle old");
+    }
+    {
+        let tx = main.transaction().unwrap();
+        let new = history::search(&tx, select, hydrate, "needle", 10, true, || Ok(())).unwrap();
+        assert_eq!(new.hits[0].body, "needle new");
+    }
+    {
+        let tx = main.transaction().unwrap();
+        let failed = history::search(&tx, select, hydrate, "needle", 10, true, || {
+            assert!(
+                matches!(engine.erase_source("source"),Err(EngineError::ErasureIncomplete{ref stage,..}) if stage=="wal_checkpoint")
+            );
+            Err("forced post-population error".into())
+        });
+        assert!(failed.is_err());
+    }
+    engine.erase_source("source").unwrap();
+    let tx = main.transaction().unwrap();
+    let erased = history::search(&tx, select, hydrate, "needle", 10, true, || Ok(())).unwrap();
+    assert_eq!(erased.documents, 0);
+    assert!(erased.hits.is_empty());
+    drop(tx);
+    assert_eq!(main.query_row("PRAGMA query_only", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+    engine.close().unwrap();
 }

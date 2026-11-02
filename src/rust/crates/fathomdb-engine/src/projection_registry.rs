@@ -2417,6 +2417,13 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             collected
         };
+        let lexical_cursors: std::collections::HashSet<u64> = if rows.is_empty() {
+            std::collections::HashSet::new()
+        } else {
+            let mut stmt = connection.prepare("SELECT write_cursor FROM search_index_edges")?;
+            let cursors = stmt.query_map([], |row| row.get(0))?;
+            cursors.collect::<rusqlite::Result<_>>()?
+        };
         let mut rewind = None;
         for (cursor, kind, body, _, _, terminal) in rows {
             if !crate::dependency_closure::projection_owner_is_eligible_at(connection, cursor, now)
@@ -2424,12 +2431,7 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
             {
                 continue;
             }
-            let lexical: bool = connection.query_row(
-                "SELECT EXISTS(SELECT 1 FROM search_index_edges WHERE write_cursor=?1)",
-                [cursor],
-                |r| r.get(0),
-            )?;
-            if !lexical {
+            if !lexical_cursors.contains(&cursor) {
                 connection.execute(
                     "INSERT INTO search_index_edges(body,kind,write_cursor) VALUES(?1,?2,?3)",
                     params![body, kind, cursor],

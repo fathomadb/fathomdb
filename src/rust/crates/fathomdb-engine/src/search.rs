@@ -245,7 +245,7 @@ pub(crate) fn read_projected_text_in_tx(
             filter,
             limit,
             frozen,
-            declared,
+            &registry,
         );
     }
     let node_predicate = frozen.node_sql("n", 3);
@@ -365,6 +365,17 @@ pub(crate) fn read_projected_text_in_tx(
     Ok(SearchResult { projection_cursor, soft_fallback: None, results, explanation: None })
 }
 
+fn open_historical_property_corpus() -> rusqlite::Result<Connection> {
+    let corpus = Connection::open_in_memory()?;
+    corpus.execute_batch(
+        "PRAGMA temp_store=MEMORY;
+        CREATE VIRTUAL TABLE history_property USING fts5(
+        attr_value,attr_name UNINDEXED,write_cursor UNINDEXED,eligible UNINDEXED,
+        tokenize='porter unicode61 remove_diacritics 2')",
+    )?;
+    Ok(corpus)
+}
+
 fn read_historical_projected_text(
     tx: &Connection,
     match_expression: &str,
@@ -372,58 +383,106 @@ fn read_historical_projected_text(
     filter: Option<&SearchFilter>,
     limit: usize,
     view: FrozenView,
-    declared: &crate::projection_registry::StoredProjection,
+    registry: &std::collections::BTreeMap<String, crate::projection_registry::StoredProjection>,
 ) -> ProjectedTextReaderResponse {
-    // Reader connections remain query_only. Copy the snapshot into a private
-    // ephemeral FTS corpus; ranking and hydration never reread the main store.
-    let corpus = Connection::open_in_memory()?;
-    corpus.execute_batch(
-        "CREATE VIRTUAL TABLE history_property USING fts5(
-        attr_value,body UNINDEXED,kind UNINDEXED,write_cursor UNINDEXED,
-        logical_id UNINDEXED,source_id UNINDEXED,
-        tokenize='porter unicode61 remove_diacritics 2')",
-    )?;
+    // The caller holds one main-store snapshot through registry, corpus and
+    // winner hydration. The private database and its temp sorters are memory
+    // only and are dropped before the pooled reader sends success or error.
+    let mut corpus = open_historical_property_corpus()?;
     let mut params = vec![rusqlite::types::Value::Integer(view.edge_now())];
     let eligibility =
         crate::filter::append_node_eligibility_sql_view(tx, filter, "n", &mut params, &view.view)?;
     let predicate = view.node_sql("n", 1);
-    let mut stmt = tx.prepare(&format!("SELECT n.body,n.kind,n.write_cursor,n.logical_id,n.source_id
-        FROM canonical_nodes n WHERE ?1 IS NOT NULL{predicate}{eligibility} ORDER BY n.write_cursor"))?;
-    let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, u64>(2)?,
-            r.get::<_, Option<String>>(3)?,
-            r.get::<_, Option<String>>(4)?,
-        ))
-    })?;
-    for row in rows {
-        let (body, kind, cursor, id, source) = row?;
-        if let Some(value) =
-            crate::projection_registry::extract_scalar_attribute(tx, &body, name, declared)?
+    let eligible: std::collections::HashSet<u64> = {
+        let mut stmt=tx.prepare(&format!("SELECT n.write_cursor FROM canonical_nodes n WHERE ?1 IS NOT NULL{predicate}{eligibility}"))?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |r| r.get(0))?;
+        rows.collect::<rusqlite::Result<_>>()?
+    };
+    let corpus_tx = corpus.transaction()?;
+    {
+        let mut insert=corpus_tx.prepare("INSERT INTO history_property(attr_value,attr_name,write_cursor,eligible) VALUES(?1,?2,?3,?4)")?;
+        let mut baseline = std::collections::HashSet::new();
+        // BM25 statistics belong to the entire persistent property corpus,
+        // including other fields and rows excluded by this query's filters.
+        let mut stmt = tx.prepare(
+            "SELECT attr_value,attr_name,write_cursor FROM property_search_index ORDER BY rowid",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((r.get::<_, Option<String>>(0)?, r.get::<_, String>(1)?, r.get::<_, u64>(2)?))
+        })?;
+        for row in rows {
+            let (value, attribute, cursor) = row?;
+            insert.execute(params![value, attribute, cursor, eligible.contains(&cursor)])?;
+            baseline.insert((cursor, attribute));
+        }
+        // Add only lifecycle-relaxed owners, with source authority at the
+        // same frozen instant. Own validity affects output, not corpus stats.
+        let existence = view.view.existence_sql("n");
+        let dependency = dependency_closure::read_eligibility_sql(
+            "n",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            1,
+        );
+        let scalar = crate::projection_registry::scalar_attribute_sql("n.body", "?2");
+        let mut additions = tx.prepare(&format!(
+            "SELECT n.write_cursor,{scalar} FROM canonical_nodes n
+            WHERE ?1 IS NOT NULL AND (n.superseded_at IS NOT NULL OR n.state!='active')
+            {existence}{dependency} ORDER BY n.write_cursor"
+        ))?;
+        for (attribute, stored) in registry.iter().filter(|(_, stored)| stored.wants_property_fts())
         {
-            corpus.execute("INSERT INTO history_property(attr_value,body,kind,write_cursor,logical_id,source_id) VALUES(?1,?2,?3,?4,?5,?6)",params![value,body,kind,cursor,id,source])?;
+            let path = crate::projection_registry::projection_json_path(attribute, stored);
+            let rows = additions.query_map(params![view.edge_now(), path], |r| {
+                Ok((r.get::<_, u64>(0)?, r.get::<_, Option<String>>(1)?))
+            })?;
+            for row in rows {
+                let (cursor, value) = row?;
+                if let Some(value) = value {
+                    if !baseline.contains(&(cursor, attribute.clone())) {
+                        insert.execute(params![
+                            value,
+                            attribute,
+                            cursor,
+                            eligible.contains(&cursor)
+                        ])?;
+                    }
+                }
+            }
         }
     }
-    let mut stmt=corpus.prepare("SELECT body,kind,write_cursor,logical_id,source_id,bm25(history_property)
-        FROM history_property WHERE history_property MATCH ?1 ORDER BY bm25(history_property),write_cursor LIMIT ?2")?;
-    let results = stmt
-        .query_map(params![match_expression, limit as i64], |r| {
+    corpus_tx.commit()?;
+    let mut rank = corpus.prepare(
+        "SELECT write_cursor,bm25(history_property) FROM history_property
+        WHERE history_property MATCH ?1 AND attr_name=?2 AND eligible=1
+        ORDER BY bm25(history_property),write_cursor LIMIT ?3",
+    )?;
+    let winners = rank.query_map(params![match_expression, name, limit as i64], |r| {
+        Ok((r.get::<_, u64>(0)?, r.get::<_, f64>(1)?))
+    })?;
+    let mut hydrate = tx.prepare(
+        "SELECT body,kind,logical_id,source_id FROM canonical_nodes WHERE write_cursor=?1",
+    )?;
+    let mut results = Vec::new();
+    for winner in winners {
+        let (cursor, score) = winner?;
+        let hit = hydrate.query_row([cursor], |r| {
             let body: String = r.get(0)?;
-            let logical_id: Option<String> = r.get(3)?;
+            let logical_id: Option<String> = r.get(2)?;
             Ok(SearchHit {
                 id: derive_stable_id(logical_id.as_deref(), &body),
                 body,
                 kind: r.get(1)?,
-                write_cursor: r.get(2)?,
-                source_id: r.get(4)?,
-                score: -r.get::<_, f64>(5)?,
+                write_cursor: cursor,
+                source_id: r.get(3)?,
+                score: -score,
                 branch: SoftFallbackBranch::Text,
                 ce_score: None,
             })
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+        })?;
+        results.push(hit);
+    }
     Ok(SearchResult {
         projection_cursor: load_projection_cursor(tx)?,
         soft_fallback: None,

@@ -58,3 +58,28 @@ fn projected_metadata_survives_rebuild_and_reopen() {
     drop(opened);
     Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap().engine.close().unwrap();
 }
+
+#[test]
+fn lifecycle_metadata_tracks_delete_reactivation_and_supersession() {
+    use fathomdb_engine::LifecycleState;
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("lifecycle.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[node("item", None, None)]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let state = || {
+        conn.query_row("SELECT lifecycle FROM vector_default WHERE rowid=1", [], |r| {
+            r.get::<_, i64>(0)
+        })
+        .unwrap()
+    };
+    opened.engine.transition("l:item", LifecycleState::Deleted, Some("test".into())).unwrap();
+    assert_eq!(state(), 1);
+    opened.engine.transition("l:item", LifecycleState::Active, None).unwrap();
+    assert_eq!(state(), 0);
+    opened.engine.write(&[node("item", None, None)]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    assert_eq!(state(), 2);
+}

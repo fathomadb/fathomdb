@@ -81,3 +81,22 @@ fn corrected_and_prior_select_explicit_intervals_and_committed_receipt_cuts() {
     let count:i64=main.query_row("SELECT COUNT(*) FROM poc_temporal_fragments WHERE v0<=10 AND 10<v1 AND k0<=?1 AND (k1 IS NULL OR ?1<k1)",[cut],|r|r.get(0)).unwrap();
     assert_eq!(count, 100);
 }
+
+#[test]
+fn nonterminal_source_bucket_closure_excludes_legacy_statistical_documents() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("closure.sqlite");
+    fixture::build(&path, "node", 0, 128, 100).unwrap();
+    let engine = fathomdb_engine::Engine::open(&path).unwrap().engine;
+    engine.execute_for_test("INSERT INTO _fathomdb_dependency_closures(schema_version,closure_operation_id,root_kind,root_value,cause,effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,closure_sequence,retry_fingerprint,phase,affected_count,blocker_code) VALUES(1,'poc-closure','source_bucket','fixture','soft_deleted',0,100,0,1,printf('%064d',0),'incomplete',100,'proof_unavailable')").unwrap();
+    let mut main =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let tx = main.transaction().unwrap();
+    let (select, hydrate) = fixture::queries("node", 0, "archive");
+    let result = history::search(&tx, &select, &hydrate, "needle", 10, true, || Ok(())).unwrap();
+    assert_eq!(result.documents, 0);
+    assert!(result.hits.is_empty());
+    drop(tx);
+    engine.close().unwrap();
+}

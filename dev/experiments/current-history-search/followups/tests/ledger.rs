@@ -187,3 +187,54 @@ fn claim_source_is_immutable_and_unknown_batch_interior_is_not_a_knowledge_cut()
     );
     ledger.engine.close().unwrap();
 }
+
+#[test]
+fn erased_source_leaves_no_candidate_identity_and_staging_failure_releases_writer() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("ownership.sqlite")).unwrap();
+    ledger.change("secret-claim", "A", "secret-source", (0, 100), false).unwrap();
+    ledger.engine.erase_source("secret-source").unwrap();
+    assert_eq!(ledger.read.query_row("SELECT COUNT(*) FROM poc_claims WHERE claim='secret-claim' OR source='secret-source'",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+    ledger
+        .engine
+        .execute_for_test("INSERT INTO poc_operation VALUES('claim','different','source')")
+        .unwrap();
+    assert!(ledger.change("claim", "intended", "source", (0, 100), false).is_err());
+    ledger
+        .engine
+        .write(&[ordinary("other", "ordinary")])
+        .expect("failed staging must roll back and release writer transaction");
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn same_connection_wrong_payload_does_not_consume_temporal_intent() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("binding.sqlite")).unwrap();
+    ledger.engine.execute_for_test("INSERT INTO poc_intent VALUES('claim',0,100,0); INSERT INTO poc_operation VALUES('claim','expected','source');").unwrap();
+    ledger.engine.write(&[ordinary("claim", "different")]).unwrap();
+    assert_eq!(
+        ledger
+            .read
+            .query_row("SELECT COUNT(*) FROM poc_fragments", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn failed_staging_rolls_back_before_releasing_admission() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("rollback.sqlite")).unwrap();
+    ledger
+        .engine
+        .execute_for_test("INSERT INTO poc_operation VALUES('claim','different','source')")
+        .unwrap();
+    assert!(ledger.change("claim", "intended", "source", (0, 100), false).is_err());
+    ledger
+        .engine
+        .write(&[ordinary("other", "ordinary")])
+        .expect("failed stage left writer transaction open");
+    ledger.engine.close().unwrap();
+}

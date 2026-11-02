@@ -18,7 +18,45 @@ pub fn build(path: &Path, family: &str, history: usize, bytes: usize, n: usize) 
     }
     let engine = Engine::open_with_embedder_for_test(path, Arc::new(Fixed))?.engine;
     engine.execute_for_test("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER NOT NULL,version INTEGER NOT NULL); CREATE INDEX poc_versions_selection ON poc_versions(version,ordinal);")?;
-    let _ = (family, history, bytes, n);
+    if family == "edge" {
+        for start in (0..=n).step_by(1000) {
+            let endpoints = (start..(start + 1000).min(n + 1))
+                .map(|i| PreparedWrite::Node {
+                    kind: "entity".into(),
+                    body: format!("endpoint {i}"),
+                    source_id: SourceId::new("fixture").unwrap(),
+                    logical_id: Some(format!("endpoint-{i}")),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                })
+                .collect::<Vec<_>>();
+            engine.write(&endpoints)?;
+        }
+    }
+    for version in 0..=history {
+        for start in (0..n).step_by(1000) {
+            let mut writes = Vec::new();
+            for ordinal in start..(start + 1000).min(n) {
+                let scalar =
+                    payload(bytes, ordinal, if version == history { 0 } else { version + 1 });
+                let source_id = SourceId::new("fixture")?;
+                let logical_id = Some(format!("owner-{ordinal}"));
+                writes.push(if family=="edge" {PreparedWrite::Edge{kind:"rel".into(),from:format!("endpoint-{ordinal}"),to:format!("endpoint-{}",ordinal+1),source_id,logical_id,body:Some(scalar),t_valid:None,t_invalid:None,confidence:None,extractor_model_id:None,temporal_fallback:None}} else {PreparedWrite::Node{kind:"doc".into(),body:if family=="property"{serde_json::json!({"text":"fixed owner","p1":scalar,"p2":payload(bytes,ordinal,if version==history{0}else{version+1})}).to_string()}else{scalar},source_id,logical_id,state:if ordinal>=n-n/100 {InitialState::Pending}else{InitialState::Active},reason:None,valid_from:None,valid_until:None}});
+            }
+            let receipt = engine.write(&writes)?;
+            let values = receipt
+                .row_cursors
+                .iter()
+                .enumerate()
+                .map(|(i, c)| format!("({c},{},{version})", start + i))
+                .collect::<Vec<_>>()
+                .join(",");
+            engine.execute_for_test(&format!("INSERT INTO poc_versions VALUES {values}"))?;
+        }
+        engine.drain(600_000)?;
+    }
     engine.close()?;
     Ok(())
 }

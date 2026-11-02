@@ -1691,46 +1691,19 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // `set_search_limit_for_test` seam may raise it for recall tests.
             // The seam never changes `final_limit`; visible results are still
             // truncated to that caller-requested limit after ranking.
-            // G10: the metadata filter is appended to this single phase-1
-            // statement (`AND col=?n` from ?3); `filter=None` keeps the SQL
-            // byte-identical to 0.7.2. `?1`/`?2` are the sign-quant + f32 query
-            // vectors; filter values bind at ?3.. in `vector_filter_clause`
-            // order.
-            // fix-3 (F1, codex §9 [P2]) — OVERFETCH the phase-2 rerank so the
-            // validity/existence filter applied at hydration cannot starve the
-            // result set.
-            //
-            // The defect: hydration drops rows that are expired, superseded or
-            // inactive, but it ran on candidates ALREADY truncated to
-            // `final_limit`. If the nearest `final_limit` neighbours were all
-            // out-of-window they consumed every slot and were then dropped, so
-            // valid rows just below the cutoff were never considered — a
-            // default search silently returned too few hits, or none.
-            //
-            // Why overfetch rather than filtering in SQL: the natural fix is to
-            // join `canonical_nodes` into the candidate query, but (i) phase 1
-            // is a `vec0` KNN and ADR-0.8.11 D3 forbids demoting it with
-            // non-metadata predicates, and (ii) an `EXISTS` per candidate
-            // would probe `canonical_nodes_write_cursor_idx` for the whole
-            // pool on EVERY query — a guaranteed cost to fix a degenerate
-            // case.
-            //
-            // Overfetching is free by comparison: phase 2 already computes
-            // `vec_distance_l2` for all `TOP_K_BIT_CANDIDATES` in order to sort
-            // them, so raising the LIMIT only returns more of a result set that
-            // was already materialized. No extra vec0 work, no schema change,
-            // no new index, no second query. The hydration loop below then
-            // stops at `max(final_limit, VECTOR_FUSION_POOL)` SURVIVING hits.
-            //
-            // `max` (not a bare constant) preserves both the test seam's
-            // deeper candidate fanout and the caller's requested result limit.
+            // Direct lifecycle and validity eligibility runs inside native KNN.
+            // Retain the existing rerank/fusion fanout and canonical hydration
+            // guards without letting excluded rows consume the binary cap.
             let candidate_limit = candidate_limit.max(final_limit).max(TOP_K_BIT_CANDIDATES);
-            let sql = build_vector_phase1_sql(filter, candidate_limit);
+            let sql = build_vector_phase1_sql(filter, candidate_limit, &view.view);
             let mut params: Vec<rusqlite::types::Value> = vec![
                 rusqlite::types::Value::Text(bin_vector.to_string()),
                 rusqlite::types::Value::Text(query_vector.to_string()),
             ];
             params.extend(vector_filter_values(filter));
+            if !view.view.include_out_of_window {
+                params.push(rusqlite::types::Value::Integer(view.edge_now()));
+            }
             let mut statement = prepare_search_statement(&tx, &sql)?;
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))

@@ -3,6 +3,7 @@ use crate::projection_registry::ProjectionRole;
 use crate::projection_registry::{encode_attr_vec0_present, load_projection_registry};
 use crate::search_types::TOP_K_BIT_CANDIDATES;
 use crate::vector_storage::{attr_vec0_column, resolve_source_type};
+use crate::ReadView;
 use rusqlite::{params, Connection, OptionalExtension};
 
 // ===== G4 filter grammar types (Slice 35) ===============================
@@ -559,13 +560,24 @@ pub(crate) fn vector_filter_values(filter: Option<&SearchFilter>) -> Vec<rusqlit
     out
 }
 
-/// G10 — build the single phase-1 candidates statement. With `filter=None` (or
-/// all-`None`) the `{filter_clause}` is empty and the SQL is **byte-identical to
-/// 0.7.2** (the documented behavior-compat invariant; pinned by
-/// `pr_g10_filtered_knn.rs`). The KNN form (`ORDER BY distance LIMIT top_k`, no
-/// `k=`) is preserved.
-pub(crate) fn build_vector_phase1_sql(filter: Option<&SearchFilter>, final_limit: usize) -> String {
-    let filter_clause = vector_filter_clause(filter);
+/// Build native metadata eligibility inside phase-1 KNN before its candidate cap.
+/// Attribute/filter bindings retain their original positions; frozen time follows them.
+pub(crate) fn build_vector_phase1_sql(
+    filter: Option<&SearchFilter>,
+    final_limit: usize,
+    view: &ReadView,
+) -> String {
+    let mut filter_clause = vector_filter_clause(filter);
+    filter_clause.push_str(match (view.include_superseded, view.include_inactive) {
+        (false, false) => " AND lifecycle=0",
+        (false, true) => " AND lifecycle IN (0,1)",
+        (true, false) => " AND lifecycle IN (0,2)",
+        (true, true) => "",
+    });
+    if !view.include_out_of_window {
+        let index = vector_filter_values(filter).len() + 3;
+        filter_clause.push_str(&format!(" AND valid_from<=?{index} AND valid_until>=?{index}"));
+    }
     format!(
         "WITH candidates AS (
                      SELECT rowid

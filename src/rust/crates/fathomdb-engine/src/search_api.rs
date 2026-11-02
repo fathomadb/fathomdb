@@ -1389,7 +1389,7 @@ impl Engine {
 #[doc(hidden)]
 #[must_use]
 pub fn vector_phase1_sql_for_test(filter: Option<&SearchFilter>) -> String {
-    build_vector_phase1_sql(filter, SEARCH_RERANK_LIMIT)
+    build_vector_phase1_sql(filter, SEARCH_RERANK_LIMIT, &ReadView::default())
 }
 
 /// Test seam pinning production ranked SQL around the shared eligibility

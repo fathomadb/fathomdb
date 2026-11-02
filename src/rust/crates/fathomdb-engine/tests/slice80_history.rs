@@ -397,3 +397,57 @@ fn reopen_refuses_partial_historical_vector_tuple() {
     let reopened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider));
     assert!(reopened.is_err(), "partial historical projections must fail open");
 }
+
+#[test]
+fn historical_entity_seed_provenance_matches_selected_revision() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("seed-source.sqlite");
+    let opened = Engine::open(&path).unwrap();
+    opened.engine.write(&[node("entity", "oldmatch", InitialState::Active)]).unwrap();
+    let mut replacement = node("entity", "newbody", InitialState::Active);
+    if let PreparedWrite::Node { source_id, .. } = &mut replacement {
+        *source_id = SourceId::new("new-source").unwrap();
+    }
+    opened.engine.write(&[replacement]).unwrap();
+    let result = opened
+        .engine
+        .search_reranked_view("oldmatch", None, 0, true, 0.3, 0, false, &view(true, false))
+        .unwrap();
+    let selected = result
+        .results
+        .iter()
+        .find(|hit| hit.body == "newbody")
+        .expect("graph resolves newest version");
+    assert_eq!(selected.source_id.as_deref(), Some("new-source"));
+    opened.engine.close().unwrap();
+}
+
+#[test]
+fn pending_history_cannot_mask_a_later_corrupt_tuple() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("pending-corrupt.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened
+        .engine
+        .write(&[
+            node("pending", "first", InitialState::Active),
+            node("corrupt", "second", InitialState::Active),
+        ])
+        .unwrap();
+    opened.engine.drain(10_000).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    conn.execute("DELETE FROM vector_default WHERE rowid IN (1,2)", []).unwrap();
+    conn.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor=1", []).unwrap();
+    conn.execute("DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=1", []).unwrap();
+    let result = opened.engine.search_view("unmatched", &view(true, false));
+    // Restore physical consistency before unfreezing; the assertion concerns
+    // the observed read, not worker cleanup after the deliberately torn tuple.
+    conn.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor=2", []).unwrap();
+    conn.execute("DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=2", []).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(false);
+    assert!(result.is_err(), "pending rows must not hide later corruption: {result:?}");
+    opened.engine.drain(10_000).unwrap();
+    opened.engine.close().unwrap();
+}

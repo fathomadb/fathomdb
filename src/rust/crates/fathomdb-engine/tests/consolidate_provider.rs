@@ -229,7 +229,7 @@ fn recency_consolidation_invalidates_older_edge() {
 /// FTS shadow is pruned. Contrast: `supersede` (a tombstoned row is excluded from
 /// the pending-work scan) DOES drop the terminal.
 #[test]
-fn invalidate_retains_projection_terminal_while_pruning_fts() {
+fn invalidate_retains_projection_terminal_and_historical_fts() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "phantom");
     let opened = Engine::open_without_embedder_for_test(&path).expect("open");
@@ -289,10 +289,7 @@ fn invalidate_retains_projection_terminal_while_pruning_fts() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(
-        fts_after, 0,
-        "invalidated edge's FTS shadow must be pruned (hidden from retrieval)"
-    );
+    assert_eq!(fts_after, 1, "invalidated edge retains lexical history");
 }
 
 // ---------------------------------------------------------------------------
@@ -581,13 +578,28 @@ fn invalidate_hides_stale_edge_from_edge_fts() {
 
     let conn = Connection::open(&path).unwrap();
     // The invalidated (older) edge is gone from edge FTS; the winner remains.
-    assert_eq!(
-        edge_fts_count(&conn, "acme"),
-        0,
-        "invalidated edge must NO LONGER appear in edge FTS (shadow pruned)"
-    );
+    assert_eq!(edge_fts_count(&conn, "acme"), 1, "invalidated edge retains historical FTS");
     assert!(edge_fts_count(&conn, "globex") > 0, "winning edge must still be FTS-searchable");
 
+    let historical = fathomdb_engine::ReadView {
+        valid_as_of: Some(0),
+        include_superseded: true,
+        ..Default::default()
+    };
+    assert!(opened
+        .engine
+        .search_text_only_view("acme", &historical)
+        .unwrap()
+        .results
+        .iter()
+        .any(|hit| hit.body == "Bob works for Acme"));
+    assert!(opened
+        .engine
+        .search_text_only("acme")
+        .unwrap()
+        .results
+        .iter()
+        .all(|hit| hit.body != "Bob works for Acme"));
     // NON-DESTRUCTIVE: the canonical_edges row + body survive.
     let (acme_body, acme_ti, acme_sup) = edge_row(&conn, "edge-acme");
     assert_eq!(acme_body.as_deref(), Some("Bob works for Acme"), "body preserved (no rewrite)");
@@ -643,13 +655,24 @@ for line in sys.stdin:
     assert_eq!(receipt.edges_superseded, 1, "one supersede verdict applied");
 
     let conn = Connection::open(&path).unwrap();
-    assert_eq!(
-        edge_fts_count(&conn, "acme"),
-        0,
-        "superseded edge must NO LONGER appear in edge FTS (shadow pruned)"
-    );
+    assert_eq!(edge_fts_count(&conn, "acme"), 1, "superseded edge retains historical FTS");
     assert!(edge_fts_count(&conn, "globex") > 0, "kept edge must still be FTS-searchable");
 
+    let historical = fathomdb_engine::ReadView { include_superseded: true, ..Default::default() };
+    assert!(opened
+        .engine
+        .search_text_only_view("acme", &historical)
+        .unwrap()
+        .results
+        .iter()
+        .any(|hit| hit.body == "Bob works for Acme"));
+    assert!(opened
+        .engine
+        .search_text_only("acme")
+        .unwrap()
+        .results
+        .iter()
+        .all(|hit| hit.body != "Bob works for Acme"));
     // Loser row + body survive (invalidate-not-delete).
     let (acme_body, _ti, acme_sup) = edge_row(&conn, "edge-acme");
     assert_eq!(acme_body.as_deref(), Some("Bob works for Acme"), "loser body preserved");

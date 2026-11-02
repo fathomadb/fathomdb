@@ -145,35 +145,33 @@ Logs: `/tmp/history-poc-red-*.log`, `/tmp/history-poc-green-*.log`,
 `/tmp/current-history-red-*.log`, `/tmp/current-history-independent-results.log`.
 The sources, tests, lockfile and measurement driver are retained in this folder.
 
-## Production implementation sequence justified by the POC
+## Production design and remaining qualification
 
-1. Define the statistical scope and snapshot/archival semantics in an ADR and
-   interface design. Keep replacement currency, valid time, assertion correction
-   and current admission distinct. Preserve application ownership of truth policy.
-2. Implement canonical knowledge intervals and explicit valid-time overlay writes,
-   including partial correction/retraction splits, immutable version provenance
-   and current admission. Index isolation alone cannot supply corrected-history
-   or prior-belief semantics to the production engine. Port the hand-authored
-   temporal oracles before exposing those read meanings.
-3. Add current FTS projections for node/edge bodies and keep property current
-   projection behavior consistent. Update canonical writes, lifecycle/source
-   closures, consolidation, boot repair, rebuild and shared erasure projection
-   enumeration atomically. Preserve retained history for explicit access.
-4. Replace prototype full-history selection/certification with a cheap,
-   writer-maintained certificate: projection/policy generations, predicate scope
-   and valid-time boundary interval. Future and expiring records and source
-   boundaries must invalidate it; time going backward or historical overrides
-   must never reuse an incompatible certificate. Use a correct selected-corpus
-   fallback until writer refresh; readers remain read-only.
-5. Route every lexical entry point, graph seed path, pagination/frozen context
-   and evidence capture through that same certified scope. Choose a common
-   scoring corpus for mixed historical retrieval and group semantic result
-   identities before finite limits. Integrate dense/fusion behavior explicitly.
-6. Port the POC invariance and temporal oracles into real engine/binding tests,
-   plus source-closure, at-rest erasure, concurrent reader and rebuild coverage.
-   Measure realistic corpus sizes, history ratios and concurrent readers before
-   choosing the historical backend or claiming production performance.
+The [revised production design](../../design/current-history-search.md) replaces
+the earlier implementation outline. Its five-change table records each POC
+finding, the applied design decision and its missing evidence. Three functional
+aspects are demonstrated only in the isolated POC: default ranking isolation,
+update/correction and prior-belief semantics, and coherent historical graphs.
+None is yet integrated into the production engine.
 
-The supported next step is production design/integration of the isolated
-current projection. This POC does not justify copying its full-history selector
-or full-vocabulary fallback onto the default production hot path.
+| Existing gate | Required measurement | POC status |
+| --- | --- | --- |
+| AC-076 / T-012 | Prescribed binding 10,000-row fixture, >=1,000 samples; p50 <=20 ms and p99 <=150 ms | UNQUALIFIED; small 15-sample POC distributions are not a pass |
+| AC-081a | Unchanged 1,600-search sequential batch <=500 ms | NOT TESTED for the candidate |
+| AC-081b | Unchanged eight-reader 1,600-search batch <=100 ms | NOT TESTED for the candidate |
+| AC-081c | Distinct real engine reader progresses while its peer holds a snapshot | NOT TESTED for the candidate; H8 checks a different property |
+| AC-072/073/075 | Existing affected vector latency, real-corpus stress and vector fidelity verdicts | Not qualified by this lexical POC |
+
+Thresholds and prescribed fixtures remain owned by
+[acceptance.md](../../acceptance.md). The 7.83-ms small-corpus node p50 is below
+the AC-076 p50 threshold numerically, but the corpus, path and sample protocol
+do not establish acceptance. The preselected 0.28-ms attribution is not an
+end-to-end AC measurement. Latency acceptability is UNQUALIFIED, not PASS or an
+inferred FAIL from an unlike fixture.
+
+Before main production implementation, [three bounded follow-ups are proposed](next-poc-plan.md):
+P1 maps temporal assertions to real canonical/identity/lifecycle constraints;
+P2 proves current-index-first certification and writer refresh;
+P3 selects and bounds the historical backend. They have not been executed.
+After candidate integration, the actual prescribed engine acceptance runs are
+required. No existing AC is weakened, replaced or marked passed here.

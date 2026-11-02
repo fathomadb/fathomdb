@@ -8,7 +8,7 @@ This experiment implements and tests three read meanings and compares three
 ranking mechanisms. It is an isolated real SQLite store, not a production
 FathomDB migration or new public API. Its SQLite dependency is pinned to the
 same rusqlite release as the engine. Canonical history is separate from all
-search projections. The design is [design.md](design.md); outcomes will be
+search projections. The design is [design.md](design.md); outcomes are
 recorded in [results.md](results.md).
 
 Tools (all retained in this directory):
@@ -43,3 +43,9 @@ The POC establishes score/order isolation, not history-independent end-to-end
 latency: canonical selection/certification still scans history. See the results
 for the observed cost and the production implementation sequence it justifies.
 No new worktree or branch was needed; the release ladder is unchanged.
+
+The [revised production design](../../design/current-history-search.md) applies
+the post-POC changes. The [additional POC proposal](next-poc-plan.md) is not yet
+executed. All three functional aspects pass only in this isolated POC;
+production implementation is not started and existing performance acceptance
+(AC-076, AC-081a/b/c and affected vector/stress/fidelity gates) is UNQUALIFIED.

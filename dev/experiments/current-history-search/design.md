@@ -2,6 +2,9 @@
 
 Status: COMPLETE — Astra reviewed; hypotheses tested and independently verified.
 Implementation and outcomes: [results.md](results.md).
+Production revisions are owned by [current-history-search.md](../../design/current-history-search.md);
+additional validation is [proposed separately](next-poc-plan.md). This file
+preserves the completed first POC protocol, not a production qualification.
 
 ## Scope and intended contract
 

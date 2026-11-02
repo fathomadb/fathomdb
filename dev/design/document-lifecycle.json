@@ -866,6 +866,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/current-history-search.md",
+      "class": "proposal",
+      "topic": "retrieval-history-isolation",
+      "role": "proposal",
+      "owner": "dev/design/current-history-search.md",
+      "release": "future:unassigned",
+      "successor": null
+    },
+    {
       "path": "dev/design/dedicated-checkout-per-orchestration-guard-proposal.md",
       "class": "reference",
       "topic": "dedicated-checkout-per-orchestration-guard-proposal",

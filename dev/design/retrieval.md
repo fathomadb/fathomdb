@@ -14,6 +14,16 @@ response, and error spellings remain in `dev/interfaces/`; exact result-limit
 rules remain in [`retrieval-result-limits.md`](retrieval-result-limits.md); the
 shared vector representation remains owned by [`vector.md`](vector.md).
 
+## Proposed current/history isolation
+
+The [post-POC production design](current-history-search.md) proposes isolated
+current statistical corpora, explicit corrected-history/prior-belief semantics,
+and writer-owned validity-boundary refresh. It is not implemented or latency
+qualified. Its [follow-up POC proposal](../experiments/current-history-search/next-poc-plan.md)
+closes schema compatibility, cheap certification and historical resource/backend
+questions before production adoption. The live mechanisms below remain the
+current contract.
+
 ## Pipeline and authority order
 
 Retrieval is a typed, bounded data-plane operation:

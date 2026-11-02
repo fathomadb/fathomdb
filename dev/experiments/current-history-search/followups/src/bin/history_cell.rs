@@ -19,6 +19,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = root.join(format!("fixture-{family}-{h}-{bytes}.sqlite"));
     fixture::build(&path, family, h, bytes, 10_000)?;
     let (selection, hydrate) = fixture::queries(family, h, view);
+    let grouping =
+        if family == "property" { history::Grouping::Revision } else { history::Grouping::Body };
     let next = AtomicUsize::new(0);
     let output = Arc::new(Mutex::new(std::io::stdout()));
     let started = Instant::now();
@@ -32,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             scope.spawn(move ||{
             let mut connection=rusqlite::Connection::open_with_flags(path,rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();connection.execute_batch("PRAGMA query_only=ON").unwrap();
             loop {let request=next.fetch_add(1,Ordering::Relaxed);if request>=1000{break;}
-                let t=Instant::now();let result=(||->current_history_followups::ledger::Result<history::Search>{let tx=connection.transaction()?;history::search(&tx,selection,hydrate,if request.is_multiple_of(2){"needle"}else{"running alpha"},10,true,||Ok(()))})();
+                let t=Instant::now();let result=(||->current_history_followups::ledger::Result<history::Search>{let tx=connection.transaction()?;history::search_options(&tx,selection,hydrate,if request.is_multiple_of(2){"needle"}else{"running alpha"},history::Options{grouping,..Default::default()},||Ok(()))})();
                 let record=match result {Ok(result)=>serde_json::json!({"request":request,"status":"success","ms":t.elapsed().as_secs_f64()*1000.,"documents":result.documents,"indexed_bytes":result.indexed_bytes,"winners":result.hits.len(),"memory_temp":result.temp_store==2&&result.private_files.iter().all(String::is_empty)}),Err(error)=>serde_json::json!({"request":request,"status":"error","ms":t.elapsed().as_secs_f64()*1000.,"error":error.to_string()})};
                 let mut output=output.lock().unwrap();writeln!(output,"{record}").unwrap();output.flush().unwrap();
             }

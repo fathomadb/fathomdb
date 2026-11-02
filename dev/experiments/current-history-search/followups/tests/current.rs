@@ -293,3 +293,48 @@ fn certified_query_vm_work_and_point_plan_exclude_history() {
     assert!(work.iter().all(|w| *w == work[0]), "{work:?}");
     assert!(work[0].0 < 50);
 }
+
+#[test]
+fn eight_expired_requests_share_one_refresh_and_close_releases_waiters() {
+    use current_history_followups::current::{CurrentStore, Failure};
+    use std::sync::{atomic::Ordering, Arc};
+    use std::time::{Duration, Instant};
+    for close in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(CurrentStore::open(&dir.path().join("burst.sqlite")).unwrap());
+        store
+            .write(&[
+                timed("old", "needle old", None, Some(100)),
+                timed("future", "needle new", Some(100), None),
+            ])
+            .unwrap();
+        store.bootstrap(50).unwrap();
+        let workers = store.with_writer(|_| {
+            let workers = (0..8)
+                .map(|_| {
+                    let reader = store.clone();
+                    std::thread::spawn(move || reader.search("needle", 100, 10))
+                })
+                .collect::<Vec<_>>();
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while store.waiting_refreshes.load(Ordering::Relaxed) < 8 {
+                assert!(Instant::now() < deadline);
+                std::thread::yield_now();
+            }
+            if close {
+                store.close().unwrap();
+            }
+            workers
+        });
+        for worker in workers {
+            let result = worker.join().unwrap();
+            if close {
+                assert_eq!(result.unwrap_err(), Failure::Closed);
+            } else {
+                assert_eq!(result.unwrap().rows[0].body, "needle new");
+            }
+        }
+        assert_eq!(store.refreshes.load(Ordering::Relaxed), if close { 1 } else { 2 });
+        store.close().unwrap();
+    }
+}

@@ -151,6 +151,7 @@ impl CurrentStore {
         self.publish(valid, true, Instant::now() + Duration::from_secs(600))
     }
     fn publish(&self, valid: i64, bootstrap: bool, deadline: Instant) -> Result<()> {
+        let mut recorded_wait = false;
         let _guard = loop {
             if Instant::now() >= deadline {
                 return Err(Failure::Deadline.into());
@@ -158,7 +159,10 @@ impl CurrentStore {
             match self.admission.try_lock() {
                 Ok(guard) => break guard,
                 Err(std::sync::TryLockError::WouldBlock) => {
-                    self.waiting_refreshes.fetch_add(1, Ordering::Relaxed);
+                    if !recorded_wait {
+                        self.waiting_refreshes.fetch_add(1, Ordering::Relaxed);
+                        recorded_wait = true;
+                    }
                     thread::sleep(Duration::from_millis(1));
                 }
                 Err(_) => return Err("admission poisoned".into()),

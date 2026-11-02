@@ -268,6 +268,10 @@ fn property_grouping_matches_real_engine_for_identical_owners_and_revisions() {
     )
     .unwrap();
     assert_eq!(result.hits.len(), reference.results.len());
+    assert_eq!(
+        result.hits.iter().map(|h| h.id as u64).collect::<Vec<_>>(),
+        reference.results.iter().map(|h| h.write_cursor).collect::<Vec<_>>()
+    );
     drop(tx);
     engine.close().unwrap();
 }

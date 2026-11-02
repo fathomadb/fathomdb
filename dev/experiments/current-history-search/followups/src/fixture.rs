@@ -46,15 +46,16 @@ pub fn build(path: &Path, family: &str, history: usize, bytes: usize, n: usize) 
             engine.write(&endpoints)?;
         }
     }
+    let total_owners = if family == "edge" { n } else { n + n / 100 };
     for version in 0..=history {
-        for start in (0..n).step_by(1000) {
+        for start in (0..total_owners).step_by(1000) {
             let mut writes = Vec::new();
-            for ordinal in start..(start + 1000).min(n) {
+            for ordinal in start..(start + 1000).min(total_owners) {
                 let scalar =
                     payload(bytes, ordinal, if version == history { 0 } else { version + 1 });
                 let source_id = SourceId::new("fixture")?;
                 let logical_id = Some(format!("owner-{ordinal}"));
-                writes.push(if family=="edge" {PreparedWrite::Edge{kind:"rel".into(),from:format!("endpoint-{ordinal}"),to:format!("endpoint-{}",ordinal+1),source_id,logical_id,body:Some(scalar),t_valid:None,t_invalid:None,confidence:None,extractor_model_id:None,temporal_fallback:None}} else {PreparedWrite::Node{kind:"doc".into(),body:if family=="property"{serde_json::json!({"text":"fixed owner","p1":scalar,"p2":payload(bytes,ordinal,if version==history{0}else{version+1})}).to_string()}else{scalar},source_id,logical_id,state:if ordinal>=n-n/100 {InitialState::Pending}else{InitialState::Active},reason:None,valid_from:None,valid_until:None}});
+                writes.push(if family=="edge" {PreparedWrite::Edge{kind:"rel".into(),from:format!("endpoint-{ordinal}"),to:format!("endpoint-{}",ordinal+1),source_id,logical_id,body:Some(scalar),t_valid:None,t_invalid:None,confidence:None,extractor_model_id:None,temporal_fallback:None}} else {PreparedWrite::Node{kind:"doc".into(),body:if family=="property"{serde_json::json!({"text":"fixed owner","p1":scalar,"p2":payload(bytes,ordinal,if version==history{0}else{version+1})}).to_string()}else{scalar},source_id,logical_id,state:if ordinal>=n {InitialState::Pending}else{InitialState::Active},reason:None,valid_from:None,valid_until:None}});
             }
             let receipt = engine.write(&writes)?;
             let values = receipt
@@ -112,14 +113,10 @@ pub fn queries(family: &str, history: usize, view: &str) -> (String, String) {
         "archive" | "both" => "1".into(),
         _ => panic!("unknown view"),
     };
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("clock before epoch")
-        .as_secs();
     let authority = include_str!("source_authority.sql")
         .replace("f.revision", "n.write_cursor")
         .replace("f.source", "n.source_id")
-        .replace("?4", &now.to_string());
+        .replace("?4", ":authority_now");
     let chosen = format!("({chosen}) AND ({authority})");
     if family == "property" {
         (format!("SELECT n.write_cursor*2+p.name,json_extract(n.body,CASE p.name WHEN 0 THEN '$.p1' ELSE '$.p2' END),p.name=0 FROM {table} n JOIN poc_versions v ON v.cursor=n.write_cursor CROSS JOIN (SELECT 0 name UNION ALL SELECT 1) p WHERE {chosen}"),format!("SELECT body FROM {table} WHERE write_cursor=(?1/2)"))

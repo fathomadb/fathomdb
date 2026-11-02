@@ -54,7 +54,7 @@ fn corrected_and_prior_select_explicit_intervals_and_committed_receipt_cuts() {
     let selected = main
         .prepare(&selection)
         .unwrap()
-        .query_map([], |r| r.get::<_, i64>(0))
+        .query_map(rusqlite::named_params!{":authority_now": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64}, |r| r.get::<_, i64>(0))
         .unwrap()
         .collect::<rusqlite::Result<Vec<_>>>()
         .unwrap();

@@ -45,20 +45,14 @@ pub fn search_options(
     options: Options,
     after_population: impl FnOnce() -> Result<()>,
 ) -> Result<Search> {
-    search(main, selection, hydrate, query, options.limit, options.contentless, after_population)
-}
-/// Materialize one fully selected statistical corpus, then apply output eligibility.
-/// Selection columns are unique id, indexed scalar and output eligibility; hydration
-/// accepts the id as ?1 on the same held main snapshot. No shared private cache.
-pub fn search(
-    main: &rusqlite::Transaction<'_>,
-    selection: &str,
-    hydrate: &str,
-    query: &str,
-    limit: usize,
-    contentless: bool,
-    after_population: impl FnOnce() -> Result<()>,
-) -> Result<Search> {
+    let Options { limit, contentless, grouping, authority_epoch } = options;
+    let _: i64 = main.query_row("SELECT COUNT(*) FROM sqlite_schema", [], |r| r.get(0))?;
+    let authority_now = match authority_epoch {
+        Some(at) => at,
+        None => {
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64
+        }
+    };
     let mut private = Connection::open_in_memory()?;
     private.execute_batch("PRAGMA temp_store=MEMORY;")?;
     private.execute_batch(if contentless { "CREATE VIRTUAL TABLE corpus USING fts5(body,content='',detail=full,columnsize=1,tokenize='porter unicode61 remove_diacritics 2');" } else { "CREATE VIRTUAL TABLE corpus USING fts5(body,detail=full,columnsize=1,tokenize='porter unicode61 remove_diacritics 2');" })?;
@@ -73,7 +67,10 @@ pub fn search(
             let mut insert = tx.prepare("INSERT INTO corpus(rowid,body) VALUES(?1,?2)")?;
             let mut admit = tx.prepare("INSERT INTO eligible VALUES(?1,?2)")?;
             let mut source = main.prepare(selection)?;
-            let mut rows = source.query([])?;
+            if let Some(index) = source.parameter_index(":authority_now")? {
+                source.raw_bind_parameter(index, authority_now)?;
+            }
+            let mut rows = source.raw_query();
             while let Some(row) = rows.next()? {
                 let id: i64 = row.get(0)?;
                 let body: String = row.get(1)?;
@@ -97,7 +94,7 @@ pub fn search(
         while let Some(row) = rows.next()? {
             let id: i64 = row.get(0)?;
             let body: String = hydration.query_row([id], |r| r.get(0))?;
-            if bodies.insert(body.clone()) {
+            if matches!(grouping, Grouping::Revision) || bodies.insert(body.clone()) {
                 hits.push(Hit { id, body, score: row.get(1)? });
                 if hits.len() >= limit {
                     break;
@@ -111,4 +108,25 @@ pub fn search(
         .query_map([], |r| r.get::<_, String>(2))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(Search { hits, documents, indexed_bytes, temp_store, private_files })
+}
+/// Materialize one fully selected statistical corpus, then apply output eligibility.
+/// Selection columns are unique id, indexed scalar and output eligibility; hydration
+/// accepts the id as ?1 on the same held main snapshot. No shared private cache.
+pub fn search(
+    main: &rusqlite::Transaction<'_>,
+    selection: &str,
+    hydrate: &str,
+    query: &str,
+    limit: usize,
+    contentless: bool,
+    after_population: impl FnOnce() -> Result<()>,
+) -> Result<Search> {
+    search_options(
+        main,
+        selection,
+        hydrate,
+        query,
+        Options { limit, contentless, ..Default::default() },
+        after_population,
+    )
 }

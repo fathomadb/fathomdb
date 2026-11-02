@@ -720,6 +720,29 @@ impl Embedder for CandleBgeEmbedder {
         self.identity.clone()
     }
 
+    fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError> {
+        let encoding = self
+            .tokenizer
+            .encode(input, true)
+            .map_err(|error| EmbedderError::Failed { message: format!("tokenize: {error}") })?;
+        if encoding.get_overflowing().is_empty() {
+            return Ok(Some(input.len()));
+        }
+        let end = encoding
+            .get_offsets()
+            .iter()
+            .zip(encoding.get_special_tokens_mask())
+            .filter_map(|((_, end), special)| (*special == 0).then_some(*end))
+            .max()
+            .unwrap_or(0);
+        if end > input.len() || !input.is_char_boundary(end) {
+            return Err(EmbedderError::Failed {
+                message: "tokenizer returned invalid UTF-8 coverage".into(),
+            });
+        }
+        Ok(Some(end))
+    }
+
     fn embed(&self, input: &str) -> Result<Vector, EmbedderError> {
         // Invariant 3 (ADR-0.6.0-embedder-protocol.md): no log/tracing/
         // println/eprintln/dbg in this function. Errors travel up via

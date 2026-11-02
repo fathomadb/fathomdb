@@ -50,6 +50,7 @@ pub enum Failure {
     Closed,
     Storage(String),
     RetryLimit,
+    Deadline,
 }
 impl std::fmt::Display for Failure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -200,6 +201,16 @@ impl CurrentStore {
         limit: usize,
     ) -> std::result::Result<ReadResult, Failure> {
         self.search_paused(query, valid, limit, None)
+    }
+    /// Candidate experiment deadline including queue and admission wait.
+    pub fn search_budget(
+        &self,
+        query: &str,
+        valid: i64,
+        limit: usize,
+        _budget: Duration,
+    ) -> std::result::Result<ReadResult, Failure> {
+        self.search(query, valid, limit)
     }
     /// Test-only snapshot rendezvous on the same candidate collector.
     pub fn search_paused(

@@ -158,3 +158,41 @@ fn first_install_over_populated_engine_seeds_boundary_frontier() {
     assert_eq!(store.search("needle", 100, 10).unwrap().rows[0].body, "needle future");
     store.close().unwrap();
 }
+
+#[test]
+fn empty_limit_is_empty_and_admission_deadline_is_not_retry_count() {
+    use current_history_followups::current::{CurrentStore, Failure};
+    use std::sync::{mpsc, Arc};
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(CurrentStore::open(&dir.path().join("deadline.sqlite")).unwrap());
+    store.write(&[timed("a", "needle", None, Some(100))]).unwrap();
+    store.bootstrap(50).unwrap();
+    let (held, ready) = mpsc::sync_channel(1);
+    let writer = store.clone();
+    let task = std::thread::spawn(move || {
+        writer.with_writer(|_| {
+            held.send(()).unwrap();
+            std::thread::sleep(Duration::from_millis(100));
+        })
+    });
+    ready.recv().unwrap();
+    assert_eq!(
+        store.search_budget("needle", 100, 10, Duration::from_millis(10)).unwrap_err(),
+        Failure::Deadline
+    );
+    task.join().unwrap();
+    assert!(store.search("needle", 50, 0).unwrap().rows.is_empty());
+    store.close().unwrap();
+}
+
+#[test]
+fn zero_limit_never_emits_a_native_match() {
+    use current_history_followups::current::CurrentStore;
+    let dir = tempfile::tempdir().unwrap();
+    let store = CurrentStore::open(&dir.path().join("zero.sqlite")).unwrap();
+    store.write(&[timed("a", "needle", None, None)]).unwrap();
+    store.bootstrap(50).unwrap();
+    assert!(store.search("needle", 50, 0).unwrap().rows.is_empty());
+    store.close().unwrap();
+}

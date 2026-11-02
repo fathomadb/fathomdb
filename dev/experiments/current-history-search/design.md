@@ -1,6 +1,6 @@
 # Formal implementation and hypothesis protocol
 
-Status: proposed experimental design; Astra review pending.
+Status: Astra reviewed; proceed with the refinements below before qualification.
 
 ## Scope and intended contract
 
@@ -162,3 +162,27 @@ not accomplishments of this isolated experiment.
 - [XTDB time](https://docs.xtdb.com/about/time-in-xtdb.html): valid time and system time.
 - [Datomic database API](https://docs.datomic.com/javadoc/datomic/Database.html): archive versus snapshot.
 - [Neo4j versioning](https://neo4j.com/docs/getting-started/data-modeling/versioning/): temporal nodes and edges.
+
+## Recorded Astra refinements before GREEN
+
+- Stable claim source, type and endpoints are immutable; incompatible writes
+  fail. Every temporal fragment has a distinct immutable version ID, retains
+  its original assertion intent and provenance, and cannot overlap another
+  accepted fragment for the same claim at one knowledge time.
+- Partial correction oracle: A[0,100) at K10 corrected to B[30,60) at K20
+  produces A/B/A. At K19 the whole interval is A. Nested retraction[35,45)
+  produces no accepted fact there and cannot resurrect A. Test exact boundaries.
+- Query terms pass through SQLite's actual Porter/unicode61 tokenizer using a
+  tiny scratch connection; lowercase ASCII is not treated as an equivalent
+  stemmer. Duplicate and stem-colliding OR phrases preserve native BM25
+  multiplicity. Test zero-token documents, IDF floor, ties and cross-property
+  statistical rows. Scratch tokenization is not a copied search corpus.
+- Source authority is current as of the pinned read transaction. An earlier
+  reader may finish after denial commits; the next request must deny, including
+  prior-belief queries. Graph endpoints name node claim IDs; independent source
+  claims remain distinct. Temporal coherence does not imply conflict-free truth.
+- Each backend timing includes certification/statistics/build/ranking/hydration
+  and private-connection drop. Report native rank-only attribution separately.
+  Add corrected-history, prior-belief and clock-fallback cells to the fixed
+  sweep. Shared disk and write totals cover all coexisting POC indexes and do
+  not estimate an individual backend's footprint.

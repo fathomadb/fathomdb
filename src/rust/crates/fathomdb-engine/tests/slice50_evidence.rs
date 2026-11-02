@@ -2499,3 +2499,71 @@ fn evidence_history_flags_compose_and_resolve_revision_lifecycle() {
     }
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn historical_evidence_attribute_access_uses_canonical_artifact_values() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("history-attributes{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[fathomdb_engine::ProjectionSpec {
+                name: "scope".into(),
+                roles: BTreeSet::from([fathomdb_engine::ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let source_body = r#"{"scope":"allowed","text":"stable source"}"#;
+    opened
+        .engine
+        .write(&[canonical_named("source", "src-r1", "src-v1", "source-id", source_body)])
+        .unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "item",
+            "item-r1",
+            "src-r1",
+            "src-v1",
+            "source-id",
+            source_body,
+            r#"{"scope":"allowed","text":"historyneedle old"}"#,
+        )])
+        .unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "item",
+            "item-r2",
+            "src-r1",
+            "src-v1",
+            "source-id",
+            source_body,
+            r#"{"scope":"other","text":"replacement"}"#,
+        )])
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("scope".into(), "allowed".into())];
+    let context =
+        ReadContextV1::new(ReadView { include_superseded: true, ..Default::default() }, filter)
+            .unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
+    let result =
+        opened.engine.search_with_evidence(&request("historyneedle", frozen.clone())).unwrap();
+    assert_eq!(result.evidence.len(), 1);
+    let resolved = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence[0].evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(resolved.artifact_revision_id, "item-r1");
+    opened.engine.close().unwrap();
+}

@@ -942,6 +942,13 @@ impl Engine {
                     }
                 })?;
 
+                let edge_history_enqueued =
+                    crate::projection_registry::reconcile_edge_history_on_boot(
+                        startup.connection(),
+                    )
+                    .map_err(|_| EngineOpenError::Io {
+                        message: "could not reconcile historical edge projections".into(),
+                    })?;
                 let dense_runtime_usable = runtime_embedder.is_some();
                 let boot_graft_enqueued = if dense_runtime_usable {
                     boot_graft_declared_vector_backfill(startup.connection()).map_err(|_| {
@@ -1094,6 +1101,7 @@ impl Engine {
                 }
                 if dense_runtime_usable
                     && (boot_graft_enqueued
+                        || edge_history_enqueued
                         || database_has_pending_projection_work(
                             &canonical_path,
                             #[cfg(any(test, feature = "test-hooks"))]

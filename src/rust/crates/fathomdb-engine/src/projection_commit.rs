@@ -90,7 +90,7 @@ pub(crate) fn terminal_state_for_cursor(
         })
 }
 
-fn projection_physical_tuple_is_empty(
+pub(crate) fn projection_physical_tuple_is_empty(
     connection: &Connection,
     cursor: u64,
 ) -> rusqlite::Result<bool> {

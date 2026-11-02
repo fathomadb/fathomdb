@@ -2390,3 +2390,77 @@ mod span_erasure_tests {
         );
     }
 }
+
+/// Requeue legacy edge skips and restore derived lexical history atomically.
+pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlite::Result<bool> {
+    connection.execute_batch("BEGIN IMMEDIATE")?;
+    let result = (|| {
+        let now = crate::current_epoch_seconds();
+        let rows = {
+            let mut stmt = connection.prepare(
+                "SELECT e.write_cursor,e.kind,e.body,e.superseded_at,e.t_invalid,pt.state
+                 FROM canonical_edges e
+                 LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=e.write_cursor
+                 WHERE e.body IS NOT NULL AND (e.superseded_at IS NOT NULL OR e.t_invalid<=?1)",
+            )?;
+            let collected = stmt
+                .query_map([now], |r| {
+                    Ok((
+                        r.get::<_, u64>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, Option<i64>>(3)?,
+                        r.get::<_, Option<i64>>(4)?,
+                        r.get::<_, Option<String>>(5)?,
+                    ))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            collected
+        };
+        let mut rewind = None;
+        for (cursor, kind, body, _, _, terminal) in rows {
+            if !crate::dependency_closure::projection_owner_is_eligible_at(connection, cursor, now)
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+            {
+                continue;
+            }
+            let lexical: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM search_index_edges WHERE write_cursor=?1)",
+                [cursor],
+                |r| r.get(0),
+            )?;
+            if !lexical {
+                connection.execute(
+                    "INSERT INTO search_index_edges(body,kind,write_cursor) VALUES(?1,?2,?3)",
+                    params![body, kind, cursor],
+                )?;
+            }
+            if terminal.as_deref() == Some("up_to_date")
+                && crate::projection_commit::projection_physical_tuple_is_empty(connection, cursor)?
+            {
+                connection.execute(
+                    "DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+                    [cursor],
+                )?;
+                rewind = Some(rewind.map_or(cursor, |old: u64| old.min(cursor)));
+            }
+        }
+        if let Some(cursor) = rewind {
+            let below = cursor.saturating_sub(1);
+            if load_projection_cursor(connection)? > below {
+                store_projection_cursor(connection, below)?;
+            }
+        }
+        Ok(rewind.is_some())
+    })();
+    match result {
+        Ok(changed) => {
+            connection.execute_batch("COMMIT")?;
+            Ok(changed)
+        }
+        Err(error) => {
+            let _ = connection.execute_batch("ROLLBACK");
+            Err(error)
+        }
+    }
+}

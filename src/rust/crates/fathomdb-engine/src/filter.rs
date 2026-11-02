@@ -702,6 +702,7 @@ pub(crate) fn append_edge_eligibility_sql(
     sql
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn body_fts_rank_sql(
     validity: &str,
     lifecycle: &str,
@@ -734,6 +735,7 @@ pub(crate) fn body_fts_rank_sql_view(
     )
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
     edge_fts_rank_sql_view(validity, eligibility, &crate::ReadView::default())
 }

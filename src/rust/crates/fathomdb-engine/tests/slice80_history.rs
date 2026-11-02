@@ -58,3 +58,60 @@ fn text_and_dense_history_flags_compose_independently() {
         opened.engine.close().unwrap();
     }
 }
+
+fn edge(id: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: "link".into(),
+        from: "a".into(),
+        to: "b".into(),
+        source_id: SourceId::new("test:slice80").unwrap(),
+        logical_id: Some(id.into()),
+        body: Some(body.into()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
+}
+#[test]
+fn superseded_edges_are_dense_members_before_and_after_drain() {
+    for drain_first in [false, true] {
+        for same_identity in [false, true] {
+            let dir = TempDir::new().unwrap();
+            let path = dir.path().join("edges.sqlite");
+            let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+            opened
+                .engine
+                .write(&[
+                    node("a", "endpoint a", InitialState::Active),
+                    node("b", "endpoint b", InitialState::Active),
+                    edge("old", "old historical fact"),
+                ])
+                .unwrap();
+            if drain_first {
+                opened.engine.drain(10_000).unwrap();
+            }
+            opened
+                .engine
+                .write(&[edge(if same_identity { "old" } else { "new" }, "new historical fact")])
+                .unwrap();
+            opened.engine.drain(10_000).unwrap();
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            let count: i64 = conn
+                .query_row(
+                    "SELECT count(*) FROM _fathomdb_vector_rows WHERE kind='edge_fact'",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 2, "drain_first={drain_first}, same_identity={same_identity}");
+            opened.engine.set_vector_stage_only_for_test(true);
+            let results = opened.engine.search_view("unmatched", &view(true, false)).unwrap();
+            assert_eq!(results.results.len(), 2, "{results:?}");
+            assert!(results.soft_fallback.is_none());
+            assert_eq!(opened.engine.search("unmatched").unwrap().results.len(), 1);
+            opened.engine.close().unwrap();
+        }
+    }
+}

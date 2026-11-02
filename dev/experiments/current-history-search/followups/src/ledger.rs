@@ -31,6 +31,40 @@ impl Ledger {
         withdrawn: bool,
     ) -> Result<u64> {
         let source_id = SourceId::new(source)?;
+        self.change_prepared(
+            PreparedWrite::Node {
+                kind: "doc".into(),
+                body: body.into(),
+                logical_id: Some(claim.into()),
+                source_id,
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            },
+            valid,
+            withdrawn,
+        )
+    }
+
+    /// Stage one governed or legacy node operation with its intrinsic provenance untouched.
+    pub fn change_prepared(
+        &self,
+        write: PreparedWrite,
+        valid: (i64, i64),
+        withdrawn: bool,
+    ) -> Result<u64> {
+        let (claim, body, source) = match &write {
+            PreparedWrite::Node { logical_id: Some(id), body, source_id, .. } => {
+                (id.as_str(), body.as_str(), source_id.as_str())
+            }
+            PreparedWrite::ProvenancedNode(node) => (
+                node.logical_id.as_deref().ok_or("temporal node needs governed identity")?,
+                node.body.as_str(),
+                node.source_id.as_str(),
+            ),
+            _ => return Err("candidate temporal operation supports one governed node only".into()),
+        };
         if valid.0 >= valid.1 {
             return Err("empty or inverted valid interval".into());
         }
@@ -42,16 +76,7 @@ impl Ledger {
             self.engine.execute_for_test("DELETE FROM poc_intent; DELETE FROM poc_operation;")?;
             return Err(error.into());
         }
-        let result = self.engine.write(&[PreparedWrite::Node {
-            kind: "doc".into(),
-            body: body.into(),
-            logical_id: Some(claim.into()),
-            source_id,
-            state: InitialState::Active,
-            reason: None,
-            valid_from: None,
-            valid_until: None,
-        }]);
+        let result = self.engine.write(&[write]);
         self.engine.execute_for_test("DELETE FROM poc_intent; DELETE FROM poc_operation;")?;
         let receipt = result?;
         assert_eq!(receipt.cursor, receipt.row_cursors[0]);

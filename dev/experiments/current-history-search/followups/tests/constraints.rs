@@ -34,7 +34,14 @@ fn unchanged_head_index_g11_and_independent_existing_flags_are_witnessed() {
         ])
         .unwrap();
     engine.write(&[node("claim", "needle current", InitialState::Active)]).unwrap();
-    assert!(engine.execute_for_test("INSERT INTO canonical_nodes(write_cursor,logical_id,kind,body,state) VALUES(99999,'claim','other','illegal','active')").is_err(),"accepted current-head uniqueness must remain enabled");
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    let ddl:String=raw.query_row("SELECT sql FROM sqlite_schema WHERE type='index' AND tbl_name='canonical_nodes' AND sql LIKE '%UNIQUE%' AND sql LIKE '%logical_id%'",[],|r|r.get(0)).unwrap();
+    assert!(ddl.contains("superseded_at IS NULL"));
+    let duplicate=raw.execute("INSERT INTO canonical_nodes(write_cursor,logical_id,kind,body,state) VALUES(99999,'claim','other','illegal','active')",[]).unwrap_err();
+    assert!(
+        matches!(duplicate,rusqlite::Error::SqliteFailure(error,_) if error.extended_code==2067),
+        "{duplicate:?}"
+    );
     for (superseded, inactive, expected) in
         [(false, false, 1), (true, false, 2), (false, true, 2), (true, true, 3)]
     {

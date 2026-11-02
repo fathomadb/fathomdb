@@ -15,7 +15,10 @@ impl Certificate {
         Ok(connection.query_row("SELECT published_at,next_boundary,visibility,scope FROM poc_certificate WHERE singleton=1",[],|r|Ok(Self{published_at:r.get(0)?,next_boundary:r.get(1)?,visibility:r.get(2)?,scope:r.get(3)?}))?)
     }
     /// Whether this exact resolved request may use the snapshot's current index.
-    pub fn covers(&self, _valid: i64, _visibility: i64, _scope: &str) -> bool {
-        true
+    pub fn covers(&self, valid: i64, visibility: i64, scope: &str) -> bool {
+        self.published_at <= valid
+            && valid < self.next_boundary
+            && self.visibility == visibility
+            && self.scope == scope
     }
 }

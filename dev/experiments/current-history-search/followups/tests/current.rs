@@ -52,3 +52,59 @@ fn actual_readonly_pool_refreshes_both_outgoing_and_previously_absent_future_row
     );
     store.close().unwrap();
 }
+
+#[test]
+fn compatible_publication_coalesces_and_healthy_reads_never_contact_writer() {
+    use current_history_followups::current::CurrentStore;
+    use std::sync::atomic::Ordering;
+    let dir = tempfile::tempdir().unwrap();
+    let store = CurrentStore::open(&dir.path().join("coalesce.sqlite")).unwrap();
+    store.write(&[timed("a", "needle", None, None)]).unwrap();
+    store.bootstrap(50).unwrap();
+    let contacts = store.writer_contacts.load(Ordering::Relaxed);
+    for _ in 0..16 {
+        assert_eq!(store.search("needle", 50, 10).unwrap().rows.len(), 1);
+    }
+    assert_eq!(store.writer_contacts.load(Ordering::Relaxed), contacts);
+    store.bootstrap(51).unwrap();
+    assert_eq!(
+        store.refreshes.load(Ordering::Relaxed),
+        1,
+        "compatible queued publication must reuse the existing interval"
+    );
+    store.close().unwrap();
+}
+
+#[test]
+fn pinned_v1_survives_v2_refresh_without_stale_publication_or_reader_starvation() {
+    use current_history_followups::current::{CurrentStore, Failure, Pause};
+    use std::sync::{mpsc, Arc};
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(CurrentStore::open(&dir.path().join("pinned.sqlite")).unwrap());
+    store
+        .write(&[
+            timed("a", "needle old", None, Some(100)),
+            timed("b", "needle new", Some(100), None),
+        ])
+        .unwrap();
+    store.bootstrap(50).unwrap();
+    let (ready, receive_ready) = mpsc::sync_channel(1);
+    let (release, receive_release) = mpsc::sync_channel(1);
+    let old_store = store.clone();
+    let old = std::thread::spawn(move || {
+        old_store
+            .search_paused("needle", 50, 10, Some(Pause { ready, release: receive_release }))
+            .unwrap()
+    });
+    receive_ready.recv_timeout(Duration::from_secs(5)).unwrap();
+    let new = store.search("needle", 100, 10).unwrap();
+    assert_eq!(new.rows[0].body, "needle new");
+    assert_eq!(store.search("needle", 50, 10).unwrap_err(), Failure::BackwardTime);
+    release.send(()).unwrap();
+    let old = old.join().unwrap();
+    assert_eq!(old.rows[0].body, "needle old");
+    assert_ne!(old.worker, new.worker);
+    store.close().unwrap();
+    assert_eq!(store.search("needle", 100, 10).unwrap_err(), Failure::Closed);
+}

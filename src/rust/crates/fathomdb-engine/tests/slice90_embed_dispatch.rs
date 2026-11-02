@@ -474,3 +474,59 @@ fn independent_executors_keep_queues_and_workers_separate() {
     join(&one);
     join(&two);
 }
+
+#[test]
+fn projection_batch_uses_one_deadline_instead_of_row_count_times_timeout() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher =
+        Arc::new(EmbedDispatcher::new(Some(provider), 1, Duration::from_millis(100)).unwrap());
+    let batch = dispatcher.submit_projection_batch(vec!["row".to_owned(); 8]).unwrap();
+    let call = entered(&entered_calls);
+    let (finished, received) = mpsc::channel();
+    std::thread::spawn(move || finished.send(batch.wait()).expect("report batch result"));
+    let outcome =
+        received.recv_timeout(Duration::from_millis(500)).expect("one fixed batch deadline");
+    assert!(matches!(outcome, Err(DispatchError::StartedTimeout)));
+    call.release();
+    dispatcher.close();
+    join(&dispatcher);
+    assert_eq!(dispatcher.snapshot().late_results, 1);
+}
+
+#[test]
+fn projection_batch_row_count_mismatch_is_invalid_output_and_worker_recovers() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher = EmbedDispatcher::new(Some(provider), 1, Duration::from_secs(2)).unwrap();
+    let malformed = dispatcher.submit_projection_batch(vec!["short-batch".to_owned(); 3]).unwrap();
+    entered(&entered_calls).release();
+    assert!(matches!(malformed.wait(), Err(DispatchError::InvalidOutput)));
+
+    let healthy = dispatcher.submit_projection_batch(vec!["healthy".to_owned(); 3]).unwrap();
+    entered(&entered_calls).release();
+    match healthy.wait() {
+        Ok(EmbedOutput::Projection(vectors)) => assert_eq!(vectors.len(), 3),
+        other => panic!("expected complete batch result after invalid output, got {other:?}"),
+    }
+    dispatcher.close();
+    join(&dispatcher);
+}
+
+#[test]
+fn projection_explicit_queued_cancellation_does_not_invoke_provider_or_renew_deadline() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher =
+        EmbedDispatcher::new(Some(provider.clone()), 1, Duration::from_secs(2)).unwrap();
+    let running = dispatcher.submit_projection("running".to_owned()).unwrap();
+    let call = entered(&entered_calls);
+    let queued = dispatcher.submit_projection("queued".to_owned()).unwrap();
+    let deadline = queued.deadline();
+    assert!(deadline > Instant::now());
+    queued.cancel();
+    assert_eq!(queued.deadline(), deadline, "polling/cancellation never resets the request clock");
+    assert!(matches!(queued.wait(), Err(DispatchError::Cancelled)));
+    call.release();
+    assert!(matches!(running.wait(), Ok(EmbedOutput::Projection(_))));
+    dispatcher.close();
+    join(&dispatcher);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}

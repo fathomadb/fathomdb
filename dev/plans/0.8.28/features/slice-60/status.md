@@ -28,3 +28,12 @@ API release-version surfaces and benchmark support tests pass. The reviewed
 bare-vec0 harness is committed under the experiment README. Full independent
 verification, final code review, AC-013, eu7 and scale qualification remain
 pending; no full-workspace-green claim is made here.
+
+Final code review repairs: row-owned erasure now registers spans (orphan
+cleanup regression observed RED, then GREEN); historical private format-32
+bootstrap fixtures remain valid without changing their digest oracles
+(existing fixture observed RED, then all 117 library tests GREEN). Added
+process-isolated forced-batch guards with provider counters for heterogeneous
+UTF-8 extents, malformed cardinality and metadata fallback, plus span-INSERT
+rollback. These additional guards passed on first execution; they are
+coverage evidence, not claimed RED/GREEN implementation evidence.

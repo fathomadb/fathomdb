@@ -358,7 +358,7 @@ fn authoritative_boundary(connection: &Connection) -> Result<u64, EngineError> {
     Ok(boundary.max(reserved).max(closure_boundary))
 }
 
-fn bootstrap_is_fresh(connection: &Connection) -> Result<bool, EngineError> {
+fn bootstrap_is_fresh(connection: &Connection, schema_version: u32) -> Result<bool, EngineError> {
     for table in [
         "canonical_nodes",
         "canonical_edges",
@@ -385,6 +385,9 @@ fn bootstrap_is_fresh(connection: &Connection) -> Result<bool, EngineError> {
         "property_search_index",
         "vector_default",
     ] {
+        if table == "_fathomdb_vector_spans" && schema_version < 35 {
+            continue;
+        }
         if count(connection, table)? != 0 {
             return Ok(false);
         }
@@ -618,7 +621,7 @@ pub(crate) fn bootstrap(
     let generation_rows = count(connection, "_fathomdb_projection_generations")?;
     let current_rows = count(connection, "_fathomdb_projection_generation_current")?;
     if generation_rows == 0 && current_rows == 0 {
-        let fresh = bootstrap_is_fresh(connection)?;
+        let fresh = bootstrap_is_fresh(connection, schema_version)?;
         if !fresh && !allow_populated_legacy_bootstrap {
             return Err(corruption());
         }

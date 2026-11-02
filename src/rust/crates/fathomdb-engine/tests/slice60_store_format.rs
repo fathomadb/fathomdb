@@ -367,3 +367,120 @@ fn automatic_mean_pin_and_manual_recenter_preserve_spans_and_f32() {
     opened.engine.recompute_mean().unwrap();
     assert_eq!(rows(), before);
 }
+
+struct BatchCoverageProvider {
+    mode: u8,
+    batch: std::sync::atomic::AtomicUsize,
+    scalar: std::sync::atomic::AtomicUsize,
+    in_batch: std::sync::atomic::AtomicBool,
+}
+impl Embedder for BatchCoverageProvider {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("batch-coverage", "test", 8)
+    }
+    fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+        self.in_batch.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.scalar.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(vec![1.0; 8])
+    }
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vector>, EmbedderError> {
+        self.in_batch.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.batch.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(vec![vec![1.0; 8]; texts.len() - usize::from(self.mode == 1)])
+    }
+    fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError> {
+        if self.mode == 2 && self.in_batch.load(std::sync::atomic::Ordering::SeqCst) {
+            return Ok(Some(input.len() + 1));
+        }
+        Ok(Some(input.chars().next().unwrap().len_utf8()))
+    }
+}
+
+#[test]
+fn projection_batch_reports_utf8_extents_and_recovers_malformed_results() {
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "projection_batch_coverage_child", "--ignored", "--nocapture"])
+        .env("FATHOMDB_PROJECTION_BATCH", "1")
+        .spawn()
+        .unwrap();
+    let start = std::time::Instant::now();
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert!(status.success());
+            break;
+        }
+        if start.elapsed() > std::time::Duration::from_secs(45) {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("batch coverage child timed out");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+#[test]
+#[ignore = "spawned with process-local batch configuration"]
+fn projection_batch_coverage_child() {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    for mode in 0..3 {
+        let provider = Arc::new(BatchCoverageProvider {
+            mode,
+            batch: AtomicUsize::new(0),
+            scalar: AtomicUsize::new(0),
+            in_batch: AtomicBool::new(false),
+        });
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("batch.sqlite");
+        let opened = Engine::open_with_embedder_for_test(&path, provider.clone()).unwrap();
+        opened.engine.configure_vector_kind_for_test("doc").unwrap();
+        let scalar_before = provider.scalar.load(Ordering::SeqCst);
+        opened.engine.set_projection_scheduler_frozen_for_test(true);
+        let bodies = ["ascii text", "éclair body", "🦀 body"];
+        opened.engine.write(&(0..48).map(|i| node(bodies[i % 3])).collect::<Vec<_>>()).unwrap();
+        opened.engine.set_projection_scheduler_frozen_for_test(false);
+        opened.engine.drain(10_000).unwrap();
+        assert!(provider.batch.load(Ordering::SeqCst) > 0, "must execute embed_batch, mode={mode}");
+        if mode != 0 {
+            assert!(provider.scalar.load(Ordering::SeqCst) > scalar_before);
+        }
+        let conn = Connection::open(&path).unwrap();
+        let mut statement = conn.prepare("SELECT n.body,s.byte_end,s.body_length FROM _fathomdb_vector_spans s JOIN canonical_nodes n USING(write_cursor)").unwrap();
+        let rows = statement
+            .query_map([], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, usize>(1)?, r.get::<_, usize>(2)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(rows.len(), 48);
+        for (body, end, length) in rows {
+            assert_eq!(end, body.chars().next().unwrap().len_utf8());
+            assert_eq!(length, body.len());
+        }
+    }
+}
+
+#[test]
+fn span_insert_failure_rolls_back_the_entire_physical_tuple() {
+    use std::sync::Barrier;
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("rollback.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let reported = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    opened
+        .engine
+        .pause_projection_commit_failure_cleanup_for_test(reported.clone(), release.clone());
+    let conn = Connection::open(&path).unwrap();
+    conn.execute_batch("CREATE TRIGGER reject_span BEFORE INSERT ON _fathomdb_vector_spans BEGIN SELECT RAISE(ABORT,'forced span insertion failure'); END;").unwrap();
+    opened.engine.write(&[node("rollback body")]).unwrap();
+    reported.wait();
+    let counts = conn.query_row("SELECT (SELECT COUNT(*) FROM _fathomdb_vector_rows),(SELECT COUNT(*) FROM vector_default),(SELECT COUNT(*) FROM _fathomdb_vector_spans),(SELECT COUNT(*) FROM _fathomdb_projection_terminal)",[],|r|Ok((r.get::<_,u64>(0)?,r.get::<_,u64>(1)?,r.get::<_,u64>(2)?,r.get::<_,u64>(3)?)));
+    let dropped = conn.execute_batch("DROP TRIGGER reject_span;");
+    release.wait();
+    dropped.unwrap();
+    assert_eq!(counts.unwrap(), (0, 0, 0, 0));
+}

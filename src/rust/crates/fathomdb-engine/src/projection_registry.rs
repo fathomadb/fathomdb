@@ -256,22 +256,21 @@ pub(crate) enum ProjectionClass {
 }
 
 /// 0.8.20 Slice 5a (R-20-E1) — one ROW-OWNED projection table: a shadow whose
-/// rows are 1:1 with a canonical row's `write_cursor` and therefore MUST die
+/// rows are owned by a canonical row's `write_cursor` and therefore MUST die
 /// with that row.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RowOwnedProjection {
     /// Table name. `'static` and never caller-derived: safe to interpolate.
     pub(crate) table: &'static str,
     /// The column carrying the owning canonical row's `write_cursor`. For the
-    /// vec0 table this is `rowid` — vec0 rowid IS the write_cursor (see the
-    /// `_fathomdb_vector_rows.write_cursor UNIQUE` identity).
+    /// current head-only vec0 table this is `rowid`, equal to the write cursor.
     pub(crate) cursor_column: &'static str,
     class: ProjectionClass,
 }
 
 /// 0.8.20 Slice 5a (R-20-E1) — **the** registry of row-owned projections.
 ///
-/// Every table here is 1:1 with a canonical `write_cursor` and is erased by
+/// Every table here is owned by a canonical `write_cursor` and is erased by
 /// [`erase_row_projections`] whenever that canonical row is erased. Adding a
 /// projection table WITHOUT registering it here re-opens the defect this slice
 /// closes (`search_index_v2` was written by one site and deleted by one site,
@@ -304,6 +303,11 @@ pub(crate) const ROW_OWNED_PROJECTIONS: &[RowOwnedProjection] = &[
     RowOwnedProjection {
         table: "vector_default",
         cursor_column: "rowid",
+        class: ProjectionClass::Vector,
+    },
+    RowOwnedProjection {
+        table: "_fathomdb_vector_spans",
+        cursor_column: "write_cursor",
         class: ProjectionClass::Vector,
     },
     RowOwnedProjection {

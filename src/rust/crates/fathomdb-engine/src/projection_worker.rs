@@ -616,12 +616,15 @@ fn embed_projection_batch(
         });
         #[cfg(feature = "test-hooks")]
         let result = crate::embed_dispatch::d27_observation::with_owner(owner, || {
-            shared.embed_dispatch.submit_batch(bodies.clone()).and_then(EmbedReply::wait)
+            shared.embed_dispatch.submit_projection_batch(bodies.clone()).and_then(EmbedReply::wait)
         });
         #[cfg(not(feature = "test-hooks"))]
-        let result = shared.embed_dispatch.submit_batch(bodies.clone()).and_then(EmbedReply::wait);
+        let result = shared
+            .embed_dispatch
+            .submit_projection_batch(bodies.clone())
+            .and_then(EmbedReply::wait);
         match result {
-            Ok(EmbedOutput::Batch(vectors)) => break vectors,
+            Ok(EmbedOutput::Projection(vectors)) => break vectors,
             Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
                 if !wait_for_projection_retry(shared, Duration::from_millis(25)) {
                     return jobs.iter().map(|_| ProjectionOutcome::Deferred).collect();
@@ -639,15 +642,15 @@ fn embed_projection_batch(
     }
     jobs.iter()
         .zip(vectors)
-        .map(|(job, vector)| {
-            let blob = encode_vector_blob(&vector);
+        .map(|(job, projected)| {
+            let blob = encode_vector_blob(&projected.vector);
             ProjectionOutcome::Success {
                 cursor: job.cursor,
                 kind: job.kind.clone(),
                 bin_blob: blob.clone(),
                 blob,
                 body_length: job.body.len(),
-                byte_end: None,
+                byte_end: projected.byte_end,
                 generation_id: job.generation_id.clone(),
             }
         })
@@ -770,12 +773,18 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
             Some(crate::embed_dispatch::d27_observation::Owner::Projection {
                 projection_cursors: vec![job.cursor],
             }),
-            || shared.embed_dispatch.submit_text(job.body.clone()).and_then(EmbedReply::wait),
+            || shared.embed_dispatch.submit_projection(job.body.clone()).and_then(EmbedReply::wait),
         );
         #[cfg(not(feature = "test-hooks"))]
-        let result = shared.embed_dispatch.submit_text(job.body.clone()).and_then(EmbedReply::wait);
+        let result =
+            shared.embed_dispatch.submit_projection(job.body.clone()).and_then(EmbedReply::wait);
+        let mut byte_end = None;
         let vector = match result {
-            Ok(EmbedOutput::One(vector)) => vector,
+            Ok(EmbedOutput::Projection(mut rows)) => {
+                let row = rows.pop().expect("single projection output");
+                byte_end = row.byte_end;
+                row.vector
+            }
             Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
                 if !wait_for_projection_retry(shared, Duration::from_millis(25)) {
                     return ProjectionOutcome::Deferred;
@@ -804,7 +813,9 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
                 last_code = crate::embedding::map_runtime_embedder_error(error).stable_code();
                 Vec::new()
             }
-            Ok(EmbedOutput::Batch(_)) => unreachable!("single embedding returned a batch"),
+            Ok(EmbedOutput::Batch(_) | EmbedOutput::One(_)) => {
+                unreachable!("projection returned foreground output")
+            }
         };
         if vector.is_empty() {
             if spent_attempts >= delays.len() {
@@ -840,7 +851,7 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
             blob,
             bin_blob,
             body_length: job.body.len(),
-            byte_end: None,
+            byte_end,
             generation_id: job.generation_id.clone(),
         };
     }

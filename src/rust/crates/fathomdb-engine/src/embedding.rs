@@ -152,7 +152,9 @@ pub(crate) fn dispatch_embed_vector(
 ) -> Result<Vec<f32>, DispatchError> {
     match dispatcher.submit_text(text.to_owned())?.wait()? {
         EmbedOutput::One(vector) => Ok(vector),
-        EmbedOutput::Batch(_) => unreachable!("single embed request returned a batch"),
+        EmbedOutput::Batch(_) | EmbedOutput::Projection(_) => {
+            unreachable!("single embed request returned another output kind")
+        }
     }
 }
 

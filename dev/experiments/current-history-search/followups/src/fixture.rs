@@ -13,6 +13,7 @@ impl Embedder for Fixed {
 }
 /// Actual engine fixture; historical rows come from governed supersession writes.
 pub fn build(path: &Path, family: &str, history: usize, bytes: usize, n: usize) -> Result<()> {
+    configure_runtime(RuntimeSqliteMode::Performance)?;
     if path.exists() {
         let connection = rusqlite::Connection::open_with_flags(
             path,

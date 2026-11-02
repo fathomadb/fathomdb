@@ -79,6 +79,17 @@ pub enum View {
     Archive { include_retracted: bool },
 }
 
+/// Alternative mechanisms compared on the same canonical snapshot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Backend {
+    /// Maintained current FTS with certified scope.
+    Partitioned,
+    /// All-version postings with selected-corpus BM25 statistics.
+    Custom,
+    /// Private selected-corpus FTS using native BM25.
+    Materialized,
+}
+
 /// A ranked revision with a stable claim identity and exact canonical version.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Hit {
@@ -196,6 +207,22 @@ impl Store {
         tx.execute("UPDATE config SET known=?1", [change.known])?;
         tx.commit()?;
         Ok(())
+    }
+
+    /// Compare one backend under an explicitly selected temporal view.
+    pub fn search_backend(
+        &self,
+        query: &str,
+        family: Family,
+        name: Option<&str>,
+        limit: usize,
+        view: View,
+        backend: Backend,
+    ) -> Result<Vec<Hit>> {
+        match backend {
+            Backend::Partitioned => self.search_view(query, family, name, limit, view),
+            _ => Err(reject("ranker not implemented")),
+        }
     }
 
     /// Search a coherent temporal selection or explicit archive under one read snapshot.

@@ -132,3 +132,170 @@ fn h2_partial_correction_and_nested_retraction_do_not_resurrect_errors() {
         .unwrap();
     assert!(!archive.is_empty(), "audit can retrieve the original incorrect assertion");
 }
+
+fn assert_rank_equal(left: &[Hit], right: &[Hit]) {
+    assert_eq!(
+        left.iter().map(|h| (&h.claim, h.version)).collect::<Vec<_>>(),
+        right.iter().map(|h| (&h.claim, h.version)).collect::<Vec<_>>()
+    );
+    for (a, b) in left.iter().zip(right) {
+        assert!((a.score - b.score).abs() < 1e-12, "score mismatch: {a:?} / {b:?}");
+    }
+}
+
+#[test]
+fn h4_rankers_share_selected_statistics_not_filtered_history_statistics() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("ranks.sqlite"), 50).unwrap();
+    for known in 1..12 {
+        store
+            .put(change("a", &"alpha oldword ".repeat(known as usize), Family::Node, known))
+            .unwrap();
+    }
+    for (id, body, known) in [("a", "alpha", 20), ("b", "beta beta extra", 21), ("c", "gamma", 22)]
+    {
+        store.put(change(id, body, Family::Node, known)).unwrap();
+    }
+    for view in [at(50, None), at(50, Some(5)), View::Archive { include_retracted: true }] {
+        for (family, name) in [(Family::Node, None), (Family::Property, Some("summary"))] {
+            for query in ["alpha", "alpha OR beta", "oldword"] {
+                let expected = store
+                    .search_backend(query, family, name, 10, view, Backend::Materialized)
+                    .unwrap();
+                for backend in [Backend::Partitioned, Backend::Custom] {
+                    let actual =
+                        store.search_backend(query, family, name, 10, view, backend).unwrap();
+                    assert_rank_equal(&actual, &expected);
+                }
+            }
+        }
+    }
+    let selected = documents(&store.conn, Family::Node, 50, None).unwrap();
+    let leaky =
+        native_search(&store.conn, "all_nodes", "alpha OR beta", &selected, None, 10).unwrap();
+    let isolated = store
+        .search_backend(
+            "alpha OR beta",
+            Family::Node,
+            None,
+            10,
+            at(50, None),
+            Backend::Materialized,
+        )
+        .unwrap();
+    assert_ne!(
+        identity_scores(&leaky),
+        identity_scores(&isolated),
+        "control must detect history's statistical influence"
+    );
+}
+
+#[test]
+fn h4_native_parity_covers_stems_empty_docs_idf_floor_ties_and_property_names() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("tokens.sqlite"), 50).unwrap();
+    for (id, body, known) in [
+        ("a", "alpha", 1),
+        ("b", "alpha alpha beta", 2),
+        ("c", "running café", 3),
+        ("d", "!!!", 4),
+        ("e", "tie", 5),
+        ("f", "tie", 6),
+    ] {
+        let mut value = change(id, body, Family::Node, known);
+        value.properties.insert(
+            "notes".into(),
+            "run cafe alpha alpha lots of nonmatching-name statistics".into(),
+        );
+        store.put(value).unwrap();
+    }
+    for query in ["alpha", "run", "running", "run OR running", "cafe", "tie", "alpha OR beta"] {
+        for (family, name) in [(Family::Node, None), (Family::Property, Some("summary"))] {
+            let expected = store
+                .search_backend(query, family, name, 20, at(50, None), Backend::Materialized)
+                .unwrap();
+            assert!(!expected.is_empty());
+            for backend in [Backend::Partitioned, Backend::Custom] {
+                assert_rank_equal(
+                    &store.search_backend(query, family, name, 20, at(50, None), backend).unwrap(),
+                    &expected,
+                );
+            }
+        }
+    }
+    let once = store
+        .search_backend("run", Family::Node, None, 20, at(50, None), Backend::Materialized)
+        .unwrap();
+    let twice = store
+        .search_backend("run OR running", Family::Node, None, 20, at(50, None), Backend::Custom)
+        .unwrap();
+    assert!((twice[0].score - 2.0 * once[0].score).abs() < 1e-12);
+    let ties =
+        store.search_backend("tie", Family::Node, None, 1, at(50, None), Backend::Custom).unwrap();
+    assert_eq!(ties[0].claim, "e");
+    for bad in ["alpha*", "alpha AND beta", "NEAR(alpha beta)", "café"] {
+        assert!(store
+            .search_backend(bad, Family::Node, None, 20, at(50, None), Backend::Custom)
+            .is_err());
+    }
+}
+
+#[test]
+fn h4_hand_computed_common_term_score_counts_zero_token_documents() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("idf.sqlite"), 50).unwrap();
+    for (id, body, known) in
+        [("a", "alpha", 1), ("b", "alpha alpha beta", 2), ("c", "running café", 3), ("d", "!!!", 4)]
+    {
+        store.put(change(id, body, Family::Node, known)).unwrap();
+    }
+    let expected = -1e-6 * 2.2 / 1.9;
+    for backend in [Backend::Partitioned, Backend::Custom, Backend::Materialized] {
+        let hits =
+            store.search_backend("alpha", Family::Node, None, 20, at(50, None), backend).unwrap();
+        let actual = hits.iter().find(|h| h.claim == "a").unwrap().score;
+        assert!(
+            (actual - expected).abs() < 1e-15,
+            "N=4, avgdl=1.5, IDF floor: {actual} vs {expected}"
+        );
+    }
+}
+
+#[test]
+fn h5_clock_only_boundary_invalidates_native_partition_but_certified_fallback_is_correct() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("clock.sqlite"), 10).unwrap();
+    let mut old = change("expires", "alpha alpha alpha", Family::Node, 1);
+    old.valid_to = Some(20);
+    store.put(old).unwrap();
+    store.put(change("stays", "alpha", Family::Node, 2)).unwrap();
+    let mut future = change("future", "beta", Family::Node, 3);
+    future.valid_from = 20;
+    store.put(future).unwrap();
+    let docs = documents(&store.conn, Family::Node, 20, None).unwrap();
+    let naive =
+        native_search(&store.conn, "current_nodes", "alpha OR beta", &docs, None, 20).unwrap();
+    let expected = store
+        .search_backend(
+            "alpha OR beta",
+            Family::Node,
+            None,
+            20,
+            at(20, None),
+            Backend::Materialized,
+        )
+        .unwrap();
+    assert_ne!(
+        identity_scores(&naive),
+        identity_scores(&expected),
+        "negative control: current-only membership can go stale without a write"
+    );
+    let actual = store
+        .search_backend("alpha OR beta", Family::Node, None, 20, at(20, None), Backend::Partitioned)
+        .unwrap();
+    assert_rank_equal(&actual, &expected);
+    assert_eq!(
+        actual.iter().map(|h| h.claim.as_str()).collect::<std::collections::BTreeSet<_>>(),
+        ["future", "stays"].into_iter().collect()
+    );
+}

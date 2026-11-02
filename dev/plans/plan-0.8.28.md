@@ -154,13 +154,14 @@ it is never an implicit patch lane.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`SEARCH-VIEW-FLAGS`) — include_superseded and include_inactive honoured on search in Rust, Python and TypeScript; edges keep their vector rows on supersession. MCP exposure follows in 0.8.29
+**IMMEDIATE NEXT: Slice 90** (`FILTERED-BODY-FTS`) — D28-14: SearchFilter on direct node and edge body FTS-only search (search_text_only / searchTextOnly), applied before truncation, ranking and limit
 
-**Remaining ladder:** 80 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
-Slices 60 and 70 are complete on `dev/0.8.28`; Slices 80 and 90 are next, in order. After them come
+Slices 60, 70 and 80 are complete on `dev/0.8.28` and `release/0.8.28`.
+Slice 90 is next. After it comes
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
@@ -275,32 +276,25 @@ requirements say otherwise.
     results on clean stores. Astra reviews, 64 independent focused tests and
     the scoped gate campaign pass; AC-013 p50/p99 is 55/63 ms.
     [Slice 70 status](0.8.28/features/slice-70/status.md).
-- **Slice 80 — search view flags (`SEARCH-VIEW-FLAGS`).**
-  - `include_superseded` and `include_inactive` are honoured on search in
-    Rust, Python and TypeScript. Edges keep their vector rows on
-    supersession.
-  - **Historical dense completeness:** retaining existing edge vectors is
-    insufficient when an edge is superseded before embedding. The slice
-    design must define consistent historical dense membership for nodes and
-    edges, covering supersession before drain, after drain and in flight,
-    plus reopen/rebuild when historical vectors are already missing. Reconcile
-    skipped/`up_to_date` terminals so missing historical vectors do not count
-    as complete. Historical search is enabled only by `include_superseded`;
-    default exclusions remain unchanged. Define an explicit fallback or
-    completion contract when projections are unavailable; do not silently
-    claim complete vector history. This is a design obligation, not a
-    prescribed data migration or additional Slice 50 production change.
-  - The interface docs change, replacing the "refused" rule in
-    `dev/interfaces/rust.md`.
-  - MCP exposure is 0.8.29 Slice 60, because `fathomdb-mcp` is not on this
-    branch.
-  - **Verification:** defaults unchanged; old versions are returned only
-    when asked for; binding parity; the Slice 15 stale-body tests still
-    pass.
+- **Slice 80 — search view flags (`SEARCH-VIEW-FLAGS`) — COMPLETE.**
+  - Independent existence flags work across Rust, Python and TypeScript
+    search paths. Historical edge membership covers queued/in-flight work,
+    both supersession keys, consolidation, reopen and rebuild. Partial tuples
+    refuse; incomplete dense history reports explicit fallback.
+  - Relaxed property FTS uses a private memory-only corpus per call and one
+    held snapshot, with existing statistical baseline plus authorized history.
+    No-history property ranking parity, erasure/reuse/close behavior, source
+    authorization and frozen repair visibility are tested. Resource costs and
+    retained-edge BM25 effects are explicit; default eligibility is unchanged.
+  - Astra review and independent qualification are recorded in
+    [Slice 80 status](0.8.28/features/slice-80/status.md), with
+    [requirements](0.8.28/features/slice-80/plan.md) and
+    [lifecycle design](0.8.28/features/slice-80/design.md).
+  - MCP exposure remains 0.8.29 Slice 60.
 - **Slice 90 — filtered direct body FTS (D28-14).** It follows the
   [draft scope](0.8.28-draft-scope.md#d28-14-filtered-direct-body-fts).
-  It shares Slice 80's public search-signature changes in all three
-  bindings.
+  It builds on Slice 80's view admission in all three bindings; the direct
+  body-FTS filter parameter remains Slice 90 work.
 
 ## Slice ladder
 
@@ -312,7 +306,7 @@ requirements say otherwise.
 | 41 | SDK context pack, full-render override, configurable query stop words (reserved; docs on `slice/0.8.28-41-sdk-evidence-helper`) | not on this branch |
 | 42 | slice135 descriptor check; `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1 (Unit B re-scoped) | [slice-42/plan.md](0.8.28/features/slice-42/plan.md) |
 | 50 | Bounded pending-work scans; provider contract complete | [Plan](0.8.28/features/slice-50/plan.md) |
-| 60 | Store format 35 (64-row chunks, `search_index` rowid, refusal at open) | to be written |
-| 70 | Vector eligibility inside vec0 | to be written |
-| 80 | `include_superseded` and `include_inactive` on search | to be written |
+| 60 | Store format 35 (64-row chunks, `search_index` rowid, refusal at open) | [Plan](0.8.28/features/slice-60/plan.md) |
+| 70 | Vector eligibility inside vec0 | [Plan](0.8.28/features/slice-70/plan.md) |
+| 80 | `include_superseded` and `include_inactive` on search | [Plan](0.8.28/features/slice-80/plan.md) |
 | 90 | D28-14 filtered direct body FTS | to be written |

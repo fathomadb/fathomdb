@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 80 — search view flags
-status: approved for implementation; Astra reviewed
+status: COMPLETE; Astra reviewed and independently verified
 target_release: 0.8.28
 ---
 

@@ -251,6 +251,9 @@ pub(super) struct WalAttributionCollector {
     pub(super) checkpoint_active: AtomicBool,
     #[cfg(any(test, feature = "test-hooks"))]
     pub(super) reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook,
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(super) frozen_after_validation_hook:
+        crate::test_hooks::frozen_after_validation_hook::FrozenAfterValidationHook,
     #[cfg(feature = "test-hooks")]
     pub(super) property_corpus_hook: crate::test_hooks::property_corpus_hook::PropertyCorpusHook,
     #[cfg(any(test, feature = "test-hooks"))]
@@ -298,6 +301,10 @@ impl WalAttributionCollector {
             checkpoint_active: AtomicBool::new(false),
             #[cfg(any(test, feature = "test-hooks"))]
             reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook::default(),
+            #[cfg(any(test, feature = "test-hooks"))]
+            frozen_after_validation_hook:
+                crate::test_hooks::frozen_after_validation_hook::FrozenAfterValidationHook::default(
+                ),
             #[cfg(feature = "test-hooks")]
             property_corpus_hook:
                 crate::test_hooks::property_corpus_hook::PropertyCorpusHook::default(),

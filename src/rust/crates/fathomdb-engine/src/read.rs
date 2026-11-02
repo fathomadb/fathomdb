@@ -294,7 +294,7 @@ pub(crate) fn read_canonical_page_in_tx(
     )?;
     frozen_read::validate_snapshot(&tx, &binding)?;
     #[cfg(any(test, feature = "test-hooks"))]
-    frozen_after_validation_hook::fire();
+    frozen_after_validation_hook::fire(attribution);
     validate_filter_attributes_on_snapshot(&tx, &frozen.context.eligibility)
         .map_err(page_filter_error)?;
 
@@ -435,7 +435,7 @@ pub(crate) fn read_operational_state_in_tx(
         let binding = frozen_read::authenticate(&tx, frozen)?;
         frozen_read::validate_snapshot(&tx, &binding)?;
         #[cfg(any(test, feature = "test-hooks"))]
-        frozen_after_validation_hook::fire();
+        frozen_after_validation_hook::fire(attribution);
         validate_operational_context(frozen)?;
     }
     validate_operational_collection(&tx, collection)?;
@@ -475,7 +475,7 @@ pub(crate) fn read_operational_state_page_in_tx(
     )?;
     frozen_read::validate_snapshot(&tx, &binding)?;
     #[cfg(any(test, feature = "test-hooks"))]
-    frozen_after_validation_hook::fire();
+    frozen_after_validation_hook::fire(attribution);
     validate_operational_context(frozen)?;
     validate_operational_collection(&tx, collection)?;
     let limit = i64::try_from(page.limit + 1).map_err(|_| EngineError::Storage)?;

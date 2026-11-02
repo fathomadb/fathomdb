@@ -1605,10 +1605,13 @@ fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_frozen_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_frozen_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         thread::spawn(move || engine.search_with_evidence(&request("race", frozen)))

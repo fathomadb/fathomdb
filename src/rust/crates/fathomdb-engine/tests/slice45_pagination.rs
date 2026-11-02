@@ -532,10 +532,13 @@ fn page_reader_snapshot_linearizes_before_concurrent_write() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_page_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_page_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         let frozen = frozen.clone();
@@ -581,10 +584,13 @@ fn operational_page_snapshot_linearizes_before_concurrent_replacement() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_page_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_page_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         let frozen = frozen.clone();
@@ -637,10 +643,13 @@ fn operational_point_snapshot_linearizes_before_concurrent_replacement() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_page_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_page_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         let frozen = frozen.clone();

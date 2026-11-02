@@ -1377,3 +1377,59 @@ impl Engine {
         Ok(per_worker.iter().all(|&v| v == 1))
     }
 }
+
+#[cfg(all(test, feature = "test-hooks"))]
+mod historical_property_lifecycle_tests {
+    use crate::temporal::ReadView;
+    use crate::{Engine, ProjectionFts, ProjectionRole, ProjectionSpec};
+    #[test]
+    fn dropping_property_response_receiver_does_not_cancel_active_reader() {
+        use std::{
+            collections::BTreeSet,
+            sync::{mpsc, Arc},
+            thread,
+            time::Duration,
+        };
+        let dir = tempfile::TempDir::new().unwrap();
+        let engine = Arc::new(
+            Engine::open_without_embedder_for_test(dir.path().join("receiver.sqlite"))
+                .unwrap()
+                .engine,
+        );
+        engine
+            .configure_projections(
+                &[ProjectionSpec {
+                    name: "summary".into(),
+                    roles: BTreeSet::from([ProjectionRole::Searchable]),
+                    fts: Some(ProjectionFts { tokenizer: None }),
+                    vector: None,
+                    source: None,
+                }],
+                &[],
+            )
+            .unwrap();
+        let pause = crate::arm_property_corpus_hook_for_test(&engine, false);
+        let (respond, receive) = mpsc::sync_channel(1);
+        let request = super::ReaderRequest::projected_text(
+            "needle".into(),
+            "summary".into(),
+            None,
+            10,
+            ReadView { include_superseded: true, ..ReadView::default() },
+            respond,
+        );
+        assert!(engine.reader_pool.dispatch(request).is_ok());
+        pause.wait_ready(Duration::from_secs(5)).unwrap();
+        drop(receive);
+        let close_engine = Arc::clone(&engine);
+        let (done, completed) = mpsc::sync_channel(1);
+        let closer = thread::spawn(move || done.send(close_engine.close()).unwrap());
+        assert!(matches!(
+            completed.recv_timeout(Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(pause);
+        completed.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        closer.join().unwrap();
+    }
+}

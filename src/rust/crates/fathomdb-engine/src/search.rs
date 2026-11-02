@@ -1815,7 +1815,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             }));
         }
         #[cfg(any(test, feature = "test-hooks"))]
-        frozen_after_validation_hook::fire();
+        frozen_after_validation_hook::fire(attribution);
     }
     let owned_compiled;
     let owned_query_vector;
@@ -2897,7 +2897,6 @@ use std::{fs::OpenOptions, io::Write, sync::Mutex};
 #[cfg(all(test, feature = "test-hooks"))]
 mod historical_property_lifecycle_tests {
     use super::*;
-    use crate::{Engine, ProjectionFts, ProjectionRole, ProjectionSpec};
 
     #[test]
     fn private_property_corpus_uses_memory_for_main_and_temporary_storage() {
@@ -2911,56 +2910,5 @@ mod historical_property_lifecycle_tests {
             })
             .unwrap();
         assert_eq!(file, "");
-    }
-
-    #[test]
-    fn dropping_property_response_receiver_does_not_cancel_active_reader() {
-        use std::{
-            collections::BTreeSet,
-            sync::{mpsc, Arc},
-            thread,
-            time::Duration,
-        };
-        let dir = tempfile::TempDir::new().unwrap();
-        let engine = Arc::new(
-            Engine::open_without_embedder_for_test(dir.path().join("receiver.sqlite"))
-                .unwrap()
-                .engine,
-        );
-        engine
-            .configure_projections(
-                &[ProjectionSpec {
-                    name: "summary".into(),
-                    roles: BTreeSet::from([ProjectionRole::Searchable]),
-                    fts: Some(ProjectionFts { tokenizer: None }),
-                    vector: None,
-                    source: None,
-                }],
-                &[],
-            )
-            .unwrap();
-        let pause = crate::arm_property_corpus_hook_for_test(&engine, false);
-        let (respond, receive) = mpsc::sync_channel(1);
-        let request = crate::reader_pool::ReaderRequest::projected_text(
-            "needle".into(),
-            "summary".into(),
-            None,
-            10,
-            ReadView { include_superseded: true, ..ReadView::default() },
-            respond,
-        );
-        assert!(engine.reader_pool.dispatch(request).is_ok());
-        pause.wait_ready(Duration::from_secs(5)).unwrap();
-        drop(receive);
-        let close_engine = Arc::clone(&engine);
-        let (done, completed) = mpsc::sync_channel(1);
-        let closer = thread::spawn(move || done.send(close_engine.close()).unwrap());
-        assert!(matches!(
-            completed.recv_timeout(Duration::from_millis(50)),
-            Err(mpsc::RecvTimeoutError::Timeout)
-        ));
-        drop(pause);
-        completed.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
-        closer.join().unwrap();
     }
 }

@@ -67,6 +67,7 @@ reported projection_generation
 reported projection_generation::tests
 reported projection_rebuild
 reported projection_registry
+reported projection_registry::historical_reconciliation_tests
 reported projection_registry::span_erasure_tests
 reported projection_runtime
 reported projection_worker
@@ -75,6 +76,7 @@ reported provider
 governed read
 governed read_api
 governed reader_pool
+reported reader_pool::historical_property_lifecycle_tests
 governed reader_transaction
 reported record_lifecycle
 reported rerank
@@ -86,6 +88,7 @@ reported runtime_configuration
 reported runtime_configuration::tests
 reported runtime_lifecycle
 governed search
+reported search::historical_property_lifecycle_tests
 governed search_api
 governed search_types
 reported slice20_fix1_tests
@@ -104,6 +107,7 @@ reported test_hooks::evidence_linearization_hooks
 reported test_hooks::explanation_finalization_hooks
 reported test_hooks::frozen_after_validation_hook
 reported test_hooks::reader_search_hook
+reported test_hooks::property_corpus_hook
 reported test_hooks::slice15_erasure_lock_hook
 reported test_hooks::slice72_test_hooks
 reported vector_equivalence

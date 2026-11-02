@@ -552,40 +552,56 @@ pub fn arm_reader_search_hook_for_test(engine: &crate::Engine) -> ReaderSearchPa
 /// production code and remains outside the governed API surface.
 #[cfg(any(test, feature = "test-hooks"))]
 pub(crate) mod frozen_after_validation_hook {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use crate::{Engine, WalAttributionCollector};
     use std::sync::Mutex;
 
-    static ARMED: AtomicBool = AtomicBool::new(false);
-    #[allow(clippy::type_complexity)]
-    static HOOK: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);
-
-    pub(crate) fn arm(hook: Box<dyn Fn() + Send>) {
-        *HOOK.lock().expect("frozen after-validation hook mutex") = Some(hook);
-        ARMED.store(true, Ordering::SeqCst);
+    #[derive(Default)]
+    pub(crate) struct FrozenAfterValidationHook {
+        #[allow(clippy::type_complexity)]
+        hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     }
 
-    pub(crate) fn fire() {
-        if !ARMED.swap(false, Ordering::SeqCst) {
-            return;
-        }
-        if let Some(hook) = HOOK.lock().expect("frozen after-validation hook mutex").take() {
+    pub(crate) fn arm(engine: &Engine, hook: Box<dyn Fn() + Send>) {
+        let mut slot = engine
+            .wal_attribution
+            .frozen_after_validation_hook
+            .hook
+            .lock()
+            .expect("frozen after-validation hook mutex");
+        assert!(slot.is_none(), "frozen after-validation hook already armed for this Engine");
+        *slot = Some(hook);
+    }
+
+    pub(crate) fn fire(collector: &WalAttributionCollector) {
+        let hook = collector
+            .frozen_after_validation_hook
+            .hook
+            .lock()
+            .expect("frozen after-validation hook mutex")
+            .take();
+        if let Some(hook) = hook {
             hook();
         }
     }
 }
 
-/// Arm the Slice-35 post-validation rendezvous for one frozen read.
+/// Arm a one-shot post-validation rendezvous for a frozen read on `engine`.
+/// Panics if that engine already has an armed hook; other engines are independent.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
-pub fn arm_frozen_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    frozen_after_validation_hook::arm(hook);
+pub fn arm_frozen_after_validation_hook_for_test(
+    engine: &crate::Engine,
+    hook: Box<dyn Fn() + Send>,
+) {
+    frozen_after_validation_hook::arm(engine, hook);
 }
 
-/// Arm the same post-validation rendezvous specifically for one frozen page.
+/// Arm the same engine-owned post-validation rendezvous for one frozen page.
+/// Panics if that engine already has an armed hook; other engines are independent.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
-pub fn arm_page_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    frozen_after_validation_hook::arm(hook);
+pub fn arm_page_after_validation_hook_for_test(engine: &crate::Engine, hook: Box<dyn Fn() + Send>) {
+    frozen_after_validation_hook::arm(engine, hook);
 }
 
 // Slice 50 one-shot rendezvous for the exact evidence transaction seams. Both

@@ -742,13 +742,7 @@ pub(crate) fn body_fts_rank_sql(
     eligibility: &str,
     limit_clause: &str,
 ) -> String {
-    body_fts_rank_sql_view(
-        validity,
-        lifecycle,
-        eligibility,
-        limit_clause,
-        &crate::ReadView::default(),
-    )
+    body_fts_rank_sql_view(validity, lifecycle, eligibility, limit_clause, &ReadView::default())
 }
 
 pub(crate) fn body_fts_rank_sql_view(
@@ -756,7 +750,7 @@ pub(crate) fn body_fts_rank_sql_view(
     lifecycle: &str,
     eligibility: &str,
     limit_clause: &str,
-    view: &crate::ReadView,
+    view: &ReadView,
 ) -> String {
     let existence = view.ownerless_existence_sql("cn");
     format!(
@@ -770,14 +764,10 @@ pub(crate) fn body_fts_rank_sql_view(
 
 #[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
-    edge_fts_rank_sql_view(validity, eligibility, &crate::ReadView::default())
+    edge_fts_rank_sql_view(validity, eligibility, &ReadView::default())
 }
 
-pub(crate) fn edge_fts_rank_sql_view(
-    validity: &str,
-    eligibility: &str,
-    view: &crate::ReadView,
-) -> String {
+pub(crate) fn edge_fts_rank_sql_view(validity: &str, eligibility: &str, view: &ReadView) -> String {
     let existence = view.edge_existence_sql("ce");
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \

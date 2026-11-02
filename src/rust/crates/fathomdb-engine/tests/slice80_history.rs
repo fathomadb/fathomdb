@@ -283,3 +283,117 @@ fn late_attribute_declaration_populates_historical_vectors() {
     }
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn graph_history_uses_newest_view_eligible_revision() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("graph.sqlite");
+    let opened = Engine::open(&path).unwrap();
+    let mut relation = edge("relation", "unused");
+    if let PreparedWrite::Edge { body, .. } = &mut relation {
+        *body = None;
+    }
+    opened
+        .engine
+        .write(&[
+            node("a", "anchorquery", InitialState::Active),
+            node("b", "old neighbor", InitialState::Active),
+            relation,
+        ])
+        .unwrap();
+    opened.engine.write(&[node("b", "pending neighbor", InitialState::Pending)]).unwrap();
+    for (v, expected) in [
+        (view(true, false), "old neighbor"),
+        (view(false, true), "pending neighbor"),
+        (view(true, true), "pending neighbor"),
+    ] {
+        let result = opened
+            .engine
+            .search_reranked_view("anchorquery", None, 0, true, 0.3, 0, false, &v)
+            .unwrap();
+        assert!(
+            result
+                .results
+                .iter()
+                .any(|h| h.body == expected
+                    && h.branch == fathomdb_engine::SoftFallbackBranch::GraphArm),
+            "{v:?}: {result:?}"
+        );
+    }
+    assert_eq!(
+        opened
+            .engine
+            .search_reranked_view("anchorquery", None, 0, true, 0.3, 0, false, &ReadView::default())
+            .unwrap()
+            .results
+            .len(),
+        1
+    );
+    opened.engine.close().unwrap();
+}
+#[test]
+fn incomplete_history_disables_entire_dense_arm_without_lexical_match() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("fallback.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[node("ready", "ready vector", InitialState::Active)]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    opened.engine.write(&[node("old", "pending historical vector", InitialState::Active)]).unwrap();
+    opened.engine.write(&[node("old", "pending current vector", InitialState::Active)]).unwrap();
+    opened.engine.set_vector_stage_only_for_test(true);
+    let result = opened.engine.search_view("lexicallyunmatched", &view(true, false));
+    opened.engine.set_projection_scheduler_frozen_for_test(false);
+    let result = result.unwrap();
+    assert_eq!(
+        result.soft_fallback.as_ref().map(|f| f.branch),
+        Some(fathomdb_engine::SoftFallbackBranch::Vector),
+        "{result:?}"
+    );
+    assert!(result.results.is_empty(), "partial dense history must not be served");
+    opened.engine.drain(10_000).unwrap();
+    opened.engine.close().unwrap();
+}
+#[test]
+fn absent_runtime_history_reports_vector_fallback_but_direct_text_does_not() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("absent.sqlite");
+    let opened = Engine::open(&path).unwrap();
+    opened.engine.write(&[node("item", "history body", InitialState::Active)]).unwrap();
+    let result = opened.engine.search_view("unmatched", &view(true, false)).unwrap();
+    assert_eq!(
+        result.soft_fallback.as_ref().map(|f| f.branch),
+        Some(fathomdb_engine::SoftFallbackBranch::Vector)
+    );
+    assert!(opened
+        .engine
+        .search_text_only_view("history", &view(true, false))
+        .unwrap()
+        .soft_fallback
+        .is_none());
+    opened.engine.close().unwrap();
+}
+#[test]
+fn reopen_refuses_partial_historical_vector_tuple() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("partial.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    opened
+        .engine
+        .write(&[
+            node("a", "endpoint a", InitialState::Active),
+            node("b", "endpoint b", InitialState::Active),
+            edge("fact", "old fact"),
+        ])
+        .unwrap();
+    opened.engine.write(&[edge("fact", "new fact")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    opened.engine.close().unwrap();
+    drop(opened);
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    conn.execute("DELETE FROM vector_default WHERE rowid=3", []).unwrap();
+    drop(conn);
+    let reopened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider));
+    assert!(reopened.is_err(), "partial historical projections must fail open");
+}

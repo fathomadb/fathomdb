@@ -85,3 +85,13 @@ or change to the existing binary cap is needed.
 sqlite-vec metadata upkeep uses mapped-ID enumeration plus per-rowid UPDATE;
 its unconstrained/subquery UPDATE path does not support these assignments.
 The indexed mapping bounds ordinary single-record upkeep without corpus scans.
+
+## Corrupt head ownership at erasure
+
+Final Astra review found that mapping-only deletion could report successful
+purge while a head vector with a missing mapping survived. Record deletion
+now refuses an unmapped physical head inside the canonical transaction,
+rolling back earlier FTS deletions as well. A vector ID mapped to another
+record is preserved. Public purge regression proves refusal with canonical,
+FTS and vector state retained; the independent-ID test proves other owners
+are untouched. Healthy mapped erasure continues to remove all vector IDs.

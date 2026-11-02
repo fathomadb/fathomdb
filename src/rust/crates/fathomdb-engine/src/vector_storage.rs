@@ -777,30 +777,39 @@ pub(crate) fn refresh_vector_eligibility_for_cursor(
 }
 
 #[cfg(test)]
-pub(crate) fn slice70_mapping_fixture(with_attribute: bool) -> Connection {
-    let dir = tempfile::TempDir::new().unwrap();
-    let opened = Engine::open(dir.path().join("init.sqlite")).unwrap();
-    let conn = Connection::open_in_memory().unwrap();
-    fathomdb_schema::migrate(&conn).unwrap();
-    if with_attribute {
-        conn.execute(
-            "INSERT INTO _fathomdb_projection_registry(name,roles) VALUES('owner','filterable')",
-            [],
-        )
-        .unwrap();
+pub(crate) use tests::slice70_mapping_fixture;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    pub(crate) fn slice70_mapping_fixture(with_attribute: bool) -> Connection {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("init.sqlite")).unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        fathomdb_schema::migrate(&conn).unwrap();
+        if with_attribute {
+            conn.execute(
+                "INSERT INTO _fathomdb_projection_registry(name,roles) VALUES('owner','filterable')",
+                [],
+            )
+            .unwrap();
+        }
+        let attrs = if with_attribute { vec![attr_vec0_column("owner")] } else { vec![] };
+        conn.execute_batch(&vector_partition_create_sql(8, false, &attrs)).unwrap();
+        let blob = encode_vector_blob(&[1.0; 8]);
+        for id in [101, 102] {
+            conn.execute("INSERT INTO _fathomdb_vector_rows VALUES(?1,'doc',10)", [id]).unwrap();
+            let attr = if with_attribute {
+                format!(",{}", attr_vec0_column("owner"))
+            } else {
+                String::new()
+            };
+            let value = if with_attribute { ",''" } else { "" };
+            conn.execute(&format!("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until{attr}) VALUES(?1,?2,vec_quantize_binary(?2),'article','doc',0,'',0,-9223372036854775808,9223372036854775807{value})"),params![id,blob]).unwrap();
+        }
+        opened.engine.close().unwrap();
+        conn
     }
-    let attrs = if with_attribute { vec![attr_vec0_column("owner")] } else { vec![] };
-    conn.execute_batch(&vector_partition_create_sql(8, false, &attrs)).unwrap();
-    let blob = encode_vector_blob(&[1.0; 8]);
-    for id in [101, 102] {
-        conn.execute("INSERT INTO _fathomdb_vector_rows VALUES(?1,'doc',10)", [id]).unwrap();
-        let attr =
-            if with_attribute { format!(",{}", attr_vec0_column("owner")) } else { String::new() };
-        let value = if with_attribute { ",''" } else { "" };
-        conn.execute(&format!("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until{attr}) VALUES(?1,?2,vec_quantize_binary(?2),'article','doc',0,'',0,-9223372036854775808,9223372036854775807{value})"),params![id,blob]).unwrap();
-    }
-    opened.engine.close().unwrap();
-    conn
 }
 
 #[cfg(test)]
@@ -855,6 +864,15 @@ pub(crate) fn vector_ids_for_cursor(conn: &Connection, cursor: i64) -> rusqlite:
 }
 
 pub(crate) fn delete_vector_record_rows(conn: &Connection, cursor: i64) -> rusqlite::Result<usize> {
+    // A missing head mapping loses ownership evidence. Refuse rather than
+    // claim complete erasure or delete an ID that may belong to another record.
+    let unmapped_head: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1) AND NOT EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE rowid=?1)",
+        [cursor], |r| r.get(0),
+    )?;
+    if unmapped_head {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
     let mut count = 0;
     for id in vector_ids_for_cursor(conn, cursor)? {
         count += delete_vector_partition_row(conn, id)?;
@@ -924,4 +942,21 @@ fn slice70_mapped_lifecycle_rollback_and_recenter_preserve_metadata() {
         "active"
     );
     tx.rollback().unwrap();
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_erasure_does_not_delete_another_records_vector_id() {
+    let conn = slice70_mapping_fixture(false);
+    conn.execute("UPDATE _fathomdb_vector_rows SET write_cursor=20 WHERE rowid=101", []).unwrap();
+    assert_eq!(delete_vector_record_rows(&conn, 101).unwrap(), 0);
+    erase_row_projections(&conn, 10).unwrap();
+    let ids = conn
+        .prepare("SELECT rowid FROM vector_default")
+        .unwrap()
+        .query_map([], |r| r.get::<_, i64>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(ids, [101]);
 }

@@ -26,8 +26,8 @@ per-vector span table. Embedder-reported UTF-8 offsets distinguish unknown
 coverage from full coverage. The public trait addition advances independent embedder-api Axis E from
 0.7.0 to 0.8.0. Spans participate in physical completeness and read-visibility
 validation. Only the head is produced. Overflow chunking,
-record-grouped candidate selection and lifecycle upkeep for future multiple
-windows remain assigned follow-on work; this ADR does not enable them.
+record-grouped candidate selection and historical membership remain
+assigned follow-on work; this ADR does not enable them.
 
 The [Slice 60 design](../plans/0.8.28/features/slice-60/design.md) specifies
 constraints, transactional upkeep and the trait contract. The

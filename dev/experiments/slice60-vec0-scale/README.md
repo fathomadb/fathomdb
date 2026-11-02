@@ -32,7 +32,10 @@ The same row prefix and queries are regenerated for every layout; vectors
 are synthetic, not bge output. This isolates physical cost, not real-corpus
 recall. Quantization uses original vectors without a corpus mean.
 
-Each table has the production f32, bit, partition and metadata columns.
+Each table retains the Slice 60 f32, bit, partition and metadata snapshot.
+Slice 70 adds native eligibility metadata and filtering; this historical
+layout comparison does not measure that extension. Slice 70 uses AC-013
+for its current production latency qualification.
 Connections use a 2 MiB cache, disabled mmap, 4096-byte pages, FULL synchronous
 writes and DELETE journaling. Seed time includes vector generation and commits
 in batches of 10k. Disk bytes describe the committed main file. One complete

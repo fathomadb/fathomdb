@@ -1764,7 +1764,9 @@ fallback. Canonical hydration checks remain in place.
 
 The internal projection stores lifecycle bits and inclusive validity bounds;
 unknown canonical endpoints use min/max sentinels. Updates and erasure resolve
-all vector IDs through record identity. The vec0 layout supports at most ten
+all vector IDs through record identity. An unmapped physical head refuses
+erasure transactionally rather than reporting success with residue. The vec0
+layout supports at most ten
 filterable attributes; an over-capacity configuration fails atomically.
 `include_out_of_window` keeps its node-window behavior and the existing
 unconditional edge-expiry check. Public `include_superseded` and

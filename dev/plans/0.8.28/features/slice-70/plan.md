@@ -45,7 +45,8 @@ Baseline: `1c65e66250c0e8f3bd919a2c3f6879369921eb89`, existing
 - R70-2: lifecycle and validity changes update every vector ID mapped to the
   affected record in the canonical transaction, including actuation,
   supersession, soft closures, reactivation and consolidation. Erasure
-  removes every mapped vector. Failures roll back both authorities.
+  removes every mapped vector. An unmapped physical head refuses erasure;
+  failures roll back canonical, FTS and vector changes.
 - R70-3: default dense KNN filters direct eligibility before its 192-candidate
   cap. Superseded, inactive, future and expired distractors cannot disable
   dense retrieval or consume its candidate slots. Preserve dependency fallback.

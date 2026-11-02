@@ -47,7 +47,12 @@ fn text_and_dense_history_flags_compose_independently() {
         for (superseded, inactive, expected) in
             [(false, false, 1), (true, false, 2), (false, true, 2), (true, true, 3)]
         {
-            let result = opened.engine.search_view("history", &view(superseded, inactive)).unwrap();
+            let result = if dense {
+                opened.engine.search_view("history", &view(superseded, inactive))
+            } else {
+                opened.engine.search_text_only_view("history", &view(superseded, inactive))
+            }
+            .unwrap();
             assert_eq!(
                 result.results.len(),
                 expected,
@@ -81,6 +86,7 @@ fn superseded_edges_are_dense_members_before_and_after_drain() {
             let dir = TempDir::new().unwrap();
             let path = dir.path().join("edges.sqlite");
             let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+            opened.engine.set_projection_scheduler_frozen_for_test(!drain_first);
             opened
                 .engine
                 .write(&[
@@ -96,6 +102,28 @@ fn superseded_edges_are_dense_members_before_and_after_drain() {
                 .engine
                 .write(&[edge(if same_identity { "old" } else { "new" }, "new historical fact")])
                 .unwrap();
+            if !drain_first {
+                let conn = rusqlite::Connection::open(&path).unwrap();
+                assert_eq!(
+                    conn.query_row(
+                        "SELECT count(*) FROM _fathomdb_projection_terminal WHERE write_cursor=3",
+                        [],
+                        |r| r.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                    0
+                );
+                assert_eq!(
+                    conn.query_row(
+                        "SELECT count(*) FROM _fathomdb_vector_rows WHERE write_cursor=3",
+                        [],
+                        |r| r.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                    0
+                );
+            }
+            opened.engine.set_projection_scheduler_frozen_for_test(false);
             opened.engine.drain(10_000).unwrap();
             let conn = rusqlite::Connection::open(&path).unwrap();
             let count: i64 = conn
@@ -549,4 +577,240 @@ fn relaxed_property_views_preserve_bm25_when_no_rows_are_added() {
         }
     }
     opened.engine.close().unwrap();
+}
+
+#[test]
+fn in_flight_historical_edge_commits_current_supersession_metadata() {
+    use std::sync::{mpsc, Mutex};
+    use std::time::Duration;
+    struct PausedProvider {
+        entered: Mutex<Option<mpsc::SyncSender<()>>>,
+        release: Mutex<mpsc::Receiver<()>>,
+    }
+    impl Embedder for PausedProvider {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("slice80-paused", "test", 8)
+        }
+        fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+            if text == "old historical fact" {
+                if let Some(entered) = self.entered.lock().unwrap().take() {
+                    let _ = entered.send(());
+                    self.release
+                        .lock()
+                        .unwrap()
+                        .recv_timeout(Duration::from_secs(5))
+                        .map_err(|_| EmbedderError::Timeout)?;
+                }
+            }
+            Ok(vec![1.0; 8])
+        }
+    }
+    for same_identity in [false, true] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("in-flight.sqlite");
+        let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+        let (release_tx, release_rx) = mpsc::sync_channel(1);
+        let provider = Arc::new(PausedProvider {
+            entered: Mutex::new(Some(entered_tx)),
+            release: Mutex::new(release_rx),
+        });
+        let opened = Engine::open_with_embedder_for_test(&path, provider).unwrap();
+        opened
+            .engine
+            .write(&[
+                node("a", "endpoint a", InitialState::Active),
+                node("b", "endpoint b", InitialState::Active),
+                edge("old", "old historical fact"),
+            ])
+            .unwrap();
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let replacement = opened
+            .engine
+            .write(&[edge(if same_identity { "old" } else { "new" }, "new historical fact")]);
+        release_tx.send(()).unwrap();
+        replacement.unwrap();
+        opened.engine.drain(10_000).unwrap();
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT lifecycle FROM vector_default WHERE rowid=3", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM _fathomdb_vector_spans WHERE write_cursor=3",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        opened.engine.close().unwrap();
+    }
+}
+#[test]
+#[ignore = "manual bounded qualification; run with --ignored --nocapture --test-threads=1"]
+fn measure_historical_property_cost() {
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::time::{Duration, Instant};
+
+    fn rss_kib() -> u64 {
+        std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|text| {
+                text.lines().find_map(|line| {
+                    line.strip_prefix("VmRSS:")?.split_whitespace().next()?.parse().ok()
+                })
+            })
+            .unwrap_or(0)
+    }
+
+    for records in [512, 2_048] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("property-cost.sqlite");
+        let opened = Engine::open(&path).unwrap();
+        let mut other = property();
+        other.name = "other".into();
+        opened.engine.configure_projections(&[property(), other], &[]).unwrap();
+        for version in ["older", "current"] {
+            let batch: Vec<_> = (0..records)
+                .map(|i| {
+                    node(
+                        &format!("item-{i}"),
+                        &serde_json::json!({
+                            "summary": format!("history {version} value {}", i % 31),
+                            "other": "auxiliary statistical corpus ".repeat(4),
+                        })
+                        .to_string(),
+                        InitialState::Active,
+                    )
+                })
+                .collect();
+            opened.engine.write(&batch).unwrap();
+        }
+        opened.engine.drain(30_000).unwrap();
+        for (label, selected_view, workers) in [
+            ("strict", ReadView::default(), 1),
+            ("history", view(true, false), 1),
+            ("history_concurrent", view(true, false), 4),
+        ] {
+            let warm = opened
+                .engine
+                .search_projected_text_with_limit("history", "summary", None, &selected_view, 10)
+                .unwrap();
+            assert_eq!(warm.results.len(), 10);
+            let before = rss_kib();
+            let peak = AtomicU64::new(before);
+            let stop = AtomicBool::new(false);
+            let start = Instant::now();
+            let barrier = std::sync::Barrier::new(workers);
+            std::thread::scope(|scope| {
+                let stop_ref = &stop;
+                let peak_ref = &peak;
+                let sampler = scope.spawn(move || {
+                    while !stop_ref.load(Ordering::Relaxed) {
+                        peak_ref.fetch_max(rss_kib(), Ordering::Relaxed);
+                        std::thread::sleep(Duration::from_millis(1));
+                    }
+                });
+                let mut handles = Vec::new();
+                for _ in 0..workers {
+                    let engine = &opened.engine;
+                    let barrier = &barrier;
+                    handles.push(scope.spawn(move || {
+                        barrier.wait();
+                        for _ in 0..3 {
+                            let result = engine
+                                .search_projected_text_with_limit(
+                                    "history",
+                                    "summary",
+                                    None,
+                                    &selected_view,
+                                    10,
+                                )
+                                .unwrap();
+                            assert_eq!(result.results.len(), 10);
+                        }
+                    }));
+                }
+                for handle in handles {
+                    handle.join().unwrap();
+                }
+                stop.store(true, Ordering::Relaxed);
+                sampler.join().unwrap();
+            });
+            println!(
+                "SLICE80_COST {}",
+                serde_json::json!({
+                    "logical_records": records,
+                    "canonical_versions": records * 2,
+                    "property_declarations": 2,
+                    "mode": label,
+                    "concurrent_queries": workers,
+                    "completed_queries": workers * 3,
+                    "elapsed_ms": start.elapsed().as_secs_f64() * 1000.0,
+                    "rss_before_kib": before,
+                    "sampled_peak_rss_kib": peak.load(Ordering::Relaxed),
+                    "sampled_rss_increase_kib": peak.load(Ordering::Relaxed).saturating_sub(before),
+                })
+            );
+        }
+        opened.engine.close().unwrap();
+    }
+}
+
+#[test]
+fn retained_consolidated_history_changes_edge_corpus_statistics_consistently() {
+    use fathomdb_engine::ConsolidateAxis;
+    use rusqlite::Connection;
+    fn scores(conn: &Connection) -> Vec<(i64, f64)> {
+        conn.prepare("SELECT CAST(write_cursor AS INTEGER), bm25(search_index_edges) FROM search_index_edges WHERE search_index_edges MATCH 'needle' ORDER BY bm25(search_index_edges), CAST(write_cursor AS INTEGER)").unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?))).unwrap()
+            .collect::<Result<Vec<_>, _>>().unwrap()
+    }
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("edge-statistics.sqlite");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    let mut writes = Vec::new();
+    for (id, body, to, valid) in [
+        ("first", "needle", "first", 100),
+        ("second", "needle needle extra words", "second", 200),
+        ("old", "unrelated lengthy history with many unrelated tokens and statistics", "old", 300),
+        ("new", "unrelated current fact", "new", 400),
+    ] {
+        let mut value = edge(id, body);
+        if let PreparedWrite::Edge { from, to: target, t_valid, .. } = &mut value {
+            *from = if id == "old" || id == "new" { "history" } else { id }.into();
+            *target = to.into();
+            *t_valid = Some(valid);
+        }
+        writes.push(value);
+    }
+    opened.engine.write(&writes).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let harness = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/slice15_consolidate/stub_consolidate_harness.py");
+    opened
+        .engine
+        .consolidate_with_provider(
+            &["python3", harness.to_str().unwrap()],
+            &[ConsolidateAxis { subject_logical_id: "history".into(), relation: "link".into() }],
+        )
+        .unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let retained = scores(&conn);
+    assert_eq!(retained.len(), 2);
+    conn.execute_batch("SAVEPOINT legacy_pruning; DELETE FROM search_index_edges WHERE write_cursor IN (SELECT write_cursor FROM canonical_edges WHERE logical_id='old')").unwrap();
+    let legacy_pruned = scores(&conn);
+    conn.execute_batch("ROLLBACK TO legacy_pruning; RELEASE legacy_pruning").unwrap();
+    assert_ne!(retained, legacy_pruned, "nonmatching historical rows affect BM25 statistics");
+    assert_eq!(scores(&conn), retained);
+    assert!(opened.engine.search_text_only("lengthy").unwrap().results.is_empty());
+    opened.engine.rebuild_projections().unwrap();
+    assert_eq!(scores(&conn), retained);
+    opened.engine.close().unwrap();
+    let reopened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    assert_eq!(scores(&conn), retained);
+    reopened.engine.close().unwrap();
 }

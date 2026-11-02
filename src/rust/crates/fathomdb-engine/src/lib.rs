@@ -359,7 +359,8 @@ pub(crate) use test_hooks::PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT;
 pub use test_hooks::{
     arm_erasure_before_primary_lock_hook_for_test,
     arm_explanation_after_telemetry_lock_hook_for_test,
-    arm_explanation_before_telemetry_lock_hook_for_test,
+    arm_explanation_before_telemetry_lock_hook_for_test, arm_property_corpus_hook_for_test,
+    PropertyCorpusPauseForTest,
 };
 #[cfg(any(test, feature = "test-hooks"))]
 pub use test_hooks::{

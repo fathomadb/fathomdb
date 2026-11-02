@@ -1090,13 +1090,14 @@ is no longer returned by a default `search`. This is a no-op on any corpus that
 never authored a window: omitting the write fields lands NULL/NULL, and NULL is
 unbounded, so every pre-existing row still matches.
 
-**Axis scope — VALIDITY only.** `ReadView(include_superseded=True)` and
-`ReadView(include_inactive=True)` raise `InvalidArgumentError` on the search
-path; they are REFUSED rather than silently ignored, because search hydrates
-from projection indexes that are not version-complete. Use `read.list` to
-enumerate history. A `view=` that is not a `ReadView` (or `None`) raises
-`TypeError` at the Python boundary, matching the `rerank_depth` / `explain` /
-alpha / `pool_n` guards.
+`ReadView(include_superseded=True)` admits historical versions;
+`ReadView(include_inactive=True)` independently admits inactive rows. Both
+compose with validity and filters; source-dependency protections still apply.
+Unavailable historical dense projections report vector soft fallback rather
+than partial vector history. Direct text search does not invoke a vector arm.
+Search ranks and deduplicates hits; use `read.list` to enumerate history.
+A `view=` that is not a `ReadView` (or `None`) raises `TypeError` at the Python
+boundary, matching the `rerank_depth` / `explain` / alpha / `pool_n` guards.
 
 These are ARGUMENTS, not new verbs — the governed command surface
 (`src/conformance/governed-surface-allowlist.json`) is unchanged.

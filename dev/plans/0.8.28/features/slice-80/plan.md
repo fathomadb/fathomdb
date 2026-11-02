@@ -30,7 +30,7 @@ Baseline: `c662fc89ba1603829385c55c2bfe967d1bffd359`, existing
    is needed. Replace obsolete refusal tests and contract text with positive
    parity assertions; retain default stale-body regression expectations.
 6. D28-14 filtered direct body FTS belongs to Slice 90. MCP belongs to 0.8.29.
-   No chunk generation, new durable index, schema migration, ranking change, or
+   No chunk generation, new durable index, schema migration, ranking algorithm change, or
    performance sweep is needed. Existing completion/fallback mechanisms
    should be extended, not replaced with a separate historical subsystem.
 

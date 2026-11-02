@@ -216,18 +216,8 @@ fn recency_consolidation_invalidates_older_edge() {
 // fix-2 [P2] — invalidate must not leave phantom pending projection work
 // ---------------------------------------------------------------------------
 
-/// fix-2 [P2]: an `invalidate` verdict prunes the edge's FTS/vec shadows (hiding
-/// it from active retrieval) but the canonical row stays NON-superseded, so its
-/// `_fathomdb_projection_terminal` marker MUST be retained — otherwise
-/// `database_has_pending_projection_work` reports permanent pending work (the
-/// cursor is below the projection head, so it is never requeued) and
-/// `drain()`/`wait_for_idle` time out forever.
-///
-/// White-box: the no-embedder test harness does not run the projection scheduler
-/// (no `drain()`), so we INSERT the projection terminal marker directly to simulate
-/// an already-projected edge, then assert `invalidate` retains it (fix-2) while its
-/// FTS shadow is pruned. Contrast: `supersede` (a tombstoned row is excluded from
-/// the pending-work scan) DOES drop the terminal.
+/// Invalidated edges retain their terminal and historical lexical/vector rows.
+/// Expiry independently excludes them from current retrieval and pending work.
 #[test]
 fn invalidate_retains_projection_terminal_and_historical_fts() {
     let dir = TempDir::new().unwrap();
@@ -547,9 +537,7 @@ fn empty_cluster_is_skipped() {
 // fix-1 [P1] — a consolidated-away edge is hidden from active FTS retrieval
 // ---------------------------------------------------------------------------
 
-/// After `invalidate` (ended as of now), the stale edge's FTS shadow row is
-/// pruned so `search_index_edges` no longer surfaces it — while the winning
-/// edge stays searchable. The canonical row + body survive (§2.1).
+/// Invalidated edge history remains indexed while current-view predicates hide it.
 #[test]
 fn invalidate_hides_stale_edge_from_edge_fts() {
     let dir = TempDir::new().unwrap();
@@ -607,9 +595,7 @@ fn invalidate_hides_stale_edge_from_edge_fts() {
     assert!(acme_sup.is_none(), "invalidate is not a tombstone");
 }
 
-/// A `supersede` verdict unconditionally prunes the loser's FTS shadow (it is
-/// out of the active set); the winner remains searchable, and the loser row +
-/// body survive.
+/// Superseded lexical history remains indexed; default search hides the loser.
 #[test]
 fn supersede_hides_loser_from_edge_fts() {
     let dir = TempDir::new().unwrap();

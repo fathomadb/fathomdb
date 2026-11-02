@@ -1151,11 +1151,12 @@ is no longer returned by a default `search`. This is a no-op on any corpus that
 never authored a window: omitting the write fields lands NULL/NULL, and NULL is
 unbounded, so every pre-existing row still matches.
 
-**Axis scope — VALIDITY only.** `{ includeSuperseded: true }` and
-`{ includeInactive: true }` reject with `InvalidArgumentError` on the search
-path; they are REFUSED rather than silently ignored, because search hydrates
-from projection indexes that are not version-complete. Use `read.list` to
-enumerate history.
+`{ includeSuperseded: true }` admits historical versions;
+`{ includeInactive: true }` independently admits inactive rows. Both compose
+with validity and filters; source-dependency protections still apply.
+Unavailable historical dense projections report vector soft fallback rather
+than partial vector history. Direct text search does not invoke a vector arm.
+Search ranks and deduplicates hits; use `read.list` to enumerate history.
 
 These are ARGUMENTS, not new verbs — the governed command surface
 (`src/conformance/governed-surface-allowlist.json`) is unchanged.

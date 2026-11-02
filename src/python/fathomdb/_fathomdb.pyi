@@ -542,11 +542,10 @@ class Engine:
         pool_n: int | None = ...,
         explain: bool = ...,
         attributes: list[tuple[str, str]] | None = ...,
-        # 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — optional VALIDITY view.
-        # `None` (default) is the strict view: active-only, non-superseded, and
-        # valid AT QUERY TIME. The EXISTENCE flags (`include_superseded` /
-        # `include_inactive`) raise `InvalidArgumentError` on this path rather
-        # than being silently ignored. See `fathomdb.engine.Engine.search`.
+        # Optional lifecycle and validity view. Defaults to active,
+        # non-superseded rows valid at query time. The existence flags compose
+        # independently; unavailable dense history reports vector soft fallback.
+        # See `fathomdb.engine.Engine.search`.
         view: ReadView | None = ...,
         limit: int = ...,
     ) -> SearchResult: ...

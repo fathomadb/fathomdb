@@ -775,3 +775,143 @@ pub fn arm_explanation_before_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + 
 pub fn arm_explanation_after_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
     explanation_finalization_hooks::arm_after(hook);
 }
+
+/// Engine-owned rendezvous after a private historical property corpus is populated.
+#[cfg(feature = "test-hooks")]
+pub(crate) mod property_corpus_hook {
+    use crate::wal_attribution::WalAttributionCollector;
+    use crate::Engine;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
+    use std::sync::{Arc, Mutex, Weak};
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(15);
+
+    #[derive(Default)]
+    pub(crate) struct PropertyCorpusHook {
+        armed: AtomicBool,
+        pause: Mutex<Option<Arc<Pause>>>,
+    }
+
+    struct Pause {
+        ready: SyncSender<()>,
+        release: Mutex<Receiver<()>>,
+        fail_after_population: bool,
+    }
+
+    /// One-shot property-search pause, scoped to one Engine.
+    ///
+    /// Dropping the guard releases a parked reader and disarms an unconsumed
+    /// pause. A requested fault returns Storage after the populated corpus is
+    /// released. Waits are bounded; no other Engine or strict query is affected.
+    pub struct PropertyCorpusPauseForTest {
+        ready: Receiver<()>,
+        release: Sender<()>,
+        pause: Arc<Pause>,
+        collector: Weak<WalAttributionCollector>,
+    }
+
+    impl PropertyCorpusPauseForTest {
+        /// Wait at most fifteen seconds for completed corpus population.
+        /// Timeout/disconnection also releases and cancels this rendezvous.
+        pub fn wait_ready(&self, timeout: Duration) -> Result<(), RecvTimeoutError> {
+            let result = self.ready.recv_timeout(timeout.min(TIMEOUT));
+            if result.is_err() {
+                self.cancel();
+            }
+            result
+        }
+
+        /// Release a parked reader; repeated calls are harmless.
+        pub fn release(&self) {
+            let _ = self.release.send(());
+        }
+
+        fn cancel(&self) {
+            self.release();
+            if let Some(collector) = self.collector.upgrade() {
+                let hook = &collector.property_corpus_hook;
+                let mut slot = hook.pause.lock().expect("property-corpus hook mutex");
+                if slot.as_ref().is_some_and(|pause| Arc::ptr_eq(pause, &self.pause)) {
+                    slot.take();
+                    hook.armed.store(false, Ordering::Release);
+                }
+            }
+        }
+    }
+
+    impl Drop for PropertyCorpusPauseForTest {
+        fn drop(&mut self) {
+            self.cancel();
+        }
+    }
+
+    pub(crate) fn arm(engine: &Engine, fail_after_population: bool) -> PropertyCorpusPauseForTest {
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let (release_tx, release_rx) = mpsc::channel();
+        let pause = Arc::new(Pause {
+            ready: ready_tx,
+            release: Mutex::new(release_rx),
+            fail_after_population,
+        });
+        let hook = &engine.wal_attribution.property_corpus_hook;
+        let mut slot = hook.pause.lock().expect("property-corpus hook mutex");
+        if slot.is_some() {
+            drop(slot);
+            panic!("property-corpus pause already armed for this Engine");
+        }
+        *slot = Some(Arc::clone(&pause));
+        hook.armed.store(true, Ordering::Release);
+        PropertyCorpusPauseForTest {
+            ready: ready_rx,
+            release: release_tx,
+            pause,
+            collector: Arc::downgrade(&engine.wal_attribution),
+        }
+    }
+
+    pub(crate) fn fire(collector: &WalAttributionCollector) -> rusqlite::Result<()> {
+        let hook = &collector.property_corpus_hook;
+        if !hook.armed.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let pause = {
+            let mut slot = hook.pause.lock().expect("property-corpus hook mutex");
+            let pause = slot.take();
+            hook.armed.store(false, Ordering::Release);
+            pause
+        };
+        if let Some(pause) = pause {
+            if pause.ready.send(()).is_ok() {
+                let _ = pause
+                    .release
+                    .lock()
+                    .expect("property-corpus release mutex")
+                    .recv_timeout(TIMEOUT);
+            }
+            if pause.fail_after_population {
+                return Err(rusqlite::Error::InvalidQuery);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+pub use property_corpus_hook::PropertyCorpusPauseForTest;
+
+/// Pause the next relaxed property search after its private corpus is populated.
+///
+/// `fail_after_population` returns the ordinary Storage error after release.
+/// Strict property searches do not consume the hook. Retain the guard until
+/// `wait_ready` succeeds, then release it; Drop also releases/disarms it.
+/// Panics if this Engine already has an unconsumed property-corpus pause.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn arm_property_corpus_hook_for_test(
+    engine: &crate::Engine,
+    fail_after_population: bool,
+) -> PropertyCorpusPauseForTest {
+    property_corpus_hook::arm(engine, fail_after_population)
+}

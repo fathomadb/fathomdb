@@ -251,6 +251,8 @@ pub(super) struct WalAttributionCollector {
     pub(super) checkpoint_active: AtomicBool,
     #[cfg(any(test, feature = "test-hooks"))]
     pub(super) reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook,
+    #[cfg(feature = "test-hooks")]
+    pub(super) property_corpus_hook: crate::test_hooks::property_corpus_hook::PropertyCorpusHook,
     #[cfg(any(test, feature = "test-hooks"))]
     pub(super) reader_snapshot_pause: Mutex<Option<ReaderSnapshotPause>>,
     #[cfg(test)]
@@ -296,6 +298,9 @@ impl WalAttributionCollector {
             checkpoint_active: AtomicBool::new(false),
             #[cfg(any(test, feature = "test-hooks"))]
             reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook::default(),
+            #[cfg(feature = "test-hooks")]
+            property_corpus_hook:
+                crate::test_hooks::property_corpus_hook::PropertyCorpusHook::default(),
             #[cfg(any(test, feature = "test-hooks"))]
             reader_snapshot_pause: Mutex::new(None),
             #[cfg(test)]

@@ -822,9 +822,9 @@ export interface NativeEngine {
     alpha?: number,
     poolN?: number,
     explain?: boolean,
-    // 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — optional VALIDITY view.
-    // Omitted = the strict view (active-only, non-superseded, valid at query
-    // time). The existence flags are refused by the engine on this path.
+    // Optional lifecycle and validity view. Omitted means active,
+    // non-superseded rows valid at query time. Existence flags compose
+    // independently; unavailable dense history reports vector soft fallback.
     view?: NativeReadView,
     limit?: number,
   ): Promise<NativeSearchResult>;

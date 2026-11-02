@@ -408,10 +408,10 @@ export class Engine {
      * true }` returns hits whatever their `[validFrom, validUntil)` window;
      * `{ validAsOf: t }` evaluates validity at the bound instant `t`.
      *
-     * The EXISTENCE flags (`includeSuperseded` / `includeInactive`) are REFUSED
-     * on the search path with a typed `InvalidArgumentError` — search hydrates
-     * from projection indexes that are not version-complete, so they have no
-     * truthful answer here. They are refused rather than silently ignored.
+     * `includeSuperseded` admits historical versions and `includeInactive`
+     * admits inactive rows independently. Validity and source-dependency
+     * restrictions still apply. Incomplete historical dense projections
+     * report vector soft fallback. Use read.list to enumerate every version.
      */
     view?: SearchOptions,
   ): Promise<SearchResult> { return search(this.#native, query, filter, rerankDepth, useGraphArm, alpha, poolN, explain, view); }

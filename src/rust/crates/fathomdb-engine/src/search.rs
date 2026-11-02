@@ -246,6 +246,7 @@ pub(crate) fn read_projected_text_in_tx(
             limit,
             frozen,
             &registry,
+            attribution,
         );
     }
     let node_predicate = frozen.node_sql("n", 3);
@@ -376,6 +377,7 @@ fn open_historical_property_corpus() -> rusqlite::Result<Connection> {
     Ok(corpus)
 }
 
+#[allow(clippy::too_many_arguments)] // snapshot corpus and test-only reader rendezvous
 fn read_historical_projected_text(
     tx: &Connection,
     match_expression: &str,
@@ -384,6 +386,7 @@ fn read_historical_projected_text(
     limit: usize,
     view: FrozenView,
     registry: &std::collections::BTreeMap<String, crate::projection_registry::StoredProjection>,
+    _attribution: &WalAttributionCollector,
 ) -> ProjectedTextReaderResponse {
     // The caller holds one main-store snapshot through registry, corpus and
     // winner hydration. The private database and its temp sorters are memory
@@ -453,6 +456,8 @@ fn read_historical_projected_text(
         }
     }
     corpus_tx.commit()?;
+    #[cfg(feature = "test-hooks")]
+    crate::test_hooks::property_corpus_hook::fire(_attribution)?;
     let mut rank = corpus.prepare(
         "SELECT write_cursor,bm25(history_property) FROM history_property
         WHERE history_property MATCH ?1 AND attr_name=?2 AND eligible=1
@@ -2888,3 +2893,74 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 #[cfg(feature = "test-hooks")]
 use std::{fs::OpenOptions, io::Write, sync::Mutex};
+
+#[cfg(all(test, feature = "test-hooks"))]
+mod historical_property_lifecycle_tests {
+    use super::*;
+    use crate::{Engine, ProjectionFts, ProjectionRole, ProjectionSpec};
+
+    #[test]
+    fn private_property_corpus_uses_memory_for_main_and_temporary_storage() {
+        crate::configure_runtime_for_open().unwrap();
+        let corpus = open_historical_property_corpus().unwrap();
+        let temp_store: i64 = corpus.query_row("PRAGMA temp_store", [], |row| row.get(0)).unwrap();
+        assert_eq!(temp_store, 2);
+        let file: String = corpus
+            .query_row("SELECT file FROM pragma_database_list WHERE name='main'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(file, "");
+    }
+
+    #[test]
+    fn dropping_property_response_receiver_does_not_cancel_active_reader() {
+        use std::{
+            collections::BTreeSet,
+            sync::{mpsc, Arc},
+            thread,
+            time::Duration,
+        };
+        let dir = tempfile::TempDir::new().unwrap();
+        let engine = Arc::new(
+            Engine::open_without_embedder_for_test(dir.path().join("receiver.sqlite"))
+                .unwrap()
+                .engine,
+        );
+        engine
+            .configure_projections(
+                &[ProjectionSpec {
+                    name: "summary".into(),
+                    roles: BTreeSet::from([ProjectionRole::Searchable]),
+                    fts: Some(ProjectionFts { tokenizer: None }),
+                    vector: None,
+                    source: None,
+                }],
+                &[],
+            )
+            .unwrap();
+        let pause = crate::arm_property_corpus_hook_for_test(&engine, false);
+        let (respond, receive) = mpsc::sync_channel(1);
+        let request = crate::reader_pool::ReaderRequest::projected_text(
+            "needle".into(),
+            "summary".into(),
+            None,
+            10,
+            ReadView { include_superseded: true, ..ReadView::default() },
+            respond,
+        );
+        assert!(engine.reader_pool.dispatch(request).is_ok());
+        pause.wait_ready(Duration::from_secs(5)).unwrap();
+        drop(receive);
+        let close_engine = Arc::clone(&engine);
+        let (done, completed) = mpsc::sync_channel(1);
+        let closer = thread::spawn(move || done.send(close_engine.close()).unwrap());
+        assert!(matches!(
+            completed.recv_timeout(Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(pause);
+        completed.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        closer.join().unwrap();
+    }
+}

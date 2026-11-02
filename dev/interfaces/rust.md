@@ -808,15 +808,30 @@ row-set, the `bm25()` ordering and the scores byte-unchanged.
 `search_reranked(q, f, d, g, a, p)` is exactly
 `search_reranked_view(q, f, d, g, a, p, false, &ReadView::default())`.
 
-**Axis scope — VALIDITY only.** `valid_as_of` and `include_out_of_window` are
-honoured. `include_superseded` and `include_inactive` are **refused** with
-`EngineError::InvalidArgument`, NOT silently ignored: search hydrates from
-projection indexes (`search_index`, `vector_default`) that are not
-version-complete, so the existence axis has no truthful answer on this path, and
-relaxing `superseded_at IS NULL` here would re-open the stale-body leak the
-Slice-15 fix-1 review closed. Use `read_list` to enumerate history. **This is a
-decision owed to HITL** — refusing is the smallest coherent option, but ignoring
-or fully honouring are both defensible alternatives.
+**Independent view axes.** `valid_as_of`, `include_out_of_window`,
+`include_superseded` and `include_inactive` are honored. Default search excludes
+superseded/inactive rows. Relaxed hybrid search validates historical physical
+vector completeness and reports a whole-vector-arm soft fallback when history
+is unavailable, including absent runtime; partial tuples remain corruption.
+Direct text does not report vector fallback. History remains ranked retrieval,
+not an enumeration of every revision. Graph entities select the newest eligible
+revision; canonical historical attributes support relaxed filters.
+
+Property FTS with either existence flag builds a private per-call in-memory
+corpus from the persistent property baseline plus authorized canonical history.
+Validity-only/default property queries retain the indexed path. All extraction,
+ranking and hydration share one reader snapshot; the private connection drops
+on return/error. The opt-in corpus copies baseline and added scalar bytes, scans canonical nodes
+per FTS declaration,
+can prolong WAL snapshots, queueing and close, and has no added deadline/cap.
+Concurrent reads may return coherent pre-erasure/supersession data; erasure does
+not revoke returned memory. See the [mechanics and invocation table](../plans/0.8.28/features/slice-80/design.md#historical-property-fts-lifecycle-and-ranking).
+
+Evidence existence flags relax artifact lifecycle only. Pinned sources remain
+strictly active/nonsuperseded and access-authorized, including graph-origin
+sources. Historical self-sourced records may consequently remain unavailable.
+Retained/repaired edge FTS can change BM25 corpus statistics and strict scores;
+ranking algorithms and default eligibility are unchanged.
 
 The instant is INTEGER epoch SECONDS, read in Rust and BOUND as a positional
 parameter (never `datetime('now')`), once per query — the same `:now` seam as
@@ -1770,4 +1785,4 @@ layout supports at most ten
 filterable attributes; an over-capacity configuration fails atomically.
 `include_out_of_window` keeps its node-window behavior and the existing
 unconditional edge-expiry check. Public `include_superseded` and
-`include_inactive` search admission remains refused until Slice 80.
+`include_inactive` search admission is supported with independent lifecycle gates.

@@ -332,12 +332,12 @@ class Engine:
                 window; ``ReadView(valid_as_of=t)`` evaluates validity at the
                 bound instant ``t``.
 
-                Only the VALIDITY axis is honoured here. The existence flags
-                (``include_superseded`` / ``include_inactive``) raise
-                ``InvalidArgumentError`` on the search path rather than being
-                silently ignored: search hydrates from projection indexes that
-                are not version-complete, so they have no truthful answer.
-                Use ``read.list`` to enumerate history.
+                ``include_superseded`` admits historical versions and
+                ``include_inactive`` admits inactive rows independently.
+                Validity and source-dependency restrictions still apply.
+                Incomplete historical dense projections cause an explicit
+                vector soft fallback. Search remains ranked retrieval;
+                use ``read.list`` to enumerate every version.
 
         Returns:
             ``SearchResult`` with RRF-fused (and optionally CE-reranked) hits.

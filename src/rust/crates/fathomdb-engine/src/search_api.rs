@@ -641,17 +641,9 @@ impl Engine {
     /// [`ReadView`], the escape hatch matching the one the five read verbs got in
     /// Slice 10b. `search(query)` is exactly `search_view(query, &ReadView::default())`.
     ///
-    /// **Scope: the VALIDITY axis only.** `include_out_of_window` and
-    /// `valid_as_of` are honoured; the EXISTENCE flags (`include_superseded`,
-    /// `include_inactive`) are **refused** with
-    /// [`EngineError::InvalidArgument`] rather than silently ignored. Relaxing
-    /// `superseded_at IS NULL` on a retrieval path would resurrect the stale-body
-    /// leak the Slice-15 fix-1 review closed, and search hydrates from projection
-    /// indexes (`search_index`, `vector_default`) that are not version-complete —
-    /// so "include superseded" has no truthful answer here. Refusing says that;
-    /// ignoring would be the dead surface this fix exists to remove.
-    ///
-    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
+    /// Validity, supersession and inactive-state flags compose independently.
+    /// Historical hybrid search falls back from the whole vector arm when its
+    /// visible historical vectors are unavailable; malformed tuples are errors.
     pub fn search_view(&self, query: &str, view: &ReadView) -> Result<SearchResult, EngineError> {
         self.search_view_with_limit(query, view, DEFAULT_SEARCH_RESULT_LIMIT)
     }
@@ -677,10 +669,9 @@ impl Engine {
     /// `search_reranked(q, f, d, g, a, p)` is exactly
     /// `search_reranked_view(q, f, d, g, a, p, false, &ReadView::default())`.
     ///
-    /// Validity axis only; existence flags are refused. See
+    /// All view axes compose independently. See
     /// [`search_view`][Engine::search_view].
     ///
-    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
     #[allow(clippy::too_many_arguments)] // mirrors search_explained + the view
     pub fn search_reranked_view(
         &self,
@@ -950,10 +941,9 @@ impl Engine {
     }
 
     /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — [`search_text_only`][Engine::search_text_only]
-    /// under an explicit [`ReadView`]. Same validity-axis-only scope, and the same
-    /// typed refusal of the existence flags, as [`search_view`][Engine::search_view].
+    /// under an explicit [`ReadView`]. Honors all independent view axes without
+    /// reporting fallback for the unused vector arm.
     ///
-    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
     pub fn search_text_only_view(
         &self,
         query: &str,
@@ -1108,9 +1098,6 @@ impl Engine {
         view: ReadView,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
-        // fix-2: refuse an existence-relaxing view BEFORE any work (and before the
-        // Started event), so the refusal is a pure argument error rather than a
-        // half-emitted query lifecycle.
         self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Search, None);
         let started = Instant::now();
         let outcome = self.search_inner(

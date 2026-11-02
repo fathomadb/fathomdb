@@ -108,3 +108,53 @@ fn pinned_v1_survives_v2_refresh_without_stale_publication_or_reader_starvation(
     store.close().unwrap();
     assert_eq!(store.search("needle", 100, 10).unwrap_err(), Failure::Closed);
 }
+
+#[test]
+fn repair_publication_reconciles_candidate_and_failed_refresh_rolls_back() {
+    use current_history_followups::current::CurrentStore;
+    let dir = tempfile::tempdir().unwrap();
+    let store = CurrentStore::open(&dir.path().join("repair.sqlite")).unwrap();
+    store
+        .write(&[
+            timed("a", "needle old", None, Some(100)),
+            timed("b", "needle new", Some(100), None),
+        ])
+        .unwrap();
+    store.bootstrap(50).unwrap();
+    store.with_writer(|engine|engine.execute_for_test("CREATE TRIGGER poc_fail_refresh BEFORE UPDATE ON poc_certificate BEGIN SELECT RAISE(ABORT,'injected refresh rollback'); END;")).unwrap();
+    assert!(store.search("needle", 100, 10).is_err());
+    assert_eq!(store.search("needle", 50, 10).unwrap().rows[0].body, "needle old");
+    store.with_writer(|engine| engine.execute_for_test("DROP TRIGGER poc_fail_refresh")).unwrap();
+    assert_eq!(store.search("needle", 100, 10).unwrap().rows[0].body, "needle new");
+    store
+        .with_writer(|engine| {
+            engine.execute_for_test("DELETE FROM poc_current").unwrap();
+            engine.rebuild_projections()
+        })
+        .unwrap();
+    assert_eq!(
+        store.search("needle", 100, 10).unwrap().rows.len(),
+        1,
+        "generation-changing repair must republish missing current projection"
+    );
+    store.close().unwrap();
+}
+
+#[test]
+fn first_install_over_populated_engine_seeds_boundary_frontier() {
+    use current_history_followups::current::CurrentStore;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("existing.sqlite");
+    let engine = fathomdb_engine::Engine::open(&path).unwrap().engine;
+    engine
+        .write(&[
+            timed("a", "needle old", None, Some(100)),
+            timed("b", "needle future", Some(100), None),
+        ])
+        .unwrap();
+    engine.close().unwrap();
+    let store = CurrentStore::open(&path).unwrap();
+    store.bootstrap(50).unwrap();
+    assert_eq!(store.search("needle", 100, 10).unwrap().rows[0].body, "needle future");
+    store.close().unwrap();
+}

@@ -179,6 +179,7 @@ fn full_rebuild_keeps_expired_edge_lexical_history_for_past_views() {
         ])
         .unwrap();
     opened.engine.write(&[edge("fact", "current fact")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
     opened.engine.rebuild_projections().unwrap();
     let historical =
         ReadView { valid_as_of: Some(1_000), include_superseded: true, ..ReadView::default() };

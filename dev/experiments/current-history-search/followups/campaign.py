@@ -35,8 +35,8 @@ def summary(records, termination):
     qualified = len(successes) == REQUESTS and len(records) == REQUESTS and termination is None
     return {"scheduled": REQUESTS, "success": len(successes), "error": len(errors),
             "unfinished": max(0, REQUESTS - len(records)), "qualified": qualified,
-            "p50_ms": successes[500] if qualified else None,
-            "p99_ms": successes[990] if qualified else None,
+            "p50_ms": successes[499] if qualified else None,
+            "p99_ms": successes[989] if qualified else None,
             "success_duration_ms": sum(successes), "error_duration_ms": sum(errors),
             "termination": termination}
 

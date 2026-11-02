@@ -122,3 +122,33 @@ fn private_corpus_holds_one_snapshot_and_drops_on_error_before_erasure_retry() {
     assert_eq!(main.query_row("PRAGMA query_only", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
     engine.close().unwrap();
 }
+
+#[test]
+fn real_temporal_selector_feeds_corrected_and_prior_native_corpora() {
+    use current_history_followups::ledger::Ledger;
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("temporal.sqlite")).unwrap();
+    let a = ledger.change("claim", "needle A", "source", (0, 100), false).unwrap();
+    let b = ledger.change("claim", "needle B", "source", (20, 40), false).unwrap();
+    for (valid, known, expected) in
+        [(10, b, "needle A"), (30, b, "needle B"), (50, b, "needle A"), (30, a, "needle A")]
+    {
+        let tx = ledger.read.unchecked_transaction().unwrap();
+        let selected = ledger.selected("claim", valid, known as i64).unwrap();
+        let ids = selected.iter().map(|(id, _)| id.to_string()).collect::<Vec<_>>().join(",");
+        let result = history::search(
+            &tx,
+            &format!(
+                "SELECT write_cursor,body,1 FROM canonical_nodes WHERE write_cursor IN ({ids})"
+            ),
+            "SELECT body FROM canonical_nodes WHERE write_cursor=?1",
+            "needle",
+            10,
+            true,
+            || Ok(()),
+        )
+        .unwrap();
+        assert_eq!(result.hits[0].body, expected);
+    }
+    ledger.engine.close().unwrap();
+}

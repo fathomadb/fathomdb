@@ -254,3 +254,42 @@ fn queued_refresh_releases_snapshot_before_actual_erase_and_repair() {
         store.close().unwrap();
     }
 }
+
+#[test]
+fn certified_query_vm_work_and_point_plan_exclude_history() {
+    use current_history_followups::current::CurrentStore;
+    let dir = tempfile::tempdir().unwrap();
+    let mut work = Vec::new();
+    for h in [0, 4, 16] {
+        let path = dir.path().join(format!("history-{h}.sqlite"));
+        let store = CurrentStore::open(&path).unwrap();
+        for version in 0..=h {
+            let writes = (0..100)
+                .map(|i| {
+                    timed(
+                        &format!("owner-{i}"),
+                        &if version == h {
+                            format!("needle current {i}")
+                        } else {
+                            format!("excluded {version} {i}")
+                        },
+                        None,
+                        None,
+                    )
+                })
+                .collect::<Vec<_>>();
+            store.write(&writes).unwrap();
+        }
+        store.bootstrap(50).unwrap();
+        let result = store.search("needle", 50, 10).unwrap();
+        work.push((result.metadata_vm_steps, result.vm_steps));
+        let conn =
+            rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        let details=conn.prepare("EXPLAIN QUERY PLAN SELECT c.visibility,v.generation FROM poc_certificate c JOIN _fathomdb_read_visibility_state v ON v.singleton=c.singleton WHERE c.singleton=1").unwrap().query_map([],|r|r.get::<_,String>(3)).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
+        assert!(details.iter().all(|p| p.contains("INTEGER PRIMARY KEY")), "{details:?}");
+        store.close().unwrap();
+    }
+    assert!(work.iter().all(|w| *w == work[0]), "{work:?}");
+    assert!(work[0].0 < 50);
+}

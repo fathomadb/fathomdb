@@ -89,6 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let contacts = store.writer_contacts.load(Ordering::Relaxed);
         let mut times = Vec::new();
         let mut steps = Vec::new();
+        let mut metadata_steps = Vec::new();
         let mut errors = Vec::new();
         for query in &queries {
             let t = Instant::now();
@@ -96,15 +97,18 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 Ok(result) => {
                     times.push(t.elapsed().as_secs_f64() * 1000.);
                     steps.push(result.vm_steps);
+                    metadata_steps.push(result.metadata_vm_steps);
                 }
-                Err(e) => errors.push(e.to_string()),
+                Err(e) => errors.push(
+                    serde_json::json!({"error":e.to_string(),"ms":t.elapsed().as_secs_f64()*1000.}),
+                ),
             }
         }
-        let mut sorted = times.clone();
-        sorted.sort_by(f64::total_cmp);
+        let quantiles =
+            current_history_followups::metrics::qualified_percentiles(&times, errors.len());
         println!(
             "{}",
-            serde_json::json!({"history":h,"current":10000,"scheduled":1000,"success":times.len(),"errors":errors,"p50_ms":sorted.get(500),"p99_ms":sorted.get(990),"samples_ms":times,"vm_steps":steps,"healthy_writer_contacts":store.writer_contacts.load(Ordering::Relaxed)-contacts,"bootstrap_ms":publish_ms,"seed_and_queries_s":seed.elapsed().as_secs_f64(),"qualification":"SCOUT governed identities; not integrated AC076/081"})
+            serde_json::json!({"history":h,"current":10000,"scheduled":1000,"success":times.len(),"errors":errors,"p50_ms":quantiles.map(|q|q.0),"p99_ms":quantiles.map(|q|q.1),"samples_ms":times,"vm_steps":steps,"metadata_vm_steps":metadata_steps,"healthy_writer_contacts":store.writer_contacts.load(Ordering::Relaxed)-contacts,"bootstrap_ms":publish_ms,"seed_and_queries_s":seed.elapsed().as_secs_f64(),"qualification":"SCOUT governed identities; not integrated AC076/081"})
         );
         let burst = Instant::now();
         store.with_writer(|e|e.execute_for_test("UPDATE canonical_nodes SET valid_until=100 WHERE superseded_at IS NULL; UPDATE _fathomdb_read_visibility_state SET generation=generation+1 WHERE singleton=1;")).unwrap();

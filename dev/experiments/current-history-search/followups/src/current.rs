@@ -80,6 +80,7 @@ enum Work {
 pub struct ReadResult {
     pub rows: Vec<Row>,
     pub vm_steps: i32,
+    pub metadata_vm_steps: i32,
     pub worker: usize,
 }
 
@@ -319,12 +320,19 @@ fn read_current(
 ) -> std::result::Result<ReadResult, Failure> {
     let read = || -> Result<ReadResult> {
         let tx = connection.unchecked_transaction()?;
-        let certificate = Certificate::load(&tx)?;
-        let visibility: i64 = tx.query_row(
-            "SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let mut certificate_query=tx.prepare("SELECT c.published_at,c.next_boundary,c.visibility,c.scope,v.generation FROM poc_certificate c JOIN _fathomdb_read_visibility_state v ON v.singleton=c.singleton WHERE c.singleton=1")?;
+        let (certificate, visibility) = certificate_query.query_row([], |r| {
+            Ok((
+                Certificate {
+                    published_at: r.get(0)?,
+                    next_boundary: r.get(1)?,
+                    visibility: r.get(2)?,
+                    scope: r.get(3)?,
+                },
+                r.get::<_, i64>(4)?,
+            ))
+        })?;
+        let metadata_vm_steps = certificate_query.get_status(StatementStatus::VmStep);
         if !certificate.covers(request.valid, visibility, "strict-v1") {
             return Err(Failure::RefreshRequired.into());
         }
@@ -349,7 +357,7 @@ fn read_current(
             }
         }
         let vm_steps = statement.get_status(StatementStatus::VmStep);
-        Ok(ReadResult { rows, vm_steps, worker })
+        Ok(ReadResult { rows, vm_steps, metadata_vm_steps, worker })
     };
     read().map_err(|e| {
         e.downcast_ref::<Failure>().cloned().unwrap_or_else(|| Failure::Storage(e.to_string()))

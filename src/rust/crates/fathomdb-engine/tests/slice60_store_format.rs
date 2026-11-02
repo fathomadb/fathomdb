@@ -127,3 +127,62 @@ fn projected_heads_store_unknown_coverage_and_rebuild_it() {
         assert_eq!(rows, [(1, 1, 0, 0, None, 6), (2, 2, 0, 0, None, 6)]);
     }
 }
+
+struct CoveredProvider {
+    invalid: bool,
+}
+impl Embedder for CoveredProvider {
+    fn identity(&self) -> EmbedderIdentity {
+        Provider.identity()
+    }
+    fn embed(&self, input: &str) -> Result<Vector, EmbedderError> {
+        Provider.embed(input)
+    }
+    fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError> {
+        Ok(Some(if self.invalid { 1 } else { input.len() }))
+    }
+}
+
+#[test]
+fn projection_carries_provider_coverage() {
+    assert_coverage(false);
+}
+
+#[test]
+fn projection_rejects_non_utf8_offsets() {
+    assert_coverage(true);
+}
+
+fn assert_coverage(invalid: bool) {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("coverage.sqlite");
+        let opened =
+            Engine::open_with_embedder_for_test(&path, Arc::new(CoveredProvider { invalid }))
+                .unwrap();
+        opened.engine.configure_vector_kind_for_test("doc").unwrap();
+        opened.engine.set_projection_retry_delays_for_test(&[]);
+        opened.engine.write(&[node("écho")]).unwrap();
+        opened.engine.drain(10_000).unwrap();
+        let conn = Connection::open(&path).unwrap();
+        let rows: Vec<Option<i64>> = conn
+            .prepare("SELECT byte_end FROM _fathomdb_vector_spans")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        if invalid {
+            assert!(rows.is_empty(), "invalid UTF-8 end must not publish a span");
+            assert_eq!(
+                conn.query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |r| r
+                    .get::<_, u64>(0))
+                    .unwrap(),
+                0
+            );
+        } else {
+            assert_eq!(rows, [Some(5)]);
+        }
+    }
+}

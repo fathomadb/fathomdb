@@ -1095,7 +1095,7 @@ fn evidence_search_collapses_frozen_context_failure_to_nondisclosure() {
 }
 
 #[test]
-fn evidence_search_authenticates_before_existence_axis_refusal() {
+fn evidence_search_authenticates_before_accepting_existence_views() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("search-precedence{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
@@ -1108,8 +1108,8 @@ fn evidence_search_authenticates_before_existence_axis_refusal() {
         let frozen = freeze_stable(&opened.engine, &context);
 
         let authenticated =
-            opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap_err();
-        assert!(matches!(authenticated, EngineError::InvalidArgument { .. }));
+            opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
+        assert!(authenticated.search_result.results.is_empty());
 
         let mut forged = frozen;
         forged.token.push('0');
@@ -2400,4 +2400,102 @@ fn all_reachable_origin_contributions_and_atomic_sidecars() {
                     && evidence.field_path.starts_with("/results/")
         ));
     }
+}
+
+#[test]
+fn evidence_history_flags_compose_and_resolve_revision_lifecycle() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("slice80-evidence-history{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let source_body = "stable source body";
+    opened
+        .engine
+        .write(&[canonical_named("source", "src-r1", "src-v1", "source-id", source_body)])
+        .unwrap();
+    let old = derived_named(
+        "item",
+        "item-r1",
+        "src-r1",
+        "src-v1",
+        "source-id",
+        source_body,
+        "historyneedle retired",
+    );
+    let mut pending = derived_named(
+        "pending",
+        "pending-r1",
+        "src-r1",
+        "src-v1",
+        "source-id",
+        source_body,
+        "historyneedle pending",
+    );
+    if let PreparedWrite::ProvenancedNode(node) = &mut pending {
+        node.state = InitialState::Pending;
+    }
+    opened.engine.write(&[old, pending]).unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "item",
+            "item-r2",
+            "src-r1",
+            "src-v1",
+            "source-id",
+            source_body,
+            "historyneedle current",
+        )])
+        .unwrap();
+    for (superseded, inactive, expected) in [
+        (false, false, vec!["item-r2"]),
+        (true, false, vec!["item-r1", "item-r2"]),
+        (false, true, vec!["item-r2", "pending-r1"]),
+        (true, true, vec!["item-r1", "item-r2", "pending-r1"]),
+    ] {
+        let context = ReadContextV1::new(
+            ReadView {
+                include_superseded: superseded,
+                include_inactive: inactive,
+                ..ReadView::default()
+            },
+            SearchFilter::default(),
+        )
+        .unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let result =
+            opened.engine.search_with_evidence(&request("historyneedle", frozen.clone())).unwrap();
+        assert_eq!(result.search_result.results.len(), expected.len());
+        assert_eq!(
+            result
+                .evidence
+                .iter()
+                .map(|entry| entry.artifact_revision_id.as_str())
+                .collect::<BTreeSet<_>>(),
+            expected.into_iter().collect::<BTreeSet<_>>()
+        );
+        for entry in result.evidence {
+            let resolved = opened
+                .engine
+                .resolve_evidence(&EvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: entry.evidence_ref,
+                    context: frozen.clone(),
+                })
+                .unwrap();
+            assert_eq!(resolved.artifact_revision_id, entry.artifact_revision_id);
+            assert_eq!(resolved.canonical_source_body, source_body);
+            assert_eq!(
+                resolved.artifact_lifecycle,
+                EvidenceArtifactLifecycleV1::Node {
+                    state: if entry.artifact_revision_id == "pending-r1" {
+                        LifecycleState::Pending
+                    } else {
+                        LifecycleState::Active
+                    },
+                    superseded: entry.artifact_revision_id == "item-r1",
+                }
+            );
+        }
+    }
+    opened.engine.close().unwrap();
 }

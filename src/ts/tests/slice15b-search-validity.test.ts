@@ -34,8 +34,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
 import { Engine } from "../src/index.js";
-import { InvalidArgumentError } from "../src/errors.js";
-import type { SearchResult } from "../src/index.js";
+import type { ReadView, SearchResult } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
 const SOURCE_ID = "ts-test:slice15b-search-validity";
@@ -280,30 +279,41 @@ test("fix-2: searchTextOnly takes the same predicate and the same escape hatch",
 });
 
 // ---------------------------------------------------------------------------
-// (4) Scope guard — the existence axis is REFUSED, never silently ignored
+// (4) Historical and inactive views compose independently
 // ---------------------------------------------------------------------------
 
-test("fix-2: search refuses a view that relaxes the existence axis", async () => {
-  const path = freshDbPath();
-  await seed(path, [windowed("A", "scope guard body", null, null)]);
-
-  const engine = await openEngine(path);
+test("search history flags compose independently", async () => {
+  const engine = await openEngine(freshDbPath());
   try {
-    for (const view of [{ includeSuperseded: true }, { includeInactive: true }]) {
-      await assert.rejects(
-        () => engine.search("scope", undefined, 0, false, 0.3, 0, false, view),
-        InvalidArgumentError,
-        `existence flags on a search view must be a TYPED refusal: ${JSON.stringify(view)}`,
+    await engine.write([windowed("version", "history old", null, null)]);
+    await engine.write([
+      windowed("version", "history current", null, null),
+      windowed("inactive", "history deleted", null, null),
+      windowed("expired", "history expired", null, FAR_PAST_UNTIL),
+    ]);
+    await engine.transition("inactive", "deleted", "test");
+    await engine.drain(30_000);
+    const matrix: [ReadView, string[]][] = [
+      [{}, ["history current"]],
+      [{ includeSuperseded: true }, ["history current", "history old"]],
+      [{ includeInactive: true }, ["history current", "history deleted"]],
+      [{ includeSuperseded: true, includeInactive: true },
+        ["history current", "history deleted", "history old"]],
+    ];
+    for (const [view, expected] of matrix) {
+      assert.deepStrictEqual(
+        bodies(await engine.search("history", undefined, 0, false, 0.3, 0, false, view)),
+        expected,
       );
+      const textResult = await engine.searchTextOnly("history", view);
+      assert.deepStrictEqual(bodies(textResult), expected);
+      assert.equal(textResult.softFallback, null);
     }
-    // The validity axis alone is accepted.
     assert.deepStrictEqual(
-      bodies(
-        await engine.search("scope", undefined, 0, false, 0.3, 0, false, {
-          includeOutOfWindow: true,
-        }),
-      ),
-      ["scope guard body"],
+      bodies(await engine.search("history", undefined, 0, false, 0.3, 0, false, {
+        includeSuperseded: true, includeInactive: true, includeOutOfWindow: true,
+      })),
+      ["history current", "history deleted", "history expired", "history old"],
     );
   } finally {
     await engine.close();

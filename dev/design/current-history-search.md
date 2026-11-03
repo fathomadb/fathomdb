@@ -41,6 +41,11 @@ changed; this proposal does not reinterpret them.
 
 ## Deferred erasure and availability requirement
 
+The next bounded experiment is now [0.8.28 Slice 81](../plans/0.8.28/features/slice-81/README.md),
+placed by the owner on 2026-11-03 before Slice 90. Its requirements, experiment
+protocol, test plan and draft implementation design own this POC. Production
+repair and historical/temporal implementation remain separate approval scopes.
+
 The owner clarified on 2026-11-03 that full physical erasure may be deferred, but
 requires guaranteed completion and an explicit SLA. The
 [DBMS research](../notes/dbms-erasure-availability.md) separates sourced mechanisms

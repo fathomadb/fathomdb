@@ -9,9 +9,11 @@ target_release: unassigned
 
 Owner decisions follow the [reviewed results](../experiments/current-history-search/followups/RESULTS.md).
 This records decisions and proposes delivery units. It does not reopen Slice 80,
-allocate release slice numbers, change Slice 90 or authorize the whole program.
+authorize the whole program. Owner subsequently placed the maintenance POC in
+Slice 81, before unchanged Slice 90 scope; other production units remain proposed.
 The [production design](../design/current-history-search.md) remains a candidate.
-The eight CH labels below are planning labels, not assigned release slices.
+CH labels are planning units: CH2 maintenance evidence is now assigned to
+[Slice 81](0.8.28/features/slice-81/README.md); the others are not assigned slices.
 
 ## Decision record
 
@@ -29,7 +31,8 @@ The eight CH labels below are planning labels, not assigned release slices.
 
 Direction approval differs from approval of a finished implementation plan.
 No production change or new campaign is executed by this record. Decision 3's
-approved POC is queued behind agreement on the erasure guarantees. Decision 4
+approved POC is placed in Slice 81 to test the erasure/availability guarantees
+before the revised production CH1 proposal. Decision 4
 establishes probe order without authorizing an unrestricted campaign.
 
 ## Temporal model in plain language
@@ -216,8 +219,9 @@ exclusions, RED oracles and acceptance proposal. Owner review of 6/7 precedes co
 | CH7 | Source-specific temporal edges/coherent graph | CH6, reviewed G11 successor and decision 7. Same V/K for nodes/edges, exact winning origin/provenance. |
 | CH8 | Selected-history production routing/bounded envelope | CH3 selection, CH4 contracts, CH6 node semantics; CH7 before graph claims. Integrate admission/fairness, tested caps, no-spill policy and historical SLOs. |
 
-Recommended serial order: CH1 approval/repair, CH2, CH3, CH4, CH5, CH6,
-CH7, CH8. Resolve a specific CH4 contract first if CH3 needs it; never invent it
+Owner placement now puts CH2 maintenance evidence in Slice 81 before CH1
+production approval/repair. After Slice 81, propose the supported CH1 repair;
+CH3–CH8 remain separately placed work, not additions to this release by implication. Resolve a specific CH4 contract first if CH3 needs it; never invent it
 inside the benchmark. CH5 can land before temporal functionality. CH4 decisions
 must precede any opt-in temporal population routed by CH5. CH8 node/edge/property
 routing and graph qualification remain separate claims.
@@ -225,7 +229,8 @@ routing and graph qualification remain separate claims.
 Additional slices are warranted: these units have independent acceptance/failure
 boundaries. CH1–CH4 should be bounded follow-up slices; size CH5–CH8 from reviewed
 designs and split further only for concrete boundaries. Place releases separately;
-do not silently insert eight slices before Slice 90 or move the 0.8.29 handover.
+only the explicit Slice 81 POC now precedes Slice 90. Do not insert the other
+units or move the 0.8.29 handover by implication.
 Physical erasure remains an adoption blocker until fixed/qualified.
 
 ## Testing and resource acceptance
@@ -282,3 +287,12 @@ The owner's 2026-11-03 clarification and subagent's primary-source research are
 proposal and test questions, not shipped semantics or the earlier acceptance
 results. Physical erasure remains an adoption blocker. Research is authorized;
 production erasure implementation still awaits the revised reviewed proposal.
+
+## Slice 81 placement
+
+Owner 2026-11-03 assigned the maintenance/erasure-availability POC to
+[Slice 81](0.8.28/features/slice-81/README.md). Its package owns experiment
+requirements/AC, design and test controls. This revises the earlier CH1-before-CH2
+proposal: obtain mechanism/availability evidence before approving the production
+repair. Existing Slice 90 remains after 81; historical and temporal work is not
+allocated here. This turn creates planning structure, not implementation/results.

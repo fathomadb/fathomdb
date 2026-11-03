@@ -36,6 +36,12 @@ regression that Slice 40 Unit I exposed:
   and `dev/plans/0.8.28-0.8.29-slice-proposal.md` on `dev/0.8.29`. Todo
   TC-1b1f69e6 tracks it.
 
+- **Slice 81 (owner 2026-11-03):** the bounded erasure-availability POC follows
+  Slice 80 and precedes Slice 90. It compares eager and incremental cleanup,
+  conditional staged replacement, foreground availability and durable deletion
+  SLA feasibility; production remediation is not included. See the
+  [Slice 81 package](0.8.28/features/slice-81/README.md).
+
 The other entries in the [draft scope](0.8.28-draft-scope.md) were ruled on
 2026-10-31; the rulings are in `dev/plans/release-state-0.8.28.json`.
 
@@ -150,18 +156,20 @@ unchanged; no upstream PRs, issues or pushes.
 Slice numbers between the placed slices are reserved, and new slices go in
 steps of 10. A slot stays empty unless a placement decision adds a slice;
 it is never an implicit patch lane.
+Owner placement on 2026-11-03 explicitly assigns reserved slot 81 to the erasure
+availability POC; it does not change this policy for other gaps.
 
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 90** (`FILTERED-BODY-FTS`) — D28-14: SearchFilter on direct node and edge body FTS-only search (search_text_only / searchTextOnly), applied before truncation, ranking and limit
+**IMMEDIATE NEXT: Slice 81** (`ERASURE-AVAILABILITY-POC`) — Bounded erasure-availability POC: eager versus incremental physical cleanup, durable progress and SLA feasibility; staged replacement conditional; no production remediation
 
-**Remaining ladder:** 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 81 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
 Slices 60, 70 and 80 are complete on `dev/0.8.28` and `release/0.8.28`.
-Slice 90 is next. After it comes
+Slice 81 is next, followed by Slice 90. After those comes
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
@@ -291,6 +299,13 @@ requirements say otherwise.
     [requirements](0.8.28/features/slice-80/plan.md) and
     [lifecycle design](0.8.28/features/slice-80/design.md).
   - MCP exposure remains 0.8.29 Slice 60.
+- **Slice 81 — erasure availability POC (`ERASURE-AVAILABILITY-POC`).**
+  - Owner placed this bounded mechanism experiment on 2026-11-03. It compares
+    eager versus incremental physical cleanup; staged replacement is conditional.
+  - Requirements/AC, hypotheses, fixed controls, TDD/fault tests and draft design
+    are in the [planning package](0.8.28/features/slice-81/README.md).
+  - No production erasure fix, shipped admission/success change, temporal backend
+    or numeric SLA is approved. Known physical erasure finding remains open.
 - **Slice 90 — filtered direct body FTS (D28-14).** It follows the
   [draft scope](0.8.28-draft-scope.md#d28-14-filtered-direct-body-fts).
   It builds on Slice 80's view admission in all three bindings; the direct
@@ -309,4 +324,5 @@ requirements say otherwise.
 | 60 | Store format 35 (64-row chunks, `search_index` rowid, refusal at open) | [Plan](0.8.28/features/slice-60/plan.md) |
 | 70 | Vector eligibility inside vec0 | [Plan](0.8.28/features/slice-70/plan.md) |
 | 80 | `include_superseded` and `include_inactive` on search | [Plan](0.8.28/features/slice-80/plan.md) |
+| 81 | Erasure availability POC and deletion SLA feasibility | [Package](0.8.28/features/slice-81/README.md) |
 | 90 | D28-14 filtered direct body FTS | to be written |

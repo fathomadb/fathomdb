@@ -32,6 +32,7 @@ impl PhysicalMaintenance {
         loop {
             let mut stop = self.shared.stop.lock().map_err(|_| EngineError::Storage)?;
             while self.shared.priority.load(Ordering::Acquire) && !*stop {
+                physical_erasure::faultpoint("before_writer_priority_wait")?;
                 stop = self.shared.wake.wait(stop).map_err(|_| EngineError::Storage)?;
             }
             if *stop {
@@ -142,4 +143,54 @@ fn checkpoint(c: &Connection) -> Result<(), EngineError> {
         });
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ordinary_writer_cannot_miss_the_maintenance_priority_release() {
+        let maintenance = Arc::new(PhysicalMaintenance::default());
+        maintenance.shared.priority.store(true, Ordering::Release);
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let (released_tx, released_rx) = mpsc::channel();
+        let owner = Arc::clone(&maintenance);
+        let releaser = std::thread::spawn(move || {
+            let turn = owner.shared.turn.lock().unwrap();
+            let priority = MaintenanceTurn { shared: &owner.shared, _turn: turn };
+            ready_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+            drop(priority);
+            released_tx.send(()).unwrap();
+        });
+        ready_rx.recv().unwrap();
+        let (observed_tx, observed_rx) = mpsc::channel();
+        let (wait_tx, wait_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let waiter = Arc::clone(&maintenance);
+        let writer = std::thread::spawn(move || {
+            crate::test_hooks::physical_erasure_hooks::arm(
+                "before_writer_priority_wait",
+                Box::new(move || {
+                    observed_tx.send(()).unwrap();
+                    wait_rx.recv().unwrap();
+                    Ok(())
+                }),
+            );
+            let result = waiter.writer_turn().is_ok();
+            done_tx.send(result).unwrap();
+        });
+        observed_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        release_tx.send(()).unwrap();
+        let _ = released_rx.recv_timeout(Duration::from_millis(100));
+        wait_tx.send(()).unwrap();
+        let progressed = done_rx.recv_timeout(Duration::from_millis(200)).unwrap_or(false);
+        // Cleanup releases a failed waiter without providing the progress witness.
+        maintenance.stop();
+        releaser.join().unwrap();
+        writer.join().unwrap();
+        assert!(progressed, "writer must observe priority release without another service turn or close notification");
+    }
 }

@@ -394,3 +394,22 @@ fn campaign_payload(owner: usize, revision: usize, target: bool) -> String {
     }
     body
 }
+
+/// Inject an observation clock for deterministic finalization-boundary tests.
+pub fn finalize_with_clock(
+    engine: &Engine,
+    path: &Path,
+    marker: &str,
+    mut clock: impl FnMut() -> i64,
+) -> Result<bool> {
+    finalize_at(engine, path, marker, clock())
+}
+/// Inject a process-exit/failure rendezvous inside experimental admission.
+pub fn admit_with_hook(
+    _engine: &Engine,
+    _accepted: i64,
+    _deadline: i64,
+    _before_commit: impl FnOnce(),
+) -> Result<()> {
+    Err("admission rendezvous not implemented".into())
+}

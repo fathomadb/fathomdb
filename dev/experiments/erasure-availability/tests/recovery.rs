@@ -8,6 +8,9 @@ fn crash_child() {
     let path = std::path::PathBuf::from(std::env::var("S81_CRASH_PATH").unwrap());
     let engine = open(&path).unwrap();
     match std::env::var("S81_CRASH_PHASE").unwrap().as_str() {
+        "real_uncommitted_admission" => {
+            admit_with_hook(&engine, 100, 130, || std::process::exit(73)).unwrap();
+        }
         "uncommitted_admission" => {
             let _:Result<()>=engine.maintenance_transaction_for_test::<()>(|tx| {
                 tx.execute_batch("CREATE TABLE poc_uncommitted_intent(value INTEGER); INSERT INTO poc_uncommitted_intent VALUES(1)")?;
@@ -138,4 +141,26 @@ proptest! {
         }
         f.engine.close().unwrap();
     }
+}
+
+#[test]
+fn crash_inside_actual_admission_never_leaves_accepted_job() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("admission.sqlite");
+    let f = Fixture::build(&path, "node", false, 4, 0).unwrap();
+    f.erase().unwrap();
+    f.engine.close().unwrap();
+    crash(&path, "real_uncommitted_admission");
+    let engine = open(&path).unwrap();
+    assert_eq!(
+        engine
+            .query_i64_col_for_test(
+                "SELECT count(*) FROM sqlite_master WHERE name='poc_sanitation'"
+            )
+            .unwrap(),
+        vec![0]
+    );
+    admit(&engine, 101, 131).unwrap();
+    assert_eq!(job(&engine).unwrap().accepted, 101);
+    engine.close().unwrap();
 }

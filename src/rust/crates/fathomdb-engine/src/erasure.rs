@@ -562,6 +562,7 @@ impl Engine {
     /// from a no-embedder session rather than returning that feedback instead
     /// of discharging the destructive request.
     fn freeze_projection_for_erasure(&self) -> Result<(), EngineError> {
+        let _drain = self.physical_maintenance.metrics.timer("projection_drain");
         let no_configured_embedder = match self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS) {
             Ok(()) => false,
             Err(EngineError::EmbedderRequired(_)) => true,
@@ -592,6 +593,7 @@ impl Engine {
     }
 
     fn freeze_projection_for_closure_retry(&self) -> Result<(), EngineError> {
+        let _drain = self.physical_maintenance.metrics.timer("projection_drain");
         self.projection_runtime.set_frozen(true);
         if self.projection_runtime.wait_for_workers_idle(LIFECYCLE_DRAIN_TIMEOUT_MS) {
             Ok(())
@@ -625,18 +627,25 @@ impl Engine {
         }
         loop {
             let done = {
+                let waiting = self.physical_maintenance.metrics.timer("sanitation_writer_wait");
                 let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+                drop(waiting);
+                let _holding = self.physical_maintenance.metrics.timer("sanitation_writer_hold");
                 let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+                let _sanitation = self.physical_maintenance.metrics.timer("sanitation");
                 physical_erasure::sanitize_unit(connection)?
             };
             physical_erasure::faultpoint("after_sanitation_unit")?;
             if done {
                 break;
             }
-            std::thread::yield_now();
+            std::thread::sleep(Duration::from_millis(5));
         }
         let reader_admission = self.reader_pool.physical_admission();
+        let drain = self.physical_maintenance.metrics.timer("reader_drain");
+        let _reader_pause = self.physical_maintenance.metrics.timer("reader_pause");
         let _readers = reader_admission.pause()?;
+        drop(drain);
         self.discharge_pending_redactions(verb)?;
         {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -663,7 +672,9 @@ impl Engine {
         }
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        physical_erasure::finalize(connection, closure_ids)
+        physical_erasure::finalize(connection, closure_ids)?;
+        self.physical_maintenance.metrics.complete_lifecycle();
+        Ok(())
     }
 
     fn finish_redacted_before_request(&self) -> Result<(), EngineError> {
@@ -703,10 +714,14 @@ impl Engine {
     /// `secure_delete=ON` zeroes freed ordinary/shadow pages; it does not by itself
     /// remove retained FTS terms. Durable root debt fences mutation until complete.
     pub fn purge(&self, logical_id: &str) -> Result<(), EngineError> {
+        let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
         self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
+        let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
         let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
+        drop(queue);
         self.finish_redacted_before_request()?;
+        self.physical_maintenance.metrics.begin_lifecycle();
 
         let pending = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -751,7 +766,11 @@ impl Engine {
     /// [`enqueue_pending_redaction`]), because a caller-held vector is lost on the
     /// retry path that codex Â§9 P2 found.
     fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
+        let _native = self.physical_maintenance.metrics.timer("native");
+        let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        drop(waiting);
+        let _holding = self.physical_maintenance.metrics.timer("native_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         physical_erasure::envelope(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
@@ -1019,9 +1038,13 @@ impl Engine {
         verb: &'static str,
         source_id: &str,
     ) -> Result<ExciseReport, EngineError> {
+        let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
         self.ensure_open()?;
+        let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
         let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
+        drop(queue);
         self.finish_redacted_before_request()?;
+        self.physical_maintenance.metrics.begin_lifecycle();
 
         #[cfg(feature = "test-hooks")]
         {
@@ -1235,7 +1258,11 @@ impl Engine {
         verb: &'static str,
         source_id: &str,
     ) -> Result<(ExciseReport, Vec<ClosureOperationId>), EngineError> {
+        let _native = self.physical_maintenance.metrics.timer("native");
+        let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        drop(waiting);
+        let _holding = self.physical_maintenance.metrics.timer("native_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         physical_erasure::envelope(connection)?;
         dependency_closure::maintain_before_writer(connection)?;

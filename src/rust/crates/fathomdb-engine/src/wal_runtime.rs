@@ -764,7 +764,11 @@ impl Engine {
         &self,
         honor_busy_timeout: bool,
     ) -> Result<TruncateWalReport, EngineError> {
+        let _checkpoint = self.physical_maintenance.metrics.timer("checkpoint");
+        let waiting = self.physical_maintenance.metrics.timer("checkpoint_writer_wait");
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        drop(waiting);
+        let _holding = self.physical_maintenance.metrics.timer("checkpoint_writer_hold");
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
 
         let restore_timeout_ms: Option<i64> = if honor_busy_timeout {

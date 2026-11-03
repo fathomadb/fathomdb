@@ -12,6 +12,7 @@ struct Shared {
 #[derive(Default)]
 pub(crate) struct PhysicalMaintenance {
     shared: Arc<Shared>,
+    pub(crate) metrics: Arc<physical_metrics::PhysicalMetrics>,
     worker: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -49,6 +50,7 @@ impl PhysicalMaintenance {
 
     pub(crate) fn start(&self, engine: &Engine) -> Result<(), EngineError> {
         let shared = Arc::clone(&self.shared);
+        let metrics = Arc::clone(&self.metrics);
         let connection = Arc::clone(&engine.connection);
         let service = Arc::clone(&engine.physical_service_gate);
         let telemetry = Arc::clone(&engine.telemetry);
@@ -76,29 +78,48 @@ impl PhysicalMaintenance {
                     let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
                     let priority = MaintenanceTurn { shared: &shared, _turn: turn };
                     let result = (|| {
+                        let waiting = metrics.timer("sanitation_writer_wait");
                         let guard = connection.lock().map_err(|_| EngineError::Storage)?;
+                        drop(waiting);
+                        let holding = metrics.timer("sanitation_writer_hold");
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
                         if !physical_erasure::active(c)? {
                             return Ok(false);
                         }
+                        metrics.begin_lifecycle();
                         let ids = physical_erasure::pending_ids(c)?;
                         dependency_closure::validate_physical_closures(c, &ids)?;
                         physical_erasure::validate_pending(c, &ids)?;
+                        let graft = metrics.timer("deferred_graft");
                         if has_provider && physical_erasure::redacted_ids(c)?.is_none() {
                             boot_graft_declared_vector_backfill(c)
                                 .map_err(|_| EngineError::Storage)?;
                         }
-                        if !physical_erasure::sanitize_unit(c)? {
+                        drop(graft);
+                        let sanitation = metrics.timer("sanitation");
+                        let done = physical_erasure::sanitize_unit(c)?;
+                        drop(sanitation);
+                        if !done {
                             return Ok(true);
                         }
+                        drop(holding);
                         drop(guard);
+                        let drain = metrics.timer("reader_drain");
+                        let _reader_pause = metrics.timer("reader_pause");
                         let _readers = readers.pause()?;
+                        drop(drain);
+                        let waiting = metrics.timer("finalization_writer_wait");
                         let guard = connection.lock().map_err(|_| EngineError::Storage)?;
+                        drop(waiting);
+                        let _holding = metrics.timer("finalization_writer_hold");
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
                         erasure::discharge_pending_redactions_on(c, &telemetry)?;
                         physical_erasure::prepare_redacted(c, &ids)?;
+                        let checkpoint_timer = metrics.timer("checkpoint");
                         checkpoint(c)?;
+                        drop(checkpoint_timer);
                         physical_erasure::finalize(c, &ids)?;
+                        metrics.complete_lifecycle();
                         projections.notify_new_work();
                         Ok(true)
                     })();

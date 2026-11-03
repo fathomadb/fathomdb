@@ -81,6 +81,7 @@ mod operator;
 mod pagination;
 mod physical_erasure;
 mod physical_maintenance;
+mod physical_metrics;
 mod physical_reader_admission;
 #[cfg(feature = "test-hooks")]
 #[doc(hidden)]

@@ -495,6 +495,7 @@ pub struct Engine {
     erasure_before_primary_lock_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
     close_lock: Mutex<()>,
+    physical_service_gate: Mutex<()>,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
     reader_pool: ReaderWorkerPool,

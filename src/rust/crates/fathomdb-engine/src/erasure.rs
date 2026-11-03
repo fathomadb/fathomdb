@@ -614,7 +614,9 @@ impl Engine {
             // A provider attached on an owed reopen could not graft survivors
             // at open. This replay only enrols/requeues surviving vector owners;
             // it preserves FTS contents and durable merge continuation progress.
-            if self.runtime_embedder.is_some() {
+            if self.runtime_embedder.is_some()
+                && physical_erasure::redacted_ids(connection)?.is_none()
+            {
                 boot_graft_declared_vector_backfill(connection)
                     .map_err(|_| EngineError::Storage)?;
             }
@@ -632,6 +634,14 @@ impl Engine {
                 break;
             }
             std::thread::yield_now();
+        }
+        self.discharge_pending_redactions(verb)?;
+        {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            physical_erasure::prepare_redacted(
+                connection.as_ref().ok_or(EngineError::Closing)?,
+                closure_ids,
+            )?;
         }
         if let Err(error) = self.complete_erasure_at_rest(verb) {
             let blocker = match &error {
@@ -652,6 +662,20 @@ impl Engine {
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         physical_erasure::finalize(connection, closure_ids)
+    }
+
+    fn finish_redacted_before_request(&self) -> Result<(), EngineError> {
+        let ids = {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            physical_erasure::redacted_ids(connection.as_ref().ok_or(EngineError::Closing)?)?
+        };
+        if let Some(ids) = ids {
+            self.freeze_projection_for_closure_retry()?;
+            let result = self.finish_physical_dependency_closures("erase_source", &ids);
+            self.projection_runtime.set_frozen(false);
+            result?;
+        }
+        Ok(())
     }
 
     /// OPP-12 Phase-1 (0.8.19 Slice 10, R-PG-1/2) — irreversibly hard-erase a
@@ -679,6 +703,8 @@ impl Engine {
     pub fn purge(&self, logical_id: &str) -> Result<(), EngineError> {
         self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
+        let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
+        self.finish_redacted_before_request()?;
 
         let pending = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -992,6 +1018,8 @@ impl Engine {
         source_id: &str,
     ) -> Result<ExciseReport, EngineError> {
         self.ensure_open()?;
+        let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
+        self.finish_redacted_before_request()?;
 
         #[cfg(feature = "test-hooks")]
         {

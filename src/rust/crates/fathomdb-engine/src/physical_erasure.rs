@@ -127,11 +127,19 @@ pub(crate) fn root(c: &Connection) -> Result<Option<RootDebt>, EngineError> {
         };
         if debt.denied_sources.iter().chain(&debt.denied_identities).any(|hash| !valid_hash(hash))
             || (debt.version == 2
+                && !debt.redacted
                 && debt.denied_sources.is_empty()
                 && debt.denied_identities.is_empty())
             || ![1, 2].contains(&debt.version)
-            || debt.retry.len() != 64
-            || !debt.retry.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            || (!debt.redacted && !valid_hash(&debt.retry))
+            || (debt.redacted
+                && (debt.version != 2
+                    || !debt.retry.is_empty()
+                    || !debt.cursors.is_empty()
+                    || !debt.vectors.is_empty()
+                    || !debt.denied_sources.is_empty()
+                    || !debt.denied_identities.is_empty()
+                    || state(c)?.phase != "finalizing"))
             || (debt.version == 2
                 && (debt.safe_boundary < debt.boundary || debt.safe_boundary > i64::MAX as u64))
             || debt.boundary > i64::MAX as u64
@@ -298,7 +306,9 @@ pub(crate) fn validate_pending(
         if debt.closures != ids.iter().map(|id| id.as_str().to_owned()).collect::<Vec<_>>() {
             return Err(EngineError::Storage);
         }
-        validate_zero(c, &debt)?;
+        if !debt.redacted {
+            validate_zero(c, &debt)?;
+        }
     }
     Ok(())
 }
@@ -362,6 +372,51 @@ pub(crate) fn sanitize(c: &Connection) -> Result<(), EngineError> {
         }
     }
     Ok(())
+}
+
+pub(crate) fn redacted_ids(c: &Connection) -> Result<Option<Vec<ClosureOperationId>>, EngineError> {
+    root(c)?
+        .filter(|debt| debt.redacted)
+        .map(|debt| {
+            debt.closures
+                .iter()
+                .map(|id| {
+                    ClosureLookupV1::new(id)
+                        .map(|lookup| lookup.closure_operation_id)
+                        .map_err(|_| EngineError::Storage)
+                })
+                .collect()
+        })
+        .transpose()
+}
+
+pub(crate) fn prepare_redacted(
+    c: &Connection,
+    ids: &[ClosureOperationId],
+) -> Result<(), EngineError> {
+    let Some(mut debt) = root(c)? else {
+        return Ok(());
+    };
+    if debt.version != 2 || debt.redacted {
+        return Ok(());
+    }
+    if state(c)?.phase != "finalizing" {
+        return Err(EngineError::Storage);
+    }
+    transaction(c, || {
+        dependency_closure::validate_physical_closures(c, ids)?;
+        validate_pending(c, ids)?;
+        debt.redacted = true;
+        debt.retry.clear();
+        debt.cursors.clear();
+        debt.vectors.clear();
+        debt.denied_sources.clear();
+        debt.denied_identities.clear();
+        store(c, ROOT_KEY, &debt)?;
+        faultpoint("before_redacted_commit")?;
+        Ok(())
+    })?;
+    faultpoint("after_redacted_commit")
 }
 
 pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(), EngineError> {

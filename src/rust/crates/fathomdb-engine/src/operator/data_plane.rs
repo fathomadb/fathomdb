@@ -233,6 +233,9 @@ pub fn recover_complete_erasures(
     physical_erasure::sanitize(&connection).map_err(|_| EngineOpenError::Io {
         message: "retained-term sanitation remains owed".into(),
     })?;
+    physical_erasure::prepare_redacted(&connection, &ids).map_err(|_| EngineOpenError::Io {
+        message: "physical erasure finalization transition failed".into(),
+    })?;
     let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
         .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))

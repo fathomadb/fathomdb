@@ -1060,6 +1060,7 @@ impl Engine {
                         erasure_before_primary_lock_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
                         close_lock: Mutex::new(()),
+                        physical_service_gate: Mutex::new(()),
                         lock: Mutex::new(Some(parts.lock)),
                         connection: Mutex::new(Some(parts.connection)),
                         reader_pool: ReaderWorkerPool::new(

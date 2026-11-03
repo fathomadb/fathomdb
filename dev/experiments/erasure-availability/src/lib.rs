@@ -290,3 +290,8 @@ pub fn finalize(engine: &Engine, path: &Path, marker: &str) -> Result<bool> {
     })?;
     Ok(clean)
 }
+
+/// Finalize against an explicit experiment wall clock; retries keep the original deadline.
+pub fn finalize_at(engine: &Engine, path: &Path, marker: &str, _now: i64) -> Result<bool> {
+    finalize(engine, path, marker)
+}

@@ -134,6 +134,16 @@ pub(crate) fn guard_plain_write(
     c: &Connection,
     batch: &[PreparedWrite],
 ) -> Result<bool, EngineError> {
+    match guard_plain_write_inner(c, batch) {
+        Err(error @ EngineError::ErasureIncomplete { .. }) => {
+            dependency_closure::guard_no_pending_physical(c)?;
+            Err(error)
+        }
+        result => result,
+    }
+}
+
+fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bool, EngineError> {
     if !active(c)? {
         return Ok(false);
     }

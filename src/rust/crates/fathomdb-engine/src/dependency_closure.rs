@@ -880,7 +880,8 @@ pub(crate) fn guard_no_pending_physical(connection: &Connection) -> Result<(), E
     if physical || physical_erasure::active(connection)? {
         return Err(EngineError::ErasureIncomplete {
             stage: "dependency_closure".to_string(),
-            detail: "a physical dependency closure is awaiting its exact erasure retry".to_string(),
+            detail: "physical cleanup remains owed and this mutation is outside its admitted scope"
+                .to_string(),
         });
     }
     Ok(())

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — requirements and acceptance
-status: PLANNED
+status: IMPLEMENTED_PENDING_GATE
 target_release: 0.8.28
 ---
 
@@ -51,9 +51,13 @@ No integrated product latency or physical-erasure defect is qualified/closed by
 these local criteria. The eventual production change must preserve existing
 AC-076/081 and affected vector/stress criteria under their original protocols.
 
-P81-A05 additionally requires a single-segment legacy counterexample test for B;
+P81-A05 additionally requires a single-segment legacy physical probe for B;
 merge no-work is not a physical-removal oracle. P81-A07 reports experimental
 maintenance writer progress separately from native pending-closure availability.
 Scheduler, broad routing and comparative performance obligations dependent on a
 safe candidate receive explicit rejected/not-run dispositions if its physical
 safety prerequisite fails; they cannot be reported as passing or as an SLA.
+
+Execution disposition for every P81/E81 requirement and acceptance criterion is
+recorded in [results](../../../../experiments/erasure-availability/RESULTS.md). Partial scope is not a product pass;
+production routing, scheduler/SLA and expiry successors remain unqualified or deferred.

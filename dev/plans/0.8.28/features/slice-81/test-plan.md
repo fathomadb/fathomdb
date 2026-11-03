@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — test plan
-status: PLANNED
+status: IMPLEMENTED_PENDING_GATE
 target_release: 0.8.28
 ---
 
@@ -8,8 +8,9 @@ target_release: 0.8.28
 
 Traceability: [requirements](requirements.md). Hypotheses and sampling controls:
 [experiment design](experiment-design.md). Native authority and reused tools:
-[references](README.md#references). Tests below are planned names, not executed
-oracles or evidence. All database tests use real files/connections.
+[references](README.md#references). The table preserves original planned witness names; executed coverage and explicit
+unqualified/deferred obligations are mapped in [results](../../../../experiments/erasure-availability/RESULTS.md).
+All executed database tests use real files/connections.
 
 ## Baseline and behavioral matrix
 
@@ -17,7 +18,7 @@ oracles or evidence. All database tests use real files/connections.
 | --- | --- | --- |
 | `shipping_ghost_positive_control` | P81-R01/05, H81-1 | Existing ordinary Engine witness still fails physical removal after positive prepresence; preserve known failure separately from passing candidate tests. |
 | `native_pending_closure_blocks_unrelated_writer` | P81-R01/07, H81-5 | Current real global gate refuses unrelated writes; do not hide baseline with a wrapper. |
-| `family_inventory_has_positive_witnesses` | P81-R01/05 | Each claimed family/mode populated and marker visible before deletion; dormant v2 and unsupported modes explicitly labeled. |
+| `family_inventory_has_positive_witnesses` | P81-R01/05 | Each claimed family/mode populated and marker visible before deletion; populated v2, empty families and unsupported modes explicitly labeled. |
 | `acceptance_and_progress_commit_together` | P81-R02/06 | Failure before commit produces no accepted job; committed intent and work mutation/progress survive reopen atomically. |
 | `denial_linearization_and_pinned_reader` | P81-R03, H81-5 | New requests respect the committed fence; pre-admission/pinned behavior follows declared contract; no retrospective result revocation claim. |
 | `denied_rows_do_not_affect_survivor_statistics` | P81-R04, H81-5 | At equal committed scope compare exact IDs/order/score bits with independently constructed survivor-only corpus; include nonmatching target terms and changed lengths. |

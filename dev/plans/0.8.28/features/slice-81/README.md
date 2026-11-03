@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — erasure availability POC
-status: PLANNED
+status: IMPLEMENTED_PENDING_GATE
 ---
 
 # Slice 81 — erasure availability POC
@@ -15,8 +15,11 @@ or a bounded negative result, not a production erasure implementation.
 | [Requirements and acceptance](requirements.md) | Separate POC and experimental obligations; traceability |
 | [Experiment design](experiment-design.md) | Hypotheses, fixtures, controls, budgets, measurements and decision rules |
 | [Test plan](test-plan.md) | RED oracles, races, crash/reopen, physical proofs and independent verification |
-| [Draft implementation design](design.md) | Candidate mechanisms, state ownership, Engine seams and limitations |
-| [Status](status.md) | Planning/review/execution state and eventual evidence index |
+| [Implementation design](design.md) | Candidate mechanisms, state ownership, Engine seams and limitations |
+| [Status](status.md) | Execution state, final-gate status and evidence index |
+
+Measured outcome: 34 complete and 38 incomplete replicas; native availability
+and deletion SLA remain unqualified. See [results](../../../../experiments/erasure-availability/RESULTS.md).
 
 ## References
 

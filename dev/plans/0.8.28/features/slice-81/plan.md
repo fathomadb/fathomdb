@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — plan
-status: PLANNED
+status: IMPLEMENTED_PENDING_GATE
 baseline_sha: 3fc2df15e4dfadd67b9fb57e5e7cea3d62613ead
 target_release: 0.8.28
 ---
@@ -149,3 +149,13 @@ adds at most 25 active minutes for only those never-started IDs, preserving all
 original evidence and thresholds. This is a plan adjustment under the execution
 request, not a hidden extension or replacement run. Scope and production boundaries
 remain unchanged; Astra and independent verification gate the new controller.
+
+## Execution closeout
+
+All 72 original replicas now have immutable dispositions: 34 complete and 38
+incomplete, including all 36 large fresh native-erasure timeouts. The reviewed
+continuation plus exit-race recovery consumed 1,113.837442 active seconds, below
+its 1,500-second allowance; no attempted ID was retried. See [results](../../../../experiments/erasure-availability/RESULTS.md)
+for all cells, hypotheses and requirements. Eighteen Rust tests and fourteen
+controller tests passed, with independent verification and Astra review. Final
+repository gate and landing remain pending in [status](status.md).

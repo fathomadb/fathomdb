@@ -23,8 +23,9 @@ physical inspection and shutdown are charged to the 45-minute core budget.
 Each replica has 30 seconds and each cell has 90 seconds. It samples an 8-GiB RSS
 and 12-GiB scratch ceiling every 100 ms; overshoot and interrupted attempts are
 retained. A failed no-erasure service control makes that loaded comparison
-inconclusive. Raw events and final JSON include every scheduled request outcome;
-qualified percentiles require complete service and physical proof. The controller
+inconclusive. Complete replicas reconcile every scheduled request ID. Interrupted records retain
+observed outcomes, missing dispositions and unfinished calls; their qualified
+percentiles remain null. Qualified percentiles require complete service and physical proof. The controller
 retains master fixtures and records, then removes only its own disposable replica
 SQLite copies. Repeating a campaign requires a new reviewed authorization/budget.
 
@@ -77,3 +78,6 @@ only IDs still never started across both immutable prior segments, and subtracts
 the first continuation's elapsed time from its original 1500-second allowance.
 It is explicitly reviewed recovery from a resource-observer exit race, not an
 attempt-retry or deadline-reset mode.
+
+See [RESULTS](RESULTS.md) for frozen evidence, all 72 dispositions, qualification
+limits and successor recommendations.

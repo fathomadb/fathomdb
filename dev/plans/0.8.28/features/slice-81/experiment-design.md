@@ -1,14 +1,15 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — experiment design
-status: PLANNED
+status: IMPLEMENTED_PENDING_GATE
 target_release: 0.8.28
 ---
 
 # Slice 81 experiment design
 
 Normative obligations: [requirements](requirements.md). Mechanisms and seams:
-[draft design](design.md). Authorities/previous evidence: S81-3/4/5/9 in the
-[reference index](README.md#references). No experiment has run under this protocol.
+[implementation design](design.md). Authorities/previous evidence: S81-3/4/5/9 in the
+[reference index](README.md#references). Execution and the explicit continuation/recovery amendments are complete;
+see [results](../../../../experiments/erasure-availability/RESULTS.md). The original protocol remains below for audit.
 
 ## Hypotheses and assumptions
 

@@ -1,15 +1,18 @@
 ---
-title: FathomDB 0.8.28 Slice 81 — draft implementation design
-status: DRAFT
+title: FathomDB 0.8.28 Slice 81 — implementation design
+status: IMPLEMENTED_PENDING_GATE
 target_release: 0.8.28
 ---
 
-# Slice 81 draft implementation design
+# Slice 81 implementation design
 
 This is the POC implementation design, not the production erasure successor.
 [Requirements](requirements.md), [experiment](experiment-design.md) and
 [test oracles](test-plan.md) govern it. Sources S81-3/5/6/9 are indexed in
-[README](README.md#references). Exact seam feasibility is a code-phase gate.
+[README](README.md#references). The reviewed test-only transaction seam is implemented; see the execution amendment below and the [results](../../../../experiments/erasure-availability/RESULTS.md).
+
+The original conceptual layers below are superseded where the reviewed sanitation
+boundary excludes production scheduling, scoped fencing and public routing.
 
 ## Layers and authority
 
@@ -31,7 +34,7 @@ under one writer acquisition; never leave a transaction open between separate
 helper calls where another Engine write could join it. Measure lock wait separately
 from occupancy. Never mutate the live database through an unowned second writer.
 
-A required scoped-fence/reader-policy seam must be specified and reviewed before
+Any future scoped-fence/reader-policy seam must be specified and reviewed before
 coding: engine-owned, opt-in, per-instance, `test-hooks` gated, default unchanged,
 covering actual admission/publication paths. Preserve native validation and prove
 source/dependency/projection/registry/repair safety before narrowing a global gate.

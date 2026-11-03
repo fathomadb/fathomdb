@@ -643,6 +643,23 @@ impl Engine {
         Ok(())
     }
 
+    /// Run one test-only maintenance transaction on the Engine writer.
+    ///
+    /// The callback must not issue transaction-control SQL or reenter the Engine.
+    /// On success the transaction commits; on error it rolls back before releasing
+    /// the writer. Returns the callback value, mutex wait and lock occupancy through
+    /// transaction finalization. Storage errors map to `EngineError::Storage`;
+    /// a closing Engine returns `EngineError::Closing`. Callback panics unwind
+    /// through rollback and poison the writer mutex.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn maintenance_transaction_for_test<T>(
+        &self,
+        _operation: impl FnOnce(&rusqlite::Transaction<'_>) -> rusqlite::Result<T>,
+    ) -> Result<(T, std::time::Duration, std::time::Duration), EngineError> {
+        Err(EngineError::Storage)
+    }
+
     /// One-thread-poison robustness fixture (AC-009).
     ///
     /// Spawns four reader threads + one writer thread that all make

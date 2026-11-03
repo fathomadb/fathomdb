@@ -655,9 +655,20 @@ impl Engine {
     #[doc(hidden)]
     pub fn maintenance_transaction_for_test<T>(
         &self,
-        _operation: impl FnOnce(&rusqlite::Transaction<'_>) -> rusqlite::Result<T>,
+        operation: impl FnOnce(&rusqlite::Transaction<'_>) -> rusqlite::Result<T>,
     ) -> Result<(T, std::time::Duration, std::time::Duration), EngineError> {
-        Err(EngineError::Storage)
+        self.ensure_open()?;
+        let waiting = Instant::now();
+        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let wait = waiting.elapsed();
+        let acquired = Instant::now();
+        let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let transaction = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let value = operation(&transaction).map_err(|_| EngineError::Storage)?;
+        transaction.commit().map_err(|_| EngineError::Storage)?;
+        Ok((value, wait, acquired.elapsed()))
     }
 
     /// One-thread-poison robustness fixture (AC-009).

@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn mapped_vector_proof_preparation_work_does_not_scale_with_scope_size() {
         use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
-        let c = vector_storage::slice70_mapping_fixture(false);
+        let mut c = vector_storage::slice70_mapping_fixture(false);
         let mut debt = capture(&c, &[10], 10).unwrap();
         erase_row_projections(&c, &[10_i64][..]).unwrap();
         debt.vectors.extend(1000..2000);
@@ -561,7 +561,8 @@ mod tests {
                 observed.fetch_add(1, Ordering::Relaxed);
             }
             Authorization::Allow
-        }));
+        }))
+        .unwrap();
         validate_zero(&c, &debt).unwrap();
         assert!(prepared_reads.load(Ordering::Relaxed) <= 4,
             "mapped absence proof must reuse bounded SQL preparation work for every captured ID; observed {} prepared reads",

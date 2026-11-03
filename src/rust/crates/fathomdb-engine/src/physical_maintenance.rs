@@ -22,6 +22,7 @@ pub(crate) struct MaintenanceTurn<'a> {
 
 impl Drop for MaintenanceTurn<'_> {
     fn drop(&mut self) {
+        let _predicate = self.shared.stop.lock().unwrap_or_else(|p| p.into_inner());
         self.shared.priority.store(false, Ordering::Release);
         self.shared.wake.notify_all();
     }

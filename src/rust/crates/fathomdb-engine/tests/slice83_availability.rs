@@ -246,3 +246,31 @@ fn busy_finalization_redacts_denial_metadata_and_retry_processes_its_own_argumen
     );
     engine.close().unwrap();
 }
+
+#[test]
+fn committed_debt_finishes_on_idle_engine_without_another_call() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("idle.sqlite");
+    let engine = dependent_seed(&path);
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_delete_commit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(engine.erase_source("target").is_err());
+    let observer = rusqlite::Connection::open(&path).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    let completed = loop {
+        let owed: bool = observer.query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure') OR EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE phase!='complete')", [], |r| r.get(0)).unwrap();
+        if !owed {
+            break true;
+        }
+        if std::time::Instant::now() >= deadline {
+            break false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert!(completed, "committed cleanup must receive service while the Engine is idle");
+    engine.close().unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(!bytes.windows(b"derived private text".len()).any(|w| w == b"derived private text"));
+}

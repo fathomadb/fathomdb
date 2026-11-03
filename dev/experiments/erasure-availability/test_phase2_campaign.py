@@ -33,3 +33,13 @@ class Accounting(unittest.TestCase):
         self.assertEqual(result['accounting_errors'], 0)
         self.assertIsNone(result['service_p99_ns'])
         self.assertIsNone(result['offer_p99_ns'])
+
+    def test_resume_preserves_completed_cells_and_repeats_unknown_attempt_separately(self):
+        from phase2_campaign import resume_grid
+        cells = [dict(family='node', repetition=i) for i in range(3)]
+        records = [dict(cell=cells[0], exit_code=0, stop=None),
+                   dict(cell=cells[1], exit_code=None, stop='monitor_error')]
+        resumed = resume_grid(cells, records)
+        self.assertEqual(resumed[:3], cells)
+        self.assertEqual(resumed[3], dict(cells[1], retry_of=1))
+        self.assertEqual(cells, [dict(family='node', repetition=i) for i in range(3)])

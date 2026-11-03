@@ -49,3 +49,16 @@ The temporary implementation worktree and branch were removed after fast-forward
 landing in both release checkouts. Raw campaign and benchmark evidence remains in
 `/tmp/fathomdb-slice81-campaign`, `/tmp/fathomdb-slice81-native-benchmark` and
 `/tmp/fathomdb-slice81-evidence`; the compact benchmark receipt is committed.
+
+## Follow-up and project reconciliation
+
+Slice 81 is complete for now; no further POC execution is scheduled. The status,
+results, native benchmark, interface inventory and temporary-worktree cleanup are
+recorded above. Documentation and release-state checks passed after closeout.
+
+HITL approved CH1 on 2026-11-03: [Slice 82](../slice-82/plan.md) owns physical
+correctness/native cost and [Slice 83](../slice-83/plan.md) owns resumability/
+availability. The release plan/ladder, current/history sequence and candidate
+design, project roadmap and program sequencing index reflect this follow-up.
+Neither the POC result nor this allocation closes the production erasure finding.
+The physical-erasure guarantee/API decision is reserved for HITL at the end of 83.

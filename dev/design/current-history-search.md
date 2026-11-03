@@ -23,8 +23,8 @@ to describe shipped behavior. No release slice or accepted ADR is changed here.
 The [decision record and staged follow-up](../plans/current-history-followup-sequence.md)
 records the owner's choices after the experiments. Erasure repair, current isolation
 and temporal functionality are separate milestones. The registered-family erasure
-approach awaits concrete approval before production implementation. The secure
-bulk-refresh POC is approved; historical probes test certified native reuse first,
+plan is approved for Slices 82/83; exact phase design reviews precede code. The
+Slice 81 sanitation POC is complete with scoped findings; historical probes test certified native reuse first,
 then selected statistics over persistent postings/partitions, with private FTS as
 reference and a possible bounded path. No production backend is selected yet.
 
@@ -41,17 +41,25 @@ changed; this proposal does not reinterpret them.
 
 ## Deferred erasure and availability requirement
 
-The next bounded experiment is now [0.8.28 Slice 81](../plans/0.8.28/features/slice-81/README.md),
-placed by the owner on 2026-11-03 before Slice 90. Its requirements, experiment
-protocol, test plan and draft implementation design own this POC. Production
-repair and historical/temporal implementation remain separate approval scopes.
+[Slice 81](../plans/0.8.28/features/slice-81/README.md) is complete. Its
+[results](../experiments/erasure-availability/RESULTS.md) support incremental FTS
+sanitation as a production candidate but do not qualify native availability or
+a deletion SLA. The fresh node native call took 264.781 seconds and left FTS
+physical traces. Four qualified legacy comparisons reduced maintenance writer
+hold by 86.8–99.3%; these are separate measurements.
 
-The owner clarified on 2026-11-03 that full physical erasure may be deferred, but
-requires guaranteed completion and an explicit SLA. The
-[DBMS research](../notes/dbms-erasure-availability.md) separates sourced mechanisms
-from FathomDB proposals. Logical exclusion, durable accepted cleanup and verified
-physical completion must be distinct. No time value, SLA clock, new success
-meaning or background execution policy is approved by that clarification alone.
+HITL approved the [two-phase CH1 plan](../plans/ch1-production-erasure-plan.md)
+on 2026-11-03: Slice 82 repairs physical correctness/native cost under conservative
+admission; Slice 83 qualifies resumable work/native availability. These precede
+Slice 90. They do not allocate current-isolation or temporal implementation.
+Exact state/admission/ADR successors require Astra review before production code.
+
+At the end of Slice 83, HITL will decide the physical-erasure guarantee, including
+consideration of a specific API to ensure physical cleanup. No API, numerical
+SLA or unconditional deadline is selected. Existing erase/purge success still
+requires physical completion; accepted work and logical denial are distinct.
+The [DBMS research](../notes/dbms-erasure-availability.md) remains background
+mechanism research, not a guarantee.
 
 Denial linearizes for newly admitted reads; existing pinned reads keep the current
 contract unless a successor explicitly drains/cancels them. Previously returned
@@ -69,8 +77,9 @@ projection/re-ingestion safety, durable progress/restart and required WAL/teleme
 completion. Brief finalization barriers and long-reader control must be explicit.
 Run-to-completion, indefinite reader lifetimes or engine downtime cannot be assumed
 compatible with a strict wall-clock deadline. Measure ordinary membership changes
-separately from erasing all copies of a source. Mechanism selection and production
-implementation remain pending the revised proposal and approval.
+separately from erasing all copies of a source. The approved CH1 plan prefers
+incremental sanitation, retains eager cleanup as reference and requires concrete
+phase design review before implementation.
 
 ## Changes considered and applied
 

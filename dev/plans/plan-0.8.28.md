@@ -41,6 +41,10 @@ regression that Slice 40 Unit I exposed:
   conditional staged replacement, foreground availability and durable deletion
   SLA feasibility; production remediation is not included. See the
   [Slice 81 package](0.8.28/features/slice-81/README.md).
+- **Slices 82 and 83 (owner approved 2026-11-03):** CH1 Phase 1 repairs physical
+  correctness/native cost; Phase 2 qualifies resumable cleanup/availability.
+  Both precede Slice 90. The guarantee/API decision belongs to HITL at the end
+  of 83; see the [approved plan](ch1-production-erasure-plan.md).
 
 The other entries in the [draft scope](0.8.28-draft-scope.md) were ruled on
 2026-10-31; the rulings are in `dev/plans/release-state-0.8.28.json`.
@@ -157,19 +161,21 @@ Slice numbers between the placed slices are reserved, and new slices go in
 steps of 10. A slot stays empty unless a placement decision adds a slice;
 it is never an implicit patch lane.
 Owner placement on 2026-11-03 explicitly assigns reserved slot 81 to the erasure
-availability POC; it does not change this policy for other gaps.
+availability POC; the subsequent approved CH1 allocation assigns slots 82 and 83.
+These explicit placements do not change this policy for other gaps.
 
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 90** (`FILTERED-BODY-FTS`) — D28-14: SearchFilter on direct node and edge body FTS-only search (search_text_only / searchTextOnly), applied before truncation, ranking and limit
+**IMMEDIATE NEXT: Slice 82** (`CH1-PHYSICAL-ERASURE`) — CH1 Phase 1: physical correctness and native erasure cost; durable sanitation and retained-term cleanup under conservative admission
 
-**Remaining ladder:** 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 82 → 83 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
 Slices 60, 70 and 80 are complete on `dev/0.8.28` and `release/0.8.28`.
-Slice 81 is complete; Slice 90 is next. After that comes
+Slice 81 is complete; CH1 Slice 82 is next, followed by 83 and 90. The
+physical-erasure guarantee/API decision is held at the end of 83. After 90 comes
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
@@ -306,8 +312,16 @@ requirements say otherwise.
     bounded measurements are in the [slice package](0.8.28/features/slice-81/README.md).
     See [results](../experiments/erasure-availability/RESULTS.md) for qualified
     comparisons, incomplete attempts and the separate native timing benchmark.
-  - No production erasure fix, shipped admission/success change, temporal backend
-    or numeric SLA is approved. Known physical erasure finding remains open.
+  - The POC changed no production erasure semantics. Its findings feed approved
+    CH1 Slices 82/83; the physical erasure finding remains open pending repair.
+- **Slice 82 — CH1 Phase 1 (`CH1-PHYSICAL-ERASURE`).** Physical correctness and
+  native cost, durable sanitation and retained ghosts; conservative admission.
+  [Phase plan](0.8.28/features/slice-82/plan.md), acceptance CH1-1A–1F.
+- **Slice 83 — CH1 Phase 2 (`CH1-ERASURE-AVAILABILITY`).** Resumable native work,
+  safe denial/publication, restart and unrelated-operation progress.
+  [Phase plan](0.8.28/features/slice-83/plan.md), acceptance CH1-2A–2F.
+  End-of-slice HITL decision: physical-erasure guarantee and possible cleanup API;
+  no new API or numerical SLA is selected by allocation.
 - **Slice 90 — filtered direct body FTS (D28-14).** It follows the
   [draft scope](0.8.28-draft-scope.md#d28-14-filtered-direct-body-fts).
   It builds on Slice 80's view admission in all three bindings; the direct
@@ -327,4 +341,6 @@ requirements say otherwise.
 | 70 | Vector eligibility inside vec0 | [Plan](0.8.28/features/slice-70/plan.md) |
 | 80 | `include_superseded` and `include_inactive` on search | [Plan](0.8.28/features/slice-80/plan.md) |
 | 81 | Erasure availability POC and deletion SLA feasibility | [Package](0.8.28/features/slice-81/README.md) |
+| 82 | CH1 Phase 1: physical correctness and native cost | [Plan](0.8.28/features/slice-82/plan.md) |
+| 83 | CH1 Phase 2: native resumability/availability; guarantee/API decision at end | [Plan](0.8.28/features/slice-83/plan.md) |
 | 90 | D28-14 filtered direct body FTS | to be written |

@@ -26,7 +26,7 @@ and deletion SLA remain unqualified. See [results](../../../../experiments/erasu
 | Ref | Authority/evidence |
 | --- | --- |
 | S81-1 | Owner 2026-11-03: place the erasure-availability POC in new Slice 81 and write this planning package. This authorizes placement/planning, not production remediation or an unbounded campaign. |
-| S81-2 | [Decision sequence](../../../../plans/current-history-followup-sequence.md): decision 3 approved maintenance POC; decision 1 production approach requires approval; physical erasure may be lazy with guaranteed completion/SLA. |
+| S81-2 | [Decision sequence](../../../../plans/current-history-followup-sequence.md): decision 3 approved maintenance POC; CH1 production follow-up is approved for Slices 82/83; the physical-erasure guarantee/API decision remains at the end of 83. |
 | S81-3 | [DBMS research](../../../../notes/dbms-erasure-availability.md): primary sources, deferred cleanup, SLA conditions and availability constraints. |
 | S81-4 | [Follow-up results](../../../../experiments/current-history-search/followups/RESULTS.md): ordinary-Engine FTS ghost witness; candidate secure refresh 4.6 s; exact scope/acceptance limitations. |
 | S81-5 | [Existing tools](../../../../experiments/current-history-search/followups/README.md): rerunnable erasure probe, current collector and measurement fixtures. Preserve their prior results. |
@@ -35,7 +35,14 @@ and deletion SLA remain unqualified. See [results](../../../../experiments/erasu
 | S81-8 | [Quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md), [AGENTS.md](../../../../../AGENTS.md): real databases, RED/GREEN, boundary/fault tests, measured resource cleanup. |
 | S81-9 | [FTS5 merge/optimize/secure-delete](https://www.sqlite.org/fts5.html#special_insert_commands), [core secure deletion](https://www.sqlite.org/pragma.html#pragma_secure_delete), [checkpoint](https://www.sqlite.org/c3ref/wal_checkpoint_v2.html), [interruption](https://www.sqlite.org/c3ref/interrupt.html): upstream mechanism boundaries, not deletion SLAs. |
 | S81-10 | [Store format 35](../../../../adr/ADR-0.8.28-store-format-35.md): real bundled SQLite/layout, current-format-only admission, no migration. |
-| S81-11 | [Release plan](../../../plan-0.8.28.md), [release state](../../../release-state-0.8.28.json), [Slice 80 status](../slice-80/status.md): 80 is complete; 81 precedes existing 90. |
+| S81-11 | [Release plan](../../../plan-0.8.28.md), [release state](../../../release-state-0.8.28.json), [Slice 80 status](../slice-80/status.md): 80/81 are complete; approved CH1 Slices 82/83 precede existing 90. |
 
-New test/harness paths named in the design are planned artifacts, not existing
-implementation evidence. No new canonical AC identifiers are introduced.
+Implemented test/harness paths and actual coverage are indexed in the
+[experiment README](../../../../experiments/erasure-availability/README.md) and
+results. Unexecuted conceptual composition work is explicitly unqualified.
+No new canonical AC identifiers are introduced.
+
+Slice 81 and its project reconciliation are complete for now. Approved follow-up:
+[CH1 Phase 1 / Slice 82](../slice-82/plan.md), then
+[Phase 2 / Slice 83](../slice-83/plan.md). The physical-erasure guarantee and
+possible cleanup API remain HITL decisions at the end of 83.

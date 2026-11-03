@@ -19,7 +19,10 @@ Owner places Slice 81 after 80 and before 90 on `dev/0.8.28`. It is the explicit
 exception for this reserved slot; no general gap policy changes. Slice 80 stays
 complete. Slice 90 retains its filtered-body-FTS scope, now following 81. The
 serial release policy and 0.8.29 handover after final release development remain.
-Only 81 is placed: the other CH units remain proposed and unnumbered.
+At the original POC placement only 81 was assigned. After its completion, HITL
+approved CH1 Phase 1 as [Slice 82](../slice-82/plan.md) and Phase 2 as
+[Slice 83](../slice-83/plan.md); other CH units remain proposed and unnumbered.
+The physical-erasure guarantee/API decision stays at the end of Slice 83.
 
 ## Reconciliation since the original maintenance proposal
 

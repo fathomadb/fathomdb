@@ -10,16 +10,18 @@ target_release: unassigned
 Owner decisions follow the [reviewed results](../experiments/current-history-search/followups/RESULTS.md).
 This records decisions and proposes delivery units. It does not reopen Slice 80,
 authorize the whole program. Owner subsequently placed the maintenance POC in
-Slice 81, before unchanged Slice 90 scope; other production units remain proposed.
+Slice 81; its evidence now feeds approved CH1 Slices 82 and 83 before unchanged
+Slice 90 scope. Other production units remain proposed.
 The [production design](../design/current-history-search.md) remains a candidate.
 CH labels are planning units: CH2 sanitation evidence is complete in
-[Slice 81](0.8.28/features/slice-81/README.md); the others are not assigned slices.
+[Slice 81](0.8.28/features/slice-81/README.md); CH1 is assigned to Slices 82/83.
+CH3–CH8 remain unassigned.
 
 ## Decision record
 
 | # | Owner direction | Recorded boundary |
 | ---: | --- | --- |
-| 1 | B: secure deletion and retained-term cleanup across registered FTS families | Direction selected; concrete approach below requires owner approval before production implementation. Slice 81 demonstrated family-specific physical witnesses; production qualification remains required. |
+| 1 | B: secure deletion and retained-term cleanup across registered FTS families | Two-phase CH1 plan approved and allocated to Slices 82/83 on 2026-11-03; exact production design reviews remain required. Slice 81 demonstrated family-specific physical witnesses; production qualification remains required. |
 | 2 | B: separate erasure, current isolation and temporal milestones | Accepted delivery direction; release placement remains open. |
 | 3 | B: incremental ordinary maintenance plus bulk refresh; POC approved | Focused comparison authorized; mechanism selection and production implementation not approved. Owner wrote “PIC”; interpreted as POC in context. |
 | 4 | Test B first, then compare C for arbitrary temporal subsets; retain A as reference/bounded candidate | Ordered probes: certified native reuse, then persistent selected statistics/partitions. No winning backend yet. |
@@ -81,9 +83,10 @@ the earlier eager-first sketch. It proposes two production phases:
    unrelated progress and pinned-reader finalization while preserving truthful
    public success meanings.
 
-HITL requested a concrete Astra-reviewed plan for approval before allocating
-Phase 1 to Slice 82 and Phase 2 to Slice 83. These are proposed 0.8.28 slots,
-not live ladder changes or implementation authorization. At the end of proposed
+HITL approved the Astra-reviewed plan on 2026-11-03 and allocated Phase 1 to
+[Slice 82](0.8.28/features/slice-82/plan.md) and Phase 2 to
+[Slice 83](0.8.28/features/slice-83/plan.md). The 0.8.28 ladder is 82 → 83 → 90;
+phase implementation has not started. At the end of
 Slice 83, HITL will decide the physical-erasure guarantee. A specific API that
 callers could invoke to ensure physical cleanup is under consideration then;
 no API, numerical SLA or unconditional deadline is selected by this plan.
@@ -166,7 +169,7 @@ exclusions, RED oracles and acceptance proposal. Owner review of 6/7 precedes co
 
 | Unit | Deliverable | Dependencies and stop boundary |
 | --- | --- | --- |
-| CH1 | Two-phase physical erasure/cost, then native availability | Revised plan awaits approval; proposed 82/83 allocation. End of 83: HITL guarantee/API decision. No temporal dependency. |
+| CH1 | Two-phase physical erasure/cost, then native availability | Approved plan allocated to 82/83; implementation not started. End of 83: HITL guarantee/API decision. No temporal dependency. |
 | CH2 | Slice 81 sanitation evidence complete; ordinary expiry deferred | Use scoped A/B findings for CH1; no integrated SLA or authorized-history expiry pass. |
 | CH3 | B-first, then C historical comparison | Stable scope oracles; B precedes C. CH4 defines exact future contracts; fixture probes can precede it. |
 | CH4 | Minimal temporal/evidence/ranking contract/tests | Existing evidence; resolve 6/7 with Astra-medium. No repeated basic POC required. |
@@ -176,7 +179,7 @@ exclusions, RED oracles and acceptance proposal. Owner review of 6/7 precedes co
 | CH8 | Selected-history production routing/bounded envelope | CH3 selection, CH4 contracts, CH6 node semantics; CH7 before graph claims. Integrate admission/fairness, tested caps, no-spill policy and historical SLOs. |
 
 Owner placement now puts CH2 maintenance evidence in Slice 81 before CH1
-production approval/repair. Slice 81 is complete; the linked two-phase CH1 repair is proposed for approval;
+production approval/repair. Slice 81 is complete; the linked two-phase CH1 repair is approved and allocated to Slices 82/83;
 CH3–CH8 remain separately placed work, not additions to this release by implication. Resolve a specific CH4 contract first if CH3 needs it; never invent it
 inside the benchmark. CH5 can land before temporal functionality. CH4 decisions
 must precede any opt-in temporal population routed by CH5. CH8 node/edge/property
@@ -185,8 +188,8 @@ routing and graph qualification remain separate claims.
 Additional slices are warranted: these units have independent acceptance/failure
 boundaries. CH1–CH4 should be bounded follow-up slices; size CH5–CH8 from reviewed
 designs and split further only for concrete boundaries. Place releases separately;
-only the explicit Slice 81 POC now precedes Slice 90. Do not insert the other
-units or move the 0.8.29 handover by implication.
+the completed Slice 81 POC and approved CH1 Slices 82/83 precede Slice 90.
+Do not insert other units or move the 0.8.29 handover by implication.
 Physical erasure remains an adoption blocker until fixed/qualified.
 
 ## Testing and resource acceptance
@@ -219,9 +222,9 @@ with focused repairs rather than repeated full runs.
 
 ## Remaining owner decisions
 
-- Approve/adjust the revised two-phase CH1 plan before allocating proposed
-  Slices 82/83 and implementing. At the end of 83, decide the physical-erasure
-  guarantee and consider an explicit cleanup API using actual engineering evidence.
+- At the end of Slice 83, decide the physical-erasure guarantee and consider an
+  explicit cleanup API using actual CH1 engineering evidence. The two-phase plan
+  and Slices 82/83 allocation are approved; the guarantee/API choice remains open.
 - Accept/adjust minimal decision 6 after CH4's proof/design; keep 7 open until its
   examples and Astra-medium review justify scope.
 - Place follow-ups in the release ladder without moving other work by implication;
@@ -239,7 +242,8 @@ CH4 detailed design/code review or owner approval to implement CH1.
 On 2026-11-03 Astra approved the revised two-phase CH1 proposal and CH2 evidence
 reconciliation for HITL plan review, with no blocking findings. The
 [concrete plan](ch1-production-erasure-plan.md) records the review and proposed
-82/83 allocation; HITL approval is pending.
+82/83 allocation. HITL subsequently approved both scope and allocation on
+2026-11-03, retaining the guarantee/API decision at the end of 83.
 
 ## Availability research follow-up
 
@@ -247,7 +251,8 @@ The owner's 2026-11-03 clarification and subagent's primary-source research are
 [recorded durably](../notes/dbms-erasure-availability.md). This changes the CH1/CH2
 proposal and test questions, not shipped semantics or the earlier acceptance
 results. Physical erasure remains an adoption blocker. Research is authorized;
-production erasure implementation still awaits the revised reviewed proposal.
+the revised two-phase CH1 plan is now approved for Slices 82/83, with phase
+design reviews still required before code.
 
 ## Slice 81 placement
 
@@ -256,5 +261,6 @@ Owner 2026-11-03 assigned the maintenance/erasure-availability POC to
 requirements/AC, design and test controls. This revises the earlier CH1-before-CH2
 proposal: obtain mechanism/availability evidence before approving the production
 repair. Existing Slice 90 remains after 81; historical and temporal work is not
-allocated here. Slice 81 is now complete with scoped results; the CH1 successor awaits plan
-approval and allocation. Its findings do not close the production erasure defect.
+allocated here. Slice 81 is complete with scoped results; CH1 Slices 82/83 now
+own the approved production follow-up. Its findings do not close the production
+erasure defect. The guarantee/API decision remains at the end of 83.

@@ -1,22 +1,24 @@
 ---
 title: CH1 — production erasure in two phases
-status: PROPOSED
+status: ACTIVE
 date: 2026-11-03
-target_release: proposed 0.8.28 Slices 82 and 83; not allocated
+target_release: 0.8.28 Slices 82 and 83
 ---
 
 # CH1 — production erasure in two phases
 
-This is the concrete CH1 proposal replacing the earlier eager-first repair sketch
+This is the approved CH1 plan replacing the earlier eager-first repair sketch
 in the [follow-up sequence](current-history-followup-sequence.md#ch1--two-phase-production-erasure-proposal).
-HITL requested this revision and Astra review before approval and allocation.
-Phase 1 is proposed for Slice 82 and Phase 2 for Slice 83, both before Slice 90.
-The live release ladder is unchanged. This document authorizes no implementation.
+HITL approved the Astra-reviewed plan on 2026-11-03 and allocated Phase 1 to
+[Slice 82](0.8.28/features/slice-82/plan.md) and Phase 2 to
+[Slice 83](0.8.28/features/slice-83/plan.md), both before Slice 90.
+The live release ladder is 82 → 83 → 90. Neither phase has started implementation;
+each phase retains its specified pre-code design and review gates.
 
 At the end of Phase 2, HITL will decide the physical-erasure guarantee. HITL is
 considering a specific API callers could invoke to ensure physical cleanup.
 That is an end-of-Slice-83 consideration: neither its existence, shape, blocking
-behavior nor guarantee is selected here. Approval of these phases would approve
+behavior nor guarantee is selected here. Approval of these phases covers
 engineering and evidence, not a new numerical SLA or weaker existing success rule.
 
 ## Evidence and changes to the earlier proposal
@@ -63,7 +65,7 @@ Authoritative evidence: [Slice 81 results](../experiments/erasure-availability/R
   successor lands. Update affected Python/TypeScript/CLI contracts with behavior
   changes, preserving existing SDK parity and operator-only recovery boundaries.
 
-## Phase 1 — physical correctness and native cost (proposed Slice 82)
+## Phase 1 — physical correctness and native cost (Slice 82)
 
 ### Requirements and design work
 
@@ -127,7 +129,7 @@ Phase 1 exits with production physical-cleanup correctness under existing
 conservative admission, integrated regression tests, measured cost changes and
 explicit known limits. This does not choose the project's eventual guarantee.
 
-## Phase 2 — resumable work and availability (proposed Slice 83)
+## Phase 2 — resumable work and availability (Slice 83)
 
 Depends on accepted Phase 1 results. Reconcile its measured bottlenecks before
 final design; do not assume FTS merge is still the limiting stage.
@@ -257,14 +259,15 @@ reuse CH1 regression coverage there, without deferring CH1's own crash acceptanc
 
 ## Approval and review record
 
-Requested approval: the two-phase scope and acceptance above, followed by proposed
-0.8.28 allocation 82 → 83 → existing 90. No release state/board change is made
-until HITL approves. No production code, schema or public interface is changed
-by this planning revision.
+HITL approved the two-phase scope and acceptance on 2026-11-03 and directed
+0.8.28 allocation 82 → 83 → existing 90. The release state, board and master plan
+record this allocation. The physical-erasure guarantee/API decision stays at the
+end of Slice 83. This allocation update changes no production code or contract.
 
 Astra reviewed this plan and the reconciled CH1/CH2 follow-up on 2026-11-03:
 APPROVE for HITL plan review and proposed allocation, with no blocking findings.
 Source checks confirmed the no-dependent debt gap, existing offline proof/WAL/
 telemetry boundary and need for a successor before automatic reopen completion.
 Exact state, fencing and completion invariants remain required at each phase's
-pre-code design review. This is review approval, not HITL implementation approval.
+pre-code design review. HITL subsequently approved this plan and allocation; exact phase designs still
+require the specified Astra review before code.

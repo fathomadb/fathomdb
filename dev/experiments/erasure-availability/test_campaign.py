@@ -106,6 +106,40 @@ class Measurement(unittest.TestCase):
         self.assertEqual(result['error'], 1)
         self.assertIsNone(result['p50_ns'])
 
+    def test_exited_child_proc_permission_race_is_not_monitor_failure(self):
+        processes = []
+        original = subprocess.Popen
+        def launch(*args, **kwargs):
+            process = original(*args, **kwargs)
+            processes.append(process)
+            return process
+        def sample(pid, root):
+            processes[-1].wait(timeout=2)
+            raise PermissionError(13, 'Permission denied', f'/proc/{pid}/io')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch.object(campaign.subprocess, 'Popen', side_effect=launch), mock.patch.object(campaign, 'resource_sample', side_effect=sample):
+                record = campaign.child([sys.executable, '-c', 'print(123)'], root/'log', root, time.monotonic()+3)
+            self.assertEqual(record['exit_code'], 0)
+            self.assertIsNone(record['stop'])
+            self.assertTrue(all(p.poll() is not None for p in processes))
+
+    def test_active_child_proc_permission_error_still_reaps_and_fails(self):
+        processes = []
+        original = subprocess.Popen
+        def launch(*args, **kwargs):
+            process = original(*args, **kwargs)
+            processes.append(process)
+            return process
+        def sample(pid, root):
+            raise PermissionError(13, 'Permission denied', f'/proc/{pid}/io')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch.object(campaign.subprocess, 'Popen', side_effect=launch), mock.patch.object(campaign, 'resource_sample', side_effect=sample):
+                with self.assertRaises(PermissionError):
+                    campaign.child([sys.executable, '-c', 'import time; time.sleep(30)'], root/'log', root, time.monotonic()+3)
+            self.assertTrue(all(p.poll() is not None for p in processes))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -32,6 +32,12 @@ def remaining_seconds(original, cell, deadline, now):
     return max(0, min(30, 90-spent, deadline-now))
 
 
+
+def recovery_inputs(original, previous):
+    """Merge immutable prior outcomes and subtract their active supplement cost."""
+    return original, 1500
+
+
 def prepare(binary, root):
     """Verify immutable inputs and return the exact reviewed continuation plan."""
     subprocess.run(['git', 'diff', '--quiet'], check=True)

@@ -721,7 +721,7 @@ impl Engine {
         let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
         drop(queue);
         self.finish_redacted_before_request()?;
-        self.physical_maintenance.metrics.begin_lifecycle();
+        let _physical_attempt = self.physical_attempt();
 
         let pending = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -1044,7 +1044,7 @@ impl Engine {
         let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
         drop(queue);
         self.finish_redacted_before_request()?;
-        self.physical_maintenance.metrics.begin_lifecycle();
+        let _physical_attempt = self.physical_attempt();
 
         #[cfg(feature = "test-hooks")]
         {

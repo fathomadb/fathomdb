@@ -97,3 +97,33 @@ impl Engine {
         serde_json::Value::Object(values)
     }
 }
+
+pub(crate) struct PhysicalAttempt<'a>(&'a Engine);
+
+impl Engine {
+    pub(crate) fn physical_attempt(&self) -> PhysicalAttempt<'_> {
+        self.physical_maintenance.metrics.begin_lifecycle();
+        PhysicalAttempt(self)
+    }
+}
+
+impl Drop for PhysicalAttempt<'_> {
+    fn drop(&mut self) {
+        #[cfg(any(test, feature = "test-hooks"))]
+        if self.0.physical_maintenance.metrics.enabled.load(Ordering::Relaxed) {
+            if let Ok(guard) = self.0.connection.lock() {
+                if guard.as_ref().is_none_or(|c| matches!(physical_erasure::active(c), Ok(false))) {
+                    self.0
+                        .physical_maintenance
+                        .metrics
+                        .started
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .take();
+                }
+            }
+        }
+        #[cfg(not(any(test, feature = "test-hooks")))]
+        let _ = self.0;
+    }
+}

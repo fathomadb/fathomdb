@@ -942,15 +942,22 @@ impl Engine {
                     }
                 })?;
 
-                let edge_history_enqueued =
-                    crate::projection_registry::reconcile_edge_history_on_boot(
-                        startup.connection(),
-                    )
-                    .map_err(|_| EngineOpenError::Io {
-                        message: "could not reconcile historical edge projections".into(),
+                let physical_debt =
+                    physical_erasure::active(startup.connection()).map_err(|_| {
+                        EngineOpenError::Io {
+                            message: "physical erasure metadata is malformed".into(),
+                        }
                     })?;
+                let edge_history_enqueued = if physical_debt {
+                    false
+                } else {
+                    crate::projection_registry::reconcile_edge_history_on_boot(startup.connection())
+                        .map_err(|_| EngineOpenError::Io {
+                            message: "could not reconcile historical edge projections".into(),
+                        })?
+                };
                 let dense_runtime_usable = runtime_embedder.is_some();
-                let boot_graft_enqueued = if dense_runtime_usable {
+                let boot_graft_enqueued = if dense_runtime_usable && !physical_debt {
                     boot_graft_declared_vector_backfill(startup.connection()).map_err(|_| {
                         EngineOpenError::Io {
                             message: "could not graft declared vector projection on boot"
@@ -1100,6 +1107,7 @@ impl Engine {
                     opened.engine.subscribers.attach_persistent(subscriber);
                 }
                 if dense_runtime_usable
+                    && !physical_debt
                     && (boot_graft_enqueued
                         || edge_history_enqueued
                         || database_has_pending_projection_work(
@@ -1207,6 +1215,9 @@ impl Engine {
                 message: "physical erasure metadata is malformed".into(),
             })?;
         }
+        let physical_debt = physical_erasure::active(&connection).map_err(|_| {
+            EngineOpenError::Io { message: "physical erasure metadata is malformed".into() }
+        })?;
         // 0.8.0 Slice 5 (G1) — global FTS5 tokenizer-default upgrade. Step 11
         // drops + recreates `search_index` with the new tokenizer, leaving it
         // EMPTY on a migrated DB. The projection scheduler will NOT
@@ -1223,7 +1234,8 @@ impl Engine {
         // skipping repair forever. So gate on the completion marker's ABSENCE
         // (written atomically with the reindex) instead: idempotent, and a
         // crash before the reindex commit simply re-runs on the next open.
-        if migration.schema_version_after >= SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION
+        if !physical_debt
+            && migration.schema_version_after >= SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION
             && !search_index_tokenizer_reproject_complete(&connection).map_err(|_| {
                 EngineOpenError::Io {
                     message: "could not read search_index tokenizer reproject marker".to_string(),
@@ -1312,7 +1324,8 @@ impl Engine {
         // and crash-retryable via the durable completion marker; a no-op on any
         // healthy corpus (every vec0 row has a sidecar entry), so recall / eu7
         // fidelity are unchanged on a DB that never dropped edges.
-        if migration.schema_version_after >= EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION
+        if !physical_debt
+            && migration.schema_version_after >= EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION
             && !edge_vector_prune_complete(&connection).map_err(|_| EngineOpenError::Io {
                 message: "could not read edge-vector prune marker".to_string(),
             })?
@@ -1355,11 +1368,13 @@ impl Engine {
         // returns), so a database whose only enrolment was the inert one pays no
         // probe embeds on the healing open. Another boot reconciliation on the
         // writer connection, single-threaded, before readers spawn.
-        reconcile_inert_vector_enrolments_on_boot(&connection).map_err(|_| {
-            EngineOpenError::Io {
-                message: "could not reconcile inert vector kind enrolments on boot".to_string(),
-            }
-        })?;
+        if !physical_debt {
+            reconcile_inert_vector_enrolments_on_boot(&connection).map_err(|_| {
+                EngineOpenError::Io {
+                    message: "could not reconcile inert vector kind enrolments on boot".to_string(),
+                }
+            })?;
+        }
 
         // 0.8.20 Slice 15e — reconcile the live `vector_default` attribute columns
         // with the registry's `filterable` set. On a DB whose vec0 shape already
@@ -1370,7 +1385,7 @@ impl Engine {
         // registry (e.g. a restored registry row). A no-op when the table is
         // absent (no embedder). Runs on the writer connection, single-threaded,
         // before readers spawn — like the boot re-derive above.
-        {
+        if !physical_debt {
             let tx = connection.transaction().map_err(|_| EngineOpenError::Io {
                 message: "could not begin vector-attr reconcile on boot".to_string(),
             })?;
@@ -1391,7 +1406,10 @@ impl Engine {
         // the mean from the existing un-centered rows and pin+re-quantize
         // now, single-threaded, before the projection workers spawn. The
         // NULL guard makes this idempotent on subsequent opens.
-        if identity_requires_mean_centering(embedder_identity) && !embedder_mean_vec_pinned {
+        if !physical_debt
+            && identity_requires_mean_centering(embedder_identity)
+            && !embedder_mean_vec_pinned
+        {
             let row_count: u64 = connection
                 .query_row("SELECT COUNT(*) FROM vector_default", [], |row| row.get(0))
                 .unwrap_or(0);

@@ -230,7 +230,10 @@ pub(crate) fn transaction<T>(
     c.execute_batch("BEGIN IMMEDIATE").map_err(|_| EngineError::Storage)?;
     match operation() {
         Ok(value) => {
-            c.execute_batch("COMMIT").map_err(|_| EngineError::Storage)?;
+            if c.execute_batch("COMMIT").is_err() {
+                let _ = c.execute_batch("ROLLBACK");
+                return Err(EngineError::Storage);
+            }
             Ok(value)
         }
         Err(error) => {

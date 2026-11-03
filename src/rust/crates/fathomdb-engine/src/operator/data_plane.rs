@@ -318,6 +318,8 @@ fn validate_recovery_schema_invariants(
     frozen_read::validate_on_open(connection, schema_version)
         .map_err(|_| recovery_schema_corruption("_fathomdb_read_visibility_state"))?;
     dependency_closure::validate_closure_state_on_open(connection, schema_version)?;
+    physical_erasure::validate_state(connection)
+        .map_err(|_| recovery_schema_corruption("_fathomdb_open_state"))?;
     Ok(())
 }
 

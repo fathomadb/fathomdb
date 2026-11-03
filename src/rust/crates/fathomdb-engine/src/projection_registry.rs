@@ -2478,6 +2478,7 @@ pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlit
                 continue;
             }
             if !lexical_cursors.contains(&cursor) {
+                physical_erasure::mark_dirty(connection)?;
                 connection.execute(
                     "INSERT INTO search_index_edges(body,kind,write_cursor) VALUES(?1,?2,?3)",
                     params![body, kind, cursor],

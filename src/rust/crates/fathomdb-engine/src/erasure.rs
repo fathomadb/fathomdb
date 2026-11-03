@@ -608,6 +608,19 @@ impl Engine {
         verb: &'static str,
         closure_ids: &[ClosureOperationId],
     ) -> Result<(), EngineError> {
+        let result = self.finish_physical_dependency_closures_inner(verb, closure_ids);
+        if let Err(error) = &result {
+            let guard = self.physical_writer(true)?;
+            physical_erasure::record_blocker(guard.as_ref().ok_or(EngineError::Closing)?, error)?;
+        }
+        result
+    }
+
+    fn finish_physical_dependency_closures_inner(
+        &self,
+        verb: &'static str,
+        closure_ids: &[ClosureOperationId],
+    ) -> Result<(), EngineError> {
         {
             let connection = self.physical_writer(true)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;

@@ -12,14 +12,14 @@ This records decisions and proposes delivery units. It does not reopen Slice 80,
 authorize the whole program. Owner subsequently placed the maintenance POC in
 Slice 81, before unchanged Slice 90 scope; other production units remain proposed.
 The [production design](../design/current-history-search.md) remains a candidate.
-CH labels are planning units: CH2 maintenance evidence is now assigned to
+CH labels are planning units: CH2 sanitation evidence is complete in
 [Slice 81](0.8.28/features/slice-81/README.md); the others are not assigned slices.
 
 ## Decision record
 
 | # | Owner direction | Recorded boundary |
 | ---: | --- | --- |
-| 1 | B: secure deletion and retained-term cleanup across registered FTS families | Direction selected; concrete approach below requires owner approval before production implementation. Node defect confirmed; each other family needs its own witness. |
+| 1 | B: secure deletion and retained-term cleanup across registered FTS families | Direction selected; concrete approach below requires owner approval before production implementation. Slice 81 demonstrated family-specific physical witnesses; production qualification remains required. |
 | 2 | B: separate erasure, current isolation and temporal milestones | Accepted delivery direction; release placement remains open. |
 | 3 | B: incremental ordinary maintenance plus bulk refresh; POC approved | Focused comparison authorized; mechanism selection and production implementation not approved. Owner wrote “PIC”; interpreted as POC in context. |
 | 4 | Test B first, then compare C for arbitrary temporal subsets; retain A as reference/bounded candidate | Ordered probes: certified native reuse, then persistent selected statistics/partitions. No winning backend yet. |
@@ -31,8 +31,8 @@ CH labels are planning units: CH2 maintenance evidence is now assigned to
 
 Direction approval differs from approval of a finished implementation plan.
 No production change or new campaign is executed by this record. Decision 3's
-approved POC is placed in Slice 81 to test the erasure/availability guarantees
-before the revised production CH1 proposal. Decision 4
+approved POC completed in Slice 81 with scoped erasure/availability evidence
+for the revised production CH1 proposal. Decision 4
 establishes probe order without authorizing an unrestricted campaign.
 
 ## Temporal model in plain language
@@ -67,86 +67,42 @@ integrated performance, arbitrary atomic batches, full evidence and temporal gra
 correctness remain unqualified. Opt-in operations and staged integration tie costs
 to actual needs.
 
-## CH1 — Erasure approach; revision required before approval
+## CH1 — two-phase production erasure proposal
 
-Owner clarification (2026-11-03): full physical erasure may be lazy, but deletion
-must be guaranteed under a defined SLA. Keep logical exclusion distinct from
-accepted durable cleanup and verified physical completion. No numerical deadline,
-SLA clock, worker mechanism or new API has been approved. The
-[DBMS availability research](../notes/dbms-erasure-availability.md) informs the
-revised proposal; the earlier eager policy below remains a comparison candidate.
+The [revised CH1 plan](ch1-production-erasure-plan.md) incorporates the completed
+[Slice 81 findings](../experiments/erasure-availability/RESULTS.md) and replaces
+the earlier eager-first sketch. It proposes two production phases:
 
-Denial needs an explicit committed boundary for newly admitted reads and a
-separate policy for existing pinned reads. Pending bytes must not taint authorized
-corpus statistics, caps, graph or historical/evidence routing: publish safe
-membership or refuse/await an affected scope. Output filtering alone is insufficient;
-large closure/publication is not assumed constant-time.
+1. **Physical correctness and native cost:** profile/fix native erasure cost,
+   integrate durable incremental sanitation, cover retained ghosts and original
+   telemetry/WAL obligations, retaining conservative admission.
+2. **Resumable work and availability:** qualify native denial/publication,
+   reingestion/projection safety, restart/idle scheduling, finite admission,
+   unrelated progress and pinned-reader finalization while preserving truthful
+   public success meanings.
 
-A background worker alone is insufficient: the current physical-closure contract
-blocks unrelated writes while any physical closure is owed. Scoped fencing,
-publication/re-ingestion rules, automatic resume and acceptance-versus-completion
-semantics need explicit successor design. Bounded finalization may still require
-brief global reader/writer admission control for WAL truncation. An unbounded
-reader or engine downtime cannot be hidden inside an unconditional deadline.
-Decision 8's run-to-completion policy must be reconciled with this constraint;
-no cancellation or global-fence change is approved here.
-
-Repair the confirmed shipping defect independently of temporal features:
-
-1. Inventory all registered FTS families and creation/recreation paths. Compare
-   eager FTS5 per-table secure-delete with durable SLA-driven incremental cleanup
-   and qualified replacement/rebuild. Retain core SQLite secure deletion and prove
-   all registered-copy, telemetry and WAL obligations before physical completion.
-   Do not preselect eager deletion on every ordinary projection update merely
-   because it was the earlier reference policy.
-2. Explicitly sanitize retained terms in admitted current-format stores. Candidate:
-   transactionally rebuild/replace affected lexical projections from surviving
-   authoritative content under secure deletion. Preserve each family's existing
-   retained-history, lifecycle, source-policy, tokenizer and ranking membership.
-   Qualify the exact command against each real FTS table mode. A flag, optimize,
-   ordinary rebuild or WAL truncation alone is not proof of cleanup.
-3. Discharge existing physical-erasure obligations. Failed repair, rollback,
-   interrupted checkpoint or pinned WAL must not produce a clean-completion claim.
-   Reopen/retry must preserve and finish the obligation without resurrection.
-   Avoid rebuilding on every query or ordinary erase once initialization is safe.
-   Existing recovery tooling does not establish retained FTS-term cleanup.
-4. Preserve admission: refused formats remain refused before mutation. Cleaning
-   residual terms in an admitted format is not cross-version migration. Unsupported
-   old-file/offline repair is outside this proposal.
-
-RED-first proof: retain the ordinary-node failing witness, then test actually
-populated node, v2, edge and property families independently. Unique nonstemming
-markers must be physically present before deletion. After complete erasure require
-content/MATCH/live-shadow absence and applicable freed-page, main-file and WAL
-observations, plus survivors. Test already-deleted terms, rollback, interrupted
-cleanup/reopen, pinned-reader incomplete then retry, rebuild and no reintroduction.
-An empty family supplies no positive removal witness. Reuse the registered purge
-inventory and recovery/telemetry obligations rather than a second erasure system.
-
-Expect extra posting deletion/update, property replacement, supersession-related
-maintenance and one-time sanitation cost. The candidate's 4.6-second full refresh
-is a warning, not measured shipping-erasure overhead. Measure ordinary writes,
-deletes, supersession, physical erase, repair and surviving read parity separately.
-Astra reviews design/code; independent verification reruns real witnesses. This
-adds no promise about process/swap, filesystem snapshots or external backups.
-
-SQLite distinguishes FTS5 per-table deletion from core freed-page deletion and
-notes update/delete cost and format implications; see the
-[official contract](https://www.sqlite.org/fts5.html#the_secure_delete_configuration_option).
+HITL requested a concrete Astra-reviewed plan for approval before allocating
+Phase 1 to Slice 82 and Phase 2 to Slice 83. These are proposed 0.8.28 slots,
+not live ladder changes or implementation authorization. At the end of proposed
+Slice 83, HITL will decide the physical-erasure guarantee. A specific API that
+callers could invoke to ensure physical cleanup is under consideration then;
+no API, numerical SLA or unconditional deadline is selected by this plan.
+The linked plan owns requirements, acceptance, design tasks, TDD, focused
+measurements and the end-of-83 decision package. Temporal features and ordinary
+expiry remain separate.
 
 ## CH2 and CH3 — Bounded mechanism evidence
 
-**CH2: secure bulk maintenance POC.** Compare incremental ordinary deltas plus
-transactional replacement/rebuild or supported bulk clearing against the secure
-reference. Use one ordinary mutation and a 10,000-record simultaneous expiry/repair
-burst. Count construction, publication, queue time and WAL completion. Preserve
-pinned snapshots, closure, rollback, visibility, certificate coherence and erasure.
-A faster unsafe/stale success loses. With deferred physical cleanup, also measure
-writer-lock hold time per unit, unrelated read/write progress, durable restart,
-oldest debt/deadline and finalization pause. Page budgets are not time bounds.
-Membership expiry/supersession is not source erasure of retained history.
-Freeze controls before measurement; no broad new grid. Output a mechanism/cost tradeoff or reject the candidates. POC approved;
-CH1 need not finish first if its agreed security guarantees are reproduced in isolation.
+**CH2: sanitation mechanism evidence complete in Slice 81.** The narrowed
+A/B investigation covered post-native FTS sanitation, durable progress and
+physical witnesses; it supports incremental sanitation as CH1's candidate.
+Native admission/availability, production routing and SLA remain unqualified.
+The original ordinary-delta/10,000-record expiry comparison was deferred: current
+membership expiry must preserve authorized history and is not source erasure.
+That separate work needs placement and a scoped protocol; no repeat sanitation
+grid or implicit expiry allocation follows from the CH1 revision. See
+[Slice 81 results](../experiments/erasure-availability/RESULTS.md) for every
+partial, incomplete and deferred disposition.
 
 **CH3: historical backend POC in two stages.** First test native reuse (B) only
 when the physical corpus exactly equals the authorized requested statistical
@@ -210,8 +166,8 @@ exclusions, RED oracles and acceptance proposal. Owner review of 6/7 precedes co
 
 | Unit | Deliverable | Dependencies and stop boundary |
 | --- | --- | --- |
-| CH1 | Physical FTS erasure, including retained terms | Concrete approach approval first; independently useful. Do not wait for temporal design. |
-| CH2 | Secure ordinary/bulk maintenance comparison | Agreed CH1 guarantees; POC approved. Select no production mechanism before results. |
+| CH1 | Two-phase physical erasure/cost, then native availability | Revised plan awaits approval; proposed 82/83 allocation. End of 83: HITL guarantee/API decision. No temporal dependency. |
+| CH2 | Slice 81 sanitation evidence complete; ordinary expiry deferred | Use scoped A/B findings for CH1; no integrated SLA or authorized-history expiry pass. |
 | CH3 | B-first, then C historical comparison | Stable scope oracles; B precedes C. CH4 defines exact future contracts; fixture probes can precede it. |
 | CH4 | Minimal temporal/evidence/ranking contract/tests | Existing evidence; resolve 6/7 with Astra-medium. No repeated basic POC required. |
 | CH5 | Production default-current isolation | CH1 fixed, CH2 viable; ordinary identity semantics. Integrate public ranking, property/graph seeds, certificate/frontier and repair. No full temporal dependency. |
@@ -220,7 +176,7 @@ exclusions, RED oracles and acceptance proposal. Owner review of 6/7 precedes co
 | CH8 | Selected-history production routing/bounded envelope | CH3 selection, CH4 contracts, CH6 node semantics; CH7 before graph claims. Integrate admission/fairness, tested caps, no-spill policy and historical SLOs. |
 
 Owner placement now puts CH2 maintenance evidence in Slice 81 before CH1
-production approval/repair. After Slice 81, propose the supported CH1 repair;
+production approval/repair. Slice 81 is complete; the linked two-phase CH1 repair is proposed for approval;
 CH3–CH8 remain separately placed work, not additions to this release by implication. Resolve a specific CH4 contract first if CH3 needs it; never invent it
 inside the benchmark. CH5 can land before temporal functionality. CH4 decisions
 must precede any opt-in temporal population routed by CH5. CH8 node/edge/property
@@ -263,9 +219,9 @@ with focused repairs rather than repeated full runs.
 
 ## Remaining owner decisions
 
-- Revise and approve CH1's approach for availability and deferred guaranteed
-  deletion before implementation; define physical scope, SLA clock/deadline,
-  operating conditions, reader policy and deadline escalation after evidence.
+- Approve/adjust the revised two-phase CH1 plan before allocating proposed
+  Slices 82/83 and implementing. At the end of 83, decide the physical-erasure
+  guarantee and consider an explicit cleanup API using actual engineering evidence.
 - Accept/adjust minimal decision 6 after CH4's proof/design; keep 7 open until its
   examples and Astra-medium review justify scope.
 - Place follow-ups in the release ladder without moving other work by implication;
@@ -279,6 +235,11 @@ no required corrections: nine owner choices, minimal commit/evidence reuse,
 existing graph grouping, erasure approval boundary and eight-unit dependencies
 were checked against current contracts. This is planning approval, not the later
 CH4 detailed design/code review or owner approval to implement CH1.
+
+On 2026-11-03 Astra approved the revised two-phase CH1 proposal and CH2 evidence
+reconciliation for HITL plan review, with no blocking findings. The
+[concrete plan](ch1-production-erasure-plan.md) records the review and proposed
+82/83 allocation; HITL approval is pending.
 
 ## Availability research follow-up
 
@@ -295,4 +256,5 @@ Owner 2026-11-03 assigned the maintenance/erasure-availability POC to
 requirements/AC, design and test controls. This revises the earlier CH1-before-CH2
 proposal: obtain mechanism/availability evidence before approving the production
 repair. Existing Slice 90 remains after 81; historical and temporal work is not
-allocated here. This turn creates planning structure, not implementation/results.
+allocated here. Slice 81 is now complete with scoped results; the CH1 successor awaits plan
+approval and allocation. Its findings do not close the production erasure defect.

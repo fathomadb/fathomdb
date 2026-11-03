@@ -1,4 +1,11 @@
 import unittest
+from unittest import mock
+from pathlib import Path
+import tempfile
+import subprocess
+import sys
+import time
+import campaign
 from campaign import cells, summarize
 
 
@@ -23,6 +30,53 @@ class Measurement(unittest.TestCase):
         result = summarize(events, 'read', True, 1003)
         self.assertEqual((result['refused'], result['unfinished'], result['not_offered']), (1, 1, 1))
         self.assertIsNone(result['p99_ns'])
+
+    def test_duplicates_and_orphan_finishes_cannot_qualify(self):
+        events = []
+        for i in range(1000):
+            events.extend([{'kind':'offer','stream':'read','id':i,'state':'started'},
+                           {'kind':'finish','stream':'read','id':i,'outcome':'success','latency_ns':i+1}])
+        duplicate = summarize(events + [events[0]], 'read', True, 1000)
+        self.assertIsNone(duplicate['p99_ns'])
+        self.assertGreater(duplicate['accounting_errors'], 0)
+        orphan = summarize(events + [{'kind':'finish','stream':'read','id':9999,'outcome':'success','latency_ns':1}], 'read', True, 1000)
+        self.assertIsNone(orphan['p99_ns'])
+        self.assertGreater(orphan['accounting_errors'], 0)
+
+    def test_monitor_exception_terminates_and_reaps_child(self):
+        processes = []
+        original = subprocess.Popen
+        def launch(*args, **kwargs):
+            process = original(*args, **kwargs)
+            processes.append(process)
+            return process
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            try:
+                with mock.patch.object(campaign.subprocess, 'Popen', side_effect=launch), mock.patch.object(campaign, 'resource_sample', side_effect=RuntimeError('monitor fault')):
+                    with self.assertRaisesRegex(RuntimeError, 'monitor fault'):
+                        campaign.child([sys.executable, '-c', 'import time; time.sleep(30)'], root/'log', root, time.monotonic()+5)
+                self.assertTrue(all(p.poll() is not None for p in processes), 'monitor error leaked child')
+            finally:
+                for process in processes:
+                    if process.poll() is None:
+                        process.kill()
+                    process.wait()
+
+    def test_deadline_stop_is_reaped_and_retained(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            record = campaign.child([sys.executable, '-c', 'import time; time.sleep(30)'], root/'log', root, time.monotonic()+.01)
+            self.assertEqual(record['stop'], 'time_limit')
+            self.assertNotEqual(record['exit_code'], 0)
+            self.assertGreaterEqual(record['deadline_overshoot_s'], 0)
+
+    def test_late_exit_is_not_mistaken_for_ontime_completion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            record = campaign.child([sys.executable, '-c', """import time; time.sleep(.05); print('{"status":"complete"}')"""], root/'log', root, time.monotonic()+.03)
+            self.assertEqual(record['stop'], 'time_limit')
+            self.assertGreater(record['deadline_overshoot_s'], 0)
 
 
 if __name__ == '__main__':

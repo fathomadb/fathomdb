@@ -352,6 +352,33 @@ pub(crate) fn diagnostics(c: &Connection) -> Result<Vec<PendingErasure>, EngineE
 mod tests {
     use super::*;
 
+    #[cfg(feature = "operator")]
+    #[test]
+    fn only_known_fresh_stores_start_clean_missing_existing_metadata_stays_legacy_dirty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fresh.sqlite");
+        let engine = Engine::open(&path).unwrap().engine;
+        assert!(
+            engine.pending_erasures().unwrap().is_empty(),
+            "a provably fresh empty store has no retained-term history"
+        );
+        engine.close().unwrap();
+        let engine = Engine::open(&path).unwrap().engine;
+        assert!(engine.pending_erasures().unwrap().is_empty());
+        engine
+            .execute_for_test(
+                "DELETE FROM _fathomdb_open_state WHERE key='_fathomdb_fts_sanitation'",
+            )
+            .unwrap();
+        engine.close().unwrap();
+        let engine = Engine::open(&path).unwrap().engine;
+        assert!(
+            engine.pending_erasures().unwrap().iter().any(|r| r.cause == "retained_terms"),
+            "empty canonical tables cannot certify unknown existing history"
+        );
+        engine.close().unwrap();
+    }
+
     #[test]
     fn failed_commit_rolls_back_and_leaves_writer_retryable() {
         crate::configure_runtime(crate::RuntimeSqliteMode::Performance).unwrap();

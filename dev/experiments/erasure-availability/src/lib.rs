@@ -232,6 +232,15 @@ pub struct Job {
 }
 /// Admit one bounded experimental sanitation job after native erasure returns success.
 pub fn admit(engine: &Engine, accepted: i64, deadline: i64) -> Result<()> {
+    admit_with_hook(engine, accepted, deadline, || {})
+}
+/// Inject a process-exit rendezvous after intent insertion but before admission commits.
+pub fn admit_with_hook(
+    engine: &Engine,
+    accepted: i64,
+    deadline: i64,
+    before_commit: impl FnOnce(),
+) -> Result<()> {
     if deadline <= accepted {
         return Err("deadline must follow acceptance".into());
     }
@@ -240,6 +249,7 @@ pub fn admit(engine: &Engine, accepted: i64, deadline: i64) -> Result<()> {
         if pending!=0 { return Err(rusqlite::Error::InvalidQuery); }
         tx.execute_batch("CREATE TABLE IF NOT EXISTS poc_sanitation(singleton INTEGER PRIMARY KEY CHECK(singleton=1),accepted INTEGER NOT NULL,deadline INTEGER NOT NULL,family INTEGER NOT NULL,started INTEGER NOT NULL,steps INTEGER NOT NULL,phase TEXT NOT NULL,overdue INTEGER NOT NULL,last_wall INTEGER NOT NULL,scope TEXT NOT NULL)")?;
         tx.execute("INSERT INTO poc_sanitation VALUES(1,?1,?2,0,0,0,'cleaning',0,?1,'all-four-registered-fts-families')",[accepted,deadline])?;
+        before_commit();
         Ok(())
     })?;
     Ok(())
@@ -278,33 +288,49 @@ pub fn step(engine: &Engine, pages: i64, now: i64, fail_after_work: bool) -> Res
 /// Requires exclusive fixture use during finalization, including no source reingestion.
 /// A residual marker is a rejected mechanism, while busy WAL remains proof-pending.
 pub fn finalize(engine: &Engine, path: &Path, marker: &str) -> Result<bool> {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
-    finalize_at(engine, path, marker, now)
+    finalize_with_clock(engine, path, marker, || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("wall clock after epoch")
+            .as_secs() as i64
+    })
 }
-
-/// Finalize against an explicit experiment wall clock; retries keep the original deadline.
+/// Finalize with a fixed synthetic observation time, for deterministic tests only.
 pub fn finalize_at(engine: &Engine, path: &Path, marker: &str, now: i64) -> Result<bool> {
+    finalize_with_clock(engine, path, marker, || now)
+}
+/// Observe the wall clock before and after finalization; terminal outcomes remain immutable.
+pub fn finalize_with_clock(
+    engine: &Engine,
+    path: &Path,
+    marker: &str,
+    mut clock: impl FnMut() -> i64,
+) -> Result<bool> {
     let state = job(engine)?;
-    if !["proof_pending", "residual", "complete"].contains(&state.phase.as_str()) {
+    if state.phase == "complete" {
+        return Ok(true);
+    }
+    if !["proof_pending", "residual"].contains(&state.phase.as_str()) {
         return Err("job not ready for physical proof".into());
     }
-    engine.maintenance_transaction_for_test(|tx| {
-        tx.execute("UPDATE poc_sanitation SET overdue=overdue OR max(last_wall,?1)>deadline,last_wall=max(last_wall,?1) WHERE singleton=1",[now])?;
-        Ok(())
-    })?;
-    if !checkpoint(engine)? {
-        return Ok(false);
-    }
-    let clean = inventory(path, marker)?.iter().all(|r| r.matches == 0 && r.shadow_markers == 0)
+    observe_time(engine, clock())?;
+    let checkpointed = checkpoint(engine)?;
+    let clean = checkpointed
+        && inventory(path, marker)?.iter().all(|r| r.matches == 0 && r.shadow_markers == 0)
         && physical_markers(path, marker)? == 0;
+    let after = clock();
     engine.maintenance_transaction_for_test(|tx| {
-        tx.execute(
-            "UPDATE poc_sanitation SET phase=?1 WHERE singleton=1",
-            [if clean { "complete" } else { "residual" }],
-        )?;
+        tx.execute("UPDATE poc_sanitation SET overdue=overdue OR max(last_wall,?1)>deadline,last_wall=max(last_wall,?1) WHERE singleton=1",[after])?;
+        if checkpointed {tx.execute("UPDATE poc_sanitation SET phase=?1 WHERE singleton=1",[if clean{"complete"}else{"residual"}])?;}
         Ok(())
     })?;
     Ok(clean)
+}
+fn observe_time(engine: &Engine, now: i64) -> Result<()> {
+    engine.maintenance_transaction_for_test(|tx| {
+        tx.execute("UPDATE poc_sanitation SET overdue=overdue OR max(last_wall,?1)>deadline,last_wall=max(last_wall,?1) WHERE singleton=1",[now])?;Ok(())
+    })?;
+    Ok(())
 }
 
 /// Build the fixed measurement fixture (10% target owners, four retained revisions).
@@ -393,23 +419,4 @@ fn campaign_payload(owner: usize, revision: usize, target: bool) -> String {
         body.push(' ');
     }
     body
-}
-
-/// Inject an observation clock for deterministic finalization-boundary tests.
-pub fn finalize_with_clock(
-    engine: &Engine,
-    path: &Path,
-    marker: &str,
-    mut clock: impl FnMut() -> i64,
-) -> Result<bool> {
-    finalize_at(engine, path, marker, clock())
-}
-/// Inject a process-exit/failure rendezvous inside experimental admission.
-pub fn admit_with_hook(
-    _engine: &Engine,
-    _accepted: i64,
-    _deadline: i64,
-    _before_commit: impl FnOnce(),
-) -> Result<()> {
-    Err("admission rendezvous not implemented".into())
 }

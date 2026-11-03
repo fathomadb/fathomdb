@@ -1202,6 +1202,11 @@ impl Engine {
             &connection,
             migration.schema_version_after,
         )?;
+        if migration.schema_version_after >= 35 {
+            physical_erasure::validate_state(&connection).map_err(|_| EngineOpenError::Io {
+                message: "physical erasure metadata is malformed".into(),
+            })?;
+        }
         // 0.8.0 Slice 5 (G1) — global FTS5 tokenizer-default upgrade. Step 11
         // drops + recreates `search_index` with the new tokenizer, leaving it
         // EMPTY on a migrated DB. The projection scheduler will NOT
@@ -1326,9 +1331,13 @@ impl Engine {
         // connection, single-threaded, before readers spawn — like the tokenizer
         // reproject above. Runs after the fix-6 edge-vector prune above; the two
         // are independent boot reconciliations.
-        rederive_projections_on_boot(&connection).map_err(|_| EngineOpenError::Io {
-            message: "could not re-derive projection registry on boot".to_string(),
-        })?;
+        if !physical_erasure::active(&connection).map_err(|_| EngineOpenError::Io {
+            message: "physical erasure metadata is malformed".into(),
+        })? {
+            rederive_projections_on_boot(&connection).map_err(|_| EngineOpenError::Io {
+                message: "could not re-derive projection registry on boot".to_string(),
+            })?;
+        }
 
         // 0.8.20 Slice 21 fix-1 (codex §9 round 1 [P2], ledger `TC-71`) — bring an
         // ALREADY-ENROLLED inert vector kind into agreement with the role-aware

@@ -79,6 +79,7 @@ mod mean;
 mod open;
 mod operator;
 mod pagination;
+mod physical_erasure;
 mod projection_commit;
 mod projection_generation;
 mod projection_rebuild;

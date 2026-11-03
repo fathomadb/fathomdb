@@ -596,6 +596,8 @@ impl Engine {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::validate_physical_closures(connection, closure_ids)?;
+            physical_erasure::validate_pending(connection, closure_ids)?;
+            physical_erasure::sanitize(connection)?;
         }
         if let Err(error) = self.complete_erasure_at_rest(verb) {
             let blocker = match &error {
@@ -615,7 +617,7 @@ impl Engine {
         }
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        dependency_closure::complete_physical_closures(connection, closure_ids)
+        physical_erasure::finalize(connection, closure_ids)
     }
 
     /// OPP-12 Phase-1 (0.8.19 Slice 10, R-PG-1/2) — irreversibly hard-erase a
@@ -649,7 +651,11 @@ impl Engine {
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::pending_physical_retry(connection, "purge", &lid)?
         };
-        if !pending.is_empty() {
+        let root_retry = {
+            let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, "purge", &lid)?
+        };
+        if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
             let result = self.finish_physical_dependency_closures("purge", &pending);
             self.projection_runtime.set_frozen(false);
@@ -704,7 +710,9 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let from_state = match current {
             None => {
-                // Idempotent: nothing to erase.
+                let root =
+                    physical_erasure::capture(&tx, &[], self.next_cursor.load(Ordering::SeqCst))?;
+                physical_erasure::admit(&tx, root, "purge", lid, &[])?;
                 tx.commit().map_err(|_| EngineError::Storage)?;
                 return Ok(Vec::new());
             }
@@ -794,6 +802,7 @@ impl Engine {
                 .map_err(|_| EngineError::Storage)?;
             erased_source_ids.extend(rows);
         }
+        let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, erased_source_ids)?;
         let proof_scope =
@@ -870,6 +879,7 @@ impl Engine {
         }
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
+        physical_erasure::admit(&tx, root_debt, "purge", lid, &closure_ids)?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         if enqueued {
@@ -966,7 +976,11 @@ impl Engine {
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::pending_physical_retry(connection, verb, source_id)?
         };
-        if !pending.is_empty() {
+        let root_retry = {
+            let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, verb, source_id)?
+        };
+        if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
             let result = (|| {
                 self.finish_physical_dependency_closures(verb, &pending)?;
@@ -1374,6 +1388,7 @@ impl Engine {
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+        let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, [source_id.to_string()])?;
         let proof_scope = dependency_closure::physical_proof_scope(
@@ -1486,6 +1501,7 @@ impl Engine {
         }
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
+        physical_erasure::admit(&tx, root_debt, verb, source_id, &closure_ids)?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.next_cursor.store(audit_cursor, Ordering::SeqCst);

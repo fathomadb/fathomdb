@@ -359,6 +359,7 @@ pub(crate) fn project_canonical_node_row(
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
+        physical_erasure::mark_dirty(tx)?;
         tx.prepare_cached(
             "INSERT INTO search_index(rowid, body, kind, write_cursor) VALUES(?3, ?1, ?2, ?3)",
         )?
@@ -466,6 +467,7 @@ pub(crate) fn project_canonical_edge_row(
     // node-body `search_index` — Option B partition). Body-less structural
     // edges carry no lexical content and project no FTS row.
     if pass.writes_fts() {
+        physical_erasure::mark_dirty(tx)?;
         if let Some(edge_body) = body {
             tx.execute(
                 "INSERT INTO search_index_edges(body, kind, write_cursor)

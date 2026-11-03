@@ -243,7 +243,7 @@ impl Engine {
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
-        dependency_closure::pending_physical_closures(connection)?
+        let mut rows = dependency_closure::pending_physical_closures(connection)?
             .into_iter()
             .map(|pending| {
                 Ok(PendingErasure {
@@ -258,7 +258,14 @@ impl Engine {
                     sequence: pending.sequence,
                 })
             })
-            .collect()
+            .collect::<Result<Vec<_>, EngineError>>()?;
+        rows.extend(physical_erasure::diagnostics(connection)?);
+        if queue_pending > 0 {
+            for row in &mut rows {
+                row.blocker = Some("telemetry_redaction".into());
+            }
+        }
+        Ok(rows)
     }
 
     /// Doctor bit-preserving export. Runs `VACUUM INTO` to produce a

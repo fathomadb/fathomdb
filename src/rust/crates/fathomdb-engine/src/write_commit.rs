@@ -23,7 +23,13 @@ pub(crate) fn load_next_cursor(connection: &Connection) -> u64 {
             |row| row.get::<_, u64>(0),
         )
         .unwrap_or(0);
-    nodes.max(edges).max(mutations).max(state).max(reserved).max(closure_boundary)
+    nodes
+        .max(edges)
+        .max(mutations)
+        .max(state)
+        .max(reserved)
+        .max(closure_boundary)
+        .max(physical_erasure::cursor_floor(connection).unwrap_or(0))
 }
 
 /// The write-cursor high-water mark reserved by schema step 23, or 0 when the

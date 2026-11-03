@@ -594,40 +594,25 @@ pub(crate) fn record_physical_closure(
     Ok(Some(id))
 }
 
-pub(crate) fn complete_physical_closures(
+pub(crate) fn complete_physical_closures_in(
     connection: &Connection,
     ids: &[ClosureOperationId],
 ) -> Result<(), EngineError> {
-    if ids.is_empty() {
-        return Ok(());
-    }
-    connection.execute_batch("BEGIN IMMEDIATE").map_err(|_| EngineError::Storage)?;
-    let result = (|| {
-        validate_physical_closures(connection, ids)?;
-        for id in ids {
-            let changed = connection
-                .execute(
-                    "UPDATE _fathomdb_dependency_closures \
-                     SET phase='complete',blocker_code=NULL \
-                     WHERE closure_operation_id=?1 \
-                       AND phase IN ('at_rest_pending','incomplete') \
-                       AND cause IN ('purged','source_erased')",
-                    [id.as_str()],
-                )
-                .map_err(|_| EngineError::Storage)?;
-            if changed != 1 {
-                return Err(EngineError::Storage);
-            }
-        }
-        Ok(())
-    })();
-    match result {
-        Ok(()) => connection.execute_batch("COMMIT").map_err(|_| EngineError::Storage),
-        Err(error) => {
-            let _ = connection.execute_batch("ROLLBACK");
-            Err(error)
+    validate_physical_closures(connection, ids)?;
+    for id in ids {
+        let changed = connection
+            .execute(
+                "UPDATE _fathomdb_dependency_closures SET phase='complete',blocker_code=NULL \
+             WHERE closure_operation_id=?1 AND phase IN ('at_rest_pending','incomplete') \
+             AND cause IN ('purged','source_erased')",
+                [id.as_str()],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if changed != 1 {
+            return Err(EngineError::Storage);
         }
     }
+    Ok(())
 }
 
 pub(crate) fn validate_physical_closures(
@@ -884,7 +869,7 @@ pub(crate) fn guard_no_pending_physical(connection: &Connection) -> Result<(), E
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
-    if physical {
+    if physical || physical_erasure::active(connection)? {
         return Err(EngineError::ErasureIncomplete {
             stage: "dependency_closure".to_string(),
             detail: "a physical dependency closure is awaiting its exact erasure retry".to_string(),

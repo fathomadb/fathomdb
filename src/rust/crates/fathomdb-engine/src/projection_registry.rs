@@ -268,6 +268,15 @@ pub(crate) struct RowOwnedProjection {
     class: ProjectionClass,
 }
 
+impl RowOwnedProjection {
+    pub(crate) fn is_fts(&self) -> bool {
+        matches!(
+            self.class,
+            ProjectionClass::NodeFts | ProjectionClass::EdgeFts | ProjectionClass::PropertyFts
+        )
+    }
+}
+
 /// 0.8.20 Slice 5a (R-20-E1) — **the** registry of row-owned projections.
 ///
 /// Every table here is owned by a canonical `write_cursor` and is erased by
@@ -364,6 +373,9 @@ fn delete_row_owned_projection(
     projection: &RowOwnedProjection,
     write_cursor: i64,
 ) -> rusqlite::Result<usize> {
+    if projection.is_fts() {
+        physical_erasure::mark_dirty(tx)?;
+    }
     if projection.table == DEFAULT_VECTOR_PARTITION {
         return vector_storage::delete_vector_record_rows(tx, write_cursor);
     }
@@ -405,6 +417,9 @@ pub(crate) fn truncate_row_projections_in(
 ) -> rusqlite::Result<u64> {
     let mut deleted: u64 = 0;
     for projection in ROW_OWNED_PROJECTIONS.iter().filter(|p| classes.contains(&p.class)) {
+        if projection.is_fts() {
+            physical_erasure::mark_dirty(tx)?;
+        }
         let sql = format!("DELETE FROM {}", projection.table);
         deleted = deleted.saturating_add(tx.execute(&sql, [])? as u64);
     }
@@ -931,6 +946,7 @@ fn remove_projection_row(tx: &Connection, name: &str) -> rusqlite::Result<()> {
 /// attribute `name` (all owning nodes). The idempotent-rebuild primitive: a
 /// changed or dropped projection clears its rows before (re)backfill.
 fn clear_attribute_projection(tx: &Connection, name: &str) -> rusqlite::Result<()> {
+    physical_erasure::mark_dirty(tx)?;
     tx.execute("DELETE FROM property_search_index WHERE attr_name = ?1", params![name])?;
     tx.execute("DELETE FROM canonical_attributes WHERE attr_name = ?1", params![name])?;
     Ok(())
@@ -989,6 +1005,7 @@ fn project_one_attribute(
         params![cursor, name, value],
     )?;
     if stored.wants_property_fts() {
+        physical_erasure::mark_dirty(tx)?;
         tx.execute(
             "INSERT INTO property_search_index(attr_value, attr_name, write_cursor)
              VALUES(?1, ?2, ?3)",

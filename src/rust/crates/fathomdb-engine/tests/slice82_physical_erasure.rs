@@ -33,6 +33,10 @@ fn occurrences(path: &Path, marker: &str) -> usize {
 }
 
 fn fixture() -> (TempDir, Engine) {
+    fixture_with_targets(true)
+}
+
+fn fixture_with_targets(include_targets: bool) -> (TempDir, Engine) {
     let dir = TempDir::new().unwrap();
     let engine = Engine::open(dir.path().join("physical.sqlite")).unwrap().engine;
     engine
@@ -53,6 +57,9 @@ fn fixture() -> (TempDir, Engine) {
     for revision in 0..3 {
         let mut writes = Vec::new();
         for owner in 0..8 {
+            if !include_targets && owner % 2 == 0 {
+                continue;
+            }
             let (source, word) =
                 if owner % 2 == 0 { ("target", MARKER) } else { ("survivor", "survivorneedle") };
             let content = format!(
@@ -204,4 +211,66 @@ fn legacy_deleted_terms_are_owed_to_offline_completion_without_closure_ids() {
         0,
         "offline path owes legacy sanitation even with no closures"
     );
+}
+
+#[test]
+fn survivor_only_database_agrees_on_fts_order_and_score_bits() {
+    let (dir, engine) = fixture();
+    let (expected_dir, expected) = fixture_with_targets(false);
+    engine.erase_source("target").unwrap();
+    let actual_c = Connection::open(dir.path().join("physical.sqlite")).unwrap();
+    let expected_c = Connection::open(expected_dir.path().join("physical.sqlite")).unwrap();
+    for table in TABLES {
+        let column = if table == "property_search_index" { "attr_value" } else { "body" };
+        let ranked = |c: &Connection| {
+            let mut statement = c.prepare(&format!("SELECT {column},bm25({table}) FROM {table} WHERE {table} MATCH 'survivorneedle' ORDER BY bm25({table}),{column}")).unwrap();
+            statement
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, f64>(1)?.to_bits())))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap()
+        };
+        assert_eq!(
+            ranked(&actual_c),
+            ranked(&expected_c),
+            "survivor-only ranking oracle for {table}"
+        );
+    }
+    engine.close().unwrap();
+    expected.close().unwrap();
+}
+
+#[test]
+fn optimized_unicode_zero_token_and_large_inputs_preserve_sanitation_validity() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("stress.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    let large = format!("{MARKER} {}", "common ".repeat(150_000));
+    engine
+        .write(&[
+            node("large", "target", &large),
+            node("unicode", "target", "日本語 café naïve Straße"),
+            node("punctuation", "target", "!!! … ---"),
+            node("survivor", "other", "survivorneedle"),
+        ])
+        .unwrap();
+    for table in TABLES {
+        engine
+            .execute_for_test(&format!("INSERT INTO {table}({table}) VALUES('optimize')"))
+            .unwrap();
+    }
+    assert!(occurrences(&path, MARKER) > 0);
+    engine.erase_source("target").unwrap();
+    assert_eq!(occurrences(&path, MARKER), 0);
+    assert!(engine.pending_erasures().unwrap().is_empty());
+    engine.write(&[node("survivor", "other", "updated survivor")]).unwrap();
+    assert!(
+        engine.pending_erasures().unwrap().iter().any(|r| r.cause == "retained_terms"),
+        "ordinary FTS mutation invalidates certificate"
+    );
+    engine.rebuild_projections().unwrap();
+    assert!(engine.pending_erasures().unwrap().iter().any(|r| r.cause == "retained_terms"));
+    engine.erase_source("target").unwrap();
+    assert!(engine.pending_erasures().unwrap().is_empty());
+    engine.close().unwrap();
 }

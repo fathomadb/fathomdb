@@ -353,6 +353,26 @@ mod tests {
         transaction(&c, || Ok(())).unwrap();
     }
 
+    #[test]
+    fn root_replay_proves_every_mapped_vector_id_not_only_the_owner_cursor() {
+        let c = vector_storage::slice70_mapping_fixture(false);
+        let debt = capture(&c, &[10], 10).unwrap();
+        assert_eq!(debt.vectors, vec![101, 102]);
+        projection_registry::erase_rows_projections(&c, &[10]).unwrap();
+        admit(&c, debt, "purge", "subject", &[]).unwrap();
+        validate_pending(&c, &[]).unwrap();
+        let blob = vector_storage::encode_vector_blob(&[1.; 8]);
+        c.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(102,?1,vec_quantize_binary(?1),'article','doc',0,'',0,-9223372036854775808,9223372036854775807)", [blob]).unwrap();
+        assert!(
+            validate_pending(&c, &[]).is_err(),
+            "late non-head vector residue cannot satisfy a replay proof"
+        );
+        c.execute("DELETE FROM vector_default WHERE rowid=102", []).unwrap();
+        sanitize(&c).unwrap();
+        finalize(&c, &[]).unwrap();
+        assert!(root(&c).unwrap().is_none());
+    }
+
     proptest::proptest! {
         #![proptest_config(proptest::test_runner::Config::with_cases(24))]
         #[test]

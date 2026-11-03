@@ -4,6 +4,63 @@ use fathomdb_engine::{
 use rusqlite::Connection;
 use std::{path::Path, process::Command};
 
+fn dependent_seed(path: &Path) -> Engine {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, ProvenancedNodeV1, SourceDependencyRegistrationV1,
+        SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    };
+    use sha2::Digest;
+    let engine = Engine::open(path).unwrap().engine;
+    let body = "privateuniqueterm subject";
+    let hash = sha2::Sha256::digest(body.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>();
+    let make = |logical: &str, content: &str, provenance| {
+        PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            kind: "doc".into(),
+            body: content.into(),
+            source_id: SourceId::new("target").unwrap(),
+            logical_id: Some(logical.into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance,
+        })
+    };
+    engine
+        .write(&[
+            make(
+                "subject",
+                body,
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("source-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                ),
+            ),
+            make(
+                "dependent",
+                "derived private text",
+                WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("derived-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                    SourceRevisionId::new("source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(&hash).unwrap(),
+                ),
+            ),
+            node("survivor", "survivor"),
+        ])
+        .unwrap();
+    engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep-1", "source-r1", "derived-r1").unwrap(),
+        )
+        .unwrap();
+    engine
+}
+
 fn node(id: &str, source: &str) -> PreparedWrite {
     PreparedWrite::Node {
         kind: "doc".into(),
@@ -221,4 +278,113 @@ fn root_debt_is_discoverable_and_completable_offline_after_commit() {
     assert!(reopened.pending_erasures().unwrap().is_empty());
     reopened.write(&[node("new", "other")]).unwrap();
     reopened.close().unwrap();
+}
+
+#[test]
+fn dependent_crash_and_pre_repair_closure_without_root_journal_remain_retryable() {
+    for phase in ["before_delete_commit", "after_delete_commit"] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dependent.sqlite");
+        dependent_seed(&path).close().unwrap();
+        let status = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "erasure_crash_child", "--ignored"])
+            .env("SLICE82_DB", &path)
+            .env("SLICE82_PHASE", phase)
+            .status()
+            .unwrap();
+        assert_eq!(status.code(), Some(73));
+        let engine = Engine::open(&path).unwrap().engine;
+        let expected = if phase == "before_delete_commit" { 2 } else { 0 };
+        assert_eq!(
+            engine
+                .query_i64_col_for_test(
+                    "SELECT count(*) FROM canonical_nodes WHERE source_id='target'"
+                )
+                .unwrap(),
+            vec![expected]
+        );
+        engine.erase_source("target").unwrap();
+        assert!(engine.pending_erasures().unwrap().is_empty());
+        engine.close().unwrap();
+    }
+    for offline in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("legacy-closure.sqlite");
+        let engine = dependent_seed(&path);
+        fathomdb_engine::arm_physical_erasure_hook_for_test(
+            "after_delete_commit",
+            Box::new(|| Err(EngineError::Storage)),
+        );
+        assert!(engine.erase_source("target").is_err());
+        engine.execute_for_test("DELETE FROM _fathomdb_open_state WHERE key IN ('_fathomdb_physical_erasure','_fathomdb_fts_sanitation')").unwrap();
+        engine.close().unwrap();
+        if offline {
+            assert!(!recover_complete_erasures(&path).unwrap().closure_ids.is_empty());
+        } else {
+            let engine = Engine::open(&path).unwrap().engine;
+            engine.erase_source("target").unwrap();
+            assert!(engine.pending_erasures().unwrap().is_empty());
+            engine.close().unwrap();
+        }
+    }
+}
+
+#[test]
+fn provider_reattach_replays_deferred_survivor_backfill_after_exact_retry() {
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use fathomdb_engine::{ProjectionRole, ProjectionSpec, ProjectionVector};
+    struct Fixed(EmbedderIdentity);
+    impl Embedder for Fixed {
+        fn identity(&self) -> EmbedderIdentity {
+            self.0.clone()
+        }
+        fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+            let mut result = vec![0.; self.0.dimension as usize];
+            result[0] = 1.;
+            Ok(result)
+        }
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("provider.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "summary".into(),
+                roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
+                fts: None,
+                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let mut target = node("subject", "target");
+    let mut survivor = node("survivor", "survivor");
+    for item in [&mut target, &mut survivor] {
+        let PreparedWrite::Node { body, .. } = item else { unreachable!() };
+        *body = "{\"summary\":\"vector content\"}".into();
+    }
+    engine.write(&[target, survivor]).unwrap();
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_delete_commit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(engine.erase_source("target").is_err());
+    engine.close().unwrap();
+    let c = Connection::open(&path).unwrap();
+    let identity = c.query_row("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'", [], |r| Ok(EmbedderIdentity::new(r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,u32>(2)?))).unwrap();
+    drop(c);
+    let engine = Engine::open_with_embedder_for_test(&path, std::sync::Arc::new(Fixed(identity)))
+        .unwrap()
+        .engine;
+    assert_eq!(
+        engine.query_i64_col_for_test("SELECT count(*) FROM _fathomdb_vector_rows").unwrap(),
+        vec![0],
+        "debt gates boot publication"
+    );
+    engine.erase_source("target").unwrap();
+    engine.drain(30_000).unwrap();
+    assert_eq!(engine.query_i64_col_for_test("SELECT count(*) FROM _fathomdb_vector_rows r JOIN canonical_nodes n ON n.write_cursor=r.write_cursor WHERE n.logical_id='survivor'").unwrap(), vec![1], "successful retry must restore deferred survivor work");
+    engine.close().unwrap();
 }

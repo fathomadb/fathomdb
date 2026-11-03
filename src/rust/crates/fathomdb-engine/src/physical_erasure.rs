@@ -387,6 +387,45 @@ mod tests {
     }
 
     #[test]
+    fn deferred_graft_commit_failure_rolls_back_for_live_engine_retry() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(dir.path().join("graft-commit.sqlite")).unwrap().engine;
+        engine
+            .configure_projections(
+                &[ProjectionSpec {
+                    name: "summary".into(),
+                    roles: BTreeSet::from([ProjectionRole::Searchable]),
+                    fts: None,
+                    vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                    source: None,
+                }],
+                &[],
+            )
+            .unwrap();
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "{\"summary\":\"survivor\"}".into(),
+                source_id: SourceId::new("other").unwrap(),
+                logical_id: Some("survivor".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        let guard = engine.connection.lock().unwrap();
+        let c = guard.as_ref().unwrap();
+        c.execute_batch("PRAGMA foreign_keys=ON; CREATE TEMP TABLE parent(id INTEGER PRIMARY KEY); CREATE TEMP TABLE child(id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED); CREATE TEMP TRIGGER graft_fault AFTER INSERT ON main._fathomdb_vector_kinds BEGIN INSERT INTO child VALUES(1); END;").unwrap();
+        assert!(boot_graft_declared_vector_backfill(c).is_err());
+        assert!(c.is_autocommit(), "failed graft COMMIT must leave a live Engine retryable");
+        c.execute_batch("DROP TRIGGER graft_fault").unwrap();
+        boot_graft_declared_vector_backfill(c).unwrap();
+        drop(guard);
+        engine.close().unwrap();
+    }
+
+    #[test]
     fn retry_sequences_preserve_atomic_progress_and_survivors() {
         let mut runner =
             proptest::test_runner::TestRunner::new(proptest::test_runner::Config::with_cases(24));

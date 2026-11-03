@@ -268,6 +268,8 @@ fn optimized_unicode_zero_token_and_large_inputs_preserve_sanitation_validity() 
         engine.pending_erasures().unwrap().iter().any(|r| r.cause == "retained_terms"),
         "ordinary FTS mutation invalidates certificate"
     );
+    engine.erase_source("target").unwrap();
+    assert!(engine.pending_erasures().unwrap().is_empty());
     engine.rebuild_projections().unwrap();
     assert!(engine.pending_erasures().unwrap().iter().any(|r| r.cause == "retained_terms"));
     engine.erase_source("target").unwrap();

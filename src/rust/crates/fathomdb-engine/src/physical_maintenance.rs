@@ -181,6 +181,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn synchronous_blocker_is_durable_without_a_worker_retry() {
+        let directory = tempfile::tempdir().unwrap();
+        let engine = Engine::open(directory.path().join("blocker.sqlite")).unwrap().engine;
+        engine.physical_maintenance.stop();
+        crate::test_hooks::physical_erasure_hooks::arm(
+            "after_sanitation_unit",
+            Box::new(|| {
+                Err(EngineError::ErasureIncomplete {
+                    stage: "fixture_blocker".into(),
+                    detail: "injected".into(),
+                })
+            }),
+        );
+        assert!(engine.erase_source("target").is_err());
+        let guard = engine.connection.lock().unwrap();
+        let blocker: Option<String> = guard.as_ref().unwrap().query_row(
+            "SELECT json_extract(value,'$.blocker') FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure'", [], |r| r.get(0)).unwrap();
+        drop(guard);
+        engine.close().unwrap();
+        assert_eq!(blocker.as_deref(), Some("fixture_blocker"));
+    }
+
+    #[test]
     fn contended_primary_cannot_hide_pending_work_from_priority() {
         let directory = tempfile::tempdir().unwrap();
         let engine = Engine::open(directory.path().join("priority.sqlite")).unwrap().engine;

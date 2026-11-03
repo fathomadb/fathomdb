@@ -306,3 +306,43 @@ fn finalization_defers_new_pooled_snapshots_until_the_attempt_releases_admission
     assert!(worker.lock().unwrap().take().unwrap().join().unwrap().unwrap().is_some());
     engine.close().unwrap();
 }
+
+#[test]
+fn stage_profile_measures_native_writer_ownership_separately_from_sanitation() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = dependent_seed(&dir.path().join("profile.sqlite"));
+    engine.enable_physical_cleanup_metrics_for_test();
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "before_delete_commit",
+        Box::new(|| {
+            std::thread::sleep(Duration::from_millis(20));
+            Ok(())
+        }),
+    );
+    engine.erase_source("target").unwrap();
+    let metrics = engine.physical_cleanup_metrics_for_test();
+    for stage in [
+        "projection_drain",
+        "native",
+        "native_writer_wait",
+        "native_writer_hold",
+        "sanitation",
+        "sanitation_writer_wait",
+        "sanitation_writer_hold",
+        "reader_drain",
+        "checkpoint",
+        "call_lifecycle",
+        "completed_lifecycle",
+    ] {
+        assert!(
+            metrics[stage]["count"].as_u64().unwrap_or(0) > 0,
+            "missing actual stage: {stage}: {metrics}"
+        );
+    }
+    assert!(
+        metrics["native_writer_hold"]["total_ns"].as_u64().unwrap() >= 20_000_000,
+        "the injected native hold must be attributed to writer ownership"
+    );
+    assert_eq!(metrics["completed_lifecycle"]["count"], 1);
+    engine.close().unwrap();
+}

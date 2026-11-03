@@ -137,3 +137,28 @@ fn unrelated_survivor_updates_progress_while_registered_debt_is_sanitizing() {
     assert_eq!(engine.query_i64_col_for_test("SELECT count(*) FROM canonical_nodes WHERE logical_id='survivor' AND superseded_at IS NULL AND body='updated public'").unwrap(), vec![1]);
     engine.close().unwrap();
 }
+
+#[test]
+fn unsupported_native_envelope_refuses_before_deletion_or_debt() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = Engine::open(dir.path().join("envelope.sqlite")).unwrap().engine;
+    engine.write(&[node("target", "target", &"x".repeat((1 << 20) + 1))]).unwrap();
+    assert!(
+        matches!(engine.erase_source("target"), Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "physical_admission")
+    );
+    assert_eq!(
+        engine
+            .query_i64_col_for_test("SELECT count(*) FROM canonical_nodes WHERE source_id='target'")
+            .unwrap(),
+        vec![1]
+    );
+    assert_eq!(
+        engine
+            .query_i64_col_for_test(
+                "SELECT count(*) FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure'"
+            )
+            .unwrap(),
+        vec![0]
+    );
+    engine.close().unwrap();
+}

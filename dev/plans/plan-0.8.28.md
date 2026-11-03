@@ -167,9 +167,9 @@ These explicit placements do not change this policy for other gaps.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 82** (`CH1-PHYSICAL-ERASURE`) — CH1 Phase 1: physical correctness and native erasure cost; durable sanitation and retained-term cleanup under conservative admission
+**IMMEDIATE NEXT: Slice 83** (`CH1-ERASURE-AVAILABILITY`) — CH1 Phase 2: resumable native cleanup and availability; end-of-slice HITL physical-erasure guarantee/API decision
 
-**Remaining ladder:** 82 → 83 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 83 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).

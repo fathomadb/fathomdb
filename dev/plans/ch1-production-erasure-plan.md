@@ -12,8 +12,8 @@ in the [follow-up sequence](current-history-followup-sequence.md#ch1--two-phase-
 HITL approved the Astra-reviewed plan on 2026-11-03 and allocated Phase 1 to
 [Slice 82](0.8.28/features/slice-82/plan.md) and Phase 2 to
 [Slice 83](0.8.28/features/slice-83/plan.md), both before Slice 90.
-The live release ladder is 82 → 83 → 90. Slice 82's exact design received Astra
-approval and its implementation is in verification/qualification; see its
+Slice 82 is complete; the live remaining ladder is 83 → 90. Its exact design,
+Astra reviews, implementation and qualification are recorded in
 [status](0.8.28/features/slice-82/status.md). Slice 83 has not started and retains
 its specified pre-code design and review gate.
 
@@ -76,7 +76,11 @@ Authoritative evidence: [Slice 81 results](../experiments/erasure-availability/R
    sanitation and checkpoint. Count scanned/affected rows and statements where
    useful. Inspect `erasure.rs`, the shared projection eraser, dependency closure,
    telemetry and schema FTS creation/recreation owners. Repeated projection work
-   and unindexed FTS cursor deletes are hypotheses, not established dominant cost.
+   and unindexed FTS cursor deletes were planning hypotheses. Slice 82 measured
+   repeated cursor FTS scans as dominant and corrected them. Astra approved
+   deferring separate drain/mutex/checkpoint timers to Slice 83; dominant SQL,
+   merge-command costs and native-call total were measured. The original complete
+   stage profile remains unfulfilled; no lock/availability claim follows.
 2. Implement the smallest measured native-cost correction. Prefer set-oriented
    deletion/shared inventory reuse where the actual profile justifies it; preserve
    atomic canonical/dependency semantics in this phase. No wholesale engine rewrite.
@@ -207,6 +211,11 @@ physical deadline or invent an API to qualify as complete under this scope.
   1-MiB/common terms, Unicode and zero-token input with small focused fixtures.
   Compare representative ordinary write/update/supersede costs for any policy
   change. Time fixture construction and whole-store sanitation separately.
+  Closeout adjustment approved by Astra: the property baseline process timed out
+  at 600 seconds without a native result. That supplemental comparison remains
+  incomplete; no property speedup or native lower bound is claimed. Completed
+  three-pair node evidence satisfies the core CH1-1F objective. Merge profiles
+  are command costs, not complete sanitation wall time.
 - Phase 2: three paired loaded runs per node/edge/property on the same 10k/five-
   revision/10%-target workload, using the Phase 1 version as baseline; reuse
   15-second offered read/write windows and no-erasure controls. Include the native

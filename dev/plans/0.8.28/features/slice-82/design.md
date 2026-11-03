@@ -185,3 +185,17 @@ Copies are separate; no cache flush, warm host, no parallel build/test load.
 Keep the prior 45-minute total experiment envelope, 8-GiB child RSS and 12-GiB
 scratch ceilings; 600-second per native command guard. Increased budgets require
 approval. Report truncated/incomplete measurements honestly, never as passes.
+
+## Qualification disposition
+
+Astra approved the explicit profiling adjustment: Phase 1 measures dominant
+**top-level** FTS SQL, merge-command profiles and total native-call duration;
+detailed drain, writer wait/hold and checkpoint instrumentation moves to Slice
+83. This does not fulfill the original all-stage profiling task or imply lock
+occupancy/service guarantees. Nested shadow times are excluded from stage totals.
+
+The property baseline hit its 600-second whole-process cap without a native
+result. Astra accepted the originally planned supplemental comparison as an
+unfulfilled qualification limitation, with no property speedup/native lower-bound
+claim. Three completed original-node pairs satisfy the core cost acceptance;
+other completed comparisons and exact correctness witnesses remain required.

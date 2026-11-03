@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 82 — CH1 Phase 1
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.28
 ---
 
@@ -9,7 +9,8 @@ target_release: 0.8.28
 HITL approved and allocated this phase on 2026-11-03 after Astra approved the
 [shared CH1 plan](../../../ch1-production-erasure-plan.md). This entry point
 indexes that plan rather than duplicating requirements, design tasks or tests.
-Implementation follows the reviewed [production design](design.md). Dependency: Slice 81; this phase precedes
+Implementation and qualification are complete; see [status](status.md) and the
+reviewed [production design](design.md). Dependency: Slice 81; this phase precedes
 Slice 83.
 
 - Scope, requirements and acceptance: [Phase 1](../../../ch1-production-erasure-plan.md#phase-1--physical-correctness-and-native-cost-slice-82), CH1-1A–1F.
@@ -17,7 +18,8 @@ Slice 83.
 - RED/GREEN, measurements, Astra design/code reviews and independent verification:
   [verification plan](../../../ch1-production-erasure-plan.md#measurement-review-and-verification-plan).
 - Exact production design and test mapping received Astra approval on 2026-11-03.
-  Next action: committed behavioral RED tests, then implementation.
+  Implementation, Astra reviews and independent qualification are complete;
+  [Slice 83](../slice-83/plan.md) is next.
 - Status is owned by [release state](../../../release-state-0.8.28.json) and the
   [release board](../../../runs/STATUS-0.8.28.md).
 
@@ -64,3 +66,14 @@ Astra code review and independent Astra verification; status update. Each
 behavioral RED is committed before implementation. Tests remain read-only during
 fix-to-spec. Use this existing development checkout serially; reviewers are
 read-only. Scoped checks while iterating, one final full code-phase gate.
+
+## Approved qualification adjustments
+
+Astra reviewed two measured scope adjustments at closeout. Original shared Phase
+1 requirement 1's detailed drain/mutex/checkpoint timers move to Slice 83; the
+actual dominant SQL stage, merge-command cost and total native durations establish
+the repair's purpose without claiming availability. The supplemental property
+baseline exceeded its 600-second whole-process budget and remains incomplete,
+not a passing or censored-native measurement. No retry or budget increase was
+used. Three completed original-node pairs satisfy CH1-1F; completed edge/scale and
+policy controls provide additional evidence. Full facts and limits are in status.

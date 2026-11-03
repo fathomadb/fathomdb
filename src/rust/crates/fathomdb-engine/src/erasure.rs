@@ -672,10 +672,10 @@ impl Engine {
     /// `_fathomdb_projection_state` and `_fathomdb_vector_kinds` are NOT keyed to
     /// a node id and are DELIBERATELY untouched.
     ///
-    /// Erasure completeness relies on the standing `PRAGMA secure_delete=ON`
-    /// (design §3 gap-4) which zeroes every freed page — so no per-purge `VACUUM`.
-    /// (Freelist content written on a pre-20 DB before `secure_delete` was on is a
-    /// documented residual; there is no forced migration-time `VACUUM`.)
+    /// Physical completion requires registered FTS sanitation, original-sink
+    /// redaction and successful WAL truncation. The standing SQLite
+    /// `secure_delete=ON` zeroes freed ordinary/shadow pages; it does not by itself
+    /// remove retained FTS terms. Durable root debt fences mutation until complete.
     pub fn purge(&self, logical_id: &str) -> Result<(), EngineError> {
         self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;

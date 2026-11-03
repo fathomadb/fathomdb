@@ -1,4 +1,7 @@
-use erasure_availability::{open, physical_markers, Result, MARKER};
+use erasure_availability::{
+    build_campaign, node, open, physical_markers, prepare_eager, Result, MARKER,
+};
+use fathomdb_engine::{ProjectionFts, ProjectionRole, ProjectionSpec};
 use rusqlite::ffi;
 use serde_json::json;
 use std::{collections::BTreeMap, path::PathBuf, sync::Mutex, time::Instant};
@@ -11,12 +14,12 @@ unsafe extern "C" fn observe(
     statement: *mut std::ffi::c_void,
     nanos: *mut std::ffi::c_void,
 ) -> i32 {
-    if code == ffi::SQLITE_TRACE_PROFILE as u32 {
+    if code == ffi::SQLITE_TRACE_PROFILE {
         let statement = statement.cast::<ffi::sqlite3_stmt>();
         // SQLite owns both pointers for the duration of its PROFILE callback.
         let sql =
             unsafe { std::ffi::CStr::from_ptr(ffi::sqlite3_sql(statement)) }.to_string_lossy();
-        // Keep only top-level product statements; FTS shadow statements overlap.
+        // Shadow statement times overlap their parent; never sum both as stage time.
         if sql.contains("search_index") || sql.contains("canonical_") || sql.contains("_fathomdb_")
         {
             let mut profile = PROFILE.lock().unwrap();
@@ -33,7 +36,60 @@ unsafe extern "C" fn observe(
 }
 
 fn main() -> Result<()> {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance)?;
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if args.first().is_some_and(|arg| arg == "fixture") && args.len() == 4 {
+        let started = Instant::now();
+        build_campaign(&PathBuf::from(&args[1]), &args[2], false, args[3].parse()?)?;
+        println!("{}", json!({"preparation_ns":started.elapsed().as_nanos() as u64}));
+        return Ok(());
+    }
+    if args.first().is_some_and(|arg| arg == "mutations") && args.len() == 4 {
+        let path = PathBuf::from(&args[1]);
+        if path.exists() {
+            return Err("output already exists".into());
+        }
+        let engine = open(&path)?;
+        if args[3] == "secure" {
+            prepare_eager(&engine)?;
+        }
+        if args[2] == "property" {
+            engine.configure_projections(
+                &[ProjectionSpec {
+                    name: "p1".into(),
+                    roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
+                    fts: Some(ProjectionFts { tokenizer: None }),
+                    vector: None,
+                    source: None,
+                }],
+                &[],
+            )?;
+        }
+        let mut times = Vec::new();
+        for revision in 0..5 {
+            let started = Instant::now();
+            let writes = (0..1000)
+                .map(|i| {
+                    let body = format!(
+                        "common owner{i} revision{revision} {}",
+                        "alpha beta gamma delta ".repeat(40)
+                    );
+                    let body =
+                        if args[2] == "property" { json!({"p1":body}).to_string() } else { body };
+                    node(&format!("owner{i}"), "survivor", &body)
+                })
+                .collect::<Vec<_>>();
+            engine.write(&writes)?;
+            engine.drain(600_000)?;
+            times.push(started.elapsed().as_nanos() as u64);
+        }
+        println!(
+            "{}",
+            json!({"family":args[2],"policy":args[3],"owners":1000,"revisions":5,"round_ns":times})
+        );
+        engine.close()?;
+        return Ok(());
+    }
     if args.len() != 2 {
         return Err(
             "usage: phase1 MASTER DISPOSABLE_OUTPUT (copies master, profiles native erase)".into(),
@@ -50,7 +106,7 @@ fn main() -> Result<()> {
         unsafe {
             ffi::sqlite3_trace_v2(
                 tx.handle(),
-                ffi::SQLITE_TRACE_PROFILE as u32,
+                ffi::SQLITE_TRACE_PROFILE,
                 Some(observe),
                 std::ptr::null_mut(),
             );

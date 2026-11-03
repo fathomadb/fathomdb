@@ -12,8 +12,10 @@ in the [follow-up sequence](current-history-followup-sequence.md#ch1--two-phase-
 HITL approved the Astra-reviewed plan on 2026-11-03 and allocated Phase 1 to
 [Slice 82](0.8.28/features/slice-82/plan.md) and Phase 2 to
 [Slice 83](0.8.28/features/slice-83/plan.md), both before Slice 90.
-The live release ladder is 82 → 83 → 90. Neither phase has started implementation;
-each phase retains its specified pre-code design and review gates.
+The live release ladder is 82 → 83 → 90. Slice 82's exact design received Astra
+approval and its implementation is in verification/qualification; see its
+[status](0.8.28/features/slice-82/status.md). Slice 83 has not started and retains
+its specified pre-code design and review gate.
 
 At the end of Phase 2, HITL will decide the physical-erasure guarantee. HITL is
 considering a specific API callers could invoke to ensure physical cleanup.

@@ -1,9 +1,31 @@
 # Erasure availability mechanism experiment
 
-Unpublished Slice 81 tooling. Production erasure semantics, global dependency
-fences and public routing remain unchanged. The candidate is registered-FTS
+Unpublished Slice 81 tooling. Slice 81 changed no production erasure semantics,
+global dependency fences or public routing. Its candidate is registered-FTS
 sanitation after successful native source erasure; it is not a deferred public
 erasure service or a deletion SLA.
+
+## Slice 82 production qualification
+
+`phase1 MASTER DISPOSABLE_OUTPUT` copies a frozen master, profiles the linked
+checkout's actual native erase and reports SQL counts/time, native elapsed time,
+exact report counts and physical markers while the Engine remains open.
+Nested FTS shadow statement times overlap parent times: never sum both as stage
+time. `phase1 fixture OUTPUT FAMILY OWNERS` prepares 1k/5k controls with the
+original five-revision/10%-target generator. `phase1 mutations OUTPUT FAMILY
+POLICY` compares 1,000 ordinary writes followed by four superseding revisions;
+FAMILY is node/property and POLICY default/secure. Fixture construction is timed
+separately. There is no new production cleanup algorithm in this driver.
+
+Build with `cargo build --release --manifest-path
+dev/experiments/erasure-availability/Cargo.toml --bin phase1`. Freeze baseline and
+candidate executables before comparisons. Use distinct output paths, sequential
+commands, unchanged hashed masters and no simultaneous builds/tests. The
+[Slice 82 design](../../plans/0.8.28/features/slice-82/design.md) records commands,
+inputs and the bounded qualification envelope; its status records actual results.
+The original Slice 81 POC tests/results remain historical baseline evidence:
+reproduce them against their recorded pre-repair source, not against Slice 82's
+changed native physical semantics and root-only fence.
 
 Run from the repository root. Use an existing compatible Cargo cache if desired;
 never run competing builds or tests during a timed campaign.

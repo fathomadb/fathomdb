@@ -33,6 +33,8 @@ reported embed_dispatch::core
 reported embed_dispatch::d27_observation
 reported embedding
 reported erasure
+reported physical_erasure
+reported physical_erasure::tests
 admitted errors
 reported evidence
 reported evidence::tests
@@ -105,6 +107,7 @@ reported temporal
 reported test_hooks
 reported test_hooks::evidence_linearization_hooks
 reported test_hooks::explanation_finalization_hooks
+reported test_hooks::physical_erasure_hooks
 reported test_hooks::frozen_after_validation_hook
 reported test_hooks::reader_search_hook
 reported test_hooks::property_corpus_hook

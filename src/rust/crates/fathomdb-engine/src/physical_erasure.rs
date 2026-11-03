@@ -114,7 +114,20 @@ pub(crate) fn validate_state(c: &Connection) -> Result<(), EngineError> {
 }
 
 pub(crate) fn active(c: &Connection) -> Result<bool, EngineError> {
-    Ok(root(c)?.is_some() || matches!(state(c)?.phase.as_str(), "cleaning" | "finalizing"))
+    if root(c)?.is_some() || matches!(state(c)?.phase.as_str(), "cleaning" | "finalizing") {
+        return Ok(true);
+    }
+    let has_closures: bool = c
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_fathomdb_dependency_closures')",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if !has_closures {
+        return Ok(false);
+    }
+    c.query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE phase!='complete' AND cause IN ('purged','source_erased'))", [], |r| r.get(0)).map_err(|_| EngineError::Storage)
 }
 
 pub(crate) fn cursor_floor(c: &Connection) -> Result<u64, EngineError> {
@@ -373,34 +386,55 @@ mod tests {
         assert!(root(&c).unwrap().is_none());
     }
 
-    proptest::proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(24))]
-        #[test]
-        fn retry_sequences_preserve_atomic_progress_and_survivors(failures in proptest::collection::vec(proptest::bool::ANY, 1..8)) {
-            let dir = tempfile::tempdir().unwrap();
-            let engine = Engine::open(dir.path().join("sequence.sqlite")).unwrap().engine;
-            let make_node = |id: &str, source: &str| PreparedWrite::Node {
-                kind: "doc".into(), body: format!("unique {id}"), source_id: SourceId::new(source).unwrap(),
-                logical_id: Some(id.into()), state: InitialState::Active, reason: None, valid_from: None, valid_until: None,
-            };
-            engine.write(&[make_node("subject", "target"), make_node("survivor", "other")]).unwrap();
-            for fail in failures {
-                if fail {
-                    crate::test_hooks::physical_erasure_hooks::arm("before_sanitation_commit", Box::new(|| Err(EngineError::Storage)));
+    #[test]
+    fn retry_sequences_preserve_atomic_progress_and_survivors() {
+        let mut runner =
+            proptest::test_runner::TestRunner::new(proptest::test_runner::Config::with_cases(24));
+        runner
+            .run(&proptest::collection::vec(proptest::bool::ANY, 1..8), |failures| {
+                let dir = tempfile::tempdir().unwrap();
+                let engine = Engine::open(dir.path().join("sequence.sqlite")).unwrap().engine;
+                let make_node = |id: &str, source: &str| PreparedWrite::Node {
+                    kind: "doc".into(),
+                    body: format!("unique {id}"),
+                    source_id: SourceId::new(source).unwrap(),
+                    logical_id: Some(id.into()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                };
+                engine
+                    .write(&[make_node("subject", "target"), make_node("survivor", "other")])
+                    .unwrap();
+                for fail in failures {
+                    if fail {
+                        crate::test_hooks::physical_erasure_hooks::arm(
+                            "before_sanitation_commit",
+                            Box::new(|| Err(EngineError::Storage)),
+                        );
+                    }
+                    let outcome = engine.erase_source("target");
+                    proptest::prop_assert_eq!(outcome.is_err(), fail);
+                    let guard = engine.connection.lock().unwrap();
+                    let c = guard.as_ref().unwrap();
+                    proptest::prop_assert_eq!(root(c)?.is_some(), fail);
+                    if fail {
+                        proptest::prop_assert_eq!(state(c)?.family, 0);
+                    }
+                    let rows: i64 = c
+                        .query_row(
+                            "SELECT count(*) FROM canonical_nodes WHERE logical_id='survivor'",
+                            [],
+                            |r| r.get(0),
+                        )
+                        .unwrap();
+                    proptest::prop_assert_eq!(rows, 1);
                 }
-                let outcome = engine.erase_source("target");
-                proptest::prop_assert_eq!(outcome.is_err(), fail);
-                let guard = engine.connection.lock().unwrap();
-                let c = guard.as_ref().unwrap();
-                proptest::prop_assert_eq!(root(c)?.is_some(), fail);
-                if fail {
-                    proptest::prop_assert_eq!(state(c)?.family, 0);
-                }
-                let rows: i64 = c.query_row("SELECT count(*) FROM canonical_nodes WHERE logical_id='survivor'", [], |r| r.get(0)).unwrap();
-                proptest::prop_assert_eq!(rows, 1);
-            }
-            engine.erase_source("target").unwrap();
-            engine.close().unwrap();
-        }
+                engine.erase_source("target").unwrap();
+                engine.close().unwrap();
+                Ok(())
+            })
+            .unwrap();
     }
 }

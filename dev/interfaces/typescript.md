@@ -105,6 +105,12 @@ denylist name).
 Application commands are Promise-returning on the TS surface. The startup-only
 `admin.configureRuntime` control is synchronous.
 
+Slice 82 includes retained FTS term sanitation in physical erase/purge completion.
+Root-only erasures retain durable, globally fenced cleanup debt on failure.
+Every registered original telemetry sink path must be reattached for exact retry
+when owed; another path cannot discharge it. Unbound legacy sink obligations
+refuse. This adds no cleanup API or deadline guarantee.
+
 ### Standalone passage reranking (0.8.26 Slice 55 parity repair)
 
 `rerank(query: string, passages: readonly RerankPassage[], rerankDepth: number,

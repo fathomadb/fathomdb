@@ -108,6 +108,12 @@ denylist name).
   `source_id` argument uses the same `SourceId` grammar as writes: an embedded
   NUL is preserved and is erasable by an exact matching call.
 
+Slice 82 includes retained FTS term sanitation in physical erase/purge completion.
+Root-only erasures retain durable, globally fenced cleanup debt on failure.
+Reattach every registered original telemetry sink path and exact-retry when sink
+redaction is owed; switching to another path cannot discharge it. Unbound legacy
+sink obligations refuse. No cleanup API or deadline guarantee is introduced.
+
 `Engine.open(...)` returns the engine handle. The structured open report owned
 by `design/engine.md` is accessible after open via `engine.open_report()` (see
 Engine-attached instrumentation / control below).

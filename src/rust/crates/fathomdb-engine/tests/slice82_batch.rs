@@ -10,7 +10,7 @@ unsafe extern "C" fn observe(
     statement: *mut std::ffi::c_void,
     _: *mut std::ffi::c_void,
 ) -> i32 {
-    if code == ffi::SQLITE_TRACE_STMT as u32 {
+    if code == ffi::SQLITE_TRACE_STMT {
         // SQLite owns the statement and its SQL during this callback.
         let sql = unsafe { std::ffi::CStr::from_ptr(ffi::sqlite3_sql(statement.cast())) }
             .to_string_lossy();
@@ -46,7 +46,7 @@ fn root_erasure_scans_each_fts_family_once_instead_of_once_per_revision() {
             unsafe {
                 ffi::sqlite3_trace_v2(
                     tx.handle(),
-                    ffi::SQLITE_TRACE_STMT as u32,
+                    ffi::SQLITE_TRACE_STMT,
                     Some(observe),
                     std::ptr::null_mut(),
                 );

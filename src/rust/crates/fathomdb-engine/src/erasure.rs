@@ -622,6 +622,15 @@ impl Engine {
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::validate_physical_closures(connection, closure_ids)?;
             physical_erasure::validate_pending(connection, closure_ids)?;
+            // A provider attached on an owed reopen could not graft survivors
+            // at open. This replay only enrols/requeues surviving vector owners;
+            // it preserves FTS contents and durable merge continuation progress.
+            if self.runtime_embedder.is_some() {
+                boot_graft_declared_vector_backfill(connection)
+                    .map_err(|_| EngineError::Storage)?;
+            }
+            dependency_closure::validate_physical_closures(connection, closure_ids)?;
+            physical_erasure::validate_pending(connection, closure_ids)?;
             physical_erasure::sanitize(connection)?;
         }
         if let Err(error) = self.complete_erasure_at_rest(verb) {

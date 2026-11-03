@@ -93,6 +93,15 @@ is content-free; replay after crash revalidates and repeats finalization safely.
 An additional checkpoint after bookkeeping cannot erase the durable obligation
 early; pre-bookkeeping TRUNCATE is the physical boundary.
 
+Astra's implementation review found provider reattachment could defer vector
+grafting past erasure without resuming it. The reviewed correction replays the
+existing idempotent survivor vector graft after zero-proof validation and before
+sanitation, then revalidates. This changes enrolments/readiness only; it preserves
+FTS continuation. Do not blanket-rederive property FTS on debt-bearing reopen.
+Other startup repair gates remain outside read-time cleanup; admitted current
+format writes already maintain their tuples atomically. A later normal open
+retains the existing startup reconciliation behavior.
+
 ## Telemetry and external finalization
 
 Register canonical sink path fingerprints durably before enabling capture. Never

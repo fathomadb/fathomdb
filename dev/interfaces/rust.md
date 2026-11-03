@@ -1481,6 +1481,25 @@ The operator-gated `Engine::pending_erasures()` returns content-free
 `PendingErasure` records for doctor diagnosis; it does not expose source
 identity or alter closure state.
 
+Slice 82 extends that diagnosis to root-only erasures and retained FTS terms.
+Operator identities `root-erasure` and `retained-terms` use sequence zero and are
+not governed dependency-closure lookup IDs. `retained_terms` is a maintenance
+cause, with `dirty`, `cleaning` or `finalizing` phase. Missing current-format
+sanitation metadata is legacy dirty debt. The offline completion path processes
+it even without dependent closures; only a clean certificate with no physical
+or telemetry debt produces the unchanged no-op. Supported FTS mutations invalidate
+the certificate without performing sanitation. Every admitted root erase/purge
+persists its obligation atomically with deletion and preserves the global
+mutation/publication fence until completion.
+
+Erasure covers registered original telemetry sink paths prospectively: enabling
+a sink registers its canonical path fingerprint durably before capture. Changing
+the attached sink does not discharge other registered sinks; reattach each owed
+original path and exact-retry. Unbound legacy queue entries refuse; prior
+unregistered/rotated copies cannot be reconstructed. See the
+[production design](../plans/0.8.28/features/slice-82/design.md) for scope and
+crash/finalization invariants.
+
 These functions and their operator-specific reports are absent when `operator`
 is disabled.
 

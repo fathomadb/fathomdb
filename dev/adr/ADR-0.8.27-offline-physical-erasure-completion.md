@@ -46,3 +46,34 @@ queue solely because the database rows are gone.
 - An invocation with no owed physical closure is a no-op that exits 0 without
   truncating unrelated WAL contents.
 - Automatic completion at `Engine::open` is outside this decision.
+
+## Slice 82 extension (0.8.28)
+
+The owner-approved CH1 Phase 1 and its Astra-reviewed
+[production design](../plans/0.8.28/features/slice-82/design.md) extend the same
+native physical-debt boundary to erasures without registered dependents and to
+retained FTS terms in admitted current-format stores. A versioned root journal
+and a separate sanitation state use the existing open-state table; no schema
+migration or new governed API is introduced. Existing dependency closure lookup,
+root identity and affected-count semantics remain unchanged.
+
+Doctor additionally reports content-free `root-erasure` and `retained-terms`
+maintenance identities where applicable; these are operator diagnoses, not
+governed closure IDs. Missing sanitation state means unassessed legacy debt.
+Ordinary supported FTS mutations invalidate the clean certificate without doing
+cleanup or globally fencing writes. An admitted root operation fences mutations
+and publication until real finalization, including when it had no dependents.
+
+Offline completion validates root and existing closure proofs, enables SQLite
+secure deletion, commits resumable negative-first/positive-continuation FTS merge
+units and requires successful TRUNCATE before atomically completing obligations.
+It handles legacy dirty-only stores and pre-repair pending closures. No-work
+recovery is reserved for a clean certificate with no native/sink debt. Recovery
+still cannot authenticate an original attached telemetry sink and refuses sink
+obligations; original sinks must be reattached to the Engine for exact retry.
+Prospective queue entries authenticate registered canonical sink path fingerprints;
+unbound legacy queue entries remain owed. Historical unregistered sink paths
+cannot be reconstructed or certified by this extension.
+
+The existing success/error meanings, conservative fence and offline-only recovery
+policy stand. The eventual guarantee/API decision remains at the end of Slice 83.

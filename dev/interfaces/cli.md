@@ -385,11 +385,15 @@ returning an Engine.
 `--complete-erasures` uses the same admission checks and canonical lock, then
 one recovery-only read-write connection. It validates every owed physical
 closure's current zero proof and checks telemetry obligations before
-checkpointing. Since the original telemetry sink path is not recorded, an
-outstanding telemetry obligation is refused with exit `70` and remains owed.
+checkpointing. Offline recovery has no authenticated attached original sink;
+an outstanding telemetry obligation is refused with exit `70` and remains owed.
 Checkpoint BUSY exits `71`, preserving the closure; completed recovery exits
-`64`. No owed closure is a no-op and exits `0`, leaving unrelated WAL bytes
-untouched. Its JSON object contains `verb: "complete-erasures"`, `status:
+`64`. No native, retained-term or sink debt and a clean sanitation certificate
+is a no-op and exits `0`, leaving unrelated WAL bytes untouched. Slice 82 also
+processes root-only and legacy retained-term debt, enabling secure deletion and
+resuming committed FTS merge progress before finalization. Doctor and recovery
+may include operator-only identities `root-erasure` and `retained-terms`; neither
+is a governed closure lookup ID. Its JSON object contains `verb: "complete-erasures"`, `status:
 "clean|done|busy"`, `closure_ids` (opaque ids considered), `closures` (one
 `closure_id` and `status` entry per owed closure), and the SQLite `busy`,
 `log_frames`, and `checkpointed_frames` counters.

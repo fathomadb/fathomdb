@@ -222,3 +222,27 @@ fn survivor_edge_supersession_cannot_touch_an_old_denied_endpoint() {
     engine.erase_source("target").unwrap();
     engine.close().unwrap();
 }
+
+#[test]
+fn busy_finalization_redacts_denial_metadata_and_retry_processes_its_own_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("redacted.sqlite");
+    let engine = dependent_seed(&path);
+    let pin = rusqlite::Connection::open(&path).unwrap();
+    pin.execute_batch("BEGIN; SELECT * FROM canonical_nodes;").unwrap();
+    assert!(matches!(engine.erase_source("target"), Err(EngineError::ErasureIncomplete { .. })));
+    assert_eq!(engine.query_i64_col_for_test("SELECT json_extract(value,'$.redacted') FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure'").unwrap(), vec![1], "checkpoint waits on a durable identity-free finalization tombstone");
+    assert_eq!(engine.query_i64_col_for_test("SELECT length(json_extract(value,'$.retry')) + json_array_length(value,'$.denied_sources') + json_array_length(value,'$.denied_identities') FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure'").unwrap(), vec![0]);
+    assert!(matches!(
+        engine.write(&[node("new", "other", "public")]),
+        Err(EngineError::ErasureIncomplete { .. })
+    ));
+    pin.execute_batch("ROLLBACK").unwrap();
+    engine.erase_source("survivor").unwrap();
+    assert_eq!(
+        engine.query_i64_col_for_test("SELECT count(*) FROM canonical_nodes").unwrap(),
+        vec![0],
+        "finishing another target is not success for this call's own argument"
+    );
+    engine.close().unwrap();
+}

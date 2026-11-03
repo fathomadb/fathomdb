@@ -175,7 +175,8 @@ pub(crate) fn guard_plain_write(
             _ => return Err(refused()),
         };
         check_identity(&debt, source, logical, body)?;
-        let sql = format!("SELECT n.source_id,n.logical_id,n.body,r.revision_id,r.artifact_role FROM {table} n LEFT JOIN _fathomdb_artifact_revisions r ON r.write_cursor=n.write_cursor WHERE {prior_sql}");
+        let endpoints = if table == "canonical_edges" { "n.from_id,n.to_id" } else { "NULL,NULL" };
+        let sql = format!("SELECT n.source_id,n.logical_id,n.body,r.revision_id,r.artifact_role,{endpoints} FROM {table} n LEFT JOIN _fathomdb_artifact_revisions r ON r.write_cursor=n.write_cursor WHERE {prior_sql}");
         let mut statement = c.prepare(&sql).map_err(|_| EngineError::Storage)?;
         let read = |r: &rusqlite::Row<'_>| {
             Ok((
@@ -184,6 +185,8 @@ pub(crate) fn guard_plain_write(
                 r.get::<_, Option<String>>(2)?,
                 r.get::<_, Option<String>>(3)?,
                 r.get::<_, Option<String>>(4)?,
+                r.get::<_, Option<String>>(5)?,
+                r.get::<_, Option<String>>(6)?,
             ))
         };
         let rows = if let Some((from, to, kind)) = extra {
@@ -193,7 +196,14 @@ pub(crate) fn guard_plain_write(
         }
         .map_err(|_| EngineError::Storage)?;
         for row in rows {
-            let (source, logical, body, revision, role) = row.map_err(|_| EngineError::Storage)?;
+            let (source, logical, body, revision, role, from, to) =
+                row.map_err(|_| EngineError::Storage)?;
+            for endpoint in [from, to].into_iter().flatten() {
+                if debt.denied_identities.contains(&deny_hash("identity", &format!("l:{endpoint}")))
+                {
+                    return Err(refused());
+                }
+            }
             check_identity(
                 &debt,
                 source.as_deref().unwrap_or(""),

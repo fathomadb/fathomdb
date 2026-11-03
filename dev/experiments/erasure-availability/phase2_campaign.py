@@ -79,13 +79,15 @@ def main():
             continue
         binary = baseline if cell['arm'] == 'baseline' else candidate
         command = [str(binary), str(masters/f'{cell["family"]}-default.sqlite'), str(target), cell['family'], cell['mode']]
+        if 'write_hz' in cell:
+            command.append(str(cell['write_hz']))
         record = safe_child(command, output/f'{index:02d}.log', output, min(deadline, time.monotonic()+600))
         result_path = target/'result.json'
         result = json.loads(result_path.read_text()) if result_path.exists() else None
         event_path = target/'events.jsonl'
         events = events_at(event_path)
         complete = record['exit_code'] == 0 and not record.get('stop') and bool(result and result['verified'])
-        record.update(cell=cell, result=result, streams={stream: summarize(events, stream, complete) for stream in ('read', 'write')})
+        record.update(cell=cell, result=result, streams={stream: summarize(events, stream, complete, 1500 if stream == 'read' else 15*cell.get('write_hz', 100)) for stream in ('read', 'write')})
         records.append(record)
         save(output/'records.json', records)
         # Only this cell's generated replicas; masters and all raw event/results remain.

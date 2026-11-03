@@ -14,6 +14,11 @@ fn event(file: &Mutex<File>, value: Value) {
     writeln!(file.lock().unwrap(), "{value}").unwrap();
 }
 
+fn offer_schedule(stream: &str, write_hz: usize) -> (usize, u64) {
+    let hz = if stream == "read" { 100 } else { write_hz };
+    (15 * hz, 1_000_000_000 / hz as u64)
+}
+
 fn offers(
     engine: Arc<Engine>,
     family: String,
@@ -21,12 +26,14 @@ fn offers(
     start: Instant,
     stream: &'static str,
     client: usize,
+    write_hz: usize,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let stride = if stream == "read" { 8 } else { 1 };
         let mut last_end = start;
-        for id in (client..1500).step_by(stride) {
-            let due_ns = id as u64 * 10_000_000;
+        let (count, interval_ns) = offer_schedule(stream, write_hz);
+        for id in (client..count).step_by(stride) {
+            let due_ns = id as u64 * interval_ns;
             let due = start + Duration::from_nanos(due_ns);
             if last_end > due {
                 event(
@@ -75,8 +82,12 @@ fn offers(
 
 fn main() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if args.len() != 4 {
-        return Err("usage: phase2 MASTER OUTPUT FAMILY erase|control".into());
+    if !(4..=5).contains(&args.len()) {
+        return Err("usage: phase2 MASTER OUTPUT FAMILY erase|control [WRITE_HZ]".into());
+    }
+    let write_hz: usize = args.get(4).map(|rate| rate.parse()).transpose()?.unwrap_or(100);
+    if !(1..=100).contains(&write_hz) {
+        return Err("WRITE_HZ must be between 1 and 100".into());
     }
     let master = Path::new(&args[0]);
     let out = Path::new(&args[1]);
@@ -100,7 +111,15 @@ fn main() -> Result<()> {
     let start = Instant::now() + Duration::from_millis(50);
     let mut workers = (0..8)
         .map(|client| {
-            offers(Arc::clone(&engine), family.clone(), Arc::clone(&events), start, "read", client)
+            offers(
+                Arc::clone(&engine),
+                family.clone(),
+                Arc::clone(&events),
+                start,
+                "read",
+                client,
+                write_hz,
+            )
         })
         .collect::<Vec<_>>();
     workers.push(offers(
@@ -110,6 +129,7 @@ fn main() -> Result<()> {
         start,
         "write",
         0,
+        write_hz,
     ));
     thread::sleep(start.saturating_duration_since(Instant::now()));
     let begun = Instant::now();
@@ -157,7 +177,7 @@ fn main() -> Result<()> {
             && survivors_ok
             && matches!(&native, Ok(_) | Err(EngineError::ErasureIncomplete { .. }))
     };
-    let result = json!({"family":family,"control":control,"profile":if cfg!(debug_assertions){"debug"}else{"release"},"native_ns":native_ns,"native_error":native_error,"native_report":native.ok().flatten().map(|report|json!({"nodes":report.nodes_excised,"edges":report.edges_excised,"projections":report.projections_invalidated})),"owed_before_retry":owed_before_retry,"retry_ns":retry_ns,"retry_error":retry.err().map(|error|error.to_string()),"owed_after":owed_after,"physical_markers":final_markers,"survivors_ok":survivors_ok,"verified":verified,"elapsed_ns":start.elapsed().as_nanos() as u64,"metrics":metrics});
+    let result = json!({"family":family,"write_hz":write_hz,"control":control,"profile":if cfg!(debug_assertions){"debug"}else{"release"},"native_ns":native_ns,"native_error":native_error,"native_report":native.ok().flatten().map(|report|json!({"nodes":report.nodes_excised,"edges":report.edges_excised,"projections":report.projections_invalidated})),"owed_before_retry":owed_before_retry,"retry_ns":retry_ns,"retry_error":retry.err().map(|error|error.to_string()),"owed_after":owed_after,"physical_markers":final_markers,"survivors_ok":survivors_ok,"verified":verified,"elapsed_ns":start.elapsed().as_nanos() as u64,"metrics":metrics});
     engine.close()?;
     fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result)?)?;
     println!("{result}");

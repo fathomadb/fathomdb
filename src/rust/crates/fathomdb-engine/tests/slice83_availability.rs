@@ -380,3 +380,36 @@ fn synchronous_finalization_profiles_its_writer_ownership() {
     assert!(metrics["physical_writer_hold"]["total_ns"].as_u64().unwrap_or(0) >= 20_000_000);
     engine.close().unwrap();
 }
+
+#[test]
+fn singleton_saturation_refuses_before_accepting_another_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = Arc::new(dependent_seed(&dir.path().join("saturation.sqlite")));
+    let other = Arc::clone(&engine);
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_sanitation_unit",
+        Box::new(move || {
+            let (tx, rx) = mpsc::channel();
+            let caller = Arc::clone(&other);
+            std::thread::spawn(move || {
+                let _ = tx.send(caller.erase_source("survivor"));
+            });
+            let result =
+                rx.recv_timeout(Duration::from_millis(250)).map_err(|_| EngineError::Scheduler)?;
+            assert!(
+                matches!(result, Err(EngineError::ErasureIncomplete { .. })),
+                "the singleton does not queue another destructive request"
+            );
+            assert!(other
+                .read_get("survivor", &fathomdb_engine::ReadView::default())
+                .unwrap()
+                .is_some());
+            Ok(())
+        }),
+    );
+    engine
+        .erase_source("target")
+        .expect("saturated second operation must return before this operation resumes");
+    assert!(engine.read_get("survivor", &fathomdb_engine::ReadView::default()).unwrap().is_some());
+    engine.close().unwrap();
+}

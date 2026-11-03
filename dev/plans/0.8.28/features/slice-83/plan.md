@@ -9,7 +9,7 @@ target_release: 0.8.28
 HITL approved and allocated this phase on 2026-11-03 after Astra approved the
 [shared CH1 plan](../../../ch1-production-erasure-plan.md). This entry point
 indexes that plan rather than duplicating requirements, design tasks or tests.
-Implementation is NOT_STARTED. Dependency: Slice 82; this phase precedes
+Planning is underway against the accepted Slice 82 baseline. Dependency: Slice 82; this phase precedes
 Slice 90.
 
 - Scope, requirements and acceptance: [Phase 2](../../../ch1-production-erasure-plan.md#phase-2--resumable-work-and-availability-slice-83), CH1-2A–2F.
@@ -38,3 +38,14 @@ wait and writer ownership separately. Phase 1's property baseline is incomplete
 at a 600-second process cap, not a native-duration observation or speedup.
 Ordinary policy controls compare candidate default/secure modes only; they do
 not establish baseline-to-candidate ordinary-write regression or a service bound.
+
+## Reconciled execution plan
+
+The [production design](design.md) enumerates changes since drafting, the exact
+scoped mutation envelope, requirements/CH1-2A–2F mapping, durable state, recovery,
+RED/GREEN sequence and measurements. Keep the atomic native delete after the
+measured Slice 82 scan repair; bound admission and qualify actual writer stages
+before considering another deletion algorithm. Retain bounded ordinary survivor
+updates only for the reviewed plain legacy class; other mutators remain fenced.
+The design requires Astra approval before implementation, then Astra code review
+and independent verification. Status will record actual tests and limitations.

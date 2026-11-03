@@ -856,3 +856,7 @@ required-features = ["operator", "test-hooks"]
 [[test]]
 name = "slice80_history"
 required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice83_availability"
+required-features = ["test-hooks", "operator"]

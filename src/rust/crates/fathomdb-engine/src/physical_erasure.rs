@@ -106,11 +106,30 @@ pub(crate) fn mark_dirty(c: &Connection) -> rusqlite::Result<()> {
 }
 
 pub(crate) fn root(c: &Connection) -> Result<Option<RootDebt>, EngineError> {
-    let value = load::<RootDebt>(c, ROOT_KEY)?;
+    let raw = load::<serde_json::Value>(c, ROOT_KEY)?;
+    if let Some(raw) = &raw {
+        if raw.get("version").and_then(|v| v.as_u64()) == Some(2)
+            && ["safe_boundary", "denied_sources", "denied_identities", "redacted"]
+                .iter()
+                .any(|key| raw.get(*key).is_none())
+        {
+            return Err(EngineError::Storage);
+        }
+    }
+    let value: Option<RootDebt> =
+        raw.map(serde_json::from_value).transpose().map_err(|_| EngineError::Storage)?;
     if let Some(debt) = &value {
         let ordered =
             |ids: &[i64]| ids.iter().all(|id| *id > 0) && ids.windows(2).all(|p| p[0] < p[1]);
-        if ![1, 2].contains(&debt.version)
+        let valid_hash = |hash: &str| {
+            hash.len() == 64
+                && hash.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        };
+        if debt.denied_sources.iter().chain(&debt.denied_identities).any(|hash| !valid_hash(hash))
+            || (debt.version == 2
+                && debt.denied_sources.is_empty()
+                && debt.denied_identities.is_empty())
+            || ![1, 2].contains(&debt.version)
             || debt.retry.len() != 64
             || !debt.retry.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
             || (debt.version == 2

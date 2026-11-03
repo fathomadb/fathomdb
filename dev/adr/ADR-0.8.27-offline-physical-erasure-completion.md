@@ -77,3 +77,11 @@ cannot be reconstructed or certified by this extension.
 
 The existing success/error meanings, conservative fence and offline-only recovery
 policy stand. The eventual guarantee/API decision remains at the end of Slice 83.
+
+## Slice 83 scheduling successor
+
+[Resumable physical cleanup](ADR-0.8.28-resumable-physical-cleanup.md) supersedes
+the exact-retry-only scheduling and unconditional physical mutation fence above.
+Certified unrelated legacy writes may progress during sanitation; automatic idle
+and reopen service resumes debt. Physical success, original-sink authority and
+existing audit/closure semantics remain unchanged.

@@ -683,9 +683,11 @@ Source supersession, soft deletion, purge, and source erasure atomically close
 every direct Slice 20 dependent. A nonterminal closure is an unconditional
 eligibility and projection-publication barrier under every `ReadView`.
 Physical closure shares the existing telemetry/WAL completion boundary and is
-completed only by an exact retry of the originating physical operation; other
-writes receive the existing `ErasureIncomplete { stage:
-"dependency_closure" }` failure.
+serviced by exact retry or autonomous idle/reopen maintenance. During sanitation,
+only certified unrelated plain legacy node/edge writes are admitted; other
+mutations and projection publication remain fenced. Finalization persists a
+global mutation fence until physical completion. See the
+[successor decision](../adr/ADR-0.8.28-resumable-physical-cleanup.md).
 
 `Engine::read_dependency_closure(ClosureLookupV1)` is the sole public closure
 read. It returns `Option<ClosureStatusV1>` for one opaque Engine-minted
@@ -1489,8 +1491,11 @@ sanitation metadata is legacy dirty debt. The offline completion path processes
 it even without dependent closures; only a clean certificate with no physical
 or telemetry debt produces the unchanged no-op. Supported FTS mutations invalidate
 the certificate without performing sanitation. Every admitted root erase/purge
-persists its obligation atomically with deletion and preserves the global
-mutation/publication fence until completion.
+persists its obligation atomically with deletion. Slice 83 permits certified
+unrelated plain legacy writes during sanitation, then restores the global
+mutation fence for identity-free finalization. Publication remains fenced.
+One joined Engine-owned worker resumes debt on idle/reopen; finite owned-reader
+drain and external checkpoint refusals retain debt without claiming success.
 
 Erasure covers registered original telemetry sink paths prospectively: enabling
 a sink registers its canonical path fingerprint durably before capture. Changing

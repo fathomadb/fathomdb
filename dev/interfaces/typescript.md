@@ -106,7 +106,11 @@ Application commands are Promise-returning on the TS surface. The startup-only
 `admin.configureRuntime` control is synchronous.
 
 Slice 82 includes retained FTS term sanitation in physical erase/purge completion.
-Root-only erasures retain durable, globally fenced cleanup debt on failure.
+Root-only erasures retain durable cleanup debt on failure. Slice 83 permits
+certified unrelated plain legacy node/edge writes during sanitation; finalization
+restores a global mutation fence. A joined Engine-owned worker resumes owed work
+while idle and after reopen. See the
+[successor decision](../adr/ADR-0.8.28-resumable-physical-cleanup.md).
 Every registered original telemetry sink path must be reattached for exact retry
 when owed; another path cannot discharge it. Unbound legacy sink obligations
 refuse. This adds no cleanup API or deadline guarantee.
@@ -389,9 +393,10 @@ whose source ID contains an embedded NUL.
 
 Source-losing lifecycle and erasure operations close direct registered
 dependents atomically. A nonterminal closure remains invisible under every
-`ReadView`; an incomplete physical closure fences other writers with the
-existing `ErasureIncomplete` stage `dependency_closure` until the exact
-originating operation is retried.
+`ReadView`. Incomplete physical closure retains mutation/publication fences,
+with only the certified unrelated legacy-write exception during sanitation.
+Exact retry and autonomous idle/reopen service share the same physical-success
+boundary; finalization can remain incomplete while external readers pin WAL.
 
 `engine.readDependencyClosure(request)` accepts the closed
 `{ schemaVersion: 1, closureOperationId: string }` request and returns

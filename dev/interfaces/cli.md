@@ -382,6 +382,12 @@ rollback-journal-blocked, or malformed-WAL-plus-noncurrent-standalone-main
 inputs exit `70`. Normal open continues to refuse the malformed WAL before
 returning an Engine.
 
+Slice 83 also resumes native debt automatically in an open Engine, including
+reopen without the original argument. Offline completion recognizes the validated
+identity-free finalization tombstone and retains the same TRUNCATE and original
+sink requirements. See the
+[successor decision](../adr/ADR-0.8.28-resumable-physical-cleanup.md).
+
 `--complete-erasures` uses the same admission checks and canonical lock, then
 one recovery-only read-write connection. It validates every owed physical
 closure's current zero proof and checks telemetry obligations before

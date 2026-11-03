@@ -179,6 +179,12 @@ existing TC-68 cache/settings/cadence/residual and runtime/mean behavior stay fi
 The superseded evidence-cache/runtime redesign remains outside scope. Separate
 Astra-medium implementation review gates landing; publication is not authorized.
 
+## Phase 0.8.28 physical cleanup
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 68 | architecture | Scoped unrelated writes and autonomous resumable physical cleanup; retain synchronous physical success and open end-phase guarantee decision | Owner-authorized Slice 83 implementation, Astra-reviewed design | ADR-0.8.28-resumable-physical-cleanup.md |
+
 ## Categories
 
 acceptance | architecture | design | interface.

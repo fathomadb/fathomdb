@@ -9,15 +9,15 @@ target_release: 0.8.28
 HITL approved and allocated this phase on 2026-11-03 after Astra approved the
 [shared CH1 plan](../../../ch1-production-erasure-plan.md). This entry point
 indexes that plan rather than duplicating requirements, design tasks or tests.
-Planning is underway against the accepted Slice 82 baseline. Dependency: Slice 82; this phase precedes
+Implementation and qualification use the accepted Slice 82 baseline. Dependency: Slice 82; this phase precedes
 Slice 90.
 
 - Scope, requirements and acceptance: [Phase 2](../../../ch1-production-erasure-plan.md#phase-2--resumable-work-and-availability-slice-83), CH1-2A–2F.
 - Design and contract constraints: [shared contract](../../../ch1-production-erasure-plan.md#shared-contract-and-scope).
 - RED/GREEN, measurements, Astra design/code reviews and independent verification:
   [verification plan](../../../ch1-production-erasure-plan.md#measurement-review-and-verification-plan).
-- Next action: reconcile the baseline and write the exact phase production design,
-  persisted-state/contract changes and test mapping; obtain Astra review before code.
+- Next action: complete loaded qualification and final verification of the reviewed
+  implementation; record measured limits and the pending owner guarantee decision.
 - Status is owned by [release state](../../../release-state-0.8.28.json) and the
   [release board](../../../runs/STATUS-0.8.28.md).
 

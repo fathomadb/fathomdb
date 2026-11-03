@@ -163,9 +163,9 @@ built against the actual Phase-82 source, frozen masters and 15-second windows.
 Freeze commands before timing under the existing 45-minute/8-GiB/12-GiB envelope;
 no concurrent builds during timed work. No p99 claim from incomplete streams.
 
-## Contract disposition required before implementation
+## Contract disposition
 
-The same implementation lands a successor to dependency-closure and offline-completion ADRs authorizing the
+The [successor ADR](../../../../adr/ADR-0.8.28-resumable-physical-cleanup.md) authorizes the
 scoped mutation exception and automatic reopen service. Rust/CLI and affected
 binding contract descriptions must retain synchronous physical success and
 truthful incomplete errors. The final status reports supported mutation envelope,
@@ -173,6 +173,6 @@ measured pauses and all external-reader/sink/downtime exclusions. The end-of-sli
 HITL choice of physical guarantee/API remains open even when engineering passes.
 
 Independent verification found the existing Phase 82 large-input fixture is
-1,050,028 bytes, slightly above an exact MiB. Retain that existing oracle and
+1,050,029 bytes, slightly above an exact MiB. Retain that existing oracle and
 provide 2-MiB per-row admission headroom; the new boundary test follows the
 revised limit. Total body/file/metadata ceilings remain unchanged.

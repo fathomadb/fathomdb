@@ -176,3 +176,28 @@ Independent verification found the existing Phase 82 large-input fixture is
 1,050,029 bytes, slightly above an exact MiB. Retain that existing oracle and
 provide 2-MiB per-row admission headroom; the new boundary test follows the
 revised limit. Total body/file/metadata ceilings remain unchanged.
+
+## Measured follow-up (Astra approved)
+
+The first frozen loaded campaign exposed a regression: candidate node public
+calls took 7.394–7.732 seconds versus Phase-82 baseline 1.328–1.350 seconds.
+Candidate writer waiting, rather than sanitation commands, dominated. Preserve
+these results. Reuse one prepared vec0 absence probe across all captured vector
+IDs, retaining every probe, empty-set behavior and failure rule. A deterministic
+SQL-authorizer work-count RED precedes that change. No envelope or proof check
+is removed and no incremental accounting authority is introduced.
+
+Repeat the original 24-cell grid with a separately frozen optimized candidate.
+The property no-erasure controls missed 785/748 of 1,500 write offers, so that
+100-Hz offered load does not establish a supported service envelope. Add four
+separately labeled property cells at 20 write offers/second (300 over 15 seconds):
+a baseline/candidate erase pair and matching no-erasure controls. Retain 1,500
+read offers and the same clients/population. The driver records the selected
+rate; fewer than 1,000 samples cannot qualify write p99. Do not presume 20 Hz
+passes before observing controls. Both original and supplemental evidence remain;
+all runs and pauses share the original 45-minute deadline.
+
+Process-exit monitoring failures remain unqualified even with a complete product
+result. A bounded 50-ms wait may confirm exit after a `/proc` permission race;
+a still-live permission failure remains a monitor failure and is reaped. Record
+reruns separately and never reset the campaign budget.

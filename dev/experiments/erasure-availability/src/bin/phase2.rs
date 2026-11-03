@@ -166,3 +166,15 @@ fn main() -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn supplemental_write_rate_preserves_the_fifteen_second_read_schedule() {
+        assert_eq!(offer_schedule("read", 20), (1500, 10_000_000));
+        assert_eq!(offer_schedule("write", 100), (1500, 10_000_000));
+        assert_eq!(offer_schedule("write", 20), (300, 50_000_000));
+    }
+}

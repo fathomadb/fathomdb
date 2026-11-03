@@ -546,6 +546,29 @@ mod tests {
     }
 
     #[test]
+    fn mapped_vector_proof_preparation_work_does_not_scale_with_scope_size() {
+        use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+        let c = vector_storage::slice70_mapping_fixture(false);
+        let mut debt = capture(&c, &[10], 10).unwrap();
+        erase_row_projections(&c, &[10_i64][..]).unwrap();
+        debt.vectors.extend(1000..2000);
+        admit(&c, debt, "purge", "subject", &[]).unwrap();
+        let debt = root(&c).unwrap().unwrap();
+        let prepared_reads = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&prepared_reads);
+        c.authorizer(Some(move |context: AuthContext<'_>| {
+            if matches!(context.action, AuthAction::Read { table_name: "vector_default", .. }) {
+                observed.fetch_add(1, Ordering::Relaxed);
+            }
+            Authorization::Allow
+        }));
+        validate_zero(&c, &debt).unwrap();
+        assert!(prepared_reads.load(Ordering::Relaxed) <= 4,
+            "mapped absence proof must reuse bounded SQL preparation work for every captured ID; observed {} prepared reads",
+            prepared_reads.load(Ordering::Relaxed));
+    }
+
+    #[test]
     fn root_replay_proves_every_mapped_vector_id_not_only_the_owner_cursor() {
         let c = vector_storage::slice70_mapping_fixture(false);
         let debt = capture(&c, &[10], 10).unwrap();

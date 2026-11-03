@@ -124,6 +124,28 @@ class Measurement(unittest.TestCase):
             self.assertIsNone(record['stop'])
             self.assertTrue(all(p.poll() is not None for p in processes))
 
+    def test_permission_exit_race_can_precede_poll_visibility(self):
+        processes = []
+        original = subprocess.Popen
+        def launch(*args, **kwargs):
+            process = original(*args, **kwargs)
+            processes.append(process)
+            return process
+        def sample(pid, root):
+            process = processes[-1]
+            process.wait(timeout=2)
+            original_poll = process.poll
+            stale = [True]
+            process.poll = mock.Mock(side_effect=lambda: None if stale and stale.pop() else original_poll())
+            raise PermissionError(13, 'Permission denied', f'/proc/{pid}/io')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch.object(campaign.subprocess, 'Popen', side_effect=launch), mock.patch.object(campaign, 'resource_sample', side_effect=sample):
+                record = campaign.child([sys.executable, '-c', 'print(123)'], root/'log', root, time.monotonic()+3)
+            self.assertEqual(record['exit_code'], 0)
+            self.assertIsNone(record['stop'])
+            self.assertTrue(all(p.wait(timeout=1) == 0 for p in processes))
+
     def test_active_child_proc_permission_error_still_reaps_and_fails(self):
         processes = []
         original = subprocess.Popen

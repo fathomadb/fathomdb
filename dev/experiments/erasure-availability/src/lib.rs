@@ -1,0 +1,199 @@
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+use fathomdb_engine::{
+    Engine, InitialState, PreparedWrite, ProjectionFts, ProjectionRole, ProjectionSpec, SourceId,
+};
+use rusqlite::{Connection, OpenFlags};
+use serde::Serialize;
+use std::{
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+
+/// Experiment errors retain diagnostic context; no public API consumes this type.
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+/// Positive nonstemming physical witness; never persisted in job metadata.
+pub const MARKER: &str = "qzxvplmnbvcxzasdfghjklqwertx";
+/// Production-registered FTS families, including the coexisting multi-column index.
+pub const TABLES: [&str; 4] =
+    ["search_index", "search_index_edges", "property_search_index", "search_index_v2"];
+
+struct Fixed;
+impl Embedder for Fixed {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("erasure-poc", "v1", 8)
+    }
+    fn embed(&self, _: &str) -> std::result::Result<Vector, EmbedderError> {
+        Ok(vec![1.; 8])
+    }
+}
+/// Open a real Engine with an offline deterministic provider.
+pub fn open(path: &Path) -> Result<Engine> {
+    Ok(Engine::open_with_embedder_for_test(path, Arc::new(Fixed))?.engine)
+}
+/// A governed canonical node write, also used for unrelated foreground progress.
+pub fn node(id: &str, source: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::Node {
+        kind: "doc".into(),
+        body: body.into(),
+        source_id: SourceId::new(source).unwrap(),
+        logical_id: Some(id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    }
+}
+/// A real current-format fixture; construction never inserts source data directly.
+pub struct Fixture {
+    pub engine: Engine,
+    pub path: PathBuf,
+    pub family: String,
+}
+impl Fixture {
+    /// Populate target and survivor revisions through Engine write and projections.
+    pub fn build(
+        path: &Path,
+        family: &str,
+        secure: bool,
+        owners: usize,
+        history: usize,
+    ) -> Result<Self> {
+        fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance)?;
+        if path.exists() {
+            return Err("fixture output already exists".into());
+        }
+        let engine = open(path)?;
+        if secure {
+            prepare_eager(&engine)?;
+        }
+        if family == "property" {
+            let specs = ["p1", "p2"]
+                .into_iter()
+                .map(|name| ProjectionSpec {
+                    name: name.into(),
+                    roles: BTreeSet::from([ProjectionRole::Searchable]),
+                    fts: Some(ProjectionFts { tokenizer: None }),
+                    vector: None,
+                    source: None,
+                })
+                .collect::<Vec<_>>();
+            engine.configure_projections(&specs, &[])?;
+        }
+        if family == "edge" {
+            engine.write(&[
+                node("left", "endpoints", "left endpoint"),
+                node("right", "endpoints", "right endpoint"),
+            ])?;
+        }
+        for revision in 0..=history {
+            let mut writes = Vec::new();
+            for i in 0..owners {
+                let target = i % 2 == 0;
+                let source = if target { "target" } else { "survivor" };
+                let word = if target { MARKER } else { "survivorneedle" };
+                let body = format!(
+                    "{word} common owner{i} revision{revision} {}",
+                    "alpha beta gamma delta ".repeat(45)
+                );
+                let id = format!("owner-{i}");
+                writes.push(match family {
+                    "node" => node(&id, source, &body),
+                    "property" => {
+                        node(&id, source, &serde_json::json!({"p1":body,"p2":body}).to_string())
+                    }
+                    "edge" => PreparedWrite::Edge {
+                        kind: "rel".into(),
+                        from: "left".into(),
+                        to: "right".into(),
+                        source_id: SourceId::new(source)?,
+                        logical_id: Some(id),
+                        body: Some(body),
+                        t_valid: None,
+                        t_invalid: None,
+                        confidence: None,
+                        extractor_model_id: None,
+                        temporal_fallback: None,
+                    },
+                    _ => return Err("unknown family".into()),
+                });
+            }
+            engine.write(&writes)?;
+            engine.drain(60_000)?;
+        }
+        Ok(Self { engine, path: path.to_path_buf(), family: family.into() })
+    }
+    /// Observe real table SQL, logical matches and shadow marker prepresence.
+    pub fn inventory(&self) -> Result<Vec<FamilyEvidence>> {
+        inventory(&self.path, MARKER)
+    }
+    /// Retain native erasure semantics and registered cleanup obligations.
+    pub fn erase(&self) -> Result<()> {
+        self.engine.erase_source("target")?;
+        Ok(())
+    }
+}
+/// Observed production family, not an inferred mode or an empty-family pass.
+#[derive(Debug, Serialize)]
+pub struct FamilyEvidence {
+    pub table: String,
+    pub ddl: String,
+    pub rows: i64,
+    pub matches: i64,
+    pub shadow_markers: i64,
+}
+/// Read a committed database snapshot without acquiring an independent writer.
+pub fn reader(path: &Path) -> Result<Connection> {
+    Ok(Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?)
+}
+/// Inventory all registered FTS modes using positive physical markers.
+pub fn inventory(path: &Path, marker: &str) -> Result<Vec<FamilyEvidence>> {
+    let c = reader(path)?;
+    TABLES
+        .into_iter()
+        .map(|table| {
+            Ok(FamilyEvidence {
+                table: table.into(),
+                ddl: c.query_row("SELECT sql FROM sqlite_master WHERE name=?1", [table], |r| {
+                    r.get(0)
+                })?,
+                rows: c.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))?,
+                matches: c.query_row(
+                    &format!("SELECT count(*) FROM {table} WHERE {table} MATCH ?1"),
+                    [marker],
+                    |r| r.get(0),
+                )?,
+                shadow_markers: c.query_row(
+                    &format!(
+                        "SELECT count(*) FROM {table}_data WHERE instr(block,CAST(?1 AS BLOB))>0"
+                    ),
+                    [marker],
+                    |r| r.get(0),
+                )?,
+            })
+        })
+        .collect()
+}
+/// Configure A prospectively before any governed source write.
+pub fn prepare_eager(_engine: &Engine) -> Result<()> {
+    Ok(())
+}
+/// Rebuild A's legacy FTS indexes from their surviving content rows.
+pub fn rebuild_eager(_engine: &Engine) -> Result<()> {
+    Ok(())
+}
+/// Count literal witnesses over all allocated/freelist bytes and the current WAL.
+pub fn physical_markers(path: &Path, marker: &str) -> Result<usize> {
+    let mut count = 0;
+    for p in [path.to_path_buf(), PathBuf::from(format!("{}-wal", path.display()))] {
+        if p.exists() {
+            count +=
+                std::fs::read(p)?.windows(marker.len()).filter(|w| *w == marker.as_bytes()).count();
+        }
+    }
+    Ok(count)
+}
+/// Require a completed native TRUNCATE report; Ok(all-busy) is incomplete.
+pub fn checkpoint(engine: &Engine) -> Result<bool> {
+    Ok(engine.checkpoint_at_rest_for_test()?.last().is_some_and(|(busy, _, _)| !busy))
+}

@@ -152,7 +152,7 @@ Candidate sanitation follows native source erasure and does not modify native
 closures. Fresh A's secure-delete setting precedes population; legacy A rebuilds
 from surviving content. B uses one negative merge start followed by positive
 continuations and checks physical bytes independently of the no-work signal.
-The single-segment counterexample is a required physical probe. A persisted job
+The single-segment state is a required physical probe; rejection requires observed residue. A persisted job
 may report blocked/rejected with its original deadline; no failed physical proof
 is complete. Native global admission, telemetry and source-closure contracts stay
 unchanged. Broad scoped fencing and safe staged publication require successors,

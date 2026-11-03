@@ -1786,3 +1786,15 @@ filterable attributes; an over-capacity configuration fails atomically.
 `include_out_of_window` keeps its node-window behavior and the existing
 unconditional edge-expiry check. Public `include_superseded` and
 `include_inactive` search admission is supported with independent lifecycle gates.
+
+### Maintenance transaction seam (internal tests)
+
+`Engine::maintenance_transaction_for_test` exists only under `cfg(test)` or the
+explicit `test-hooks` feature. It runs a trusted callback in an immediate
+transaction under the real writer mutex, commits on success and rolls back on
+error before releasing that mutex. Callbacks must not issue transaction-control
+SQL or reenter the Engine. The result contains the callback value, mutex wait and
+successful lock occupancy through transaction finalization; failed calls return
+no timing tuple. Closing and storage errors retain their existing Engine meanings.
+A callback panic rolls back while unwinding and poisons the mutex. This helper
+changes no default admission, public erasure outcome or shipped schema.

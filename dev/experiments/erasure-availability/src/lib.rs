@@ -199,12 +199,18 @@ pub fn rebuild_eager(engine: &Engine) -> Result<()> {
 }
 /// Count literal witnesses over all allocated/freelist bytes and the current WAL.
 pub fn physical_markers(path: &Path, marker: &str) -> Result<usize> {
-    let mut count = 0;
-    for p in [path.to_path_buf(), PathBuf::from(format!("{}-wal", path.display()))] {
-        if p.exists() {
-            count +=
-                std::fs::read(p)?.windows(marker.len()).filter(|w| *w == marker.as_bytes()).count();
+    if marker.is_empty() {
+        return Err("physical marker must be nonempty".into());
+    }
+    let bytes = std::fs::read(path)?;
+    let mut count = bytes.windows(marker.len()).filter(|w| *w == marker.as_bytes()).count();
+    let wal = PathBuf::from(format!("{}-wal", path.display()));
+    match std::fs::read(wal) {
+        Ok(bytes) => {
+            count += bytes.windows(marker.len()).filter(|w| *w == marker.as_bytes()).count()
         }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
     }
     Ok(count)
 }
@@ -272,10 +278,20 @@ pub fn step(engine: &Engine, pages: i64, now: i64, fail_after_work: bool) -> Res
 /// Requires exclusive fixture use during finalization, including no source reingestion.
 /// A residual marker is a rejected mechanism, while busy WAL remains proof-pending.
 pub fn finalize(engine: &Engine, path: &Path, marker: &str) -> Result<bool> {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
+    finalize_at(engine, path, marker, now)
+}
+
+/// Finalize against an explicit experiment wall clock; retries keep the original deadline.
+pub fn finalize_at(engine: &Engine, path: &Path, marker: &str, now: i64) -> Result<bool> {
     let state = job(engine)?;
-    if state.phase != "proof_pending" && state.phase != "residual" {
+    if !["proof_pending", "residual", "complete"].contains(&state.phase.as_str()) {
         return Err("job not ready for physical proof".into());
     }
+    engine.maintenance_transaction_for_test(|tx| {
+        tx.execute("UPDATE poc_sanitation SET overdue=overdue OR max(last_wall,?1)>deadline,last_wall=max(last_wall,?1) WHERE singleton=1",[now])?;
+        Ok(())
+    })?;
     if !checkpoint(engine)? {
         return Ok(false);
     }
@@ -289,9 +305,4 @@ pub fn finalize(engine: &Engine, path: &Path, marker: &str) -> Result<bool> {
         Ok(())
     })?;
     Ok(clean)
-}
-
-/// Finalize against an explicit experiment wall clock; retries keep the original deadline.
-pub fn finalize_at(engine: &Engine, path: &Path, marker: &str, _now: i64) -> Result<bool> {
-    finalize(engine, path, marker)
 }

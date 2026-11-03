@@ -171,3 +171,31 @@ service envelope with capacity/backlog, reader/finalization bounds and clock/
 failure assumptions, separating measured margins from unproved worst-case bounds.
 If no candidate supports that argument, reject or name the precise next evidence;
 do not claim guaranteed deletion from a retry loop or experiment timeout.
+
+## Executable sanitation protocol clarification
+
+Reviewed before execution: the experiment compares sanitation after ordinary
+native erasure, without changing native acceptance or fencing. Fresh A enables
+FTS secure deletion before population; fresh B uses default FTS and follows native
+erasure with committed merging. The full loaded offer window starts before native
+erasure in both arms. Record native call duration separately; it is not writer
+lock instrumentation. The 25% writer-occupancy comparison applies only to legacy
+rebuild-versus-merge units measured through the same writer hook. Fresh writer
+occupancy and native deferred-erasure availability remain unqualified.
+
+Legacy paired replicas start from identical default fixtures after successful
+native erasure and positive ghost inspection; that preparation cost is charged
+to the campaign. Native incomplete outcomes fail a replica, without automatic
+retry or sanitation admission. Stop and join foreground clients before physical
+proof so inspection has an exclusive fixture. Loaded foreground writes use only
+predeclared unrelated sources. No same-source reingestion or scoped admission
+claim follows from this restricted workload. Candidate acceptance/completion
+clocks are sanitation clocks; the earlier native-erasure interval remains visible.
+
+A dependency-free source's incomplete WAL checkpoint does not necessarily create
+a dependency closure, and unrelated writes may proceed. A registered derived
+dependency does create a closure and globally fences unrelated writes until exact
+retry. Both cases are baseline tests; neither is silently generalized to the other.
+The original 24 cells, three replicas, 30/90-second stops and 45-minute campaign
+budget remain unchanged. SLA scheduling and ordinary expiry remain separate
+successor evidence, not fabricated by the sanitation controller.

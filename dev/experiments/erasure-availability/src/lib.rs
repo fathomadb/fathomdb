@@ -212,3 +212,36 @@ pub fn physical_markers(path: &Path, marker: &str) -> Result<usize> {
 pub fn checkpoint(engine: &Engine) -> Result<bool> {
     Ok(engine.checkpoint_at_rest_for_test()?.last().is_some_and(|(busy, _, _)| !busy))
 }
+
+/// Durable sanitation progress. Scope is whole-family maintenance, never native erasure admission.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct Job {
+    pub accepted: i64,
+    pub deadline: i64,
+    pub family: usize,
+    pub started: bool,
+    pub steps: usize,
+    pub phase: String,
+    pub overdue: bool,
+}
+/// Admit one bounded experimental sanitation job after native erasure returns success.
+pub fn admit(_engine: &Engine, _accepted: i64, _deadline: i64) -> Result<()> {
+    Err("sanitation admission not implemented".into())
+}
+/// Load the durable job on the real writer.
+pub fn job(_engine: &Engine) -> Result<Job> {
+    Err("sanitation progress not implemented".into())
+}
+/// Commit one merge command and its progress; optional failure models rollback before commit.
+pub fn step(
+    _engine: &Engine,
+    _pages: i64,
+    _now: i64,
+    _fail_after_work: bool,
+) -> Result<(u64, u64)> {
+    Err("merge not implemented".into())
+}
+/// Finalize only after physical inspection and a non-busy WAL checkpoint.
+pub fn finalize(_engine: &Engine, _path: &Path, _marker: &str) -> Result<bool> {
+    Err("finalization not implemented".into())
+}

@@ -199,3 +199,34 @@ retry. Both cases are baseline tests; neither is silently generalized to the oth
 The original 24 cells, three replicas, 30/90-second stops and 45-minute campaign
 budget remain unchanged. SLA scheduling and ordinary expiry remain separate
 successor evidence, not fabricated by the sanitation controller.
+
+## Reviewed continuation after the original campaign
+
+The original campaign stopped after 2700.1545 seconds: ten completed replicas,
+13 incomplete replicas and 49 never started. Master preparation consumed much
+more time than the draft anticipated: native erasure required 266.16 seconds for
+node, 145.04 seconds for edge and 775.21 seconds for property fixtures; property
+master generation also required 439.97/510.91 seconds. The original manifest,
+results and failures remain immutable under `/tmp/fathomdb-slice81-campaign`.
+
+Under the owner's instruction to adjust the drafted plan and complete this slice,
+Astra reviewed a **separate, at-most-25-minute active continuation**. This explicitly
+supersedes the original 60-minute combined ceiling for this continuation; it is
+neither an automatic extension of the original 45-minute campaign nor use of the
+conditional-C allowance. Report original duration, continuation active duration
+and total wall span including intervening review/setup separately.
+
+The continuation selects only the original never-started IDs: cell 7 replica 2,
+and replicas 0–2 of cells 8–23. It preserves their original alternating order,
+30-second replica limit, original accumulated time against each 90-second cell
+limit, load, fixture, page budget, physical-proof and percentile requirements.
+Never rerun or replace an incomplete or completed original attempt. Reuse only
+hash-verified original masters, the unchanged release binary and original service
+controls. Start the new active clock before input validation and setup; stop on
+its deadline or original resource limits, retaining every remaining disposition.
+Combined scratch accounting includes the original retained masters and new copies.
+
+The exact continuation manifest, controller and selection/budget tests receive
+Astra review and independent verification before running. No staged replacement,
+production remediation, scheduler or SLA scope is added. This adjustment completes
+missing observations; it cannot turn the original timeout results into passes.

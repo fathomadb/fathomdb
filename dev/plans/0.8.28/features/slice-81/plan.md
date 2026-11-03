@@ -141,3 +141,11 @@ verification reproduces physical controls, failed-work rollback, restart, writer
 progress, blocked checkpoint retry and any controller introduced. Astra reviews
 code and interpretation. Results must map every requirement/hypothesis and all
 24 planned cells, controls and supplements to supported dispositions.
+
+The original 45-minute execution yielded 10 complete, 13 incomplete and 49
+never-started replicas. Its preparation-time assumption was wrong. The explicit
+[reviewed continuation](experiment-design.md#reviewed-continuation-after-the-original-campaign)
+adds at most 25 active minutes for only those never-started IDs, preserving all
+original evidence and thresholds. This is a plan adjustment under the execution
+request, not a hidden extension or replacement run. Scope and production boundaries
+remain unchanged; Astra and independent verification gate the new controller.

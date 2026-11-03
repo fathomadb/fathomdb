@@ -55,3 +55,18 @@ ownership; they do not detect later independent source ingestion.
 
 See the [slice protocol](../../plans/0.8.28/features/slice-81/experiment-design.md)
 and [requirements](../../plans/0.8.28/features/slice-81/requirements.md).
+
+The reviewed continuation uses the unchanged probe and original masters:
+
+```sh
+python3 dev/experiments/erasure-availability/supplement.py /absolute/path/to/release/probe /tmp/fathomdb-slice81-campaign --plan
+python3 -m unittest discover -s dev/experiments/erasure-availability -p test_supplement.py
+python3 dev/experiments/erasure-availability/supplement.py /absolute/path/to/release/probe /tmp/fathomdb-slice81-campaign
+```
+
+`--plan` prints the exact never-started IDs and verified inputs without launching
+children. Execution creates a new `supplement/` directory, charges validation/setup
+to its separate 25-minute active budget, carries original cell time and counts all
+retained original/new scratch files. Original outcomes and raw records are not
+modified. This continuation requires the explicit protocol revision above; it is
+not an automatic retry facility.

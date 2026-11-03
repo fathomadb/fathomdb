@@ -367,6 +367,7 @@ pub(crate) fn sanitize_unit(c: &Connection) -> Result<bool, EngineError> {
     Ok(done)
 }
 
+#[cfg(any(test, feature = "operator"))]
 pub(crate) fn sanitize(c: &Connection) -> Result<(), EngineError> {
     loop {
         let done = sanitize_unit(c)?;

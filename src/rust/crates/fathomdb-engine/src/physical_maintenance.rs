@@ -178,6 +178,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn contended_primary_cannot_hide_pending_work_from_priority() {
+        let directory = tempfile::tempdir().unwrap();
+        let engine = Engine::open(directory.path().join("priority.sqlite")).unwrap().engine;
+        let guard = engine.connection.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_millis(350);
+        while !engine.physical_maintenance.shared.priority.load(Ordering::Acquire)
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let asserted = engine.physical_maintenance.shared.priority.load(Ordering::Acquire);
+        drop(guard);
+        engine.close().unwrap();
+        assert!(asserted, "a busy primary must not hide potentially owed work from priority");
+    }
+
+    #[test]
     fn ordinary_writer_cannot_miss_the_maintenance_priority_release() {
         let maintenance = Arc::new(PhysicalMaintenance::default());
         maintenance.shared.priority.store(true, Ordering::Release);

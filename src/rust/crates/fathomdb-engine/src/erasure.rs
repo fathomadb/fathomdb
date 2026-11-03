@@ -719,7 +719,13 @@ impl Engine {
         self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
         let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
-        let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
+        let _service = self.physical_service_gate.try_lock().map_err(|error| match error {
+            std::sync::TryLockError::Poisoned(_) => EngineError::Storage,
+            std::sync::TryLockError::WouldBlock => EngineError::ErasureIncomplete {
+                stage: "physical_admission".into(),
+                detail: "the singleton physical cleanup service is already occupied".into(),
+            },
+        })?;
         drop(queue);
         self.finish_redacted_before_request()?;
         let _physical_attempt = self.physical_attempt();
@@ -738,6 +744,13 @@ impl Engine {
             let result = self.finish_physical_dependency_closures("purge", &pending);
             self.projection_runtime.set_frozen(false);
             return result;
+        }
+
+        {
+            let guard = self.physical_writer(false)?;
+            dependency_closure::guard_no_pending_physical(
+                guard.as_ref().ok_or(EngineError::Closing)?,
+            )?;
         }
 
         // Drain in-flight projection work before the erase, exactly as
@@ -1042,7 +1055,13 @@ impl Engine {
         let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
         self.ensure_open()?;
         let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
-        let _service = self.physical_service_gate.lock().map_err(|_| EngineError::Storage)?;
+        let _service = self.physical_service_gate.try_lock().map_err(|error| match error {
+            std::sync::TryLockError::Poisoned(_) => EngineError::Storage,
+            std::sync::TryLockError::WouldBlock => EngineError::ErasureIncomplete {
+                stage: "physical_admission".into(),
+                detail: "the singleton physical cleanup service is already occupied".into(),
+            },
+        })?;
         drop(queue);
         self.finish_redacted_before_request()?;
         let _physical_attempt = self.physical_attempt();
@@ -1082,6 +1101,13 @@ impl Engine {
             })();
             self.projection_runtime.set_frozen(false);
             return result;
+        }
+
+        {
+            let guard = self.physical_writer(false)?;
+            dependency_closure::guard_no_pending_physical(
+                guard.as_ref().ok_or(EngineError::Closing)?,
+            )?;
         }
 
         // Drain MUST succeed before the excise transaction. SQLite-WAL

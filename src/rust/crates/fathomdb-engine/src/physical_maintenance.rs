@@ -71,6 +71,15 @@ impl PhysicalMaintenance {
                         break;
                     }
                     drop(stop);
+                    let active = match connection.try_lock() {
+                        Ok(guard) => guard
+                            .as_ref()
+                            .is_some_and(|c| physical_erasure::active(c).unwrap_or(true)),
+                        Err(_) => false,
+                    };
+                    if !active {
+                        continue;
+                    }
                     let Ok(_service) = service.try_lock() else {
                         continue;
                     };

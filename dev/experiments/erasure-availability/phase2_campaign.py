@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 import sys
 import time
-from campaign import child, save
+from campaign import events_at, safe_child, save
 
 
 def summarize(events, stream, complete, expected=1500):
@@ -39,31 +39,51 @@ def summarize(events, stream, complete, expected=1500):
     return counts
 
 
+def resume_grid(cells, records):
+    """Keep original cell order and append separately identified unknown retries."""
+    return list(cells) + [dict(row['cell'], retry_of=index)
+                          for index, row in enumerate(records)
+                          if row.get('stop') == 'monitor_error']
+
+
 def main():
     """Freeze inputs and budget before timing; retain evidence, retire disposable DB copies."""
-    baseline, candidate, masters, output = map(Path, sys.argv[1:])
-    output.mkdir()
+    resume = len(sys.argv) == 6 and sys.argv[-1] == '--resume'
+    baseline, candidate, masters, output = map(Path, sys.argv[1:5])
+    if not resume:
+        output.mkdir()
     cells = [dict(family=family, repetition=rep, arm=arm, mode='erase')
              for family in ('node', 'edge', 'property') for rep in range(3)
              for arm in (('baseline', 'candidate') if rep % 2 == 0 else ('candidate', 'baseline'))]
     cells += [dict(family=family, repetition=0, arm=arm, mode='control')
               for family in ('node', 'edge', 'property') for arm in ('baseline', 'candidate')]
     inputs = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in [baseline, candidate, *[masters/f'{f}-default.sqlite' for f in ('node', 'edge', 'property')]]}
-    save(output/'manifest.json', dict(inputs=inputs, cells=cells, budget=dict(total_seconds=2700, child_seconds=600, rss_bytes=8*1024**3, scratch_bytes=12*1024**3), workload=dict(window_seconds=15, offers_per_stream=1500, read_clients=8, write_clients=1, write_population=8, writes='plain doc survivor supersession; no property projection', edge_reads='endpoint node text'), baseline_metrics='unavailable: Phase82 has no stage seam', candidate_metrics='overlapping timers: never sum stage totals'))
-    deadline = time.monotonic()+2700
-    records = []
+    manifest = dict(inputs=inputs, cells=cells, budget=dict(total_seconds=2700, child_seconds=600, rss_bytes=8*1024**3, scratch_bytes=12*1024**3), workload=dict(window_seconds=15, offers_per_stream=1500, read_clients=8, write_clients=1, write_population=8, writes='plain doc survivor supersession; no property projection', edge_reads='endpoint node text'), baseline_metrics='unavailable: Phase82 has no stage seam', candidate_metrics='overlapping timers: never sum stage totals')
+    if not resume:
+        manifest['started_unix_s'] = time.time()
+        save(output/'manifest.json', manifest)
+    else:
+        manifest = json.loads((output/'manifest.json').read_text())
+    started = manifest.get('started_unix_s', (output/'manifest.json').stat().st_mtime)
+    deadline = time.monotonic()+max(0, 2700-(time.time()-started))
+    records = json.loads((output/'records.json').read_text()) if resume else []
+    if resume:
+        cells = resume_grid(manifest['cells'], records)
+        save(output/'resume.json', dict(cells=cells, original_started_unix_s=started, resumed_unix_s=time.time()))
     for index, cell in enumerate(cells):
+        if index < len(records):
+            continue
         target = output/f'{index:02d}-{cell["family"]}-{cell["arm"]}-{cell["mode"]}'
         if time.monotonic() >= deadline:
             records.append(dict(cell=cell, stop='not_run_budget'))
             continue
         binary = baseline if cell['arm'] == 'baseline' else candidate
         command = [str(binary), str(masters/f'{cell["family"]}-default.sqlite'), str(target), cell['family'], cell['mode']]
-        record = child(command, output/f'{index:02d}.log', output, min(deadline, time.monotonic()+600))
+        record = safe_child(command, output/f'{index:02d}.log', output, min(deadline, time.monotonic()+600))
         result_path = target/'result.json'
         result = json.loads(result_path.read_text()) if result_path.exists() else None
         event_path = target/'events.jsonl'
-        events = [json.loads(line) for line in event_path.read_text().splitlines()] if event_path.exists() else []
+        events = events_at(event_path)
         complete = record['exit_code'] == 0 and not record.get('stop') and bool(result and result['verified'])
         record.update(cell=cell, result=result, streams={stream: summarize(events, stream, complete) for stream in ('read', 'write')})
         records.append(record)

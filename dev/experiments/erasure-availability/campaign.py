@@ -97,7 +97,14 @@ def child(command, output, root, deadline):
             else:
                 process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
                 while process.poll() is None:
-                    last = resource_sample(process.pid, root)
+                    try:
+                        last = resource_sample(process.pid, root)
+                    except PermissionError as error:
+                        # Linux may revoke /proc access while an exiting child retires.
+                        if (str(error.filename or '').startswith(f'/proc/{process.pid}/')
+                                and process.poll() is not None):
+                            break
+                        raise
                     for key in peak:
                         peak[key] = max(peak[key], last[key])
                     if time.monotonic() >= deadline:

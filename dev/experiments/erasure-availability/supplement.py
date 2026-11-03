@@ -35,15 +35,21 @@ def remaining_seconds(original, cell, deadline, now):
 
 def recovery_inputs(original, previous):
     """Merge immutable prior outcomes and subtract their active supplement cost."""
-    return original, 1500
+    combined = dict(original)
+    combined['attempts'] = original['attempts'] + previous['attempts']
+    combined['elapsed_s'] = original['elapsed_s'] + previous['elapsed_s']
+    return combined, max(0, 1500-previous['elapsed_s'])
 
 
-def prepare(binary, root):
+def prepare(binary, root, recover=False):
     """Verify immutable inputs and return the exact reviewed continuation plan."""
     subprocess.run(['git', 'diff', '--quiet'], check=True)
     subprocess.run(['git', 'diff', '--cached', '--quiet'], check=True)
     manifest = json.loads((root/'manifest.json').read_text())
     original = json.loads((root/'results.json').read_text())
+    original_elapsed = original['elapsed_s']
+    budget = 1500
+    previous = None
     if digest(binary) != manifest['binary_sha256']:
         raise ValueError('the original release probe must be reused unchanged')
     masters = {}
@@ -53,15 +59,21 @@ def prepare(binary, root):
         if actual != record['fixture_sha256']:
             raise ValueError(f'original closed master changed: {name}')
         masters[name] = dict(path=str(path), sha256=actual)
+    if recover:
+        previous = json.loads((root/'supplement'/'results.json').read_text())
+        original, budget = recovery_inputs(original, previous)
     keys = ('cell', 'replica', 'family', 'workload', 'load', 'arm')
     selected = [{k: row[k] for k in keys} for row in pending_attempts(original, manifest)]
     plan = dict(controller_source_sha=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
                 probe_source_sha=manifest['source_sha'], binary_sha256=manifest['binary_sha256'],
                 original_manifest_sha256=digest(root/'manifest.json'),
-                original_results_sha256=digest(root/'results.json'), original_elapsed_s=original['elapsed_s'],
+                original_results_sha256=digest(root/'results.json'), original_elapsed_s=original_elapsed,
                 original_started_wall=manifest['started_wall'], masters=masters,
                 protocol_sha256=digest(Path('dev/plans/0.8.28/features/slice-81/experiment-design.md')),
-                additional_active_budget_s=1500, replica_budget_s=30, cell_budget_s=90,
+                additional_active_budget_s=budget, replica_budget_s=30, cell_budget_s=90,
+                previous_supplement_elapsed_s=previous['elapsed_s'] if previous else 0,
+                previous_supplement_manifest_sha256=digest(root/'supplement'/'manifest.json') if previous else None,
+                previous_supplement_results_sha256=digest(root/'supplement'/'results.json') if previous else None,
                 carried_cell_spent_s={str(i): sum(a.get('elapsed_s', 0) for a in original['attempts'] if a['cell'] == i and a['disposition'] != 'not_run') for i in range(24)},
                 arm_order=manifest['arm_order'], candidate_attempts=selected,
                 read_write_controls='original three successful controls; retained unchanged',
@@ -75,14 +87,15 @@ def main():
     """Run one separately bounded supplement, charging hash validation and setup."""
     begun = time.monotonic()
     started_wall = time.time()
-    deadline = begun + 25*60
     binary = Path(sys.argv[1]).resolve()
     root = Path(sys.argv[2]).resolve()
-    original, plan = prepare(binary, root)
+    recover = '--recover-unstarted' in sys.argv[3:]
+    original, plan = prepare(binary, root, recover)
+    deadline = begun + plan['additional_active_budget_s']
     if '--plan' in sys.argv[3:]:
         print(json.dumps(plan, indent=2))
         return
-    output = root/'supplement'
+    output = root/('supplement-recovery' if recover else 'supplement')
     if output.exists():
         raise SystemExit('supplement output must be new')
     if shutil.disk_usage(root).free < 12*GIB:

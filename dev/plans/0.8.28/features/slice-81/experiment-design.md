@@ -230,3 +230,20 @@ The exact continuation manifest, controller and selection/budget tests receive
 Astra review and independent verification before running. No staged replacement,
 production remediation, scheduler or SLA scope is added. This adjustment completes
 missing observations; it cannot turn the original timeout results into passes.
+
+The continuation's resource observer stopped after 908.8956364342012 active
+seconds on a `/proc` permission error near child exit. Its 13 completed and 25
+incomplete outcomes remain immutable, including property legacy-idle A replica 0:
+the child emitted a physical-completion record, but the parent classified the
+attempt incomplete. Do not promote or repeat it.
+
+A scoped observer fix tolerates a permission error only for that child's `/proc`
+path after an independent process poll proves it has exited. Permission errors
+for live children or other files still fail closed and reap the child. After
+RED/GREEN, Astra review and independent verification, a separate recovery segment
+may execute only the 11 still-never-started IDs, in original order. Its exact active
+allowance is **1500 minus 908.8956364342012 seconds**, not a reset or extension.
+Charge verification/setup to that allowance; carry all earlier cell time including
+the monitor-failed attempt. Verify original and prior-continuation hashes, reuse
+the unchanged probe/masters, and retain separate recovery manifest/results. All
+original workload, proof, resource and percentile rules remain unchanged.

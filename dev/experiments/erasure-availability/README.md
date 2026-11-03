@@ -70,3 +70,10 @@ to its separate 25-minute active budget, carries original cell time and counts a
 retained original/new scratch files. Original outcomes and raw records are not
 modified. This continuation requires the explicit protocol revision above; it is
 not an automatic retry facility.
+
+The reviewed monitor-recovery segment adds `--recover-unstarted` to the continuation
+command (and optionally `--plan`). It writes a new `supplement-recovery/`, selects
+only IDs still never started across both immutable prior segments, and subtracts
+the first continuation's elapsed time from its original 1500-second allowance.
+It is explicitly reviewed recovery from a resource-observer exit race, not an
+attempt-retry or deadline-reset mode.

@@ -175,11 +175,26 @@ pub fn inventory(path: &Path, marker: &str) -> Result<Vec<FamilyEvidence>> {
         .collect()
 }
 /// Configure A prospectively before any governed source write.
-pub fn prepare_eager(_engine: &Engine) -> Result<()> {
+pub fn prepare_eager(engine: &Engine) -> Result<()> {
+    engine.maintenance_transaction_for_test(|tx| {
+        for table in TABLES {
+            tx.execute(
+                &format!("INSERT INTO {table}({table},rank) VALUES('secure-delete',1)"),
+                [],
+            )?;
+        }
+        Ok(())
+    })?;
     Ok(())
 }
 /// Rebuild A's legacy FTS indexes from their surviving content rows.
-pub fn rebuild_eager(_engine: &Engine) -> Result<()> {
+pub fn rebuild_eager(engine: &Engine) -> Result<()> {
+    engine.maintenance_transaction_for_test(|tx| {
+        for table in TABLES {
+            tx.execute(&format!("INSERT INTO {table}({table}) VALUES('rebuild')"), [])?;
+        }
+        Ok(())
+    })?;
     Ok(())
 }
 /// Count literal witnesses over all allocated/freelist bytes and the current WAL.

@@ -294,6 +294,22 @@ fn collect_erased_stable_ids_for_cursors(
 ///
 /// `record_key` is the VERB, never a stable id — the ids live in the payload,
 /// which is deleted on discharge.
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct PendingRedaction {
+    version: u32,
+    verb: String,
+    erased_stable_ids: Vec<String>,
+    sink_fingerprints: Vec<String>,
+}
+
+fn telemetry_incomplete() -> EngineError {
+    EngineError::ErasureIncomplete {
+        stage: "telemetry_redaction".into(),
+        detail: "original telemetry sink redaction remains owed; reattach each registered original sink and retry; malformed or unbound legacy obligations cannot be authenticated".into(),
+    }
+}
+
 fn enqueue_pending_redaction(
     tx: &Connection,
     verb: &str,
@@ -303,8 +319,17 @@ fn enqueue_pending_redaction(
     if erased_stable_ids.is_empty() {
         return Ok(());
     }
-    let payload =
-        serde_json::json!({ "verb": verb, "erased_stable_ids": erased_stable_ids }).to_string();
+    let sink_fingerprints = telemetry::registered_sinks(tx)?;
+    if sink_fingerprints.is_empty() {
+        return Ok(());
+    }
+    let payload = serde_json::to_string(&PendingRedaction {
+        version: 1,
+        verb: verb.into(),
+        erased_stable_ids: erased_stable_ids.to_vec(),
+        sink_fingerprints,
+    })
+    .map_err(|_| EngineError::Storage)?;
     tx.execute(
         "INSERT INTO operational_mutations(
             collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
@@ -781,7 +806,7 @@ impl Engine {
             collect_erased_stable_ids_for_cursors(&tx, &node_cursors, &edge_cursors)?;
         let pending_cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
         let enqueued =
-            self.telemetry_enabled.load(Ordering::Acquire) && !erased_stable_ids.is_empty();
+            !erased_stable_ids.is_empty() && !telemetry::registered_sinks(&tx)?.is_empty();
 
         let mut closure_ids = Vec::new();
         let proof_boundary =
@@ -1147,178 +1172,77 @@ impl Engine {
     /// and the pending row is deleted the moment the sink is clean, on pages
     /// `secure_delete=ON` zeroes and the subsequent `TRUNCATE` checkpoint clears
     /// from the log.
-    fn discharge_pending_redactions(&self, verb: &'static str) -> Result<(), EngineError> {
-        let pending = self.load_pending_redactions()?;
-        if pending.is_empty() {
-            return Ok(());
-        }
-
-        let mut ids: Vec<String> =
-            pending.iter().flat_map(|(_, ids)| ids.iter().cloned()).collect();
-        ids.sort_unstable();
-        ids.dedup();
-
-        // A queue entry exists ⇒ a sink was attached when the rows were deleted ⇒
-        // the ids are in that file. Never clear the queue without redacting.
-        if !self.telemetry_enabled.load(Ordering::Acquire) {
-            return Err(EngineError::ErasureIncomplete {
-                stage: "telemetry_redaction".to_string(),
-                detail: format!(
-                    "`{verb}` has {} outstanding telemetry redaction(s) covering {} erased \
-                     stable id(s), but no telemetry sink is attached to this engine — the ids \
-                     cannot be removed from the sink file. Re-enable telemetry on the same sink \
-                     path and retry.",
-                    pending.len(),
-                    ids.len()
-                ),
-            });
-        }
-
-        // On failure the queue rows stay put and the error propagates: the verb
-        // does not report success, and the next call retries the same obligation.
-        self.redact_telemetry_stable_ids(verb, &ids)?;
-
-        let row_ids: Vec<i64> = pending.iter().map(|(row_id, _)| *row_id).collect();
-        self.clear_pending_redactions(&row_ids)
-    }
-
-    /// Read the outstanding redaction queue: `(operational_mutations.id, ids)`.
-    fn load_pending_redactions(&self) -> Result<Vec<(i64, Vec<String>)>, EngineError> {
+    fn discharge_pending_redactions(&self, _verb: &'static str) -> Result<(), EngineError> {
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut stmt = connection
-            .prepare(
-                "SELECT id, payload_json FROM operational_mutations \
-                 WHERE collection_name = ?1 ORDER BY id",
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let rows = stmt
-            .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        let mut statement = connection.prepare(
+            "SELECT id,payload_json FROM operational_mutations WHERE collection_name=?1 ORDER BY id"
+        ).map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |r| {
+                Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
             })
             .map_err(|_| EngineError::Storage)?;
         let mut pending = Vec::new();
         for row in rows {
-            let (row_id, payload) = row.map_err(|_| EngineError::Storage)?;
-            // A payload we cannot parse is an obligation we cannot discharge;
-            // keeping it (empty) is safe — it never unblocks a false success,
-            // and `discharge_pending_redactions` still refuses.
-            let ids = serde_json::from_str::<serde_json::Value>(&payload)
-                .ok()
-                .and_then(|v| v.get("erased_stable_ids").cloned())
-                .and_then(|v| serde_json::from_value::<Vec<String>>(v).ok())
-                .unwrap_or_default();
-            pending.push((row_id, ids));
+            let (id, raw) = row.map_err(|_| EngineError::Storage)?;
+            let obligation: PendingRedaction =
+                serde_json::from_str(&raw).map_err(|_| telemetry_incomplete())?;
+            if obligation.version != 1
+                || obligation.erased_stable_ids.is_empty()
+                || obligation.sink_fingerprints.is_empty()
+                || obligation.sink_fingerprints.iter().any(|s| {
+                    s.len() != 64
+                        || !s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                })
+            {
+                return Err(telemetry_incomplete());
+            }
+            pending.push((id, obligation));
         }
-        Ok(pending)
-    }
-
-    /// Retire queue entries whose redaction has been PERFORMED. Committed before
-    /// the caller's WAL truncation so the freed pages are checkpointed out.
-    fn clear_pending_redactions(&self, row_ids: &[i64]) -> Result<(), EngineError> {
-        if row_ids.is_empty() {
-            return Ok(());
-        }
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut stmt = connection
-            .prepare("DELETE FROM operational_mutations WHERE id = ?1")
-            .map_err(|_| EngineError::Storage)?;
-        for row_id in row_ids {
-            stmt.execute([row_id]).map_err(|_| EngineError::Storage)?;
-        }
-        Ok(())
-    }
-
-    /// 0.8.20 Slice 5b (R-20-E6) — SELECTIVE redaction of erased stable ids from
-    /// the opt-in telemetry sink.
-    ///
-    /// `capture_telemetry` persists `result_stable_ids` — `l:`/`h:` prefixed ids
-    /// — into a JSONL file that outlives the erased rows, and nothing in the
-    /// engine could previously remove them. A retained `l:` id is not inert:
-    /// [`derive_logical_id`] is `SHA256(lowercase(kind) + ":" + lowercase(name))`,
-    /// and the case-folding of BOTH inputs shrinks the preimage space, so a
-    /// surviving id is dictionary-attackable back to the natural key it was
-    /// derived from. An `h:` id is a plain `SHA256(body)`, confirmable against a
-    /// guessed body.
-    ///
-    /// **This MUST NOT truncate the sink.** `sink_path` is CALLER-SUPPLIED and
-    /// may hold unrelated operator eval history that the erasure obligation never
-    /// covered; the v3 truncation approach was rejected as unsafe. Only the
-    /// matching `result_stable_ids` ELEMENTS are replaced with
-    /// [`REDACTED_STABLE_ID`], preserving record count, record order and
-    /// positional alignment with the parallel `result_ids` array. Lines that are
-    /// not engine-authored JSON events are copied through verbatim.
-    ///
-    /// **Crash safety.** The rewrite is write-temp-then-`rename`: a sibling
-    /// `.redact.tmp` is written and fsynced, then atomically renamed over the
-    /// sink, so a crash leaves either the old file or the new one — never a
-    /// half-rewritten sink. The telemetry mutex is held across the whole rewrite,
-    /// so no in-process `capture_telemetry` can append into the window; an
-    /// out-of-process appender is handled by re-reading and folding in the tail
-    /// delta before the rename (bounded retry).
-    ///
-    /// The privacy contract is unchanged: query TEXT and `source_id` are never
-    /// captured (ADR-0.8.8 §C), so there is nothing else in the sink to redact.
-    /// The fast-OFF atomic guard is preserved — when telemetry was never enabled
-    /// this is a single relaxed-ordering load and no mutex acquisition.
-    fn redact_telemetry_stable_ids(
-        &self,
-        verb: &'static str,
-        erased_stable_ids: &[String],
-    ) -> Result<(), EngineError> {
-        // Fast OFF path — mirrors `capture_telemetry`. No mutex, no I/O.
-        if erased_stable_ids.is_empty() || !self.telemetry_enabled.load(Ordering::Acquire) {
+        drop(statement);
+        if pending.is_empty() {
             return Ok(());
         }
         let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
-        let Some(sink) = guard.as_ref() else { return Ok(()) };
-        let erased: std::collections::HashSet<&str> =
-            erased_stable_ids.iter().map(String::as_str).collect();
-
-        match redact_jsonl_stable_ids(sink.path(), &erased) {
-            Ok(()) => Ok(()),
-            // 0.8.20 Slice 5 fix-3 (codex §9 round-3 P2) — `NotFound` is NOT a
-            // discharge. It previously returned `Ok(())` ("the sink is gone,
-            // nothing to redact"), which cleared the durable pending queue and
-            // let the verb report success. That inference does not hold: a path
-            // cannot distinguish `rm` from `mv`, and log rotation of a
-            // caller-supplied sink is an ordinary operational event that leaves
-            // the erased `l:`/`h:` ids fully readable under the rotated name.
-            //
-            // The burden of proof is on DISCHARGING the obligation, and the
-            // engine cannot meet it here: `TelemetrySink` holds a PATH, not an
-            // open handle, so there is no `nlink == 0` witness that the inode was
-            // actually unlinked — and even that would not cover a copy taken
-            // before the deletion. So there is no narrow provable case to carve
-            // out, and `NotFound` fails closed.
-            //
-            // This cannot fire spuriously for a sink that never existed:
-            // `enable_telemetry` CREATES the file before arming capture, so for
-            // any engine with telemetry enabled the sink demonstrably existed and
-            // `NotFound` means it existed and then vanished.
-            Err(err) => Err(EngineError::ErasureIncomplete {
-                stage: "telemetry_redaction".to_string(),
-                detail: if err.kind() == std::io::ErrorKind::NotFound {
-                    format!(
-                        "`{verb}` deleted its rows, but the telemetry sink {} no longer exists, \
-                         so the erased stable ids could not be redacted from it. A missing path \
-                         does NOT prove the sink was deleted — if it was rotated or moved aside, \
-                         the erased ids are still readable under its new name. The pending \
-                         redaction is durable: restore the sink at this path and retry (if the \
-                         sink really was destroyed, an empty file at this path discharges the \
-                         obligation).",
-                        sink.path().display()
-                    )
-                } else {
-                    format!(
-                        "`{verb}` deleted its rows, but the erased stable ids could not be \
-                         redacted from the telemetry sink {}: {err}",
-                        sink.path().display()
-                    )
-                },
-            }),
+        let sink = guard.as_ref().ok_or_else(telemetry_incomplete)?;
+        let fingerprint = telemetry::sink_fingerprint(sink.path())?;
+        let ids = pending
+            .iter()
+            .filter(|(_, debt)| debt.sink_fingerprints.contains(&fingerprint))
+            .flat_map(|(_, debt)| debt.erased_stable_ids.iter().map(String::as_str))
+            .collect::<std::collections::HashSet<_>>();
+        if ids.is_empty() {
+            return Err(telemetry_incomplete());
         }
+        redact_jsonl_stable_ids(sink.path(), &ids).map_err(|_| telemetry_incomplete())?;
+        let mut owed = false;
+        physical_erasure::transaction(connection, || {
+            for (id, mut debt) in pending {
+                debt.sink_fingerprints.retain(|value| value != &fingerprint);
+                if debt.sink_fingerprints.is_empty() {
+                    connection
+                        .execute("DELETE FROM operational_mutations WHERE id=?1", [id])
+                        .map_err(|_| EngineError::Storage)?;
+                } else {
+                    owed = true;
+                    connection
+                        .execute(
+                            "UPDATE operational_mutations SET payload_json=?2 WHERE id=?1",
+                            params![
+                                id,
+                                serde_json::to_string(&debt).map_err(|_| EngineError::Storage)?
+                            ],
+                        )
+                        .map_err(|_| EngineError::Storage)?;
+                }
+            }
+            Ok(())
+        })?;
+        if owed {
+            return Err(telemetry_incomplete());
+        }
+        Ok(())
     }
 
     /// The erased rows' prefixed stable ids ([`IdSpace::to_prefixed`]) are NOT
@@ -1496,9 +1420,7 @@ impl Engine {
         // 0.8.20 Slice 5 fix-1 (codex §9 P2) — durably record the redaction this
         // erasure owes, atomically with the deletes. Shares `audit_cursor`: one
         // erasure event, and this row is retired as soon as the sink is clean.
-        if self.telemetry_enabled.load(Ordering::Acquire) {
-            enqueue_pending_redaction(&tx, verb, &erased_stable_ids, audit_cursor)?;
-        }
+        enqueue_pending_redaction(&tx, verb, &erased_stable_ids, audit_cursor)?;
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
         physical_erasure::admit(&tx, root_debt, verb, source_id, &closure_ids)?;

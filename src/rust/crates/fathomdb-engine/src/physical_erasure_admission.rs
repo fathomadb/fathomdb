@@ -20,13 +20,43 @@ pub(crate) fn envelope(c: &Connection) -> Result<(), EngineError> {
         .query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |r| r.get(0))
         .map_err(|_| EngineError::Storage)?;
     // The file-size cap bounds the scans before any target-set collection.
-    let metadata: u64 = c
-        .query_row(
-            "SELECT COALESCE(SUM(length(CAST(payload_json AS BLOB))),0) FROM operational_mutations",
-            [],
-            |r| r.get(0),
-        )
-        .map_err(|_| EngineError::Storage)?;
+    let mut metadata = 0_u64;
+    for table in [
+        "_fathomdb_artifact_revisions",
+        "_fathomdb_source_versions",
+        "_fathomdb_source_links",
+        "_fathomdb_source_dependencies",
+        "_fathomdb_dependency_closures",
+        "_fathomdb_actuation_receipts",
+        "_fathomdb_actuation_receipt_source_refs",
+        "operational_mutations",
+        "operational_state",
+    ] {
+        let mut statement =
+            c.prepare(&format!("PRAGMA table_info({table})")).map_err(|_| EngineError::Storage)?;
+        let columns = statement
+            .query_map([], |r| r.get::<_, String>(1))
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        if columns.is_empty() {
+            return Err(EngineError::Storage);
+        }
+        let lengths = columns
+            .iter()
+            .map(|column| {
+                format!("COALESCE(length(CAST(\"{}\" AS BLOB)),0)", column.replace('"', "\"\""))
+            })
+            .collect::<Vec<_>>()
+            .join("+");
+        let bytes: u64 = c
+            .query_row(&format!("SELECT COALESCE(SUM({lengths}),0) FROM {table}"), [], |r| r.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        metadata = metadata.saturating_add(bytes);
+        if metadata > 64 << 20 {
+            return Err(refused());
+        }
+    }
     if rows > 100_000
         || bytes > 256 << 20
         || largest > 1 << 20

@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 
 #[path = "physical_erasure_admission.rs"]
 mod admission;
-pub(crate) use admission::{certify_plain_write, closure_safe_boundary, guard_plain_write};
+pub(crate) use admission::{
+    certify_plain_write, closure_safe_boundary, envelope, guard_plain_write,
+};
 
 const ROOT_KEY: &str = "_fathomdb_physical_erasure";
 const FTS_KEY: &str = "_fathomdb_fts_sanitation";

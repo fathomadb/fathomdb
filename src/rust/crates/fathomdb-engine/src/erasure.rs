@@ -725,6 +725,7 @@ impl Engine {
     fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        physical_erasure::envelope(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -1272,6 +1273,7 @@ impl Engine {
     ) -> Result<(ExciseReport, Vec<ClosureOperationId>), EngineError> {
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        physical_erasure::envelope(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)

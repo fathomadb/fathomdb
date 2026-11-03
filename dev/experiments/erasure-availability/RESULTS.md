@@ -189,7 +189,7 @@ The final full-workspace gate is recorded separately in slice status.
 
 | Hypothesis | Node | Edge | Property | Conclusion |
 | --- | --- | --- | --- | --- |
-| H81-1 physical removal | Safety A/B pass; large legacy passes except incomplete observation | Safety A/B and large legacy pass | Safety A/B pass; one monitor-incomplete legacy A | Supports mechanisms on completed qualified fixtures; all large fresh incomplete. Single-segment probe succeeded, not rejected by source inference. |
+| H81-1 physical removal | Safety A/B pass; large legacy passes except incomplete observation | Safety A/B and large legacy pass | Safety A/B pass; one monitor-incomplete legacy A | Supports mechanisms on completed qualified fixtures; all large fresh incomplete. Pre-erasure optimized-input probe succeeded; post-delete segment geometry was not independently asserted. |
 | H81-2 occupancy/service | Idle screening passes; loaded missing pair | Idle and loaded screening pass | Loaded screening passes; idle missing pair | B lowers measured maintenance occupancy; writes still refused, no universal service guarantee. |
 | H81-3 durable idle cleanup | Scoped recovery/idle pass | Scoped physical idle pass | Scoped physical idle pass | Accepted sanitation survives tested crash/reopen; no finite reserved-service guarantee implemented. |
 | H81-4 bounded finalization | Unqualified | Unqualified | Unqualified | Busy-reader/clock safety passes, but no reader leases or worst-case completion bound. |

@@ -825,3 +825,15 @@ does not treat newly moved owners as invisible out-of-scope endpoints.
 If any acceptance remains unmet, Slice 90 remains incomplete. A revision of
 the ladder requires an explicit reviewed dependency/verification reason; batch
 size or the convenience of declaring partial success is not such a reason.
+
+## 0.8.28 Slice 81 test-seam inventory amendment
+
+The reviewed Slice 81 design adds `Engine::maintenance_transaction_for_test<T>`
+as an explicitly retained root test seam under `any(test, feature = "test-hooks")`,
+public and doc-hidden. Like the arbitrary writer-SQL fixtures, its cross-domain
+writer capability has no production domain owner. It holds the real writer mutex
+through an IMMEDIATE transaction and commit/RAII rollback, exposing successful-call
+wait and occupancy measurements. Callbacks must not issue transaction-control SQL
+or reenter Engine. See the [root inventory](phase3-root-reconciliation.md) and
+[Rust interface](../../../../interfaces/rust.md). No production root fields,
+methods, lifecycle behavior or native admission fences change.

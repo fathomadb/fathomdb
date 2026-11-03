@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 53f4187db2a9d2025fffdc78310d0edc2799dcf9
+lib_rs_blob: fa010a920106d42300190a67b2e2ea6d04baa263
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -61,6 +61,7 @@ now 41; the approved root method inventory is unchanged.
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
+| `Engine::maintenance_transaction_for_test<T>` | Approved 0.8.28 Slice 81 cross-domain maintenance fixture; public, doc-hidden and `any(test, feature = "test-hooks")`. Holds the actual Engine writer through an IMMEDIATE transaction and commit/RAII rollback; returns successful-call mutex wait and occupancy. Callback must not control transactions or reenter Engine. |
 | `Engine::run_one_thread_poison_for_test` | Approved Slice 140 composite write/search/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
@@ -103,3 +104,12 @@ remain unchanged. The inventory blob above tracks those changes.
 re-exports (`arm_property_corpus_hook_for_test`, `PropertyCorpusPauseForTest`).
 Root field and method ownership remain unchanged; the inventory blob above
 tracks this composition-only update.
+
+0.8.28 Slice 81 adds the explicitly inventoried generic
+`maintenance_transaction_for_test<T>` fixture, changing the whole-file blob from
+`53f4187db2a9d2025fffdc78310d0edc2799dcf9` to the value above. The seam is owned
+at root because it supplies an atomic actual-writer capability for cross-domain
+experimental maintenance, not a production domain operation. Production root
+storage, methods and runtime behavior remain unchanged; no pending-closure fence
+is bypassed. Its reviewed contract is in the [Rust interface](../../../../interfaces/rust.md)
+and [Slice 81 design](../../../../plans/0.8.28/features/slice-81/design.md).

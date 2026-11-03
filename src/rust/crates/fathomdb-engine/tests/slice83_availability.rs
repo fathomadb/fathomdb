@@ -162,3 +162,23 @@ fn unsupported_native_envelope_refuses_before_deletion_or_debt() {
     );
     engine.close().unwrap();
 }
+
+#[test]
+fn missing_v2_denial_authority_refuses_open() {
+    for field in ["denied_sources", "denied_identities", "safe_boundary", "redacted"] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("invalid-authority.sqlite");
+        let engine = Engine::open(&path).unwrap().engine;
+        engine.write(&[node("target", "target", "privateword")]).unwrap();
+        fathomdb_engine::arm_physical_erasure_hook_for_test(
+            "after_delete_commit",
+            Box::new(|| Err(EngineError::Storage)),
+        );
+        assert!(engine.erase_source("target").is_err());
+        engine.close().unwrap();
+        let c = rusqlite::Connection::open(&path).unwrap();
+        c.execute("UPDATE _fathomdb_open_state SET value=json_remove(value,?1) WHERE key='_fathomdb_physical_erasure'", [format!("$.{field}")]).unwrap();
+        drop(c);
+        assert!(Engine::open(&path).is_err(), "v2 journal missing {field} cannot authorize writes");
+    }
+}

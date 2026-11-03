@@ -84,6 +84,10 @@ slice72-gpu-tests = ["embed-cuda", "rerank-cuda", "slice72-test-hooks"]
 name = "slice82_physical_erasure"
 required-features = ["test-hooks", "operator"]
 
+[[test]]
+name = "slice82_telemetry"
+required-features = ["test-hooks", "operator"]
+
 # The corpus-ingest example calls the operator-seam `trace_source_ref`, so it
 # only builds when the `operator` feature is enabled (skipped on default builds).
 [[example]]

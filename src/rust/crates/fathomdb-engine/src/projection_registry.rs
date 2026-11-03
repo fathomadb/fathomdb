@@ -356,59 +356,91 @@ pub(crate) const ROW_OWNED_PROJECTIONS: &[RowOwnedProjection] = &[
 /// both call it, so a new projection table becomes erasable by registering it in
 /// [`ROW_OWNED_PROJECTIONS`] — not by remembering to patch two hand-rolled
 /// delete lists (the omission that left erased bodies in `search_index_v2`).
-pub(crate) fn erase_row_projections(tx: &Connection, write_cursor: i64) -> rusqlite::Result<u64> {
-    let mut deleted: u64 = 0;
-    for projection in ROW_OWNED_PROJECTIONS {
-        deleted =
-            saturating_add_u64(deleted, delete_row_owned_projection(tx, projection, write_cursor)?);
-    }
-    Ok(deleted)
+pub(crate) enum EraseTargets {
+    One(i64),
+    Many(Vec<i64>),
 }
 
-pub(crate) fn erase_rows_projections(tx: &Connection, cursors: &[i64]) -> rusqlite::Result<u64> {
-    let encoded = serde_json::to_string(cursors).map_err(|_| rusqlite::Error::InvalidQuery)?;
+impl From<i64> for EraseTargets {
+    fn from(cursor: i64) -> Self {
+        Self::One(cursor)
+    }
+}
+
+impl<'a> From<&'a [i64]> for EraseTargets {
+    fn from(cursors: &'a [i64]) -> Self {
+        Self::Many(cursors.to_vec())
+    }
+}
+
+pub(crate) fn erase_row_projections(
+    tx: &Connection,
+    targets: impl Into<EraseTargets>,
+) -> rusqlite::Result<u64> {
+    let targets = targets.into();
+    let encoded = match &targets {
+        EraseTargets::One(_) => None,
+        EraseTargets::Many(cursors) => {
+            Some(serde_json::to_string(cursors).map_err(|_| rusqlite::Error::InvalidQuery)?)
+        }
+    };
     let mut deleted = 0_u64;
     for projection in ROW_OWNED_PROJECTIONS {
-        if projection.table == DEFAULT_VECTOR_PARTITION {
-            for cursor in cursors {
-                deleted = deleted
-                    .saturating_add(vector_storage::delete_vector_record_rows(tx, *cursor)? as u64);
-            }
-            continue;
-        }
-        let sql = if projection.is_fts() {
-            physical_erasure::mark_dirty(tx)?;
-            // FTS cursor columns are UNINDEXED. Materialize matching rowids in
-            // one scan, then use FTS's direct rowid deletion instead of rescanning
-            // the corpus once for every erased canonical revision.
-            format!("DELETE FROM {0} WHERE rowid IN (SELECT rowid FROM {0} WHERE {1} IN (SELECT value FROM json_each(?1)))", projection.table, projection.cursor_column)
-        } else {
-            format!(
-                "DELETE FROM {} WHERE {} IN (SELECT value FROM json_each(?1))",
-                projection.table, projection.cursor_column
-            )
-        };
-        deleted = deleted.saturating_add(tx.execute(&sql, [&encoded])? as u64);
+        deleted = saturating_add_u64(
+            deleted,
+            delete_row_owned_projection(tx, projection, &targets, encoded.as_deref())?,
+        );
     }
     Ok(deleted)
 }
 
-/// TC-76 — delete one row-owned projection's rows for one `write_cursor`.
-/// The vec0 partition is routed through the shared direct-delete primitive;
-/// every other table is the plain registry-driven statement.
 fn delete_row_owned_projection(
     tx: &Connection,
     projection: &RowOwnedProjection,
-    write_cursor: i64,
+    targets: &EraseTargets,
+    encoded: Option<&str>,
 ) -> rusqlite::Result<usize> {
     if projection.is_fts() {
         physical_erasure::mark_dirty(tx)?;
     }
     if projection.table == DEFAULT_VECTOR_PARTITION {
-        return vector_storage::delete_vector_record_rows(tx, write_cursor);
+        let cursors = match targets {
+            EraseTargets::One(cursor) => std::slice::from_ref(cursor),
+            EraseTargets::Many(cursors) => cursors.as_slice(),
+        };
+        let mut deleted = 0_usize;
+        for cursor in cursors {
+            deleted =
+                deleted.saturating_add(vector_storage::delete_vector_record_rows(tx, *cursor)?);
+        }
+        return Ok(deleted);
     }
-    let sql = format!("DELETE FROM {} WHERE {} = ?1", projection.table, projection.cursor_column);
-    tx.execute(&sql, [write_cursor])
+    let (column, predicate, parameter) = match targets {
+        EraseTargets::One(cursor) => {
+            (projection.cursor_column, "= ?1".into(), rusqlite::types::Value::Integer(*cursor))
+        }
+        EraseTargets::Many(_) => {
+            let predicate = if projection.is_fts() {
+                // Scan UNINDEXED owner cursors once, then delete by native FTS rowid.
+                format!(
+                    "IN (SELECT rowid FROM {} WHERE {} IN (SELECT value FROM json_each(?1)))",
+                    projection.table, projection.cursor_column
+                )
+            } else {
+                "IN (SELECT value FROM json_each(?1))".into()
+            };
+            let column = if projection.is_fts() { "rowid" } else { projection.cursor_column };
+            (
+                column,
+                predicate,
+                rusqlite::types::Value::Text(
+                    encoded.ok_or(rusqlite::Error::InvalidQuery)?.to_owned(),
+                ),
+            )
+        }
+    };
+    let sql = format!("DELETE FROM {} WHERE {} {predicate}", projection.table, column);
+    tx.execute(&sql, [parameter])
 }
 
 fn saturating_add_u64(acc: u64, n: usize) -> u64 {
@@ -431,8 +463,10 @@ pub(crate) fn purge_row_projections_for_cursor_in(
 ) -> rusqlite::Result<u64> {
     let mut deleted: u64 = 0;
     for projection in ROW_OWNED_PROJECTIONS.iter().filter(|p| classes.contains(&p.class)) {
-        deleted =
-            saturating_add_u64(deleted, delete_row_owned_projection(tx, projection, write_cursor)?);
+        deleted = saturating_add_u64(
+            deleted,
+            delete_row_owned_projection(tx, projection, &EraseTargets::One(write_cursor), None)?,
+        );
     }
     Ok(deleted)
 }

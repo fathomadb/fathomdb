@@ -135,7 +135,7 @@ fn reopen_defers_historical_edge_reconciliation_until_physical_debt_finishes() {
 fn corrupt_child() {
     let path = std::path::PathBuf::from(std::env::var_os("SLICE82_DB").unwrap());
     let engine = seed(&path);
-    engine.execute_for_test("INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_fts_sanitation','{\"version\":1,\"phase\":\"invalid\",\"family\":0,\"started\":false}')").unwrap();
+    engine.execute_for_test("INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_fts_sanitation','{\"version\":1,\"phase\":\"invalid\",\"family\":0,\"started\":false}') ON CONFLICT(key) DO UPDATE SET value=excluded.value").unwrap();
     std::process::exit(73);
 }
 

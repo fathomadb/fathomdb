@@ -1145,6 +1145,16 @@ impl Engine {
             ManagedConnectionRegistry,
         >,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
+        // The product lock is already held. Never infer clean history merely
+        // from empty canonical tables or a header whose old state lives in WAL.
+        let fresh_database = ["", "-wal", "-journal"].iter().all(|suffix| {
+            let mut candidate = path.as_os_str().to_os_string();
+            candidate.push(suffix);
+            match std::fs::metadata(PathBuf::from(candidate)) {
+                Ok(metadata) => metadata.is_file() && metadata.len() == 0,
+                Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+            }
+        });
         register_sqlite_vec_extension();
         let mut connection = open_managed_connection(
             &path,
@@ -1421,6 +1431,15 @@ impl Engine {
                 })?;
                 embedder_mean_vec_pinned = true;
             }
+        }
+
+        if fresh_database
+            && migration.schema_version_before == 0
+            && migration.schema_version_after >= 35
+        {
+            physical_erasure::initialize_fresh(&connection).map_err(|_| EngineOpenError::Io {
+                message: "could not initialize fresh sanitation state".into(),
+            })?;
         }
 
         let warmup_started = Instant::now();

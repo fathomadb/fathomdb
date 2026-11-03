@@ -77,6 +77,14 @@ fn state(c: &Connection) -> Result<Sanitation, EngineError> {
     Ok(value)
 }
 
+pub(crate) fn initialize_fresh(c: &Connection) -> Result<(), EngineError> {
+    store(
+        c,
+        FTS_KEY,
+        &Sanitation { version: 1, phase: "clean".into(), family: families().len(), started: false },
+    )
+}
+
 pub(crate) fn mark_dirty(c: &Connection) -> rusqlite::Result<()> {
     // Absence already means legacy dirty; only an existing clean certificate changes.
     c.execute("UPDATE _fathomdb_open_state SET value='{\"version\":1,\"phase\":\"dirty\",\"family\":0,\"started\":false}' WHERE key=?1 AND json_extract(value,'$.phase')='clean'", [FTS_KEY])?;
@@ -398,7 +406,7 @@ mod tests {
         let c = vector_storage::slice70_mapping_fixture(false);
         let debt = capture(&c, &[10], 10).unwrap();
         assert_eq!(debt.vectors, vec![101, 102]);
-        projection_registry::erase_rows_projections(&c, &[10]).unwrap();
+        erase_row_projections(&c, &[10_i64][..]).unwrap();
         admit(&c, debt, "purge", "subject", &[]).unwrap();
         validate_pending(&c, &[]).unwrap();
         let blob = vector_storage::encode_vector_blob(&[1.; 8]);

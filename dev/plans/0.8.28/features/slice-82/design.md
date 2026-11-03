@@ -21,6 +21,11 @@ TRUNCATE. `dependency_closure.rs` persists and validates registered-dependent
 zero proofs and fences writes. Operator recovery owns the single offline writer.
 The row-owned projection registry is authoritative, including vector spans.
 
+Batch and scalar erasure share `erase_row_projections` and the original
+`delete_row_owned_projection` mutation owner, using a single/slice target enum.
+The slice is copied and JSON-encoded once; the closed mutation-site/caller
+inventory remains unchanged. No parallel batch mutation door is introduced.
+
 Net-new work is a root-level extension to native debt, durable per-family FTS
 sanitation, honest retained-term diagnostics, original-sink validation and
 late-emission prevention. Native FTS scan corrections follow actual profiling.
@@ -29,7 +34,12 @@ late-emission prevention. Native FTS scan corrections follow actual profiling.
 
 Use versioned JSON values in existing `_fathomdb_open_state`; no DDL or canonical
 data migration and no format bump. Missing keys mean pre-repair current-format
-state, not clean history. Reject malformed/unknown-version state at open and on
+state, not clean history. A genuinely new store receives a clean certificate only
+when main, WAL and rollback-journal are absent/zero-length under the product lock
+before writer open, schema-before is zero, and fresh schema/boot initialization
+succeeds. Empty canonical tables in an existing file never suffice. Astra
+reviewed this correction after unchanged CLI clean-store tests exposed the
+missing fresh-store distinction. Reject malformed/unknown-version state at open and on
 every state load. Unsupported store formats continue to refuse before mutation.
 
 The singleton native root journal stores a retry fingerprint (domain-separated

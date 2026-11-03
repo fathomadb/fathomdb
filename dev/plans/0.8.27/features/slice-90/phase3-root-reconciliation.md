@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: fa010a920106d42300190a67b2e2ea6d04baa263
+lib_rs_blob: cb9d19f1bf1937d4f46102393507a5db52e138d1
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -113,3 +113,9 @@ experimental maintenance, not a production domain operation. Production root
 storage, methods and runtime behavior remain unchanged; no pending-closure fence
 is bypassed. Its reviewed contract is in the [Rust interface](../../../../interfaces/rust.md)
 and [Slice 81 design](../../../../plans/0.8.28/features/slice-81/design.md).
+
+0.8.28 Slice 82 adds the private `physical_erasure` module and the feature-gated
+`arm_physical_erasure_hook_for_test` re-export. Root fields and method ownership
+remain unchanged. Physical debt and sanitation live in the new internal module;
+the rendezvous implementation is owned by `test_hooks`. The current blob above
+tracks this composition-only update.

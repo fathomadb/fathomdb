@@ -16,6 +16,7 @@ impl Engine {
         self.closed.store(true, Ordering::SeqCst);
         self.embed_dispatch.close();
         let close_guard = self.close_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        self.physical_maintenance.stop();
         self.projection_runtime.stop();
         // Uninstall profile callbacks before dropping the connections so
         // SQLite cannot fire one last callback against a profile context

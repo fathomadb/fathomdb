@@ -1211,77 +1211,11 @@ impl Engine {
     /// `secure_delete=ON` zeroes and the subsequent `TRUNCATE` checkpoint clears
     /// from the log.
     fn discharge_pending_redactions(&self, _verb: &'static str) -> Result<(), EngineError> {
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut statement = connection.prepare(
-            "SELECT id,payload_json FROM operational_mutations WHERE collection_name=?1 ORDER BY id"
-        ).map_err(|_| EngineError::Storage)?;
-        let rows = statement
-            .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |r| {
-                Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
-            })
-            .map_err(|_| EngineError::Storage)?;
-        let mut pending = Vec::new();
-        for row in rows {
-            let (id, raw) = row.map_err(|_| EngineError::Storage)?;
-            let obligation: PendingRedaction =
-                serde_json::from_str(&raw).map_err(|_| telemetry_incomplete())?;
-            if obligation.version != 1
-                || obligation.erased_stable_ids.is_empty()
-                || obligation.sink_fingerprints.is_empty()
-                || obligation.sink_fingerprints.iter().any(|s| {
-                    s.len() != 64
-                        || !s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-                })
-            {
-                return Err(telemetry_incomplete());
-            }
-            pending.push((id, obligation));
-        }
-        drop(statement);
-        if pending.is_empty() {
-            return Ok(());
-        }
-        let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
-        let sink = guard.as_ref().ok_or_else(telemetry_incomplete)?;
-        let fingerprint = telemetry::sink_fingerprint(sink.path())?;
-        let ids = pending
-            .iter()
-            .filter(|(_, debt)| debt.sink_fingerprints.contains(&fingerprint))
-            .flat_map(|(_, debt)| debt.erased_stable_ids.iter().map(String::as_str))
-            .collect::<std::collections::HashSet<_>>();
-        if ids.is_empty() {
-            return Err(telemetry_incomplete());
-        }
-        redact_jsonl_stable_ids(sink.path(), &ids).map_err(|_| telemetry_incomplete())?;
-        physical_erasure::faultpoint("after_sink_redaction")?;
-        let mut owed = false;
-        physical_erasure::transaction(connection, || {
-            for (id, mut debt) in pending {
-                debt.sink_fingerprints.retain(|value| value != &fingerprint);
-                if debt.sink_fingerprints.is_empty() {
-                    connection
-                        .execute("DELETE FROM operational_mutations WHERE id=?1", [id])
-                        .map_err(|_| EngineError::Storage)?;
-                } else {
-                    owed = true;
-                    connection
-                        .execute(
-                            "UPDATE operational_mutations SET payload_json=?2 WHERE id=?1",
-                            params![
-                                id,
-                                serde_json::to_string(&debt).map_err(|_| EngineError::Storage)?
-                            ],
-                        )
-                        .map_err(|_| EngineError::Storage)?;
-                }
-            }
-            Ok(())
-        })?;
-        if owed {
-            return Err(telemetry_incomplete());
-        }
-        Ok(())
+        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        discharge_pending_redactions_on(
+            guard.as_ref().ok_or(EngineError::Closing)?,
+            &self.telemetry,
+        )
     }
 
     /// The erased rows' prefixed stable ids ([`IdSpace::to_prefixed`]) are NOT
@@ -1595,4 +1529,79 @@ impl Engine {
             state_rows_excised,
         })
     }
+}
+
+pub(crate) fn discharge_pending_redactions_on(
+    connection: &Connection,
+    telemetry: &Mutex<Option<telemetry::TelemetrySink>>,
+) -> Result<(), EngineError> {
+    let mut statement = connection.prepare(
+            "SELECT id,payload_json FROM operational_mutations WHERE collection_name=?1 ORDER BY id"
+        ).map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+        })
+        .map_err(|_| EngineError::Storage)?;
+    let mut pending = Vec::new();
+    for row in rows {
+        let (id, raw) = row.map_err(|_| EngineError::Storage)?;
+        let obligation: PendingRedaction =
+            serde_json::from_str(&raw).map_err(|_| telemetry_incomplete())?;
+        if obligation.version != 1
+            || obligation.erased_stable_ids.is_empty()
+            || obligation.sink_fingerprints.is_empty()
+            || obligation.sink_fingerprints.iter().any(|s| {
+                s.len() != 64
+                    || !s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            })
+        {
+            return Err(telemetry_incomplete());
+        }
+        pending.push((id, obligation));
+    }
+    drop(statement);
+    if pending.is_empty() {
+        return Ok(());
+    }
+    let guard = telemetry.lock().map_err(|_| EngineError::Storage)?;
+    let sink = guard.as_ref().ok_or_else(telemetry_incomplete)?;
+    let fingerprint = telemetry::sink_fingerprint(sink.path())?;
+    let ids = pending
+        .iter()
+        .filter(|(_, debt)| debt.sink_fingerprints.contains(&fingerprint))
+        .flat_map(|(_, debt)| debt.erased_stable_ids.iter().map(String::as_str))
+        .collect::<std::collections::HashSet<_>>();
+    if ids.is_empty() {
+        return Err(telemetry_incomplete());
+    }
+    redact_jsonl_stable_ids(sink.path(), &ids).map_err(|_| telemetry_incomplete())?;
+    physical_erasure::faultpoint("after_sink_redaction")?;
+    let mut owed = false;
+    physical_erasure::transaction(connection, || {
+        for (id, mut debt) in pending {
+            debt.sink_fingerprints.retain(|value| value != &fingerprint);
+            if debt.sink_fingerprints.is_empty() {
+                connection
+                    .execute("DELETE FROM operational_mutations WHERE id=?1", [id])
+                    .map_err(|_| EngineError::Storage)?;
+            } else {
+                owed = true;
+                connection
+                    .execute(
+                        "UPDATE operational_mutations SET payload_json=?2 WHERE id=?1",
+                        params![
+                            id,
+                            serde_json::to_string(&debt).map_err(|_| EngineError::Storage)?
+                        ],
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+            }
+        }
+        Ok(())
+    })?;
+    if owed {
+        return Err(telemetry_incomplete());
+    }
+    Ok(())
 }

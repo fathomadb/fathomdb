@@ -429,6 +429,7 @@ impl Engine {
             return Err(EngineError::WriteValidation);
         }
 
+        let _turn = self.physical_maintenance.writer_turn()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         #[cfg(feature = "test-hooks")]

@@ -1060,9 +1060,10 @@ impl Engine {
                         erasure_before_primary_lock_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
                         close_lock: Mutex::new(()),
-                        physical_service_gate: Mutex::new(()),
+                        physical_service_gate: Arc::new(Mutex::new(())),
+                        physical_maintenance: physical_maintenance::PhysicalMaintenance::default(),
                         lock: Mutex::new(Some(parts.lock)),
-                        connection: Mutex::new(Some(parts.connection)),
+                        connection: Arc::new(Mutex::new(Some(parts.connection))),
                         reader_pool: ReaderWorkerPool::new(
                             parts.readers,
                             Arc::clone(&wal_attribution),
@@ -1077,7 +1078,7 @@ impl Engine {
                         runtime_embedder: runtime_embedder.as_ref().map(Arc::downgrade),
                         embed_dispatch,
                         runtime_embedder_identity: embedder_identity,
-                        projection_runtime: parts.projection_runtime,
+                        projection_runtime: Arc::new(parts.projection_runtime),
                         wal_attribution,
                         #[cfg(any(test, feature = "test-hooks"))]
                         managed_connections,
@@ -1090,7 +1091,7 @@ impl Engine {
                         provenance_row_cap: AtomicU64::new(resolved_config.provenance_row_cap),
                         profile_contexts: Mutex::new(parts.profile_contexts),
                         reader_lookaside_rcs,
-                        telemetry: Mutex::new(None),
+                        telemetry: Arc::new(Mutex::new(None)),
                         telemetry_enabled: AtomicBool::new(false),
                         explanation_open_nonce: mint_explanation_open_nonce(),
                         explanation_sequence: AtomicU64::new(0),
@@ -1120,6 +1121,9 @@ impl Engine {
                 {
                     opened.engine.projection_runtime.notify_new_work();
                 }
+                opened.engine.physical_maintenance.start(&opened.engine).map_err(|_| {
+                    EngineOpenError::Io { message: "physical cleanup worker startup failed".into() }
+                })?;
                 embed_dispatch_guard.disarm();
                 Ok(opened)
             }

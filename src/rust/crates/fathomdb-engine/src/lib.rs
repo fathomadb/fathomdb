@@ -80,6 +80,7 @@ mod open;
 mod operator;
 mod pagination;
 mod physical_erasure;
+mod physical_maintenance;
 #[cfg(feature = "test-hooks")]
 #[doc(hidden)]
 pub use test_hooks::arm_physical_erasure_hook_for_test;
@@ -495,9 +496,10 @@ pub struct Engine {
     erasure_before_primary_lock_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
     close_lock: Mutex<()>,
-    physical_service_gate: Mutex<()>,
+    physical_service_gate: Arc<Mutex<()>>,
+    physical_maintenance: physical_maintenance::PhysicalMaintenance,
     lock: Mutex<Option<File>>,
-    connection: Mutex<Option<Connection>>,
+    connection: Arc<Mutex<Option<Connection>>>,
     reader_pool: ReaderWorkerPool,
     counters: lifecycle::Counters,
     subscribers: Arc<lifecycle::SubscriberRegistry>,
@@ -508,7 +510,7 @@ pub struct Engine {
     runtime_embedder: Option<Weak<dyn Embedder>>,
     embed_dispatch: Arc<EmbedDispatcher>,
     runtime_embedder_identity: EmbedderIdentity,
-    projection_runtime: ProjectionRuntime,
+    projection_runtime: Arc<ProjectionRuntime>,
     /// Slice 65 — private, opt-in owner attribution for WAL checkpoint
     /// investigations. It never enters the SDK surface or `EngineError`.
     wal_attribution: Arc<WalAttributionCollector>,
@@ -553,7 +555,7 @@ pub struct Engine {
     /// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry sink. `None` (default) = OFF.
     /// Local JSONL append; no network/egress. The OFF path never takes this lock —
     /// it is gated by `telemetry_enabled` (below).
-    telemetry: Mutex<Option<telemetry::TelemetrySink>>,
+    telemetry: Arc<Mutex<Option<telemetry::TelemetrySink>>>,
     /// 0.8.8 Slice 15 — fast OFF-path guard. `false` (default) → search does ZERO
     /// telemetry work: a single `Relaxed` atomic load, NO mutex acquisition (the
     /// §B.1 footprint / zero-cost gate, codex §9 P2). Set `true` by

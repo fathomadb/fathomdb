@@ -36,6 +36,8 @@ pub(crate) struct RootDebt {
     denied_identities: Vec<String>,
     #[serde(default)]
     redacted: bool,
+    #[serde(default)]
+    blocker: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -227,6 +229,7 @@ pub(crate) fn capture(
         denied_sources: Vec::new(),
         denied_identities: Vec::new(),
         redacted: false,
+        blocker: None,
     };
     if debt.cursors.len() > 16_384 {
         return Err(admission::refused());
@@ -374,6 +377,35 @@ pub(crate) fn sanitize(c: &Connection) -> Result<(), EngineError> {
     Ok(())
 }
 
+pub(crate) fn pending_ids(c: &Connection) -> Result<Vec<ClosureOperationId>, EngineError> {
+    let mut statement = c.prepare("SELECT closure_operation_id FROM _fathomdb_dependency_closures WHERE phase!='complete' AND cause IN ('purged','source_erased') ORDER BY closure_sequence").map_err(|_| EngineError::Storage)?;
+    let result = statement
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(|_| EngineError::Storage)?
+        .map(|row| {
+            ClosureLookupV1::new(row.map_err(|_| EngineError::Storage)?)
+                .map(|value| value.closure_operation_id)
+                .map_err(|_| EngineError::Storage)
+        })
+        .collect();
+    result
+}
+
+pub(crate) fn record_blocker(c: &Connection, error: &EngineError) -> Result<(), EngineError> {
+    let stage = match error {
+        EngineError::ErasureIncomplete { stage, .. } => stage.as_str(),
+        _ => "storage",
+    };
+    if let Some(mut debt) = root(c)? {
+        debt.blocker = Some(stage.into());
+        transaction(c, || store(c, ROOT_KEY, &debt))?;
+    }
+    if ["telemetry_redaction", "wal_checkpoint"].contains(&stage) {
+        dependency_closure::mark_physical_incomplete(c, &pending_ids(c)?, stage)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn redacted_ids(c: &Connection) -> Result<Option<Vec<ClosureOperationId>>, EngineError> {
     root(c)?
         .filter(|debt| debt.redacted)
@@ -447,12 +479,12 @@ pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(),
 #[cfg(feature = "operator")]
 pub(crate) fn diagnostics(c: &Connection) -> Result<Vec<PendingErasure>, EngineError> {
     let mut rows = Vec::new();
-    if root(c)?.is_some() {
+    if let Some(debt) = root(c)? {
         rows.push(PendingErasure {
             closure_id: "root-erasure".into(),
             cause: "physical_erasure".into(),
             phase: "at_rest_pending".into(),
-            blocker: None,
+            blocker: debt.blocker,
             sequence: 0,
         });
     }

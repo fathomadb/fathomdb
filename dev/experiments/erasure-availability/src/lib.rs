@@ -306,3 +306,8 @@ pub fn finalize_at(engine: &Engine, path: &Path, marker: &str, now: i64) -> Resu
     })?;
     Ok(clean)
 }
+
+/// Build the fixed measurement fixture (10% target owners, four retained revisions).
+pub fn build_campaign(_path: &Path, _family: &str, _secure: bool, _owners: usize) -> Result<()> {
+    Err("campaign fixture not implemented".into())
+}

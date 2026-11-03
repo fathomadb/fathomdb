@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — erasure availability POC
-status: IMPLEMENTED_PENDING_GATE
+status: COMPLETE
 ---
 
 # Slice 81 — erasure availability POC

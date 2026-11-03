@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — implementation design
-status: IMPLEMENTED_PENDING_GATE
+status: COMPLETE
 target_release: 0.8.28
 ---
 

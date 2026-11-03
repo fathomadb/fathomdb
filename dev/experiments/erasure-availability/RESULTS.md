@@ -4,8 +4,9 @@ The bounded investigation supports incremental registered-FTS sanitation as a
 successor candidate after successful native erasure. It does **not** qualify
 shipping erasure, native availability or a deletion SLA. All 72 scheduled attempts
 have dispositions: 34 complete and 38 incomplete, with no replacement or retry.
-The shipping physical-erasure finding remains open. Final repository gate and
-landing are pending; this report records the frozen local experiment.
+The shipping physical-erasure finding remains open. Repository verification and
+landing are recorded in [slice status](../../plans/0.8.28/features/slice-81/status.md);
+this report records the frozen local experiment.
 
 ## Scope and reproducibility
 
@@ -202,3 +203,24 @@ Required next work is native erase cost/admission design, durable admission acro
 the erase-to-sanitation gap, same-source reinsertion policy, scoped corpus/routing
 correctness, all registered sinks, bounded reader finalization and capacity-backed
 service reservations. No numerical SLA or universal maximum is supported.
+
+## Owner-requested native large fresh benchmark
+
+Separately from the immutable 72-attempt campaign, one native node fresh/default
+erasure was allowed to return without the campaign's 30-second cutoff. The frozen
+probe and original master were reused unchanged: 10,000 owners, five revisions
+per owner, 1,024-byte primary payloads; the target comprised 1,000 owners and
+5,000 revisions. `Engine::erase_source("target")` returned successfully in
+**264.781348412 seconds (4 minutes 24.78 seconds)**. The entire copy/open/erase/
+close/validate command took 265.87 seconds, with 119.93 seconds user CPU,
+145.87 seconds system CPU and 260,552 KiB maximum RSS.
+
+The final inventory had 45,000 canonical rows, 9,000 surviving owners, zero target
+owners and zero target MATCH results. Physical residue remained: 15 marker-bearing
+`search_index` shadow rows and 12 in `search_index_v2`. This is a measured native
+call completion, not physical-erasure success; no B sanitation followed it.
+The local idle, warm-cache single sample ran after the full gate ended on an
+AMD Ryzen Threadripper PRO 5945WX (24 logical CPUs), Linux x86_64, SQLite 3.54.1,
+release/performance mode. It is neither a statistical benchmark distribution nor
+an SLA. Source/binary/master identities, command, complete inventory and raw
+hashes are recorded in the [native benchmark receipt](native-benchmark.json).

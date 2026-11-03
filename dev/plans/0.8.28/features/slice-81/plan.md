@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 81 — plan
-status: IMPLEMENTED_PENDING_GATE
+status: COMPLETE
 baseline_sha: 3fc2df15e4dfadd67b9fb57e5e7cea3d62613ead
 target_release: 0.8.28
 ---
@@ -158,4 +158,4 @@ continuation plus exit-race recovery consumed 1,113.837442 active seconds, below
 its 1,500-second allowance; no attempted ID was retried. See [results](../../../../experiments/erasure-availability/RESULTS.md)
 for all cells, hypotheses and requirements. Eighteen Rust tests and fourteen
 controller tests passed, with independent verification and Astra review. Final
-repository gate and landing remain pending in [status](status.md).
+repository verification and landing are recorded in [status](status.md).

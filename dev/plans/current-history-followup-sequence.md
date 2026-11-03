@@ -64,13 +64,38 @@ integrated performance, arbitrary atomic batches, full evidence and temporal gra
 correctness remain unqualified. Opt-in operations and staged integration tie costs
 to actual needs.
 
-## CH1 — Erasure approach; awaiting approval
+## CH1 — Erasure approach; revision required before approval
+
+Owner clarification (2026-11-03): full physical erasure may be lazy, but deletion
+must be guaranteed under a defined SLA. Keep logical exclusion distinct from
+accepted durable cleanup and verified physical completion. No numerical deadline,
+SLA clock, worker mechanism or new API has been approved. The
+[DBMS availability research](../notes/dbms-erasure-availability.md) informs the
+revised proposal; the earlier eager policy below remains a comparison candidate.
+
+Denial needs an explicit committed boundary for newly admitted reads and a
+separate policy for existing pinned reads. Pending bytes must not taint authorized
+corpus statistics, caps, graph or historical/evidence routing: publish safe
+membership or refuse/await an affected scope. Output filtering alone is insufficient;
+large closure/publication is not assumed constant-time.
+
+A background worker alone is insufficient: the current physical-closure contract
+blocks unrelated writes while any physical closure is owed. Scoped fencing,
+publication/re-ingestion rules, automatic resume and acceptance-versus-completion
+semantics need explicit successor design. Bounded finalization may still require
+brief global reader/writer admission control for WAL truncation. An unbounded
+reader or engine downtime cannot be hidden inside an unconditional deadline.
+Decision 8's run-to-completion policy must be reconciled with this constraint;
+no cancellation or global-fence change is approved here.
 
 Repair the confirmed shipping defect independently of temporal features:
 
-1. Inventory all registered FTS families and creation/recreation paths. Configure
-   FTS5 per-table secure-delete before population; retain core SQLite secure
-   deletion and existing erasure drain, ownership and WAL completion.
+1. Inventory all registered FTS families and creation/recreation paths. Compare
+   eager FTS5 per-table secure-delete with durable SLA-driven incremental cleanup
+   and qualified replacement/rebuild. Retain core SQLite secure deletion and prove
+   all registered-copy, telemetry and WAL obligations before physical completion.
+   Do not preselect eager deletion on every ordinary projection update merely
+   because it was the earlier reference policy.
 2. Explicitly sanitize retained terms in admitted current-format stores. Candidate:
    transactionally rebuild/replace affected lexical projections from surviving
    authoritative content under secure deletion. Preserve each family's existing
@@ -113,8 +138,11 @@ transactional replacement/rebuild or supported bulk clearing against the secure
 reference. Use one ordinary mutation and a 10,000-record simultaneous expiry/repair
 burst. Count construction, publication, queue time and WAL completion. Preserve
 pinned snapshots, closure, rollback, visibility, certificate coherence and erasure.
-A faster unsafe/stale success loses. Freeze controls before measurement; no broad
-new grid. Output a mechanism/cost tradeoff or reject the candidates. POC approved;
+A faster unsafe/stale success loses. With deferred physical cleanup, also measure
+writer-lock hold time per unit, unrelated read/write progress, durable restart,
+oldest debt/deadline and finalization pause. Page budgets are not time bounds.
+Membership expiry/supersession is not source erasure of retained history.
+Freeze controls before measurement; no broad new grid. Output a mechanism/cost tradeoff or reject the candidates. POC approved;
 CH1 need not finish first if its agreed security guarantees are reproduced in isolation.
 
 **CH3: historical backend POC in two stages.** First test native reuse (B) only
@@ -230,7 +258,9 @@ with focused repairs rather than repeated full runs.
 
 ## Remaining owner decisions
 
-- Approve/adjust CH1's concrete erasure approach before implementation.
+- Revise and approve CH1's approach for availability and deferred guaranteed
+  deletion before implementation; define physical scope, SLA clock/deadline,
+  operating conditions, reader policy and deadline escalation after evidence.
 - Accept/adjust minimal decision 6 after CH4's proof/design; keep 7 open until its
   examples and Astra-medium review justify scope.
 - Place follow-ups in the release ladder without moving other work by implication;
@@ -244,3 +274,11 @@ no required corrections: nine owner choices, minimal commit/evidence reuse,
 existing graph grouping, erasure approval boundary and eight-unit dependencies
 were checked against current contracts. This is planning approval, not the later
 CH4 detailed design/code review or owner approval to implement CH1.
+
+## Availability research follow-up
+
+The owner's 2026-11-03 clarification and subagent's primary-source research are
+[recorded durably](../notes/dbms-erasure-availability.md). This changes the CH1/CH2
+proposal and test questions, not shipped semantics or the earlier acceptance
+results. Physical erasure remains an adoption blocker. Research is authorized;
+production erasure implementation still awaits the revised reviewed proposal.

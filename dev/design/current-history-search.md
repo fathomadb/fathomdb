@@ -39,6 +39,34 @@ Astra-medium contract review precedes temporal implementation. Existing source
 policy, flags, G11 and public evidence contracts require explicit successors where
 changed; this proposal does not reinterpret them.
 
+## Deferred erasure and availability requirement
+
+The owner clarified on 2026-11-03 that full physical erasure may be deferred, but
+requires guaranteed completion and an explicit SLA. The
+[DBMS research](../notes/dbms-erasure-availability.md) separates sourced mechanisms
+from FathomDB proposals. Logical exclusion, durable accepted cleanup and verified
+physical completion must be distinct. No time value, SLA clock, new success
+meaning or background execution policy is approved by that clarification alone.
+
+Denial linearizes for newly admitted reads; existing pinned reads keep the current
+contract unless a successor explicitly drains/cancels them. Previously returned
+bytes cannot be revoked. Pending rows/postings must not affect authorized corpus
+statistics, candidate caps, graph or relaxed/historical/evidence paths. If safe
+membership cannot publish with the fence, affected scopes refuse/await publication
+or use independently certified routing; output filtering alone does not suffice.
+Large dependency closure/publication has no assumed constant-time bound.
+
+The earlier eager secure-delete/rebuild approach remains a candidate, alongside
+bounded incremental cleanup and qualified replacement. Current physical closures
+block unrelated writes under the accepted contract; adding a background worker
+cannot by itself improve that availability. A successor must prove scope fences,
+projection/re-ingestion safety, durable progress/restart and required WAL/telemetry
+completion. Brief finalization barriers and long-reader control must be explicit.
+Run-to-completion, indefinite reader lifetimes or engine downtime cannot be assumed
+compatible with a strict wall-clock deadline. Measure ordinary membership changes
+separately from erasing all copies of a source. Mechanism selection and production
+implementation remain pending the revised proposal and approval.
+
 ## Changes considered and applied
 
 | Change | Evidence after follow-ups | Production direction | Outstanding evidence |

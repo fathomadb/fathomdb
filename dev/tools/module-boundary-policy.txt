@@ -34,6 +34,11 @@ reported embed_dispatch::d27_observation
 reported embedding
 reported erasure
 reported physical_erasure
+reported physical_erasure::admission
+reported physical_maintenance
+reported physical_maintenance::tests
+reported physical_metrics
+reported physical_reader_admission
 reported physical_erasure::tests
 admitted errors
 reported evidence
@@ -144,6 +149,8 @@ field managed_connections root
 field mutation_projection_status_cache root
 field next_cursor root
 field path root
+field physical_maintenance root
+field physical_service_gate root
 field profile_contexts root
 field profiling_enabled root
 field projection_generation_status_cache root

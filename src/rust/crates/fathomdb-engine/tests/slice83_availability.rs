@@ -41,3 +41,99 @@ fn committed_sanitation_unit_releases_primary_for_native_read() {
     );
     engine.close().unwrap();
 }
+
+fn dependent_seed(path: &std::path::Path) -> Engine {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, ProvenancedNodeV1, SourceDependencyRegistrationV1,
+        SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    };
+    use sha2::Digest;
+    let engine = Engine::open(path).unwrap().engine;
+    let body = "privateuniqueterm subject";
+    let hash = sha2::Sha256::digest(body.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>();
+    let make = |logical: &str, content: &str, provenance| {
+        PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            kind: "doc".into(),
+            body: content.into(),
+            source_id: SourceId::new("target").unwrap(),
+            logical_id: Some(logical.into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance,
+        })
+    };
+    engine
+        .write(&[
+            make(
+                "subject",
+                body,
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("source-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                ),
+            ),
+            make(
+                "dependent",
+                "derived private text",
+                WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("derived-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                    SourceRevisionId::new("source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(&hash).unwrap(),
+                ),
+            ),
+            node("survivor", "survivor", "public content"),
+        ])
+        .unwrap();
+    engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep-1", "source-r1", "derived-r1").unwrap(),
+        )
+        .unwrap();
+    engine
+}
+
+#[test]
+fn unrelated_survivor_updates_progress_while_registered_debt_is_sanitizing() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = Arc::new(dependent_seed(&dir.path().join("scoped.sqlite")));
+    let other = Arc::clone(&engine);
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_sanitation_unit",
+        Box::new(move || {
+            assert_eq!(other.query_i64_col_for_test("SELECT count(*) FROM _fathomdb_dependency_closures WHERE phase!='complete'").unwrap(), vec![1]);
+            for write in
+                [node("new", "other", "new public"), node("survivor", "survivor", "updated public")]
+            {
+                other
+                    .write(&[write])
+                    .expect("unrelated plain survivor writes must progress during sanitation");
+            }
+            for write in [
+                node("replacement", "target", "new payload"),
+                node("dependent", "other", "recreated derived payload"),
+            ] {
+                assert!(
+                    matches!(other.write(&[write]), Err(EngineError::ErasureIncomplete { .. })),
+                    "affected identities remain fenced"
+                );
+            }
+            Ok(())
+        }),
+    );
+    engine.erase_source("target").unwrap();
+    assert_eq!(
+        engine
+            .query_i64_col_for_test("SELECT count(*) FROM canonical_nodes WHERE source_id='target'")
+            .unwrap(),
+        vec![0]
+    );
+    assert_eq!(engine.query_i64_col_for_test("SELECT count(*) FROM canonical_nodes WHERE logical_id='survivor' AND superseded_at IS NULL AND body='updated public'").unwrap(), vec![1]);
+    engine.close().unwrap();
+}

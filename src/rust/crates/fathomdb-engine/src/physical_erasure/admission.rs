@@ -147,6 +147,13 @@ fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bo
     if !active(c)? {
         return Ok(false);
     }
+    // The managed commit path suppresses all triggers. Its fallback can mutate
+    // identities outside this submitted batch, so it cannot certify scope.
+    if !crate::write_commit::canonical_batch_has_no_custom_triggers(c)
+        .map_err(|_| EngineError::Storage)?
+    {
+        return Err(refused());
+    }
     let debt = root(c)?.ok_or_else(refused)?;
     if debt.version != 2
         || debt.redacted

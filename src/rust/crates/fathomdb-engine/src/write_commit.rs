@@ -398,7 +398,9 @@ impl Drop for TriggerStateGuard<'_> {
     }
 }
 
-fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+pub(crate) fn canonical_batch_has_no_custom_triggers(
+    connection: &Connection,
+) -> rusqlite::Result<bool> {
     if !crate::vector_spans::cleanup_trigger_is_valid(connection)? {
         return Ok(false);
     }

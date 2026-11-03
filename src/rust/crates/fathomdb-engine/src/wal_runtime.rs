@@ -766,7 +766,7 @@ impl Engine {
     ) -> Result<TruncateWalReport, EngineError> {
         let _checkpoint = self.physical_maintenance.metrics.timer("checkpoint");
         let waiting = self.physical_maintenance.metrics.timer("checkpoint_writer_wait");
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = self.physical_writer(true)?;
         drop(waiting);
         let _holding = self.physical_maintenance.metrics.timer("checkpoint_writer_hold");
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;

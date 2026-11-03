@@ -609,7 +609,7 @@ impl Engine {
         closure_ids: &[ClosureOperationId],
     ) -> Result<(), EngineError> {
         {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(true)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::validate_physical_closures(connection, closure_ids)?;
             physical_erasure::validate_pending(connection, closure_ids)?;
@@ -619,6 +619,7 @@ impl Engine {
             if self.runtime_embedder.is_some()
                 && physical_erasure::redacted_ids(connection)?.is_none()
             {
+                let _graft = self.physical_maintenance.metrics.timer("deferred_graft");
                 boot_graft_declared_vector_backfill(connection)
                     .map_err(|_| EngineError::Storage)?;
             }
@@ -628,7 +629,7 @@ impl Engine {
         loop {
             let done = {
                 let waiting = self.physical_maintenance.metrics.timer("sanitation_writer_wait");
-                let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+                let connection = self.physical_writer(false)?;
                 drop(waiting);
                 let _holding = self.physical_maintenance.metrics.timer("sanitation_writer_hold");
                 let connection = connection.as_ref().ok_or(EngineError::Closing)?;
@@ -648,7 +649,7 @@ impl Engine {
         drop(drain);
         self.discharge_pending_redactions(verb)?;
         {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(true)?;
             physical_erasure::prepare_redacted(
                 connection.as_ref().ok_or(EngineError::Closing)?,
                 closure_ids,
@@ -664,13 +665,13 @@ impl Engine {
                 _ => None,
             };
             if let Some(blocker) = blocker {
-                let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+                let connection = self.physical_writer(true)?;
                 let connection = connection.as_ref().ok_or(EngineError::Closing)?;
                 dependency_closure::mark_physical_incomplete(connection, closure_ids, blocker)?;
             }
             return Err(error);
         }
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = self.physical_writer(true)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         physical_erasure::finalize(connection, closure_ids)?;
         self.physical_maintenance.metrics.complete_lifecycle();
@@ -679,7 +680,7 @@ impl Engine {
 
     fn finish_redacted_before_request(&self) -> Result<(), EngineError> {
         let ids = {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(false)?;
             physical_erasure::redacted_ids(connection.as_ref().ok_or(EngineError::Closing)?)?
         };
         if let Some(ids) = ids {
@@ -724,12 +725,12 @@ impl Engine {
         let _physical_attempt = self.physical_attempt();
 
         let pending = {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(false)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::pending_physical_retry(connection, "purge", &lid)?
         };
         let root_retry = {
-            let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let guard = self.physical_writer(false)?;
             physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, "purge", &lid)?
         };
         if root_retry || !pending.is_empty() {
@@ -768,7 +769,7 @@ impl Engine {
     fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
         let _native = self.physical_maintenance.metrics.timer("native");
         let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let mut connection = self.physical_writer(false)?;
         drop(waiting);
         let _holding = self.physical_maintenance.metrics.timer("native_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
@@ -1060,12 +1061,12 @@ impl Engine {
         }
 
         let pending = {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(false)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::pending_physical_retry(connection, verb, source_id)?
         };
         let root_retry = {
-            let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let guard = self.physical_writer(false)?;
             physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, verb, source_id)?
         };
         if root_retry || !pending.is_empty() {
@@ -1236,7 +1237,7 @@ impl Engine {
     /// `secure_delete=ON` zeroes and the subsequent `TRUNCATE` checkpoint clears
     /// from the log.
     fn discharge_pending_redactions(&self, _verb: &'static str) -> Result<(), EngineError> {
-        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let guard = self.physical_writer(true)?;
         discharge_pending_redactions_on(
             guard.as_ref().ok_or(EngineError::Closing)?,
             &self.telemetry,
@@ -1260,7 +1261,7 @@ impl Engine {
     ) -> Result<(ExciseReport, Vec<ClosureOperationId>), EngineError> {
         let _native = self.physical_maintenance.metrics.timer("native");
         let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let mut connection = self.physical_writer(false)?;
         drop(waiting);
         let _holding = self.physical_maintenance.metrics.timer("native_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
@@ -1506,7 +1507,7 @@ impl Engine {
         collection: &str,
         record_key: &str,
     ) -> Result<ExciseRecordReport, EngineError> {
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let mut connection = self.physical_writer(false)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection

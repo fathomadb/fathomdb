@@ -127,3 +127,47 @@ impl Drop for PhysicalAttempt<'_> {
         let _ = self.0;
     }
 }
+
+pub(crate) struct PhysicalWriter<'a> {
+    _phase: Option<PhysicalTimer>,
+    _holding: PhysicalTimer,
+    connection: std::sync::MutexGuard<'a, Option<Connection>>,
+}
+
+impl std::ops::Deref for PhysicalWriter<'_> {
+    type Target = Option<Connection>;
+    fn deref(&self) -> &Self::Target {
+        &self.connection
+    }
+}
+impl std::ops::DerefMut for PhysicalWriter<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.connection
+    }
+}
+
+pub(crate) fn writer<'a>(
+    metrics: &Arc<PhysicalMetrics>,
+    connection: &'a Mutex<Option<Connection>>,
+    finalizing: bool,
+) -> Result<PhysicalWriter<'a>, EngineError> {
+    let waiting = metrics.timer("physical_writer_wait");
+    let phase_wait = finalizing.then(|| metrics.timer("finalization_writer_wait"));
+    let connection = connection.lock().map_err(|_| EngineError::Storage)?;
+    drop(phase_wait);
+    drop(waiting);
+    Ok(PhysicalWriter {
+        _phase: finalizing.then(|| metrics.timer("finalization_writer_hold")),
+        _holding: metrics.timer("physical_writer_hold"),
+        connection,
+    })
+}
+
+impl Engine {
+    pub(crate) fn physical_writer(
+        &self,
+        finalizing: bool,
+    ) -> Result<PhysicalWriter<'_>, EngineError> {
+        writer(&self.physical_maintenance.metrics, &self.connection, finalizing)
+    }
+}

@@ -78,10 +78,10 @@ impl PhysicalMaintenance {
                     let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
                     let priority = MaintenanceTurn { shared: &shared, _turn: turn };
                     let result = (|| {
-                        let waiting = metrics.timer("sanitation_writer_wait");
-                        let guard = connection.lock().map_err(|_| EngineError::Storage)?;
+                        let waiting = metrics.timer("maintenance_writer_wait");
+                        let guard = physical_metrics::writer(&metrics, &connection, false)?;
                         drop(waiting);
-                        let holding = metrics.timer("sanitation_writer_hold");
+                        let holding = metrics.timer("maintenance_writer_hold");
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
                         if !physical_erasure::active(c)? {
                             return Ok(false);
@@ -108,10 +108,7 @@ impl PhysicalMaintenance {
                         let _reader_pause = metrics.timer("reader_pause");
                         let _readers = readers.pause()?;
                         drop(drain);
-                        let waiting = metrics.timer("finalization_writer_wait");
-                        let guard = connection.lock().map_err(|_| EngineError::Storage)?;
-                        drop(waiting);
-                        let _holding = metrics.timer("finalization_writer_hold");
+                        let guard = physical_metrics::writer(&metrics, &connection, true)?;
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
                         erasure::discharge_pending_redactions_on(c, &telemetry)?;
                         physical_erasure::prepare_redacted(c, &ids)?;

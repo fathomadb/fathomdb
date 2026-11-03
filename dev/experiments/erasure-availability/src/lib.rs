@@ -225,23 +225,68 @@ pub struct Job {
     pub overdue: bool,
 }
 /// Admit one bounded experimental sanitation job after native erasure returns success.
-pub fn admit(_engine: &Engine, _accepted: i64, _deadline: i64) -> Result<()> {
-    Err("sanitation admission not implemented".into())
+pub fn admit(engine: &Engine, accepted: i64, deadline: i64) -> Result<()> {
+    if deadline <= accepted {
+        return Err("deadline must follow acceptance".into());
+    }
+    engine.maintenance_transaction_for_test(|tx| {
+        let pending:i64=tx.query_row("SELECT count(*) FROM _fathomdb_dependency_closures WHERE phase!='complete' AND cause IN ('purged','source_erased')",[],|r|r.get(0))?;
+        if pending!=0 { return Err(rusqlite::Error::InvalidQuery); }
+        tx.execute_batch("CREATE TABLE IF NOT EXISTS poc_sanitation(singleton INTEGER PRIMARY KEY CHECK(singleton=1),accepted INTEGER NOT NULL,deadline INTEGER NOT NULL,family INTEGER NOT NULL,started INTEGER NOT NULL,steps INTEGER NOT NULL,phase TEXT NOT NULL,overdue INTEGER NOT NULL,last_wall INTEGER NOT NULL,scope TEXT NOT NULL)")?;
+        tx.execute("INSERT INTO poc_sanitation VALUES(1,?1,?2,0,0,0,'cleaning',0,?1,'all-four-registered-fts-families')",[accepted,deadline])?;
+        Ok(())
+    })?;
+    Ok(())
+}
+fn load(c: &Connection) -> rusqlite::Result<Job> {
+    c.query_row("SELECT accepted,deadline,family,started,steps,phase,overdue FROM poc_sanitation WHERE singleton=1",[],|r|Ok(Job {accepted:r.get(0)?,deadline:r.get(1)?,family:r.get(2)?,started:r.get(3)?,steps:r.get(4)?,phase:r.get(5)?,overdue:r.get(6)?}))
 }
 /// Load the durable job on the real writer.
-pub fn job(_engine: &Engine) -> Result<Job> {
-    Err("sanitation progress not implemented".into())
+pub fn job(engine: &Engine) -> Result<Job> {
+    Ok(engine.maintenance_transaction_for_test(|tx| load(tx))?.0)
 }
 /// Commit one merge command and its progress; optional failure models rollback before commit.
-pub fn step(
-    _engine: &Engine,
-    _pages: i64,
-    _now: i64,
-    _fail_after_work: bool,
-) -> Result<(u64, u64)> {
-    Err("merge not implemented".into())
+/// Returned nanoseconds are mutex wait and successful lock occupancy, excluding failed calls.
+pub fn step(engine: &Engine, pages: i64, now: i64, fail_after_work: bool) -> Result<(u64, u64)> {
+    if !(1..=1024).contains(&pages) {
+        return Err("page budget outside experiment bounds".into());
+    }
+    let (_,wait,held)=engine.maintenance_transaction_for_test(|tx| {
+        let job=load(tx)?;
+        if job.phase!="cleaning" || job.family>=TABLES.len() { return Err(rusqlite::Error::InvalidQuery); }
+        let table=TABLES[job.family];
+        let pages=if job.started {pages}else{-pages};
+        let before=tx.total_changes();
+        tx.execute(&format!("INSERT INTO {table}({table},rank) VALUES('merge',?1)"),[pages])?;
+        let changes=tx.total_changes()-before;
+        if fail_after_work { return Err(rusqlite::Error::InvalidQuery); }
+        let finished=changes<2;
+        let next=job.family+usize::from(finished);
+        let phase=if next==TABLES.len(){"proof_pending"}else{"cleaning"};
+        tx.execute("UPDATE poc_sanitation SET family=?1,started=?2,steps=steps+1,phase=?3,overdue=overdue OR max(last_wall,?4)>deadline,last_wall=max(last_wall,?4) WHERE singleton=1",rusqlite::params![next,!finished,phase,now])?;
+        Ok(())
+    })?;
+    Ok((wait.as_nanos() as u64, held.as_nanos() as u64))
 }
 /// Finalize only after physical inspection and a non-busy WAL checkpoint.
-pub fn finalize(_engine: &Engine, _path: &Path, _marker: &str) -> Result<bool> {
-    Err("finalization not implemented".into())
+/// Requires exclusive fixture use during finalization, including no source reingestion.
+/// A residual marker is a rejected mechanism, while busy WAL remains proof-pending.
+pub fn finalize(engine: &Engine, path: &Path, marker: &str) -> Result<bool> {
+    let state = job(engine)?;
+    if state.phase != "proof_pending" && state.phase != "residual" {
+        return Err("job not ready for physical proof".into());
+    }
+    if !checkpoint(engine)? {
+        return Ok(false);
+    }
+    let clean = inventory(path, marker)?.iter().all(|r| r.matches == 0 && r.shadow_markers == 0)
+        && physical_markers(path, marker)? == 0;
+    engine.maintenance_transaction_for_test(|tx| {
+        tx.execute(
+            "UPDATE poc_sanitation SET phase=?1 WHERE singleton=1",
+            [if clean { "complete" } else { "residual" }],
+        )?;
+        Ok(())
+    })?;
+    Ok(clean)
 }

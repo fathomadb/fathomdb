@@ -92,6 +92,10 @@ required-features = ["test-hooks", "operator"]
 name = "slice82_batch"
 required-features = ["test-hooks", "operator"]
 
+[[test]]
+name = "slice82_recovery"
+required-features = ["test-hooks", "operator"]
+
 # The corpus-ingest example calls the operator-seam `trace_source_ref`, so it
 # only builds when the `operator` feature is enabled (skipped on default builds).
 [[example]]

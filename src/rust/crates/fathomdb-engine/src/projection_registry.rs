@@ -2128,17 +2128,11 @@ pub(crate) fn boot_graft_declared_vector_backfill(
     if !vector_projection_declared(connection)? {
         return Ok(false);
     }
-    connection.execute_batch("BEGIN IMMEDIATE")?;
-    match enqueue_declared_vector_backfill(connection) {
-        Ok(enqueued) => {
-            connection.execute_batch("COMMIT")?;
-            Ok(enqueued)
-        }
-        Err(error) => {
-            let _ = connection.execute_batch("ROLLBACK");
-            Err(error)
-        }
-    }
+    let tx =
+        rusqlite::Transaction::new_unchecked(connection, rusqlite::TransactionBehavior::Immediate)?;
+    let enqueued = enqueue_declared_vector_backfill(&tx)?;
+    tx.commit()?;
+    Ok(enqueued)
 }
 
 /// 0.8.20 Slice 20c — steps (2) and (3) of the declared-backfill above, as their

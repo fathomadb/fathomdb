@@ -15,7 +15,7 @@ pub use data_plane::{inspect_data_plane_integrity, recover_truncate_wal};
 pub struct CompleteErasuresReport {
     /// `Done` only after checkpoint and closure completion; `Busy` remains owed.
     pub status: TruncateWalStatus,
-    /// Opaque ids of closures considered by this invocation.
+    /// Opaque closure or maintenance identities considered by this invocation.
     pub closure_ids: Vec<String>,
     /// SQLite checkpoint busy indicator.
     pub busy: u32,
@@ -25,19 +25,19 @@ pub struct CompleteErasuresReport {
     pub checkpointed_frames: u32,
 }
 
-/// Content-free operator diagnosis of one owed physical dependency closure.
+/// Content-free operator diagnosis of an owed closure or physical maintenance item.
 #[cfg(feature = "operator")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PendingErasure {
-    /// Opaque closure identifier, sufficient for the operator report.
+    /// Opaque closure identifier or operator-only maintenance identity.
     pub closure_id: String,
-    /// `purged` or `source_erased`.
+    /// Closure cause, `physical_erasure`, or store-wide `retained_terms`.
     pub cause: String,
-    /// Durable closure phase.
+    /// Durable closure or sanitation phase.
     pub phase: String,
     /// Boundary still owed, if recorded.
     pub blocker: Option<String>,
-    /// Monotonic closure sequence.
+    /// Monotonic closure sequence; zero for maintenance identities.
     pub sequence: u64,
 }
 

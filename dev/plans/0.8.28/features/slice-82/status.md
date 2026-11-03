@@ -12,7 +12,7 @@ committed behavioral RED/GREEN, native root debt, resumable registered-family
 sanitation, original-sink authentication, late-emission protection and measured
 batch FTS deletion. Review findings have focused regression tests.
 
-Focused integration tests currently pass: 18 tests, plus three real-SQLite units
+Focused integration tests currently pass: 18 tests, plus four real-SQLite units
 (including 24 randomized retry sequences). Subprocess entry points are invoked
 by their parent crash tests. Independent Astra verification reran 70 earlier
 tests, including 55 existing erasure/dependency regressions, without failure;

@@ -283,17 +283,6 @@ fn collect_erased_stable_ids_for_cursors(
     Ok(ids)
 }
 
-/// 0.8.20 Slice 5 fix-1 (codex §9 P2) — record, INSIDE the erasing transaction,
-/// that a telemetry redaction is owed for `erased_stable_ids`.
-///
-/// Must be called in the same transaction as the DELETEs. That is the whole
-/// point: "the rows are gone" and "a redaction is owed for them" then commit
-/// atomically, so no crash or failure can leave the first true and the second
-/// unrecorded. [`Engine::discharge_pending_redactions`] drains the queue and
-/// deletes the entry only once the sink has actually been rewritten.
-///
-/// `record_key` is the VERB, never a stable id — the ids live in the payload,
-/// which is deleted on discharge.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 struct PendingRedaction {
@@ -904,9 +893,8 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
 
         // 0.8.20 Slice 5 fix-1 (codex §9 P2) — durably record the redaction this
-        // erasure now owes, atomically with the deletes above. Only when a sink
-        // is attached: with telemetry never enabled there is no file the ids
-        // could have leaked into, so there is nothing to owe.
+        // erasure now owes, atomically with the deletes above. Registered
+        // original sinks remain obligations across attachment changes/reopens.
         if enqueued {
             enqueue_pending_redaction(&tx, "purge", &erased_stable_ids, pending_cursor)?;
         }

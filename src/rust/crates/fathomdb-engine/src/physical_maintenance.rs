@@ -51,6 +51,7 @@ impl PhysicalMaintenance {
         let service = Arc::clone(&engine.physical_service_gate);
         let telemetry = Arc::clone(&engine.telemetry);
         let projections = Arc::clone(&engine.projection_runtime);
+        let readers = engine.reader_pool.physical_admission();
         let has_provider = engine.runtime_embedder.is_some();
         let handle = std::thread::Builder::new()
             .name("fathomdb-physical-cleanup".into())
@@ -88,6 +89,10 @@ impl PhysicalMaintenance {
                         if !physical_erasure::sanitize_unit(c)? {
                             return Ok(true);
                         }
+                        drop(guard);
+                        let _readers = readers.pause()?;
+                        let guard = connection.lock().map_err(|_| EngineError::Storage)?;
+                        let c = guard.as_ref().ok_or(EngineError::Closing)?;
                         erasure::discharge_pending_redactions_on(c, &telemetry)?;
                         physical_erasure::prepare_redacted(c, &ids)?;
                         checkpoint(c)?;

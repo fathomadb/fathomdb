@@ -635,6 +635,8 @@ impl Engine {
             }
             std::thread::yield_now();
         }
+        let reader_admission = self.reader_pool.physical_admission();
+        let _readers = reader_admission.pause()?;
         self.discharge_pending_redactions(verb)?;
         {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;

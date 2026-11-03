@@ -1,3 +1,5 @@
+use crate::physical_reader_admission;
+
 /// Reader pool size. Per `dev/design/engine.md` § Writer / reader split,
 /// reader connections are pooled and never serialize behind one
 /// connection. AC-021 exercises 8 concurrent readers.
@@ -17,6 +19,7 @@ pub(crate) struct ReaderWorkerPool {
     next: AtomicUsize,
     shutdown: Arc<AtomicBool>,
     live_workers: Arc<AtomicUsize>,
+    physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
 }
 
 impl std::fmt::Debug for ReaderWorkerPool {
@@ -508,6 +511,7 @@ fn reader_worker_loop(
     wal_attribution: Arc<WalAttributionCollector>,
     stop_words: Arc<StopWordSet>,
     ready: SyncSender<()>,
+    physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
     connection.set_prepared_statement_cache_capacity(10);
@@ -530,6 +534,7 @@ fn reader_worker_loop(
         if shutdown.load(Ordering::Acquire) {
             break;
         }
+        let _physical_read = physical_admission.enter();
         match request {
             ReaderRequest::Shutdown => break,
             #[cfg(feature = "tc5-benchmark")]
@@ -960,6 +965,8 @@ impl ReaderWorkerPool {
         >,
     ) -> Self {
         let live_workers = Arc::new(AtomicUsize::new(0));
+        let physical_admission =
+            Arc::new(physical_reader_admission::PhysicalReaderAdmission::default());
         let shutdown = Arc::new(AtomicBool::new(false));
         let mut senders = Vec::with_capacity(connections.len());
         let mut handles = Vec::with_capacity(connections.len());
@@ -971,6 +978,7 @@ impl ReaderWorkerPool {
             let attribution = Arc::clone(&wal_attribution);
             let worker_stop_words = Arc::clone(&stop_words);
             let ready = ready_tx.clone();
+            let worker_physical_admission = Arc::clone(&physical_admission);
             #[cfg(any(test, feature = "test-hooks"))]
             let worker_connections = Arc::clone(&managed_connections);
             let handle = thread::Builder::new()
@@ -985,6 +993,7 @@ impl ReaderWorkerPool {
                         attribution,
                         worker_stop_words,
                         ready,
+                        worker_physical_admission,
                         #[cfg(any(test, feature = "test-hooks"))]
                         worker_connections,
                     )
@@ -1003,7 +1012,14 @@ impl ReaderWorkerPool {
             next: AtomicUsize::new(0),
             shutdown,
             live_workers,
+            physical_admission,
         }
+    }
+
+    pub(crate) fn physical_admission(
+        &self,
+    ) -> Arc<physical_reader_admission::PhysicalReaderAdmission> {
+        Arc::clone(&self.physical_admission)
     }
 
     #[cfg(any(test, feature = "test-hooks"))]

@@ -138,7 +138,10 @@ pub(crate) fn guard_plain_write(
         return Ok(false);
     }
     let debt = root(c)?.ok_or_else(refused)?;
-    if debt.version != 2 || debt.redacted || state(c)?.phase != "cleaning" {
+    if debt.version != 2
+        || debt.redacted
+        || !matches!(state(c)?.phase.as_str(), "cleaning" | "finalizing")
+    {
         return Err(refused());
     }
     if load_dependency_generation(c)? != debt.generation {

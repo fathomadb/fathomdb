@@ -505,9 +505,16 @@ fn update_at_units(engine: Arc<Engine>, updates: Arc<std::sync::atomic::AtomicUs
         "after_sanitation_unit",
         Box::new(move || {
             let index = updates.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let progress_sql = "SELECT json_extract(value,'$.family')*2+json_extract(value,'$.started') FROM _fathomdb_open_state WHERE key='_fathomdb_fts_sanitation'";
+            let progress = engine.query_i64_col_for_test(progress_sql).unwrap();
             engine
                 .write(&[node("survivor", "survivor", &format!("public revision {index}"))])
                 .unwrap();
+            assert_eq!(
+                engine.query_i64_col_for_test(progress_sql).unwrap(),
+                progress,
+                "survivor supersession must preserve the committed family/continuation cursor"
+            );
             if index < 31 {
                 update_at_units(Arc::clone(&engine), Arc::clone(&updates));
             }
@@ -533,4 +540,53 @@ fn bounded_survivor_updates_do_not_restart_sanitation_or_republish_target() {
         format!("public revision {}", count - 1)
     );
     engine.close().unwrap();
+}
+
+#[test]
+fn custom_trigger_cannot_relabel_an_old_survivor_into_denied_scope() {
+    for temporary in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Arc::new(Engine::open(dir.path().join("trigger.sqlite")).unwrap().engine);
+        engine
+            .write(&[
+                node("target", "target", "privateword"),
+                node("survivor", "survivor", "publicword"),
+            ])
+            .unwrap();
+        let temp = if temporary { "TEMP" } else { "" };
+        engine.execute_for_test(&format!("CREATE {temp} TRIGGER application_relabel AFTER INSERT ON canonical_nodes WHEN NEW.source_id='other' BEGIN UPDATE canonical_nodes SET logical_id='target',source_id='target' WHERE logical_id='survivor'; END;")).unwrap();
+        let other = Arc::clone(&engine);
+        fathomdb_engine::arm_physical_erasure_hook_for_test(
+            "after_sanitation_unit",
+            Box::new(move || {
+                let inventory = "SELECT count(*) FROM canonical_nodes UNION ALL SELECT count(*) FROM search_index UNION ALL SELECT count(*) FROM _fathomdb_artifact_revisions";
+                let before = other.query_i64_col_for_test(inventory).unwrap();
+                assert!(
+                    matches!(other.write(&[node("new", "other", "ordinary")]), Err(EngineError::ErasureIncomplete { ref stage, .. }) if stage == "dependency_closure"),
+                    "application-trigger effects are not certified plain writes"
+                );
+                assert_eq!(other.query_i64_col_for_test(inventory).unwrap(), before);
+                assert_eq!(
+                    other
+                        .read_get("survivor", &fathomdb_engine::ReadView::default())
+                        .unwrap()
+                        .unwrap()
+                        .body,
+                    "publicword"
+                );
+                assert!(other
+                    .read_get("target", &fathomdb_engine::ReadView::default())
+                    .unwrap()
+                    .is_none());
+                Ok(())
+            }),
+        );
+        engine.erase_source("target").unwrap();
+        engine.write(&[node("new", "other", "ordinary")]).unwrap();
+        assert!(
+            engine.read_get("target", &fathomdb_engine::ReadView::default()).unwrap().is_some(),
+            "ordinary trigger execution remains supported without debt"
+        );
+        engine.close().unwrap();
+    }
 }

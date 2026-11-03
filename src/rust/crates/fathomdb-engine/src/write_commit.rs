@@ -611,7 +611,10 @@ pub(crate) fn apply_batch_in_transaction(
     vector_kinds_to_enrol: &[String],
     closure_mode: dependency_closure::SoftClosureMode,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
-    dependency_closure::guard_no_pending_physical(tx)?;
+    let scoped_physical = physical_erasure::guard_plain_write(tx, batch)?;
+    if !scoped_physical {
+        dependency_closure::guard_no_pending_physical(tx)?;
+    }
     let mut closure_ids = Vec::new();
     for kind in vector_kinds_to_enrol {
         register_vector_kind(tx, kind)?;
@@ -623,6 +626,9 @@ pub(crate) fn apply_batch_in_transaction(
         // Per-row cursor: row i gets `base_cursor + i + 1`. See the
         // comment in `Engine::write_inner`.
         let cursor = base_cursor.saturating_add((i as u64).saturating_add(1));
+        if scoped_physical {
+            physical_erasure::guard_plain_write(tx, std::slice::from_ref(original_write))?;
+        }
         let write = storage_write_shape(original_write);
         match (write.as_ref(), plan) {
             (
@@ -932,6 +938,9 @@ pub(crate) fn apply_batch_in_transaction(
 
     enforce_provenance_retention(tx, provenance_row_cap)?;
     advance_projection_cursor(tx)?;
+    if scoped_physical {
+        physical_erasure::certify_plain_write(tx, base_cursor.saturating_add(batch.len() as u64))?;
+    }
 
     Ok((dangling_edge_endpoints, unstranded, closure_ids))
 }

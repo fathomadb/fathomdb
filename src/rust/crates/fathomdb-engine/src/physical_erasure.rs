@@ -2,6 +2,10 @@ use super::*;
 use crate::vector_storage::DEFAULT_VECTOR_PARTITION;
 use serde::{Deserialize, Serialize};
 
+#[path = "physical_erasure_admission.rs"]
+mod admission;
+pub(crate) use admission::{certify_plain_write, closure_safe_boundary, guard_plain_write};
+
 const ROOT_KEY: &str = "_fathomdb_physical_erasure";
 const FTS_KEY: &str = "_fathomdb_fts_sanitation";
 
@@ -22,6 +26,14 @@ pub(crate) struct RootDebt {
     boundary: u64,
     generation: u64,
     closures: Vec<String>,
+    #[serde(default)]
+    safe_boundary: u64,
+    #[serde(default)]
+    denied_sources: Vec<String>,
+    #[serde(default)]
+    denied_identities: Vec<String>,
+    #[serde(default)]
+    redacted: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -96,9 +108,11 @@ pub(crate) fn root(c: &Connection) -> Result<Option<RootDebt>, EngineError> {
     if let Some(debt) = &value {
         let ordered =
             |ids: &[i64]| ids.iter().all(|id| *id > 0) && ids.windows(2).all(|p| p[0] < p[1]);
-        if debt.version != 1
+        if ![1, 2].contains(&debt.version)
             || debt.retry.len() != 64
             || !debt.retry.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            || (debt.version == 2
+                && (debt.safe_boundary < debt.boundary || debt.safe_boundary > i64::MAX as u64))
             || debt.boundary > i64::MAX as u64
             || debt.generation > i64::MAX as u64
             || !ordered(&debt.cursors)
@@ -172,15 +186,24 @@ pub(crate) fn capture(
     }
     vectors.sort_unstable();
     vectors.dedup();
-    Ok(RootDebt {
-        version: 1,
+    let mut debt = RootDebt {
+        version: 2,
         retry: String::new(),
         cursors,
         vectors,
         boundary,
         generation: 0,
         closures: Vec::new(),
-    })
+        safe_boundary: boundary,
+        denied_sources: Vec::new(),
+        denied_identities: Vec::new(),
+        redacted: false,
+    };
+    if debt.cursors.len() > 16_384 {
+        return Err(admission::refused());
+    }
+    admission::capture_denial(c, &mut debt)?;
+    Ok(debt)
 }
 
 pub(crate) fn admit(
@@ -191,6 +214,12 @@ pub(crate) fn admit(
     ids: &[ClosureOperationId],
 ) -> Result<(), EngineError> {
     debt.retry = fingerprint(verb, argument);
+    if verb == "purge" {
+        debt.denied_identities.push(admission::deny_hash("identity", &format!("l:{argument}")));
+    } else {
+        debt.denied_sources.push(admission::deny_hash("source", argument));
+    }
+    admission::set_prospective_policy(c, true)?;
     debt.generation = load_dependency_generation(c)?;
     debt.closures = ids.iter().map(|id| id.as_str().to_owned()).collect();
     validate_zero(c, &debt)?;
@@ -204,7 +233,9 @@ pub(crate) fn admit(
 
 fn validate_zero(c: &Connection, debt: &RootDebt) -> Result<(), EngineError> {
     let boundary: u64 = c.query_row("SELECT COALESCE(MAX(write_cursor),0) FROM (SELECT write_cursor FROM canonical_nodes UNION ALL SELECT write_cursor FROM canonical_edges UNION ALL SELECT write_cursor FROM operational_mutations UNION ALL SELECT write_cursor FROM operational_state)", [], |r| r.get(0)).map_err(|_| EngineError::Storage)?;
-    if boundary > debt.boundary || load_dependency_generation(c)? != debt.generation {
+    if boundary > if debt.version == 2 { debt.safe_boundary } else { debt.boundary }
+        || load_dependency_generation(c)? != debt.generation
+    {
         return Err(EngineError::Storage);
     }
     let cursors = serde_json::to_string(&debt.cursors).map_err(|_| EngineError::Storage)?;
@@ -319,6 +350,7 @@ pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(),
     }
     transaction(c, || {
         dependency_closure::complete_physical_closures_in(c, ids)?;
+        admission::set_prospective_policy(c, false)?;
         store(
             c,
             FTS_KEY,

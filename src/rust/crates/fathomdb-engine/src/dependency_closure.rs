@@ -757,7 +757,13 @@ fn validate_physical_zero(
         )
         .map_err(|_| EngineError::Storage)?;
     let admitted_generation = u64::try_from(row.3).map_err(|_| EngineError::Storage)?;
-    if current_write_boundary > row.2
+    let safe_boundary = physical_erasure::closure_safe_boundary(
+        connection,
+        id,
+        u64::try_from(row.2).map_err(|_| EngineError::Storage)?,
+        admitted_generation.saturating_add(1),
+    )?;
+    if current_write_boundary > i64::try_from(safe_boundary).map_err(|_| EngineError::Storage)?
         || load_dependency_generation(connection)? != admitted_generation.saturating_add(1)
     {
         return Err(EngineError::Storage);

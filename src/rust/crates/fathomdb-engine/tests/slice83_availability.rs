@@ -274,3 +274,35 @@ fn committed_debt_finishes_on_idle_engine_without_another_call() {
     let bytes = std::fs::read(&path).unwrap();
     assert!(!bytes.windows(b"derived private text".len()).any(|w| w == b"derived private text"));
 }
+
+#[test]
+fn finalization_defers_new_pooled_snapshots_until_the_attempt_releases_admission() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = Arc::new(dependent_seed(&dir.path().join("reader-gate.sqlite")));
+    let other = Arc::clone(&engine);
+    let worker = Arc::new(std::sync::Mutex::new(None));
+    let worker_slot = Arc::clone(&worker);
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_redacted_commit",
+        Box::new(move || {
+            let (tx, rx) = mpsc::channel();
+            let reader = Arc::clone(&other);
+            *worker_slot.lock().unwrap() = Some(std::thread::spawn(move || {
+                let result = reader.read_get("survivor", &fathomdb_engine::ReadView::default());
+                let _ = tx.send(());
+                result
+            }));
+            assert!(
+                matches!(
+                    rx.recv_timeout(Duration::from_millis(100)),
+                    Err(mpsc::RecvTimeoutError::Timeout)
+                ),
+                "new pooled snapshots must await the finite finalization attempt"
+            );
+            Ok(())
+        }),
+    );
+    engine.erase_source("target").unwrap();
+    assert!(worker.lock().unwrap().take().unwrap().join().unwrap().unwrap().is_some());
+    engine.close().unwrap();
+}

@@ -182,3 +182,43 @@ fn missing_v2_denial_authority_refuses_open() {
         assert!(Engine::open(&path).is_err(), "v2 journal missing {field} cannot authorize writes");
     }
 }
+
+fn edge(id: &str, from: &str, to: &str) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: "rel".into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new("other").unwrap(),
+        logical_id: Some(id.into()),
+        body: Some("public relationship".into()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
+}
+
+#[test]
+fn survivor_edge_supersession_cannot_touch_an_old_denied_endpoint() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = Arc::new(dependent_seed(&dir.path().join("old-endpoint.sqlite")));
+    engine.write(&[edge("reference", "subject", "survivor")]).unwrap();
+    let other = Arc::clone(&engine);
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_sanitation_unit",
+        Box::new(move || {
+            assert!(
+                matches!(
+                    other.write(&[edge("reference", "survivor", "survivor")]),
+                    Err(EngineError::ErasureIncomplete { .. })
+                ),
+                "old affected endpoints remain fenced even when replacement endpoints are clean"
+            );
+            assert_eq!(other.query_i64_col_for_test("SELECT count(*) FROM canonical_edges WHERE logical_id='reference' AND from_id='subject' AND superseded_at IS NULL").unwrap(), vec![1]);
+            Ok(())
+        }),
+    );
+    engine.erase_source("target").unwrap();
+    engine.close().unwrap();
+}

@@ -66,3 +66,9 @@ truthful incomplete status. No new schema migration or public governed operation
 is required. The end-of-Slice-83 owner decision on the broader physical guarantee
 and any specific cleanup API remains open; this decision records implementation
 mechanics authorized for Phase 2, not that future product guarantee.
+
+The certified write class excludes application-trigger fallback execution.
+Admission reuses the canonical commit path's managed-trigger predicate; that
+path disables all triggers through write certification and visibility advance.
+Persistent/TEMP application-trigger effects cannot enlarge the admitted scope.
+Ordinary writes without pending physical debt retain their prior trigger behavior.

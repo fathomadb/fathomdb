@@ -201,3 +201,22 @@ Process-exit monitoring failures remain unqualified even with a complete product
 result. A bounded 50-ms wait may confirm exit after a `/proc` permission race;
 a still-live permission failure remains a monitor failure and is reaped. Record
 reruns separately and never reset the campaign budget.
+
+## Trigger scope correction (Astra approved)
+
+An application trigger can relabel an existing survivor without restoring an
+erased cursor or advancing the dependency generation. Submitted-write checks and
+exact erased-cursor absence therefore do not certify arbitrary trigger effects.
+While debt exists, refuse writes unless the existing canonical commit predicate
+certifies its managed path, which disables all triggers through mutation,
+certification and visibility advancement. The fallback remains unchanged without
+debt. Persistent and TEMP trigger regressions require refusal before mutation,
+unchanged survivor/projection state and ordinary behavior after completion.
+Reserved visibility-prefix exemptions are safe here because that same predicate
+selects the all-trigger-disabled path; no post-restoration mutation precedes
+COMMIT. Open independently validates persistent visibility definitions.
+
+The frozen campaign masters contain only the tracked 61 managed trigger
+definitions and the driver creates no TEMP triggers. Retain those preceding
+measurements with their exact source IDs, and qualify the final guard with a
+separately labeled representative paired/control smoke within the shared budget.

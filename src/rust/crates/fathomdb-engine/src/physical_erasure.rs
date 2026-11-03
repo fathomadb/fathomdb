@@ -5,6 +5,13 @@ use serde::{Deserialize, Serialize};
 const ROOT_KEY: &str = "_fathomdb_physical_erasure";
 const FTS_KEY: &str = "_fathomdb_fts_sanitation";
 
+pub(crate) fn faultpoint(phase: &str) -> Result<(), EngineError> {
+    #[cfg(any(test, feature = "test-hooks"))]
+    crate::test_hooks::physical_erasure_hooks::fire(phase)?;
+    let _ = phase;
+    Ok(())
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RootDebt {
@@ -244,7 +251,7 @@ pub(crate) fn transaction<T>(
 }
 
 pub(crate) fn sanitize_unit(c: &Connection) -> Result<bool, EngineError> {
-    transaction(c, || {
+    let done = transaction(c, || {
         let mut progress = state(c)?;
         if matches!(progress.phase.as_str(), "clean" | "finalizing") {
             return Ok(true);
@@ -267,8 +274,11 @@ pub(crate) fn sanitize_unit(c: &Connection) -> Result<bool, EngineError> {
             progress.phase = "finalizing".into();
         }
         store(c, FTS_KEY, &progress)?;
+        faultpoint("before_sanitation_commit")?;
         Ok(progress.phase == "finalizing")
-    })
+    })?;
+    faultpoint("after_sanitation_unit")?;
+    Ok(done)
 }
 
 pub(crate) fn sanitize(c: &Connection) -> Result<(), EngineError> {
@@ -295,6 +305,7 @@ pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(),
         )?;
         c.execute("DELETE FROM _fathomdb_open_state WHERE key=?1", [ROOT_KEY])
             .map_err(|_| EngineError::Storage)?;
+        faultpoint("before_completion_commit")?;
         Ok(())
     })
 }
@@ -330,6 +341,7 @@ mod tests {
 
     #[test]
     fn failed_commit_rolls_back_and_leaves_writer_retryable() {
+        crate::configure_runtime(crate::RuntimeSqliteMode::Performance).unwrap();
         let c = Connection::open_in_memory().unwrap();
         c.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE parent(id INTEGER PRIMARY KEY); CREATE TABLE child(id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED);").unwrap();
         assert!(transaction(&c, || {
@@ -339,5 +351,36 @@ mod tests {
         .is_err());
         assert!(c.is_autocommit(), "failed COMMIT must roll back its deferred transaction");
         transaction(&c, || Ok(())).unwrap();
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(24))]
+        #[test]
+        fn retry_sequences_preserve_atomic_progress_and_survivors(failures in proptest::collection::vec(proptest::bool::ANY, 1..8)) {
+            let dir = tempfile::tempdir().unwrap();
+            let engine = Engine::open(dir.path().join("sequence.sqlite")).unwrap().engine;
+            let make_node = |id: &str, source: &str| PreparedWrite::Node {
+                kind: "doc".into(), body: format!("unique {id}"), source_id: SourceId::new(source).unwrap(),
+                logical_id: Some(id.into()), state: InitialState::Active, reason: None, valid_from: None, valid_until: None,
+            };
+            engine.write(&[make_node("subject", "target"), make_node("survivor", "other")]).unwrap();
+            for fail in failures {
+                if fail {
+                    crate::test_hooks::physical_erasure_hooks::arm("before_sanitation_commit", Box::new(|| Err(EngineError::Storage)));
+                }
+                let outcome = engine.erase_source("target");
+                proptest::prop_assert_eq!(outcome.is_err(), fail);
+                let guard = engine.connection.lock().unwrap();
+                let c = guard.as_ref().unwrap();
+                proptest::prop_assert_eq!(root(c)?.is_some(), fail);
+                if fail {
+                    proptest::prop_assert_eq!(state(c)?.family, 0);
+                }
+                let rows: i64 = c.query_row("SELECT count(*) FROM canonical_nodes WHERE logical_id='survivor'", [], |r| r.get(0)).unwrap();
+                proptest::prop_assert_eq!(rows, 1);
+            }
+            engine.erase_source("target").unwrap();
+            engine.close().unwrap();
+        }
     }
 }

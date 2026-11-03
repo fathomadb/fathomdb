@@ -1,6 +1,44 @@
 #[cfg(any(test, feature = "test-hooks"))]
 use super::*;
 
+#[cfg(any(test, feature = "test-hooks"))]
+pub(crate) mod physical_erasure_hooks {
+    use crate::EngineError;
+    use std::cell::RefCell;
+    type Hook = (&'static str, Box<dyn Fn() -> Result<(), EngineError> + Send>);
+    thread_local! { static HOOK: RefCell<Option<Hook>> = const { RefCell::new(None) }; }
+
+    pub(crate) fn arm(phase: &'static str, hook: Box<dyn Fn() -> Result<(), EngineError> + Send>) {
+        HOOK.with(|slot| *slot.borrow_mut() = Some((phase, hook)));
+    }
+
+    pub(crate) fn fire(phase: &str) -> Result<(), EngineError> {
+        let hook = HOOK.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            if slot.as_ref().is_some_and(|(armed, _)| *armed == phase) {
+                slot.take()
+            } else {
+                None
+            }
+        });
+        if let Some((_, hook)) = hook {
+            hook()?;
+        }
+        Ok(())
+    }
+}
+
+/// Arm one thread-scoped erasure fault rendezvous; the callback may fail or exit.
+/// The hook is consumed only by the named production erasure boundary.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn arm_physical_erasure_hook_for_test(
+    phase: &'static str,
+    hook: Box<dyn Fn() -> Result<(), EngineError> + Send>,
+) {
+    physical_erasure_hooks::arm(phase, hook);
+}
+
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the
 /// non-shipped characterization feature and exists solely to delimit real CE
 /// forwards against a test wrapper around the real BGE embedder.

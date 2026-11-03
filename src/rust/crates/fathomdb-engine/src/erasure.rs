@@ -904,12 +904,14 @@ impl Engine {
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
         physical_erasure::admit(&tx, root_debt, "purge", lid, &closure_ids)?;
+        physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         if enqueued {
             self.next_cursor.store(pending_cursor, Ordering::SeqCst);
         }
         self.counters.record_admin();
+        physical_erasure::faultpoint("after_delete_commit")?;
         Ok(closure_ids)
     }
 
@@ -1215,6 +1217,7 @@ impl Engine {
             return Err(telemetry_incomplete());
         }
         redact_jsonl_stable_ids(sink.path(), &ids).map_err(|_| telemetry_incomplete())?;
+        physical_erasure::faultpoint("after_sink_redaction")?;
         let mut owed = false;
         physical_erasure::transaction(connection, || {
             for (id, mut debt) in pending {
@@ -1420,9 +1423,11 @@ impl Engine {
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
         physical_erasure::admit(&tx, root_debt, verb, source_id, &closure_ids)?;
+        physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.next_cursor.store(audit_cursor, Ordering::SeqCst);
+        physical_erasure::faultpoint("after_delete_commit")?;
         Ok((
             ExciseReport {
                 source_ref: source_id.to_string(),

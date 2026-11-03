@@ -80,6 +80,9 @@ mod open;
 mod operator;
 mod pagination;
 mod physical_erasure;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use test_hooks::arm_physical_erasure_hook_for_test;
 mod projection_commit;
 mod projection_generation;
 mod projection_rebuild;

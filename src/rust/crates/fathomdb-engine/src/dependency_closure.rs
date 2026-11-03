@@ -408,16 +408,18 @@ pub(crate) fn measure_physical_closures(
         canonical_rows = canonical_rows.saturating_add(nodes).saturating_add(edges);
         active_nodes = active_nodes.saturating_add(active);
         current_edges = current_edges.saturating_add(current);
-        for projection in ROW_OWNED_PROJECTIONS.iter() {
-            let sql = format!(
-                "SELECT COUNT(*) FROM {} WHERE {}=?1",
-                projection.table, projection.cursor_column
-            );
-            let count: i64 = connection
-                .query_row(&sql, [cursor], |row| row.get(0))
-                .map_err(|_| EngineError::Storage)?;
-            projection_rows = projection_rows.saturating_add(count);
-        }
+    }
+    let encoded_cursors =
+        serde_json::to_string(&scope.cursors).map_err(|_| EngineError::Storage)?;
+    for projection in ROW_OWNED_PROJECTIONS {
+        let sql = format!(
+            "SELECT COUNT(*) FROM {} WHERE {} IN (SELECT value FROM json_each(?1))",
+            projection.table, projection.cursor_column
+        );
+        let count: i64 = connection
+            .query_row(&sql, [&encoded_cursors], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        projection_rows = projection_rows.saturating_add(count);
     }
     for revision in &scope.revisions {
         let count: i64 = connection

@@ -365,6 +365,34 @@ pub(crate) fn erase_row_projections(tx: &Connection, write_cursor: i64) -> rusql
     Ok(deleted)
 }
 
+pub(crate) fn erase_rows_projections(tx: &Connection, cursors: &[i64]) -> rusqlite::Result<u64> {
+    let encoded = serde_json::to_string(cursors).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let mut deleted = 0_u64;
+    for projection in ROW_OWNED_PROJECTIONS {
+        if projection.table == DEFAULT_VECTOR_PARTITION {
+            for cursor in cursors {
+                deleted = deleted
+                    .saturating_add(vector_storage::delete_vector_record_rows(tx, *cursor)? as u64);
+            }
+            continue;
+        }
+        let sql = if projection.is_fts() {
+            physical_erasure::mark_dirty(tx)?;
+            // FTS cursor columns are UNINDEXED. Materialize matching rowids in
+            // one scan, then use FTS's direct rowid deletion instead of rescanning
+            // the corpus once for every erased canonical revision.
+            format!("DELETE FROM {0} WHERE rowid IN (SELECT rowid FROM {0} WHERE {1} IN (SELECT value FROM json_each(?1)))", projection.table, projection.cursor_column)
+        } else {
+            format!(
+                "DELETE FROM {} WHERE {} IN (SELECT value FROM json_each(?1))",
+                projection.table, projection.cursor_column
+            )
+        };
+        deleted = deleted.saturating_add(tx.execute(&sql, [&encoded])? as u64);
+    }
+    Ok(deleted)
+}
+
 /// TC-76 — delete one row-owned projection's rows for one `write_cursor`.
 /// The vec0 partition is routed through the shared direct-delete primitive;
 /// every other table is the plain registry-driven statement.

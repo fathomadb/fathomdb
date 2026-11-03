@@ -871,9 +871,8 @@ impl Engine {
         // list is gone, so a newly registered projection table is erased here
         // without touching this site. vec0 rowid == the canonical row's
         // write_cursor (see `_fathomdb_vector_rows`).
-        for cursor in node_cursors.iter().chain(edge_cursors.iter()) {
-            erase_row_projections(&tx, *cursor).map_err(|_| EngineError::Storage)?;
-        }
+        projection_registry::erase_rows_projections(&tx, &affected_cursors)
+            .map_err(|_| EngineError::Storage)?;
 
         // Erase every exact row in the admitted physical closure, including
         // registered dependents whose logical identity is unrelated to the
@@ -1359,12 +1358,9 @@ impl Engine {
         // every functional test because both v2 read paths discard candidates
         // lacking a live `canonical_nodes` row. `erase_row_projections` covers
         // every registered projection, so the omission cannot recur.
-        let mut shadow_invalidated: u64 = 0;
-        for cursor in node_cursors.iter().chain(edge_cursors.iter()) {
-            shadow_invalidated = shadow_invalidated.saturating_add(
-                erase_row_projections(&tx, *cursor).map_err(|_| EngineError::Storage)?,
-            );
-        }
+        let shadow_invalidated =
+            projection_registry::erase_rows_projections(&tx, &affected_cursors)
+                .map_err(|_| EngineError::Storage)?;
 
         let nodes_excised = tx
             .execute("DELETE FROM canonical_nodes WHERE source_id = ?1", [source_id])

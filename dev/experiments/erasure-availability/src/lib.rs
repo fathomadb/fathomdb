@@ -336,7 +336,7 @@ fn observe_time(engine: &Engine, now: i64) -> Result<()> {
 /// Build the fixed measurement fixture (10% target owners, four retained revisions).
 pub fn build_campaign(path: &Path, family: &str, secure: bool, owners: usize) -> Result<()> {
     fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance)?;
-    if path.exists() || owners < 10 || owners % 10 != 0 {
+    if path.exists() || owners < 10 || !owners.is_multiple_of(10) {
         return Err("invalid new campaign fixture".into());
     }
     let engine = open(path)?;

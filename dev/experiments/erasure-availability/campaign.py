@@ -21,20 +21,33 @@ def cells():
 
 
 def summarize(events, stream, complete, expected=1500):
-    """Reconcile offers and finishes; unqualified percentiles remain null."""
-    offers = {e['id']: e for e in events if e['kind'] == 'offer' and e['stream'] == stream}
-    finishes = {e['id']: e for e in events if e['kind'] == 'finish' and e['stream'] == stream}
+    """Validate unique scheduled offers/finishes before qualifying percentiles."""
+    offer_rows = [e for e in events if e['kind'] == 'offer' and e['stream'] == stream]
+    finish_rows = [e for e in events if e['kind'] == 'finish' and e['stream'] == stream]
+    offers = {e['id']: e for e in offer_rows}
+    finishes = {e['id']: e for e in finish_rows}
+    invalid = len(offer_rows)-len(offers)+len(finish_rows)-len(finishes)
+    invalid += sum(not isinstance(i, int) or not 0 <= i < expected or e['state'] not in ('started', 'refused') for i, e in offers.items())
+    invalid += sum(i not in offers or offers[i]['state'] != 'started' or e['outcome'] not in ('success', 'error') or e.get('latency_ns', -1) < 0 for i, e in finishes.items())
     success = [e['latency_ns'] for e in finishes.values() if e['outcome'] == 'success']
     refused = sum(e['state'] == 'refused' for e in offers.values())
     unfinished = sum(e['state'] == 'started' and i not in finishes for i, e in offers.items())
     errors = sum(e['outcome'] == 'error' for e in finishes.values())
-    qualified = complete and len(offers) == expected and len(success) >= 1000 and not (refused or unfinished or errors)
+    qualified = complete and len(offers) == expected and len(success) >= 1000 and not (invalid or refused or unfinished or errors)
     ordered = sorted(success)
     return dict(offered=len(offers), success=len(success), refused=refused, error=errors,
-                unfinished=unfinished, not_offered=expected-len(offers),
+                unfinished=unfinished, not_offered=max(0, expected-len(offers)), accounting_errors=invalid,
                 p50_ns=ordered[math.ceil(len(ordered)*.5)-1] if qualified else None,
                 p99_ns=ordered[math.ceil(len(ordered)*.99)-1] if qualified else None,
                 max_success_ns=max(success, default=None))
+
+
+def completed(record):
+    """A late, interrupted or malformed result cannot certify a completed replica."""
+    result = record.get('result')
+    return (not record.get('stop') and record.get('exit_code') == 0
+            and record.get('deadline_overshoot_s', 0) == 0
+            and isinstance(result, dict) and result.get('status') == 'complete')
 
 
 def save(path, value):
@@ -43,8 +56,15 @@ def save(path, value):
 
 
 def scratch_bytes(root):
-    """Count all new campaign files, including retained masters and failed copies."""
-    return sum(p.stat().st_size for p in root.rglob('*') if p.is_file())
+    """Count new campaign files; SQLite may retire a WAL between list and stat."""
+    total = 0
+    for path in root.rglob('*'):
+        try:
+            if path.is_file():
+                total += path.stat().st_size
+        except FileNotFoundError:
+            pass
+    return total
 
 
 def resource_sample(pid, root):
@@ -63,43 +83,81 @@ def resource_sample(pid, root):
 
 
 def child(command, output, root, deadline):
-    """Bound one child, retain stops/overshoot, and always join it."""
+    """Bound one child and reap it on every exit, including monitor exceptions."""
     begun = time.monotonic()
     stop = None
     peak = dict(rss_bytes=0, scratch_bytes=0)
     last = {}
-    with output.open('w') as log:
-        process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
-        while process.poll() is None:
-            last = resource_sample(process.pid, root)
-            for key in peak:
-                peak[key] = max(peak[key], last[key])
-            if time.monotonic() >= deadline:
+    process = None
+    code = None
+    try:
+        with output.open('w') as log:
+            if begun >= deadline:
                 stop = 'time_limit'
-            elif peak['rss_bytes'] > 8*GIB:
-                stop = 'rss_limit'
-            elif peak['scratch_bytes'] > 12*GIB:
-                stop = 'disk_limit'
-            if stop:
+            else:
+                process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
+                while process.poll() is None:
+                    last = resource_sample(process.pid, root)
+                    for key in peak:
+                        peak[key] = max(peak[key], last[key])
+                    if time.monotonic() >= deadline:
+                        stop = 'time_limit'
+                    elif peak['rss_bytes'] > 8*GIB:
+                        stop = 'rss_limit'
+                    elif peak['scratch_bytes'] > 12*GIB:
+                        stop = 'disk_limit'
+                    if stop:
+                        break
+                    time.sleep(.1)
+    finally:
+        if process is not None:
+            if process.poll() is None:
                 process.terminate()
                 try:
                     process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
                     process.kill()
-                    process.wait()
-                break
-            time.sleep(.1)
-        code = process.wait()
+            code = process.wait()
     ended = time.monotonic()
+    if ended > deadline and stop is None:
+        stop = 'time_limit'
     result = None
     for line in output.read_text().splitlines():
         try:
-            result = json.loads(line)
+            value = json.loads(line)
+            if isinstance(value, dict):
+                result = value
         except json.JSONDecodeError:
             pass
     return dict(exit_code=code, stop=stop, elapsed_s=ended-begun,
                 deadline_overshoot_s=max(0, ended-deadline), peak=peak,
                 final_resource_sample=last, result=result)
+
+
+def safe_child(*args):
+    """Convert a reaped monitor exception into a durable campaign stop."""
+    begun = time.monotonic()
+    try:
+        return child(*args)
+    except Exception as error:
+        return dict(exit_code=None, stop='monitor_error', error=repr(error),
+                    elapsed_s=time.monotonic()-begun, result=None)
+
+
+def stop_campaign(results, root, begun, reason):
+    """Give every remaining planned attempt/control an explicit disposition."""
+    results['stopped'] = reason
+    results['elapsed_s'] = time.monotonic()-begun
+    for row in results['attempts'] + results['controls']:
+        if row.get('disposition') == 'not_run':
+            row['reason'] = reason
+    save(root/'results.json', results)
+
+
+def digest(path):
+    """Hash a closed artifact without duplicating its bytes in memory."""
+    with path.open('rb') as source:
+        return hashlib.file_digest(source, 'sha256').hexdigest()
 
 
 def events_at(path):
@@ -147,12 +205,16 @@ def main():
                     core_budget_s=2700, replica_budget_s=30, cell_budget_s=90,
                     rss_limit_bytes=8*GIB, scratch_limit_bytes=12*GIB,
                     sample_period_s=.1, started_wall=time.time(),
+                    foreground_read='Engine text-only survivorneedle; property p1; edge endpoint stable text (not edge ranking)',
+                    foreground_write='unique foreground-{id} canonical node, source foreground, body unrelated service',
+                    observer_overhead='identical unbuffered offer/finish logging, phase events and100ms polling included; not separately estimated',
+                    control_rule='failed no-erasure offered-rate control makes load comparison inconclusive',
                     arm_order=[['A', 'B'], ['B', 'A'], ['A', 'B']], cells=cells(),
                     controls=[dict(family=f, load='loaded', arm='control') for f in ('node', 'edge', 'property')],
                     supplement='ordinary expiry deferred: outside revised sanitation scope',
                     conditional_c='pending A/B screening; no production staging design approved')
     save(root/'manifest.json', manifest)
-    results = dict(fixtures={}, controls=[], attempts=[], elapsed_s=0)
+    results = dict(fixtures={}, controls=[dict(family=f, disposition='not_run') for f in ('node', 'edge', 'property')], attempts=[], elapsed_s=0)
     for index, cell in enumerate(cells()):
         for replica in range(3):
             results['attempts'].append(dict(cell=index, replica=replica, **cell, disposition='not_run'))
@@ -161,37 +223,42 @@ def main():
     for family in ('node', 'edge', 'property'):
         for policy in ('default', 'secure'):
             path = root/f'{family}-{policy}.sqlite'
-            record = child([str(binary), 'fixture', str(path), family, policy],
+            record = safe_child([str(binary), 'fixture', str(path), family, policy],
                            root/f'fixture-{family}-{policy}.log', root, deadline)
             results['fixtures'][f'{family}-{policy}'] = record
             save(root/'results.json', results)
             if record['exit_code'] or record['stop']:
-                results['stopped'] = 'fixture failure or campaign limit'
-                results['elapsed_s'] = time.monotonic()-begun
-                save(root/'results.json', results)
+                stop_campaign(results, root, begun, 'fixture failure or campaign limit')
                 return
+            record['fixture_sha256'] = digest(path)
             masters[(family, policy)] = path
         legacy = root/f'{family}-legacy.sqlite'
-        record = child([str(binary), 'legacy', str(masters[(family, 'default')]), str(legacy), family],
+        record = safe_child([str(binary), 'legacy', str(masters[(family, 'default')]), str(legacy), family],
                        root/f'fixture-{family}-legacy.log', root, deadline)
         results['fixtures'][f'{family}-legacy'] = record
         if record['exit_code'] or record['stop']:
-            results['stopped'] = 'legacy positive-control failure'
-            results['elapsed_s'] = time.monotonic()-begun
-            save(root/'results.json', results)
+            stop_campaign(results, root, begun, 'legacy positive-control failure or budget exhaustion')
             return
+        record['fixture_sha256'] = digest(legacy)
         masters[(family, 'legacy')] = legacy
     for family in ('node', 'edge', 'property'):
+        if time.monotonic() >= deadline:
+            stop_campaign(results, root, begun, 'campaign budget exhausted before controls')
+            return
         out = root/f'control-{family}'
         out.mkdir()
-        record = child([str(binary), 'replica', str(masters[(family, 'default')]), str(out), family,
+        record = safe_child([str(binary), 'replica', str(masters[(family, 'default')]), str(out), family,
                         'control', 'fresh', 'loaded'], out/'child.log', root, min(deadline, time.monotonic()+30))
         events = events_at(out/'events.jsonl')
-        complete = not record['stop'] and record['exit_code'] == 0 and record['result'].get('status') == 'complete'
+        complete = completed(record)
         record['streams'] = {s: summarize(events, s, complete) for s in ('read', 'write')}
-        results['controls'].append(dict(family=family, **record))
+        record['raw_sha256'] = {p.name: digest(p) for p in out.iterdir() if p.suffix in ('.log', '.jsonl')}
+        next(c for c in results['controls'] if c['family'] == family).update(record, disposition='complete' if complete else 'incomplete')
         remove_replica_files(out)
         save(root/'results.json', results)
+        if record['stop'] in ('rss_limit', 'disk_limit', 'monitor_error'):
+            stop_campaign(results, root, begun, record['stop'])
+            return
     cell_spent = {i: 0. for i in range(24)}
     for family, workload, load in itertools.product(('node', 'edge', 'property'), ('fresh', 'legacy'), ('idle', 'loaded')):
         for replica in range(3):
@@ -204,16 +271,20 @@ def main():
                 out = root/f"cell-{attempt['cell']:02}-replica-{replica}"
                 out.mkdir()
                 policy = 'legacy' if workload == 'legacy' else ('secure' if arm == 'A' else 'default')
-                record = child([str(binary), 'replica', str(masters[(family, policy)]), str(out), family,
+                record = safe_child([str(binary), 'replica', str(masters[(family, policy)]), str(out), family,
                                 arm, workload, load], out/'child.log', root, time.monotonic()+remaining)
                 cell_spent[attempt['cell']] += record['elapsed_s']
-                complete = not record['stop'] and record['exit_code'] == 0 and record['result'].get('status') == 'complete'
+                complete = completed(record)
                 events = events_at(out/'events.jsonl')
                 record['streams'] = {s: summarize(events, s, complete, 1500 if load == 'loaded' else 0) for s in ('read', 'write')}
+                record['raw_sha256'] = {p.name: digest(p) for p in out.iterdir() if p.suffix in ('.log', '.jsonl')}
                 attempt.update(record, disposition='complete' if complete else 'incomplete', raw=str(out))
                 remove_replica_files(out)
                 results['elapsed_s'] = time.monotonic()-begun
                 save(root/'results.json', results)
+                if record['stop'] in ('rss_limit', 'disk_limit', 'monitor_error'):
+                    stop_campaign(results, root, begun, record['stop'])
+                    return
     results['elapsed_s'] = time.monotonic()-begun
     save(root/'results.json', results)
     print(json.dumps(dict(output=str(root), elapsed_s=results['elapsed_s'], complete=sum(a['disposition'] == 'complete' for a in results['attempts']))))

@@ -78,6 +78,34 @@ class Measurement(unittest.TestCase):
             self.assertEqual(record['stop'], 'time_limit')
             self.assertGreater(record['deadline_overshoot_s'], 0)
 
+    def test_resource_stops_and_remaining_dispositions(self):
+        for key, limit, reason in [('rss_bytes', 8*campaign.GIB, 'rss_limit'), ('scratch_bytes', 12*campaign.GIB, 'disk_limit')]:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                sample = dict(rss_bytes=0, scratch_bytes=0)
+                sample[key] = limit+1
+                with mock.patch.object(campaign, 'resource_sample', return_value=sample):
+                    record = campaign.child([sys.executable, '-c', 'import time; time.sleep(30)'], root/'log', root, time.monotonic()+5)
+                self.assertEqual(record['stop'], reason)
+                self.assertNotEqual(record['exit_code'], 0)
+                results = dict(attempts=[dict(disposition='complete'), dict(disposition='not_run')], controls=[dict(disposition='not_run')])
+                campaign.stop_campaign(results, root, time.monotonic(), reason)
+                self.assertEqual(results['attempts'][0]['disposition'], 'complete')
+                self.assertEqual(results['attempts'][1]['reason'], reason)
+                self.assertEqual(results['controls'][0]['reason'], reason)
+
+    def test_malformed_or_late_completion_is_unqualified(self):
+        for value in (None, [], 'complete'):
+            self.assertFalse(campaign.completed(dict(exit_code=0, result=value)))
+        self.assertFalse(campaign.completed(dict(exit_code=0, result={'status':'complete'}, deadline_overshoot_s=.1)))
+        self.assertTrue(campaign.completed(dict(exit_code=0, result={'status':'complete'})))
+
+    def test_error_outcome_keeps_quantiles_null(self):
+        events = [{'kind':'offer','stream':'read','id':0,'state':'started'}, {'kind':'finish','stream':'read','id':0,'outcome':'error','latency_ns':1}]
+        result = summarize(events, 'read', True, 1)
+        self.assertEqual(result['error'], 1)
+        self.assertIsNone(result['p50_ns'])
+
 
 if __name__ == '__main__':
     unittest.main()

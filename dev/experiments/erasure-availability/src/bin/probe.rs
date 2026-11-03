@@ -53,6 +53,19 @@ fn validate(path: &Path, family: &str, owners: i64, erased: bool) -> Result<Valu
     if target_owners != targets || surviving_owners != owners * 9 / 10 {
         return Err("source ownership count mismatch".into());
     }
+    let primary = match family {
+        "edge" => "search_index_edges",
+        "property" => "property_search_index",
+        _ => "search_index",
+    };
+    let column = if family == "property" { "attr_value" } else { "body" };
+    for bound in ["min", "max"] {
+        if scalar(&format!("SELECT {bound}(length(CAST({column} AS BLOB))) FROM {primary}"))?
+            != 1024
+        {
+            return Err("primary payload byte count mismatch".into());
+        }
+    }
     let sqlite: String = c.query_row("SELECT sqlite_version()", [], |r| r.get(0))?;
     Ok(
         json!({"sqlite":sqlite,"families":inv,"canonical_nodes":nodes,"canonical_edges":edges,"target_owners":target_owners,"survivor_owners":surviving_owners}),
@@ -162,9 +175,17 @@ fn replica(args: &[String]) -> Result<Value> {
             return Ok(());
         }
         if workload == "fresh" {
+            emit(
+                &events,
+                json!({"kind":"phase","phase":"native_start","elapsed_ns":started.elapsed().as_nanos() as u64}),
+            );
             let native = Instant::now();
             let outcome = engine.erase_source("target");
             native_ns = Some(native.elapsed().as_nanos() as u64);
+            emit(
+                &events,
+                json!({"kind":"phase","phase":"native_end","elapsed_ns":started.elapsed().as_nanos() as u64,"native_call_ns":native_ns,"error":outcome.as_ref().err().map(|e|e.to_string())}),
+            );
             outcome?;
         }
         if arm == "A" && workload == "legacy" {
@@ -175,11 +196,19 @@ fn replica(args: &[String]) -> Result<Value> {
                 }
                 Ok(())
             })?;
+            emit(
+                &events,
+                json!({"kind":"phase","phase":"rebuild_commit","elapsed_ns":started.elapsed().as_nanos() as u64,"writer_wait_ns":wait.as_nanos() as u64,"writer_held_ns":held.as_nanos() as u64}),
+            );
             holds.push(held.as_nanos() as u64);
             waits.push(wait.as_nanos() as u64);
         } else if arm == "B" {
             let now = wall();
             admit(&engine, now, now + 30)?;
+            emit(
+                &events,
+                json!({"kind":"phase","phase":"sanitation_admitted","elapsed_ns":started.elapsed().as_nanos() as u64,"accepted_wall":now,"deadline_wall":now+30}),
+            );
             sanitation_accepted_ns = Some(started.elapsed().as_nanos() as u64);
             for _ in 0..100_000 {
                 if job(&engine)?.phase != "cleaning" {
@@ -189,6 +218,10 @@ fn replica(args: &[String]) -> Result<Value> {
                     return Err("replica budget exhausted during merging".into());
                 }
                 let (wait, held) = step(&engine, 64, wall(), false)?;
+                emit(
+                    &events,
+                    json!({"kind":"phase","phase":"merge_commit","elapsed_ns":started.elapsed().as_nanos() as u64,"writer_wait_ns":wait,"writer_held_ns":held}),
+                );
                 waits.push(wait);
                 holds.push(held);
                 progress.push(started.elapsed().as_nanos() as u64);
@@ -214,6 +247,11 @@ fn replica(args: &[String]) -> Result<Value> {
         if arm == "control" {
             return Ok(());
         }
+        emit(&events,json!({"kind":"phase","phase":"drain_start","elapsed_ns":started.elapsed().as_nanos() as u64}));
+        let remaining=Duration::from_secs(30).saturating_sub(started.elapsed()).as_millis() as u64;
+        if remaining==0 {return Err("replica exhausted before final drain".into());}
+        engine.drain(remaining)?;
+        emit(&events,json!({"kind":"phase","phase":"finalization_start","elapsed_ns":started.elapsed().as_nanos() as u64}));
         let begun = Instant::now();
         let complete = if arm == "B" {
             finalize(&engine, &path, MARKER)?
@@ -221,6 +259,7 @@ fn replica(args: &[String]) -> Result<Value> {
             checkpoint(&engine)? && physical_markers(&path, MARKER)? == 0
         };
         finalization_ns = Some(begun.elapsed().as_nanos() as u64);
+        emit(&events,json!({"kind":"phase","phase":"physical_proof_end","elapsed_ns":started.elapsed().as_nanos() as u64,"complete":complete,"finalization_ns":finalization_ns}));
         physical = Some(physical_markers(&path, MARKER)?);
         after = Some(inventory(&path, MARKER)?);
         if !complete {
@@ -243,7 +282,7 @@ fn replica(args: &[String]) -> Result<Value> {
     engine.close()?;
     let elapsed = started.elapsed().as_secs_f64();
     Ok(
-        json!({"status":if cleanup.is_ok(){"complete"}else{"failed"},"error":cleanup.err().map(|e|e.to_string()),"arm":arm,"family":family,"workload":workload,"loaded":loaded,"inventory_before":inventory_before,"inventory_after":after,"native_call_ns":native_ns,"sanitation_accepted_ns":sanitation_accepted_ns,"progress_ns":progress,"writer_wait_ns":waits,"writer_held_ns":holds,"writer_max_ns":holds.iter().max(),"finalization_ns":finalization_ns,"physical_markers":physical,"sanitation_complete_ns":complete_at,"elapsed_s":elapsed,"job":job_state,"profile":"release","offer_start_ns":offer_start.duration_since(started).as_nanos() as u64}),
+        json!({"status":if cleanup.is_ok(){"complete"}else{"failed"},"error":cleanup.err().map(|e|e.to_string()),"arm":arm,"family":family,"workload":workload,"loaded":loaded,"inventory_before":inventory_before,"inventory_after":after,"native_call_ns":native_ns,"sanitation_accepted_ns":sanitation_accepted_ns,"progress_ns":progress,"writer_wait_ns":waits,"writer_held_ns":holds,"writer_max_ns":holds.iter().max(),"finalization_ns":finalization_ns,"physical_markers":physical,"sanitation_complete_ns":complete_at,"elapsed_s":elapsed,"job":job_state,"profile":if cfg!(debug_assertions){"debug"}else{"release"},"offer_start_ns":offer_start.duration_since(started).as_nanos() as u64}),
     )
 }
 fn run() -> Result<Value> {

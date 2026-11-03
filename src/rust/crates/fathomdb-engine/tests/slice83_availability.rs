@@ -413,3 +413,124 @@ fn singleton_saturation_refuses_before_accepting_another_target() {
     assert!(engine.read_get("survivor", &fathomdb_engine::ReadView::default()).unwrap().is_some());
     engine.close().unwrap();
 }
+
+fn wait_for_autonomous_completion(path: &std::path::Path) {
+    let observer = rusqlite::Connection::open(path).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        let owed: bool = observer.query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure') OR EXISTS(SELECT 1 FROM _fathomdb_dependency_closures WHERE phase!='complete' AND cause IN ('purged','source_erased'))", [], |r| r.get(0)).unwrap();
+        if !owed {
+            return;
+        }
+        assert!(std::time::Instant::now() < deadline, "automatic physical work did not finish");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[test]
+#[ignore = "child process for autonomous reopen witnesses"]
+fn slice83_crash_child() {
+    let path = std::path::PathBuf::from(std::env::var_os("SLICE83_DB").unwrap());
+    let phase = match std::env::var("SLICE83_PHASE").unwrap().as_str() {
+        "after_delete_commit" => "after_delete_commit",
+        "after_sanitation_unit" => "after_sanitation_unit",
+        "after_redacted_commit" => "after_redacted_commit",
+        _ => panic!("unknown crash phase"),
+    };
+    let engine = Engine::open(&path).unwrap().engine;
+    fathomdb_engine::arm_physical_erasure_hook_for_test(phase, Box::new(|| std::process::exit(73)));
+    engine.erase_source("target").unwrap();
+    panic!("crash boundary not reached");
+}
+
+#[test]
+fn process_crash_reopen_resumes_without_target_or_followup_engine_calls() {
+    for phase in ["after_delete_commit", "after_sanitation_unit", "after_redacted_commit"] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("reopen.sqlite");
+        dependent_seed(&path).close().unwrap();
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "slice83_crash_child", "--ignored"])
+            .env("SLICE83_DB", &path)
+            .env("SLICE83_PHASE", phase)
+            .status()
+            .unwrap();
+        assert_eq!(status.code(), Some(73));
+        let engine = Engine::open(&path).unwrap().engine;
+        wait_for_autonomous_completion(&path);
+        engine.close().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        assert!(
+            !bytes.windows(b"privateuniqueterm".len()).any(|w| w == b"privateuniqueterm"),
+            "{phase}"
+        );
+    }
+}
+
+#[test]
+fn pinned_owned_reader_preserves_scope_then_close_joins_service_and_readers() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("owned-reader.sqlite");
+    let engine = Arc::new(dependent_seed(&path));
+    let (ready, release) = engine.pause_reader_with_timeout_for_test();
+    ready.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(
+        matches!(engine.erase_source("target"), Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint")
+    );
+    engine.write(&[node("new", "other", "allowed before redacted tombstone")]).unwrap();
+    assert!(!engine.pending_erasures().unwrap().is_empty());
+    let closing = Arc::clone(&engine);
+    let (done_tx, done_rx) = mpsc::channel();
+    let close = std::thread::spawn(move || {
+        let _ = done_tx.send(closing.close());
+    });
+    assert!(
+        matches!(
+            done_rx.recv_timeout(Duration::from_millis(30)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ),
+        "an admitted snapshot runs to completion during close"
+    );
+    drop(release);
+    done_rx.recv_timeout(Duration::from_secs(3)).unwrap().unwrap();
+    close.join().unwrap();
+    let reopened = Engine::open(&path).unwrap().engine;
+    wait_for_autonomous_completion(&path);
+    assert!(reopened.read_get("new", &fathomdb_engine::ReadView::default()).unwrap().is_some());
+    reopened.close().unwrap();
+}
+
+fn update_at_units(engine: Arc<Engine>, updates: Arc<std::sync::atomic::AtomicUsize>) {
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_sanitation_unit",
+        Box::new(move || {
+            let index = updates.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            engine
+                .write(&[node("survivor", "survivor", &format!("public revision {index}"))])
+                .unwrap();
+            if index < 31 {
+                update_at_units(Arc::clone(&engine), Arc::clone(&updates));
+            }
+            Ok(())
+        }),
+    );
+}
+
+#[test]
+fn bounded_survivor_updates_do_not_restart_sanitation_or_republish_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("updates.sqlite");
+    let engine = Arc::new(dependent_seed(&path));
+    let updates = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    update_at_units(Arc::clone(&engine), Arc::clone(&updates));
+    engine.erase_source("target").unwrap();
+    let count = updates.load(std::sync::atomic::Ordering::SeqCst);
+    assert!(count >= 4, "foreground updates must interleave across FTS families");
+    assert!(count <= 32);
+    assert!(engine.pending_erasures().unwrap().is_empty());
+    assert_eq!(
+        engine.read_get("survivor", &fathomdb_engine::ReadView::default()).unwrap().unwrap().body,
+        format!("public revision {}", count - 1)
+    );
+    engine.close().unwrap();
+}

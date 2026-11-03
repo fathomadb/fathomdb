@@ -238,3 +238,11 @@ reference while preserving certificate publication, pinned snapshots, erasure
 ownership, rollback and WAL completion semantics. Measure the complete burst,
 including construction and publication; do not hide it in warmup or widen request
 budgets to make it qualify. No such optimization is implemented or qualified here.
+
+## Subsequent owner directions
+
+The [decision record and delivery sequence](../../../plans/current-history-followup-sequence.md)
+records the owner's choices and provisional decisions. These do not change the
+measurements or qualify production. The erasure approach requires approval before
+implementation; secure bulk-refresh comparison is approved; historical alternatives
+are evaluated in B-then-C order with private FTS retained as reference.

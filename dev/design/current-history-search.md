@@ -18,6 +18,27 @@ identifies the evidence needed before selecting production schema and routing.
 This document describes proposed behavior; [retrieval.md](retrieval.md) continues
 to describe shipped behavior. No release slice or accepted ADR is changed here.
 
+## Owner directions and implementation boundary
+
+The [decision record and staged follow-up](../plans/current-history-followup-sequence.md)
+records the owner's choices after the experiments. Erasure repair, current isolation
+and temporal functionality are separate milestones. The registered-family erasure
+approach awaits concrete approval before production implementation. The secure
+bulk-refresh POC is approved; historical probes test certified native reuse first,
+then selected statistics over persistent postings/partitions, with private FTS as
+reference and a possible bounded path. No production backend is selected yet.
+
+Explicit opt-in temporal operations, bounded admission with run-to-completion and
+a separate historical envelope are agreed directions, with numerical limits and
+release placement open. Atomic knowledge cuts/fragment evidence are a provisional
+preference; view-specific result/ranking units remain under evaluation. The minimal
+proposal reuses the writer/receipt boundary and stateless evidence where proven,
+and preserves existing body/property deduplication and graph target grouping.
+No general commit service, snapshot service or claim-ranking rewrite is approved.
+Astra-medium contract review precedes temporal implementation. Existing source
+policy, flags, G11 and public evidence contracts require explicit successors where
+changed; this proposal does not reinterpret them.
+
 ## Changes considered and applied
 
 | Change | Evidence after follow-ups | Production direction | Outstanding evidence |
@@ -68,7 +89,8 @@ and governing commit boundary. Ledger fragments may express multiple disjoint
 valid intervals at latest knowledge without adding multiple canonical heads.
 FTS/vector references must identify the selected fragment and its intrinsic
 source revision rather than substituting the current owner's body.
-Exact DDL, ownership and public carriers are outputs of P1, not settled by
+P1 established a scoped node mapping. Exact production DDL, ownership and public
+carriers remain outputs of the staged contract/design work, not settled by
 renaming POC tables. Temporal query support must not be claimed before this
 mapping and write transaction are implemented.
 
@@ -82,9 +104,9 @@ Anonymous existing content stays outside opt-in claim versioning.
 
 The accepted [G11 invalidation scope](../adr/ADR-0.8.1-graph-substrate-g11-migration.md)
 supersedes body-bearing edges by endpoint/relation tuple. Source-specific
-assertions must not silently bypass or redefine that rule. P1 must demonstrate
-how the ledger coexists with it, or identify the exact successor decision
-required before independent competing claims use the new production operation.
+assertions must not silently bypass or redefine that rule. P1 demonstrated the
+existing tuple-wide behavior; an explicit successor is still required before
+independent competing claims use the new production operation.
 Changes to corrected historical selection, governed heads and public read/write
 shapes likewise require the corresponding ADR/interface successor.
 

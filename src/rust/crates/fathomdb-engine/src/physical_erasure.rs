@@ -2,7 +2,6 @@ use super::*;
 use crate::vector_storage::DEFAULT_VECTOR_PARTITION;
 use serde::{Deserialize, Serialize};
 
-#[path = "physical_erasure_admission.rs"]
 mod admission;
 pub(crate) use admission::{
     certify_plain_write, closure_safe_boundary, envelope, guard_plain_write,

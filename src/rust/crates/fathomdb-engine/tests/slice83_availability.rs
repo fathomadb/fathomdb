@@ -361,3 +361,22 @@ fn refused_physical_request_does_not_leave_a_running_lifecycle_measurement() {
     assert_eq!(engine.physical_cleanup_metrics_for_test()["completed_lifecycle"]["count"], 1);
     engine.close().unwrap();
 }
+
+#[test]
+fn synchronous_finalization_profiles_its_writer_ownership() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = dependent_seed(&dir.path().join("finalization-profile.sqlite"));
+    engine.enable_physical_cleanup_metrics_for_test();
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_redacted_commit",
+        Box::new(|| {
+            std::thread::sleep(Duration::from_millis(20));
+            Ok(())
+        }),
+    );
+    engine.erase_source("target").unwrap();
+    let metrics = engine.physical_cleanup_metrics_for_test();
+    assert!(metrics["finalization_writer_hold"]["total_ns"].as_u64().unwrap_or(0) >= 20_000_000, "synchronous finalization ownership must include the injected post-redaction hold: {metrics}");
+    assert!(metrics["physical_writer_hold"]["total_ns"].as_u64().unwrap_or(0) >= 20_000_000);
+    engine.close().unwrap();
+}

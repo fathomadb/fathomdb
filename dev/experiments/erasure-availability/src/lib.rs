@@ -308,6 +308,89 @@ pub fn finalize_at(engine: &Engine, path: &Path, marker: &str, now: i64) -> Resu
 }
 
 /// Build the fixed measurement fixture (10% target owners, four retained revisions).
-pub fn build_campaign(_path: &Path, _family: &str, _secure: bool, _owners: usize) -> Result<()> {
-    Err("campaign fixture not implemented".into())
+pub fn build_campaign(path: &Path, family: &str, secure: bool, owners: usize) -> Result<()> {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance)?;
+    if path.exists() || owners < 10 || owners % 10 != 0 {
+        return Err("invalid new campaign fixture".into());
+    }
+    let engine = open(path)?;
+    if secure {
+        prepare_eager(&engine)?;
+    }
+    if family == "property" {
+        let specs = ["p1", "p2"]
+            .into_iter()
+            .map(|name| ProjectionSpec {
+                name: name.into(),
+                roles: BTreeSet::from([ProjectionRole::Searchable]),
+                fts: Some(ProjectionFts { tokenizer: None }),
+                vector: None,
+                source: None,
+            })
+            .collect::<Vec<_>>();
+        engine.configure_projections(&specs, &[])?;
+    }
+    if family == "edge" {
+        for start in (0..=owners).step_by(1000) {
+            let writes = (start..(start + 1000).min(owners + 1))
+                .map(|i| node(&format!("endpoint-{i}"), "endpoints", "stable endpoint"))
+                .collect::<Vec<_>>();
+            engine.write(&writes)?;
+        }
+    }
+    for revision in 0..5 {
+        for start in (0..owners).step_by(1000) {
+            let mut writes = Vec::new();
+            for i in start..(start + 1000).min(owners) {
+                let source = if i < owners / 10 { "target" } else { "survivor" };
+                let body = campaign_payload(i, revision, i < owners / 10);
+                let id = format!("owner-{i}");
+                writes.push(match family {
+                    "node" => node(&id, source, &body),
+                    "property" => {
+                        node(&id, source, &serde_json::json!({"p1":body,"p2":body}).to_string())
+                    }
+                    "edge" => PreparedWrite::Edge {
+                        kind: "rel".into(),
+                        from: format!("endpoint-{i}"),
+                        to: format!("endpoint-{}", i + 1),
+                        source_id: SourceId::new(source)?,
+                        logical_id: Some(id),
+                        body: Some(body),
+                        t_valid: None,
+                        t_invalid: None,
+                        confidence: None,
+                        extractor_model_id: None,
+                        temporal_fallback: None,
+                    },
+                    _ => return Err("unknown family".into()),
+                });
+            }
+            engine.write(&writes)?;
+        }
+        engine.drain(600_000)?;
+    }
+    engine.close()?;
+    Ok(())
+}
+fn campaign_payload(owner: usize, revision: usize, target: bool) -> String {
+    let word = if target { MARKER } else { "survivorneedle" };
+    let mut body = format!("{word} common owner{owner} revision{revision} ");
+    let words = [
+        "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "theta", "lambda", "kappa", "omega",
+        "sigma", "tau", "forest", "ocean", "desert", "river",
+    ];
+    let mut seed = 0x81f00d_u64 ^ (owner as u64).wrapping_mul(0x9e3779b97f4a7c15) ^ revision as u64;
+    while body.len() < 1016 {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        body.push_str(words[seed as usize % words.len()]);
+        body.push(' ');
+    }
+    body.truncate(1024);
+    while body.len() < 1024 {
+        body.push(' ');
+    }
+    body
 }

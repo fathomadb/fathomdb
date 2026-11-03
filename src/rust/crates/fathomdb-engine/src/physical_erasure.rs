@@ -298,12 +298,17 @@ pub(crate) fn sanitize_unit(c: &Connection) -> Result<bool, EngineError> {
         faultpoint("before_sanitation_commit")?;
         Ok(progress.phase == "finalizing")
     })?;
-    faultpoint("after_sanitation_unit")?;
     Ok(done)
 }
 
 pub(crate) fn sanitize(c: &Connection) -> Result<(), EngineError> {
-    while !sanitize_unit(c)? {}
+    loop {
+        let done = sanitize_unit(c)?;
+        faultpoint("after_sanitation_unit")?;
+        if done {
+            break;
+        }
+    }
     Ok(())
 }
 

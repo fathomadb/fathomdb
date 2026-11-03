@@ -620,7 +620,18 @@ impl Engine {
             }
             dependency_closure::validate_physical_closures(connection, closure_ids)?;
             physical_erasure::validate_pending(connection, closure_ids)?;
-            physical_erasure::sanitize(connection)?;
+        }
+        loop {
+            let done = {
+                let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+                let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+                physical_erasure::sanitize_unit(connection)?
+            };
+            physical_erasure::faultpoint("after_sanitation_unit")?;
+            if done {
+                break;
+            }
+            std::thread::yield_now();
         }
         if let Err(error) = self.complete_erasure_at_rest(verb) {
             let blocker = match &error {

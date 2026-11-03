@@ -101,8 +101,11 @@ def child(command, output, root, deadline):
                         last = resource_sample(process.pid, root)
                     except PermissionError as error:
                         # Linux may revoke /proc access while an exiting child retires.
-                        if (str(error.filename or '').startswith(f'/proc/{process.pid}/')
-                                and process.poll() is not None):
+                        if str(error.filename or '').startswith(f'/proc/{process.pid}/'):
+                            try:
+                                process.wait(timeout=.05)
+                            except subprocess.TimeoutExpired:
+                                raise error
                             break
                         raise
                     for key in peak:

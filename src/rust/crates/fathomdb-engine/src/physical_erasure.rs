@@ -287,14 +287,16 @@ fn validate_zero(c: &Connection, debt: &RootDebt) -> Result<(), EngineError> {
             return Err(EngineError::Storage);
         }
     }
-    for id in &debt.vectors {
-        let exists: bool = c
-            .query_row("SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)", [id], |r| {
-                r.get(0)
-            })
+    if !debt.vectors.is_empty() {
+        let mut probe = c
+            .prepare_cached("SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)")
             .map_err(|_| EngineError::Storage)?;
-        if exists {
-            return Err(EngineError::Storage);
+        for id in &debt.vectors {
+            let exists: bool =
+                probe.query_row([id], |r| r.get(0)).map_err(|_| EngineError::Storage)?;
+            if exists {
+                return Err(EngineError::Storage);
+            }
         }
     }
     Ok(())

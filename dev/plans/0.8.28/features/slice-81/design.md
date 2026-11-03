@@ -136,3 +136,24 @@ controller. C is a separate conditional group. Stage/commit each failing test
 before fixing it; never invent a failure where a baseline guard already passes.
 Astra code review and independent verification precede measurement. A final
 coverage/limitations table is mandatory before recommending any production seam.
+
+## Reviewed code-phase seam and boundary
+
+The execution reconciliation in [plan](plan.md#execution-reconciliation-2026-11-03)
+is authoritative for the bounded first implementation. Use a test-only Engine
+transaction callback with a `rusqlite::Transaction`, owned entirely under the
+writer mutex. Return the callback result and measured wait/hold durations; observe
+merge-only `total_changes` inside the callback before writing progress metadata.
+RAII rollback must finish before unlocking on every returned error. Reuse
+`checkpoint_at_rest_for_test` outside transactions; a busy checkpoint cannot
+advance a job to complete. Test the helper's rollback independently before use.
+
+Candidate sanitation follows native source erasure and does not modify native
+closures. Fresh A's secure-delete setting precedes population; legacy A rebuilds
+from surviving content. B uses one negative merge start followed by positive
+continuations and checks physical bytes independently of the no-work signal.
+The single-segment counterexample is a required physical probe. A persisted job
+may report blocked/rejected with its original deadline; no failed physical proof
+is complete. Native global admission, telemetry and source-closure contracts stay
+unchanged. Broad scoped fencing and safe staged publication require successors,
+not a switch that bypasses the current gate.

@@ -82,9 +82,8 @@ adoption blocker until later remediation; a successful POC cannot close it.
    missing required evidence is incomplete, not success. Size/approve the production
    repair separately. Merge/clean any task worktree/branch and push explicit refs.
 
-This request delivers planning files only; no POC code, run or product SLA is
-claimed. Prior approval of the POC direction persists, but a broad campaign or
-changed budgets must not be inferred from this scaffolding request.
+The owner authorized execution on 2026-11-03. The fixed experiment ceilings
+remain; production remediation and a numeric product SLA remain outside scope.
 
 ## Quality and validation
 
@@ -99,3 +98,46 @@ POC development run focused fmt/clippy/tests and failure replay; run the require
 final code gate once when source/test/executable changes land, with scoped repairs.
 An experiment-crate pass is not integrated AC-076/081 or release qualification.
 CI inspection/actions use `gh` only. No Steward or Orchestrator role is used.
+
+## Execution reconciliation (2026-11-03)
+
+Reviewed the drafted package at `a81ec9928`, its references, the assigned A/B/C
+mechanisms and H81-1 through H81-6, and changes since its original baseline.
+Only the planning commit follows `3fc2df15e`; no intervening product change needs
+porting. Slice 80, governed fixtures and the existing failing erasure probe remain
+reusable evidence. No new draft item or production repair is allocated here.
+
+Code inspection and Astra design review adjust execution as follows:
+
+1. Pinned SQLite can return no merge work for a single ordinary FTS segment even
+   while deleted terms remain. Add a mandatory positive-prepresence single-segment
+   legacy probe for every populated family. Reject B in a demonstrated unsafe
+   state; never repair B silently with A's rebuild.
+2. All registered FTS modes are ordinary content-storing tables. Inventory node,
+   edge and property independently; `search_index_v2` has a legitimate projector population path; record actual
+   fixture counts and witnesses rather than presume it dormant. Contentless work is inapplicable.
+3. `execute_for_test` does not roll back a failed explicit transaction before
+   unlocking. Add only a test-gated atomic writer transaction helper with RAII
+   rollback, wait/hold timings and merge change observations. Existing checkpoint
+   hooks suffice. No native fence bypass is approved.
+4. The candidate job is family sanitation after native source erasure, not a new
+   deferred public erasure API. It may measure real Engine writes between units
+   with no native pending closure. Native pending-closure availability remains
+   separately tested and unqualified; exclusive-adapter restrictions cannot pass
+   that product claim. Public retrieval routes are not candidate-safe by inference.
+5. Run safety gates before building a scheduler or timed campaign. A physical
+   counterexample rejects that candidate/state and its dependent performance
+   cells receive explicit safety-rejected dispositions. If B cannot satisfy the
+   required legacy envelope, do not build an SLA scheduler around it. C remains
+   conditional and may be rejected on reviewed staging/retirement scope grounds.
+   Missing evidence still means incomplete; a demonstrated rejection must identify
+   precisely which claim it falsifies. Preserve successful A witnesses separately.
+
+Astra-medium reviewed these changes and the narrow transaction seam before code.
+Implementation order is baseline controls, atomic transaction RED/GREEN, A physical
+proofs, B protocol and single-segment probe, durable rollback/restart and blocked
+finalization, then only measurements whose safety prerequisites pass. Independent
+verification reproduces physical controls, failed-work rollback, restart, writer
+progress, blocked checkpoint retry and any controller introduced. Astra reviews
+code and interpretation. Results must map every requirement/hypothesis and all
+24 planned cells, controls and supplements to supported dispositions.

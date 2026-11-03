@@ -39,9 +39,9 @@ Sources: [reference index](README.md#references), particularly S81-2/3/4/6/9.
 
 ## Slice completion rule
 
-The planning deliverable is complete when these linked documents and release
-placement are reviewed and validated. Experiment execution remains NOT STARTED.
-Later Slice 81 execution closes only when required safety proofs and planned
+Execution is authorized by the owner on 2026-11-03 and follows the reviewed
+[execution reconciliation](plan.md#execution-reconciliation-2026-11-03).
+Slice 81 execution closes only when required safety proofs and planned
 cells have supported dispositions, independent verification and Astra review.
 An unsafe mechanism can be rejected without measuring its performance. A
 conclusive rejection is a valid POC result; missing safety evidence or campaign
@@ -50,3 +50,10 @@ exhaustion is not a passing candidate or an automatically complete slice.
 No integrated product latency or physical-erasure defect is qualified/closed by
 these local criteria. The eventual production change must preserve existing
 AC-076/081 and affected vector/stress criteria under their original protocols.
+
+P81-A05 additionally requires a single-segment legacy counterexample test for B;
+merge no-work is not a physical-removal oracle. P81-A07 reports experimental
+maintenance writer progress separately from native pending-closure availability.
+Scheduler, broad routing and comparative performance obligations dependent on a
+safe candidate receive explicit rejected/not-run dispositions if its physical
+safety prerequisite fails; they cannot be reported as passing or as an SLA.

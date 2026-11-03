@@ -75,7 +75,10 @@ impl PhysicalMaintenance {
                         Ok(guard) => guard
                             .as_ref()
                             .is_some_and(|c| physical_erasure::active(c).unwrap_or(true)),
-                        Err(_) => false,
+                        // Contention cannot prove there is no debt. Assert the
+                        // maintenance turn before waiting so ordinary writers
+                        // cannot hide pending work at every poll.
+                        Err(_) => true,
                     };
                     if !active {
                         continue;

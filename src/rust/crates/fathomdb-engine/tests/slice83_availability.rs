@@ -142,7 +142,7 @@ fn unrelated_survivor_updates_progress_while_registered_debt_is_sanitizing() {
 fn unsupported_native_envelope_refuses_before_deletion_or_debt() {
     let dir = tempfile::tempdir().unwrap();
     let engine = Engine::open(dir.path().join("envelope.sqlite")).unwrap().engine;
-    engine.write(&[node("target", "target", &"x".repeat((1 << 20) + 1))]).unwrap();
+    engine.write(&[node("target", "target", &"x".repeat((2 << 20) + 1))]).unwrap();
     assert!(
         matches!(engine.erase_source("target"), Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "physical_admission")
     );

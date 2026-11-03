@@ -34,7 +34,7 @@ canonical rows, 1,000,000 registered vector mappings, or 64 MiB of provenance/
 receipt metadata. These checks execute under the writer lock before target-set
 collection. A target set above 16,384 cursors refuses before destructive work;
 within the finite store envelope the discovery allocation is bounded. Canonical
-body size is capped at 1 MiB per row and 256 MiB total for this admission path.
+body size is capped at 2 MiB per row and 256 MiB total for this admission path.
 These are internal supported-work limits, not new SDK configuration. No data is
 removed on refusal; offline recovery remains separately controlled.
 A row limit is not a duration bound. The admitted immutable cursor cut, closure
@@ -171,3 +171,8 @@ binding contract descriptions must retain synchronous physical success and
 truthful incomplete errors. The final status reports supported mutation envelope,
 measured pauses and all external-reader/sink/downtime exclusions. The end-of-slice
 HITL choice of physical guarantee/API remains open even when engineering passes.
+
+Independent verification found the existing Phase 82 large-input fixture is
+1,050,028 bytes, slightly above an exact MiB. Retain that existing oracle and
+provide 2-MiB per-row admission headroom; the new boundary test follows the
+revised limit. Total body/file/metadata ceilings remain unchanged.

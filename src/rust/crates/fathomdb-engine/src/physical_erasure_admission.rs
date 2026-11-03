@@ -59,7 +59,7 @@ pub(crate) fn envelope(c: &Connection) -> Result<(), EngineError> {
     }
     if rows > 100_000
         || bytes > 256 << 20
-        || largest > 1 << 20
+        || largest > 2 << 20
         || vectors > 1_000_000
         || metadata > 64 << 20
     {

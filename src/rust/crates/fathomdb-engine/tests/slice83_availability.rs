@@ -349,3 +349,15 @@ fn stage_profile_measures_native_writer_ownership_separately_from_sanitation() {
     assert_eq!(metrics["completed_lifecycle"]["count"], 1);
     engine.close().unwrap();
 }
+
+#[test]
+fn refused_physical_request_does_not_leave_a_running_lifecycle_measurement() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = dependent_seed(&dir.path().join("refused-profile.sqlite"));
+    engine.enable_physical_cleanup_metrics_for_test();
+    assert!(engine.purge("subject").is_err(), "purge requires deleted-first");
+    assert_eq!(engine.physical_cleanup_metrics_for_test()["_unfinished_lifecycle"], false, "a request refused before durable admission cannot contaminate a later operation's lifecycle");
+    engine.erase_source("target").unwrap();
+    assert_eq!(engine.physical_cleanup_metrics_for_test()["completed_lifecycle"]["count"], 1);
+    engine.close().unwrap();
+}

@@ -78,14 +78,22 @@ impl Engine {
     /// Return overlapping stage count, total and maximum nanoseconds; no latency guarantee.
     #[doc(hidden)]
     pub fn physical_cleanup_metrics_for_test(&self) -> serde_json::Value {
+        let pending = self
+            .physical_maintenance
+            .metrics
+            .started
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .is_some();
         let stages =
             self.physical_maintenance.metrics.stages.lock().unwrap_or_else(|p| p.into_inner());
-        let values: serde_json::Map<String, serde_json::Value> = stages
+        let mut values: serde_json::Map<String, serde_json::Value> = stages
             .iter()
             .map(|(name, (count, total, max))| {
                 (name.to_string(), serde_json::json!({"count":count,"total_ns":total,"max_ns":max}))
             })
             .collect();
+        values.insert("_unfinished_lifecycle".into(), serde_json::json!(pending));
         serde_json::Value::Object(values)
     }
 }

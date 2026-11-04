@@ -14,7 +14,8 @@ execution_model: direct; no Steward or Orchestrator; starts when 0.8.28 enters f
 - **Agent access.** It finishes agent-access Block 1 (the queue, hints,
   snippets and the MCP server, already merged on `dev/0.8.29`), clears its
   19 follow-up todos, and designs and builds Block 2 (agent feedback
-  signals).
+  signals). Slice 60 also exposes 0.8.28 Slice 90's filtered body FTS
+  through MCP text search (owner direction 2026-11-04).
 - **Search at scale.** It removes the per-search costs that grow with store
   size: the remaining eligibility scan and the text arm's content reads.
   It also adds a tracked AC at 100,000 records.
@@ -72,7 +73,7 @@ start. They record why the order matters.
 | 30 | Slice 60 (store format 35) | The AC-083 baseline must be measured on the format that ships. The harness can be built first |
 | 40 | Slice 70 (vector eligibility in vec0) | Slice 70 removes the vector-row scan. Slice 40 caches the scan that is left |
 | 50 | Slice 60 (`search_index` rowid = `write_cursor`) | The deferred-content text arm reads content by `write_cursor` |
-| 60 | Slice 80 (search view flags) | MCP exposes the flags that Slice 80 adds to the engine |
+| 60 | Slices 80 (search view flags) and 90 (D28-14 filtered body FTS) | MCP exposes the view flags and forwards SearchFilter on direct text search before engine candidate caps |
 | 70 | Slice 70 | Degradation labels must describe the new fallback behaviour |
 | 100 | Slice 70 | Erasure must remove the new vec0 columns |
 | 80, 90 | Slice 60 (the vector-span table) | B2-8 reports coverage from the table that format 35 ships |
@@ -112,6 +113,12 @@ on 2026-10-31, as AGENTS.md requires.
 - **Per slice:** requirements and AC are written in each slice's
   `requirements.md` and reviewed before design. Identifiers are
   release-local (R29 and AC29).
+- **Slice 60 filtered body FTS:** the
+  [requirements and acceptance criteria](0.8.29/features/slice-60/requirements.md)
+  allocate R29-60-FTS1–5 and AC29-60-FTS1–6 to exposing 0.8.28 Slice 90 through
+  MCP `search` in `text` mode. Include them in Slice 60 requirements/design review
+  alongside compact output and view flags. Merge/reconcile the upstream SDK
+  filter and existing snippet options first; no new engine behavior is allocated.
 - **One governed addition:** **AC-083**, authorized by the owner on
   2026-10-31, is added to the locked `dev/acceptance.md` in Slice 30.
   - **What it measures:** hybrid search at 100,000 records on LongMemEval
@@ -172,7 +179,8 @@ run while 0.8.28 finishes final verification.
   - The AC-083 text and the ADR notes (fusion identity, eligibility cache,
     the AC-083 successor).
   - The Block 2 requirements (B2-1 to B2-8).
-  - The MCP view-flag contract. Allocate each to one slice.
+  - The MCP view-flag and filtered body-FTS contracts (0.8.28 Slices 80/90),
+    both allocated to Slice 60; retain their requirements and acceptance criteria.
 - **Slice 4 — architecture alignment.**
   - The fusion identity key against Slice 71's design.
   - Cached against native eligibility, after 0.8.28 Slice 70.
@@ -183,7 +191,8 @@ run while 0.8.28 finishes final verification.
     and the MCP conformance gaps (9 pass, 24 fail at the Block 1
     baseline).
 - **Slice 6 — stale documentation.**
-  - `dev/interfaces/rust.md` and `mcp.md` once the view flags ship.
+  - `dev/interfaces/rust.md` and `mcp.md` once view flags and filtered body FTS
+    ship; remove MCP's obsolete hybrid-only filter descriptions in Slice 60.
   - The Block 1 design docs against the built code.
   - The AC-072 tier text.
 - **Slice 7 — build and delivery evidence.**
@@ -233,13 +242,13 @@ The checkpoint is a planning decision, so it sits in Slice 9.
 | 30 | SCALE-MEASUREMENT | AC-083 harness and entry; drain-linearity check; re-measured baselines; the Block 1 measurement todos; the 300k and outlier traces; query-embedding cost; populated-open latency | R7; W5: 298, 299, 303, 304; 355, 356, 357, 358, 360 (TC-a3ad0d49) |
 | 40 | ELIGIBILITY-CACHE | Cache the remaining eligibility answer (`all_nodes_directly_eligible`) per read-visibility generation; read the vector attribute columns once per worker batch | R4; R6 (354, TC-0be48ca9) |
 | 50 | TEXT-ARM | Fusion identity ADR first (distinct records with byte-identical bodies; the vector stage yields one candidate per record, so overflow chunks cannot crowd the pool); then the deferred-content text arm with its fusion variant; record-start snippets skip full-body segmentation | W7: 295; R5 (code half); W4: 292 |
-| 60 | MCP-SURFACE | The compact text block with `text` as default (17 RED tests); `include_superseded` and `include_inactive` on MCP search | W6: 316/317; the MCP half of 0.8.28 Slice 80 |
+| 60 | MCP-SURFACE | The compact text block with `text` as default (17 RED tests); `include_superseded` and `include_inactive` on MCP search; all existing SearchFilter fields on direct body FTS in text mode, before candidate caps, ranking and limits ([requirements/AC](0.8.29/features/slice-60/requirements.md)) | W6: 316/317; MCP exposure of 0.8.28 Slices 80 and 90 (D28-14) |
 | 70 | DEGRADATION-SDK | EP-03 degradation labels for an arm timeout and an absent embedder; facade re-exports; UTF-8 byte offsets documented; `SnippetOptions` binding parity | W2: 301; W3: 297, 310 |
 | 80 | BLOCK2-DESIGN | One design for B2-1 to B2-8; check B2-7 against the built queue; B2-1 agrees with compact text. B2-8 reads the span table that 0.8.28 Slice 60 ships, and reports the snippet's scored extent as a byte span | B2-8 (TC-5b647921, approved 2026-10-31) |
 | 90 | BLOCK2-BUILD | Build Block 2, including B2-8's `orient` coverage and snippet span | — |
 | 100 | ERASURE-INTERRUPTION | D28-09: erasure interrupted inside a transaction or WAL checkpoint, with reopened-state and physical-erasure oracles | D28-09 |
 | 110 | CUDA-CONTEXT-RESET | Survive a CUDA context reset, designed from the 0.8.28 Slice 30 instrumentation data | 281, 285 |
-| 120 | CLOSE | CHANGELOG (the `#[non_exhaustive]` break, the `text` default, the view flags); LoCoMo agent smoke (priced, approved); release qualification | W8: 308/319, 305 |
+| 120 | CLOSE | CHANGELOG (the `#[non_exhaustive]` break, the `text` default, the view flags, filtered text-mode MCP search); LoCoMo agent smoke (priced, approved); release qualification | W8: 308/319, 305 |
 
 **Why it is grouped this way:**
 

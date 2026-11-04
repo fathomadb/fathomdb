@@ -232,6 +232,14 @@ closed), rather than filtering in the adapter.
 
 ## Finding
 
+**0.8.29 Slice 60 addition (owner, 2026-11-04):** expose 0.8.28 Slice 90's
+closed SearchFilter on MCP `search` in `text` mode, as well as hybrid mode.
+The [release-local requirements and acceptance criteria](../../plans/0.8.29/features/slice-60/requirements.md)
+define pre-cap node/edge selection, metadata availability, provider-free use,
+view composition, validation, continuation identity and output-format parity.
+This supersedes the text-mode filter refusal when Slice 60 is implemented;
+it does not implement MR-020's separate exact-literal/phrase proposal.
+
 **MR-020 — Exact constraints compose with relevance search.** A caller can
 require that every result contain an exact literal token or phrase, combined
 with relevance ranking and structural filters, in one call. Meets AN-004.

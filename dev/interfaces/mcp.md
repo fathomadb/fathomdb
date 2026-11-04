@@ -187,6 +187,15 @@ engine rejects them on every search path (`reject_existence_relaxation_on_search
 because projection indexes are not version-complete. History is a `fetch`
 concern. Unknown arguments are `invalid_request/bad_argument`.
 
+**Planned for 0.8.29 Slice 60:** the current text-mode filter refusal and
+hybrid-only filter descriptions above are replaced by Slice 90's filtered
+body-FTS contract. All five existing filter fields will be accepted in text
+mode, before engine candidate caps and ranking, composing with the planned view
+flags. Status/time keep existing projected-metadata availability rules; text
+search performs no inference. See the [planned requirements and acceptance
+criteria](../plans/0.8.29/features/slice-60/requirements.md). This is allocated
+work, not support implemented by the current adapter.
+
 Result adds:
 
 - `response_id`: string `r<epoch>-<hash>`, for `feedback`, where `<hash>` is

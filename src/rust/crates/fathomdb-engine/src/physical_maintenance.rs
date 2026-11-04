@@ -72,9 +72,11 @@ impl PhysicalMaintenance {
                     }
                     drop(stop);
                     let active = match connection.try_lock() {
-                        Ok(guard) => guard
-                            .as_ref()
-                            .is_some_and(|c| physical_erasure::active(c).unwrap_or(true)),
+                        Ok(guard) => guard.as_ref().is_some_and(|c| {
+                            connection_runtime::internal_debt_probe(|| {
+                                physical_erasure::active(c).unwrap_or(true)
+                            })
+                        }),
                         // Contention cannot prove there is no debt. Assert the
                         // maintenance turn before waiting so ordinary writers
                         // cannot hide pending work at every poll.
@@ -95,7 +97,8 @@ impl PhysicalMaintenance {
                         drop(waiting);
                         let holding = metrics.timer("maintenance_writer_hold");
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
-                        if !physical_erasure::active(c)? {
+                        if !connection_runtime::internal_debt_probe(|| physical_erasure::active(c))?
+                        {
                             return Ok(false);
                         }
                         metrics.begin_lifecycle();
@@ -206,6 +209,41 @@ mod tests {
         assert_eq!(idle, 0, "idle scheduler probes must not dispatch subscriber callbacks");
         assert!(foreground > idle, "foreground profiling remains observable");
         assert!(cleanup > foreground, "actual cleanup profiling remains observable");
+    }
+
+    #[test]
+    fn nested_probe_error_restores_subscriber_profiling() {
+        #[derive(Default)]
+        struct Profiles(AtomicUsize);
+        impl lifecycle::Subscriber for Profiles {
+            fn on_event(&self, _: &lifecycle::Event) {}
+            fn on_profile(&self, _: &lifecycle::ProfileRecord) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let engine = Engine::open(directory.path().join("probe-error.sqlite")).unwrap().engine;
+        engine.physical_maintenance.stop();
+        engine.set_profiling(true).unwrap();
+        let profiles = Arc::new(Profiles::default());
+        let subscription = engine.subscribe(profiles.clone());
+        let guard = engine.connection.lock().unwrap();
+        let c = guard.as_ref().unwrap();
+        let result: Result<(), rusqlite::Error> = connection_runtime::internal_debt_probe(|| {
+            let nested: Result<i64, _> = connection_runtime::internal_debt_probe(|| {
+                c.query_row("SELECT missing_column FROM missing_probe_table", [], |r| r.get(0))
+            });
+            assert!(nested.is_err());
+            let _: i64 = c.query_row("SELECT 1", [], |r| r.get(0)).unwrap();
+            assert_eq!(profiles.0.load(Ordering::SeqCst), 0);
+            nested.map(|_| ())
+        });
+        assert!(result.is_err());
+        let _: i64 = c.query_row("SELECT 2", [], |r| r.get(0)).unwrap();
+        assert_eq!(profiles.0.load(Ordering::SeqCst), 1);
+        drop(guard);
+        drop(subscription);
+        engine.close().unwrap();
     }
 
     #[test]

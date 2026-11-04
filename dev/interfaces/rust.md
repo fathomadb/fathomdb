@@ -557,6 +557,10 @@ subscriber only; it has no heartbeat-cadence option and does not itself
 produce operation heartbeats. The payload semantics remain owned by
 `design/lifecycle.md` and `design/migrations.md`.
 
+Cleanup-scheduler debt-presence probes are excluded from subscriber profile and
+slow-statement callbacks. Foreground statements and actual cleanup work retain
+their configured instrumentation; see the profiling contract in `design/lifecycle.md`.
+
 ## Companion embedder contract
 
 The Rust workspace also exposes the semver-stable companion crate

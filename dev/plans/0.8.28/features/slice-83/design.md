@@ -220,3 +220,24 @@ The frozen campaign masters contain only the tracked 61 managed trigger
 definitions and the driver creates no TEMP triggers. Retain those preceding
 measurements with their exact source IDs, and qualify the final guard with a
 separately labeled representative paired/control smoke within the shared budget.
+
+## Final gate corrections (Astra approved)
+
+Snapshot-free connection diagnostics bypass reader admission. Their enqueue and
+reply paths are bounded, including when a data request already waits ahead of
+them. Missing boolean inventory replies reduce cardinality and cannot establish
+an idle pool; native inventory reports timeout explicitly. The private diagnostic
+budget is 250 ms per worker, up to eight workers, separate from the 100-ms reader
+drain. Actual data requests and snapshot-holding test controls remain gated.
+
+Reader admission ends after helper-local SQLite values have dropped and before
+materialized-response handoff hooks. A parked response owns no snapshot. When
+the finite drain refuses, the synchronous path retains real bounded checkpoint
+observations, but always returns the original incomplete result and performs no
+journal scrubbing or completion, even if a subsequent probe succeeds.
+
+The worker's two internal debt-presence probes suppress only subscriber profile
+and slow-statement callbacks with nested, thread-local scope restoration. Actual
+cleanup remains observable. This avoids idle telemetry callbacks interfering
+with shutdown; it does not promise completion while an application blocks a
+callback from active work. Internal statement-count hooks remain active.

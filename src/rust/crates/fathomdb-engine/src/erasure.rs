@@ -658,7 +658,17 @@ impl Engine {
         let reader_admission = self.reader_pool.physical_admission();
         let drain = self.physical_maintenance.metrics.timer("reader_drain");
         let _reader_pause = self.physical_maintenance.metrics.timer("reader_pause");
-        let _readers = reader_admission.pause()?;
+        let _readers = match reader_admission.pause() {
+            Ok(readers) => readers,
+            Err(error) => {
+                drop(drain);
+                drop(_reader_pause);
+                // Preserve actual bounded checkpoint observations, but a failed
+                // drain never authorizes journal scrubbing or completion.
+                let _ = self.checkpoint_erasure_at_rest(verb);
+                return Err(error);
+            }
+        };
         drop(drain);
         self.discharge_pending_redactions(verb)?;
         {
@@ -1076,9 +1086,6 @@ impl Engine {
             },
         })?;
         drop(queue);
-        self.finish_redacted_before_request()?;
-        let _physical_attempt = self.physical_attempt();
-
         #[cfg(feature = "test-hooks")]
         {
             if let Some(hook) = self
@@ -1091,6 +1098,9 @@ impl Engine {
             }
             slice15_erasure_lock_hook::fire();
         }
+
+        self.finish_redacted_before_request()?;
+        let _physical_attempt = self.physical_attempt();
 
         let pending = {
             let connection = self.physical_writer(false)?;
@@ -1174,7 +1184,10 @@ impl Engine {
         // runs AFTER the pending rows have been deleted, so the freed pages
         // holding them (zeroed by `secure_delete=ON`) are checkpointed out too.
         self.discharge_pending_redactions(verb)?;
+        self.checkpoint_erasure_at_rest(verb)
+    }
 
+    fn checkpoint_erasure_at_rest(&self, verb: &'static str) -> Result<(), EngineError> {
         let mut last: Option<TruncateWalReport> = None;
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
             self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");

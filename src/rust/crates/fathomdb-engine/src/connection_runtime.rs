@@ -34,6 +34,21 @@ pub(crate) struct ProfileContext {
     pub(crate) callback_uninstalled: AtomicBool,
 }
 
+thread_local! {
+    static INTERNAL_DEBT_PROBE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+pub(crate) fn internal_debt_probe<T>(probe: impl FnOnce() -> T) -> T {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            INTERNAL_DEBT_PROBE.with(|state| state.set(self.0));
+        }
+    }
+    let _restore = Restore(INTERNAL_DEBT_PROBE.with(|state| state.replace(true)));
+    probe()
+}
+
 #[cfg(not(test))]
 pub(crate) type ProfileContexts = Vec<Box<ProfileContext>>;
 
@@ -435,6 +450,12 @@ unsafe extern "C" fn profile_callback_trampoline(
 
     #[cfg(feature = "test-hooks")]
     record_slice71_profile_statement_for_test(sql_text);
+
+    // Scheduler probes must not introduce idle subscriber callbacks. Actual
+    // cleanup statements and foreground work retain their normal profiling.
+    if INTERNAL_DEBT_PROBE.with(std::cell::Cell::get) {
+        return;
+    }
 
     let wall_clock_ms = nanoseconds / 1_000_000;
 

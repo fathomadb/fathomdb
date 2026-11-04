@@ -170,3 +170,26 @@ fn queued_importance_cannot_mutate_selected_root() {
 fn queued_projection_cannot_rebuild_selected_root() {
     queued_admin_refusal("projection");
 }
+
+#[test]
+fn indexed_phase_and_key_cannot_diverge_from_queue_authority() {
+    for assignment in [
+        "phase='complete'",
+        "idempotency_key='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+        "ticket='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'",
+    ] {
+        let (_dir, engine) = fixture();
+        let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+        handle
+            .queue_physical_erasure(
+                PhysicalErasureSelector::SourceAllAtCut { source_id: "target-source".into() },
+                KEY,
+            )
+            .unwrap();
+        handle.close().unwrap();
+        let altered =
+            engine.execute_for_test(&format!("UPDATE _fathomdb_erasure_requests SET {assignment}"));
+        assert!(altered.is_err(), "indexed queue authority must reject divergence: {assignment}");
+        assert!(engine.write(&[node("target", "target-source")]).is_err());
+    }
+}

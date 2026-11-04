@@ -12,16 +12,16 @@ in the [follow-up sequence](current-history-followup-sequence.md#ch1--two-phase-
 HITL approved the Astra-reviewed plan on 2026-11-03 and allocated Phase 1 to
 [Slice 82](0.8.28/features/slice-82/plan.md) and Phase 2 to
 [Slice 83](0.8.28/features/slice-83/plan.md), both before Slice 90.
-Slice 82 is complete; the live remaining ladder is 83 → 90. Its exact design,
-Astra reviews, implementation and qualification are recorded in
-[status](0.8.28/features/slice-82/status.md). Slice 83 has not started and retains
-its specified pre-code design and review gate.
-
-At the end of Phase 2, HITL will decide the physical-erasure guarantee. HITL is
-considering a specific API callers could invoke to ensure physical cleanup.
-That is an end-of-Slice-83 consideration: neither its existence, shape, blocking
-behavior nor guarantee is selected here. Approval of these phases covers
-engineering and evidence, not a new numerical SLA or weaker existing success rule.
+Both phases and the 84/84b investigations are complete; the optimization
+sequence is set aside. See [82 status](0.8.28/features/slice-82/status.md),
+[83 status](0.8.28/features/slice-83/status.md) and the
+[durable synthesis](../notes/erasure-optimization-sequence-findings.md).
+HITL resolved the original end-of-83 contract/API decision on 2026-11-04 by
+approving [explicit maintenance](../design/explicit-maintenance-erasure/contract.md)
+and assigning a separate clean [Slice 85](0.8.28/features/slice-85/plan.md).
+The live remaining ladder is 85 → 90. No numerical SLA/deadline is approved.
+The phase requirements below remain the historical 82/83 scope; Slice 85's plan
+owns successor implementation and qualification.
 
 ## Evidence and changes to the earlier proposal
 
@@ -246,8 +246,9 @@ physical deadline or invent an API to qualify as complete under this scope.
 
 ## End-of-Slice-83 HITL decision: physical-erasure guarantee
 
-Bring back actual results and an explicit contract choice. This decision remains
-open even if both phases pass their engineering acceptance:
+The original decision questions below are retained as the Phase 2 closeout
+record. HITL answered them through the approved explicit-maintenance contract
+on 2026-11-04; Slice 85 implements that choice. No stronger deadline is approved:
 
 1. Declared physical scope and what the application can observe/prove, including
    current-format old sanitation debt and original external-sink obligations.
@@ -288,7 +289,9 @@ require the specified Astra review before code.
 Slices 81–84b are complete. The [full write-up](../notes/erasure-optimization-sequence-findings.md)
 records delivered correctness/recovery, measured costs, rejected optimizations
 and exact limits. HITL set aside further optimization on 2026-11-04. The original
-end-of-83 guarantee/API decision remains open: the [explicit maintenance contract
-and API proposal](../design/explicit-maintenance-erasure/README.md) now prepares
-that decision, with Astra proposal review approved and owner approval pending
-before implementation.
+end-of-83 guarantee/API decision was resolved by HITL approval on 2026-11-04:
+[explicit maintenance](../design/explicit-maintenance-erasure/README.md) is
+assigned to a separate clean [Slice 85](0.8.28/features/slice-85/plan.md).
+The approved contract includes unchanged queued logical state, exclusive physical
+cleanup, durable incomplete fences and a fresh-store format revision, with no
+physical deadline. Detailed pre-code design and qualification gates remain.

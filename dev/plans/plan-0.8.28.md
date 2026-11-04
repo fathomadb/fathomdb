@@ -167,29 +167,32 @@ These explicit placements do not change this policy for other gaps.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 90** (`FILTERED-BODY-FTS`) — D28-14: SearchFilter on direct node and edge body FTS-only search (search_text_only / searchTextOnly), applied before truncation, ranking and limit
+**IMMEDIATE NEXT: Slice 85** (`EXPLICIT-ERASURE-MAINTENANCE`) — Explicit physical-erasure maintenance: approved opt-in policy, queued intent, exclusive cleanup API and fresh-store format boundary
 
-**Remaining ladder:** 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 85 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
 Slices 60, 70 and 80 are complete on `dev/0.8.28` and `release/0.8.28`.
 Slices 81–84, including 84b, are complete. Both cleanup optimization candidates
 were rejected after failed service qualification; baseline production is retained.
-Slice 90 is next. The
-physical-erasure guarantee/API decision is held at the end of 83. After 90 comes
+Slice 85 is next, then 90. HITL resolved the original end-of-83 guarantee/API
+decision on 2026-11-04 by approving explicit maintenance and assigning Slice 85.
+The new format and API are planned, not yet implemented. After 90 comes
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
 
-## Erasure sequence disposition and pending contract
+## Erasure sequence disposition and approved contract
 
 Owner 2026-11-04 set aside further cleanup optimization after the completed
 84/84b negative investigations. The [full synthesis](../notes/erasure-optimization-sequence-findings.md)
 records Slices 81–84b. A separately reviewed [explicit maintenance contract/API
-proposal](../design/explicit-maintenance-erasure/README.md) is being brought back
-for approval before implementation. The original end-of-83 guarantee/API decision
-remains open; no new API, guarantee, experiment or slice is authorized here.
+contract](../design/explicit-maintenance-erasure/README.md) was approved by HITL
+on 2026-11-04 for a separate clean [Slice 85](0.8.28/features/slice-85/plan.md).
+That resolves the original end-of-83 decision. No deadline, immediate revocation
+subsystem or renewed optimization campaign is approved. Exact pre-code design
+and numerical qualification gates remain; current schema stays 35 until delivery.
 
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 
@@ -336,6 +339,11 @@ requirements say otherwise.
 - **Slice 84 — cleanup contention.** Preserve the Slice 83 physical-success
   contract while measuring and reducing cleanup contention.
   [Plan](0.8.28/features/slice-84/plan.md), local acceptance S84-1–7.
+- **Slice 85 — explicit erasure maintenance (`EXPLICIT-ERASURE-MAINTENANCE`).**
+  Approved opt-in manual policy, bounded queued intent, exclusive maintenance
+  handle, typed complete/incomplete outcomes and fresh-store format revision.
+  [Plan](0.8.28/features/slice-85/plan.md), local acceptance S85-1–8.
+  Prepared for separate execution; pre-code Astra design review remains required.
 - **Slice 90 — filtered direct body FTS (D28-14).** It follows the
   [draft scope](0.8.28-draft-scope.md#d28-14-filtered-direct-body-fts).
   It builds on Slice 80's view admission in all three bindings; the direct
@@ -358,4 +366,5 @@ requirements say otherwise.
 | 82 | CH1 Phase 1: physical correctness and native cost | [Plan](0.8.28/features/slice-82/plan.md) |
 | 83 | CH1 Phase 2: native resumability/availability; guarantee/API decision at end | [Plan](0.8.28/features/slice-83/plan.md) |
 | 84 | Cleanup contention and certification cost | [Plan](0.8.28/features/slice-84/plan.md) |
+| 85 | Explicit physical-erasure maintenance and format boundary | [Plan](0.8.28/features/slice-85/plan.md) |
 | 90 | D28-14 filtered direct body FTS | to be written |

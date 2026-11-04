@@ -127,8 +127,11 @@ than the older candidate intake below. Slice 81's erasure-availability POC is
 complete; its [results](experiments/erasure-availability/RESULTS.md) do not qualify
 a production erasure fix or SLA. The approved [CH1 plan](plans/ch1-production-erasure-plan.md)
 is assigned to Slice 82 (physical correctness/native cost) and Slice 83
-(resumability/availability), then Slice 90. HITL decides the physical-erasure
-guarantee and considers a specific cleanup API at the end of 83.
+(resumability/availability), then Slice 90. HITL resolved the original end-of-83 contract/API decision on 2026-11-04 by
+approving [explicit maintenance](design/explicit-maintenance-erasure/contract.md)
+and assigning [Slice 85](plans/0.8.28/features/slice-85/plan.md), then 90.
+Queued eligibility remains unchanged until maintenance; the approved fresh-store
+format revision/API are not implemented yet and introduce no numerical deadline.
 
 | ID | Candidate work | Proof required before promotion |
 | --- | --- | --- |

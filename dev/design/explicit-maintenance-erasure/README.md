@@ -1,6 +1,6 @@
 ---
 title: Explicit maintenance erasure — approval package
-status: PROPOSED
+status: ACTIVE
 date: 2026-11-04
 ---
 
@@ -9,7 +9,9 @@ date: 2026-11-04
 The completed [optimization write-up](../../notes/erasure-optimization-sequence-findings.md)
 sets aside the Slices 81–84b optimization sequence. HITL requested a concrete
 contract and explicit cleanup API proposal, Astra review, then approval before
-implementation. This package changes no production contract or release allocation.
+implementation. HITL approved the contract on 2026-11-04 and assigned implementation to
+[Slice 85](../../plans/0.8.28/features/slice-85/README.md). This preparation
+changes no production implementation or schema.
 
 | Document | Purpose |
 | --- | --- |
@@ -27,9 +29,12 @@ no blocking findings. Four initial findings were resolved: admissibility/queued
 withdrawal, offline activated-ticket reconciliation, original-sink reattachment,
 and older-binary refusal through an approval-required fresh-store format break.
 
-Approval must explicitly cover unchanged logical eligibility until maintenance
-and the fresh-store deployment cost. Exact ownership/guard/index design, metadata
-limits and qualification thresholds retain their preimplementation review gates.
-No production implementation is authorized by review approval. The original
-end-of-Slice-83 physical-erasure guarantee/API decision remains the decision of
-record; the completed performance follow-ups did not resolve it.
+HITL subsequently approved the contract, including unchanged logical eligibility
+until maintenance, the fresh-store format revision and truthful incomplete/fenced
+outcomes. The original end-of-Slice-83 guarantee/API decision is now ruled by that
+approval; no numerical deadline was approved. Implementation is assigned to
+Slice 85 for a separate clean run. Exact ownership/guard/index design, metadata
+limits and numerical qualification retain their specified pre-code/timing gates.
+
+Lifecycle catalog classification remains `proposal` because the approved work is
+unshipped; it becomes a code-backed maintained owner when Slice 85 lands.

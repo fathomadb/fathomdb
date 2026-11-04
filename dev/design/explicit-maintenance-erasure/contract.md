@@ -1,16 +1,18 @@
 ---
 title: Explicit maintenance erasure — draft contract and API
-status: PROPOSED
+status: ACTIVE
 date: 2026-11-04
-target_release: unassigned; approval required
+target_release: 0.8.28 Slice 85
 ---
 
 # Draft contract and explicit cleanup API
 
 This proposal answers the original end-of-Slice-83 guarantee/API question using
 [completed findings](../../notes/erasure-optimization-sequence-findings.md).
-It requires HITL approval and a successor ADR before implementation. No shipped
-API, worker policy, release ladder or success meaning changes in this document.
+HITL approved this contract on 2026-11-04 and assigned implementation to
+[Slice 85](../../plans/0.8.28/features/slice-85/plan.md). A concrete design/Astra
+review and successor ADR remain required before code. This approval record
+does not itself change shipped API, worker policy, schema or success behavior.
 The [implementation outline](implementation-plan.md) lists design/test gates.
 
 ## Decision proposed
@@ -76,7 +78,7 @@ refuses prior-format files; no data migration, metadata-only opt-in of existing
 files or dual-format compatibility shim is included. Autonomous and explicit
 profiles both use that new admitted format. New-file initialization always writes
 validated policy metadata; missing policy in that format is corruption, not an
-Autonomous fallback. HITL must approve this deployment cost explicitly. An
+Autonomous fallback. HITL explicitly approved this deployment cost on 2026-11-04. An
 alternative minimum-reader mechanism is acceptable only if existing older binaries
 already enforce it, proved with an actual older-binary refusal oracle.
 
@@ -102,7 +104,8 @@ normal queued service from the expensive post-delete scoped-certification path.
 
 ## Proposed API surface
 
-Names/types are approval candidates, not existing methods. Rust is normative;
+These are the approved contract-level names/types, not existing methods; exact
+wire/SDK forms are settled in Slice 85 design within these semantics. Rust is normative;
 Python uses snake_case and TypeScript camelCase with identical outcome meanings.
 CLI equivalents are a later operator mapping of the same authority, not a second
 implementation. No new MCP surface is included in v1.
@@ -365,15 +368,16 @@ not a claim that maintenance can always restore normal service on demand.
   Neither is a new API estimate, maximum or guarantee. Exclusive-window benefit
   and the cheap queued path remain unmeasured and must be qualified.
 
-## Approval requested
+## HITL approval — 2026-11-04
 
-Approve or adjust: (1) explicit persisted opt-in policy, (2) queued intent with
+HITL approved: (1) explicit persisted opt-in policy, (2) queued intent with
 visibility unchanged until maintenance, (3) exclusive maintenance/fast newcomer
 refusal, (4) typed Complete/Incomplete with durable post-delete write fences,
 (5) compatibility matrix and no deadline claim, (6) fresh-store format break
-and queue-admissibility/withdrawal semantics. Confirm whether immediate
-low-latency logical revocation is a separate requirement before implementing v1.
-This is the original end-of-83 guarantee/API decision, still pending HITL approval.
+and queue-admissibility/withdrawal semantics. Immediate low-latency logical
+revocation is excluded from this approved v1. The original end-of-83 guarantee/API
+decision is resolved by this approval and assigned to Slice 85; no numerical
+latency/SLA or physical deadline is selected.
 
 ## Astra review record — 2026-11-04
 
@@ -384,3 +388,7 @@ from older binaries. All four are included above. Queued logical state is
 UnchangedByThisRequest, including already-excluded deleted-first purge targets;
 no new visibility or revocation guarantee is inferred. Astra approval is not HITL
 contract acceptance or implementation authorization.
+
+HITL subsequently approved this reviewed contract on 2026-11-04 and directed a
+separate clean Slice 85. Concrete implementation design, ADR/interface mapping,
+metadata limits and qualification gates remain required; preparation is not code.

@@ -217,5 +217,14 @@ The next proposal is [explicit maintenance erasure](../design/explicit-maintenan
 not a claim of faster background cleanup. Its approval must decide accepted versus
 logically excluded versus physically complete, who grants disruption, durable
 blockers and reopen behavior, existing erase/purge compatibility and exact scope.
-The original end-of-83 guarantee/API question remains open until HITL rules on
-that proposal. This write-up itself changes no shipped API, contract or ladder.
+At the time this synthesis was written, the original end-of-83 guarantee/API
+question was open. The subsequent approval is recorded below. This write-up
+itself changes no shipped API, contract or ladder.
+
+## Subsequent contract approval — 2026-11-04
+
+After this synthesis and Astra review, HITL approved the explicit-maintenance
+contract and assigned [Slice 85](../plans/0.8.28/features/slice-85/plan.md) to
+implement it separately. This resolves the original end-of-83 decision without
+changing the historical findings above. No timing guarantee or immediate logical
+revocation was approved; rejected optimizations remain set aside.

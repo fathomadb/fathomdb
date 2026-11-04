@@ -139,4 +139,5 @@ for delivered work, rejected candidates, timings and qualification limits.
 Further optimization is set aside by HITL direction on 2026-11-04; retained
 commands are reproducibility tools, not authorization for another campaign.
 The [explicit maintenance proposal](../../design/explicit-maintenance-erasure/README.md)
-requires separate approval before implementation.
+is now HITL-approved and assigned to Slice 85 for separate implementation,
+with concrete design/qualification gates retained.

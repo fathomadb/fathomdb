@@ -88,9 +88,9 @@ HITL approved the Astra-reviewed plan on 2026-11-03 and allocated Phase 1 to
 [Slice 83](0.8.28/features/slice-83/plan.md). The 0.8.28 ladder is 82 → 83 → 90;
 both phases are engineering-complete; loaded service regressed and the
 84/84b optimization candidates were rejected. The original end-of-
-Slice 83 HITL physical-erasure guarantee decision remains open. A specific API that
-callers could invoke to ensure physical cleanup is under consideration then;
-no API, numerical SLA or unconditional deadline is selected by this plan.
+Slice 83 HITL decision is now resolved: the reviewed explicit-maintenance
+contract was approved on 2026-11-04 and assigned to Slice 85. Queued eligibility
+remains unchanged until maintenance; no numerical SLA/deadline was selected.
 The linked plan owns requirements, acceptance, design tasks, TDD, focused
 measurements and the end-of-83 decision package. Temporal features and ordinary
 expiry remain separate.
@@ -170,7 +170,7 @@ exclusions, RED oracles and acceptance proposal. Owner review of 6/7 precedes co
 
 | Unit | Deliverable | Dependencies and stop boundary |
 | --- | --- | --- |
-| CH1 | Two-phase physical erasure/cost, then native availability | Approved plan allocated to 82/83; implementation not started. End of 83: HITL guarantee/API decision. No temporal dependency. |
+| CH1 | Delivered 82/83 plus completed 84/84b investigations; explicit maintenance successor | End-of-83 contract decision approved; separate Slice 85 implements it. No temporal dependency or deadline promise. |
 | CH2 | Slice 81 sanitation evidence complete; ordinary expiry deferred | Use scoped A/B findings for CH1; no integrated SLA or authorized-history expiry pass. |
 | CH3 | B-first, then C historical comparison | Stable scope oracles; B precedes C. CH4 defines exact future contracts; fixture probes can precede it. |
 | CH4 | Minimal temporal/evidence/ranking contract/tests | Existing evidence; resolve 6/7 with Astra-medium. No repeated basic POC required. |
@@ -223,9 +223,9 @@ with focused repairs rather than repeated full runs.
 
 ## Remaining owner decisions
 
-- At the end of Slice 83, decide the physical-erasure guarantee and consider an
-  explicit cleanup API using actual CH1 engineering evidence. The two-phase plan
-  and Slices 82/83 allocation are approved; the guarantee/API choice remains open.
+- The original end-of-83 decision is approved for explicit maintenance in Slice 85.
+  Numerical qualification thresholds/budget and any broader guarantee still need
+  their specified approval before measurement or scope expansion.
 - Accept/adjust minimal decision 6 after CH4's proof/design; keep 7 open until its
   examples and Astra-medium review justify scope.
 - Place follow-ups in the release ladder without moving other work by implication;
@@ -273,7 +273,7 @@ records Slices 81–84b: native deletion repaired, safe resumability retained,
 loaded-service regression unresolved, both optimization candidates rejected.
 HITL directed that further optimization be set aside. No further campaign or
 84c is implied. The [explicit maintenance proposal](../design/explicit-maintenance-erasure/README.md)
-is the next contract discussion, Astra-approved for HITL review and pending approval before
-implementation. Queued intent, immediate logical revocation and physical
-completion must not be conflated. This proposal answers the existing end-of-83
-decision; it does not allocate a new release slice or decide the guarantee itself.
+is now HITL-approved (2026-11-04) and assigned to separate Slice 85. Queued intent, immediate logical revocation and physical
+completion must not be conflated. That approval resolves the existing end-of-83 contract/API decision. Slice 85
+is allocated for separate implementation, while numerical deadlines and immediate
+logical revocation remain excluded.

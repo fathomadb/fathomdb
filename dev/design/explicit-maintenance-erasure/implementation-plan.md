@@ -1,14 +1,15 @@
 ---
 title: Explicit maintenance erasure — proposed design and qualification work
-status: PROPOSED
+status: ACTIVE
 date: 2026-11-04
-target_release: unassigned
+target_release: 0.8.28 Slice 85
 ---
 
 # Proposed implementation and qualification sequence
 
-The [contract/API draft](contract.md) requires HITL approval before implementation.
-This is not a new slice allocation or a continuation of failed optimization work.
+HITL approved the [contract/API](contract.md) on 2026-11-04 and assigned
+[Slice 85](../../plans/0.8.28/features/slice-85/plan.md) as a separate clean
+implementation. This is not a continuation of failed optimization work.
 Current source is the restored Slice 83 behavior plus retained observers/tools
 and verified fixes, as summarized in the [write-up](../../notes/erasure-optimization-sequence-findings.md).
 
@@ -115,6 +116,6 @@ Documentation-only proposal validation uses `agent-lint-md.sh` and state-view
 checks when planning references change. No production tests are required merely
 for this draft. Status must report exact gate/resumption provenance.
 
-Implementation release placement and user-facing documentation/examples follow
-HITL contract approval. No worktree/branch cleanup, publication or cross-repo
-message is implied now. Approval is the next action, not implementation.
+Implementation is placed in Slice 85; user-facing docs/examples and SDK parity
+are included. Next action is exact design and Astra review in that separate run.
+Preparation performs no implementation, publication or cross-repo message.

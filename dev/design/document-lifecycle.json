@@ -1037,6 +1037,33 @@
       "successor": null
     },
     {
+      "path": "dev/design/explicit-maintenance-erasure/README.md",
+      "class": "proposal",
+      "topic": "explicit-maintenance-erasure",
+      "role": "index",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "future:0.8.28",
+      "successor": null
+    },
+    {
+      "path": "dev/design/explicit-maintenance-erasure/contract.md",
+      "class": "proposal",
+      "topic": "explicit-maintenance-erasure",
+      "role": "contract",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "future:0.8.28",
+      "successor": null
+    },
+    {
+      "path": "dev/design/explicit-maintenance-erasure/implementation-plan.md",
+      "class": "proposal",
+      "topic": "explicit-maintenance-erasure",
+      "role": "implementation-plan",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "future:0.8.28",
+      "successor": null
+    },
+    {
       "path": "dev/design/fathomdb-data-plane-architecture-v1.md",
       "class": "superseded",
       "topic": "fathomdb-data-plane-architecture-v1",

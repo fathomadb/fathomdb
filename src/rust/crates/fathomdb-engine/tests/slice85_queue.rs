@@ -108,7 +108,7 @@ fn queue_scope_conflicts_and_survives_reopen_without_worker_or_visibility_change
 }
 
 fn queued_admin_refusal(effect: &str) {
-    for effect in [effect] {
+    {
         let (_dir, engine) = fixture();
         let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
         let ticket = accepted(

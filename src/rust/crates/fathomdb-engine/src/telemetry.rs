@@ -1,4 +1,4 @@
-use crate::PhysicalErasurePolicy;
+use crate::erasure_maintenance::{MaintenanceError, PhysicalErasurePolicy};
 /// REQ-006a / AC-007a default slow-statement threshold. Mutated at runtime
 /// via [`Engine::set_slow_threshold_ms`].
 pub(crate) const DEFAULT_SLOW_THRESHOLD_MS: u64 = 100;
@@ -169,7 +169,7 @@ impl Engine {
         if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
             && crate::maintenance_admission::in_callback()
         {
-            return Err(EngineError::Maintenance(crate::MaintenanceError::MaintenanceBusy));
+            return Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy));
         }
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
@@ -333,7 +333,7 @@ impl Engine {
         if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
             && crate::maintenance_admission::in_callback()
         {
-            return Err(EngineError::Maintenance(crate::MaintenanceError::MaintenanceBusy));
+            return Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy));
         }
         let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
         let sink = guard

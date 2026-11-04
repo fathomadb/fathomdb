@@ -33,6 +33,8 @@ reported embed_dispatch::core
 reported embed_dispatch::d27_observation
 reported embedding
 reported erasure
+reported erasure_maintenance
+reported erasure_queue
 reported physical_erasure
 reported physical_erasure::admission
 reported physical_maintenance
@@ -62,6 +64,7 @@ reported ingest
 reported lifecycle
 reported mean
 reported mean::mean_centering_internals_for_test
+reported maintenance_admission
 reported open
 reported open::default_embedder_load_error_tests
 reported open::device_policy_open_error_tests
@@ -142,16 +145,19 @@ field embed_dispatch embed_dispatch
 field erasure_before_primary_lock_hook root
 field explanation_open_nonce telemetry
 field explanation_sequence telemetry
+field explicit_debt erasure_queue
 field force_next_commit_failure root
 field graph_evidence_before_resolve_return_hook root
 field graph_expand_rss_baseline_bytes root
 field graph_expand_rss_delta_bytes root
 field lock root
 field managed_connections root
+field maintenance_admission maintenance_admission
 field mutation_projection_status_cache root
 field next_cursor root
 field path root
 field physical_maintenance root
+field physical_policy erasure_maintenance
 field physical_service_gate root
 field profile_contexts root
 field profiling_enabled root

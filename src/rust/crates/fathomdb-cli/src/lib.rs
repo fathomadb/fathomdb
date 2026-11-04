@@ -2081,6 +2081,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::SchemaValidation => "SchemaValidationError",
         EngineError::Overloaded => "OverloadedError",
         EngineError::Closing => "ClosingError",
+        EngineError::Maintenance(_) => "MaintenanceError",
         EngineError::Extractor => "ExtractorError",
         EngineError::Consolidator => "ConsolidatorError",
         // G4 (Slice 35) — filter predicate construction error.
@@ -2709,6 +2710,13 @@ mod tests {
             field_path: "/evidenceRef".to_owned(),
         });
         assert_eq!(engine_error_code(&error), "EvidenceError");
+    }
+
+    #[test]
+    fn maintenance_refusal_uses_the_stable_cli_error_code() {
+        let error = EngineError::Maintenance(fathomdb::MaintenanceError::MaintenanceRequired);
+        assert_eq!(engine_error_code(&error), "MaintenanceError");
+        assert_eq!(engine_error_to_outcome(&error), CliOutcome::Unrecoverable);
     }
 
     /// 0.8.28 Slice 30 (R30-04) — each CUDA pool kind has its own stable code

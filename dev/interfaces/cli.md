@@ -457,6 +457,7 @@ to its class.
 | `EngineError::Scheduler`                         | 70        | unrecoverable |
 | `EngineError::OpStore`                           | 70        | unrecoverable |
 | `EngineError::Overloaded`                        | 70        | unrecoverable |
+| `EngineError::Maintenance(_)` (`MaintenanceError`) | 70        | unrecoverable |
 | `EngineError::SchemaValidation`                  | 70        | unrecoverable |
 | `EngineError::WriteValidation`                   | 70        | unrecoverable |
 | `EngineError::EmbedderNotConfigured`             | 70        | unrecoverable |

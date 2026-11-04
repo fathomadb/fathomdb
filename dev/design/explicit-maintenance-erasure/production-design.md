@@ -64,7 +64,8 @@ Keys must be random application values; syntax validation cannot prove randomnes
 
 Existing key lookup precedes new resource admission: exact retained selector
 returns the same Accepted ticket; other selector returns IdempotencyConflict;
-terminal key returns KeyRetired. Never return another request's success. Unknown
+terminal or identity-free Finalizing key returns KeyRetired. Never return another
+request's success; finalization retries use the original ticket. Unknown
 well-formed status gives None. Status contains phase, logical_state, blocker,
 service_state and safe counts only. Pending rows validate strictly on open.
 

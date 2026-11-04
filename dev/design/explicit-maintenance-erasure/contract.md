@@ -186,8 +186,9 @@ physical/logical removal by using the queue's older cut or an old evidence token
 Idempotency keys are caller-supplied random opaque values; never derive them from
 subject identifiers. While a request record is retained, the same key and exact
 selector returns the same request; conflicting pending payload returns
-IdempotencyConflict. At physical completion scrub the selector/fingerprint and
-retain only the opaque key/ticket plus terminal outcome. Reusing that retired key
+IdempotencyConflict. At the identity-free finalization boundary scrub the selector/fingerprint and
+retire the key for new admission, while the ticket remains retryable for actual
+completion. Retain only opaque key/ticket and safe outcome fields. Reusing that retired key
 for queue admission returns KeyRetired, never another argument's completion;
 status(ticket) retrieves the receipt. Terminal receipt storage is bounded by an
 explicit metadata budget: exhaustion refuses new queue admissions, never drops

@@ -348,7 +348,10 @@ fn by_key(
         .map_err(|_| EngineError::Storage)?;
     let Some(ticket) = ticket else { return Ok(None) };
     let r = load(c, &ticket)?.ok_or(EngineError::Storage)?;
-    if matches!(r.status.phase, ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval) {
+    if matches!(
+        r.status.phase,
+        ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval | ErasurePhase::Finalizing
+    ) {
         return Err(error(MaintenanceError::KeyRetired));
     }
     if r.selector.as_ref() != Some(selector) {
@@ -597,7 +600,16 @@ impl Engine {
         validate_ticket(ticket)?;
         let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let c = guard.as_ref().ok_or(EngineError::Closing)?;
-        Ok(load(c, ticket)?.map(|r| r.status))
+        let service_state = if physical_erasure::active(c)? {
+            ErasureServiceState::ReadsAllowedWritesFenced
+        } else {
+            ErasureServiceState::NormalWithQueuedRestrictions
+        };
+        Ok(load(c, ticket)?.map(|request| {
+            let mut status = request.status;
+            status.service_state = service_state;
+            status
+        }))
     }
     /// Withdraw only a queued request; no physical-success claim is produced.
     pub fn withdraw_queued_erasure(&self, ticket: &str) -> Result<WithdrawResult, EngineError> {

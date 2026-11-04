@@ -96,9 +96,10 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 81 | Erasure availability POC; durable lazy deletion/SLA feasibility | COMPLETE at `7ca1d182bef03c69199f538904ce8332842d80a2`; bounded POC, production erasure/SLA unqualified. [Status](../0.8.28/features/slice-81/status.md). |
 | 82 | CH1 Phase 1: physical correctness and native cost | Complete on `dev/0.8.28` and `release/0.8.28` at `ab046b2167c64b5edc3109c0d9cd087ec4ef8487`; Astra reviews, independent verification and paired cost qualification. Property baseline is an accepted incomplete supplemental measurement. [Status](../0.8.28/features/slice-82/status.md). |
 | 83 | CH1 Phase 2: resumable cleanup and availability | Engineering complete at `af84f12f82d092a00a8d14f3fe657eff79bf0b4f`; Astra reviews and independent qualification. Loaded throughput regresses; no new API/SLA. End-of-phase HITL guarantee decision remains open. [Status](../0.8.28/features/slice-83/status.md). |
-| 90 | D28-14 filtered direct body FTS | Not started; follows 83. |
+| 84 | Cleanup contention investigation | Bounded campaign complete; optimization NOT QUALIFIED and rejected, original scheduling restored. Final verification pending. [Status](../0.8.28/features/slice-84/status.md). |
+| 90 | D28-14 filtered direct body FTS | Not started; follows 84. |
 
-Ladder remaining: 90. Slices 41 and 42 were added by owner rulings on
+Ladder remaining: 84 final verification, then 90. Slices 41 and 42 were added by owner rulings on
 2026-10-16, Slices 50 to 90 on 2026-10-31, and the explicit Slice 81 POC
 on 2026-11-03. CH1 Slices 82/83 were subsequently approved and allocated on
 2026-11-03. Slice 81 remains complete; physical erasure remediation is outside

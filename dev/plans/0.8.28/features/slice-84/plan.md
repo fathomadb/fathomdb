@@ -203,3 +203,12 @@ which this design does not introduce. Retain all recovery/rollback guards. S84-6
 requires candidate completed reads at least the baseline count in each pair and
 all controls serving every offer. A refused initial erase followed by successful
 retry is physical recovery, not a faster successful public erase.
+
+## Execution outcome
+
+The fixed 54-cell campaign completed with all three S84-6 gates failed. Astra
+recommended rejecting the new scheduling policy; original scheduling and the
+accepted ADR are restored. Profiling, driver/controller and complete negative
+evidence remain. See [status](status.md) and the design's reviewed web research.
+Final workspace verification is pending; no replacement experiment, threshold
+relaxation, guarantee/API choice or broader implementation is authorized here.

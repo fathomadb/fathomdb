@@ -642,8 +642,6 @@ impl Engine {
         loop {
             let done = {
                 let waiting = self.physical_maintenance.metrics.timer("sanitation_writer_wait");
-                let _turn = self.physical_maintenance.maintenance_turn();
-                physical_erasure::faultpoint("before_synchronous_sanitation_writer")?;
                 let connection = self.physical_writer(false)?;
                 drop(waiting);
                 let _holding = self.physical_maintenance.metrics.timer("sanitation_writer_hold");

@@ -29,19 +29,7 @@ impl Drop for MaintenanceTurn<'_> {
     }
 }
 
-fn maintenance_turn(shared: &Shared) -> MaintenanceTurn<'_> {
-    // The cleanup service gate serializes callers, so only one priority owner
-    // can acquire this turn; an existing foreground turn completes first.
-    shared.priority.store(true, Ordering::Release);
-    let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
-    MaintenanceTurn { shared, _turn: turn }
-}
-
 impl PhysicalMaintenance {
-    pub(crate) fn maintenance_turn(&self) -> MaintenanceTurn<'_> {
-        maintenance_turn(&self.shared)
-    }
-
     pub(crate) fn writer_turn(&self) -> Result<MutexGuard<'_, ()>, EngineError> {
         loop {
             let mut stop = self.shared.stop.lock().map_err(|_| EngineError::Storage)?;
@@ -100,7 +88,9 @@ impl PhysicalMaintenance {
                     let Ok(_service) = service.try_lock() else {
                         continue;
                     };
-                    let priority = maintenance_turn(&shared);
+                    shared.priority.store(true, Ordering::Release);
+                    let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
+                    let priority = MaintenanceTurn { shared: &shared, _turn: turn };
                     let result = (|| {
                         let waiting = metrics.timer("maintenance_writer_wait");
                         let guard = physical_metrics::writer(&metrics, &connection, false)?;
@@ -192,70 +182,6 @@ fn checkpoint(c: &Connection) -> Result<(), EngineError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn synchronous_sanitation_admits_one_unit_before_new_foreground_turns() {
-        let dir = tempfile::tempdir().unwrap();
-        let engine =
-            Arc::new(Engine::open(dir.path().join("synchronous-priority.sqlite")).unwrap().engine);
-        let other = Arc::clone(&engine);
-        let (finished_tx, finished_rx) = mpsc::channel();
-        let observed = Arc::new(AtomicBool::new(false));
-        let witness = Arc::clone(&observed);
-        crate::test_hooks::physical_erasure_hooks::arm(
-            "before_synchronous_sanitation_writer",
-            Box::new(move || {
-                let (event_tx, event_rx) = mpsc::channel();
-                let writer = Arc::clone(&other);
-                let finished = finished_tx.clone();
-                std::thread::spawn(move || {
-                    let waiting = event_tx.clone();
-                    crate::test_hooks::physical_erasure_hooks::arm(
-                        "before_writer_priority_wait",
-                        Box::new(move || {
-                            let _ = waiting.send("waiting");
-                            Ok(())
-                        }),
-                    );
-                    let acquired = writer.physical_maintenance.writer_turn().is_ok();
-                    let _ = event_tx.send("acquired");
-                    let _ = finished.send(acquired);
-                });
-                let waiting = event_rx.recv_timeout(Duration::from_secs(2)).ok() == Some("waiting");
-                witness.store(waiting, Ordering::SeqCst);
-                if waiting {
-                    Ok(())
-                } else {
-                    Err(EngineError::Scheduler)
-                }
-            }),
-        );
-        let result = engine.erase_source("absent");
-        let progressed = finished_rx.recv_timeout(Duration::from_secs(2)).unwrap_or(false);
-        engine.close().unwrap();
-        assert!(
-            observed.load(Ordering::SeqCst),
-            "new foreground writer bypassed synchronous maintenance priority"
-        );
-        assert!(result.is_ok(), "cleanup must complete after the bounded handoff: {result:?}");
-        assert!(progressed, "foreground turn must resume after the committed unit");
-    }
-
-    #[test]
-    fn synchronous_sanitation_error_releases_priority_and_turn() {
-        let dir = tempfile::tempdir().unwrap();
-        let engine = Engine::open(dir.path().join("synchronous-error.sqlite")).unwrap().engine;
-        crate::test_hooks::physical_erasure_hooks::arm(
-            "before_synchronous_sanitation_writer",
-            Box::new(|| Err(EngineError::Scheduler)),
-        );
-        assert!(engine.erase_source("absent").is_err());
-        let service = engine.physical_service_gate.lock().unwrap();
-        assert!(!engine.physical_maintenance.shared.priority.load(Ordering::Acquire));
-        assert!(engine.physical_maintenance.shared.turn.try_lock().is_ok());
-        drop(service);
-        engine.close().unwrap();
-    }
 
     #[test]
     fn idle_debt_probes_do_not_dispatch_subscriber_profiles() {

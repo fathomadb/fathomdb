@@ -56,3 +56,16 @@ fn close_revokes_idle_handle_without_waiting_for_it_to_drop() {
     assert_eq!(handle.close().unwrap(), ErasureServiceState::ClosedOrUnavailable);
     assert!(matches!(engine.begin_erasure_maintenance(0), Err(EngineError::Closing)));
 }
+
+#[test]
+fn direct_erasure_preserves_busy_and_closed_precedence_before_policy() {
+    let (_dir, engine) = explicit();
+    let handle = engine.begin_erasure_maintenance(1000).unwrap();
+    assert!(matches!(
+        engine.erase_source("source"),
+        Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy))
+    ));
+    drop(handle);
+    engine.close().unwrap();
+    assert!(matches!(engine.purge("missing"), Err(EngineError::Closing)));
+}

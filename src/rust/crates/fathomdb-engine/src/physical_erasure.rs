@@ -351,6 +351,7 @@ pub(crate) fn transaction<T>(
 
 pub(crate) fn sanitize_unit(c: &Connection) -> Result<bool, EngineError> {
     let done = transaction(c, || {
+        crate::erasure_queue::mark_sanitizing_in(c)?;
         let mut progress = state(c)?;
         if matches!(progress.phase.as_str(), "clean" | "finalizing") {
             return Ok(true);

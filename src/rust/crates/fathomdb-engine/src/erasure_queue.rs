@@ -687,6 +687,16 @@ pub(crate) fn activate_in(
     store(c, &request)?;
     Ok(Some(ticket))
 }
+pub(crate) fn mark_sanitizing_in(c: &Connection) -> Result<(), EngineError> {
+    if let Some(ticket) = physical_erasure::root(c)?.and_then(|root| root.ticket) {
+        let mut request = load(c, &ticket)?.ok_or(EngineError::Storage)?;
+        if request.status.phase == ErasurePhase::Executing {
+            request.status.phase = ErasurePhase::Sanitizing;
+            store(c, &request)?;
+        }
+    }
+    Ok(())
+}
 pub(crate) fn scrub_in(c: &Connection, ticket: &str) -> Result<(), EngineError> {
     let mut request = load(c, ticket)?.ok_or(EngineError::Storage)?;
     if request.status.logical_state != ErasureLogicalState::Removed {

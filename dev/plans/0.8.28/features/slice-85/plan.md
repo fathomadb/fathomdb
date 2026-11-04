@@ -139,3 +139,29 @@ publication and any new guarantee outside this approved contract remain separate
 This session prepares the slice only. The implementation session starts with
 baseline reconciliation and concrete design, not an assumed ready-made worker
 or a new optimization experiment.
+
+## Execution reconciliation — 2026-11-04
+
+Actual clean baseline is `db1fdb6dc` on existing `dev/0.8.28`; no new worktree or
+branch is needed. [Production design](../../../../design/explicit-maintenance-erasure/production-design.md)
+enumerates seven changes/facts since the draft and the complete owner/effect
+inventory. Draft scope is retained; the expensive existing envelope means new
+normal-path admission uses NeedsMaintenanceAdmission and usable handle admission.
+No purported constant-time envelope certificate is added. Owner accepts actual
+observed testing timings; the design freezes a bounded empirical screen without
+an invented SLA or p99 claim. Successor ADR is proposed pending Astra review.
+
+| Acceptance | New decisive tests | Retained guards |
+| --- | --- | --- |
+| S85-1 | fresh36 policy validation/mismatch; real old executable/new file and reverse admission | current-only refusal, Autonomous idle/reopen |
+| S85-2 | exact retry/conflict/retired/capacity/store; full-closure mutation histories; changed envelope; withdrawal race | plain write prior-row/endpoint/trigger guards |
+| S85-3 | admitted reader/admin/write drain; fast newcomer refusal; self-pin/close/stale/concurrent handle | reader/worker connection ownership suites |
+| S85-4 | atomic ticket/root/delete; queue identity absent from main/WAL; receipt after actual TRUNCATE | four-family FTS/vector/survivor controls |
+| S85-5 | process exit and rollback at queue/delete/redaction/checkpoint/receipt; durable reopen fence | existing root/closure corruption and reader blockers |
+| S85-6 | authenticated original reattachment; multiple originals; offline same receipt; queued offline untouched | offline lock/ack/proof and sink witnesses |
+| S85-7 | config/API/outcome/error parity, async drop, exact public exports | recovery denylist and governed API allowlist |
+| S85-8 | empirical control/queued/service/acquisition/blackout/completion samples, all outcomes | final code gate and platform limitations recorded |
+
+Design/Astra review precedes production changes. Behavior-specific RED commits
+precede GREEN. Independent verification follows code review. Final full gate runs
+once on the completed clean code tree; narrow repairs use affected suites.

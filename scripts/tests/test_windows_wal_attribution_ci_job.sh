@@ -649,7 +649,7 @@ assert_contains "$projection_worker_body" \
 assert_absent "$projection_worker_body" \
   'retry after release' \
   "projection-worker diagnostic does not retry the original erase"
-actual_checkpoint_engine_body="$(function_body "$ERASURE_SOURCE" "complete_erasure_at_rest")"
+actual_checkpoint_engine_body="$(function_body "$ERASURE_SOURCE" "checkpoint_erasure_at_rest")"
 assert_before_in_text \
   "$actual_checkpoint_engine_body" \
   'self.actual_checkpoint_observation_for_test(' \
@@ -1071,7 +1071,7 @@ import sys
 
 source_path, output_path = sys.argv[1:]
 source = open(source_path, encoding="utf-8").read()
-owner = source.index("    pub(crate) fn complete_erasure_at_rest(")
+owner = source.index("    fn checkpoint_erasure_at_rest(")
 checkpoint = source.index(
     "            let checkpoint_result = self.wal_checkpoint_truncate_once(false);", owner
 )

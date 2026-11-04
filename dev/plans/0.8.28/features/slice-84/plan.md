@@ -212,3 +212,27 @@ accepted ADR are restored. Profiling, driver/controller and complete negative
 evidence remain. See [status](status.md) and the design's reviewed web research.
 Final workspace verification is pending; no replacement experiment, threshold
 relaxation, guarantee/API choice or broader implementation is authorized here.
+
+## Final closeout reconciliation — 2026-11-03
+
+The completion request begins at `04b08895e`, after the fixed campaign,
+candidate rejection `5214ccb01`, observer ownership repair `10a5a2a34` and
+84b draft. These supersede the original execution assumptions:
+
+1. The experiment and implementation are finished; every S84-6 family failed.
+   Approve the negative disposition and retained instrumentation/tooling. Reject
+   the production scheduler candidate; preserve the original physical contract.
+2. S84-1 supplies elapsed/count attribution; certification CPU remains unmeasured.
+   S84-3 reusable authority is inapplicable because no proof reuse was retained.
+   Successful investigation closure does not mean the optimization qualified.
+3. The full test stage was interrupted. Finish its outstanding collection and
+   repair the stale Windows checkpoint-owner harness selector using the observed
+   failing test, then rerun that suite including its ordering mutation. Preserve
+   the independent completion-owner assertion and production checkpoint code.
+4. Astra independently reviewed the existing design and retained diff: approved
+   for negative closure, with that narrow harness repair. A separate Astra agent
+   verifies safety/tooling and the outstanding collection. Use existing passed
+   lint/typecheck/security evidence and scoped checks for the selector repair.
+5. Record final outcomes and reconcile state/views. The 84b draft remains a
+   separate follow-up; no new experiment, threshold relaxation or broader
+   guarantee/API decision follows from closing this investigation.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 90 — filtered direct body FTS
-status: design approved; implementation in progress
+status: COMPLETE; Astra reviewed and independently verified
 target_release: 0.8.28
 ---
 

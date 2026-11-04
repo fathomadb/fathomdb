@@ -14,6 +14,12 @@ AC-050c) gates merges against this invariant.
 
 ### Added
 
+- (Slice 90) Direct body FTS accepts `SearchFilter` in Rust, Python and
+  TypeScript, before candidate bounds, deduplication, ranking and result limit.
+  Read views and existing positional calls are preserved. Declared attribute
+  filters are node-scoped; status/time retain existing projected-metadata
+  availability rules. The operation remains FTS-only and provider-free.
+
 - (Slice 70) Dense KNN filters lifecycle and validity before its candidate cap;
   ineligible vectors no longer disable unrelated eligible dense results.
   Record-mapped updates and erasure maintain all vector IDs atomically.

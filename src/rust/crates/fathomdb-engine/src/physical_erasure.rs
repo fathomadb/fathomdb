@@ -496,7 +496,8 @@ pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(),
         }
         faultpoint("before_completion_commit")?;
         Ok(())
-    })
+    })?;
+    faultpoint("after_completion_commit")
 }
 
 #[cfg(feature = "operator")]

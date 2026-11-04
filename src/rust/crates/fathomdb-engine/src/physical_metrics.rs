@@ -16,6 +16,16 @@ pub(crate) struct PhysicalTimer {
 }
 
 impl PhysicalMetrics {
+    #[cfg(test)]
+    pub(crate) fn enable_for_test(&self) {
+        self.enabled.store(true, Ordering::Relaxed);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn count_for_test(&self, stage: &str) -> u64 {
+        self.stages.lock().unwrap().get(stage).map_or(0, |v| v.0)
+    }
+
     pub(crate) fn timer(self: &Arc<Self>, stage: &'static str) -> PhysicalTimer {
         #[cfg(any(test, feature = "test-hooks"))]
         {

@@ -439,6 +439,7 @@ pub(crate) fn canonical_batch_has_no_custom_triggers(
     Ok(!unexpected)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn commit_batch(
     connection: &mut Connection,
     batch: &[PreparedWrite],
@@ -446,6 +447,7 @@ pub(crate) fn commit_batch(
     base_cursor: u64,
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
+    certificate: &mut Option<physical_erasure::certificate::Certificate>,
     #[cfg(feature = "test-hooks")] abort_next_commit_for_test: bool,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     #[cfg(feature = "test-hooks")]
@@ -459,6 +461,7 @@ pub(crate) fn commit_batch(
         base_cursor,
         provenance_row_cap,
         vector_kinds_to_enrol,
+        certificate,
     );
     #[cfg(feature = "test-hooks")]
     if abort_next_commit_for_test {
@@ -467,6 +470,7 @@ pub(crate) fn commit_batch(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn commit_batch_transaction(
     connection: &mut Connection,
     batch: &[PreparedWrite],
@@ -474,6 +478,7 @@ fn commit_batch_transaction(
     base_cursor: u64,
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
+    certificate: &mut Option<physical_erasure::certificate::Certificate>,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
@@ -508,6 +513,7 @@ fn commit_batch_transaction(
     // `BEGIN IMMEDIATE` can itself return `SQLITE_BUSY` — but WITH the busy
     // handler consulted, i.e. absorbed by the existing 5 s default instead of
     // surfaced (pinned by `tc57_mechanism_control_write_first_is_retryable`).
+    let old_certificate = certificate.take();
     let canonical_batch = batch.iter().all(|write| {
         matches!(
             write,
@@ -525,8 +531,14 @@ fn commit_batch_transaction(
     // trigger selects the unchanged row-trigger path so application extensions
     // still observe every row.
     if canonical_batch && canonical_batch_has_no_custom_triggers(&tx)? {
+        let modeled = vector_kinds_to_enrol.is_empty()
+            && batch
+                .iter()
+                .all(|w| matches!(w, PreparedWrite::Node { .. } | PreparedWrite::Edge { .. }));
+        let mut working =
+            physical_erasure::certificate::Working::begin(&tx, old_certificate, modeled)?;
         let mut trigger_guard = TriggerStateGuard::disable(&tx)?;
-        let attempted = apply_batch_in_transaction(
+        let attempted = apply_batch_recorded(
             &tx,
             batch,
             plans,
@@ -534,6 +546,7 @@ fn commit_batch_transaction(
             provenance_row_cap,
             vector_kinds_to_enrol,
             dependency_closure::SoftClosureMode::Complete,
+            working.as_mut(),
         )
         .and_then(|result| {
             advance_read_visibility(&tx)?;
@@ -543,7 +556,12 @@ fn commit_batch_transaction(
         drop(trigger_guard);
         return match (attempted, restored) {
             (Ok(result), Ok(())) => {
+                let mut sealed = working.map(|w| w.seal(&tx)).transpose()?;
                 tx.commit()?;
+                if let Some(value) = sealed.as_mut() {
+                    value.committed(connection);
+                }
+                *certificate = sealed;
                 Ok(result)
             }
             (Err(error), Ok(())) => Err(error),
@@ -612,6 +630,29 @@ pub(crate) fn apply_batch_in_transaction(
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
     closure_mode: dependency_closure::SoftClosureMode,
+) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
+    apply_batch_recorded(
+        tx,
+        batch,
+        plans,
+        base_cursor,
+        provenance_row_cap,
+        vector_kinds_to_enrol,
+        closure_mode,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_batch_recorded(
+    tx: &Connection,
+    batch: &[PreparedWrite],
+    plans: &[WritePlan],
+    base_cursor: u64,
+    provenance_row_cap: u64,
+    vector_kinds_to_enrol: &[String],
+    closure_mode: dependency_closure::SoftClosureMode,
+    working: Option<&mut physical_erasure::certificate::Working>,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     let scoped_physical = physical_erasure::guard_plain_write(tx, batch)?;
     if !scoped_physical {
@@ -938,10 +979,15 @@ pub(crate) fn apply_batch_in_transaction(
         count
     };
 
-    enforce_provenance_retention(tx, provenance_row_cap)?;
+    let removed = enforce_provenance_retention(tx, provenance_row_cap, working.is_some())?;
     advance_projection_cursor(tx)?;
     if scoped_physical {
-        physical_erasure::certify_plain_write(tx, base_cursor.saturating_add(batch.len() as u64))?;
+        let last = base_cursor.saturating_add(batch.len() as u64);
+        if let Some(working) = working {
+            working.finish(tx, base_cursor, last, batch, removed)?;
+        } else {
+            physical_erasure::certify_plain_write(tx, last)?;
+        }
     }
 
     Ok((dangling_edge_endpoints, unstranded, closure_ids))
@@ -974,9 +1020,13 @@ pub(crate) fn apply_batch_in_transaction(
 /// alternative (counting exempt rows toward the cap) would let a growing audit
 /// trail evict ordinary provenance ever more aggressively, and in the limit
 /// leave nothing sweepable while the sweep churned every write.
-fn enforce_provenance_retention(connection: &Connection, cap: u64) -> rusqlite::Result<()> {
+fn enforce_provenance_retention(
+    connection: &Connection,
+    cap: u64,
+    account: bool,
+) -> Result<u64, CommitBatchError> {
     if cap == 0 {
-        return Ok(());
+        return Ok(0);
     }
     // Static, engine-internal identifiers — no caller input reaches this SQL.
     let exempt = ERASURE_AUDIT_COLLECTIONS
@@ -997,9 +1047,14 @@ fn enforce_provenance_retention(connection: &Connection, cap: u64) -> rusqlite::
         |row| row.get(0),
     )?;
     if count <= upper {
-        return Ok(());
+        return Ok(0);
     }
     let to_delete = count.saturating_sub(cap);
+    let removed = if account {
+        physical_erasure::certificate::metadata_bytes(connection, "operational_mutations", &format!("id IN (SELECT id FROM operational_mutations WHERE collection_name NOT IN ({exempt}) ORDER BY id LIMIT ?1)"), &[&to_delete])?
+    } else {
+        0
+    };
     connection.execute(
         &format!(
             "DELETE FROM operational_mutations
@@ -1012,7 +1067,7 @@ fn enforce_provenance_retention(connection: &Connection, cap: u64) -> rusqlite::
         ),
         [to_delete],
     )?;
-    Ok(())
+    Ok(removed)
 }
 
 impl Engine {

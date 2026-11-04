@@ -1,14 +1,14 @@
 ---
 title: Slice 84b — repeated certification scans and transactional envelope accounting
-status: DRAFT
+status: IN_PROGRESS
 target_release: 0.8.28
 ---
 
 # Slice 84b scope
 
 Owner requested this follow-up after Slice 84's scheduling experiment failed.
-This is a planning package, not release-state allocation or authorization for a
-new measurement campaign. The existing physical-success contract remains intact.
+Owner authorized execution on 2026-11-03, including both implementation targets
+and the bounded screening protocol. The existing physical-success contract remains intact.
 
 **Both targets are required:** reduce repeated eligibility/structural-proof work,
 and maintain resource-envelope totals from actual transaction effects. Execute

@@ -1,6 +1,6 @@
 ---
 title: Slice 84b draft design — connection-bound certification and envelope deltas
-status: DRAFT
+status: APPROVED
 ---
 
 # Slice 84b draft design
@@ -140,3 +140,33 @@ fallback observable. Cold/reopen reconstruction cost and invalidation frequency
 are part of service qualification; a fast warm path with constant invalidations
 is not a successful optimization. See the plan for staged screening and final
 paired acceptance, not an automatic repeat of the previous campaign.
+
+## Source reconciliation and selected implementation — 2026-11-03
+
+Baseline is retained Slice 84 plus the reviewed WAL harness selector correction
+`77e2de796`. Production scheduling, checkpoints and erasure ADR are identical to
+Slice 83; 84's scheduling candidate remains rejected. Astra reviewed the actual
+commit/projector/retention paths and this implementation mechanism before code.
+
+The primary mutex owns access to a certificate slot on PhysicalMaintenance. Only
+managed canonical commits consume it, inside BEGIN IMMEDIATE. Drift compares
+connection identity, total_changes, main/temp schema cookies, data_version and
+exact root/phase binding. These are invalidation fences; explicit effects supply
+accounting. No blob-writing or writable-schema path exists in the engine.
+
+| Source effect | Accounting and proof disposition |
+| --- | --- |
+| Canonical insert | Query actual returned cursor range for row/body/max deltas. New cursors must exceed prior safe boundary and every captured cursor. |
+| Supersession | Bodies/history retained; existing vector eligibility updated, attributes/property projections deleted. No erased cursor is recreated. |
+| Legacy registration | Query actual inserted artifact rows, all columns using SQLite BLOB lengths. |
+| Retention | Sum exact rows selected by existing exemption/order/limit immediately before deletion in the same transaction. No early threshold check. |
+| Other seven metadata tables | Unchanged on plain legacy path; provenance guards preclude source soft-closure creation. |
+| Vector mappings | Synchronous projection enqueues work; existing mapping metadata changes only. Enrollment/stranded repair uses full fallback. |
+| Worker/sanitation/blockers | Conservatively invalidate on any drift. No carry across these transitions in the first candidate; report resulting cold cost. |
+| Finalization/reopen | Original full validators, sink obligations and TRUNCATE remain authoritative. |
+
+No TEMP delta triggers: application triggers remain refused and managed commits
+disable triggers. Cold totals are unchecked until the original post-effect
+certification point. Optional early zero proof failure selects original postproof.
+Unknown effects use the unchanged full path. Publish only after successful COMMIT
+using the version captured while the writer lock was held.

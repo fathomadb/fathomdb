@@ -1,6 +1,6 @@
 ---
 title: Slice 84b plan — exact certification work and transactional resource totals
-status: DRAFT
+status: IN_PROGRESS
 target_release: 0.8.28
 ---
 
@@ -103,3 +103,13 @@ Use independent physical markers in addition to the shared validator. Defer
 exhaustive VFS/OOM/MC/DC, new frameworks and broad tuning grids. New evidence is
 Slice 84's measured certification cost and failed scheduler-only qualification;
 it motivates less repeated exact work, not relaxed safety or extra machinery.
+
+## Execution reconciliation — 2026-11-03
+
+Owner corrected the target to 84b and authorized implementation of both targets
+and the proposed bounded screening protocol. Baseline `77e2de796` retains 84's
+observers/tools and original Slice 83 production policy; it also fixes a stale
+WAL test selector. No performance suggestion has qualified yet. Astra completed
+source-level effect review; concrete inventory is in the design. Work proceeds
+with one writer in the existing development checkout and read-only reviewers.
+No new branch/worktree or public contract change is needed.

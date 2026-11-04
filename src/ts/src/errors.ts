@@ -394,6 +394,11 @@ export class NotLifecycleAddressableError extends FathomDbError {
 // a WAL snapshot, so the erased bytes are still readable in the `-wal` file.
 // Retryable — re-run the verb once the reader has finished. `stage` names the
 // uncompleted step (`"wal_checkpoint"` / `"telemetry_redaction"`).
+export class MaintenanceError extends FathomDbError {
+  readonly code = "FDB_MAINTENANCE";
+  constructor(message: string, readonly reason: string) { super(message); }
+}
+
 export class ErasureIncompleteError extends FathomDbError {
   readonly stage: string;
   readonly detail: string;
@@ -544,6 +549,7 @@ type ErrorCode =
   | "FDB_ILLEGAL_TRANSITION"
   | "FDB_NOT_LIFECYCLE_ADDRESSABLE"
   // 0.8.20 Slice 5b (R-20-E5) — erasure verb could not finish at rest.
+  | "FDB_MAINTENANCE"
   | "FDB_ERASURE_INCOMPLETE"
   // 0.8.20 Slice 15d (R-20-PR) — configure_projections destructive-change refusal.
   | "FDB_PROJECTION_DESTRUCTIVE"
@@ -756,6 +762,8 @@ function build(envelope: Envelope): Error {
       });
     case "FDB_NOT_LIFECYCLE_ADDRESSABLE":
       return new NotLifecycleAddressableError(envelope.message, String(p.idSpace ?? ""));
+    case "FDB_MAINTENANCE":
+      return new MaintenanceError(envelope.message, String(p.reason ?? ""));
     case "FDB_ERASURE_INCOMPLETE":
       return new ErasureIncompleteError(
         envelope.message,

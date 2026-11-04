@@ -35,8 +35,9 @@ from fathomdb._sdk_context_pack import (
     pack_context,
 )
 from fathomdb.config import EngineConfig, QueryStopWords
-from fathomdb.engine import Engine
+from fathomdb.engine import Engine, ErasureMaintenance
 from fathomdb.errors import (
+    MaintenanceError,
     DependencyTraceError,
     EvidenceError,
     FrozenReadError,
@@ -193,7 +194,9 @@ __all__ = [
     "EvidenceSearchRequestV1",
     "EvidenceSearchResultV1",
     "EvidenceSidecarEntryV1",
+    "MaintenanceError",
     "Engine",
+    "ErasureMaintenance",
     "EngineConfig",
     "QueryStopWords",
     "Filter",

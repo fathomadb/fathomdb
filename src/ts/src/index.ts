@@ -184,3 +184,5 @@ export {
   validateGraphExpandResult,
   graph,
 } from "./graph.js";
+
+export { ErasureMaintenance, type PhysicalErasurePolicy, type ErasureServiceState } from "./maintenance.js";

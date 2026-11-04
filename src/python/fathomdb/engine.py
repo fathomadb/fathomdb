@@ -94,6 +94,18 @@ class Engine:
         self._path = path
         self._config = config
 
+    def physical_erasure_policy(self) -> str:
+        """Return persisted scheduling honored by this open incarnation."""
+        return self._native.physical_erasure_policy()
+
+    def begin_erasure_maintenance(self, acquisition_wait_ms: int = 0) -> "ErasureMaintenance":
+        """Acquire exclusive service admission; the wait is not an SQL deadline."""
+        if isinstance(acquisition_wait_ms, bool) or not isinstance(acquisition_wait_ms, int):
+            raise TypeError("acquisition_wait_ms must be an integer")
+        if not 0 <= acquisition_wait_ms <= 2**53 - 1:
+            raise ValueError("acquisition_wait_ms must be in 0..=2**53-1")
+        return ErasureMaintenance(self._native.begin_erasure_maintenance(acquisition_wait_ms))
+
     @classmethod
     def open(
         cls,
@@ -557,3 +569,20 @@ class Engine:
 
 
 __all__ = ["Engine"]
+
+
+class ErasureMaintenance:
+    """Exclusive service window. Drop/close never forgives durable physical debt."""
+
+    def __init__(self, native: Any) -> None:
+        self._native = native
+
+    def close(self) -> str:
+        """Release temporary ownership and return service state, not completion."""
+        return self._native.close()
+
+    def __enter__(self) -> "ErasureMaintenance":
+        return self
+
+    def __exit__(self, *_args: Any) -> None:
+        self.close()

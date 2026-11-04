@@ -57,6 +57,38 @@ impl Engine {
         })
     }
 
+    /// Return persisted scheduling honored by this open incarnation.
+    #[napi]
+    pub fn physical_erasure_policy(&self) -> Result<String> {
+        call_engine_sync(|| {
+            Ok(match self.inner.physical_erasure_policy() {
+                fathomdb_engine::PhysicalErasurePolicy::Autonomous => "autonomous",
+                fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance => {
+                    "explicit_maintenance"
+                }
+            }
+            .to_string())
+        })
+    }
+
+    /// Acquire an exclusive window; wait bounds admission only, not active SQL.
+    #[napi]
+    pub async fn begin_erasure_maintenance(
+        &self,
+        acquisition_wait_ms: f64,
+    ) -> Result<ErasureMaintenance> {
+        let wait = checked_config_number(
+            "acquisition_wait_ms",
+            Some(acquisition_wait_ms),
+            0,
+            (1u64 << 53) - 1,
+        )?
+        .unwrap_or(0);
+        let engine = Arc::clone(&self.inner);
+        let handle = call_engine(move || engine.begin_erasure_maintenance(wait)).await?;
+        Ok(ErasureMaintenance { inner: Arc::new(Mutex::new(handle)) })
+    }
+
     /// Structured open report captured at [`Engine::open`] time. Sync
     /// accessor (no Promise — the data lives on the engine struct
     /// after open). Idempotent: each call returns a fresh copy of the

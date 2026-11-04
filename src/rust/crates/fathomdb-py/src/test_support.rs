@@ -95,6 +95,7 @@ mod tests {
                     cuda_pool_max_size: None,
                     cuda_pool_release_threshold: None,
                     query_stop_words: None,
+                    physical_erasure_policy: None,
                 }
             );
         });

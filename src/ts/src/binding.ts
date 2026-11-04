@@ -666,6 +666,7 @@ interface NativeCounterSnapshot {
 }
 
 interface NativeEngineConfig {
+  physicalErasurePolicy?: "autonomous" | "explicit_maintenance";
   embedderPoolSize?: number;
   schedulerRuntimeThreads?: number;
   provenanceRowCap?: number;
@@ -748,7 +749,13 @@ export interface NativeRerankResult {
   ceScore?: number | null;
 }
 
+export interface NativeErasureMaintenance {
+  close(): Promise<string>;
+}
+
 export interface NativeEngine {
+  physicalErasurePolicy(): string;
+  beginErasureMaintenance(acquisitionWaitMs: number): Promise<NativeErasureMaintenance>;
   write(batch: unknown[]): Promise<NativeWriteReceipt>;
   actuate(request: unknown): Promise<NativeActuationReceiptV1>;
   registerSourceDependency(request: unknown): Promise<NativeSourceDependencyV1>;

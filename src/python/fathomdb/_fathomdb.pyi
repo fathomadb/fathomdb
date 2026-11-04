@@ -436,7 +436,12 @@ class OpenReport:
     embedder_gpu_allocation_witness: GpuAllocationWitness | None
     stop_words_sha256: str
 
+class ErasureMaintenance:
+    def close(self) -> str: ...
+
 class Engine:
+    def physical_erasure_policy(self) -> str: ...
+    def begin_erasure_maintenance(self, acquisition_wait_ms: int) -> ErasureMaintenance: ...
     @staticmethod
     def open(
         path: str,
@@ -1096,3 +1101,7 @@ class ProjectionGenerationError(EngineError):
     reason: str
     field_path: str
     def __init__(self, *args: Any, reason: str = ..., field_path: str = ...) -> None: ...
+
+class MaintenanceError(EngineError):
+    reason: str
+    def __init__(self, *args: Any, reason: str = ...) -> None: ...

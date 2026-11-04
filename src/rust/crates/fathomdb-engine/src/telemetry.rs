@@ -142,6 +142,11 @@ impl Engine {
     /// engine without restart. AC-005a locks runtime toggleability.
     pub fn set_profiling(&self, enabled: bool) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
+            crate::dependency_closure::guard_no_pending_physical(connection)?;
+        }
         self.profiling_enabled.store(enabled, Ordering::Relaxed);
         Ok(())
     }
@@ -153,6 +158,11 @@ impl Engine {
     /// behavior on subsequent statements without restart (AC-007b).
     pub fn set_slow_threshold_ms(&self, value: u64) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
+            crate::dependency_closure::guard_no_pending_physical(connection)?;
+        }
         self.slow_threshold_ms.store(value, Ordering::Relaxed);
         Ok(())
     }
@@ -164,6 +174,11 @@ impl Engine {
     /// reset deterministically on enable. Idempotent re-enable resets the seq.
     pub fn enable_telemetry(&self, sink_path: &str) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
+            crate::dependency_closure::guard_no_pending_physical(connection)?;
+        }
         // Touch the sink (create + validate writable) before arming capture, so a
         // bad path fails loudly here rather than silently dropping events.
         let mut options = std::fs::OpenOptions::new();
@@ -171,8 +186,6 @@ impl Engine {
         std::fs::OpenOptions::open(&options, sink_path).map_err(|_| EngineError::Storage)?;
         let path = std::fs::canonicalize(sink_path).map_err(|_| EngineError::Storage)?;
         let fingerprint = sink_fingerprint(&path)?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
         connection
             .execute(
@@ -319,6 +332,11 @@ impl Engine {
         label_source: &str,
     ) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
+            crate::dependency_closure::guard_no_pending_physical(connection)?;
+        }
         let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
         let sink = guard
             .as_ref()

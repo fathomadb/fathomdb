@@ -150,7 +150,8 @@ Requirements and acceptance criteria are per slice:
 Every slice: owner rulings recorded in the ledger; requirements and AC,
 design and a design review before code (Slices 42 to 90, owner 2026-10-31);
 TDD with RED before GREEN for code, one RED commit per behaviour; a code
-review before landing; independent Opus reviews at the slice plan's gates; the
+review before landing; independent reviews as specified by each slice plan
+(Slice 95 uses Astra); the
 full `./scripts/agent-verify.sh` gate for code changes; GPU qualification
 receipts on the named hosts; `windchill3` driver and `/usr/local/cuda`
 unchanged; no upstream PRs, issues or pushes.
@@ -166,8 +167,10 @@ These explicit placements do not change this policy for other gaps.
 
 ## Immediate next slice
 
-**Implementation ladder complete through Slice 90.** Final release
-qualification and the 0.8.29 hand-over are next; publication remains held.
+**Product implementation complete through Slice 90. Immediate next: Slice 95**
+([plan](0.8.28/features/slice-95/plan.md)) for CI completeness, runner repair and
+final release readiness. Publication remains held; the existing 0.8.29 hand-over
+rule applies when final verification begins.
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
@@ -179,10 +182,11 @@ Slice 85 completed the approved explicit-maintenance API and format 36 at
 timings. [Status](0.8.28/features/slice-85/status.md) records assembled checks and
 hosted CI infrastructure limits. Slice 90 completed filtered direct body FTS;
 its [status](0.8.28/features/slice-90/status.md) records reviewed semantics and
-verification. Next comes
-release qualification (the `AGENT_LONG` perf gates, eu7, the
-feature-complete gate and installed-wheel smoke tests), then the owner's
-publication decision (Slice 31 plan W8 and R-CODE-4).
+verification. [Slice 95](0.8.28/features/slice-95/plan.md) now owns the CI
+setup/disk/consumer-smoke repairs, evidence audit and final release qualification
+(the applicable `AGENT_LONG` perf gates, eu7, feature-complete gate and
+installed-artifact smoke tests), followed by the separate owner publication
+decision (Slice 31 plan W8 and R-CODE-4).
 
 ## Erasure sequence disposition and approved contract
 
@@ -194,8 +198,9 @@ on 2026-11-04 for a separate clean [Slice 85](0.8.28/features/slice-85/plan.md).
 That resolves the original end-of-83 decision. No deadline, immediate revocation
 subsystem or renewed optimization campaign is approved. The concrete design and
 independent bounded qualification completed in Slice 85; current schema is 36.
-Hosted CI setup/disk/legacy-smoke repair remains follow-up, with no platform-green
-or publication claim.
+Physical erasure is done except for concrete defects (owner 2026-11-04); it must
+not dominate further release planning. Hosted CI setup/disk/legacy-smoke repairs
+are assigned to Slice 95 as CI work, with no platform-green or publication claim.
 
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 
@@ -346,12 +351,24 @@ requirements say otherwise.
   Approved opt-in manual policy, bounded queued intent, exclusive maintenance
   handle, typed complete/incomplete outcomes and fresh-store format revision.
   [Plan](0.8.28/features/slice-85/plan.md), local acceptance S85-1–8.
-  Prepared for separate execution; pre-code Astra design review remains required.
+  Complete with Astra review and independent qualification; see
+  [status](0.8.28/features/slice-85/status.md). Physical erasure is done except
+  for defects; no new optimization campaign is planned.
 - **Slice 90 — filtered direct body FTS (D28-14).** It follows the
   [draft scope](0.8.28-draft-scope.md#d28-14-filtered-direct-body-fts).
   Completed with [reviewed plan/design](0.8.28/features/slice-90/plan.md) and
   [status](0.8.28/features/slice-90/status.md), building on Slice 80 view admission
   across Rust, Python and TypeScript.
+
+- **Slice 95 — CI completeness and final release readiness.** Owner placement
+  on 2026-11-04 (steward ledger seq-364), after completed Slice 90. Combines
+  historical documentation/contract convergence and integrated qualification.
+  Explicitly repairs cold verify pinned-tool setup and parallel Rust disk
+  exhaustion; audits CI job coverage/results, installed-package smokes,
+  documentation and applicable final candidate evidence. Physical erasure stays
+  closed except for defects. [Plan](0.8.28/features/slice-95/plan.md) and
+  [planned status](0.8.28/features/slice-95/status.md); no execution/publication
+  result is claimed.
 
 ## Slice ladder
 
@@ -372,3 +389,4 @@ requirements say otherwise.
 | 84 | Cleanup contention and certification cost | [Plan](0.8.28/features/slice-84/plan.md) |
 | 85 | Explicit physical-erasure maintenance and format boundary | [Plan](0.8.28/features/slice-85/plan.md) |
 | 90 | D28-14 filtered direct body FTS | [Plan and design](0.8.28/features/slice-90/plan.md) |
+| 95 | CI completeness, runner repairs and final release readiness | [Plan](0.8.28/features/slice-95/plan.md) |

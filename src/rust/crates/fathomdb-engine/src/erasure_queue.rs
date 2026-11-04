@@ -150,6 +150,22 @@ fn decode(raw: &str) -> Result<Request, EngineError> {
     let queued = r.status.phase == ErasurePhase::Queued;
     let terminal =
         matches!(r.status.phase, ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval);
+    let identity_free = terminal || r.status.phase == ErasurePhase::Finalizing;
+    if (identity_free
+        && (r.selector.is_some()
+            || r.scope != Scope::default()
+            || r.cut != 0
+            || !r.originals.is_empty()))
+        || (!identity_free
+            && r.selector.as_ref().is_none_or(|selector| validate_selector(selector).is_err()))
+        || (!identity_free && r.status.target_count != r.scope.cursors.len() as u64)
+        || r.status.target_count > 16384
+        || (matches!(r.status.phase, ErasurePhase::Queued | ErasurePhase::WithdrawnBeforeRemoval)
+            != (r.status.logical_state == ErasureLogicalState::UnchangedByThisRequest))
+    {
+        return Err(EngineError::Storage);
+    }
+
     if r.version != 1
         || validate_ticket(&r.ticket).is_err()
         || validate_key(&r.key).is_err()
@@ -218,8 +234,18 @@ fn requests(c: &Connection) -> Result<Vec<Request>, EngineError> {
 }
 
 pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
+    let bytes: u64 = c
+        .query_row(
+            "SELECT COALESCE(SUM(length(payload)),0) FROM _fathomdb_erasure_requests",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if bytes > 8 << 20 {
+        return Err(EngineError::Storage);
+    }
     let rows = requests(c)?;
-    if rows.len() > 4113
+    if rows.len() > 4096
         || rows.iter().filter(|r| r.status.phase == ErasurePhase::Queued).count() > 16
     {
         return Err(EngineError::Storage);
@@ -241,7 +267,13 @@ pub(crate) fn validate_active(c: &Connection) -> Result<(), EngineError> {
     }
     let root = physical_erasure::root(c)?;
     match (root.as_ref().and_then(|r| r.ticket.as_deref()), active.first()) {
-        (Some(ticket), Some(request)) if request.ticket == ticket => {}
+        (Some(ticket), Some(request)) if request.ticket == ticket => {
+            if physical_erasure::redacted_ids(c)?.is_some()
+                != (request.status.phase == ErasurePhase::Finalizing)
+            {
+                return Err(EngineError::Storage);
+            }
+        }
         (None, None) => {}
         _ => return Err(EngineError::Storage),
     }

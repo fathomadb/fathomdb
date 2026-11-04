@@ -171,3 +171,77 @@ impl Engine {
         writer(&self.physical_maintenance.metrics, &self.connection, finalizing)
     }
 }
+
+#[cfg(any(test, feature = "test-hooks"))]
+thread_local! {
+    static CURRENT: std::cell::RefCell<Option<Arc<PhysicalMetrics>>> = const { std::cell::RefCell::new(None) };
+}
+
+pub(crate) struct MetricScope {
+    #[cfg(any(test, feature = "test-hooks"))]
+    previous: Option<Arc<PhysicalMetrics>>,
+}
+
+pub(crate) fn scope(metrics: &Arc<PhysicalMetrics>) -> MetricScope {
+    #[cfg(any(test, feature = "test-hooks"))]
+    {
+        MetricScope { previous: CURRENT.with(|slot| slot.replace(Some(Arc::clone(metrics)))) }
+    }
+    #[cfg(not(any(test, feature = "test-hooks")))]
+    {
+        let _ = metrics;
+        MetricScope {}
+    }
+}
+
+impl Drop for MetricScope {
+    fn drop(&mut self) {
+        #[cfg(any(test, feature = "test-hooks"))]
+        CURRENT.with(|slot| {
+            slot.replace(self.previous.take());
+        });
+    }
+}
+
+pub(crate) fn stage(name: &'static str) -> PhysicalTimer {
+    #[cfg(any(test, feature = "test-hooks"))]
+    {
+        CURRENT.with(|slot| {
+            slot.borrow()
+                .as_ref()
+                .map_or(PhysicalTimer { sample: None }, |metrics| metrics.timer(name))
+        })
+    }
+    #[cfg(not(any(test, feature = "test-hooks")))]
+    {
+        let _ = name;
+        PhysicalTimer {}
+    }
+}
+
+#[cfg(test)]
+mod slice84_tests {
+    use super::*;
+
+    #[test]
+    fn admission_profile_records_actual_nested_work_and_restores_scope() {
+        let c = crate::vector_storage::slice70_mapping_fixture(false);
+        let metrics = Arc::new(PhysicalMetrics::default());
+        metrics.enabled.store(true, Ordering::Relaxed);
+        {
+            let _scope = scope(&metrics);
+            crate::physical_erasure::envelope(&c).unwrap();
+        }
+        crate::physical_erasure::envelope(&c).unwrap();
+        let stages = metrics.stages.lock().unwrap();
+        for name in [
+            "envelope",
+            "envelope_pages",
+            "envelope_bodies",
+            "envelope_vectors",
+            "envelope_metadata",
+        ] {
+            assert_eq!(stages.get(name).map(|row| row.0), Some(1), "missing/escaped stage {name}");
+        }
+    }
+}

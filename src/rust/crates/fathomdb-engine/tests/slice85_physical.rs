@@ -138,3 +138,139 @@ fn postdelete_feedback_refuses_and_allowed_reads_do_not_capture() {
     engine.search_explained("retainedsurvivor85", None, 0, false, 0.3, 0).unwrap();
     assert_eq!(std::fs::read(&sink).unwrap(), before);
 }
+
+#[test]
+fn late_registered_second_original_cannot_be_substituted_and_both_are_redacted() {
+    let (dir, engine) = fixture();
+    let first = dir.path().join("first.jsonl");
+    let second = dir.path().join("second.jsonl");
+    let wrong = dir.path().join("wrong.jsonl");
+    engine.enable_telemetry(first.to_str().unwrap()).unwrap();
+    engine.search_explained("uniquephysicalmarker85", None, 0, false, 0.3, 0).unwrap();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    handle.close().unwrap();
+    engine.enable_telemetry(second.to_str().unwrap()).unwrap();
+    engine.search_explained("uniquephysicalmarker85", None, 0, false, 0.3, 0).unwrap();
+    assert!(std::fs::read_to_string(&first).unwrap().contains("l:target"));
+    assert!(std::fs::read_to_string(&second).unwrap().contains("l:target"));
+    std::fs::write(&wrong, "unregistered original impersonation").unwrap();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let blocked = handle.complete_physical_erasure(&ticket).unwrap();
+    assert!(matches!(
+        blocked,
+        CleanupResult::Incomplete {
+            status: ErasureStatus {
+                phase: ErasurePhase::Queued,
+                logical_state: ErasureLogicalState::UnchangedByThisRequest,
+                blocker: Some(ErasureBlocker::OriginalSinkUnavailable),
+                ..
+            }
+        }
+    ));
+    assert!(matches!(
+        handle.reattach_original_erasure_sink(&ticket, wrong.to_str().unwrap()),
+        Err(EngineError::Maintenance(MaintenanceError::OriginalSinkMismatch))
+    ));
+    handle.reattach_original_erasure_sink(&ticket, first.to_str().unwrap()).unwrap();
+    handle.reattach_original_erasure_sink(&ticket, second.to_str().unwrap()).unwrap();
+    assert!(matches!(
+        handle.complete_physical_erasure(&ticket).unwrap(),
+        CleanupResult::Complete { .. }
+    ));
+    handle.close().unwrap();
+    assert!(!std::fs::read_to_string(&first).unwrap().contains("l:target"));
+    assert!(!std::fs::read_to_string(&second).unwrap().contains("l:target"));
+    assert_eq!(std::fs::read_to_string(&wrong).unwrap(), "unregistered original impersonation");
+}
+
+#[test]
+fn pinned_external_reader_keeps_redacted_ticket_fenced_until_actual_truncate() {
+    let (_dir, engine) = fixture();
+    let reader = rusqlite::Connection::open(engine.path()).unwrap();
+    reader.execute_batch("BEGIN;SELECT count(*) FROM canonical_nodes;").unwrap();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    let blocked = handle.complete_physical_erasure(&ticket).unwrap();
+    assert!(matches!(
+        blocked,
+        CleanupResult::Incomplete {
+            status: ErasureStatus {
+                phase: ErasurePhase::Finalizing,
+                logical_state: ErasureLogicalState::Removed,
+                blocker: Some(ErasureBlocker::WalCheckpoint),
+                ..
+            }
+        }
+    ));
+    assert_eq!(handle.close().unwrap(), ErasureServiceState::ReadsAllowedWritesFenced);
+    assert!(engine.write(&[node("new", "unrelated", "later")]).is_err());
+    assert!(engine.read_get("survivor", &ReadView::default()).unwrap().is_some());
+    reader.execute_batch("ROLLBACK").unwrap();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    assert!(matches!(
+        handle.complete_physical_erasure(&ticket).unwrap(),
+        CleanupResult::Complete { .. }
+    ));
+    handle.close().unwrap();
+}
+
+#[cfg(feature = "operator")]
+#[test]
+fn offline_completion_publishes_same_activated_receipt_without_activating_queued_intent() {
+    let (dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let queued = ticket(&handle);
+    handle.close().unwrap();
+    engine.close().unwrap();
+    recover_complete_erasures(dir.path().join("physical.sqlite")).unwrap();
+    let engine = Arc::new(Engine::open(dir.path().join("physical.sqlite")).unwrap().engine);
+    assert_eq!(
+        engine.physical_erasure_status(&queued).unwrap().unwrap().phase,
+        ErasurePhase::Queued
+    );
+    assert!(engine.read_get("target", &ReadView::default()).unwrap().is_some());
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    arm_physical_erasure_hook_for_test(
+        "after_delete_commit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(handle.complete_physical_erasure(&queued).is_err());
+    handle.close().unwrap();
+    engine.close().unwrap();
+    recover_complete_erasures(dir.path().join("physical.sqlite")).unwrap();
+    let engine = Engine::open(dir.path().join("physical.sqlite")).unwrap().engine;
+    assert_eq!(
+        engine.physical_erasure_status(&queued).unwrap().unwrap().phase,
+        ErasurePhase::Complete
+    );
+    assert!(engine.read_get("target", &ReadView::default()).unwrap().is_none());
+}
+
+#[test]
+fn unrelated_growth_leaves_ticket_queued_when_resource_envelope_changes() {
+    let (_dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    handle.close().unwrap();
+    engine.write(&[node("large", "other-source", &"x".repeat((2 << 20) + 1))]).unwrap();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let blocked = handle.complete_physical_erasure(&ticket).unwrap();
+    assert!(matches!(
+        blocked,
+        CleanupResult::Incomplete {
+            status: ErasureStatus {
+                phase: ErasurePhase::Queued,
+                logical_state: ErasureLogicalState::UnchangedByThisRequest,
+                blocker: Some(ErasureBlocker::ResourceEnvelopeChanged),
+                ..
+            }
+        }
+    ));
+    handle.close().unwrap();
+    assert!(engine.read_get("target", &ReadView::default()).unwrap().is_some());
+    assert_eq!(
+        engine.withdraw_queued_erasure(&ticket).unwrap(),
+        WithdrawResult::WithdrawnBeforeRemoval
+    );
+}

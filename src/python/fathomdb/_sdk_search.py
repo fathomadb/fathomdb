@@ -608,12 +608,23 @@ def search_projected_text(
 
 
 def search_text_only(
-    self: Engine, query: str, view: ReadView | None = None, *, limit: int = 10
+    self: Engine, query: str, view: ReadView | None = None, *, limit: int = 10, filter: SearchFilter | None = None
 ) -> SearchResult:
     if not isinstance(view, (ReadView, type(None))):
         raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
     limit = _validate_ranked_result_limit("limit", limit)
-    result = self._native.search_text_only(query, view=_to_native_view(view), limit=limit)
+    if not isinstance(filter, (SearchFilter, type(None))):
+        raise TypeError(f"filter must be a SearchFilter or None, got {type(filter).__name__!r}")
+    kwargs: dict[str, Any] = {"view": _to_native_view(view), "limit": limit}
+    if filter is not None:
+        kwargs.update(
+            source_type=filter.source_type,
+            kind=filter.kind,
+            created_after=filter.created_after,
+            status=filter.status,
+            attributes=list(filter.attributes),
+        )
+    result = self._native.search_text_only(query, **kwargs)
     fallback = result.soft_fallback
     soft = (
         SoftFallback(branch=cast(SoftFallbackBranch, fallback.branch))

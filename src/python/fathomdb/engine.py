@@ -470,19 +470,22 @@ class Engine:
         return _sdk_search.search_projected_text(self, query, name, filter, view=view, limit=limit)
 
     def search_text_only(
-        self, query: str, view: ReadView | None = None, *, limit: int = 10
+        self, query: str, view: ReadView | None = None, *, limit: int = 10, filter: SearchFilter | None = None
     ) -> SearchResult:
         """0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only / FTS-only search.
 
         Does NOT embed the query and NEVER raises
         ``VectorEquivalenceMismatchError``. Deliberate provider-free opens retain
         this path. It does not invoke vector recall, CE reranking, or the graph
-        arm. Matching node- and edge-body FTS candidates are deterministically
+        arm. Filters apply before candidate bounds, deduplication and ranking.
+        Attribute predicates are node-scoped; status/time need existing projected
+        metadata and fail to match when absent. No metadata is populated here.
+        Matching node- and edge-body FTS candidates are deterministically
         body-deduplicated and ranked before ``limit`` is applied. For one
         immutable selection and effective validity time, smaller accepted limits
         are prefixes of larger limits; this does not extend to hybrid search.
         """
-        return _sdk_search.search_text_only(self, query, view, limit=limit)
+        return _sdk_search.search_text_only(self, query, view, limit=limit, filter=filter)
 
     def enable_telemetry(self, sink_path: str) -> None:
         """0.8.8 Slice 15 (OPP-9) — enable opt-in local telemetry capture to a

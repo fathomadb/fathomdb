@@ -636,6 +636,7 @@ impl Engine {
         query: String,
         view: Option<ReadViewInput>,
         limit: Option<u32>,
+        filter: Option<SearchFilterInput>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
         if query.trim().is_empty() {
@@ -645,11 +646,12 @@ impl Engine {
                 JsonValue::Null,
             ));
         }
+        let filter = search_filter_input_to_rust(filter)?;
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
         let engine = Arc::clone(&self.inner);
         let result =
-            call_engine(move || engine.search_text_only_view_with_limit(&query, &view, limit))
+            call_engine(move || engine.search_text_only_filtered(&query, filter, &view, limit))
                 .await?;
         Ok(SearchResult::from_rust(result))
     }

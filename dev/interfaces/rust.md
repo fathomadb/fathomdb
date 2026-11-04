@@ -1882,3 +1882,30 @@ Handle drop releases only ephemeral gates; post-delete writes remain fenced
 through reopen until actual cleanup. Allowed coherent reads suppress telemetry
 capture while fenced. Explicit reopen executes no physical cleanup; original
 sink reattachment and offline activated-ticket completion share physical authority.
+
+## Filtered direct body FTS (0.8.28 Slice 90)
+
+The core full-arity entry is
+`Engine::search_text_only_filtered(query, Option<SearchFilter>, &ReadView, limit)`.
+Existing query/view/limit methods delegate with no filter. Rust SDK
+`TextSearchOptions` adds `filter: Option<SearchFilter>` (default `None`).
+
+The existing closed filter applies to node and edge body candidates before
+candidate truncation, body deduplication, ranking and returned limit. Attribute
+predicates are ANDed, require declared `filterable` projections, and are
+node-scoped (edge hits do not match them). Validation occurs in the same reader
+snapshot, with typed `InvalidFilter` even when the query has no matches.
+Source type uses the established node kind mapping and `edge_fact` for edges;
+kind matches the node kind or edge relation kind.
+
+`status` and `created_after` preserve G10 projected-metadata semantics:
+status is the empty-string sentinel; creation time is projection time, with an
+inclusive lower bound. Missing vector metadata fails to match. These fields do
+not read JSON body values or populate metadata. Reading existing metadata does
+not execute vector retrieval. Source type, kind and declared attributes work
+on provider-free stores; status/time may return no matches there.
+
+ReadView existence and validity axes compose with the filter. No embedding,
+dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
+corpus, effective validity time and filter, smaller result limits are ordered
+prefixes of larger ones. None and empty filters retain unfiltered behavior.

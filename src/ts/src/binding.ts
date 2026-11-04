@@ -844,7 +844,7 @@ export interface NativeEngine {
   ): Promise<NativeSearchResult>;
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only/FTS-only path +
   // degraded-state observability.
-  searchTextOnly(query: string, view?: NativeReadView, limit?: number): Promise<NativeSearchResult>;
+  searchTextOnly(query: string, view?: NativeReadView, limit?: number, filter?: NativeSearchFilter): Promise<NativeSearchResult>;
   searchProjectedText(
     query: string,
     name: string,

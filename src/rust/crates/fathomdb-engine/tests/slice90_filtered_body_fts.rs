@@ -210,11 +210,23 @@ fn attribute_validation_and_view_axes_compose_with_direct_text_filter() {
             .len(),
         3
     );
-    filter.attributes[0].0 = "undeclared".into();
-    assert!(matches!(
-        engine.search_text_only_filtered("nohit", Some(filter), &base, 10),
-        Err(EngineError::InvalidFilter { .. })
-    ));
+    let mut rankable = filterable("rankonly");
+    rankable.roles = [ProjectionRole::Rankable].into();
+    engine.configure_projections(&[rankable], &[]).unwrap();
+    for name in ["undeclared", "rankonly"] {
+        filter.attributes[0].0 = name.into();
+        assert!(matches!(
+            engine.search_text_only_filtered("nohit", Some(filter.clone()), &base, 10),
+            Err(EngineError::InvalidFilter { .. })
+        ));
+    }
+    filter.attributes.clear();
+    filter.status = Some(String::new());
+    assert!(engine
+        .search_text_only_filtered("s90history", Some(filter), &all, 10)
+        .unwrap()
+        .results
+        .is_empty());
     engine.close().unwrap();
 }
 
@@ -303,4 +315,49 @@ fn metadata_keeps_projected_sentinel_time_and_missing_row_semantics() {
             .is_empty());
     }
     no_provider.engine.close().unwrap();
+}
+
+#[test]
+fn nonempty_filter_keeps_mixed_node_edge_duplicate_prefix_stable() {
+    use fathomdb_embedder::NoopEmbedder;
+    use fathomdb_engine::TestEmbedderChoice;
+    use std::sync::Arc;
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open_with_test_choice_for_test(
+        dir.path().join(format!("mixed{SQLITE_SUFFIX}")),
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .unwrap();
+    let engine = &opened.engine;
+    engine.configure_vector_kind_for_test("doc").unwrap();
+    let mut writes: Vec<_> = (0..60)
+        .map(|i| node(&format!("n{i}"), format!("s90mixed matching document {i:02}")))
+        .collect();
+    writes.push(edge("duplicate", "s90mixed matching document 10".into()));
+    engine.write(&writes).unwrap();
+    engine.drain(10_000).unwrap();
+    let view = ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() };
+    let mut filter = SearchFilter::default();
+    filter.status = Some(String::new());
+    let small =
+        engine.search_text_only_filtered("s90mixed", Some(filter.clone()), &view, 10).unwrap();
+    let large =
+        engine.search_text_only_filtered("s90mixed", Some(filter.clone()), &view, 50).unwrap();
+    assert_eq!(small.results.len(), 10);
+    assert_eq!(large.results.len(), 50);
+    assert_eq!(
+        small.results.iter().map(|h| (&h.id, h.score)).collect::<Vec<_>>(),
+        large.results.iter().take(10).map(|h| (&h.id, h.score)).collect::<Vec<_>>()
+    );
+    filter.source_type = Some("edge_fact".into());
+    assert_eq!(
+        engine
+            .search_text_only_filtered("s90mixed", Some(filter), &view, 10)
+            .unwrap()
+            .results
+            .len(),
+        1,
+        "edge participates in the metadata-filtered candidate set"
+    );
+    engine.close().unwrap();
 }

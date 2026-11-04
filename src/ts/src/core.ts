@@ -63,6 +63,7 @@ import {
   FrozenReadContextV1,
   FrozenSearchOptions,
   SearchOptions,
+  TextSearchOptions,
   SearchExpandOptions,
   Filter,
   SearchResult,
@@ -463,7 +464,7 @@ export class Engine {
    * smaller accepted limits are prefixes of larger limits; this does not extend
    * to hybrid search.
    */
-  async searchTextOnly(query: string, view?: SearchOptions): Promise<SearchResult> { return searchTextOnly(this.#native, query, view); }
+  async searchTextOnly(query: string, view?: TextSearchOptions): Promise<SearchResult> { return searchTextOnly(this.#native, query, view); }
 
   /** Search exactly one declared `searchable` property-FTS projection. */
   async searchProjectedText(

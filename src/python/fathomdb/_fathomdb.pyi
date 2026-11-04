@@ -575,7 +575,10 @@ class Engine:
     # 0.8.18 Slice 5 (R-VEQ-4) — text-only / FTS-only path; takes the same
     # optional validity view as `search` (0.8.20 Slice 15b fix-2).
     def search_text_only(
-        self, query: str, view: ReadView | None = ..., limit: int = ...
+        self, query: str, view: ReadView | None = ..., limit: int = ..., *,
+        source_type: str | None = ..., kind: str | None = ...,
+        created_after: int | None = ..., status: str | None = ...,
+        attributes: list[tuple[str, str]] | None = ...,
     ) -> SearchResult: ...
     # 0.8.8 Slice 15 (OPP-9) — opt-in local telemetry capture.
     def enable_telemetry(self, sink_path: str) -> None: ...

@@ -1077,13 +1077,13 @@ utility, outside engine dispatch.
 
 **Status: PROPOSED / NOT SIGNED.**
 
-Both search verbs take the SAME optional `view` keyword the five read verbs
-take. It is keyword-only and defaults to `None`.
+Both search verbs take the same optional `ReadView`, defaulting to `None`.
+`search` takes keyword-only `view`; `search_text_only` also accepts it positionally.
 
 ```python
 engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False,
               alpha=None, pool_n=None, explain=False, view=None, limit=10)
-engine.search_text_only(query, view=None, *, limit=10)
+engine.search_text_only(query, view=None, *, limit=10, filter=None)
 ```
 
 `view` is a `fathomdb.types.ReadView` — the same dataclass `read.get` /
@@ -1497,3 +1497,29 @@ provenance/dependency/lifecycle/actuation/global administration that cannot prov
 cheap noninterference refuses `queued_scope_fenced`. Reads retain their eligibility.
 Post-delete incomplete work may allow coherent reads while globally fencing writes;
 read-triggered telemetry capture is suppressed. Drop/reopen cannot forgive debt.
+
+## Filtered direct body FTS (0.8.28 Slice 90)
+
+`engine.search_text_only(query, view=None, *, limit=10, filter=None)` accepts
+`SearchFilter | None`; `filter` is keyword-only. Existing positional view calls
+remain valid. Invalid filter types raise `TypeError`.
+
+The existing closed filter applies to node and edge body candidates before
+candidate truncation, body deduplication, ranking and returned limit. Attribute
+predicates are ANDed, require declared `filterable` projections, and are
+node-scoped (edge hits do not match them). Validation occurs in the same reader
+snapshot, with typed `InvalidFilter` even when the query has no matches.
+Source type uses the established node kind mapping and `edge_fact` for edges;
+kind matches the node kind or edge relation kind.
+
+`status` and `created_after` preserve G10 projected-metadata semantics:
+status is the empty-string sentinel; creation time is projection time, with an
+inclusive lower bound. Missing vector metadata fails to match. These fields do
+not read JSON body values or populate metadata. Reading existing metadata does
+not execute vector retrieval. Source type, kind and declared attributes work
+on provider-free stores; status/time may return no matches there.
+
+ReadView existence and validity axes compose with the filter. No embedding,
+dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
+corpus, effective validity time and filter, smaller result limits are ordered
+prefixes of larger ones. None and empty filters retain unfiltered behavior.

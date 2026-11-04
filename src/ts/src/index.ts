@@ -92,6 +92,7 @@ export {
   FrozenReadContextV1,
   FrozenSearchOptions,
   SearchOptions,
+  TextSearchOptions,
   SearchExpandOptions,
   mapNativeSearchResult,
   FilterTerm,

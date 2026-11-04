@@ -737,20 +737,51 @@ impl PyEngine {
     /// `limit`; no vector recall, CE rerank, or graph arm runs on this path.
     ///
     /// 0.8.20 Slice 15b fix-2 — takes the same optional `view` as `search`.
-    #[pyo3(signature = (query, view=None, limit=10))]
+    #[pyo3(signature = (query, view=None, limit=10, *, source_type=None, kind=None, created_after=None, status=None, attributes=None))]
+    #[allow(clippy::too_many_arguments)]
     fn search_text_only(
         &self,
         py: Python<'_>,
         query: &str,
         view: Option<&PyReadView>,
         limit: usize,
+        source_type: Option<Bound<'_, PyAny>>,
+        kind: Option<Bound<'_, PyAny>>,
+        created_after: Option<i64>,
+        status: Option<Bound<'_, PyAny>>,
+        attributes: Option<Vec<(String, String)>>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
+        let source_type = extract_opt_validated_str(source_type.as_ref())?;
+        let kind = extract_opt_validated_str(kind.as_ref())?;
+        let status = extract_opt_validated_str(status.as_ref())?;
+        let attributes = attributes.unwrap_or_default();
+        for (attribute, value) in &attributes {
+            validate_ffi_string_py(attribute)?;
+            validate_ffi_string_py(value)?;
+        }
+        let filter = if source_type.is_some()
+            || kind.is_some()
+            || created_after.is_some()
+            || status.is_some()
+            || !attributes.is_empty()
+        {
+            let mut filter = RustSearchFilter::default();
+            filter.source_type = source_type;
+            filter.kind = kind;
+            filter.created_after = created_after;
+            filter.status = status;
+            filter.attributes = attributes;
+            Some(filter)
+        } else {
+            None
+        };
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let view = read_view_or_default(view);
-        let result =
-            call_engine(py, move || engine.search_text_only_view_with_limit(&query, &view, limit))?;
+        let result = call_engine(py, move || {
+            engine.search_text_only_filtered(&query, filter, &view, limit)
+        })?;
         Ok(PySearchResult::from_rust(result))
     }
 

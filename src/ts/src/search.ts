@@ -7,7 +7,7 @@ import {
 } from "./binding.js";
 import { FathomDbError, FrozenReadError, InvalidArgumentError, InvalidFilterError } from "./errors.js";
 import { intercept } from "./native-call.js";
-import { validateFfiString } from "./validation.js";
+import { validateFfiString, validateFfiTree } from "./validation.js";
 import type { SearchExpandResult } from "./graph.js";
 import type { Predicate, ReadView } from "./read.js";
 
@@ -117,6 +117,9 @@ export interface FrozenSearchOptions {
 export type SearchOptions = ReadView & {
   limit?: number;
 };
+
+/** Direct body FTS options. Filters apply before candidate bounds and ranking. */
+export type TextSearchOptions = SearchOptions & { filter?: SearchFilter };
 
 /** Options for the initial ranked hits returned by {@link graph.searchExpand}. */
 export interface SearchExpandOptions {
@@ -811,11 +814,13 @@ export async function search(nativeEngine: NativeEngine, query: string, filter?:
     return mapNativeSearchResult(r);
   }
 
-export async function searchTextOnly(nativeEngine: NativeEngine, query: string, view?: SearchOptions): Promise<SearchResult> {
+export async function searchTextOnly(nativeEngine: NativeEngine, query: string, options?: TextSearchOptions): Promise<SearchResult> {
     validateFfiString(query);
+    const { filter, ...view } = options ?? {};
+    if (filter !== undefined) validateFfiTree(filter);
     const searchOptions = splitSearchOptions(view);
     const r = await intercept(() =>
-      nativeEngine.searchTextOnly(query, searchOptions.view, searchOptions.limit),
+      nativeEngine.searchTextOnly(query, searchOptions.view, searchOptions.limit, filter),
     );
     const branch = r.softFallback?.branch;
     return {

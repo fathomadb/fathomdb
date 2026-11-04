@@ -1451,3 +1451,30 @@ eligibility. Proven-disjoint plain writes remain usable; unprovable provenance,
 dependency/lifecycle/actuation/global admin effects refuse `queued_scope_fenced`.
 Post-delete incomplete service may allow coherent reads with telemetry capture
 suppressed while all writes remain fenced. Handle drop/reopen cannot clear debt.
+
+## Filtered direct body FTS (0.8.28 Slice 90)
+
+`engine.searchTextOnly(query, options?: TextSearchOptions)` accepts existing
+flat ReadView fields and `limit`, plus optional `filter: SearchFilter`.
+`TextSearchOptions` extends `SearchOptions`; other search options are unchanged.
+The native positional call appends filter after query, view and limit.
+
+The existing closed filter applies to node and edge body candidates before
+candidate truncation, body deduplication, ranking and returned limit. Attribute
+predicates are ANDed, require declared `filterable` projections, and are
+node-scoped (edge hits do not match them). Validation occurs in the same reader
+snapshot, with typed `InvalidFilter` even when the query has no matches.
+Source type uses the established node kind mapping and `edge_fact` for edges;
+kind matches the node kind or edge relation kind.
+
+`status` and `created_after` preserve G10 projected-metadata semantics:
+status is the empty-string sentinel; creation time is projection time, with an
+inclusive lower bound. Missing vector metadata fails to match. These fields do
+not read JSON body values or populate metadata. Reading existing metadata does
+not execute vector retrieval. Source type, kind and declared attributes work
+on provider-free stores; status/time may return no matches there.
+
+ReadView existence and validity axes compose with the filter. No embedding,
+dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
+corpus, effective validity time and filter, smaller result limits are ordered
+prefixes of larger ones. None and empty filters retain unfiltered behavior.

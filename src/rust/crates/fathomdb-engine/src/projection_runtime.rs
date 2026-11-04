@@ -157,6 +157,7 @@ pub(crate) struct ProjectionJob {
 #[derive(Debug, Default)]
 pub(crate) struct ProjectionRuntimeState {
     pub(crate) active_jobs: usize,
+    pub(crate) active_scans: usize,
     pub(crate) queued_jobs: usize,
     pub(crate) frozen: bool,
     pub(crate) pending_scan: bool,
@@ -800,7 +801,7 @@ impl ProjectionRuntime {
         };
         loop {
             let mut retry_pending_probe = false;
-            if state.active_jobs == 0 && state.queued_jobs == 0 {
+            if state.active_jobs == 0 && state.queued_jobs == 0 && state.active_scans == 0 {
                 drop(state);
                 match has_pending_projection_work() {
                     Some(false) => return true,
@@ -839,7 +840,7 @@ impl ProjectionRuntime {
             Err(_) => return false,
         };
         loop {
-            if state.active_jobs == 0 && state.queued_jobs == 0 {
+            if state.active_jobs == 0 && state.queued_jobs == 0 && state.active_scans == 0 {
                 return true;
             }
             let now = Instant::now();

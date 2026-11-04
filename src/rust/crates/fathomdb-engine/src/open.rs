@@ -1051,6 +1051,7 @@ impl Engine {
                         } else {
                             PhysicalErasurePolicy::Autonomous
                         },
+                        explicit_debt: AtomicBool::new(physical_debt),
                         requested_config: config,
                         query_stop_words: Arc::clone(&query_stop_words),
                         resolved_config,

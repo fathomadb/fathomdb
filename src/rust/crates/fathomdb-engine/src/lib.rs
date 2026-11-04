@@ -487,6 +487,7 @@ pub struct Engine {
     path: PathBuf,
     requested_config: EngineConfig,
     physical_policy: PhysicalErasurePolicy,
+    explicit_debt: AtomicBool,
     /// The effective query stop words, shared with every reader worker.
     query_stop_words: Arc<fathomdb_query::StopWordSet>,
     #[allow(dead_code)]

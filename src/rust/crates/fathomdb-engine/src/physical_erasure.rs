@@ -20,6 +20,8 @@ pub(crate) fn faultpoint(phase: &str) -> Result<(), EngineError> {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RootDebt {
+    #[serde(default)]
+    pub(crate) ticket: Option<String>,
     version: u32,
     retry: String,
     cursors: Vec<i64>,
@@ -219,6 +221,7 @@ pub(crate) fn capture(
     vectors.sort_unstable();
     vectors.dedup();
     let mut debt = RootDebt {
+        ticket: None,
         version: 2,
         retry: String::new(),
         cursors,
@@ -246,6 +249,7 @@ pub(crate) fn admit(
     argument: &str,
     ids: &[ClosureOperationId],
 ) -> Result<(), EngineError> {
+    debt.ticket = crate::erasure_queue::activate_in(c, verb, argument)?;
     debt.retry = fingerprint(verb, argument);
     if verb == "purge" {
         debt.denied_identities.push(admission::deny_hash("identity", &format!("l:{argument}")));
@@ -448,6 +452,9 @@ pub(crate) fn prepare_redacted(
     transaction(c, || {
         dependency_closure::validate_physical_closures(c, ids)?;
         validate_pending(c, ids)?;
+        if let Some(ticket) = &debt.ticket {
+            crate::erasure_queue::scrub_in(c, ticket)?;
+        }
         debt.redacted = true;
         debt.retry.clear();
         debt.cursors.clear();
@@ -462,6 +469,7 @@ pub(crate) fn prepare_redacted(
 }
 
 pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(), EngineError> {
+    let ticket = root(c)?.and_then(|debt| debt.ticket);
     validate_pending(c, ids)?;
     if state(c)?.phase != "finalizing" && state(c)?.phase != "clean" {
         return Err(EngineError::Storage);
@@ -481,6 +489,9 @@ pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(),
         )?;
         c.execute("DELETE FROM _fathomdb_open_state WHERE key=?1", [ROOT_KEY])
             .map_err(|_| EngineError::Storage)?;
+        if let Some(ticket) = &ticket {
+            crate::erasure_queue::complete_in(c, ticket)?;
+        }
         faultpoint("before_completion_commit")?;
         Ok(())
     })

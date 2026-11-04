@@ -72,3 +72,52 @@ test("complete receipt follows physical byte removal and preserves survivor", as
     assert.equal((await engine.searchTextOnly("retainedsurvivor85")).results.length, 1);
   } finally { await engine.close(); rmSync(dir, { recursive: true }); }
 });
+
+test("discarded caller and handle retain native ownership to terminal receipt", async (t) => {
+  const { spawnSync } = await import("node:child_process");
+  const { native } = await import("../src/binding.js");
+  const probeDir = mkdtempSync(join(tmpdir(), "slice85-probe-"));
+  const raw = await native.Engine.open(join(probeDir, "probe.sqlite"), { engineConfig: { physicalErasurePolicy: "explicit_maintenance" } });
+  const rawHandle = await raw.beginErasureMaintenance(1000);
+  const available = typeof (rawHandle as unknown as Record<string, unknown>)._armErasurePauseForTest === "function";
+  await rawHandle.close(); await raw.close(); rmSync(probeDir, { recursive: true });
+  if (!available) { t.skip("requires dev-only native erasure rendezvous"); return; }
+  const dir = mkdtempSync(join(tmpdir(), "slice85-drop-"));
+  const module = new URL("../src/index.js", import.meta.url).href;
+  const script = `
+    import assert from "node:assert/strict";
+    import { setTimeout as delay } from "node:timers/promises";
+    const { Engine, MaintenanceError } = await import(${JSON.stringify(module)});
+    const engine = await Engine.open(${JSON.stringify(join(dir, "store.sqlite"))}, { engineConfig: { physicalErasurePolicy: "explicit_maintenance" } });
+    await engine.write([{kind:"doc",body:"discardedcallermarker85",sourceId:"target-source"}]);
+    let handle = await engine.beginErasureMaintenance(1000);
+    const accepted = await handle.queuePhysicalErasure({kind:"source_all_at_cut",sourceId:"target-source"}, "f23e2130b50242e3b8d545d4fa3d8015");
+    assert.equal(accepted.outcome, "accepted");
+    const control = handle.native._armErasurePauseForTest();
+    let failure;
+    void handle.completePhysicalErasure(accepted.ticket).catch(error => { failure = error; });
+    try {
+      await control.waitEntered();
+      handle = undefined;
+      global.gc();
+    } finally { control.release(); }
+    const deadline = Date.now() + 15000;
+    while (true) {
+      global.gc();
+      if (failure) throw failure;
+      try {
+        const status = await engine.physicalErasureStatus(accepted.ticket);
+        if (status.phase === "complete") { assert.equal(status.logicalState, "removed"); break; }
+      } catch (error) { if (!(error instanceof MaintenanceError && error.reason === "maintenance_busy")) throw error; }
+      assert.ok(Date.now() < deadline, "native operation lost after caller discard");
+      await delay(10);
+    }
+    await engine.close();
+    console.log("discarded-caller-complete");
+  `;
+  try {
+    const result = spawnSync(process.execPath, ["--expose-gc", "--input-type=module", "-e", script], { encoding: "utf8", timeout: 25000 });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.ok(result.stdout.includes("discarded-caller-complete"));
+  } finally { rmSync(dir, { recursive: true }); }
+});

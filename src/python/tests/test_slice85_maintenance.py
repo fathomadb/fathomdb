@@ -77,3 +77,52 @@ def test_physical_complete_returns_receipt_after_actual_bytes_are_gone(tmp_path)
         assert engine.physical_erasure_status(accepted["ticket"])["phase"] == "complete"
     finally:
         engine.close()
+
+
+@pytest.mark.requires_test_hooks
+def test_cancelled_caller_keeps_native_ownership_until_durable_completion(tmp_path):
+    import subprocess
+    import sys
+    from fathomdb import _fathomdb
+
+    if not hasattr(_fathomdb.ErasureMaintenance, "_arm_erasure_pause_for_test"):
+        pytest.skip("requires dev-only native erasure rendezvous")
+    script = r'''
+import asyncio, contextlib, gc, sys, time
+from fathomdb import Engine, EngineConfig
+from fathomdb.errors import MaintenanceError
+
+async def main():
+    engine = Engine.open(sys.argv[1], config=EngineConfig(physical_erasure_policy="explicit_maintenance"))
+    engine.write([{"kind":"doc", "body":"cancelledcallermarker85", "source_id":"target-source"}])
+    handle = engine.begin_erasure_maintenance(1000)
+    accepted = handle.queue_physical_erasure({"kind":"source_all_at_cut", "source_id":"target-source"}, "f23e2130b50242e3b8d545d4fa3d8015")
+    control = handle._native._arm_erasure_pause_for_test()
+    task = asyncio.create_task(asyncio.to_thread(handle.complete_physical_erasure, accepted["ticket"]))
+    try:
+        await asyncio.to_thread(control.wait_entered)
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        del handle
+        gc.collect()
+    finally:
+        control.release()
+    deadline = time.monotonic() + 15
+    while True:
+        try:
+            status = engine.physical_erasure_status(accepted["ticket"])
+            if status["phase"] == "complete":
+                assert status["logical_state"] == "removed"
+                break
+        except MaintenanceError as error:
+            assert error.reason == "maintenance_busy"
+        assert time.monotonic() < deadline, "native operation lost after caller cancellation"
+        await asyncio.sleep(0.01)
+    engine.close()
+    print("cancelled-caller-complete")
+asyncio.run(main())
+'''
+    result = subprocess.run([sys.executable, "-c", script, str(tmp_path / "drop.sqlite")], capture_output=True, text=True, timeout=25)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "cancelled-caller-complete" in result.stdout

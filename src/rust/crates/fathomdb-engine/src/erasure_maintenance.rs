@@ -239,6 +239,7 @@ impl Engine {
     }
 
     pub(crate) fn require_autonomous_erasure(&self) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
         if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
             return Err(EngineError::Maintenance(MaintenanceError::MaintenanceRequired));
         }

@@ -46,7 +46,10 @@ pub mod graph;
 pub mod read;
 
 pub use engine::Engine;
+mod maintenance;
 pub use error::{CudaErrorDetails, Error, ErrorKind, Result};
+pub use fathomdb_engine::{ErasureServiceState, MaintenanceError, PhysicalErasurePolicy};
+pub use maintenance::ErasureMaintenance;
 pub use options::{
     FrozenSearchOptions, ListOptions, NeighborsOptions, OpenOptions, ProjectedTextSearchOptions,
     RerankOptions, SearchExpandOptions, SearchFilterArg, SearchOptions, TextSearchOptions,

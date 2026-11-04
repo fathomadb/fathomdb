@@ -126,3 +126,34 @@ asyncio.run(main())
     result = subprocess.run([sys.executable, "-c", script, str(tmp_path / "drop.sqlite")], capture_output=True, text=True, timeout=25)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "cancelled-caller-complete" in result.stdout
+
+
+def test_original_sink_blocker_and_authenticated_reattachment_match_native(tmp_path):
+    from fathomdb.errors import MaintenanceError
+
+    path = str(tmp_path / "sink.sqlite")
+    sink = tmp_path / "original.jsonl"
+    engine = Engine.open(path, config=EngineConfig(physical_erasure_policy="explicit_maintenance"))
+    engine.enable_telemetry(str(sink))
+    engine.write([{"kind": "doc", "body": "sinktargetmarker85", "source_id": "target-source"}])
+    engine.search_text_only("sinktargetmarker85")
+    with engine.begin_erasure_maintenance(1000) as handle:
+        accepted = handle.queue_physical_erasure({"kind": "source_all_at_cut", "source_id": "target-source"}, "f23e2130b50242e3b8d545d4fa3d8015")
+    engine.close()
+    engine = Engine.open(path)
+    try:
+        with engine.begin_erasure_maintenance(1000) as handle:
+            blocked = handle.complete_physical_erasure(accepted["ticket"])
+            assert blocked["outcome"] == "incomplete"
+            assert blocked["status"]["blocker"] == "original_sink_unavailable"
+            assert blocked["status"]["logical_state"] == "unchanged_by_this_request"
+            wrong = tmp_path / "replacement.jsonl"
+            wrong.write_text("")
+            with pytest.raises(MaintenanceError) as captured:
+                handle.reattach_original_erasure_sink(accepted["ticket"], str(wrong))
+            assert captured.value.reason == "original_sink_mismatch"
+            handle.reattach_original_erasure_sink(accepted["ticket"], str(sink))
+            assert handle.complete_physical_erasure(accepted["ticket"])["outcome"] == "complete"
+        assert engine.physical_erasure_status(accepted["ticket"])["phase"] == "complete"
+    finally:
+        engine.close()

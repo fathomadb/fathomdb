@@ -193,3 +193,39 @@ fn indexed_phase_and_key_cannot_diverge_from_queue_authority() {
         assert!(engine.write(&[node("target", "target-source")]).is_err());
     }
 }
+
+#[test]
+fn acceptance_reserves_terminal_receipt_capacity_for_every_pending_request() {
+    let (_dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = accepted(
+        handle
+            .queue_physical_erasure(
+                PhysicalErasureSelector::SourceAllAtCut { source_id: "target-source".into() },
+                KEY,
+            )
+            .unwrap(),
+    );
+    handle.close().unwrap();
+    engine.withdraw_queued_erasure(&ticket).unwrap();
+    engine.execute_for_test("WITH RECURSIVE ids(x) AS (VALUES(2) UNION ALL SELECT x+1 FROM ids WHERE x<4095), seed AS (SELECT ticket,payload FROM _fathomdb_erasure_requests LIMIT 1) INSERT INTO _fathomdb_erasure_requests(ticket,idempotency_key,payload) SELECT substr(ticket,1,33)||printf('%032x',x),printf('%032x',x),json_set(payload,'$.ticket',substr(ticket,1,33)||printf('%032x',x),'$.key',printf('%032x',x)) FROM ids,seed").unwrap();
+    assert_eq!(
+        engine.query_i64_col_for_test("SELECT count(*) FROM _fathomdb_erasure_requests").unwrap(),
+        vec![4095]
+    );
+    let handle = engine.begin_erasure_maintenance(1000).unwrap();
+    handle
+        .queue_physical_erasure(
+            PhysicalErasureSelector::SourceAllAtCut { source_id: "absent-one".into() },
+            "dfde83285be14cf5ab859f93bc27f304",
+        )
+        .unwrap();
+    let second = handle.queue_physical_erasure(
+        PhysicalErasureSelector::SourceAllAtCut { source_id: "absent-two".into() },
+        "0f88329962f741d69cc0bf9c71384377",
+    );
+    assert!(
+        matches!(second, Err(EngineError::Maintenance(MaintenanceError::Capacity))),
+        "accepted intents must reserve receipt slots: {second:?}"
+    );
+}

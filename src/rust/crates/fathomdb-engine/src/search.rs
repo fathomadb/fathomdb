@@ -139,6 +139,7 @@ impl SearchReaderWork {
         result_limit: usize,
         candidate_limit: usize,
         view: ReadView,
+        filter: Option<SearchFilter>,
     ) -> Self {
         Self {
             #[cfg(feature = "test-hooks")]
@@ -149,7 +150,7 @@ impl SearchReaderWork {
             result_limit,
             candidate_limit,
             direct_text_candidate_limit: Some(MAX_SEARCH_RESULT_LIMIT),
-            filter: None,
+            filter: filter.map(Box::new),
             recency_enabled: false,
             importance_enabled: false,
             vector_stage_only: false,

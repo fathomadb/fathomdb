@@ -234,7 +234,7 @@ fn metadata_keeps_projected_sentinel_time_and_missing_row_semantics() {
     engine.configure_vector_kind_for_test("doc").unwrap();
     engine
         .write(&[
-            node("n0", "s90metadata first".into()),
+            node("n0", "s90first".into()),
             node("n1", "s90metadata second".into()),
             edge("edge", "s90metadata edge".into()),
         ])
@@ -249,12 +249,12 @@ fn metadata_keeps_projected_sentinel_time_and_missing_row_semantics() {
     f.status = Some(String::new());
     f.kind = Some("doc".into());
     let hits = engine
-        .search_text_only_filtered("s90metadata first", Some(f.clone()), &ReadView::default(), 10)
+        .search_text_only_filtered("s90first", Some(f.clone()), &ReadView::default(), 10)
         .unwrap();
     assert_eq!(hits.results.len(), 1, "inclusive projection timestamp and empty sentinel");
     f.created_after = Some(timestamp + 1);
     assert!(engine
-        .search_text_only_filtered("s90metadata first", Some(f.clone()), &ReadView::default(), 10)
+        .search_text_only_filtered("s90first", Some(f.clone()), &ReadView::default(), 10)
         .unwrap()
         .results
         .is_empty());
@@ -285,16 +285,16 @@ fn metadata_keeps_projected_sentinel_time_and_missing_row_semantics() {
     no_provider
         .engine
         .write(&[
-            node("n0", "s90metadata first".into()),
+            node("n0", "s90first".into()),
             node("n1", "s90metadata second".into()),
             edge("edge", "s90metadata edge".into()),
         ])
         .unwrap();
-    for mut f in [SearchFilter::default(), SearchFilter::default()] {
-        if f.status.is_none() {
-            f.status = Some(String::new());
-        }
-        f.created_after = Some(0);
+    let mut status = SearchFilter::default();
+    status.status = Some(String::new());
+    let mut created = SearchFilter::default();
+    created.created_after = Some(0);
+    for f in [status, created] {
         assert!(no_provider
             .engine
             .search_text_only_filtered("s90metadata", Some(f), &ReadView::default(), 10)

@@ -964,6 +964,30 @@ impl Engine {
         view: &ReadView,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
+        self.search_text_only_filtered(query, None, view, limit)
+    }
+
+    /// Search node and edge bodies using FTS only with a closed metadata filter.
+    ///
+    /// The filter is validated on the reader snapshot and applied before candidate
+    /// bounds, body deduplication and ranking. Attribute predicates are node-scoped.
+    /// Status and creation-time predicates require existing projected metadata;
+    /// missing metadata fails to match. No embedding or vector retrieval runs.
+    /// `view` controls validity and existence; `limit` must be in `1..=100`.
+    /// At fixed corpus, view time and filter, smaller limits are ordered prefixes.
+    ///
+    /// # Errors
+    /// Returns `InvalidFilter` for undeclared/non-filterable attributes,
+    /// `InvalidArgument` for invalid limits, `WriteValidation` for blank queries,
+    /// and the existing closing/storage errors.
+    pub fn search_text_only_filtered(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        view: &ReadView,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let filter = filter.filter(|filter| !filter.is_unfiltered());
         let limit = validate_search_result_limit(limit)?;
         let _operation = self.ensure_open()?;
         if query.trim().is_empty() {
@@ -977,7 +1001,7 @@ impl Engine {
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
         let request = ReaderRequest::search(
-            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view),
+            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view, filter),
             response_tx,
         );
         if self.reader_pool.dispatch(request).is_err() {
@@ -987,10 +1011,6 @@ impl Engine {
         let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded) =
             match search_result {
                 Ok(result) => result,
-                // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
-                // through: an undeclared `filterable` attribute is the EXISTING typed
-                // `InvalidFilter`, never collapsed to `Storage`. (This path takes
-                // `filter = None`, so it never fires here, but the match stays total.)
                 Err(SearchReaderError::InvalidFilter(reason)) => {
                     return Err(EngineError::InvalidFilter { reason });
                 }

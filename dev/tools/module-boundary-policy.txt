@@ -38,6 +38,7 @@ reported physical_erasure::admission
 reported physical_maintenance
 reported physical_maintenance::tests
 reported physical_metrics
+reported physical_metrics::slice84_tests
 reported physical_reader_admission
 reported physical_erasure::tests
 admitted errors

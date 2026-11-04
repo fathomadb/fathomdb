@@ -142,11 +142,7 @@ impl Engine {
     /// engine without restart. AC-005a locks runtime toggleability.
     pub fn set_profiling(&self, enabled: bool) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
-            crate::dependency_closure::guard_no_pending_physical(connection)?;
-        }
+        self.guard_explicit_metadata_mutation()?;
         self.profiling_enabled.store(enabled, Ordering::Relaxed);
         Ok(())
     }
@@ -158,11 +154,7 @@ impl Engine {
     /// behavior on subsequent statements without restart (AC-007b).
     pub fn set_slow_threshold_ms(&self, value: u64) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
-            crate::dependency_closure::guard_no_pending_physical(connection)?;
-        }
+        self.guard_explicit_metadata_mutation()?;
         self.slow_threshold_ms.store(value, Ordering::Relaxed);
         Ok(())
     }
@@ -174,6 +166,11 @@ impl Engine {
     /// reset deterministically on enable. Idempotent re-enable resets the seq.
     pub fn enable_telemetry(&self, sink_path: &str) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && crate::maintenance_admission::in_callback()
+        {
+            return Err(EngineError::Maintenance(crate::MaintenanceError::MaintenanceBusy));
+        }
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
@@ -332,10 +329,11 @@ impl Engine {
         label_source: &str,
     ) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
-            crate::dependency_closure::guard_no_pending_physical(connection)?;
+        self.guard_explicit_metadata_mutation()?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && crate::maintenance_admission::in_callback()
+        {
+            return Err(EngineError::Maintenance(crate::MaintenanceError::MaintenanceBusy));
         }
         let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
         let sink = guard
@@ -380,4 +378,18 @@ use std::time::Instant;
 
 pub(crate) fn original_attachment(path: PathBuf) -> TelemetrySink {
     TelemetrySink { path, base: Instant::now(), nonce: 0, seq: 0, last_query_id: None }
+}
+
+impl Engine {
+    fn guard_explicit_metadata_mutation(&self) -> Result<(), EngineError> {
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && self.explicit_debt.load(Ordering::Acquire)
+        {
+            return Err(EngineError::ErasureIncomplete {
+                stage: "physical_admission".into(),
+                detail: "explicit physical cleanup remains owed".into(),
+            });
+        }
+        Ok(())
+    }
 }

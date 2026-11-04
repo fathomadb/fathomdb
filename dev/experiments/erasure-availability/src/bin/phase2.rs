@@ -80,10 +80,14 @@ fn offers(
     })
 }
 
+fn traffic_mode(mode: &str) -> Result<(bool, bool)> {
+    Ok((mode == "control", true))
+}
+
 fn main() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     if !(4..=5).contains(&args.len()) {
-        return Err("usage: phase2 MASTER OUTPUT FAMILY erase|control [WRITE_HZ]".into());
+        return Err("usage: phase2 MASTER OUTPUT FAMILY erase|control|idle [WRITE_HZ]".into());
     }
     let write_hz: usize = args.get(4).map(|rate| rate.parse()).transpose()?.unwrap_or(100);
     if !(1..=100).contains(&write_hz) {
@@ -92,7 +96,7 @@ fn main() -> Result<()> {
     let master = Path::new(&args[0]);
     let out = Path::new(&args[1]);
     let family = &args[2];
-    let control = args[3] == "control";
+    let (control, traffic) = traffic_mode(&args[3])?;
     if out.exists() {
         return Err("output must not exist".into());
     }
@@ -109,7 +113,7 @@ fn main() -> Result<()> {
     }
     let events = Arc::new(Mutex::new(File::create(out.join("events.jsonl"))?));
     let start = Instant::now() + Duration::from_millis(50);
-    let mut workers = (0..8)
+    let mut workers = (0..if traffic { 8 } else { 0 })
         .map(|client| {
             offers(
                 Arc::clone(&engine),
@@ -122,15 +126,17 @@ fn main() -> Result<()> {
             )
         })
         .collect::<Vec<_>>();
-    workers.push(offers(
-        Arc::clone(&engine),
-        family.clone(),
-        Arc::clone(&events),
-        start,
-        "write",
-        0,
-        write_hz,
-    ));
+    if traffic {
+        workers.push(offers(
+            Arc::clone(&engine),
+            family.clone(),
+            Arc::clone(&events),
+            start,
+            "write",
+            0,
+            write_hz,
+        ));
+    }
     thread::sleep(start.saturating_duration_since(Instant::now()));
     let begun = Instant::now();
     let native = if control { Ok(None) } else { engine.erase_source("target").map(Some) };
@@ -190,6 +196,14 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_mode_has_no_offer_schedule_and_unknown_modes_refuse() {
+        assert_eq!(traffic_mode("idle").unwrap(), (false, false));
+        assert_eq!(traffic_mode("erase").unwrap(), (false, true));
+        assert_eq!(traffic_mode("control").unwrap(), (true, true));
+        assert!(traffic_mode("typo").is_err());
+    }
 
     #[test]
     fn supplemental_write_rate_preserves_the_fifteen_second_read_schedule() {

@@ -29,7 +29,19 @@ impl Drop for MaintenanceTurn<'_> {
     }
 }
 
+fn maintenance_turn(shared: &Shared) -> MaintenanceTurn<'_> {
+    // The cleanup service gate serializes callers, so only one priority owner
+    // can acquire this turn; an existing foreground turn completes first.
+    shared.priority.store(true, Ordering::Release);
+    let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
+    MaintenanceTurn { shared, _turn: turn }
+}
+
 impl PhysicalMaintenance {
+    pub(crate) fn maintenance_turn(&self) -> MaintenanceTurn<'_> {
+        maintenance_turn(&self.shared)
+    }
+
     pub(crate) fn writer_turn(&self) -> Result<MutexGuard<'_, ()>, EngineError> {
         loop {
             let mut stop = self.shared.stop.lock().map_err(|_| EngineError::Storage)?;
@@ -88,9 +100,7 @@ impl PhysicalMaintenance {
                     let Ok(_service) = service.try_lock() else {
                         continue;
                     };
-                    shared.priority.store(true, Ordering::Release);
-                    let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
-                    let priority = MaintenanceTurn { shared: &shared, _turn: turn };
+                    let priority = maintenance_turn(&shared);
                     let result = (|| {
                         let waiting = metrics.timer("maintenance_writer_wait");
                         let guard = physical_metrics::writer(&metrics, &connection, false)?;

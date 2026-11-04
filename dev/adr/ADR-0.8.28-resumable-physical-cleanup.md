@@ -43,7 +43,10 @@ while idle, without requiring the original argument. It shares the primary
 connection, requests priority against ordinary writers, yields between units,
 backs off after refusal and joins before connection shutdown. This supersedes the
 exact-retry-only and offline-only scheduling limitations of the prior ADRs.
-Exact retry and existing offline operator recovery remain supported.
+Exact retry and existing offline operator recovery remain supported. Synchronous
+sanitation units use the same priority/turn handoff while holding the cleanup
+service gate; each releases writer ownership and priority before yielding.
+This prevents the public caller from bypassing the worker scheduling discipline.
 
 Finalization temporarily gates new owned reader snapshots and waits at most
 100 ms per attempt for existing ones. It never cancels readers. After redaction

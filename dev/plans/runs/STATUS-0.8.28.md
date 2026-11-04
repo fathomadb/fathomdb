@@ -14,8 +14,8 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 **Product implementation complete through Slice 90. Slice 95 is planned next**
 for CI completeness, runner repairs and final release readiness. Its
-[plan](../0.8.28/features/slice-95/plan.md) owns the two unresolved CI issues and
-applicable release-closing qualification. No Slice 95 execution or publication
+[plan](../0.8.28/features/slice-95/plan.md) owns the explicitly enumerated CI repairs and
+applicable release-closing qualification, strengthened by the 0.8.26/0.8.27 review. No Slice 95 execution or publication
 is claimed; physical erasure is done except for defects.
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
@@ -106,7 +106,7 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 84 | Cleanup contention investigation | 84 and 84b investigations complete; both optimizations NOT QUALIFIED and rejected. Baseline production restored at `426d2278258076bfb98df47c51c214338e0559f2`; scoped/resumed verification complete. [Status](../0.8.28/features/slice-84/status.md). |
 | 85 | Explicit physical-erasure maintenance | Complete on canonical `release/0.8.28` at `a2fb4a6475500b70676f9f54aff251df60f3e07c`; Astra final approval, independent S85-1–8, assembled gate and first bounded screen pass. Hosted CI setup/disk/legacy-smoke limitations remain follow-up. [Status](../0.8.28/features/slice-85/status.md). |
 | 90 | D28-14 filtered direct body FTS | Complete at `14d710093f1b3e061d4625c0a62665a6ff899372`; Astra design/code approval, independent verification and fresh binding tests. [Status](../0.8.28/features/slice-90/status.md). |
-| 95 | CI completeness and final release readiness | PLANNED after 90; missing pinned verify tools and parallel Rust disk exhaustion explicitly assigned. [Plan](../0.8.28/features/slice-95/plan.md); [status](../0.8.28/features/slice-95/status.md). |
+| 95 | CI completeness and final release readiness | PLANNED after 90; S95-CI1–CI7 repairs and S95-1–11 acceptance incorporate historical CI/platform/feature/rehearsal robustness. [Plan](../0.8.28/features/slice-95/plan.md); [status](../0.8.28/features/slice-95/status.md). |
 
 Implementation ladder complete. Slice 84/84b closed with negative qualification. Slices 41 and 42 were added by owner rulings on
 2026-10-16, Slices 50 to 90 on 2026-10-31, and the explicit Slice 81 POC

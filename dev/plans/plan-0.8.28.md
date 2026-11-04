@@ -143,6 +143,9 @@ Requirements and acceptance criteria are per slice:
 - Slices 50 to 90: REQ and AC in each slice's `requirements.md`, written
   and reviewed before design.
 
+- Slice 95: S95-1–11 in the [CI/release-readiness plan](0.8.28/features/slice-95/plan.md),
+  including the comparative 0.8.26/0.8.27 robustness review and S95-CI1–CI7 repairs.
+
 `dev/acceptance.md` remains locked; these identifiers are release-local.
 
 ## Cross-cutting DoD
@@ -364,8 +367,10 @@ requirements say otherwise.
   on 2026-11-04 (steward ledger seq-364), after completed Slice 90. Combines
   historical documentation/contract convergence and integrated qualification.
   Explicitly repairs cold verify pinned-tool setup and parallel Rust disk
-  exhaustion; audits CI job coverage/results, installed-package smokes,
-  documentation and applicable final candidate evidence. Physical erasure stays
+  exhaustion, plus the observed Cargo/ShellCheck/preflight-evidence failures and manual empty-diff routing gap.
+  Preserve routing/tier/diagnostic controls, supported-platform receipts and live
+  feature coverage; distinguish ordinary CI from non-publishing release rehearsal.
+  Audit documentation and applicable final candidate evidence. Physical erasure stays
   closed except for defects. [Plan](0.8.28/features/slice-95/plan.md) and
   [planned status](0.8.28/features/slice-95/status.md); no execution/publication
   result is claimed.

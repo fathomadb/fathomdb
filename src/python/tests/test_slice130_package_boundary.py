@@ -93,6 +93,20 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
             **old,
             "signature": old["signature"].replace("pool_n: int=0", "pool_n: int | None=None"),
         }
+    # D28-14 extends only the direct-body filter keyword; preserve both aliases.
+    text_signature = (
+        "def search_text_only(self, query: str, view: ReadView | None=None, *, "
+        "limit: int=10) -> SearchResult"
+    )
+    filtered_text_signature = (
+        "def search_text_only(self, query: str, view: ReadView | None=None, *, "
+        "limit: int=10, filter: SearchFilter | None=None) -> SearchResult"
+    )
+    for namespace in ("fathomdb", "fathomdb.engine"):
+        path_name = f"{namespace}.Engine.search_text_only"
+        old = expected[path_name]
+        assert old["signature"] == text_signature
+        expected[path_name] = {**old, "signature": filtered_text_signature}
     expected["fathomdb.errors.DependencyTraceError"] = {
         "kind": "python-value",
         "path": "fathomdb.errors.DependencyTraceError",
@@ -258,6 +272,23 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     )
     assert stub.count(historical_view_comment) == 1
     stub = stub.replace(historical_view_comment, original_view_comment, 1)
+    # Reverse only the approved native direct-body filter arguments before
+    # checking the unchanged historical stub checksum.
+    text_stub = (
+        "    def search_text_only(\n"
+        "        self, query: str, view: ReadView | None = ..., limit: int = ...\n"
+        "    ) -> SearchResult: ...\n"
+    )
+    filtered_text_stub = (
+        "    def search_text_only(\n"
+        "        self, query: str, view: ReadView | None = ..., limit: int = ..., *,\n"
+        "        source_type: str | None = ..., kind: str | None = ...,\n"
+        "        created_after: int | None = ..., status: str | None = ...,\n"
+        "        attributes: list[tuple[str, str]] | None = ...,\n"
+        "    ) -> SearchResult: ...\n"
+    )
+    assert stub.count(filtered_text_stub) == 1
+    stub = stub.replace(filtered_text_stub, text_stub, 1)
     prefix, marker, tail = stub.partition("    def search_frozen(\n")
     assert marker and "    def search_frozen(\n" not in tail
     frozen, suffix = tail.split("    ) -> SearchResult: ...\n", 1)

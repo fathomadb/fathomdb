@@ -81,7 +81,12 @@ fn offers(
 }
 
 fn traffic_mode(mode: &str) -> Result<(bool, bool)> {
-    Ok((mode == "control", true))
+    match mode {
+        "idle" => Ok((false, false)),
+        "erase" => Ok((false, true)),
+        "control" => Ok((true, true)),
+        _ => Err("mode must be erase, control or idle".into()),
+    }
 }
 
 fn main() -> Result<()> {

@@ -1337,8 +1337,11 @@ pub const MIGRATIONS: &[Migration] = &[
         sql: "CREATE TABLE _fathomdb_erasure_requests(
                   ticket TEXT PRIMARY KEY NOT NULL,
                   idempotency_key TEXT UNIQUE NOT NULL,
-                  phase TEXT NOT NULL,
-                  payload TEXT NOT NULL
+                  payload TEXT NOT NULL CHECK(json_valid(payload)),
+                  phase TEXT GENERATED ALWAYS AS (json_extract(payload,'$.status.phase')) STORED NOT NULL
+                    CHECK(phase IN ('queued','executing','sanitizing','finalizing','complete','withdrawn_before_removal')),
+                  CHECK(json_type(payload,'$.ticket')='text' AND json_extract(payload,'$.ticket') IS NOT NULL AND ticket=json_extract(payload,'$.ticket')),
+                  CHECK(json_type(payload,'$.key')='text' AND json_extract(payload,'$.key') IS NOT NULL AND idempotency_key=json_extract(payload,'$.key'))
               );
               CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);",
     },

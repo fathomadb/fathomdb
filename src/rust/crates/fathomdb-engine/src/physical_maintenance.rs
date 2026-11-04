@@ -250,8 +250,10 @@ mod tests {
             Box::new(|| Err(EngineError::Scheduler)),
         );
         assert!(engine.erase_source("absent").is_err());
+        let service = engine.physical_service_gate.lock().unwrap();
         assert!(!engine.physical_maintenance.shared.priority.load(Ordering::Acquire));
         assert!(engine.physical_maintenance.shared.turn.try_lock().is_ok());
+        drop(service);
         engine.close().unwrap();
     }
 

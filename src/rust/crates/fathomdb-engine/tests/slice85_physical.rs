@@ -99,3 +99,42 @@ fn committed_failure_keeps_global_fence_through_handle_release_and_explicit_reop
     handle.close().unwrap();
     engine.write(&[node("new", "kept-source", "later")]).unwrap();
 }
+
+#[test]
+fn postdelete_sink_registration_refuses_before_creating_file() {
+    let (dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    arm_physical_erasure_hook_for_test(
+        "after_delete_commit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(handle.complete_physical_erasure(&ticket).is_err());
+    handle.close().unwrap();
+    let replacement = dir.path().join("must-not-create.jsonl");
+    let outcome = engine.enable_telemetry(replacement.to_str().unwrap());
+    assert!(outcome.is_err(), "post-delete sink registration is a forbidden mutation");
+    assert!(!replacement.exists(), "refusal must precede file effects");
+}
+
+#[test]
+fn postdelete_feedback_refuses_and_allowed_reads_do_not_capture() {
+    let (dir, engine) = fixture();
+    let sink = dir.path().join("original.jsonl");
+    engine.enable_telemetry(sink.to_str().unwrap()).unwrap();
+    engine.search_explained("uniquephysicalmarker85", None, 0, false, 0.3, 0).unwrap();
+    let query_id = engine.last_telemetry_query_id().unwrap();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    arm_physical_erasure_hook_for_test(
+        "after_delete_commit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(handle.complete_physical_erasure(&ticket).is_err());
+    handle.close().unwrap();
+    let before = std::fs::read(&sink).unwrap();
+    let feedback = engine.record_feedback(&query_id, &[1], &[], "human");
+    assert!(feedback.is_err(), "post-delete feedback must not append a durable copy");
+    engine.search_explained("retainedsurvivor85", None, 0, false, 0.3, 0).unwrap();
+    assert_eq!(std::fs::read(&sink).unwrap(), before);
+}

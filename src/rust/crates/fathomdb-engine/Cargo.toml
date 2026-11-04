@@ -904,3 +904,7 @@ required-features = ["test-hooks", "operator"]
 [[test]]
 name = "slice85_qualification"
 required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_budget"
+required-features = ["test-hooks", "operator"]

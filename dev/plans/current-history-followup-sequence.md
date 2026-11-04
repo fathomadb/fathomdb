@@ -86,8 +86,9 @@ the earlier eager-first sketch. It proposes two production phases:
 HITL approved the Astra-reviewed plan on 2026-11-03 and allocated Phase 1 to
 [Slice 82](0.8.28/features/slice-82/plan.md) and Phase 2 to
 [Slice 83](0.8.28/features/slice-83/plan.md). The 0.8.28 ladder is 82 → 83 → 90;
-phase implementation has not started. At the end of
-Slice 83, HITL will decide the physical-erasure guarantee. A specific API that
+both phases are engineering-complete; loaded service regressed and the
+84/84b optimization candidates were rejected. The original end-of-
+Slice 83 HITL physical-erasure guarantee decision remains open. A specific API that
 callers could invoke to ensure physical cleanup is under consideration then;
 no API, numerical SLA or unconditional deadline is selected by this plan.
 The linked plan owns requirements, acceptance, design tasks, TDD, focused
@@ -264,3 +265,15 @@ repair. Existing Slice 90 remains after 81; historical and temporal work is not
 allocated here. Slice 81 is complete with scoped results; CH1 Slices 82/83 now
 own the approved production follow-up. Its findings do not close the production
 erasure defect. The guarantee/API decision remains at the end of 83.
+
+## Optimization sequence disposition — 2026-11-04
+
+The [durable synthesis](../notes/erasure-optimization-sequence-findings.md)
+records Slices 81–84b: native deletion repaired, safe resumability retained,
+loaded-service regression unresolved, both optimization candidates rejected.
+HITL directed that further optimization be set aside. No further campaign or
+84c is implied. The [explicit maintenance proposal](../design/explicit-maintenance-erasure/README.md)
+is the next contract discussion, Astra-approved for HITL review and pending approval before
+implementation. Queued intent, immediate logical revocation and physical
+completion must not be conflated. This proposal answers the existing end-of-83
+decision; it does not allocate a new release slice or decide the guarantee itself.

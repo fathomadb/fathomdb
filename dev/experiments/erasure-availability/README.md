@@ -131,3 +131,12 @@ no automatic retries or qualification from missing controls are allowed. Keep a
 source-commit/build/runtime record next to the manifest. Results distinguish
 core paired service qualification from all-cell campaign completion. Stage
 elapsed times overlap and must not be added or described as CPU measurements.
+
+## Sequence disposition
+
+See the [durable Slices 81–84b synthesis](../../notes/erasure-optimization-sequence-findings.md)
+for delivered work, rejected candidates, timings and qualification limits.
+Further optimization is set aside by HITL direction on 2026-11-04; retained
+commands are reproducibility tools, not authorization for another campaign.
+The [explicit maintenance proposal](../../design/explicit-maintenance-erasure/README.md)
+requires separate approval before implementation.

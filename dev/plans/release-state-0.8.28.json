@@ -29,7 +29,7 @@
   "remaining_ladder": [90],
   "decisions": {
     "unruled": [
-      {"id": "ch1-physical-erasure-guarantee", "title": "At the end of Slice 83, decide the physical-erasure guarantee and consider a specific API to ensure physical cleanup, using CH1 Phase 1/2 evidence. No API or numerical SLA is selected."},
+      {"id": "ch1-physical-erasure-guarantee", "title": "Original end-of-Slice-83 decision: approve/adjust the proposed explicit maintenance physical-erasure contract and cleanup API, Astra-approved for HITL proposal review. Proposal: dev/design/explicit-maintenance-erasure/README.md. No API, guarantee or implementation is approved yet."},
       {"id": "release-0.8.28-publication", "title": "Authorize the v* tag push and publication of 0.8.28 after the ladder and release qualification pass."}
     ],
     "ruled": [

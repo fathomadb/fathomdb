@@ -182,6 +182,15 @@ release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
 
+## Erasure sequence disposition and pending contract
+
+Owner 2026-11-04 set aside further cleanup optimization after the completed
+84/84b negative investigations. The [full synthesis](../notes/erasure-optimization-sequence-findings.md)
+records Slices 81–84b. A separately reviewed [explicit maintenance contract/API
+proposal](../design/explicit-maintenance-erasure/README.md) is being brought back
+for approval before implementation. The original end-of-83 guarantee/API decision
+remains open; no new API, guarantee, experiment or slice is authorized here.
+
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 
 Placed by owner ruling on 2026-10-16 (todos ledger (`dev/todos-and-considerations-ledger.jsonl`) seq 343, `TC-f9fa3b87-6f23-427b-b027-6889e52b3bef`; todos ledger seq 344, `TC-4786ddae-2a6a-4da9-b618-3f659cfacb6e`). Branch

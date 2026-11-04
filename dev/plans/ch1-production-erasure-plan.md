@@ -282,3 +282,13 @@ telemetry boundary and need for a successor before automatic reopen completion.
 Exact state, fencing and completion invariants remain required at each phase's
 pre-code design review. HITL subsequently approved this plan and allocation; exact phase designs still
 require the specified Astra review before code.
+
+## Engineering sequence closeout and next approval
+
+Slices 81–84b are complete. The [full write-up](../notes/erasure-optimization-sequence-findings.md)
+records delivered correctness/recovery, measured costs, rejected optimizations
+and exact limits. HITL set aside further optimization on 2026-11-04. The original
+end-of-83 guarantee/API decision remains open: the [explicit maintenance contract
+and API proposal](../design/explicit-maintenance-erasure/README.md) now prepares
+that decision, with Astra proposal review approved and owner approval pending
+before implementation.

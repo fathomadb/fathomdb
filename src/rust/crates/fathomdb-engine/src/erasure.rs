@@ -855,11 +855,26 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let from_state = match current {
             None => {
-                let root =
-                    physical_erasure::capture(&tx, &[], self.next_cursor.load(Ordering::SeqCst))?;
-                physical_erasure::admit(&tx, root, "purge", lid, &[])?;
-                tx.commit().map_err(|_| EngineError::Storage)?;
-                return Ok(Vec::new());
+                let touching: bool = tx
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE from_id=?1 OR to_id=?1)",
+                        [lid],
+                        |r| r.get(0),
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                if !touching {
+                    let root = physical_erasure::capture(
+                        &tx,
+                        &[],
+                        self.next_cursor.load(Ordering::SeqCst),
+                    )?;
+                    physical_erasure::admit(&tx, root, "purge", lid, &[])?;
+                    tx.commit().map_err(|_| EngineError::Storage)?;
+                    return Ok(Vec::new());
+                }
+                // An absent node does not prove its independently admitted
+                // touching-edge scope is empty. Use the full cascade below.
+                LifecycleState::Deleted
             }
             Some(s) => LifecycleState::from_str_opt(&s).ok_or(EngineError::Storage)?,
         };

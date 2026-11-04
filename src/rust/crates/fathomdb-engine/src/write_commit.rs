@@ -631,6 +631,7 @@ pub(crate) fn apply_batch_in_transaction(
         if scoped_physical {
             physical_erasure::guard_plain_write(tx, std::slice::from_ref(original_write))?;
         }
+        erasure_queue::guard_plain(tx, std::slice::from_ref(original_write))?;
         let write = storage_write_shape(original_write);
         match (write.as_ref(), plan) {
             (

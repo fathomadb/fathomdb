@@ -108,6 +108,22 @@ impl Engine {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MaintenanceError {
+    /// Invalid opaque idempotency-key syntax.
+    InvalidKey,
+    /// Invalid store-bound ticket syntax.
+    InvalidTicket,
+    /// A retained key is bound to a different selector.
+    IdempotencyConflict,
+    /// A terminal key cannot be reused for another request.
+    KeyRetired,
+    /// Queue or receipt metadata capacity is exhausted.
+    Capacity,
+    /// The selected closure cannot fit the supported resource limits.
+    UnsupportedScope,
+    /// The selected immutable closure overlaps queued intent.
+    ScopeConflict,
+    /// Mutation cannot prove disjointness from queued scope.
+    QueuedScopeFenced,
     /// Exclusive ownership is currently acquiring or held.
     MaintenanceBusy,
     /// Direct destructive erasure is unavailable in the explicit profile.

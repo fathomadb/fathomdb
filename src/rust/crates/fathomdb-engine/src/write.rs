@@ -446,6 +446,7 @@ impl Engine {
         if !physical_erasure::guard_plain_write(connection, batch)? {
             dependency_closure::maintain_before_writer(connection)?;
         }
+        erasure_queue::guard_plain(connection, batch)?;
         let plans = validate_batch(connection, batch)?;
         validate_nested_projection_sources_for_write(connection, batch)?;
         // The enrolment decision is read-only here. Registration and stranded-row

@@ -65,8 +65,13 @@ mod embed_dispatch;
 mod embedding;
 mod erasure;
 mod erasure_maintenance;
+mod erasure_queue;
 pub use erasure_maintenance::{
     ErasureMaintenance, ErasureServiceState, MaintenanceError, PhysicalErasurePolicy,
+};
+pub use erasure_queue::{
+    CleanupResult, ErasureBlocker, ErasureLogicalState, ErasurePhase, ErasureStatus,
+    PhysicalErasureSelector, QueueResult, WithdrawResult,
 };
 mod errors;
 mod evidence;

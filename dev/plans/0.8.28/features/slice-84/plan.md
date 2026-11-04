@@ -1,14 +1,13 @@
 ---
 title: FathomDB 0.8.28 Slice 84 — cleanup contention and certification cost
-status: PROPOSED
+status: IN_PROGRESS
 target_release: 0.8.28
 ---
 
 # Slice 84 — cleanup contention and certification cost
 
-HITL requested this draft and Astra review on 2026-11-03 for a separate execution
-session. This task produces planning only. Proposed execution is after Slice 83
-and before Slice 90; the live release ladder is not changed by this draft.
+HITL authorized execution on 2026-11-03 after Slice 83 and before Slice 90.
+Use the existing development checkout with one writer and read-only Astra reviewers.
 [High-level design draft](design.md) owns candidate mechanisms and proof boundaries.
 
 The physical-erasure guarantee/API decision remains at the **end of Slice 83**.
@@ -170,3 +169,37 @@ This draft changes neither Slice 83's
 completion status nor the end-of-83 HITL guarantee/API decision. Execution begins
 in a separate session after Slice 83 completion, final-baseline reconciliation,
 and the specified concrete design review.
+
+## Execution reconciliation — 2026-11-03
+
+The completed Slice 83 baseline is `af84f12f8` production code, closed by
+`dcf48f28e`; the drafted snapshot was `b721e8647`. Since that draft:
+
+1. `8150e0f8a` added diagnostic and idle-profile deadlock regressions.
+2. `af84f12f8` fixed reader-gate/metadata lock ordering, actual SQLite work
+   accounting, bounded checkpoint observations after drain refusal, idle probe
+   subscriber suppression and the pre-primary-lock rendezvous.
+3. `dcf48f28e` reconciled configuration worker counts, release state and all
+   205 collected gate suites with scoped repairs. It closed engineering but
+   retained the measured regression and open guarantee/API decision.
+
+All CH1-2A–2F work is implemented and remains a safety constraint. No expiry,
+staged replacement, historical graph route, cleanup API or expanded write class
+is allocated. Existing root/denial checks, same-batch and old/new endpoint guards,
+managed-trigger refusal, exact vector/dependency proofs and tombstone/TRUNCATE
+remain intact. The current execution request authorizes optimization under that
+accepted contract; it does not decide the broader guarantee/API question.
+
+The first candidate to evaluate is an exact query algebra rewrite of the
+structural-zero boundary: maximum of per-table maxima instead of maximum over
+all cursor rows. It retains the full validator and has no reusable authority or
+invalidation state. Three input tables have indexed cursors; operational mutations
+still require their existing scan. No added index or scheduler change is assumed.
+Final selection awaits the diagnostic profile and concrete Astra review.
+
+Apply S84-3 by deterministic VM-step reduction and differential SQLite results
+for this exact query; cache invalidation requirements are conditional on reuse,
+which this design does not introduce. Retain all recovery/rollback guards. S84-6
+requires candidate completed reads at least the baseline count in each pair and
+all controls serving every offer. A refused initial erase followed by successful
+retry is physical recovery, not a faster successful public erase.

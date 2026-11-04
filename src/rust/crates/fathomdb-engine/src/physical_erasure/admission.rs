@@ -8,6 +8,8 @@ pub(crate) fn refused() -> EngineError {
 }
 
 pub(crate) fn envelope(c: &Connection) -> Result<(), EngineError> {
+    let _total = physical_metrics::stage("envelope");
+    let pages_timer = physical_metrics::stage("envelope_pages");
     let pages: u64 =
         c.query_row("PRAGMA page_count", [], |r| r.get(0)).map_err(|_| EngineError::Storage)?;
     let size: u64 =
@@ -15,10 +17,16 @@ pub(crate) fn envelope(c: &Connection) -> Result<(), EngineError> {
     if pages.saturating_mul(size) > 1 << 30 {
         return Err(refused());
     }
+    drop(pages_timer);
+    let body_timer = physical_metrics::stage("envelope_bodies");
     let (rows, bytes, largest): (u64, u64, u64) = c.query_row("SELECT COUNT(*),COALESCE(SUM(length(CAST(body AS BLOB))),0),COALESCE(MAX(length(CAST(body AS BLOB))),0) FROM (SELECT body FROM canonical_nodes UNION ALL SELECT body FROM canonical_edges)", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|_| EngineError::Storage)?;
+    drop(body_timer);
+    let vector_timer = physical_metrics::stage("envelope_vectors");
     let vectors: u64 = c
         .query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |r| r.get(0))
         .map_err(|_| EngineError::Storage)?;
+    drop(vector_timer);
+    let _metadata = physical_metrics::stage("envelope_metadata");
     // The file-size cap bounds the scans before any target-set collection.
     let mut metadata = 0_u64;
     for table in [
@@ -144,6 +152,7 @@ pub(crate) fn guard_plain_write(
 }
 
 fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bool, EngineError> {
+    let _timer = physical_metrics::stage("plain_write_eligibility");
     if !active(c)? {
         return Ok(false);
     }
@@ -243,6 +252,7 @@ fn guard_plain_write_inner(c: &Connection, batch: &[PreparedWrite]) -> Result<bo
 }
 
 pub(crate) fn certify_plain_write(c: &Connection, boundary: u64) -> Result<(), EngineError> {
+    let _timer = physical_metrics::stage("plain_write_certification");
     if let Some(mut debt) = root(c)? {
         if debt.version != 2 || debt.redacted {
             return Err(refused());

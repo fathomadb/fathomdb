@@ -66,6 +66,7 @@ fn load<T: serde::de::DeserializeOwned>(
 }
 
 fn store(c: &Connection, key: &str, value: &impl Serialize) -> Result<(), EngineError> {
+    let _timer = physical_metrics::stage("journal_update");
     c.execute("INSERT INTO _fathomdb_open_state(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         params![key, serde_json::to_string(value).map_err(|_| EngineError::Storage)?])
         .map_err(|_| EngineError::Storage)?;
@@ -107,6 +108,7 @@ pub(crate) fn mark_dirty(c: &Connection) -> rusqlite::Result<()> {
 }
 
 pub(crate) fn root(c: &Connection) -> Result<Option<RootDebt>, EngineError> {
+    let _timer = physical_metrics::stage("root_decode_validate");
     let raw = load::<serde_json::Value>(c, ROOT_KEY)?;
     if let Some(raw) = &raw {
         if raw.get("version").and_then(|v| v.as_u64()) == Some(2)
@@ -263,12 +265,16 @@ pub(crate) fn admit(
 }
 
 fn validate_zero(c: &Connection, debt: &RootDebt) -> Result<(), EngineError> {
+    let _timer = physical_metrics::stage("zero_proof");
+    let boundary_timer = physical_metrics::stage("zero_boundary");
     let boundary: u64 = c.query_row("SELECT COALESCE(MAX(write_cursor),0) FROM (SELECT write_cursor FROM canonical_nodes UNION ALL SELECT write_cursor FROM canonical_edges UNION ALL SELECT write_cursor FROM operational_mutations UNION ALL SELECT write_cursor FROM operational_state)", [], |r| r.get(0)).map_err(|_| EngineError::Storage)?;
+    drop(boundary_timer);
     if boundary > if debt.version == 2 { debt.safe_boundary } else { debt.boundary }
         || load_dependency_generation(c)? != debt.generation
     {
         return Err(EngineError::Storage);
     }
+    let cursor_timer = physical_metrics::stage("zero_registered_cursors");
     let cursors = serde_json::to_string(&debt.cursors).map_err(|_| EngineError::Storage)?;
     for (table, column) in [
         ("canonical_nodes", "write_cursor"),
@@ -287,6 +293,8 @@ fn validate_zero(c: &Connection, debt: &RootDebt) -> Result<(), EngineError> {
             return Err(EngineError::Storage);
         }
     }
+    drop(cursor_timer);
+    let _vectors = physical_metrics::stage("zero_mapped_vectors");
     if !debt.vectors.is_empty() {
         let mut probe = c
             .prepare_cached("SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)")

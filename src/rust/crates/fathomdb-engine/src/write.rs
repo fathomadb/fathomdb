@@ -429,8 +429,14 @@ impl Engine {
             return Err(EngineError::WriteValidation);
         }
 
+        let _metric_scope = physical_metrics::scope(&self.physical_maintenance.metrics);
+        let turn_wait = physical_metrics::stage("foreground_turn_wait");
         let _turn = self.physical_maintenance.writer_turn()?;
+        drop(turn_wait);
+        let writer_wait = physical_metrics::stage("foreground_writer_wait");
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        drop(writer_wait);
+        let _writer_hold = physical_metrics::stage("foreground_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         #[cfg(feature = "test-hooks")]
         let abort_next_commit_for_test =

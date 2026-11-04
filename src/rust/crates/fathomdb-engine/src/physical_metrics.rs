@@ -131,6 +131,7 @@ impl Drop for PhysicalAttempt<'_> {
 pub(crate) struct PhysicalWriter<'a> {
     _phase: Option<PhysicalTimer>,
     _holding: PhysicalTimer,
+    _scope: MetricScope,
     connection: std::sync::MutexGuard<'a, Option<Connection>>,
 }
 
@@ -157,6 +158,7 @@ pub(crate) fn writer<'a>(
     drop(phase_wait);
     drop(waiting);
     Ok(PhysicalWriter {
+        _scope: scope(metrics),
         _phase: finalizing.then(|| metrics.timer("finalization_writer_hold")),
         _holding: metrics.timer("physical_writer_hold"),
         connection,

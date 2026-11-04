@@ -167,18 +167,19 @@ These explicit placements do not change this policy for other gaps.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 85** (`EXPLICIT-ERASURE-MAINTENANCE`) — Explicit physical-erasure maintenance: approved opt-in policy, queued intent, exclusive cleanup API and fresh-store format boundary
+**IMMEDIATE NEXT: Slice 90** (`FILTERED-BODY-FTS`) — D28-14: SearchFilter on direct node and edge body FTS-only search (search_text_only / searchTextOnly), applied before truncation, ranking and limit
 
-**Remaining ladder:** 85 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
 Slices 60, 70 and 80 are complete on `dev/0.8.28` and `release/0.8.28`.
 Slices 81–84, including 84b, are complete. Both cleanup optimization candidates
 were rejected after failed service qualification; baseline production is retained.
-Slice 85 is next, then 90. HITL resolved the original end-of-83 guarantee/API
-decision on 2026-11-04 by approving explicit maintenance and assigning Slice 85.
-The new format and API are planned, not yet implemented. After 90 comes
+Slice 85 completed the approved explicit-maintenance API and format 36 at
+`a2fb4a647`, with Astra review, independent qualification and accepted observed
+timings. [Status](0.8.28/features/slice-85/status.md) records assembled checks and
+hosted CI infrastructure limits. Slice 90 is next. After 90 comes
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
 publication decision (Slice 31 plan W8 and R-CODE-4).
@@ -191,8 +192,10 @@ records Slices 81–84b. A separately reviewed [explicit maintenance contract/AP
 contract](../design/explicit-maintenance-erasure/README.md) was approved by HITL
 on 2026-11-04 for a separate clean [Slice 85](0.8.28/features/slice-85/plan.md).
 That resolves the original end-of-83 decision. No deadline, immediate revocation
-subsystem or renewed optimization campaign is approved. Exact pre-code design
-and numerical qualification gates remain; current schema stays 35 until delivery.
+subsystem or renewed optimization campaign is approved. The concrete design and
+independent bounded qualification completed in Slice 85; current schema is 36.
+Hosted CI setup/disk/legacy-smoke repair remains follow-up, with no platform-green
+or publication claim.
 
 ## Slice 42 — slice135 descriptor check and the published-Rust page cache
 

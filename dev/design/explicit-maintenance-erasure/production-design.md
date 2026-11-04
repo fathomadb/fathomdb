@@ -11,12 +11,16 @@ Implements the approved [contract](contract.md). No immediate revocation or
 physical deadline is introduced. Requirements and test mapping are in the
 [Slice 85 plan](../../plans/0.8.28/features/slice-85/plan.md).
 
-## Reconciliation
+## Preimplementation reconciliation at `db1fdb6dc`
+
+These seven facts record the baseline reviewed before product code. Current
+implementation and qualification are complete at `a2fb4a647`; see the
+[slice status](../../plans/0.8.28/features/slice-85/status.md).
 
 1. Draft baseline `0db97db08` gained only Slice 85 preparation at `db1fdb6dc`;
    retained product is still Slice 83 plus accepted fixes after rejected 84/84b.
 2. `physical_erasure::RootDebt` is an executing singleton; it cannot hold queued
-   intent. `PhysicalMaintenance` currently starts its idle worker on every open.
+   intent. At baseline `PhysicalMaintenance` started its idle worker on every open.
 3. `PhysicalReaderAdmission` excludes only reader transactions at finalization.
    It does not gate admin, write, telemetry or projection ownership. Existing
    `ensure_open` is only a closed flag. A second reader flag is insufficient.
@@ -28,8 +32,8 @@ physical deadline is introduced. Requirements and test mapping are in the
 5. Existing plain-write denial covers source, stable identity, old/new edge
    endpoints and prior superseded rows; reuse its predicates for queued scope,
    but do not invoke its physical zero/envelope certification for queued writes.
-6. Current format is 35. Production admits current-only; format 36 is unused in
-   this release. The format-35 executable frozen independently at
+6. Baseline format was 35 with current-only admission; format 36 was unused.
+   Slice 85 subsequently delivered format 36. The format-35 executable frozen independently at
    `/tmp/slice85-old-binary/fathomdb-format35` supplies the older-binary oracle.
 7. Owner accepts empirical timings observed in testing (2026-11-04). No new SLA,
    numerical regression threshold or percentile assertion is inferred.
@@ -299,3 +303,7 @@ No timed window overlaps a build/test. Retain failed/incomplete outcomes.
 
 Astra design review APPROVE (2026-11-04): callback ownership, complete entry
 coverage and monotone multi-original sink obligations resolved before code.
+
+Final Astra code review APPROVE at `a2fb4a647` (2026-11-04); all findings
+resolved. Independent S85-1–8 and the bounded first empirical screen passed.
+The slice status records exact measurements, assembled checks and CI limitations.

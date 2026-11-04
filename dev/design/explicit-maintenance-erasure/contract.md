@@ -1,21 +1,22 @@
 ---
-title: Explicit maintenance erasure — draft contract and API
+title: Explicit maintenance erasure — approved contract and API
 status: ACTIVE
 date: 2026-11-04
 target_release: 0.8.28 Slice 85
 ---
 
-# Draft contract and explicit cleanup API
+# Approved contract and explicit cleanup API
 
 This proposal answers the original end-of-Slice-83 guarantee/API question using
 [completed findings](../../notes/erasure-optimization-sequence-findings.md).
 HITL approved this contract on 2026-11-04 and assigned implementation to
-[Slice 85](../../plans/0.8.28/features/slice-85/plan.md). A concrete design/Astra
-review and successor ADR remain required before code. This approval record
-does not itself change shipped API, worker policy, schema or success behavior.
+[Slice 85](../../plans/0.8.28/features/slice-85/plan.md). Concrete design, accepted
+successor ADR, implementation and independent qualification are complete at
+`a2fb4a647`; [status](../../plans/0.8.28/features/slice-85/status.md) records
+measured costs, actual verification provenance and platform/CI limits.
 The [implementation outline](implementation-plan.md) lists design/test gates.
 
-## Decision proposed
+## Approved decision
 
 Provide an opt-in, database-persisted **explicit maintenance policy**. During
 normal service callers can queue a bounded physical-erasure intent. Expensive
@@ -70,7 +71,7 @@ remains the default profile; explicit mode requires deliberate selection. All
 opens must honor the persisted mode; a mismatching explicit open request refuses
 before mutation. Reopen cannot silently re-enable background cleanup.
 
-**Old-binary safety is a release prerequisite.** Current format-35 binaries do
+**Old-binary safety is a release prerequisite.** Pre-Slice-85 format-35 binaries do
 not know these queue/fence rules. A policy key alone is unsafe. The concrete
 proposal is a fresh-store format revision, assigned when implementation is placed,
 so earlier binaries refuse the new file before mutation. The feature release
@@ -359,15 +360,16 @@ not a claim that maintenance can always restore normal service on demand.
   explicit mode. Autonomous mode retains its behavior. Old-format debt is never
   silently converted. Offline activated completion publishes the same receipt, and
   original-sink reattachment remains possible without registry/capture bypass.
-- Measure request admission, ordinary-operation p50/p99/offer outcomes with a
-  bounded queued backlog, acquisition refusal/drain, actual maintenance blackout,
-  native deletion, full proof/sanitation, finalization and idle/no-erase controls.
-  Proposed normal-service screening requires no seconds-long cleanup triggered
-  by queue/read/write/open, and no service regression beyond a frozen pre-code
-  tolerance. Choose exact thresholds/envelope with HITL before qualification.
+- Measure request admission, ordinary-operation outcomes/latencies with a bounded
+  queued backlog, acquisition refusal/drain, actual maintenance blackout, native
+  deletion, full proof/sanitation, finalization and idle/no-erase controls.
+  HITL accepts actual observed timings; the reviewed bounded screen reports
+  samples/medians/ranges and every incomplete/refusal outcome, without inventing
+  a regression threshold or claiming p99 from insufficient samples.
 - Idle 1–3s and loaded 3–15s historical observations motivate this design only.
   Neither is a new API estimate, maximum or guarantee. Exclusive-window benefit
-  and the cheap queued path remain unmeasured and must be qualified.
+  and normal admission were qualified only within the small-store screen
+  recorded in status; no broader performance guarantee is inferred.
 
 ## HITL approval — 2026-11-04
 
@@ -391,5 +393,6 @@ no new visibility or revocation guarantee is inferred. Astra approval is not HIT
 contract acceptance or implementation authorization.
 
 HITL subsequently approved this reviewed contract on 2026-11-04 and directed a
-separate clean Slice 85. Concrete implementation design, ADR/interface mapping,
-metadata limits and qualification gates remain required; preparation is not code.
+separate clean Slice 85. Concrete design/ADR/interface mapping, implementation,
+metadata limits and independent qualification were completed with Astra approval.
+The status record preserves the small measured envelope and hosted CI limits.

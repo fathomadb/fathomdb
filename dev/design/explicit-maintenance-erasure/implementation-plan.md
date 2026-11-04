@@ -1,17 +1,21 @@
 ---
-title: Explicit maintenance erasure — proposed design and qualification work
+title: Explicit maintenance erasure — reviewed design and qualification work
 status: ACTIVE
 date: 2026-11-04
 target_release: 0.8.28 Slice 85
 ---
 
-# Proposed implementation and qualification sequence
+# Reviewed implementation and qualification sequence
 
 HITL approved the [contract/API](contract.md) on 2026-11-04 and assigned
 [Slice 85](../../plans/0.8.28/features/slice-85/plan.md) as a separate clean
 implementation. This is not a continuation of failed optimization work.
-Current source is the restored Slice 83 behavior plus retained observers/tools
-and verified fixes, as summarized in the [write-up](../../notes/erasure-optimization-sequence-findings.md).
+The preimplementation baseline was restored Slice 83 behavior plus retained
+observers/tools and verified fixes, as summarized in the
+[write-up](../../notes/erasure-optimization-sequence-findings.md). This outline
+records the reviewed work order. Implementation and independent qualification
+completed at `a2fb4a647`; current authority is the [production design](production-design.md)
+and results are in [slice status](../../plans/0.8.28/features/slice-85/status.md).
 
 ## Changes requiring successor design
 
@@ -95,9 +99,9 @@ Measure separately:
 
 Use a small screen before repeated measurements; choose the normal-path latency/
 throughput tolerance and window acquisition budget with HITL, based on intended
-application load. There is no invented numerical deadline in this draft. A future
-qualification protocol must have explicit per-cell/total time, scratch/RSS and
-sample-count gates before execution. No new campaign is authorized by writing this
+application load. There is no invented numerical deadline in this draft. The executed
+qualification protocol fixed per-cell/total time, scratch/RSS and sample-count
+gates before execution; status records all observed outcomes. No new campaign is authorized by writing this
 plan. Fewer than 1,000 valid samples or refusal/miss-bearing streams cannot support
 a qualified p99. No pooling incompatible protocols to reach sample thresholds.
 

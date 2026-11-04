@@ -12,7 +12,9 @@ contract and explicit cleanup API proposal, Astra review, then approval before
 implementation. HITL approved the contract on 2026-11-04 and assigned implementation to
 [Slice 85](../../plans/0.8.28/features/slice-85/README.md). The reviewed
 [production design](production-design.md) is implemented on the development line
-with format 36; final independent verification and measurements remain pending.
+with format 36. Final Astra review and independent qualification passed at
+`a2fb4a647` on canonical `release/0.8.28`; the slice status records assembled
+verification, measured costs and hosted CI limitations.
 
 | Document | Purpose |
 | --- | --- |

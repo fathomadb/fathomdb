@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 85 — explicit physical-erasure maintenance
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.28
 ---
 
@@ -9,8 +9,9 @@ target_release: 0.8.28
 HITL approved the [Astra-reviewed contract](../../../../design/explicit-maintenance-erasure/contract.md)
 at `0db97db08c912cc7ca634b5dc9e9295414d4afe2` on 2026-11-04 and assigned its
 implementation to a separate clean slice. Dependency is completed Slice 84,
-including 84b; Slice 90 follows 85. Implementation is integrated on `dev/0.8.28`; final review and independent
-qualification are pending.
+including 84b; Slice 90 follows 85. Implementation and independent qualification
+completed at `a2fb4a647` on `dev/0.8.28` and canonical `release/0.8.28`;
+[status](status.md) records acceptance, measurements and hosted CI limits.
 The [approved outline](../../../../design/explicit-maintenance-erasure/implementation-plan.md)
 is the detailed work-order reference. This slice adds testable acceptance and a
 clean execution handoff without duplicating or weakening that contract.
@@ -54,8 +55,8 @@ pretend structural zero or affordable whole-store certification already exists.
 Confirm the next unused format version at that point; do not assume a numeric
 version here. Update schema/admission docs, release-state schema metadata, rebuild
 fixtures and downstream release-format expectations when the format actually lands.
-Current metadata stays at actual version 35 during this preparation. Preserve the
-full old-binary refusal oracle; editing only a version fixture is insufficient.
+Execution selected and delivered format 36. Actual old/new executable refusal
+passed in both directions; editing only a version fixture was not the oracle.
 
 ## Slice requirements and acceptance
 
@@ -139,7 +140,8 @@ publication and any new guarantee outside this approved contract remain separate
 
 Execution reconciled the baseline, obtained Astra design review and implemented
 the approved contract with behavior-specific RED/GREEN changes. The status record
-owns remaining final review, independent verification and bounded measurements.
+records completed Astra review, independent verification and bounded measurements,
+including assembled-gate provenance and unresolved CI infrastructure limits.
 
 ## Execution reconciliation — 2026-11-04
 
@@ -150,7 +152,8 @@ inventory. Draft scope is retained; the expensive existing envelope means new
 normal-path admission uses NeedsMaintenanceAdmission and usable handle admission.
 No purported constant-time envelope certificate is added. Owner accepts actual
 observed testing timings; the design freezes a bounded empirical screen without
-an invented SLA or p99 claim. Successor ADR is proposed pending Astra review.
+an invented SLA or p99 claim. The successor ADR is accepted; Astra approved
+concrete design and final code, and independent S85-1–8 qualification passed.
 
 | Acceptance | New decisive tests | Retained guards |
 | --- | --- | --- |

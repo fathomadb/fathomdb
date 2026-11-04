@@ -43,3 +43,32 @@ test("queued intent is unchanged, exact retry and withdrawal are keyed", async (
     assert.equal((await engine.physicalErasureStatus(accepted.ticket))?.phase, "withdrawn_before_removal");
   } finally { await engine.close(); rmSync(dir, { recursive: true }); }
 });
+
+test("complete receipt follows physical byte removal and preserves survivor", async () => {
+  const { readFileSync, existsSync } = await import("node:fs");
+  const dir = mkdtempSync(join(tmpdir(), "slice85-physical-"));
+  const path = join(dir, "store.sqlite");
+  const engine = await Engine.open(path, { engineConfig: { physicalErasurePolicy: "explicit_maintenance" } });
+  const marker = "typescriptphysicalmarker85";
+  await engine.write([
+    { kind: "doc", body: marker, sourceId: "target-source" },
+    { kind: "doc", body: "retainedsurvivor85", sourceId: "kept-source" },
+  ]);
+  assert.ok(Buffer.concat([readFileSync(path), readFileSync(`${path}-wal`)]).includes(Buffer.from(marker)));
+  try {
+    const handle = await engine.beginErasureMaintenance(1000);
+    try {
+      const accepted = await handle.queuePhysicalErasure({ kind: "source_all_at_cut", sourceId: "target-source" }, "f23e2130b50242e3b8d545d4fa3d8015");
+      if (accepted.outcome !== "accepted") throw new Error("heavy admission refused");
+      const result = await handle.completePhysicalErasure(accepted.ticket);
+      assert.equal(result.outcome, "complete");
+      if (result.outcome !== "complete") throw new Error("physical completion blocked");
+      assert.equal(result.receipt.logicalState, "removed");
+      assert.equal(result.receipt.phase, "complete");
+    } finally { await handle.close(); }
+    for (const artifact of [path, `${path}-wal`]) {
+      if (existsSync(artifact)) assert.ok(!readFileSync(artifact).includes(Buffer.from(marker)));
+    }
+    assert.equal((await engine.searchTextOnly("retainedsurvivor85")).results.length, 1);
+  } finally { await engine.close(); rmSync(dir, { recursive: true }); }
+});

@@ -49,3 +49,31 @@ def test_queued_intent_retry_status_and_withdrawal(tmp_path):
         assert engine.physical_erasure_status(ticket)["phase"] == "withdrawn_before_removal"
     finally:
         engine.close()
+
+
+def test_physical_complete_returns_receipt_after_actual_bytes_are_gone(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "physical.sqlite"
+    engine = Engine.open(str(path), config=EngineConfig(physical_erasure_policy="explicit_maintenance"))
+    marker = "pythonphysicalmarker85"
+    engine.write([
+        {"kind": "doc", "body": marker, "source_id": "target-source"},
+        {"kind": "doc", "body": "retained survivor", "source_id": "kept-source"},
+    ])
+    assert marker.encode() in (path.read_bytes() + path.with_name(path.name + "-wal").read_bytes())
+    try:
+        with engine.begin_erasure_maintenance(1000) as handle:
+            accepted = handle.queue_physical_erasure({"kind": "source_all_at_cut", "source_id": "target-source"}, "f23e2130b50242e3b8d545d4fa3d8015")
+            result = handle.complete_physical_erasure(accepted["ticket"])
+            assert result["outcome"] == "complete"
+            assert result["receipt"]["logical_state"] == "removed"
+            assert result["receipt"]["phase"] == "complete"
+        with sqlite3.connect(path) as reader:
+            assert reader.execute("SELECT source_id, body FROM canonical_nodes").fetchall() == [("kept-source", "retained survivor")]
+        for artifact in [path, path.with_name(path.name + "-wal")]:
+            if artifact.exists():
+                assert marker.encode() not in artifact.read_bytes()
+        assert engine.physical_erasure_status(accepted["ticket"])["phase"] == "complete"
+    finally:
+        engine.close()

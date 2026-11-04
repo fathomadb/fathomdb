@@ -1,8 +1,8 @@
 ---
 title: TypeScript Public Interface
-date: 2026-09-21
-target_release: 0.8.27
-desc: Public TypeScript surface for 0.8.27
+date: 2026-11-04
+target_release: 0.8.28
+desc: Public TypeScript surface for 0.8.28
 blast_radius: src/ts/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -17,9 +17,9 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
-`Engine.open` bootstraps a missing or zero-length path at schema 34. A
+`Engine.open` bootstraps a missing or zero-length path at schema 36. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 34; any other version rejects with the typed
+`PRAGMA user_version` is exactly 36; any other version rejects with the typed
 `FDB_INCOMPATIBLE_SCHEMA_VERSION` envelope before product mutation. TypeScript
 exposes no automatic-upgrade or custom-migration route.
 
@@ -1413,3 +1413,41 @@ only none/no_runtime. Later runtime errors retain their existing behavior.
 These removals do not change `ProjectionDelta.deferred`, durable pending work,
 or retained graph/structural codec vocabulary (`deferred`/`projection_deferred`).
 Only mappings derived from the removed refused-open runtime state disappear.
+
+## Explicit physical-erasure maintenance (0.8.28 Slice 85)
+
+The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
+and [production design](../design/explicit-maintenance-erasure/production-design.md)
+own guarantees, scope, limits and recovery. Fresh format 36 requires persisted
+policy metadata; prior formats are refused before mutation with no upgrade.
+`EngineConfig.physicalErasurePolicy` is `"autonomous"` or `"explicit_maintenance"`;
+unset honors reopen policy and defaults fresh stores to Autonomous. Mismatch
+refuses open. Explicit reopen never starts autonomous physical cleanup.
+
+`engine.physicalErasurePolicy()` returns effective policy. Promise methods
+`queuePhysicalErasure(selector, idempotencyKey)`, `physicalErasureStatus(ticket)`
+and `withdrawQueuedErasure(ticket)` return exported `QueueResult`,
+`ErasureStatus | null` and `WithdrawResult`. Selectors use `kind` with
+`"source_all_at_cut"`/`sourceId` or `"deleted_logical_all_at_cut"`/`logicalId`.
+Keys are random opaque 32-character lowercase hex; tickets are store-bound.
+Results retain snake-case discriminant values but camelCase property names:
+`logicalState`, `serviceState`, `targetCount`. Accepted means
+`unchanged_by_this_request`, never deletion. Normal new admission returns
+`needs_maintenance_admission`; exact retained retries are cheap.
+
+`await engine.beginErasureMaintenance(acquisitionWaitMs=0)` returns an owned
+`ErasureMaintenance`. Its `queuePhysicalErasure` performs heavy non-destructive
+admission. Other Promise methods are `completePhysicalErasure(ticket)`,
+`reattachOriginalErasureSink(ticket, path)` and `close()`. `CleanupResult` is
+`{outcome:"complete",receipt}` or `{outcome:"incomplete",status}`; `close()`
+returns `ErasureServiceState`, never a physical-completion receipt. A lost Promise
+or caller drop does not cancel native execution or clear durable debt.
+
+`MaintenanceError` (`FDB_MAINTENANCE`) carries safe snake-case `reason`.
+Owned-window newcomers refuse `maintenance_busy`; ordinary explicit direct
+erase/purge refuses `maintenance_required`. Malformed tickets fail; unknown or
+wrong-store well-formed tickets return `null`. Queued scope retains read/rank
+eligibility. Proven-disjoint plain writes remain usable; unprovable provenance,
+dependency/lifecycle/actuation/global admin effects refuse `queued_scope_fenced`.
+Post-delete incomplete service may allow coherent reads with telemetry capture
+suppressed while all writes remain fenced. Handle drop/reopen cannot clear debt.

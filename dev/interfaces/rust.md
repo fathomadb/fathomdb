@@ -1,8 +1,8 @@
 ---
 title: Rust Public Interface
-date: 2026-09-21
-target_release: 0.8.27
-desc: Public Rust surface (traits, functions, types, errors) for 0.8.27
+date: 2026-11-04
+target_release: 0.8.28
+desc: Public Rust surface (traits, functions, types, errors) for 0.8.28
 blast_radius: src/rust/crates/fathomdb; design/engine.md; design/bindings.md; design/errors.md; design/lifecycle.md
 status: locked
 ---
@@ -1832,3 +1832,44 @@ successful lock occupancy through transaction finalization; failed calls return
 no timing tuple. Closing and storage errors retain their existing Engine meanings.
 A callback panic rolls back while unwinding and poisons the mutex. This helper
 changes no default admission, public erasure outcome or shipped schema.
+
+## Explicit physical-erasure maintenance (0.8.28 Slice 85)
+
+The [approved contract](../design/explicit-maintenance-erasure/contract.md) and
+[production design](../design/explicit-maintenance-erasure/production-design.md)
+own format-36 policy, immutable scope, admission and physical proof. Persisted
+`PhysicalErasurePolicy::{Autonomous, ExplicitMaintenance}` is selected for fresh
+stores with `EngineConfig.physical_erasure_policy`; absent configuration honors
+persisted policy on reopen. Missing/unknown policy is corruption, and mismatching
+selection refuses before mutation. Both profiles use current-only fresh format 36.
+
+`Engine::physical_erasure_policy` observes the effective policy.
+`Engine::queue_physical_erasure(selector, key)` returns `QueueResult`;
+`physical_erasure_status(ticket)` returns `Option<ErasureStatus>`;
+`withdraw_queued_erasure(ticket)` returns `WithdrawResult`.
+`PhysicalErasureSelector` is `SourceAllAtCut { source_id }` or
+`DeletedLogicalAllAtCut { logical_id }`. The normal new-queue path returns
+`NeedsMaintenanceAdmission` when cheap authoritative resource proof is unavailable.
+`Accepted { ticket, logical_state: UnchangedByThisRequest }` promises intent only.
+
+`Engine::begin_erasure_maintenance(self: &Arc<Self>, acquisition_wait_ms)` returns
+an owned non-cloneable `ErasureMaintenance`, bound to this open Engine. Methods
+are `queue_physical_erasure`, `complete_physical_erasure`,
+`reattach_original_erasure_sink(ticket, path)` and `close(&mut self)`.
+Fallible methods return `Result<_, EngineError>`; close reports service state.
+Acquisition wait limits only cooperative drain; it is not an active SQL deadline.
+`CleanupResult::{Complete { receipt }, Incomplete { status }}` preserves actual
+physical-success meaning. A storage error after commit can still leave durable
+owed work; query the ticket afterward. Status is identity-free and contains phase,
+logical state, blocker, service state and safe target count.
+
+Newcomers under maintenance refuse `EngineError::Maintenance(MaintenanceBusy)`;
+ordinary direct explicit erase/purge refuses `MaintenanceRequired`. Queued plain
+writes must prove source/stable-ID/old-new-endpoint disjointness. Unprovable
+provenance/dependency/lifecycle/actuation/global admin effects refuse
+`QueuedScopeFenced`. Retained receipt keys are retired; exact pending retries
+return the same ticket. Wrong-store/unknown well-formed status is None.
+Handle drop releases only ephemeral gates; post-delete writes remain fenced
+through reopen until actual cleanup. Allowed coherent reads suppress telemetry
+capture while fenced. Explicit reopen executes no physical cleanup; original
+sink reattachment and offline activated-ticket completion share physical authority.

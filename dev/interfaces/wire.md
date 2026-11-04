@@ -1,10 +1,10 @@
 ---
 title: Wire Format
-date: 2026-09-15
-target_release: 0.8.26
-desc: On-disk + IPC formats (if any) for 0.8.26; short OK
+date: 2026-11-04
+target_release: 0.8.28
+desc: On-disk + IPC formats (if any) for 0.8.28; short OK
 blast_radius: architecture.md § 5; design/engine.md; design/migrations.md
-status: draft-0.8.26
+status: draft-0.8.28
 ---
 
 # Wire Format
@@ -27,7 +27,7 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.28 development line `fathomdb-schema::SCHEMA_VERSION` is **35**. Step 28
+0.8.28 development line `fathomdb-schema::SCHEMA_VERSION` is **36**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -213,3 +213,17 @@ references are not published. This adds no new cache, descriptor or schema step.
 include deliberate mutable no-provider access and the unrepaired provider-free
 dense rebuild defect. Loader/device, Mean/CLS distinction and mean recovery
 ordering remain unchanged; none of this authenticates historical vector provenance.
+
+## Format 36 explicit erasure authority
+
+Format 36 is a fresh-store boundary. Both policies require validated persisted
+physical-erasure policy and opaque store identity metadata. The bounded erasure
+request/terminal-receipt table is distinct from the executing RootDebt journal.
+Queued selector/cut/fence authority is not structural-zero proof. Activation binds
+one ticket and its current immutable scope atomically to native deletion/debt.
+Identity-bearing request material is scrubbed before identity-free finalization;
+only actual registered-copy proof, original-sink discharge and WAL TRUNCATE permit
+terminal Complete. Offline activated completion publishes the same ticket receipt.
+The [production design](../design/explicit-maintenance-erasure/production-design.md)
+owns metadata budgets, phases and validation. Format 35 binaries refuse 36, and
+this release refuses previous formats; no migration or metadata-only opt-in exists.

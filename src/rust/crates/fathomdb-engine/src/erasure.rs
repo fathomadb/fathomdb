@@ -1564,6 +1564,7 @@ impl Engine {
     ) -> Result<ExciseRecordReport, EngineError> {
         let mut connection = self.physical_writer(false)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        erasure_queue::guard_admin(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)

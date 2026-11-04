@@ -323,3 +323,66 @@ fn logical_admission_freezes_and_removes_registered_dependency_closure() {
         "unselected same-source root is an exact survivor of logical erasure"
     );
 }
+
+#[test]
+fn queued_effect_guards_cover_batch_old_new_endpoints_provenance_and_dependencies() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = rich_fixture(&dir.path().join("effects.sqlite"), true);
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    handle
+        .queue_physical_erasure(
+            PhysicalErasureSelector::SourceAllAtCut { source_id: "target".into() },
+            "9f4e7cb2ac094246a95bb0d1d9b42f17",
+        )
+        .unwrap();
+    handle.close().unwrap();
+    let before = engine
+        .query_i64_col_for_test(
+            "SELECT count(*) FROM canonical_nodes UNION ALL SELECT count(*) FROM canonical_edges",
+        )
+        .unwrap();
+    let edge = |logical: &str, from: &str, to: &str| PreparedWrite::Edge {
+        kind: "rel".into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new("other").unwrap(),
+        logical_id: Some(logical.into()),
+        body: Some("replacement".into()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    };
+    for effect in [edge("new-edge", "left", "root"), edge("target-edge", "left", "right")] {
+        assert!(engine
+            .write(&[node("unrelated-prefix", "other", "must rollback".into()), effect])
+            .is_err());
+        assert!(engine.read_get("unrelated-prefix", &ReadView::default()).unwrap().is_none());
+    }
+    let provenance = PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: "replacement".into(),
+        source_id: SourceId::new("target").unwrap(),
+        logical_id: Some("root".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::canonical(
+            ArtifactRevisionId::new("new-r1").unwrap(),
+            SourceVersionId::new("v2").unwrap(),
+        ),
+    });
+    assert!(matches!(
+        engine.write(&[provenance]),
+        Err(EngineError::Maintenance(MaintenanceError::QueuedScopeFenced))
+    ));
+    assert!(matches!(
+        engine.register_source_dependency(
+            SourceDependencyRegistrationV1::new("dependency", "source-r1", "derived-r1").unwrap()
+        ),
+        Err(EngineError::Maintenance(MaintenanceError::QueuedScopeFenced))
+    ));
+    assert_eq!(engine.query_i64_col_for_test("SELECT count(*) FROM canonical_nodes UNION ALL SELECT count(*) FROM canonical_edges").unwrap(),before);
+}

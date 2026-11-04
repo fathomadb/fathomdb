@@ -586,6 +586,7 @@ impl Engine {
         request.originals.clear();
         request.status.phase = ErasurePhase::WithdrawnBeforeRemoval;
         store(&tx, &request)?;
+        physical_erasure::faultpoint("before_withdraw_commit")?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(WithdrawResult::WithdrawnBeforeRemoval)
     }

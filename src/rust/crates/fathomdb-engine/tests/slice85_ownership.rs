@@ -69,3 +69,23 @@ fn direct_erasure_preserves_busy_and_closed_precedence_before_policy() {
     engine.close().unwrap();
     assert!(matches!(engine.purge("missing"), Err(EngineError::Closing)));
 }
+
+#[test]
+fn stale_handle_methods_refuse_after_engine_close() {
+    let (_dir, engine) = explicit();
+    let handle = engine.begin_erasure_maintenance(1000).unwrap();
+    engine.close().unwrap();
+    assert!(matches!(
+        handle.queue_physical_erasure(
+            PhysicalErasureSelector::SourceAllAtCut { source_id: "source".into() },
+            "8c46cb9ae088421fbc674f7c96da6c01"
+        ),
+        Err(EngineError::Closing)
+    ));
+    assert!(matches!(
+        handle.complete_physical_erasure(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ),
+        Err(EngineError::Closing)
+    ));
+}

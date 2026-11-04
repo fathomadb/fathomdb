@@ -381,3 +381,79 @@ fn partial_identity_bearing_finalization_authority_refuses_open() {
         "Finalizing requires identity-free queue and redacted root authority"
     );
 }
+
+#[test]
+fn withdrawal_and_activation_orders_preserve_linearization_and_fences() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+    let (_dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let first = ticket(&handle);
+    handle.close().unwrap();
+    let (reached_tx, reached_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let withdrawal = {
+        let engine = Arc::clone(&engine);
+        let ticket = first.clone();
+        std::thread::spawn(move || {
+            arm_physical_erasure_hook_for_test(
+                "before_withdraw_commit",
+                Box::new(move || {
+                    reached_tx.send(()).unwrap();
+                    release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                    Ok(())
+                }),
+            );
+            engine.withdraw_queued_erasure(&ticket)
+        })
+    };
+    reached_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    let acquired = engine.begin_erasure_maintenance(0);
+    let busy = matches!(acquired, Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy)));
+    drop(acquired);
+    release_tx.send(()).unwrap();
+    assert_eq!(withdrawal.join().unwrap().unwrap(), WithdrawResult::WithdrawnBeforeRemoval);
+    assert!(busy, "admitted withdrawal must finish inside acquisition drain");
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    assert!(matches!(
+        handle.complete_physical_erasure(&first),
+        Err(EngineError::Maintenance(MaintenanceError::KeyRetired))
+    ));
+    let second = match handle
+        .queue_physical_erasure(
+            PhysicalErasureSelector::SourceAllAtCut { source_id: "target-source".into() },
+            "7a2e13ce52d34804b672e70cb7036628",
+        )
+        .unwrap()
+    {
+        QueueResult::Accepted { ticket, .. } => ticket,
+        _ => panic!(),
+    };
+    let (reached_tx, reached_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let running = {
+        let ticket = second.clone();
+        std::thread::spawn(move || {
+            arm_physical_erasure_hook_for_test(
+                "after_delete_commit",
+                Box::new(move || {
+                    reached_tx.send(()).unwrap();
+                    release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                    Err(EngineError::Storage)
+                }),
+            );
+            let result = handle.complete_physical_erasure(&ticket);
+            let service = handle.close();
+            (result, service)
+        })
+    };
+    reached_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    let during = engine.withdraw_queued_erasure(&second);
+    release_tx.send(()).unwrap();
+    let (result, service) = running.join().unwrap();
+    assert!(result.is_err());
+    assert_eq!(service.unwrap(), ErasureServiceState::ReadsAllowedWritesFenced);
+    assert!(matches!(during, Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy))));
+    assert_eq!(engine.withdraw_queued_erasure(&second).unwrap(), WithdrawResult::AlreadyActivated);
+    assert!(engine.write(&[node("new", "other", "unchanged-fence")]).is_err());
+}

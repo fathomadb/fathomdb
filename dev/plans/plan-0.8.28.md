@@ -143,6 +143,7 @@ Requirements and acceptance criteria are per slice:
 - Slices 50 to 90: REQ and AC in each slice's `requirements.md`, written
   and reviewed before design.
 
+- Slice 92: S92-1–8 in the [documentation audit/convergence plan](0.8.28/features/slice-92/plan.md).
 - Slice 95: S95-1–11 in the [CI/release-readiness plan](0.8.28/features/slice-95/plan.md),
   including the comparative 0.8.26/0.8.27 robustness review and S95-CI1–CI7 repairs.
 
@@ -154,7 +155,7 @@ Every slice: owner rulings recorded in the ledger; requirements and AC,
 design and a design review before code (Slices 42 to 90, owner 2026-10-31);
 TDD with RED before GREEN for code, one RED commit per behaviour; a code
 review before landing; independent reviews as specified by each slice plan
-(Slice 95 uses Astra); the
+(Slices 92 and 95 use Astra); the
 full `./scripts/agent-verify.sh` gate for code changes; GPU qualification
 receipts on the named hosts; `windchill3` driver and `/usr/local/cuda`
 unchanged; no upstream PRs, issues or pushes.
@@ -166,14 +167,16 @@ steps of 10. A slot stays empty unless a placement decision adds a slice;
 it is never an implicit patch lane.
 Owner placement on 2026-11-03 explicitly assigns reserved slot 81 to the erasure
 availability POC; the subsequent approved CH1 allocation assigns slots 82 and 83.
-These explicit placements do not change this policy for other gaps.
+Owner placement on 2026-11-04 also assigns slot 92 to documentation convergence
+before Slice 95. These explicit placements do not change this policy for other gaps.
 
 ## Immediate next slice
 
-**Product implementation complete through Slice 90. Immediate next: Slice 95**
-([plan](0.8.28/features/slice-95/plan.md)) for CI completeness, runner repair and
-final release readiness. Publication remains held; the existing 0.8.29 hand-over
-rule applies when final verification begins.
+**Product implementation complete through Slice 90. Immediate next: Slice 92**
+([plan](0.8.28/features/slice-92/plan.md)) for documentation audit and convergence,
+then Slice 95 for CI completeness, runner repair and final release readiness.
+Publication remains held; the existing 0.8.29 hand-over rule applies when final
+verification begins. Adding Slice 92 does not itself start that hand-over.
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
@@ -363,9 +366,17 @@ requirements say otherwise.
   [status](0.8.28/features/slice-90/status.md), building on Slice 80 view admission
   across Rust, Python and TypeScript.
 
+- **Slice 92 — documentation audit and convergence.** Owner placement on
+  2026-11-04 (ledger seq-365), after 90 and before 95. Audit and update user
+  guidance, contributor architecture/ADRs/designs/code documentation and project
+  hygiene against accepted authority and implementation. Reuse current catalogs,
+  generated navigation and docs checks; correct the pending format-36 truth
+  checker through RED/GREEN. [Plan](0.8.28/features/slice-92/plan.md), S92-1–8;
+  [status](0.8.28/features/slice-92/status.md). Planning only.
 - **Slice 95 — CI completeness and final release readiness.** Owner placement
-  on 2026-11-04 (steward ledger seq-364), after completed Slice 90. Combines
-  historical documentation/contract convergence and integrated qualification.
+  on 2026-11-04 (steward ledger seq-364), initially after 90; now depends on 92.
+  Slice 92 owns documentation convergence; 95 checks its baseline and later
+  repair deltas during integrated qualification.
   Explicitly repairs cold verify pinned-tool setup and parallel Rust disk
   exhaustion, plus the observed Cargo/ShellCheck/preflight-evidence failures and manual empty-diff routing gap.
   Preserve routing/tier/diagnostic controls, supported-platform receipts and live
@@ -394,4 +405,5 @@ requirements say otherwise.
 | 84 | Cleanup contention and certification cost | [Plan](0.8.28/features/slice-84/plan.md) |
 | 85 | Explicit physical-erasure maintenance and format boundary | [Plan](0.8.28/features/slice-85/plan.md) |
 | 90 | D28-14 filtered direct body FTS | [Plan and design](0.8.28/features/slice-90/plan.md) |
+| 92 | User, contributor and project documentation audit/convergence | [Plan](0.8.28/features/slice-92/plan.md) |
 | 95 | CI completeness, runner repairs and final release readiness | [Plan](0.8.28/features/slice-95/plan.md) |

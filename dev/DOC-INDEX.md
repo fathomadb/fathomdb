@@ -63,6 +63,13 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/release-state-0.8.26.json` · `dev/plans/runs/STATUS-0.8.26.md` | Published release state and completed board through Slice 65 | 0.8.26 history | 2026-09-21 |
 | `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through Slice 65 | 0.8.26 Slice 65 | 2026-09-21 |
+| `dev/plans/plan-0.8.28.md` | Active release plan through documentation convergence and final CI qualification | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/release-state-0.8.28.json` | Active release state with Slice 92 before Slice 95 | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/runs/STATUS-0.8.28.md` | Active release board with documentation and CI qualification work remaining | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/plan.md` | Documentation audit/convergence scope, requirements and execution plan | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/status.md` | Planned documentation audit/convergence status | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/plan.md` | CI repairs and final qualification plan consuming Slice 92 documentation | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/status.md` | Planned CI and release-readiness status after Slice 92 | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |
 | `dev/plans/release-state-0.8.27.json` | Single-writer 0.8.27 ladder, decisions, live next-slice pointer, and publication state | 0.8.27 Slice 140 | 2026-10-10 |

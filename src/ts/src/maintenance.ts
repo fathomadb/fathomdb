@@ -1,5 +1,5 @@
 import { WriteValidationError } from "./errors.js";
-import { validateSourceIdFfiString } from "./validation.js";
+import { validateFfiString, validateSourceIdFfiString } from "./validation.js";
 import type { NativeErasureMaintenance } from "./binding.js";
 import { intercept } from "./native-call.js";
 
@@ -89,6 +89,11 @@ export class ErasureMaintenance {
     return result.outcome === "complete"
       ? { outcome: result.outcome, receipt: erasureStatus(result.receipt) }
       : { outcome: result.outcome, status: erasureStatus(result.status) };
+  }
+  /** Reattach only a recorded original. Never registers or substitutes a sink. */
+  async reattachOriginalErasureSink(ticket: string, path: string): Promise<void> {
+    validateFfiString(path);
+    await intercept(() => this.native.reattachOriginalErasureSink(ticket, path));
   }
   /** Release temporary admission gates. This is not a physical completion receipt. */
   async close(): Promise<ErasureServiceState> {

@@ -18,7 +18,7 @@ fn sdk_persisted_policy_and_exclusive_handle_match_core() {
     assert_eq!(engine.physical_erasure_policy(), PhysicalErasurePolicy::ExplicitMaintenance);
     let mut handle = engine.begin_erasure_maintenance(0).unwrap();
     assert!(engine.erase_source("source").is_err());
-    handle.close();
+    handle.close().unwrap();
     engine.close().unwrap();
     let reopened = Engine::open(&path, OpenOptions::default()).unwrap();
     assert_eq!(reopened.physical_erasure_policy(), PhysicalErasurePolicy::ExplicitMaintenance);

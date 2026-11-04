@@ -1,7 +1,7 @@
 ---
 title: Rust SDK interface (fathomdb-sdk)
-date: 2026-10-06
-target_release: 0.8.27
+date: 2026-11-04
+target_release: 0.8.28
 desc: Public contract of the dedicated fathomdb-sdk crate and its mapping to the Python and TypeScript SDKs
 blast_radius: src/rust/crates/fathomdb-sdk; src/conformance/governed-operation-parity.json; scripts/check-sdk-surface-parity.py
 status: locked
@@ -35,7 +35,7 @@ The checker also refuses these routes to the core:
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
 against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
-(48/48 live operations).
+(53/53 live operations).
 
 ## Translation rules
 
@@ -571,3 +571,17 @@ match the [core open error contract](rust.md#vector-verification-open-errors).
 The source chain continues through `EngineOpenError` and the typed verification
 cause to the original provider error. Successful projection runtime state is
 `Absent`/`Usable`; obsolete refused-open modes are removed.
+
+## Explicit physical-erasure maintenance (0.8.28 Slice 85)
+
+`EngineConfig.physical_erasure_policy`, `PhysicalErasurePolicy`, the five new
+Engine methods `physical_erasure_policy`, `queue_physical_erasure`,
+`physical_erasure_status`, `withdraw_queued_erasure` and
+`begin_erasure_maintenance` mirror the [Python contract](python.md#explicit-physical-erasure-maintenance-0828-slice-85).
+The SDK internally retains its core in an `Arc`; there is still no public core
+accessor. `ErasureMaintenance` owns the core window and wraps every fallible method
+in the SDK `Result`, including `close`. It exposes heavy queue admission, physical
+completion and original-sink reattachment. The shared selector/status/outcome enums
+are re-exported explicitly. `ErrorKind::Maintenance` preserves the typed
+`EngineError::Maintenance(MaintenanceError)` payload. Acquisition wait is not an
+active SQLite deadline, and handle drop never clears owed physical obligations.

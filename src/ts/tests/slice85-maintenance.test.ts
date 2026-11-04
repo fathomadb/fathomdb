@@ -121,3 +121,33 @@ test("discarded caller and handle retain native ownership to terminal receipt", 
     assert.ok(result.stdout.includes("discarded-caller-complete"));
   } finally { rmSync(dir, { recursive: true }); }
 });
+
+test("original sink blocker and authenticated reattachment preserve exact receipt", async () => {
+  const { writeFileSync } = await import("node:fs");
+  const dir = mkdtempSync(join(tmpdir(), "slice85-sink-"));
+  const path = join(dir, "store.sqlite"), sink = join(dir, "original.jsonl");
+  let engine = await Engine.open(path, { engineConfig: { physicalErasurePolicy: "explicit_maintenance" } });
+  await engine.enableTelemetry(sink);
+  await engine.write([{ kind: "doc", body: "sinktargetmarker85", sourceId: "target-source" }]);
+  await engine.searchTextOnly("sinktargetmarker85");
+  let handle = await engine.beginErasureMaintenance(1000);
+  const accepted = await handle.queuePhysicalErasure({ kind: "source_all_at_cut", sourceId: "target-source" }, "f23e2130b50242e3b8d545d4fa3d8015");
+  if (accepted.outcome !== "accepted") throw new Error("heavy admission refused");
+  await handle.close(); await engine.close();
+  engine = await Engine.open(path);
+  try {
+    handle = await engine.beginErasureMaintenance(1000);
+    try {
+      const blocked = await handle.completePhysicalErasure(accepted.ticket);
+      assert.equal(blocked.outcome, "incomplete");
+      if (blocked.outcome !== "incomplete") throw new Error("unattached original reported complete");
+      assert.equal(blocked.status.blocker, "original_sink_unavailable");
+      assert.equal(blocked.status.logicalState, "unchanged_by_this_request");
+      const wrong = join(dir, "replacement.jsonl"); writeFileSync(wrong, "");
+      await assert.rejects(handle.reattachOriginalErasureSink(accepted.ticket, wrong), { reason: "original_sink_mismatch" });
+      await handle.reattachOriginalErasureSink(accepted.ticket, sink);
+      assert.equal((await handle.completePhysicalErasure(accepted.ticket)).outcome, "complete");
+    } finally { await handle.close(); }
+    assert.equal((await engine.physicalErasureStatus(accepted.ticket))?.phase, "complete");
+  } finally { await engine.close(); rmSync(dir, { recursive: true }); }
+});

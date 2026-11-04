@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-09-21
-target_release: 0.8.27
-desc: Public Python surface for 0.8.27
+date: 2026-11-04
+target_release: 0.8.28
+desc: Public Python surface for 0.8.28
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -17,9 +17,9 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
-`Engine.open` bootstraps a missing or zero-length path at schema 34. A
+`Engine.open` bootstraps a missing or zero-length path at schema 36. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 34; any other version raises
+`PRAGMA user_version` is exactly 36; any other version raises
 `IncompatibleSchemaVersionError` before product mutation. Python exposes no
 automatic-upgrade or custom-migration route.
 
@@ -1458,3 +1458,42 @@ only none/no_runtime. Later runtime errors retain their existing behavior.
 These removals do not change `ProjectionDelta.deferred`, durable pending work,
 or retained graph/structural codec vocabulary (`deferred`/`projection_deferred`).
 Only mappings derived from the removed refused-open runtime state disappear.
+
+## Explicit physical-erasure maintenance (0.8.28 Slice 85)
+
+The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
+and [production design](../design/explicit-maintenance-erasure/production-design.md)
+own guarantees, scope, limits and recovery. Fresh format 36 requires valid persisted
+policy metadata. Earlier formats are refused before mutation; no upgrade is offered.
+`EngineConfig.physical_erasure_policy` is `"autonomous"`, `"explicit_maintenance"`
+or `None` (honor persisted policy; new stores default Autonomous). A mismatch
+refuses open. Explicit reopen performs no autonomous physical cleanup.
+
+`engine.physical_erasure_policy()` reports the effective policy.
+`queue_physical_erasure(selector, idempotency_key)`, `physical_erasure_status(ticket)`
+and `withdraw_queued_erasure(ticket)` use typed dictionaries/unions exported from
+`fathomdb`: `PhysicalErasureSelector`, `QueueResult`, `ErasureStatus`, `WithdrawResult`.
+Selectors are `{"kind":"source_all_at_cut","source_id":...}` or
+`{"kind":"deleted_logical_all_at_cut","logical_id":...}`. Keys are random opaque
+32-character lowercase hex; tickets are store-bound. Acceptance means
+`logical_state="unchanged_by_this_request"`, never deletion. First admission uses
+`needs_maintenance_admission`; exact retained retries are cheap. The handle's
+`queue_physical_erasure` performs heavy non-destructive admission.
+
+`engine.begin_erasure_maintenance(acquisition_wait_ms=0)` returns the owned
+`ErasureMaintenance` context manager. It excludes ordinary operations and drains
+admitted work; its wait applies only to acquisition, never active SQL.
+Handle methods are `queue_physical_erasure`, `complete_physical_erasure`,
+`reattach_original_erasure_sink` and `close`. `CleanupResult` is Complete with
+`receipt` or Incomplete with `status`; dictionary `outcome` is lower snake case.
+`close` returns `ErasureServiceState` and never certifies completion. Blocking calls
+release the GIL and retain native ownership through completion despite caller drop.
+
+`MaintenanceError.reason` is a safe snake-case typed reason. While owned, newcomers
+refuse `maintenance_busy`; outside a window explicit direct erase/purge refuses
+`maintenance_required`. Unknown/wrong-store well-formed tickets return `None`.
+Malformed tickets fail. Queued restrictions permit proven-disjoint plain writes;
+provenance/dependency/lifecycle/actuation/global administration that cannot prove
+cheap noninterference refuses `queued_scope_fenced`. Reads retain their eligibility.
+Post-delete incomplete work may allow coherent reads while globally fencing writes;
+read-triggered telemetry capture is suppressed. Drop/reopen cannot forgive debt.

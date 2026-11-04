@@ -21,6 +21,13 @@ impl ErasureMaintenance {
         Ok(self.inner.complete_physical_erasure(ticket)?)
     }
 
+    /// Reattach only an authenticated already-recorded original sink. Never
+    /// registers a replacement or enables capture; unknown/wrong paths refuse.
+    pub fn reattach_original_erasure_sink(&self, ticket: &str, path: &str) -> crate::Result<()> {
+        crate::guard::text(path)?;
+        Ok(self.inner.reattach_original_erasure_sink(ticket, path)?)
+    }
+
     /// Release temporary admission gates and report remaining service state.
     /// This is not a physical-completion result.
     pub fn close(&mut self) -> crate::Result<fathomdb_engine::ErasureServiceState> {

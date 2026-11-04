@@ -213,7 +213,7 @@ fn search_filter_arg_accepts_both_filter_forms() {
 
 /// The shared Python/TypeScript error classes, minus the `Error` suffix, plus
 /// the base. Python: `fathomdb.errors`; TypeScript: `src/ts/src/errors.ts`.
-const SHARED_ERROR_CLASSES: [&str; 46] = [
+const SHARED_ERROR_CLASSES: [&str; 47] = [
     "EngineError",
     "RuntimeConfigurationError",
     "StorageError",
@@ -256,6 +256,7 @@ const SHARED_ERROR_CLASSES: [&str; 46] = [
     "IllegalTransitionError",
     "NotLifecycleAddressableError",
     "ErasureIncompleteError",
+    "MaintenanceError",
     "ProjectionDestructiveError",
     "CudaPoolExhaustedError",
     "CudaContextLostError",

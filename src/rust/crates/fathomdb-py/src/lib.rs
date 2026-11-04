@@ -219,6 +219,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEngine>()?;
     m.add_class::<PyErasureMaintenance>()?;
     #[cfg(feature = "test-hooks")]
+    m.add_class::<PyErasurePause>()?;
+    #[cfg(feature = "test-hooks")]
     m.add_class::<PyWalSnapshotPause>()?;
     m.add_class::<PyWriteReceipt>()?;
     m.add_class::<PyEraseReport>()?;

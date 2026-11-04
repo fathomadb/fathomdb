@@ -15,6 +15,12 @@ impl ErasureMaintenance {
         Ok(self.inner.queue_physical_erasure(selector, key)?)
     }
 
+    /// Attempt exact physical completion for this ticket. Complete requires
+    /// actual registered-copy/sink/WAL discharge; Incomplete retains owed work.
+    pub fn complete_physical_erasure(&self, ticket: &str) -> crate::Result<crate::CleanupResult> {
+        Ok(self.inner.complete_physical_erasure(ticket)?)
+    }
+
     /// Release temporary admission gates and report remaining service state.
     /// This is not a physical-completion result.
     pub fn close(&mut self) -> crate::Result<fathomdb_engine::ErasureServiceState> {

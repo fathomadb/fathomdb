@@ -45,7 +45,7 @@ from fathomdb._sdk_search import (
     _map_native_search_result as _map_native_search_result,  # noqa: F401
 )
 from fathomdb._sdk_search import _map_per_hit_explain as _map_per_hit_explain  # noqa: F401
-from fathomdb.maintenance import ErasureStatus, PhysicalErasureSelector, QueueResult, WithdrawResult
+from fathomdb.maintenance import CleanupResult, ErasureStatus, PhysicalErasureSelector, QueueResult, WithdrawResult
 from fathomdb.config import EngineConfig
 from fathomdb.filter import Filter
 from fathomdb.types import (
@@ -594,6 +594,10 @@ class ErasureMaintenance:
     def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult:
         """Perform heavy non-destructive preflight inside this window."""
         return cast(QueueResult, json.loads(self._native.queue_physical_erasure(json.dumps(selector), idempotency_key)))
+
+    def complete_physical_erasure(self, ticket: str) -> CleanupResult:
+        """Attempt exact physical completion; Incomplete retains durable owed work."""
+        return cast(CleanupResult, json.loads(self._native.complete_physical_erasure(ticket)))
 
     def close(self) -> str:
         """Release temporary ownership and return service state, not completion."""

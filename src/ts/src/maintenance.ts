@@ -42,6 +42,10 @@ export type NativeQueueResult =
   | { outcome: "accepted"; ticket: string; logical_state: ErasureLogicalState }
   | { outcome: "needs_maintenance_admission" };
 
+export type NativeCleanupResult =
+  | { outcome: "complete"; receipt: NativeErasureStatus }
+  | { outcome: "incomplete"; status: NativeErasureStatus };
+
 export function erasureSelector(selector: PhysicalErasureSelector): unknown {
   if (selector === null || typeof selector !== "object" || Array.isArray(selector)) {
     throw new WriteValidationError("invalid erasure selector");
@@ -78,6 +82,13 @@ export class ErasureMaintenance {
   async queuePhysicalErasure(selector: PhysicalErasureSelector, idempotencyKey: string): Promise<QueueResult> {
     const lowered = erasureSelector(selector);
     return queueResult(await intercept(() => this.native.queuePhysicalErasure(lowered, idempotencyKey)));
+  }
+  /** Attempt exact physical completion. Incomplete retains durable owed work. */
+  async completePhysicalErasure(ticket: string): Promise<CleanupResult> {
+    const result = await intercept(() => this.native.completePhysicalErasure(ticket));
+    return result.outcome === "complete"
+      ? { outcome: result.outcome, receipt: erasureStatus(result.receipt) }
+      : { outcome: result.outcome, status: erasureStatus(result.status) };
   }
   /** Release temporary admission gates. This is not a physical completion receipt. */
   async close(): Promise<ErasureServiceState> {

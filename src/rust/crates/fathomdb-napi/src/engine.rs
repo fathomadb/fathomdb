@@ -118,7 +118,11 @@ impl Engine {
         .unwrap_or(0);
         let engine = Arc::clone(&self.inner);
         let handle = call_engine(move || engine.begin_erasure_maintenance(wait)).await?;
-        Ok(ErasureMaintenance { inner: Arc::new(Mutex::new(handle)) })
+        Ok(ErasureMaintenance {
+            inner: Arc::new(Mutex::new(handle)),
+            #[cfg(feature = "test-hooks")]
+            pause: Arc::new(std::sync::Mutex::new(None)),
+        })
     }
 
     /// Structured open report captured at [`Engine::open`] time. Sync

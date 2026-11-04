@@ -280,7 +280,11 @@ impl PyEngine {
         let engine = Arc::clone(&self.inner);
         let handle =
             call_engine(py, move || engine.begin_erasure_maintenance(acquisition_wait_ms))?;
-        Ok(PyErasureMaintenance { inner: Arc::new(std::sync::Mutex::new(handle)) })
+        Ok(PyErasureMaintenance {
+            inner: Arc::new(std::sync::Mutex::new(handle)),
+            #[cfg(feature = "test-hooks")]
+            pause: Arc::new(std::sync::Mutex::new(None)),
+        })
     }
 
     fn open_report(&self, py: Python<'_>) -> PyOpenReport {

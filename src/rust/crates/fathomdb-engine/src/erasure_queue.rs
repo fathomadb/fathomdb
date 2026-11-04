@@ -563,16 +563,7 @@ impl ErasureMaintenance {
             physical_erasure::envelope(&tx)?;
             let rows = requests(&tx)?;
             if rows.iter().filter(|r| r.status.phase == ErasurePhase::Queued).count() >= 16
-                || rows
-                    .iter()
-                    .filter(|r| {
-                        matches!(
-                            r.status.phase,
-                            ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval
-                        )
-                    })
-                    .count()
-                    >= 4096
+                || rows.len() >= 4096
             {
                 return Err(error(MaintenanceError::Capacity));
             }

@@ -83,13 +83,15 @@ impl Default for SearchOptions {
 /// `Engine::search_text_only` options.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TextSearchOptions {
+    /// Closed metadata predicates, applied before candidate collection.
+    pub filter: Option<SearchFilter>,
     pub view: ReadView,
     pub limit: usize,
 }
 
 impl Default for TextSearchOptions {
     fn default() -> Self {
-        Self { view: ReadView::default(), limit: 10 }
+        Self { filter: None, view: ReadView::default(), limit: 10 }
     }
 }
 

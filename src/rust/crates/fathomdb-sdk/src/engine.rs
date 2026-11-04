@@ -257,7 +257,15 @@ impl Engine {
     ) -> Result<SearchResult> {
         guard::ranked_limit("limit", options.limit)?;
         guard::text(query)?;
-        Ok(self.core.search_text_only_view_with_limit(query, &options.view, options.limit)?)
+        if let Some(filter) = &options.filter {
+            guard::search_filter(filter)?;
+        }
+        Ok(self.core.search_text_only_filtered(
+            query,
+            options.filter,
+            &options.view,
+            options.limit,
+        )?)
     }
 
     /// Lexical search over one declared property-FTS projection.

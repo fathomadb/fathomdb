@@ -95,3 +95,73 @@ approval for any contract/envelope/scope change. End-of-83 HITL decisions remain
 inputs to reconcile, not choices this slice can invent. Final status must separate
 safety pass, work-count reduction, service qualification and residual Phase 82
 cost, with measured failures retained.
+
+## Concrete candidate — exact committed-boundary query
+
+Pending measured attribution, replace only the structural-zero validator's
+`MAX` over the union of all cursor rows with `MAX` over each table's `MAX`.
+SQLite can use the existing cursor indexes on canonical nodes, canonical edges
+and operational state. Operational mutations still scan; no index is added.
+The outer `COALESCE(...,0)` stays outside both maxima levels, preserving empty,
+NULL and negative-input behavior. Conversion to `u64` retains its original
+failure semantics. Query preparation and errors remain at the same validation
+point, before generation and registered-copy checks.
+
+| Fact | Authority, lifetime and fallback |
+| --- | --- |
+| Committed maximum cursor | Exact SQL over the same four tables and the same locked connection/transaction, recomputed every invocation; algebraically equivalent associative maximum, no stale state or fallback needed |
+| Resource envelope and denial | Existing full scans and root/denial validation remain unchanged, including triggers, prior provenance and old/new endpoints |
+| Structural zero and generation | Existing exact registered-copy/vector and generation checks remain after the boundary query; missing/corrupt/legacy debt follows existing refusal/validator behavior |
+| Safe watermark and rollback | Existing transactionally stored root/watermark is unchanged; failed/deferred commit rollback and reopen reconstruction retain existing authority |
+| Finalization and service | Existing full validator, global tombstone fence and actual TRUNCATE remain; no scheduling, reader or lock-order change |
+
+Deterministic TDD measures executed SQLite VM steps on a populated real fixture,
+with the same query used by the validator. Differential properties compare the
+original union query against the candidate on empty tables, mixed extrema,
+NULLs, negative cursors, deletion, transactional mutation and rollback. Existing
+mapped-vector, generation mismatch, crash/reopen, denial and completion suites
+remain unchanged. No cross-transaction proof reuse is introduced; no new
+invalidation state, durable version, public API or ADR successor is needed.
+
+The observer is test-hook-only: a scoped thread-local metrics handle binds
+nested root/envelope/certification/zero/journal stages to the current Engine
+writer; guards restore prior scope. Outside hooks it is a no-op. Both binaries
+carry identical observers. Elapsed counters are overlapping wall time, not CPU
+measurements; certification CPU is explicitly unavailable in this instrumentation.
+The diagnostic profile must establish whether this candidate is worth selecting;
+work reduction alone cannot satisfy integrated S84-6.
+
+## Selected mechanism — synchronous sanitation priority
+
+Baseline diagnostic cells at final Slice 83 plus identical observers measured
+public calls 8.612/3.189/12.321 seconds (node/edge/property). Boundary maxima cost
+only 0.077/0.054/0.043 seconds; reject the exact-MAX candidate above as immaterial.
+Exact cursor proofs and eligibility remain required. No certification algorithm
+is changed and no proof reuse is introduced.
+
+The synchronous caller holds the cleanup service gate throughout its operation,
+so the worker cannot assert priority on its behalf. Its sanitation units formerly
+waited on the primary mutex without the existing maintenance turn, allowing
+foreground reacquisition to delay cleanup. The selected scheduling change acquires
+the existing maintenance priority and turn before each synchronous sanitation
+unit's primary-lock wait. One shared helper serves worker and public caller.
+The service gate guarantees one priority owner. Poisoned turn locks recover their
+guard as before; RAII clears priority and notifies waiting writers on every exit.
+
+The existing sanitation wait timer starts before turn acquisition. Release primary
+ownership and maintenance priority/turn before the existing after-unit rendezvous
+and five-millisecond sleep. Initial validation, finalization, reader admission,
+atomic deletion and all authority queries remain unchanged. Thus a foreground
+operation already holding the turn completes, newcomers yield for one committed
+unit, then foreground service can proceed between units. No mutex is held over
+backoff, and close retains its original join protocol.
+
+Astra approved this concrete mechanism before code. Deterministic RED/GREEN uses
+the actual synchronous path: a new foreground writer must observe the maintenance
+priority wait at the sanitation rendezvous, then acquire after the unit; the
+existing after-unit Engine write witness verifies actual useful progress. Fault
+injection at the acquisition boundary verifies priority is released on errors.
+Existing worker lost-wake, contention, idle/reopen and close tests remain guards.
+S84-3 authority-cache invalidation and certification work-count reduction are
+not applicable: no check or reusable fact changes. S84-1's measured decomposition
+justifies the scheduling change; S84-6 still requires integrated paired benefit.

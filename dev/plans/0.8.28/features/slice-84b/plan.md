@@ -1,6 +1,6 @@
 ---
 title: Slice 84b plan — exact certification work and transactional resource totals
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.28
 ---
 
@@ -123,5 +123,7 @@ pair only; property and later repetitions were not run. B6 is NOT QUALIFIED.
 Astra recommends rejecting the production candidate, restored to the retained
 baseline. The candidate and its tests remain in Git history. See [status](status.md)
 for per-requirement results. No threshold relaxation, retry or further experiment
-is authorized by this outcome. Final retained-tree workspace verification remains
-pending; the earlier interrupted Slice 84 collection is not a full gate.
+is authorized by this outcome. Final retained-tree lint and remaining workspace language/binding suites passed.
+Previously completed harness/typecheck/security evidence is reused with scoped
+resumption, honoring the owner's overhead instruction after production rejection;
+this is not one uninterrupted full-gate pass. See the status for exact scope.

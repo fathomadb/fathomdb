@@ -1,6 +1,6 @@
 ---
 title: Slice 84b — repeated certification scans and transactional envelope accounting
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.28
 ---
 

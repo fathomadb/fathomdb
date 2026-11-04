@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 84 — cleanup contention and certification cost
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.28
 ---
 
@@ -210,7 +210,7 @@ The fixed 54-cell campaign completed with all three S84-6 gates failed. Astra
 recommended rejecting the new scheduling policy; original scheduling and the
 accepted ADR are restored. Profiling, driver/controller and complete negative
 evidence remain. See [status](status.md) and the design's reviewed web research.
-Final workspace verification is pending; no replacement experiment, threshold
+Verification closed by scoped resumption (see status); no replacement experiment, threshold
 relaxation, guarantee/API choice or broader implementation is authorized here.
 
 ## Final closeout reconciliation — 2026-11-03

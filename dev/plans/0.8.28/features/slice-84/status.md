@@ -1,6 +1,6 @@
 ---
 title: Slice 84 — bounded optimization rejected
-status: IN_PROGRESS
+status: COMPLETE
 date: 2026-11-03
 ---
 
@@ -10,7 +10,7 @@ The bounded investigation and all 54 measurements are complete. **S84-6 failed
 for every family; the optimization is NOT QUALIFIED.** Astra reviewed the
 negative result and recommended rejecting the production scheduling change.
 Original Slice 83 scheduling and ADR semantics are restored. Profiling and the
-bounded measurement tooling are retained. The full workspace gate is incomplete;
+bounded measurement tooling are retained. Verification closed through scoped resumption (see final closeout below);
 no performance repair, full-green result, numerical guarantee or cleanup API is claimed.
 
 ## Scope, design and implementation
@@ -110,7 +110,7 @@ retain manifests, per-cell stages and dispositions. Raw events remain under
 `/tmp/fathomdb-slice84/campaign/`; frozen binaries and source identities are in
 `/tmp/fathomdb-slice84/`. No large raw events or database replicas are tracked.
 
-## Verification and follow-up
+## Verification and follow-up before final closeout
 
 Astra independently ran maintenance 7/7, availability 16 passing tests (the
 ignored crash child is exercised by its parent), and physical-erasure 6/6,
@@ -133,8 +133,8 @@ was made. The remaining broad collection was stopped to prioritize the requested
 Slice 84b planning handoff; uncompleted suites are not claimed passed. Logs are
 `/tmp/fathomdb-slice84-final-verify.log` and
 `/tmp/fathomdb-slice84-{lint,typecheck,security,tests}-resume.log`.
-This is incomplete workspace verification, not a full-green gate. Slice 84 stays
-unqualified; the follow-up [Slice 84b draft](../slice-84b/README.md) targets the
+As of `04b08895e`, this was incomplete workspace verification, not a full-green gate. Slice 84 stays
+unqualified; the follow-up [Slice 84b](../slice-84b/README.md) evaluated the
 measured certification costs.
 
 At the owner's request, primary-source web research and Astra applicability
@@ -147,3 +147,15 @@ checkpoint or PRAGMA tuning and unsafe FTS identity shortcuts. No further
 implementation or measurement budget is implied. The existing cleanup service
 regression remains unresolved; Slice 90 and the open guarantee/API decision
 remain separate work.
+
+## Final closeout
+
+Slice 84 and its 84b follow-up are complete as negative investigations. The stale
+Windows harness selector was fixed RED/GREEN at `77e2de796` and all 344 checks
+passed. Astra approved retained-code disposition and independently verified the
+measurements and safety. Final retained-tree lint, remaining seven heavy suites
+(including the Rust/Python/TypeScript workspace tests), eight post-Rust fast
+registrations and the 84b controller passed; earlier completed harness, typecheck
+and strict-security results are reused. This is scoped resumption rather than
+a single uninterrupted full-gate pass. See [84b status](../slice-84b/status.md).
+The service regression and end-of-83 guarantee/API question remain unresolved.

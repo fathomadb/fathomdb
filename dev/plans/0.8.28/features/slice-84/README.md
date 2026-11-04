@@ -1,13 +1,13 @@
 ---
 title: Slice 84 — cleanup performance regression
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.28
 ---
 
 # Slice 84 — cleanup performance regression
 
 Owner-authorized execution after the completed Slice 83 baseline. The reviewed candidate completed the fixed bounded protocol and failed
-qualification. Original scheduling is restored; final verification is pending.
+qualification. Original scheduling is restored; verification closed by scoped resumption.
 
 | Document | Purpose |
 | --- | --- |

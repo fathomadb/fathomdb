@@ -1,11 +1,11 @@
 ---
-title: Slice 84b draft design — connection-bound certification and envelope deltas
+title: Slice 84b evaluated design — connection-bound certification and envelope deltas
 status: APPROVED
 ---
 
-# Slice 84b draft design
+# Slice 84b evaluated design
 
-This draft chooses a bounded **process-local, connection-bound cleanup-job
+The evaluated candidate used a bounded **process-local, connection-bound cleanup-job
 certificate**, not a new durable counter format. The existing root journal stays
 authoritative. The certificate accelerates supported foreground admission only;
 it never authorizes durable physical completion. All full validators remain

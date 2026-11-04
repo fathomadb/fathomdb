@@ -167,15 +167,16 @@ These explicit placements do not change this policy for other gaps.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 84** (`CLEANUP-CONTENTION`) — Measured cleanup contention optimization under unchanged physical-success semantics
+**IMMEDIATE NEXT: Slice 90** (`FILTERED-BODY-FTS`) — D28-14: SearchFilter on direct node and edge body FTS-only search (search_text_only / searchTextOnly), applied before truncation, ranking and limit
 
-**Remaining ladder:** 84 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
 Slices 60, 70 and 80 are complete on `dev/0.8.28` and `release/0.8.28`.
-Slices 81–83 are engineering-complete; Slice 84 cleanup optimization is next,
-followed by 90. The
+Slices 81–84, including 84b, are complete. Both cleanup optimization candidates
+were rejected after failed service qualification; baseline production is retained.
+Slice 90 is next. The
 physical-erasure guarantee/API decision is held at the end of 83. After 90 comes
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's

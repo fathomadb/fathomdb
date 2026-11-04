@@ -8,7 +8,7 @@ impl Engine {
         &self,
         context: &ReadContextV1,
     ) -> Result<FrozenReadContextV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let (frozen, generation) = frozen_read::mint(connection, context)?;
@@ -35,7 +35,7 @@ impl Engine {
         &self,
         frozen: &FrozenReadContextV1,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let binding = frozen_read::authenticate(connection, frozen)?;
@@ -61,7 +61,7 @@ impl Engine {
         explain: bool,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
@@ -105,7 +105,7 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
@@ -202,7 +202,7 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
@@ -234,7 +234,7 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
@@ -318,7 +318,7 @@ impl Engine {
         depth: u32,
         limit: usize,
     ) -> Result<SearchExpandResult, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
@@ -460,7 +460,7 @@ impl Engine {
         frozen_binding: Option<frozen_read::FrozenReadBinding>,
         expand_depth: Option<u32>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let is_frozen = frozen_binding.is_some();
         if !is_frozen && query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
@@ -965,7 +965,7 @@ impl Engine {
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -1045,7 +1045,7 @@ impl Engine {
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -1155,7 +1155,7 @@ impl Engine {
         query: &str,
         plan: &Bm25fQueryPlan,
     ) -> Result<Vec<(u64, f64)>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         bm25f_search_inner(connection, query, plan).map_err(|_| EngineError::Storage)
@@ -1199,7 +1199,7 @@ impl Engine {
         limit: usize,
     ) -> Result<SearchExpandResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if depth > 3 {
             return Err(EngineError::InvalidArgument {
                 msg: format!("traversal depth {depth} exceeds the SDK ceiling of 3"),

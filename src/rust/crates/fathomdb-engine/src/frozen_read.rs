@@ -855,7 +855,7 @@ impl Engine {
         context: &FrozenReadContextV1,
         page: &PageRequestV1,
     ) -> Result<Slice45FrozenStageTiming, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let started = Instant::now();
@@ -881,7 +881,7 @@ impl Engine {
         &self,
         context: &ReadContextV1,
     ) -> Result<Slice45MintStageTiming, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let (_, generation, timing) = mint_measured(connection, context)?;

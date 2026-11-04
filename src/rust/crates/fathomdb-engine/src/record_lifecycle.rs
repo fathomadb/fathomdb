@@ -198,7 +198,7 @@ impl Engine {
         to_state: LifecycleState,
         reason: Option<String>,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
 
         // Settle in-flight projection work first: the async projection worker

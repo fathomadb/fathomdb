@@ -525,7 +525,7 @@ impl Engine {
         kind: &str,
         text: &str,
     ) -> Result<WriteReceipt, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let embedder = self
             .runtime_embedder
             .as_ref()
@@ -671,7 +671,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn vector_row_count_for_test(&self) -> Result<u64, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -685,7 +685,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn has_vector_row_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -700,7 +700,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn read_vector_blob_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -717,7 +717,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn read_vector_bin_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection

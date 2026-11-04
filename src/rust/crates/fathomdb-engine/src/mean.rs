@@ -422,7 +422,7 @@ impl Engine {
     /// un-centered workspace).
     #[cfg(feature = "operator")]
     pub fn recompute_mean(&self) -> Result<MeanRecomputeReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let identity = self.runtime_embedder_identity.clone();
         if !identity_requires_mean_centering(&identity) {
             return Err(EngineError::EmbedderNotConfigured);

@@ -171,7 +171,7 @@ impl Engine {
     /// recompute never surfaces. Mirrors the at-open
     /// `OpenReport.embedder_events` channel for the steady-state path.
     pub fn drain_embedder_events(&self) -> Result<Vec<EmbedderEvent>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut events = self
             .projection_runtime
             .shared
@@ -198,7 +198,7 @@ impl Engine {
     /// ([`EngineError::CudaPoolExhausted`], [`EngineError::CudaContextLost`],
     /// [`EngineError::CudaPrivateBuildRefused`]).
     pub fn embed_text(&self, text: &str) -> Result<Vec<f32>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         dispatch_embed_vector(&self.embed_dispatch, text).map_err(|error| match error {
             DispatchError::NotConfigured => EngineError::EmbedderNotConfigured,
             DispatchError::Saturated | DispatchError::QueuedExpired => EngineError::Overloaded,
@@ -218,7 +218,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn drain_mean_centering_events_for_test(&self) -> Result<Vec<EmbedderEvent>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut events = self
             .projection_runtime
             .shared

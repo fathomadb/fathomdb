@@ -1543,7 +1543,7 @@ impl Engine {
         &self,
         request: DependencyTraceRequestV1,
     ) -> Result<DependencyTraceResultV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         crate::dependency_trace::execute(connection, request)
@@ -1554,7 +1554,7 @@ impl Engine {
     /// Query-plan details for both indexed dependency-trace directions.
     #[cfg(feature = "test-hooks")]
     pub fn dependency_trace_query_plans_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let candidate_queries = candidate_queries_for_test();
@@ -1682,7 +1682,7 @@ impl Engine {
         &self,
         count: u32,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;

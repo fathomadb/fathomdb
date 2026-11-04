@@ -1072,6 +1072,7 @@ impl Engine {
                         erasure_before_primary_lock_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
                         close_lock: Mutex::new(()),
+                        maintenance_admission: Arc::new(maintenance_admission::Admission::default()),
                         physical_service_gate: Arc::new(Mutex::new(())),
                         physical_maintenance: physical_maintenance::PhysicalMaintenance::default(),
                         lock: Mutex::new(Some(parts.lock)),
@@ -2373,7 +2374,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn default_embedder_profile_for_test(&self) -> Result<EmbedderIdentity, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         load_default_profile(connection).map_err(|_| EngineError::Storage)

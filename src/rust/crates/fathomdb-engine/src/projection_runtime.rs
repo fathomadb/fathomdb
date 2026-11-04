@@ -1135,7 +1135,7 @@ impl Engine {
         &self,
         kind: &str,
     ) -> Result<lifecycle::ProjectionStatus, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         projection_status(connection, kind)
@@ -1144,7 +1144,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn has_vector_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         terminal_state_for_cursor(connection, cursor)
@@ -1155,7 +1155,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn projection_failure_count_for_test(&self, cursor: u64) -> Result<u64, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection

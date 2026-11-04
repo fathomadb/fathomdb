@@ -140,6 +140,7 @@ impl Engine {
     /// is an opt-in surface that is independently toggleable on a running
     /// engine without restart. AC-005a locks runtime toggleability.
     pub fn set_profiling(&self, enabled: bool) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
         self.profiling_enabled.store(enabled, Ordering::Relaxed);
         Ok(())
     }
@@ -150,6 +151,7 @@ impl Engine {
     /// threshold is runtime-configurable; mutating it changes detection
     /// behavior on subsequent statements without restart (AC-007b).
     pub fn set_slow_threshold_ms(&self, value: u64) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
         self.slow_threshold_ms.store(value, Ordering::Relaxed);
         Ok(())
     }
@@ -160,6 +162,7 @@ impl Engine {
     /// Local file only — no network/egress. `query_id` + `ts_monotonic_ms` are
     /// reset deterministically on enable. Idempotent re-enable resets the seq.
     pub fn enable_telemetry(&self, sink_path: &str) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
         // Touch the sink (create + validate writable) before arming capture, so a
         // bad path fails loudly here rather than silently dropping events.
         let mut options = std::fs::OpenOptions::new();
@@ -309,6 +312,7 @@ impl Engine {
         irrelevant_ids: &[u64],
         label_source: &str,
     ) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
         let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
         let sink = guard
             .as_ref()

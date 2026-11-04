@@ -202,7 +202,7 @@ impl Engine {
         &self,
         axis: &ConsolidateAxis,
     ) -> Result<Vec<ConsolidateCandidateEdge>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut stmt = connection

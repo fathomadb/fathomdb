@@ -1502,7 +1502,7 @@ impl Engine {
         &self,
         effective_at_epoch_s: i64,
     ) -> Result<ProjectionGenerationStatusV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -1562,7 +1562,7 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -1786,7 +1786,7 @@ impl Engine {
     /// because the effective-arm predicate is the engine's
     /// `StoredProjection::wants_vector` predicate.
     pub fn read_projection_status(&self) -> Result<ProjectionRuntimeStatus, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let runtime_embedder_available = self.usable_dense_runtime();
         let runtime_unavailability_reason = if runtime_embedder_available {
             ProjectionRuntimeUnavailabilityReason::None
@@ -1839,7 +1839,7 @@ impl Engine {
     /// work. A `Blocked` report carries the exact payload that [`Self::drain`]
     /// returns immediately as [`EngineError::EmbedderRequired`].
     pub fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let pending = pending_embedding_work(connection).map_err(|_| EngineError::Storage)?;
@@ -1873,7 +1873,7 @@ impl Engine {
     pub fn transition_projection_generation_for_test(
         &self,
     ) -> Result<ProjectionGenerationId, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -1902,7 +1902,7 @@ impl Engine {
     pub fn projection_generation_status_query_plans_for_test(
         &self,
     ) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_ref().ok_or(EngineError::Closing)?;
         status_query_plans_for_test(connection)

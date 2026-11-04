@@ -2464,7 +2464,7 @@ impl Engine {
     /// Query-plan details for bounded Slice 55 integrity owner and physical scans.
     #[cfg(all(feature = "operator", feature = "test-hooks"))]
     pub fn data_plane_integrity_query_plans_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let statements = crate::data_plane_integrity::candidate_queries_for_test();
@@ -2497,7 +2497,7 @@ impl Engine {
         &self,
         request: DataPlaneIntegrityRequestV1,
     ) -> Result<DataPlaneIntegrityResultV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         crate::data_plane_integrity::execute(connection, request)

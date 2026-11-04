@@ -1759,7 +1759,7 @@ impl Engine {
         &self,
         lookup: ClosureLookupV1,
     ) -> Result<Option<ClosureStatusV1>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         valid_closure_sequence(connection)

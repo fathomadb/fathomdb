@@ -202,7 +202,7 @@ impl Engine {
         if !importance.is_finite() || !(0.0..=1.0).contains(&importance) {
             return Err(EngineError::WriteValidation);
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         dependency_closure::maintain_before_writer(connection)?;
@@ -220,6 +220,7 @@ impl Engine {
     }
 
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
+        let _operation = self.ensure_open()?;
         let category = if batch_is_admin(batch) {
             lifecycle::EventCategory::Admin
         } else {
@@ -423,7 +424,7 @@ impl Engine {
     }
 
     fn write_inner(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
 
         if batch.is_empty() {
             return Err(EngineError::WriteValidation);
@@ -534,7 +535,7 @@ impl Engine {
         body: &str,
         row_kind: RowKind,
     ) -> Result<WriteReceipt, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
 

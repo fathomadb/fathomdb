@@ -41,7 +41,7 @@ impl Engine {
     /// + AC-063c.
     #[cfg(feature = "operator")]
     pub fn rebuild_projections(&self) -> Result<RebuildReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         self.run_rebuild(true, RebuildKind::Projections)
     }
 
@@ -50,7 +50,7 @@ impl Engine {
     /// `recover --rebuild-vec0` is the surface for vec0-only repair.
     #[cfg(feature = "operator")]
     pub fn rebuild_vec0(&self) -> Result<RebuildReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         self.run_rebuild(false, RebuildKind::Vec0)
     }
 

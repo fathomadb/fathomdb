@@ -498,7 +498,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let value: i64 = connection
@@ -514,7 +514,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn runtime_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = open_runtime_connection(
             &self.path,
             #[cfg(any(test, feature = "test-hooks"))]

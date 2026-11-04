@@ -13,6 +13,7 @@ impl Engine {
     /// uses one 30-second deadline shared by concurrent and repeated calls.
     /// Returns [`EngineError::Scheduler`] while a provider worker remains.
     pub fn close(&self) -> Result<(), EngineError> {
+        self.maintenance_admission.close()?;
         self.closed.store(true, Ordering::SeqCst);
         self.embed_dispatch.close();
         let close_guard = self.close_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -56,7 +57,7 @@ impl Engine {
     /// Surface owned by `dev/interfaces/rust.md` § Engine-attached
     /// instrumentation; semantics are owned by `dev/design/lifecycle.md`.
     pub fn drain(&self, timeout_ms: u64) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         // Only a session with no configured embedder can produce the typed
         // missing-configuration result. A configured (including refused)
         // runtime goes straight to the scheduler's authoritative idle check,

@@ -1548,7 +1548,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn reader_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let per_worker = self.reader_pool.secure_delete_per_worker();
         if per_worker.is_empty() {
             return Err(EngineError::Storage);

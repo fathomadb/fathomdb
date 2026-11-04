@@ -1091,7 +1091,7 @@ impl Engine {
         &self,
         request: SourceDependencyRegistrationV1,
     ) -> Result<SourceDependencyV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         dependency_closure::maintain_before_writer(connection)?;
@@ -1134,7 +1134,7 @@ impl Engine {
         &self,
         request: DependencySourceLookupV1,
     ) -> Result<DependencyListV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut statement = connection
@@ -1205,7 +1205,7 @@ impl Engine {
         &self,
         request: DependencyDerivedLookupV1,
     ) -> Result<Option<SourceDependencyV1>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let row: Option<(i64, String, i64, String)> = connection

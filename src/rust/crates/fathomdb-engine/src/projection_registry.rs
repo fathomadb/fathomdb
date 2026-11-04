@@ -1623,7 +1623,7 @@ impl Engine {
         specs: &[ProjectionSpec],
         drop: &[String],
     ) -> Result<ProjectionDelta, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         // Settle in-flight async projection work first. The worker commits on its
         // own connection with `BEGIN IMMEDIATE`; a backfill issued in that write
         // window would SQLITE_BUSY.
@@ -1678,7 +1678,7 @@ impl Engine {
     /// `searchable→vector` sub-object carries one — `filterable` and
     /// `searchable→FTS` are same-transaction and have no readiness axis.
     pub fn read_projections(&self) -> Result<Vec<ProjectionSpec>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let registry = load_projection_registry(connection).map_err(|_| EngineError::Storage)?;
@@ -2361,7 +2361,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn configure_vector_kind_for_test(&self, kind: &str) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         connection
@@ -2385,7 +2385,7 @@ impl Engine {
         &self,
         name: &str,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -2416,7 +2416,7 @@ impl Engine {
         &self,
         name: &str,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection

@@ -1883,7 +1883,7 @@ impl Engine {
     /// `Storage`/`Closing` for infrastructure failure, and a terminal refused
     /// receipt for admitted domain failure.
     pub fn actuate(&self, request: ActuationBatchV1) -> Result<ActuationReceiptV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         validate_request(&request)?;
         let digest = request_digest(&request);
         let initial = {

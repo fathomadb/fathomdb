@@ -65,7 +65,9 @@ mod embed_dispatch;
 mod embedding;
 mod erasure;
 mod erasure_maintenance;
-pub use erasure_maintenance::PhysicalErasurePolicy;
+pub use erasure_maintenance::{
+    ErasureMaintenance, ErasureServiceState, MaintenanceError, PhysicalErasurePolicy,
+};
 mod errors;
 mod evidence;
 mod filter;
@@ -77,6 +79,7 @@ mod identity;
 mod index_projector;
 mod ingest;
 pub mod lifecycle;
+mod maintenance_admission;
 mod mean;
 mod open;
 mod operator;
@@ -501,6 +504,7 @@ pub struct Engine {
     erasure_before_primary_lock_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
     close_lock: Mutex<()>,
+    maintenance_admission: Arc<maintenance_admission::Admission>,
     physical_service_gate: Arc<Mutex<()>>,
     physical_maintenance: physical_maintenance::PhysicalMaintenance,
     lock: Mutex<Option<File>>,
@@ -644,7 +648,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn execute_for_test(&self, sql: &str) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let started = Instant::now();
         {
             let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -669,7 +673,7 @@ impl Engine {
         &self,
         operation: impl FnOnce(&rusqlite::Transaction<'_>) -> rusqlite::Result<T>,
     ) -> Result<(T, std::time::Duration, std::time::Duration), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let waiting = Instant::now();
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let wait = waiting.elapsed();
@@ -696,7 +700,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn run_one_thread_poison_for_test(&self) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
 
         // Forward-progress writer seeds a row so readers + the poison
         // thread share a non-trivial canonical state.
@@ -782,7 +786,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn query_i64_col_for_test(&self, sql: &str) -> Result<Vec<i64>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut stmt = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
@@ -798,7 +802,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn query_text_col_for_test(&self, sql: &str) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut stmt = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
@@ -807,12 +811,12 @@ impl Engine {
         rows.collect::<rusqlite::Result<Vec<String>>>().map_err(|_| EngineError::Storage)
     }
 
-    fn ensure_open(&self) -> Result<(), EngineError> {
+    fn ensure_open(&self) -> Result<maintenance_admission::Operation, EngineError> {
         if self.closed.load(Ordering::SeqCst) {
             return Err(EngineError::Closing);
         }
 
-        Ok(())
+        self.maintenance_admission.enter()
     }
 }
 

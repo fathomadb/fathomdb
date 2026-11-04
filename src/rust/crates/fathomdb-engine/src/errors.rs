@@ -376,6 +376,8 @@ impl From<RuntimeEmbedderError> for EngineOpenError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineError {
+    /// Typed, identity-free explicit maintenance refusal.
+    Maintenance(MaintenanceError),
     Storage,
     Projection,
     Vector,
@@ -632,6 +634,7 @@ impl From<DataPlaneIntegrityErrorV1> for EngineError {
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Maintenance(error) => error.fmt(f),
             Self::Storage => write!(f, "storage error"),
             Self::Projection => write!(f, "projection error"),
             Self::Vector => write!(f, "vector error"),
@@ -729,6 +732,7 @@ impl EngineError {
     /// `dev/design/errors.md` § Binding-facing class matrix.
     pub(crate) fn stable_code(&self) -> &'static str {
         match self {
+            Self::Maintenance(_) => "MaintenanceError",
             Self::Storage => "StorageError",
             Self::Projection => "ProjectionError",
             Self::Vector => "VectorError",

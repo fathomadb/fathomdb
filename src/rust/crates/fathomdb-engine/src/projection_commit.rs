@@ -500,7 +500,7 @@ impl Engine {
         kind: &str,
         generation_id: ProjectionGenerationId,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let vector =
             vec![0.25_f32; self.projection_runtime.shared.embedder_identity.dimension as usize];
         let blob = encode_vector_blob(&vector);

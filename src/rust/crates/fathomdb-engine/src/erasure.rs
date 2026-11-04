@@ -738,8 +738,9 @@ impl Engine {
     /// `secure_delete=ON` zeroes freed ordinary/shadow pages; it does not by itself
     /// remove retained FTS terms. Durable root debt fences mutation until complete.
     pub fn purge(&self, logical_id: &str) -> Result<(), EngineError> {
+        self.require_autonomous_erasure()?;
         let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
         let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
         let _service = self.physical_service_gate.try_lock().map_err(|error| match error {
@@ -1042,6 +1043,7 @@ impl Engine {
     /// reserved `source_id`; [`EngineError::ErasureIncomplete`] if the erasure
     /// could not be completed at rest (see [`Engine::complete_erasure_at_rest`]).
     pub fn erase_source(&self, source_id: &str) -> Result<ExciseReport, EngineError> {
+        self.require_autonomous_erasure()?;
         // Construct-to-validate: reuse the newtype's rule rather than restating
         // it, so the erasure boundary and the write boundary cannot drift.
         let _validated = SourceId::new(source_id)?;
@@ -1056,8 +1058,9 @@ impl Engine {
     /// `_engine:*` substrate, which the governed SDK verb refuses.
     #[cfg(feature = "operator")]
     pub fn excise_source(&self, source_id: &str) -> Result<ExciseReport, EngineError> {
+        self.require_autonomous_erasure()?;
         if source_id.is_empty() {
-            self.ensure_open()?;
+            let _operation = self.ensure_open()?;
             return Err(EngineError::WriteValidation);
         }
         self.erase_source_shared("excise_source", source_id)
@@ -1076,7 +1079,7 @@ impl Engine {
         source_id: &str,
     ) -> Result<ExciseReport, EngineError> {
         let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
         let _service = self.physical_service_gate.try_lock().map_err(|error| match error {
             std::sync::TryLockError::Poisoned(_) => EngineError::Storage,
@@ -1528,7 +1531,7 @@ impl Engine {
         collection: &str,
         record_key: &str,
     ) -> Result<ExciseRecordReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if collection.is_empty() || record_key.is_empty() {
             return Err(EngineError::WriteValidation);
         }

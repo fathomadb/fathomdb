@@ -2718,7 +2718,7 @@ impl Engine {
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         explain_intrinsic_preflights_for_test(connection)

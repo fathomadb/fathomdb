@@ -1,3 +1,4 @@
+use crate::PhysicalErasurePolicy;
 /// REQ-006a / AC-007a default slow-statement threshold. Mutated at runtime
 /// via [`Engine::set_slow_threshold_ms`].
 pub(crate) const DEFAULT_SLOW_THRESHOLD_MS: u64 = 100;
@@ -214,6 +215,11 @@ impl Engine {
     /// is a separate, conscious step — see
     /// `dev/plans/runs/NOTE-0.8.8-to-steward-id-contract.md`).
     fn capture_telemetry(&self, query: &str, result: &SearchResult) -> Option<String> {
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && self.explicit_debt.load(Ordering::Acquire)
+        {
+            return None;
+        }
         if !self.telemetry_enabled.load(Ordering::Acquire) {
             return None;
         }
@@ -353,3 +359,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Instant;
+
+pub(crate) fn original_attachment(path: PathBuf) -> TelemetrySink {
+    TelemetrySink { path, base: Instant::now(), nonce: 0, seq: 0, last_query_id: None }
+}

@@ -230,7 +230,20 @@ pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
             ErasurePhase::Executing | ErasurePhase::Sanitizing | ErasurePhase::Finalizing
         )
     });
-    if active.next().is_some() && active.next().is_some() {
+    let executing = active.next();
+    if active.next().is_some() {
+        return Err(EngineError::Storage);
+    }
+    let root = physical_erasure::root(c)?;
+    match (root.as_ref().and_then(|r| r.ticket.as_deref()), executing) {
+        (Some(ticket), Some(request)) if request.ticket == ticket => {}
+        (None, None) => {}
+        _ => return Err(EngineError::Storage),
+    }
+    if root.is_some()
+        && crate::erasure_maintenance::read_policy(c)? == PhysicalErasurePolicy::ExplicitMaintenance
+        && root.as_ref().and_then(|r| r.ticket.as_ref()).is_none()
+    {
         return Err(EngineError::Storage);
     }
     Ok(())
@@ -623,5 +636,238 @@ impl ErasureMaintenance {
                 logical_state: ErasureLogicalState::UnchangedByThisRequest,
             })
         })
+    }
+}
+
+thread_local! { static ACTIVATION: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) }; }
+fn with_activation<T>(
+    ticket: &str,
+    operation: impl FnOnce() -> Result<T, EngineError>,
+) -> Result<T, EngineError> {
+    struct Restore(Option<String>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            ACTIVATION.with(|v| *v.borrow_mut() = self.0.take());
+        }
+    }
+    let _restore = Restore(ACTIVATION.with(|v| v.borrow_mut().replace(ticket.into())));
+    operation()
+}
+pub(crate) fn activate_in(
+    c: &Connection,
+    verb: &str,
+    argument: &str,
+) -> Result<Option<String>, EngineError> {
+    let ticket = ACTIVATION.with(|v| v.borrow().clone());
+    let Some(ticket) = ticket else { return Ok(None) };
+    let mut request = load(c, &ticket)?.ok_or(EngineError::Storage)?;
+    let matches = match request.selector.as_ref() {
+        Some(PhysicalErasureSelector::SourceAllAtCut { source_id }) => {
+            verb == "erase_source" && source_id == argument
+        }
+        Some(PhysicalErasureSelector::DeletedLogicalAllAtCut { logical_id }) => {
+            verb == "purge" && logical_id == argument
+        }
+        _ => false,
+    };
+    if request.status.phase != ErasurePhase::Queued || !matches {
+        return Err(EngineError::Storage);
+    }
+    request.status.phase = ErasurePhase::Executing;
+    request.status.logical_state = ErasureLogicalState::Removed;
+    request.status.service_state = ErasureServiceState::ReadsAllowedWritesFenced;
+    store(c, &request)?;
+    Ok(Some(ticket))
+}
+pub(crate) fn scrub_in(c: &Connection, ticket: &str) -> Result<(), EngineError> {
+    let mut request = load(c, ticket)?.ok_or(EngineError::Storage)?;
+    if request.status.logical_state != ErasureLogicalState::Removed {
+        return Err(EngineError::Storage);
+    }
+    request.selector = None;
+    request.cut = 0;
+    request.scope = Scope::default();
+    request.originals.clear();
+    request.status.phase = ErasurePhase::Finalizing;
+    store(c, &request)
+}
+pub(crate) fn complete_in(c: &Connection, ticket: &str) -> Result<(), EngineError> {
+    let mut request = load(c, ticket)?.ok_or(EngineError::Storage)?;
+    if request.status.phase != ErasurePhase::Finalizing
+        || request.selector.is_some()
+        || request.scope != Scope::default()
+    {
+        return Err(EngineError::Storage);
+    }
+    request.status.phase = ErasurePhase::Complete;
+    request.status.blocker = None;
+    request.status.service_state = ErasureServiceState::NormalWithQueuedRestrictions;
+    store(c, &request)
+}
+
+impl ErasureMaintenance {
+    /// Authenticate an existing recorded original sink without registry writes,
+    /// path creation, capture enablement, or substitution of another sink.
+    pub fn reattach_original_erasure_sink(
+        &self,
+        ticket: &str,
+        path: &str,
+    ) -> Result<(), EngineError> {
+        let _serial =
+            self.operation.try_lock().map_err(|_| error(MaintenanceError::MaintenanceBusy))?;
+        self.engine.maintenance_admission.with_permit(self.token, || {
+            let _operation = self.engine.ensure_open()?;
+            validate_ticket(ticket)?;
+            let path = std::fs::canonicalize(path)
+                .map_err(|_| error(MaintenanceError::OriginalSinkMismatch))?;
+            if !path.is_file() {
+                return Err(error(MaintenanceError::OriginalSinkMismatch));
+            }
+            let fingerprint = telemetry::sink_fingerprint(&path)?;
+            let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+            let c = guard.as_ref().ok_or(EngineError::Closing)?;
+            let mut request =
+                load(c, ticket)?.ok_or_else(|| error(MaintenanceError::UnknownTicket))?;
+            if request.status.phase == ErasurePhase::Queued {
+                request.originals.extend(telemetry::registered_sinks(c)?);
+                request.originals.sort_unstable();
+                request.originals.dedup();
+                physical_erasure::transaction(c, || store(c, &request))?;
+            }
+            if !request.originals.contains(&fingerprint)
+                || !telemetry::registered_sinks(c)?.contains(&fingerprint)
+            {
+                return Err(error(MaintenanceError::OriginalSinkMismatch));
+            }
+            self.original_sinks.lock().map_err(|_| EngineError::Storage)?.insert(fingerprint, path);
+            Ok(())
+        })
+    }
+
+    /// Complete exactly one accepted ticket through the existing physical proof,
+    /// original-sink and WAL authority. Errors after commit retain owed work;
+    /// callers inspect status rather than infer rollback from an error.
+    pub fn complete_physical_erasure(&self, ticket: &str) -> Result<CleanupResult, EngineError> {
+        let _serial =
+            self.operation.try_lock().map_err(|_| error(MaintenanceError::MaintenanceBusy))?;
+        self.engine.maintenance_admission.with_permit(self.token, || {
+            let _operation = self.engine.ensure_open()?;
+            validate_ticket(ticket)?;
+            let _service = self
+                .engine
+                .physical_service_gate
+                .try_lock()
+                .map_err(|_| error(MaintenanceError::MaintenanceBusy))?;
+            let result = self.complete_ticket_inner(ticket);
+            let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+            let c = guard.as_ref().ok_or(EngineError::Closing)?;
+            let active = physical_erasure::active(c)?;
+            self.engine.explicit_debt.store(active, Ordering::Release);
+            match result {
+                Ok(()) => {
+                    let mut status = load(c, ticket)?.ok_or(EngineError::Storage)?.status;
+                    status.service_state = ErasureServiceState::MaintenanceOwned;
+                    Ok(if status.phase == ErasurePhase::Complete {
+                        CleanupResult::Complete { receipt: status }
+                    } else {
+                        CleanupResult::Incomplete { status }
+                    })
+                }
+                Err(EngineError::ErasureIncomplete { stage, .. }) => {
+                    let mut request = load(c, ticket)?.ok_or(EngineError::Storage)?;
+                    request.status.blocker = Some(match stage.as_str() {
+                        "telemetry_redaction" => ErasureBlocker::OriginalSinkUnavailable,
+                        _ => ErasureBlocker::WalCheckpoint,
+                    });
+                    physical_erasure::transaction(c, || store(c, &request))?;
+                    let mut status = request.status;
+                    status.service_state = ErasureServiceState::MaintenanceOwned;
+                    Ok(CleanupResult::Incomplete { status })
+                }
+                Err(error) => Err(error),
+            }
+        })
+    }
+
+    fn complete_ticket_inner(&self, ticket: &str) -> Result<(), EngineError> {
+        let mut request = {
+            let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+            load(guard.as_ref().ok_or(EngineError::Closing)?, ticket)?
+                .ok_or_else(|| error(MaintenanceError::UnknownTicket))?
+        };
+        if request.status.phase == ErasurePhase::Complete {
+            return Ok(());
+        }
+        if request.status.phase == ErasurePhase::WithdrawnBeforeRemoval {
+            return Err(error(MaintenanceError::KeyRetired));
+        }
+        let mut sinks = self.original_sinks.lock().map_err(|_| EngineError::Storage)?.clone();
+        if let Some(sink) = self.engine.telemetry.lock().map_err(|_| EngineError::Storage)?.as_ref()
+        {
+            let path = sink.path().to_owned();
+            sinks.insert(telemetry::sink_fingerprint(&path)?, path);
+        }
+        {
+            let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+            let c = guard.as_ref().ok_or(EngineError::Closing)?;
+            let originals = if request.status.phase == ErasurePhase::Queued {
+                request.originals.extend(telemetry::registered_sinks(c)?);
+                request.originals.sort_unstable();
+                request.originals.dedup();
+                match physical_erasure::envelope(c) {
+                    Ok(()) => {}
+                    Err(EngineError::ErasureIncomplete { .. }) => {
+                        request.status.blocker = Some(ErasureBlocker::ResourceEnvelopeChanged);
+                        physical_erasure::transaction(c, || store(c, &request))?;
+                        return Ok(());
+                    }
+                    Err(error) => return Err(error),
+                }
+                let selector = request.selector.as_ref().ok_or(EngineError::Storage)?;
+                if preview(c, selector)? != request.scope {
+                    return Err(EngineError::Storage);
+                }
+                physical_erasure::transaction(c, || store(c, &request))?;
+                request.originals.clone()
+            } else {
+                erasure::pending_original_fingerprints(c)?
+            };
+            if originals.iter().any(|fingerprint| {
+                sinks.get(fingerprint).is_none_or(|path| {
+                    !path.is_file()
+                        || telemetry::sink_fingerprint(path).ok().as_ref() != Some(fingerprint)
+                })
+            }) {
+                request.status.blocker = Some(ErasureBlocker::OriginalSinkUnavailable);
+                physical_erasure::transaction(c, || store(c, &request))?;
+                return Ok(());
+            }
+            if request.status.phase != ErasurePhase::Queued
+                && physical_erasure::root(c)?.and_then(|d| d.ticket).as_deref() != Some(ticket)
+            {
+                return Err(EngineError::Storage);
+            }
+        }
+        if request.status.phase == ErasurePhase::Queued {
+            with_activation(ticket, || {
+                match request.selector.as_ref().ok_or(EngineError::Storage)? {
+                    PhysicalErasureSelector::SourceAllAtCut { source_id } => {
+                        self.engine.excise_source_inner("erase_source", source_id).map(|_| ())
+                    }
+                    PhysicalErasureSelector::DeletedLogicalAllAtCut { logical_id } => {
+                        self.engine.purge_inner(logical_id).map(|_| ())
+                    }
+                }
+            })?;
+        }
+        let ids = {
+            let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+            physical_erasure::pending_ids(guard.as_ref().ok_or(EngineError::Closing)?)?
+        };
+        self.engine.finish_physical_dependency_closures_with_sinks(
+            "erase_source",
+            &ids,
+            Some(&sinks),
+        )
     }
 }

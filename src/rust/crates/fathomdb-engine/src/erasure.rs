@@ -608,7 +608,16 @@ impl Engine {
         verb: &'static str,
         closure_ids: &[ClosureOperationId],
     ) -> Result<(), EngineError> {
-        let result = self.finish_physical_dependency_closures_inner(verb, closure_ids);
+        self.finish_physical_dependency_closures_with_sinks(verb, closure_ids, None)
+    }
+
+    pub(crate) fn finish_physical_dependency_closures_with_sinks(
+        &self,
+        verb: &'static str,
+        closure_ids: &[ClosureOperationId],
+        sinks: Option<&BTreeMap<String, PathBuf>>,
+    ) -> Result<(), EngineError> {
+        let result = self.finish_physical_dependency_closures_inner(verb, closure_ids, sinks);
         if let Err(error) = &result {
             let guard = self.physical_writer(true)?;
             physical_erasure::record_blocker(guard.as_ref().ok_or(EngineError::Closing)?, error)?;
@@ -620,6 +629,7 @@ impl Engine {
         &self,
         verb: &'static str,
         closure_ids: &[ClosureOperationId],
+        sinks: Option<&BTreeMap<String, PathBuf>>,
     ) -> Result<(), EngineError> {
         {
             let connection = self.physical_writer(true)?;
@@ -670,7 +680,22 @@ impl Engine {
             }
         };
         drop(drain);
-        self.discharge_pending_redactions(verb)?;
+        if let Some(sinks) = sinks {
+            let connection = self.physical_writer(true)?;
+            let c = connection.as_ref().ok_or(EngineError::Closing)?;
+            for path in sinks.values() {
+                let temporary = Mutex::new(Some(telemetry::original_attachment(path.clone())));
+                match discharge_pending_redactions_on(c, &temporary) {
+                    Ok(()) | Err(EngineError::ErasureIncomplete { .. }) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            if !pending_original_fingerprints(c)?.is_empty() {
+                return Err(telemetry_incomplete());
+            }
+        } else {
+            self.discharge_pending_redactions(verb)?;
+        }
         {
             let connection = self.physical_writer(true)?;
             physical_erasure::prepare_redacted(
@@ -803,7 +828,7 @@ impl Engine {
     /// returned: they are enqueued for redaction inside this transaction (see
     /// [`enqueue_pending_redaction`]), because a caller-held vector is lost on the
     /// retry path that codex Â§9 P2 found.
-    fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
+    pub(crate) fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
         let _native = self.physical_maintenance.metrics.timer("native");
         let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
         let mut connection = self.physical_writer(false)?;
@@ -1309,7 +1334,7 @@ impl Engine {
     /// body behind BOTH `erase_source` (governed SDK) and `excise_source`
     /// (operator seam). Still private; the gate that matters is on the two
     /// public spellings.
-    fn excise_source_inner(
+    pub(crate) fn excise_source_inner(
         &self,
         verb: &'static str,
         source_id: &str,
@@ -1690,4 +1715,29 @@ pub(crate) fn discharge_pending_redactions_on(
         return Err(telemetry_incomplete());
     }
     Ok(())
+}
+
+pub(crate) fn pending_original_fingerprints(c: &Connection) -> Result<Vec<String>, EngineError> {
+    let mut statement = c
+        .prepare("SELECT payload_json FROM operational_mutations WHERE collection_name=?1")
+        .map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |r| r.get::<_, String>(0))
+        .map_err(|_| EngineError::Storage)?;
+    let mut originals = Vec::new();
+    for row in rows {
+        let raw = row.map_err(|_| EngineError::Storage)?;
+        let debt: PendingRedaction =
+            serde_json::from_str(&raw).map_err(|_| telemetry_incomplete())?;
+        if debt.version != 1
+            || debt.erased_stable_ids.is_empty()
+            || debt.sink_fingerprints.is_empty()
+        {
+            return Err(telemetry_incomplete());
+        }
+        originals.extend(debt.sink_fingerprints);
+    }
+    originals.sort_unstable();
+    originals.dedup();
+    Ok(originals)
 }

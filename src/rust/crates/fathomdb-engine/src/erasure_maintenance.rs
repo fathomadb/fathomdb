@@ -124,6 +124,10 @@ pub enum MaintenanceError {
     ScopeConflict,
     /// Mutation cannot prove disjointness from queued scope.
     QueuedScopeFenced,
+    /// Ticket is unknown or belongs to another store.
+    UnknownTicket,
+    /// Sink is not an authenticated recorded original for this ticket.
+    OriginalSinkMismatch,
     /// Exclusive ownership is currently acquiring or held.
     MaintenanceBusy,
     /// Direct destructive erasure is unavailable in the explicit profile.
@@ -163,6 +167,7 @@ pub struct ErasureMaintenance {
     pub(crate) engine: Arc<Engine>,
     pub(crate) token: u64,
     pub(crate) operation: Mutex<()>,
+    pub(crate) original_sinks: Mutex<BTreeMap<String, PathBuf>>,
     released: bool,
 }
 
@@ -234,6 +239,7 @@ impl Engine {
             engine: Arc::clone(self),
             token,
             operation: Mutex::new(()),
+            original_sinks: Mutex::new(BTreeMap::new()),
             released: false,
         })
     }

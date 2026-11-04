@@ -91,6 +91,7 @@ impl Engine {
         cmd: &[&str],
         axes: &[ConsolidateAxis],
     ) -> Result<ConsolidateReceipt, EngineError> {
+        let _operation = self.ensure_open()?;
         // Reuse the shared transport verbatim; remap its (Extractor-flavoured)
         // transport error to the task-specific Consolidator leaf.
         let mut session = self

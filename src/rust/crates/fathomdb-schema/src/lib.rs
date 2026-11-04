@@ -20,7 +20,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 35;
+pub const SCHEMA_VERSION: u32 = 36;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -1331,6 +1331,14 @@ pub const MIGRATIONS: &[Migration] = &[
               BEGIN DELETE FROM _fathomdb_vector_spans WHERE vector_rowid=OLD.rowid; END;\n",
               "CREATE TRIGGER _fathomdb_read_visibility_vs_ai AFTER INSERT ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\nCREATE TRIGGER _fathomdb_read_visibility_vs_au AFTER UPDATE ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\nCREATE TRIGGER _fathomdb_read_visibility_vs_ad AFTER DELETE ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n"
         ),
+    },
+    Migration {
+        step_id: 36,
+        sql: "CREATE TABLE _fathomdb_erasure_requests(
+                  ticket TEXT PRIMARY KEY NOT NULL,
+                  idempotency_key TEXT UNIQUE NOT NULL,
+                  payload TEXT NOT NULL
+              );",
     },
 ];
 

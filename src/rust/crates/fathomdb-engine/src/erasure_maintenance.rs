@@ -185,9 +185,11 @@ impl ErasureMaintenance {
 
     fn release(&mut self) {
         if !self.released {
-            if self.engine.maintenance_admission.release(self.token) {
+            if self.engine.maintenance_admission.valid(self.token).is_ok() {
+                let _ = physical_erasure::faultpoint("before_maintenance_thaw");
                 self.engine.projection_runtime.set_frozen(false);
                 self.engine.projection_runtime.notify_new_work();
+                self.engine.maintenance_admission.release(self.token);
             }
             self.released = true;
         }
@@ -223,9 +225,9 @@ impl Engine {
         if !self.projection_runtime.wait_for_workers_idle(remaining)
             || self.maintenance_admission.valid(token).is_err()
         {
-            self.maintenance_admission.release(token);
             self.projection_runtime.set_frozen(false);
             self.projection_runtime.notify_new_work();
+            self.maintenance_admission.release(token);
             return Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy));
         }
         Ok(ErasureMaintenance {
@@ -237,6 +239,7 @@ impl Engine {
     }
 
     pub(crate) fn require_autonomous_erasure(&self) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
         if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
             return Err(EngineError::Maintenance(MaintenanceError::MaintenanceRequired));
         }

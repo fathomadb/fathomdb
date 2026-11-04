@@ -157,6 +157,7 @@ pub(crate) struct ProjectionJob {
 #[derive(Debug, Default)]
 pub(crate) struct ProjectionRuntimeState {
     pub(crate) active_jobs: usize,
+    pub(crate) active_scans: usize,
     pub(crate) queued_jobs: usize,
     pub(crate) frozen: bool,
     pub(crate) pending_scan: bool,
@@ -258,6 +259,8 @@ pub(crate) struct ProjectionRuntimeShared {
     /// live transaction.
     #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) projection_worker_transaction_pause: Mutex<Option<(mpsc::Sender<()>, Receiver<()>)>>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(crate) projection_scan_pause: Mutex<Option<(mpsc::Sender<()>, Receiver<()>)>>,
     /// Slice 40: one-shot rendezvous after dispatch has queued a captured-
     /// generation job and before any worker removes it from the queue.
     #[cfg(feature = "test-hooks")]
@@ -494,6 +497,8 @@ impl ProjectionRuntime {
             projection_commit_failure_pause: Mutex::new(None),
             #[cfg(any(test, feature = "test-hooks"))]
             projection_worker_transaction_pause: Mutex::new(None),
+            #[cfg(any(test, feature = "test-hooks"))]
+            projection_scan_pause: Mutex::new(None),
             #[cfg(feature = "test-hooks")]
             projection_worker_queued_pause: Mutex::new(None),
             #[cfg(feature = "test-hooks")]
@@ -796,7 +801,7 @@ impl ProjectionRuntime {
         };
         loop {
             let mut retry_pending_probe = false;
-            if state.active_jobs == 0 && state.queued_jobs == 0 {
+            if state.active_jobs == 0 && state.queued_jobs == 0 && state.active_scans == 0 {
                 drop(state);
                 match has_pending_projection_work() {
                     Some(false) => return true,
@@ -835,7 +840,7 @@ impl ProjectionRuntime {
             Err(_) => return false,
         };
         loop {
-            if state.active_jobs == 0 && state.queued_jobs == 0 {
+            if state.active_jobs == 0 && state.queued_jobs == 0 && state.active_scans == 0 {
                 return true;
             }
             let now = Instant::now();
@@ -1097,6 +1102,20 @@ impl Engine {
         };
         let (rows, vm_steps, plan) = run().map_err(|_| EngineError::Storage)?;
         Ok(ProjectionScanPageForTest { sql, rows, vm_steps, plan })
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn pause_projection_scan_for_test(&self) -> ProjectionWorkerTransactionPauseForTest {
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *self.projection_runtime.shared.projection_scan_pause.lock().unwrap() =
+            Some((ready_tx, release_rx));
+        ProjectionWorkerTransactionPauseForTest {
+            ready: Some(ready_rx),
+            release: Some(release_tx),
+            ready_observed: false,
+        }
     }
 
     #[cfg(any(test, feature = "test-hooks"))]

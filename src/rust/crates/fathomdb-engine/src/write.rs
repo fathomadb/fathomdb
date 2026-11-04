@@ -205,6 +205,7 @@ impl Engine {
         let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        erasure_queue::guard_admin(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -443,10 +444,10 @@ impl Engine {
         let abort_next_commit_for_test =
             crate::write_commit::take_write_commit_abort_marker_for_test(connection)
                 .map_err(|_| EngineError::Storage)?;
+        erasure_queue::guard_plain(connection, batch)?;
         if !physical_erasure::guard_plain_write(connection, batch)? {
             dependency_closure::maintain_before_writer(connection)?;
         }
-        erasure_queue::guard_plain(connection, batch)?;
         let plans = validate_batch(connection, batch)?;
         validate_nested_projection_sources_for_write(connection, batch)?;
         // The enrolment decision is read-only here. Registration and stranded-row

@@ -4,6 +4,15 @@ use crate::lifecycle::sqlite_extended_code_name;
 use crate::projection_runtime::PROJECTION_COMMIT_BATCH;
 use crate::projection_runtime::PROJECTION_TEMPORAL_WAKE_POLL;
 
+struct ProjectionScan(Arc<ProjectionRuntimeShared>);
+impl Drop for ProjectionScan {
+    fn drop(&mut self) {
+        let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
+        state.active_scans -= 1;
+        self.0.state_cvar.notify_all();
+    }
+}
+
 #[cfg(any(test, feature = "test-hooks"))]
 fn report_runtime_connection_inventory_for_test(
     shared: &ProjectionRuntimeShared,
@@ -257,8 +266,19 @@ pub(crate) fn projection_dispatcher_loop(
             }
             state.pending_scan = false;
             state.next_temporal_scan_epoch_s = None;
+            state.active_scans += 1;
             state.in_flight.clone()
         };
+
+        let _scan = ProjectionScan(Arc::clone(&shared));
+        #[cfg(any(test, feature = "test-hooks"))]
+        {
+            let pause = shared.projection_scan_pause.lock().unwrap().take();
+            if let Some((ready, release)) = pause {
+                let _ = ready.send(());
+                let _ = release.recv_timeout(Duration::from_secs(5));
+            }
+        }
 
         // Fetch up to the in-flight budget in one SQL roundtrip and
         // enqueue them as a batch — previously this loop fetched ONE job

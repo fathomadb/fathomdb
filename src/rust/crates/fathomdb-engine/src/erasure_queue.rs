@@ -141,16 +141,10 @@ fn hash(domain: &str, value: &str) -> String {
     identity::hex_encode(&digest.finalize())
 }
 pub(crate) fn load(c: &Connection, ticket: &str) -> Result<Option<Request>, EngineError> {
-    let raw: Option<String> = c
-        .query_row(
-            "SELECT payload FROM _fathomdb_erasure_requests WHERE ticket=?1",
-            [ticket],
-            |r| r.get(0),
-        )
-        .optional()
-        .map_err(|_| EngineError::Storage)?;
-    raw.map(|raw| decode(&raw)).transpose()
+    let raw:Option<(String,String,String,String)>=c.query_row("SELECT ticket,idempotency_key,phase,payload FROM _fathomdb_erasure_requests WHERE ticket=?1",[ticket],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(|_|EngineError::Storage)?;
+    raw.map(|(ticket, key, phase, raw)| decode_row(c, ticket, key, phase, raw)).transpose()
 }
+
 fn decode(raw: &str) -> Result<Request, EngineError> {
     let r: Request = serde_json::from_str(raw).map_err(|_| EngineError::Storage)?;
     let queued = r.status.phase == ErasurePhase::Queued;
@@ -183,16 +177,46 @@ fn decode(raw: &str) -> Result<Request, EngineError> {
 }
 pub(crate) fn store(c: &Connection, r: &Request) -> Result<(), EngineError> {
     let raw = serde_json::to_string(r).map_err(|_| EngineError::Storage)?;
-    c.execute("INSERT INTO _fathomdb_erasure_requests(ticket,idempotency_key,phase,payload) VALUES(?1,?2,?3,?4) ON CONFLICT(ticket) DO UPDATE SET phase=excluded.phase,payload=excluded.payload", params![r.ticket,r.key,serde_json::to_value(r.status.phase).map_err(|_|EngineError::Storage)?.as_str().ok_or(EngineError::Storage)?,raw]).map_err(|_| EngineError::Storage)?;
+    c.execute("INSERT INTO _fathomdb_erasure_requests(ticket,idempotency_key,payload) VALUES(?1,?2,?3) ON CONFLICT(ticket) DO UPDATE SET payload=excluded.payload",params![r.ticket,r.key,raw]).map_err(|_|EngineError::Storage)?;
     Ok(())
 }
-fn requests(c: &Connection) -> Result<Vec<Request>, EngineError> {
-    let mut s = c
-        .prepare("SELECT payload FROM _fathomdb_erasure_requests ORDER BY ticket")
+fn decode_row(
+    c: &Connection,
+    ticket: String,
+    key: String,
+    phase: String,
+    raw: String,
+) -> Result<Request, EngineError> {
+    let request = decode(&raw)?;
+    let nonce: String = c
+        .query_row(
+            "SELECT value FROM _fathomdb_open_state WHERE key='_fathomdb_erasure_store'",
+            [],
+            |r| r.get(0),
+        )
         .map_err(|_| EngineError::Storage)?;
-    let rows = s.query_map([], |r| r.get::<_, String>(0)).map_err(|_| EngineError::Storage)?;
-    rows.map(|r| decode(&r.map_err(|_| EngineError::Storage)?)).collect()
+    let expected = serde_json::to_value(request.status.phase).map_err(|_| EngineError::Storage)?;
+    if ticket != request.ticket
+        || key != request.key
+        || expected.as_str() != Some(phase.as_str())
+        || request.ticket.split_once(':').map(|v| v.0) != Some(nonce.as_str())
+    {
+        return Err(EngineError::Storage);
+    }
+    Ok(request)
 }
+fn requests(c: &Connection) -> Result<Vec<Request>, EngineError> {
+    let mut statement=c.prepare("SELECT ticket,idempotency_key,phase,payload FROM _fathomdb_erasure_requests ORDER BY ticket").map_err(|_|EngineError::Storage)?;
+    let rows = statement
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+        .map_err(|_| EngineError::Storage)?;
+    rows.map(|row| {
+        let (ticket, key, phase, raw) = row.map_err(|_| EngineError::Storage)?;
+        decode_row(c, ticket, key, phase, raw)
+    })
+    .collect()
+}
+
 pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
     let rows = requests(c)?;
     if rows.len() > 4113
@@ -212,14 +236,15 @@ pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
     Ok(())
 }
 fn queued(c: &Connection) -> Result<Vec<Request>, EngineError> {
-    let mut statement = c
-        .prepare(
-            "SELECT payload FROM _fathomdb_erasure_requests WHERE phase='queued' ORDER BY ticket",
-        )
+    let mut statement=c.prepare("SELECT ticket,idempotency_key,phase,payload FROM _fathomdb_erasure_requests WHERE phase='queued' ORDER BY ticket").map_err(|_|EngineError::Storage)?;
+    let rows = statement
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
         .map_err(|_| EngineError::Storage)?;
-    let rows =
-        statement.query_map([], |r| r.get::<_, String>(0)).map_err(|_| EngineError::Storage)?;
-    rows.map(|row| decode(&row.map_err(|_| EngineError::Storage)?)).collect()
+    rows.map(|row| {
+        let (ticket, key, phase, raw) = row.map_err(|_| EngineError::Storage)?;
+        decode_row(c, ticket, key, phase, raw)
+    })
+    .collect()
 }
 
 fn by_key(
@@ -538,16 +563,7 @@ impl ErasureMaintenance {
             physical_erasure::envelope(&tx)?;
             let rows = requests(&tx)?;
             if rows.iter().filter(|r| r.status.phase == ErasurePhase::Queued).count() >= 16
-                || rows
-                    .iter()
-                    .filter(|r| {
-                        matches!(
-                            r.status.phase,
-                            ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval
-                        )
-                    })
-                    .count()
-                    >= 4096
+                || rows.len() >= 4096
             {
                 return Err(error(MaintenanceError::Capacity));
             }

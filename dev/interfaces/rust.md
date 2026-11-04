@@ -1867,8 +1867,11 @@ Newcomers under maintenance refuse `EngineError::Maintenance(MaintenanceBusy)`;
 ordinary direct explicit erase/purge refuses `MaintenanceRequired`. Queued plain
 writes must prove source/stable-ID/old-new-endpoint disjointness. Unprovable
 provenance/dependency/lifecycle/actuation/global admin effects refuse
-`QueuedScopeFenced`. Retained receipt keys are retired; exact pending retries
-return the same ticket. Wrong-store/unknown well-formed status is None.
+`QueuedScopeFenced`. Exact identity-bearing pending retries return the same
+ticket. Keys are retired at the identity-free Finalizing boundary and remain
+retired for terminal receipts; admission returns `KeyRetired`, while retries of
+actual finalization use the original ticket. Wrong-store/unknown well-formed
+status is None.
 Handle drop releases only ephemeral gates; post-delete writes remain fenced
 through reopen until actual cleanup. Allowed coherent reads suppress telemetry
 capture while fenced. Explicit reopen executes no physical cleanup; original

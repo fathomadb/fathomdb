@@ -60,6 +60,29 @@ They are distinct from RootDebt. One writer transaction inserts intent and guard
 Maximum 16 queued plus one executing; terminal keys/receipts are capped at 4096
 records and total queue metadata at 8 MiB. Exhaustion refuses new admission;
 existing retries/status/cleanup remain possible. No pruning or archival API.
+Private per-request allocations enforce the 8 MiB total in UTF-8 bytes, including
+reserved bookkeeping growth. Admission and queued original-inventory expansion
+allocate serialized normalized payload bytes plus 256, atomically before changes.
+The bound covers phase growth (18 bytes), quoted blocker versus null (23), and
+allocation decimal width (at most six additional digits): 47 is below 256.
+Logical/service lexemes cannot exceed the normalized admission values. Safe target
+count is immutable and at most 16,384; cut is immutable until cleared (even its
+full u64 decimal width cannot grow). Version/key/ticket/selector/scope remain fixed;
+originals may grow only by explicit reallocation. Checked arithmetic is required.
+
+Ordinary status/activation/sanitation changes use the existing allocation and cannot
+require capacity to discharge owed work. Scrubbing atomically recalculates a
+smaller identity-free allocation; terminal publication shrinks it again to final
+serialized bytes plus 64. All terminal values are fixed at encoding, so only the
+allocation placeholder can grow (six digits, below 64). No selector-size-derived
+allocation survives the identity-free checkpoint. Required numeric allocation,
+per-row UTF-8 size and aggregate allocation are validated before payload decoding.
+
+Expansion failure rolls back completely. Reattachment returns Capacity without
+changes; completion reloads the retained prior authority and records Queued with
+ResourceEnvelopeChanged within its reserved bytes, before any deletion. Queued
+withdrawal remains possible. Activated work never seeks additional capacity.
+
 Keys must be random application values; syntax validation cannot prove randomness.
 
 Existing key lookup precedes new resource admission: exact retained selector

@@ -121,6 +121,7 @@ pub(crate) struct Scope {
 #[serde(deny_unknown_fields)]
 pub(crate) struct Request {
     version: u32,
+    metadata_budget: u64,
     pub(crate) ticket: String,
     key: String,
     pub(crate) selector: Option<PhysicalErasureSelector>,
@@ -226,11 +227,84 @@ fn decode(raw: &str) -> Result<Request, EngineError> {
     }
     Ok(r)
 }
-pub(crate) fn store(c: &Connection, r: &Request) -> Result<(), EngineError> {
-    let raw = serde_json::to_string(r).map_err(|_| EngineError::Storage)?;
-    c.execute("INSERT INTO _fathomdb_erasure_requests(ticket,idempotency_key,payload) VALUES(?1,?2,?3) ON CONFLICT(ticket) DO UPDATE SET payload=excluded.payload",params![r.ticket,r.key,raw]).map_err(|_|EngineError::Storage)?;
+const METADATA_LIMIT: u64 = 8 << 20;
+// Against the normalized admission status, phase growth is at most 18 bytes,
+// a quoted blocker replacing null adds at most 23, and a <=8MiB allocation
+// replacing zero adds six decimal digits: 47 < 256. Logical/service lexemes
+// cannot grow beyond the baseline. Target count is immutable (<=16384); cut
+// is immutable then cleared, so even its full u64 width cannot grow. Inputs,
+// scope and originals grow only through explicit checked reallocation.
+const PENDING_RESERVE: u64 = 256;
+// Terminal fields are immutable and encoded at their actual final values;
+// only the allocation placeholder can grow, by at most six digits: 6 < 64.
+const TERMINAL_RESERVE: u64 = 64;
+
+fn allocated_size(request: &Request, terminal: bool) -> Result<u64, EngineError> {
+    let mut baseline = request.clone();
+    baseline.metadata_budget = 0;
+    if !terminal {
+        baseline.status.phase = ErasurePhase::Queued;
+        baseline.status.logical_state = ErasureLogicalState::UnchangedByThisRequest;
+        baseline.status.blocker = None;
+        baseline.status.service_state = ErasureServiceState::NormalWithQueuedRestrictions;
+    }
+    let bytes =
+        u64::try_from(serde_json::to_vec(&baseline).map_err(|_| EngineError::Storage)?.len())
+            .map_err(|_| EngineError::Storage)?;
+    bytes
+        .checked_add(if terminal { TERMINAL_RESERVE } else { PENDING_RESERVE })
+        .ok_or(EngineError::Storage)
+}
+
+fn validate_sizes(c: &Connection) -> Result<(), EngineError> {
+    let (invalid,bytes,allocated,count):(bool,u64,u64,u64)=c.query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_erasure_requests WHERE json_type(payload,'$.metadata_budget') IS NOT 'integer' OR json_extract(payload,'$.metadata_budget')<length(CAST(payload AS BLOB)) OR json_extract(payload,'$.metadata_budget')>8388608),COALESCE(SUM(length(CAST(payload AS BLOB))),0),COALESCE(SUM(json_extract(payload,'$.metadata_budget')),0),COUNT(*) FROM _fathomdb_erasure_requests",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).map_err(|_|EngineError::Storage)?;
+    if invalid || bytes > METADATA_LIMIT || allocated > METADATA_LIMIT || count > 4096 {
+        return Err(EngineError::Storage);
+    }
     Ok(())
 }
+
+pub(crate) fn store(c: &Connection, request: &Request) -> Result<(), EngineError> {
+    validate_sizes(c)?;
+    let previous = load(c, &request.ticket)?;
+    let mut candidate = request.clone();
+    let terminal = matches!(
+        candidate.status.phase,
+        ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval
+    );
+    let identity_free = terminal || candidate.status.phase == ErasurePhase::Finalizing;
+    let expanding = previous
+        .as_ref()
+        .is_none_or(|old| candidate.originals.iter().any(|sink| !old.originals.contains(sink)));
+    candidate.metadata_budget = if terminal {
+        allocated_size(&candidate, true)?
+    } else if expanding || identity_free {
+        allocated_size(&candidate, false)?
+    } else {
+        previous.as_ref().ok_or(EngineError::Storage)?.metadata_budget
+    };
+    if identity_free
+        && previous.as_ref().is_some_and(|old| candidate.metadata_budget > old.metadata_budget)
+    {
+        return Err(EngineError::Storage);
+    }
+    if expanding && !identity_free {
+        let occupied:u64=c.query_row("SELECT COALESCE(SUM(json_extract(payload,'$.metadata_budget')),0) FROM _fathomdb_erasure_requests WHERE ticket!=?1",[&candidate.ticket],|r|r.get(0)).map_err(|_|EngineError::Storage)?;
+        if occupied
+            .checked_add(candidate.metadata_budget)
+            .is_none_or(|bytes| bytes > METADATA_LIMIT)
+        {
+            return Err(error(MaintenanceError::Capacity));
+        }
+    }
+    let raw = serde_json::to_string(&candidate).map_err(|_| EngineError::Storage)?;
+    if u64::try_from(raw.len()).map_err(|_| EngineError::Storage)? > candidate.metadata_budget {
+        return Err(EngineError::Storage);
+    }
+    c.execute("INSERT INTO _fathomdb_erasure_requests(ticket,idempotency_key,payload) VALUES(?1,?2,?3) ON CONFLICT(ticket) DO UPDATE SET payload=excluded.payload",params![candidate.ticket,candidate.key,raw]).map_err(|_|EngineError::Storage)?;
+    Ok(())
+}
+
 fn decode_row(
     c: &Connection,
     ticket: String,
@@ -238,7 +312,22 @@ fn decode_row(
     phase: String,
     raw: String,
 ) -> Result<Request, EngineError> {
+    let allocated:Option<u64>=c.query_row("SELECT CASE WHEN json_type(payload,'$.metadata_budget')='integer' THEN json_extract(payload,'$.metadata_budget') ELSE NULL END FROM _fathomdb_erasure_requests WHERE ticket=?1",[&ticket],|r|r.get(0)).map_err(|_|EngineError::Storage)?;
+    let allocated = allocated.ok_or(EngineError::Storage)?;
+    if allocated > METADATA_LIMIT
+        || u64::try_from(raw.len()).map_err(|_| EngineError::Storage)? > allocated
+    {
+        return Err(EngineError::Storage);
+    }
     let request = decode(&raw)?;
+    let terminal = matches!(
+        request.status.phase,
+        ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval
+    );
+    let minimum = allocated_size(&request, terminal)?;
+    if request.metadata_budget != allocated || allocated < minimum {
+        return Err(EngineError::Storage);
+    }
     let nonce: String = c
         .query_row(
             "SELECT value FROM _fathomdb_open_state WHERE key='_fathomdb_erasure_store'",
@@ -269,16 +358,7 @@ fn requests(c: &Connection) -> Result<Vec<Request>, EngineError> {
 }
 
 pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
-    let bytes: u64 = c
-        .query_row(
-            "SELECT COALESCE(SUM(length(payload)),0) FROM _fathomdb_erasure_requests",
-            [],
-            |r| r.get(0),
-        )
-        .map_err(|_| EngineError::Storage)?;
-    if bytes > 8 << 20 {
-        return Err(EngineError::Storage);
-    }
+    validate_sizes(c)?;
     let rows = requests(c)?;
     if rows.len() > 4096
         || rows.iter().filter(|r| r.status.phase == ErasurePhase::Queued).count() > 16
@@ -689,6 +769,7 @@ impl ErasureMaintenance {
             let ticket = format!("{store_id}:{nonce}");
             let request = Request {
                 version: 1,
+                metadata_budget: 0,
                 ticket: ticket.clone(),
                 key: key.into(),
                 selector: Some(selector),
@@ -703,18 +784,6 @@ impl ErasureMaintenance {
                 scope,
                 originals: telemetry::registered_sinks(&tx)?,
             };
-            let size: u64 = tx
-                .query_row(
-                    "SELECT COALESCE(SUM(length(payload)),0) FROM _fathomdb_erasure_requests",
-                    [],
-                    |r| r.get(0),
-                )
-                .map_err(|_| EngineError::Storage)?;
-            if size + serde_json::to_vec(&request).map_err(|_| EngineError::Storage)?.len() as u64
-                > 8 << 20
-            {
-                return Err(error(MaintenanceError::Capacity));
-            }
             store(&tx, &request)?;
             physical_erasure::faultpoint("before_queue_commit")?;
             tx.commit().map_err(|_| EngineError::Storage)?;
@@ -922,6 +991,16 @@ impl ErasureMaintenance {
                 request.originals.extend(telemetry::registered_sinks(c)?);
                 request.originals.sort_unstable();
                 request.originals.dedup();
+                match physical_erasure::transaction(c, || store(c, &request)) {
+                    Ok(()) => {}
+                    Err(EngineError::Maintenance(MaintenanceError::Capacity)) => {
+                        let mut retained = load(c, ticket)?.ok_or(EngineError::Storage)?;
+                        retained.status.blocker = Some(ErasureBlocker::ResourceEnvelopeChanged);
+                        physical_erasure::transaction(c, || store(c, &retained))?;
+                        return Ok(());
+                    }
+                    Err(error) => return Err(error),
+                }
                 match physical_erasure::envelope(c) {
                     Ok(()) => {}
                     Err(EngineError::ErasureIncomplete { .. }) => {

@@ -260,6 +260,15 @@ pub(crate) fn projection_dispatcher_loop(
             state.in_flight.clone()
         };
 
+        #[cfg(any(test, feature = "test-hooks"))]
+        {
+            let pause = shared.projection_scan_pause.lock().unwrap().take();
+            if let Some((ready, release)) = pause {
+                let _ = ready.send(());
+                let _ = release.recv_timeout(Duration::from_secs(5));
+            }
+        }
+
         // Fetch up to the in-flight budget in one SQL roundtrip and
         // enqueue them as a batch — previously this loop fetched ONE job
         // per cycle, which capped projection throughput at one row per

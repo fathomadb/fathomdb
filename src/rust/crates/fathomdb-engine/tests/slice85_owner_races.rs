@@ -80,3 +80,33 @@ fn releasing_owner_keeps_new_acquisition_excluded_until_projection_thaw() {
     assert!(refused, "old release must not thaw projection after a new owner acquires");
     drop(engine.begin_erasure_maintenance(1000).unwrap());
 }
+
+#[test]
+fn already_admitted_projection_scan_is_drained_before_handle_grant() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = Arc::new(
+        Engine::open_with_choice_and_config(
+            dir.path().join("scan.sqlite"),
+            EmbedderChoice::None,
+            EngineConfig {
+                physical_erasure_policy: Some(PhysicalErasurePolicy::ExplicitMaintenance),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .engine,
+    );
+    engine.set_projection_scheduler_frozen_for_test(true);
+    let mut pause = engine.pause_projection_scan_for_test();
+    engine.set_projection_scheduler_frozen_for_test(false);
+    pause
+        .wait_ready(Duration::from_secs(5))
+        .expect("actual dispatcher passed frozen check before fetch");
+    let acquire = engine.begin_erasure_maintenance(0);
+    let refused =
+        matches!(acquire, Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy)));
+    drop(acquire);
+    pause.release();
+    assert!(refused, "projection scan must be counted even before a job is queued");
+    drop(engine.begin_erasure_maintenance(1000).unwrap());
+}

@@ -274,3 +274,57 @@ fn unrelated_growth_leaves_ticket_queued_when_resource_envelope_changes() {
         WithdrawResult::WithdrawnBeforeRemoval
     );
 }
+
+#[test]
+fn absent_logical_root_never_completes_over_retained_touching_edges() {
+    let (_dir, engine) = fixture();
+    engine
+        .write(&[PreparedWrite::Edge {
+            kind: "rel".into(),
+            from: "already-absent".into(),
+            to: "survivor".into(),
+            source_id: SourceId::new("edge-source").unwrap(),
+            logical_id: Some("dangling-edge".into()),
+            body: Some("danglingphysicalmarker85".into()),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        }])
+        .unwrap();
+    assert_eq!(
+        engine
+            .query_i64_col_for_test(
+                "SELECT count(*) FROM canonical_edges WHERE from_id='already-absent'"
+            )
+            .unwrap(),
+        vec![1]
+    );
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = match handle
+        .queue_physical_erasure(
+            PhysicalErasureSelector::DeletedLogicalAllAtCut { logical_id: "already-absent".into() },
+            "d89e3922b4ae4a1bb51f99ce5bf24bb4",
+        )
+        .unwrap()
+    {
+        QueueResult::Accepted { ticket, .. } => ticket,
+        _ => panic!("heavy scope refused"),
+    };
+    assert!(matches!(
+        handle.complete_physical_erasure(&ticket).unwrap(),
+        CleanupResult::Complete { .. }
+    ));
+    handle.close().unwrap();
+    assert_eq!(
+        engine
+            .query_i64_col_for_test(
+                "SELECT count(*) FROM canonical_edges WHERE from_id='already-absent'"
+            )
+            .unwrap(),
+        vec![0],
+        "Complete must cover the positively admitted touching-edge scope"
+    );
+    assert!(engine.read_get("survivor", &ReadView::default()).unwrap().is_some());
+}

@@ -224,18 +224,23 @@ pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
     {
         return Err(EngineError::Storage);
     }
-    let mut active = rows.iter().filter(|r| {
-        matches!(
-            r.status.phase,
-            ErasurePhase::Executing | ErasurePhase::Sanitizing | ErasurePhase::Finalizing
-        )
-    });
-    let executing = active.next();
-    if active.next().is_some() {
+    validate_active(c)
+}
+pub(crate) fn validate_active(c: &Connection) -> Result<(), EngineError> {
+    let mut statement=c.prepare("SELECT ticket,idempotency_key,phase,payload FROM _fathomdb_erasure_requests WHERE phase IN ('executing','sanitizing','finalizing')").map_err(|_|EngineError::Storage)?;
+    let rows = statement
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+        .map_err(|_| EngineError::Storage)?;
+    let mut active = Vec::new();
+    for row in rows {
+        let (ticket, key, phase, raw) = row.map_err(|_| EngineError::Storage)?;
+        active.push(decode_row(c, ticket, key, phase, raw)?);
+    }
+    if active.len() > 1 {
         return Err(EngineError::Storage);
     }
     let root = physical_erasure::root(c)?;
-    match (root.as_ref().and_then(|r| r.ticket.as_deref()), executing) {
+    match (root.as_ref().and_then(|r| r.ticket.as_deref()), active.first()) {
         (Some(ticket), Some(request)) if request.ticket == ticket => {}
         (None, None) => {}
         _ => return Err(EngineError::Storage),
@@ -248,6 +253,7 @@ pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
     }
     Ok(())
 }
+
 fn queued(c: &Connection) -> Result<Vec<Request>, EngineError> {
     let mut statement=c.prepare("SELECT ticket,idempotency_key,phase,payload FROM _fathomdb_erasure_requests WHERE phase='queued' ORDER BY ticket").map_err(|_|EngineError::Storage)?;
     let rows = statement
@@ -400,6 +406,7 @@ fn check_identity(
     Ok(())
 }
 pub(crate) fn guard_plain(c: &Connection, batch: &[PreparedWrite]) -> Result<(), EngineError> {
+    validate_active(c)?;
     let queued = queued(c)?;
     if queued.is_empty() {
         return Ok(());
@@ -485,6 +492,7 @@ pub(crate) fn guard_plain(c: &Connection, batch: &[PreparedWrite]) -> Result<(),
     Ok(())
 }
 pub(crate) fn guard_admin(c: &Connection) -> Result<(), EngineError> {
+    validate_active(c)?;
     if !queued(c)?.is_empty() {
         return Err(error(MaintenanceError::QueuedScopeFenced));
     }
@@ -758,10 +766,20 @@ impl ErasureMaintenance {
                 .physical_service_gate
                 .try_lock()
                 .map_err(|_| error(MaintenanceError::MaintenanceBusy))?;
+            {
+                let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+                validate_active(guard.as_ref().ok_or(EngineError::Closing)?)?;
+            }
             let result = self.complete_ticket_inner(ticket);
             let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
             let c = guard.as_ref().ok_or(EngineError::Closing)?;
-            let active = physical_erasure::active(c)?;
+            let active = match physical_erasure::active(c) {
+                Ok(active) => active,
+                Err(error) => {
+                    self.engine.explicit_debt.store(true, Ordering::Release);
+                    return Err(error);
+                }
+            };
             self.engine.explicit_debt.store(active, Ordering::Release);
             match result {
                 Ok(()) => {

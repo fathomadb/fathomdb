@@ -440,6 +440,7 @@ pub(crate) fn prepare_redacted(
     c: &Connection,
     ids: &[ClosureOperationId],
 ) -> Result<(), EngineError> {
+    crate::erasure_queue::validate_active(c)?;
     let Some(mut debt) = root(c)? else {
         return Ok(());
     };
@@ -469,6 +470,7 @@ pub(crate) fn prepare_redacted(
 }
 
 pub(crate) fn finalize(c: &Connection, ids: &[ClosureOperationId]) -> Result<(), EngineError> {
+    crate::erasure_queue::validate_active(c)?;
     let ticket = root(c)?.and_then(|debt| debt.ticket);
     validate_pending(c, ids)?;
     if state(c)?.phase != "finalizing" && state(c)?.phase != "clean" {

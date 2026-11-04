@@ -317,6 +317,12 @@ fn validate_recovery_schema_invariants(
     connection: &Connection,
     schema_version: u32,
 ) -> Result<(), EngineOpenError> {
+    if schema_version >= 36 {
+        crate::erasure_maintenance::read_policy(connection)
+            .map_err(|_| recovery_schema_corruption("_fathomdb_open_state"))?;
+        crate::erasure_queue::validate(connection)
+            .map_err(|_| recovery_schema_corruption("_fathomdb_erasure_requests"))?;
+    }
     validate_dependency_generation_on_open(connection, schema_version)?;
     frozen_read::validate_on_open(connection, schema_version)
         .map_err(|_| recovery_schema_corruption("_fathomdb_read_visibility_state"))?;

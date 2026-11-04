@@ -65,6 +65,7 @@ reported lifecycle
 reported mean
 reported mean::mean_centering_internals_for_test
 reported maintenance_admission
+reported maintenance_admission::callback
 reported open
 reported open::default_embedder_load_error_tests
 reported open::device_policy_open_error_tests

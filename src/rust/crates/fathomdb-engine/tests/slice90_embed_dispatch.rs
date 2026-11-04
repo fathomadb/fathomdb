@@ -5,6 +5,9 @@
 #[path = "../src/embed_dispatch/d27_observation.rs"]
 mod d27_observation;
 
+#[path = "../src/maintenance_admission/callback.rs"]
+mod maintenance_admission;
+
 #[path = "../src/embed_dispatch/core.rs"]
 mod embed_dispatch;
 
@@ -57,6 +60,7 @@ impl RendezvousEmbedder {
     }
 
     fn invoke(&self, text: &str) -> Result<Vector, EmbedderError> {
+        assert!(maintenance_admission::in_callback());
         self.calls.fetch_add(1, Ordering::SeqCst);
         let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
         self.peak.fetch_max(active, Ordering::SeqCst);

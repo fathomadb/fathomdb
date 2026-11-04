@@ -5,9 +5,11 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Condvar;
 
+mod callback;
+pub(crate) use callback::{in_callback, Callback};
+
 thread_local! {
     static OPERATIONS: RefCell<HashMap<usize, usize>> = RefCell::new(HashMap::new());
-    static CALLBACK: Cell<usize> = const { Cell::new(0) };
     static PERMIT: Cell<Option<(usize, u64)>> = const { Cell::new(None) };
 }
 
@@ -30,23 +32,6 @@ pub(crate) struct Operation {
     admission: Arc<Admission>,
     key: usize,
     _same_thread: PhantomData<Rc<()>>,
-}
-
-pub(crate) struct Callback;
-impl Callback {
-    pub(crate) fn enter() -> Self {
-        CALLBACK.with(|v| v.set(v.get() + 1));
-        Self
-    }
-}
-impl Drop for Callback {
-    fn drop(&mut self) {
-        CALLBACK.with(|v| v.set(v.get() - 1));
-    }
-}
-
-pub(crate) fn in_callback() -> bool {
-    CALLBACK.with(|v| v.get() != 0)
 }
 
 impl Admission {

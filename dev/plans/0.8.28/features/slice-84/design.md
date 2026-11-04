@@ -1,6 +1,6 @@
 ---
 title: Slice 84 — high-level certification and contention design draft
-status: PROPOSED
+status: APPROVED
 target_release: 0.8.28
 ---
 
@@ -96,9 +96,9 @@ inputs to reconcile, not choices this slice can invent. Final status must separa
 safety pass, work-count reduction, service qualification and residual Phase 82
 cost, with measured failures retained.
 
-## Concrete candidate — exact committed-boundary query
+## Rejected candidate — exact committed-boundary query
 
-Pending measured attribution, replace only the structural-zero validator's
+The rejected candidate would replace only the structural-zero validator's
 `MAX` over the union of all cursor rows with `MAX` over each table's `MAX`.
 SQLite can use the existing cursor indexes on canonical nodes, canonical edges
 and operational state. Operational mutations still scan; no index is added.

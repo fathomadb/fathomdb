@@ -103,3 +103,31 @@ attempt-retry or deadline-reset mode.
 
 See [RESULTS](RESULTS.md) for frozen evidence, all 72 dispositions, qualification
 limits and successor recommendations.
+
+
+## Slice 84 bounded paired campaign
+
+The [Slice 84 plan](../../plans/0.8.28/features/slice-84/plan.md) fixes 54 cells,
+a shared 45-minute active budget, 90-second cell limit, and unchanged masters.
+Build the instrumented final-Slice-83 baseline before changing production behavior;
+freeze that binary separately. After reviewed implementation, freeze the candidate.
+Both use the same driver, observer and provider. `idle` runs actual erase without
+foreground offers; unknown modes refuse. Baseline and candidate use identical
+100-Hz reads, 100-Hz node/edge writes and 20-Hz property writes.
+
+```sh
+cargo build --release --manifest-path dev/experiments/erasure-availability/Cargo.toml --bin phase2 --features phase2-metrics
+python3 -m unittest discover -s dev/experiments/erasure-availability -p test_slice84_campaign.py
+python3 dev/experiments/erasure-availability/slice84_campaign.py profile BASELINE PHASE82 MASTERS OUTPUT OWNED_ROOT
+python3 dev/experiments/erasure-availability/slice84_campaign.py finish CANDIDATE OUTPUT
+```
+
+Use absolute paths; `OUTPUT` must not already exist and must be within the
+common `OWNED_ROOT` containing all campaign binaries and generated scratch.
+The profile command performs three baseline diagnostics, then pauses for
+implementation/review. Finish performs the remaining cells exactly once. The
+manifest preserves segments, source hashes, all dispositions and resource limits;
+no automatic retries or qualification from missing controls are allowed. Keep a
+source-commit/build/runtime record next to the manifest. Results distinguish
+core paired service qualification from all-cell campaign completion. Stage
+elapsed times overlap and must not be added or described as CPU measurements.

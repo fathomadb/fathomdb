@@ -167,14 +167,15 @@ These explicit placements do not change this policy for other gaps.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 90** (`FILTERED-BODY-FTS`) — D28-14: SearchFilter on direct node and edge body FTS-only search (search_text_only / searchTextOnly), applied before truncation, ranking and limit
+**IMMEDIATE NEXT: Slice 84** (`CLEANUP-CONTENTION`) — Measured cleanup contention optimization under unchanged physical-success semantics
 
-**Remaining ladder:** 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 84 → 90.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
 Slices 60, 70 and 80 are complete on `dev/0.8.28` and `release/0.8.28`.
-Slice 81 is complete; CH1 Slice 82 is next, followed by 83 and 90. The
+Slices 81–83 are engineering-complete; Slice 84 cleanup optimization is next,
+followed by 90. The
 physical-erasure guarantee/API decision is held at the end of 83. After 90 comes
 release qualification (the `AGENT_LONG` perf gates, eu7, the
 feature-complete gate and installed-wheel smoke tests), then the owner's
@@ -322,6 +323,9 @@ requirements say otherwise.
   [Phase plan](0.8.28/features/slice-83/plan.md), acceptance CH1-2A–2F.
   End-of-slice HITL decision: physical-erasure guarantee and possible cleanup API;
   no new API or numerical SLA is selected by allocation.
+- **Slice 84 — cleanup contention.** Preserve the Slice 83 physical-success
+  contract while measuring and reducing cleanup contention.
+  [Plan](0.8.28/features/slice-84/plan.md), local acceptance S84-1–7.
 - **Slice 90 — filtered direct body FTS (D28-14).** It follows the
   [draft scope](0.8.28-draft-scope.md#d28-14-filtered-direct-body-fts).
   It builds on Slice 80's view admission in all three bindings; the direct
@@ -343,4 +347,5 @@ requirements say otherwise.
 | 81 | Erasure availability POC and deletion SLA feasibility | [Package](0.8.28/features/slice-81/README.md) |
 | 82 | CH1 Phase 1: physical correctness and native cost | [Plan](0.8.28/features/slice-82/plan.md) |
 | 83 | CH1 Phase 2: native resumability/availability; guarantee/API decision at end | [Plan](0.8.28/features/slice-83/plan.md) |
+| 84 | Cleanup contention and certification cost | [Plan](0.8.28/features/slice-84/plan.md) |
 | 90 | D28-14 filtered direct body FTS | to be written |

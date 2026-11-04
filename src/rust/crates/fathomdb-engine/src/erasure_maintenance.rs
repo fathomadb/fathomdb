@@ -51,16 +51,16 @@ pub(crate) fn initialize_policy(
     policy: PhysicalErasurePolicy,
 ) -> Result<(), EngineError> {
     physical_erasure::transaction(c, || {
-        c.execute(
-            "INSERT INTO _fathomdb_open_state(key,value) VALUES(?1,?2)",
+        if c.execute(
+            "UPDATE _fathomdb_open_state SET value=?2 WHERE key=?1",
             params![POLICY_KEY, policy.wire()],
         )
-        .map_err(|_| EngineError::Storage)?;
-        c.execute(
-            "INSERT INTO _fathomdb_open_state(key,value) VALUES(?1,lower(hex(randomblob(16))))",
-            [STORE_KEY],
-        )
-        .map_err(|_| EngineError::Storage)?;
+        .map_err(|_| EngineError::Storage)?
+            != 1
+        {
+            return Err(EngineError::Storage);
+        }
+        read_policy(c)?;
         Ok(())
     })
 }

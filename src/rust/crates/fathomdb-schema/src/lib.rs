@@ -1343,7 +1343,9 @@ pub const MIGRATIONS: &[Migration] = &[
                   CHECK(json_type(payload,'$.ticket')='text' AND json_extract(payload,'$.ticket') IS NOT NULL AND ticket=json_extract(payload,'$.ticket')),
                   CHECK(json_type(payload,'$.key')='text' AND json_extract(payload,'$.key') IS NOT NULL AND idempotency_key=json_extract(payload,'$.key'))
               );
-              CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);",
+              CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);
+              INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_physical_erasure_policy','autonomous');
+              INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_erasure_store',lower(hex(randomblob(16))));",
     },
 ];
 

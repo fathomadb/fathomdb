@@ -57,6 +57,38 @@ impl Engine {
         })
     }
 
+    /// Queue immutable intent without changing read visibility.
+    #[napi]
+    pub async fn queue_physical_erasure(
+        &self,
+        selector: JsonValue,
+        key: String,
+    ) -> Result<JsonValue> {
+        let selector = serde_json::from_value(selector)
+            .map_err(|_| engine_error_to_napi(RustEngineError::WriteValidation))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.queue_physical_erasure(selector, &key)).await?;
+        serde_json::to_value(result).map_err(|_| engine_error_to_napi(RustEngineError::Storage))
+    }
+
+    /// Read one store-bound ticket without disclosing a selector.
+    #[napi]
+    pub async fn physical_erasure_status(&self, ticket: String) -> Result<JsonValue> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.physical_erasure_status(&ticket)).await?;
+        serde_json::to_value(result).map_err(|_| engine_error_to_napi(RustEngineError::Storage))
+    }
+
+    /// Withdraw queued intent only; never cancels activated debt.
+    #[napi]
+    pub async fn withdraw_queued_erasure(&self, ticket: String) -> Result<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.withdraw_queued_erasure(&ticket)).await?;
+        let encoded = serde_json::to_value(result)
+            .map_err(|_| engine_error_to_napi(RustEngineError::Storage))?;
+        Ok(encoded.as_str().ok_or_else(|| engine_error_to_napi(RustEngineError::Storage))?.into())
+    }
+
     /// Return persisted scheduling honored by this open incarnation.
     #[napi]
     pub fn physical_erasure_policy(&self) -> Result<String> {

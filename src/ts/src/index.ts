@@ -186,3 +186,5 @@ export {
 } from "./graph.js";
 
 export { ErasureMaintenance, type PhysicalErasurePolicy, type ErasureServiceState } from "./maintenance.js";
+export type { PhysicalErasureSelector, ErasureLogicalState, ErasurePhase, ErasureBlocker,
+  ErasureStatus, QueueResult, WithdrawResult, CleanupResult } from "./maintenance.js";

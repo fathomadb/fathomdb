@@ -78,7 +78,9 @@ import {
 import { OpenReport, CounterSnapshot, SubscriberCallback } from "./open.js";
 
 import { intercept, interceptSync } from "./native-call.js";
-import { ErasureMaintenance, type PhysicalErasurePolicy } from "./maintenance.js";
+import { ErasureMaintenance, type PhysicalErasurePolicy, type PhysicalErasureSelector,
+  type QueueResult, type ErasureStatus, type WithdrawResult, erasureSelector, queueResult,
+  erasureStatus } from "./maintenance.js";
 
 import { SearchExpandResult, GraphEvidenceResolveRequestV1, ResolvedGraphEvidenceV1 } from "./graph.js";
 
@@ -233,6 +235,23 @@ export class Engine {
       : { useDefaultEmbedder, engineConfig: config };
     const inner = await intercept(() => native.Engine.open(path, nativeOptions));
     return new Engine(inner, config);
+  }
+
+  /** Queue immutable intent. Accepted leaves existing read visibility unchanged. */
+  async queuePhysicalErasure(selector: PhysicalErasureSelector, idempotencyKey: string): Promise<QueueResult> {
+    const lowered = erasureSelector(selector);
+    return queueResult(await intercept(() => this.#native.queuePhysicalErasure(lowered, idempotencyKey)));
+  }
+
+  /** Read one store-bound ticket; unknown/wrong-store tickets return null without scope. */
+  async physicalErasureStatus(ticket: string): Promise<ErasureStatus | null> {
+    const status = await intercept(() => this.#native.physicalErasureStatus(ticket));
+    return status === null ? null : erasureStatus(status);
+  }
+
+  /** Withdraw Queued only; no physical success or active cancellation is implied. */
+  async withdrawQueuedErasure(ticket: string): Promise<WithdrawResult> {
+    return await intercept(() => this.#native.withdrawQueuedErasure(ticket)) as WithdrawResult;
   }
 
   /** Return persisted scheduling honored by this open incarnation. */

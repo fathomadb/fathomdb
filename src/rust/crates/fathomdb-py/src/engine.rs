@@ -226,6 +226,37 @@ impl PyEngine {
         })
     }
 
+    /// Queue immutable intent without changing read visibility.
+    fn queue_physical_erasure(
+        &self,
+        py: Python<'_>,
+        selector_json: String,
+        key: String,
+    ) -> PyResult<String> {
+        let selector = serde_json::from_str(&selector_json)
+            .map_err(|_| WriteValidationError::new_err("invalid erasure selector"))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.queue_physical_erasure(selector, &key))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure result serialization failed"))
+    }
+
+    /// Read one store-bound ticket without exposing its selector.
+    fn physical_erasure_status(&self, py: Python<'_>, ticket: String) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.physical_erasure_status(&ticket))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure status serialization failed"))
+    }
+
+    /// Withdraw only queued work; never cancels activated debt.
+    fn withdraw_queued_erasure(&self, py: Python<'_>, ticket: String) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.withdraw_queued_erasure(&ticket))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure withdrawal serialization failed"))
+    }
+
     /// Return persisted scheduling honored by this open incarnation.
     fn physical_erasure_policy(&self, py: Python<'_>) -> PyResult<String> {
         let engine = Arc::clone(&self.inner);

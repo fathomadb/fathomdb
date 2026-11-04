@@ -10,8 +10,9 @@ wrapper converts native return values into the dataclasses in
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 from fathomdb import (
     _sdk_evidence,
@@ -44,6 +45,7 @@ from fathomdb._sdk_search import (
     _map_native_search_result as _map_native_search_result,  # noqa: F401
 )
 from fathomdb._sdk_search import _map_per_hit_explain as _map_per_hit_explain  # noqa: F401
+from fathomdb.maintenance import ErasureStatus, PhysicalErasureSelector, QueueResult, WithdrawResult
 from fathomdb.config import EngineConfig
 from fathomdb.filter import Filter
 from fathomdb.types import (
@@ -93,6 +95,18 @@ class Engine:
         self._native = native
         self._path = path
         self._config = config
+
+    def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult:
+        """Queue immutable intent; data stays readable until committed removal."""
+        return cast(QueueResult, json.loads(self._native.queue_physical_erasure(json.dumps(selector), idempotency_key)))
+
+    def physical_erasure_status(self, ticket: str) -> ErasureStatus | None:
+        """Read one ticket; unknown/wrong-store tickets return None without scope."""
+        return cast(ErasureStatus | None, json.loads(self._native.physical_erasure_status(ticket)))
+
+    def withdraw_queued_erasure(self, ticket: str) -> WithdrawResult:
+        """Withdraw Queued only; no physical-completion claim or active cancellation."""
+        return cast(WithdrawResult, json.loads(self._native.withdraw_queued_erasure(ticket)))
 
     def physical_erasure_policy(self) -> str:
         """Return persisted scheduling honored by this open incarnation."""
@@ -576,6 +590,10 @@ class ErasureMaintenance:
 
     def __init__(self, native: Any) -> None:
         self._native = native
+
+    def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult:
+        """Perform heavy non-destructive preflight inside this window."""
+        return cast(QueueResult, json.loads(self._native.queue_physical_erasure(json.dumps(selector), idempotency_key)))
 
     def close(self) -> str:
         """Release temporary ownership and return service state, not completion."""

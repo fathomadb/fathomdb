@@ -1,3 +1,4 @@
+import type { NativeErasureStatus, NativeQueueResult } from "./maintenance.js";
 // Native-binding loader. Resolves the running host to a napi-rs triple, then
 // loads the compiled binding from either a local dev build
 // (`fathomdb.<triple>.node`, produced by `napi build --platform`), the
@@ -750,10 +751,14 @@ export interface NativeRerankResult {
 }
 
 export interface NativeErasureMaintenance {
+  queuePhysicalErasure(selector: unknown, key: string): Promise<NativeQueueResult>;
   close(): Promise<string>;
 }
 
 export interface NativeEngine {
+  queuePhysicalErasure(selector: unknown, key: string): Promise<NativeQueueResult>;
+  physicalErasureStatus(ticket: string): Promise<NativeErasureStatus | null>;
+  withdrawQueuedErasure(ticket: string): Promise<string>;
   physicalErasurePolicy(): string;
   beginErasureMaintenance(acquisitionWaitMs: number): Promise<NativeErasureMaintenance>;
   write(batch: unknown[]): Promise<NativeWriteReceipt>;

@@ -35,6 +35,11 @@ from fathomdb._sdk_context_pack import (
     pack_context,
 )
 from fathomdb.config import EngineConfig, QueryStopWords
+from fathomdb.maintenance import (
+    CleanupResult, ErasureBlocker, ErasureLogicalState, ErasurePhase, ErasureServiceState,
+    ErasureStatus, PhysicalErasurePolicy, PhysicalErasureSelector, QueueResult,
+    SourceAllAtCut, DeletedLogicalAllAtCut, WithdrawResult,
+)
 from fathomdb.engine import Engine, ErasureMaintenance
 from fathomdb.errors import (
     MaintenanceError,
@@ -197,6 +202,9 @@ __all__ = [
     "MaintenanceError",
     "Engine",
     "ErasureMaintenance",
+    "CleanupResult", "ErasureBlocker", "ErasureLogicalState", "ErasurePhase",
+    "ErasureServiceState", "ErasureStatus", "PhysicalErasurePolicy", "PhysicalErasureSelector",
+    "QueueResult", "SourceAllAtCut", "DeletedLogicalAllAtCut", "WithdrawResult",
     "EngineConfig",
     "QueryStopWords",
     "Filter",

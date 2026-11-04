@@ -175,6 +175,7 @@ impl SubscriberRegistry {
     }
 
     fn notify_each(&self, notify: impl Fn(&dyn Subscriber)) {
+        let _callback = crate::maintenance_admission::Callback::enter();
         for sub in self.snapshot() {
             // SQLite profile callbacks cross an extern "C" boundary, where a
             // subscriber unwind would abort the process. No registry lock is

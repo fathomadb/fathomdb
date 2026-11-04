@@ -610,6 +610,7 @@ fn valid(vector: &Vector, dimension: usize) -> bool {
 }
 
 fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchError> {
+    let _callback = crate::maintenance_admission::Callback::enter();
     let provider = shared
         .provider
         .lock()

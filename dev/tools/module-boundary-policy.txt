@@ -83,6 +83,7 @@ reported provider
 governed read
 governed read_api
 governed reader_pool
+reported reader_pool::diagnostic_admission_tests
 reported reader_pool::historical_property_lifecycle_tests
 governed reader_transaction
 reported record_lifecycle

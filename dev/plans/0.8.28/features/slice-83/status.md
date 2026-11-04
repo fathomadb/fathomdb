@@ -1,15 +1,18 @@
 ---
 title: Slice 83 status
-status: IN_PROGRESS
+status: COMPLETE
 date: 2026-11-03
 ---
 
 # Slice 83 status
 
-Production implementation and scoped verification are complete; measured
-qualification and the final workspace gate remain in progress. Work uses the
-existing `dev/0.8.28` checkout serially. No new branch/worktree, tag or publication
-was created. The end-of-phase physical-guarantee/API decision remains open.
+Slice 83 engineering and measured qualification are complete. Final production
+source is `af84f12f8`; the gate campaign completed through scoped corrections and
+resumption, not one uninterrupted green invocation. Work used the existing
+`dev/0.8.28` checkout and fast-forwards the existing `release/0.8.28` checkout.
+No new branch/worktree, tag or publication was created. The end-of-phase
+physical-guarantee/API decision remains open. Existing physical-success semantics
+are retained; this is not an availability-improvement or deadline qualification.
 
 ## Scope and acceptance
 
@@ -62,8 +65,43 @@ Scoped evidence already passed:
 
 The existing dependency tests caught an error-stage regression; `a266ce84d`
 restored `dependency_closure` refusal precedence without changing eligibility.
-The final gate and final measurement audit are still pending; this record makes
-no full-workspace green claim yet.
+The final measurement audit passed. The workspace gate ran once and resumed only
+failed or unrun portions:
+
+- Initial `agent-verify` at `969261911`: full lint passed; default-feature
+  typecheck found the offline-only `sanitize` helper compiled without consumers.
+  `b721e8647` scopes it to operator/tests; the complete typecheck phase passed.
+- Strict security passed with zero violations, blockers or downgrades, including
+  live network-namespace and ptrace checks.
+- The full collecting test run exercised all 205 suite labels: 201 initially
+  passed, four failed (Rust, Python configuration, exact root inventory and board
+  currency). There were no excluded or skipped suite labels; individual model,
+  platform and long-running checks retain their normal skips.
+- The original Rust collection completed all other targets after two confirmed
+  deadlocked targets were stopped. `8150e0f8a` adds failing diagnostic/idle-profile
+  regressions; Astra-reviewed `af84f12f8` repairs the gate/metadata deadlock, counts
+  actual SQLite work rather than materialized handoff, preserves real bounded
+  checkpoint observations after drain refusal, suppresses only idle debt-probe
+  subscriber callbacks, and restores the pre-primary-lock test hook. The unchanged
+  affected graph/configuration suites pass 34/8 tests. The entire engine library
+  passes 142 tests with the original `operator,test-hooks` feature profile.
+- Independent verification reran nine affected diagnostics, telemetry and reader
+  cases. Scoped all-target engine Clippy passed after these source corrections.
+- Python originally passed 1,700 tests with 36 individual skips and six stale
+  fixed-thread-count failures. The reviewed topology reconciliation keeps exact
+  counts, adds named cleanup-worker attribution and exact close restoration; the
+  entire configuration suite passes 31 tests. The native binding receipt passes.
+- TypeScript, hermetic native-package execution and all remaining collected
+  harness suites passed. Exact root inventory/module classification and stale
+  board prose were reconciled with the approved two fields/one worker and current
+  ladder, then checked with their scoped validators.
+
+Logs are retained at `/tmp/fathomdb-slice83/{verify,typecheck-resume,security-resume,tests-resume}.log`,
+with scoped repair logs alongside them. The source correction and final metadata
+checks are separate receipts, not a claim that the original full command passed.
+The independently authored Slice 84 draft commit `5ba727473` appeared during the
+run, changed only three new planning files, and was preserved after confirming
+its writer was finished. It adds no execution or guarantee ruling here.
 
 ## Operating envelope and exclusions
 
@@ -166,4 +204,7 @@ known child durations sum to 1093.582 seconds and are a distinct quantity.
 Observed peaks were 1,073,094,656 RSS bytes and 1,041,460,116 scratch bytes.
 Independent verification supports the engineering witnesses and honest cost
 characterization, not an availability/latency improvement claim. Physical WAL
-qualification was on Linux. Final workspace gate pending.
+qualification was on Linux. The later `af84f12f8` diagnostic/idle-telemetry and
+reader-handoff corrections were verified by scoped correctness tests and were
+not retimed. Measurements retain their preceding exact source identities; no
+performance improvement is inferred from those corrections.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 83 — CH1 Phase 2
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.28
 ---
 
@@ -16,8 +16,8 @@ Slice 90.
 - Design and contract constraints: [shared contract](../../../ch1-production-erasure-plan.md#shared-contract-and-scope).
 - RED/GREEN, measurements, Astra design/code reviews and independent verification:
   [verification plan](../../../ch1-production-erasure-plan.md#measurement-review-and-verification-plan).
-- Next action: complete loaded qualification and final verification of the reviewed
-  implementation; record measured limits and the pending owner guarantee decision.
+- Engineering qualification is recorded in [status](status.md), including the
+  measured throughput regression and pending owner guarantee/API decision.
 - Status is owned by [release state](../../../release-state-0.8.28.json) and the
   [release board](../../../runs/STATUS-0.8.28.md).
 
@@ -48,4 +48,4 @@ measured Slice 82 scan repair; bound admission and qualify actual writer stages
 before considering another deletion algorithm. Retain bounded ordinary survivor
 updates only for the reviewed plain legacy class; other mutators remain fenced.
 The design requires Astra approval before implementation, then Astra code review
-and independent verification. Status will record actual tests and limitations.
+and independent verification. [Status](status.md) records actual tests and limitations.

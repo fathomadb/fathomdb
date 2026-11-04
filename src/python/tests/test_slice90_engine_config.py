@@ -6,6 +6,7 @@ from dataclasses import FrozenInstanceError
 import inspect
 from pathlib import Path
 import sqlite3
+import time
 from typing import Any, cast
 
 import pytest
@@ -94,20 +95,39 @@ def test_explicit_zero_remains_distinct_from_omission(
     assert requests[1]["slow_threshold_ms"] == 0
 
 
+def _cleanup_threads(task_dir: Path) -> int:
+    """Count the one explicitly named cleanup worker owned by each open Engine."""
+    return sum(
+        (task / "comm").read_text().strip() == "fathomdb-physic"
+        for task in task_dir.iterdir()
+    )
+
+
+def _assert_native_threads(task_dir: Path, total: int, cleanup: int) -> None:
+    """Allow thread naming to settle while requiring exact topology, never a range."""
+    deadline = time.monotonic() + 1
+    while _cleanup_threads(task_dir) != cleanup and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert _cleanup_threads(task_dir) == cleanup
+    assert len(list(task_dir.iterdir())) == total
+
+
 @pytest.mark.parametrize("workers", [1, 2, 4, 64])
 def test_installed_scheduler_worker_inventory(tmp_path: Path, workers: int) -> None:
     task_dir = Path("/proc/self/task")
     if not task_dir.is_dir():
         pytest.skip("Linux task inventory is required for exact worker attribution")
     before = len(list(task_dir.iterdir()))
+    cleanup_before = _cleanup_threads(task_dir)
     opened = Engine.open(
         str(tmp_path / f"workers-{workers}.sqlite"), scheduler_runtime_threads=workers
     )
     try:
-        assert len(list(task_dir.iterdir())) == before + 9 + workers
+        _assert_native_threads(task_dir, before + 10 + workers, cleanup_before + 1)
     finally:
         opened.close()
     assert len(list(task_dir.iterdir())) == before
+    assert _cleanup_threads(task_dir) == cleanup_before
 
 
 def test_installed_independent_scheduler_inventories(tmp_path: Path) -> None:
@@ -115,17 +135,19 @@ def test_installed_independent_scheduler_inventories(tmp_path: Path) -> None:
     if not task_dir.is_dir():
         pytest.skip("Linux task inventory is required for exact worker attribution")
     before = len(list(task_dir.iterdir()))
+    cleanup_before = _cleanup_threads(task_dir)
     first = Engine.open(str(tmp_path / "first.sqlite"), scheduler_runtime_threads=1)
     try:
         second = Engine.open(str(tmp_path / "second.sqlite"), scheduler_runtime_threads=4)
         try:
-            assert len(list(task_dir.iterdir())) == before + (9 + 1) + (9 + 4)
+            _assert_native_threads(task_dir, before + (10 + 1) + (10 + 4), cleanup_before + 2)
         finally:
             second.close()
-        assert len(list(task_dir.iterdir())) == before + 9 + 1
+        _assert_native_threads(task_dir, before + 10 + 1, cleanup_before + 1)
     finally:
         first.close()
     assert len(list(task_dir.iterdir())) == before
+    assert _cleanup_threads(task_dir) == cleanup_before
 
 
 @pytest.mark.parametrize(("cap", "remaining"), [(0, 3), (1, 1)])
@@ -209,14 +231,19 @@ def test_installed_all_five_values_reach_native_open(tmp_path: Path) -> None:
     )
     task_dir = Path("/proc/self/task")
     before = len(list(task_dir.iterdir())) if task_dir.is_dir() else None
+    cleanup_before = _cleanup_threads(task_dir) if task_dir.is_dir() else None
     opened = Engine.open(str(tmp_path / "all-five.sqlite"), config=requested)
     try:
         assert opened.config is requested
         assert (tmp_path / "all-five.sqlite").exists()
         if before is not None:
-            assert len(list(task_dir.iterdir())) == before + 9 + 4
+            assert cleanup_before is not None
+            _assert_native_threads(task_dir, before + 10 + 4, cleanup_before + 1)
     finally:
         opened.close()
+    if before is not None:
+        assert len(list(task_dir.iterdir())) == before
+        assert _cleanup_threads(task_dir) == cleanup_before
 
 
 @pytest.mark.parametrize(

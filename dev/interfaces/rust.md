@@ -561,6 +561,12 @@ Cleanup-scheduler debt-presence probes are excluded from subscriber profile and
 slow-statement callbacks. Foreground statements and actual cleanup work retain
 their configured instrumentation; see the profiling contract in `design/lifecycle.md`.
 
+Each Engine owns one joined physical-cleanup thread in addition to its eight
+reader workers, projection dispatcher and configured projection workers. Closing
+the Engine joins that cleanup thread; it adds no SQLite connection. Installed
+binding topology checks therefore expect ten fixed threads plus the configured
+projection-worker count, and exact baseline restoration after close.
+
 ## Companion embedder contract
 
 The Rust workspace also exposes the semver-stable companion crate

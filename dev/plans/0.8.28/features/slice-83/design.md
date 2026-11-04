@@ -241,3 +241,10 @@ and slow-statement callbacks with nested, thread-local scope restoration. Actual
 cleanup remains observable. This avoids idle telemetry callbacks interfering
 with shutdown; it does not promise completion while an application blocks a
 callback from active work. Internal statement-count hooks remain active.
+
+The approved always-owned cleanup thread changes installed worker topology from
+nine to ten fixed threads plus configured projection workers. Exact Python
+inventories are reconciled with that requirement, add named cleanup-thread
+attribution and retain exact baseline restoration after close. The root inventory
+likewise includes the two approved maintenance/service fields; fixed counts stay
+exact. These are explicit topology updates, not relaxed leak-detection oracles.

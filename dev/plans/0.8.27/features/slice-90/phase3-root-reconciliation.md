@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: cb9d19f1bf1937d4f46102393507a5db52e138d1
+lib_rs_blob: 6ef37bfd60daa25663a567d7d0860f45c36d4e99
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -47,7 +47,7 @@ removing the `dense_disabled`, `dense_disabled_reason`, and
 `vector_equivalence_refusals` storage fields. It also adds the
 `provider_admission_tests` unit-test module and the corresponding root
 composition changes, producing the blob above. The root storage fields are
-now 41; the approved root method inventory is unchanged.
+then 41; the approved root method inventory was unchanged.
 
 0.8.28 Slice 50 scan qualification adds the `test-hooks` re-exports
 `ProjectionScanPageForTest` and `ProjectionScanForTest`, producing
@@ -57,7 +57,7 @@ now 41; the approved root method inventory is unchanged.
 
 | Declaration | Disposition |
 | --- | --- |
-| `Engine` and its 41 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
+| `Engine` and its 43 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
@@ -66,13 +66,14 @@ now 41; the approved root method inventory is unchanged.
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
-The exact 41 storage fields are grouped here to prevent a generic
+The exact 43 storage fields are grouped here to prevent a generic
 "remaining state" exemption:
 
 | Storage role | Root field names |
 | --- | --- |
 | Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence` |
 | Connections and lifecycle | `closed`, `close_lock`, `lock`, `connection`, `reader_pool`, `profile_contexts`, `reader_lookaside_rcs`, `managed_connections`, `writer_connection_registration`, `actual_checkpoint_observations`, `binding_native_state_observations`, `wal_attribution` |
+| Physical cleanup | `physical_maintenance`, `physical_service_gate` |
 | Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
 | Embed dispatch state | `runtime_embedder`, `embed_dispatch` |
 | Events and telemetry | `counters`, `subscribers`, `profiling_enabled`, `slow_threshold_ms`, `telemetry`, `telemetry_enabled` |
@@ -119,3 +120,8 @@ and [Slice 81 design](../../../../plans/0.8.28/features/slice-81/design.md).
 remain unchanged. Physical debt and sanitation live in the new internal module;
 the rendezvous implementation is owned by `test_hooks`. The current blob above
 tracks this composition-only update.
+
+0.8.28 Slice 83 adds the owned physical-maintenance worker and singleton service
+guard, represented by the two physical-cleanup fields above. It retains the root
+facade methods and exact storage inventory; the current blob includes those
+changes and the new private cleanup modules.

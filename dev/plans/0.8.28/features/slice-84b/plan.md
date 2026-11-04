@@ -113,3 +113,15 @@ WAL test selector. No performance suggestion has qualified yet. Astra completed
 source-level effect review; concrete inventory is in the design. Work proceeds
 with one writer in the existing development checkout and read-only reviewers.
 No new branch/worktree or public contract change is needed.
+
+## Execution outcome
+
+Both targets were implemented at `1e9c6d584` with focused RED/GREEN, Astra
+design/code review and independent safety verification. The controller stopped
+after eight valid cells because edge screening failed. Node passed its initial
+pair only; property and later repetitions were not run. B6 is NOT QUALIFIED.
+Astra recommends rejecting the production candidate, restored to the retained
+baseline. The candidate and its tests remain in Git history. See [status](status.md)
+for per-requirement results. No threshold relaxation, retry or further experiment
+is authorized by this outcome. Final retained-tree workspace verification remains
+pending; the earlier interrupted Slice 84 collection is not a full gate.

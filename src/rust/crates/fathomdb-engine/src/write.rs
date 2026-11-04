@@ -480,7 +480,6 @@ impl Engine {
             base_cursor,
             self.provenance_row_cap.load(Ordering::Relaxed),
             &vector_kinds_to_enrol,
-            &mut *self.physical_maintenance.certificate.lock().map_err(|_| EngineError::Storage)?,
             #[cfg(feature = "test-hooks")]
             abort_next_commit_for_test,
         ) {

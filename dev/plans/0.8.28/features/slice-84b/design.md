@@ -170,3 +170,19 @@ disable triggers. Cold totals are unchecked until the original post-effect
 certification point. Optional early zero proof failure selects original postproof.
 Unknown effects use the unchanged full path. Publish only after successful COMMIT
 using the version captured while the writer lock was held.
+
+## Final disposition
+
+Candidate `1e9c6d584` passed focused correctness and work-reduction checks, but
+failed the edge service screen. Astra recommends rejection: retain the controller,
+negative evidence and candidate in Git; restore baseline production code and its
+original tests. Node passed only its first-pair screen, and property was not run.
+Neither target has a qualified integrated benefit.
+
+In the service screen, all 33 node and 21 edge modeled commits reconstructed
+totals; there were no warm reconstruction savings. Isolated warm tests prove the
+mechanism, but the conservative validity boundary did not survive the real
+workload. Exact invalidation causes were not instrumented, so no particular
+worker/maintenance transition is asserted as the cause. A successor would first
+attribute those invalidations and prove any authority-preserving transitions;
+that is separate work, not an automatic replacement campaign.

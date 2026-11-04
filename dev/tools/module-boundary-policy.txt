@@ -35,8 +35,6 @@ reported embedding
 reported erasure
 reported physical_erasure
 reported physical_erasure::admission
-reported physical_erasure::certificate
-reported physical_erasure::certificate::tests
 reported physical_maintenance
 reported physical_maintenance::tests
 reported physical_metrics

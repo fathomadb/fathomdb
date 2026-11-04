@@ -40,3 +40,7 @@ forks. No FTS cursor=rowid assumption, head-only eligibility shortcut or weaker
 orphan/residue proof is permitted. The broader guarantee/API decision remains
 open. Final success requires both correctness and integrated service improvement;
 operation-count reductions alone cannot close the performance objective.
+
+Both targets were implemented and tested. The bounded screen failed on edge
+service, so the production candidate was rejected and baseline code restored.
+See [status](status.md) for the negative result and verification.

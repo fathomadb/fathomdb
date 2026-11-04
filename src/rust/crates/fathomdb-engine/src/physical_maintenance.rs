@@ -14,7 +14,6 @@ pub(crate) struct PhysicalMaintenance {
     shared: Arc<Shared>,
     pub(crate) metrics: Arc<physical_metrics::PhysicalMetrics>,
     worker: Mutex<Option<JoinHandle<()>>>,
-    pub(crate) certificate: Mutex<Option<physical_erasure::certificate::Certificate>>,
 }
 
 pub(crate) struct MaintenanceTurn<'a> {

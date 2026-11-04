@@ -1,5 +1,63 @@
 use crate::physical_reader_admission;
 
+#[cfg(test)]
+mod diagnostic_admission_tests {
+    use super::*;
+
+    #[test]
+    fn gated_data_and_full_queue_cannot_strand_diagnostic_inventory() {
+        for fill_queue in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let engine = Arc::new(
+                crate::Engine::open(directory.path().join("inventory.sqlite")).unwrap().engine,
+            );
+            let admission = engine.reader_pool.physical_admission();
+            let pause = admission.pause().unwrap();
+            let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+            let (release_tx, release_rx) = mpsc::channel();
+            engine.reader_pool.hold_worker_zero_wal_snapshot_bounded(ready_tx, release_rx);
+            if fill_queue {
+                loop {
+                    let (respond, _) = mpsc::sync_channel(1);
+                    if engine.reader_pool.senders[0]
+                        .try_send(ReaderRequest::WalConnectionInventory { respond })
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+            let observer = Arc::clone(&engine);
+            let (done_tx, done_rx) = mpsc::channel();
+            let worker = thread::spawn(move || {
+                let connections = observer.reader_pool.wal_connection_inventory_for_test();
+                let native = observer.reader_pool.wal_native_state_inventory_for_test();
+                done_tx.send((connections, native)).unwrap();
+            });
+            let observed = done_rx.recv_timeout(Duration::from_secs(3));
+            let snapshot_was_gated = matches!(ready_rx.try_recv(), Err(mpsc::TryRecvError::Empty));
+            // Always release the real reader and join before asserting a failed witness.
+            drop(pause);
+            drop(release_tx);
+            worker.join().unwrap();
+            engine.close().unwrap();
+            assert!(snapshot_was_gated, "diagnostics must never admit the queued data snapshot");
+            let (connections, native) =
+                observed.expect("diagnostic reply must remain bounded behind gated data");
+            assert_eq!(
+                connections.len(),
+                READER_POOL_SIZE - 1,
+                "missing facts cannot masquerade as idle replies"
+            );
+            assert!(connections.into_iter().all(|idle| idle));
+            assert!(matches!(native[0].reply, NativeStateReply::Timeout));
+            assert!(native[1..]
+                .iter()
+                .all(|fact| matches!(fact.reply, NativeStateReply::Received)));
+        }
+    }
+}
+
 /// Reader pool size. Per `dev/design/engine.md` § Writer / reader split,
 /// reader connections are pooled and never serialize behind one
 /// connection. AC-021 exercises 8 concurrent readers.

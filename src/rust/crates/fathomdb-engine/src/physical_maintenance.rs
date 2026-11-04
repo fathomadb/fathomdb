@@ -181,6 +181,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn idle_debt_probes_do_not_dispatch_subscriber_profiles() {
+        #[derive(Default)]
+        struct Profiles(AtomicUsize);
+        impl lifecycle::Subscriber for Profiles {
+            fn on_event(&self, _: &lifecycle::Event) {}
+            fn on_profile(&self, _: &lifecycle::ProfileRecord) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let engine = Engine::open(directory.path().join("idle-profiles.sqlite")).unwrap().engine;
+        engine.set_profiling(true).unwrap();
+        let profiles = Arc::new(Profiles::default());
+        let subscription = engine.subscribe(profiles.clone());
+        std::thread::sleep(Duration::from_millis(350));
+        let idle = profiles.0.load(Ordering::SeqCst);
+        engine.read_get("absent", &Default::default()).unwrap();
+        let foreground = profiles.0.load(Ordering::SeqCst);
+        engine.erase_source("absent").unwrap();
+        let cleanup = profiles.0.load(Ordering::SeqCst);
+        drop(subscription);
+        engine.close().unwrap();
+        assert_eq!(idle, 0, "idle scheduler probes must not dispatch subscriber callbacks");
+        assert!(foreground > idle, "foreground profiling remains observable");
+        assert!(cleanup > foreground, "actual cleanup profiling remains observable");
+    }
+
+    #[test]
     fn synchronous_blocker_is_durable_without_a_worker_retry() {
         let directory = tempfile::tempdir().unwrap();
         let engine = Engine::open(directory.path().join("blocker.sqlite")).unwrap().engine;

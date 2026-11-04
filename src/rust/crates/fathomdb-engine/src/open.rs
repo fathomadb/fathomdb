@@ -848,6 +848,11 @@ impl Engine {
         run_admission_locked_hook_for_test(&canonical_path);
         if plan.admission == DatabaseAdmission::CurrentOnly {
             admit_current_database(&canonical_path).map_err(&report_preopen_error)?;
+            erasure_maintenance::validate_policy_before_open(
+                &canonical_path,
+                config.physical_erasure_policy,
+            )
+            .map_err(&report_preopen_error)?;
         }
         let lock = pending_lock.initialize().map_err(&report_preopen_error)?;
         #[cfg(any(test, feature = "test-hooks"))]
@@ -864,6 +869,7 @@ impl Engine {
             &embedder_identity,
             runtime_embedder.is_some(),
             query_stop_words.sha256(),
+            config.physical_erasure_policy,
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
             Arc::clone(&managed_connections),
@@ -1039,6 +1045,12 @@ impl Engine {
                 let opened = OpenedEngine {
                     engine: Self {
                         path: canonical_path.clone(),
+                        physical_policy: if report.schema_version_after >= 36 {
+                            erasure_maintenance::read_policy(&parts.connection)
+                                .map_err(|_| erasure_maintenance::policy_open_error())?
+                        } else {
+                            PhysicalErasurePolicy::Autonomous
+                        },
                         requested_config: config,
                         query_stop_words: Arc::clone(&query_stop_words),
                         resolved_config,
@@ -1121,9 +1133,13 @@ impl Engine {
                 {
                     opened.engine.projection_runtime.notify_new_work();
                 }
-                opened.engine.physical_maintenance.start(&opened.engine).map_err(|_| {
-                    EngineOpenError::Io { message: "physical cleanup worker startup failed".into() }
-                })?;
+                if opened.engine.physical_policy == PhysicalErasurePolicy::Autonomous {
+                    opened.engine.physical_maintenance.start(&opened.engine).map_err(|_| {
+                        EngineOpenError::Io {
+                            message: "physical cleanup worker startup failed".into(),
+                        }
+                    })?;
+                }
                 embed_dispatch_guard.disarm();
                 Ok(opened)
             }
@@ -1145,6 +1161,7 @@ impl Engine {
         embedder_identity: &EmbedderIdentity,
         provider_attached: bool,
         stop_words_sha256: &str,
+        physical_policy: Option<PhysicalErasurePolicy>,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
@@ -1213,6 +1230,17 @@ impl Engine {
         reject_legacy_shape(&connection)?;
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
             .map_err(map_migration_error)?;
+        if migration.schema_version_after >= 36 {
+            if fresh_database && migration.schema_version_before == 0 {
+                erasure_maintenance::initialize_policy(
+                    &connection,
+                    physical_policy.unwrap_or_default(),
+                )
+                .map_err(|_| erasure_maintenance::policy_open_error())?;
+            }
+            erasure_maintenance::read_policy(&connection)
+                .map_err(|_| erasure_maintenance::policy_open_error())?;
+        }
         validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
         if migration.schema_version_after >= 35 {
             crate::vector_spans::validate(&connection, None).map_err(|_| EngineOpenError::Io {

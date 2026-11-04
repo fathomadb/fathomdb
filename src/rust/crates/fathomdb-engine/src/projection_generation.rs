@@ -393,6 +393,10 @@ fn bootstrap_is_fresh(connection: &Connection, schema_version: u32) -> Result<bo
         }
     }
 
+    if schema_version >= 36 && count(connection, "_fathomdb_erasure_requests")? != 0 {
+        return Ok(false);
+    }
+
     let seeded_collection_is_exact: bool = connection
         .query_row(
             "SELECT COUNT(*)=1 AND EXISTS(SELECT 1 FROM operational_collections \
@@ -428,6 +432,12 @@ fn bootstrap_is_fresh(connection: &Connection, schema_version: u32) -> Result<bo
     for row in rows {
         let (key, value) = row.map_err(|_| EngineError::Storage)?;
         let baseline = match key.as_str() {
+            "_fathomdb_physical_erasure_policy" if schema_version >= 36 => {
+                matches!(value.as_str(), "autonomous" | "explicit_maintenance")
+            }
+            "_fathomdb_erasure_store" if schema_version >= 36 => {
+                value.len() == 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }
             "_fathomdb_database_id" => {
                 value.len() == 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
             }

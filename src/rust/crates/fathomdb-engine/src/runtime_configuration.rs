@@ -150,6 +150,8 @@ const MAX_SAFE_INTEGER: u64 = (1_u64 << 53) - 1;
 /// subsequently changed by an engine setter.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EngineConfig {
+    /// Fresh-store policy request; omitted on reopen honors persisted policy.
+    pub physical_erasure_policy: Option<super::PhysicalErasurePolicy>,
     /// Projection orchestration threads, `1..=64`; default `2`.
     pub scheduler_runtime_threads: Option<u64>,
     /// Provider dispatch workers, `1..=64`; default `5`.
@@ -193,6 +195,8 @@ impl EngineConfig {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum EngineConfigurationError {
+    /// An explicit open policy differs from the persisted store policy.
+    PhysicalErasurePolicyMismatch,
     /// A requested value is outside its inclusive accepted range.
     OutOfRange { field: &'static str, value: u64, min: u64, max: u64 },
     /// A derived bounded capacity cannot fit the native platform width.
@@ -215,6 +219,7 @@ pub enum EngineConfigurationError {
 impl Display for EngineConfigurationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::PhysicalErasurePolicyMismatch => write!(f, "physical erasure policy mismatch"),
             Self::OutOfRange { field, value, min, max } => {
                 write!(f, "engine configuration {field}={value} is outside {min}..={max}")
             }

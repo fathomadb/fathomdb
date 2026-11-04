@@ -64,6 +64,8 @@ mod dependency_trace;
 mod embed_dispatch;
 mod embedding;
 mod erasure;
+mod erasure_maintenance;
+pub use erasure_maintenance::PhysicalErasurePolicy;
 mod errors;
 mod evidence;
 mod filter;
@@ -476,6 +478,7 @@ const PROJECTION_WORKERS: usize = 2;
 pub struct Engine {
     path: PathBuf,
     requested_config: EngineConfig,
+    physical_policy: PhysicalErasurePolicy,
     /// The effective query stop words, shared with every reader worker.
     query_stop_words: Arc<fathomdb_query::StopWordSet>,
     #[allow(dead_code)]

@@ -186,6 +186,7 @@ impl ErasureMaintenance {
     fn release(&mut self) {
         if !self.released {
             if self.engine.maintenance_admission.release(self.token) {
+                let _ = physical_erasure::faultpoint("before_maintenance_thaw");
                 self.engine.projection_runtime.set_frozen(false);
                 self.engine.projection_runtime.notify_new_work();
             }

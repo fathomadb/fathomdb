@@ -40,3 +40,43 @@ fn search_final_telemetry_remains_owned_until_public_operation_finishes() {
     assert!(refused, "maintenance must drain search final telemetry, not only search_inner");
     drop(engine.begin_erasure_maintenance(1000).unwrap());
 }
+
+#[test]
+fn releasing_owner_keeps_new_acquisition_excluded_until_projection_thaw() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = Arc::new(
+        Engine::open_with_choice_and_config(
+            dir.path().join("release.sqlite"),
+            EmbedderChoice::None,
+            EngineConfig {
+                physical_erasure_policy: Some(PhysicalErasurePolicy::ExplicitMaintenance),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .engine,
+    );
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let (reached_tx, reached_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let closing = std::thread::spawn(move || {
+        arm_physical_erasure_hook_for_test(
+            "before_maintenance_thaw",
+            Box::new(move || {
+                reached_tx.send(()).unwrap();
+                release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                Ok(())
+            }),
+        );
+        handle.close()
+    });
+    reached_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    let second = engine.begin_erasure_maintenance(0);
+    let refused =
+        matches!(second, Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy)));
+    drop(second);
+    release_tx.send(()).unwrap();
+    closing.join().unwrap().unwrap();
+    assert!(refused, "old release must not thaw projection after a new owner acquires");
+    drop(engine.begin_erasure_maintenance(1000).unwrap());
+}

@@ -106,3 +106,67 @@ fn queue_scope_conflicts_and_survives_reopen_without_worker_or_visibility_change
         None
     );
 }
+
+fn queued_admin_refusal(effect: &str) {
+    for effect in [effect] {
+        let (_dir, engine) = fixture();
+        let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+        let ticket = accepted(
+            handle
+                .queue_physical_erasure(
+                    PhysicalErasureSelector::SourceAllAtCut { source_id: "target-source".into() },
+                    KEY,
+                )
+                .unwrap(),
+        );
+        handle.close().unwrap();
+        let before = engine
+            .query_text_col_for_test("SELECT state FROM canonical_nodes WHERE logical_id='target'")
+            .unwrap();
+        let result = match effect {
+            "lifecycle" => engine.transition("target", LifecycleState::Deleted, None),
+            "importance" => engine.write_node_importance(1, 0.5),
+            _ => engine
+                .configure_projections(
+                    &[ProjectionSpec {
+                        name: "attribute".into(),
+                        roles: std::collections::BTreeSet::from([ProjectionRole::Filterable]),
+                        fts: None,
+                        vector: None,
+                        source: None,
+                    }],
+                    &[],
+                )
+                .map(|_| ()),
+        };
+        assert!(
+            matches!(result, Err(EngineError::Maintenance(MaintenanceError::QueuedScopeFenced))),
+            "{effect} must refuse before state/projection mutation: {result:?}"
+        );
+        assert_eq!(
+            engine
+                .query_text_col_for_test(
+                    "SELECT state FROM canonical_nodes WHERE logical_id='target'"
+                )
+                .unwrap(),
+            before
+        );
+        assert_eq!(
+            engine.physical_erasure_status(&ticket).unwrap().unwrap().phase,
+            ErasurePhase::Queued
+        );
+    }
+}
+
+#[test]
+fn queued_lifecycle_cannot_change_accepted_scope() {
+    queued_admin_refusal("lifecycle");
+}
+#[test]
+fn queued_importance_cannot_mutate_selected_root() {
+    queued_admin_refusal("importance");
+}
+#[test]
+fn queued_projection_cannot_rebuild_selected_root() {
+    queued_admin_refusal("projection");
+}

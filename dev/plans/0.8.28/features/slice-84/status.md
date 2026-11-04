@@ -10,8 +10,8 @@ The bounded investigation and all 54 measurements are complete. **S84-6 failed
 for every family; the optimization is NOT QUALIFIED.** Astra reviewed the
 negative result and recommended rejecting the production scheduling change.
 Original Slice 83 scheduling and ADR semantics are restored. Profiling and the
-bounded measurement tooling are retained. The full workspace gate is pending;
-no performance repair, numerical guarantee or cleanup API is claimed.
+bounded measurement tooling are retained. The full workspace gate is incomplete;
+no performance repair, full-green result, numerical guarantee or cleanup API is claimed.
 
 ## Scope, design and implementation
 
@@ -118,8 +118,24 @@ including randomized retries and rollback, on the reviewed candidate. Scoped eng
 passed. The final retained profiling test passes after candidate rejection.
 Astra independently reconciled all raw offers, native physical success, frozen
 input/binary/controller/helper hashes, resource limits, every failed service gate
-and context/idle results. The final workspace gate remains pending; its result
-will be recorded before closeout.
+and context/idle results. The final verifier started at `7b7cf2472` and stopped
+in lint because the new observer test module lacked an ownership entry.
+`10a5a2a34` added that entry; resumed lint and typecheck passed, and strict security
+passed with zero violations, blockers or downgrades. Independent final checks
+passed five restored maintenance tests and the retained observer test.
+
+The full test collection found a pre-existing Windows WAL harness selector
+mismatch: `test_windows_wal_attribution_ci_job.sh` inspects
+`complete_erasure_at_rest`, but Slice 83 moved the observed checkpoint into
+`checkpoint_erasure_at_rest`. Astra confirmed both files are unchanged from the
+Slice 83 baseline and actual observation ordering is intact. No unrelated repair
+was made. The remaining broad collection was stopped to prioritize the requested
+Slice 84b planning handoff; uncompleted suites are not claimed passed. Logs are
+`/tmp/fathomdb-slice84-final-verify.log` and
+`/tmp/fathomdb-slice84-{lint,typecheck,security,tests}-resume.log`.
+This is incomplete workspace verification, not a full-green gate. Slice 84 stays
+unqualified; the follow-up [Slice 84b draft](../slice-84b/README.md) targets the
+measured certification costs.
 
 At the owner's request, primary-source web research and Astra applicability
 review were completed before disposition. The

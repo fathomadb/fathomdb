@@ -345,3 +345,20 @@ fn offline_refuses_unknown_format36_policy_before_cleanup() {
     engine.close().unwrap();
     assert!(recover_complete_erasures(dir.path().join("physical.sqlite")).is_err());
 }
+
+#[test]
+fn sanitation_failure_reports_sanitizing_instead_of_native_execution() {
+    let (_dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    arm_physical_erasure_hook_for_test(
+        "after_sanitation_unit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(handle.complete_physical_erasure(&ticket).is_err());
+    handle.close().unwrap();
+    assert_eq!(
+        engine.physical_erasure_status(&ticket).unwrap().unwrap().phase,
+        ErasurePhase::Sanitizing
+    );
+}

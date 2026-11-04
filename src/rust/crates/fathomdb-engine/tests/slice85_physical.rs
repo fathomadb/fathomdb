@@ -362,3 +362,22 @@ fn sanitation_failure_reports_sanitizing_instead_of_native_execution() {
         ErasurePhase::Sanitizing
     );
 }
+
+#[test]
+fn partial_identity_bearing_finalization_authority_refuses_open() {
+    let (dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    arm_physical_erasure_hook_for_test(
+        "after_delete_commit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(handle.complete_physical_erasure(&ticket).is_err());
+    handle.close().unwrap();
+    engine.execute_for_test("UPDATE _fathomdb_erasure_requests SET payload=json_set(payload,'$.status.phase','finalizing')").unwrap();
+    engine.close().unwrap();
+    assert!(
+        Engine::open(dir.path().join("physical.sqlite")).is_err(),
+        "Finalizing requires identity-free queue and redacted root authority"
+    );
+}

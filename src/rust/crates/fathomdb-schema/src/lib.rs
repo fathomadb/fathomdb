@@ -1337,8 +1337,10 @@ pub const MIGRATIONS: &[Migration] = &[
         sql: "CREATE TABLE _fathomdb_erasure_requests(
                   ticket TEXT PRIMARY KEY NOT NULL,
                   idempotency_key TEXT UNIQUE NOT NULL,
+                  phase TEXT NOT NULL,
                   payload TEXT NOT NULL
-              );",
+              );
+              CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);",
     },
 ];
 

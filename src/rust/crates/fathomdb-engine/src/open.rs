@@ -1241,6 +1241,8 @@ impl Engine {
             }
             erasure_maintenance::read_policy(&connection)
                 .map_err(|_| erasure_maintenance::policy_open_error())?;
+            erasure_queue::validate(&connection)
+                .map_err(|_| erasure_maintenance::policy_open_error())?;
         }
         validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
         if migration.schema_version_after >= 35 {

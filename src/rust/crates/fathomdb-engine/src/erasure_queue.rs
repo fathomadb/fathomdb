@@ -1,0 +1,611 @@
+use super::*;
+use serde::{Deserialize, Serialize};
+
+/// Exact selector whose committed cut is frozen on queue acceptance.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PhysicalErasureSelector {
+    /// All retained canonical roots belonging to this governed source.
+    SourceAllAtCut { source_id: String },
+    /// All retained versions of a deleted logical node and its touching edges.
+    DeletedLogicalAllAtCut { logical_id: String },
+}
+impl std::fmt::Debug for PhysicalErasureSelector {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("PhysicalErasureSelector(<redacted>)")
+    }
+}
+/// Logical effect of this request, independently of preexisting visibility.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ErasureLogicalState {
+    UnchangedByThisRequest,
+    Removed,
+}
+/// Durable progress of one keyed request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ErasurePhase {
+    Queued,
+    Executing,
+    Sanitizing,
+    Finalizing,
+    Complete,
+    WithdrawnBeforeRemoval,
+}
+/// Inspectable expected blocker, never a success or deadline estimate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ErasureBlocker {
+    ResourceEnvelopeChanged,
+    OriginalSinkUnavailable,
+    WalCheckpoint,
+    OwnedReaders,
+}
+/// Identity-free status under the Engine's existing access authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ErasureStatus {
+    pub phase: ErasurePhase,
+    pub logical_state: ErasureLogicalState,
+    pub blocker: Option<ErasureBlocker>,
+    pub service_state: ErasureServiceState,
+    pub target_count: u64,
+}
+/// Queue acceptance never means removal; heavy admission requires a handle.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum QueueResult {
+    Accepted { ticket: String, logical_state: ErasureLogicalState },
+    NeedsMaintenanceAdmission,
+}
+/// Withdrawal cannot cancel activated physical obligations.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WithdrawResult {
+    WithdrawnBeforeRemoval,
+    AlreadyActivated,
+    Unknown,
+}
+/// Actual physical completion or retained, inspectable unfinished work.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum CleanupResult {
+    Complete { receipt: ErasureStatus },
+    Incomplete { status: ErasureStatus },
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Scope {
+    pub(crate) cursors: Vec<i64>,
+    sources: Vec<String>,
+    identities: Vec<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Request {
+    version: u32,
+    pub(crate) ticket: String,
+    key: String,
+    pub(crate) selector: Option<PhysicalErasureSelector>,
+    cut: u64,
+    scope: Scope,
+    pub(crate) originals: Vec<String>,
+    pub(crate) status: ErasureStatus,
+}
+
+fn error(reason: MaintenanceError) -> EngineError {
+    EngineError::Maintenance(reason)
+}
+fn valid_hex(value: &str, len: usize) -> bool {
+    value.len() == len && value.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+fn validate_key(key: &str) -> Result<(), EngineError> {
+    if valid_hex(key, 32) {
+        Ok(())
+    } else {
+        Err(error(MaintenanceError::InvalidKey))
+    }
+}
+fn validate_ticket(ticket: &str) -> Result<(), EngineError> {
+    if ticket.len() == 65
+        && ticket.as_bytes()[32] == b':'
+        && valid_hex(&ticket[..32], 32)
+        && valid_hex(&ticket[33..], 32)
+    {
+        Ok(())
+    } else {
+        Err(error(MaintenanceError::InvalidTicket))
+    }
+}
+fn validate_selector(selector: &PhysicalErasureSelector) -> Result<(), EngineError> {
+    match selector {
+        PhysicalErasureSelector::SourceAllAtCut { source_id } => {
+            SourceId::new(source_id)?;
+        }
+        PhysicalErasureSelector::DeletedLogicalAllAtCut { logical_id } => {
+            if logical_id.is_empty() || logical_id.contains(':') || logical_id.len() > 1024 {
+                return Err(EngineError::WriteValidation);
+            }
+        }
+    }
+    Ok(())
+}
+fn hash(domain: &str, value: &str) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"fathomdb.queued-scope.v1\0");
+    digest.update(domain.as_bytes());
+    digest.update([0]);
+    digest.update(value.as_bytes());
+    identity::hex_encode(&digest.finalize())
+}
+pub(crate) fn load(c: &Connection, ticket: &str) -> Result<Option<Request>, EngineError> {
+    let raw: Option<String> = c
+        .query_row(
+            "SELECT payload FROM _fathomdb_erasure_requests WHERE ticket=?1",
+            [ticket],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    raw.map(|raw| decode(&raw)).transpose()
+}
+fn decode(raw: &str) -> Result<Request, EngineError> {
+    let r: Request = serde_json::from_str(raw).map_err(|_| EngineError::Storage)?;
+    let queued = r.status.phase == ErasurePhase::Queued;
+    let terminal =
+        matches!(r.status.phase, ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval);
+    if r.version != 1
+        || validate_ticket(&r.ticket).is_err()
+        || validate_key(&r.key).is_err()
+        || (queued
+            && (r.selector.is_none()
+                || r.status.logical_state != ErasureLogicalState::UnchangedByThisRequest))
+        || (terminal
+            && (r.selector.is_some()
+                || r.scope != Scope::default()
+                || r.cut != 0
+                || !r.originals.is_empty()))
+        || r.scope.cursors.len() > 16384
+        || !r.scope.cursors.windows(2).all(|v| v[0] < v[1])
+        || r.scope
+            .sources
+            .iter()
+            .chain(&r.scope.identities)
+            .chain(&r.originals)
+            .any(|v| !valid_hex(v, 64))
+        || r.scope.cursors.iter().any(|v| *v <= 0)
+    {
+        return Err(EngineError::Storage);
+    }
+    Ok(r)
+}
+pub(crate) fn store(c: &Connection, r: &Request) -> Result<(), EngineError> {
+    let raw = serde_json::to_string(r).map_err(|_| EngineError::Storage)?;
+    c.execute("INSERT INTO _fathomdb_erasure_requests(ticket,idempotency_key,phase,payload) VALUES(?1,?2,?3,?4) ON CONFLICT(ticket) DO UPDATE SET phase=excluded.phase,payload=excluded.payload", params![r.ticket,r.key,serde_json::to_value(r.status.phase).map_err(|_|EngineError::Storage)?.as_str().ok_or(EngineError::Storage)?,raw]).map_err(|_| EngineError::Storage)?;
+    Ok(())
+}
+fn requests(c: &Connection) -> Result<Vec<Request>, EngineError> {
+    let mut s = c
+        .prepare("SELECT payload FROM _fathomdb_erasure_requests ORDER BY ticket")
+        .map_err(|_| EngineError::Storage)?;
+    let rows = s.query_map([], |r| r.get::<_, String>(0)).map_err(|_| EngineError::Storage)?;
+    rows.map(|r| decode(&r.map_err(|_| EngineError::Storage)?)).collect()
+}
+pub(crate) fn validate(c: &Connection) -> Result<(), EngineError> {
+    let rows = requests(c)?;
+    if rows.len() > 4113
+        || rows.iter().filter(|r| r.status.phase == ErasurePhase::Queued).count() > 16
+    {
+        return Err(EngineError::Storage);
+    }
+    let mut active = rows.iter().filter(|r| {
+        matches!(
+            r.status.phase,
+            ErasurePhase::Executing | ErasurePhase::Sanitizing | ErasurePhase::Finalizing
+        )
+    });
+    if active.next().is_some() && active.next().is_some() {
+        return Err(EngineError::Storage);
+    }
+    Ok(())
+}
+fn queued(c: &Connection) -> Result<Vec<Request>, EngineError> {
+    let mut statement = c
+        .prepare(
+            "SELECT payload FROM _fathomdb_erasure_requests WHERE phase='queued' ORDER BY ticket",
+        )
+        .map_err(|_| EngineError::Storage)?;
+    let rows =
+        statement.query_map([], |r| r.get::<_, String>(0)).map_err(|_| EngineError::Storage)?;
+    rows.map(|row| decode(&row.map_err(|_| EngineError::Storage)?)).collect()
+}
+
+fn by_key(
+    c: &Connection,
+    key: &str,
+    selector: &PhysicalErasureSelector,
+) -> Result<Option<QueueResult>, EngineError> {
+    let ticket: Option<String> = c
+        .query_row(
+            "SELECT ticket FROM _fathomdb_erasure_requests WHERE idempotency_key=?1",
+            [key],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some(ticket) = ticket else { return Ok(None) };
+    let r = load(c, &ticket)?.ok_or(EngineError::Storage)?;
+    if matches!(r.status.phase, ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval) {
+        return Err(error(MaintenanceError::KeyRetired));
+    }
+    if r.selector.as_ref() != Some(selector) {
+        return Err(error(MaintenanceError::IdempotencyConflict));
+    }
+    Ok(Some(QueueResult::Accepted { ticket, logical_state: r.status.logical_state }))
+}
+
+pub(crate) fn preview(
+    c: &Connection,
+    selector: &PhysicalErasureSelector,
+) -> Result<Scope, EngineError> {
+    let (argument, node_predicate, edge_predicate) = match selector {
+        PhysicalErasureSelector::SourceAllAtCut { source_id } => {
+            (source_id.as_str(), "source_id=?1", "source_id=?1")
+        }
+        PhysicalErasureSelector::DeletedLogicalAllAtCut { logical_id } => {
+            let state:Option<String>=c.query_row("SELECT state FROM canonical_nodes WHERE logical_id=?1 AND superseded_at IS NULL",[logical_id],|r|r.get(0)).optional().map_err(|_|EngineError::Storage)?;
+            if let Some(raw) = state {
+                if raw != "deleted" {
+                    let from_state =
+                        LifecycleState::from_str_opt(&raw).ok_or(EngineError::Storage)?;
+                    return Err(EngineError::IllegalTransition {
+                        from_state,
+                        to_state: LifecycleState::Purged,
+                        legal: from_state.legal_next_states(),
+                    });
+                }
+            }
+            (logical_id.as_str(), "logical_id=?1", "from_id=?1 OR to_id=?1")
+        }
+    };
+    let mut scope = Scope::default();
+    let mut node_cursors = Vec::new();
+    for (table, predicate) in
+        [("canonical_nodes", node_predicate), ("canonical_edges", edge_predicate)]
+    {
+        let mut statement = c
+            .prepare(&format!("SELECT write_cursor FROM {table} WHERE {predicate}"))
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([argument], |r| r.get::<_, i64>(0))
+            .map_err(|_| EngineError::Storage)?;
+        for cursor in rows {
+            let cursor = cursor.map_err(|_| EngineError::Storage)?;
+            scope.cursors.push(cursor);
+            if table == "canonical_nodes" {
+                node_cursors.push(cursor)
+            }
+        }
+    }
+    let revisions = node_cursors
+        .iter()
+        .map(|v| dependency_closure::source_revision_for_cursor(c, *v))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    for (_, dependents) in dependency_closure::physical_dependents_for_sources(c, &revisions)? {
+        scope.cursors.extend(dependents.into_iter().map(|(_, cursor)| cursor));
+    }
+    scope.cursors.sort_unstable();
+    scope.cursors.dedup();
+    if scope.cursors.len() > 16384 {
+        return Err(error(MaintenanceError::UnsupportedScope));
+    }
+    let cursors = serde_json::to_string(&scope.cursors).map_err(|_| EngineError::Storage)?;
+    for table in ["canonical_nodes", "canonical_edges"] {
+        let mut statement=c.prepare(&format!("SELECT source_id,logical_id,body FROM {table} WHERE write_cursor IN (SELECT value FROM json_each(?1))")).map_err(|_|EngineError::Storage)?;
+        let rows = statement
+            .query_map([&cursors], |r| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            let (source, logical, body) = row.map_err(|_| EngineError::Storage)?;
+            if let Some(source) = source {
+                scope.sources.push(hash("source", &source));
+            }
+            scope.identities.push(hash(
+                "identity",
+                &derive_stable_id(logical.as_deref(), body.as_deref().unwrap_or("")).to_prefixed(),
+            ));
+        }
+    }
+    match selector {
+        PhysicalErasureSelector::SourceAllAtCut { source_id } => {
+            scope.sources.push(hash("source", source_id))
+        }
+        PhysicalErasureSelector::DeletedLogicalAllAtCut { logical_id } => {
+            scope.identities.push(hash("identity", &format!("l:{logical_id}")))
+        }
+    }
+    scope.sources.sort_unstable();
+    scope.sources.dedup();
+    scope.identities.sort_unstable();
+    scope.identities.dedup();
+    Ok(scope)
+}
+fn overlaps(a: &Scope, b: &Scope) -> bool {
+    a.cursors.iter().any(|v| b.cursors.contains(v))
+        || a.sources.iter().any(|v| b.sources.contains(v))
+        || a.identities.iter().any(|v| b.identities.contains(v))
+}
+fn check_identity(
+    scope: &Scope,
+    source: Option<&str>,
+    logical: Option<&str>,
+    body: &str,
+) -> Result<(), EngineError> {
+    if source.is_some_and(|s| scope.sources.contains(&hash("source", s)))
+        || scope
+            .identities
+            .contains(&hash("identity", &derive_stable_id(logical, body).to_prefixed()))
+    {
+        return Err(error(MaintenanceError::QueuedScopeFenced));
+    }
+    Ok(())
+}
+pub(crate) fn guard_plain(c: &Connection, batch: &[PreparedWrite]) -> Result<(), EngineError> {
+    let queued = queued(c)?;
+    if queued.is_empty() {
+        return Ok(());
+    }
+    if !write_commit::canonical_batch_has_no_custom_triggers(c).map_err(|_| EngineError::Storage)? {
+        return Err(error(MaintenanceError::QueuedScopeFenced));
+    }
+    for request in queued {
+        for write in batch {
+            let (table, source, logical, body, from, to, kind) = match write {
+                PreparedWrite::Node { source_id, logical_id, body, .. } => (
+                    "canonical_nodes",
+                    source_id.as_str(),
+                    logical_id.as_deref(),
+                    body.as_str(),
+                    None,
+                    None,
+                    None,
+                ),
+                PreparedWrite::Edge { source_id, logical_id, body, from, to, kind, .. } => (
+                    "canonical_edges",
+                    source_id.as_str(),
+                    logical_id.as_deref(),
+                    body.as_deref().unwrap_or(""),
+                    Some(from.as_str()),
+                    Some(to.as_str()),
+                    Some(kind.as_str()),
+                ),
+                _ => return Err(error(MaintenanceError::QueuedScopeFenced)),
+            };
+            check_identity(&request.scope, Some(source), logical, body)?;
+            for endpoint in [from, to].into_iter().flatten() {
+                if request.scope.identities.contains(&hash("identity", &format!("l:{endpoint}"))) {
+                    return Err(error(MaintenanceError::QueuedScopeFenced));
+                }
+            }
+            let endpoints = if table == "canonical_edges" { "from_id,to_id" } else { "NULL,NULL" };
+            let predicate = if table == "canonical_edges" {
+                "logical_id=?1 OR (from_id=?2 AND to_id=?3 AND kind=?4)"
+            } else {
+                "logical_id=?1"
+            };
+            let mut statement = c
+                .prepare(&format!(
+                    "SELECT source_id,logical_id,body,{endpoints} FROM {table} WHERE {predicate}"
+                ))
+                .map_err(|_| EngineError::Storage)?;
+            let row = |r: &rusqlite::Row<'_>| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    r.get::<_, Option<String>>(3)?,
+                    r.get::<_, Option<String>>(4)?,
+                ))
+            };
+            let rows = if table == "canonical_edges" {
+                statement.query_map(params![logical, from, to, kind], row)
+            } else {
+                statement.query_map(params![logical], row)
+            }
+            .map_err(|_| EngineError::Storage)?;
+            for row in rows {
+                let (source, logical, body, from, to) = row.map_err(|_| EngineError::Storage)?;
+                check_identity(
+                    &request.scope,
+                    source.as_deref(),
+                    logical.as_deref(),
+                    body.as_deref().unwrap_or(""),
+                )?;
+                for endpoint in [from, to].into_iter().flatten() {
+                    if request
+                        .scope
+                        .identities
+                        .contains(&hash("identity", &format!("l:{endpoint}")))
+                    {
+                        return Err(error(MaintenanceError::QueuedScopeFenced));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+pub(crate) fn guard_admin(c: &Connection) -> Result<(), EngineError> {
+    if !queued(c)?.is_empty() {
+        return Err(error(MaintenanceError::QueuedScopeFenced));
+    }
+    Ok(())
+}
+
+impl Engine {
+    /// Queue durable intent without deleting or hiding data. First-time normal
+    /// admission refuses heavy discovery; acquire a window for that preflight.
+    pub fn queue_physical_erasure(
+        &self,
+        selector: PhysicalErasureSelector,
+        key: &str,
+    ) -> Result<QueueResult, EngineError> {
+        let _operation = self.ensure_open()?;
+        validate_key(key)?;
+        validate_selector(&selector)?;
+        if self.physical_policy != PhysicalErasurePolicy::ExplicitMaintenance {
+            return Err(error(MaintenanceError::PolicyMismatch));
+        }
+        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let c = guard.as_ref().ok_or(EngineError::Closing)?;
+        if let Some(result) = by_key(c, key, &selector)? {
+            return Ok(result);
+        }
+        Ok(QueueResult::NeedsMaintenanceAdmission)
+    }
+    /// Read only a store-bound ticket. Unknown/wrong-store well-formed tickets
+    /// return None; no selector or store-wide listing is disclosed.
+    pub fn physical_erasure_status(
+        &self,
+        ticket: &str,
+    ) -> Result<Option<ErasureStatus>, EngineError> {
+        let _operation = self.ensure_open()?;
+        validate_ticket(ticket)?;
+        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let c = guard.as_ref().ok_or(EngineError::Closing)?;
+        Ok(load(c, ticket)?.map(|r| r.status))
+    }
+    /// Withdraw only a queued request; no physical-success claim is produced.
+    pub fn withdraw_queued_erasure(&self, ticket: &str) -> Result<WithdrawResult, EngineError> {
+        let _operation = self.ensure_open()?;
+        validate_ticket(ticket)?;
+        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let c = guard.as_mut().ok_or(EngineError::Closing)?;
+        let tx = c
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let Some(mut request) = load(&tx, ticket)? else { return Ok(WithdrawResult::Unknown) };
+        if request.status.phase == ErasurePhase::WithdrawnBeforeRemoval {
+            return Ok(WithdrawResult::WithdrawnBeforeRemoval);
+        }
+        if request.status.phase != ErasurePhase::Queued {
+            return Ok(WithdrawResult::AlreadyActivated);
+        }
+        request.selector = None;
+        request.scope = Scope::default();
+        request.cut = 0;
+        request.originals.clear();
+        request.status.phase = ErasurePhase::WithdrawnBeforeRemoval;
+        store(&tx, &request)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(WithdrawResult::WithdrawnBeforeRemoval)
+    }
+}
+impl ErasureMaintenance {
+    /// Admit exact immutable intent using heavy resource/closure discovery in
+    /// this owned window; acceptance still performs no destructive work.
+    pub fn queue_physical_erasure(
+        &self,
+        selector: PhysicalErasureSelector,
+        key: &str,
+    ) -> Result<QueueResult, EngineError> {
+        let _serial =
+            self.operation.try_lock().map_err(|_| error(MaintenanceError::MaintenanceBusy))?;
+        self.engine.maintenance_admission.with_permit(self.token, || {
+            let _operation = self.engine.ensure_open()?;
+            validate_key(key)?;
+            validate_selector(&selector)?;
+            let mut guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+            let c = guard.as_mut().ok_or(EngineError::Closing)?;
+            let tx = c
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| EngineError::Storage)?;
+            if let Some(result) = by_key(&tx, key, &selector)? {
+                return Ok(result);
+            }
+            dependency_closure::guard_no_pending_physical(&tx)?;
+            physical_erasure::envelope(&tx)?;
+            let rows = requests(&tx)?;
+            if rows.iter().filter(|r| r.status.phase == ErasurePhase::Queued).count() >= 16
+                || rows
+                    .iter()
+                    .filter(|r| {
+                        matches!(
+                            r.status.phase,
+                            ErasurePhase::Complete | ErasurePhase::WithdrawnBeforeRemoval
+                        )
+                    })
+                    .count()
+                    >= 4096
+            {
+                return Err(error(MaintenanceError::Capacity));
+            }
+            let scope = preview(&tx, &selector)?;
+            if rows
+                .iter()
+                .filter(|r| r.status.phase == ErasurePhase::Queued)
+                .any(|r| overlaps(&r.scope, &scope))
+            {
+                return Err(error(MaintenanceError::ScopeConflict));
+            }
+            let store_id: String = tx
+                .query_row(
+                    "SELECT value FROM _fathomdb_open_state WHERE key='_fathomdb_erasure_store'",
+                    [],
+                    |r| r.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?;
+            let nonce: String = tx
+                .query_row("SELECT lower(hex(randomblob(16)))", [], |r| r.get(0))
+                .map_err(|_| EngineError::Storage)?;
+            let ticket = format!("{store_id}:{nonce}");
+            let request = Request {
+                version: 1,
+                ticket: ticket.clone(),
+                key: key.into(),
+                selector: Some(selector),
+                cut: self.engine.next_cursor.load(Ordering::SeqCst),
+                status: ErasureStatus {
+                    phase: ErasurePhase::Queued,
+                    logical_state: ErasureLogicalState::UnchangedByThisRequest,
+                    blocker: None,
+                    service_state: ErasureServiceState::NormalWithQueuedRestrictions,
+                    target_count: scope.cursors.len() as u64,
+                },
+                scope,
+                originals: telemetry::registered_sinks(&tx)?,
+            };
+            let size: u64 = tx
+                .query_row(
+                    "SELECT COALESCE(SUM(length(payload)),0) FROM _fathomdb_erasure_requests",
+                    [],
+                    |r| r.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?;
+            if size + serde_json::to_vec(&request).map_err(|_| EngineError::Storage)?.len() as u64
+                > 8 << 20
+            {
+                return Err(error(MaintenanceError::Capacity));
+            }
+            store(&tx, &request)?;
+            physical_erasure::faultpoint("before_queue_commit")?;
+            tx.commit().map_err(|_| EngineError::Storage)?;
+            physical_erasure::faultpoint("after_queue_commit")?;
+            Ok(QueueResult::Accepted {
+                ticket,
+                logical_state: ErasureLogicalState::UnchangedByThisRequest,
+            })
+        })
+    }
+}

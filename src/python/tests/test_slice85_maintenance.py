@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from fathomdb import Engine, EngineConfig
+from fathomdb import Engine, EngineConfig, SourceAllAtCut
+from fathomdb.errors import MaintenanceError
 
 
 def test_persisted_policy_and_maintenance_handle(tmp_path):
@@ -13,7 +14,7 @@ def test_persisted_policy_and_maintenance_handle(tmp_path):
         assert engine.physical_erasure_policy() == "explicit_maintenance"
         handle = engine.begin_erasure_maintenance(100)
         try:
-            with pytest.raises(Exception) as captured:
+            with pytest.raises(MaintenanceError) as captured:
                 engine.erase_source("test-source")
             assert captured.value.reason == "maintenance_busy"
         finally:
@@ -23,7 +24,7 @@ def test_persisted_policy_and_maintenance_handle(tmp_path):
     reopened = Engine.open(path)
     try:
         assert reopened.physical_erasure_policy() == "explicit_maintenance"
-        with pytest.raises(Exception) as captured:
+        with pytest.raises(MaintenanceError) as captured:
             reopened.erase_source("test-source")
         assert captured.value.reason == "maintenance_required"
     finally:
@@ -32,7 +33,7 @@ def test_persisted_policy_and_maintenance_handle(tmp_path):
 
 def test_queued_intent_retry_status_and_withdrawal(tmp_path):
     engine = Engine.open(str(tmp_path / "queue.sqlite"), config=EngineConfig(physical_erasure_policy="explicit_maintenance"))
-    selector = {"kind": "source_all_at_cut", "source_id": "test-source"}
+    selector: SourceAllAtCut = {"kind": "source_all_at_cut", "source_id": "test-source"}
     opaque = "0123456789abcdef0123456789abcdef"
     try:
         assert engine.queue_physical_erasure(selector, opaque) == {"outcome": "needs_maintenance_admission"}
@@ -43,10 +44,13 @@ def test_queued_intent_retry_status_and_withdrawal(tmp_path):
         ticket = accepted["ticket"]
         assert engine.queue_physical_erasure(selector, opaque) == accepted
         status = engine.physical_erasure_status(ticket)
+        assert status is not None
         assert status["phase"] == "queued"
         assert "source_id" not in status
         assert engine.withdraw_queued_erasure(ticket) == "withdrawn_before_removal"
-        assert engine.physical_erasure_status(ticket)["phase"] == "withdrawn_before_removal"
+        withdrawn = engine.physical_erasure_status(ticket)
+        assert withdrawn is not None
+        assert withdrawn["phase"] == "withdrawn_before_removal"
     finally:
         engine.close()
 
@@ -65,6 +69,7 @@ def test_physical_complete_returns_receipt_after_actual_bytes_are_gone(tmp_path)
     try:
         with engine.begin_erasure_maintenance(1000) as handle:
             accepted = handle.queue_physical_erasure({"kind": "source_all_at_cut", "source_id": "target-source"}, "f23e2130b50242e3b8d545d4fa3d8015")
+            assert accepted["outcome"] == "accepted"
             result = handle.complete_physical_erasure(accepted["ticket"])
             assert result["outcome"] == "complete"
             assert result["receipt"]["logical_state"] == "removed"
@@ -74,7 +79,9 @@ def test_physical_complete_returns_receipt_after_actual_bytes_are_gone(tmp_path)
         for artifact in [path, path.with_name(path.name + "-wal")]:
             if artifact.exists():
                 assert marker.encode() not in artifact.read_bytes()
-        assert engine.physical_erasure_status(accepted["ticket"])["phase"] == "complete"
+        completed = engine.physical_erasure_status(accepted["ticket"])
+        assert completed is not None
+        assert completed["phase"] == "complete"
     finally:
         engine.close()
 
@@ -129,8 +136,6 @@ asyncio.run(main())
 
 
 def test_original_sink_blocker_and_authenticated_reattachment_match_native(tmp_path):
-    from fathomdb.errors import MaintenanceError
-
     path = str(tmp_path / "sink.sqlite")
     sink = tmp_path / "original.jsonl"
     engine = Engine.open(path, config=EngineConfig(physical_erasure_policy="explicit_maintenance"))
@@ -139,6 +144,7 @@ def test_original_sink_blocker_and_authenticated_reattachment_match_native(tmp_p
     engine.search_text_only("sinktargetmarker85")
     with engine.begin_erasure_maintenance(1000) as handle:
         accepted = handle.queue_physical_erasure({"kind": "source_all_at_cut", "source_id": "target-source"}, "f23e2130b50242e3b8d545d4fa3d8015")
+        assert accepted["outcome"] == "accepted"
     engine.close()
     engine = Engine.open(path)
     try:
@@ -154,6 +160,8 @@ def test_original_sink_blocker_and_authenticated_reattachment_match_native(tmp_p
             assert captured.value.reason == "original_sink_mismatch"
             handle.reattach_original_erasure_sink(accepted["ticket"], str(sink))
             assert handle.complete_physical_erasure(accepted["ticket"])["outcome"] == "complete"
-        assert engine.physical_erasure_status(accepted["ticket"])["phase"] == "complete"
+        completed = engine.physical_erasure_status(accepted["ticket"])
+        assert completed is not None
+        assert completed["phase"] == "complete"
     finally:
         engine.close()

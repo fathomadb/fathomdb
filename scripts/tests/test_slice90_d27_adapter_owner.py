@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import unittest
 
-from rust_source_lex import brace_depth, outer_attributes as prelude, rust_code_tokens
+from rust_source_lex import brace_depth, outer_attributes as prelude, rust_code_tokens, rust_mask
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,7 +44,42 @@ def core_dependency_escape(core: str) -> bool:
     if len(matches) != 1:
         return True
     core = core[:matches[0].start()] + core[matches[0].end():]
+    callback_import = re.compile(
+        r'(?m)^use crate::maintenance_admission::callback::Callback;$'
+    )
+    matches = list(callback_import.finditer(core))
+    if len(matches) != 1 or prelude(core, matches[0].start()):
+        return True
+    core = core[:matches[0].start()] + core[matches[0].end():]
     return runtime_dependency_escape(core)
+
+
+def callback_dependency_escape(source: str) -> bool:
+    tokens = rust_code_tokens(source)
+    if not tokens or runtime_dependency_escape(source):
+        return True
+    if any(token in tokens for token in ("mod", "path", "extern", "unsafe", "macro_rules", "#")):
+        return True
+    # The leaf has no imported engine/runtime authority. Only Cell and its
+    # constructor qualify names, and thread_local is its sole macro expansion.
+    code = rust_mask(source, literals=True)
+    if re.findall(r'\buse\s+([^;]+);', code) != ["std::cell::Cell"]:
+        return True
+    paths = set(re.findall(r'\b[A-Za-z_]\w*(?:::[A-Za-z_]\w*)+', code))
+    if paths != {"std::cell::Cell", "Cell::new"}:
+        return True
+    macros = [tokens[index - 1] for index, token in enumerate(tokens)
+              if token == "!" and index and tokens[index + 1:index + 2] in (["("], ["{"], ["["])]
+    if macros != ["thread_local"]:
+        return True
+    return re.findall(r'\bfn\s+(\w+)', code) != ["enter", "drop", "in_callback"]
+
+
+def exact_module(source: str, declaration: str, attributes: list[str]) -> bool:
+    matches = list(re.finditer(r'(?m)^' + re.escape(declaration) + r'$',
+                               rust_mask(source, literals=True)))
+    return (len(matches) == 1 and brace_depth(source, matches[0].start()) == 0
+            and prelude(source, matches[0].start()) == attributes)
 
 
 def inventory() -> tuple[str, dict[str, str], str]:
@@ -104,6 +139,20 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
             errors.append("standalone dispatch core depends on Engine or another runtime owner")
         if "macro_rules" in rust_code_tokens(core):
             errors.append("standalone dispatch core hides edges in a macro")
+    callback = modules.get("maintenance_admission/callback.rs", "")
+    if callback_dependency_escape(callback):
+        errors.append("standalone callback leaf depends on runtime or hides dependency edges")
+    admission = modules.get("maintenance_admission.rs", "")
+    if (not exact_module(root, "mod maintenance_admission;", [])
+            or not exact_module(admission, "pub(crate) mod callback;", [])):
+        errors.append("production callback leaf does not have its ordinary exact owner")
+    if not exact_module(standalone, "pub(crate) mod callback;",
+                        ['#[path="../src/maintenance_admission/callback.rs"]']):
+        errors.append("standalone dispatcher test does not include the production callback leaf")
+    bridge = re.search(r'(?m)^mod maintenance_admission \{\n    pub\(crate\) use crate::callback;\n}',
+                       rust_mask(standalone, literals=True))
+    if not bridge or prelude(standalone, bridge.start()) or brace_depth(standalone, bridge.start()):
+        errors.append("standalone dispatcher callback owner is substituted or gated")
     observation = modules.get("embed_dispatch/d27_observation.rs", "")
     if not observation or runtime_dependency_escape(observation):
         errors.append("standalone D27 observation depends on Engine or another runtime owner")
@@ -136,6 +185,51 @@ class D27AdapterOwnerTest(unittest.TestCase):
             "standalone D27 observation depends on Engine or another runtime owner",
             owner_errors(root, changed, standalone),
         )
+
+    def test_callback_leaf_exception_is_exact_and_runtime_free(self) -> None:
+        root, modules, standalone = inventory()
+        core = modules["embed_dispatch/core.rs"]
+        leaf = modules["maintenance_admission/callback.rs"]
+        import_line = "use crate::maintenance_admission::callback::Callback;"
+        self.assertEqual(owner_errors(root, modules, standalone), [])
+        for changed_core in (
+            core + "\nuse crate::maintenance_admission::Admission;\n",
+            core + "\nuse crate::maintenance_admission::callback::Callback as Hidden;\n",
+            core.replace(import_line, import_line.replace("Callback;", "Callback as Hidden;")),
+            core.replace(import_line, '#[cfg(not(test))]\n' + import_line),
+        ):
+            with self.subTest(core=changed_core[-100:]):
+                self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
+                              owner_errors(root, modules | {"embed_dispatch/core.rs": changed_core}, standalone))
+        for edge in (
+            "use crate::runtime_lifecycle as hidden;",
+            "mod hidden;",
+            '#[path = "../runtime_lifecycle.rs"] mod hidden;',
+            'include!("../runtime_lifecycle.rs");',
+            "hidden_macro!();",
+            "macro_rules! hidden { () => {} }",
+            "fn hidden() { std::thread::yield_now(); }",
+        ):
+            with self.subTest(leaf=edge):
+                self.assertIn("standalone callback leaf depends on runtime or hides dependency edges",
+                              owner_errors(root, modules | {"maintenance_admission/callback.rs": leaf + "\n" + edge}, standalone))
+        for changed_standalone in (
+            standalone.replace('../src/maintenance_admission/callback.rs', '../src/maintenance_admission.rs'),
+            standalone.replace('pub(crate) mod callback;', 'mod callback { pub(crate) struct Callback; }'),
+            standalone.replace('pub(crate) use crate::callback;', 'pub(crate) use crate::fake_callback as callback;'),
+            standalone.replace('mod maintenance_admission {', '#[cfg(test)]\nmod maintenance_admission {'),
+        ):
+            with self.subTest(standalone=changed_standalone[:600]):
+                self.assertTrue(any("callback" in error for error in owner_errors(root, modules, changed_standalone)))
+        admission = modules["maintenance_admission.rs"]
+        for declaration in (
+            '#[cfg(test)]\npub(crate) mod callback;',
+            '#[path = "other.rs"]\npub(crate) mod callback;',
+            'pub(crate) use other::callback;',
+        ):
+            changed = admission.replace('pub(crate) mod callback;', declaration)
+            self.assertIn("production callback leaf does not have its ordinary exact owner",
+                          owner_errors(root, modules | {"maintenance_admission.rs": changed}, standalone))
 
     def test_complete_owner_rejects_root_wrong_owner_and_hidden_adapter(self) -> None:
         root, modules, standalone = inventory()

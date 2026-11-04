@@ -46,6 +46,12 @@ policy request: absent honors persisted policy, fresh absent selects Autonomous;
 explicit mismatch refuses without mutation. The effective policy is immutable
 for an open Engine. No policy-change API is added in v1.
 
+Before runtime construction, `validate_policy_before_open` owns one local
+`Connection::open_with_flags(path, SQLITE_OPEN_READ_ONLY)` probe. It returns
+only validation, drops the connection on every return, and has no managed
+runtime/WAL-holder lifetime. The exact owner, flags, and single opener remain
+in the complete raw-opener census; writable, extra, or substituted probes fail it.
+
 Store identity is a freshly generated opaque random 128-bit nonce persisted on
 initialization. Tickets and keys are 128-bit opaque random hex strings. Ticket
 wire format includes store nonce; unknown/wrong-store well-formed tickets return
@@ -142,6 +148,17 @@ caller-provided Embedder call installs callback-context RAII. Public begin/close
 from callback context returns Busy before any wait or worker join. Public
 ordinary callback reentry is refused while acquisition/maintenance is gated. No admission
 mutex is held during SQLite, callbacks, provider waits or file I/O.
+
+The standalone embed dispatcher imports only
+`maintenance_admission::callback::Callback`, a crate-private leaf containing
+the shared thread-local callback depth and its RAII marker. It imports no
+admission state, Engine, SQLite or runtime owner. Production and the standalone
+dispatcher test include the same leaf file. The ownership guard permits this
+single exact, ungated, unaliased leaf import only while independently proving
+the leaf has no runtime dependency, nested module, path substitution, include
+or extra macro expansion. Existing runtime-edge mutants remain enforced;
+leaf-runtime, alias/gate, production-owner and standalone-stub mutants cover
+this narrow boundary. This grants no ordinary callback a private handle permit.
 
 Acquisition atomically closes newcomers, drains admitted operations using only
 acquisition_wait_ms (zero try-once), then freezes/drains projection owners under

@@ -96,6 +96,18 @@ CATALOG: tuple[KnobEntry, ...] = (
         ),
     ),
     KnobEntry(
+        name="physical_erasure_policy",
+        classification=KnobClass.HELD_CONSTANT,
+        call_path=None,
+        witness=None,
+        reason=(
+            "Persisted erasure lifecycle policy (0.8.28 Slice 85). EARP uses the "
+            "default autonomous profile and does not schedule physical-erasure "
+            "maintenance. Policy is held constant rather than swept as a "
+            "retrieval setting; changing it changes maintenance ownership."
+        ),
+    ),
+    KnobEntry(
         name="rerank_depth",
         classification=KnobClass.SEMANTIC,
         call_path="Engine.search(rerank_depth=)",

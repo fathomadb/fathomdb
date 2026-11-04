@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Condvar;
 
-mod callback;
+pub(crate) mod callback;
 pub(crate) use callback::{in_callback, Callback};
 
 thread_local! {

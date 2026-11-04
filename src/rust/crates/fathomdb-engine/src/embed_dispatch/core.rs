@@ -1,5 +1,6 @@
 //! Fixed, engine-owned provider dispatch. This module owns no database state.
 
+use crate::maintenance_admission::callback::Callback;
 use std::any::Any;
 use std::collections::VecDeque;
 use std::io;
@@ -610,7 +611,7 @@ fn valid(vector: &Vector, dimension: usize) -> bool {
 }
 
 fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchError> {
-    let _callback = crate::maintenance_admission::Callback::enter();
+    let _callback = Callback::enter();
     let provider = shared
         .provider
         .lock()

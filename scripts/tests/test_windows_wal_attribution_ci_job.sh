@@ -433,6 +433,29 @@ PY_UNIT_MASK
 else
   fail "production opener inventory excludes actual unit tests and retains ordinary opener mutants ($unit_production_mask_out)"
 fi
+if policy_probe_out="$(python3 - "$SCRIPT_DIR" "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" <<'PY_POLICY_PROBE'
+from pathlib import Path
+import sys
+sys.path.insert(0, sys.argv[1])
+from slice65_managed_connection_owners import owner_errors, source_inventory
+sources = source_inventory(Path(sys.argv[2]))
+assert owner_errors(sources) == []
+owner = "erasure_maintenance.rs"
+source = sources[owner]
+assert "fn validate_policy_before_open(" in source
+for mutant in (
+    source.replace("rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY", "rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE", 1),
+    source.replace("fn validate_policy_before_open(", "fn wrong_policy_owner(", 1),
+    source + '\nfn extra_policy_open() { let _ = Connection::open("extra.sqlite"); }\n',
+):
+    errors = owner_errors(sources | {owner: mutant})
+    assert any("direct SQLite open outside sole audited factory" in error for error in errors), errors
+PY_POLICY_PROBE
+)"; then
+  pass "persisted-policy read-only probe has exact scoped owner and rejects writable/extra opens"
+else
+  fail "persisted-policy probe census or mutation guard failed ($policy_probe_out)"
+fi
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
   "engine source retains the WAL-attribution tests"

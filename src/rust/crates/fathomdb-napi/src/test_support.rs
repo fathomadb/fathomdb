@@ -357,7 +357,7 @@ mod tests {
         let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
         assert_eq!(envelope["code"], CODE_INCOMPATIBLE_SCHEMA_VERSION);
         assert_eq!(envelope["payload"]["seen"], 33);
-        assert_eq!(envelope["payload"]["supported"], 35);
+        assert_eq!(envelope["payload"]["supported"], 36);
     }
 
     #[test]

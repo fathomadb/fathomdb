@@ -423,7 +423,7 @@ def test_every_engine_config_field_has_a_verdict() -> None:
 
 
 def test_engine_config_has_exactly_the_known_fields() -> None:
-    """Guards the bound: if the SDK grows a ninth field, the catalog's coverage
+    """Guards the bound: if the SDK grows another field, the catalog's coverage
     claim must be re-examined rather than silently under-covering."""
     assert _engine_config_fields() == {
         "embedder_pool_size",
@@ -435,6 +435,7 @@ def test_engine_config_has_exactly_the_known_fields() -> None:
         "cuda_pool_max_size",
         "cuda_pool_release_threshold",
         "query_stop_words",
+        "physical_erasure_policy",
     }
 
 

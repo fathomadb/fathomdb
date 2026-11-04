@@ -756,7 +756,692 @@
         "kind": "python-attribute",
         "signature": "stop_words_sha256: str = ''"
       }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.CleanupResult",
+        "kind": "python-value",
+        "signature": "CleanupResult = CompleteCleanup | IncompleteCleanup"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.DeletedLogicalAllAtCut",
+        "kind": "python-class",
+        "signature": "class DeletedLogicalAllAtCut(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.DeletedLogicalAllAtCut.kind",
+        "kind": "python-attribute",
+        "signature": "kind: Literal['deleted_logical_all_at_cut']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.DeletedLogicalAllAtCut.logical_id",
+        "kind": "python-attribute",
+        "signature": "logical_id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.Engine.begin_erasure_maintenance",
+        "kind": "python-method",
+        "signature": "def begin_erasure_maintenance(self, acquisition_wait_ms: int=0) -> 'ErasureMaintenance'"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.Engine.physical_erasure_policy",
+        "kind": "python-method",
+        "signature": "def physical_erasure_policy(self) -> str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.Engine.physical_erasure_status",
+        "kind": "python-method",
+        "signature": "def physical_erasure_status(self, ticket: str) -> ErasureStatus | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.Engine.queue_physical_erasure",
+        "kind": "python-method",
+        "signature": "def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.Engine.withdraw_queued_erasure",
+        "kind": "python-method",
+        "signature": "def withdraw_queued_erasure(self, ticket: str) -> WithdrawResult"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.EngineConfig.physical_erasure_policy",
+        "kind": "python-attribute",
+        "signature": "physical_erasure_policy: Literal['autonomous', 'explicit_maintenance'] | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureBlocker",
+        "kind": "python-value",
+        "signature": "ErasureBlocker = Literal['resource_envelope_changed', 'original_sink_unavailable', 'wal_checkpoint', 'owned_readers']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureLogicalState",
+        "kind": "python-value",
+        "signature": "ErasureLogicalState = Literal['unchanged_by_this_request', 'removed']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance",
+        "kind": "python-class",
+        "signature": "class ErasureMaintenance"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance.__enter__",
+        "kind": "python-method",
+        "signature": "def __enter__(self) -> 'ErasureMaintenance'"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance.__exit__",
+        "kind": "python-method",
+        "signature": "def __exit__(self, *_args: Any) -> None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance.__init__",
+        "kind": "python-method",
+        "signature": "def __init__(self, native: Any) -> None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance.close",
+        "kind": "python-method",
+        "signature": "def close(self) -> str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance.complete_physical_erasure",
+        "kind": "python-method",
+        "signature": "def complete_physical_erasure(self, ticket: str) -> CleanupResult"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance.queue_physical_erasure",
+        "kind": "python-method",
+        "signature": "def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureMaintenance.reattach_original_erasure_sink",
+        "kind": "python-method",
+        "signature": "def reattach_original_erasure_sink(self, ticket: str, path: str) -> None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasurePhase",
+        "kind": "python-value",
+        "signature": "ErasurePhase = Literal['queued', 'executing', 'sanitizing', 'finalizing', 'complete', 'withdrawn_before_removal']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureServiceState",
+        "kind": "python-value",
+        "signature": "ErasureServiceState = Literal['normal_with_queued_restrictions', 'maintenance_owned', 'reads_allowed_writes_fenced', 'closed_or_unavailable']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureStatus",
+        "kind": "python-class",
+        "signature": "class ErasureStatus(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureStatus.blocker",
+        "kind": "python-attribute",
+        "signature": "blocker: ErasureBlocker | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureStatus.logical_state",
+        "kind": "python-attribute",
+        "signature": "logical_state: ErasureLogicalState"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureStatus.phase",
+        "kind": "python-attribute",
+        "signature": "phase: ErasurePhase"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureStatus.service_state",
+        "kind": "python-attribute",
+        "signature": "service_state: ErasureServiceState"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.ErasureStatus.target_count",
+        "kind": "python-attribute",
+        "signature": "target_count: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.MaintenanceError",
+        "kind": "python-value",
+        "signature": "MaintenanceError = _MaintenanceError"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.PhysicalErasurePolicy",
+        "kind": "python-value",
+        "signature": "PhysicalErasurePolicy = Literal['autonomous', 'explicit_maintenance']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.PhysicalErasureSelector",
+        "kind": "python-value",
+        "signature": "PhysicalErasureSelector = SourceAllAtCut | DeletedLogicalAllAtCut"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.QueueResult",
+        "kind": "python-value",
+        "signature": "QueueResult = AcceptedQueue | NeedsMaintenanceAdmission"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.SourceAllAtCut",
+        "kind": "python-class",
+        "signature": "class SourceAllAtCut(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.SourceAllAtCut.kind",
+        "kind": "python-attribute",
+        "signature": "kind: Literal['source_all_at_cut']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.SourceAllAtCut.source_id",
+        "kind": "python-attribute",
+        "signature": "source_id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.WithdrawResult",
+        "kind": "python-value",
+        "signature": "WithdrawResult = Literal['withdrawn_before_removal', 'already_activated', 'unknown']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.config.EngineConfig.physical_erasure_policy",
+        "kind": "python-attribute",
+        "signature": "physical_erasure_policy: Literal['autonomous', 'explicit_maintenance'] | None = None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.engine.Engine.begin_erasure_maintenance",
+        "kind": "python-method",
+        "signature": "def begin_erasure_maintenance(self, acquisition_wait_ms: int=0) -> 'ErasureMaintenance'"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.engine.Engine.physical_erasure_policy",
+        "kind": "python-method",
+        "signature": "def physical_erasure_policy(self) -> str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.engine.Engine.physical_erasure_status",
+        "kind": "python-method",
+        "signature": "def physical_erasure_status(self, ticket: str) -> ErasureStatus | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.engine.Engine.queue_physical_erasure",
+        "kind": "python-method",
+        "signature": "def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.engine.Engine.withdraw_queued_erasure",
+        "kind": "python-method",
+        "signature": "def withdraw_queued_erasure(self, ticket: str) -> WithdrawResult"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.errors.MaintenanceError",
+        "kind": "python-value",
+        "signature": "MaintenanceError = _MaintenanceError"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.AcceptedQueue",
+        "kind": "python-class",
+        "signature": "class AcceptedQueue(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.AcceptedQueue.logical_state",
+        "kind": "python-attribute",
+        "signature": "logical_state: ErasureLogicalState"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.AcceptedQueue.outcome",
+        "kind": "python-attribute",
+        "signature": "outcome: Literal['accepted']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.AcceptedQueue.ticket",
+        "kind": "python-attribute",
+        "signature": "ticket: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.CleanupResult",
+        "kind": "python-value",
+        "signature": "CleanupResult = CompleteCleanup | IncompleteCleanup"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.CompleteCleanup",
+        "kind": "python-class",
+        "signature": "class CompleteCleanup(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.CompleteCleanup.outcome",
+        "kind": "python-attribute",
+        "signature": "outcome: Literal['complete']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.CompleteCleanup.receipt",
+        "kind": "python-attribute",
+        "signature": "receipt: ErasureStatus"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.DeletedLogicalAllAtCut",
+        "kind": "python-class",
+        "signature": "class DeletedLogicalAllAtCut(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.DeletedLogicalAllAtCut.kind",
+        "kind": "python-attribute",
+        "signature": "kind: Literal['deleted_logical_all_at_cut']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.DeletedLogicalAllAtCut.logical_id",
+        "kind": "python-attribute",
+        "signature": "logical_id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureBlocker",
+        "kind": "python-value",
+        "signature": "ErasureBlocker = Literal['resource_envelope_changed', 'original_sink_unavailable', 'wal_checkpoint', 'owned_readers']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureLogicalState",
+        "kind": "python-value",
+        "signature": "ErasureLogicalState = Literal['unchanged_by_this_request', 'removed']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasurePhase",
+        "kind": "python-value",
+        "signature": "ErasurePhase = Literal['queued', 'executing', 'sanitizing', 'finalizing', 'complete', 'withdrawn_before_removal']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureServiceState",
+        "kind": "python-value",
+        "signature": "ErasureServiceState = Literal['normal_with_queued_restrictions', 'maintenance_owned', 'reads_allowed_writes_fenced', 'closed_or_unavailable']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureStatus",
+        "kind": "python-class",
+        "signature": "class ErasureStatus(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureStatus.blocker",
+        "kind": "python-attribute",
+        "signature": "blocker: ErasureBlocker | None"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureStatus.logical_state",
+        "kind": "python-attribute",
+        "signature": "logical_state: ErasureLogicalState"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureStatus.phase",
+        "kind": "python-attribute",
+        "signature": "phase: ErasurePhase"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureStatus.service_state",
+        "kind": "python-attribute",
+        "signature": "service_state: ErasureServiceState"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.ErasureStatus.target_count",
+        "kind": "python-attribute",
+        "signature": "target_count: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.IncompleteCleanup",
+        "kind": "python-class",
+        "signature": "class IncompleteCleanup(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.IncompleteCleanup.outcome",
+        "kind": "python-attribute",
+        "signature": "outcome: Literal['incomplete']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.IncompleteCleanup.status",
+        "kind": "python-attribute",
+        "signature": "status: ErasureStatus"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.NeedsMaintenanceAdmission",
+        "kind": "python-class",
+        "signature": "class NeedsMaintenanceAdmission(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.NeedsMaintenanceAdmission.outcome",
+        "kind": "python-attribute",
+        "signature": "outcome: Literal['needs_maintenance_admission']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.PhysicalErasurePolicy",
+        "kind": "python-value",
+        "signature": "PhysicalErasurePolicy = Literal['autonomous', 'explicit_maintenance']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.PhysicalErasureSelector",
+        "kind": "python-value",
+        "signature": "PhysicalErasureSelector = SourceAllAtCut | DeletedLogicalAllAtCut"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.QueueResult",
+        "kind": "python-value",
+        "signature": "QueueResult = AcceptedQueue | NeedsMaintenanceAdmission"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.SourceAllAtCut",
+        "kind": "python-class",
+        "signature": "class SourceAllAtCut(TypedDict)"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.SourceAllAtCut.kind",
+        "kind": "python-attribute",
+        "signature": "kind: Literal['source_all_at_cut']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.SourceAllAtCut.source_id",
+        "kind": "python-attribute",
+        "signature": "source_id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 85,
+      "declaration": {
+        "path": "fathomdb.maintenance.WithdrawResult",
+        "kind": "python-value",
+        "signature": "WithdrawResult = Literal['withdrawn_before_removal', 'already_activated', 'unknown']"
+      }
     }
   ],
-  "native_stub_sha256": "8207f193cd1781c4c866188f29ac6854f6f34e29c183ca842d4a7273f9f442b7"
+  "native_stub_sha256": "8207f193cd1781c4c866188f29ac6854f6f34e29c183ca842d4a7273f9f442b7",
+  "slice85_authority": "Owner-approved 2026-11-04 explicit-maintenance contract (steward-ledger seq-363) and current completion instruction; exact reviewed maintenance declarations only. Frozen pre-move baseline and every previous registry entry remain unchanged."
 }

@@ -212,6 +212,35 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     for old_stub, approved_stub in provider_stub_deltas:
         assert stub.count(approved_stub) == 1
         stub = stub.replace(approved_stub, old_stub, 1)
+    # Exact owner-approved maintenance additions leave every other frozen byte
+    # under the existing checksum; no historical baseline is regenerated.
+    maintenance_class = (
+        "class ErasureMaintenance:\n"
+        "    def reattach_original_erasure_sink(self, ticket: str, path: str) -> None: ...\n"
+        "    def complete_physical_erasure(self, ticket: str) -> str: ...\n"
+        "    def queue_physical_erasure(self, selector_json: str, key: str) -> str: ...\n"
+        "    def close(self) -> str: ...\n\n"
+    )
+    maintenance_engine_methods = (
+        "    def queue_physical_erasure(self, selector_json: str, key: str) -> str: ...\n"
+        "    def physical_erasure_status(self, ticket: str) -> str: ...\n"
+        "    def withdraw_queued_erasure(self, ticket: str) -> str: ...\n"
+        "    def physical_erasure_policy(self) -> str: ...\n"
+        "    def begin_erasure_maintenance(self, acquisition_wait_ms: int) -> ErasureMaintenance: ...\n"
+    )
+    maintenance_error = (
+        "\nclass MaintenanceError(EngineError):\n"
+        "    reason: str\n"
+        "    def __init__(self, *args: Any, reason: str = ...) -> None: ...\n"
+    )
+    for approved_stub in (
+        maintenance_class + "class Engine:\n",
+        "class Engine:\n" + maintenance_engine_methods,
+        maintenance_error,
+    ):
+        assert stub.count(approved_stub) == 1
+        replacement = "class Engine:\n" if "class Engine:\n" in approved_stub else ""
+        stub = stub.replace(approved_stub, replacement, 1)
     # Slice 80 changes only this view-contract comment; preserve the declaration
     # checksum and every unapproved byte in the frozen baseline comparison.
     historical_view_comment = (

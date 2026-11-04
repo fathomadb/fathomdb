@@ -41,6 +41,9 @@ EXPECTED_RAW_OPENS = Counter({
     ("search.rs", "open_historical_property_corpus", "open_in_memory", ""): 1,
     ("connection_runtime.rs", "open_managed_connection", "open", "path"): 1,
     ("open.rs", "read_effective_schema_version", "open_with_flags", "read_only_sqlite_uri(path)," + RO_FLAGS): 1,
+    # Pre-runtime persisted-policy probe: read-only, local RAII scope, no returned
+    # connection or managed runtime lifetime. Exact owner and flags remain audited.
+    ("erasure_maintenance.rs", "validate_policy_before_open", "open_with_flags", "path,rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY"): 1,
     # Slice 103 shares WAL admission across truncate and owed-erasure recovery.
     ("operator/data_plane.rs", "open_recovery_connection", "open_with_flags", "immutable_sqlite_uri(&canonical_path)," + RO_FLAGS): 1,
     ("operator/data_plane.rs", "open_recovery_connection", "open_with_flags", "sqlite_uri(&canonical_path,\"mode=rw\"),rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE|rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|rusqlite::OpenFlags::SQLITE_OPEN_URI,"): 1,

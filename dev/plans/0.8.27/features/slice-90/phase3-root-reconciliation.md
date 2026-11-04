@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 6ef37bfd60daa25663a567d7d0860f45c36d4e99
+lib_rs_blob: 87c94fbb150c23e25ccc7407657d24b4cc0a1ed1
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -53,11 +53,16 @@ then 41; the approved root method inventory was unchanged.
 `ProjectionScanPageForTest` and `ProjectionScanForTest`, producing
 `c182b0b20f9c96582aa5fe84773beb5a270f294a`. Production root storage is unchanged.
 
+0.8.28 Slice 85 adds persisted physical policy, published explicit-debt state, and
+maintenance admission ownership. These three named fields bring root storage to
+46 fields; their semantic consumers remain outside root. The current-format
+lock-admission test expects format 36. The blob above includes these changes.
+
 ## Remaining root declarations
 
 | Declaration | Disposition |
 | --- | --- |
-| `Engine` and its 43 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
+| `Engine` and its 46 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
@@ -66,14 +71,14 @@ then 41; the approved root method inventory was unchanged.
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
-The exact 43 storage fields are grouped here to prevent a generic
+The exact 46 storage fields are grouped here to prevent a generic
 "remaining state" exemption:
 
 | Storage role | Root field names |
 | --- | --- |
 | Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence` |
 | Connections and lifecycle | `closed`, `close_lock`, `lock`, `connection`, `reader_pool`, `profile_contexts`, `reader_lookaside_rcs`, `managed_connections`, `writer_connection_registration`, `actual_checkpoint_observations`, `binding_native_state_observations`, `wal_attribution` |
-| Physical cleanup | `physical_maintenance`, `physical_service_gate` |
+| Physical cleanup | `physical_maintenance`, `physical_service_gate`, `physical_policy`, `explicit_debt`, `maintenance_admission` |
 | Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
 | Embed dispatch state | `runtime_embedder`, `embed_dispatch` |
 | Events and telemetry | `counters`, `subscribers`, `profiling_enabled`, `slow_threshold_ms`, `telemetry`, `telemetry_enabled` |

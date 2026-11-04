@@ -864,3 +864,43 @@ required-features = ["test-hooks", "operator"]
 [[test]]
 name = "slice83_routes"
 required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_policy"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_ownership"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_callbacks"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_queue"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_owner_races"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_physical"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_provider"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_crash"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_scope"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_qualification"
+required-features = ["test-hooks", "operator"]

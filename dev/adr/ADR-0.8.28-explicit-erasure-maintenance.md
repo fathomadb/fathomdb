@@ -1,6 +1,6 @@
 ---
 title: Explicit physical-erasure maintenance policy
-status: proposed
+status: accepted
 date: 2026-11-04
 target_release: 0.8.28 Slice 85
 supersedes: ADR-0.8.28-resumable-physical-cleanup.md (explicit policy scheduling and admission only)

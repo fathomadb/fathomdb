@@ -19,60 +19,95 @@ impl std::fmt::Debug for PhysicalErasureSelector {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErasureLogicalState {
+    /// This request has not committed logical removal.
     UnchangedByThisRequest,
+    /// Atomic native deletion committed; physical work may remain.
     Removed,
 }
 /// Durable progress of one keyed request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErasurePhase {
+    /// Immutable intent exists, with existing read eligibility unchanged.
     Queued,
+    /// Native deletion committed and its executing root remains owed.
     Executing,
+    /// Registered-copy sanitation has committed at least one continuation unit.
     Sanitizing,
+    /// Identity-free debt remains until actual WAL truncation and final commit.
     Finalizing,
+    /// All required registered-copy, original-sink and WAL obligations completed.
     Complete,
+    /// Queued intent was withdrawn without logical removal or physical success.
     WithdrawnBeforeRemoval,
 }
 /// Inspectable expected blocker, never a success or deadline estimate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErasureBlocker {
+    /// Unrelated growth exceeded the revalidated resource envelope.
     ResourceEnvelopeChanged,
+    /// At least one recorded original sink is not authenticated and available.
     OriginalSinkUnavailable,
+    /// Actual WAL truncation remains blocked.
     WalCheckpoint,
+    /// Existing owned readers prevented cooperative drain.
     OwnedReaders,
 }
 /// Identity-free status under the Engine's existing access authority.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ErasureStatus {
+    /// Durable physical progress, independent of the orthogonal blocker.
     pub phase: ErasurePhase,
+    /// Whether this request committed canonical/projection removal.
     pub logical_state: ErasureLogicalState,
+    /// Known impediment, with no estimated completion time.
     pub blocker: Option<ErasureBlocker>,
+    /// Current ownership/fence availability represented by this observation.
     pub service_state: ErasureServiceState,
+    /// Safe count of the accepted exact root/dependency cursor scope.
     pub target_count: u64,
 }
 /// Queue acceptance never means removal; heavy admission requires a handle.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum QueueResult {
-    Accepted { ticket: String, logical_state: ErasureLogicalState },
+    /// Durable acceptance with an opaque store-bound ticket and no new removal.
+    Accepted {
+        /// Opaque reference requiring the Engine's existing access authority.
+        ticket: String,
+        /// Acceptance leaves this request's logical state unchanged.
+        logical_state: ErasureLogicalState,
+    },
+    /// Exact bounded admission cannot be established on the ordinary path.
     NeedsMaintenanceAdmission,
 }
 /// Withdrawal cannot cancel activated physical obligations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WithdrawResult {
+    /// Queued intent was withdrawn without logical removal or physical success.
     WithdrawnBeforeRemoval,
+    /// Activation won; no executing work, receipt or fence was cleared.
     AlreadyActivated,
+    /// No request exists for this well-formed store-bound ticket.
     Unknown,
 }
 /// Actual physical completion or retained, inspectable unfinished work.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum CleanupResult {
-    Complete { receipt: ErasureStatus },
-    Incomplete { status: ErasureStatus },
+    /// Actual physical completion, scoped to this immutable request.
+    Complete {
+        /// Identity-free terminal outcome.
+        receipt: ErasureStatus,
+    },
+    /// Work or an admission blocker remains; no physical success is claimed.
+    Incomplete {
+        /// Durable effects and current blocker/fence state.
+        status: ErasureStatus,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]

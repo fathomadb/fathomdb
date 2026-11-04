@@ -1047,11 +1047,11 @@
     },
     {
       "path": "dev/design/explicit-maintenance-erasure/contract.md",
-      "class": "proposal",
+      "class": "maintained",
       "topic": "explicit-maintenance-erasure",
       "role": "contract",
       "owner": "dev/design/explicit-maintenance-erasure/contract.md",
-      "release": "future:0.8.28",
+      "release": "current:0.8.28",
       "successor": null
     },
     {
@@ -1061,6 +1061,15 @@
       "role": "implementation-plan",
       "owner": "dev/design/explicit-maintenance-erasure/contract.md",
       "release": "future:0.8.28",
+      "successor": null
+    },
+    {
+      "path": "dev/design/explicit-maintenance-erasure/production-design.md",
+      "class": "maintained",
+      "topic": "explicit-maintenance-erasure",
+      "role": "production-design",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "current:0.8.28",
       "successor": null
     },
     {

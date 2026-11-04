@@ -72,7 +72,7 @@ fn leave_invalid_current_schema_in_healthy_wal(path: &std::path::Path) {
     writer
         .execute_batch(
             "BEGIN IMMEDIATE;
-             PRAGMA user_version=35;
+             PRAGMA user_version=36;
              DROP TRIGGER _fathomdb_read_visibility_cn_ai;
              COMMIT;",
         )
@@ -210,7 +210,7 @@ fn noncurrent_database_is_refused_without_mutation() {
     let error = recover_truncate_wal(&path).expect_err("noncurrent database must refuse");
     assert!(matches!(
         error,
-        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 35 }
+        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 36 }
     ));
     assert_eq!(fs::read(&path).expect("reread noncurrent database"), before);
 }
@@ -220,14 +220,14 @@ fn healthy_wal_pending_current_schema_is_accepted_and_checkpointed() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("pending_current{SQLITE_SUFFIX}"));
     seed(&path);
-    leave_schema_cookie_in_healthy_wal(&path, 33, 35);
+    leave_schema_cookie_in_healthy_wal(&path, 33, 36);
 
     let report = recover_truncate_wal(&path).expect("effective schema is current");
     assert_eq!(report.status, TruncateWalStatus::Done);
     assert!(!report.discarded_corrupt_wal);
 
     let reopened = Engine::open(&path).expect("normal open accepts checkpointed database");
-    assert_eq!(reopened.report.schema_version_after, 35);
+    assert_eq!(reopened.report.schema_version_after, 36);
     reopened.engine.close().expect("close reopened engine");
 }
 
@@ -236,7 +236,7 @@ fn healthy_wal_effective_noncurrent_schema_refuses_without_mutation() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("pending_noncurrent{SQLITE_SUFFIX}"));
     seed(&path);
-    leave_schema_cookie_in_healthy_wal(&path, 35, 33);
+    leave_schema_cookie_in_healthy_wal(&path, 36, 33);
     let wal = sidecar(&path, "-wal");
     let shm = sidecar(&path, "-shm");
     let database_before = fs::read(&path).expect("read standalone main");
@@ -246,7 +246,7 @@ fn healthy_wal_effective_noncurrent_schema_refuses_without_mutation() {
     let error = recover_truncate_wal(&path).expect_err("effective noncurrent schema must refuse");
     assert!(matches!(
         error,
-        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 35 }
+        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 36 }
     ));
     assert_eq!(fs::read(&path).expect("reread standalone main"), database_before);
     assert_eq!(fs::read(&wal).expect("reread healthy noncurrent WAL"), wal_before);
@@ -294,7 +294,7 @@ fn malformed_wal_with_noncurrent_standalone_main_refuses_without_mutation() {
     let error = recover_truncate_wal(&path).expect_err("malformed WAL needs current main");
     assert!(matches!(
         error,
-        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 35 }
+        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 36 }
     ));
     assert_eq!(fs::read(&path).expect("reread standalone main"), database_before);
     assert_eq!(fs::read(&wal).expect("reread malformed WAL"), wal_before);
@@ -307,7 +307,7 @@ fn counterfeit_current_schema_with_malformed_wal_refuses_without_mutation() {
     let path = dir.path().join(format!("counterfeit_current{SQLITE_SUFFIX}"));
     let connection = Connection::open(&path).expect("create counterfeit current fixture");
     connection.execute("CREATE TABLE unrelated(value TEXT)", []).expect("create unrelated schema");
-    connection.pragma_update(None, "user_version", 35).expect("stamp counterfeit current version");
+    connection.pragma_update(None, "user_version", 36).expect("stamp counterfeit current version");
     drop(connection);
     let wal = corruption::wal_sidecar_path(&path);
     fs::write(&wal, [0u8; 32]).expect("write zeroed malformed WAL header");

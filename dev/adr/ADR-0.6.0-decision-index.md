@@ -184,6 +184,7 @@ Astra-medium implementation review gates landing; publication is not authorized.
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
 | 68 | architecture | Scoped unrelated writes and autonomous resumable physical cleanup; retain synchronous physical success and open end-phase guarantee decision | Owner-authorized Slice 83 implementation, Astra-reviewed design | ADR-0.8.28-resumable-physical-cleanup.md |
+| 69 | interface | Persist opt-in explicit erasure maintenance: unchanged queued visibility, exclusive windows, durable incomplete fences, original-sink and offline ticket reconciliation, and fresh format 36; Autonomous retains its scheduling | accepted (owner contract approval 2026-11-04; Astra concrete design approval) | [ADR-0.8.28-explicit-erasure-maintenance.md](ADR-0.8.28-explicit-erasure-maintenance.md) |
 
 ## Categories
 

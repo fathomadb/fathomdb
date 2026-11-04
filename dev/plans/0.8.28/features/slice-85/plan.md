@@ -9,7 +9,8 @@ target_release: 0.8.28
 HITL approved the [Astra-reviewed contract](../../../../design/explicit-maintenance-erasure/contract.md)
 at `0db97db08c912cc7ca634b5dc9e9295414d4afe2` on 2026-11-04 and assigned its
 implementation to a separate clean slice. Dependency is completed Slice 84,
-including 84b; Slice 90 follows 85. Implementation is NOT_STARTED.
+including 84b; Slice 90 follows 85. Implementation is integrated on `dev/0.8.28`; final review and independent
+qualification are pending.
 The [approved outline](../../../../design/explicit-maintenance-erasure/implementation-plan.md)
 is the detailed work-order reference. This slice adds testable acceptance and a
 clean execution handoff without duplicating or weakening that contract.
@@ -136,9 +137,9 @@ release line, remove any task worktree/branch after clean landing, and leave
 unrelated files/caches untouched. Bring outcomes back to HITL. Slice 90 follows;
 publication and any new guarantee outside this approved contract remain separate.
 
-This session prepares the slice only. The implementation session starts with
-baseline reconciliation and concrete design, not an assumed ready-made worker
-or a new optimization experiment.
+Execution reconciled the baseline, obtained Astra design review and implemented
+the approved contract with behavior-specific RED/GREEN changes. The status record
+owns remaining final review, independent verification and bounded measurements.
 
 ## Execution reconciliation — 2026-11-04
 

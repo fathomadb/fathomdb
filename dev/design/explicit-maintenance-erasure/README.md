@@ -1,17 +1,18 @@
 ---
-title: Explicit maintenance erasure — approval package
+title: Explicit maintenance erasure — approved contract and implementation
 status: ACTIVE
 date: 2026-11-04
 ---
 
-# Explicit maintenance erasure — approval package
+# Explicit maintenance erasure — approved contract and implementation
 
 The completed [optimization write-up](../../notes/erasure-optimization-sequence-findings.md)
 sets aside the Slices 81–84b optimization sequence. HITL requested a concrete
 contract and explicit cleanup API proposal, Astra review, then approval before
 implementation. HITL approved the contract on 2026-11-04 and assigned implementation to
-[Slice 85](../../plans/0.8.28/features/slice-85/README.md). This preparation
-changes no production implementation or schema.
+[Slice 85](../../plans/0.8.28/features/slice-85/README.md). The reviewed
+[production design](production-design.md) is implemented on the development line
+with format 36; final independent verification and measurements remain pending.
 
 | Document | Purpose |
 | --- | --- |
@@ -22,7 +23,8 @@ changes no production implementation or schema.
 The minimal proposal queues intent without claiming immediate logical revocation.
 Expensive deletion/cleanup requires an explicitly acquired maintenance window.
 Post-delete blockers can preserve a durable write fence even after handle release;
-this failure behavior is part of the proposed contract, not hidden by a timeout.
+this failure behavior is part of the approved contract. There is no active SQL
+deadline or immediate logical-revocation promise.
 
 Astra approved this revised package for HITL proposal review on 2026-11-04 with
 no blocking findings. Four initial findings were resolved: admissibility/queued
@@ -32,9 +34,10 @@ and older-binary refusal through an approval-required fresh-store format break.
 HITL subsequently approved the contract, including unchanged logical eligibility
 until maintenance, the fresh-store format revision and truthful incomplete/fenced
 outcomes. The original end-of-Slice-83 guarantee/API decision is now ruled by that
-approval; no numerical deadline was approved. Implementation is assigned to
-Slice 85 for a separate clean run. Exact ownership/guard/index design, metadata
-limits and numerical qualification retain their specified pre-code/timing gates.
+approval; no numerical deadline was approved. Slice 85 completed concrete Astra
+design review and implementation. HITL accepts observed test timings; the
+committed bounded empirical screen reports actual outcomes without an SLA.
 
-Lifecycle catalog classification remains `proposal` because the approved work is
-unshipped; it becomes a code-backed maintained owner when Slice 85 lands.
+The contract and production design are maintained code-backed authorities. The
+implementation outline remains a planning reference; current execution and final
+qualification are recorded in the [slice status](../../plans/0.8.28/features/slice-85/status.md).

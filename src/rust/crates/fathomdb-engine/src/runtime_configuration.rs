@@ -143,7 +143,8 @@ pub(crate) fn effective_runtime_configuration() -> RuntimeConfiguration {
 
 const MAX_SAFE_INTEGER: u64 = (1_u64 << 53) - 1;
 
-/// Requested per-engine settings for an open. `None` selects the documented default.
+/// Requested per-engine settings. `None` selects each documented default; an
+/// omitted physical-erasure policy honors the persisted policy on reopen.
 ///
 /// All values are validated before the open touches the filesystem or an embedder.
 /// This requested value is retained unchanged even if an effective setting is

@@ -1098,6 +1098,7 @@ impl Engine {
         view: ReadView,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
+        let _operation = self.ensure_open()?;
         self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Search, None);
         let started = Instant::now();
         let outcome = self.search_inner(

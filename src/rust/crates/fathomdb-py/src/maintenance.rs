@@ -78,6 +78,26 @@ impl PyErasureMaintenance {
             .map_err(|_| StorageError::new_err("erasure completion serialization failed"))
     }
 
+    /// Reattach only a recorded authenticated original; never creates a sink.
+    fn reattach_original_erasure_sink(
+        &self,
+        py: Python<'_>,
+        ticket: String,
+        path: String,
+    ) -> PyResult<()> {
+        validate_ffi_string_py(&path)?;
+        let handle = Arc::clone(&self.inner);
+        call_engine(py, move || {
+            let guard = handle.try_lock().map_err(|error| match error {
+                std::sync::TryLockError::WouldBlock => {
+                    RustEngineError::Maintenance(fathomdb_engine::MaintenanceError::MaintenanceBusy)
+                }
+                std::sync::TryLockError::Poisoned(_) => RustEngineError::Storage,
+            })?;
+            guard.reattach_original_erasure_sink(&ticket, &path)
+        })
+    }
+
     /// Release temporary ownership; durable physical debt remains owed.
     fn close(&self, py: Python<'_>) -> PyResult<String> {
         let handle = Arc::clone(&self.inner);

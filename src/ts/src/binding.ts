@@ -751,6 +751,7 @@ export interface NativeRerankResult {
 }
 
 export interface NativeErasureMaintenance {
+  reattachOriginalErasureSink(ticket: string, path: string): Promise<void>;
   completePhysicalErasure(ticket: string): Promise<NativeCleanupResult>;
   queuePhysicalErasure(selector: unknown, key: string): Promise<NativeQueueResult>;
   close(): Promise<string>;

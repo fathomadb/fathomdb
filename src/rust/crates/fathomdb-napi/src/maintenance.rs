@@ -65,6 +65,23 @@ impl ErasureMaintenance {
         serde_json::to_value(result).map_err(|_| engine_error_to_napi(RustEngineError::Storage))
     }
 
+    /// Reattach only a recorded authenticated original; never creates a sink.
+    #[napi]
+    pub async fn reattach_original_erasure_sink(&self, ticket: String, path: String) -> Result<()> {
+        validate_ffi_string_napi(&path)?;
+        let handle = Arc::clone(&self.inner);
+        call_engine(move || {
+            let guard = handle.try_lock().map_err(|error| match error {
+                std::sync::TryLockError::WouldBlock => {
+                    RustEngineError::Maintenance(fathomdb_engine::MaintenanceError::MaintenanceBusy)
+                }
+                std::sync::TryLockError::Poisoned(_) => RustEngineError::Storage,
+            })?;
+            guard.reattach_original_erasure_sink(&ticket, &path)
+        })
+        .await
+    }
+
     /// Release temporary ownership; durable physical debt remains owed.
     #[napi]
     pub async fn close(&self) -> Result<String> {

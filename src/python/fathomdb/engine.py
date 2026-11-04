@@ -599,6 +599,10 @@ class ErasureMaintenance:
         """Attempt exact physical completion; Incomplete retains durable owed work."""
         return cast(CleanupResult, json.loads(self._native.complete_physical_erasure(ticket)))
 
+    def reattach_original_erasure_sink(self, ticket: str, path: str) -> None:
+        """Reattach only a recorded original; never register or substitute a sink."""
+        self._native.reattach_original_erasure_sink(ticket, path)
+
     def close(self) -> str:
         """Release temporary ownership and return service state, not completion."""
         return self._native.close()

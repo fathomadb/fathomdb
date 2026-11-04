@@ -87,6 +87,28 @@ impl Engine {
         })
     }
 
+    /// Request bounded immutable intent. Acceptance leaves read visibility unchanged;
+    /// heavy admission returns NeedsMaintenanceAdmission until a window is held.
+    pub fn queue_physical_erasure(
+        &self,
+        selector: crate::PhysicalErasureSelector,
+        key: &str,
+    ) -> Result<crate::QueueResult> {
+        Ok(self.core.queue_physical_erasure(selector, key)?)
+    }
+
+    /// Read one store-bound ticket without exposing its selector. Unknown or
+    /// wrong-store well-formed tickets return None; malformed tickets fail.
+    pub fn physical_erasure_status(&self, ticket: &str) -> Result<Option<crate::ErasureStatus>> {
+        Ok(self.core.physical_erasure_status(ticket)?)
+    }
+
+    /// Withdraw queued intent only. Activated work cannot be cancelled, and
+    /// withdrawal never certifies physical erasure.
+    pub fn withdraw_queued_erasure(&self, ticket: &str) -> Result<crate::WithdrawResult> {
+        Ok(self.core.withdraw_queued_erasure(ticket)?)
+    }
+
     /// The report produced when this database was opened.
     pub fn open_report(&self) -> &OpenReport {
         &self.report

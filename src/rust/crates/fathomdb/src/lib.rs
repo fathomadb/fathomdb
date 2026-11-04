@@ -207,6 +207,12 @@ pub use fathomdb_engine::{
     QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
 };
 
+pub use fathomdb_engine::{
+    CleanupResult, ErasureBlocker, ErasureLogicalState, ErasureMaintenance, ErasurePhase,
+    ErasureServiceState, ErasureStatus, MaintenanceError, PhysicalErasurePolicy,
+    PhysicalErasureSelector, QueueResult, WithdrawResult,
+};
+
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,
 // gated behind `operator`. The backing `Engine` methods are operator-gated in
 // `fathomdb-engine`, so the default facade is recovery-clean at the method level.

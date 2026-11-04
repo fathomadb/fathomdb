@@ -1837,8 +1837,14 @@ changes no default admission, public erasure outcome or shipped schema.
 
 The [approved contract](../design/explicit-maintenance-erasure/contract.md) and
 [production design](../design/explicit-maintenance-erasure/production-design.md)
-own format-36 policy, immutable scope, admission and physical proof. Persisted
-`PhysicalErasurePolicy::{Autonomous, ExplicitMaintenance}` is selected for fresh
+own format-36 policy, immutable scope, admission and physical proof.
+
+The lower-level `fathomdb` facade re-exports all twelve maintenance types from
+`fathomdb-engine`: `PhysicalErasurePolicy`, `MaintenanceError`, `ErasureServiceState`,
+`ErasureMaintenance`, `PhysicalErasureSelector`, `ErasureLogicalState`, `ErasurePhase`,
+`ErasureBlocker`, `ErasureStatus`, `QueueResult`, `WithdrawResult`, and `CleanupResult`.
+
+Persisted `PhysicalErasurePolicy::{Autonomous, ExplicitMaintenance}` is selected for fresh
 stores with `EngineConfig.physical_erasure_policy`; absent configuration honors
 persisted policy on reopen. Missing/unknown policy is corruption, and mismatching
 selection refuses before mutation. Both profiles use current-only fresh format 36.

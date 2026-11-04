@@ -56,4 +56,17 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::ProjectionRuntimeStatusEntry>();
     let _ = std::any::type_name::<fathomdb::ProjectionRuntimeUnavailabilityReason>();
     let _ = std::any::type_name::<fathomdb::ProjectionStatusDenseReadiness>();
+
+    let _ = std::any::type_name::<fathomdb::PhysicalErasurePolicy>();
+    let _ = std::any::type_name::<fathomdb::MaintenanceError>();
+    let _ = std::any::type_name::<fathomdb::ErasureServiceState>();
+    let _ = std::any::type_name::<fathomdb::ErasureMaintenance>();
+    let _ = std::any::type_name::<fathomdb::PhysicalErasureSelector>();
+    let _ = std::any::type_name::<fathomdb::ErasureLogicalState>();
+    let _ = std::any::type_name::<fathomdb::ErasurePhase>();
+    let _ = std::any::type_name::<fathomdb::ErasureBlocker>();
+    let _ = std::any::type_name::<fathomdb::ErasureStatus>();
+    let _ = std::any::type_name::<fathomdb::QueueResult>();
+    let _ = std::any::type_name::<fathomdb::WithdrawResult>();
+    let _ = std::any::type_name::<fathomdb::CleanupResult>();
 }

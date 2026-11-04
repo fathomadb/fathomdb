@@ -13,9 +13,10 @@ impl Engine {
     /// uses one 30-second deadline shared by concurrent and repeated calls.
     /// Returns [`EngineError::Scheduler`] while a provider worker remains.
     pub fn close(&self) -> Result<(), EngineError> {
-        self.maintenance_admission.close()?;
+        self.maintenance_admission.begin_close()?;
         self.closed.store(true, Ordering::SeqCst);
         self.embed_dispatch.close();
+        self.maintenance_admission.wait_for_quiescence()?;
         let close_guard = self.close_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         self.physical_maintenance.stop();
         self.projection_runtime.stop();

@@ -144,7 +144,7 @@ impl Admission {
         connection_runtime::internal_debt_probe(operation)
     }
 
-    pub(crate) fn close(&self) -> Result<(), EngineError> {
+    pub(crate) fn begin_close(&self) -> Result<(), EngineError> {
         if in_callback()
             || OPERATIONS.with(|v| v.borrow().get(&self.key()).copied().unwrap_or(0) != 0)
         {
@@ -154,7 +154,16 @@ impl Admission {
         s.closing = true;
         s.owner = None;
         self.changed.notify_all();
-        drop(self.changed.wait_while(s, |s| s.active != 0).map_err(|_| EngineError::Storage)?);
+        Ok(())
+    }
+
+    pub(crate) fn wait_for_quiescence(&self) -> Result<(), EngineError> {
+        let state = self.state.lock().map_err(|_| EngineError::Storage)?;
+        drop(
+            self.changed
+                .wait_while(state, |state| state.active != 0)
+                .map_err(|_| EngineError::Storage)?,
+        );
         Ok(())
     }
 }

@@ -328,3 +328,20 @@ fn absent_logical_root_never_completes_over_retained_touching_edges() {
     );
     assert!(engine.read_get("survivor", &ReadView::default()).unwrap().is_some());
 }
+
+#[cfg(feature = "operator")]
+#[test]
+fn offline_refuses_orphaned_explicit_root_before_any_cleanup_mutation() {
+    for edit in ["json_remove(value,'$.ticket')","json_set(value,'$.ticket','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')"]{
+        let(dir,engine)=fixture();let mut handle=engine.begin_erasure_maintenance(1000).unwrap();let ticket=ticket(&handle);arm_physical_erasure_hook_for_test("after_delete_commit",Box::new(||Err(EngineError::Storage)));assert!(handle.complete_physical_erasure(&ticket).is_err());handle.close().unwrap();engine.execute_for_test(&format!("UPDATE _fathomdb_open_state SET value={edit} WHERE key='_fathomdb_physical_erasure'")).unwrap();engine.close().unwrap();
+        let path=dir.path().join("physical.sqlite");let before=std::fs::read(&path).unwrap();let result=recover_complete_erasures(&path);assert!(result.is_err(),"offline must reject root/ticket mismatch before sanitation: {result:?}");assert_eq!(std::fs::read(&path).unwrap(),before);
+    }
+}
+#[cfg(feature = "operator")]
+#[test]
+fn offline_refuses_unknown_format36_policy_before_cleanup() {
+    let (dir, engine) = fixture();
+    engine.execute_for_test("UPDATE _fathomdb_open_state SET value='unknown' WHERE key='_fathomdb_physical_erasure_policy'").unwrap();
+    engine.close().unwrap();
+    assert!(recover_complete_erasures(dir.path().join("physical.sqlite")).is_err());
+}

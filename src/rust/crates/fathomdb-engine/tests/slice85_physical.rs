@@ -457,3 +457,82 @@ fn withdrawal_and_activation_orders_preserve_linearization_and_fences() {
     assert_eq!(engine.withdraw_queued_erasure(&second).unwrap(), WithdrawResult::AlreadyActivated);
     assert!(engine.write(&[node("new", "other", "unchanged-fence")]).is_err());
 }
+
+#[test]
+fn identity_free_finalizing_key_is_retired_not_a_conflicting_selector() {
+    let (_dir, engine) = fixture();
+    let reader = rusqlite::Connection::open(engine.path()).unwrap();
+    reader.execute_batch("BEGIN;SELECT count(*) FROM canonical_nodes;").unwrap();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let ticket = ticket(&handle);
+    assert!(matches!(
+        handle.complete_physical_erasure(&ticket).unwrap(),
+        CleanupResult::Incomplete { status: ErasureStatus { phase: ErasurePhase::Finalizing, .. } }
+    ));
+    handle.close().unwrap();
+    let retry = engine.queue_physical_erasure(
+        PhysicalErasureSelector::SourceAllAtCut { source_id: "target-source".into() },
+        "ddcfe624b1464d388b6ec5bfe6483c45",
+    );
+    reader.execute_batch("ROLLBACK").unwrap();
+    assert!(
+        matches!(retry, Err(EngineError::Maintenance(MaintenanceError::KeyRetired))),
+        "identity-free retry must not invent selector conflict: {retry:?}"
+    );
+    assert_eq!(
+        engine.physical_erasure_status(&ticket).unwrap().unwrap().phase,
+        ErasurePhase::Finalizing
+    );
+}
+#[test]
+fn sibling_ticket_status_reports_global_fence_without_changing_terminal_outcome() {
+    let (dir, engine) = fixture();
+    let mut handle = engine.begin_erasure_maintenance(1000).unwrap();
+    let terminal = match handle
+        .queue_physical_erasure(
+            PhysicalErasureSelector::SourceAllAtCut { source_id: "empty-source".into() },
+            "73ce258237684569882d25c9137b886a",
+        )
+        .unwrap()
+    {
+        QueueResult::Accepted { ticket, .. } => ticket,
+        _ => panic!(),
+    };
+    handle.complete_physical_erasure(&terminal).unwrap();
+    let sibling = match handle
+        .queue_physical_erasure(
+            PhysicalErasureSelector::SourceAllAtCut { source_id: "kept-source".into() },
+            "b9d8469bfc3c4adea0011bf7e3966e48",
+        )
+        .unwrap()
+    {
+        QueueResult::Accepted { ticket, .. } => ticket,
+        _ => panic!(),
+    };
+    let active = ticket(&handle);
+    arm_physical_erasure_hook_for_test(
+        "after_delete_commit",
+        Box::new(|| Err(EngineError::Storage)),
+    );
+    assert!(handle.complete_physical_erasure(&active).is_err());
+    handle.close().unwrap();
+    let before = [
+        engine.physical_erasure_status(&sibling).unwrap().unwrap(),
+        engine.physical_erasure_status(&terminal).unwrap().unwrap(),
+    ];
+    engine.close().unwrap();
+    let engine = Engine::open(dir.path().join("physical.sqlite")).unwrap().engine;
+    let after = [
+        engine.physical_erasure_status(&sibling).unwrap().unwrap(),
+        engine.physical_erasure_status(&terminal).unwrap().unwrap(),
+    ];
+    for status in before.iter().chain(&after) {
+        assert_eq!(
+            status.service_state,
+            ErasureServiceState::ReadsAllowedWritesFenced,
+            "sibling/terminal ticket must report current global fence"
+        );
+    }
+    assert_eq!(after[0].phase, ErasurePhase::Queued);
+    assert_eq!(after[1].phase, ErasurePhase::Complete);
+}

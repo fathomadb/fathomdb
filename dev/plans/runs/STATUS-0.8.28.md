@@ -99,7 +99,7 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 84 | Cleanup contention investigation | Bounded campaign complete; optimization NOT QUALIFIED and rejected, original scheduling restored. Final verification pending. [Status](../0.8.28/features/slice-84/status.md). |
 | 90 | D28-14 filtered direct body FTS | Not started; follows 84. |
 
-Ladder remaining: 84 final verification, then 90. Slices 41 and 42 were added by owner rulings on
+Ladder remaining: 84, 90. Slice 84 awaits final verification. Slices 41 and 42 were added by owner rulings on
 2026-10-16, Slices 50 to 90 on 2026-10-31, and the explicit Slice 81 POC
 on 2026-11-03. CH1 Slices 82/83 were subsequently approved and allocated on
 2026-11-03. Slice 81 remains complete; physical erasure remediation is outside

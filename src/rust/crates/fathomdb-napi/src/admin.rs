@@ -57,6 +57,8 @@ pub async fn admin_configure(
 
 #[napi(object)]
 pub struct EngineConfig {
+    /// Persisted autonomous or explicit_maintenance scheduling policy.
+    pub physical_erasure_policy: Option<String>,
     pub embedder_pool_size: Option<f64>,
     pub scheduler_runtime_threads: Option<f64>,
     pub provenance_row_cap: Option<f64>,
@@ -154,6 +156,20 @@ impl EngineConfig {
     pub(crate) fn into_rust(self) -> Result<RustEngineConfig> {
         const MAX_SAFE: u64 = (1_u64 << 53) - 1;
         Ok(RustEngineConfig {
+            physical_erasure_policy: self
+                .physical_erasure_policy
+                .map(|raw| match raw.as_str() {
+                    "autonomous" => Ok(fathomdb_engine::PhysicalErasurePolicy::Autonomous),
+                    "explicit_maintenance" => {
+                        Ok(fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance)
+                    }
+                    _ => Err(invalid_config_string(
+                        "physical_erasure_policy",
+                        &raw,
+                        "autonomous or explicit_maintenance",
+                    )),
+                })
+                .transpose()?,
             embedder_pool_size: checked_config_number(
                 "embedder_pool_size",
                 self.embedder_pool_size,

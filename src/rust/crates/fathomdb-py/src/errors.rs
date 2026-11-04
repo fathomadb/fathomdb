@@ -60,6 +60,7 @@ create_exception!(_fathomdb, NotLifecycleAddressableError, EngineError);
 // returning success: an erasure verb must never report success on an incomplete
 // erasure.
 create_exception!(_fathomdb, ErasureIncompleteError, EngineError);
+create_exception!(_fathomdb, MaintenanceError, EngineError);
 // 0.8.20 Slice 15d (R-20-PR) — `configure_projections` refused a destructive
 // change to a live projection without an explicit `drop` (carries `name` +
 // `delta`). Omission never drops; a role removal / tokenizer / embedder change
@@ -210,6 +211,14 @@ pub(super) fn engine_error_to_py(err: RustEngineError) -> PyErr {
             ));
             Python::attach(|py| {
                 let _ = exc.value(py).setattr("id_space", id_space.as_str());
+            });
+            exc
+        }
+        RustEngineError::Maintenance(reason) => {
+            let exc = MaintenanceError::new_err(reason.to_string());
+            let value = serde_json::to_value(reason).unwrap_or_default();
+            Python::attach(|py| {
+                let _ = exc.value(py).setattr("reason", value.as_str().unwrap_or("invalid_state"));
             });
             exc
         }

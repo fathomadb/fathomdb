@@ -127,6 +127,8 @@ mod types;
 use types::*;
 mod engine;
 use engine::*;
+mod maintenance;
+use maintenance::*;
 mod admin;
 use admin::*;
 mod projection;
@@ -215,6 +217,9 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     ))]
     m.add_function(wrap_pyfunction!(_cuda_module_load_init, &m)?)?;
     m.add_class::<PyEngine>()?;
+    m.add_class::<PyErasureMaintenance>()?;
+    #[cfg(feature = "test-hooks")]
+    m.add_class::<PyErasurePause>()?;
     #[cfg(feature = "test-hooks")]
     m.add_class::<PyWalSnapshotPause>()?;
     m.add_class::<PyWriteReceipt>()?;
@@ -359,6 +364,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("VectorVerificationError", py.get_type::<VectorVerificationError>())?;
     m.add("IllegalTransitionError", py.get_type::<IllegalTransitionError>())?;
     m.add("NotLifecycleAddressableError", py.get_type::<NotLifecycleAddressableError>())?;
+    m.add("MaintenanceError", py.get_type::<MaintenanceError>())?;
     m.add("ErasureIncompleteError", py.get_type::<ErasureIncompleteError>())?;
     m.add("ProjectionDestructiveError", py.get_type::<ProjectionDestructiveError>())?;
     m.add("ProjectionGenerationError", py.get_type::<ProjectionGenerationError>())?;

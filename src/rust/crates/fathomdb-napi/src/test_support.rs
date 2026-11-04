@@ -19,6 +19,16 @@ impl Engine {
         call_engine_sync(move || {
             let requested = engine.config();
             Ok(EngineConfig {
+                physical_erasure_policy: requested.physical_erasure_policy.map(
+                    |value| match value {
+                        fathomdb_engine::PhysicalErasurePolicy::Autonomous => {
+                            "autonomous".to_string()
+                        }
+                        fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance => {
+                            "explicit_maintenance".to_string()
+                        }
+                    },
+                ),
                 embedder_pool_size: requested.embedder_pool_size.map(|value| value as f64),
                 scheduler_runtime_threads: requested
                     .scheduler_runtime_threads

@@ -45,6 +45,8 @@ mod projection;
 pub use projection::*;
 mod engine;
 pub use engine::*;
+mod maintenance;
+pub use maintenance::*;
 mod admin;
 pub use admin::*;
 mod read_search;

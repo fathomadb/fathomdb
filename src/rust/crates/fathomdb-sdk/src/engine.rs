@@ -29,7 +29,7 @@ use crate::options::{
 /// Calls are synchronous and the handle is `Send + Sync`. `close` is
 /// idempotent; after it, operations fail with `ErrorKind::Closing`.
 pub struct Engine {
-    core: CoreEngine,
+    core: Arc<CoreEngine>,
     report: OpenReport,
     config: EngineConfig,
     subscriber: Mutex<SubscriberSlot>,
@@ -59,7 +59,7 @@ impl Engine {
         };
         let opened = CoreEngine::open_with_choice_and_config(path, choice, options.config.clone())?;
         Ok(Engine {
-            core: opened.engine,
+            core: Arc::new(opened.engine),
             report: opened.report,
             config: options.config,
             subscriber: Mutex::new(SubscriberSlot::default()),
@@ -68,6 +68,45 @@ impl Engine {
 
     pub(crate) fn core(&self) -> &CoreEngine {
         &self.core
+    }
+
+    /// Return the validated scheduling policy honored by this open incarnation.
+    pub fn physical_erasure_policy(&self) -> fathomdb_engine::PhysicalErasurePolicy {
+        self.core.physical_erasure_policy()
+    }
+
+    /// Acquire exclusive maintenance. `acquisition_wait_ms` bounds cooperative
+    /// admission/drain only; it is not an active cleanup deadline.
+    /// Returns a typed maintenance refusal when another owner or reader blocks it.
+    pub fn begin_erasure_maintenance(
+        &self,
+        acquisition_wait_ms: u64,
+    ) -> Result<crate::ErasureMaintenance> {
+        Ok(crate::ErasureMaintenance {
+            inner: self.core.begin_erasure_maintenance(acquisition_wait_ms)?,
+        })
+    }
+
+    /// Request bounded immutable intent. Acceptance leaves read visibility unchanged;
+    /// heavy admission returns NeedsMaintenanceAdmission until a window is held.
+    pub fn queue_physical_erasure(
+        &self,
+        selector: crate::PhysicalErasureSelector,
+        key: &str,
+    ) -> Result<crate::QueueResult> {
+        Ok(self.core.queue_physical_erasure(selector, key)?)
+    }
+
+    /// Read one store-bound ticket without exposing its selector. Unknown or
+    /// wrong-store well-formed tickets return None; malformed tickets fail.
+    pub fn physical_erasure_status(&self, ticket: &str) -> Result<Option<crate::ErasureStatus>> {
+        Ok(self.core.physical_erasure_status(ticket)?)
+    }
+
+    /// Withdraw queued intent only. Activated work cannot be cancelled, and
+    /// withdrawal never certifies physical erasure.
+    pub fn withdraw_queued_erasure(&self, ticket: &str) -> Result<crate::WithdrawResult> {
+        Ok(self.core.withdraw_queued_erasure(ticket)?)
     }
 
     /// The report produced when this database was opened.

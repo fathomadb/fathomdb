@@ -77,11 +77,16 @@ import {
 } from "./evidence.js";
 import { OpenReport, CounterSnapshot, SubscriberCallback } from "./open.js";
 
-import { intercept } from "./native-call.js";
+import { intercept, interceptSync } from "./native-call.js";
+import { ErasureMaintenance, type PhysicalErasurePolicy, type PhysicalErasureSelector,
+  type QueueResult, type ErasureStatus, type WithdrawResult, erasureSelector, queueResult,
+  erasureStatus } from "./maintenance.js";
 
 import { SearchExpandResult, GraphEvidenceResolveRequestV1, ResolvedGraphEvidenceV1 } from "./graph.js";
 
 export interface EngineConfig {
+  /** Persisted scheduling. Unset honors reopen policy; new stores default autonomous. */
+  readonly physicalErasurePolicy?: "autonomous" | "explicit_maintenance";
   readonly embedderPoolSize?: number;
   readonly schedulerRuntimeThreads?: number;
   readonly provenanceRowCap?: number;
@@ -162,6 +167,7 @@ export const ENGINE_CONFIG_LIMITS = {
 } as const;
 
 const ENGINE_CONFIG_STRINGS = {
+  physicalErasurePolicy: ["autonomous", "explicit_maintenance"],
   cudaPool: ["auto", "on", "off"],
   cudaPoolReleaseThreshold: ["0", "max"],
 } as const;
@@ -229,6 +235,36 @@ export class Engine {
       : { useDefaultEmbedder, engineConfig: config };
     const inner = await intercept(() => native.Engine.open(path, nativeOptions));
     return new Engine(inner, config);
+  }
+
+  /** Queue immutable intent. Accepted leaves existing read visibility unchanged. */
+  async queuePhysicalErasure(selector: PhysicalErasureSelector, idempotencyKey: string): Promise<QueueResult> {
+    const lowered = erasureSelector(selector);
+    return queueResult(await intercept(() => this.#native.queuePhysicalErasure(lowered, idempotencyKey)));
+  }
+
+  /** Read one store-bound ticket; unknown/wrong-store tickets return null without scope. */
+  async physicalErasureStatus(ticket: string): Promise<ErasureStatus | null> {
+    const status = await intercept(() => this.#native.physicalErasureStatus(ticket));
+    return status === null ? null : erasureStatus(status);
+  }
+
+  /** Withdraw Queued only; no physical success or active cancellation is implied. */
+  async withdrawQueuedErasure(ticket: string): Promise<WithdrawResult> {
+    return await intercept(() => this.#native.withdrawQueuedErasure(ticket)) as WithdrawResult;
+  }
+
+  /** Return persisted scheduling honored by this open incarnation. */
+  physicalErasurePolicy(): PhysicalErasurePolicy {
+    return interceptSync(() => this.#native.physicalErasurePolicy()) as PhysicalErasurePolicy;
+  }
+
+  /** Acquire exclusive service admission; wait does not limit active SQLite commands. */
+  async beginErasureMaintenance(acquisitionWaitMs = 0): Promise<ErasureMaintenance> {
+    if (!Number.isSafeInteger(acquisitionWaitMs) || acquisitionWaitMs < 0) {
+      throw new RangeError("acquisitionWaitMs must be a nonnegative safe integer");
+    }
+    return new ErasureMaintenance(await intercept(() => this.#native.beginErasureMaintenance(acquisitionWaitMs)));
   }
 
   /**

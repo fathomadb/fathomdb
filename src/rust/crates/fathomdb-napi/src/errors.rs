@@ -50,6 +50,7 @@ pub(crate) const CODE_ILLEGAL_TRANSITION: &str = "FDB_ILLEGAL_TRANSITION";
 pub(crate) const CODE_NOT_LIFECYCLE_ADDRESSABLE: &str = "FDB_NOT_LIFECYCLE_ADDRESSABLE";
 // 0.8.20 Slice 5b (R-20-E5) — an erasure verb deleted its rows but could not
 // complete the erasure at rest.
+pub(crate) const CODE_MAINTENANCE: &str = "FDB_MAINTENANCE";
 pub(crate) const CODE_ERASURE_INCOMPLETE: &str = "FDB_ERASURE_INCOMPLETE";
 // 0.8.20 Slice 15d (R-20-PR) — configure_projections refused a destructive
 // change without an explicit drop.
@@ -323,6 +324,9 @@ pub(crate) fn engine_error_to_napi(err: RustEngineError) -> Error {
             format!("vector-equivalence self-check failed; dense retrieval refused: {reason}"),
             json!({ "reason": reason }),
         ),
+        RustEngineError::Maintenance(reason) => {
+            typed_error(CODE_MAINTENANCE, reason.to_string(), json!({"reason": reason}))
+        }
         RustEngineError::ErasureIncomplete { stage, detail } => typed_error(
             CODE_ERASURE_INCOMPLETE,
             format!("erasure incomplete at stage '{stage}': {detail}"),

@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 
 _KWARG_FIELDS = {
+    "physical_erasure_policy",
     "embedder_pool_size",
     "scheduler_runtime_threads",
     "provenance_row_cap",
@@ -52,6 +53,7 @@ _ENGINE_CONFIG_RANGES = {
 }
 
 _ENGINE_CONFIG_CHOICES = {
+    "physical_erasure_policy": ("autonomous", "explicit_maintenance"),
     "cuda_pool": ("auto", "on", "off"),
     "cuda_pool_release_threshold": ("0", "max"),
 }

@@ -59,7 +59,8 @@ pub(super) fn engine_config_from_py(
             .map_err(|_| PyTypeError::new_err("config keys must be strings"))?;
         if !matches!(
             name.as_str(),
-            "scheduler_runtime_threads"
+            "physical_erasure_policy"
+                | "scheduler_runtime_threads"
                 | "embedder_pool_size"
                 | "embedder_call_timeout_ms"
                 | "provenance_row_cap"
@@ -73,6 +74,18 @@ pub(super) fn engine_config_from_py(
         }
     }
     Ok(RustEngineConfig {
+        physical_erasure_policy: optional_engine_config_string(
+            config,
+            "physical_erasure_policy",
+            |raw| match raw {
+                "autonomous" => Some(fathomdb_engine::PhysicalErasurePolicy::Autonomous),
+                "explicit_maintenance" => {
+                    Some(fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance)
+                }
+                _ => None,
+            },
+            "autonomous or explicit_maintenance",
+        )?,
         scheduler_runtime_threads: optional_engine_config_value(
             config,
             "scheduler_runtime_threads",
@@ -210,6 +223,67 @@ impl PyEngine {
             inner: Arc::new(opened.engine),
             open_report: Arc::new(opened.report),
             logging: logging_subscriber::LoggingSlot::new(),
+        })
+    }
+
+    /// Queue immutable intent without changing read visibility.
+    fn queue_physical_erasure(
+        &self,
+        py: Python<'_>,
+        selector_json: String,
+        key: String,
+    ) -> PyResult<String> {
+        let selector = serde_json::from_str(&selector_json)
+            .map_err(|_| WriteValidationError::new_err("invalid erasure selector"))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.queue_physical_erasure(selector, &key))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure result serialization failed"))
+    }
+
+    /// Read one store-bound ticket without exposing its selector.
+    fn physical_erasure_status(&self, py: Python<'_>, ticket: String) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.physical_erasure_status(&ticket))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure status serialization failed"))
+    }
+
+    /// Withdraw only queued work; never cancels activated debt.
+    fn withdraw_queued_erasure(&self, py: Python<'_>, ticket: String) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.withdraw_queued_erasure(&ticket))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure withdrawal serialization failed"))
+    }
+
+    /// Return persisted scheduling honored by this open incarnation.
+    fn physical_erasure_policy(&self, py: Python<'_>) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || {
+            Ok(match engine.physical_erasure_policy() {
+                fathomdb_engine::PhysicalErasurePolicy::Autonomous => "autonomous",
+                fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance => {
+                    "explicit_maintenance"
+                }
+            }
+            .to_string())
+        })
+    }
+
+    /// Acquire an exclusive window; wait bounds admission only, not active SQL.
+    fn begin_erasure_maintenance(
+        &self,
+        py: Python<'_>,
+        acquisition_wait_ms: u64,
+    ) -> PyResult<PyErasureMaintenance> {
+        let engine = Arc::clone(&self.inner);
+        let handle =
+            call_engine(py, move || engine.begin_erasure_maintenance(acquisition_wait_ms))?;
+        Ok(PyErasureMaintenance {
+            inner: Arc::new(std::sync::Mutex::new(handle)),
+            #[cfg(feature = "test-hooks")]
+            pause: Arc::new(std::sync::Mutex::new(None)),
         })
     }
 

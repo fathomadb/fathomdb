@@ -305,6 +305,7 @@ fn engine_kind(error: &EngineError) -> ErrorKind {
         EngineError::IllegalTransition { .. } => ErrorKind::IllegalTransition,
         EngineError::NotLifecycleAddressable { .. } => ErrorKind::NotLifecycleAddressable,
         EngineError::ErasureIncomplete { .. } => ErrorKind::ErasureIncomplete,
+        EngineError::Maintenance(_) => ErrorKind::Maintenance,
         EngineError::ProjectionDestructive { .. } => ErrorKind::ProjectionDestructive,
         // Variants compiled only with the engine's `operator` feature (which
         // workspace builds unify on) surface as the base class, as in Python.
@@ -459,6 +460,7 @@ error_kinds! {
     IllegalTransition => "IllegalTransitionError",
     NotLifecycleAddressable => "NotLifecycleAddressableError",
     ErasureIncomplete => "ErasureIncompleteError",
+    Maintenance => "MaintenanceError",
     ProjectionDestructive => "ProjectionDestructiveError",
     CudaPoolExhausted => "CudaPoolExhaustedError",
     CudaContextLost => "CudaContextLostError",

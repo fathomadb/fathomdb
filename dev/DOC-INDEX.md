@@ -72,6 +72,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.28/features/slice-92/status.md` | Documentation convergence status and verification outcomes | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-95/plan.md` | CI repairs and final qualification plan consuming Slice 92 documentation | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-95/design.md` | Bounded CI repairs, RED/GREEN controls and candidate qualification design. | 0.8.28 Slice 95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/qualification.md` | Applicable CI jobs, final candidate routes, executor resources and evidence dispositions. | 0.8.28 Slice 95 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-95/status.md` | CI repair and release-readiness execution status after Slice 92 | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |

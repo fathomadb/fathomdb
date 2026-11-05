@@ -90,6 +90,11 @@ and adjust only affected obligations. Use the existing development checkout if
 it has one writer; isolate concurrent writers and remove any task worktree after
 landing. Do not adopt Steward/Orchestrator roles.
 
+The execution [qualification matrix](qualification.md) binds each applicable
+route to current acceptance, resources and disposition. It preserves accepted
+TC5 recall and separately assessed stress rather than reviving the superseded
+EU7 recall oracle. Astra approved this applicability reconciliation.
+
 ## Needs, requirements and local acceptance
 
 The release owner needs a reliable account of what CI actually checks and one

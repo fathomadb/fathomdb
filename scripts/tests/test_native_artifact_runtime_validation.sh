@@ -368,6 +368,21 @@ done
 if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != 1 ]; then
   type_work="$(mktemp -d)"
   trap 'rm -rf "$type_work"' EXIT
+  # Execute the real fixture-reading prefix without opening a database; this
+  # catches missing lexical imports in the independent Node heredoc.
+  python3 - "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.sh" "$type_work/frozen-prefix.mjs" <<'PYPREFIX'
+from pathlib import Path
+import re
+import sys
+bodies = re.findall(r"<<'JS'\n(.*?)\nJS", Path(sys.argv[1]).read_text(), re.S)
+body, = [body for body in bodies if 'const fixture = JSON.parse(readFileSync' in body]
+prefix = body.split('const engine =', 1)[0]
+prefix = prefix.replace('import { Engine } from "fathomdb";', '')
+Path(sys.argv[2]).write_text(prefix)
+PYPREFIX
+  printf 'fixture token\n' >"$type_work/token.txt"
+  node "$type_work/frozen-prefix.mjs" "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" "$type_work/unopened.sqlite" "$type_work/token.txt" \
+    || fail 'frozen-context fixture prefix must resolve its actual file-reading bindings'
   type_consumer="$type_work/consumer"
   type_package="$type_consumer/node_modules/fathomdb"
   mkdir -p "$type_package/dist"

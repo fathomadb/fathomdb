@@ -1,9 +1,9 @@
 //! Bounded Python logging adapter for native lifecycle diagnostics.
 
 use std::cell::Cell;
-use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TryRecvError, TrySendError};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -58,92 +58,120 @@ enum Record {
     Dropped(u64),
 }
 
+enum Message {
+    Record(Record),
+    Stop,
+}
+
 struct QueueState {
     enabled: bool,
-    records: VecDeque<Record>,
-    dropped: u64,
+    receiver: Receiver<Message>,
     reported_drop_last: bool,
 }
 
 struct Queue {
     state: Mutex<QueueState>,
-    changed: Condvar,
+    sender: SyncSender<Message>,
     enabled: AtomicBool,
-    contended_drops: AtomicU64,
+    dropped: AtomicU64,
     exited: AtomicBool,
 }
 
 impl Queue {
     fn new() -> Self {
+        let (sender, receiver) = mpsc::sync_channel(CAPACITY);
         Self {
-            state: Mutex::new(QueueState {
-                enabled: true,
-                records: VecDeque::with_capacity(CAPACITY),
-                dropped: 0,
-                reported_drop_last: false,
-            }),
-            changed: Condvar::new(),
+            state: Mutex::new(QueueState { enabled: true, receiver, reported_drop_last: false }),
+            sender,
             enabled: AtomicBool::new(true),
-            contended_drops: AtomicU64::new(0),
+            dropped: AtomicU64::new(0),
             exited: AtomicBool::new(false),
         }
     }
 
+    fn add_dropped(&self, count: u64) {
+        let _ = self.dropped.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            Some(current.saturating_add(count))
+        });
+    }
+
     fn push(&self, record: Record) {
-        // SQLite/profile producer threads never wait for a Python logger or
-        // another producer holding this short queue lock.
-        if let Ok(mut state) = self.state.try_lock() {
-            if !state.enabled {
-                return;
-            }
-            if state.records.len() == CAPACITY {
-                state.dropped = state.dropped.saturating_add(1);
-            } else {
-                state.records.push_back(record);
-                self.changed.notify_one();
-            }
-        } else {
-            let _ =
-                self.contended_drops.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
-                    Some(count.saturating_add(1))
-                });
-            self.changed.notify_one();
+        if !self.enabled.load(Ordering::Acquire) {
+            return;
+        }
+        // Consumer bookkeeping cannot turn spare queue capacity into event loss.
+        match self.sender.try_send(Message::Record(record)) {
+            Ok(()) => {}
+            Err(TrySendError::Full(_)) => self.add_dropped(1),
+            Err(TrySendError::Disconnected(_)) => self.enabled.store(false, Ordering::Release),
         }
     }
 
     fn disable(&self) {
-        if let Ok(mut state) = self.state.lock() {
-            state.enabled = false;
-            self.enabled.store(false, Ordering::Release);
-            state.records.clear();
-            state.dropped = 0;
-            self.contended_drops.store(0, Ordering::Relaxed);
-            self.changed.notify_one();
-        }
+        self.enabled.store(false, Ordering::Release);
+        // Wake an idle receiver before waiting for its bookkeeping guard.
+        // A full channel is already ready; Stop itself is never counted as loss.
+        let _ = self.sender.try_send(Message::Stop);
+        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.enabled = false;
+        while state.receiver.try_recv().is_ok() {}
+        self.dropped.store(0, Ordering::Relaxed);
     }
 
     fn next(&self) -> Option<Record> {
-        let mut state = self.state.lock().ok()?;
-        if !state.enabled {
+        let mut state = match self.state.lock() {
+            Ok(state) => state,
+            Err(_) => {
+                self.enabled.store(false, Ordering::Release);
+                return None;
+            }
+        };
+        if !self.enabled.load(Ordering::Acquire) || !state.enabled {
             return None;
         }
-        let dropped = std::mem::take(&mut state.dropped)
-            .saturating_add(self.contended_drops.swap(0, Ordering::Relaxed));
-        if dropped > 0 && (!state.reported_drop_last || state.records.is_empty()) {
+        let dropped = self.dropped.swap(0, Ordering::Relaxed);
+        if dropped > 0 && !state.reported_drop_last {
             state.reported_drop_last = true;
             return Some(Record::Dropped(dropped));
         }
-        if let Some(record) = state.records.pop_front() {
-            state.dropped = dropped;
-            state.reported_drop_last = false;
-            return Some(record);
-        }
-        let (state, _) = self.changed.wait_timeout(state, Duration::from_secs(1)).ok()?;
-        if !state.enabled {
+        let message = match state.receiver.try_recv() {
+            Ok(message) => Some(message),
+            Err(TryRecvError::Empty) if dropped > 0 => {
+                state.reported_drop_last = true;
+                return Some(Record::Dropped(dropped));
+            }
+            Err(TryRecvError::Empty) => match state.receiver.recv_timeout(Duration::from_secs(1)) {
+                Ok(message) => Some(message),
+                Err(RecvTimeoutError::Timeout) => None,
+                Err(RecvTimeoutError::Disconnected) => {
+                    state.enabled = false;
+                    self.enabled.store(false, Ordering::Release);
+                    None
+                }
+            },
+            Err(TryRecvError::Disconnected) => {
+                state.enabled = false;
+                self.enabled.store(false, Ordering::Release);
+                None
+            }
+        };
+        if !self.enabled.load(Ordering::Acquire) {
             return None;
         }
-        drop(state);
-        None
+        match message {
+            Some(Message::Record(record)) => {
+                // Producers may add real overflow while this loss report is deferred.
+                self.add_dropped(dropped);
+                state.reported_drop_last = false;
+                Some(record)
+            }
+            Some(Message::Stop) => {
+                state.enabled = false;
+                self.enabled.store(false, Ordering::Release);
+                None
+            }
+            None => None,
+        }
     }
 }
 
@@ -255,6 +283,9 @@ fn run_worker(
 ) {
     loop {
         let record = queue.next();
+        if !queue.enabled.load(Ordering::Acquire) {
+            break;
+        }
         let alive = Python::try_attach(|py| -> PyResult<bool> {
             let logger = weak_logger.bind(py).call0()?;
             if logger.is_none() {
@@ -271,7 +302,7 @@ fn run_worker(
             queue.disable();
             break;
         }
-        if queue.state.lock().map_or(true, |state| !state.enabled) {
+        if !queue.enabled.load(Ordering::Acquire) {
             break;
         }
     }
@@ -408,20 +439,153 @@ mod tests {
     }
 
     #[test]
+    fn bookkeeping_contention_preserves_non_overloaded_event_pairs() {
+        let queue = Arc::new(Queue::new());
+        let state = queue.state.lock().unwrap();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let producer_queue = Arc::clone(&queue);
+        let producer = thread::spawn(move || {
+            producer_queue.push(event());
+            producer_queue.push(Record::Event(Event {
+                phase: Phase::Finished,
+                source: EventSource::Engine,
+                category: EventCategory::Writer,
+                code: None,
+            }));
+            done_tx.send(()).unwrap();
+        });
+        let completed_while_locked = done_rx.recv_timeout(Duration::from_secs(1)).is_ok();
+        drop(state);
+        producer.join().unwrap();
+        let describe = |record| match record {
+            Some(Record::Event(Event { phase, .. })) => format!("{phase:?}"),
+            Some(Record::Dropped(count)) => format!("Dropped({count})"),
+            Some(_) => "other record".into(),
+            None => "no record".into(),
+        };
+        let observed = [describe(queue.next()), describe(queue.next())];
+        queue.disable();
+        assert!(completed_while_locked, "producers must not wait for consumer bookkeeping");
+        assert_eq!(
+            observed,
+            ["Started", "Finished"],
+            "spare capacity must preserve exact FIFO pairing without loss"
+        );
+    }
+
+    #[test]
     fn overload_is_bounded_reported_and_disabled_atomically() {
         let queue = Queue::new();
         for _ in 0..CAPACITY {
             queue.push(event());
         }
         queue.push(event());
-        assert_eq!(queue.state.lock().unwrap().records.len(), CAPACITY);
         assert!(matches!(queue.next(), Some(Record::Dropped(1))));
         queue.push(event());
         assert!(matches!(queue.next(), Some(Record::Event(_))));
+        assert!(matches!(queue.next(), Some(Record::Dropped(1))));
+        for _ in 1..CAPACITY {
+            assert!(matches!(queue.next(), Some(Record::Event(_))));
+        }
+        assert!(matches!(
+            queue.state.lock().unwrap().receiver.try_recv(),
+            Err(TryRecvError::Empty)
+        ));
         queue.disable();
         queue.push(event());
-        assert!(queue.state.lock().unwrap().records.is_empty());
+        assert!(matches!(
+            queue.state.lock().unwrap().receiver.try_recv(),
+            Err(TryRecvError::Empty)
+        ));
         assert!(queue.next().is_none());
+    }
+
+    #[test]
+    fn overflow_loss_saturates_and_remains_fair_while_loss_is_deferred() {
+        let queue = Queue::new();
+        for _ in 0..CAPACITY {
+            queue.push(event());
+        }
+        queue.dropped.store(u64::MAX - 1, Ordering::Relaxed);
+        queue.push(event());
+        queue.push(event());
+        assert!(matches!(queue.next(), Some(Record::Dropped(u64::MAX))));
+        queue.push(event());
+        assert!(matches!(queue.next(), Some(Record::Event(_))));
+        assert_eq!(queue.dropped.load(Ordering::Relaxed), 1);
+        queue.push(event());
+        queue.push(event());
+        assert!(matches!(queue.next(), Some(Record::Dropped(2))));
+        queue.disable();
+        assert_eq!(queue.dropped.load(Ordering::Relaxed), 0);
+        assert!(queue.next().is_none());
+    }
+
+    #[test]
+    fn disabling_wakes_an_idle_consumer_before_its_poll_timeout() {
+        let queue = Arc::new(Queue::new());
+        let (started_tx, started_rx) = mpsc::channel();
+        let (woke_tx, woke_rx) = mpsc::channel();
+        let consumer_queue = Arc::clone(&queue);
+        let consumer = thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            woke_tx.send(consumer_queue.next().is_none()).unwrap();
+        });
+        let started = started_rx.recv_timeout(Duration::from_secs(1)).is_ok();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let waiting = loop {
+            match queue.state.try_lock() {
+                Err(std::sync::TryLockError::WouldBlock) => break true,
+                Err(_) => break false,
+                Ok(state) => drop(state),
+            }
+            if std::time::Instant::now() >= deadline {
+                break false;
+            }
+            thread::yield_now();
+        };
+        let (disabled_tx, disabled_rx) = mpsc::channel();
+        let disabling_queue = Arc::clone(&queue);
+        let disabler = thread::spawn(move || {
+            disabling_queue.disable();
+            disabled_tx.send(()).unwrap();
+        });
+        let woke = woke_rx.recv_timeout(Duration::from_millis(750)).ok();
+        let disabled = disabled_rx.recv_timeout(Duration::from_millis(750)).is_ok();
+        consumer.join().unwrap();
+        disabler.join().unwrap();
+        assert!(started && waiting, "idle consumer must own receiver bookkeeping");
+        assert_eq!(woke, Some(true), "Stop must wake the receiver before its one-second poll");
+        assert!(disabled, "disable must not wait out the receiver's poll timeout");
+        assert!(!queue.enabled.load(Ordering::Acquire));
+        assert_eq!(queue.dropped.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn poison_and_disconnect_end_delivery_without_an_enabled_dead_consumer() {
+        let queue = Arc::new(Queue::new());
+        let poisoning_queue = Arc::clone(&queue);
+        let poisoned = thread::spawn(move || {
+            let _state = poisoning_queue.state.lock().unwrap();
+            panic!("poison receiver bookkeeping");
+        });
+        assert!(poisoned.join().is_err());
+        assert!(queue.next().is_none());
+        assert!(!queue.enabled.load(Ordering::Acquire));
+        queue.disable();
+        assert!(!queue.state.lock().err().unwrap().into_inner().enabled);
+        for through_push in [false, true] {
+            let queue = Queue::new();
+            let (sender, receiver) = mpsc::sync_channel(CAPACITY);
+            queue.state.lock().unwrap().receiver = receiver;
+            drop(sender);
+            if through_push {
+                queue.push(event());
+            }
+            assert!(queue.next().is_none());
+            assert!(!queue.enabled.load(Ordering::Acquire));
+            assert_eq!(queue.dropped.load(Ordering::Relaxed), 0);
+        }
     }
 
     #[test]

@@ -85,22 +85,32 @@ impl PhysicalMaintenance {
                     if !active {
                         continue;
                     }
-                    let Ok(_service) = service.try_lock() else {
-                        continue;
-                    };
                     shared.priority.store(true, Ordering::Release);
                     let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
                     let priority = MaintenanceTurn { shared: &shared, _turn: turn };
+                    let mut service_guard = None;
                     let result = (|| {
                         let waiting = metrics.timer("maintenance_writer_wait");
                         let guard = physical_metrics::writer(&metrics, &connection, false)?;
                         drop(waiting);
                         let holding = metrics.timer("maintenance_writer_hold");
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
-                        if !connection_runtime::internal_debt_probe(|| physical_erasure::active(c))?
-                        {
+                        let active =
+                            connection_runtime::internal_debt_probe(|| physical_erasure::active(c))
+                                .inspect_err(|error| {
+                                    // Before service admission, only this primary guard
+                                    // prevents attributing a blocker to a later request.
+                                    let _ = physical_erasure::record_blocker(c, error);
+                                })?;
+                        if !active {
                             return Ok(false);
                         }
+                        // Foreground erasure owns service before primary. Never
+                        // wait on its service guard while holding primary.
+                        let Ok(ownership) = service.try_lock() else {
+                            return Ok(false);
+                        };
+                        service_guard = Some(ownership);
                         metrics.begin_lifecycle();
                         let ids = physical_erasure::pending_ids(c)?;
                         dependency_closure::validate_physical_closures(c, &ids)?;
@@ -135,14 +145,17 @@ impl PhysicalMaintenance {
                         projections.notify_new_work();
                         Ok(true)
                     })();
-                    if let Err(error) = &result {
-                        if let Ok(guard) = connection.lock() {
-                            if let Some(c) = guard.as_ref() {
-                                let _ = physical_erasure::record_blocker(c, error);
+                    if service_guard.is_some() {
+                        if let Err(error) = &result {
+                            if let Ok(guard) = connection.lock() {
+                                if let Some(c) = guard.as_ref() {
+                                    let _ = physical_erasure::record_blocker(c, error);
+                                }
                             }
                         }
                     }
                     drop(priority);
+                    drop(service_guard);
                     delay = if matches!(result, Ok(true)) {
                         Duration::from_millis(5)
                     } else {
@@ -284,6 +297,57 @@ mod tests {
         drop(guard);
         engine.close().unwrap();
         assert!(asserted, "a busy primary must not hide potentially owed work from priority");
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[test]
+    fn debt_free_primary_contention_does_not_reserve_physical_service() {
+        let directory = tempfile::tempdir().unwrap();
+        let engine =
+            Arc::new(Engine::open(directory.path().join("probe-admission.sqlite")).unwrap().engine);
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "private worker admission marker".into(),
+                source_id: SourceId::new("target-source").unwrap(),
+                logical_id: Some("target".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.drain(1_000).unwrap();
+        let primary = engine.connection.lock().unwrap();
+        let debt_free = matches!(physical_erasure::active(primary.as_ref().unwrap()), Ok(false));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !engine.physical_maintenance.shared.priority.load(Ordering::Acquire)
+            && Instant::now() < deadline
+        {
+            std::thread::yield_now();
+        }
+        let priority = engine.physical_maintenance.shared.priority.load(Ordering::Acquire);
+        let service_available = engine.physical_service_gate.try_lock().is_ok();
+        let (admitted_tx, admitted_rx) = mpsc::channel();
+        engine.arm_erasure_before_primary_lock_hook_for_test(Box::new(move || {
+            let _ = admitted_tx.send(());
+        }));
+        let foreground = Arc::clone(&engine);
+        let erase = std::thread::spawn(move || foreground.erase_source("target-source"));
+        let admitted = admitted_rx.recv_timeout(Duration::from_secs(2)).is_ok();
+        // Neither a failed rendezvous nor the expected RED may strand an actor.
+        drop(primary);
+        let erased = erase.join();
+        let closed = engine.close();
+        assert!(debt_free, "the held primary must have no committed physical debt");
+        assert!(priority, "a contended primary must still publish maintenance priority");
+        assert!(
+            service_available,
+            "speculative debt probing occupied the service before checking the held primary"
+        );
+        assert!(admitted, "the foreground erase must be admitted before primary release");
+        assert_eq!(erased.unwrap().unwrap().nodes_excised, 1);
+        closed.unwrap();
     }
 
     #[test]

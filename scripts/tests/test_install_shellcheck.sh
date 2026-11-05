@@ -90,7 +90,7 @@ TAR
 print_target() {
   local os="$1" arch="$2"
   SHELLCHECK_TEST_UNAME_OS="$os" SHELLCHECK_TEST_UNAME_ARCH="$arch" \
-    PATH="$FIX/bin:$FIX/host-bin:/usr/bin:/bin" bash "$INSTALLER" --print-target
+    PATH="$FIX/bin" bash "$INSTALLER" --print-target
 }
 
 run_installer() {
@@ -100,12 +100,20 @@ run_installer() {
     SHELLCHECK_TEST_MARKERS="$markers" SHELLCHECK_TEST_SHA="$sha" \
     SHELLCHECK_TEST_SHA_MODE="$mode" SHELLCHECK_VERSION="$SHELLCHECK_VERSION" \
     SHELLCHECK_TEST_UNAME_OS="$os" SHELLCHECK_TEST_UNAME_ARCH="$arch" \
-    PATH="$FIX/bin:$FIX/host-bin:/usr/bin:/bin" bash "$INSTALLER" 2>&1)"
+    PATH="$FIX/bin" bash "$INSTALLER" 2>&1)"
   RC=$?
   set -e
 }
 
 make_shims "$FIX/bin"
+# Installer arms expose only declared utilities, never an image's ShellCheck.
+for fixture_tool in bash cat chmod dirname install mkdir mktemp mv rm sed; do
+  fixture_tool_path="$(command -v "$fixture_tool")"
+  ln -s "$fixture_tool_path" "$FIX/bin/$fixture_tool"
+done
+host_selected="$(HOME="$FIX/no-installed-home" PATH="$FIX/host-bin:$FIX/bin" find_shellcheck_bin)"
+[ "$host_selected" = "$FIX/host-bin/shellcheck" ] || fail "correct pinned host must remain a valid production candidate"
+pass "a correctly pinned host binary is accepted outside isolated installer arms"
 
 run_target_arms() {
   local label="$1" os="$2" arch="$3"

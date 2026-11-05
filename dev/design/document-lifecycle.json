@@ -1541,6 +1541,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/overflow-chunking-reevaluation.md",
+      "class": "reference",
+      "topic": "overflow-chunking-reevaluation",
+      "role": "analysis",
+      "owner": "dev/design/overflow-chunking-reevaluation.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
       "path": "dev/design/perf-gates.md",
       "class": "maintained",
       "topic": "performance-gates",

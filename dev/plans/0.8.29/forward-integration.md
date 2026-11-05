@@ -73,18 +73,44 @@ scope. This handoff adds no maintenance MCP surface or other adapter feature.
 
 ## Verification and current limits
 
-Mechanical resolution and real-database composition tests are prepared first.
-Observe behavioral RED for the combined filter/snippet contract before common-route
-implementation, with higher-ranked nonmatching distractors, empty-filter outcomes,
-correct body-relative snippet spans and independent historical axes. Existing
-filter/snippet/provider/admission controls and frozen baseline checks remain.
+Behavioral RED at `363fc0744` compiled both real-database SDK composition
+controls, then failed both because the requested snippet sidecars were missing.
+GREEN `021fd7287` composes one filtered reader request with optional snippets;
+plain and snippet-only entry points delegate. Additional attribute/edge-rowid
+coverage in `a5bea8f23` passed without another production behavior change.
 
-Astra reviews actual resolutions before canonical promotion. Focused Rust, SDK,
-Python/TS installed-binding and MCP protocol/provider checks must bind the merged
-source; target/docs/generated views also require their existing validators.
-Source C is merged without conflict. Formatting, design-reference and Python lint
-hooks passed on the mechanical checkpoint; no runtime RED/GREEN or merged-source
-verification result is claimed yet. Parent owns build scheduling and canonical
-checkout environments; isolated resolution never borrows another target or venv.
-No version cut, publication, default-release activation or relabeling of .28
-platform/package receipts is part of this integration.
+Mechanical repairs are separate: shared MCP SQLite test dependency `0.41`,
+projected-text result off-state sidecars, and existing private provider fixture
+seams. No production Caller-provider API or adapter fallback is restored.
+MCP reconciliation `115853bbe` consumes the accepted upstream failed-open
+contract; its corrected real-corruption regression was already GREEN, so no
+new MCP RED is claimed. Its configured-provider orient/hybrid/text failures and
+separate deliberate None-provider text success all passed.
+
+Focused verification passed:
+
+- Engine filter/snippet/history/provider/maintenance/overload targets: 104 passes,
+  two existing child-process helper ignores; maintenance units: six passes.
+- SDK behavior/filter/surface: 46 passes; Python/NAPI private overload units:
+  four passes; MCP default suite, frozen hints-off bytes, protocol/schema/stdio
+  and real built-in-provider refusal control passed.
+- Fresh noneditable Python wheel and NAPI module built from `a5bea8f23`, with
+  checkout-owned tools/target and CPU-only features. Python focused run had 40
+  passes plus one unchanged cancellation control timing out in the sandbox;
+  that exact control passed unconfined in 0.38 seconds. TS focused suites:
+  30 passes. Native artifact hashes and exact commands are in the local receipt.
+- Strict production-library Clippy, TS typecheck, Python Ruff/typecheck,
+  384-target coverage, generated documentation freshness and existing real
+  installed-type/missing-export controls passed. Python typecheck reported two
+  native-module source warnings before wheel installation, with no errors.
+
+The concise local receipt is `/tmp/fathomdb-s95-forward-output.json`; it records
+raw logs/hashes and the executor failure without relabeling it as a passing run.
+Frozen Python baseline, MCP hints-off fixture and EP-03 byte oracle are unchanged;
+the imported approved Python additions match source C. The existing .29 overflow
+chunking analysis is only cataloged; its parked feature scope is unchanged.
+
+Astra review of the actual resolutions and parent-owned promotion remain pending.
+No full workspace gate, .29 platform/performance campaign, version cut,
+publication, default-release activation or relabeling of .28 receipts is claimed.
+The .28 source C and both canonical checkouts remain untouched.

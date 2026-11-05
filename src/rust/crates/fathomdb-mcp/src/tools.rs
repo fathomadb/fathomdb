@@ -684,6 +684,7 @@ pub(crate) struct Shaped {
     pub(crate) response_id: String,
     pub(crate) continuation: Option<String>,
     pub(crate) kept: usize,
+    #[cfg(feature = "test-seams")]
     pub(crate) iterations: usize,
 }
 
@@ -708,10 +709,14 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
     let mode = canonical.search_mode();
     let page_hits = page.len();
     let mut kept = page.len();
+    #[cfg(feature = "test-seams")]
     let mut iterations = 0;
     let mut with_hints = true;
     loop {
-        iterations += 1;
+        #[cfg(feature = "test-seams")]
+        {
+            iterations += 1;
+        }
         let cut = kept < page.len();
         let continuation = shape::next_offset(offset, kept, page_hits, page_limit, MAX_RANKED)
             .map(|next| shape::handle('c', epoch, &[store, canonical_json, &next.to_string()]));
@@ -773,7 +778,14 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
             continue;
         }
         if fits || kept == 0 {
-            return Shaped { rendered, response_id, continuation, kept, iterations };
+            return Shaped {
+                rendered,
+                response_id,
+                continuation,
+                kept,
+                #[cfg(feature = "test-seams")]
+                iterations,
+            };
         }
         kept -= 1;
     }

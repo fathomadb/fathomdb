@@ -4,7 +4,6 @@ use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::Embedder;
 
 #[test]
-#[ignore = "requires the pinned BGE model in the local cache"]
 fn candle_reports_full_and_truncated_utf8_extents() {
     let provider = CandleBgeEmbedder::new().unwrap();
     for text in ["", "hello", "世界 café  "] {

@@ -195,6 +195,7 @@ exclude = true
 reason = "IR-C pooling floor gate: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
 
 [[entry]]
-id = "fathomdb-engine::slice83_availability::slice83_crash_child"
-class = "ignored-by-design"
-reason = "Child-process entrypoint invoked with --ignored --exact by process_crash_reopen_resumes_without_target_or_followup_engine_calls at each persisted cleanup boundary; never run standalone without its fixture environment."
+id = "fathomdb-engine::slice50_fresh_open_cost::fresh_open_cost"
+class = "opt-in-experiment"
+exclude = true
+reason = "Accepted populated-open timing deferral: real pinned-model CPU/GPU measurements use the existing explicit protocol in dev/experiments/fresh-open-verification/README.md; not part of functional qualification."

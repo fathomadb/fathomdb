@@ -57,6 +57,8 @@ NUMBER_WORDS = {
 STATE_RE = re.compile(r"dev/plans/release-state-(\d+)\.(\d+)\.(\d+)\.json$")
 COMMIT_RE = re.compile(r"[0-9a-f]{40}$")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}$")
+# Accepted release-format boundaries; independent of publication status.
+RELEASE_SCHEMAS = {"0.8.26": 34, "0.8.27": 34, "0.8.28": 36}
 
 
 def repo_root() -> Path:
@@ -199,11 +201,33 @@ def missing_platform_boundaries(text: str) -> list[str]:
     return [label for label, pattern in required.items() if re.search(pattern, normalized) is None]
 
 
+def source_schema_version(root: Path) -> int:
+    """Read the single current schema declaration for a pending docs target."""
+    relative = Path("src/rust/crates/fathomdb-schema/src/lib.rs")
+    try:
+        source = (root / relative).read_text()
+    except OSError as exc:
+        fail(f"cannot read schema source {relative}: {exc}")
+    declarations = re.findall(r"(?m)^pub const SCHEMA_VERSION\b[^;]*;", source)
+    match = (
+        re.fullmatch(r"pub const SCHEMA_VERSION: u32 = ([1-9][0-9]*);", declarations[0])
+        if len(declarations) == 1
+        else None
+    )
+    if match is None or int(match.group(1)) > 2**32 - 1:
+        fail(f"{relative} must contain exactly one literal positive u32 SCHEMA_VERSION")
+    return int(match.group(1))
+
+
 def main() -> None:
     root = repo_root()
     published_state = current_published_state(root)
-    if published_state.get("schema_version") != 34:
-        fail("current published release state must declare schema 34")
+    published_version = published_state["release"]
+    published_schema = RELEASE_SCHEMAS.get(published_version)
+    if published_schema is None:
+        fail(f"no reviewed schema for published release {published_version}")
+    if published_state.get("schema_version") != published_schema:
+        fail(f"current published release state must declare schema {published_schema} for {published_version}")
     state = documentation_target_state(root, published_state)
     version = state.get("release")
     if not isinstance(version, str):
@@ -227,8 +251,13 @@ def main() -> None:
             "manifest must declare the five published native artifacts, "
             f"got {published_triples}"
         )
-    if state.get("schema_version") != 34:
-        fail("documentation target state must declare schema 34")
+    pending = state.get("published") is None
+    schema = source_schema_version(root) if pending else RELEASE_SCHEMAS.get(version)
+    if schema is None:
+        fail(f"no reviewed schema for documentation target {version}")
+    if state.get("schema_version") != schema:
+        source_label = "source " if pending else ""
+        fail(f"documentation target state must declare {source_label}schema {schema}")
 
     docs: dict[Path, str] = {}
     for relative in PUBLIC_DOCS:
@@ -237,13 +266,11 @@ def main() -> None:
         except OSError as exc:
             fail(f"cannot read public document {relative}: {exc}")
 
-    published_version = published_state["release"]
     unpublished = re.compile(
         rf"(?is)\bv?{re.escape(published_version)}\b"
         r"(?:(?!\bv?\d+\.\d+\.\d+\b).){0,120}"
         r"\b(?:is\s+not|has\s+not|not\s+yet)\s+published\b"
     )
-    pending = state.get("published") is None
     for relative, text in docs.items():
         normalized = text.replace("**", "").replace("`", "")
         if unpublished.search(normalized):
@@ -273,8 +300,8 @@ def main() -> None:
         row = re.compile(rf"(?m)^\|[^\n]*`{re.escape(target)}`[^\n]*\|\s*\*\*yes\*\*")
         if row.search(compatibility) is None:
             fail(f"docs/compatibility/index.md lacks the published {target} table row")
-    if "SCHEMA_VERSION` to **34**" not in compatibility or "no public automatic migration" not in compatibility.lower():
-        fail("docs/compatibility/index.md lacks the schema-34 fresh-database boundary")
+    if f"SCHEMA_VERSION` to **{schema}**" not in compatibility or "no public automatic migration" not in compatibility.lower():
+        fail(f"docs/compatibility/index.md lacks the schema-{schema} fresh-database boundary")
 
     ts_install = docs[Path("docs/install/typescript.md")]
     exact_commands = (f"npm install --save-exact fathomdb@{version}", f"npm install fathomdb@{version}")

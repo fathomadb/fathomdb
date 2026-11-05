@@ -118,9 +118,9 @@
   "ci": {
     "latest_run": 42005653176,
     "source": "3a05a45cbaff04f29ff4992d678e23a191717f62",
-    "overall": "NOT_QUALIFIED",
+    "overall": "FAIL_AT_F; runtime jobs all complete; corrected-source hosted fast pending",
     "fast": "FAIL at measurement classification lint;198 cheap suites did not run",
-    "other_jobs": "All5native CPU targets+collector,5size cells,strictsecurity,parallelRust,defaultprovider,distinctWindowsWAL auditedPASS; heavy actual outcome pending finalaudit.",
+    "other_jobs": "All5native+collector,5size cells,strictsecurity0/0/0,parallelRust2352pass0fail65ignored369rawsummaries,defaultprovider,distinctWindowsWAL,heavy7/7PASS1503s.32jobssuccess/1fastfailure/1intentionalmarkdownskip. F audit frozen b270fc943d34655adfaf6b3dd48e48103f0b97a715b307a2a825c732890da49b.",
     "original_runs_preserved": [
       41885604931,
       41956270895,
@@ -134,7 +134,7 @@
       "source": "5f668f33056d0a550c51810f6ebeeb1ef7d60695",
       "not_final_source": true
     },
-    "metadata_correction": "af7e570ff fixes affected classification. Records-only final local fast collection pending; hostedfast198 remains unqualified after original lintfailure. No fullCIgreen claim."
+    "metadata_correction": "af7e570ff classification correction independently verified. Clean records-only6479399 localfast198/198 passed with lint/type/security0/0/0; hostedfast198 remains pending, not substituted by localpass. No overallCIgreen claim."
   },
   "forward_29": {
     "broad_source": "6674cf79daa9040b4967ecc8fbe4a44eb8ea4e15",
@@ -145,7 +145,8 @@
     "final_forward_source": "2803eb7f1b8a6025c8e411287a5d63bb7c3eca72",
     "focused": "10close/provider controls, strong1000cursor,10logging tests and source-bound native receipt PASS",
     "full_later_source_claim": false,
-    "push": "pending final metadata forward"
+    "push": "Explicit dev/release branch refs; main/tag/publication remain held",
+    "final_metadata_forward_source": "d68de5db53dff6ff4174c8807c5dcfdbe048e770"
   },
   "rehearsal": {
     "ordinary_ci": "separate qualification",
@@ -157,19 +158,17 @@
     "tag_or_registry_or_pages_publication": false
   },
   "open_requirements": {
-    "S95-6": "Required AC011a FAIL; owner direction/disposition pending; no waiver",
-    "S95-7": "Latest CI fast metadata failure; correction and exact-candidate verification pending",
-    "S95-8": "Final reviews/status/forward/cleanup pending; no completion claim",
-    "S95-10": "Generated snapshotscan complete; one verifiedsourcehash falsepositive, actualexit1 retained. Later changed evidence receives affected supplement."
+    "S95-6": "AC011a requiredFAIL; owner direction/disposition pending; no waiver",
+    "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
+    "S95-8": "Acceptance staysOPEN; taskcleanup and reviewed .29metadataforward complete. Later records-only forwards preserve exact imported bytes and unchanged executable inputs.",
+    "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim."
   },
   "resources": {
-    "completed_task_worktrees": "feature-fix and logger-admission removed after clean/merged checks",
-    "remaining_task_worktrees": [
-      "/tmp/fathomdb-s95-close-clock-fix",
-      "/tmp/fathomdb-s95-forward-29"
-    ],
-    "windows": "Task runner27 executing; original runner/config/service unchanged; final task cleanup pending",
-    "debug_cache": "Preserved at cold path with logical target/debug symlink. Root free space below cache size; no user cache purge; physical restore pending feasibility"
+    "completed_task_worktrees": "All Slice95-created repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
+    "remaining_task_worktrees": [],
+    "windows": "Restored originallyoff; originalpersistentXML byteidentical, originalrunner hash/service/policies unchanged, task26/27registrations absent, taskguestfolder/disposabledisk removed",
+    "staged_inputs": "13ownedhashverifiedcorpusJSONLs removed; sourcecorpus unchanged; task-onlyfeaturetarget removed",
+    "debug_cache": "Checkout-owned cache retained at coldpath via target/debug symlink; physical restore willnotfitroot withoutdiscardingotherdata, so cache retained and relocationreceipt preserved; no shared/usercachepurge"
   },
   "receipts": {
     "canonical_28": {
@@ -222,7 +221,7 @@
     },
     "ci_f_audit": {
       "path": "/tmp/fathomdb-s95-evidence/ci-3a05-audit.json",
-      "sha256": "2d970cfee1d6dc056e4adf54569f9be5314e59330e38799e19cefe02b5c21460"
+      "sha256": "b270fc943d34655adfaf6b3dd48e48103f0b97a715b307a2a825c732890da49b"
     },
     "production_logger": {
       "path": "/tmp/fathomdb-s95-ci12-independent/receipt.json",
@@ -242,7 +241,7 @@
     },
     "completed_worktrees": {
       "path": "/tmp/fathomdb-s95-evidence/completed-worktree-cleanup.json",
-      "sha256": "ed8178c9a90f2137b1f625886ca6e5dfe2f90bb7ea9b3431fecbfb07da87e6ab"
+      "sha256": "e2f015ba76525303b18fdcb5fb0238ef1beb3497e69fb1ecea7bd49d54dd3c64"
     },
     "classification": {
       "path": "/tmp/fathomdb-s95-classification-output.json",
@@ -255,10 +254,62 @@
     "generated_evidence_scan": {
       "path": "/tmp/fathomdb-s95-retained-scan/verification-summary.json",
       "sha256": "dc243c39499810896aead32dd89dfff023acbc81a1744b0ea56cd9f37987a998"
+    },
+    "local_fast_g": {
+      "path": "/tmp/fathomdb-s95-evidence/records-g-fast.json",
+      "sha256": "0bd97f4810fd7521eb40b3f8b4c04771609fd4bc568085d5685b28067aa95070"
+    },
+    "tracked_source_g": {
+      "path": "/tmp/fathomdb-s95-evidence/gitleaks-source-647.json",
+      "sha256": "0dcad19f6fc7b804c91eef38e89c2ae1cbaec434c393aa93a1790614f167c5ad"
+    },
+    "records_only_comparison": {
+      "path": "/tmp/fathomdb-s95-evidence/records-only-6479399-inputs.json",
+      "sha256": "1610b584bb869cfb5ac3624a25a4bb766ee25b1cf09877f1defb6576fac53c82"
+    },
+    "windows_cleanup": {
+      "path": "/tmp/fathomdb-s95-evidence/windows-refresh-cleanup.json",
+      "sha256": "2452b3d3265f5b6f3878a1e6ef3eb966a6e9161465681b69f34a7a7e8aa8bb03"
+    },
+    "task_input_cleanup": {
+      "path": "/tmp/fathomdb-s95-evidence/task-input-cleanup.json",
+      "sha256": "562bd50e131b5f74555d018138bad989d5eefe9af4da73a52941a562e4e42bfe"
+    },
+    "final_forward_29": {
+      "path": "/tmp/fathomdb-s95-forward-final-output.json",
+      "sha256": "98ba73cfed3e6d3e8cccf7dabfdf27efef217c99c2d8eccb56a1445388edb748"
+    },
+    "cpu_build_manifest": {
+      "path": "/tmp/fathomdb-s95-final-artifacts/cpu-manifest.json",
+      "sha256": "3839b07c6a3f89ab9a2f88af0fb5743753ce5caf80d659573539e6d362f0dcbc"
+    },
+    "cpu_consumers": {
+      "path": "/tmp/fathomdb-s95-final-consumers/cpu-consumer-verification.json",
+      "sha256": "71d3158b88c1c037c748f4665cf7c3c35b086ed8444e3f6550b7342ed9ce2336"
+    },
+    "rust_cli_consumers": {
+      "path": "/tmp/fathomdb-s95-final-consumers/rust-cli-verification.json",
+      "sha256": "63ea1a665e82d39b4d1b69c4a30e3f9bfbdcba6740b0f99075bddb15adcdae7c"
+    },
+    "windows_supplement": {
+      "path": "/tmp/fathomdb-s95-final-consumers/windows-evidence-verification.json",
+      "sha256": "7f1d5d31931ea13c68845a288613cda1a25773a2b7cdbc0706c12cd17576e204"
+    },
+    "tc5_reuse_boundary": {
+      "path": "/tmp/fathomdb-s95-evidence/ci12-independent-reuse-boundary.json",
+      "sha256": "945ed92c130b4807a97bae09aa44731bc11b4ae3f4641a4ddf1c8562fd1dca9a"
+    },
+    "tc5_independent": {
+      "path": "/tmp/fathomdb-s95-evidence/independent-tc5-verification.json",
+      "sha256": "72bbbdff193c27caa079080d3061212b744700e3b080b251e06e9b9647926162"
+    },
+    "retained_evidence_supplement": {
+      "path": "/tmp/fathomdb-s95-retained-supplement/verification-summary.json",
+      "sha256": "b156de9fd02666b97ab9d1a8b4c573e28a8323d2452bb2ba78639afc6c91e4b8"
     }
   },
   "evidence_safety": {
-    "tracked_source": "PinnedGitleaks F0leaks PASS",
+    "tracked_source": "PinnedGitleaks6479399 zero leaks PASS;237522556 scannedbytes. Generated actualnonzero falsepositive remains separate.",
     "generated": {
       "files": 1466,
       "bytes": 224572218,
@@ -267,6 +318,27 @@
       "scan_errors": 0,
       "input_drift": 0,
       "disposition": "Single generic-api-key match independently verified as source-fileSHA256 in ci-bef-audit.json:863. Actualnonzero retained,no new suppression orzerofindingsclaim. Snapshotonly."
+    },
+    "supplement": {
+      "files": 56,
+      "bytes": 3765195,
+      "actual_scanner_exit": 0,
+      "findings": 0,
+      "errors": 0,
+      "drift": 0,
+      "scope": "Added/changed retained evidence snapshot; original nonzero result remains unchanged;1460unchanged present files including full trace reused"
     }
+  },
+  "local_fast_g": {
+    "source": "6479399fe09b42dac28763cc19467405e96d553c",
+    "registered": 198,
+    "ran": 198,
+    "passed": 198,
+    "failed": 0,
+    "skipped": 0,
+    "excluded": 0,
+    "actual_exit": 0,
+    "scope": "local affected fast tier; not hosted or fullworkspace pass",
+    "elapsed_seconds": 1286.4628593921661
   }
 }

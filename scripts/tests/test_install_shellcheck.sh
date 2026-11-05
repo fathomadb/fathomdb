@@ -19,6 +19,13 @@ INSTALLER="$REPO_ROOT/scripts/install-shellcheck.sh"
 FIX="$(mktemp -d)"
 trap 'rm -rf "$FIX"' EXIT
 
+# A pinned host image is legitimate; fixture-only negative/cache arms must still
+# select their own tools rather than accidentally being rescued by that image.
+mkdir -p "$FIX/host-bin"
+printf '#!/usr/bin/env bash\nprintf "version: 0.11.0\\n"\n' >"$FIX/host-bin/shellcheck"
+chmod +x "$FIX/host-bin/shellcheck"
+
+
 fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 pass() { printf 'PASS  %s\n' "$1"; }
 
@@ -83,7 +90,7 @@ TAR
 print_target() {
   local os="$1" arch="$2"
   SHELLCHECK_TEST_UNAME_OS="$os" SHELLCHECK_TEST_UNAME_ARCH="$arch" \
-    PATH="$FIX/bin:/usr/bin:/bin" bash "$INSTALLER" --print-target
+    PATH="$FIX/bin:$FIX/host-bin:/usr/bin:/bin" bash "$INSTALLER" --print-target
 }
 
 run_installer() {
@@ -93,7 +100,7 @@ run_installer() {
     SHELLCHECK_TEST_MARKERS="$markers" SHELLCHECK_TEST_SHA="$sha" \
     SHELLCHECK_TEST_SHA_MODE="$mode" SHELLCHECK_VERSION="$SHELLCHECK_VERSION" \
     SHELLCHECK_TEST_UNAME_OS="$os" SHELLCHECK_TEST_UNAME_ARCH="$arch" \
-    PATH="$FIX/bin:/usr/bin:/bin" bash "$INSTALLER" 2>&1)"
+    PATH="$FIX/bin:$FIX/host-bin:/usr/bin:/bin" bash "$INSTALLER" 2>&1)"
   RC=$?
   set -e
 }

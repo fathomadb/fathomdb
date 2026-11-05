@@ -8,7 +8,11 @@
 //! fixture, the row count the search returned is a lower bound on "how
 //! many writes the reader's snapshot saw"; that value can never exceed
 //! the cursor the reader also returned without violating the cursor
-//! contract. Repeated identical bodies may reuse a canonical row.
+//! contract. In this fresh provider-free lexical fixture, every observed
+//! matching hit's write_cursor must also be bounded by that snapshot's
+//! projection_cursor. One logical identity has distinct matching revisions,
+//! and the reader must observe a revision after the first committed receipt;
+//! repeated identical-body hits would make the row-count check inert.
 //!
 //! Failure mode under test: the engine loads `next_cursor` from the
 //! writer-side atomic before the reader connection runs its query; a
@@ -29,7 +33,7 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use fathomdb_engine::{Engine, EngineError, PreparedWrite};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineError, PreparedWrite};
 use tempfile::TempDir;
 
 fn long_run_enabled() -> bool {
@@ -75,7 +79,7 @@ fn projection_cursor_bounds_observed_row_count() {
 
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("cursor_race.sqlite");
-    let opened = Engine::open(&path).expect("open");
+    let opened = Engine::open_with_choice(&path, EmbedderChoice::None).expect("provider-free open");
     let engine = Arc::new(opened.engine);
 
     let stop = Arc::new(AtomicBool::new(false));
@@ -88,12 +92,12 @@ fn projection_cursor_bounds_observed_row_count() {
         thread::spawn(move || {
             let mut progress = WriterProgress::default();
             while !stop.load(Ordering::Relaxed) {
-                engine.write(&[PreparedWrite::Node {
+                let receipt = engine.write(&[PreparedWrite::Node {
                     kind: "doc".to_string(),
-                    body: "needle".to_string(),
+                    body: format!("needle revision {}", progress.successful + 1),
                     source_id: fathomdb_engine::SourceId::new("test:fixture")
                         .expect("test source id"),
-                    logical_id: None,
+                    logical_id: Some("cursor-race-document".to_string()),
                     state: fathomdb_engine::InitialState::Active,
                     reason: None,
                     valid_from: None,
@@ -101,7 +105,7 @@ fn projection_cursor_bounds_observed_row_count() {
                 }])?;
                 progress.successful += 1;
                 if progress.successful == 1 {
-                    if first_commit.send(()).is_err()
+                    if first_commit.send(receipt.cursor).is_err()
                         || reading.recv_timeout(Duration::from_secs(60)).is_err()
                     {
                         return Ok(progress);
@@ -124,11 +128,16 @@ fn projection_cursor_bounds_observed_row_count() {
     let mut nonempty = 0usize;
     let mut observed_matching_rows = 0u64;
     let mut violations = 0usize;
+    let mut hit_cursor_violations = 0usize;
+    let mut advancing_hits = 0usize;
+    let mut max_hit_cursor = 0u64;
+    let mut first_write_cursor = None;
     let started = Instant::now();
     let read_result = (|| -> Result<(), String> {
-        first_committed
+        let first_cursor = first_committed
             .recv_timeout(Duration::from_secs(60))
             .map_err(|error| format!("first successful write: {error}"))?;
+        first_write_cursor = Some(first_cursor);
         for i in 0..iterations {
             if started.elapsed() > Duration::from_secs(60) {
                 return Err(format!(
@@ -137,8 +146,26 @@ fn projection_cursor_bounds_observed_row_count() {
             }
             let result = engine.search("needle").map_err(|error| format!("search: {error:?}"))?;
             searches += 1;
-            let row_count =
-                result.results.iter().filter(|h| h.body.as_str() == "needle").count() as u64;
+            // Revisions change their body, so match the fixture kind and stable token prefix.
+            let matching: Vec<_> = result
+                .results
+                .iter()
+                .filter(|hit| hit.kind == "doc" && hit.body.starts_with("needle revision "))
+                .collect();
+            let row_count = matching.len() as u64;
+            for hit in matching {
+                max_hit_cursor = max_hit_cursor.max(hit.write_cursor);
+                advancing_hits += usize::from(hit.write_cursor > first_cursor);
+                if hit.write_cursor > result.projection_cursor {
+                    hit_cursor_violations += 1;
+                    if hit_cursor_violations <= 5 {
+                        eprintln!(
+                            "iter {i}: hit.write_cursor={} > projection_cursor={}",
+                            hit.write_cursor, result.projection_cursor
+                        );
+                    }
+                }
+            }
             observed_matching_rows += row_count;
             nonempty += usize::from(row_count != 0);
             if row_count > result.projection_cursor {
@@ -167,8 +194,8 @@ fn projection_cursor_bounds_observed_row_count() {
     // Normal completion propagates write failures; Drop still joins on every unwind path.
     let writer_result = cleanup.finish();
     match &writer_result {
-        Ok(progress) => eprintln!("cursor_progress searches={searches} successful_writes={} during_read={} nonempty_searches={nonempty} observed_matching_rows={observed_matching_rows} violations={violations}", progress.successful, progress.during_read),
-        Err(error) => eprintln!("cursor_progress searches={searches} writer_error={error:?} nonempty_searches={nonempty} observed_matching_rows={observed_matching_rows} violations={violations}"),
+        Ok(progress) => eprintln!("cursor_progress searches={searches} successful_writes={} during_read={} nonempty_searches={nonempty} observed_matching_rows={observed_matching_rows} violations={violations} first_write_cursor={first_write_cursor:?} advancing_hits={advancing_hits} max_hit_cursor={max_hit_cursor} hit_cursor_violations={hit_cursor_violations}", progress.successful, progress.during_read),
+        Err(error) => eprintln!("cursor_progress searches={searches} writer_error={error:?} nonempty_searches={nonempty} observed_matching_rows={observed_matching_rows} violations={violations} first_write_cursor={first_write_cursor:?} advancing_hits={advancing_hits} max_hit_cursor={max_hit_cursor} hit_cursor_violations={hit_cursor_violations}"),
     }
     let progress = writer_result.expect("writer failed");
     read_result.expect("reader failed");
@@ -176,6 +203,14 @@ fn projection_cursor_bounds_observed_row_count() {
     assert!(progress.successful > 0, "writer must commit real rows");
     assert!(progress.during_read > 0, "writer must commit during the read phase");
     assert!(nonempty > 0 && observed_matching_rows > 0, "searches must observe matching rows");
+    assert!(
+        advancing_hits > 0,
+        "reader must observe a revision newer than the first successful write"
+    );
+    assert_eq!(
+        hit_cursor_violations, 0,
+        "matching hit cursor exceeded the provider-free lexical snapshot cursor"
+    );
     assert_eq!(
         violations, 0,
         "cursor invariant violated {violations}/{iterations} times: search returned more \

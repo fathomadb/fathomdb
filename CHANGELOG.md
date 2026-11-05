@@ -195,6 +195,10 @@ AC-050c) gates merges against this invariant.
 
 ### Fixed
 
+- (Slice 95) Idle Autonomous maintenance confirms physical debt before reserving
+  physical service, so a debt-free contended primary does not refuse foreground
+  erasure. Pending debt retains priority and genuine service contention refuses.
+
 - Bound both pending-projection scan arms before their merged cursor sort.
   Scheduler and readiness scans retain their existing results while avoiding
   repeated sorting of the full pending backlog.

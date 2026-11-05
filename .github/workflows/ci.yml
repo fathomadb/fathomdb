@@ -241,6 +241,8 @@ jobs:
               - 'scripts/lib/agent-python-env.sh'
               - 'scripts/bootstrap.sh'
               - 'scripts/bootstrap-heavy.sh'
+              - 'scripts/install-actionlint.sh'
+              - 'scripts/install-shellcheck.sh'
             rust_test_harness:
               - 'scripts/test-rust-workspace.sh'
             security_harness:
@@ -260,6 +262,8 @@ jobs:
               - 'scripts/release/slice50-candidate-manifest.py'
               - 'scripts/release/smoke/smoke-local-native-artifacts.sh'
               - 'scripts/release/smoke/smoke-local-native-artifacts.ps1'
+              - 'scripts/release/smoke/check-installed-types.mjs'
+              - 'scripts/release/smoke/installed-graph-evidence.mts'
               - 'scripts/release/smoke/slice73-windows-napi-modules.json'
               - 'src/conformance/provenance-v1.json'
               - 'src/conformance/governed-surface-allowlist.json'
@@ -417,7 +421,8 @@ jobs:
           # summary.
           AGENT_VERBOSE: "1"
         run: bash scripts/agent-verify.sh --tier=heavy
-      # run_capped keeps complete diagnostics in /tmp, while the log exposes
+      # run_capped keeps full diagnostics in the invocation-owned spill directory,
+      # while the job log exposes
       # only its first 200 lines. Collect redacted, regular spill files after
       # any verify failure so a long test/ruff failure remains root-causable
       # after this ephemeral runner exits. The collector deliberately rejects

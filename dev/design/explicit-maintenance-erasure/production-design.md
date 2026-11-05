@@ -212,7 +212,12 @@ their own token-aware admission. No public SQL test hook is a production bypass.
 
 Projection worker commit and scanner own counted worker turns; freeze waits for
 accepted work and primary publication, then verifies idle before granting owner.
-Autonomous physical worker owns a counted turn; it is absent in explicit mode.
+ExplicitMaintenance never starts the Autonomous physical worker. The Autonomous
+worker preserves priority while acquiring its writer turn, confirms committed
+debt under the primary connection, then tries physical-service admission without
+waiting. It must not reserve that service on mere primary contention. A failed
+service attempt promptly releases primary/turn/priority; an acquired service
+guard spans cleanup, reader drain, finalization and blocker recording.
 All actuation suboperations (plain/provenanced write, dependency registration,
 lifecycle transitions, receipt insertion and closure effects) run queue guards
 inside the shared transaction before commit. Per-row plain guards run after prior

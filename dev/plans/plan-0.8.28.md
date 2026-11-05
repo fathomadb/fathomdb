@@ -144,8 +144,8 @@ Requirements and acceptance criteria are per slice:
   and reviewed before design.
 
 - Slice 92: S92-1–8 in the [documentation audit/convergence plan](0.8.28/features/slice-92/plan.md).
-- Slice 95: S95-1–11 in the [CI/release-readiness plan](0.8.28/features/slice-95/plan.md),
-  including the comparative 0.8.26/0.8.27 robustness review and S95-CI1–CI7 repairs.
+- Slice 95: S95-1–12 in the [CI/release-readiness plan](0.8.28/features/slice-95/plan.md),
+  including the comparative 0.8.26/0.8.27 robustness review and S95-CI1–CI8 repairs.
 
 `dev/acceptance.md` remains locked; these identifiers are release-local.
 

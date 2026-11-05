@@ -115,6 +115,18 @@ candidate-bound release-readiness verdict. S95 labels are local acceptance;
 | S95-10 diagnosable and safe evidence | A forced preflight failure before the first suite retains useful real diagnostics; a truncated later failure retains full redacted spill evidence and its actual exit/count/time data. Empty/symlinked/foreign logs are not uploadable proof. Tracked-tree and generated retained-evidence scans have separate pinned-tool outcomes; generated secrets are corrected/redacted before retention, with no broad new suppression or historical-debt campaign. Existing advisory Gitleaks job policy is unchanged. |
 | S95-11 release rehearsal truth | Ordinary CI, local release dry-run and immutable-candidate release.yml dry-run have separate evidence/dispositions. Validate version/Axis E/co-tagging, trusted workflow/runner provenance and the non-publishing route before expensive work. If version/Axis E or trusted workflow preparation needs separate authority, record that prerequisite and the rehearsal as pending; do not bypass checks or claim pre-tag readiness. Publication and registry-installed proofs remain separate. |
 
+### Canonical CI finding allocated during execution
+
+The first manual candidate reached real Rust execution and exposed CI8: an
+Autonomous worker reserves physical service on primary contention before
+confirming committed debt. This is a bounded correctness defect under the
+existing contract, not a reopened erasure feature. The [design amendment](design.md#ci8-amendment-confirmed-debt-worker-admission)
+records the observed failures, lock-order constraints and deterministic RED/GREEN.
+
+| ID | Additional decisive acceptance |
+| --- | --- |
+| S95-12 confirmed-debt admission | A debt-free contended primary cannot make an idle Autonomous poller occupy physical service and refuse fresh foreground erasure. Deterministic real-DB admission/completion coverage fails before the fix and passes after; true debt retains priority/progress and a genuine competing service retains typed refusal. The three original hosted failures pass unchanged. No retries, fixture serialization, weaker success assertions, new policy or deadline. |
+
 ## Bounded design and repair sequence
 
 ### A. Converge CI and consumer checks

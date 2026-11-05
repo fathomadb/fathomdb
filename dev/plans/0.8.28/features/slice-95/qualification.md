@@ -44,6 +44,7 @@ merely because they ran. Queued/cancelled/skipped/zero-test rows are not passes.
 | Obligation | Existing command/inputs and acceptance | Execution disposition |
 | --- | --- | --- |
 | Canonical correctness | Node25.9 PATH, checkout-owned .venv, CARGO_BUILD_JOBS=2 scripts/agent-verify.sh; strict tracing executor | One clean final broad round, then only failed/invalidated scopes. Record registered/ran/pass/fail/skip/excluded totals. |
+| Confirmed-debt admission | RED bff636c3b / GREEN aabfbee8e, Astra design/code APPROVE; independent27 real-DB tests PASS | CI8 discovered by canonical hosted serial tests; unchanged original regressions, true-debt priority/progress and genuine Autonomous saturation refusal. Final core-source phase gets one broad round. |
 | Feature coverage | check-test-target-coverage.py; test-feature-complete.sh --scratch with live cached BGE/reranker/nomic/ONNX and two RTX3090s | Inventory at baseline:356 targets,36 feature-complete-only. Recompute current accounting through existing runner, no fixed-count oracle. Separate named cold-storage target avoids root disk pressure. |
 | Strict security | STRICT=1 scripts/agent-security.sh | Host supports namespaces/ptrace unconfined. Record both actual AC037 live pass lines and 0/0/0; no artificial host-security grant/revert. |
 | AC011 writes | CARGO_NET_OFFLINE=true scripts/run-ac011-write-throughput.sh; canonical windchill3/NVMe TMPDIR | Existing 5-second warmup/60-second measurements; >=1000/s 1KB and >=100/s 100KB. Time after competing builds finish. |
@@ -67,6 +68,9 @@ The source checkout has its own Python3.12/Node25.9 tooling. Feature builds use
 with206,392,377,344 initial free bytes, jobs2 and runner-owned debug0/incremental0.
 Root NVMe remains the measured database/TMPDIR location. Sandbox read-only mounts
 and denied namespaces/GPU probes do not describe the actual unconfined executor.
+The idle checkout-owned debug cache was copied to cold storage and every file, mode
+and symlink verified before reclaiming its original duplicate. Its logical path
+remains unchanged through a symlink; relocation receipt records identities.
 No shared cache is deleted. Never run timing concurrently with builds.
 
 The standing Windows VM's old registration expired; its configuration remains

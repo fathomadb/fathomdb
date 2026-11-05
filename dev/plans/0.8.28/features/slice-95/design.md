@@ -9,7 +9,7 @@ target_release: 0.8.28
 ## Execution reconciliation
 
 Execution baseline: `6ae55c2e42e5aa447bc9f13265f6bf5a9e97f6e2`.
-The [improved plan](plan.md) remains the scope and S95-1–11 acceptance authority.
+The [improved plan](plan.md) remains the scope and S95-1–12 acceptance authority.
 Changes since its reconciliation baseline `48b23c479` are:
 
 1. Slice 92 completed documentation convergence, all 27 maintained-owner audits,
@@ -88,7 +88,71 @@ If .28 version/Axis E/provenance preparation remains unauthorized, record that
 prerequisite and pending rehearsal; do not substitute an old-version rehearsal.
 No tag, registry/Pages publication or publish workflow with dry_run=false occurs.
 
-The final [status](status.md) maps S95-1–11 to commands, artifacts, source/input
+The final [status](status.md) maps S95-1–12 to commands, artifacts, source/input
 identities, reviews and actual results. Report assembled/resumed evidence and
 readiness blockers honestly. Forward final verification fixes under the existing
 .29 hand-over rule, then clean up only the task implementation worktree/branch.
+
+## CI8 amendment: confirmed-debt worker admission
+
+**Astra amendment review APPROVE on 2026-11-04.** Execution evidence adds one
+bounded correctness repair to the seven CI harness changes. Manual candidate
+`fb76c8ff936996a69e2b30d03145d7ba1bce5efd`, run41956270895, reached actual heavy
+Rust tests after successful cold preflight. Its serial test-rust failed both
+source-erasure drain-order cases and the multi-page actuation-receipt erasure
+case with physical_admission/service-already-occupied. The parallel diagnostic
+also encountered that refusal. These are engine-owned worker races, not shared
+fixture databases or process-global service locks.
+
+The first local collection ran205 suites:196 passed,9 failed. The six disk
+preflight families recovered with real headroom; the stale pin-owner assertion
+and two generated-page checks recovered at06a286876 with focused checks. None
+of those corrections explains away the independent hosted Rust failure.
+Astra source/design and adversarial contract reviews identify a production
+ordering defect; preserve all three original tests unchanged.
+
+The accepted [resumable-cleanup ADR](../../../../adr/ADR-0.8.28-resumable-physical-cleanup.md)
+services committed debt and preserves priority against ordinary writers. Slice85
+retains Autonomous behavior. The current worker interprets a contended primary
+as possible debt, then reserves physical_service_gate before confirming debt.
+That speculative occupancy can refuse an otherwise uncontended fresh erase or
+excise before its drain-before-freeze path is admitted.
+
+Smallest correction, with no public API/policy/SLA change:
+
+1. Preserve the initial probe and priority/turn acquisition, including when the
+   primary is contended. Do not revive starvation by treating contention as no
+   work or changing the existing priority control.
+2. Acquire the authoritative primary connection and confirm active native debt
+   before attempting to reserve the physical service gate.
+3. Attempt service acquisition nonblockingly while primary is held. A foreground
+   erasure may already own service and wait for primary; on contention promptly
+   release primary/turn/priority and yield. Never wait for service under primary.
+4. Once acquired, retain the service guard across sanitation, reader drain,
+   finalization and blocker recording. Preserve storage/fence/error behavior;
+   uncertainty is not successful cleanup. Genuine competing cleanup still
+   produces the existing typed Busy/Incomplete outcomes.
+5. Keep foreground paths, explicit maintenance, public errors, lock ownership,
+   physical proof and shutdown unchanged. Update only the maintained worker
+   ordering explanation alongside the implementation.
+
+RED is deterministic real-database coverage: hold a debt-free Engine's primary,
+wait with a bounded watchdog for the existing priority atomic, and prove the
+worker has not occupied service. Use the existing instance pre-primary erasure
+hook plus channels to observe actual foreground admission before releasing
+primary and allowing successful erasure. The generic faultpoint is thread-local
+and must not be armed on a different thread to pretend to control the worker.
+Release and join all actors before assertions so RED cannot hang. Add/retain a
+real committed-debt completion/priority control and genuine service-owner refusal.
+The existing contended-primary priority test and original three failures remain
+unchanged. Stage/commit observed RED, then a separate minimal GREEN.
+
+Scoped validation covers the new tests, all physical_maintenance unit controls,
+unchanged erasure_drain_ordering and slice25_fix1_red, idle debt completion,
+Autonomous failure/fence/close and explicit admission regressions. Because this
+new production phase changes core Autonomous coordination, reassess its blast
+radius, regenerate existing docs, and run one final clean broad local/feature
+round after it stabilizes. Earlier CI harness evidence stays separately useful;
+runtime/artifact evidence must be refreshed for the corrected source. The final
+manual CI run must bind the exact reviewed candidate; do not relabel earlier
+platform receipts or substitute delta-only PR CI without owner authority.

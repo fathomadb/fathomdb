@@ -1124,8 +1124,24 @@ impl Engine {
         view: &ReadView,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
+        self.search_text_only_filtered_with_snippets(query, filter, view, limit, None)
+    }
+
+    /// Filter body FTS before ranking and optionally extract snippets from the same reader snapshot.
+    ///
+    /// Inputs and errors follow [`Engine::search_text_only_filtered`]; invalid snippet
+    /// options return [`EngineError::InvalidArgument`]. Snippets preserve hit order and eligibility.
+    pub fn search_text_only_filtered_with_snippets(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        view: &ReadView,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+    ) -> Result<SearchResult, EngineError> {
         let filter = filter.filter(|filter| !filter.is_unfiltered());
         let limit = validate_search_result_limit(limit)?;
+        validate_snippet(snippet)?;
         let _operation = self.ensure_open()?;
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
@@ -1138,7 +1154,8 @@ impl Engine {
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
         let request = ReaderRequest::search(
-            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view, filter),
+            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view, filter)
+                .with_snippet(snippet.copied()),
             response_tx,
         );
         if self.reader_pool.dispatch(request).is_err() {
@@ -1158,8 +1175,7 @@ impl Engine {
             Ok(result) => result,
             // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
             // through: an undeclared `filterable` attribute is the EXISTING typed
-            // `InvalidFilter`, never collapsed to `Storage`. (This path takes
-            // `filter = None`, so it never fires here, but the match stays total.)
+            // `InvalidFilter`, never collapsed to `Storage`.
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 return Err(EngineError::InvalidFilter { reason });
             }
@@ -1206,72 +1222,7 @@ impl Engine {
         limit: usize,
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
-        let limit = validate_search_result_limit(limit)?;
-        validate_snippet(snippet)?;
-        let _operation = self.ensure_open()?;
-        if query.trim().is_empty() {
-            return Err(EngineError::WriteValidation);
-        }
-        let compiled = compile_text_query_with(query, &self.query_stop_words);
-        let candidate_limit =
-            self.projection_runtime.shared.search_limit_override.load(Ordering::SeqCst).max(limit);
-        let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
-        // This explicit marker distinguishes direct text-only search from a hybrid
-        // request whose embedder yields no vector. Only the direct path gets the
-        // fixed node candidate bound before node/edge body deduplication and RRF.
-        let request = ReaderRequest::search(
-            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view, None)
-                .with_snippet(snippet.copied()),
-            response_tx,
-        );
-        if self.reader_pool.dispatch(request).is_err() {
-            return Err(EngineError::Closing);
-        }
-        let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (
-            cursor,
-            soft_fallback,
-            results,
-            _graph_stats,
-            explanation,
-            _expanded,
-            _degradations,
-            snippets,
-        ) = match search_result {
-            Ok(result) => result,
-            // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
-            // through: an undeclared `filterable` attribute is the EXISTING typed
-            // `InvalidFilter`, never collapsed to `Storage`. (This path takes
-            // `filter = None`, so it never fires here, but the match stays total.)
-            Err(SearchReaderError::InvalidFilter(reason)) => {
-                return Err(EngineError::InvalidFilter { reason });
-            }
-            Err(SearchReaderError::Evidence(error)) => return Err(error),
-            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                return Err(EngineError::from(error));
-            }
-            Err(SearchReaderError::FrozenRead(error)) => {
-                return Err(EngineError::FrozenRead(error));
-            }
-            Err(SearchReaderError::WriteValidation) => {
-                return Err(EngineError::WriteValidation);
-            }
-            Err(SearchReaderError::InvalidArgument(msg)) => {
-                return Err(EngineError::InvalidArgument { msg });
-            }
-            Err(SearchReaderError::Sqlite(err)) => {
-                self.emit_sqlite_internal_error(&err);
-                return Err(EngineError::Storage);
-            }
-        };
-        Ok(SearchResult {
-            projection_cursor: cursor,
-            soft_fallback,
-            results,
-            explanation,
-            degradations: Vec::new(),
-            snippets,
-        })
+        self.search_text_only_filtered_with_snippets(query, None, view, limit, snippet)
     }
 
     /// Search one declared `searchable→FTS` projection without invoking body

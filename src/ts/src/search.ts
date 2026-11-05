@@ -1014,7 +1014,7 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
     if (filter !== undefined) validateFfiTree(filter);
     const searchOptions = splitSearchOptions(view);
     const r = await intercept(() =>
-      nativeEngine.searchTextOnly(query, searchOptions.view, searchOptions.limit, filter),
+      nativeEngine.searchTextOnly(query, searchOptions.view, searchOptions.limit, filter, searchOptions.snippet),
     );
     const branch = r.softFallback?.branch;
     return {

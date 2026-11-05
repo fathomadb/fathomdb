@@ -1387,9 +1387,12 @@ and 7.2.
 
 ## Match-centred snippets on search (EP-17)
 
-`search_reranked_view_with_snippets`, `search_text_only_view_with_snippets`
-and `search_frozen_with_snippets` take `snippet: Option<&SnippetOptions>`.
+`search_reranked_view_with_snippets`, `search_text_only_view_with_snippets`,
+`search_text_only_filtered_with_snippets` and `search_frozen_with_snippets` take `snippet: Option<&SnippetOptions>`.
 The plain entry points are these with `None`.
+The filtered text route takes `(query, filter, &ReadView, limit, snippet)`;
+metadata eligibility is applied before candidate bounds, deduplication and ranking,
+while snippets are extracted after selection from that same reader snapshot.
 
 - `Some(options)` is validated first (`SnippetOptions::validate`;
   `EngineError::InvalidArgument`). It then fills

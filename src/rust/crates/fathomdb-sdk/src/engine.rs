@@ -268,11 +268,12 @@ impl Engine {
         if let Some(filter) = &options.filter {
             guard::search_filter(filter)?;
         }
-        Ok(self.core.search_text_only_filtered(
+        Ok(self.core.search_text_only_filtered_with_snippets(
             query,
             options.filter,
             &options.view,
             options.limit,
+            options.snippet.as_ref(),
         )?)
     }
 

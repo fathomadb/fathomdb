@@ -681,9 +681,16 @@ impl Engine {
         let limit = limit.unwrap_or(10) as usize;
         let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
-        let result =
-            call_engine(move || engine.search_text_only_filtered(&query, filter, &view, limit))
-                .await?;
+        let result = call_engine(move || {
+            engine.search_text_only_filtered_with_snippets(
+                &query,
+                filter,
+                &view,
+                limit,
+                snippet.as_ref(),
+            )
+        })
+        .await?;
         Ok(SearchResult::from_rust(result))
     }
 

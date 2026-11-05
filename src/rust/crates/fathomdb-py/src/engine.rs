@@ -793,8 +793,15 @@ impl PyEngine {
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let view = read_view_or_default(view);
+        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let result = call_engine(py, move || {
-            engine.search_text_only_filtered(&query, filter, &view, limit)
+            engine.search_text_only_filtered_with_snippets(
+                &query,
+                filter,
+                &view,
+                limit,
+                snippet.as_ref(),
+            )
         })?;
         Ok(PySearchResult::from_rust(result))
     }

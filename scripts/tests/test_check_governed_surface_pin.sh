@@ -741,7 +741,8 @@ make_repo() {
 run_preflight() {
   local cwd="$1"; shift
   set +e
-  OUT="$(cd "$cwd" && bash "$PREFLIGHT" "$@" 2>&1)"
+  # These tiny fixture repos do not need build-worktree disk headroom.
+  OUT="$(cd "$cwd" && bash "$PREFLIGHT" --min-disk-gb 1 "$@" 2>&1)"
   RC=$?
   set -e
 }

@@ -11,11 +11,13 @@ Owner-directed handoff under the [release plan](../plan-0.8.29.md), completing
 initial .28 source C `5f668f33056d0a550c51810f6ebeeb1ef7d60695`; merge base
 `59079d5c`. Mechanical checkpoint `73eb608eb` first integrates .28 `16234813`;
 the source C merge adds the final documentation and CI9/CI10 fixture corrections.
-The current forward input is final .28 source D
-`bef17bfab777e3ea3ad90b66ed122795dfbc0969`, merged without conflict after
-`96115b26c`. It adds the approved CI11 listing-diagnostic repair, mandatory real
-UTF-8 coverage, exact deferred timing disposition and associated Slice 95 records.
-No .29 contract or frozen oracle changes in this forward. Source C and D remain
+Source D `bef17bfab777e3ea3ad90b66ed122795dfbc0969` merged without conflict
+at `6674cf79d`, adding CI11 discovery diagnostics, mandatory UTF-8 coverage and
+the exact deferred timing disposition. The current forward input is source E
+`86fb2924c3f10a6b0d4ff04fbd00b8ac7c67bf3d`, merging CI12's accepted bounded
+logger-admission repair and its reviewed documentation without conflict.
+`logging_subscriber.rs` is byte-identical to E. Existing .29 signatures, MCP,
+filter/snippet contracts and frozen oracles remain intact. Source C/D/E remain
 immutable. Astra approved the bounded integration and the explicit superseded
 MCP expectation adjustment before resolution.
 
@@ -118,7 +120,12 @@ chunking analysis is only cataloged; its parked feature scope is unchanged.
 Astra review of the actual resolutions and parent-owned promotion remain pending.
 No full workspace gate, .29 platform/performance campaign, version cut,
 publication, default-release activation or relabeling of .28 receipts is claimed.
-The source D forward passed the focused test-target suite and 384-target coverage;
-its diff is clean. No Rust compilation or broad gate ran for that forward: parent
-owns warm feature reinventory and separate final canonical verification.
-The .28 source candidates and both canonical checkouts remain untouched by this work.
+The source D and E forwards passed the focused 23-check test-target suite,
+384-target coverage and diff validation. No Rust compilation or broad gate ran
+for either forward. The original canonical .29 full gate is running on frozen
+`6674cf79d`; its receipt retains that identity. After E promotion, qualification
+must assemble that original result with affected CI12 rechecks on the promoted
+candidate. Neither an assembled pass nor a single full run of the E-forwarded
+.29 source is claimed while those checks remain pending. Parent owns review,
+promotion and qualification. The .28 source candidates and both canonical
+checkouts remain untouched by this isolated work.

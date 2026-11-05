@@ -268,9 +268,12 @@ that producer thread. It never acquires the GIL or calls a Python handler
 there. A dedicated delivery worker resolves a weak logger reference and calls
 `logger.log(level, message, extra={"fathomdb": payload})`.
 
-The queue holds at most 4096 records per attachment. A full or contended
-queue drops a new record and increments a saturating loss count; the worker
-reports it with a warning record and then permits normal records to proceed.
+The queue holds at most 4096 records per attachment. A full queue drops a
+new record and increments a saturating loss count; the worker reports it with
+a warning record and then permits normal records to proceed. Consumer
+bookkeeping contention is not overload: producer admission uses the bounded
+channel independently of that mutex. Exact delivery and phase pairing hold
+while capacity is available and the logger is live and functioning.
 This is the required tradeoff for a bounded adapter that cannot wait for an
 arbitrarily slow handler. Capacity bounds record count, not payload bytes:
 the copied SQL text and debug error context have no separate byte cap.

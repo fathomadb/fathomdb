@@ -323,3 +323,35 @@ Astra code review and separate verification check semantic metric coverage and
 unchanged immutable evidence. No product AC, validator bypass or new exception
 class is introduced. Recheck affected metadata/fast verification; records-only
 changes retain explicit source-attributed reuse of unchanged executable evidence.
+
+## CI16: focused AC011 diagnosis and repair
+
+On 2026-11-05 the owner directed: continue focused diagnosis and repair, retaining
+the threshold. AC011a's valid 999.651557/s non-pass remains unwaived. S95-6 governs
+this work; its >=1,000/s and AC011b's >=100/s, 5-second warmup, 60-second window,
+sequential commits, workload and canonical host/storage remain unchanged.
+
+Astra reviewed a bounded two-stage diagnosis. First, preserve the exact workload
+and original threshold assertion while temporarily adding aggregate phase timers
+in an isolated worktree: admission waits, guards/validation, transaction begin,
+trigger check, body, visibility advance and actual commit. Enable existing
+metrics only after warmup and capture original elapsed/rate before printing.
+Diagnostic instrumentation perturbs execution by an unknown amount; neither its
+throughput nor overlapping stage totals qualify acceptance or prove the tiny
+observed deficit. Interpret worker/shared metrics separately from per-write
+counts. Preserve every fence, error path, lock lifetime and worker activity.
+
+If needed, the second diagnostic counts actual SQL compilation/repreparation and
+execution in the dominant phase. At most two diagnostic runs precede a new design
+decision. No kernel/infrastructure knob, checkpoint, durability or trigger-policy
+change is allocated. Finding a preparation call alone does not justify caching:
+trigger configuration changes can expire prepared statements.
+
+An evidenced avoidable mechanism receives Astra design review, a deterministic
+correctness RED, focused GREEN/controls and Astra code review. Restore all
+throwaway instrumentation before that production TDD phase. The separate verifier
+checks source identity, unchanged acceptance and measured evidence. Run the
+unchanged canonical AC011a/b helper once after a reviewed repair on an isolated
+ready host; do not retry into green. Recheck the repair's blast radius, update
+source-attributed qualification, forward to .29 and clean up. Hosted fast remains
+pending until the acceptance candidate is settled. Publication remains held.

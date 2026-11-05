@@ -377,3 +377,31 @@ states retrospective timing and fidelity-only limits, including the changed
 post-run database hash of unknown cause. Normal API idempotence, portable tree
 validation, existing 38 tests and independent immutable-byte/hash checks verify
 this correction after the observed lint RED. AC011 and publication holds remain.
+
+## CI16: bound the write-throughput diagnosis
+
+**Astra diagnostic design review APPROVE on 2026-11-05.** The owner authorized
+focused diagnosis and repair with the original thresholds retained. No arithmetic
+artifact is established: even dividing 59,986 commits by exactly 60 seconds falls
+below 1,000/s. The final complete commit legitimately extends elapsed time.
+
+Use at most two diagnostic runs before reassessing the design. Phase 1 adds only
+temporary aggregate timers around the synchronous write phases, using existing
+physical metrics after the unchanged warmup and the same AC011a body. Capture
+original elapsed/rate before metric serialization. Only successful foreground
+per-write phase counts should equal measured commits; worker/shared stages and
+nested durations are separate observations. Actual tx.commit belongs inside its
+commit timer. Preserve guards, lock/error/RAII lifetimes and worker activity.
+Instrumentation overhead is unknown and cannot establish a saving of 0.0348%.
+
+Phase 2, if needed, isolates the dominant phase's actual SQL preparation,
+repreparation and execution. Existing trigger toggles can expire prepared
+statements, so cached preparation is not automatically a reuse improvement.
+The existing row-trigger fallback is not an approved shortcut: even a single
+Node write can make several mutations, whereas the accepted managed transaction
+performs one checked nonce-bearing visibility advance.
+
+No production repair is selected yet. Require a concrete avoidable mechanism,
+review its invariant-preserving change and correctness RED, restore diagnostic
+patches, then implement/verify only that repair. Thresholds, protocol, NORMAL
+synchronous mode, checkpoint policy and public contracts remain unchanged.

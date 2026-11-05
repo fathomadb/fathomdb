@@ -34,7 +34,8 @@
       "per_second": 999.65155742294,
       "minimum": 1000,
       "waiver": null,
-      "diagnostic": "separate traced run nonqualifying; no cause established; no kernel/threshold changes"
+      "diagnostic": "separate traced run nonqualifying; no cause established; no kernel/threshold changes",
+      "owner_direction": "2026-11-05: continue focused diagnosis and repair; retain threshold; no waiver"
     },
     "ac011b": {
       "result": "PASS",
@@ -158,17 +159,20 @@
     "tag_or_registry_or_pages_publication": false
   },
   "open_requirements": {
-    "S95-6": "AC011a requiredFAIL; owner direction/disposition pending; no waiver",
+    "S95-6": "AC011a requiredFAIL; owner authorized focused diagnosis/repair, threshold retained, no waiver",
     "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
     "S95-8": "Acceptance staysOPEN; taskcleanup and reviewed .29metadataforward complete. Later records-only forwards preserve exact imported bytes and unchanged executable inputs.",
     "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim."
   },
   "resources": {
-    "completed_task_worktrees": "All Slice95-created repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
-    "remaining_task_worktrees": [],
+    "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
+    "remaining_task_worktrees": [
+      "/tmp/fathomdb-s95-ac011"
+    ],
     "windows": "Restored originallyoff; originalpersistentXML byteidentical, originalrunner hash/service/policies unchanged, task26/27registrations absent, taskguestfolder/disposabledisk removed",
     "staged_inputs": "13ownedhashverifiedcorpusJSONLs removed; sourcecorpus unchanged; task-onlyfeaturetarget removed",
-    "debug_cache": "Checkout-owned cache retained at coldpath via target/debug symlink; physical restore willnotfitroot withoutdiscardingotherdata, so cache retained and relocationreceipt preserved; no shared/usercachepurge"
+    "debug_cache": "Checkout-owned cache retained at coldpath via target/debug symlink; physical restore willnotfitroot withoutdiscardingotherdata, so cache retained and relocationreceipt preserved; no shared/usercachepurge",
+    "continuation": "Prior phase cleanup complete; new isolated CI16diagnostic worktree created after ownerdirection; cleanup required after repair."
   },
   "receipts": {
     "canonical_28": {

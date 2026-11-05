@@ -7,8 +7,9 @@ status: IN_PROGRESS
 
 **IN_PROGRESS. Publication held.** Required AC011a measured
 999.651557 commits/s against the unchanged 1,000 minimum. This is a valid
-non-pass; no cause, repair or owner waiver is established. Owner direction on
-further performance work or disposition remains pending. The latest exact-source
+non-pass; no cause, repair or owner waiver is established. On 2026-11-05 the
+owner directed focused diagnosis and repair with the threshold retained.
+The Astra-approved bounded diagnosis is in progress. The latest exact-source
 CI has a fast-tier lint non-pass; its metadata correction is reviewed and
 independently verified, with local fast 198/198 passing on the clean corrected records candidate.
 Corrected-source hosted fast remains pending; the local pass is not a hosted pass.
@@ -52,7 +53,7 @@ native module. Earlier deterministic tests and mutation evidence remain retained
 | S95-6 performance and reliability | **AC011a FAIL, unwaived.** AC011b 307.292/s, AC012 1/3 ms, AC013 55/61 ms, seven AC081 hard limits, 60-second AC021 and AC073 stress 47 ms pass. Existing AC081 soft warnings remain. Diagnostic tracing is nonqualifying and establishes no cause. |
 | S95-6 accepted fidelity | Real TC5: 7,667 docs/100 queries/1,000 bootstrap, recall .958, CI [.938,.974], measured source `5f668f330`. Private vector-stage fidelity only; post-run database hash changed for unknown reason. EU7's retired recall assertion separately exits 101; its overall run is not called PASS. |
 | S95-7 hosted CI | Run 42005653176 on `3a05a45cb` is **not qualified**: fast lint rejects the missing TC5 classification, so 198 cheap suites did not run. All five native targets/collector, five size cells, parallel Rust, strict security, default-provider and distinct Windows WAL pass. Heavy also passes 7/7 in 1,503 seconds. Corrected records candidate `6479399fe` passes local fast 198/198, lint/type/security 0/0/0. Corrected-source hosted fast remains pending; no overall CI-green claim. Earlier failures and successful run 41971020280 retain their actual source attribution. |
-| S95-8 handoff | .29 has an uninterrupted 205/205 pass at `6674cf79d`, followed by reviewed forwards through `2803eb7f1` with affected native/logging/close/cursor checks passing. Reviewed metadata forward `d68de5db5` imports all nine final records exactly, with zero executable delta and passing scoped validators. All task worktrees/branches are removed. Later records-only forwards preserve exact imported bytes and unchanged executable inputs. |
+| S95-8 handoff | .29 has an uninterrupted 205/205 pass at `6674cf79d`, followed by reviewed forwards through `2803eb7f1` with affected native/logging/close/cursor checks passing. Reviewed metadata forward `d68de5db5` imports all nine final records exactly, with zero executable delta and passing scoped validators. All prior-phase task worktrees/branches were removed. Later records-only forwards preserve exact imported bytes and unchanged executable inputs. |
 | S95-10 evidence safety | Pinned tracked-source Gitleaks passes with zero leaks on `6479399fe`. Separate scan covers 1,466 retained files/224.6 MB, including the full diagnostic trace: one match is independently verified as a source-file digest. Actual scanner exit 1 and the finding are retained. A separate added/changed-evidence supplement scans 56 files/3.77 MB with zero findings/errors/drift; no suppression or relabeling of the original result. |
 | S95-12 confirmed-debt admission | Astra-approved CI8 RED/GREEN and independent 27 real-DB controls pass; the original hosted failures pass unchanged. Genuine competing-service refusal and true-debt progress are preserved. |
 | S95-13 subscriber admission | Astra-approved CI12 deterministic native RED/GREEN, 36 PyO3 units, fresh shipping-wheel 10/10 subscriber tests and five examples pass. Final-code Python CI and affected feature/native refresh pass; capacity 4096 and full-only loss remain. |
@@ -71,7 +72,7 @@ evidence; hosted fast refresh remains pending until the final acceptance
 candidate is settled. Do not add a new workflow or replay the full native matrix
 solely for these records-only changes.
 
-All Slice 95-created worktrees/branches are removed after clean/merged checks.
+All worktrees/branches from CI1–15 were removed after clean/merged checks.
 The standing Windows VM is restored off with byte-identical original persistent
 configuration, original runner hash/service/policies unchanged, and task runner
 registrations, folder and disposable disk removed. Exactly 13 matching staged
@@ -82,6 +83,13 @@ The checkout-owned debug cache remains intact on cold storage through its origin
 logical path. Root free space is smaller than the cache, so restoring its physical
 location would require discarding other data; no user cache is purged. Preserve
 its relocation/verification receipt. The cleanup receipt records the exact task inputs removed.
+
+CI16 records the authorized continuation: at most two diagnostic runs, followed
+by review of an evidenced mechanism and focused TDD before any production repair.
+Diagnostic runs cannot qualify throughput; no infrastructure or acceptance knob
+is changed. A new isolated worktree exists only for this continuation and will be
+merged/cleaned after the verified repair. Prior cleanup records remain accurate
+for the completed phase.
 
 D28-09/10/11 and populated-open deferrals remain. Slice 95 cannot close while the
 required AC011a non-pass lacks a pass or explicit owner-authorized disposition.

@@ -134,3 +134,16 @@ reuse one row and make1<=cursor inert. The approved refinement uses one logical
 ID with distinct matching revisions and explicit no-provider access, retains the
 row-count bound and checks each advancing hit cursor against its response cursor.
 A frozen-response mutation must fail; source behavior remains unchanged.
+
+CI13/14 are implemented and Astra code APPROVE through78a8a3908, merged at
+fe37e312e. Actual-deadline oracle rejects early-start and renewal mutations;
+10 focused controls,144 parallel engine units and17 dispatcher tests pass.
+The final cursor fixture rejects invalid writes and a stale-response mutation
+(999 advancing-hit violations while the old count bound reports0). Restored
+GREEN completes1000 searches with300 successful writes,299 during reads,
+999 advancing hits and zero violations. Shipping behavior is unchanged.
+Fresh exact-candidate CI and final independent integration checks follow.
+The [safe TC5 receipt](../../../../../experiments/runs/slice95-tc5-release-fidelity-20261105T0546Z-7b0bd356/record.json)
+is registered through the existing experiment writer/index. It remains a5f
+fidelity execution with the explicit post-run database-hash caveat, not a new
+measurement or an immutability claim. AC011a and publication holds remain.

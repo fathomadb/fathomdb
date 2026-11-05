@@ -45,6 +45,10 @@ impl Engine {
         if let Ok(mut lock) = self.lock.lock() {
             lock.take();
         }
+        #[cfg(test)]
+        self.embed_dispatch.observe_sqlite_quiescence_for_test(
+            self.managed_connections.live.lock().expect("registry").len(),
+        );
         let drained = self.embed_dispatch.join_after_quiescence();
         drop(close_guard);
         // The released provider may be the last reference to a caller embedder

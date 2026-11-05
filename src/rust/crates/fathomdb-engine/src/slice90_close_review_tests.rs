@@ -88,6 +88,43 @@ impl Embedder for HeldProvider {
     }
 }
 
+// Release the caller-owned gate and join close actors even if an assertion unwinds.
+struct ProviderCleanup {
+    release: mpsc::Sender<()>,
+    cancel_watchdog: mpsc::Sender<()>,
+    watchdog: Option<std::thread::JoinHandle<()>>,
+    closes: Vec<std::thread::JoinHandle<()>>,
+}
+
+impl ProviderCleanup {
+    fn new(release: mpsc::Sender<()>) -> Self {
+        let (cancel_watchdog, cancelled) = mpsc::channel();
+        let emergency_release = release.clone();
+        let watchdog = std::thread::spawn(move || {
+            if matches!(
+                cancelled.recv_timeout(Duration::from_secs(10)),
+                Err(mpsc::RecvTimeoutError::Timeout)
+            ) {
+                let _ = emergency_release.send(());
+            }
+        });
+        Self { release, cancel_watchdog, watchdog: Some(watchdog), closes: Vec::new() }
+    }
+}
+
+impl Drop for ProviderCleanup {
+    fn drop(&mut self) {
+        let _ = self.release.send(());
+        for close in self.closes.drain(..) {
+            let _ = close.join();
+        }
+        let _ = self.cancel_watchdog.send(());
+        if let Some(watchdog) = self.watchdog.take() {
+            let _ = watchdog.join();
+        }
+    }
+}
+
 #[test]
 fn provider_deadline_starts_after_sqlite_quiescence_and_is_never_renewed() {
     let dir = TempDir::new().expect("temp db");
@@ -103,9 +140,11 @@ fn provider_deadline_starts_after_sqlite_quiescence_and_is_never_renewed() {
         .expect("open real database"),
     );
     opened.engine.embed_dispatch.set_drain_budget_ms_for_test(40);
+    let observation = opened.engine.embed_dispatch.drain_observation_for_test();
     let accounting = opened.engine.embed_dispatch.accounting().expect("provider accounting");
     let pending = opened.engine.embed_dispatch.submit_text("held".to_owned()).expect("admit");
-    entered_rx.recv_timeout(Duration::from_secs(2)).expect("provider entered");
+    let mut cleanup = ProviderCleanup::new(release_tx);
+    entered_rx.recv_timeout(Duration::from_secs(10)).expect("provider entered");
     let connection = opened.engine.connection.lock().expect("primary SQLite owner");
     connection
         .as_ref()
@@ -115,62 +154,81 @@ fn provider_deadline_starts_after_sqlite_quiescence_and_is_never_renewed() {
 
     let (first_tx, first_rx) = mpsc::channel();
     let first_engine = Arc::clone(&opened);
-    let first = std::thread::spawn(move || {
-        first_tx.send(first_engine.engine.close()).expect("report first close");
-    });
+    cleanup.closes.push(std::thread::spawn(move || {
+        let _ = first_tx.send(first_engine.engine.close());
+    }));
     let started = Instant::now();
-    while !opened.engine.reader_pool.shutdown_started_for_test() {
-        assert!(started.elapsed() < Duration::from_secs(2), "close did not reach SQLite drain");
+    while !opened.engine.reader_pool.shutdown_started_for_test()
+        && started.elapsed() < Duration::from_secs(10)
+    {
         std::thread::yield_now();
     }
+    let reached_sqlite_drain = opened.engine.reader_pool.shutdown_started_for_test();
     let (second_tx, second_rx) = mpsc::channel();
     let second_engine = Arc::clone(&opened);
-    let second = std::thread::spawn(move || {
-        second_tx.send(second_engine.engine.close()).expect("report second close");
-    });
-    std::thread::sleep(Duration::from_millis(120));
+    cleanup.closes.push(std::thread::spawn(move || {
+        let _ = second_tx.send(second_engine.engine.close());
+    }));
+    let before_release = observation.lock().expect("drain observation").clone();
     connection
         .as_ref()
         .expect("live SQLite owner")
         .execute_batch("ROLLBACK")
         .expect("finish real SQLite transaction");
-    let quiesced_at = Instant::now();
     drop(connection);
-    let release_thread = std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(300));
-        release_tx.send(()).expect("release provider if close still waits");
-    });
-    let first_result = first_rx.recv_timeout(Duration::from_secs(2)).expect("first close");
-    let first_after_quiescence = quiesced_at.elapsed();
-    let second_result = second_rx.recv_timeout(Duration::from_secs(2)).expect("second close");
+    let first_result = first_rx.recv_timeout(Duration::from_secs(10)).expect("first close");
+    let second_result = second_rx.recv_timeout(Duration::from_secs(10)).expect("second close");
+    for close in cleanup.closes.drain(..) {
+        close.join().expect("close thread");
+    }
     let repeated = opened.engine.close();
     let live_after_close = accounting.snapshot().live_workers;
     let owned_connections = opened.engine.managed_connections.live.lock().expect("registry").len();
-    first.join().expect("first close thread");
-    second.join().expect("second close thread");
-    let drop_started = Instant::now();
+    // The observer owns only std values, so Engine::drop really invokes the fourth close.
     drop(opened);
-    let drop_elapsed = drop_started.elapsed();
-    release_thread.join().expect("release thread");
+    let after_drop = observation.lock().expect("drain observation").clone();
+    let live_after_drop = accounting.snapshot().live_workers;
+    drop(cleanup);
     drop(pending);
     let settle_started = Instant::now();
-    while accounting.snapshot().live_workers != 0 {
-        assert!(settle_started.elapsed() < Duration::from_secs(2), "provider did not exit");
+    while accounting.snapshot().live_workers != 0
+        && settle_started.elapsed() < Duration::from_secs(10)
+    {
         std::thread::yield_now();
     }
 
+    assert!(reached_sqlite_drain, "close did not reach SQLite drain");
+    assert!(before_release.sqlite_boundaries.is_empty(), "SQLite remained held");
+    assert!(before_release.proposals.is_empty(), "clock started before SQLite quiescence");
+    assert!(before_release.decisions.is_empty(), "deadline selected before SQLite quiescence");
     assert!(matches!(first_result, Err(EngineError::Scheduler)), "first={first_result:?}");
     assert!(matches!(second_result, Err(EngineError::Scheduler)), "second={second_result:?}");
     assert!(matches!(repeated, Err(EngineError::Scheduler)), "repeated={repeated:?}");
-    assert!(
-        first_after_quiescence >= Duration::from_millis(20),
-        "clock started before SQLite quiescence: {first_after_quiescence:?}"
-    );
-    assert!(
-        first_after_quiescence < Duration::from_millis(200),
-        "provider drain exceeded one budget: {first_after_quiescence:?}"
-    );
-    assert!(drop_elapsed < Duration::from_millis(100), "Drop renewed deadline: {drop_elapsed:?}");
+    assert_eq!(after_drop.sqlite_boundaries.len(), 4, "first/concurrent/repeated/Drop boundaries");
+    assert!(after_drop.sqlite_boundaries.iter().all(|(_, owners)| *owners == 0));
+    assert_eq!(after_drop.proposals.len(), 4);
+    assert_eq!(after_drop.decisions.len(), 4);
+    let first_deadline = after_drop.proposals[0].1;
+    for (index, ((proposed_at, proposed_deadline), decision)) in
+        after_drop.proposals.iter().zip(&after_drop.decisions).enumerate()
+    {
+        assert!(
+            *proposed_at >= after_drop.sqlite_boundaries[index].0,
+            "clock started before actual SQLite boundary: {after_drop:?}"
+        );
+        assert_eq!(*proposed_deadline - *proposed_at, Duration::from_millis(40));
+        assert_eq!(decision.proposed_deadline, *proposed_deadline);
+        assert_eq!(decision.selected_deadline, first_deadline, "deadline renewed at close {index}");
+        assert!(
+            decision.timeout_at.is_some_and(|now| now >= first_deadline),
+            "actual timeout decision: {decision:?}"
+        );
+        if index != 0 {
+            assert_eq!(decision.waits, 0, "expired deadline requested another wait");
+        }
+    }
     assert_eq!(live_after_close, 1, "retained provider remains counted");
+    assert_eq!(live_after_drop, 1, "Engine Drop retains the active provider worker");
     assert_eq!(owned_connections, 0, "SQLite owners exit before provider deadline");
+    assert_eq!(accounting.snapshot().live_workers, 0, "explicitly released provider exits");
 }

@@ -4,7 +4,9 @@
 use std::sync::Arc;
 
 use fathomdb_embedder::NoopEmbedder;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{
+    Engine, EngineError, InitialState, PreparedWrite, SourceId, TestEmbedderChoice,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -25,10 +27,12 @@ fn node(id: &str) -> PreparedWrite {
 fn missing_current_schema_edge_index_must_report_storage_error() {
     let directory = TempDir::new().unwrap();
     let path = directory.path().join(format!("edge-index-fault{SQLITE_SUFFIX}"));
-    let engine =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .unwrap()
-            .engine;
+    let engine = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .unwrap()
+    .engine;
     engine
         .write(&[
             node("from"),

@@ -31,8 +31,8 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    DenseReadiness, EmbedderChoice, Engine, EngineConfig, InitialState, PreparedWrite,
-    ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
+    DenseReadiness, Engine, EngineConfig, InitialState, PreparedWrite, ProjectionRole,
+    ProjectionSpec, ProjectionVector, SourceId, TestEmbedderChoice,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::collections::BTreeSet;
@@ -313,9 +313,9 @@ fn readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready() 
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "readiness_p1");
     let embedder = Arc::new(DelayEmbedder::new(Duration::ZERO));
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
         EngineConfig::default(),
     )
     .expect("open");
@@ -405,9 +405,9 @@ fn readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready() 
 fn atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "readiness_p2");
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(Arc::new(DelayEmbedder::new(Duration::from_millis(1)))),
+        TestEmbedderChoice::Caller(Arc::new(DelayEmbedder::new(Duration::from_millis(1)))),
         EngineConfig::default(),
     )
     .expect("open");

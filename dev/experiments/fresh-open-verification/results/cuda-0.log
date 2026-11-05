@@ -1,0 +1,50 @@
+   Compiling fathomdb-engine v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/src/rust/crates/fathomdb-engine)
+    Finished `release` profile [optimized] target(s) in 1.19s
+     Running tests/slice50_fresh_open_cost.rs (target/release/deps/slice50_fresh_open_cost-52f8aec4ee4f6bd8)
+
+running 1 test
+test fresh_open_cost ... FRESH_OPEN_META {"effective":"cuda:0","identity":"EmbedderIdentity { name: \"fathomdb-bge-small-en-v1.5\", revision: \"5c38ec7c405ec4b44b94cc5a9bb96e735b38267a\", dimension: 384 }","loader_download_bytes":0,"mean_pinned":true,"pairs_per_lifecycle":10,"pooling":"Mean","probe_count":45,"rayon_num_threads":null,"requested":"cuda:0","rows":300,"sqlite_version":"3.54.1","vectorless_embeds":0,"verified_cache_hits_per_construction":3}
+FRESH_OPEN_COST {"close_ms":2.855729,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.25256,"pair":0,"probe_embeds":0,"total_ms":12.10861,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":3.1445230000000004,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":172.82773500000002,"pair":0,"probe_embeds":45,"total_ms":175.97285,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":4.235232,"lifecycle":"reuse","model_load_ms":0.000031,"open_ms":165.28888899999998,"pair":1,"probe_embeds":45,"total_ms":169.524492,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":2.086217,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.128005,"pair":1,"probe_embeds":0,"total_ms":11.214603,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":1.635947,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":8.613314,"pair":2,"probe_embeds":0,"total_ms":10.249601,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.4506689999999995,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":161.437952,"pair":2,"probe_embeds":45,"total_ms":165.888992,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":4.226556,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":162.735961,"pair":3,"probe_embeds":45,"total_ms":166.962888,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":2.693042,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.178771000000001,"pair":3,"probe_embeds":0,"total_ms":11.872114,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":2.2001619999999997,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":10.073069,"pair":4,"probe_embeds":0,"total_ms":12.273661,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.508217,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":170.130164,"pair":4,"probe_embeds":45,"total_ms":174.639013,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":4.384714,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":167.172855,"pair":5,"probe_embeds":45,"total_ms":171.55804899999998,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":3.022714,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.803229,"pair":5,"probe_embeds":0,"total_ms":12.826264,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":2.651344,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.190873,"pair":6,"probe_embeds":0,"total_ms":11.842508,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.344728,"lifecycle":"reuse","model_load_ms":0.000049999999999999996,"open_ms":168.17240999999999,"pair":6,"probe_embeds":45,"total_ms":172.51776099999998,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":3.665637,"lifecycle":"reuse","model_load_ms":0.000111,"open_ms":165.592552,"pair":7,"probe_embeds":45,"total_ms":169.258821,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":1.618033,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":8.771122,"pair":7,"probe_embeds":0,"total_ms":10.389575,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":2.322423,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":8.54767,"pair":8,"probe_embeds":0,"total_ms":10.870372999999999,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":3.6774199999999997,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":167.203001,"pair":8,"probe_embeds":45,"total_ms":170.88097199999999,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":3.9397240000000004,"lifecycle":"reuse","model_load_ms":0.000041,"open_ms":165.357699,"pair":9,"probe_embeds":45,"total_ms":169.297885,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":3.3815809999999997,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":9.866449,"pair":9,"probe_embeds":0,"total_ms":13.24835,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":5.757395,"lifecycle":"reload","model_load_ms":110.969496,"open_ms":9.662744,"pair":0,"probe_embeds":0,"total_ms":126.390005,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":13.717746,"lifecycle":"reload","model_load_ms":111.029589,"open_ms":191.718254,"pair":0,"probe_embeds":45,"total_ms":316.46647,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":8.337964999999999,"lifecycle":"reload","model_load_ms":120.14740499999999,"open_ms":189.340116,"pair":1,"probe_embeds":45,"total_ms":317.826057,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":9.180254,"lifecycle":"reload","model_load_ms":120.665042,"open_ms":15.721648000000002,"pair":1,"probe_embeds":0,"total_ms":145.567584,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":7.5206420000000005,"lifecycle":"reload","model_load_ms":113.77991899999999,"open_ms":11.435348999999999,"pair":2,"probe_embeds":0,"total_ms":132.736301,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":11.162995,"lifecycle":"reload","model_load_ms":114.46892,"open_ms":194.542604,"pair":2,"probe_embeds":45,"total_ms":320.17508,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":10.226999000000001,"lifecycle":"reload","model_load_ms":113.54686,"open_ms":198.80097899999998,"pair":3,"probe_embeds":45,"total_ms":322.575519,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":7.921398,"lifecycle":"reload","model_load_ms":117.317164,"open_ms":9.80914,"pair":3,"probe_embeds":0,"total_ms":135.048665,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":6.101134,"lifecycle":"reload","model_load_ms":113.397017,"open_ms":9.658966999999999,"pair":4,"probe_embeds":0,"total_ms":129.157578,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":11.43565,"lifecycle":"reload","model_load_ms":114.147474,"open_ms":205.789097,"pair":4,"probe_embeds":45,"total_ms":331.372841,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":11.153868000000001,"lifecycle":"reload","model_load_ms":109.787746,"open_ms":183.43204799999998,"pair":5,"probe_embeds":45,"total_ms":304.374153,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":6.388165000000001,"lifecycle":"reload","model_load_ms":111.19353899999999,"open_ms":9.528601,"pair":5,"probe_embeds":0,"total_ms":127.11067600000001,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":7.686635,"lifecycle":"reload","model_load_ms":113.811099,"open_ms":10.185501,"pair":6,"probe_embeds":0,"total_ms":131.683585,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":11.942836999999999,"lifecycle":"reload","model_load_ms":110.15083200000001,"open_ms":191.141747,"pair":6,"probe_embeds":45,"total_ms":313.23604700000004,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":9.961177999999999,"lifecycle":"reload","model_load_ms":110.887923,"open_ms":197.057791,"pair":7,"probe_embeds":45,"total_ms":317.90747200000004,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":6.5041839999999995,"lifecycle":"reload","model_load_ms":112.106822,"open_ms":9.678282999999999,"pair":7,"probe_embeds":0,"total_ms":128.289701,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":7.129945,"lifecycle":"reload","model_load_ms":110.311224,"open_ms":9.52287,"pair":8,"probe_embeds":0,"total_ms":126.96441,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":10.796754,"lifecycle":"reload","model_load_ms":109.608679,"open_ms":186.836793,"pair":8,"probe_embeds":45,"total_ms":307.242747,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":11.243898,"lifecycle":"reload","model_load_ms":112.240997,"open_ms":183.83640100000002,"pair":9,"probe_embeds":45,"total_ms":307.321847,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":9.651533,"lifecycle":"reload","model_load_ms":112.89976899999999,"open_ms":10.694782,"pair":9,"probe_embeds":0,"total_ms":133.246686,"verification":"cached"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.28s
+

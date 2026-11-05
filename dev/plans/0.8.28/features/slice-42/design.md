@@ -1,15 +1,18 @@
 ---
 title: FathomDB 0.8.28 Slice 42 — design
-status: PLANNED (R1 APPROVE-WITH-FIXES applied; Q-A1 ruled 2026-10-16; Q-B1, Q-B2 ruled)
+status: PLANNED (rewritten 2026-10-31 for the Unit B re-scope; R-DES APPROVE-WITH-FIXES applied)
 target_release: 0.8.28
-observed_on: 2026-10-16
+observed_on: 2026-10-31
 ---
 
 # Slice 42 design
 
-Unit A (§ 1) is a small test change that needs an owner ruling on the
-exact lines. Unit B (§ 2) is the method for an investigation; its result
-is `investigation.md`, written during the slice.
+Unit A (§ 1) is a small test change the owner ruled on (Q-A1). Unit B
+(§ 2) moves to `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1 and deletes
+the vendored `libsqlite3-sys` 0.38.1. The earlier Unit B, an
+investigation with routes R1–R12 and evidence E1–E3, is superseded by the
+owner's re-scope of 2026-10-31 and is removed from this file; git history
+at `59079d5c5` keeps it.
 
 ## 1. Unit A: a descriptor check that ignores other tests
 
@@ -27,33 +30,26 @@ closed its files (requirements § 1.1).
 
 | Option | What it does | For | Against |
 | --- | --- | --- | --- |
-| **1. Serialise the binary** | A file-level `static` `Mutex` taken first by all five non-ignored tests, as `slice40_reader_page_cache.rs` and `slice40_projected_fts_stream.rs` do | Keeps the process-wide count, so it still sees any descriptor kind (pipes, sockets, event descriptors). Matches the header's `--test-threads=1` | Edits all five tests. The count is still process-wide, so a future test that forgets the lock breaks it again. The binary loses its parallelism |
-| **2. Count only the test's own files** (recommended) | Read `/proc/self/fd`, follow each link, and count the links whose target is under the test's `TempDir` | Exact for the leak this test is about: the engine keeping its database files open. Independent of other threads by construction. Touches one test and adds one helper | Linux only. It returns `None` elsewhere, so the check becomes `None == None` on macOS (where `/dev/fd` counts today) as well as on Windows (where it is already `None`). No macOS or Windows job runs this binary; those runners only build wheels. Does not see a leaked pipe, socket or event descriptor, or a file outside the directory |
-| **3. Run the scenario in a child process** | The test re-runs its own binary with `--exact` on an ignored victim test, as `slice135_crash_victim` does, and the child counts its own `/dev/fd` | Process-wide count, every descriptor kind, no cross-test effect | Most code: the scenario and its assertions move into a victim, and failures come back as an exit status and captured output. A larger edit to rule on |
+| **1. Serialise the binary** | A file-level `static` `Mutex` taken first by all five non-ignored tests | Keeps the process-wide count, so it still sees any descriptor kind | Edits all five tests. A future test that forgets the lock breaks it again |
+| **2. Count only the test's own files** (ruled) | Read `/proc/self/fd`, follow each link, and count the links whose target is under the test's `TempDir` | Exact for the leak this test is about. Independent of other threads by construction. Touches one test and adds one helper | Linux only: `None == None` on macOS and Windows. Does not see a leaked pipe, socket or event descriptor, or a file outside the directory |
+| **3. Run the scenario in a child process** | The test re-runs its own binary on an ignored victim test that counts its own `/dev/fd` | Process-wide count, every descriptor kind, no cross-test effect | Most code |
 
 ### 1.3 Choice
 
 Option 2. The assertion's message is "no persistent descriptor growth",
 and the descriptors the engine owns are its database, WAL and
-shared-memory files, which all live in the test directory. Counting
-those answers the question directly and does not depend on scheduling.
-Option 1 keeps a process-wide count that libtest itself, a child spawn or
-an untidy neighbour can move, and it edits four tests that are not
-broken. Option 3 is the fallback if the owner wants every descriptor
-kind covered; it is the only option that keeps both properties.
-
-Known limit of option 2: a leak of a descriptor that does not point under
-the test directory passes. The engine opens no such descriptor today: no
-socket, no pipe, no event descriptor. If one is added later, its own
-tests have to cover it.
+shared-memory files, which all live in the test directory. A leak of a
+descriptor that does not point under the test directory passes; the
+engine opens no such descriptor today.
 
 ### 1.4 The edit (owner ruling Q-A1, 2026-10-16: approved as written)
 
-In `src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs`
-at the slice base `d10ad65d5`:
+In `src/rust/crates/fathomdb-engine/tests/slice135_robustness_first.rs`.
+The line numbers were re-checked at `59079d5c5` on 2026-10-31: the file
+is unchanged since `d10ad65d5`, so every number below still holds
+(`fd_count()` at 54–56, the test at 362–438).
 
-1. **Add** a helper after `fd_count()` (after line 56). It is new code,
-   but it is in a test file, so it is part of the ruling:
+1. **Add** a helper after `fd_count()` (after line 56):
 
    ```rust
    fn fd_count_under(dir: &Path) -> Option<usize> {
@@ -74,7 +70,8 @@ at the slice base `d10ad65d5`:
    `read_link` fails for a descriptor closed between the listing and the
    read; such an entry is skipped, which is correct because it is no
    longer open. A file deleted while open reads as `<path> (deleted)`;
-   its parent components still match.
+   its parent components still match. `Path` is already imported
+   (line 7).
 2. **Line 366:** `let fd_before = fd_count();` becomes
    `let fd_before = fd_count_under(dir.path());`.
 3. **Line 429:** `let fd_after = fd_count();` becomes
@@ -83,159 +80,307 @@ at the slice base `d10ad65d5`:
 Nothing else changes. Line 437, its message, `fd_count()` and its two
 other callers stay. The `fd_before` and `fd_after` fields in the
 `SLICE135_ROBUSTNESS` record now hold the directory-scoped counts; no
-script reads them (a repository search finds them only in this file).
-The expected values are 0 and 0 on Linux.
+script reads them. The expected values are 0 and 0 on Linux.
 
 ### 1.5 Showing it still catches a leak
 
-Two uncommitted edits, each applied, run and reverted with
-`git restore` (test-plan § 2.3):
+Two uncommitted edits, each applied, run and reverted (test-plan § 2.3):
 
 - **Leaked file:** before line 429,
   `std::mem::forget(std::fs::File::open(&path).expect("leak"));`. The
   count after is 1; line 437 fails.
 - **Leaked engine:** on line 416, `reopened.engine.close()` replaced by
-  `std::mem::forget(reopened.engine);`. The engine's files stay open; line
-  437 fails.
+  `std::mem::forget(reopened.engine);`. The engine's files stay open;
+  line 437 fails.
 
-The old helper would also fail these, but not reliably pass the clean
-case. That is the point of the change.
+### 1.6 TDD shape
 
-## 2. Unit B: investigation method
+The RED case is the existing test run in parallel at the base (9 of 10
+fail, AC42-02); the Unit A commit body cites that loop. No new test is
+added (Q-A1). It is one commit, independent of Unit B.
 
-### 2.1 Question
+## 2. Unit B: `rusqlite` 0.41.1 and `libsqlite3-sys` 0.39.1
 
-Which route gives users of the published Rust artifacts the
-per-connection page cache (or an equivalent latency result), at what cost
-and risk? The artifacts are the `cargo install`ed CLI and the published
-`fathomdb`, `fathomdb-sdk` and `fathomdb-engine` crates. The routes that
-the owner prefers not to take (a forked `libsqlite3-sys` with a forked
-`rusqlite`, and waiting for upstream) are assessed for completeness but
-are not the target.
+### 2.1 What the new crates give (checked 2026-10-31)
 
-### 2.2 Current behaviour (evidence E1–E3)
+Read from the registry sources in `~/.cargo/registry`:
 
-- **E1, the installed CLI.** `cargo install fathomdb-cli --version
-  '=0.8.27' --locked --root <scratch>` (Q-B2: allowed, scratch directory
-  only; no publish, no tag). Record the `libsqlite3-sys` version in the
-  install log, and check whether the binary carries
-  `ENABLE_MEMORY_MANAGEMENT` in SQLite's compile-option table
-  (`strings <bin> | grep -x ENABLE_MEMORY_MANAGEMENT`; the table drops
-  the `SQLITE_` prefix). Repeat with
-  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, and with the
-  no-file form `cargo install … --config
-  'env.LIBSQLITE3_FLAGS="-USQLITE_ENABLE_MEMORY_MANAGEMENT"'`; the string
-  should be gone in both. The with/without pair is the control: once R2
-  puts the literal into engine code, every binary contains it and
-  `strings` stops telling the builds apart.
-- **E2, a crate consumer.** A scratch crate outside the workspace, so the
-  root `[patch]` does not apply, with a path dependency on this branch's
-  `fathomdb-engine` (`features = ["test-hooks"]`). Record
-  `cargo tree -i libsqlite3-sys` (it must show the registry source and
-  version 0.38.2, not the vendored 0.38.1). The crate gets a fresh
-  lockfile, so record the resolved `rusqlite` and other SQLite-related
-  versions. Copy `tests/slice40_reader_page_cache.rs` into it with the
-  same dev-dependencies and run AC40-95 to AC40-97: expected RED. No CUDA
-  feature is enabled, so the `candle-kernels` patch does not matter.
-- **E3, the override.** E2 again with
-  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`: expected GREEN.
-  Then E2 again with the variable set in the scratch crate's
-  `.cargo/config.toml` `[env]` table instead of the shell: this shows
-  whether a config file reaches the dependency's build script
-  (`build.rs` line 332 declares `rerun-if-env-changed=LIBSQLITE3_FLAGS`,
-  and line 323 appends `-U…` after the fixed `-D` list, so it wins).
+- `libsqlite3-sys` 0.39.1 bundles SQLite 3.54.1. The `-D` flags in its
+  `build.rs` equal the vendored 0.38.1 build script's flags exactly
+  (both omit `-DSQLITE_ENABLE_MEMORY_MANAGEMENT`); registry 0.38.2 has
+  that one extra flag. So the workspace build changes the SQLite version
+  and nothing else in the compile configuration.
+- `winIsUNCPath` in 3.54.1 (and in 3.54.0, from `libsqlite3-sys` 0.39.0)
+  returns `sqlite3_win_test_unc_locking` for a `\\?\` path followed by a
+  drive letter, a colon and a separator, and 1 for every other `\\` path.
+  That is the logic the
+  vendored crate backports from 3.53.3 (check-in `246f46614f`).
+- 3.54.x also has `winIsRemoteVolume` (3.54.1 `sqlite3.c` line 52543),
+  OR'd with `winIsUNCPath` when `winOpenSharedMemory` picks the lock
+  handle (line 52581). The vendored 3.53.2 has no such function. So a
+  `\\?\X:\` path on a mapped network drive (`DRIVE_REMOTE`) now takes
+  the shared lock handle, as a UNC path does. That is upstream's intended
+  network-volume handling, not the local-path defect; AC42-13 covers
+  local disks only.
+- `rusqlite` 0.41.1 requires `libsqlite3-sys` `^0.39.0`, so any
+  resolution of `rusqlite` 0.41 bundles 3.54.0 or later without the flag.
+- MSRV: `rusqlite` 0.41.1 declares 1.89, `libsqlite3-sys` 0.39.1 declares
+  1.88; the workspace declares 1.95 and pins 1.95.0. No change
+  (REQ42-B6).
+- The `rusqlite` feature table still has `bundled`, `fallible_uint`,
+  `hooks` and `trace`. `hooks` now enables a new `wal` feature. Default
+  features add `ffi-sqlite-wasm-rs`, a dependency only on
+  `wasm32-unknown-unknown`.
 
-### 2.3 Routes
+### 2.2 `rusqlite` 0.41 API breakage (compile probe)
 
-| Id | Route | Reaches | First reading |
+Probe, 2026-10-31, in a scratch export of `59079d5c5`: the three
+manifests moved to `0.41`, the root `libsqlite3-sys` patch removed,
+`cargo update -p rusqlite --precise 0.41.1`, then
+`cargo check --keep-going --workspace --all-targets`, the engine with
+`test-hooks,operator,migration-test-hooks,tc5-benchmark`, the engine
+`--lib` with no features, and `fathomdb-schema` and `fathomdb-cli` alone.
+The lockfile diff is two packages: `rusqlite` 0.40.1 → 0.41.1 and
+`libsqlite3-sys` local 0.38.1 → registry 0.39.1. No other package moves.
+
+Two breaking changes reach FathomDB code:
+
+1. **`Connection::trace_v2`** now takes `&mut self`, a generic
+   `Option<F>` with `F: FnMut(TraceEvent<'_>) + Send + 'static`, and
+   returns `Result<()>` (it took `&self` and `Option<fn(TraceEvent)>` and
+   returned nothing). Five calls, all behind `test-hooks`:
+   - `reader_pool.rs` 696 (install) and 715 (clear), on the reader
+     worker's `connection`, which is already a `mut` binding;
+   - `evidence.rs` 2993 (install) and 2995 (clear), in the unit test
+     `graph_nonce_generation_executes_no_sql_statement`.
+
+   The clear calls pass a bare `None`, which no longer infers `F`
+   (E0283). Migration: `None::<fn(rusqlite::trace::TraceEvent<'_>)>`;
+   the `evidence.rs` test binds `let mut connection`; each call handles
+   the `Result` with `.expect("…")` naming the install or clear. The
+   reader-pool calls run only in `test-hooks` builds, which no shipped
+   artifact enables, so a failure panics a test rather than a user's
+   reader.
+2. **`Connection::busy_handler`** (and `commit_hook`, `rollback_hook`,
+   `update_hook`, `progress_handler`, `authorizer`) now take `&mut self`;
+   `busy_handler` also takes a generic closure. The engine's existing
+   hook calls already hold `&mut` and compile unchanged. Three test calls
+   do not (E0596): `tc57_governed_write_race.rs` 471 and 526 (bindings
+   `let (a, b)` on lines 466 and 523) and `tc90_transition_write_race.rs`
+   843 (binding on line 839). Migration: make the one binding `mut`.
+   The comment above line 471 ("takes a bare `fn` pointer, so the
+   counter must be a static") is no longer true and is deleted; the
+   static counter stays.
+
+With those edits the probe compiled every target and
+`cargo clippy --workspace --all-targets -- -D warnings -A missing-docs`
+and the engine `test-hooks,operator` clippy were clean.
+
+The test-file edits above are compile-forced migrations of call syntax.
+They change no assertion; the reviewer should check that.
+
+**Consumer-visible effect.** `fathomdb_schema::migrate(&rusqlite::Connection)`
+is public, so its parameter type moves to `rusqlite` 0.41, and
+`libsqlite3-sys` declares `links = "sqlite3"`, so a consumer cannot hold
+`rusqlite` 0.40 and FathomDB 0.8.28 in one graph. The 0.8.27 move to
+`rusqlite` 0.40 had the same effect; the CHANGELOG records it under
+"Changed" in the same way.
+
+### 2.3 Deleting the vendored crate
+
+Delete `third_party/libsqlite3-sys-0.38.1/` (and with it
+`FATHOMDB-PATCH.md`). `third_party/` is then empty and goes too. Every
+live reference moves with it:
+
+| File | Change |
+| --- | --- |
+| `Cargo.toml` (root) | Delete the `libsqlite3-sys` line under `[patch.crates-io]` and its two comment lines; the `[patch]` comment keeps the `candle-kernels` paragraph |
+| `experiments/sdk_drivers/rust/Cargo.toml` and its `Cargo.lock` | Delete the duplicate `libsqlite3-sys` patch; refresh the driver lock to `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1 |
+| `src/rust/crates/{fathomdb-cli,fathomdb-schema,fathomdb-engine}/Cargo.toml` | `rusqlite` `"0.40"` → `"0.41"` (four lines; the engine has a dependency and a dev-dependency). The lockfile pins 0.41.1; `"0.41"` matches the file's style and every 0.41 release bundles a SQLite with the fix and without the flag (§ 2.1) |
+| `scripts/check-pinned-override-rot.py` | Delete the `SQLITE_*` constants, the SQLite branch of `sdk_driver_duplicate_patch`, and the SQLite branches of `validate_cargo_pins` (the expected key, the missing-patch message, the lock, manifest, license and digest checks). A `libsqlite3-sys` patch then falls through to the existing "unsupported Cargo override/git source" failure |
+| `scripts/pinned-override-rot.json` | Delete `cargo_sqlite_exception`; rewrite the `cargo` description to name two admitted mechanisms (the `candle-kernels` Git patch and the fork registry pins) |
+| `scripts/tests/test_check_pinned_override_rot.sh` | B-RED-2 adds the two refusal cases of § 2.6. B-GREEN-2 deletes the obsolete SQLite fixtures and cases: `seed_sqlite_fixture` (lines 198–224) and its two callers, the lock stub, the drift, build and path cases (528–564), and the driver's SQLite patch line and `missing-sqlite` case (696–697, 738–740) |
+| `tests/experiments/test_sdk_rust_patch_policy.py` | B-RED-2: the driver SQLite patch becomes an assertion of refusal (§ 2.6) |
+| `dev/design/pinned-override-rot-guard.md` | Rewrite R4 (lines 59–75) to the two admitted mechanisms, the `candle-kernels` Git patch and the fork registry pins, mirroring the new `cargo` description in `pinned-override-rot.json`. The `cudarc` 0.19.7 clause there is stale since Slice 31 and goes too |
+| `scripts/slice135_pilot.py` | Unchanged. Its `SOURCE_PATHS` still names `third_party`, but the S02-L campaign freezes the helper's SHA-256, and `REQUIRED_SOURCE_PATHS` (`SOURCE_PATHS[:3]`) does not include it, so the missing directory is harmless |
+| `scripts/security/gitleaks-current.toml` and `check-gitleaks-current-config.py` | Delete the two "Vendored SQLite" allowlists in both, together (the checker requires the config to equal its expected list). They name only files that no longer exist |
+| `.gitattributes` | Delete the `third_party/libsqlite3-sys-0.38.1/** -whitespace` entry and its comment |
+| `.markdownlint-cli2.jsonc`, `scripts/agent-lint-md.sh` | Delete the two vendored README/Upgrade excludes |
+
+Unchanged: `scripts/perf-experiments/collect-host-spec.sh`,
+`run-slice71-ac013-cell.sh` and `run_slice71b.py` read the version from
+`Cargo.lock` and keep working. Historical evidence (build logs and
+snapshots under `dev/plans/0.8.27/`, `dev/plans/runs/`,
+`experiments/configs/release-0825-slice71b-probe.Cargo.lock`, and the
+Slice 31 and Slice 40 records) is left as written.
+
+### 2.4 The Windows verbatim-path guard
+
+Today (`connection_runtime.rs`):
+
+- `sqlite_local_verbatim_path_requires_patched_vfs(path, sqlite_version, patched_vfs)`
+  (lines 129–146, `cfg(windows)`) is true for a `\\?\C:\…` path that
+  `sqlite_runtime_path` cannot simplify, when `sqlite_version < 3_053_003`
+  and the marker is absent;
+- `ensure_sqlite_local_verbatim_path_safe` (148–167) also refuses a
+  trailing dot or space, then calls the predicate with
+  `rusqlite::version_number()` and `sqlite_local_verbatim_vfs_is_patched()`;
+- `sqlite_local_verbatim_vfs_is_patched` (169–174) reads the
+  `FATHOMDB_WIN_VERBATIM_SHM_SAFE` compile option.
+
+The marker exists only in the vendored amalgamation. After § 2.3 no
+build can carry it, so the third argument is always false and the guard
+is already a version check in effect. The rework makes that the code:
+
+```rust
+/// First SQLite release whose Windows VFS keeps a local `\\?\C:\` path off
+/// the shared UNC lock handle (check-in 246f46614f). Older releases can
+/// strand WAL read locks on such a path.
+pub(crate) const SQLITE_LOCAL_VERBATIM_WAL_FIX: i32 = 3_053_003;
+
+/// Whether a database path must be refused because the linked SQLite would
+/// treat a local verbatim path as UNC. `simplifiable` is true when the
+/// engine hands SQLite a simplified non-verbatim form instead.
+pub(crate) fn local_verbatim_path_needs_newer_sqlite(
+    path_text: &str,
+    simplifiable: bool,
+    sqlite_version: i32,
+) -> bool
+```
+
+- The predicate is portable (no `cfg`): it reads only the text, a flag
+  and a number, so its test runs on Linux and the RED is auditable
+  there. The byte test of the `\\?\C:\` prefix moves into it unchanged.
+- `ensure_sqlite_local_verbatim_path_safe` (still `cfg(windows)`)
+  computes `simplifiable = sqlite_runtime_path(path) != path` and passes
+  `rusqlite::version_number()`. The error message is unchanged.
+- Deleted: `sqlite_local_verbatim_path_requires_patched_vfs`,
+  `sqlite_local_verbatim_vfs_is_patched`, and every mention of the
+  marker.
+- The comment in `sqlite_runtime_path` (lines 115–116, "special and long
+  paths retain their verbatim form for the bundled VFS correction") is
+  reworded: they keep their verbatim form, which SQLite 3.53.3 and later
+  handle as a local path.
+- The threshold stays 3.53.3. It is the fix's release, and 3.54.0 and
+  3.54.1 contain the fix (§ 2.1). Workspace and published builds link
+  3.54.x, so the check refuses nothing there; it still protects a
+  consumer who links an older system SQLite (for example through
+  `LIBSQLITE3_SYS_USE_PKG_CONFIG`).
+- `lib.rs` Windows tests: `unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths`
+  (858–877) moves to the new predicate and loses its marker assertions
+  (the `true` third argument). `local_canonical_path_does_not_strand_idle_wal_readers`
+  (915) loses its early return: it now asserts
+  `rusqlite::version_number() >= SQLITE_LOCAL_VERBATIM_WAL_FIX` and always
+  runs, because a silent skip would hide a regression to an older
+  SQLite. Both edits are forced by the deleted functions.
+
+### 2.5 sqlite-vec 0.1.9 on SQLite 3.54.1
+
+`sqlite-vec` 0.1.9 compiles `sqlite-vec.c` with `SQLITE_CORE` against its
+own copy of `sqlite3.h` (3.45.3) and links to whichever SQLite the binary
+carries; the engine registers it with `sqlite3_auto_extension`. That is
+the arrangement on 3.53.2 today; it relies only on the stable C API. In
+the probe, `cargo test -p fathomdb-schema -p fathomdb-engine --features
+test-hooks,operator` ran 1,637 passing tests on 3.54.1, including the
+vector suites (`corpus_vector`, `rebuild_vec0`, `slice40_vector_pool`,
+`tc76_vec0_long_metadata_delete` and the rest) and AC40-95 to AC40-97.
+Three tests failed, all parallel-run flakes that fail the same way at the
+base:
+
+- `slice135_persistent_sqlite_full_preserves_state_until_cap_lifts`
+  (Unit A's defect);
+- `evidence_search_races_are_snapshot_atomic_or_wholly_refused` and
+  `evidence_linearizes_at_sidecar_and_resolver_return_seams` in
+  `slice50_evidence.rs` (`EvidenceUnavailable`): 6 of 15 parallel runs
+  of that binary fail at the base and 3 of 15 on the probe; 5 of 5
+  serial runs pass at the base. Not in this slice's scope; recorded in
+  status.md for the coordinator.
+
+### 2.6 TDD: RED and GREEN commits
+
+One RED commit per behaviour, each failing at its own sha for the stated
+reason, with "RED evidence:" in its body; then its GREEN. Test-plan § 3
+has the commands. Order:
+
+| # | Commit | Fails at its sha because | GREEN |
 | --- | --- | --- | --- |
-| R1 | Prebuilt CLI binaries built in the workspace, attached to the GitHub release for each target, so `cargo binstall fathomdb-cli` fetches them (its default template needs no `[package.metadata.binstall]` if assets are named `{name}-{target}-v{version}.tgz`); install docs lead with them | CLI users | Per-connection cache and the Windows WAL backport, from the same vendored crate the wheels use. Today the GitHub release carries only the Python distributions. Release-pipeline work: a build job per target, including aarch64 Linux for Jetson and Tegra (the sealed CUDA CLI archive is a starting point), checksums, smoke. Does nothing for crate consumers |
-| R2 | Report the mode at run time (todos ledger seq 340): read `sqlite3_compileoption_used("ENABLE_MEMORY_MANAGEMENT")` at open; report it in the open report or runtime configuration, warn once, and show it in `doctor` | Everyone, as information | Small, follows the Windows marker precedent. Fixes nothing. A public field needs interface docs and parity in three SDKs. The warning text points at the R3 one-line override |
-| R3 | Document the persistent override: `LIBSQLITE3_FLAGS` in the consumer's `.cargo/config.toml` `[env]` or in `$CARGO_HOME/config.toml` (which `cargo install` also reads), or the one-line `cargo install fathomdb-cli --config 'env.LIBSQLITE3_FLAGS="-USQLITE_ENABLE_MEMORY_MANAGEMENT"'` | Users who read the docs | Free. Depends on E1 and E3 showing that `[env]` and `--config` reach the build script |
-| R4 | A system SQLite: `LIBSQLITE3_SYS_USE_PKG_CONFIG=1` makes `libsqlite3-sys` link a system library even with `bundled` on (0.38.2 `build.rs` line 80). Or make `bundled` a default feature that consumers can turn off | Users who opt in | Still a user-set variable or a feature change in three crates. The system library may be older, may lack FTS5, may itself set the flag, drops the 3.53.2 version pin, and lacks the vendored amalgamation patches, including the Windows WAL backport. Evidence: `PRAGMA compile_options` of the system SQLite on Ubuntu 22.04, 24.04 and macOS |
-| R5 | `PRAGMA mmap_size` on reader connections, so pages that are not in the WAL are read from the mapping | Everyone | Canonical. Hypothesis to measure: the pager looks a page up in the cache before using the mapping, so the group mutex stays, but fewer pages occupy the cache and the robbing matters less. Changes runtime configuration for every build (ADR-0.8.25-sqlite-runtime-configuration), with `SIGBUS` risk on I/O errors or truncation; could be applied only when E2's mode is detected |
-| R6 | A larger `cache_size` per reader | Everyone | Slice 40 § 1.7: `-8000` delays the defect but does not remove it, and the ceiling grows four times. Measure how large a heavy read must be to trigger it at each size |
-| R7 | Fewer readers | Everyone | Fewer connections share the group. Costs read concurrency. Measure with the reader count at 2, 4 and 8 |
-| R8 | Release memory after a heavy read (`sqlite3_db_release_memory`), Slice 40 option D | Everyone | Rejected in Unit I: it empties every connection's cache in mode 2. Carried for completeness |
-| R9 | A FathomDB page cache through `SQLITE_CONFIG_PCACHE2`, Slice 40 option E: a per-connection cache, a port of the separate-cache path of `pcache1` | Everyone | Canonical SQLite and stock crates. Estimated 400 to 600 lines of unsafe FFI on the read path. Process-wide: must be installed before `sqlite3_initialize`, so it also applies to the consumer's own SQLite use in the process and conflicts with any other `sqlite3_config` caller (the runtime latch of Slice 40 Unit J). Evidence: line count and a feasibility spike only if the owner asks |
-| R10 | A build-time check or a cargo feature | — | Desk check: `fathomdb-engine`'s build script cannot see `libsqlite3-sys`'s compiler flags, and a feature cannot change them. `libsqlite3-sys` 0.38.2 exports `include` and `lib_dir` (`build.rs` lines 147 and 336), not the flags. A direct dependent's build script could link a probe against `DEP_SQLITE3_LIB_DIR` and call `sqlite3_compileoption_used`, but only when host and target match; assess, do not build. A `cargo:warning` from a registry dependency's build script is not shown to consumers (Cargo shows warnings only for path and workspace members), so a build-time warning cannot reach crate consumers; that leaves R2 |
-| R11 | Wait for a `libsqlite3-sys` release that contains `f31f7324`, then bump (todos ledger seq 342) | Everyone | Owner prefers not to wait. Remains the exit of the vendored change. Record the release history only; no upstream request |
-| R12 | A FathomDB-published `libsqlite3-sys` with a `rusqlite` fork | Everyone | Owner prefers not to. Needs its own `links` key; a consumer that also uses stock `rusqlite` would then link two SQLite images. Desk assessment only |
+| B-RED-1 | New engine test target `tests/slice42_sqlite_bump.rs` with `bundled_sqlite_is_3_54_1_or_later`: `rusqlite::version_number() >= 3_054_001`, with the version in the message | The linked SQLite is 3.53.2 (3053002) | B-GREEN-1: manifests, lockfile, removal of both `libsqlite3-sys` patch lines, the § 2.2 migration |
+| B-RED-2 | Two new cases in `test_check_pinned_override_rot.sh`: (a) a root `libsqlite3-sys` path patch fails as "unsupported Cargo override/git source Cargo.toml:patch.crates-io.libsqlite3-sys"; (b) a tree without the SQLite patch passes (it replaces the "missing approved SQLite patch" expectation). `test_sdk_rust_patch_policy.py` asserts that the driver's `libsqlite3-sys` patch is refused | (a) the checker admits the patch (rc 0); (b) the checker requires it; the pytest assertion fails because the guard admits the driver patch | B-GREEN-2: the checker and JSON (§ 2.3), deletion of `third_party/`, the gitleaks, `.gitattributes` and markdown-lint entries, `pinned-override-rot-guard.md`, and deletion of the obsolete SQLite fixtures and cases in the shell test |
+| B-RED-3 | Portable unit test `local_verbatim_path_needs_newer_sqlite_decides_by_version_alone` in `connection_runtime.rs`: true for an unsimplifiable `\\?\C:\` path at 3_053_002; false at 3_053_003 and 3_054_001; false when simplifiable; false for `\\server\share\…` and `\\?\UNC\…`; and `SQLITE_LOCAL_VERBATIM_WAL_FIX == 3_053_003` | The function and constant do not exist; the evidence quotes the E0425 lines | B-GREEN-3: § 2.4 |
 
-### 2.4 Decision criteria
+The test script stops at its first failing case, so B-RED-2's evidence
+quotes the script's failure for one case and the checker's output run
+directly on the other case's fixture. It names exactly those two cases
+and the pytest assertion.
 
-Each route is scored on:
+Between B-GREEN-1 and B-GREEN-2 the live pinned-override check fails
+("missing approved SQLite patch"): the bump removes the patch it
+requires. `scripts/agent-lint.sh` (line 101) and `ci.yml` (line 1387)
+both run that check. B-GREEN-1's body quotes the checker's failure line
+verbatim, and status.md records that sha for bisectors. B-GREEN-2 closes
+it. Moving the checker first does not avoid this: a checker that refuses
+the patch fails on a tree that still has it.
 
-- **C1 Reach.** Which users get the per-connection result without an
-  extra step: CLI users, crate consumers, both, or only users who opt in.
-- **C2 Canonical.** The published crates keep the unmodified SQLite
-  amalgamation and the stock crates.io `libsqlite3-sys` and `rusqlite`.
-- **C3 Effect, measured.** In the Unit I timing report, the ratio of
-  body-search p50 after one selective projected query to p50 before it;
-  and the AC40-96 and AC40-97 counters. Mode 1 is the reference. A route
-  passes C3 if its ratio is within 10% of mode 1's (owner ruling Q-B1,
-  2026-10-16), measured as follows: at least 3 runs, median p50; mode 1
-  and the route on the same host, binary and session; the AC40-96 and
-  AC40-97 counters reported alongside (the counters are the deterministic
-  signal, timing confirms them); on an idle host, with load average and
-  `nproc` recorded. The timing report has never been run (Slice 40 status,
-  I-W2/W4/W5), so this slice produces the mode-1 reference numbers too.
-- **C4 Risk.** Unsafe code, new crash or correctness exposure on the read
-  path, and effects on other SQLite users in the consumer's process.
-- **C5 Memory.** The change in the page-cache ceiling and in resident
-  memory, in particular for Tegra and Jetson targets.
-- **C6 Cost.** Lines of code, release-pipeline jobs, maintenance, and how
-  it is removed when R11 arrives.
-- **C7 Public surface.** Interface docs, SDK parity, or new features
-  needed.
-- **C8 Time.** Whether it fits in 0.8.28 or needs a later release.
+The per-connection cache for published consumers (REQ42-B3) has no new
+committed test. In the workspace, AC40-95 to AC40-97 already pin it. For
+consumers the evidence is the scratch-consumer run at the base (RED) and
+at the final tree (GREEN), AC42-11.
 
-C1, C2 and C3 decide. C4 to C8 break ties and set the cost the owner is
-asked to accept.
+A docs-only commit carries § 2.7. Unit A's commit (§ 1.6) can go before
+or after.
 
-### 2.5 Measurements
+### 2.7 Records
 
-- **Raw-SQLite probe** (scratch consumer, registry `libsqlite3-sys`):
-  the Slice 40 § 1.7 probe shape, eight connections each warming its own
-  set, then one heavy read; misses per connection on the next pass and
-  the timing of that pass. Run for R5 (`mmap_size` 0 and 256 MiB), R6
-  (`cache_size` -2000, -8000, -32000) and R7 (2, 4 and 8 connections),
-  each in mode 2 and in mode 1 (`LIBSQLITE3_FLAGS`).
-- **Engine timing report** (`reader_page_cache_timing_report`, release
-  build, `FATHOMDB_TC5_INPUTS` = the `tc5-10000` pack) in the scratch
-  consumer, mode 2 and mode 1, for the routes that need no engine change
-  (R3, R4 if a usable system SQLite exists). R5 and R7 at engine level
-  need an uncommitted engine edit; they run only if the raw probe shows a
-  C3 pass, and the edit is reverted.
-- Every number records host, commit, build profile, mode (from
-  `sqlite3_compileoption_used`) and the command.
+- `dev/notes/fathomdb-quality-testing-roadmap.md` line 38: replace the
+  "targeted Windows SQLite VFS patch" sentence with one saying the
+  checkout uses the registry `libsqlite3-sys` 0.39.1 (SQLite 3.54.1),
+  and that the Windows verbatim-path WAL tests stay as regression
+  coverage for the upstream fix.
+- `dev/adr/ADR-0.8.28-sqlite-per-connection-page-cache.md`: a dated
+  "Exit (0.8.28 Slice 42)" section. The decision's planned exit happened:
+  the pin reached a release without the flag, the vendored crate is gone,
+  and published crates and `cargo install` get per-connection caches.
+  The `blast_radius` front matter is updated. The decision itself does
+  not change, so this is an addendum, not a successor ADR.
+- `dev/interfaces/rust.md` (page-cache paragraph, lines 60–73) and
+  `dev/interfaces/rust-sdk.md` (lines 465–478): every build, including
+  `cargo install` and registry consumers, has per-connection caches from
+  0.8.28; drop the `LIBSQLITE3_FLAGS` advice except for 0.8.27.
+- `docs/install/rust.md` (lines 42–50): from 0.8.28 no flag is needed;
+  one sentence keeps the override for installing 0.8.27.
+- `CHANGELOG.md` 0.8.28: under "Changed", "Updated the SQLite stack to
+  `rusqlite` 0.41 (SQLite 3.54.1)"; in the Slice 40 page-cache entry,
+  replace the registry caveat with "Since Slice 42 this also holds for
+  `cargo install` and the published Rust crates".
+- `dev/adr/ADR-0.6.0-decision-index.md` row 64 (line 168): replace
+  "published Rust crates documented (`LIBSQLITE3_FLAGS`), not mitigated"
+  with "published Rust crates get it from `libsqlite3-sys` 0.39"; status
+  "accepted; exit completed 0.8.28 Slice 42".
+- `dev/deps/rusqlite.md`: the "Version pin" line becomes `0.41.1`, features
+  `bundled, fallible_uint` (plus `hooks` and `trace` under the engine's
+  `test-hooks`).
+- `dev/plans/release-state-0.8.28.json` (line 16, the Slice 42 evidence)
+  and `dev/plans/plan-0.8.28.md` (line 184): "both exit conditions in
+  `third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md`" becomes "the exit
+  conditions in the retired patch note (git history at `59079d5c5`)".
+  After the JSON edit, `./scripts/check-release-state-views.sh --write`,
+  and the regenerated views go in the same commit.
+- `dev/plans/plan-0.8.28.md` § Slice 42 is kept in step with this file.
 
-### 2.6 The deliverable
+### 2.8 Verification beyond the unit tests
 
-`investigation.md` in this directory, short:
-
-1. current behaviour (E1 to E3);
-2. the route table with C1 to C8 filled and evidence cited;
-3. measurements;
-4. one recommendation, which may combine routes (for example a CLI route
-   plus a crate-consumer route);
-5. numbered owner questions.
-
-It is reviewed (R-INV) before it goes to the owner.
+Test-plan § 4 has the runs: the full gate; the scratch consumer
+(AC42-11); the Windows VM (AC42-13); macOS through the CI matrix in
+final verification; and the `AGENT_LONG` perf baseline (AC42-16).
 
 ## 3. Open questions
 
-- **Q-A1 (owner), ruled 2026-10-16.** Option 2 is approved exactly as
-  written in § 1.4: add `fd_count_under(dir)` after line 56 of
-  `slice135_robustness_first.rs`; line 366 becomes
-  `let fd_before = fd_count_under(dir.path());` and line 429
-  `let fd_after = fd_count_under(dir.path());`; the assertion on line 437
-  is unchanged; nothing else. The gap on macOS and Windows, where the
-  check becomes `None == None`, is accepted and recorded (§ 1.2). The
-  `fd_after == Some(0)` variant R1 mentioned is not part of the ruling.
-- **Q-B1 (owner), ruled 2026-10-16.** The C3 threshold is 10%, with the
-  precision in § 2.4.
-- **Q-B2 (owner), ruled 2026-10-16.** Allowed, scratch directory only:
-  `cargo install fathomdb-cli --version =0.8.27 --locked --root
-  <scratch>`; no publish, no tag, nothing written outside the scratch
-  directory.
+- **Q-A1 (owner), ruled 2026-10-16.** Option 2 exactly as § 1.4. The
+  gap on macOS and Windows, where the check becomes `None == None`, is
+  accepted.
+- **Q-B1, Q-B2, R-INV, O2.** Superseded with the old Unit B on
+  2026-10-31.
+- No new owner question. The choices in this design (manifest
+  requirement `"0.41"`, keeping 3.53.3 as the guard threshold, a portable
+  predicate, an ADR addendum rather than a successor) are within the
+  re-scope and go to the design review.

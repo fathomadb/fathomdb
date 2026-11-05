@@ -59,7 +59,8 @@ pub(super) fn engine_config_from_py(
             .map_err(|_| PyTypeError::new_err("config keys must be strings"))?;
         if !matches!(
             name.as_str(),
-            "scheduler_runtime_threads"
+            "physical_erasure_policy"
+                | "scheduler_runtime_threads"
                 | "embedder_pool_size"
                 | "embedder_call_timeout_ms"
                 | "provenance_row_cap"
@@ -73,6 +74,18 @@ pub(super) fn engine_config_from_py(
         }
     }
     Ok(RustEngineConfig {
+        physical_erasure_policy: optional_engine_config_string(
+            config,
+            "physical_erasure_policy",
+            |raw| match raw {
+                "autonomous" => Some(fathomdb_engine::PhysicalErasurePolicy::Autonomous),
+                "explicit_maintenance" => {
+                    Some(fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance)
+                }
+                _ => None,
+            },
+            "autonomous or explicit_maintenance",
+        )?,
         scheduler_runtime_threads: optional_engine_config_value(
             config,
             "scheduler_runtime_threads",
@@ -210,6 +223,67 @@ impl PyEngine {
             inner: Arc::new(opened.engine),
             open_report: Arc::new(opened.report),
             logging: logging_subscriber::LoggingSlot::new(),
+        })
+    }
+
+    /// Queue immutable intent without changing read visibility.
+    fn queue_physical_erasure(
+        &self,
+        py: Python<'_>,
+        selector_json: String,
+        key: String,
+    ) -> PyResult<String> {
+        let selector = serde_json::from_str(&selector_json)
+            .map_err(|_| WriteValidationError::new_err("invalid erasure selector"))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.queue_physical_erasure(selector, &key))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure result serialization failed"))
+    }
+
+    /// Read one store-bound ticket without exposing its selector.
+    fn physical_erasure_status(&self, py: Python<'_>, ticket: String) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.physical_erasure_status(&ticket))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure status serialization failed"))
+    }
+
+    /// Withdraw only queued work; never cancels activated debt.
+    fn withdraw_queued_erasure(&self, py: Python<'_>, ticket: String) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.withdraw_queued_erasure(&ticket))?;
+        serde_json::to_string(&result)
+            .map_err(|_| StorageError::new_err("erasure withdrawal serialization failed"))
+    }
+
+    /// Return persisted scheduling honored by this open incarnation.
+    fn physical_erasure_policy(&self, py: Python<'_>) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || {
+            Ok(match engine.physical_erasure_policy() {
+                fathomdb_engine::PhysicalErasurePolicy::Autonomous => "autonomous",
+                fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance => {
+                    "explicit_maintenance"
+                }
+            }
+            .to_string())
+        })
+    }
+
+    /// Acquire an exclusive window; wait bounds admission only, not active SQL.
+    fn begin_erasure_maintenance(
+        &self,
+        py: Python<'_>,
+        acquisition_wait_ms: u64,
+    ) -> PyResult<PyErasureMaintenance> {
+        let engine = Arc::clone(&self.inner);
+        let handle =
+            call_engine(py, move || engine.begin_erasure_maintenance(acquisition_wait_ms))?;
+        Ok(PyErasureMaintenance {
+            inner: Arc::new(std::sync::Mutex::new(handle)),
+            #[cfg(feature = "test-hooks")]
+            pause: Arc::new(std::sync::Mutex::new(None)),
         })
     }
 
@@ -667,8 +741,8 @@ impl PyEngine {
 
     /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the explicit
     /// text-only / FTS-only search path. Does NOT embed the query and NEVER raises
-    /// `VectorEquivalenceMismatchError`, so it stays serviceable when the engine
-    /// opened in the degraded `dense_disabled` state. Matching node- and edge-body
+    /// `VectorEquivalenceMismatchError`. Deliberate provider-free opens retain
+    /// this path. Matching node- and edge-body
     /// FTS candidates are deterministically body-deduplicated and ranked before
     /// `limit`; no vector recall, CE rerank, or graph arm runs on this path.
     ///
@@ -676,43 +750,53 @@ impl PyEngine {
     ///
     /// EP-17 — `snippet` (a `fathomdb.SnippetOptions`) fills
     /// `SearchResult.snippets`; `None` leaves it `None`.
-    #[pyo3(signature = (query, view=None, limit=10, snippet=None))]
+    #[pyo3(signature = (query, view=None, limit=10, *, source_type=None, kind=None, created_after=None, status=None, attributes=None, snippet=None))]
+    #[allow(clippy::too_many_arguments)]
     fn search_text_only(
         &self,
         py: Python<'_>,
         query: &str,
         view: Option<&PyReadView>,
         limit: usize,
+        source_type: Option<Bound<'_, PyAny>>,
+        kind: Option<Bound<'_, PyAny>>,
+        created_after: Option<i64>,
+        status: Option<Bound<'_, PyAny>>,
+        attributes: Option<Vec<(String, String)>>,
         snippet: Option<PySnippetOptionsArg>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
+        let source_type = extract_opt_validated_str(source_type.as_ref())?;
+        let kind = extract_opt_validated_str(kind.as_ref())?;
+        let status = extract_opt_validated_str(status.as_ref())?;
+        let attributes = attributes.unwrap_or_default();
+        for (attribute, value) in &attributes {
+            validate_ffi_string_py(attribute)?;
+            validate_ffi_string_py(value)?;
+        }
+        let filter = if source_type.is_some()
+            || kind.is_some()
+            || created_after.is_some()
+            || status.is_some()
+            || !attributes.is_empty()
+        {
+            let mut filter = RustSearchFilter::default();
+            filter.source_type = source_type;
+            filter.kind = kind;
+            filter.created_after = created_after;
+            filter.status = status;
+            filter.attributes = attributes;
+            Some(filter)
+        } else {
+            None
+        };
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let view = read_view_or_default(view);
-        let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let result = call_engine(py, move || {
-            engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())
+            engine.search_text_only_filtered(&query, filter, &view, limit)
         })?;
         Ok(PySearchResult::from_rust(result))
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — `True` iff the engine opened degraded (the #5
-    /// self-check found a vector-equivalence divergence and every dense arm is
-    /// refusing). Mirrors `OpenReport.dense_disabled`.
-    fn dense_disabled(&self) -> bool {
-        self.inner.dense_disabled()
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state,
-    /// or `None` when dense is healthy.
-    fn dense_disabled_reason(&self) -> Option<String> {
-        self.inner.dense_disabled_reason()
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: query-time dense-arm refusals
-    /// raised because the engine opened degraded.
-    fn vector_equivalence_refusal_count(&self) -> u64 {
-        self.inner.vector_equivalence_refusal_count()
     }
 
     fn close(&self, py: Python<'_>) -> PyResult<()> {

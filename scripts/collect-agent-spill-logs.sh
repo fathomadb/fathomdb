@@ -13,9 +13,9 @@ usage() {
   cat >&2 <<'USAGE'
 Usage: collect-agent-spill-logs.sh --destination <directory> [--source-dir <directory>]
 
-Copies and redacts /tmp/fathomdb-agent-*.log into a runner-owned artifact
-directory. --source-dir exists only to let the recurrence test use a disposable
-fixture; CI uses the default /tmp source.
+Copies and redacts nonempty regular fathomdb-agent-*.log files into an artifact
+directory. CI passes its fresh invocation-owned --source-dir; local callers
+retain the /tmp default. Symlinked and empty candidates are not evidence.
 USAGE
 }
 
@@ -40,7 +40,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$destination" ] || [ ! -d "$source_dir" ]; then
+if [ -z "$destination" ] || [ ! -d "$source_dir" ] || [ -L "$source_dir" ]; then
   usage
   exit 2
 fi
@@ -64,7 +64,7 @@ regular_candidates=()
 skipped_nonregular=0
 shopt -s nullglob
 for candidate in "$source_dir"/fathomdb-agent-*.log; do
-  if [ -L "$candidate" ] || [ ! -f "$candidate" ]; then
+  if [ -L "$candidate" ] || [ ! -f "$candidate" ] || [ ! -s "$candidate" ]; then
     skipped_nonregular=$((skipped_nonregular + 1))
     continue
   fi

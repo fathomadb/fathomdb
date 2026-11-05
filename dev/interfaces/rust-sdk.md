@@ -1,7 +1,7 @@
 ---
 title: Rust SDK interface (fathomdb-sdk)
-date: 2026-10-06
-target_release: 0.8.27
+date: 2026-11-04
+target_release: 0.8.28
 desc: Public contract of the dedicated fathomdb-sdk crate and its mapping to the Python and TypeScript SDKs
 blast_radius: src/rust/crates/fathomdb-sdk; src/conformance/governed-operation-parity.json; scripts/check-sdk-surface-parity.py
 status: locked
@@ -23,8 +23,7 @@ structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
 `embed_batch_cls`, `snippet_for`, `search_hints`, the rerank DTOs, the shared DTO re-exports, and the
 modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
 privately; there is no `Deref`, accessor or conversion to
-`fathomdb_engine::Engine`. Custom embedder injection (`EmbedderChoice`,
-`open_with_choice*`), the operator/recovery seam, raw SQL, test hooks and the
+`fathomdb_engine::Engine`. Custom embedder injection, the operator/recovery seam, raw SQL, test hooks and the
 Rust-only search overloads are not reachable.
 
 The checker also refuses these routes to the core:
@@ -37,7 +36,7 @@ The checker also refuses these routes to the core:
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
 against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
-(48/48 live operations).
+(53/53 live operations).
 
 ## Translation rules
 
@@ -151,7 +150,6 @@ partial successful result. See [retrieval](../design/retrieval.md).
 Shared non-command members are reproduced with core semantics:
 
 - `drain(timeout_ms: u64)`
-- `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusal_count`
 - `enable_telemetry(sink_path)`, `last_telemetry_query_id`
 - `record_feedback(query_id, relevant_ids, irrelevant_ids, label_source)`
 - `counters`
@@ -341,17 +339,12 @@ produce it for `CudaPoolExhausted`, `CudaContextLost` and
 of one of those kinds); `Error::cuda_details()` returns the payload, and
 `None` for every other error. Context ids are `u64`.
 
-`ErrorKind` is a fieldless `Copy` enum with 45 variants:
-
-- one for each of the 44 non-base error classes Python and TypeScript share,
-  with the `Error` suffix removed: 42 true leaves plus the parents `Vector` and
-  `Embedder`;
-- `Engine` for the base-class fallback.
-
-`ErrorKind::ALL` lists all 45 variants in the order the Python binding
-declares the classes: base first, then `RuntimeConfiguration`, `Storage`, and
-so on through `ProjectionDestructive`, `CudaPoolExhausted`, `CudaContextLost`
-and `CudaPrivateBuildRefused`.
+`ErrorKind` is a fieldless `Copy` enum. There is one variant for each shared
+non-base Python/TypeScript class, with the `Error` suffix removed, including the
+`Vector` and `Embedder` category parents, plus `Engine` for base-class fallback.
+`ErrorKind::ALL` enumerates the current membership in source order; the maintained
+error matrix owns the cross-language mapping. New verification and maintenance
+families remain distinct rather than being collapsed into generic storage.
 
 `ErrorKind::parent()` returns:
 
@@ -371,7 +364,8 @@ TypeScript base is `FathomDbError`.
   `runtime_configuration_error_to_py` in `fathomdb-py/src/errors.rs`. The
   TypeScript mapping is equivalent.
 - **Open errors:** `EngineConfiguration` → `InvalidArgument`; `Io` →
-  `Storage`.
+  `Storage`; `VectorEquivalenceMismatch` → the existing same-named kind;
+  `VectorVerification` → `VectorVerificationError`.
 - **Core variants.** A core variant compiled only with `operator` →
   `ErrorKind::Engine`, as in Python, through an
   `#[allow(unreachable_patterns)]` catch-all. That arm would also absorb a
@@ -477,20 +471,18 @@ pool_n: 0, include_explanation: false, limit: 10}`;
 
 ## SQLite runtime configuration
 
-SQLite page cache (0.8.28 Slice 40). Artifacts built from this repository
-(the Python wheel, the npm addon and a CLI built from this workspace) build
-the bundled SQLite without
-`SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite connection keeps its own
-page cache of SQLite's default 2,000 KiB. A Rust build that resolves the
-registry `libsqlite3-sys` keeps SQLite's shared page cache, where one large
-read can slow later reads until the engine is reopened. rusqlite removed the
-flag upstream (commit `f31f7324`); Rust consumers get the fix from the first
-`libsqlite3-sys` release that contains it, and until then
-`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives the
-same behaviour as the workspace build. `cargo install fathomdb-cli` is such a
-registry build: it keeps the shared page cache until a `libsqlite3-sys` release
-contains `f31f7324`, unless `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`
-is set for the install.
+SQLite page cache (0.8.28 Slices 40 and 42). Every build bundles SQLite
+3.54.1 from the crates.io `libsqlite3-sys` 0.39.1 (through `rusqlite` 0.41),
+which is built without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite
+connection keeps its own page cache of SQLite's default 2,000 KiB. That holds
+for the Python wheel, the npm addon, `cargo install fathomdb-cli` and every
+consumer of the published Rust crates; no build flag is needed. A consumer that
+links its own SQLite instead of the bundled one (for example through
+`LIBSQLITE3_SYS_USE_PKG_CONFIG`) gets that library's page-cache mode. The
+0.8.27 registry crates still resolve `libsqlite3-sys` 0.38 and share one page
+cache across connections; for them,
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives one
+page cache per connection.
 
 ## Search behaviour in 0.8.28 (Slice 40)
 
@@ -553,3 +545,53 @@ Chronological}`, `ContextPack`, `ContextPackEntry`, `ContextPartEntry`,
 `position` is `Option<u64>`; counts are `usize`, so negative counts cannot
 be expressed. Characters are Unicode scalar values (`str::chars`). The
 shared conformance fixture is `src/conformance/context-pack-fixtures.json`.
+
+## Vector verification open failures
+
+An actual numeric refusal returns `Error::Open(EngineOpenError::VectorEquivalenceMismatch { reason })`
+with `ErrorKind::VectorEquivalenceMismatch`. An inability to verify returns
+`Error::Open(EngineOpenError::VectorVerification { probe_ordinal, cause })` and
+`ErrorKind::VectorVerification` (`VectorVerificationError`). No engine is returned.
+The reexported `VectorVerificationFailure` preserves the original typed provider
+error, including CUDA payloads; verification context is never flattened into
+`Error::Cuda`. `Error::source()` exposes the original open error.
+
+Actual verification refusal returns no engine or successful `OpenReport`. The
+obsolete `dense_disabled`, `dense_disabled_reason` report fields and engine
+accessors, and `vector_equivalence_refusal_count` instrumentation are removed.
+
+Production open selects only pinned BGE/Mean or deliberate no-provider access
+(`OpenOptions.use_default_embedder`); custom engine providers are unsupported
+before 1.x. All string projection selectors are rejected before mutation;
+omitted/null remains supported. Historical selectors remain truthful on reads
+and cannot silently select BGE. Standalone CLS, loader/device/precision and
+mean-recovery behavior are unchanged.
+
+The existing persistent cache, probe gate, recipe and cadence are preserved:
+90 embeddings for clean first population, 45 for a fresh baseline check, zero
+for a valid persisted marker, ordinary vector-less or no-provider opens. Restart
+and MCP idle/A/B/A reopening preserve cached acceptance, which is not fresh
+verification in this process and can hide same-identity backend/device/library
+drift. Full limits and deliberate mutable no-provider access, including the
+unrepaired provider-free dense rebuild defect, are specified in
+[Rust provider admission](rust.md#built-in-provider-admission-and-cached-verification).
+
+The verification cause codes and zero-based ordinal/preflight-zero convention
+match the [core open error contract](rust.md#vector-verification-open-errors).
+The source chain continues through `EngineOpenError` and the typed verification
+cause to the original provider error. Successful projection runtime state is
+`Absent`/`Usable`; obsolete refused-open modes are removed.
+
+## Explicit physical-erasure maintenance (0.8.28 Slice 85)
+
+`EngineConfig.physical_erasure_policy`, `PhysicalErasurePolicy`, the five new
+Engine methods `physical_erasure_policy`, `queue_physical_erasure`,
+`physical_erasure_status`, `withdraw_queued_erasure` and
+`begin_erasure_maintenance` mirror the [Python contract](python.md#explicit-physical-erasure-maintenance-0828-slice-85).
+The SDK internally retains its core in an `Arc`; there is still no public core
+accessor. `ErasureMaintenance` owns the core window and wraps every fallible method
+in the SDK `Result`, including `close`. It exposes heavy queue admission, physical
+completion and original-sink reattachment. The shared selector/status/outcome enums
+are re-exported explicitly. `ErrorKind::Maintenance` preserves the typed
+`EngineError::Maintenance(MaintenanceError)` payload. Acquisition wait is not an
+active SQLite deadline, and handle drop never clears owed physical obligations.

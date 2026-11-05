@@ -1,0 +1,32 @@
+{
+  "source_transcript": "/home/coreyt/.claude/projects/-home-coreyt-projects-fathomdb/98f1be70-64c9-48f0-bb77-4907798b9fe6/subagents/agent-a0a193428c0394156.jsonl",
+  "source_sha256": "afef06a621637e85cfb9a1eb91b7e9abc59dc2aa95d023c0f60b03d295a138e8",
+  "entries": [
+    {
+      "line": 355,
+      "timestamp": "2026-10-31T19:58:36.281Z",
+      "block": {
+        "type": "tool_use",
+        "id": "toolu_01EvtmHMTujx41utcEj9drdC",
+        "name": "Bash",
+        "input": {
+          "command": "S=/tmp/claude-1000/-home-coreyt-projects-fathomdb/98f1be70-64c9-48f0-bb77-4907798b9fe6/scratchpad/s50probe/src; T=$S/src/rust/crates/fathomdb-engine/tests; sed -n '1,98p' $T/slice30_embedding_readiness.rs > $T/s50_refused_probe.rs; cat >> $T/s50_refused_probe.rs <<'EOF'\n\nfn node(lid: &str) -> PreparedWrite {\n    PreparedWrite::Node { kind: \"note\".into(), body: format!(\"body {lid}\"), source_id: SourceId::new(\"test:s50\").unwrap(),\n        logical_id: Some(lid.into()), state: fathomdb_engine::InitialState::Active, reason: None, valid_from: None, valid_until: None }\n}\n\n#[test]\nfn s50_refused_probe() {\n    let dir = TempDir::new().expect(\"tempdir\");\n    let path = db_path(&dir, \"refused_embedder\");\n    Engine::open(&path).expect(\"create profile\").engine.close().expect(\"close profile setup\");\n    let identity = stored_default_identity(&path);\n    {\n        let opened = Engine::open_with_embedder_for_test(&path, Arc::new(ControlledEmbedder::faithful(identity.clone()))).unwrap();\n        opened.engine.configure_vector_kind_for_test(\"doc\").unwrap();\n        opened.engine.close().unwrap();\n    }\n    {\n        let opened = Engine::open_with_embedder_for_test(&path, Arc::new(ControlledEmbedder::faithful(identity.clone()))).unwrap();\n        assert!(!opened.report.dense_disabled);\n        opened.engine.close().unwrap();\n    }\n    make_probe_verdict_stale(&path);\n    {\n        let opened = Engine::open(&path).unwrap();\n        opened.engine.write(&[body_edge(), node(\"n1\")]).unwrap();\n        opened.engine.close().unwrap();\n    }\n    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(ControlledEmbedder::divergent(identity))).unwrap();\n    assert!(opened.report.dense_disabled);\n    let r = opened.engine.read_embedding_readiness().unwrap();\n    println!(\"readiness state={:?} pending={} usable={}\", r.state, r.pending_count, r.usable_embedder);\n    let t = Instant::now();\n    let res = opened.engine.drain(3_000);\n    println!(\"drain(3000) -> {:?} in {:?}\", res.map_err(|e| format!(\"{e:?}\")), t.elapsed());\n    let t = Instant::now();\n    let res = opened.engine.transition(\"n1\", fathomdb_engine::LifecycleState::Deleted, None);\n    println!(\"transition(n1, Deleted) -> {:?} in {:?}\", res.map_err(|e| format!(\"{e:?}\")), t.elapsed());\n}\nEOF\ncd $S && export CARGO_TARGET_DIR=/tmp/claude-1000/-home-coreyt-projects-fathomdb/98f1be70-64c9-48f0-bb77-4907798b9fe6/scratchpad/s50target && timeout 1200 cargo test -p fathomdb-engine --features test-hooks --test s50_refused_probe -- --nocapture 2>&1 | grep -v \"^   Compiling\\|slice65_wal\" | tail -30",
+          "timeout": 1250000
+        },
+        "caller": {
+          "type": "direct"
+        }
+      }
+    },
+    {
+      "line": 356,
+      "timestamp": "2026-10-31T19:59:19.555Z",
+      "block": {
+        "tool_use_id": "toolu_01EvtmHMTujx41utcEj9drdC",
+        "type": "tool_result",
+        "content": "  |\n9 |     EmbeddingOperation, EmbeddingReadinessState, Engine, EngineError, PreparedWrite, SourceId,\n  |     ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^          ^^^^^^^^^^^\n  |\n  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\n\nwarning: unused import: `rusqlite::OptionalExtension`\n  --> src/rust/crates/fathomdb-engine/tests/s50_refused_probe.rs:12:5\n   |\n12 | use rusqlite::OptionalExtension;\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: unused import: `Duration`\n  --> src/rust/crates/fathomdb-engine/tests/s50_refused_probe.rs:15:17\n   |\n15 | use std::time::{Duration, Instant};\n   |                 ^^^^^^^^\n\nwarning: `fathomdb-engine` (test \"s50_refused_probe\") generated 3 warnings (run `cargo fix --test \"s50_refused_probe\" -p fathomdb-engine` to apply 3 suggestions)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.30s\n     Running tests/s50_refused_probe.rs (/tmp/claude-1000/-home-coreyt-projects-fathomdb/98f1be70-64c9-48f0-bb77-4907798b9fe6/scratchpad/s50target/debug/deps/s50_refused_probe-69dbdbd2013adfae)\n\nrunning 1 test\nreadiness state=Deferred pending=1 usable=false\ndrain(3000) -> Err(\"Scheduler\") in 3.000420905s\ntransition(n1, Deleted) -> Err(\"Scheduler\") in 30.000630307s\ntest s50_refused_probe ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.19s",
+        "is_error": false
+      }
+    }
+  ]
+}

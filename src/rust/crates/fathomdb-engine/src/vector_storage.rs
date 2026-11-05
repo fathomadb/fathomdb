@@ -42,19 +42,6 @@ pub(crate) fn ensure_vector_partition(
     connection: &mut Connection,
     dimension: u32,
 ) -> rusqlite::Result<()> {
-    // 0.7.0 Pack 1 schema per dev/design/0.7.0-vector-quant-pack1.md D1/D2:
-    // f32 `embedding` + binary-quant sibling `embedding_bin` + `source_type`
-    // partition key + `kind` + `created_at`. The vec0 column type is
-    // dim-parameterized, so the reshape lives here rather than in the
-    // SQL-only migration framework — see fathomdb-schema migration step 9
-    // and dev/plans/runs/0.7.0-PVQ-P1-IMPL-output.json for the deviation
-    // from the design memo's "Choose (a)" guidance.
-    //
-    // Three paths:
-    //   (1) no vector_default       -> CREATE at new shape.
-    //   (2) old single-column shape -> stage + drop + recreate at new shape
-    //                                  + repopulate with vec_quantize_binary.
-    //   (3) already new shape       -> no-op.
     let existing_sql: Option<String> = connection
         .query_row(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name=?1",
@@ -63,33 +50,30 @@ pub(crate) fn ensure_vector_partition(
         )
         .optional()?;
 
-    // Slice 10 / G10 — 3-way shape-sentinel (fixes the prior
-    // `contains("embedding_bin")` no-op that hid the `status` column from
-    // existing Pack-1 DBs):
-    //   `status` present       -> Pack-2 (current) shape, no-op.
-    //   `embedding_bin` present -> Pack-1 -> stage + recreate + back-fill status.
-    //   neither                 -> legacy single-column -> migrate to current.
     match existing_sql {
         None => create_vector_partition(connection, dimension),
-        Some(sql) if sql.contains("status") => Ok(()),
-        Some(sql) if sql.contains("embedding_bin") => {
-            migrate_vector_partition_pack1_to_pack2(connection, dimension)
+        Some(sql) => {
+            let attrs = actual_vector_attr_columns(connection)?;
+            let expected = vector_partition_create_sql(dimension, false, &attrs);
+            let normalize = |sql: &str| {
+                sql.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_lowercase()
+            };
+            let actual = normalize(&sql);
+            let expected = normalize(&expected);
+            if actual.split_once("usingvec0").map(|(_, shape)| shape)
+                == expected.split_once("usingvec0").map(|(_, shape)| shape)
+            {
+                Ok(())
+            } else {
+                Err(rusqlite::Error::InvalidQuery)
+            }
         }
-        Some(_) => migrate_vector_partition_to_pack1(connection, dimension),
     }
 }
 
-/// The current (Pack-2) `vector_default` vec0 shape. Slice 10 / G10 adds a plain
-/// `status TEXT` metadata column — **not** aux (`+status`): aux columns
-/// hard-error under a KNN `WHERE`, and the G10 filter constrains `status` in the
-/// phase-1 KNN statement. `status` ships NULL plumbing only (no population source
-/// yet).
-///
-/// 0.8.20 Slice 15e — `attr_cols` are the declared-`filterable` attribute columns
-/// (byte-safe `attr_<hex>` identifiers, see [`attr_vec0_column`]), each a PLAIN
-/// `TEXT` metadata column (never aux `+`), appended after `status`. **When
-/// `attr_cols` is empty the produced SQL is byte-identical to the shipped shape**
-/// — every existing caller passes `&[]`, so no shipped behaviour changes.
+/// Format-35 layout: plain metadata is filtered inside KNN; attributes share
+/// the sixteen-column metadata budget with six built-in metadata columns.
+/// Every partition, including attribute reshapes, uses 64-row chunks.
 fn vector_partition_create_sql(
     dimension: u32,
     if_not_exists: bool,
@@ -107,7 +91,7 @@ fn vector_partition_create_sql(
             source_type TEXT partition key,\
             kind TEXT,\
             created_at INTEGER,\
-            status TEXT{attrs}\
+            status TEXT,lifecycle INTEGER,valid_from INTEGER,valid_until INTEGER{attrs},chunk_size=64\
          )"
     )
 }
@@ -219,7 +203,7 @@ pub(crate) fn delete_vector_partition_row(
 
 /// 0.8.20 Slice 15e — reconcile the live `vector_default` attribute columns with
 /// the registry's `filterable` set (TC-46: HITL-ratified NON-DESTRUCTIVE reshape,
-/// following the shipped `migrate_vector_partition_pack1_to_pack2` precedent).
+/// within the current store format).
 ///
 /// Diffs the DESIRED columns (from the registry) against the ACTUAL columns (on
 /// the live table). When they already match — which is EVERY idempotent
@@ -256,7 +240,7 @@ pub(crate) fn reconcile_vector_attr_columns(
     Ok(true)
 }
 
-/// Rebuild vec0 attribute metadata from the canonical EAV projection while
+/// Rebuild vec0 attribute metadata from canonical bodies and registry sources while
 /// preserving the existing column set. A changed nested source can leave the
 /// `attr_<hex>` schema untouched while changing every value behind that column.
 pub(crate) fn refresh_vector_attr_values(
@@ -282,7 +266,7 @@ pub(crate) fn refresh_vector_attr_values_for_row(
     rowid: i64,
     body: &str,
 ) -> rusqlite::Result<()> {
-    let (cols_sql, _, mut values) = vector_attr_insert_fragments(conn, body, 1)?;
+    let (cols_sql, _, values) = vector_attr_insert_fragments(conn, body, 1)?;
     if cols_sql.is_empty() {
         return Ok(());
     }
@@ -293,14 +277,18 @@ pub(crate) fn refresh_vector_attr_values_for_row(
         .map(|(index, col)| format!("{col} = ?{}", index + 1))
         .collect::<Vec<_>>()
         .join(", ");
-    values.push(rusqlite::types::Value::Integer(rowid));
-    let rowid_index = values.len();
-    conn.execute(
-        &format!(
-            "UPDATE {DEFAULT_VECTOR_PARTITION} SET {assignments} WHERE rowid = ?{rowid_index}"
-        ),
-        rusqlite::params_from_iter(values.iter()),
-    )?;
+    let rowid_index = values.len() + 1;
+    let ids = vector_ids_for_cursor(conn, rowid)?;
+    for id in ids {
+        let mut row_values = values.clone();
+        row_values.push(rusqlite::types::Value::Integer(id));
+        conn.execute(
+            &format!(
+                "UPDATE {DEFAULT_VECTOR_PARTITION} SET {assignments} WHERE rowid = ?{rowid_index}"
+            ),
+            rusqlite::params_from_iter(row_values.iter()),
+        )?;
+    }
     Ok(())
 }
 
@@ -310,8 +298,8 @@ pub(crate) fn refresh_vector_attr_values_for_row(
 ///
 /// THE FOUR LOAD-BEARING CONDITIONS (any one broken ⇒ silently wrong results):
 ///   1. `rowid` is listed EXPLICITLY in the re-insert (a vec0 row maps to its node
-///      by `rowid == write_cursor`; auto-assigned rowids would decouple every
-///      embedding from its node);
+///      through the vector-row mapping; auto-assigned IDs would decouple
+///      embeddings from their owners);
 ///   2. each attribute column is PLAIN `TEXT` metadata (via
 ///      [`vector_partition_create_sql`]), never a vec0 `aux`/`+` column (aux
 ///      hard-errors a filtered KNN);
@@ -326,8 +314,7 @@ pub(crate) fn refresh_vector_attr_values_for_row(
 ///      comparable to new rows.
 ///
 /// Runs on `conn` directly (the caller owns the transaction). Transactional
-/// atomicity + reader isolation are the caller's responsibility, exactly as for
-/// `migrate_vector_partition_pack1_to_pack2`.
+/// atomicity and reader isolation are the caller's responsibility.
 fn reshape_vector_partition_nondestructive(
     conn: &Connection,
     dimension: u32,
@@ -339,7 +326,7 @@ fn reshape_vector_partition_nondestructive(
     // lost, even for a column being dropped).
     let mut stage_defs = String::new();
     let mut stage_names =
-        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status");
+        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until");
     for col in actual_cols {
         stage_defs.push_str(&format!(",\n             {col} TEXT"));
         stage_names.push_str(&format!(", {col}"));
@@ -352,7 +339,10 @@ fn reshape_vector_partition_nondestructive(
              source_type   TEXT,
              kind          TEXT,
              created_at    INTEGER,
-             status        TEXT{stage_defs}
+             status        TEXT,
+             lifecycle     INTEGER,
+             valid_from    INTEGER,
+             valid_until   INTEGER{stage_defs}
          );
          INSERT INTO _fathomdb_vector_reshape_stage({stage_names})
              SELECT {stage_names} FROM {DEFAULT_VECTOR_PARTITION};
@@ -368,9 +358,9 @@ fn reshape_vector_partition_nondestructive(
     // `canonical_attributes` (the `''` sentinel only where genuinely absent —
     // condition #3).
     let mut insert_cols =
-        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status");
+        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until");
     let mut select_exprs = String::from(
-        "rowid, embedding, vec_bit(embedding_bin), source_type, kind, created_at, status",
+        "rowid, embedding, vec_bit(embedding_bin), source_type, kind, created_at, status, lifecycle, valid_from, valid_until",
     );
     for col in desired_cols {
         insert_cols.push_str(&format!(", {col}"));
@@ -379,33 +369,27 @@ fn reshape_vector_partition_nondestructive(
             // metadata is `''`-sentinelled, but COALESCE defends the stage table).
             select_exprs.push_str(&format!(", COALESCE({col}, '')"));
         } else {
-            // New column — back-fill from the ALREADY-populated `canonical_attributes`
-            // (fix-1 finding 2 [P2]). `configure_projections` runs `backfill_attribute`
-            // (which fills `canonical_attributes` from each active row's body) BEFORE
-            // this reshape, so a pre-existing row whose body carries the attribute is
-            // immediately filterable — no false negative until a re-embed. The `''`
-            // sentinel (condition #3) is used ONLY where the attribute is genuinely
-            // ABSENT for that row (no `canonical_attributes` row ⇒ COALESCE → '').
-            // The EAV value equals the vec0 write-time value by construction (both go
-            // through `extract_scalar_attribute`), so pre-existing and freshly-written
-            // rows share one filter semantics.
+            // Mapped historical/inactive vectors outlive the current-only EAV
+            // projection. Re-derive their scalar values from canonical bodies.
             match decode_attr_vec0_column(col) {
                 Some(name) => {
                     // vec0/execute_batch takes no bind params; embed the decoded name
                     // as a SQL string literal, escaping single quotes.
                     //
-                    // fix-3 [P2] — a PRESENT row (a canonical_attributes row exists)
-                    // encodes its RAW `attr_value` as `\x01 || attr_value` (`char(1) ||
-                    // ca.attr_value`), matching the write-time vec0 encoding so a
-                    // pre-existing present-empty row (attr_value='') becomes the bare
-                    // marker, NOT `''`. An ABSENT row (no canonical_attributes row) is
-                    // the COALESCE default `''` (condition #3). `canonical_attributes`
-                    // itself stays RAW — only this vec0 column is encoded.
-                    let escaped = name.replace('\'', "''");
+                    // Present values use the same marker encoding as writes;
+                    // absent values use the empty sentinel, including history.
+                    let registry = load_projection_registry(conn)?;
+                    let stored = registry.get(&name).ok_or(rusqlite::Error::InvalidQuery)?;
+                    let path = crate::projection_registry::projection_json_path(&name, stored)
+                        .replace('\'', "''");
+                    let scalar = crate::projection_registry::scalar_attribute_sql(
+                        "cn.body",
+                        &format!("'{path}'"),
+                    );
                     select_exprs.push_str(&format!(
-                        ", COALESCE((SELECT char(1) || ca.attr_value FROM canonical_attributes ca \
-                         WHERE ca.write_cursor = _fathomdb_vector_reshape_stage.rowid \
-                           AND ca.attr_name = '{escaped}' LIMIT 1), '')"
+                        ", COALESCE((SELECT char(1) || {scalar} FROM canonical_nodes cn \
+                         JOIN _fathomdb_vector_rows vr ON vr.write_cursor=cn.write_cursor \
+                         WHERE vr.rowid=_fathomdb_vector_reshape_stage.rowid LIMIT 1), '')"
                     ));
                 }
                 // A desired column always decodes (built by `attr_vec0_column`); if it
@@ -422,57 +406,9 @@ fn reshape_vector_partition_nondestructive(
     Ok(())
 }
 
-/// Slice 10 / G10 — stage + recreate + back-fill upgrade of an existing
-/// **Pack-1** `vector_default` (has `embedding_bin`, lacks `status`) to the
-/// Pack-2 shape. The existing `embedding_bin` blob is preserved verbatim (it may
-/// be mean-centered; re-quantizing from `embedding` would drop the centering),
-/// and `status` back-fills NULL. Same transactional discipline as
-/// `migrate_vector_partition_to_pack1`: a single `Connection::transaction()`;
-/// reader handles are not opened until `ensure_vector_partition` returns, and
-/// cross-process access is serialized by the sidecar lock, so readers never see
-/// a partial reshape.
-fn migrate_vector_partition_pack1_to_pack2(
-    connection: &mut Connection,
-    dimension: u32,
-) -> rusqlite::Result<()> {
-    let tx = connection.transaction()?;
-    tx.execute_batch(
-        "CREATE TABLE _fathomdb_vector_pack2_stage (
-             rowid         INTEGER PRIMARY KEY,
-             embedding     BLOB NOT NULL,
-             embedding_bin BLOB NOT NULL,
-             source_type   TEXT,
-             kind          TEXT,
-             created_at    INTEGER
-         );
-         INSERT INTO _fathomdb_vector_pack2_stage(
-             rowid, embedding, embedding_bin, source_type, kind, created_at
-         )
-             SELECT rowid, embedding, embedding_bin, source_type, kind, created_at
-             FROM vector_default;
-         DROP TABLE vector_default;",
-    )?;
-    tx.execute_batch(&vector_partition_create_sql(dimension, false, &[]))?;
-    // `vec_bit(...)` re-tags the staged blob with the BIT subtype vec0's bit
-    // column requires (a raw blob loses the subtype and fails the type check).
-    // This preserves the existing (possibly mean-centered) bits verbatim — no
-    // re-quantize, so centering survives the upgrade. `status` back-fills the
-    // empty-string sentinel (vec0 TEXT metadata is NOT NULL-able; reserved-gap
-    // candidate 13).
-    tx.execute_batch(
-        "INSERT INTO vector_default(
-             rowid, embedding, embedding_bin, source_type, kind, created_at, status
-         )
-             SELECT rowid, embedding, vec_bit(embedding_bin), source_type, kind, created_at, ''
-             FROM _fathomdb_vector_pack2_stage;
-         DROP TABLE _fathomdb_vector_pack2_stage;",
-    )?;
-    tx.commit()
-}
-
 /// SQL fragment implementing the D3 `kind -> source_type` map.
-/// Used both by the Pack 1 reshape migration and by the drift-detection
-/// unit test that pins it to [`resolve_source_type`].
+/// Historical mapping oracle for the drift-detection unit test.
+#[cfg(test)]
 pub(crate) const KIND_TO_SOURCE_TYPE_CASE_SQL: &str = "CASE s.kind
     WHEN 'email'   THEN 'email'
     WHEN 'article' THEN 'article'
@@ -483,64 +419,6 @@ pub(crate) const KIND_TO_SOURCE_TYPE_CASE_SQL: &str = "CASE s.kind
     WHEN 'doc'     THEN 'article'
     ELSE 'article'
 END";
-
-/// Pack 1 in-place reshape of `vector_default`. Stages the existing
-/// f32 corpus + each row's `kind`, drops the old single-column vec0
-/// table, recreates at the runtime `dimension` with the Pack 1
-/// columns, then repopulates with SQL-side `vec_quantize_binary` +
-/// the D3 `kind -> source_type` mapping. The preflight CHECK on
-/// unknown kinds has already run as migration step 9 by the time we
-/// get here.
-///
-/// Atomicity: the DROP+CREATE+repopulate sequence runs inside a
-/// rusqlite `Connection::transaction()` (DEFERRED begin per rusqlite
-/// `transaction.rs:417`). Cross-process serialization is provided by
-/// the engine's sidecar `acquire_lock` at `open_with_migrations`
-/// (`lib.rs:1127` area); reader handles are not opened until
-/// `ensure_vector_partition` returns (`lib.rs:1241` area), so readers
-/// never observe a partial reshape.
-fn migrate_vector_partition_to_pack1(
-    connection: &mut Connection,
-    dimension: u32,
-) -> rusqlite::Result<()> {
-    let tx = connection.transaction()?;
-    tx.execute_batch(
-        "CREATE TABLE _fathomdb_vector_migration_v0_7_0 (
-             rowid     INTEGER PRIMARY KEY,
-             embedding BLOB NOT NULL,
-             kind      TEXT NOT NULL
-         );
-         INSERT INTO _fathomdb_vector_migration_v0_7_0(rowid, embedding, kind)
-             SELECT v.rowid, v.embedding, r.kind
-             FROM vector_default v
-             JOIN _fathomdb_vector_rows r ON r.rowid = v.rowid;
-         DROP TABLE vector_default;",
-    )?;
-    // Slice 10 / G10 — recreate directly at the Pack-2 shape (adds `status`), so
-    // a legacy single-column DB lands the current shape in one reshape.
-    tx.execute_batch(&vector_partition_create_sql(dimension, false, &[]))?;
-    // `status` back-fills the empty-string sentinel (vec0 TEXT metadata is NOT
-    // NULL-able; reserved-gap candidate 13). Legacy single-column DBs predate
-    // mean-centering, so re-quantizing from the un-centered `embedding` is
-    // correct here.
-    let repopulate_sql = format!(
-        "INSERT INTO vector_default(
-             rowid, embedding, embedding_bin, source_type, kind, created_at, status
-         )
-         SELECT
-             s.rowid,
-             s.embedding,
-             vec_quantize_binary(s.embedding),
-             {KIND_TO_SOURCE_TYPE_CASE_SQL},
-             s.kind,
-             strftime('%s', 'now'),
-             ''
-         FROM _fathomdb_vector_migration_v0_7_0 s;
-         DROP TABLE _fathomdb_vector_migration_v0_7_0;"
-    );
-    tx.execute_batch(&repopulate_sql)?;
-    tx.commit()
-}
 
 pub(crate) fn encode_vector_blob(vector: &[f32]) -> Vec<u8> {
     vector.iter().flat_map(|value| value.to_le_bytes()).collect()
@@ -647,7 +525,7 @@ impl Engine {
         kind: &str,
         text: &str,
     ) -> Result<WriteReceipt, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let embedder = self
             .runtime_embedder
             .as_ref()
@@ -715,6 +593,10 @@ impl Engine {
             params![cursor, kind, cursor],
         )
         .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) VALUES(?1,?1,0,0,NULL,?2)",
+            params![cursor, text.len()],
+        ).map_err(|_| EngineError::Storage)?;
         // Slice 10 / G10 — `status` ships an empty-string sentinel only: vec0 TEXT
         // metadata columns are NOT NULL-able ("Expected text for TEXT metadata
         // column"), so the "no real population yet" state is `''`, not NULL.
@@ -727,8 +609,8 @@ impl Engine {
             vector_attr_insert_fragments(&tx, "", 7).map_err(|_| EngineError::Storage)?;
         let sql = format!(
             "INSERT INTO vector_default(
-                rowid, embedding, embedding_bin, source_type, kind, created_at, status{cols_sql}
-             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, ''{ph_sql})"
+                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
+             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',0,-9223372036854775808,9223372036854775807{ph_sql})"
         );
         let mut pv: Vec<rusqlite::types::Value> = vec![
             rusqlite::types::Value::Integer(cursor as i64),
@@ -789,7 +671,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn vector_row_count_for_test(&self) -> Result<u64, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -803,7 +685,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn has_vector_row_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -818,7 +700,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn read_vector_blob_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -835,7 +717,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn read_vector_bin_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -846,4 +728,240 @@ impl Engine {
             )
             .map_err(|_| EngineError::Storage)
     }
+}
+
+pub(crate) fn vector_validity_bounds(from: Option<i64>, until: Option<i64>) -> (i64, i64) {
+    match until {
+        Some(i64::MIN) => (i64::MAX, i64::MIN),
+        Some(end) => (from.unwrap_or(i64::MIN), end - 1),
+        None => (from.unwrap_or(i64::MIN), i64::MAX),
+    }
+}
+
+pub(crate) fn vector_eligibility_for_cursor(
+    conn: &Connection,
+    cursor: i64,
+) -> rusqlite::Result<(i64, i64, i64)> {
+    let canonical: Option<(i64, Option<i64>, Option<i64>)> = conn.query_row(
+        "SELECT (CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END) + (CASE WHEN state='active' THEN 0 ELSE 1 END),valid_from,valid_until FROM canonical_nodes WHERE write_cursor=?1
+         UNION ALL SELECT CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END,NULL,t_invalid FROM canonical_edges WHERE write_cursor=?1 LIMIT 1",
+        [cursor], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)),
+    ).optional()?;
+    let (lifecycle, from, until) = canonical.unwrap_or((0, None, None));
+    let (from, until) = vector_validity_bounds(from, until);
+    Ok((lifecycle, from, until))
+}
+
+pub(crate) fn refresh_vector_eligibility_for_cursor(
+    conn: &Connection,
+    cursor: i64,
+) -> rusqlite::Result<()> {
+    let (lifecycle, from, until) = vector_eligibility_for_cursor(conn, cursor)?;
+    let ids = conn
+        .prepare_cached("SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor=?1")?
+        .query_map([cursor], |r| r.get::<_, i64>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for id in ids {
+        conn.execute(
+            "UPDATE vector_default SET lifecycle=?1,valid_from=?2,valid_until=?3 WHERE rowid=?4",
+            params![lifecycle, from, until, id],
+        )?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) use tests::slice70_mapping_fixture;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    pub(crate) fn slice70_mapping_fixture(with_attribute: bool) -> Connection {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("init.sqlite")).unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        fathomdb_schema::migrate(&conn).unwrap();
+        if with_attribute {
+            conn.execute(
+                "INSERT INTO _fathomdb_projection_registry(name,roles) VALUES('owner','filterable')",
+                [],
+            )
+            .unwrap();
+        }
+        let attrs = if with_attribute { vec![attr_vec0_column("owner")] } else { vec![] };
+        conn.execute_batch(&vector_partition_create_sql(8, false, &attrs)).unwrap();
+        let blob = encode_vector_blob(&[1.0; 8]);
+        for id in [101, 102] {
+            conn.execute("INSERT INTO _fathomdb_vector_rows VALUES(?1,'doc',10)", [id]).unwrap();
+            let attr = if with_attribute {
+                format!(",{}", attr_vec0_column("owner"))
+            } else {
+                String::new()
+            };
+            let value = if with_attribute { ",''" } else { "" };
+            conn.execute(&format!("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until{attr}) VALUES(?1,?2,vec_quantize_binary(?2),'article','doc',0,'',0,-9223372036854775808,9223372036854775807{value})"),params![id,blob]).unwrap();
+        }
+        opened.engine.close().unwrap();
+        conn
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_record_erasure_removes_all_mapped_vector_ids() {
+    let conn = slice70_mapping_fixture(false);
+    erase_row_projections(&conn, 10).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM vector_default", [], |r| r.get::<_, i64>(0)).unwrap(),
+        0
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_attribute_refresh_uses_record_mapping() {
+    let conn = slice70_mapping_fixture(true);
+    refresh_vector_attr_values_for_row(&conn, 10, r#"{"owner":"alice"}"#).unwrap();
+    let col = attr_vec0_column("owner");
+    let values = conn
+        .prepare(&format!("SELECT {col} FROM vector_default"))
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(values, vec!["\u{1}alice"; 2]);
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_attribute_backfill_uses_record_mapping() {
+    let conn = slice70_mapping_fixture(false);
+    conn.execute(
+        "INSERT INTO _fathomdb_projection_registry(name,roles) VALUES('owner','filterable')",
+        [],
+    )
+    .unwrap();
+    conn.execute("INSERT INTO canonical_nodes(write_cursor,kind,body,state,superseded_at) VALUES(10,'doc',?1,'deleted',11)", [r#"{"owner":"alice"}"#]).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT COUNT(*) FROM canonical_attributes", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+
+    let col = attr_vec0_column("owner");
+    reshape_vector_partition_nondestructive(&conn, 8, std::slice::from_ref(&col), &[], false)
+        .unwrap();
+    let values = conn
+        .prepare(&format!("SELECT {col} FROM vector_default"))
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(values, vec!["\u{1}alice"; 2]);
+}
+
+pub(crate) fn vector_ids_for_cursor(conn: &Connection, cursor: i64) -> rusqlite::Result<Vec<i64>> {
+    conn.prepare_cached("SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor=?1")?
+        .query_map([cursor], |r| r.get(0))?
+        .collect()
+}
+
+pub(crate) fn delete_vector_record_rows(conn: &Connection, cursor: i64) -> rusqlite::Result<usize> {
+    // A missing head mapping loses ownership evidence. Refuse rather than
+    // claim complete erasure or delete an ID that may belong to another record.
+    let unmapped_head: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1) AND NOT EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE rowid=?1)",
+        [cursor], |r| r.get(0),
+    )?;
+    if unmapped_head {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let mut count = 0;
+    for id in vector_ids_for_cursor(conn, cursor)? {
+        count += delete_vector_partition_row(conn, id)?;
+    }
+    Ok(count)
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_inclusive_bounds_match_nullable_reference() {
+    let strategy = (
+        proptest::option::of(proptest::prelude::any::<i64>()),
+        proptest::option::of(proptest::prelude::any::<i64>()),
+        proptest::prelude::any::<i64>(),
+    );
+    proptest::test_runner::TestRunner::default()
+        .run(&strategy, |(from, until, now)| {
+            let (lower, upper) = vector_validity_bounds(from, until);
+            let expected =
+                from.is_none_or(|start| start <= now) && until.is_none_or(|end| end > now);
+            if (lower <= now && upper >= now) == expected {
+                Ok(())
+            } else {
+                Err(proptest::test_runner::TestCaseError::fail(
+                    "inclusive bounds differ from nullable canonical predicate",
+                ))
+            }
+        })
+        .unwrap();
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_mapped_lifecycle_rollback_and_recenter_preserve_metadata() {
+    let mut conn = slice70_mapping_fixture(false);
+    conn.execute("INSERT INTO canonical_nodes(write_cursor,kind,body,state,valid_from,valid_until) VALUES(10,'doc','body','active',5,20)",[]).unwrap();
+    refresh_vector_eligibility_for_cursor(&conn, 10).unwrap();
+    {
+        let tx = conn.transaction().unwrap();
+        tx.execute(
+            "UPDATE canonical_nodes SET state='deleted',superseded_at=50 WHERE write_cursor=10",
+            [],
+        )
+        .unwrap();
+        refresh_vector_eligibility_for_cursor(&tx, 10).unwrap();
+        for id in [101, 102] {
+            assert_eq!(
+                tx.query_row("SELECT lifecycle FROM vector_default WHERE rowid=?1", [id], |r| r
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                3
+            );
+        }
+        tx.rollback().unwrap();
+    }
+    let tx = conn.transaction().unwrap();
+    let rows = vec![(101, encode_vector_blob(&[1.0; 8])), (102, encode_vector_blob(&[1.0; 8]))];
+    crate::mean::run_pin_and_requantize_pass(&tx, &rows, &[0.1; 8]).unwrap();
+    for id in [101, 102] {
+        let actual=tx.query_row("SELECT lifecycle,valid_from,valid_until,embedding FROM vector_default WHERE rowid=?1",[id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,r.get::<_,Vec<u8>>(3)?))).unwrap();
+        assert_eq!(actual, (0, 5, 19, encode_vector_blob(&[1.0; 8])));
+    }
+    assert_eq!(
+        tx.query_row("SELECT state FROM canonical_nodes WHERE write_cursor=10", [], |r| r
+            .get::<_, String>(0))
+            .unwrap(),
+        "active"
+    );
+    tx.rollback().unwrap();
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_erasure_does_not_delete_another_records_vector_id() {
+    let conn = slice70_mapping_fixture(false);
+    conn.execute("UPDATE _fathomdb_vector_rows SET write_cursor=20 WHERE rowid=101", []).unwrap();
+    assert_eq!(delete_vector_record_rows(&conn, 101).unwrap(), 0);
+    erase_row_projections(&conn, 10).unwrap();
+    let ids = conn
+        .prepare("SELECT rowid FROM vector_default")
+        .unwrap()
+        .query_map([], |r| r.get::<_, i64>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(ids, [101]);
 }

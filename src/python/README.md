@@ -1,5 +1,8 @@
 # FathomDB
 
+> Documentation targets 0.8.28; publication is pending. Exact-version install
+> commands apply once matching registry or Pages artifacts are published.
+
 Python SDK for **FathomDB** — a local-first, embedded retrieval engine for application and agent
 workloads, built on SQLite.
 
@@ -15,7 +18,7 @@ and scale/stability guarantees are staged for 0.9.x and later.
 ## Install
 
 ```bash
-pip install fathomdb==0.8.27
+pip install fathomdb==0.8.28
 ```
 
 Requires Python 3.10 or newer. Wheels are `abi3`, so one wheel per platform serves every supported
@@ -88,8 +91,8 @@ interrupted erasure obligation can simply be retried.
 
 The same engine is available as a Node.js package (`npm install fathomdb`). The Rust
 application peer is `fathomdb-sdk` (import `fathomdb_sdk`), available in
-0.8.27; use the
-[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/rust.md).
+0.8.28; use the
+[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/install/rust.md).
 The [`fathomdb` crate](https://crates.io/crates/fathomdb) remains the
 separate lower-level engine facade.
 

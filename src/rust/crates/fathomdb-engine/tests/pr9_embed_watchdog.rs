@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, PreparedWrite};
+use fathomdb_engine::{Engine, EngineConfig, PreparedWrite, TestEmbedderChoice};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -117,9 +117,9 @@ fn hung_embed_retains_slot_and_pending_work_recovers() {
     let (_dir, path) = fixture_path("pr9_fixed_slot_hang");
     let park = Arc::new(AtomicBool::new(true));
     let embedder = Arc::new(ParkingEmbedder::new(park.clone()));
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
         EngineConfig {
             embedder_pool_size: Some(1),
             embedder_call_timeout_ms: Some(80),
@@ -148,9 +148,9 @@ fn timed_out_embed_does_not_corrupt_subsequent_writes() {
     let (_dir, path) = fixture_path("pr9_fixed_slot_nocorrupt");
     let park = Arc::new(AtomicBool::new(true));
     let embedder = Arc::new(ParkingEmbedder::new(park.clone()));
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
         EngineConfig {
             embedder_pool_size: Some(1),
             embedder_call_timeout_ms: Some(80),
@@ -178,9 +178,9 @@ fn timed_out_embed_does_not_corrupt_subsequent_writes() {
 fn slow_but_under_budget_embed_succeeds() {
     let (_dir, path) = fixture_path("pr9_watchdog_slow_ok");
     let embedder = Arc::new(SlowEmbedder::new(Duration::from_millis(100)));
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder),
+        TestEmbedderChoice::Caller(embedder),
         EngineConfig { embedder_call_timeout_ms: Some(5_000), ..EngineConfig::default() },
     )
     .expect("open");
@@ -195,9 +195,9 @@ fn slow_but_under_budget_embed_succeeds() {
 fn each_started_timeout_spends_one_provider_retry_and_never_commits_late_vector() {
     let (_dir, path) = fixture_path("pr9_started_timeout_budget");
     let embedder = Arc::new(SlowEmbedder::new(Duration::from_millis(60)));
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
         EngineConfig { embedder_call_timeout_ms: Some(20), ..EngineConfig::default() },
     )
     .expect("open");

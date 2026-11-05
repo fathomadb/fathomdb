@@ -260,3 +260,32 @@ test("snippetFor defaults and argument types", () => {
     InvalidArgumentError,
   );
 });
+
+
+test("filtered text keeps the requested match-centred sidecar", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await engine.write([
+      { kind: "note", body: FAR_BODY, logicalId: "target", sourceId: SOURCE },
+      { kind: "doc", body: SHORT_BODY, logicalId: "other", sourceId: SOURCE },
+    ]);
+    assert.equal((await engine.searchTextOnly(TERM, { limit: 1 })).results[0]?.kind, "doc");
+    const filter = { kind: "note" };
+    const plain = await engine.searchTextOnly(TERM, { limit: 1, filter });
+    assert.equal(plain.results[0]?.id.value, "target");
+    const combined = await engine.searchTextOnly(TERM, { limit: 1, filter, snippet: { maxBytes: 120 } });
+    assert.deepEqual(combined.results, plain.results);
+    assert.ok(combined.snippets && combined.snippets.length === 1);
+    const selected = combined.snippets[0]!;
+    assert.equal(selected.anchor, "match");
+    assert.ok(selected.text.includes(TERM));
+    for (const [start, end] of selected.spans) {
+      assert.equal(Buffer.from(FAR_BODY).subarray(start, end).toString("utf8"), TERM);
+    }
+    const absent = await engine.searchTextOnly(TERM, { filter: { kind: "missing" }, snippet: { maxBytes: 120 } });
+    assert.deepEqual(absent.results, []);
+    assert.deepEqual(absent.snippets, []);
+  } finally {
+    await engine.close();
+  }
+});

@@ -34,6 +34,21 @@ pub(crate) struct ProfileContext {
     pub(crate) callback_uninstalled: AtomicBool,
 }
 
+thread_local! {
+    static INTERNAL_DEBT_PROBE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+pub(crate) fn internal_debt_probe<T>(probe: impl FnOnce() -> T) -> T {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            INTERNAL_DEBT_PROBE.with(|state| state.set(self.0));
+        }
+    }
+    let _restore = Restore(INTERNAL_DEBT_PROBE.with(|state| state.replace(true)));
+    probe()
+}
+
 #[cfg(not(test))]
 pub(crate) type ProfileContexts = Vec<Box<ProfileContext>>;
 
@@ -113,7 +128,8 @@ pub(crate) fn sqlite_runtime_path(path: &Path) -> &Path {
         let simplified = dunce::simplified(path);
         // SQLite also creates sidecars beside the database. Keep enough of the
         // legacy Win32 path budget for those suffixes; special and long paths
-        // retain their verbatim form for the bundled VFS correction.
+        // keep their verbatim form, which SQLite 3.53.3 and later treat as
+        // local rather than UNC.
         if simplified.as_os_str().encode_wide().count() <= 248 {
             simplified
         } else {
@@ -126,23 +142,28 @@ pub(crate) fn sqlite_runtime_path(path: &Path) -> &Path {
     }
 }
 
-#[cfg(windows)]
-pub(crate) fn sqlite_local_verbatim_path_requires_patched_vfs(
-    path: &Path,
+/// First SQLite release whose Windows VFS keeps a local `\\?\C:\` path off
+/// the shared UNC lock handle (check-in 246f46614f). Older releases can
+/// strand WAL read locks on such a path.
+#[cfg(any(windows, test))]
+pub(crate) const SQLITE_LOCAL_VERBATIM_WAL_FIX: i32 = 3_053_003;
+
+/// Whether a database path must be refused because the linked SQLite would
+/// treat a local verbatim path as UNC. `simplifiable` is true when the
+/// engine hands SQLite a simplified non-verbatim form instead.
+#[cfg(any(windows, test))]
+pub(crate) fn local_verbatim_path_needs_newer_sqlite(
+    path_text: &str,
+    simplifiable: bool,
     sqlite_version: i32,
-    patched_vfs: bool,
 ) -> bool {
-    let path_text = path.to_string_lossy();
     let bytes = path_text.as_bytes();
     let local_verbatim_drive = bytes.len() >= 7
         && &bytes[..4] == b"\\\\?\\"
         && bytes[4].is_ascii_alphabetic()
         && bytes[5] == b':'
         && bytes[6] == b'\\';
-    local_verbatim_drive
-        && sqlite_runtime_path(path) == path
-        && sqlite_version < 3_053_003
-        && !patched_vfs
+    local_verbatim_drive && !simplifiable && sqlite_version < SQLITE_LOCAL_VERBATIM_WAL_FIX
 }
 
 #[cfg(windows)]
@@ -154,23 +175,16 @@ pub(crate) fn ensure_sqlite_local_verbatim_path_safe(path: &Path) -> Result<(), 
             message: "Windows database path has a trailing dot or space component".to_string(),
         });
     }
-    if sqlite_local_verbatim_path_requires_patched_vfs(
-        path,
+    if local_verbatim_path_needs_newer_sqlite(
+        &path.to_string_lossy(),
+        sqlite_runtime_path(path) != path,
         rusqlite::version_number(),
-        sqlite_local_verbatim_vfs_is_patched(),
     ) {
         return Err(EngineOpenError::Io {
             message: "SQLite cannot safely open this local Windows database path".to_string(),
         });
     }
     Ok(())
-}
-
-#[cfg(windows)]
-pub(crate) fn sqlite_local_verbatim_vfs_is_patched() -> bool {
-    unsafe {
-        rusqlite::ffi::sqlite3_compileoption_used(c"FATHOMDB_WIN_VERBATIM_SHM_SAFE".as_ptr()) != 0
-    }
 }
 
 #[cfg(windows)]
@@ -437,6 +451,12 @@ unsafe extern "C" fn profile_callback_trampoline(
     #[cfg(feature = "test-hooks")]
     record_slice71_profile_statement_for_test(sql_text);
 
+    // Scheduler probes must not introduce idle subscriber callbacks. Actual
+    // cleanup statements and foreground work retain their normal profiling.
+    if INTERNAL_DEBT_PROBE.with(std::cell::Cell::get) {
+        return;
+    }
+
     let wall_clock_ms = nanoseconds / 1_000_000;
 
     if ctx.profiling_enabled.load(Ordering::Relaxed) {
@@ -478,7 +498,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let value: i64 = connection
@@ -494,7 +514,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn runtime_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = open_runtime_connection(
             &self.path,
             #[cfg(any(test, feature = "test-hooks"))]

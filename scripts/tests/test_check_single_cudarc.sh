@@ -47,6 +47,8 @@ expect_fail_with() {
   pass "$description"
 }
 
+# CI forces Cargo color globally; presentation must not change dependency policy.
+export CARGO_TERM_COLOR=always
 ok_tree="$FIXTURES/tree/ok"
 
 # Condition A (lock files only; the tree conditions run on the GREEN tree).

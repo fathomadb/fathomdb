@@ -6,6 +6,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/agent-output.sh
+. "$SCRIPT_DIR/lib/agent-output.sh"
 # `git rev-parse` failing here used to degrade to `cd ""` — a bash no-op that
 # leaves the script running in an arbitrary cwd. Bind and check it instead.
 cd_repo_root() {
@@ -102,7 +104,7 @@ verify_preflight() {
   fi
 }
 
-if ! verify_preflight; then
+if ! run_capped verify-preflight verify_preflight; then
   end=$(date +%s)
   printf 'FAIL verify at step=preflight (%ss elapsed)\n' "$((end - start))" >&2
   exit 1

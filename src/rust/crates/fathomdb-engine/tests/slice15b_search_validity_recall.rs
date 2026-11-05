@@ -37,8 +37,8 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    clock_reads_for_test, Engine, InitialState, PreparedWrite, SearchResult, SoftFallbackBranch,
-    SourceId, SEARCH_RERANK_LIMIT,
+    clock_reads_for_test, Engine, InitialState, PreparedWrite, SearchResult, SourceId,
+    SEARCH_RERANK_LIMIT,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -162,12 +162,10 @@ fn expired_row_count(path: &std::path::Path) -> i64 {
 // F1 — validity must participate before the vector `LIMIT` cutoff
 // ---------------------------------------------------------------------------
 
-/// **fix-3 keystone (F1), superseded by Slice 35.** The
-/// `SEARCH_RERANK_LIMIT` nearest vector neighbours are all expired; two valid
-/// rows sit immediately below the cutoff. Slice 35 must decline the vector arm
-/// before KNN and let the eligibility-first lexical arm recover the valid rows.
+/// Native eligibility excludes expired neighbors before KNN truncation; the
+/// eligible dense hits remain available independently of lexical overlap.
 #[test]
-fn expired_vector_state_declines_arm_and_hybrid_recovers_valid_hits() {
+fn expired_vector_state_keeps_native_arm_and_valid_hits() {
     let _meter = clock_meter_guard();
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("f1_cutoff{SQLITE_SUFFIX}"));
@@ -213,13 +211,13 @@ fn expired_vector_state_declines_arm_and_hybrid_recovers_valid_hits() {
     let vector_only = engine.search("telemetry").expect("vector-only search");
     assert_eq!(
         bodies(&vector_only),
-        Vec::<String>::new(),
-        "an arm with non-native lifecycle eligibility must be declined before KNN"
+        vec!["r11 telemetry rollup".to_string(), "r12 telemetry rollup".to_string()],
+        "native eligibility preserves valid dense hits"
     );
     assert_eq!(
         vector_only.soft_fallback.map(|fallback| fallback.branch),
-        Some(SoftFallbackBranch::Vector),
-        "declining the vector arm must be observable"
+        None,
+        "native eligibility does not decline the vector arm"
     );
 
     engine.set_vector_stage_only_for_test(false);

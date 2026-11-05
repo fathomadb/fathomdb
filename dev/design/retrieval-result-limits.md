@@ -19,6 +19,10 @@ limit of ten. That makes ordinary callers vulnerable to unexpectedly large
 responses and makes an EARP K-ladder above ten unmeasurable through the public
 SDKs.
 
+The fixed direct-text node candidate window is applied after the optional
+SearchFilter. Node/edge eligibility precedes caps, body deduplication, ranking
+and limit; metadata availability remains part of the filter contract.
+
 ## Contract
 
 The ranked-result limit has one meaning: the maximum number of ranked search
@@ -70,7 +74,7 @@ Direct `search_text_only` collects a fixed maximum of 100 node-body candidates,
 independent of the requested returned-result limit, then combines them with the
 existing matching edge-body candidates. The text arm body-deduplicates and
 deterministically ranks those candidates before truncation. For the same
-immutable selection, query, and effective validity time, a direct-text result
+immutable selection, query, filter, and effective validity time, a direct-text result
 at any smaller accepted limit is the ordered prefix of the result at a larger
 accepted limit. A `ReadView` comparison must use the same explicit
 `valid_as_of`; `None` resolves independently per call. This is not a guarantee

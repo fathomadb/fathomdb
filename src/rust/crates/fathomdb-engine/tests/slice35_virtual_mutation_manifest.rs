@@ -118,16 +118,19 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
     for (needle, count) in [
         ("\"INSERT INTO search_index(", 1),
         ("\"INSERT INTO search_index_v2(", 1),
-        ("\"INSERT INTO search_index_edges(", 1),
+        ("\"INSERT INTO search_index_edges(", 2),
         ("\"INSERT INTO property_search_index(", 1),
         ("\"DELETE FROM property_search_index", 1),
-        ("\"INSERT INTO vector_default(", 6),
+        // Four writer sites plus three cfg(test) fixture insertions.
+        ("\"INSERT INTO vector_default(", 7),
+        // One metadata writer plus four cfg(test) fixture updates.
+        ("\"UPDATE vector_default", 5),
         ("\"INSERT OR IGNORE INTO vector_default(", 0),
         ("\"UPDATE {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"INSERT INTO {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"CREATE VIRTUAL TABLE {guard}{DEFAULT_VECTOR_PARTITION}", 1),
         ("DROP TABLE {DEFAULT_VECTOR_PARTITION}", 1),
-        ("DROP TABLE vector_default", 2),
+        ("DROP TABLE vector_default", 0),
         ("\"DELETE FROM {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"DELETE FROM {} WHERE {}", 1),
         ("\"DELETE FROM {}\"", 1),
@@ -170,8 +173,16 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
         &["DELETE FROM property_search_index", "DELETE FROM canonical_attributes"],
     );
     contains_all(
-        "prune_edge_projection_shadows",
-        &["DELETE FROM search_index_edges", "delete_vector_partition_row", "_fathomdb_vector_rows"],
+        "reconcile_edge_history_on_boot",
+        &[
+            "BEGIN IMMEDIATE",
+            "INSERT INTO search_index_edges(",
+            "lexical_restored = true",
+            "if lexical_restored",
+            "write_commit::advance_read_visibility(connection)",
+            "COMMIT",
+            "ROLLBACK",
+        ],
     );
     contains_all(
         "write_vector_for_test",
@@ -193,6 +204,17 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
             "record_projection_terminal",
         ],
     );
+    for owner in [
+        "slice70_mapping_fixture",
+        "slice70_future_invalidation_refreshes_native_edge_deadline",
+        "slice70_relaxed_node_windows_still_filter_expired_edges",
+    ] {
+        contains_all(owner, &["INSERT INTO vector_default("]);
+    }
+    contains_all(
+        "refresh_vector_eligibility_for_cursor",
+        &["vector_eligibility_for_cursor", "_fathomdb_vector_rows", "UPDATE vector_default"],
+    );
     contains_all(
         "refresh_vector_attr_values_for_row",
         &["UPDATE {DEFAULT_VECTOR_PARTITION}", "vector_attr_insert_fragments"],
@@ -211,8 +233,7 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
     );
     contains_all("truncate_row_projections_in", &["ROW_OWNED_PROJECTIONS", "DELETE FROM {}"]);
 
-    // The remaining vec0 INSERTs are schema/open reshapes. They execute before
-    // a Slice-35 token can be minted and therefore cannot evade a live token.
-    contains_all("migrate_vector_partition_pack1_to_pack2", &["INSERT INTO vector_default("]);
-    contains_all("migrate_vector_partition_to_pack1", &["INSERT INTO vector_default("]);
+    // Old-shape data migrations are forbidden after the format-35 cutover.
+    assert!(!SOURCE.contains("fn migrate_vector_partition_pack1_to_pack2("));
+    assert!(!SOURCE.contains("fn migrate_vector_partition_to_pack1("));
 }

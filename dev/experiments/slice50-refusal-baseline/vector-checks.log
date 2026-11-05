@@ -1,0 +1,32 @@
+   Compiling fathomdb-engine v0.8.27 (/home/coreyt/projects/fathomdb-worktrees/slice-0.8.28-50/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests/vector_equivalence_probe.rs (target/debug/deps/vector_equivalence_probe-b18140fcde396a0f)
+
+running 24 tests
+test population_failure_fails_safe_and_persists_no_partial_baseline ... ok
+test timed_out_population_probe_degrades_open_without_persisting_baseline ... ok
+test probe_set_persisted_at_first_vector_kind_registration ... ok
+test panicking_embedder_at_check_fails_safe_not_open ... ok
+test mc_required_with_pin_same_backend_does_not_trip ... ok
+test non_contiguous_ordinals_fail_safe_not_open ... ok
+test mc_reflect_without_pin_takes_uncentered_path_zero_flips ... ok
+test mangled_reference_blob_wrong_length_fails_safe_not_open ... ok
+test re_attributed_embedder_identity_fails_safe_not_open ... ok
+test erroring_embedder_at_check_fails_safe_not_open ... ok
+test substituted_probe_text_verifying_against_itself_fails_safe_not_open ... ok
+test partial_baseline_missing_one_row_fails_safe_not_open ... ok
+test same_backend_float_noise_does_not_trip ... ok
+test probe_p1_flip_count_matches_embedding_bin ... ok
+test fts_only_path_still_serves_when_degraded ... ok
+test every_vector_dependent_arm_refuses_with_typed_error ... ok
+test divergent_open_is_degraded_not_failed ... ok
+test probe_respects_mean_centering_gate_non_mc_path ... ok
+test divergent_backend_trips_dense_refusal ... ok
+test mc_required_with_pin_centered_flip_trips_dense ... ok
+test probe_p2_l2_within_epsilon ... ok
+test post_open_registration_serves_in_session_and_baselines_at_next_open ... ok
+test timed_out_verification_preserves_baseline_and_drops_late_result ... ok
+test open_report_surfaces_dense_disabled_and_counter_and_reopen_stays_degraded ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+

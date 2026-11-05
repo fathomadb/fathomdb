@@ -293,6 +293,13 @@ Profile records may feed operator surfaces such as subscriber-delivered
 diagnostics or CLI dump tooling, but those transport details are owned outside
 this file.
 
+The cleanup scheduler's internal debt-presence probes do not dispatch subscriber
+profile records or slow-statement signals. This prevents idle polling from
+introducing callbacks during shutdown. The exception is local to those probes:
+foreground statements and actual sanitation, checkpoint, redaction and blocker
+work retain their configured telemetry. Internal statement-count instrumentation
+still observes the probes.
+
 The runtime profiling toggle is likewise an `Engine`-attached instrumentation
 call, not a top-level SDK verb. `interfaces/{rust,python,typescript}.md` own
 the concrete method name and parameter spelling.

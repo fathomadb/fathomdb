@@ -689,11 +689,11 @@ impl CandleBgeEmbedder {
         })
     }
 
-    /// Select the pooling strategy (default [`Pooling::Mean`]). Does NOT change
-    /// the embedder identity (pooling is not part of the model identity), so
-    /// stored vectors from a different pooling are incompatible — use only on a
-    /// fresh workspace / in measurement harnesses until the CLS↔binary-floor gate
-    /// is settled.
+    /// Select pooling for standalone use, tests or offline evaluation.
+    /// The default is [`Pooling::Mean`]; this does not change the identity.
+    /// Production engine Default always uses its pinned Mean construction and
+    /// cannot attach an instance made by this constructor. The supported
+    /// standalone CLS helper uses this independently of engine admission.
     pub fn with_pooling(mut self, pooling: Pooling) -> Self {
         self.pooling = pooling;
         self
@@ -718,6 +718,29 @@ impl CandleBgeEmbedder {
 impl Embedder for CandleBgeEmbedder {
     fn identity(&self) -> EmbedderIdentity {
         self.identity.clone()
+    }
+
+    fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError> {
+        let encoding = self
+            .tokenizer
+            .encode(input, true)
+            .map_err(|error| EmbedderError::Failed { message: format!("tokenize: {error}") })?;
+        if encoding.get_overflowing().is_empty() {
+            return Ok(Some(input.len()));
+        }
+        let end = encoding
+            .get_offsets()
+            .iter()
+            .zip(encoding.get_special_tokens_mask())
+            .filter_map(|((_, end), special)| (*special == 0).then_some(*end))
+            .max()
+            .unwrap_or(0);
+        if end > input.len() || !input.is_char_boundary(end) {
+            return Err(EmbedderError::Failed {
+                message: "tokenizer returned invalid UTF-8 coverage".into(),
+            });
+        }
+        Ok(Some(end))
     }
 
     fn embed(&self, input: &str) -> Result<Vector, EmbedderError> {

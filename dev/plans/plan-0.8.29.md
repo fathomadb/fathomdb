@@ -53,9 +53,8 @@ the TC id is the stable reference.
   matrix, CI, registry dry runs and publication); it does not wait for
   those to finish (owner 2026-10-31). `dev/0.8.28` is merged forward at
   that point and again for any verification fix.
-- **Schema baseline:** 34 today, and 35 once 0.8.28 Slice 60 merges
-  forward. A version-34 store is refused at open; there is no upgrade
-  path.
+- **Schema baseline:** 36 after the final 0.8.28 forward handoff.
+  Older stores are refused at open; there is no automatic upgrade path.
 - **Release state.** `scripts/release-current.py` allows exactly one live
   release, and 0.8.28 stays live until its published receipt is recorded.
   While 0.8.28 finishes verification and publication, this plan is the
@@ -277,3 +276,6 @@ None.
 Nothing starts before the owner's explicit "go". 0.8.28 Slice 42 goes
 first; 0.8.29 Slices 0 to 8 and 20 start when 0.8.28 enters final
 verification.
+
+The [forward integration record](0.8.29/forward-integration.md) tracks the final
+.28 merge and its combined API/provider/maintenance verification.

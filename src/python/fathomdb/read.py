@@ -82,8 +82,8 @@ from fathomdb.types import (
 )
 
 _PROJECTION_ORIGINS = frozenset({"fresh", "legacy_unverified", "configuration", "rebuild"})
-_PROJECTION_READINESS = frozenset({"ready", "processing", "blocked", "deferred", "degraded"})
-_PROJECTION_RUNTIME_STATES = frozenset({"absent", "usable", "refused"})
+_PROJECTION_READINESS = frozenset({"ready", "processing", "blocked", "degraded"})
+_PROJECTION_RUNTIME_STATES = frozenset({"absent", "usable"})
 
 
 def _projection_enum(value: str, allowed: frozenset[str], field_path: str) -> str:
@@ -542,8 +542,6 @@ def _embedding_readiness_state(value: str) -> EmbeddingReadinessState:
         return "ready"
     if value == "processing":
         return "processing"
-    if value == "deferred":
-        return "deferred"
     if value == "blocked":
         return "blocked"
     raise RuntimeError(f"native embedding readiness returned unknown state {value!r}")

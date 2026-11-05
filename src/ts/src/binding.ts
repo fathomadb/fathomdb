@@ -1,3 +1,4 @@
+import type { NativeErasureStatus, NativeQueueResult, NativeCleanupResult } from "./maintenance.js";
 // Native-binding loader. Resolves the running host to a napi-rs triple, then
 // loads the compiled binding from either a local dev build
 // (`fathomdb.<triple>.node`, produced by `napi build --platform`), the
@@ -676,9 +677,6 @@ export interface NativeOpenReport {
   embedderEvents: NativeEmbedderEvent[];
   embedderMeanCenteringRequired: boolean;
   embedderMeanVecPinned: boolean;
-  // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6).
-  denseDisabled: boolean;
-  denseDisabledReason: string | null;
   embedderDeviceResolution: NativeEmbedderDeviceResolution | null;
   rerankerDeviceResolution?: NativeEmbedderDeviceResolution | null;
   // 0.8.23 Slice 80.6 (D-80.6-6) — `null` means no witness was taken, never
@@ -697,6 +695,7 @@ interface NativeCounterSnapshot {
 }
 
 interface NativeEngineConfig {
+  physicalErasurePolicy?: "autonomous" | "explicit_maintenance";
   embedderPoolSize?: number;
   schedulerRuntimeThreads?: number;
   provenanceRowCap?: number;
@@ -781,7 +780,19 @@ export interface NativeRerankResult {
   ceScore?: number | null;
 }
 
+export interface NativeErasureMaintenance {
+  reattachOriginalErasureSink(ticket: string, path: string): Promise<void>;
+  completePhysicalErasure(ticket: string): Promise<NativeCleanupResult>;
+  queuePhysicalErasure(selector: unknown, key: string): Promise<NativeQueueResult>;
+  close(): Promise<string>;
+}
+
 export interface NativeEngine {
+  queuePhysicalErasure(selector: unknown, key: string): Promise<NativeQueueResult>;
+  physicalErasureStatus(ticket: string): Promise<NativeErasureStatus | null>;
+  withdrawQueuedErasure(ticket: string): Promise<string>;
+  physicalErasurePolicy(): string;
+  beginErasureMaintenance(acquisitionWaitMs: number): Promise<NativeErasureMaintenance>;
   write(batch: unknown[]): Promise<NativeWriteReceipt>;
   actuate(request: unknown): Promise<NativeActuationReceiptV1>;
   registerSourceDependency(request: unknown): Promise<NativeSourceDependencyV1>;
@@ -856,9 +867,9 @@ export interface NativeEngine {
     alpha?: number,
     poolN?: number,
     explain?: boolean,
-    // 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — optional VALIDITY view.
-    // Omitted = the strict view (active-only, non-superseded, valid at query
-    // time). The existence flags are refused by the engine on this path.
+    // Optional lifecycle and validity view. Omitted means active,
+    // non-superseded rows valid at query time. Existence flags compose
+    // independently; unavailable dense history reports vector soft fallback.
     view?: NativeReadView,
     limit?: number,
     snippet?: NativeSnippetOptions,
@@ -869,6 +880,7 @@ export interface NativeEngine {
     query: string,
     view?: NativeReadView,
     limit?: number,
+    filter?: NativeSearchFilter,
     snippet?: NativeSnippetOptions,
   ): Promise<NativeSearchResult>;
   searchProjectedText(
@@ -878,9 +890,6 @@ export interface NativeEngine {
     view?: NativeReadView,
     limit?: number,
   ): Promise<NativeSearchResult>;
-  denseDisabled(): boolean;
-  denseDisabledReason(): string | null;
-  vectorEquivalenceRefusalCount(): number;
   close(): Promise<void>;
   drain(timeoutMs: number): Promise<void>;
   counters(): NativeCounterSnapshot;

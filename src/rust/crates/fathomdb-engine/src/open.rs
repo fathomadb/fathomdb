@@ -523,7 +523,49 @@ impl Engine {
             .map_err(EngineOpenError::EngineConfiguration)?;
         match choice {
             EmbedderChoice::Default => Self::open_default_embedder(path, config),
-            EmbedderChoice::Caller(embedder) => {
+            EmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
+                path,
+                default_embedder_identity(),
+                None,
+                None,
+                None,
+                &mut |_| {},
+                config,
+            ),
+        }
+    }
+
+    /// Open a test/evaluation engine with injected provider behavior.
+    /// This entry point is absent from ordinary production features.
+    #[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+    #[doc(hidden)]
+    pub fn open_with_test_choice_for_test(
+        path: impl Into<PathBuf>,
+        choice: TestEmbedderChoice,
+    ) -> Result<OpenedEngine, EngineOpenError> {
+        Self::open_with_test_choice_and_config_for_test(path, choice, EngineConfig::default())
+    }
+
+    /// Open with an embedder choice and per-engine settings. Invalid settings
+    /// fail before path, lock, provider, or SQLite side effects.
+    #[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+    #[doc(hidden)]
+    pub fn open_with_test_choice_and_config_for_test(
+        path: impl Into<PathBuf>,
+        choice: TestEmbedderChoice,
+        config: EngineConfig,
+    ) -> Result<OpenedEngine, EngineOpenError> {
+        ResolvedRuntimeConfiguration::resolve(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        crate::runtime_configuration::resolve_query_stop_words(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        // Before the embedder choice: the default embedder's device probe
+        // builds the process's first CUDA device.
+        crate::runtime_configuration::claim_cuda_pool(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        match choice {
+            TestEmbedderChoice::Default => Self::open_default_embedder(path, config),
+            TestEmbedderChoice::Caller(embedder) => {
                 let identity = embedder.identity();
                 Self::open_with_embedder_and_subscriber_config(
                     path,
@@ -535,7 +577,7 @@ impl Engine {
                     config,
                 )
             }
-            EmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution } => {
+            TestEmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution } => {
                 let identity = embedder.identity();
                 Self::open_with_embedder_and_subscriber_config(
                     path,
@@ -554,7 +596,7 @@ impl Engine {
                     config,
                 )
             }
-            EmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
+            TestEmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
                 path,
                 default_embedder_identity(),
                 None,
@@ -806,6 +848,11 @@ impl Engine {
         run_admission_locked_hook_for_test(&canonical_path);
         if plan.admission == DatabaseAdmission::CurrentOnly {
             admit_current_database(&canonical_path).map_err(&report_preopen_error)?;
+            erasure_maintenance::validate_policy_before_open(
+                &canonical_path,
+                config.physical_erasure_policy,
+            )
+            .map_err(&report_preopen_error)?;
         }
         let lock = pending_lock.initialize().map_err(&report_preopen_error)?;
         #[cfg(any(test, feature = "test-hooks"))]
@@ -820,7 +867,9 @@ impl Engine {
             plan.migrations,
             allow_populated_legacy_projection_bootstrap,
             &embedder_identity,
+            runtime_embedder.is_some(),
             query_stop_words.sha256(),
+            config.physical_erasure_policy,
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
             Arc::clone(&managed_connections),
@@ -828,10 +877,11 @@ impl Engine {
 
         match open_result {
             Ok((connection, readers, mut report, reader_lookaside_rcs)) => {
+                let embedder_identity = report.default_embedder.clone();
                 // EU-5b — splice the loader's measurements + structured
                 // events into the report. The loader path is the only
-                // surface that produces these today; caller-supplied
-                // embedders and EmbedderChoice::None leave them as the
+                // surface that produces these today; test/evaluation
+                // providers and EmbedderChoice::None leave them as the
                 // open_locked defaults (None / empty).
                 if let Some(info) = loader_info {
                     if info.download_ms.is_some() {
@@ -848,38 +898,72 @@ impl Engine {
                 }
                 report.reranker_device_resolution = reranker_device_resolution;
 
-                // 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — run the
-                // open-time self-check on the FINAL post-recovery connection (the
-                // mean is already pinned/recovered inside open_locked, U1-b). First
-                // registration persists the 45 UN-centered f32 references; a
-                // subsequent open re-embeds + asserts P1 (mean-centered flip count,
-                // floor 0) and P2 (un-centered L2 ε). Divergence ⇒ degraded-open
-                // (`dense_disabled=true`), surfaced on the OpenReport (R-VEQ-6); the
-                // query-time refusal fires later at `search_inner_with_stats`.
-                // A durable declaration is a prospective dense arm even before
-                // it has enrolled a kind. Check it before the boot graft below:
-                // a refused backend may leave the declaration at rest, but must
-                // not enrol, requeue, dispatch, or write any dense work.
+                // Verify after existing mean recovery and before projection startup.
+                // The existing cache may accept; an actual refusal returns no engine.
                 let prospective_dense_arm =
                     vector_projection_declared(&connection).map_err(|_| EngineOpenError::Io {
                         message: "could not inspect declared vector projection on open".to_string(),
                     })?;
-                let veq = run_vector_equivalence_probe(
-                    &connection,
+                let mut startup =
+                    OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
+                if runtime_embedder.is_some() {
+                    let registry =
+                        load_projection_registry(startup.connection()).map_err(|_| {
+                            EngineOpenError::Io {
+                                message: "could not inspect stored vector provider selection"
+                                    .to_owned(),
+                            }
+                        })?;
+                    if let Some((name, _)) = registry.iter().find(|(_, projection)| {
+                        projection.vector_declared && projection.vector_embedder.is_some()
+                    }) {
+                        return Err(EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
+                            message: format!("projection {name:?} has an unsupported historical embedder selector; select no provider for metadata access"),
+                        }));
+                    }
+                }
+                #[cfg(test)]
+                let visibility_fault = take_post_probe_visibility_fault_for_test(&canonical_path);
+                #[cfg(test)]
+                if let Some(fault) = visibility_fault.as_ref() {
+                    startup.embed_dispatch.set_drain_budget_ms_for_test(40);
+                    fault
+                        .observed
+                        .send((
+                            startup.embed_dispatch.accounting().expect("provider accounting"),
+                            Arc::clone(&managed_connections),
+                        ))
+                        .expect("report visibility fault observation");
+                }
+                run_vector_equivalence_probe(
+                    startup.connection(),
                     runtime_embedder.as_ref().map(|_| embed_dispatch.as_ref()),
                     &embedder_identity,
                     report.embedder_mean_vec_pinned,
                     prospective_dense_arm,
-                );
-                report.dense_disabled = veq.dense_disabled;
-                report.dense_disabled_reason = veq.reason.clone();
+                )
+                .inspect_err(|error| {
+                    if let Some(subscriber) = initial_subscriber.as_ref() {
+                        emit_open_error_event(subscriber, error);
+                    }
+                })?;
 
-                let mut startup =
-                    OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
-
-                let dense_runtime_usable =
-                    usable_dense_runtime(runtime_embedder.as_deref(), veq.dense_disabled);
-                let boot_graft_enqueued = if dense_runtime_usable {
+                let physical_debt =
+                    physical_erasure::active(startup.connection()).map_err(|_| {
+                        EngineOpenError::Io {
+                            message: "physical erasure metadata is malformed".into(),
+                        }
+                    })?;
+                let edge_history_enqueued = if physical_debt {
+                    false
+                } else {
+                    crate::projection_registry::reconcile_edge_history_on_boot(startup.connection())
+                        .map_err(|_| EngineOpenError::Io {
+                            message: "could not reconcile historical edge projections".into(),
+                        })?
+                };
+                let dense_runtime_usable = runtime_embedder.is_some();
+                let boot_graft_enqueued = if dense_runtime_usable && !physical_debt {
                     boot_graft_declared_vector_backfill(startup.connection()).map_err(|_| {
                         EngineOpenError::Io {
                             message: "could not graft declared vector projection on boot"
@@ -892,21 +976,13 @@ impl Engine {
 
                 let next_cursor = load_next_cursor(startup.connection());
                 #[cfg(test)]
-                if let Some(fault) = take_post_probe_visibility_fault_for_test(&canonical_path) {
-                    startup.embed_dispatch.set_drain_budget_ms_for_test(40);
+                if visibility_fault.is_some() {
                     startup
                         .connection()
                         .execute_batch(
                             "DELETE FROM _fathomdb_read_visibility_state WHERE singleton=1",
                         )
                         .expect("inject missing visibility singleton");
-                    fault
-                        .observed
-                        .send((
-                            startup.embed_dispatch.accounting().expect("provider accounting"),
-                            Arc::clone(&managed_connections),
-                        ))
-                        .expect("report visibility fault");
                 }
                 let read_visibility_generation = frozen_read::load_visibility_generation(
                     startup.connection(),
@@ -969,6 +1045,13 @@ impl Engine {
                 let opened = OpenedEngine {
                     engine: Self {
                         path: canonical_path.clone(),
+                        physical_policy: if report.schema_version_after >= 36 {
+                            erasure_maintenance::read_policy(&parts.connection)
+                                .map_err(|_| erasure_maintenance::policy_open_error())?
+                        } else {
+                            PhysicalErasurePolicy::Autonomous
+                        },
+                        explicit_debt: AtomicBool::new(physical_debt),
                         requested_config: config,
                         query_stop_words: Arc::clone(&query_stop_words),
                         resolved_config,
@@ -990,8 +1073,11 @@ impl Engine {
                         erasure_before_primary_lock_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
                         close_lock: Mutex::new(()),
+                        maintenance_admission: Arc::new(maintenance_admission::Admission::default()),
+                        physical_service_gate: Arc::new(Mutex::new(())),
+                        physical_maintenance: physical_maintenance::PhysicalMaintenance::default(),
                         lock: Mutex::new(Some(parts.lock)),
-                        connection: Mutex::new(Some(parts.connection)),
+                        connection: Arc::new(Mutex::new(Some(parts.connection))),
                         reader_pool: ReaderWorkerPool::new(
                             parts.readers,
                             Arc::clone(&wal_attribution),
@@ -1006,7 +1092,7 @@ impl Engine {
                         runtime_embedder: runtime_embedder.as_ref().map(Arc::downgrade),
                         embed_dispatch,
                         runtime_embedder_identity: embedder_identity,
-                        projection_runtime: parts.projection_runtime,
+                        projection_runtime: Arc::new(parts.projection_runtime),
                         wal_attribution,
                         #[cfg(any(test, feature = "test-hooks"))]
                         managed_connections,
@@ -1019,13 +1105,11 @@ impl Engine {
                         provenance_row_cap: AtomicU64::new(resolved_config.provenance_row_cap),
                         profile_contexts: Mutex::new(parts.profile_contexts),
                         reader_lookaside_rcs,
-                        telemetry: Mutex::new(None),
+                        telemetry: Arc::new(Mutex::new(None)),
                         telemetry_enabled: AtomicBool::new(false),
                         explanation_open_nonce: mint_explanation_open_nonce(),
                         explanation_sequence: AtomicU64::new(0),
-                        dense_disabled: AtomicBool::new(veq.dense_disabled),
-                        dense_disabled_reason: Mutex::new(veq.reason),
-                        vector_equivalence_refusals: AtomicU64::new(0),
+
                         #[cfg(any(test, feature = "test-hooks"))]
                         force_next_commit_failure: AtomicBool::new(false),
                         #[cfg(any(test, feature = "test-hooks"))]
@@ -1039,7 +1123,9 @@ impl Engine {
                     opened.engine.subscribers.attach_persistent(subscriber);
                 }
                 if dense_runtime_usable
+                    && !physical_debt
                     && (boot_graft_enqueued
+                        || edge_history_enqueued
                         || database_has_pending_projection_work(
                             &canonical_path,
                             #[cfg(any(test, feature = "test-hooks"))]
@@ -1048,6 +1134,13 @@ impl Engine {
                         .unwrap_or(false))
                 {
                     opened.engine.projection_runtime.notify_new_work();
+                }
+                if opened.engine.physical_policy == PhysicalErasurePolicy::Autonomous {
+                    opened.engine.physical_maintenance.start(&opened.engine).map_err(|_| {
+                        EngineOpenError::Io {
+                            message: "physical cleanup worker startup failed".into(),
+                        }
+                    })?;
                 }
                 embed_dispatch_guard.disarm();
                 Ok(opened)
@@ -1068,12 +1161,24 @@ impl Engine {
         migrations: &'static [fathomdb_schema::Migration],
         allow_populated_legacy_projection_bootstrap: bool,
         embedder_identity: &EmbedderIdentity,
+        provider_attached: bool,
         stop_words_sha256: &str,
+        physical_policy: Option<PhysicalErasurePolicy>,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
+        // The product lock is already held. Never infer clean history merely
+        // from empty canonical tables or a header whose old state lives in WAL.
+        let fresh_database = ["", "-wal", "-journal"].iter().all(|suffix| {
+            let mut candidate = path.as_os_str().to_os_string();
+            candidate.push(suffix);
+            match std::fs::metadata(PathBuf::from(candidate)) {
+                Ok(metadata) => metadata.is_file() && metadata.len() == 0,
+                Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+            }
+        });
         register_sqlite_vec_extension();
         let mut connection = open_managed_connection(
             &path,
@@ -1127,13 +1232,39 @@ impl Engine {
         reject_legacy_shape(&connection)?;
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
             .map_err(map_migration_error)?;
+        if migration.schema_version_after >= 36 {
+            if fresh_database && migration.schema_version_before == 0 {
+                erasure_maintenance::initialize_policy(
+                    &connection,
+                    physical_policy.unwrap_or_default(),
+                )
+                .map_err(|_| erasure_maintenance::policy_open_error())?;
+            }
+            erasure_maintenance::read_policy(&connection)
+                .map_err(|_| erasure_maintenance::policy_open_error())?;
+            erasure_queue::validate(&connection)
+                .map_err(|_| erasure_maintenance::policy_open_error())?;
+        }
         validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
+        if migration.schema_version_after >= 35 {
+            crate::vector_spans::validate(&connection, None).map_err(|_| EngineOpenError::Io {
+                message: "vector span tuple is partial or mismatched".to_string(),
+            })?;
+        }
         frozen_read::validate_on_open(&connection, migration.schema_version_after)
             .map_err(|message| EngineOpenError::Io { message })?;
         dependency_closure::validate_closure_state_on_open(
             &connection,
             migration.schema_version_after,
         )?;
+        if migration.schema_version_after >= 35 {
+            physical_erasure::validate_state(&connection).map_err(|_| EngineOpenError::Io {
+                message: "physical erasure metadata is malformed".into(),
+            })?;
+        }
+        let physical_debt = physical_erasure::active(&connection).map_err(|_| {
+            EngineOpenError::Io { message: "physical erasure metadata is malformed".into() }
+        })?;
         // 0.8.0 Slice 5 (G1) — global FTS5 tokenizer-default upgrade. Step 11
         // drops + recreates `search_index` with the new tokenizer, leaving it
         // EMPTY on a migrated DB. The projection scheduler will NOT
@@ -1150,7 +1281,8 @@ impl Engine {
         // skipping repair forever. So gate on the completion marker's ABSENCE
         // (written atomically with the reindex) instead: idempotent, and a
         // crash before the reindex commit simply re-runs on the next open.
-        if migration.schema_version_after >= SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION
+        if !physical_debt
+            && migration.schema_version_after >= SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION
             && !search_index_tokenizer_reproject_complete(&connection).map_err(|_| {
                 EngineOpenError::Io {
                     message: "could not read search_index tokenizer reproject marker".to_string(),
@@ -1164,6 +1296,39 @@ impl Engine {
                 }
             })?;
         }
+        // Without a provider, the profile describes stored data rather than a
+        // claimed execution backend. Attached providers still match strictly.
+        let stored_identity = if provider_attached {
+            None
+        } else {
+            connection
+                .query_row(
+                    "SELECT name, revision, dimension FROM _fathomdb_embedder_profiles WHERE profile = 'default'",
+                    [],
+                    |row| Ok(EmbedderIdentity::new(row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, u32>(2)?)),
+                )
+                .optional()
+                .map_err(|error| match error {
+                    rusqlite::Error::FromSqlConversionFailure(..)
+                    | rusqlite::Error::IntegralValueOutOfRange(..)
+                    | rusqlite::Error::Utf8Error(..)
+                    | rusqlite::Error::InvalidColumnType(..) => {
+                        EngineOpenError::Corruption(CorruptionDetail {
+                            kind: CorruptionKind::EmbedderIdentityDrift,
+                            stage: OpenStage::EmbedderIdentity,
+                            locator: CorruptionLocator::TableRow {
+                                table: "_fathomdb_embedder_profiles", rowid: 0,
+                            },
+                            recovery_hint: RecoveryHint {
+                                code: "E_CORRUPT_EMBEDDER_IDENTITY",
+                                doc_anchor: "design/recovery.md#embedder-identity-drift",
+                            },
+                        })
+                    }
+                    other => map_open_sqlite_error(other, OpenStage::EmbedderIdentity),
+                })?
+        };
+        let embedder_identity = stored_identity.as_ref().unwrap_or(embedder_identity);
         let mut embedder_mean_vec_pinned = check_embedder_profile(&connection, embedder_identity)?;
         ensure_vector_partition(&mut connection, embedder_identity.dimension).map_err(|_| {
             EngineOpenError::Io { message: "could not initialize vector partition".to_string() }
@@ -1206,7 +1371,8 @@ impl Engine {
         // and crash-retryable via the durable completion marker; a no-op on any
         // healthy corpus (every vec0 row has a sidecar entry), so recall / eu7
         // fidelity are unchanged on a DB that never dropped edges.
-        if migration.schema_version_after >= EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION
+        if !physical_debt
+            && migration.schema_version_after >= EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION
             && !edge_vector_prune_complete(&connection).map_err(|_| EngineOpenError::Io {
                 message: "could not read edge-vector prune marker".to_string(),
             })?
@@ -1225,9 +1391,13 @@ impl Engine {
         // connection, single-threaded, before readers spawn — like the tokenizer
         // reproject above. Runs after the fix-6 edge-vector prune above; the two
         // are independent boot reconciliations.
-        rederive_projections_on_boot(&connection).map_err(|_| EngineOpenError::Io {
-            message: "could not re-derive projection registry on boot".to_string(),
-        })?;
+        if !physical_erasure::active(&connection).map_err(|_| EngineOpenError::Io {
+            message: "physical erasure metadata is malformed".into(),
+        })? {
+            rederive_projections_on_boot(&connection).map_err(|_| EngineOpenError::Io {
+                message: "could not re-derive projection registry on boot".to_string(),
+            })?;
+        }
 
         // 0.8.20 Slice 21 fix-1 (codex §9 round 1 [P2], ledger `TC-71`) — bring an
         // ALREADY-ENROLLED inert vector kind into agreement with the role-aware
@@ -1245,11 +1415,13 @@ impl Engine {
         // returns), so a database whose only enrolment was the inert one pays no
         // probe embeds on the healing open. Another boot reconciliation on the
         // writer connection, single-threaded, before readers spawn.
-        reconcile_inert_vector_enrolments_on_boot(&connection).map_err(|_| {
-            EngineOpenError::Io {
-                message: "could not reconcile inert vector kind enrolments on boot".to_string(),
-            }
-        })?;
+        if !physical_debt {
+            reconcile_inert_vector_enrolments_on_boot(&connection).map_err(|_| {
+                EngineOpenError::Io {
+                    message: "could not reconcile inert vector kind enrolments on boot".to_string(),
+                }
+            })?;
+        }
 
         // 0.8.20 Slice 15e — reconcile the live `vector_default` attribute columns
         // with the registry's `filterable` set. On a DB whose vec0 shape already
@@ -1260,7 +1432,7 @@ impl Engine {
         // registry (e.g. a restored registry row). A no-op when the table is
         // absent (no embedder). Runs on the writer connection, single-threaded,
         // before readers spawn — like the boot re-derive above.
-        {
+        if !physical_debt {
             let tx = connection.transaction().map_err(|_| EngineOpenError::Io {
                 message: "could not begin vector-attr reconcile on boot".to_string(),
             })?;
@@ -1281,7 +1453,10 @@ impl Engine {
         // the mean from the existing un-centered rows and pin+re-quantize
         // now, single-threaded, before the projection workers spawn. The
         // NULL guard makes this idempotent on subsequent opens.
-        if identity_requires_mean_centering(embedder_identity) && !embedder_mean_vec_pinned {
+        if !physical_debt
+            && identity_requires_mean_centering(embedder_identity)
+            && !embedder_mean_vec_pinned
+        {
             let row_count: u64 = connection
                 .query_row("SELECT COUNT(*) FROM vector_default", [], |row| row.get(0))
                 .unwrap_or(0);
@@ -1293,6 +1468,15 @@ impl Engine {
                 })?;
                 embedder_mean_vec_pinned = true;
             }
+        }
+
+        if fresh_database
+            && migration.schema_version_before == 0
+            && migration.schema_version_after >= 35
+        {
+            physical_erasure::initialize_fresh(&connection).map_err(|_| EngineOpenError::Io {
+                message: "could not initialize fresh sanitation state".into(),
+            })?;
         }
 
         let warmup_started = Instant::now();
@@ -1319,11 +1503,6 @@ impl Engine {
             embedder_events: Vec::new(),
             embedder_mean_centering_required,
             embedder_mean_vec_pinned,
-            // 0.8.18 Slice 5 — set by the #5 self-check in `open_with_migrations`
-            // (which has the runtime embedder in scope). `open_locked` returns the
-            // non-degraded default; the probe runs after this returns.
-            dense_disabled: false,
-            dense_disabled_reason: None,
             embedder_device_resolution: None,
             reranker_device_resolution: None,
             // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
@@ -1441,8 +1620,7 @@ fn prune_orphaned_edge_vectors(connection: &Connection) -> rusqlite::Result<()> 
     connection.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
         let sidecar: std::collections::HashSet<i64> = {
-            let mut statement =
-                connection.prepare("SELECT write_cursor FROM _fathomdb_vector_rows")?;
+            let mut statement = connection.prepare("SELECT rowid FROM _fathomdb_vector_rows")?;
             let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;
             let mut set = std::collections::HashSet::new();
             for r in rows {
@@ -1642,24 +1820,13 @@ fn table_exists(connection: &Connection, table: &str) -> bool {
         .is_ok()
 }
 
-// EU-5b lock-flip: the engine's default embedder identity is now the
-// pinned bge-small variant. Pre-existing 0.7.0 workspaces opened with
-// `EmbedderChoice::Default` will fail-closed on identity mismatch per
-// ADR-0.6.0-vector-identity-embedder-owned; callers can still hold an
-// older noop profile by supplying `EmbedderChoice::Caller(NoopEmbedder)`.
+// Historical profiles remain readable through explicit no-provider admission;
+// production Default must match the pinned built-in identity.
 pub(crate) const DEFAULT_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";
 pub(crate) const DEFAULT_EMBEDDER_REVISION: &str = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a";
 pub(crate) const DEFAULT_EMBEDDER_DIMENSION: u32 = 384;
 
-/// Identity name of the bge-small embedder. `OpenReport.embedder_mean_centering_required`
-/// is `true` iff the live embedder identity reports this name. NoopEmbedder
-/// is `false`. Lifted out as a constant so the EU-5b lock-flip (when the
-/// engine's default identity becomes bge-small) is a single-line change.
-///
-/// TODO(EU-5b): when `DEFAULT_EMBEDDER_NAME` flips to this constant, the
-/// Default path will populate `embedder_mean_centering_required = true`
-/// without further engine work. Caller-supplied bge-small (rare today)
-/// already does the right thing.
+// Mean-centering follows the admitted built-in identity, not a device/backend name.
 pub(crate) const BGE_SMALL_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";
 
 static EXPLANATION_OPEN_NONCE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -1686,21 +1853,21 @@ pub struct OpenReport {
     /// time so callers see the full first-use cost.
     ///
     /// `Some(ms)` when network bytes flowed (`bytes_downloaded > 0`);
-    /// `None` for caller-supplied embedders (loader bypassed) and on
+    /// `None` for injected test/evaluation providers (loader bypassed) and on
     /// full cache hits (no bytes flowed). For pure per-file network
     /// analysis, use the `DefaultEmbedderDownload` events on
     /// [`embedder_events`](Self::embedder_events) — each event carries
     /// the file's bytes + sha256 + cache path.
     pub embedder_download_ms: Option<u64>,
     /// Structured loader events (`dev/design/embedder.md` §7). Empty for
-    /// caller-supplied embedders; populated from `LoadedWeights.events`
+    /// injected test/evaluation providers; populated from `LoadedWeights.events`
     /// for the Default path.
     pub embedder_events: Vec<EmbedderEvent>,
     /// Static identity capability (`dev/design/embedder.md` §0.6). True
     /// iff the live embedder identity is the bge-small default, which is
     /// the only identity that ships with the EU-5a2 mean-centering apply
     /// paths. `false` for `fathomdb-noop` and for any other
-    /// caller-supplied identity. EU-5b's identity flip makes the Default
+    /// injected test/evaluation identity. EU-5b's identity flip makes the Default
     /// path return `true` here.
     pub embedder_mean_centering_required: bool,
     /// Dynamic workspace state (`dev/design/embedder.md` §0.6). True iff
@@ -1709,22 +1876,8 @@ pub struct OpenReport {
     /// step 10; the value is dimension-validated (§0.2) at open time
     /// and fails closed via `EmbedderIdentityMismatch` on drift.
     pub embedder_mean_vec_pinned: bool,
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6) — degraded-open
-    /// observability. `true` iff the open-time #5 self-check re-embedded the 45
-    /// committed probes and found a divergence beyond the frozen D4 floor (a
-    /// Phase-1 mean-centered `embedding_bin` sign flip OR a Phase-2 un-centered
-    /// L2 over `VECTOR_EQUIVALENCE_L2_EPSILON`). When `true`, `Engine::open`
-    /// SUCCEEDED but every vector-dependent arm refuses at query time with
-    /// `EngineError::VectorEquivalenceMismatch`; the text-only/FTS-only path stays
-    /// serviceable. The state is RE-DERIVED at every open (the probe re-runs), so
-    /// a reopen with a still-divergent backend stays degraded (never silently
-    /// re-enables dense) and a reopen with a matching backend clears it.
-    pub dense_disabled: bool,
-    /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
-    /// tripped: P1 flip count or P2 L2). `None` when `dense_disabled == false`.
-    pub dense_disabled_reason: Option<String>,
     /// Strict CPU/CUDA policy resolution used to construct the default
-    /// embedder. `None` when the caller supplied an embedder or selected none.
+    /// embedder. `None` for injected test/evaluation providers or None.
     /// A present report is the one selection passed into default-embedder
     /// construction; forced CUDA failures return
     /// [`EngineOpenError::EmbedDevicePolicy`] rather than report CPU.
@@ -1990,13 +2143,24 @@ fn run_requested_gpu_allocation_witness(
     ))
 }
 
-/// Caller-facing selector for the embedder used by an opened engine
-/// (`dev/design/embedder.md` §0).
-// Built once per open and moved into it, so the size of the device
-// resolution variant costs nothing; boxing it would change the public shape.
-#[allow(clippy::large_enum_variant)]
+/// Supported production provider selection before 1.x.
 #[derive(Clone)]
 pub enum EmbedderChoice {
+    /// Load the pinned built-in BGE/Mean implementation. Requires `default-embedder`.
+    Default,
+    /// Open without a provider, validating existing profile metadata without inference.
+    None,
+}
+
+/// Hidden provider injection for explicitly enabled tests and offline evaluation.
+/// It is not accepted by production engine admission.
+// Built once per open and moved into it, so the size of the device
+// resolution variant costs nothing; boxing it would change the public shape.
+#[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+#[doc(hidden)]
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone)]
+pub enum TestEmbedderChoice {
     /// Use the engine's default embedder. With the `default-embedder`
     /// Cargo feature enabled, this materializes a `CandleBgeEmbedder`
     /// via the EU-3 loader at `Engine::open`; on first use the loader
@@ -2004,7 +2168,7 @@ pub enum EmbedderChoice {
     /// `ADR-0.7.1-default-embedder-weight-fetch`. Without the feature,
     /// this returns `EmbedderError::Failed` directing the caller to
     /// rebuild with `--features default-embedder` or supply
-    /// `EmbedderChoice::Caller`.
+    /// `TestEmbedderChoice::Caller`.
     Default,
     /// Caller supplies the embedder instance. The supplied embedder's
     /// `identity()` becomes the workspace's default-profile identity.
@@ -2202,7 +2366,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn default_embedder_profile_for_test(&self) -> Result<EmbedderIdentity, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         load_default_profile(connection).map_err(|_| EngineError::Storage)
@@ -2373,4 +2537,20 @@ mod device_policy_open_error_tests {
             EngineOpenError::RerankerDevicePolicy(other)
         );
     }
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_orphan_prune_compares_vector_identity() {
+    let conn = crate::vector_storage::slice70_mapping_fixture(false);
+    conn.execute_batch("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(103,vec_f32('[1,1,1,1,1,1,1,1]'),vec_quantize_binary(vec_f32('[1,1,1,1,1,1,1,1]')),'article','doc',0,'',0,-9223372036854775808,9223372036854775807);").unwrap();
+    prune_orphaned_edge_vectors(&conn).unwrap();
+    let ids = conn
+        .prepare("SELECT rowid FROM vector_default ORDER BY rowid")
+        .unwrap()
+        .query_map([], |r| r.get::<_, i64>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(ids, [101, 102]);
 }

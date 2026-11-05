@@ -94,6 +94,7 @@ pub(crate) fn restore_registered_derived_projections(
     {
         return Ok(false);
     }
+    crate::vector_spans::validate(tx, Some(cursor as u64))?;
     let terminal: Option<String> = tx
         .query_row(
             "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
@@ -358,8 +359,11 @@ pub(crate) fn project_canonical_node_row(
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
-        tx.prepare_cached("INSERT INTO search_index(body, kind, write_cursor) VALUES(?1, ?2, ?3)")?
-            .execute(params![body, kind, cursor])?;
+        physical_erasure::mark_dirty(tx)?;
+        tx.prepare_cached(
+            "INSERT INTO search_index(rowid, body, kind, write_cursor) VALUES(?3, ?1, ?2, ?3)",
+        )?
+        .execute(params![body, kind, cursor])?;
         // F5 (0.8.14 Slice 10) — same coexisting `searchable->FTS` target also
         // populates the multi-column `search_index_v2` (kind/body/status) so a
         // BM25F query can field-weight the lexical arm. Written SYNCHRONOUSLY in
@@ -463,6 +467,7 @@ pub(crate) fn project_canonical_edge_row(
     // node-body `search_index` — Option B partition). Body-less structural
     // edges carry no lexical content and project no FTS row.
     if pass.writes_fts() {
+        physical_erasure::mark_dirty(tx)?;
         if let Some(edge_body) = body {
             tx.execute(
                 "INSERT INTO search_index_edges(body, kind, write_cursor)

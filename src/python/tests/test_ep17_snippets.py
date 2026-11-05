@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 
 import fathomdb
-from fathomdb import Engine, SnippetOptions, SnippetV1
+from fathomdb import Engine, SearchFilter, SnippetOptions, SnippetV1
 from fathomdb.errors import InvalidArgumentError
 
 TERM = "zephyrine"
@@ -262,3 +262,31 @@ def test_snippet_for_never_raises_for_ints_beyond_i64() -> None:
         assert fathomdb.snippet_for(body, [], options).text == clamped_high.text
     for value in (-(2**63) - 1, -(2**64)):
         assert fathomdb.snippet_for(body, [], SnippetOptions(max_bytes=value)) == clamped_low
+
+
+def test_filtered_text_keeps_requested_match_centred_sidecar(db_path: str) -> None:
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write([
+            {"kind": "note", "body": FAR_BODY, "logical_id": "target", "source_id": SOURCE},
+            {"kind": "doc", "body": SHORT_BODY, "logical_id": "other", "source_id": SOURCE},
+        ])
+        assert engine.search_text_only(TERM, limit=1).results[0].kind == "doc"
+        filter_ = SearchFilter(kind="note")
+        plain = engine.search_text_only(TERM, limit=1, filter=filter_)
+        assert plain.results[0].id.value == "target"
+        combined = engine.search_text_only(
+            TERM, limit=1, filter=filter_, snippet=SnippetOptions(max_bytes=120),
+        )
+        assert combined.results == plain.results
+        assert combined.snippets is not None and len(combined.snippets) == 1
+        selected = combined.snippets[0]
+        assert selected.anchor == "match" and TERM in selected.text
+        for start, end in selected.spans:
+            assert FAR_BODY.encode()[start:end].decode() == TERM
+        absent = engine.search_text_only(
+            TERM, filter=SearchFilter(kind="missing"), snippet=SnippetOptions(max_bytes=120),
+        )
+        assert absent.results == [] and absent.snippets == []
+    finally:
+        engine.close()

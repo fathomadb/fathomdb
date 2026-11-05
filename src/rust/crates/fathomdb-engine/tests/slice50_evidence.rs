@@ -715,15 +715,7 @@ fn source_bytes_must_match_access_bearing_attribute_terms() {
     filter.attributes = vec![("owner".into(), "alice".into())];
     let frozen =
         freeze_stable(&opened.engine, &ReadContextV1::new(ReadView::default(), filter).unwrap());
-    let result = opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
-    let error = opened
-        .engine
-        .resolve_evidence(&EvidenceResolveRequestV1 {
-            schema_version: 1,
-            evidence_ref: result.evidence[0].evidence_ref.clone(),
-            context: frozen,
-        })
-        .unwrap_err();
+    let error = opened.engine.search_with_evidence(&request("needle", frozen)).unwrap_err();
 
     assert!(matches!(
         error,
@@ -1095,7 +1087,7 @@ fn evidence_search_collapses_frozen_context_failure_to_nondisclosure() {
 }
 
 #[test]
-fn evidence_search_authenticates_before_existence_axis_refusal() {
+fn evidence_search_authenticates_before_accepting_existence_views() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("search-precedence{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
@@ -1108,8 +1100,8 @@ fn evidence_search_authenticates_before_existence_axis_refusal() {
         let frozen = freeze_stable(&opened.engine, &context);
 
         let authenticated =
-            opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap_err();
-        assert!(matches!(authenticated, EngineError::InvalidArgument { .. }));
+            opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
+        assert!(authenticated.search_result.results.is_empty());
 
         let mut forged = frozen;
         forged.token.push('0');
@@ -1613,10 +1605,13 @@ fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_frozen_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_frozen_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         thread::spawn(move || engine.search_with_evidence(&request("race", frozen)))
@@ -1968,21 +1963,10 @@ fn ordinary_authorization_revocation_matrix_is_indistinguishable() {
         filter.attributes = vec![("owner".into(), "alice".into())];
         let filtered = ReadContextV1::new(context.view, filter).unwrap();
         let frozen = freeze_stable(&opened.engine, &filtered);
-        let reference = opened
-            .engine
-            .search_with_evidence(&request("missingattributeneedle", frozen.clone()))
-            .unwrap()
-            .evidence[0]
-            .evidence_ref
-            .clone();
         assert_unavailable(
             opened
                 .engine
-                .resolve_evidence(&EvidenceResolveRequestV1 {
-                    schema_version: 1,
-                    evidence_ref: reference,
-                    context: frozen,
-                })
+                .search_with_evidence(&request("missingattributeneedle", frozen))
                 .unwrap_err(),
         );
     }
@@ -2400,4 +2384,291 @@ fn all_reachable_origin_contributions_and_atomic_sidecars() {
                     && evidence.field_path.starts_with("/results/")
         ));
     }
+}
+
+#[test]
+fn evidence_history_flags_compose_and_resolve_revision_lifecycle() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("slice80-evidence-history{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let source_body = "stable source body";
+    opened
+        .engine
+        .write(&[canonical_named("source", "src-r1", "src-v1", "source-id", source_body)])
+        .unwrap();
+    let old = derived_named(
+        "item",
+        "item-r1",
+        "src-r1",
+        "src-v1",
+        "source-id",
+        source_body,
+        "historyneedle retired",
+    );
+    let mut pending = derived_named(
+        "pending",
+        "pending-r1",
+        "src-r1",
+        "src-v1",
+        "source-id",
+        source_body,
+        "historyneedle pending",
+    );
+    if let PreparedWrite::ProvenancedNode(node) = &mut pending {
+        node.state = InitialState::Pending;
+    }
+    opened.engine.write(&[old, pending]).unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "item",
+            "item-r2",
+            "src-r1",
+            "src-v1",
+            "source-id",
+            source_body,
+            "historyneedle current",
+        )])
+        .unwrap();
+    for (superseded, inactive, expected) in [
+        (false, false, vec!["item-r2"]),
+        (true, false, vec!["item-r1", "item-r2"]),
+        (false, true, vec!["item-r2", "pending-r1"]),
+        (true, true, vec!["item-r1", "item-r2", "pending-r1"]),
+    ] {
+        let context = ReadContextV1::new(
+            ReadView {
+                include_superseded: superseded,
+                include_inactive: inactive,
+                ..ReadView::default()
+            },
+            SearchFilter::default(),
+        )
+        .unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let result =
+            opened.engine.search_with_evidence(&request("historyneedle", frozen.clone())).unwrap();
+        assert_eq!(result.search_result.results.len(), expected.len());
+        assert_eq!(
+            result
+                .evidence
+                .iter()
+                .map(|entry| entry.artifact_revision_id.as_str())
+                .collect::<BTreeSet<_>>(),
+            expected.into_iter().collect::<BTreeSet<_>>()
+        );
+        for entry in result.evidence {
+            let resolved = opened
+                .engine
+                .resolve_evidence(&EvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: entry.evidence_ref,
+                    context: frozen.clone(),
+                })
+                .unwrap();
+            assert_eq!(resolved.artifact_revision_id, entry.artifact_revision_id);
+            assert_eq!(resolved.canonical_source_body, source_body);
+            assert_eq!(
+                resolved.artifact_lifecycle,
+                EvidenceArtifactLifecycleV1::Node {
+                    state: if entry.artifact_revision_id == "pending-r1" {
+                        LifecycleState::Pending
+                    } else {
+                        LifecycleState::Active
+                    },
+                    superseded: entry.artifact_revision_id == "item-r1",
+                }
+            );
+        }
+    }
+    opened.engine.close().unwrap();
+}
+
+#[test]
+fn historical_evidence_attribute_access_uses_canonical_artifact_values() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("history-attributes{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[fathomdb_engine::ProjectionSpec {
+                name: "scope".into(),
+                roles: BTreeSet::from([fathomdb_engine::ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let source_body = r#"{"scope":"allowed","text":"stable source"}"#;
+    opened
+        .engine
+        .write(&[canonical_named("source", "src-r1", "src-v1", "source-id", source_body)])
+        .unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "item",
+            "item-r1",
+            "src-r1",
+            "src-v1",
+            "source-id",
+            source_body,
+            r#"{"scope":"allowed","text":"historyneedle old"}"#,
+        )])
+        .unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "item",
+            "item-r2",
+            "src-r1",
+            "src-v1",
+            "source-id",
+            source_body,
+            r#"{"scope":"other","text":"replacement"}"#,
+        )])
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("scope".into(), "allowed".into())];
+    let context =
+        ReadContextV1::new(ReadView { include_superseded: true, ..Default::default() }, filter)
+            .unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
+    let result =
+        opened.engine.search_with_evidence(&request("historyneedle", frozen.clone())).unwrap();
+    assert_eq!(result.evidence.len(), 1);
+    let resolved = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence[0].evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(resolved.artifact_revision_id, "item-r1");
+    opened.engine.close().unwrap();
+}
+
+#[test]
+fn historical_graph_evidence_issuance_refuses_retired_origin_source() {
+    for inactive in [false, true] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("history-origin-issuance-{inactive}{SQLITE_SUFFIX}"));
+        let opened = open_with_fixed_embedder(&path);
+        seed_graph_matrix(&opened.engine);
+        if inactive {
+            opened.engine.transition("graph-edge-source", LifecycleState::Deleted, None).unwrap();
+        } else {
+            opened
+                .engine
+                .write(&[canonical_named(
+                    "graph-edge-source",
+                    "graph-edge-source-r2",
+                    "graph-edge-v2",
+                    "graph-edge-source-id",
+                    r#"{"owner":"alice","text":"replacement source"}"#,
+                )])
+                .unwrap();
+        }
+        let mut filter = SearchFilter::default();
+        filter.kind = Some("entity".into());
+        let context = ReadContextV1::new(
+            ReadView {
+                include_superseded: !inactive,
+                include_inactive: inactive,
+                ..ReadView::default()
+            },
+            filter,
+        )
+        .unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        // The query seeds alpha's body, not the edge body. Beta therefore
+        // depends on the separately sourced traversal edge, while both endpoint
+        // bodies still derive from the current, active node source.
+        let search =
+            opened.engine.search_frozen("alpha", &frozen, 0, true, 0.3, 0, false, 10).unwrap();
+        assert!(
+            search
+                .results
+                .iter()
+                .any(|hit| hit.id.value == "graph-beta"
+                    && hit.branch == SoftFallbackBranch::GraphArm),
+            "fixture must reach beta through its retired-source edge: {search:?}"
+        );
+        let mut evidence_request = request("alpha", frozen);
+        evidence_request.use_graph_arm = true;
+        assert_unavailable(opened.engine.search_with_evidence(&evidence_request).unwrap_err());
+        opened.engine.close().unwrap();
+    }
+}
+
+#[test]
+fn historical_evidence_issuance_refuses_source_missing_access_attribute() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("history-source-access-issuance{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "scope".into(),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let source_body = r#"{"text":"source without access attribute"}"#;
+    opened
+        .engine
+        .write(&[
+            canonical_named("source", "access-src-r1", "access-v1", "access-source", source_body),
+            derived_named(
+                "item",
+                "access-item-r1",
+                "access-src-r1",
+                "access-v1",
+                "access-source",
+                source_body,
+                r#"{"scope":"allowed","text":"accesshistoryneedle"}"#,
+            ),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "item",
+            "access-item-r2",
+            "access-src-r1",
+            "access-v1",
+            "access-source",
+            source_body,
+            r#"{"scope":"other","text":"replacement"}"#,
+        )])
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("scope".into(), "allowed".into())];
+    let context =
+        ReadContextV1::new(ReadView { include_superseded: true, ..ReadView::default() }, filter)
+            .unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
+    let search = opened
+        .engine
+        .search_frozen("accesshistoryneedle", &frozen, 0, false, 0.3, 0, false, 10)
+        .unwrap();
+    assert_eq!(
+        search.results.len(),
+        1,
+        "canonical artifact attribute must match before independent source authorization"
+    );
+    assert_eq!(search.results[0].body, r#"{"scope":"allowed","text":"accesshistoryneedle"}"#);
+    assert_unavailable(
+        opened.engine.search_with_evidence(&request("accesshistoryneedle", frozen)).unwrap_err(),
+    );
+    opened.engine.close().unwrap();
 }

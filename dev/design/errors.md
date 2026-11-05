@@ -87,7 +87,14 @@ different remediation or cross-doc ownership.
 | `SchemaValidationError`         | JSON Schema rejection for op-store payloads        | `EngineError`     | `design/op-store.md`    | fix payload contents against registered `schema_id`                             |
 | `EmbedderIdentityMismatchError` | open-time stored-vs-supplied identity comparison   | `EngineOpenError` | `design/embedder.md`    | open-time incompatibility, not runtime write/query failure                      |
 | `MigrationError`                | schema migration execution                         | `EngineOpenError` | `design/migrations.md`  | open-time schema transition failure with per-step reporting                     |
-| `VectorEquivalenceMismatchError`| open-time #5 probe divergence → query-time dense refusal | `EngineError` | `design/vector.md` | dense retrieval refused because the live backend's re-embedded probes diverged; text-only/FTS-only path (`search_text_only`) stays serviceable |
+| `MaintenanceError` | runtime maintenance-operation policy, ticket, ownership or durable-fence refusal | `EngineError::Maintenance` | `design/explicit-maintenance-erasure/contract.md` | closed reason maps to Python MaintenanceError / TypeScript FDB_MAINTENANCE; incomplete activated debt is not generic storage failure |
+| `VectorEquivalenceMismatchError` | actual open-time numeric probe mismatch | `EngineOpenError` | `design/embedder.md` | no Engine is returned; `reason` preserves the numerical diagnosis |
+| `VectorVerificationError` | open-time verification cannot complete or reference state is invalid | `EngineOpenError` | `design/embedder.md` | typed cause distinct from a measured numeric mismatch and SQLite storage failure |
+
+An explicit open-policy mismatch is `EngineOpenError::EngineConfiguration`
+(`PhysicalErasurePolicyMismatch`), mapped to InvalidArgumentError by the SDKs.
+Malformed persisted policy is open-time corruption. Neither is the runtime
+MaintenanceError family.
 
 `Overloaded` and `Closing` remain direct `EngineError` variants rather than
 module errors because they are cross-cutting runtime states:
@@ -228,7 +235,7 @@ This file owns the stable inputs bindings map from:
 
 ## Binding-facing class matrix
 
-The matrix below is the canonical 44-row cross-binding class-stem table for
+The matrix below is the canonical cross-binding class-stem table for
 0.8.28.
 Per-language interface docs may apply idiomatic casing, but they must not
 rename the semantic class stems or collapse distinct rows.
@@ -238,8 +245,8 @@ Its stable `FDB_EMBEDDER_REQUIRED` payload has `operation`, `state`, ordered
 `remediations`, and the documentation URL; Python exposes
 `documentation_url`, TypeScript exposes `documentationUrl`. It applies only to
 an absent configured runtime. `SchedulerError` remains the bounded-drain result
-while outstanding operational work, such as equivalence-refused work, prevents
-idleness. A worker that exhausts retries instead records a durable `failed`
+while in-flight or capacity-starved pending work prevents idleness. Verification
+refusal returns no Engine and cannot create an attached refused-work session. A worker that exhausts retries instead records a durable `failed`
 terminal, after which `drain` may return `Ok` once idle. Neither is this
 configuration error.
 
@@ -300,10 +307,12 @@ provider panics keep their operation-specific panic boundary.
 | `EmbedderDimensionMismatchError`     | `EmbedderDimensionMismatchError` | `EmbedderDimensionMismatchError` | open/runtime mismatch |
 | `EngineError::EmbedderNotConfigured` | `EmbedderNotConfiguredError`     | `EmbedderNotConfiguredError`     | runtime failure       |
 | `EngineError::KindNotVectorIndexed`  | `KindNotVectorIndexedError`      | `KindNotVectorIndexedError`      | runtime failure       |
-| `EngineError::VectorEquivalenceMismatch` | `VectorEquivalenceMismatchError` | `VectorEquivalenceMismatchError` | dense refused (query-time) |
+| `EngineOpenError::VectorEquivalenceMismatch` / retained low-level `EngineError::VectorEquivalenceMismatch` | `VectorEquivalenceMismatchError` | `VectorEquivalenceMismatchError` | checker fails open; runtime variant retained for interoperation |
+| `EngineOpenError::VectorVerification` | `VectorVerificationError` | `VectorVerificationError` | checker cannot verify; no Engine |
 | `EngineError::IllegalTransition`      | `IllegalTransitionError`         | `IllegalTransitionError`         | runtime failure       |
 | `EngineError::NotLifecycleAddressable` | `NotLifecycleAddressableError`  | `NotLifecycleAddressableError`   | runtime failure       |
 | `EngineError::ErasureIncomplete`      | `ErasureIncompleteError`         | `ErasureIncompleteError`         | retryable incomplete erasure |
+| `EngineError::Maintenance` | `MaintenanceError` | `MaintenanceError` | runtime failure |
 | `EngineError::ProjectionDestructive`  | `ProjectionDestructiveError`     | `ProjectionDestructiveError`     | caller confirmation required |
 | `EngineError::CudaPoolExhausted` / `EngineOpenError::CudaPoolExhausted` | `CudaPoolExhaustedError` | `CudaPoolExhaustedError` | runtime failure |
 | `EngineError::CudaContextLost` / `EngineOpenError::CudaContextLost` | `CudaContextLostError` | `CudaContextLostError` | runtime failure |
@@ -311,7 +320,8 @@ provider panics keep their operation-specific panic boundary.
 
 2026-10-08 amendment (0.8.28 Slice 30, R30-04): the three CUDA
 private-memory-pool kinds. Each class derives from `EmbedderError` in both
-SDKs (and `ErrorKind::Embedder` in `fathomdb-sdk`). Payloads:
+SDKs. Rust has distinct CUDA `ErrorKind` variants whose `parent()` is
+`ErrorKind::Embedder`; enum variants do not inherit. Payloads:
 `CudaPoolExhausted` — `ordinal`, `max_size_bytes`, `message`;
 `CudaContextLost` — `recorded_context_id`, `current_context_id` (nullable),
 `driver_error`, `operation`; `CudaPrivateBuildRefused` — `ordinal`,
@@ -436,3 +446,31 @@ owns the shared sanitization rule:
 
 This keeps module attribution visible without turning foreign dependency message
 formats into public contract.
+
+## Vector compatibility admission (0.8.28)
+
+Actual verification refusal returns no engine. Numeric mismatch uses
+`EngineOpenError::VectorEquivalenceMismatch { reason }`. Cannot-verify uses
+`EngineOpenError::VectorVerification { probe_ordinal, cause }`; the typed cause
+is `NotConfigured`, `Saturated`, `QueuedExpired`, `StartedTimeout`,
+`Provider(EmbedderError)`, `InvalidOutput`, `Panic { message }`,
+`InvalidState { message }`, `Closing` or `Cancelled`. Stable cause codes are
+snake_case. Probe ordinal zero on whole-baseline preflight failure does not
+claim that probe zero inference failed: the invalid-state message identifies the
+reference defect. SQLite read/transaction failures remain `EngineOpenError::Io`;
+missing/malformed required references remain invalid-state causes.
+
+Python exposes `probe_ordinal`, `cause_code`, `cause_message`, `provider_kind`
+and `provider_error`; TypeScript exposes camelCase equivalents. A provider cause
+preserves the original typed embedder error as Rust `Error::source`, Python
+`__cause__` and TypeScript `cause`, including CUDA fields. The initial subscriber
+receives one failed-open event with the numeric/cannot-verify class code; SQLite
+failure uses `IoError`. A subscriber callback panic does not replace that error.
+CLI verification refusal exits 70 through the same typed classification.
+
+The runtime `EngineError::VectorEquivalenceMismatch` vocabulary remains for
+low-level interoperation; the checker now emits its open-error counterpart.
+There is no refused runtime handle, dense-disabled accessor/report field or
+query-refusal counter. Explicit None supplies intentional metadata/text access
+without inference or provider substitution. Existing cache acceptance, probe
+gates, mean recovery and bounded failed-open cleanup remain unchanged.

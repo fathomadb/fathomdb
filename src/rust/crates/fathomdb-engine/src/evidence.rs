@@ -551,7 +551,16 @@ pub(crate) fn build_search_result(
                     *edge_cursor,
                     frozen.effective_valid_at,
                     frozen.context.view.include_out_of_window,
+                    frozen.context.view.include_superseded,
                 )?;
+                if !source_revision_is_eligible(
+                    connection,
+                    &source_revision,
+                    frozen.effective_valid_at,
+                    frozen.context.view.include_out_of_window,
+                )? {
+                    return Err(EvidenceErrorV1::unavailable().into());
+                }
                 crate::validate_dependency_chain(
                     connection,
                     &source_revision,
@@ -575,6 +584,8 @@ pub(crate) fn build_search_result(
             frozen.effective_valid_at,
             frozen.context.view.include_out_of_window,
         )?;
+        authorize_intrinsic_lifecycle(connection, &stored, artifact_class, &frozen.context.view)?;
+        authorize_source_access(connection, &stored, &frozen.context.eligibility)?;
         if stored.completeness != "complete" {
             return Err(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceIncomplete,
@@ -691,6 +702,7 @@ pub(crate) fn resolve(
                     *edge_cursor,
                     payload.effective_valid_at,
                     request.context.context.view.include_out_of_window,
+                    request.context.context.view.include_superseded,
                 )
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
                 if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
@@ -723,6 +735,7 @@ pub(crate) fn resolve(
                     *edge_cursor,
                     payload.effective_valid_at,
                     request.context.context.view.include_out_of_window,
+                    request.context.context.view.include_superseded,
                 )
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
                 if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
@@ -749,15 +762,20 @@ pub(crate) fn resolve(
             }
             _ => return Err(EvidenceErrorV1::unavailable().into()),
         };
-    let (source_state, artifact_lifecycle) =
-        authorize_intrinsic_lifecycle(connection, &stored, payload.artifact_class)?;
+    let (source_state, artifact_lifecycle) = authorize_intrinsic_lifecycle(
+        connection,
+        &stored,
+        payload.artifact_class,
+        &request.context.context.view,
+    )?;
     let eligibility = &request.context.context.eligibility;
     let artifact_eligible = match payload.artifact_class {
-        EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
+        EvidenceArtifactClassV1::Node => crate::filter::text_hit_passes_filter_view(
             connection,
             payload.write_cursor,
             &stored.artifact_kind,
             Some(eligibility),
+            &request.context.context.view,
         ),
         EvidenceArtifactClassV1::Edge => crate::edge_fts_hit_passes_filter(
             connection,
@@ -770,22 +788,7 @@ pub(crate) fn resolve(
     if !artifact_eligible {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    // A source is a separately authorized canonical artifact. Domain-oriented
-    // kind/source-type constraints select the returned artifact, while access-
-    // bearing metadata and declared attributes constrain both artifact and bytes.
-    let mut source_filter = eligibility.clone();
-    source_filter.kind = None;
-    source_filter.source_type = None;
-    if !crate::text_hit_passes_filter(
-        connection,
-        stored.source_cursor,
-        &stored.source_kind,
-        Some(&source_filter),
-    )
-    .map_err(|_| EngineError::Storage)?
-    {
-        return Err(EvidenceErrorV1::unavailable().into());
-    }
+    authorize_source_access(connection, &stored, eligibility)?;
     if stored.completeness != "complete" {
         return Err(
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
@@ -852,12 +855,37 @@ pub(crate) fn resolve(
     })
 }
 
+fn authorize_source_access(
+    connection: &Connection,
+    stored: &StoredEvidence,
+    eligibility: &crate::SearchFilter,
+) -> Result<(), EngineError> {
+    // A source is a separately authorized canonical artifact. Domain-oriented
+    // kind/source-type constraints select the returned artifact, while access-
+    // bearing metadata and declared attributes constrain both artifact and bytes.
+    let mut source_filter = eligibility.clone();
+    source_filter.kind = None;
+    source_filter.source_type = None;
+    if !crate::text_hit_passes_filter(
+        connection,
+        stored.source_cursor,
+        &stored.source_kind,
+        Some(&source_filter),
+    )
+    .map_err(|_| EngineError::Storage)?
+    {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    Ok(())
+}
+
 fn authorize_intrinsic_lifecycle(
     connection: &Connection,
     stored: &StoredEvidence,
     artifact_class: EvidenceArtifactClassV1,
+    view: &crate::ReadView,
 ) -> Result<(LifecycleState, EvidenceArtifactLifecycleV1), EngineError> {
-    if stored.artifact_superseded
+    if (stored.artifact_superseded && !view.include_superseded)
         || stored.source_superseded
         || crate::dependency_closure::active_barrier_for_source(
             connection,
@@ -875,15 +903,18 @@ fn authorize_intrinsic_lifecycle(
                 .artifact_state
                 .as_deref()
                 .and_then(LifecycleState::from_str_opt)
-                .filter(|state| *state == LifecycleState::Active)
+                .filter(|state| view.include_inactive || *state == LifecycleState::Active)
                 .ok_or_else(EvidenceErrorV1::unavailable)?;
-            EvidenceArtifactLifecycleV1::Node { state, superseded: false }
+            EvidenceArtifactLifecycleV1::Node { state, superseded: stored.artifact_superseded }
         }
         EvidenceArtifactClassV1::Edge => {
             if !stored.edge_valid {
                 return Err(EvidenceErrorV1::unavailable().into());
             }
-            EvidenceArtifactLifecycleV1::Edge { superseded: false, valid_at_effective: true }
+            EvidenceArtifactLifecycleV1::Edge {
+                superseded: stored.artifact_superseded,
+                valid_at_effective: true,
+            }
         }
     };
     Ok((source_state, artifact_lifecycle))
@@ -893,8 +924,9 @@ fn authorize_graph_intrinsic_lifecycle(
     connection: &Connection,
     stored: &StoredEvidence,
     artifact_class: EvidenceArtifactClassV1,
+    view: &crate::ReadView,
 ) -> Result<(), EngineError> {
-    authorize_intrinsic_lifecycle(connection, stored, artifact_class)?;
+    authorize_intrinsic_lifecycle(connection, stored, artifact_class, view)?;
     if artifact_class == EvidenceArtifactClassV1::Edge && stored.edge_temporal_fallback {
         return Err(EvidenceErrorV1::unavailable().into());
     }
@@ -1126,6 +1158,7 @@ fn load_graph_edge_revision(
     cursor: u64,
     effective: i64,
     include_out_of_window: bool,
+    include_superseded: bool,
 ) -> Result<(String, String, String, String, String), EngineError> {
     let cursor = i64::try_from(cursor).map_err(|_| EvidenceErrorV1::unavailable())?;
     connection
@@ -1135,11 +1168,16 @@ fn load_graph_edge_revision(
              JOIN _fathomdb_artifact_revisions ar \
                ON ar.write_cursor=e.write_cursor AND ar.artifact_class='edge' \
              JOIN _fathomdb_source_links l ON l.artifact_revision_id=ar.revision_id \
-             WHERE e.write_cursor=?1 AND e.superseded_at IS NULL \
+             WHERE e.write_cursor=?1 AND (?4=1 OR e.superseded_at IS NULL) \
                AND (?3=1 OR ((e.t_valid IS NULL OR e.t_valid<=?2) \
                              AND (e.t_invalid IS NULL OR e.t_invalid>?2))) \
                AND (e.temporal_fallback IS NULL OR e.temporal_fallback=0)",
-            rusqlite::params![cursor, effective, i64::from(include_out_of_window)],
+            rusqlite::params![
+                cursor,
+                effective,
+                i64::from(include_out_of_window),
+                i64::from(include_superseded)
+            ],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
         .optional()
@@ -1517,7 +1555,14 @@ fn query_graph_evidence_batch(
     let json = serde_json::to_string(cursors).map_err(|_| EngineError::Storage)?;
     let mut params = vec![rusqlite::types::Value::Text(json)];
     let target_filter = if artifact_class == EvidenceArtifactClassV1::Node {
-        crate::append_node_eligibility_sql(Some(&frozen.context.eligibility), "n", &mut params)
+        crate::filter::append_node_eligibility_sql_view(
+            connection,
+            Some(&frozen.context.eligibility),
+            "n",
+            &mut params,
+            &frozen.context.view,
+        )
+        .map_err(|_| EngineError::Storage)?
     } else {
         String::new()
     };
@@ -1716,12 +1761,13 @@ fn materialize_graph_evidence_batch(
                 }));
         let artifact_lifecycle_valid = match artifact_class {
             EvidenceArtifactClassV1::Node => {
-                artifact_state.as_deref() == Some("active")
-                    && artifact_superseded.is_none()
+                artifact_state.as_deref().and_then(LifecycleState::from_str_opt).is_some_and(
+                    |state| frozen.context.view.include_inactive || state == LifecycleState::Active,
+                ) && (frozen.context.view.include_superseded || artifact_superseded.is_none())
                     && in_window(artifact_valid_from, artifact_valid_until)
             }
             EvidenceArtifactClassV1::Edge => {
-                artifact_superseded.is_none()
+                (frozen.context.view.include_superseded || artifact_superseded.is_none())
                     && temporal_fallback.unwrap_or(0) == 0
                     && in_window(artifact_valid_from, artifact_valid_until)
             }
@@ -2201,13 +2247,19 @@ pub(crate) fn resolve_graph_evidence(
         frozen.context.view.include_out_of_window,
     )
     .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-    authorize_graph_intrinsic_lifecycle(connection, &stored, payload.artifact_class)?;
+    authorize_graph_intrinsic_lifecycle(
+        connection,
+        &stored,
+        payload.artifact_class,
+        &frozen.context.view,
+    )?;
     let eligible = match payload.artifact_class {
-        EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
+        EvidenceArtifactClassV1::Node => crate::filter::text_hit_passes_filter_view(
             connection,
             payload.artifact_cursor,
             &stored.artifact_kind,
             Some(&frozen.context.eligibility),
+            &frozen.context.view,
         ),
         EvidenceArtifactClassV1::Edge => Ok(true),
     }
@@ -2666,7 +2718,7 @@ impl Engine {
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         explain_intrinsic_preflights_for_test(connection)
@@ -2987,12 +3039,18 @@ mod tests {
     fn graph_nonce_generation_executes_no_sql_statement() {
         // Raw connections must share Engine's configure-before-open ordering.
         crate::configure_runtime_for_open().unwrap();
-        let connection = Connection::open_in_memory().unwrap();
+        let mut connection = Connection::open_in_memory().unwrap();
         NONCE_SQL_STATEMENTS.store(0, Ordering::SeqCst);
         connection
-            .trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT, Some(count_nonce_sql));
+            .trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT, Some(count_nonce_sql))
+            .expect("install the nonce SQL statement counter");
         let nonce = random_nonce().unwrap();
-        connection.trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+        connection
+            .trace_v2(
+                rusqlite::trace::TraceEventCodes::empty(),
+                None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+            )
+            .expect("clear the nonce SQL statement counter");
         assert_ne!(nonce, [0; 16]);
         assert_eq!(NONCE_SQL_STATEMENTS.load(Ordering::SeqCst), 0);
     }

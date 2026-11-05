@@ -32,6 +32,7 @@ clap = { version = "4.5", features = ["derive"] }
 # gates off the default `fathomdb` facade.
 fathomdb = { workspace = true, features = ["operator"] }
 fathomdb-embedder.workspace = true
+fathomdb-embedder-api.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -55,5 +56,5 @@ rerank-cuda = ["default-reranker", "tegra-pool", "fathomdb/rerank-cuda", "fathom
 # shapes the erasure verbs cannot reach (NULL `source_id`), which no supported
 # write path can produce. Raw SQL is the only way to build that fixture, and
 # design §3 Rule 1 requires erasure witnesses to assert on RAW table contents.
-rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint"] }
 tempfile = "3"

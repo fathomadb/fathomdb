@@ -360,12 +360,66 @@ for forbidden in \
   fi
 done
 
+# Declaration layout is private; prove the public installed export through tsc.
+for smoke in "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.sh" "$PS1_HELPER"; do
+  grep -Fq 'check-installed-types.mjs' "$smoke" \
+    || fail "${smoke##*/} must compile the isolated installed-package consumer"
+done
+if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != 1 ]; then
+  type_work="$(mktemp -d)"
+  trap 'rm -rf "$type_work"' EXIT
+  # Execute the real fixture-reading prefix without opening a database; this
+  # catches missing lexical imports in the independent Node heredoc.
+  python3 - "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.sh" "$type_work/frozen-prefix.mjs" <<'PYPREFIX'
+from pathlib import Path
+import re
+import sys
+bodies = re.findall(r"<<'JS'\n(.*?)\nJS", Path(sys.argv[1]).read_text(), re.S)
+body, = [body for body in bodies if 'const fixture = JSON.parse(readFileSync' in body]
+prefix = body.split('const engine =', 1)[0]
+prefix = prefix.replace('import { Engine } from "fathomdb";', '')
+Path(sys.argv[2]).write_text(prefix)
+PYPREFIX
+  printf 'fixture token\n' >"$type_work/token.txt"
+  node "$type_work/frozen-prefix.mjs" "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" "$type_work/unopened.sqlite" "$type_work/token.txt" \
+    || fail 'frozen-context fixture prefix must resolve its actual file-reading bindings'
+  type_consumer="$type_work/consumer"
+  type_package="$type_consumer/node_modules/fathomdb"
+  mkdir -p "$type_package/dist"
+  cp "$REPO_ROOT/src/ts/package.json" "$type_package/package.json"
+  node "$REPO_ROOT/src/ts/node_modules/typescript/bin/tsc" \
+    -p "$REPO_ROOT/src/ts/tsconfig.build.json" --declaration --emitDeclarationOnly --outDir "$type_package/dist" \
+    || fail 'current modular declaration fixture must build without native compilation'
+  printf 'main fixture archive\n' >"$type_work/main.tgz"
+  printf 'platform fixture archive\n' >"$type_work/native.tgz"
+  node "$REPO_ROOT/scripts/release/smoke/check-installed-types.mjs" \
+    "$type_consumer" "$REPO_ROOT/src/ts/node_modules/typescript/bin/tsc" "$type_work/main.tgz" "$type_work/native.tgz" \
+    || fail 'current modular installed package must compile the public type consumer'
+  python3 - "$type_package/dist/index.d.ts" <<'PYTYPE'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+assert 'GraphEvidenceResolveRequestV1,' in s
+p.write_text(s.replace('GraphEvidenceResolveRequestV1,', ''))
+PYTYPE
+  set +e
+  missing_output="$(node "$REPO_ROOT/scripts/release/smoke/check-installed-types.mjs" \
+    "$type_consumer" "$REPO_ROOT/src/ts/node_modules/typescript/bin/tsc" "$type_work/main.tgz" "$type_work/native.tgz" 2>&1)"
+  missing_rc=$?
+  set -e
+  [ "$missing_rc" -ne 0 ] && [[ "$missing_output" == *"GraphEvidenceResolveRequestV1"* ]] \
+    || fail 'consumer compilation must reject a missing public export, not borrow the internal declaration'
+  grep -Fq 'interface GraphEvidenceResolveRequestV1' "$type_package/dist/graph.d.ts" \
+    || fail 'missing-export control must leave the internal declaration intact'
+fi
+
 # Non-vacuous control: the exact-five assertion must reject a sixth matrix row,
 # rather than merely finding the five required rows somewhere in the workflow.
 if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   fixture="$(mktemp)"
   ps1_fixture="$(mktemp)"
-  trap 'rm -f "$fixture" "$ps1_fixture"' EXIT
+  trap 'rm -f "$fixture" "$ps1_fixture"; rm -rf "$type_work"' EXIT
   awk '
     $0 == "  native-artifact-runtime-validation:" { in_job = 1 }
     in_job && /^  [[:alnum:]_-]+:$/ && $0 != "  native-artifact-runtime-validation:" { in_job = 0 }

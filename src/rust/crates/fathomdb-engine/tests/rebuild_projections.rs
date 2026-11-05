@@ -226,17 +226,9 @@ fn ac_063c_rebuild_projections_materializes_failed_terminal_rows() {
 
 /// 0.8.12 Slice A (R-CON-2 named default-ON blocker; Slice-20 codex §9 [P2]).
 ///
-/// Graph traversal excludes an invalidated edge via a
-/// `t_invalid IS NULL OR datetime(t_invalid) > datetime('now')` filter, but
-/// (before this fix) the FTS/vec PROJECTION rebuild SQL does not — so a full
-/// `rebuild_projections()` re-materializes an invalidated (non-superseded)
-/// edge's FTS/vec shadows, re-surfacing a stale contradiction that
-/// consolidation had already hidden. This test drives the REAL
-/// `consolidate_with_provider` recency path (deterministic stub harness) to
-/// invalidate the older of two competing fact-edges, rebuilds, and asserts
-/// the invalidated edge stays absent from both `search_index_edges` and
-/// `_fathomdb_vector_rows` while the still-valid edge survives the rebuild
-/// (guard against a vacuous test that hides everything).
+/// Rebuild retains expired lexical history for past views while current search
+/// excludes it. Expired vectors remain outside rebuild scheduling, and drain
+/// must finish without phantom pending work. The current edge remains indexed.
 #[test]
 fn slice_a_rebuild_projections_excludes_recency_invalidated_edge() {
     let dir = TempDir::new().unwrap();
@@ -299,7 +291,7 @@ fn slice_a_rebuild_projections_excludes_recency_invalidated_edge() {
         // harness keeps the latest `t_valid` (globex) and invalidates the
         // older competing edge (acme) at the winner's `t_valid` — a PAST
         // timestamp, so acme is immediately "ended" per the recency filter
-        // (mirrors `apply_consolidate_verdicts`'s `ended` check).
+        // and current-view predicates exclude acme.
         let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/slice15_consolidate/stub_consolidate_harness.py");
         assert!(
@@ -321,7 +313,7 @@ fn slice_a_rebuild_projections_excludes_recency_invalidated_edge() {
         assert_eq!(consolidate_receipt.edges_kept, 1, "globex must be kept");
 
         // The bug under test: a full rebuild truncates + re-materializes every
-        // FTS/vec shadow from `canonical_edges` — this MUST NOT re-surface the
+        // FTS/vec shadow from `canonical_edges` — current search must exclude the
         // now-`t_invalid`-excluded acme edge. If the projection scheduler's
         // pending-work probe does not mirror the same filter, this `drain()`
         // would hang forever on a phantom-pending invalidated edge.
@@ -331,16 +323,18 @@ fn slice_a_rebuild_projections_excludes_recency_invalidated_edge() {
             .drain(10_000)
             .expect("post-rebuild drain must not hang on a phantom-pending invalidated edge");
 
+        assert!(opened.engine.search_text_only("acme").unwrap().results.is_empty());
+        let past =
+            fathomdb_engine::ReadView { valid_as_of: Some(1_600_000_000), ..Default::default() };
+        let historical = opened.engine.search_text_only_view("acme", &past).unwrap();
+        assert_eq!(historical.results.len(), 1);
+        assert_eq!(historical.results[0].write_cursor, acme_cursor);
         (acme_cursor, globex_cursor)
     };
 
     let conn = Connection::open(&path).unwrap();
 
-    assert_eq!(
-        edge_fts_count(&conn, "acme"),
-        0,
-        "rebuild must NOT re-surface the t_invalid-excluded edge in search_index_edges"
-    );
+    assert_eq!(edge_fts_count(&conn, "acme"), 1, "rebuild retains lexical history for past views");
     assert_eq!(
         edge_fts_count(&conn, "globex"),
         1,

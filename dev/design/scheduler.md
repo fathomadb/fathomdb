@@ -33,6 +33,15 @@ queue is a distinct bound. Full embed admission or queued expiry waits for
 capacity and leaves durable work pending; it does not spend or reset a
 provider-failure retry. Close wakes these capacity waits.
 
+## Bounded pending scans
+
+The .28 selector bounds pending candidates before expensive membership/hydration
+work, including eligible stranded rows below the watermark. It separates pending
+eligibility from terminal failure audit and in-flight claims; the progress cursor
+alone is not a queue. No-provider dense work remains pending, and `drain` reports
+that state rather than inventing vector completion. The scan-bound/scaling tests
+exercise these rules without changing admission, retry or publication semantics.
+
 ## Fixed retry policy
 
 Started provider failure or timeout and invalid output use the existing

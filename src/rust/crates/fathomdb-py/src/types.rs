@@ -545,15 +545,6 @@ pub(super) struct PyOpenReport {
     /// Dynamic workspace state — true iff
     /// `_fathomdb_embedder_profiles.mean_vec IS NOT NULL`.
     pub(super) embedder_mean_vec_pinned: bool,
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6) — `True` iff the
-    /// open-time #5 self-check found a vector-equivalence divergence beyond the
-    /// D4 floor and every vector-dependent arm now refuses at query time with
-    /// `VectorEquivalenceMismatchError`. The text-only/FTS-only path
-    /// (`search_text_only`) stays serviceable.
-    pub(super) dense_disabled: bool,
-    /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
-    /// tripped), or `None` when dense is healthy.
-    pub(super) dense_disabled_reason: Option<String>,
     /// Strict CPU/CUDA selection used to construct the embedder, or `None` when
     /// no embedder was configured.
     pub(super) embedder_device_resolution: Option<PyDeviceResolution>,
@@ -589,8 +580,6 @@ impl PyOpenReport {
             embedder_events,
             embedder_mean_centering_required: r.embedder_mean_centering_required,
             embedder_mean_vec_pinned: r.embedder_mean_vec_pinned,
-            dense_disabled: r.dense_disabled,
-            dense_disabled_reason: r.dense_disabled_reason.clone(),
             embedder_device_resolution: r
                 .embedder_device_resolution
                 .as_ref()

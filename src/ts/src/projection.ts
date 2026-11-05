@@ -3,8 +3,8 @@ import { intercept } from "./native-call.js";
 import { validateFfiTree } from "./validation.js";
 // Private projection owner for the TypeScript SDK package root.
 
-export type ProjectionReadinessV1 = "ready" | "processing" | "blocked" | "deferred" | "degraded";
-export type ProjectionRuntimeStateV1 = "absent" | "usable" | "refused";
+export type ProjectionReadinessV1 = "ready" | "processing" | "blocked" | "degraded";
+export type ProjectionRuntimeStateV1 = "absent" | "usable";
 export type ProjectionGenerationOriginV1 =
   "fresh" | "legacy_unverified" | "configuration" | "rebuild";
 
@@ -55,8 +55,8 @@ export type ProjectionRole = "filterable" | "rankable" | "searchable";
  * 0.8.20 Slice 15d (R-20-PR / C-1) — a declarative projection declaration.
  * HITL-ratified shape `{ name, roles, fts?, vector? }`; `roles` carries SET
  * semantics. `fts` selects the `searchable→FTS` sub-target (optional custom
- * `ftsTokenizer`); `vector` selects `searchable→vector` (optional
- * `vectorEmbedder`). The `vector` sub-object is stored by Slice 15d; Slice 20
+ * `ftsTokenizer`); `vector` selects `searchable→vector`. Historical
+ * `vectorEmbedder` strings remain readable; new declarations accept null/omitted only. The `vector` sub-object is stored by Slice 15d; Slice 20
  * (R-20-DR) hangs the engine-set `vectorDenseReadiness` off it. Mirrors the
  * Python `ProjectionSpec` (cross-binding parity).
  */
@@ -69,7 +69,7 @@ export interface ProjectionSpec {
   ftsTokenizer?: string | null;
   /** `true` when the `searchable→vector` sub-target is declared. */
   vector: boolean;
-  /** Optional embedder override; omitted = engine default (only with `vector`). */
+  /** Historical selector on reads; new declarations permit only null/omitted (engine default). */
   vectorEmbedder?: string | null;
   /** Literal canonical-body member path; omitted retains top-level `name`. */
   source?: string[] | null;
@@ -92,7 +92,9 @@ export interface ProjectionSpec {
    *
    * Supplying it to `configureProjections` is INERT — it is not part of the
    * declaration and the engine always reports the derived truth — so
-   * `read.projections` output still re-applies as a no-op. Supplying it with
+   * `read.projections` output re-applies only when its provider selectors are
+   * valid for current production admission. Historical caller-selector strings
+   * remain readable but are refused on new declarations. Supplying it with
    * `vector: false`, or any spelling outside
    * `{"unavailable", "embedding", "ready"}`, throws a
    * typed `FDB_INVALID_ARGUMENT` (it could not round-trip).
@@ -137,7 +139,7 @@ export interface ProjectionDelta {
 
 /** Reason an open engine session has no usable dense runtime. */
 export type ProjectionRuntimeUnavailabilityReason =
-  "none" | "no_runtime" | "vector_equivalence_disabled";
+  "none" | "no_runtime";
 
 /** Dense status for one declared projection in {@link ProjectionRuntimeStatus}. */
 export type ProjectionStatusDenseReadiness = "not_declared" | "unavailable" | "embedding" | "ready";
@@ -162,7 +164,7 @@ export interface ProjectionRuntimeStatus {
   vectorUnsupportedKinds: string[];
 }
 
-export type EmbeddingReadinessState = "ready" | "processing" | "deferred" | "blocked";
+export type EmbeddingReadinessState = "ready" | "processing" | "blocked";
 export type EmbeddingOperation = "graph_edge_body_projection" | "vector_projection";
 export interface EmbeddingReadiness {
   state: EmbeddingReadinessState;

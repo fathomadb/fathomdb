@@ -97,10 +97,13 @@ fn assert_after_validation_mutation_uses_the_pinned_snapshot(mutation: Mutation)
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_frozen_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_frozen_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
 
     let worker = {
         let engine = Arc::clone(&engine);
@@ -131,4 +134,35 @@ fn lifecycle_erasure_dependency_and_projection_changes_after_validation_are_snap
     {
         assert_after_validation_mutation_uses_the_pinned_snapshot(mutation);
     }
+}
+
+#[test]
+fn after_validation_hook_cannot_be_consumed_by_another_engine() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let dir = TempDir::new().unwrap();
+    let first = Engine::open(dir.path().join("first.sqlite")).unwrap().engine;
+    let second = Engine::open(dir.path().join("second.sqlite")).unwrap().engine;
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let first_frozen = first.freeze_read_context(&context).unwrap();
+    let second_frozen = second.freeze_read_context(&context).unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&calls);
+    arm_frozen_after_validation_hook_for_test(
+        &first,
+        Box::new(move || {
+            observed.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
+    second.search_frozen("needle", &second_frozen, 0, false, 0.3, 0, false, 10).unwrap();
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "an unrelated engine must not consume the rendezvous"
+    );
+    first.search_frozen("needle", &first_frozen, 0, false, 0.3, 0, false, 10).unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    first.search_frozen("needle", &first_frozen, 0, false, 0.3, 0, false, 10).unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 1, "the owning hook remains one-shot");
+    first.close().unwrap();
+    second.close().unwrap();
 }

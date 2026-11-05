@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use fathomdb_embedder::{EmbedderEvent, NoopEmbedder};
 use fathomdb_engine::{
-    mean_centering_internals_for_test, EmbedderChoice, Engine, EngineOpenError,
+    mean_centering_internals_for_test, Engine, EngineOpenError, TestEmbedderChoice,
     MEAN_VEC_PIN_THRESHOLD, TOP_K_BIT_CANDIDATES,
 };
 use rusqlite::Connection;
@@ -33,9 +33,11 @@ fn fixture_path(name: &str) -> (TempDir, std::path::PathBuf) {
 
 fn open_noop(name: &str) -> (TempDir, std::path::PathBuf, fathomdb_engine::OpenedEngine) {
     let (dir, path) = fixture_path(name);
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect("open noop");
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("open noop");
     (dir, path, opened)
 }
 
@@ -92,9 +94,11 @@ fn mean_vec_pinned_true_when_column_is_set() {
             )
             .expect("update mean_vec");
     }
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect("reopen");
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("reopen");
     assert!(opened.report.embedder_mean_vec_pinned);
 }
 
@@ -113,9 +117,11 @@ fn mean_vec_dimension_mismatch_fails_closed_on_read() {
             )
             .expect("update mean_vec");
     }
-    let err =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .expect_err("dimension mismatch must fail closed");
+    let err = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect_err("dimension mismatch must fail closed");
     match err {
         EngineOpenError::EmbedderIdentityMismatch { .. } => {}
         other => panic!("expected EmbedderIdentityMismatch, got {other:?}"),

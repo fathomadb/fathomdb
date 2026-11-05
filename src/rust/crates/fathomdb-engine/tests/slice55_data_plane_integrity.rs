@@ -820,7 +820,7 @@ fn slice55_mutation_readiness_receipt_matrix_reports_guarded_corruption() {
 fn slice55_projection_scan_plans_use_indexed_order() {
     let (_dir, opened) = opened();
     let candidates = opened.engine.data_plane_integrity_candidate_queries_for_test();
-    assert_eq!(candidates.len(), 12);
+    assert_eq!(candidates.len(), 13);
     for (table, index) in [
         ("canonical_nodes", "canonical_nodes_write_cursor_idx"),
         ("canonical_edges", "canonical_edges_write_cursor_idx"),
@@ -851,6 +851,11 @@ fn slice55_projection_scan_plans_use_indexed_order() {
             assert!(sql.contains(&format!("INDEXED BY {index}")), "missing {index}: {sql}");
         }
     }
+    let spans = candidates
+        .iter()
+        .find(|sql| sql.contains("FROM _fathomdb_vector_spans"))
+        .expect("span candidate query");
+    assert!(spans.contains("vector_rowid>=?1 ORDER BY vector_rowid LIMIT ?2"));
     let plans = opened.engine.data_plane_integrity_query_plans_for_test().unwrap();
     for required in [
         "canonical_nodes_write_cursor_idx",
@@ -860,6 +865,7 @@ fn slice55_projection_scan_plans_use_indexed_order() {
         "search_index_edges",
         "canonical_attributes",
         "property_search_index",
+        "_fathomdb_vector_spans USING INTEGER PRIMARY KEY",
     ] {
         assert!(plans.iter().any(|plan| plan.contains(required)), "missing {required}: {plans:#?}");
     }

@@ -186,6 +186,17 @@ pub fn recover_complete_erasures(
         EngineOpenError::Io { message: "could not read owed physical closures".to_string() }
     })?;
     let ids = pending.iter().map(|row| row.id.clone()).collect::<Vec<_>>();
+    let extra = physical_erasure::diagnostics(&connection).map_err(|_| EngineOpenError::Io {
+        message: "could not read root or retained-term erasure debt".into(),
+    })?;
+    let reported_ids = ids
+        .iter()
+        .map(|id| id.as_str().to_owned())
+        .chain(extra.iter().map(|row| row.closure_id.clone()))
+        .collect::<Vec<_>>();
+    physical_erasure::validate_pending(&connection, &ids).map_err(|_| EngineOpenError::Io {
+        message: "root erasure zero validation failed".into(),
+    })?;
     dependency_closure::validate_physical_closures(&connection, &ids).map_err(|_| {
         EngineOpenError::Io { message: "owed erasure physical-zero validation failed".to_string() }
     })?;
@@ -206,7 +217,7 @@ pub fn recover_complete_erasures(
             message: "original telemetry sink is unavailable; erasure remains owed".to_string(),
         });
     }
-    if ids.is_empty() {
+    if reported_ids.is_empty() {
         return Ok(CompleteErasuresReport {
             status: TruncateWalStatus::Done,
             closure_ids: Vec::new(),
@@ -216,6 +227,15 @@ pub fn recover_complete_erasures(
         });
     }
 
+    connection
+        .pragma_update(None, "secure_delete", "ON")
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    physical_erasure::sanitize(&connection).map_err(|_| EngineOpenError::Io {
+        message: "retained-term sanitation remains owed".into(),
+    })?;
+    physical_erasure::prepare_redacted(&connection, &ids).map_err(|_| EngineOpenError::Io {
+        message: "physical erasure finalization transition failed".into(),
+    })?;
     let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
         .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
@@ -224,18 +244,18 @@ pub fn recover_complete_erasures(
     if busy != 0 {
         return Ok(CompleteErasuresReport {
             status: TruncateWalStatus::Busy,
-            closure_ids: ids.iter().map(|id| id.as_str().to_owned()).collect(),
+            closure_ids: reported_ids.clone(),
             busy: busy.max(0) as u32,
             log_frames: log_frames.max(0) as u32,
             checkpointed_frames: checkpointed_frames.max(0) as u32,
         });
     }
-    dependency_closure::complete_physical_closures(&connection, &ids).map_err(|_| {
-        EngineOpenError::Io { message: "owed erasure final validation failed".to_string() }
+    physical_erasure::finalize(&connection, &ids).map_err(|_| EngineOpenError::Io {
+        message: "owed erasure final validation failed".to_string(),
     })?;
     Ok(CompleteErasuresReport {
         status: TruncateWalStatus::Done,
-        closure_ids: ids.iter().map(|id| id.as_str().to_owned()).collect(),
+        closure_ids: reported_ids,
         busy: 0,
         log_frames: log_frames.max(0) as u32,
         checkpointed_frames: checkpointed_frames.max(0) as u32,
@@ -297,10 +317,18 @@ fn validate_recovery_schema_invariants(
     connection: &Connection,
     schema_version: u32,
 ) -> Result<(), EngineOpenError> {
+    if schema_version >= 36 {
+        crate::erasure_maintenance::read_policy(connection)
+            .map_err(|_| recovery_schema_corruption("_fathomdb_open_state"))?;
+        crate::erasure_queue::validate(connection)
+            .map_err(|_| recovery_schema_corruption("_fathomdb_erasure_requests"))?;
+    }
     validate_dependency_generation_on_open(connection, schema_version)?;
     frozen_read::validate_on_open(connection, schema_version)
         .map_err(|_| recovery_schema_corruption("_fathomdb_read_visibility_state"))?;
     dependency_closure::validate_closure_state_on_open(connection, schema_version)?;
+    physical_erasure::validate_state(connection)
+        .map_err(|_| recovery_schema_corruption("_fathomdb_open_state"))?;
     Ok(())
 }
 

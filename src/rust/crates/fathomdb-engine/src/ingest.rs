@@ -47,6 +47,7 @@ impl Engine {
         cmd: &[&str],
         documents: &[ExtractDocument],
     ) -> Result<IngestWithExtractorReceipt, EngineError> {
+        let _operation = self.ensure_open()?;
         // 0.8.6 Slice 5 (ADR-0.8.6): the spawn + hello/ready handshake +
         // request_id framing + error mapping now live in the reusable
         // `provider_session` transport seam, parameterized by `ProviderTask`.

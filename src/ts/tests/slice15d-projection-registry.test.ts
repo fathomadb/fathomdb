@@ -547,7 +547,7 @@ test("fix-4 CONTROL — a consistent spec round-trips verbatim via read.projecti
       fts: true,
       ftsTokenizer: "unicode61",
       vector: true,
-      vectorEmbedder: "bge-small",
+      vectorEmbedder: null,
     };
     const delta = await engine.configureProjections([sent]);
     assert.equal(delta.unchanged, false);
@@ -667,4 +667,30 @@ test("rankable and vector sub-target are deferred, not built", async () => {
   } finally {
     await engine.close();
   }
+});
+
+
+for (const selector of ["", "default", "bge-small", "custom/model"]) {
+  test(`string provider selector ${JSON.stringify(selector)} is rejected before mutation`, async () => {
+    const path = freshDbPath();
+    const engine = await Engine.open(path);
+    try {
+      await assert.rejects(engine.configureProjections([{
+        name: "body", roles: ["searchable"], vector: true, fts: false,
+        vectorEmbedder: selector,
+      }]), (error: unknown) => error instanceof InvalidArgumentError || error instanceof WriteValidationError);
+      assert.deepEqual(await read.projections(engine), []);
+    } finally { await engine.close(); }
+    assert.deepEqual(registryNames(path), []);
+  });
+}
+
+test("explicit null provider selector round-trips as the engine default", async () => {
+  const engine = await Engine.open(freshDbPath());
+  try {
+    await engine.configureProjections([{ name: "body", roles: ["searchable"], vector: true, fts: false, vectorEmbedder: null }]);
+    const specs = await read.projections(engine);
+    assert.equal(specs.length, 1);
+    assert.equal(specs[0].vectorEmbedder ?? null, null);
+  } finally { await engine.close(); }
 });

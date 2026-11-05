@@ -70,6 +70,8 @@ const DENSE_TERMINAL_MEMBER_QUERY: &str =
 const DENSE_SIDECAR_MEMBER_QUERY: &str = "SELECT rowid,write_cursor FROM _fathomdb_vector_rows \
      WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
+const DENSE_SPAN_MEMBER_QUERY: &str = "SELECT vector_rowid,write_cursor FROM _fathomdb_vector_spans WHERE vector_rowid>=?1 ORDER BY vector_rowid LIMIT ?2";
+#[cfg(feature = "operator")]
 const DENSE_VECTOR_MEMBER_QUERY: &str =
     "SELECT rowid,rowid FROM vector_default WHERE rowid>=?1 LIMIT ?2";
 #[cfg(feature = "operator")]
@@ -152,7 +154,7 @@ fn nullable_text_value(row: &rusqlite::Row<'_>, index: usize) -> NullableValue<S
 }
 
 #[cfg(all(feature = "operator", feature = "test-hooks"))]
-pub(crate) fn candidate_queries_for_test() -> [&'static str; 12] {
+pub(crate) fn candidate_queries_for_test() -> [&'static str; 13] {
     [
         NODE_BODY_OWNER_QUERY,
         EDGE_BODY_OWNER_QUERY,
@@ -164,6 +166,7 @@ pub(crate) fn candidate_queries_for_test() -> [&'static str; 12] {
         DENSE_TERMINAL_MEMBER_QUERY,
         DENSE_SIDECAR_MEMBER_QUERY,
         DENSE_VECTOR_MEMBER_QUERY,
+        DENSE_SPAN_MEMBER_QUERY,
         CURRENT_GENERATION_QUERY,
         RECEIPT_GUARD_QUERY,
     ]
@@ -189,8 +192,12 @@ fn physical_dense_candidates(
 ) -> Result<DenseCandidates, EngineError> {
     let mut candidates = BTreeSet::new();
     let mut invalid = 0usize;
-    for sql in [DENSE_TERMINAL_MEMBER_QUERY, DENSE_SIDECAR_MEMBER_QUERY, DENSE_VECTOR_MEMBER_QUERY]
-    {
+    for sql in [
+        DENSE_TERMINAL_MEMBER_QUERY,
+        DENSE_SIDECAR_MEMBER_QUERY,
+        DENSE_VECTOR_MEMBER_QUERY,
+        DENSE_SPAN_MEMBER_QUERY,
+    ] {
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
         let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
         let rows = statement
@@ -1231,10 +1238,17 @@ fn dense_physical_shape(
         })
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let present_count =
-        u8::from(terminal.is_some()) + u8::from(sidecar.is_some()) + u8::from(vector.is_some());
+    let span_count = crate::vector_spans::count_for_cursor(connection, cursor as u64)
+        .map_err(|_| EngineError::Storage)?;
+    let span_valid = crate::vector_spans::validate(connection, Some(cursor as u64)).is_ok();
+    let present_count = u8::from(terminal.is_some())
+        + u8::from(sidecar.is_some())
+        + u8::from(vector.is_some())
+        + u8::from(span_count != 0);
     let expected_source_type = crate::resolve_source_type(expected_kind)?;
-    let complete = terminal.as_ref().is_some_and(|state| state.as_deref() == Some("up_to_date"))
+    let complete = span_count == 1
+        && span_valid
+        && terminal.as_ref().is_some_and(|state| state.as_deref() == Some("up_to_date"))
         && sidecar.as_ref().is_some_and(|(rowid, kind)| {
             rowid.is_some_and(|rowid| rowid == cursor) && kind.as_deref() == Some(expected_kind)
         })
@@ -1245,7 +1259,10 @@ fn dense_physical_shape(
     Ok(DensePhysicalShape {
         present_count,
         complete,
-        terminal_only: terminal.is_some() && sidecar.is_none() && vector.is_none(),
+        terminal_only: terminal.is_some()
+            && sidecar.is_none()
+            && vector.is_none()
+            && span_count == 0,
     })
 }
 
@@ -1634,19 +1651,21 @@ fn active_projection_findings(
         .is_err()
         {
             let cursor_i64 = i64::try_from(*cursor).map_err(|_| EngineError::Storage)?;
-            let (terminal, sidecar, physical): (bool, bool, bool) = connection
+            let (terminal, sidecar, physical, span): (bool, bool, bool, bool) = connection
                 .query_row(
                     "SELECT \
                        EXISTS(SELECT 1 FROM _fathomdb_projection_terminal WHERE write_cursor=?1),\
                        EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1),\
-                       EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)",
+                       EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1),\
+                       EXISTS(SELECT 1 FROM _fathomdb_vector_spans WHERE vector_rowid=?1 OR write_cursor=?1)",
                     [cursor_i64],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .map_err(|_| EngineError::Storage)?;
-            let present = u8::from(terminal) + u8::from(sidecar) + u8::from(physical);
+            let present =
+                u8::from(terminal) + u8::from(sidecar) + u8::from(physical) + u8::from(span);
             let mut item = finding(
-                if present == 1 || present == 2 {
+                if (1..4).contains(&present) {
                     DataPlaneIntegrityFindingCodeV1::DenseProjectionPartial
                 } else {
                     DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch
@@ -1723,9 +1742,8 @@ fn active_projection_findings(
                         DataPlaneIntegrityFindingCodeV1::DenseProjectionOutsideMembership
                     }
                     OwnerRetention::RequiredMembership | OwnerRetention::LegitimateRetained => {
-                        if shape.as_ref().is_some_and(|shape| {
-                            shape.present_count == 1 || shape.present_count == 2
-                        }) {
+                        if shape.as_ref().is_some_and(|shape| (1..4).contains(&shape.present_count))
+                        {
                             DataPlaneIntegrityFindingCodeV1::DenseProjectionPartial
                         } else {
                             DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch
@@ -2446,7 +2464,7 @@ impl Engine {
     /// Query-plan details for bounded Slice 55 integrity owner and physical scans.
     #[cfg(all(feature = "operator", feature = "test-hooks"))]
     pub fn data_plane_integrity_query_plans_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let statements = crate::data_plane_integrity::candidate_queries_for_test();
@@ -2469,7 +2487,7 @@ impl Engine {
     /// Candidate SQL executed by the bounded Slice 55 integrity scans.
     #[cfg(all(feature = "operator", feature = "test-hooks"))]
     #[doc(hidden)]
-    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 12] {
+    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 13] {
         crate::data_plane_integrity::candidate_queries_for_test()
     }
 
@@ -2479,7 +2497,7 @@ impl Engine {
         &self,
         request: DataPlaneIntegrityRequestV1,
     ) -> Result<DataPlaneIntegrityResultV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         crate::data_plane_integrity::execute(connection, request)

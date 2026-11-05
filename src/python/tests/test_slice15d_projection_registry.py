@@ -386,7 +386,7 @@ def test_consistent_fts_spec_round_trips(tmp_path) -> None:
     """fix-4 non-vacuous CONTROL — a CONSISTENT spec (`fts=True` WITH a real
     custom tokenizer) is ACCEPTED and, read back via `read.projections`, equals
     what was sent. Proves the gate rejects only inconsistent shapes, not every
-    tokenizer/embedder."""
+    tokenizer/default-provider shape."""
     engine = _open(str(tmp_path / "consistent.sqlite"))
     try:
         sent = ProjectionSpec(
@@ -395,7 +395,7 @@ def test_consistent_fts_spec_round_trips(tmp_path) -> None:
             fts=True,
             fts_tokenizer="unicode61",
             vector=True,
-            vector_embedder="bge-small",
+            vector_embedder=None,
         )
         delta = engine.configure_projections([sent])
         assert delta.unchanged is False
@@ -412,7 +412,7 @@ def test_consistent_fts_spec_round_trips(tmp_path) -> None:
         )
         assert dataclasses.replace(got, vector_dense_readiness=None) == sent
         assert got.fts is True and got.fts_tokenizer == "unicode61"
-        assert got.vector is True and got.vector_embedder == "bge-small"
+        assert got.vector is True and got.vector_embedder is None
     finally:
         engine.close()
 
@@ -598,3 +598,25 @@ def test_rankable_and_vector_are_deferred_not_built(tmp_path) -> None:
         assert summary.vector is True
     finally:
         engine.close()
+
+
+@pytest.mark.parametrize("selector", ["", "default", "bge-small", "custom/model"])
+def test_all_string_provider_selectors_are_rejected_before_mutation(tmp_path, selector: str) -> None:
+    """Production engine admission permits only an omitted/null selector."""
+    path = str(tmp_path / "selector.sqlite")
+    engine = _open(path)
+    try:
+        with pytest.raises((InvalidArgumentError, WriteValidationError)):
+            engine.configure_projections([ProjectionSpec(
+                name="body", roles=frozenset({ProjectionRole.SEARCHABLE}),
+                vector=True, vector_embedder=selector,
+            )])
+        assert read.projections(engine) == []
+        with pytest.raises((InvalidArgumentError, WriteValidationError)):
+            _native_configure_projections(engine._native, [_NativeProjectionSpec(
+                name="body", roles=["searchable"], vector=True, vector_embedder=selector,
+            )], [])
+        assert read.projections(engine) == []
+    finally:
+        engine.close()
+    assert _registry_names(path) == []

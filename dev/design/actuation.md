@@ -3,7 +3,7 @@ title: Actuation Subsystem Design
 date: 2026-09-15
 target_release: 0.8.26
 desc: Atomic caller-decided semantic batches, prospective validation, compact receipts, replay, and lifecycle effects
-blast_radius: fathomdb-engine actuation; Rust/Python/TypeScript bindings; schema-34 receipt tables
+blast_radius: fathomdb-engine actuation; Rust/Python/TypeScript bindings; schema-36 receipt tables
 status: ACTIVE
 ---
 
@@ -28,7 +28,7 @@ their declared durable effects.
 
 There is no V2 type, parser, method, router, redirect, or historical V1 reader.
 The current request, digest, receipt, replay, and integrity rules apply only to
-fresh schema-34 databases.
+fresh schema-36 databases.
 
 ## Admission and prospective validation
 

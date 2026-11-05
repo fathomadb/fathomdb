@@ -12,6 +12,8 @@
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
+| `dev/plans/0.8.28/features/slice-92/design.md` | Documentation owner, schema-target correction and verification design | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/inventory.md` | Code-grounded audit dispositions and witnesses for user, contributor and project documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/plan-0.8.23.md` | **Completed 0.8.23 release plan.** Retained release evidence; it is not the current planning surface. | 0.8.23 history | 2026-08-23 |
 | `dev/plans/release-state-0.8.23.json` | **Completed 0.8.23 single writer.** Retained state evidence; live work must be resolved rather than inferred from it. | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | **Completed 0.8.23 state board.** Retained in place; not a current-work declaration. | 0.8.23 history | 2026-08-23 |
@@ -25,9 +27,15 @@
 | `dev/plans/runs/STATUS-0.8.26.md` | **Completed 0.8.26 board.** Retained release and publication evidence through Slice 65. | 0.8.26 history | 2026-09-21 |
 | `dev/plans/0.8.27-draft-scope.md` | **Superseded 0.8.27 intake.** F27-01 moved into the executable plan; unproven continuity candidates moved to 0.8.28. | 0.8.27 history | 2026-09-21 |
 | `dev/plans/plan-0.8.27.md` | **0.8.27 release plan.** Correction-safe erasure followed by behavior-preserving semantic decomposition; publication separately gated. | 0.8.27 | 2026-09-21 |
-| `dev/plans/plan-0.8.28.md` | **0.8.28 release plan.** Indexes Slice 30 (Tegra private pool) and Slice 31 (forked cudarc and Candle from crates.io); quality-roadmap consultation; open placement decisions. | 0.8.28 | 2026-10-13 |
-| `dev/plans/release-state-0.8.28.json` | **Active 0.8.28 single writer.** Owns the ladder, ruled/open decisions, schema baseline, next-slice pointer, and publication state. | 0.8.28 Slice 31 | 2026-10-13 |
-| `dev/plans/runs/STATUS-0.8.28.md` | **Active 0.8.28 board.** Current state, next action, and ladder for 0.8.28. | 0.8.28 Slice 31 | 2026-10-13 |
+| `dev/plans/plan-0.8.28.md` | Active release plan through documentation convergence and final CI qualification; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/release-state-0.8.28.json` | Active release state with Slice 92 before Slice 95; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/runs/STATUS-0.8.28.md` | Active release board with documentation and CI qualification work remaining; publication separately held. | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/status.md` | CI repair and release-readiness execution status after Slice 92; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/plan.md` | CI repairs and final qualification plan consuming Slice 92 documentation; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/design.md` | Bounded CI repairs, RED/GREEN controls and candidate qualification design. | 0.8.28 Slice 95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/qualification.md` | Applicable CI jobs, final candidate routes, executor resources and evidence dispositions. | 0.8.28 Slice 95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/status.md` | Documentation convergence status and verification outcomes | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/plan.md` | Documentation audit/convergence scope, requirements and execution plan; publication separately held. | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/release-state-0.8.27.json` | **Published 0.8.27 single writer.** Owns the release ladder, ruled/open decisions, schema baseline, live next-slice pointer, and publication state. | 0.8.27 Slice 140 | 2026-10-10 |
 | `dev/plans/runs/STATUS-0.8.27.md` | **Published 0.8.27 board.** Renders current slice and release-branch completion from release state; prose records slice evidence and limits. | 0.8.27 Slice 140 | 2026-10-10 |
 | `dev/plans/0.8.27/features/slice-10/` | **Completed Slice 10 package.** Plan, design, reviews, TDD chronology, exact prerequisites, verification, and status for bounded repository preparation. | 0.8.27 Slice 10 | 2026-09-21 |

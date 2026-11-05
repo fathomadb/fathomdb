@@ -8,7 +8,7 @@ impl Engine {
         &self,
         context: &ReadContextV1,
     ) -> Result<FrozenReadContextV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let (frozen, generation) = frozen_read::mint(connection, context)?;
@@ -35,7 +35,7 @@ impl Engine {
         &self,
         frozen: &FrozenReadContextV1,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let binding = frozen_read::authenticate(connection, frozen)?;
@@ -87,13 +87,12 @@ impl Engine {
         limit: usize,
         snippet: Option<SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, frozen)?
         };
-        frozen.context.view.reject_existence_relaxation_on_search()?;
         self.search_inner_with_frozen_binding_and_stats(
             query,
             Some(frozen.context.eligibility.clone()),
@@ -169,21 +168,13 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, &request.context)
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?
         };
-        request.context.context.view.reject_existence_relaxation_on_search()?;
-        let dense_disabled_reason = self.dense_disabled.load(Ordering::Acquire).then(|| {
-            self.dense_disabled_reason
-                .lock()
-                .ok()
-                .and_then(|guard| guard.clone())
-                .unwrap_or_else(|| "open-time #5 vector-equivalence self-check failed".to_string())
-        });
         let result_limit = request.limit as usize;
         let candidate_limit = self
             .projection_runtime
@@ -205,8 +196,6 @@ impl Engine {
             request.pool_n as usize,
             if self.runtime_embedder.is_none() {
                 ProjectionRuntimeStateV1::Absent
-            } else if self.dense_disabled.load(Ordering::Acquire) {
-                ProjectionRuntimeStateV1::Refused
             } else {
                 ProjectionRuntimeStateV1::Usable
             },
@@ -215,7 +204,6 @@ impl Engine {
             FrozenQueryRuntime::new(
                 Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
-                dense_disabled_reason,
                 Arc::clone(&self.read_visibility_generation),
             ),
         );
@@ -239,10 +227,6 @@ impl Engine {
             }
             Err(SearchReaderError::FrozenRead(_)) => {
                 return Err(EngineError::Evidence(EvidenceErrorV1::unavailable()))
-            }
-            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                return Err(EngineError::VectorEquivalenceMismatch { reason });
             }
             Err(SearchReaderError::WriteValidation) => return Err(EngineError::WriteValidation),
             Err(SearchReaderError::InvalidArgument(msg)) => {
@@ -281,7 +265,7 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
@@ -313,7 +297,7 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
@@ -397,13 +381,12 @@ impl Engine {
         depth: u32,
         limit: usize,
     ) -> Result<SearchExpandResult, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, frozen)?
         };
-        frozen.context.view.reject_existence_relaxation_on_search()?;
         let (_search, _stats, expanded) = self.search_inner_with_frozen_binding_and_expansion(
             query,
             Some(frozen.context.eligibility.clone()),
@@ -545,30 +528,10 @@ impl Engine {
         expand_depth: Option<u32>,
         snippet: Option<SnippetOptions>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
-        self.ensure_open()?;
-        // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the SINGLE
-        // vector-dependent choke point. If the open-time self-check found a
-        // divergence beyond the D4 floor, refuse EVERY vector-dependent arm
-        // (search / search_expand / explain-rerank / graph-arm all funnel here)
-        // BEFORE any embedding / vector SQL / graph seeding / CE rerank — no
-        // silent partial results. The text-only/FTS-only path
-        // (`search_text_only`) does NOT route through here, so FTS stays
-        // serviceable in degraded mode.
+        let _operation = self.ensure_open()?;
         let is_frozen = frozen_binding.is_some();
-        let dense_disabled_reason =
-            self.dense_disabled.load(Ordering::Acquire).then(|| {
-                self.dense_disabled_reason.lock().ok().and_then(|g| g.clone()).unwrap_or_else(
-                    || "open-time #5 vector-equivalence self-check failed".to_string(),
-                )
-            });
-        if !is_frozen {
-            if let Some(reason) = dense_disabled_reason.as_ref() {
-                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                return Err(EngineError::VectorEquivalenceMismatch { reason: reason.clone() });
-            }
-            if query.trim().is_empty() {
-                return Err(EngineError::WriteValidation);
-            }
+        if !is_frozen && query.trim().is_empty() {
+            return Err(EngineError::WriteValidation);
         }
 
         // 0.8.20 Slice 15e fix-2 finding 1 [P2] — every filter attribute name is
@@ -634,7 +597,6 @@ impl Engine {
             Box::new(FrozenQueryRuntime::new(
                 Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
-                dense_disabled_reason,
                 Arc::clone(&self.read_visibility_generation),
             ))
         });
@@ -673,8 +635,6 @@ impl Engine {
                 explain,
                 if self.runtime_embedder.is_none() {
                     ProjectionRuntimeStateV1::Absent
-                } else if self.dense_disabled.load(Ordering::Acquire) {
-                    ProjectionRuntimeStateV1::Refused
                 } else {
                     ProjectionRuntimeStateV1::Usable
                 },
@@ -714,10 +674,6 @@ impl Engine {
             }
             Err(SearchReaderError::FrozenRead(error)) => {
                 return Err(EngineError::FrozenRead(error));
-            }
-            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-                return Err(EngineError::VectorEquivalenceMismatch { reason });
             }
             Err(SearchReaderError::WriteValidation) => {
                 return Err(EngineError::WriteValidation);
@@ -780,17 +736,9 @@ impl Engine {
     /// [`ReadView`], the escape hatch matching the one the five read verbs got in
     /// Slice 10b. `search(query)` is exactly `search_view(query, &ReadView::default())`.
     ///
-    /// **Scope: the VALIDITY axis only.** `include_out_of_window` and
-    /// `valid_as_of` are honoured; the EXISTENCE flags (`include_superseded`,
-    /// `include_inactive`) are **refused** with
-    /// [`EngineError::InvalidArgument`] rather than silently ignored. Relaxing
-    /// `superseded_at IS NULL` on a retrieval path would resurrect the stale-body
-    /// leak the Slice-15 fix-1 review closed, and search hydrates from projection
-    /// indexes (`search_index`, `vector_default`) that are not version-complete —
-    /// so "include superseded" has no truthful answer here. Refusing says that;
-    /// ignoring would be the dead surface this fix exists to remove.
-    ///
-    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
+    /// Validity, supersession and inactive-state flags compose independently.
+    /// Historical hybrid search falls back from the whole vector arm when its
+    /// visible historical vectors are unavailable; malformed tuples are errors.
     pub fn search_view(&self, query: &str, view: &ReadView) -> Result<SearchResult, EngineError> {
         self.search_view_with_limit(query, view, DEFAULT_SEARCH_RESULT_LIMIT)
     }
@@ -816,10 +764,9 @@ impl Engine {
     /// `search_reranked(q, f, d, g, a, p)` is exactly
     /// `search_reranked_view(q, f, d, g, a, p, false, &ReadView::default())`.
     ///
-    /// Validity axis only; existence flags are refused. See
+    /// All view axes compose independently. See
     /// [`search_view`][Engine::search_view].
     ///
-    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
     #[allow(clippy::too_many_arguments)] // mirrors search_explained + the view
     pub fn search_reranked_view(
         &self,
@@ -915,7 +862,7 @@ impl Engine {
 
     /// G10 — hybrid `search` with an optional closed [`SearchFilter`]. `None`
     /// (or an all-`None` filter) is the unfiltered path whose phase-1 SQL is
-    /// byte-identical to 0.7.2. The filter prunes the vector branch in the
+    /// subject to native lifecycle and validity eligibility. The filter prunes the vector branch in the
     /// single phase-1 candidates statement and constrains the text branch by the
     /// same metadata. Ranking is the unconditional G9 RRF fusion.
     pub fn search_filtered(
@@ -937,7 +884,7 @@ impl Engine {
         // sugar through the unified `Filter` type, then lower back to the vec0
         // backend's `SearchFilter` (D4). The round-trip is lossless +
         // canonical-order-preserving, so the produced phase-1 SQL stays
-        // byte-identical to 0.7.2 on the `None`/all-`None` path. `SearchFilter`
+        // guarded by native lifecycle and validity on every path. `SearchFilter`
         // never carries a `Json` term, so `to_search_filter` never rejects here.
         //
         // 0.8.20 Slice 15e — the unified `Filter`/`FilterTerm` grammar does not yet
@@ -1106,16 +1053,10 @@ impl Engine {
         )
     }
 
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the explicit
-    /// **text-only / FTS-only** search path. It does NOT embed the query and does
-    /// NOT route through the vector-dependent choke point
-    /// [`search_inner_with_stats`][Engine::search_inner_with_stats], so it NEVER
-    /// raises [`EngineError::VectorEquivalenceMismatch`] and stays serviceable when
-    /// the engine opened in the degraded `dense_disabled` state (the D2 "keep FTS
-    /// servable" contract; codex R2 U1-2). Results come from the node- and
-    /// edge-body FTS branches only — no vector recall, no CE rerank, no graph arm.
-    /// Available regardless of degraded state; when dense is healthy it is simply a
-    /// text-only view of the same corpus. Matching node- and edge-body
+    /// Search node and edge bodies using FTS only, without embedding the query,
+    /// vector recall, CE reranking or graph expansion. Available on a successfully
+    /// opened engine, including an explicit no-provider recovery session after
+    /// failed compatibility admission. Matching node- and edge-body
     /// candidates are body-deduplicated and deterministically ranked before
     /// the requested result limit is applied.
     ///
@@ -1137,10 +1078,9 @@ impl Engine {
     }
 
     /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — [`search_text_only`][Engine::search_text_only]
-    /// under an explicit [`ReadView`]. Same validity-axis-only scope, and the same
-    /// typed refusal of the existence flags, as [`search_view`][Engine::search_view].
+    /// under an explicit [`ReadView`]. Honors all independent view axes without
+    /// reporting fallback for the unused vector arm.
     ///
-    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
     pub fn search_text_only_view(
         &self,
         query: &str,
@@ -1161,28 +1101,32 @@ impl Engine {
         view: &ReadView,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
-        self.search_text_only_view_with_snippets(query, view, limit, None)
+        self.search_text_only_filtered(query, None, view, limit)
     }
 
-    /// [`search_text_only_view_with_limit`][Engine::search_text_only_view_with_limit]
-    /// with optional EP-17 match-centred snippets (see
-    /// [`search_reranked_view_with_snippets`][Engine::search_reranked_view_with_snippets]).
+    /// Search node and edge bodies using FTS only with a closed metadata filter.
+    ///
+    /// The filter is validated on the reader snapshot and applied before candidate
+    /// bounds, body deduplication and ranking. Attribute predicates are node-scoped.
+    /// Status and creation-time predicates require existing projected metadata;
+    /// missing metadata fails to match. No embedding or vector retrieval runs.
+    /// `view` controls validity and existence; `limit` must be in `1..=100`.
+    /// At fixed corpus, view time and filter, smaller limits are ordered prefixes.
     ///
     /// # Errors
-    ///
-    /// As the plain search, plus [`EngineError::InvalidArgument`] when
-    /// `snippet` fails [`SnippetOptions::validate`].
-    pub fn search_text_only_view_with_snippets(
+    /// Returns `InvalidFilter` for undeclared/non-filterable attributes,
+    /// `InvalidArgument` for invalid limits, `WriteValidation` for blank queries,
+    /// and the existing closing/storage errors.
+    pub fn search_text_only_filtered(
         &self,
         query: &str,
+        filter: Option<SearchFilter>,
         view: &ReadView,
         limit: usize,
-        snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
+        let filter = filter.filter(|filter| !filter.is_unfiltered());
         let limit = validate_search_result_limit(limit)?;
-        validate_snippet(snippet)?;
-        self.ensure_open()?;
-        view.reject_existence_relaxation_on_search()?;
+        let _operation = self.ensure_open()?;
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -1194,8 +1138,7 @@ impl Engine {
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
         let request = ReaderRequest::search(
-            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view)
-                .with_snippet(snippet.copied()),
+            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view, filter),
             response_tx,
         );
         if self.reader_pool.dispatch(request).is_err() {
@@ -1227,8 +1170,88 @@ impl Engine {
             Err(SearchReaderError::FrozenRead(error)) => {
                 return Err(EngineError::FrozenRead(error));
             }
-            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                return Err(EngineError::VectorEquivalenceMismatch { reason });
+            Err(SearchReaderError::WriteValidation) => {
+                return Err(EngineError::WriteValidation);
+            }
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                return Err(EngineError::InvalidArgument { msg });
+            }
+            Err(SearchReaderError::Sqlite(err)) => {
+                self.emit_sqlite_internal_error(&err);
+                return Err(EngineError::Storage);
+            }
+        };
+        Ok(SearchResult {
+            projection_cursor: cursor,
+            soft_fallback,
+            results,
+            explanation,
+            degradations: Vec::new(),
+            snippets,
+        })
+    }
+
+    /// [`search_text_only_view_with_limit`][Engine::search_text_only_view_with_limit]
+    /// with optional EP-17 match-centred snippets (see
+    /// [`search_reranked_view_with_snippets`][Engine::search_reranked_view_with_snippets]).
+    ///
+    /// # Errors
+    ///
+    /// As the plain search, plus [`EngineError::InvalidArgument`] when
+    /// `snippet` fails [`SnippetOptions::validate`].
+    pub fn search_text_only_view_with_snippets(
+        &self,
+        query: &str,
+        view: &ReadView,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        validate_snippet(snippet)?;
+        let _operation = self.ensure_open()?;
+        if query.trim().is_empty() {
+            return Err(EngineError::WriteValidation);
+        }
+        let compiled = compile_text_query_with(query, &self.query_stop_words);
+        let candidate_limit =
+            self.projection_runtime.shared.search_limit_override.load(Ordering::SeqCst).max(limit);
+        let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
+        // This explicit marker distinguishes direct text-only search from a hybrid
+        // request whose embedder yields no vector. Only the direct path gets the
+        // fixed node candidate bound before node/edge body deduplication and RRF.
+        let request = ReaderRequest::search(
+            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view, None)
+                .with_snippet(snippet.copied()),
+            response_tx,
+        );
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
+        let (
+            cursor,
+            soft_fallback,
+            results,
+            _graph_stats,
+            explanation,
+            _expanded,
+            _degradations,
+            snippets,
+        ) = match search_result {
+            Ok(result) => result,
+            // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
+            // through: an undeclared `filterable` attribute is the EXISTING typed
+            // `InvalidFilter`, never collapsed to `Storage`. (This path takes
+            // `filter = None`, so it never fires here, but the match stays total.)
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                return Err(EngineError::InvalidFilter { reason });
+            }
+            Err(SearchReaderError::Evidence(error)) => return Err(error),
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::from(error));
+            }
+            Err(SearchReaderError::FrozenRead(error)) => {
+                return Err(EngineError::FrozenRead(error));
             }
             Err(SearchReaderError::WriteValidation) => {
                 return Err(EngineError::WriteValidation);
@@ -1281,8 +1304,7 @@ impl Engine {
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
-        self.ensure_open()?;
-        view.reject_existence_relaxation_on_search()?;
+        let _operation = self.ensure_open()?;
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -1307,9 +1329,6 @@ impl Engine {
             }
             Err(SearchReaderError::RerankerDevicePolicy(error)) => Err(EngineError::from(error)),
             Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
-            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                Err(EngineError::VectorEquivalenceMismatch { reason })
-            }
             Err(SearchReaderError::WriteValidation) => Err(EngineError::WriteValidation),
             Err(SearchReaderError::InvalidArgument(msg)) => {
                 Err(EngineError::InvalidArgument { msg })
@@ -1319,30 +1338,6 @@ impl Engine {
                 Err(EngineError::Storage)
             }
         }
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — degraded-open observability accessor. `true` iff
-    /// the open-time #5 self-check found a vector-equivalence divergence and every
-    /// vector-dependent arm is refusing. Mirrors `OpenReport.dense_disabled`; read
-    /// lock-free.
-    #[must_use]
-    pub fn dense_disabled(&self) -> bool {
-        self.dense_disabled.load(Ordering::Acquire)
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state
-    /// (which representation tripped), or `None` when dense is healthy.
-    #[must_use]
-    pub fn dense_disabled_reason(&self) -> Option<String> {
-        self.dense_disabled_reason.lock().ok().and_then(|g| g.clone())
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: number of query-time
-    /// vector-dependent-arm refusals raised because the engine opened degraded.
-    /// Observable pre/post-query.
-    #[must_use]
-    pub fn vector_equivalence_refusal_count(&self) -> u64 {
-        self.vector_equivalence_refusals.load(Ordering::Relaxed)
     }
 
     /// Shared event-wrapped body for [`search_reranked`][Engine::search_reranked]
@@ -1363,10 +1358,7 @@ impl Engine {
         limit: usize,
         snippet: Option<SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
-        // fix-2: refuse an existence-relaxing view BEFORE any work (and before the
-        // Started event), so the refusal is a pure argument error rather than a
-        // half-emitted query lifecycle.
-        view.reject_existence_relaxation_on_search()?;
+        let _operation = self.ensure_open()?;
         self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Search, None);
         let started = Instant::now();
         let outcome = self
@@ -1428,7 +1420,7 @@ impl Engine {
         query: &str,
         plan: &Bm25fQueryPlan,
     ) -> Result<Vec<(u64, f64)>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         bm25f_search_inner(connection, query, plan).map_err(|_| EngineError::Storage)
@@ -1472,7 +1464,7 @@ impl Engine {
         limit: usize,
     ) -> Result<SearchExpandResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if depth > 3 {
             return Err(EngineError::InvalidArgument {
                 msg: format!("traversal depth {depth} exceeds the SDK ceiling of 3"),
@@ -1640,13 +1632,12 @@ impl Engine {
 }
 
 /// Test seam — exposes [`build_vector_phase1_sql`] at the production
-/// `SEARCH_RERANK_LIMIT` so `pr_g10_filtered_knn.rs` can pin the `filter=None`
-/// byte-identity and the appended predicates.
+/// `SEARCH_RERANK_LIMIT` so tests can pin pre-cap eligibility and filter bindings.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 #[must_use]
 pub fn vector_phase1_sql_for_test(filter: Option<&SearchFilter>) -> String {
-    build_vector_phase1_sql(filter, SEARCH_RERANK_LIMIT)
+    build_vector_phase1_sql(filter, SEARCH_RERANK_LIMIT, &ReadView::default())
 }
 
 /// Test seam pinning production ranked SQL around the shared eligibility

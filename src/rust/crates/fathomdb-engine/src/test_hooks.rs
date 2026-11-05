@@ -1,6 +1,44 @@
 #[cfg(any(test, feature = "test-hooks"))]
 use super::*;
 
+#[cfg(any(test, feature = "test-hooks"))]
+pub(crate) mod physical_erasure_hooks {
+    use crate::EngineError;
+    use std::cell::RefCell;
+    type Hook = (&'static str, Box<dyn Fn() -> Result<(), EngineError> + Send>);
+    thread_local! { static HOOK: RefCell<Option<Hook>> = const { RefCell::new(None) }; }
+
+    pub(crate) fn arm(phase: &'static str, hook: Box<dyn Fn() -> Result<(), EngineError> + Send>) {
+        HOOK.with(|slot| *slot.borrow_mut() = Some((phase, hook)));
+    }
+
+    pub(crate) fn fire(phase: &str) -> Result<(), EngineError> {
+        let hook = HOOK.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            if slot.as_ref().is_some_and(|(armed, _)| *armed == phase) {
+                slot.take()
+            } else {
+                None
+            }
+        });
+        if let Some((_, hook)) = hook {
+            hook()?;
+        }
+        Ok(())
+    }
+}
+
+/// Arm one thread-scoped erasure fault rendezvous; the callback may fail or exit.
+/// The hook is consumed only by the named production erasure boundary.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn arm_physical_erasure_hook_for_test(
+    phase: &'static str,
+    hook: Box<dyn Fn() -> Result<(), EngineError> + Send>,
+) {
+    physical_erasure_hooks::arm(phase, hook);
+}
+
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the
 /// non-shipped characterization feature and exists solely to delimit real CE
 /// forwards against a test wrapper around the real BGE embedder.
@@ -552,40 +590,56 @@ pub fn arm_reader_search_hook_for_test(engine: &crate::Engine) -> ReaderSearchPa
 /// production code and remains outside the governed API surface.
 #[cfg(any(test, feature = "test-hooks"))]
 pub(crate) mod frozen_after_validation_hook {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use crate::{Engine, WalAttributionCollector};
     use std::sync::Mutex;
 
-    static ARMED: AtomicBool = AtomicBool::new(false);
-    #[allow(clippy::type_complexity)]
-    static HOOK: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);
-
-    pub(crate) fn arm(hook: Box<dyn Fn() + Send>) {
-        *HOOK.lock().expect("frozen after-validation hook mutex") = Some(hook);
-        ARMED.store(true, Ordering::SeqCst);
+    #[derive(Default)]
+    pub(crate) struct FrozenAfterValidationHook {
+        #[allow(clippy::type_complexity)]
+        hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     }
 
-    pub(crate) fn fire() {
-        if !ARMED.swap(false, Ordering::SeqCst) {
-            return;
-        }
-        if let Some(hook) = HOOK.lock().expect("frozen after-validation hook mutex").take() {
+    pub(crate) fn arm(engine: &Engine, hook: Box<dyn Fn() + Send>) {
+        let mut slot = engine
+            .wal_attribution
+            .frozen_after_validation_hook
+            .hook
+            .lock()
+            .expect("frozen after-validation hook mutex");
+        assert!(slot.is_none(), "frozen after-validation hook already armed for this Engine");
+        *slot = Some(hook);
+    }
+
+    pub(crate) fn fire(collector: &WalAttributionCollector) {
+        let hook = collector
+            .frozen_after_validation_hook
+            .hook
+            .lock()
+            .expect("frozen after-validation hook mutex")
+            .take();
+        if let Some(hook) = hook {
             hook();
         }
     }
 }
 
-/// Arm the Slice-35 post-validation rendezvous for one frozen read.
+/// Arm a one-shot post-validation rendezvous for a frozen read on `engine`.
+/// Panics if that engine already has an armed hook; other engines are independent.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
-pub fn arm_frozen_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    frozen_after_validation_hook::arm(hook);
+pub fn arm_frozen_after_validation_hook_for_test(
+    engine: &crate::Engine,
+    hook: Box<dyn Fn() + Send>,
+) {
+    frozen_after_validation_hook::arm(engine, hook);
 }
 
-/// Arm the same post-validation rendezvous specifically for one frozen page.
+/// Arm the same engine-owned post-validation rendezvous for one frozen page.
+/// Panics if that engine already has an armed hook; other engines are independent.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
-pub fn arm_page_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    frozen_after_validation_hook::arm(hook);
+pub fn arm_page_after_validation_hook_for_test(engine: &crate::Engine, hook: Box<dyn Fn() + Send>) {
+    frozen_after_validation_hook::arm(engine, hook);
 }
 
 // Slice 50 one-shot rendezvous for the exact evidence transaction seams. Both
@@ -774,4 +828,144 @@ pub fn arm_explanation_before_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + 
 #[doc(hidden)]
 pub fn arm_explanation_after_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
     explanation_finalization_hooks::arm_after(hook);
+}
+
+/// Engine-owned rendezvous after a private historical property corpus is populated.
+#[cfg(feature = "test-hooks")]
+pub(crate) mod property_corpus_hook {
+    use crate::wal_attribution::WalAttributionCollector;
+    use crate::Engine;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
+    use std::sync::{Arc, Mutex, Weak};
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(15);
+
+    #[derive(Default)]
+    pub(crate) struct PropertyCorpusHook {
+        armed: AtomicBool,
+        pause: Mutex<Option<Arc<Pause>>>,
+    }
+
+    struct Pause {
+        ready: SyncSender<()>,
+        release: Mutex<Receiver<()>>,
+        fail_after_population: bool,
+    }
+
+    /// One-shot property-search pause, scoped to one Engine.
+    ///
+    /// Dropping the guard releases a parked reader and disarms an unconsumed
+    /// pause. A requested fault returns Storage after the populated corpus is
+    /// released. Waits are bounded; no other Engine or strict query is affected.
+    pub struct PropertyCorpusPauseForTest {
+        ready: Receiver<()>,
+        release: Sender<()>,
+        pause: Arc<Pause>,
+        collector: Weak<WalAttributionCollector>,
+    }
+
+    impl PropertyCorpusPauseForTest {
+        /// Wait at most fifteen seconds for completed corpus population.
+        /// Timeout/disconnection also releases and cancels this rendezvous.
+        pub fn wait_ready(&self, timeout: Duration) -> Result<(), RecvTimeoutError> {
+            let result = self.ready.recv_timeout(timeout.min(TIMEOUT));
+            if result.is_err() {
+                self.cancel();
+            }
+            result
+        }
+
+        /// Release a parked reader; repeated calls are harmless.
+        pub fn release(&self) {
+            let _ = self.release.send(());
+        }
+
+        fn cancel(&self) {
+            self.release();
+            if let Some(collector) = self.collector.upgrade() {
+                let hook = &collector.property_corpus_hook;
+                let mut slot = hook.pause.lock().expect("property-corpus hook mutex");
+                if slot.as_ref().is_some_and(|pause| Arc::ptr_eq(pause, &self.pause)) {
+                    slot.take();
+                    hook.armed.store(false, Ordering::Release);
+                }
+            }
+        }
+    }
+
+    impl Drop for PropertyCorpusPauseForTest {
+        fn drop(&mut self) {
+            self.cancel();
+        }
+    }
+
+    pub(crate) fn arm(engine: &Engine, fail_after_population: bool) -> PropertyCorpusPauseForTest {
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let (release_tx, release_rx) = mpsc::channel();
+        let pause = Arc::new(Pause {
+            ready: ready_tx,
+            release: Mutex::new(release_rx),
+            fail_after_population,
+        });
+        let hook = &engine.wal_attribution.property_corpus_hook;
+        let mut slot = hook.pause.lock().expect("property-corpus hook mutex");
+        if slot.is_some() {
+            drop(slot);
+            panic!("property-corpus pause already armed for this Engine");
+        }
+        *slot = Some(Arc::clone(&pause));
+        hook.armed.store(true, Ordering::Release);
+        PropertyCorpusPauseForTest {
+            ready: ready_rx,
+            release: release_tx,
+            pause,
+            collector: Arc::downgrade(&engine.wal_attribution),
+        }
+    }
+
+    pub(crate) fn fire(collector: &WalAttributionCollector) -> rusqlite::Result<()> {
+        let hook = &collector.property_corpus_hook;
+        if !hook.armed.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let pause = {
+            let mut slot = hook.pause.lock().expect("property-corpus hook mutex");
+            let pause = slot.take();
+            hook.armed.store(false, Ordering::Release);
+            pause
+        };
+        if let Some(pause) = pause {
+            if pause.ready.send(()).is_ok() {
+                let _ = pause
+                    .release
+                    .lock()
+                    .expect("property-corpus release mutex")
+                    .recv_timeout(TIMEOUT);
+            }
+            if pause.fail_after_population {
+                return Err(rusqlite::Error::InvalidQuery);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+pub use property_corpus_hook::PropertyCorpusPauseForTest;
+
+/// Pause the next relaxed property search after its private corpus is populated.
+///
+/// `fail_after_population` returns the ordinary Storage error after release.
+/// Strict property searches do not consume the hook. Retain the guard until
+/// `wait_ready` succeeds, then release it; Drop also releases/disarms it.
+/// Panics if this Engine already has an unconsumed property-corpus pause.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn arm_property_corpus_hook_for_test(
+    engine: &crate::Engine,
+    fail_after_population: bool,
+) -> PropertyCorpusPauseForTest {
+    property_corpus_hook::arm(engine, fail_after_population)
 }

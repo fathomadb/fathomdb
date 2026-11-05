@@ -125,10 +125,10 @@ EP03_EP17_STUB_EDITS = (
     (
         "    # EP-17: `snippet` is a `fathomdb.SnippetOptions` (read by attribute).\n"
         "    def search_text_only(\n"
-        "        self,\n"
-        "        query: str,\n"
-        "        view: ReadView | None = ...,\n"
-        "        limit: int = ...,\n"
+        "        self, query: str, view: ReadView | None = ..., limit: int = ..., *,\n"
+        "        source_type: str | None = ..., kind: str | None = ...,\n"
+        "        created_after: int | None = ..., status: str | None = ...,\n"
+        "        attributes: list[tuple[str, str]] | None = ...,\n"
         "        snippet: object | None = ...,\n"
         "    ) -> SearchResult: ...\n",
         "    def search_text_only(\n"
@@ -234,6 +234,20 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
             **old,
             "signature": old["signature"].replace("pool_n: int=0", "pool_n: int | None=None"),
         }
+    # D28-14 extends only the direct-body filter keyword; preserve both aliases.
+    text_signature = (
+        "def search_text_only(self, query: str, view: ReadView | None=None, *, "
+        "limit: int=10) -> SearchResult"
+    )
+    filtered_text_signature = (
+        "def search_text_only(self, query: str, view: ReadView | None=None, *, "
+        "limit: int=10, filter: SearchFilter | None=None) -> SearchResult"
+    )
+    for namespace in ("fathomdb", "fathomdb.engine"):
+        path_name = f"{namespace}.Engine.search_text_only"
+        old = expected[path_name]
+        assert old["signature"] == text_signature
+        expected[path_name] = {**old, "signature": filtered_text_signature}
     expected["fathomdb.errors.DependencyTraceError"] = {
         "kind": "python-value",
         "path": "fathomdb.errors.DependencyTraceError",
@@ -267,9 +281,68 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
         "path": "fathomdb.snippet_for",
         "signature": EP17_SNIPPET_FOR,
     }
+
+    # Owner seq-359 replaces attached-but-refused engines with typed failed opens.
+    provider_removals = {
+        f"{namespace}.Engine.{name}": {
+            "kind": "python-method",
+            "path": f"{namespace}.Engine.{name}",
+            "signature": signature,
+        }
+        for namespace in ("fathomdb", "fathomdb.engine")
+        for name, signature in (
+            ("dense_disabled", "def dense_disabled(self) -> bool"),
+            ("dense_disabled_reason", "def dense_disabled_reason(self) -> str | None"),
+            ("vector_equivalence_refusal_count", "def vector_equivalence_refusal_count(self) -> int"),
+        )
+    }
+    for name, signature in (
+        ("dense_disabled", "dense_disabled: bool = False"),
+        ("dense_disabled_reason", "dense_disabled_reason: str | None = None"),
+    ):
+        path_name = f"fathomdb.types.OpenReport.{name}"
+        provider_removals[path_name] = {
+            "kind": "python-attribute", "path": path_name, "signature": signature,
+        }
+    assert len(provider_removals) == 8
+    for path_name, old_row in provider_removals.items():
+        assert expected.pop(path_name) == old_row
+
+    provider_literals = {
+        "EmbeddingReadinessState": (
+            "Literal['ready', 'processing', 'deferred', 'blocked']",
+            "Literal['ready', 'processing', 'blocked']",
+        ),
+        "ProjectionReadinessV1": (
+            "Literal['ready', 'processing', 'blocked', 'deferred', 'degraded']",
+            "Literal['ready', 'processing', 'blocked', 'degraded']",
+        ),
+        "ProjectionRuntimeStateV1": (
+            "Literal['absent', 'usable', 'refused']", "Literal['absent', 'usable']",
+        ),
+        "ProjectionRuntimeUnavailabilityReason": (
+            "Literal['none', 'no_runtime', 'vector_equivalence_disabled']",
+            "Literal['none', 'no_runtime']",
+        ),
+    }
+    assert len(provider_literals) == 4
+    for name, (old_literal, new_literal) in provider_literals.items():
+        path_name = f"fathomdb.{name}"
+        old_row = {
+            "kind": "python-value", "path": path_name, "signature": f"{name} = {old_literal}",
+        }
+        assert expected[path_name] == old_row
+        expected[path_name] = {**old_row, "signature": f"{name} = {new_literal}"}
+    verification_error = {
+        "kind": "python-value",
+        "path": "fathomdb.errors.VectorVerificationError",
+        "signature": "VectorVerificationError = _VectorVerificationError",
+    }
+    assert verification_error["path"] not in expected
+    expected[verification_error["path"]] = verification_error
     observed = {row["path"]: row for row in declarations}
     assert len(declarations) == len(observed) == len(expected) == (
-        1132 + len(declared) + 2 * len(EP03_EP17_TYPE_DECLARATIONS) + 1
+        1132 + len(declared) - 8 + 1 + 2 * len(EP03_EP17_TYPE_DECLARATIONS) + 1
     )
     assert observed == expected
 
@@ -277,6 +350,92 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     for current, historical in EP03_EP17_STUB_EDITS:
         assert stub.count(current) == 1, current
         stub = stub.replace(current, historical)
+    verification_error_stub = (
+        "class VectorVerificationError(EngineError):\n"
+        '    """Open failed because vector verification could not complete; no engine exists."""\n'
+        "    probe_ordinal: int | None\n"
+        "    cause_code: str | None\n"
+        "    cause_message: str | None\n"
+        "    provider_kind: str | None\n"
+        "    provider_error: EmbedderError | None\n"
+        "    def __init__(self, *args: Any, probe_ordinal: int | None = ..., "
+        "cause_code: str | None = ..., cause_message: str | None = ..., "
+        "provider_kind: str | None = ..., provider_error: EmbedderError | None = ...) -> None: ...\n\n"
+    )
+    lifecycle_comment = (
+        "# OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors. Parity-safe\n"
+    )
+    provider_stub_deltas = (
+        (
+            "    embedder_mean_vec_pinned: bool\n"
+            "    dense_disabled: bool\n"
+            "    dense_disabled_reason: str | None\n"
+            "    embedder_device_resolution: DeviceResolution | None\n",
+            "    embedder_mean_vec_pinned: bool\n"
+            "    embedder_device_resolution: DeviceResolution | None\n",
+        ),
+        (
+            "    def dense_disabled(self) -> bool: ...\n"
+            "    def dense_disabled_reason(self) -> str | None: ...\n"
+            "    def vector_equivalence_refusal_count(self) -> int: ...\n"
+            "    # 0.8.8 Slice 15 (OPP-9) — opt-in local telemetry capture.\n",
+            "    # 0.8.8 Slice 15 (OPP-9) — opt-in local telemetry capture.\n",
+        ),
+        (
+            "# 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.\n",
+            "# Actual numeric verification refusal fails open with its original reason.\n",
+        ),
+        (lifecycle_comment, verification_error_stub + lifecycle_comment),
+    )
+    for old_stub, approved_stub in provider_stub_deltas:
+        assert stub.count(approved_stub) == 1
+        stub = stub.replace(approved_stub, old_stub, 1)
+    # Exact owner-approved maintenance additions leave every other frozen byte
+    # under the existing checksum; no historical baseline is regenerated.
+    maintenance_class = (
+        "class ErasureMaintenance:\n"
+        "    def reattach_original_erasure_sink(self, ticket: str, path: str) -> None: ...\n"
+        "    def complete_physical_erasure(self, ticket: str) -> str: ...\n"
+        "    def queue_physical_erasure(self, selector_json: str, key: str) -> str: ...\n"
+        "    def close(self) -> str: ...\n\n"
+    )
+    maintenance_engine_methods = (
+        "    def queue_physical_erasure(self, selector_json: str, key: str) -> str: ...\n"
+        "    def physical_erasure_status(self, ticket: str) -> str: ...\n"
+        "    def withdraw_queued_erasure(self, ticket: str) -> str: ...\n"
+        "    def physical_erasure_policy(self) -> str: ...\n"
+        "    def begin_erasure_maintenance(self, acquisition_wait_ms: int) -> ErasureMaintenance: ...\n"
+    )
+    maintenance_error = (
+        "\nclass MaintenanceError(EngineError):\n"
+        "    reason: str\n"
+        "    def __init__(self, *args: Any, reason: str = ...) -> None: ...\n"
+    )
+    for approved_stub in (
+        maintenance_class + "class Engine:\n",
+        "class Engine:\n" + maintenance_engine_methods,
+        maintenance_error,
+    ):
+        assert stub.count(approved_stub) == 1
+        replacement = "class Engine:\n" if "class Engine:\n" in approved_stub else ""
+        stub = stub.replace(approved_stub, replacement, 1)
+    # Slice 80 changes only this view-contract comment; preserve the declaration
+    # checksum and every unapproved byte in the frozen baseline comparison.
+    historical_view_comment = (
+        "        # Optional lifecycle and validity view. Defaults to active,\n"
+        "        # non-superseded rows valid at query time. The existence flags compose\n"
+        "        # independently; unavailable dense history reports vector soft fallback.\n"
+        "        # See `fathomdb.engine.Engine.search`.\n"
+    )
+    original_view_comment = (
+        "        # 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — optional VALIDITY view.\n"
+        "        # `None` (default) is the strict view: active-only, non-superseded, and\n"
+        "        # valid AT QUERY TIME. The EXISTENCE flags (`include_superseded` /\n"
+        "        # `include_inactive`) raise `InvalidArgumentError` on this path rather\n"
+        "        # than being silently ignored. See `fathomdb.engine.Engine.search`.\n"
+    )
+    assert stub.count(historical_view_comment) == 1
+    stub = stub.replace(historical_view_comment, original_view_comment, 1)
     prefix, marker, tail = stub.partition("    def search_frozen(\n")
     assert marker and "    def search_frozen(\n" not in tail
     frozen, suffix = tail.split("    ) -> SearchResult: ...\n", 1)

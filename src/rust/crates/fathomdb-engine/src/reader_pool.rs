@@ -1,3 +1,63 @@
+use crate::physical_reader_admission;
+
+#[cfg(test)]
+mod diagnostic_admission_tests {
+    use super::*;
+
+    #[test]
+    fn gated_data_and_full_queue_cannot_strand_diagnostic_inventory() {
+        for fill_queue in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let engine = Arc::new(
+                crate::Engine::open(directory.path().join("inventory.sqlite")).unwrap().engine,
+            );
+            let admission = engine.reader_pool.physical_admission();
+            let pause = admission.pause().unwrap();
+            let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+            let (release_tx, release_rx) = mpsc::channel();
+            engine.reader_pool.hold_worker_zero_wal_snapshot_bounded(ready_tx, release_rx);
+            if fill_queue {
+                loop {
+                    let (respond, _) = mpsc::sync_channel(1);
+                    if engine.reader_pool.senders[0]
+                        .try_send(ReaderRequest::WalConnectionInventory { respond })
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+            let observer = Arc::clone(&engine);
+            let (done_tx, done_rx) = mpsc::channel();
+            let worker = thread::spawn(move || {
+                let connections = observer.reader_pool.wal_connection_inventory_for_test();
+                let native = observer.reader_pool.wal_native_state_inventory_for_test();
+                done_tx.send((connections, native)).unwrap();
+            });
+            let observed = done_rx.recv_timeout(Duration::from_secs(3));
+            let snapshot_was_gated = matches!(ready_rx.try_recv(), Err(mpsc::TryRecvError::Empty));
+            // Always release the real reader and join before asserting a failed witness.
+            drop(pause);
+            drop(release_tx);
+            worker.join().unwrap();
+            engine.close().unwrap();
+            assert!(snapshot_was_gated, "diagnostics must never admit the queued data snapshot");
+            let (connections, native) =
+                observed.expect("diagnostic reply must remain bounded behind gated data");
+            assert_eq!(
+                connections.len(),
+                READER_POOL_SIZE - 1,
+                "missing facts cannot masquerade as idle replies"
+            );
+            assert!(connections.into_iter().all(|idle| idle));
+            assert!(matches!(native[0].reply, NativeStateReply::Timeout));
+            assert!(native[1..]
+                .iter()
+                .all(|fact| matches!(fact.reply, NativeStateReply::Received)));
+        }
+    }
+}
+
 /// Reader pool size. Per `dev/design/engine.md` § Writer / reader split,
 /// reader connections are pooled and never serialize behind one
 /// connection. AC-021 exercises 8 concurrent readers.
@@ -22,6 +82,7 @@ pub(crate) struct ReaderWorkerPool {
     next: AtomicUsize,
     shutdown: Arc<AtomicBool>,
     live_workers: Arc<AtomicUsize>,
+    physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
 }
 
 impl std::fmt::Debug for ReaderWorkerPool {
@@ -515,6 +576,7 @@ fn reader_worker_loop(
     wal_attribution: Arc<WalAttributionCollector>,
     stop_words: Arc<StopWordSet>,
     ready: SyncSender<()>,
+    physical_admission: Arc<physical_reader_admission::PhysicalReaderAdmission>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
     connection.set_prepared_statement_cache_capacity(10);
@@ -537,12 +599,26 @@ fn reader_worker_loop(
         if shutdown.load(Ordering::Acquire) {
             break;
         }
+        // Connection metadata does not open a snapshot and must remain observable
+        // while a checkpoint owns the data-reader barrier.
+        let mut physical_read = match &request {
+            ReaderRequest::Shutdown => None,
+            #[cfg(any(test, feature = "test-hooks"))]
+            ReaderRequest::WalConnectionInventory { .. }
+            | ReaderRequest::WalNativeStateInventory { .. } => None,
+            _ => Some(physical_admission.enter()),
+        };
         match request {
             ReaderRequest::Shutdown => break,
             #[cfg(feature = "tc5-benchmark")]
             ReaderRequest::VectorStage { request, respond } => {
                 let result = tc5_benchmark::read_vector_stage_in_tx(&mut connection, *request);
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::SearchProjectedText { query, name, filter, limit, view, respond } => {
@@ -557,7 +633,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::Search(request) => {
@@ -580,7 +661,12 @@ fn reader_worker_loop(
                 let result = crate::embed_dispatch::d27_observation::with_owner(owner, search);
                 #[cfg(not(feature = "test-hooks"))]
                 let result = search();
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 // Receiver may have been dropped if the caller went
                 // away; nothing to do in that case.
                 let _ = respond.send(result);
@@ -596,7 +682,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::GetById { logical_ids, view, respond } => {
@@ -607,7 +698,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadCollection { collection, after_id, limit, respond } => {
@@ -619,7 +715,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadList { kind, predicates, limit, view, respond } => {
@@ -632,7 +733,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadCanonicalPage(request) => {
@@ -644,7 +750,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = request.respond.send(result);
             }
             ReaderRequest::ReadOperationalState(request) => {
@@ -656,7 +767,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = request.respond.send(result);
             }
             ReaderRequest::ReadOperationalStatePage(request) => {
@@ -668,7 +784,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = request.respond.send(result);
             }
             #[cfg(feature = "test-hooks")]
@@ -681,7 +802,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = request.respond.send(result);
             }
             ReaderRequest::GraphNeighbors { root_logical_id, depth, direction, view, respond } => {
@@ -694,16 +820,23 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::GraphExpand(request) => {
                 #[cfg(feature = "test-hooks")]
                 if request.test_controls.count_sql_statements {
-                    connection.trace_v2(
-                        rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
-                        Some(graph_expand::count_graph_expand_sql_statement),
-                    );
+                    connection
+                        .trace_v2(
+                            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+                            Some(graph_expand::count_graph_expand_sql_statement),
+                        )
+                        .expect("install the graph-expand SQL statement counter");
                 }
                 let result = graph_expand::read_graph_expand_with_stop_words_in_tx(
                     &mut connection,
@@ -719,9 +852,19 @@ fn reader_worker_loop(
                 );
                 #[cfg(feature = "test-hooks")]
                 if request.test_controls.count_sql_statements {
-                    connection.trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+                    connection
+                        .trace_v2(
+                            rusqlite::trace::TraceEventCodes::empty(),
+                            None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+                        )
+                        .expect("clear the graph-expand SQL statement counter");
                 }
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = request.respond.send(result);
             }
             ReaderRequest::CrossedBoundarySince { since, view, respond } => {
@@ -732,7 +875,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::SearchExpand {
@@ -753,7 +901,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             #[cfg(any(test, feature = "test-hooks"))]
@@ -766,7 +919,12 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 let _ = respond.send(result);
             }
             #[cfg(any(test, feature = "test-hooks"))]
@@ -799,7 +957,12 @@ fn reader_worker_loop(
                 snapshot_ready.wait();
                 release.wait();
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
             }
             #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::HoldWalSnapshotBounded { snapshot_ready, release } => {
@@ -810,7 +973,12 @@ fn reader_worker_loop(
                 let _ = snapshot_ready.send(worker_idx);
                 let _ = release.recv_timeout(Duration::from_secs(5));
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
             }
             #[cfg(test)]
             ReaderRequest::HoldWalSnapshotWithCommitAck { snapshot_ready, release, committed } => {
@@ -827,7 +995,12 @@ fn reader_worker_loop(
                 snapshot_ready.wait();
                 release.wait();
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
-                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
                 committed.wait();
             }
             #[cfg(any(test, feature = "test-hooks"))]
@@ -862,9 +1035,11 @@ fn finish_reader_request(
     connection: &Connection,
     wal_attribution: &WalAttributionCollector,
     worker_idx: usize,
+    physical_read: Option<physical_reader_admission::PhysicalRead<'_>>,
 ) {
     wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "completed");
     wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
+    drop(physical_read);
     #[cfg(test)]
     wal_attribution.fire_reader_handoff_pause();
     #[cfg(any(test, feature = "test-hooks"))]
@@ -960,6 +1135,8 @@ impl ReaderWorkerPool {
         >,
     ) -> Self {
         let live_workers = Arc::new(AtomicUsize::new(0));
+        let physical_admission =
+            Arc::new(physical_reader_admission::PhysicalReaderAdmission::default());
         let shutdown = Arc::new(AtomicBool::new(false));
         let mut senders = Vec::with_capacity(connections.len());
         let mut handles = Vec::with_capacity(connections.len());
@@ -971,6 +1148,7 @@ impl ReaderWorkerPool {
             let attribution = Arc::clone(&wal_attribution);
             let worker_stop_words = Arc::clone(&stop_words);
             let ready = ready_tx.clone();
+            let worker_physical_admission = Arc::clone(&physical_admission);
             #[cfg(any(test, feature = "test-hooks"))]
             let worker_connections = Arc::clone(&managed_connections);
             let handle = thread::Builder::new()
@@ -985,6 +1163,7 @@ impl ReaderWorkerPool {
                         attribution,
                         worker_stop_words,
                         ready,
+                        worker_physical_admission,
                         #[cfg(any(test, feature = "test-hooks"))]
                         worker_connections,
                     )
@@ -1003,7 +1182,14 @@ impl ReaderWorkerPool {
             next: AtomicUsize::new(0),
             shutdown,
             live_workers,
+            physical_admission,
         }
+    }
+
+    pub(crate) fn physical_admission(
+        &self,
+    ) -> Arc<physical_reader_admission::PhysicalReaderAdmission> {
+        Arc::clone(&self.physical_admission)
     }
 
     #[cfg(any(test, feature = "test-hooks"))]
@@ -1092,12 +1278,12 @@ impl ReaderWorkerPool {
     pub(crate) fn wal_connection_inventory_for_test(&self) -> Vec<bool> {
         self.senders
             .iter()
-            .map(|sender| {
+            .filter_map(|sender| {
                 let (respond, received) = mpsc::sync_channel(1);
-                sender
-                    .send(ReaderRequest::WalConnectionInventory { respond })
-                    .expect("reader worker must remain live for WAL inventory");
-                received.recv().expect("reader worker must report WAL inventory")
+                // A gated data request can precede this diagnostic. Missing replies
+                // reduce cardinality; every consumer requires the complete pool.
+                sender.try_send(ReaderRequest::WalConnectionInventory { respond }).ok()?;
+                received.recv_timeout(Duration::from_millis(250)).ok()
             })
             .collect()
     }
@@ -1414,11 +1600,67 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn reader_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let per_worker = self.reader_pool.secure_delete_per_worker();
         if per_worker.is_empty() {
             return Err(EngineError::Storage);
         }
         Ok(per_worker.iter().all(|&v| v == 1))
+    }
+}
+
+#[cfg(all(test, feature = "test-hooks"))]
+mod historical_property_lifecycle_tests {
+    use crate::temporal::ReadView;
+    use crate::{Engine, ProjectionFts, ProjectionRole, ProjectionSpec};
+    #[test]
+    fn dropping_property_response_receiver_does_not_cancel_active_reader() {
+        use std::{
+            collections::BTreeSet,
+            sync::{mpsc, Arc},
+            thread,
+            time::Duration,
+        };
+        let dir = tempfile::TempDir::new().unwrap();
+        let engine = Arc::new(
+            Engine::open_without_embedder_for_test(dir.path().join("receiver.sqlite"))
+                .unwrap()
+                .engine,
+        );
+        engine
+            .configure_projections(
+                &[ProjectionSpec {
+                    name: "summary".into(),
+                    roles: BTreeSet::from([ProjectionRole::Searchable]),
+                    fts: Some(ProjectionFts { tokenizer: None }),
+                    vector: None,
+                    source: None,
+                }],
+                &[],
+            )
+            .unwrap();
+        let pause = crate::arm_property_corpus_hook_for_test(&engine, false);
+        let (respond, receive) = mpsc::sync_channel(1);
+        let request = super::ReaderRequest::projected_text(
+            "needle".into(),
+            "summary".into(),
+            None,
+            10,
+            ReadView { include_superseded: true, ..ReadView::default() },
+            respond,
+        );
+        assert!(engine.reader_pool.dispatch(request).is_ok());
+        pause.wait_ready(Duration::from_secs(5)).unwrap();
+        drop(receive);
+        let close_engine = Arc::clone(&engine);
+        let (done, completed) = mpsc::sync_channel(1);
+        let closer = thread::spawn(move || done.send(close_engine.close()).unwrap());
+        assert!(matches!(
+            completed.recv_timeout(Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(pause);
+        completed.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        closer.join().unwrap();
     }
 }

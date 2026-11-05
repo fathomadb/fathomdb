@@ -1,6 +1,6 @@
 # Concepts
 
-Mental model for the 0.8.27 release. Detailed treatment lives in internal design
+Mental model for the 0.8.28 release. Detailed treatment lives in internal design
 docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
@@ -15,7 +15,7 @@ open → write / search / admin.configure / instrumentation → close → proces
    at `path`. The handle owns the primary SQLite connection, the reader pool with
    thread-affine workers, the scheduler, the op-store, and the
    embedder pool. A missing or zero-length database is initialized at schema
-   34. A non-empty database must already have schema 34; public open does not
+   36. A non-empty database must already have schema 36; public open does not
    upgrade it and rejects a different version with a typed incompatibility error.
 2. **Write / search / configure** — application code calls the
    governed verb surface. Writes are serialized on the primary
@@ -112,9 +112,10 @@ Three distinct identifiers, deliberately not interchangeable:
 - **`SearchHit.id`** — a typed `IdSpace` (`{space, value}`) returned by
   `search`. `space` is `logical` (`l:`), `content` (`h:`) or `passage`
   (`p:`). Stable across sessions and re-ingest.
-- **`write_cursor`** — the engine's positional book-keeping value. It
-  is reassigned on re-projection, is **not** cross-session stable, and
-  the SDKs no longer surface it as a hit id.
+- **`write_cursor`** — the store-local position of a committed canonical
+  revision. It persists across reopening and projection rebuilds, but changes
+  on re-ingestion and is not a portable identity across recreated stores. Use
+  the public typed ID for record identity.
 
 ## Canonical rows and projections
 
@@ -127,23 +128,34 @@ Three distinct identifiers, deliberately not interchangeable:
   and other shape-specific materializations. Projections are
   rebuildable from canonical rows via
   `fathomdb recover --accept-data-loss --rebuild-projections` (or
-  `--rebuild-vec0` for the vector subset).
+  `--rebuild-vec0` for the vector subset). No-provider rebuild of previously
+  dense state has a known limitation: it can invalidate that state without a
+  usable provider and is not certified numerical compatibility repair.
 
 ## Embedder model
 
-Embedders are pluggable components that produce vector embeddings
-for vector-indexed kinds. The trait surface lives in
-`fathomdb-embedder-api` (Axis E — see
-[compatibility § versioning](../compatibility/index.md)), and is
-configured via `admin.configure`. Embedder identity (`name` +
-`revision`) and `dimension` are stored on first configure; an attempt
-to re-open with a different embedder raises
-`EmbedderIdentityMismatchError` or `EmbedderDimensionMismatchError`.
+Production engines select the pinned built-in BGE/Mean provider or explicit
+no-provider access. Caller-supplied engine providers are unsupported before 1.x,
+including Rust. The independently versioned `fathomdb-embedder-api` trait remains
+useful for standalone implementations, tests and evaluation; it does not grant
+production engine injection.
 
-Vector identity belongs to the embedder per `ADR-0.6.0-vector-identity-embedder-owned`.
+Vector identity belongs to the provider, not vector configuration. A provider
+identity/dimension mismatch refuses open. A numerical compatibility mismatch
+raises `VectorEquivalenceMismatchError`; inability to establish verification
+raises `VectorVerificationError`. Neither returns an Engine. A caller may
+explicitly reopen without a provider for ordinary canonical/text operations;
+that does not certify or repair dense compatibility. See the
+[embedder guide](../embedder.md#cross-backend-discipline).
 
-Detailed trait + lifecycle docs: see Rust API docs (`docs.rs/fathomdb-embedder-api`) or
-[`src/rust/crates/fathomdb-embedder-api/`](https://github.com/fathomadb/fathomdb/tree/main/src/rust/crates/fathomdb-embedder-api)).
+### Explicit erasure maintenance
+
+The persisted `physical_erasure_policy` defaults to autonomous on a new store.
+An explicit-policy store can queue typed erase/purge intent without changing
+logical visibility, then obtain an exclusive maintenance handle to withdraw or
+activate it. Incomplete activated cleanup leaves durable write fences until its
+owed work completes. There is no deadline guarantee. See
+[erasure operations](../operations/erasure.md#schedule-an-explicit-maintenance-window).
 
 ## Recovery surface
 
@@ -156,7 +168,8 @@ The CLI exposes two roots:
   `recompute-mean`.
 - `fathomdb recover --accept-data-loss <sub-flag>` — the only lossy
   root. `--truncate-wal`, `--rebuild-vec0`, `--rebuild-projections`,
-  `--excise-source <id>`, `--excise-collection`/`--excise-record-key`.
+  `--complete-erasures`, `--excise-source <id>`,
+  `--excise-collection`/`--excise-record-key`.
 
 Engine errors from the SDK carry recovery hints (notably
 `CorruptionError.recovery_hint_code`); operators dispatch on the

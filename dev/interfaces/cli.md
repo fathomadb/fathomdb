@@ -355,7 +355,7 @@ Exit class: `recover-*` = 0 / 64 / 70 / 71.
 first calling fail-closed `Engine::open`. It still requires
 `--accept-data-loss`, holds the canonical product lock, refuses a nonempty
 rollback journal and invalid database, and delegates destructive WAL recovery
-to SQLite. A malformed WAL requires schema 34 and current Fathom schema
+to SQLite. A malformed WAL requires schema 36 and current Fathom schema
 invariants in the standalone main file; a healthy or absent WAL requires the
 same in SQLite's effective view and may therefore carry current schema state
 over an older standalone main. If effective-view preflight refuses, it restores
@@ -382,14 +382,24 @@ rollback-journal-blocked, or malformed-WAL-plus-noncurrent-standalone-main
 inputs exit `70`. Normal open continues to refuse the malformed WAL before
 returning an Engine.
 
+Slice 83 also resumes native debt automatically in an open Engine, including
+reopen without the original argument. Offline completion recognizes the validated
+identity-free finalization tombstone and retains the same TRUNCATE and original
+sink requirements. See the
+[successor decision](../adr/ADR-0.8.28-resumable-physical-cleanup.md).
+
 `--complete-erasures` uses the same admission checks and canonical lock, then
 one recovery-only read-write connection. It validates every owed physical
 closure's current zero proof and checks telemetry obligations before
-checkpointing. Since the original telemetry sink path is not recorded, an
-outstanding telemetry obligation is refused with exit `70` and remains owed.
+checkpointing. Offline recovery has no authenticated attached original sink;
+an outstanding telemetry obligation is refused with exit `70` and remains owed.
 Checkpoint BUSY exits `71`, preserving the closure; completed recovery exits
-`64`. No owed closure is a no-op and exits `0`, leaving unrelated WAL bytes
-untouched. Its JSON object contains `verb: "complete-erasures"`, `status:
+`64`. No native, retained-term or sink debt and a clean sanitation certificate
+is a no-op and exits `0`, leaving unrelated WAL bytes untouched. Slice 82 also
+processes root-only and legacy retained-term debt, enabling secure deletion and
+resuming committed FTS merge progress before finalization. Doctor and recovery
+may include operator-only identities `root-erasure` and `retained-terms`; neither
+is a governed closure lookup ID. Its JSON object contains `verb: "complete-erasures"`, `status:
 "clean|done|busy"`, `closure_ids` (opaque ids considered), `closures` (one
 `closure_id` and `status` entry per owed closure), and the SQLite `busy`,
 `log_frames`, and `checkpointed_frames` counters.
@@ -447,6 +457,7 @@ to its class.
 | `EngineError::Scheduler`                         | 70        | unrecoverable |
 | `EngineError::OpStore`                           | 70        | unrecoverable |
 | `EngineError::Overloaded`                        | 70        | unrecoverable |
+| `EngineError::Maintenance(_)` (`MaintenanceError`) | 70        | unrecoverable |
 | `EngineError::SchemaValidation`                  | 70        | unrecoverable |
 | `EngineError::WriteValidation`                   | 70        | unrecoverable |
 | `EngineError::EmbedderNotConfigured`             | 70        | unrecoverable |
@@ -466,6 +477,8 @@ to its class.
 | `EngineOpenError::CudaPoolExhausted{..}`         | 70        | unrecoverable |
 | `EngineOpenError::CudaContextLost{..}`           | 70        | unrecoverable |
 | `EngineOpenError::CudaPrivateBuildRefused{..}`   | 70        | unrecoverable |
+| `EngineOpenError::VectorEquivalenceMismatch{..}` | 70        | unrecoverable |
+| `EngineOpenError::VectorVerification{..}`        | 70        | unrecoverable |
 | `EngineOpenError::Io{..}`                        | 70        | unrecoverable |
 
 ## JSON output wrapping
@@ -510,3 +523,25 @@ Errors use the same schema, `status:"error"`, `verb:"data-plane-integrity"`,
 `inspection_lock_missing`, `inspection_not_quiescent`,
 `runtime_configuration`, and `database_schema_mismatch`; corruption remains
 `integrity_corrupt`. Existing doctor verbs and their envelopes are unchanged.
+
+## Vector verification open failures
+
+Actual numeric refusal emits `code: "VectorEquivalenceMismatchError"` with
+`reason`. An inability to verify emits `code: "VectorVerificationError"` with
+`probeOrdinal`, `causeCode`, `causeMessage`, `providerKind` and `providerError`.
+Both use the existing error envelope (`status`, `verb`, `code`, `detail`) and
+unrecoverable exit `70`; no engine is returned. The optional provider envelope
+carries `code`, `message`, `payload` with the existing class name and typed CUDA
+fields (context ids are decimal strings). Non-provider failures set both provider
+fields to `null`. This mapping adds no diagnostic command and does not certify
+provider-free dense rebuild safe.
+
+Cause codes and the zero-based stored-probe ordinal/preflight-zero convention
+match the [Rust open error contract](rust.md#vector-verification-open-errors).
+Provider kind distinguishes failed/timeout and specific CUDA pool variants. The
+existing checker/cache, 90/45/0 probe cadence and persisted-marker restart/MCP
+reuse are unchanged; cached acceptance is not a fresh process check and retains
+the same-identity backend-drift residual. Production providers are built-in BGE/Mean
+or deliberate none, with no custom admission before 1.x; loader/device and
+standalone CLS behavior remain unchanged. See the
+[complete admission limits](rust.md#built-in-provider-admission-and-cached-verification).

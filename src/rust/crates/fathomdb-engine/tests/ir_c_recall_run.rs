@@ -48,7 +48,7 @@ use std::time::{Duration, Instant};
 use corpus_subset::{load_chain_docs, load_subset_or_skip, repo_root, Doc, VECTOR_KIND};
 use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite};
+use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice};
 use ir_eval::{
     experiment_to_json, load_gold_set, required_doc_ids, run_experiment, validate_gold_set,
     GoldQuery, GoldSet, QueryClass, K_LADDER, RUNNABLE_NOW_MODES,
@@ -223,9 +223,9 @@ fn ir_c_recall_run() {
     ));
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("ir_c.sqlite");
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
+        TestEmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
     )
     .expect("open with real bge embedder");
     assert_eq!(

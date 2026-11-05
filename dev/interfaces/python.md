@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-09-21
-target_release: 0.8.27
-desc: Public Python surface for 0.8.27
+date: 2026-11-04
+target_release: 0.8.28
+desc: Public Python surface for 0.8.28
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -17,9 +17,9 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
-`Engine.open` bootstraps a missing or zero-length path at schema 34. A
+`Engine.open` bootstraps a missing or zero-length path at schema 36. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 34; any other version raises
+`PRAGMA user_version` is exactly 36; any other version raises
 `IncompatibleSchemaVersionError` before product mutation. Python exposes no
 automatic-upgrade or custom-migration route.
 
@@ -107,6 +107,16 @@ denylist name).
   bucket, with no cross-bucket expansion or report-shape change. The
   `source_id` argument uses the same `SourceId` grammar as writes: an embedded
   NUL is preserved and is erasable by an exact matching call.
+
+Slice 82 includes retained FTS term sanitation in physical erase/purge completion.
+Root-only erasures retain durable cleanup debt on failure. Slice 83 permits
+certified unrelated plain legacy node/edge writes during sanitation; finalization
+restores a global mutation fence. A joined Engine-owned worker resumes owed work
+while idle and after reopen. See the
+[successor decision](../adr/ADR-0.8.28-resumable-physical-cleanup.md).
+Reattach every registered original telemetry sink path and exact-retry when sink
+redaction is owed; switching to another path cannot discharge it. Unbound legacy
+sink obligations refuse. No cleanup API or deadline guarantee is introduced.
 
 `Engine.open(...)` returns the engine handle. The structured open report owned
 by `design/engine.md` is accessible after open via `engine.open_report()` (see
@@ -254,10 +264,7 @@ CUDA selection), the ordered process-visible CUDA device inventory
 (`visible_ordinal`, UUID, name, compute capability), optional selected UUID,
 and the optional automatic-fallback `reason`. Ordinals are
 `CUDA_VISIBLE_DEVICES`-relative, never inferred host ordinals. It is present
-for default-embedder opens and the internal
-`EmbedderChoice::CallerWithDeviceResolution` path; an ONNX caller uses that
-path when it needs its final session outcome reported. It is `None` when no
-resolution was supplied. Forced CUDA is an open error, never a CPU report.
+for built-in default-embedder opens and is `None` when no provider is configured. Forced CUDA is an open error, never a CPU report.
 
 The frozen additive fields are `visible_cuda_devices: tuple[CudaVisibleDevice,
 ...]` (each `visible_ordinal`, `uuid`, `name`, `compute_capability`) and
@@ -481,9 +488,10 @@ and other content/control strings retain the REQ-064 rejection.
 
 Source-losing lifecycle and erasure operations close direct registered
 dependents atomically. A nonterminal closure remains invisible under every
-`ReadView`; an incomplete physical closure fences other writers with the
-existing `ErasureIncomplete` stage `dependency_closure` until the exact
-originating operation is retried.
+`ReadView`. Incomplete physical closure retains mutation/publication fences,
+with only the certified unrelated legacy-write exception during sanitation.
+Exact retry and autonomous idle/reopen service share the same physical-success
+boundary; finalization can remain incomplete while external readers pin WAL.
 
 `engine.read_dependency_closure(request)` accepts only
 `{"schema_version": 1, "closure_operation_id": ...}` and returns a frozen
@@ -641,7 +649,7 @@ when a committed receipt has pending projection cursors in the current schema.
 `ProjectionRuntimeStatus` is a frozen record with
 `runtime_embedder_available`, `runtime_unavailability_reason`, `projections`,
 and `vector_unsupported_kinds`. The reason Literal is exactly
-`"none" | "no_runtime" | "vector_equivalence_disabled"`; `"none"` occurs
+`"none" | "no_runtime"`; `"none"` occurs
 exactly when the runtime is available. Each sorted
 `ProjectionRuntimeStatusEntry` has `name` and `dense_readiness`, whose Literal
 is exactly `"not_declared" | "unavailable" | "embedding" | "ready"`.
@@ -667,7 +675,7 @@ roles (`filterable`, `searchable→FTS`) build same-transaction; `rankable` and 
 `read.embedding_readiness(engine) -> EmbeddingReadiness` is an additive,
 HITL-authorized governed read. It is a pure current view: it does not configure
 an embedder or wake, schedule, or drain work. `EmbeddingReadiness` has
-`state: Literal["ready", "processing", "deferred", "blocked"]`,
+`state: Literal["ready", "processing", "blocked"]`,
 `usable_embedder: bool`, `pending_count: int`, `affected_kinds: tuple[str, ...]`, and
 nullable `code`, `operation`, and `documentation_url` fields plus ordered
 `remediations`. `affected_kinds` is sorted and the report contains no pending
@@ -680,12 +688,10 @@ fields are populated. For every other state the three nullable fields are
 exists and the engine was opened without any configured runtime. In that
 condition `engine.drain(...)` raises the typed `EmbedderRequiredError`
 immediately with the same fields; callers must use the attributes rather than
-parse its message. An attached runtime refused by the identity/equivalence
-guard leaves outstanding work as operational `"deferred"` and is never
-converted to this configuration error. A worker that exhausts its retries
-instead records a durable `failed` terminal; once the scheduler is idle,
-`engine.drain(...)` may return normally. Neither operational path is
-`EmbedderRequiredError`.
+parse its message. Actual identity/equivalence refusal fails open and returns
+no engine. A later worker that exhausts its retries records a durable `failed`
+terminal; once the scheduler is idle,
+`engine.drain(...)` may return normally. That worker outcome is not `EmbedderRequiredError`.
 
 ### `fts` / `vector` require the `searchable` role (0.8.20 Slice 23, R-20-SV)
 
@@ -764,13 +770,12 @@ same-transaction (non-stale on commit) so they have no readiness axis at all;
 `searchable→vector` is async and rebuild-durable, so it carries one.
 
 - **Exactly three spellings: `"unavailable"`, `"embedding"`, and `"ready"`.**
-  Their signed target meanings are no usable dense runtime (absent or
-  equivalence-refused), usable runtime with eligible outstanding work, and
+  Their signed target meanings are no usable dense runtime (absent), usable runtime with eligible outstanding work, and
   usable quiescent work, respectively. `"pending"` is
   DELIBERATELY not one of them — that token is RESERVED for the orthogonal
   **admission** axis (quarantine/trust, an app judgment). Do not reuse the word.
 - **Runtime selection.** `read.projections` first applies one usable-dense-
-  runtime predicate: no runtime or an equivalence refusal yields
+  runtime predicate: no runtime yields
   `"unavailable"`. With a usable runtime it derives `"embedding"` /
   `"ready"` from the shared outstanding-work predicate. This adds no schema
   step or stored readiness field.
@@ -830,7 +835,7 @@ commands. The pinned invariant, tested in Rust, Python and TypeScript:
   `{email, article, paper, meeting, note, todo, doc}`. Rows of ANY other `kind`
   are accepted and stay lexically searchable, but get **no vector** and are not
   counted as outstanding work, so readiness reaches `"ready"` only with a usable
-  dense runtime. An absent or equivalence-refused runtime instead selects
+  dense runtime. An absent runtime instead selects
   `"unavailable"`. This is **not** an error condition: `engine.write` does not
   reject them, no exception is raised, and there is no verb to ask about it.
 - **Idempotent.** Re-applying an already-satisfied declaration re-embeds nothing
@@ -865,10 +870,8 @@ commands. The pinned invariant, tested in Rust, Python and TypeScript:
   work outstanding, and this session cannot satisfy it. The write is **accepted**
   and stays lexically searchable, but `vector_dense_readiness` reads
   `"unavailable"` and `drain` raises typed `EmbedderRequiredError`
-  (`FDB_EMBEDDER_REQUIRED`) immediately when configuration is absent. An
-  attached-but-equivalence-refused runtime remains an operational unavailable
-  condition and is not relabelled as configuration feedback for the rest of that
-  session, however long you wait. It is **not** lost: no failure is recorded and
+  (`FDB_EMBEDDER_REQUIRED`) immediately when configuration is absent. Actual verification refusal
+  fails open before any handle is returned. It is **not** lost: no failure is recorded and
   no terminal is written, so the next session opened WITH an approved runtime
   embeds it through the ordinary scheduler — no re-apply, no operator `rebuild`.
   The configuration outcome is immediate; it is not a timeout and does not
@@ -893,8 +896,8 @@ memory quota, scheduler, or evidence that retrieval/FTS/fusion/graph work used
 the GPU.
 
 Python exposes one catch-all base class, `EngineError`, plus one concrete
-subclass per canonical row in `design/errors.md` — **44** of them as of 0.8.28,
-1:1 with the TypeScript set below `FathomDbError`.
+subclass per canonical row in `design/errors.md`, matching the TypeScript set
+below `FathomDbError`. The maintained matrix owns the current membership.
 
 Examples of caller-visible subclasses:
 
@@ -954,40 +957,62 @@ are downloaded from HuggingFace and cached under
 `dev/adr/ADR-0.7.1-default-embedder-weight-fetch.md` for the network-
 surface scope (opt-in only; sha256-verified; visible via
 `OpenReport.embedder_events`). The default (`use_default_embedder=False`)
-opens without an embedder; subsequent vector writes fail with
-`EmbedderNotConfiguredError`.
+opens without an embedder; eligible dense writes remain deferred under the ordinary no-runtime contract.
 
-### `dense_disabled` and the cached equivalence verdict (0.8.20 Slice 22, TC-68)
+### Built-in provider admission and cached verification
 
-`OpenReport.dense_disabled` / `engine.dense_disabled()` still mean "the dense arm
-is refusing", and the typed query-time `VectorEquivalenceMismatchError` and the
-FTS-only fallback are unchanged. **What changed is when the check behind them
-runs.** The 0.8.18 vector-equivalence self-check used to re-embed its 45 probes on
-*every* open; since 0.8.20 the engine caches that verdict against a fingerprint of
-the embedder identity, the pinned mean vector, the probe fixture, the divergence
-floors and the stored reference baseline. An open whose fingerprint is unchanged
-does **zero** probe embeds — the dominant cost of opening a vector-indexed
-workspace with a live embedder — and reuses the previous verdict.
+Production engine admission supports only the pinned built-in BGE/Mean provider
+or explicit no-provider access. User-specified providers are unsupported before
+1.x and are not promised for 1.0. Device selection is separate from provider
+selection. Low-level embedder traits, standalone/test/evaluation constructors and
+ONNX evaluation support do not grant production engine admission; feature
+unification does not restore caller-provider injection. Standalone CLS embedding
+remains a separate supported helper and does not select the engine's Mean provider.
+Loader construction, supported device policy, ambient precision behavior and
+mean pin/recompute/recovery ordering are unchanged.
 
-Read `dense_disabled` accordingly: it reports the arm's status **as verified at
-the last open whose fingerprint differed**, not a fresh re-verification at this
-open. A backend that drifts without changing its declared identity (the same
-model moved between CPU and GPU, or rebuilt against a new library) is therefore no
-longer caught per-open. An identity *change* is unaffected: it still refuses the
-open with `EmbedderIdentityMismatchError`, ahead of any cache. An unreadable or
-absent cached verdict runs the probe rather than trusting it. Full rationale and
-the residual: `dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md`.
+New projection declarations accept only omitted/null embedder selectors. Every
+string is rejected before mutation, including empty strings, `default` and model
+names. Historical stored strings remain verbatim on reads with no provider;
+re-applying such a declaration is refused rather than silently selecting BGE.
+Vector configuration carries no provider identity string.
 
-**Scope.** The self-check guards **accidental** backend drift and a corrupt
-baseline. It is **not** tamper evidence: an actor with write access to the database
-file can rewrite the stored probe baseline — which defeats the check even when it
-runs in full, exactly as it did before the cache — or the cached marker, or the
-vectors themselves. Nothing at rest is authenticated. Do not read `dense_disabled`
-as a tamper signal. **The cache does make one of those routes cheaper** (a forged
-marker needs only a publicly computable digest; re-authoring the baseline needs the
-other backend's 45 exact embeddings), bounded by the residual above: a
-same-identity drift is already served off an honestly recorded marker, no forgery
-required. Threat model, concession and bound: §8.3–§8.5 of the design note above.
+The existing checker gate remains: an effective registered vector kind or durable
+prospective dense declaration engages verification; a retained baseline alone
+introduces no new probe gate. No-provider and ordinary vector-less opens use zero
+probes. Preserve the 45-probe fixture, structural validation, identity/dimension
+rules, P1 zero binary flips and P2 maximum uncentered L2 `1e-5`. Ordinary clean
+first population performs 90 embeddings (45 references plus 45 confirmation), a
+fresh check of an existing baseline performs 45, and a valid cached open performs
+zero. Rejected first population does not publish its new references.
+
+The persistent TC-68 marker remains authoritative for cached acceptance. The
+fingerprint recipe and inputs remain unchanged: stored identity, pinned mean,
+probe fixture, divergence floors and stored reference baseline. Missing, stale or
+malformed markers retain existing validation/recheck behavior; a marker-write
+failure remains a successful verified open with possible rechecking later. A
+process restart, MCP idle close, or A/B/A reconstruction does not force a fresh
+check. Cached acceptance is **not fresh verification in this process**.
+
+A valid marker can hide same-identity backend, pooling, device or library drift
+because those runtime facts are not fingerprint inputs. Closing provider injection
+does not remove that residual. Finite probes establish neither universal numerical
+equivalence nor historical vector provenance; stored references and the marker
+are not authenticated. This change adds no process cache, new fingerprint inputs,
+per-call numerical check, runtime descriptor or cache revocation policy. The
+existing cache rationale and threat model remain in
+[TC-68](../design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md).
+
+An actual checker refusal fails open and returns no engine or successful report.
+There is no automatic provider-free retry. A caller deliberately selects the
+existing no-provider option for canonical/text/lifecycle/erasure access, subject
+to normal integrity checks and deferred dense-work rules. Existing historical
+profiles are validated as metadata without pretending they use BGE. No-provider
+mean recovery and explicit recompute keep their existing behavior and make no
+numerical compatibility claim. No-provider access is ordinary mutable access,
+not forensic mode or a repaired dense backend. Existing operator rebuild behavior
+can invalidate dense state without a usable provider; this change neither fixes
+nor certifies that path safe and adds no diagnostic CLI.
 
 `OpenReport` carries four embedder-related fields surfaced by EU-6:
 `embedder_download_ms`, `embedder_events`, `embedder_mean_centering_required`,
@@ -1061,14 +1086,14 @@ utility, outside engine dispatch.
 
 **Status: PROPOSED / NOT SIGNED.**
 
-Both search verbs take the SAME optional `view` keyword the five read verbs
-take. It is keyword-only and defaults to `None`.
+Both search verbs take the same optional `ReadView`, defaulting to `None`.
+`search` takes keyword-only `view`; `search_text_only` also accepts it positionally.
 
 ```python
 engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False,
               alpha=None, pool_n=None, explain=False, view=None, limit=10,
               snippet=None)
-engine.search_text_only(query, view=None, *, limit=10, snippet=None)
+engine.search_text_only(query, view=None, *, limit=10, filter=None, snippet=None)
 ```
 
 `snippet` is described in § "Match-centred snippets (EP-17)".
@@ -1088,13 +1113,14 @@ is no longer returned by a default `search`. This is a no-op on any corpus that
 never authored a window: omitting the write fields lands NULL/NULL, and NULL is
 unbounded, so every pre-existing row still matches.
 
-**Axis scope — VALIDITY only.** `ReadView(include_superseded=True)` and
-`ReadView(include_inactive=True)` raise `InvalidArgumentError` on the search
-path; they are REFUSED rather than silently ignored, because search hydrates
-from projection indexes that are not version-complete. Use `read.list` to
-enumerate history. A `view=` that is not a `ReadView` (or `None`) raises
-`TypeError` at the Python boundary, matching the `rerank_depth` / `explain` /
-alpha / `pool_n` guards.
+`ReadView(include_superseded=True)` admits historical versions;
+`ReadView(include_inactive=True)` independently admits inactive rows. Both
+compose with validity and filters; source-dependency protections still apply.
+Unavailable historical dense projections report vector soft fallback rather
+than partial vector history. Direct text search does not invoke a vector arm.
+Search ranks and deduplicates hits; use `read.list` to enumerate history.
+A `view=` that is not a `ReadView` (or `None`) raises `TypeError` at the Python
+boundary, matching the `rerank_depth` / `explain` / alpha / `pool_n` guards.
 
 These are ARGUMENTS, not new verbs — the governed command surface
 (`src/conformance/governed-surface-allowlist.json`) is unchanged.
@@ -1462,3 +1488,93 @@ are bit-identical (tested). It is a stored-bytes format: see
 - `resolve_evidence` returns the stored bytes, markers included.
 - Per-branch body de-duplication (Slice 40) compares stored bytes. Two rows
   whose plain texts match but whose tags differ count as different bodies.
+
+## Vector verification open errors
+
+An actual numeric refusal raises `VectorEquivalenceMismatchError(reason=...)`.
+An inability to verify raises `VectorVerificationError`, an `EngineError` leaf,
+with `probe_ordinal`, `cause_code`, `cause_message`, `provider_kind` and
+`provider_error`. No engine is returned and there is no automatic provider-free retry.
+`provider_error` is the original translated `EmbedderError`/CUDA leaf and is
+also `__cause__`; it is `None` for non-provider failures. `provider_kind` preserves
+`failed`, `timeout` or the specific `cuda_pool_exhausted`, `cuda_context_lost`,
+`cuda_private_build_refused` variant and is otherwise `None`.
+
+Cause codes are `not_configured`, `saturated`, `queued_expired`, `started_timeout`,
+`provider`, `invalid_output`, `panic`, `invalid_state`, `closing`, `cancelled`.
+The ordinal is zero-based for stored probes; `0` also denotes whole-baseline
+or required-mean preflight failure and need not identify the first probe. Panic
+and invalid-state messages retain their original detail. Existing invalid-profile
+metadata and I/O classifications are unchanged. Actual refusal has no successful
+report, so degraded-open fields, engine accessors and query-refusal counters are
+removed. Projection runtime state is only absent/usable and unavailable reason
+only none/no_runtime. Later runtime errors retain their existing behavior.
+
+These removals do not change `ProjectionDelta.deferred`, durable pending work,
+or retained graph/structural codec vocabulary (`deferred`/`projection_deferred`).
+Only mappings derived from the removed refused-open runtime state disappear.
+
+## Explicit physical-erasure maintenance (0.8.28 Slice 85)
+
+The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
+and [production design](../design/explicit-maintenance-erasure/production-design.md)
+own guarantees, scope, limits and recovery. Fresh format 36 requires valid persisted
+policy metadata. Earlier formats are refused before mutation; no upgrade is offered.
+`EngineConfig.physical_erasure_policy` is `"autonomous"`, `"explicit_maintenance"`
+or `None` (honor persisted policy; new stores default Autonomous). A mismatch
+refuses open. Explicit reopen performs no autonomous physical cleanup.
+
+`engine.physical_erasure_policy()` reports the effective policy.
+`queue_physical_erasure(selector, idempotency_key)`, `physical_erasure_status(ticket)`
+and `withdraw_queued_erasure(ticket)` use typed dictionaries/unions exported from
+`fathomdb`: `PhysicalErasureSelector`, `QueueResult`, `ErasureStatus`, `WithdrawResult`.
+Selectors are `{"kind":"source_all_at_cut","source_id":...}` or
+`{"kind":"deleted_logical_all_at_cut","logical_id":...}`. Keys are random opaque
+32-character lowercase hex; tickets are store-bound. Acceptance means
+`logical_state="unchanged_by_this_request"`, never deletion. First admission uses
+`needs_maintenance_admission`; exact retained retries are cheap. The handle's
+`queue_physical_erasure` performs heavy non-destructive admission.
+
+`engine.begin_erasure_maintenance(acquisition_wait_ms=0)` returns the owned
+`ErasureMaintenance` context manager. It excludes ordinary operations and drains
+admitted work; its wait applies only to acquisition, never active SQL.
+Handle methods are `queue_physical_erasure`, `complete_physical_erasure`,
+`reattach_original_erasure_sink` and `close`. `CleanupResult` is Complete with
+`receipt` or Incomplete with `status`; dictionary `outcome` is lower snake case.
+`close` returns `ErasureServiceState` and never certifies completion. Blocking calls
+release the GIL and retain native ownership through completion despite caller drop.
+
+`MaintenanceError.reason` is a safe snake-case typed reason. While owned, newcomers
+refuse `maintenance_busy`; outside a window explicit direct erase/purge refuses
+`maintenance_required`. Unknown/wrong-store well-formed tickets return `None`.
+Malformed tickets fail. Queued restrictions permit proven-disjoint plain writes;
+provenance/dependency/lifecycle/actuation/global administration that cannot prove
+cheap noninterference refuses `queued_scope_fenced`. Reads retain their eligibility.
+Post-delete incomplete work may allow coherent reads while globally fencing writes;
+read-triggered telemetry capture is suppressed. Drop/reopen cannot forgive debt.
+
+## Filtered direct body FTS (0.8.28 Slice 90)
+
+`engine.search_text_only(query, view=None, *, limit=10, filter=None)` accepts
+`SearchFilter | None`; `filter` is keyword-only. Existing positional view calls
+remain valid. Invalid filter types raise `TypeError`.
+
+The existing closed filter applies to node and edge body candidates before
+candidate truncation, body deduplication, ranking and returned limit. Attribute
+predicates are ANDed, require declared `filterable` projections, and are
+node-scoped (edge hits do not match them). Validation occurs in the same reader
+snapshot, with typed `InvalidFilter` even when the query has no matches.
+Source type uses the established node kind mapping and `edge_fact` for edges;
+kind matches the node kind or edge relation kind.
+
+`status` and `created_after` preserve G10 projected-metadata semantics:
+status is the empty-string sentinel; creation time is projection time, with an
+inclusive lower bound. Missing vector metadata fails to match. These fields do
+not read JSON body values or populate metadata. Reading existing metadata does
+not execute vector retrieval. Source type, kind and declared attributes work
+on provider-free stores; status/time may return no matches there.
+
+ReadView existence and validity axes compose with the filter. No embedding,
+dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
+corpus, effective validity time and filter, smaller result limits are ordered
+prefixes of larger ones. None and empty filters retain unfiltered behavior.

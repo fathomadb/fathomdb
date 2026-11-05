@@ -11,7 +11,7 @@ signatures, options, return shapes, or error behavior. Use the maintained
 [TypeScript API](../reference/typescript-api.md), and
 [Rust SDK reference](../reference/rust-sdk.md) for those contracts.
 
-Governed operations: **48**. Each language cell is
+Governed operations: **53**. Each language cell is
 `locator` / `spelling`; `engine_static` is on `Engine`,
 `engine_instance` is on an open handle, `package` is standalone,
 and `read`, `graph`, and `admin` name their respective surfaces.
@@ -28,6 +28,11 @@ and `read`, `graph`, and `admin` name their respective surfaces.
 | `engine.read_dependency_closure` | live | `engine_instance` / `read_dependency_closure` | `engine_instance` / `readDependencyClosure` | `engine_instance` / `read_dependency_closure` |
 | `engine.transition` | live | `engine_instance` / `transition` | `engine_instance` / `transition` | `engine_instance` / `transition` |
 | `engine.purge` | live | `engine_instance` / `purge` | `engine_instance` / `purge` | `engine_instance` / `purge` |
+| `engine.physical_erasure_policy` | live | `engine_instance` / `physical_erasure_policy` | `engine_instance` / `physicalErasurePolicy` | `engine_instance` / `physical_erasure_policy` |
+| `engine.queue_physical_erasure` | live | `engine_instance` / `queue_physical_erasure` | `engine_instance` / `queuePhysicalErasure` | `engine_instance` / `queue_physical_erasure` |
+| `engine.physical_erasure_status` | live | `engine_instance` / `physical_erasure_status` | `engine_instance` / `physicalErasureStatus` | `engine_instance` / `physical_erasure_status` |
+| `engine.withdraw_queued_erasure` | live | `engine_instance` / `withdraw_queued_erasure` | `engine_instance` / `withdrawQueuedErasure` | `engine_instance` / `withdraw_queued_erasure` |
+| `engine.begin_erasure_maintenance` | live | `engine_instance` / `begin_erasure_maintenance` | `engine_instance` / `beginErasureMaintenance` | `engine_instance` / `begin_erasure_maintenance` |
 | `engine.erase_source` | live | `engine_instance` / `erase_source` | `engine_instance` / `eraseSource` | `engine_instance` / `erase_source` |
 | `engine.search` | live | `engine_instance` / `search` | `engine_instance` / `search` | `engine_instance` / `search` |
 | `engine.freeze_read_context` | live | `engine_instance` / `freeze_read_context` | `engine_instance` / `freezeReadContext` | `engine_instance` / `freeze_read_context` |

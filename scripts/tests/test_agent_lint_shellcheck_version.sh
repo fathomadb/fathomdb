@@ -22,6 +22,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FIX="$(mktemp -d)"
 trap 'rm -rf "$FIX"' EXIT
 
+# A pinned host image is legitimate; fixture-only negative/cache arms must still
+# select their own tools rather than accidentally being rescued by that image.
+mkdir -p "$FIX/host-bin"
+printf '#!/usr/bin/env bash\nprintf "version: 0.11.0\\n"\n' >"$FIX/host-bin/shellcheck"
+chmod +x "$FIX/host-bin/shellcheck"
+
+
 mkdir -p "$FIX/scripts/lib" "$FIX/bin" "$FIX/home/.local/bin"
 cp "$REPO_ROOT/scripts/agent-lint.sh" "$FIX/scripts/agent-lint.sh"
 cp "$REPO_ROOT/scripts/agent-lint-shell.sh" "$FIX/scripts/agent-lint-shell.sh"
@@ -60,7 +67,7 @@ chmod +x "$FIX/home/.local/bin/shellcheck"
 
 run_fixture_lint() {
   set +e
-  OUT="$(cd "$FIX" && HOME="$FIX/home" PATH="$FIX/bin:/usr/bin:/bin" bash scripts/agent-lint.sh 2>&1)"
+  OUT="$(cd "$FIX" && HOME="$FIX/home" PATH="$FIX/bin" bash scripts/agent-lint.sh 2>&1)"
   RC=$?
   set -e
 }
@@ -105,7 +112,15 @@ cat >"$FIX/bin/shellcheck" <<'EOF'
 printf 'ShellCheck - shell script analysis tool\nversion: 0.9.0\n'
 EOF
 chmod +x "$FIX/bin/shellcheck"
-resolved="$(cd "$FIX" && HOME="$FIX/home" PATH="$FIX/bin:/usr/bin:/bin" bash -c '
+host_resolved="$(HOME="$FIX/home" PATH="$FIX/host-bin:$FIX/bin" find_shellcheck_bin)"
+[ "$host_resolved" = "$FIX/host-bin/shellcheck" ] \
+  || fail_arm "a wrong HOME version must not defeat a correctly pinned host binary"
+printf 'PASS  correct pinned PATH binary rescues wrong HOME in production lookup\n'
+cat >"$FIX/home/.local/bin/shellcheck" <<'EOF'
+#!/usr/bin/env bash
+printf 'version: 0.11.0\n'
+EOF
+resolved="$(cd "$FIX" && HOME="$FIX/home" PATH="$FIX/bin" bash -c '
   . scripts/lib/shellcheck-version.sh; find_shellcheck_bin')"
 [ "$resolved" = "$FIX/home/.local/bin/shellcheck" ] \
   || fail_arm "find_shellcheck_bin resolved '$resolved', not the ~/.local/bin candidate"

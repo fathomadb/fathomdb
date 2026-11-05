@@ -69,7 +69,7 @@ pub struct ProjectionFts {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum DenseReadiness {
     /// Engine-selected state for a session with no usable dense runtime (an
-    /// absent embedder or refused vector equivalence). Caller input remains
+    /// absent embedder). Open-time verification refusal returns no Engine. Input remains
     /// accept-inert; reads select this through the shared runtime predicate.
     Unavailable,
     /// At least one row in the vector projection's row set has not yet reached a
@@ -119,7 +119,8 @@ impl DenseReadiness {
 /// separate flag that could tear (see [`derive_dense_readiness`]).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ProjectionVector {
-    /// Optional embedder override; `None` ⇒ the engine's shipped default.
+    /// Historical read metadata; caller declarations must leave this `None`.
+    /// Production engine providers are fixed to the built-in implementation before 1.x.
     pub embedder: Option<String>,
     /// 0.8.20 Slice 20 (R-20-DR) — **READ METADATA, engine-set.** Populated by
     /// [`Engine::read_projections`]; `None` on every caller-authored spec.
@@ -255,22 +256,30 @@ pub(crate) enum ProjectionClass {
 }
 
 /// 0.8.20 Slice 5a (R-20-E1) — one ROW-OWNED projection table: a shadow whose
-/// rows are 1:1 with a canonical row's `write_cursor` and therefore MUST die
+/// rows are owned by a canonical row's `write_cursor` and therefore MUST die
 /// with that row.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RowOwnedProjection {
     /// Table name. `'static` and never caller-derived: safe to interpolate.
     pub(crate) table: &'static str,
     /// The column carrying the owning canonical row's `write_cursor`. For the
-    /// vec0 table this is `rowid` — vec0 rowid IS the write_cursor (see the
-    /// `_fathomdb_vector_rows.write_cursor UNIQUE` identity).
+    /// current head-only vec0 table this is `rowid`, equal to the write cursor.
     pub(crate) cursor_column: &'static str,
     class: ProjectionClass,
 }
 
+impl RowOwnedProjection {
+    pub(crate) fn is_fts(&self) -> bool {
+        matches!(
+            self.class,
+            ProjectionClass::NodeFts | ProjectionClass::EdgeFts | ProjectionClass::PropertyFts
+        )
+    }
+}
+
 /// 0.8.20 Slice 5a (R-20-E1) — **the** registry of row-owned projections.
 ///
-/// Every table here is 1:1 with a canonical `write_cursor` and is erased by
+/// Every table here is owned by a canonical `write_cursor` and is erased by
 /// [`erase_row_projections`] whenever that canonical row is erased. Adding a
 /// projection table WITHOUT registering it here re-opens the defect this slice
 /// closes (`search_index_v2` was written by one site and deleted by one site,
@@ -303,6 +312,11 @@ pub(crate) const ROW_OWNED_PROJECTIONS: &[RowOwnedProjection] = &[
     RowOwnedProjection {
         table: "vector_default",
         cursor_column: "rowid",
+        class: ProjectionClass::Vector,
+    },
+    RowOwnedProjection {
+        table: "_fathomdb_vector_spans",
+        cursor_column: "write_cursor",
         class: ProjectionClass::Vector,
     },
     RowOwnedProjection {
@@ -342,28 +356,91 @@ pub(crate) const ROW_OWNED_PROJECTIONS: &[RowOwnedProjection] = &[
 /// both call it, so a new projection table becomes erasable by registering it in
 /// [`ROW_OWNED_PROJECTIONS`] — not by remembering to patch two hand-rolled
 /// delete lists (the omission that left erased bodies in `search_index_v2`).
-pub(crate) fn erase_row_projections(tx: &Connection, write_cursor: i64) -> rusqlite::Result<u64> {
-    let mut deleted: u64 = 0;
+pub(crate) enum EraseTargets {
+    One(i64),
+    Many(Vec<i64>),
+}
+
+impl From<i64> for EraseTargets {
+    fn from(cursor: i64) -> Self {
+        Self::One(cursor)
+    }
+}
+
+impl<'a> From<&'a [i64]> for EraseTargets {
+    fn from(cursors: &'a [i64]) -> Self {
+        Self::Many(cursors.to_vec())
+    }
+}
+
+pub(crate) fn erase_row_projections(
+    tx: &Connection,
+    targets: impl Into<EraseTargets>,
+) -> rusqlite::Result<u64> {
+    let targets = targets.into();
+    let encoded = match &targets {
+        EraseTargets::One(_) => None,
+        EraseTargets::Many(cursors) => {
+            Some(serde_json::to_string(cursors).map_err(|_| rusqlite::Error::InvalidQuery)?)
+        }
+    };
+    let mut deleted = 0_u64;
     for projection in ROW_OWNED_PROJECTIONS {
-        deleted =
-            saturating_add_u64(deleted, delete_row_owned_projection(tx, projection, write_cursor)?);
+        deleted = saturating_add_u64(
+            deleted,
+            delete_row_owned_projection(tx, projection, &targets, encoded.as_deref())?,
+        );
     }
     Ok(deleted)
 }
 
-/// TC-76 — delete one row-owned projection's rows for one `write_cursor`.
-/// The vec0 partition is routed through the shared direct-delete primitive;
-/// every other table is the plain registry-driven statement.
 fn delete_row_owned_projection(
     tx: &Connection,
     projection: &RowOwnedProjection,
-    write_cursor: i64,
+    targets: &EraseTargets,
+    encoded: Option<&str>,
 ) -> rusqlite::Result<usize> {
-    if projection.table == DEFAULT_VECTOR_PARTITION {
-        return delete_vector_partition_row(tx, write_cursor);
+    if projection.is_fts() {
+        physical_erasure::mark_dirty(tx)?;
     }
-    let sql = format!("DELETE FROM {} WHERE {} = ?1", projection.table, projection.cursor_column);
-    tx.execute(&sql, [write_cursor])
+    if projection.table == DEFAULT_VECTOR_PARTITION {
+        let cursors = match targets {
+            EraseTargets::One(cursor) => std::slice::from_ref(cursor),
+            EraseTargets::Many(cursors) => cursors.as_slice(),
+        };
+        let mut deleted = 0_usize;
+        for cursor in cursors {
+            deleted =
+                deleted.saturating_add(vector_storage::delete_vector_record_rows(tx, *cursor)?);
+        }
+        return Ok(deleted);
+    }
+    let (column, predicate, parameter) = match targets {
+        EraseTargets::One(cursor) => {
+            (projection.cursor_column, "= ?1".into(), rusqlite::types::Value::Integer(*cursor))
+        }
+        EraseTargets::Many(_) => {
+            let predicate = if projection.is_fts() {
+                // Scan UNINDEXED owner cursors once, then delete by native FTS rowid.
+                format!(
+                    "IN (SELECT rowid FROM {} WHERE {} IN (SELECT value FROM json_each(?1)))",
+                    projection.table, projection.cursor_column
+                )
+            } else {
+                "IN (SELECT value FROM json_each(?1))".into()
+            };
+            let column = if projection.is_fts() { "rowid" } else { projection.cursor_column };
+            (
+                column,
+                predicate,
+                rusqlite::types::Value::Text(
+                    encoded.ok_or(rusqlite::Error::InvalidQuery)?.to_owned(),
+                ),
+            )
+        }
+    };
+    let sql = format!("DELETE FROM {} WHERE {} {predicate}", projection.table, column);
+    tx.execute(&sql, [parameter])
 }
 
 fn saturating_add_u64(acc: u64, n: usize) -> u64 {
@@ -386,8 +463,10 @@ pub(crate) fn purge_row_projections_for_cursor_in(
 ) -> rusqlite::Result<u64> {
     let mut deleted: u64 = 0;
     for projection in ROW_OWNED_PROJECTIONS.iter().filter(|p| classes.contains(&p.class)) {
-        deleted =
-            saturating_add_u64(deleted, delete_row_owned_projection(tx, projection, write_cursor)?);
+        deleted = saturating_add_u64(
+            deleted,
+            delete_row_owned_projection(tx, projection, &EraseTargets::One(write_cursor), None)?,
+        );
     }
     Ok(deleted)
 }
@@ -400,6 +479,9 @@ pub(crate) fn truncate_row_projections_in(
 ) -> rusqlite::Result<u64> {
     let mut deleted: u64 = 0;
     for projection in ROW_OWNED_PROJECTIONS.iter().filter(|p| classes.contains(&p.class)) {
+        if projection.is_fts() {
+            physical_erasure::mark_dirty(tx)?;
+        }
         let sql = format!("DELETE FROM {}", projection.table);
         deleted = deleted.saturating_add(tx.execute(&sql, [])? as u64);
     }
@@ -651,7 +733,7 @@ fn attribute_json_path(name: &str) -> String {
 /// list of literal object-member names; it is never a caller-provided JSONPath.
 /// Every segment is validated before persistence, and the resulting path is
 /// always bound as a parameter rather than interpolated into SQL.
-fn projection_json_path(name: &str, stored: &StoredProjection) -> String {
+pub(crate) fn projection_json_path(name: &str, stored: &StoredProjection) -> String {
     match &stored.source {
         None => attribute_json_path(name),
         Some(segments) => {
@@ -926,6 +1008,7 @@ fn remove_projection_row(tx: &Connection, name: &str) -> rusqlite::Result<()> {
 /// attribute `name` (all owning nodes). The idempotent-rebuild primitive: a
 /// changed or dropped projection clears its rows before (re)backfill.
 fn clear_attribute_projection(tx: &Connection, name: &str) -> rusqlite::Result<()> {
+    physical_erasure::mark_dirty(tx)?;
     tx.execute("DELETE FROM property_search_index WHERE attr_name = ?1", params![name])?;
     tx.execute("DELETE FROM canonical_attributes WHERE attr_name = ?1", params![name])?;
     Ok(())
@@ -984,6 +1067,7 @@ fn project_one_attribute(
         params![cursor, name, value],
     )?;
     if stored.wants_property_fts() {
+        physical_erasure::mark_dirty(tx)?;
         tx.execute(
             "INSERT INTO property_search_index(attr_value, attr_name, write_cursor)
              VALUES(?1, ?2, ?3)",
@@ -1030,6 +1114,15 @@ pub(crate) fn encode_attr_vec0_present(value: &str) -> String {
 /// filter routed pre-KNN sees exactly what the EAV path stored). Returns `None`
 /// for an absent / null / object / array / non-JSON extraction (⇒ the `''`
 /// sentinel at the vec0 column, ⇒ fail-to-match).
+pub(crate) fn scalar_attribute_sql(body: &str, path: &str) -> String {
+    format!(
+        "CASE WHEN json_valid({body}) THEN CASE json_type({body}, {path})
+        WHEN 'true' THEN 'true' WHEN 'false' THEN 'false'
+        WHEN 'null' THEN NULL WHEN 'object' THEN NULL WHEN 'array' THEN NULL
+        ELSE CAST(json_extract({body}, {path}) AS TEXT) END END"
+    )
+}
+
 pub(crate) fn extract_scalar_attribute(
     conn: &Connection,
     body: &str,
@@ -1039,18 +1132,9 @@ pub(crate) fn extract_scalar_attribute(
     let path = projection_json_path(name, stored);
     let value: Option<String> = conn
         .query_row(
-            "SELECT CASE WHEN json_valid(?1) THEN
-                 CASE json_type(?1, ?2)
-                     WHEN 'true'   THEN 'true'
-                     WHEN 'false'  THEN 'false'
-                     WHEN 'null'   THEN NULL
-                     WHEN 'object' THEN NULL
-                     WHEN 'array'  THEN NULL
-                     ELSE CAST(json_extract(?1, ?2) AS TEXT)
-                 END
-             END",
+            &format!("SELECT {}", scalar_attribute_sql("?1", "?2")),
             params![body, path],
-            |row| row.get::<_, Option<String>>(0),
+            |row| row.get(0),
         )
         .unwrap_or(None);
     Ok(value)
@@ -1248,6 +1332,9 @@ fn apply_projection_config(
     // pattern (drops apply first, then the fresh spec builds), so it is allowed.
     let mut seen_spec_names: BTreeSet<&str> = BTreeSet::new();
     for spec in specs {
+        if spec.vector.as_ref().is_some_and(|vector| vector.embedder.is_some()) {
+            return Err(EngineError::WriteValidation);
+        }
         if !is_valid_attribute_name(&spec.name) {
             return Err(EngineError::InvalidArgument {
                 msg: format!("invalid projection attribute name: {:?}", spec.name),
@@ -1536,7 +1623,7 @@ impl Engine {
         specs: &[ProjectionSpec],
         drop: &[String],
     ) -> Result<ProjectionDelta, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         // Settle in-flight async projection work first. The worker commits on its
         // own connection with `BEGIN IMMEDIATE`; a backfill issued in that write
         // window would SQLITE_BUSY.
@@ -1549,6 +1636,7 @@ impl Engine {
         let (delta, enqueued_backfill) = {
             let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+            erasure_queue::guard_admin(connection)?;
             dependency_closure::maintain_before_writer(connection)?;
             let tx = connection
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -1591,7 +1679,7 @@ impl Engine {
     /// `searchable→vector` sub-object carries one — `filterable` and
     /// `searchable→FTS` are same-transaction and have no readiness axis.
     pub fn read_projections(&self) -> Result<Vec<ProjectionSpec>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let registry = load_projection_registry(connection).map_err(|_| EngineError::Storage)?;
@@ -2075,17 +2163,11 @@ pub(crate) fn boot_graft_declared_vector_backfill(
     if !vector_projection_declared(connection)? {
         return Ok(false);
     }
-    connection.execute_batch("BEGIN IMMEDIATE")?;
-    match enqueue_declared_vector_backfill(connection) {
-        Ok(enqueued) => {
-            connection.execute_batch("COMMIT")?;
-            Ok(enqueued)
-        }
-        Err(error) => {
-            let _ = connection.execute_batch("ROLLBACK");
-            Err(error)
-        }
-    }
+    let tx =
+        rusqlite::Transaction::new_unchecked(connection, rusqlite::TransactionBehavior::Immediate)?;
+    let enqueued = enqueue_declared_vector_backfill(&tx)?;
+    tx.commit()?;
+    Ok(enqueued)
 }
 
 /// 0.8.20 Slice 20c — steps (2) and (3) of the declared-backfill above, as their
@@ -2280,7 +2362,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn configure_vector_kind_for_test(&self, kind: &str) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         connection
@@ -2304,7 +2386,7 @@ impl Engine {
         &self,
         name: &str,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -2335,7 +2417,7 @@ impl Engine {
         &self,
         name: &str,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -2355,5 +2437,194 @@ impl Engine {
         }
         projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
         tx.commit().map_err(|_| EngineError::Storage)
+    }
+}
+
+#[cfg(test)]
+mod span_erasure_tests {
+    use super::*;
+
+    #[test]
+    fn row_erasure_removes_orphan_span_without_mapping_trigger() {
+        crate::configure_runtime_for_open().unwrap();
+        crate::register_sqlite_vec_extension();
+        let mut connection = Connection::open_in_memory().unwrap();
+        fathomdb_schema::migrate(&connection).unwrap();
+        ensure_vector_partition(&mut connection, 8).unwrap();
+        connection
+            .execute("INSERT INTO _fathomdb_vector_spans VALUES(42,42,0,0,NULL,0)", [])
+            .unwrap();
+        let tx = connection.transaction().unwrap();
+        erase_row_projections(&tx, 42).unwrap();
+        assert_eq!(
+            tx.query_row("SELECT COUNT(*) FROM _fathomdb_vector_spans", [], |row| row
+                .get::<_, u64>(0))
+                .unwrap(),
+            0
+        );
+    }
+}
+
+/// Requeue legacy edge skips and restore derived lexical history atomically.
+pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlite::Result<bool> {
+    connection.execute_batch("BEGIN IMMEDIATE")?;
+    let result = (|| {
+        let now = crate::current_epoch_seconds();
+        let rows = {
+            let mut stmt = connection.prepare(
+                "SELECT e.write_cursor,e.kind,e.body,e.superseded_at,e.t_invalid,pt.state
+                 FROM canonical_edges e
+                 LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=e.write_cursor
+                 WHERE e.body IS NOT NULL AND (e.superseded_at IS NOT NULL OR e.t_invalid<=?1)",
+            )?;
+            let collected = stmt
+                .query_map([now], |r| {
+                    Ok((
+                        r.get::<_, u64>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, Option<i64>>(3)?,
+                        r.get::<_, Option<i64>>(4)?,
+                        r.get::<_, Option<String>>(5)?,
+                    ))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            collected
+        };
+        let lexical_cursors: std::collections::HashSet<u64> = if rows.is_empty() {
+            std::collections::HashSet::new()
+        } else {
+            let mut stmt = connection.prepare("SELECT write_cursor FROM search_index_edges")?;
+            let cursors = stmt.query_map([], |row| row.get(0))?;
+            cursors.collect::<rusqlite::Result<_>>()?
+        };
+        let mut rewind = None;
+        let mut lexical_restored = false;
+        for (cursor, kind, body, _, _, terminal) in rows {
+            if !crate::dependency_closure::projection_owner_is_eligible_at(connection, cursor, now)
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+            {
+                continue;
+            }
+            if !lexical_cursors.contains(&cursor) {
+                physical_erasure::mark_dirty(connection)?;
+                connection.execute(
+                    "INSERT INTO search_index_edges(body,kind,write_cursor) VALUES(?1,?2,?3)",
+                    params![body, kind, cursor],
+                )?;
+                lexical_restored = true;
+            }
+            if terminal.as_deref() == Some("up_to_date")
+                && crate::projection_commit::projection_physical_tuple_is_empty(connection, cursor)?
+            {
+                connection.execute(
+                    "DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+                    [cursor],
+                )?;
+                rewind = Some(rewind.map_or(cursor, |old: u64| old.min(cursor)));
+            } else {
+                crate::projection_generation::member_completion(
+                    connection,
+                    cursor,
+                    "edge_fact",
+                    true,
+                    crate::ProjectionRuntimeStateV1::Usable,
+                )
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            }
+        }
+        if lexical_restored {
+            crate::write_commit::advance_read_visibility(connection)?;
+        }
+        if let Some(cursor) = rewind {
+            let below = cursor.saturating_sub(1);
+            if load_projection_cursor(connection)? > below {
+                store_projection_cursor(connection, below)?;
+            }
+        }
+        Ok(rewind.is_some())
+    })();
+    match result {
+        Ok(changed) => {
+            connection.execute_batch("COMMIT")?;
+            Ok(changed)
+        }
+        Err(error) => {
+            let _ = connection.execute_batch("ROLLBACK");
+            Err(error)
+        }
+    }
+}
+
+#[cfg(test)]
+mod historical_reconciliation_tests {
+    use super::*;
+
+    fn reconciliation_steps(count: usize) -> u64 {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opened =
+            Engine::open_without_embedder_for_test(dir.path().join("history.sqlite")).unwrap();
+        let source = SourceId::new("test:history-scaling").unwrap();
+        let mut writes = vec![];
+        for id in ["a", "b"] {
+            writes.push(PreparedWrite::Node {
+                kind: "doc".into(),
+                body: id.into(),
+                logical_id: Some(id.into()),
+                source_id: source.clone(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            });
+        }
+        for i in 0..count {
+            writes.push(PreparedWrite::Edge {
+                kind: "link".into(),
+                from: "a".into(),
+                to: "b".into(),
+                source_id: source.clone(),
+                logical_id: Some(format!("edge{i}")),
+                body: Some(format!("history{i}")),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            });
+        }
+        opened.engine.write(&writes).unwrap();
+        let counter = Arc::new(AtomicU64::new(0));
+        let observed = counter.clone();
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let conn = guard.as_mut().unwrap();
+        conn.progress_handler(
+            1,
+            Some(move || {
+                observed.fetch_add(1, Ordering::Relaxed);
+                false
+            }),
+        )
+        .unwrap();
+        reconcile_edge_history_on_boot(conn).unwrap();
+        conn.progress_handler(0, Option::<fn() -> bool>::None).unwrap();
+        let steps = counter.load(Ordering::Relaxed);
+        drop(guard);
+        opened.engine.close().unwrap();
+        steps
+    }
+
+    #[test]
+    fn historical_boot_reconciliation_scales_linearly() {
+        let small = reconciliation_steps(64);
+        let large = reconciliation_steps(256);
+        eprintln!(
+            "historical reconciliation VM steps: 64={small}, 256={large}, ratio={:.3}",
+            large as f64 / small as f64
+        );
+        assert!(
+            large < small * 6,
+            "four times the history must not approach quadratic reconciliation work"
+        );
     }
 }

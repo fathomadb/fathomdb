@@ -10,7 +10,7 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::RerankPassagesError;
-use fathomdb_engine::{rerank_passages, EmbedderChoice, Engine, EngineError, EngineOpenError};
+use fathomdb_engine::{rerank_passages, Engine, EngineError, EngineOpenError, TestEmbedderChoice};
 use tempfile::TempDir;
 
 const DIM: u32 = 8;
@@ -59,9 +59,9 @@ impl Embedder for FailingEmbedder {
 fn embed_text_error(failure: EmbedderError) -> EngineError {
     let dir = TempDir::new().expect("tempdir");
     let embedder = Arc::new(FailingEmbedder { armed: AtomicBool::new(false), failure });
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         dir.path().join("slice30.sqlite"),
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
     )
     .expect("open");
     embedder.armed.store(true, Ordering::SeqCst);
@@ -249,7 +249,8 @@ fn open_armed(
     let path = dir.path().join("slice30-search.sqlite");
     let embedder = Arc::new(FailingEmbedder { armed: AtomicBool::new(false), failure });
     let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(embedder.clone())).expect("open");
+        Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::Caller(embedder.clone()))
+            .expect("open");
     embedder.armed.store(true, Ordering::SeqCst);
     (dir, path, opened)
 }

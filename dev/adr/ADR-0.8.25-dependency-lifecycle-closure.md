@@ -50,3 +50,11 @@ multi-source closure, and scheduled propagation at a validity boundary, remain
   is no longer emitted by the completed Slice 30 path.
 - Exact wire shapes, failure precedence, proof fields, and recovery invariants
   are owned by the [Slice 30 design](../plans/0.8.25/features/slice-30/design.md).
+
+## Slice 83 scheduling successor
+
+[Resumable physical cleanup](ADR-0.8.28-resumable-physical-cleanup.md) supersedes
+the exact-retry-only scheduling and unconditional physical mutation fence above.
+Certified unrelated legacy writes may progress during sanitation; automatic idle
+and reopen service resumes debt. Physical success, original-sink authority and
+existing audit/closure semantics remain unchanged.

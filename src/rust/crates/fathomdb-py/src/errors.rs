@@ -45,8 +45,9 @@ create_exception!(_fathomdb, EvidenceError, EngineError);
 create_exception!(_fathomdb, PageError, EngineError);
 create_exception!(_fathomdb, DependencyTraceError, EngineError);
 create_exception!(_fathomdb, GraphExpansionError, EngineError);
-// 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
+// Open-time numeric refusal; no Engine is returned.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
+create_exception!(_fathomdb, VectorVerificationError, EngineError);
 // Slice 20 (G5/G6) — traversal depth > 3 or other out-of-range argument.
 create_exception!(_fathomdb, InvalidArgumentError, EngineError);
 // OPP-12 Phase-1 (0.8.19 Slice 10) — an illegal lifecycle `transition`/`purge`
@@ -59,6 +60,7 @@ create_exception!(_fathomdb, NotLifecycleAddressableError, EngineError);
 // returning success: an erasure verb must never report success on an incomplete
 // erasure.
 create_exception!(_fathomdb, ErasureIncompleteError, EngineError);
+create_exception!(_fathomdb, MaintenanceError, EngineError);
 // 0.8.20 Slice 15d (R-20-PR) — `configure_projections` refused a destructive
 // change to a live projection without an explicit `drop` (carries `name` +
 // `delta`). Omission never drops; a role removal / tokenizer / embedder change
@@ -209,6 +211,14 @@ pub(super) fn engine_error_to_py(err: RustEngineError) -> PyErr {
             ));
             Python::attach(|py| {
                 let _ = exc.value(py).setattr("id_space", id_space.as_str());
+            });
+            exc
+        }
+        RustEngineError::Maintenance(reason) => {
+            let exc = MaintenanceError::new_err(reason.to_string());
+            let value = serde_json::to_value(reason).unwrap_or_default();
+            Python::attach(|py| {
+                let _ = exc.value(py).setattr("reason", value.as_str().unwrap_or("invalid_state"));
             });
             exc
         }
@@ -552,6 +562,12 @@ pub(super) fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             });
             exc
         }
+        EngineOpenError::VectorEquivalenceMismatch { reason } => {
+            let exc = VectorEquivalenceMismatchError::new_err(format!("vector equivalence mismatch: {reason}"));
+            Python::attach(|py| { let _ = exc.value(py).setattr("reason", reason); });
+            exc
+        }
+        EngineOpenError::VectorVerification { probe_ordinal, cause } => vector_verification_to_py(probe_ordinal, cause),
         EngineOpenError::Embedder(err) => embedder_api_error_to_py(err, "embedder error during open"),
         EngineOpenError::EmbedDevicePolicy(error) => {
             let exc = EmbedDevicePolicyError::new_err(error.to_string());
@@ -584,6 +600,54 @@ pub(super) fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             StorageError::new_err(format!("database I/O error: {message}"))
         }
     }
+}
+
+fn vector_verification_to_py(
+    probe_ordinal: u32,
+    cause: fathomdb_engine::VectorVerificationFailure,
+) -> PyErr {
+    use fathomdb_engine::VectorVerificationFailure as Cause;
+    let message = match &cause {
+        Cause::Panic { message } | Cause::InvalidState { message } => message.clone(),
+        Cause::Provider(
+            fathomdb_embedder_api::EmbedderError::Failed { message }
+            | fathomdb_embedder_api::EmbedderError::CudaPoolExhausted { message, .. }
+            | fathomdb_embedder_api::EmbedderError::CudaPrivateBuildRefused { message, .. },
+        ) => message.clone(),
+        Cause::Provider(error) => format!("{error:?}"),
+        _ => cause.code().to_string(),
+    };
+    let exc = VectorVerificationError::new_err(format!(
+        "vector verification could not complete at probe {probe_ordinal}: {message}"
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("probe_ordinal", probe_ordinal);
+        let _ = value.setattr("cause_code", cause.code());
+        let _ = value.setattr("cause_message", message);
+        if let Cause::Provider(provider) = cause {
+            let kind = match &provider {
+                fathomdb_embedder_api::EmbedderError::Failed { .. } => "failed",
+                fathomdb_embedder_api::EmbedderError::Timeout => "timeout",
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted { .. } => {
+                    "cuda_pool_exhausted"
+                }
+                fathomdb_embedder_api::EmbedderError::CudaContextLost { .. } => "cuda_context_lost",
+                fathomdb_embedder_api::EmbedderError::CudaPrivateBuildRefused { .. } => {
+                    "cuda_private_build_refused"
+                }
+                _ => "unknown",
+            };
+            let provider = embedder_api_error_to_py(provider, "vector verification provider");
+            let _ = value.setattr("provider_kind", kind);
+            let _ = value.setattr("provider_error", provider.value(py));
+            exc.set_cause(py, Some(provider));
+        } else {
+            let _ = value.setattr("provider_kind", py.None());
+            let _ = value.setattr("provider_error", py.None());
+        }
+    });
+    exc
 }
 
 pub(super) fn corruption_to_py(detail: CorruptionDetail) -> PyErr {
@@ -634,4 +698,153 @@ pub(super) fn runtime_configuration_error_to_py(error: RustRuntimeConfigurationE
         }
         exc
     })
+}
+
+#[cfg(test)]
+mod vector_open_tests {
+    use super::*;
+    use fathomdb_engine::VectorVerificationFailure;
+
+    #[test]
+    fn refused_open_state_is_absent_from_native_report_and_engine() {
+        Python::initialize();
+        Python::attach(|py| {
+            for name in ["dense_disabled", "dense_disabled_reason"] {
+                assert!(
+                    !py.get_type::<PyOpenReport>().hasattr(name).unwrap(),
+                    "obsolete report field {name}"
+                );
+            }
+            for name in
+                ["dense_disabled", "dense_disabled_reason", "vector_equivalence_refusal_count"]
+            {
+                assert!(
+                    !py.get_type::<PyEngine>().hasattr(name).unwrap(),
+                    "obsolete engine method {name}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn invalid_stored_verification_state_preserves_detail_in_python() {
+        Python::initialize();
+        let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+            probe_ordinal: 0,
+            cause: VectorVerificationFailure::InvalidState {
+                message: "stored reference detail".into(),
+            },
+        });
+        Python::attach(|py| {
+            assert_eq!(
+                error.value(py).getattr("cause_code").unwrap().extract::<String>().unwrap(),
+                "invalid_state"
+            );
+            assert_eq!(
+                error.value(py).getattr("cause_message").unwrap().extract::<String>().unwrap(),
+                "stored reference detail"
+            );
+        });
+    }
+
+    #[test]
+    fn vector_verification_failure_preserves_python_context_and_provider() {
+        Python::initialize();
+        let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::Provider(
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal: 2,
+                    max_size_bytes: 12345,
+                    message: "original allocator detail".into(),
+                },
+            ),
+        });
+        Python::attach(|py| {
+            assert!(error.is_instance_of::<VectorVerificationError>(py));
+            let value = error.value(py);
+            assert_eq!(value.getattr("probe_ordinal").unwrap().extract::<u32>().unwrap(), 7);
+            assert_eq!(
+                value.getattr("cause_code").unwrap().extract::<String>().unwrap(),
+                "provider"
+            );
+            let provider = value.getattr("provider_error").unwrap();
+            assert!(provider.is_instance_of::<CudaPoolExhaustedError>());
+            assert_eq!(provider.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 2);
+            assert_eq!(
+                provider.getattr("max_size_bytes").unwrap().extract::<u64>().unwrap(),
+                12345
+            );
+            assert_eq!(
+                provider.getattr("message").unwrap().extract::<String>().unwrap(),
+                "original allocator detail"
+            );
+        });
+    }
+
+    #[test]
+    fn python_failed_provider_and_timeout_retain_original_kind() {
+        Python::initialize();
+        for (provider, kind) in [
+            (
+                fathomdb_embedder_api::EmbedderError::Failed { message: "original detail".into() },
+                "failed",
+            ),
+            (fathomdb_embedder_api::EmbedderError::Timeout, "timeout"),
+        ] {
+            let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause: VectorVerificationFailure::Provider(provider),
+            });
+            Python::attach(|py| {
+                assert_eq!(
+                    error.value(py).getattr("provider_kind").unwrap().extract::<String>().unwrap(),
+                    kind
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn numeric_refusal_retains_python_mismatch_class() {
+        Python::initialize();
+        let error = engine_open_error_to_py(EngineOpenError::VectorEquivalenceMismatch {
+            reason: "P1 flips=3".into(),
+        });
+        Python::attach(|py| {
+            assert!(error.is_instance_of::<VectorEquivalenceMismatchError>(py));
+            assert_eq!(
+                error.value(py).getattr("reason").unwrap().extract::<String>().unwrap(),
+                "P1 flips=3"
+            );
+        });
+    }
+
+    #[test]
+    fn dispatch_refusal_and_panic_remain_distinct_in_python() {
+        Python::initialize();
+        for cause in [
+            VectorVerificationFailure::StartedTimeout,
+            VectorVerificationFailure::InvalidOutput,
+            VectorVerificationFailure::Panic { message: "original panic".into() },
+        ] {
+            let code = cause.code();
+            let error = engine_open_error_to_py(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause,
+            });
+            Python::attach(|py| {
+                let value = error.value(py);
+                assert!(error.is_instance_of::<VectorVerificationError>(py));
+                assert_eq!(value.getattr("cause_code").unwrap().extract::<String>().unwrap(), code);
+                assert!(value.getattr("provider_error").unwrap().is_none());
+                if code == "panic" {
+                    assert_eq!(
+                        value.getattr("cause_message").unwrap().extract::<String>().unwrap(),
+                        "original panic"
+                    );
+                }
+            });
+        }
+    }
 }

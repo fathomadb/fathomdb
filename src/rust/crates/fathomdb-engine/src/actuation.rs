@@ -1818,6 +1818,8 @@ fn apply_lifecycle(
             params![operation.to_state.as_str(), new_reason, operation.logical_id],
         )
         .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
+    vector_storage::refresh_vector_eligibility_for_cursor(connection, write_cursor)
+        .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     purge_row_projections_for_cursor_in(
         connection,
         write_cursor,
@@ -1881,12 +1883,13 @@ impl Engine {
     /// `Storage`/`Closing` for infrastructure failure, and a terminal refused
     /// receipt for admitted domain failure.
     pub fn actuate(&self, request: ActuationBatchV1) -> Result<ActuationReceiptV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         validate_request(&request)?;
         let digest = request_digest(&request);
         let initial = {
             let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+            erasure_queue::guard_admin(connection)?;
             dependency_closure::maintain_before_writer(connection)?;
             load_receipt(connection, &request.operation_id, &digest, Some(&request))
         };

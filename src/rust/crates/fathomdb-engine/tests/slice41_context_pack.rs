@@ -8,18 +8,25 @@
 //! ranks exactly like its plain twin (no mocking: real databases).
 
 use std::collections::{BTreeMap, HashMap};
+#[cfg(feature = "test-hooks")]
 use std::sync::Arc;
 
+#[cfg(feature = "test-hooks")]
 use fathomdb_embedder::NoopEmbedder;
+#[cfg(feature = "test-hooks")]
+use fathomdb_engine::TestEmbedderChoice;
 use fathomdb_engine::{
     decode_round_body, decode_round_body_json, encode_round_body, encode_round_body_json,
     pack_context, pack_context_json, ContextItem, ContextOrder, ContextPack, ContextPackEntry,
-    ContextPart, ContextPolicy, ContextSource, ContextTier, EmbedderChoice, Engine, InitialState,
-    PreparedWrite, SourceId,
+    ContextPart, ContextPolicy, ContextSource, ContextTier,
 };
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
+use fathomdb_engine::{Engine, InitialState, PreparedWrite, SourceId};
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
 use serde_json::{json, Value};
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 use tempfile::TempDir;
 
 const FIXTURES: &str = include_str!("../../../../conformance/context-pack-fixtures.json");
@@ -582,6 +589,7 @@ proptest! {
 
 // --- engine: a tagged corpus ranks like its plain twin (AC41-18) ------------------
 
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 const WORDS: &[&str] = &[
     "cat", "dog", "oslo", "vitamin", "c", "d3", "the", "of", "kitchen", "garden", "trip", "paris",
     "doctor", "sister", "brother", "cat's", "coffee", "tea", "budget", "piano",
@@ -590,6 +598,7 @@ const WORDS: &[&str] = &[
 /// A deterministic 200-round corpus: multi-part rounds, query terms as the very
 /// first token of a part, empty parts, assistant-only terms, and byte-identical
 /// duplicate rounds.
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 fn corpus() -> Vec<Vec<ContextPart>> {
     let mut state: u64 = 0x5EED_0041;
     let mut next = move |n: usize| {
@@ -626,10 +635,12 @@ fn corpus() -> Vec<Vec<ContextPart>> {
     rounds
 }
 
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 fn plain_body(parts: &[ContextPart]) -> String {
     parts.iter().map(|p| p.text.as_str()).collect::<Vec<_>>().join("\n")
 }
 
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 fn node(logical_id: String, body: String) -> PreparedWrite {
     PreparedWrite::Node {
         kind: "doc".to_string(),
@@ -643,6 +654,7 @@ fn node(logical_id: String, body: String) -> PreparedWrite {
     }
 }
 
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 fn write_corpus(engine: &Engine, tagged: bool) {
     let writes: Vec<PreparedWrite> = corpus()
         .iter()
@@ -657,6 +669,7 @@ fn write_corpus(engine: &Engine, tagged: bool) {
     engine.drain(600_000).expect("drain");
 }
 
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 const QUERIES: &[&str] = &[
     "cat",
     "dog",
@@ -700,8 +713,10 @@ const QUERIES: &[&str] = &[
     "where did I travel",
 ];
 
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 type Ranked = Vec<(String, String, u64)>;
 
+#[cfg(any(feature = "test-hooks", feature = "default-embedder"))]
 fn ranked(result: &fathomdb_engine::SearchResult) -> Ranked {
     result
         .results
@@ -710,10 +725,11 @@ fn ranked(result: &fathomdb_engine::SearchResult) -> Ranked {
         .collect()
 }
 
+#[cfg(feature = "test-hooks")]
 fn open_noop(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {
-    Engine::open_with_choice(
+    Engine::open_with_test_choice_for_test(
         dir.path().join(format!("{name}{SQLITE_SUFFIX}")),
-        EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
     )
     .expect("open")
 }
@@ -721,6 +737,7 @@ fn open_noop(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {
 /// AC41-18: equal ids, order and score bits from `search_text_only` at limits
 /// 10 and 100 for a tagged corpus and its plain twin.
 #[test]
+#[cfg(feature = "test-hooks")]
 fn tagged_and_plain_corpora_rank_identically() {
     let dir = TempDir::new().expect("tempdir");
     let plain = open_noop(&dir, "slice41_plain");
@@ -762,7 +779,7 @@ fn tagged_and_plain_corpora_fuse_identically() {
     let open = |name: &str| {
         Engine::open_with_choice(
             dir.path().join(format!("{name}{SQLITE_SUFFIX}")),
-            EmbedderChoice::Default,
+            fathomdb_engine::EmbedderChoice::Default,
         )
     };
     let (plain, tagged) = match (open("slice41_hplain"), open("slice41_htagged")) {

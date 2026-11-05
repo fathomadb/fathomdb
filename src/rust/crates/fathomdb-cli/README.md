@@ -1,5 +1,8 @@
 # fathomdb-cli
 
+> Documentation targets 0.8.28; publication is pending. Install routes apply
+> once matching artifacts are published.
+
 The `fathomdb` operator and diagnostics binary for **FathomDB**, a local-first embedded retrieval
 engine built on SQLite.
 
@@ -17,7 +20,7 @@ releases.
 ## Install
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.27' --locked
+cargo install fathomdb-cli --version '=0.8.28' --locked
 fathomdb --version
 ```
 

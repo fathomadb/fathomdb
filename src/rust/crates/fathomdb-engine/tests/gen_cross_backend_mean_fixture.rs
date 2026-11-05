@@ -33,7 +33,7 @@ use std::sync::Arc;
 
 use fathomdb_embedder::{CandleBgeEmbedder, Pooling};
 use fathomdb_embedder_api::Embedder;
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite, MEAN_VEC_PIN_THRESHOLD};
+use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice, MEAN_VEC_PIN_THRESHOLD};
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -130,7 +130,8 @@ fn generate_cross_backend_pinned_mean_fixture() {
     let dir = TempDir::new().expect("tempdir");
     let db_path = dir.path().join("mean_fixture.sqlite");
     let opened =
-        Engine::open_with_choice(&db_path, EmbedderChoice::Caller(embedder)).expect("open");
+        Engine::open_with_test_choice_for_test(&db_path, TestEmbedderChoice::Caller(embedder))
+            .expect("open");
     let engine = opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("register vector kind");
 

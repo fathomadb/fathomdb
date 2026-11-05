@@ -1446,3 +1446,65 @@ proptest! {
         }
     }
 }
+
+#[cfg(feature = "operator")]
+#[test]
+fn historical_edge_rebuild_does_not_resurrect_source_closed_projections() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "slice80-source-closed-history");
+    let opened = Engine::open_with_embedder_for_test(&db, Arc::new(FixedEmbedder)).unwrap();
+    seed_registered(&opened.engine);
+    opened.engine.drain(10_000).unwrap();
+    let connection = Connection::open(&db).unwrap();
+    let edge_cursor: i64 = connection
+        .query_row(
+            "SELECT write_cursor FROM _fathomdb_artifact_revisions WHERE revision_id='edge-r1'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT count(*) FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+                [edge_cursor],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        1,
+        "fixture must start with a projected derived edge"
+    );
+    opened.engine.write(&[canonical("source-r2", "v2", "source", "replacement body")]).unwrap();
+    let assert_no_projection = |engine: &Engine| {
+        for sql in [
+            "SELECT count(*) FROM search_index_edges WHERE write_cursor=?1",
+            "SELECT count(*) FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+            "SELECT count(*) FROM _fathomdb_vector_spans WHERE write_cursor=?1",
+            "SELECT count(*) FROM vector_default WHERE rowid=?1",
+        ] {
+            assert_eq!(
+                connection.query_row(sql, [edge_cursor], |row| row.get::<_, i64>(0)).unwrap(),
+                0,
+                "{sql}"
+            );
+        }
+        let history =
+            ReadView { include_superseded: true, include_inactive: true, ..ReadView::default() };
+        assert!(engine
+            .search_text_only_view("derived edge body", &history)
+            .unwrap()
+            .results
+            .iter()
+            .all(|hit| hit.write_cursor != edge_cursor as u64));
+    };
+    assert_no_projection(&opened.engine);
+    opened.engine.rebuild_projections().unwrap();
+    opened.engine.drain(10_000).unwrap();
+    assert_no_projection(&opened.engine);
+    opened.engine.close().unwrap();
+    drop(opened);
+    let reopened = Engine::open_with_embedder_for_test(&db, Arc::new(FixedEmbedder)).unwrap();
+    reopened.engine.drain(10_000).unwrap();
+    assert_no_projection(&reopened.engine);
+    reopened.engine.close().unwrap();
+}

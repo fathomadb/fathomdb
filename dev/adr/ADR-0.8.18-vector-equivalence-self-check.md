@@ -1,5 +1,9 @@
 # ADR-0.8.18 — Vector-equivalence self-check (#5)
 
+> **Partial supersession (0.8.28, owner seq-359):**
+> [`ADR-0.8.28-vector-compatibility-open-policy`](ADR-0.8.28-vector-compatibility-open-policy.md).
+> The degraded-open/report/query-refusal clauses below are superseded. Actual numeric or cannot-verify refusal fails open with a typed error and no engine. Deliberate None permits metadata/text access; identity checks, numerical floors and TC-68 cache behavior remain.
+
 - **Status: ACCEPTED (HITL SIGNED 2026-07-09).** Design review CLEAN after 4 codex rounds (BLOCKs resolved +
   re-confirmed, not overridden); Steward-verified. R-VEQ-5 = additive-only (confirmed). **D4 floor FROZEN from
   the U3 measurement: P1 binary-flip count = 0 (exact), P2 un-centered L2 ε = 1e-5** (all same-identity legs

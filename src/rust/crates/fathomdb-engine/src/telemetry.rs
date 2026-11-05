@@ -1,3 +1,4 @@
+use crate::erasure_maintenance::{MaintenanceError, PhysicalErasurePolicy};
 /// REQ-006a / AC-007a default slow-statement threshold. Mutated at runtime
 /// via [`Engine::set_slow_threshold_ms`].
 pub(crate) const DEFAULT_SLOW_THRESHOLD_MS: u64 = 100;
@@ -73,6 +74,37 @@ impl TelemetrySink {
     }
 }
 
+const SINK_PREFIX: &str = "_fathomdb_telemetry_sink:";
+
+pub(crate) fn sink_fingerprint(path: &Path) -> Result<String, EngineError> {
+    use sha2::Digest;
+    let encoded = serde_json::to_vec(path).map_err(|_| EngineError::Storage)?;
+    let mut hash = sha2::Sha256::new();
+    hash.update(b"fathomdb.telemetry-sink.v1\0");
+    hash.update(encoded);
+    Ok(crate::identity::hex_encode(&hash.finalize()))
+}
+
+pub(crate) fn registered_sinks(c: &Connection) -> Result<Vec<String>, EngineError> {
+    let mut statement = c
+        .prepare("SELECT key FROM _fathomdb_open_state WHERE substr(key,1,?1)=?2 ORDER BY key")
+        .map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map(params![SINK_PREFIX.len(), SINK_PREFIX], |r| r.get::<_, String>(0))
+        .map_err(|_| EngineError::Storage)?;
+    rows.map(|row| {
+        let key = row.map_err(|_| EngineError::Storage)?;
+        let value = &key[SINK_PREFIX.len()..];
+        if value.len() != 64
+            || !value.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err(EngineError::Storage);
+        }
+        Ok(value.to_owned())
+    })
+    .collect()
+}
+
 /// 0.8.8 Slice 15 — append one JSON value as a line to the telemetry sink
 /// (append-only, local file; no network). Best-effort caller handles the error.
 fn append_jsonl(path: &Path, value: &serde_json::Value) -> std::io::Result<()> {
@@ -109,6 +141,8 @@ impl Engine {
     /// is an opt-in surface that is independently toggleable on a running
     /// engine without restart. AC-005a locks runtime toggleability.
     pub fn set_profiling(&self, enabled: bool) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
+        self.guard_explicit_metadata_mutation()?;
         self.profiling_enabled.store(enabled, Ordering::Relaxed);
         Ok(())
     }
@@ -119,6 +153,8 @@ impl Engine {
     /// threshold is runtime-configurable; mutating it changes detection
     /// behavior on subsequent statements without restart (AC-007b).
     pub fn set_slow_threshold_ms(&self, value: u64) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
+        self.guard_explicit_metadata_mutation()?;
         self.slow_threshold_ms.store(value, Ordering::Relaxed);
         Ok(())
     }
@@ -129,14 +165,33 @@ impl Engine {
     /// Local file only — no network/egress. `query_id` + `ts_monotonic_ms` are
     /// reset deterministically on enable. Idempotent re-enable resets the seq.
     pub fn enable_telemetry(&self, sink_path: &str) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && crate::maintenance_admission::in_callback()
+        {
+            return Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy));
+        }
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
+            crate::dependency_closure::guard_no_pending_physical(connection)?;
+        }
         // Touch the sink (create + validate writable) before arming capture, so a
         // bad path fails loudly here rather than silently dropping events.
         let mut options = std::fs::OpenOptions::new();
         options.create(true).append(true);
         std::fs::OpenOptions::open(&options, sink_path).map_err(|_| EngineError::Storage)?;
+        let path = std::fs::canonicalize(sink_path).map_err(|_| EngineError::Storage)?;
+        let fingerprint = sink_fingerprint(&path)?;
         let mut guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO _fathomdb_open_state(key,value) VALUES(?1,'1')",
+                [format!("{SINK_PREFIX}{fingerprint}")],
+            )
+            .map_err(|_| EngineError::Storage)?;
         *guard = Some(TelemetrySink {
-            path: PathBuf::from(sink_path),
+            path,
             base: Instant::now(),
             nonce: 0,
             seq: 0,
@@ -169,16 +224,30 @@ impl Engine {
     /// pre-Cause-A gold and sink byte-output stay valid (the F-8a `id_space` flip
     /// is a separate, conscious step — see
     /// `dev/plans/runs/NOTE-0.8.8-to-steward-id-contract.md`).
-    fn capture_telemetry(&self, query: &str, result: &SearchResult) {
-        // Fast OFF path (codex §9 P2): a single atomic load when telemetry has
-        // never been enabled — NO mutex acquisition, NO contention with the search
-        // hot path.
-        if !self.telemetry_enabled.load(Ordering::Acquire) {
-            return;
+    fn capture_telemetry(&self, query: &str, result: &SearchResult) -> Option<String> {
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && self.explicit_debt.load(Ordering::Acquire)
+        {
+            return None;
         }
-        let Ok(mut guard) = self.telemetry.lock() else { return };
-        let Some(sink) = guard.as_mut() else { return };
-        Self::capture_telemetry_with_sink(query, result, sink);
+        if !self.telemetry_enabled.load(Ordering::Acquire) {
+            return None;
+        }
+        // Match admission's writer -> telemetry lock order. A materialized read
+        // may outlive its rows; it must not create a fresh durable copy afterwards.
+        let connection = self.connection.lock().ok()?;
+        let connection = connection.as_ref()?;
+        let mut guard = self.telemetry.lock().ok()?;
+        let sink = guard.as_mut()?;
+        let mut stable_ids = Vec::with_capacity(result.results.len());
+        for hit in &result.results {
+            let present: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1) OR EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
+                [hit.write_cursor], |r| r.get(0),
+            ).ok()?;
+            stable_ids.push(if present { hit.id.to_prefixed() } else { "[erased]".into() });
+        }
+        Some(Self::capture_telemetry_with_sink(query, result, sink, stable_ids))
     }
 
     pub(crate) fn finalize_search_observability(&self, query: &str, result: &mut SearchResult) {
@@ -186,18 +255,11 @@ impl Engine {
             self.capture_telemetry(query, result);
             return;
         }
-
         #[cfg(feature = "test-hooks")]
         explanation_finalization_hooks::fire_before();
-        let correlation_id = if let Ok(mut guard) = self.telemetry.lock() {
-            if let Some(sink) = guard.as_mut() {
-                Self::capture_telemetry_with_sink(query, result, sink)
-            } else {
-                self.mint_explanation_correlation_id()
-            }
-        } else {
-            self.mint_explanation_correlation_id()
-        };
+        let correlation_id = self
+            .capture_telemetry(query, result)
+            .unwrap_or_else(|| self.mint_explanation_correlation_id());
         #[cfg(feature = "test-hooks")]
         explanation_finalization_hooks::fire_after();
         if let Some(explanation) = result.explanation.as_mut() {
@@ -214,6 +276,7 @@ impl Engine {
         query: &str,
         result: &SearchResult,
         sink: &mut TelemetrySink,
+        stable_ids: Vec<String>,
     ) -> String {
         let query_id = format!("q{}-{}", sink.nonce, sink.seq);
         let ts_monotonic_ms = sink.base.elapsed().as_millis() as u64;
@@ -237,11 +300,7 @@ impl Engine {
             // prefixed form == the pre-swap `stable_id` value byte-for-byte), so
             // the emitted bytes are unchanged and the `write_cursor` result_ids
             // keys are retained unchanged (pre-Cause-A gold stays valid).
-            "result_stable_ids": result
-                .results
-                .iter()
-                .map(|h| h.id.to_prefixed())
-                .collect::<Vec<String>>(),
+            "result_stable_ids": stable_ids,
             "arm_of": arm_of,
         });
         let _ = append_jsonl(&sink.path, &event);
@@ -269,6 +328,13 @@ impl Engine {
         irrelevant_ids: &[u64],
         label_source: &str,
     ) -> Result<(), EngineError> {
+        let _operation = self.ensure_open()?;
+        self.guard_explicit_metadata_mutation()?;
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && crate::maintenance_admission::in_callback()
+        {
+            return Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy));
+        }
         let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
         let sink = guard
             .as_ref()
@@ -303,8 +369,27 @@ use crate::search_types::{SearchResult, SoftFallbackBranch};
 #[cfg(feature = "test-hooks")]
 use crate::test_hooks::explanation_finalization_hooks;
 use crate::Engine;
+use rusqlite::{params, Connection};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Instant;
+
+pub(crate) fn original_attachment(path: PathBuf) -> TelemetrySink {
+    TelemetrySink { path, base: Instant::now(), nonce: 0, seq: 0, last_query_id: None }
+}
+
+impl Engine {
+    fn guard_explicit_metadata_mutation(&self) -> Result<(), EngineError> {
+        if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance
+            && self.explicit_debt.load(Ordering::Acquire)
+        {
+            return Err(EngineError::ErasureIncomplete {
+                stage: "physical_admission".into(),
+                detail: "explicit physical cleanup remains owed".into(),
+            });
+        }
+        Ok(())
+    }
+}

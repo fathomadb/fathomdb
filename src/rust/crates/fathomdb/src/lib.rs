@@ -8,7 +8,10 @@
 //!
 //! FathomDB embeds SQLite (FTS5 + `sqlite-vec`) in your process — there is no
 //! server and no sidecar. One `Engine` owns the writer thread, a reader pool,
-//! the projection scheduler and (optionally) an in-process embedder.
+//! the projection scheduler and (optionally) the pinned built-in BGE/Mean provider.
+//! Production provider choice is Default or None; low-level trait implementations
+//! and standalone CLS helpers do not grant engine admission before 1.x. Actual
+//! vector verification refusal returns a typed open error and no Engine.
 //!
 //! # Do you want this crate?
 //!
@@ -208,6 +211,12 @@ pub use fathomdb_engine::{
     QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
 };
 
+pub use fathomdb_engine::{
+    CleanupResult, ErasureBlocker, ErasureLogicalState, ErasureMaintenance, ErasurePhase,
+    ErasureServiceState, ErasureStatus, MaintenanceError, PhysicalErasurePolicy,
+    PhysicalErasureSelector, QueueResult, WithdrawResult,
+};
+
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,
 // gated behind `operator`. The backing `Engine` methods are operator-gated in
 // `fathomdb-engine`, so the default facade is recovery-clean at the method level.
@@ -292,3 +301,6 @@ pub mod governed_surface_method_absence_proof {}
 #[cfg(not(debug_assertions))]
 #[doc(hidden)]
 pub mod release_surface_raw_sql_absence_proof {}
+
+/// Typed cause of an open-time vector verification failure; no engine is returned.
+pub use fathomdb_engine::VectorVerificationFailure;

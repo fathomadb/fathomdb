@@ -9,7 +9,8 @@ Crate: `fathomdb-sdk` (import `fathomdb_sdk`), introduced in 0.8.27. It has the 
   `Error` type and its `ErrorKind`.
 
 The repository check that verifies Python and TypeScript membership also
-verifies the Rust SDK: 44 of 44 governed operations.
+verifies the Rust SDK against the current canonical operation map. See the
+[generated SDK index](../generated/sdk-operation-map.md).
 
 ## Shape
 
@@ -37,6 +38,22 @@ fn main() -> fathomdb_sdk::Result<()> {
     Ok(())
 }
 ```
+
+## Filtered direct body FTS and maintenance
+
+`TextSearchOptions` carries `view`, `limit` and `filter: Option<SearchFilter>`.
+`Engine::search_text_only` applies that filter before candidate caps,
+deduplication, ranking and limit. The same-filter/same-view prefix rule and
+metadata limits are shared with [Python and TypeScript](../guides/hybrid-search-filtering.md).
+`SearchFilter.attributes` is node-scoped ordered AND equality; status/time need
+stored vector metadata and do not become available merely by opening without a
+provider.
+
+`EngineConfig::physical_erasure_policy` selects the persisted policy. The SDK
+exposes typed queue/status/withdraw outcomes and an owned `ErasureMaintenance`
+window from `begin_erasure_maintenance`; activated cleanup returns typed complete
+or incomplete results. See [maintenance semantics](../operations/erasure.md#schedule-an-explicit-maintenance-window).
+No completion deadline or immediate-revocation promise is implied.
 
 ## Differences from Python and TypeScript
 

@@ -3,8 +3,8 @@
 
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
-    EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, ProjectionRole,
-    ProjectionSpec, SearchFilter, SourceId,
+    Engine, EngineError, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec, SearchFilter,
+    SourceId, TestEmbedderChoice,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::collections::BTreeSet;
@@ -12,8 +12,11 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 fn open(path: &std::path::Path) -> fathomdb_engine::OpenedEngine {
-    Engine::open_with_choice(path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-        .expect("open")
+    Engine::open_with_test_choice_for_test(
+        path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .expect("open")
 }
 
 fn node(id: &str, body: &str) -> PreparedWrite {

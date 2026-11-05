@@ -46,7 +46,7 @@ impl Engine {
 
     #[doc(hidden)]
     pub fn seed_graph_expand_dependency_closure_for_test(&self) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let cursor = self.next_cursor.load(AtomicOrdering::SeqCst).saturating_add(1);
@@ -86,7 +86,7 @@ impl Engine {
     pub fn seed_graph_expand_nonterminal_dependency_closure_for_test(
         &self,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -104,7 +104,7 @@ impl Engine {
 
     #[doc(hidden)]
     pub fn seed_graph_expand_erasure_for_test(&self) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -379,7 +379,7 @@ impl Engine {
         depth: u32,
         direction: TraversalDirection,
     ) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
         let request = ReaderRequest::explain_graph_neighbors(
             root_logical_id.to_string(),
@@ -486,7 +486,7 @@ impl Engine {
         request: &GraphExpandRequestV1,
         #[cfg(feature = "test-hooks")] test_controls: GraphExpandReaderControlsForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if request.include_evidence && matches!(request.context, GraphReadContextV1::Current { .. })
         {
             return Err(graph_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/context"));
@@ -532,8 +532,6 @@ impl Engine {
         validate_semantics(request)?;
         let projection_runtime_state = if self.runtime_embedder.is_none() {
             ProjectionRuntimeStateV1::Absent
-        } else if self.dense_disabled.load(AtomicOrdering::Acquire) {
-            ProjectionRuntimeStateV1::Refused
         } else {
             ProjectionRuntimeStateV1::Usable
         };
@@ -585,7 +583,7 @@ impl Engine {
         &self,
         direction: TraversalDirection,
     ) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let query = graph_expand_incident_query("fixture", direction, 1);
@@ -611,7 +609,7 @@ impl Engine {
         direction: TraversalDirection,
         view: &ReadView,
     ) -> Result<Vec<NodeRecord>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if depth == 0 || depth > 3 {
             return Err(EngineError::InvalidArgument {
                 msg: format!("traversal depth {depth} is out of range; must be 1, 2, or 3"),
@@ -666,7 +664,7 @@ impl Engine {
         since: i64,
         view: &ReadView,
     ) -> Result<Vec<BoundaryCrossing>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
         let request = ReaderRequest::crossed_boundary_since(since, *view, response_tx);
         if self.reader_pool.dispatch(request).is_err() {

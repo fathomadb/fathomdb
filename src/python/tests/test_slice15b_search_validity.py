@@ -37,7 +37,6 @@ import sqlite3
 import pytest
 
 from fathomdb import Engine
-from fathomdb.errors import InvalidArgumentError
 from fathomdb.types import ReadView, SearchResult
 
 _SOURCE_ID = "py-test:slice15b-search-validity"
@@ -290,35 +289,36 @@ def test_search_text_only_takes_the_same_predicate_and_escape_hatch(db_path: str
 
 
 # ---------------------------------------------------------------------------
-# (4) Scope guard — the existence axis is REFUSED, never silently ignored
+# (4) Historical and inactive views compose independently
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "view",
-    [ReadView(include_superseded=True), ReadView(include_inactive=True)],
-    ids=["include_superseded", "include_inactive"],
-)
-def test_search_refuses_a_view_that_relaxes_the_existence_axis(
-    db_path: str, view: ReadView
-) -> None:
-    """fix-2 scopes the search ``ReadView`` to the VALIDITY axis. Relaxing
-    ``superseded_at IS NULL`` on a retrieval path would resurrect the stale-body
-    leak the Slice-15 fix-1 review closed, and search hydrates from projection
-    indexes that are not version-complete — so the existence flags have no
-    truthful answer here. They are REFUSED, not silently ignored (which would be
-    the dead surface this fix exists to remove)."""
-
-    _seed(db_path, [_windowed("A", "scope guard body", None, None)])
-
+def test_search_history_flags_compose_independently(db_path: str) -> None:
     engine = _open(db_path)
     try:
-        with pytest.raises(InvalidArgumentError):
-            engine.search("scope", view=view)
-        # The validity axis alone is accepted.
-        assert _bodies(engine.search("scope", view=ReadView(include_out_of_window=True))) == [
-            "scope guard body"
+        engine.write([_windowed("version", "history old", None, None)])
+        engine.write([
+            _windowed("version", "history current", None, None),
+            _windowed("inactive", "history deleted", None, None),
+            _windowed("expired", "history expired", None, _FAR_PAST_UNTIL),
+        ])
+        engine.transition("inactive", "deleted", "test")
+        engine.drain(timeout_s=30)
+        matrix = [
+            (ReadView(), ["history current"]),
+            (ReadView(include_superseded=True), ["history current", "history old"]),
+            (ReadView(include_inactive=True), ["history current", "history deleted"]),
+            (ReadView(include_superseded=True, include_inactive=True),
+             ["history current", "history deleted", "history old"]),
         ]
+        for view, expected in matrix:
+            assert _bodies(engine.search("history", view=view)) == expected
+            text_result = engine.search_text_only("history", view=view)
+            assert _bodies(text_result) == expected
+            assert text_result.soft_fallback is None
+        assert _bodies(engine.search("history", view=ReadView(
+            include_superseded=True, include_inactive=True, include_out_of_window=True,
+        ))) == ["history current", "history deleted", "history expired", "history old"]
     finally:
         engine.close()
 

@@ -49,17 +49,14 @@ fn relaxed() -> ReadView {
     ReadView { include_out_of_window: true, ..ReadView::default() }
 }
 
-fn assert_existence_relaxation_refused(
+fn assert_existence_relaxation_accepted(
     mut call: impl FnMut(&ReadView) -> Result<fathomdb_engine::SearchResult, EngineError>,
 ) {
     for view in [
         ReadView { include_superseded: true, ..ReadView::default() },
         ReadView { include_inactive: true, ..ReadView::default() },
     ] {
-        assert!(
-            matches!(call(&view), Err(EngineError::InvalidArgument { .. })),
-            "search must refuse existence-axis relaxation"
-        );
+        assert!(call(&view).is_ok(), "search accepts existence-axis relaxation");
     }
 }
 
@@ -94,7 +91,7 @@ fn graph_arm_applies_the_search_validity_view_to_reached_neighbors() {
     );
     assert!(contains_neighbor(&relaxed()), "relaxed validity must prove the graph arm reached it");
     assert!(contains_neighbor(&at(1_500)), "an instant inside the neighbor window must include it");
-    assert_existence_relaxation_refused(search);
+    assert_existence_relaxation_accepted(search);
 
     opened.engine.close().expect("close");
 }
@@ -144,7 +141,7 @@ fn projected_text_applies_the_search_validity_view() {
     );
     assert!(bodies(&relaxed()).iter().any(|body| body.contains("projected expired")));
     assert!(bodies(&at(1_500)).iter().any(|body| body.contains("projected expired")));
-    assert_existence_relaxation_refused(search);
+    assert_existence_relaxation_accepted(search);
 
     opened.engine.close().expect("close");
 }

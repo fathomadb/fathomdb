@@ -400,7 +400,6 @@ fn refused_prospective_arm_is_globally_mutation_free_before_graft() {
             Arc::new(CountingEmbedder::faithful(identity.clone())),
         )
         .expect("persist accepted baseline");
-        assert!(!opened.report.dense_disabled, "fixture: accepted baseline");
         opened.engine.close().expect("close accepted baseline");
     }
     make_probe_verdict_stale_and_leave_vector_arm_cold(&path);
@@ -425,16 +424,18 @@ fn refused_prospective_arm_is_globally_mutation_free_before_graft() {
     let divergent = CountingEmbedder::divergent(identity);
     let calls = Arc::clone(&divergent.calls);
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(divergent))
-        .expect("degraded open is still serviceable");
-    assert!(opened.report.dense_disabled, "prospective arm must be checked before grafting");
-    assert_eq!(readiness(&opened.engine, "summary"), Some(DenseReadiness::Unavailable));
+        .expect_err("verification refusal must return no engine");
+    assert!(matches!(
+        opened,
+        fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }
+            | fathomdb_engine::EngineOpenError::VectorVerification { .. }
+    ));
     assert_eq!(calls.load(Ordering::SeqCst), 45, "only the preflight probe ran");
     assert_eq!(
         prospective_arm_snapshot(&path, n1),
         before_refusal,
         "refusal may neither graft/dispatch dense work nor mutate probe/cache state"
     );
-    opened.engine.close().expect("close degraded open");
 }
 
 #[test]
@@ -464,16 +465,18 @@ fn refused_cold_prospective_population_never_persists_a_baseline() {
     let failing = CountingEmbedder::failing_on(identity, 46);
     let calls = Arc::clone(&failing.calls);
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(failing))
-        .expect("degraded open is still serviceable");
-    assert!(opened.report.dense_disabled, "failed prospective preflight refuses dense");
-    assert_eq!(readiness(&opened.engine, "summary"), Some(DenseReadiness::Unavailable));
+        .expect_err("verification refusal must return no engine");
+    assert!(matches!(
+        opened,
+        fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }
+            | fathomdb_engine::EngineOpenError::VectorVerification { .. }
+    ));
     assert_eq!(calls.load(Ordering::SeqCst), 46, "population and confirmation both ran");
     assert_eq!(
         prospective_arm_snapshot(&path, n1),
         before_refusal,
         "a prospective refusal cannot leave a partially accepted baseline or cache"
     );
-    opened.engine.close().expect("close degraded open");
 }
 
 #[test]
@@ -502,7 +505,6 @@ fn registered_arm_refusal_still_clears_a_stale_probe_verdict() {
             Arc::new(CountingEmbedder::faithful(identity.clone())),
         )
         .expect("persist accepted baseline");
-        assert!(!opened.report.dense_disabled, "fixture: accepted baseline");
         opened.engine.close().expect("close accepted baseline");
     }
     make_probe_verdict_stale(&path);
@@ -517,8 +519,12 @@ fn registered_arm_refusal_still_clears_a_stale_probe_verdict() {
 
     let opened =
         Engine::open_with_embedder_for_test(&path, Arc::new(CountingEmbedder::divergent(identity)))
-            .expect("degraded open is still serviceable");
-    assert!(opened.report.dense_disabled, "registered divergent arm remains fail-closed");
+            .expect_err("verification refusal must return no engine");
+    assert!(matches!(
+        opened,
+        fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }
+            | fathomdb_engine::EngineOpenError::VectorVerification { .. }
+    ));
     assert!(vector_kind_exists(&path, "doc"), "registered arm remains registered");
     assert!(
         ro(&path)
@@ -530,5 +536,4 @@ fn registered_arm_refusal_still_clears_a_stale_probe_verdict() {
             .is_err(),
         "registered-arm refusal still removes the stale verdict"
     );
-    opened.engine.close().expect("close degraded open");
 }

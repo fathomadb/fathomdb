@@ -1,5 +1,9 @@
 # Erasure
 
+The direct erasure verbs below describe the default Autonomous policy.
+For the opt-in ExplicitMaintenance profile, see
+[Schedule an explicit maintenance window](#schedule-an-explicit-maintenance-window).
+
 FathomDB exposes two erasure verbs. Which one applies depends on **how the row
 was identified when it was written**, not on who is asking.
 
@@ -79,12 +83,11 @@ Read this list before making a deletion promise to anyone downstream.
   - **Curated gold / evaluation files** derived from the corpus — fixtures,
     exported judgement sets, cached embeddings held outside the engine.
   - Anything else replicated or copied into your own store.
-- **It does not erase filesystem-level remnants.** The verb truncates the WAL,
-  but SQLite may still hold the content in free pages inside the main database
-  file until they are reused. A `VACUUM` (or restoring into a fresh file) is
-  what actually reclaims those pages. On a copy-on-write filesystem, an
-  SSD with wear-levelling, or a snapshotted volume, prior versions of the file
-  may persist regardless of anything the database does.
+- **It does not erase filesystem-level remnants.** Completion proves the
+  registered SQLite-copy sanitation boundary and WAL truncation. Filesystem
+  snapshots, copy-on-write prior blocks, SSD wear-levelling and other storage
+  copies remain outside that boundary; no universal storage-remanence claim
+  follows from database completion.
 - **It does not erase the audit record that the erasure happened** — that is
   deliberate; see below.
 - **It does not reach the engine's reserved namespace.** `source_id` values
@@ -139,14 +142,15 @@ The reason is that `source_id` outlives the rows it names:
 > audit collections from the sweep. That section of v4 is marked SUPERSEDED IN
 > PART.
 
-The same reasoning applies to `logical_id`, and more sharply. A `logical_id` is
-derived as:
+Treat caller-supplied `logical_id` values as public identifiers too. Direct
+canonical writes accept opaque IDs such as `note:1`; they are not universally
+derived from a name. Extractor ingestion derives entity IDs internally as:
 
 ```text
 logical_id = SHA256( lowercase(kind) + ":" + lowercase(name) )
 ```
 
-The inputs are **case-folded** before hashing. That is load-bearing for identity
+For those extractor-derived IDs, inputs are **lowercased** before hashing. That is load-bearing for identity
 collapse (so `Alice Smith` and `alice smith` are one entity), but it also
 *shrinks the preimage space*: a dictionary attack over plausible names does not
 have to guess capitalisation. Do not treat a `logical_id` hash as though it
@@ -172,3 +176,50 @@ Exit codes follow the usual doctor convention: `0` when clean, `65`
 `_legacy:pre-0.8.20` are **reported but are not an issue** — they are fully
 erasable through the CLI recovery seam; they are merely not attributable to a
 specific caller source.
+
+## Schedule an explicit maintenance window
+
+New format-36 stores can opt into persisted explicit maintenance:
+
+```python
+from secrets import token_hex
+from fathomdb import Engine, EngineConfig
+
+engine = Engine.open("fresh.sqlite", config=EngineConfig(
+    physical_erasure_policy="explicit_maintenance",
+))
+selector = {"kind": "source_all_at_cut", "source_id": "tenant-a"}
+opaque = token_hex(16)  # Save this for exact retry after a lost response.
+with engine.begin_erasure_maintenance(1000) as window:
+    accepted = window.queue_physical_erasure(selector, opaque)
+    if accepted["outcome"] == "accepted":
+        result = window.complete_physical_erasure(accepted["ticket"])
+        if result["outcome"] == "incomplete":
+            print(result["status"])  # Retained obligation; not physical success.
+engine.close()
+```
+
+Queue acceptance leaves data readable under its existing eligibility. Ordinary
+new queue admission returns `needs_maintenance_admission` when safe cheap proof
+is unavailable; acquire a window for the heavy preflight as above. Exact retained
+key retries return the same ticket. `physical_erasure_status(ticket)` retrieves
+identity-free status; `withdraw_queued_erasure(ticket)` withdraws only unactivated
+intent, never executing debt. Use random opaque keys, not subject-derived values.
+
+The window excludes ordinary reads/writes and projection/admin work. Newcomers
+refuse promptly; existing owned operations drain cooperatively. Acquisition wait
+is not an active cleanup timeout. A Complete result requires exact registered-copy
+sanitation, original telemetry sinks and WAL truncation. Unavailable original sinks
+or external pinned readers can produce Incomplete and a prolonged write fence.
+Authenticated original-sink reattachment is available through
+`window.reattach_original_erasure_sink(ticket, path)`; it never registers a replacement.
+Handle close/drop releases temporary ownership but cannot forgive durable debt.
+Explicit reopen preserves policy/fences and performs no autonomous cleanup.
+
+Autonomous remains the default. Direct online erase/purge under explicit policy
+refuses `maintenance_required`; use the window's selected ticket. Fresh format 36
+is required for both profiles: earlier stores are refused, with no automatic
+migration or in-place opt-in. Finish/export old stores using their supported old
+product procedures. This API promises no immediate revocation, completion deadline,
+backup deletion or universal storage remanence. TypeScript uses camelCase methods
+and fields with the same outcome values; Rust exposes typed matching enums.

@@ -26,7 +26,7 @@ impl Engine {
     /// never assigned (graceful-absent). The reciprocal read for
     /// [`Engine::write_node_importance`].
     pub fn node_importance(&self, write_cursor: u64) -> Result<Option<f64>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let eligibility =
@@ -54,7 +54,7 @@ impl Engine {
         context: &FrozenReadContextV1,
         limit: usize,
     ) -> Result<Vec<NodeRecord>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
             .dispatch(ReaderRequest::canonical_page_baseline(
@@ -89,7 +89,7 @@ impl Engine {
         logical_ids: &[String],
         view: &ReadView,
     ) -> Result<Vec<Option<NodeRecord>>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if logical_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -137,7 +137,7 @@ impl Engine {
         after_id: Option<i64>,
         limit: usize,
     ) -> Result<Vec<OpStoreRow>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
         let request =
             ReaderRequest::read_collection(collection.to_string(), after_id, limit, response_tx);
@@ -172,7 +172,7 @@ impl Engine {
         limit: usize,
         view: &ReadView,
     ) -> Result<Vec<NodeRecord>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         // Defense-in-depth: revalidate paths even if the caller bypassed the
         // validated constructors by constructing enum variants directly.
         for pred in predicates {
@@ -219,7 +219,7 @@ impl Engine {
         limit: usize,
         view: &ReadView,
     ) -> Result<Vec<NodeRecord>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         match filter.lower_for_read_list(kind)? {
             None => Ok(Vec::new()),
             Some(preds) => self.read_list(kind, &preds, limit, view),
@@ -237,7 +237,7 @@ impl Engine {
         context: &FrozenReadContextV1,
         page: &PageRequestV1,
     ) -> Result<PageV1<NodeRecord>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         pagination::validate_request(page)?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
@@ -261,7 +261,7 @@ impl Engine {
         record_key: &str,
         context: Option<&FrozenReadContextV1>,
     ) -> Result<Option<OperationalStateRecordV1>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
             .dispatch(ReaderRequest::operational_state(
@@ -281,7 +281,7 @@ impl Engine {
         context: &FrozenReadContextV1,
         page: &PageRequestV1,
     ) -> Result<PageV1<OperationalStateRecordV1>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         pagination::validate_request(page)?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
@@ -320,7 +320,7 @@ impl Engine {
         &self,
         row_kind: RowKind,
     ) -> Result<Vec<u64>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut stmt = connection
@@ -345,7 +345,7 @@ impl Engine {
         &self,
         kind: &str,
     ) -> Result<Vec<(String, Vec<String>)>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = open_managed_connection(
             &self.path,
             ManagedConnectionCategory::RuntimeProbe,

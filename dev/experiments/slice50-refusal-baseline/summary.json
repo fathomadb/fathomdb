@@ -1,0 +1,556 @@
+{
+  "retained_observations": 108,
+  "retained_recoveries": 108,
+  "all_failed_calls_unchanged": true,
+  "all_refused_pending_calls_embedded_nothing": true,
+  "original_source": "results/results.json",
+  "corrected_source": "purge-corrected/results.json",
+  "excluded": {
+    "source": "results/results.json",
+    "operation": "purge",
+    "observations": 2,
+    "reason": "Active target; purge requires Deleted"
+  },
+  "cells": [
+    {
+      "operation": "actuate",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 2.73877,
+      "median_ms": 2.751264,
+      "max_ms": 6.303023
+    },
+    {
+      "operation": "actuate",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 1.473918,
+      "median_ms": 1.513122,
+      "max_ms": 1.58624
+    },
+    {
+      "operation": "actuate",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 1.5294530000000002,
+      "median_ms": 1.58568,
+      "max_ms": 1.798181
+    },
+    {
+      "operation": "actuate",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.62617,
+      "median_ms": 30000.661985000002,
+      "max_ms": 30000.722313000002
+    },
+    {
+      "operation": "configure_projections",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 0.709832,
+      "median_ms": 0.7369330000000001,
+      "max_ms": 0.838316
+    },
+    {
+      "operation": "configure_projections",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 0.560921,
+      "median_ms": 0.646553,
+      "max_ms": 0.679526
+    },
+    {
+      "operation": "configure_projections",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 0.5512429999999999,
+      "median_ms": 0.6387079999999999,
+      "max_ms": 0.641674
+    },
+    {
+      "operation": "configure_projections",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.381636000002,
+      "median_ms": 30000.396797,
+      "max_ms": 30000.556849999997
+    },
+    {
+      "operation": "drain",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "EmbedderRequired",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 0.36036199999999996,
+      "median_ms": 0.36912799999999996,
+      "max_ms": 0.398464
+    },
+    {
+      "operation": "drain",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 0.215557,
+      "median_ms": 0.22150899999999998,
+      "max_ms": 0.23743899999999998
+    },
+    {
+      "operation": "drain",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 0.20920499999999997,
+      "median_ms": 0.225948,
+      "max_ms": 0.227982
+    },
+    {
+      "operation": "drain",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 3000.435307,
+      "median_ms": 3000.484723,
+      "max_ms": 3000.519321
+    },
+    {
+      "operation": "erase_source",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 15.001416,
+      "median_ms": 15.44742,
+      "max_ms": 23.399131
+    },
+    {
+      "operation": "erase_source",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 28.331981,
+      "median_ms": 36.568932,
+      "max_ms": 36.649725000000004
+    },
+    {
+      "operation": "erase_source",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 14.512400999999999,
+      "median_ms": 18.850768,
+      "max_ms": 19.354791
+    },
+    {
+      "operation": "erase_source",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.421591,
+      "median_ms": 30000.624956,
+      "max_ms": 30000.747713999997
+    },
+    {
+      "operation": "excise_source",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 15.233866,
+      "median_ms": 16.256621,
+      "max_ms": 27.685959
+    },
+    {
+      "operation": "excise_source",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 28.227965,
+      "median_ms": 31.842071,
+      "max_ms": 35.244848000000005
+    },
+    {
+      "operation": "excise_source",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 15.102397,
+      "median_ms": 18.700363,
+      "max_ms": 52.759548
+    },
+    {
+      "operation": "excise_source",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.616811,
+      "median_ms": 30000.621392,
+      "max_ms": 30000.675743
+    },
+    {
+      "operation": "purge",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 8.227682999999999,
+      "median_ms": 8.471093000000002,
+      "max_ms": 8.507552
+    },
+    {
+      "operation": "purge",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 10.546448999999999,
+      "median_ms": 10.597476,
+      "max_ms": 10.73171
+    },
+    {
+      "operation": "purge",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 7.608662000000001,
+      "median_ms": 7.755951,
+      "max_ms": 7.971850000000001
+    },
+    {
+      "operation": "purge",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.605972999998,
+      "median_ms": 30000.618064000002,
+      "max_ms": 30000.632114999997
+    },
+    {
+      "operation": "rebuild_projections",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "EmbedderRequired",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 0.427578,
+      "median_ms": 0.443309,
+      "max_ms": 0.479808
+    },
+    {
+      "operation": "rebuild_projections",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        2
+      ],
+      "min_ms": 24.270549,
+      "median_ms": 25.150263,
+      "max_ms": 28.496152
+    },
+    {
+      "operation": "rebuild_projections",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 9.266438,
+      "median_ms": 9.351749,
+      "max_ms": 9.397225
+    },
+    {
+      "operation": "rebuild_projections",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.333615,
+      "median_ms": 30000.396532,
+      "max_ms": 30000.461594
+    },
+    {
+      "operation": "rebuild_vec0",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "EmbedderRequired",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 0.316158,
+      "median_ms": 0.363678,
+      "max_ms": 0.431967
+    },
+    {
+      "operation": "rebuild_vec0",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        2
+      ],
+      "min_ms": 21.188368999999998,
+      "median_ms": 24.977968,
+      "max_ms": 25.465179000000003
+    },
+    {
+      "operation": "rebuild_vec0",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 7.396641,
+      "median_ms": 7.562755,
+      "max_ms": 7.626296
+    },
+    {
+      "operation": "rebuild_vec0",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.405717999998,
+      "median_ms": 30000.461427000002,
+      "max_ms": 30000.567495
+    },
+    {
+      "operation": "transition",
+      "state": "absent_pending",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 1.519724,
+      "median_ms": 5.548355,
+      "max_ms": 5.6372230000000005
+    },
+    {
+      "operation": "transition",
+      "state": "accepted_ready",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 0.7410220000000001,
+      "median_ms": 0.744308,
+      "max_ms": 0.748215
+    },
+    {
+      "operation": "transition",
+      "state": "refused_empty",
+      "n": 3,
+      "result": "Ok",
+      "pending_before": [
+        0
+      ],
+      "pending_after": [
+        0
+      ],
+      "min_ms": 0.72405,
+      "median_ms": 0.807758,
+      "max_ms": 0.891606
+    },
+    {
+      "operation": "transition",
+      "state": "refused_pending",
+      "n": 3,
+      "result": "Scheduler",
+      "pending_before": [
+        1
+      ],
+      "pending_after": [
+        1
+      ],
+      "min_ms": 30000.447253000002,
+      "median_ms": 30000.546626,
+      "max_ms": 30002.847998
+    }
+  ]
+}

@@ -376,3 +376,29 @@ def test_aggregate_rejects_partial_or_wrong_device_results():
             index_digest="2" * 64,
             binary_digest="3" * 64,
         )
+
+
+def test_0828_candidate_uses_current_package_and_exact_binding(tmp_path):
+    path = _candidate_config(tmp_path, release="0.8.28", package_version="0.8.27")
+    config = tc5_gpu_v2.load_config(path)
+    assert config.release == config.candidate_version == "0.8.28"
+    assert config.package_version == "0.8.27"
+    assert config.candidate_sha == "1" * 40
+    assert config.benchmark_binary_sha256 == _sha(config.benchmark_binary)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "stale-release", "wrong-package", "bad-sha"])
+def test_0828_candidate_rejects_missing_or_mismatched_binding(tmp_path, mutation):
+    path = _candidate_config(tmp_path, release="0.8.28", package_version="0.8.27")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if mutation == "missing":
+        del value["candidate"]
+    elif mutation == "stale-release":
+        value["candidate"]["version"] = "0.8.26"
+    elif mutation == "wrong-package":
+        value["candidate"]["package_version"] = "0.8.28"
+    else:
+        value["candidate"]["sha"] = "not-a-sha"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="0.8.28 TC-5 requires an exact candidate binding"):
+        tc5_gpu_v2.load_config(path)

@@ -46,7 +46,7 @@ omitted (or all-empty) filter is the unfiltered path.
 | -------------- | ----------------------------------------------------- |
 | `source_type`  | the partition `source_type` (derived from `kind`)     |
 | `kind`         | the record `kind`                                     |
-| `created_after`| `created_at >= bound` (unix seconds)                  |
+| `created_after`| inclusive projection time >= bound (unix seconds)                  |
 | `status`       | the `status` metadata column (see the caveat below)   |
 | `attributes`   | ordered AND equality over `filterable` projections     |
 
@@ -58,7 +58,7 @@ constrains the text branch by the same metadata.
 > TEXT metadata columns cannot be NULL). A `status="open"`-style filter
 > therefore prunes every row until a later release populates it.
 
-`attributes` is available in Python and TypeScript for declared `filterable`
+`attributes` is available across the three SDKs for declared `filterable`
 projections. It takes ordered `(projection_name, canonical_text)` equality
 predicates, ANDs every predicate, and treats projected string `"1"` and number
 `1` as the same canonical text. For example, Python uses
@@ -104,6 +104,42 @@ const hits = (await engine.search("retrieval")).results;
 // Only `note` records.
 const notes = (await engine.search("retrieval", { kind: "note" })).results;
 ```
+
+## Direct body FTS with a filter
+
+Direct body FTS uses the same optional `SearchFilter` without embedding, dense
+retrieval, CE reranking or graph expansion:
+
+```python
+notes = engine.search_text_only("retrieval", filter=SearchFilter(kind="note"))
+```
+
+```ts
+const notes = await engine.searchTextOnly("retrieval", {
+  filter: { kind: "note" },
+  limit: 10,
+});
+```
+
+Rust SDK uses `TextSearchOptions { filter: Some(filter), ..Default::default() }`.
+Predicates are applied inside the node/edge body-FTS selection before fixed
+candidate caps, deduplication, ranking and final limit. For the same immutable
+selection, query, filter and effective validity time, smaller accepted limits
+return the ordered prefix of larger ones. This is not a general hybrid-search
+prefix guarantee.
+
+Kind and source-type predicates, and available node-scoped declared attributes,
+work on provider-free stores. Status/time predicates require existing vector
+metadata, even for lexical retrieval. Projected status is `""`; a nonempty value
+has no population source. `created_after` / `createdAfter` is the inclusive
+projection timestamp, not a creation field in caller JSON. Missing metadata
+does not match. A nonempty node-attribute filter excludes edge hits.
+
+Search accepts independent `include_superseded` / `include_inactive` flags
+(`includeSuperseded` / `includeInactive` in TypeScript). Validity, dependency and
+mandatory edge-expiry restrictions still apply. Historical attributes use the
+canonical row for that view; incomplete historical dense coverage uses lexical
+fallback. A widened view does not weaken frozen-read authority.
 
 ## Recency reweight (off by default)
 

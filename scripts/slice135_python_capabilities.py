@@ -112,6 +112,27 @@ PLANNED = {
     "read.operational_state_page": ("pages", "operational_errors"),
 }
 UNAVAILABLE = {
+    **{
+        "engine." + name: {
+            "boundary": "explicit_maintenance",
+            "reason": (
+                "Supported and qualified by the Slice 85 real-native parity tests "
+                "test_persisted_policy_and_maintenance_handle, "
+                "test_queued_intent_retry_status_and_withdrawal, "
+                "test_physical_complete_returns_receipt_after_actual_bytes_are_gone, "
+                "test_cancelled_caller_keeps_native_ownership_until_durable_completion, "
+                "and test_original_sink_blocker_and_authenticated_reattachment_match_native. "
+                "This selected historical installed-wheel exercise has no explicit-profile "
+                "fixture with independent per-operation refusal/reopen evidence; it does "
+                "not count this operation as executed."
+            ),
+            "owner": "0.8.28 Slice 85 native maintenance parity qualification",
+        }
+        for name in (
+            "physical_erasure_policy", "queue_physical_erasure", "physical_erasure_status",
+            "withdraw_queued_erasure", "begin_erasure_maintenance",
+        )
+    },
     "engine.ingest_with_extractor": {"boundary": "provider", "reason": "No independently qualified extraction provider/command or credentials supplied; fake provider output is not a provider qualification.", "owner": "Slice 135 provider exercise"},
     "engine.consolidate_with_provider": {"boundary": "provider", "reason": "No independently qualified consolidation provider/command or credentials supplied; deterministic fabricated LLM output would not qualify real-provider behavior.", "owner": "Slice 135 provider exercise"},
     "rerank": {"boundary": "standalone_model", "reason": "Standalone cross-encoder model identity and offline availability are not qualified by this wheel exercise; no database boundary exists.", "owner": "Slice 135 standalone reranker qualification"},

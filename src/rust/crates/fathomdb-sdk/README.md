@@ -1,5 +1,8 @@
 # fathomdb-sdk
 
+> Documentation targets 0.8.28; publication is pending. Exact-version install
+> commands apply once matching registry or Pages artifacts are published.
+
 The Rust application SDK for **FathomDB**, a local-first, embedded retrieval
 engine for application and agent workloads, built on SQLite.
 
@@ -15,19 +18,19 @@ If you are writing a Rust application against FathomDB, depend on this crate.
 
 ## Status: pre-1.0, beta
 
-This is the Rust application SDK for FathomDB 0.8.27. Public contracts may
+This is the Rust application SDK for FathomDB 0.8.28. Public contracts may
 change between micro releases.
 
 ## Install
 
 ```bash
-cargo add fathomdb-sdk@=0.8.27
+cargo add fathomdb-sdk@=0.8.28
 ```
 
 To enable the pinned default embedder, add `--features default-embedder` to
 that command. Model use can download weights; the example below requires no
 model feature. See the
-[Rust install guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/rust.md).
+[Rust install guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/install/rust.md).
 
 ## Example
 
@@ -60,7 +63,7 @@ fn main() -> fathomdb_sdk::Result<()> {
 ```
 
 `source_id` is mandatory provenance: `erase_source` removes records by that
-identity. See the [SDK reference](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/reference/rust-sdk.md)
+identity. See the [SDK reference](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/reference/rust-sdk.md)
 for hybrid search, graph operations, and option defaults.
 
 ## How it maps to Python and TypeScript

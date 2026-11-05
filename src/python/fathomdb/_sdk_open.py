@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 
 _KWARG_FIELDS = {
+    "physical_erasure_policy",
     "embedder_pool_size",
     "scheduler_runtime_threads",
     "provenance_row_cap",
@@ -52,6 +53,7 @@ _ENGINE_CONFIG_RANGES = {
 }
 
 _ENGINE_CONFIG_CHOICES = {
+    "physical_erasure_policy": ("autonomous", "explicit_maintenance"),
     "cuda_pool": ("auto", "on", "off"),
     "cuda_pool_release_threshold": ("0", "max"),
 }
@@ -306,8 +308,6 @@ def _map_open_report(native: Any) -> OpenReport:
         embedder_events=list(native.embedder_events),
         embedder_mean_centering_required=native.embedder_mean_centering_required,
         embedder_mean_vec_pinned=native.embedder_mean_vec_pinned,
-        dense_disabled=native.dense_disabled,
-        dense_disabled_reason=native.dense_disabled_reason,
         embedder_device_resolution=(
             None
             if device_resolution is None

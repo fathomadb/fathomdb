@@ -15,9 +15,9 @@ guard = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(guard)
 
 
-def test_driver_duplicate_patch_must_resolve_to_approved_root_source():
+def test_driver_may_not_repeat_the_retired_libsqlite3_sys_patch():
     manifest = "experiments/sdk_drivers/rust/Cargo.toml"
-    valid = {
+    retired = {
         "manifest": manifest,
         "mechanism": "patch.crates-io",
         "package": "libsqlite3-sys",
@@ -25,12 +25,12 @@ def test_driver_duplicate_patch_must_resolve_to_approved_root_source():
         "git": None,
         "rev": None,
     }
-    assert guard.sdk_driver_duplicate_patch(ROOT, valid)
+    assert not guard.sdk_driver_duplicate_patch(ROOT, retired)
     assert not guard.sdk_driver_duplicate_patch(
-        ROOT, {**valid, "path": "../../../other/libsqlite3-sys"}
+        ROOT, {**retired, "path": "../../../other/libsqlite3-sys"}
     )
     assert not guard.sdk_driver_duplicate_patch(
-        ROOT, {**valid, "manifest": "other/Cargo.toml"}
+        ROOT, {**retired, "manifest": "other/Cargo.toml"}
     )
 
 

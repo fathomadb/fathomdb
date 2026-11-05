@@ -33,7 +33,7 @@
 //! 2. an open whose fingerprint CHANGED re-runs the **full** probe;
 //! 3. fail-SAFE (`R-VEQ-4`, HITL-signed) is untouched — an unreadable/garbled
 //!    cache falls back to RUNNING the probe (never to trusting it), and a
-//!    divergence still yields `dense_disabled`.
+//!    divergence still yields `open_refused`.
 //!
 //! ## The residual, asserted rather than buried
 //!
@@ -272,18 +272,27 @@ fn forge_stored_baseline(path: &std::path::Path, f: impl Fn(&str) -> Vec<f32>) {
 }
 
 /// Open, snapshot the embed-call delta across the open, close. Returns
-/// `(embeds_during_open, dense_disabled)`.
+/// `(embeds_during_open, open_refused)`.
 fn open_count_close(
     path: &std::path::Path,
     embedder: Arc<dyn Embedder>,
     calls: &Arc<AtomicU64>,
 ) -> (u64, bool) {
     let before = calls.load(Ordering::SeqCst);
-    let opened = Engine::open_with_embedder_for_test(path, embedder).expect("open must succeed");
+    let result = Engine::open_with_embedder_for_test(path, embedder);
     let embeds = calls.load(Ordering::SeqCst) - before;
-    let dense_disabled = opened.report.dense_disabled;
-    opened.engine.close().expect("close");
-    (embeds, dense_disabled)
+    let refused = match result {
+        Ok(opened) => {
+            opened.engine.close().expect("close");
+            false
+        }
+        Err(
+            fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }
+            | fathomdb_engine::EngineOpenError::VectorVerification { .. },
+        ) => true,
+        Err(error) => panic!("unexpected open error: {error:?}"),
+    };
+    (embeds, refused)
 }
 
 /// Enrol a vector kind under the non-bge probe identity. The probe is gated on a
@@ -491,22 +500,17 @@ fn a_tampered_reference_baseline_reruns_the_probe_and_refuses_dense() {
     }
 
     let before = calls.load(Ordering::SeqCst);
-    let opened = Engine::open_with_embedder_for_test(
+    let error = Engine::open_with_embedder_for_test(
         &path,
         Arc::new(CountingRefEmbedder { calls: calls.clone() }),
     )
-    .expect("open must SUCCEED (degraded), never fail");
-    let embeds = calls.load(Ordering::SeqCst) - before;
-    assert_eq!(embeds, PROBE_COUNT, "a mutated baseline must force a full re-run");
-    assert!(
-        opened.report.dense_disabled,
-        "the tampered reference diverges ⇒ dense must be REFUSED (fail-safe, R-VEQ-4)"
+    .expect_err("tampered baseline must fail open");
+    assert_eq!(
+        calls.load(Ordering::SeqCst) - before,
+        PROBE_COUNT,
+        "a mutated baseline must force a full re-run"
     );
-    match opened.engine.search("memory") {
-        Err(EngineError::VectorEquivalenceMismatch { .. }) => {}
-        other => panic!("dense arm must refuse with VectorEquivalenceMismatch, got {other:?}"),
-    }
-    opened.engine.close().unwrap();
+    assert!(matches!(error, fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. }));
 }
 
 // ---- acceptance 3 — fail-SAFE: a bad cache RUNS the probe, never trusts it --
@@ -558,7 +562,7 @@ fn a_missing_cache_entry_falls_back_to_running_the_probe() {
     assert_eq!(recached, 0, "…and the fresh verdict is cached again");
 }
 
-/// A divergence found on a fingerprint-changed open still yields `dense_disabled`
+/// A divergence found on a fingerprint-changed open still yields `open_refused`
 /// — the cache narrows WHEN the probe runs, never WHAT it concludes when it does.
 #[test]
 fn a_divergence_on_a_rerun_still_disables_dense() {
@@ -718,12 +722,6 @@ fn a_forged_stored_baseline_defeats_the_probe_even_when_it_fully_runs() {
     let embeds = calls.load(Ordering::SeqCst) - before;
 
     assert_eq!(embeds, PROBE_COUNT, "the FULL pre-slice check ran — nothing was skipped");
-    assert!(
-        !opened.report.dense_disabled,
-        "PRE-EXISTING: a forged stored baseline defeats the probe on the pre-slice path — \
-         the probe is a correctness self-check against backend drift, NOT an integrity \
-         boundary against an actor with write access to the database file"
-    );
     if let Err(EngineError::VectorEquivalenceMismatch { .. }) = opened.engine.search("memory") {
         panic!("the dense arm must be SERVING — that is the point of this measurement");
     }

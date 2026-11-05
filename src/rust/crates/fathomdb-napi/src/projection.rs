@@ -186,7 +186,7 @@ impl EraseReport {
 
 /// 0.8.20 Slice 15d (R-20-PR) — a declarative projection declaration. Flat at
 /// the FFI boundary; `fts`/`vector` booleans carry the sub-object PRESENCE and
-/// the optional tokenizer/embedder carry the value. JS field names are
+/// the tokenizer carries a value; new embedder selectors accept only None. JS field names are
 /// camelCase (`ftsTokenizer` / `vectorEmbedder`).
 #[napi(object)]
 pub struct ProjectionSpec {
@@ -288,7 +288,7 @@ impl ProjectionSpec {
                 return Err(typed_error(
                     CODE_INVALID_ARGUMENT,
                     format!(
-                        "projection {:?}: vector_embedder is an empty string, which the engine normalizes to the default and cannot round-trip; omit vector_embedder for the engine default",
+                        "projection {:?}: string vector_embedder selectors are unsupported; omit vector_embedder for the engine default",
                         self.name
                     ),
                     JsonValue::Null,

@@ -51,7 +51,7 @@ use std::sync::{Arc, Mutex};
 use corpus_subset::{load_chain_docs, load_subset_or_skip, repo_root, Doc, VECTOR_KIND};
 use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite};
+use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice};
 use ir_eval::{
     evaluate_gold_set, load_gold_set, required_doc_ids, validate_gold_set, GoldQuery, GoldSet,
     QueryClass, K_LADDER,
@@ -253,9 +253,9 @@ fn ir_c_fusion_experiment() {
     let embedder = Arc::new(SerializedBge::new(CandleBgeEmbedder::new().expect("bge embedder")));
     let dir = TempDir::new().expect("tempdir");
     let db_path = dir.path().join("ir_c_fx.sqlite");
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         &db_path,
-        EmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
+        TestEmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
     )
     .expect("open engine");
     let engine = opened.engine;

@@ -2,6 +2,7 @@ use crate::errors::EngineError;
 use crate::projection_registry::ProjectionRole;
 use crate::projection_registry::{encode_attr_vec0_present, load_projection_registry};
 use crate::search_types::TOP_K_BIT_CANDIDATES;
+use crate::temporal::ReadView;
 use crate::vector_storage::{attr_vec0_column, resolve_source_type};
 use rusqlite::{params, Connection, OptionalExtension};
 
@@ -558,27 +559,41 @@ pub(crate) fn vector_filter_values(filter: Option<&SearchFilter>) -> Vec<rusqlit
     out
 }
 
-/// G10 — build the single phase-1 candidates statement. With `filter=None` (or
-/// all-`None`) the `{filter_clause}` is empty and the SQL is **byte-identical to
-/// 0.7.2** (the documented behavior-compat invariant; pinned by
-/// `pr_g10_filtered_knn.rs`). The KNN form (`ORDER BY distance LIMIT top_k`, no
-/// `k=`) is preserved.
-pub(crate) fn build_vector_phase1_sql(filter: Option<&SearchFilter>, final_limit: usize) -> String {
-    let filter_clause = vector_filter_clause(filter);
+/// Build native metadata eligibility inside phase-1 KNN before its candidate cap.
+/// Attribute/filter bindings retain their original positions; frozen time follows them.
+pub(crate) fn build_vector_phase1_sql(
+    filter: Option<&SearchFilter>,
+    final_limit: usize,
+    view: &ReadView,
+) -> String {
+    let mut filter_clause = vector_filter_clause(filter);
+    filter_clause.push_str(match (view.include_superseded, view.include_inactive) {
+        (false, false) => " AND lifecycle=0",
+        (false, true) => " AND lifecycle IN (0,1)",
+        (true, false) => " AND lifecycle IN (0,2)",
+        (true, true) => "",
+    });
+    let index = vector_filter_values(filter).len() + 3;
+    let temporal = format!(" AND valid_from<=?{index} AND valid_until>=?{index}");
+    let knn = |extra: &str| {
+        format!(
+        "SELECT rowid,distance FROM vector_default WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)){filter_clause}{extra} ORDER BY distance LIMIT {TOP_K_BIT_CANDIDATES}"
+    )
+    };
+    let candidates = if view.include_out_of_window {
+        // Edge expiry remains mandatory when node windows are relaxed. Each
+        // disjoint arm contributes enough candidates for the same global cap.
+        let nodes = knn(" AND kind!='edge_fact'");
+        let edges = knn(&format!(" AND kind='edge_fact'{temporal}"));
+        format!("SELECT rowid FROM (SELECT * FROM ({nodes}) UNION ALL SELECT * FROM ({edges})) ORDER BY distance LIMIT {TOP_K_BIT_CANDIDATES}")
+    } else {
+        knn(&temporal)
+    };
     format!(
-        "WITH candidates AS (
-                     SELECT rowid
-                     FROM vector_default
-                     WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)){filter_clause}
-                     ORDER BY distance
-                     LIMIT {top_k}
-                 )
-                 SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2
-                 FROM candidates c
-                 JOIN vector_default v ON v.rowid = c.rowid
-                 ORDER BY l2
-                 LIMIT {final_limit}",
-        top_k = TOP_K_BIT_CANDIDATES,
+        "WITH candidates AS ({candidates})
+         SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2
+         FROM candidates c JOIN vector_default v ON v.rowid=c.rowid
+         ORDER BY l2 LIMIT {final_limit}"
     )
 }
 
@@ -636,6 +651,39 @@ pub(crate) fn append_node_eligibility_sql(
     sql
 }
 
+pub(crate) fn append_node_eligibility_sql_view(
+    connection: &Connection,
+    filter: Option<&SearchFilter>,
+    alias: &str,
+    params: &mut Vec<rusqlite::types::Value>,
+    view: &ReadView,
+) -> rusqlite::Result<String> {
+    if !view.include_superseded && !view.include_inactive {
+        return Ok(append_node_eligibility_sql(filter, alias, params));
+    }
+    let Some(filter) = filter else {
+        return Ok(String::new());
+    };
+    let mut base = filter.clone();
+    base.attributes.clear();
+    let mut sql = append_node_eligibility_sql(Some(&base), alias, params);
+    if !filter.attributes.is_empty() {
+        let registry = load_projection_registry(connection)?;
+        for (name, value) in &filter.attributes {
+            let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+            let path = crate::projection_registry::projection_json_path(name, stored);
+            params.push(rusqlite::types::Value::Text(path));
+            let scalar = crate::projection_registry::scalar_attribute_sql(
+                &format!("{alias}.body"),
+                &format!("?{}", params.len()),
+            );
+            params.push(rusqlite::types::Value::Text(value.clone()));
+            sql.push_str(&format!(" AND {scalar} = ?{}", params.len()));
+        }
+    }
+    Ok(sql)
+}
+
 /// Compile edge-hit eligibility before edge FTS ranking.
 pub(crate) fn append_edge_eligibility_sql(
     filter: Option<&SearchFilter>,
@@ -686,32 +734,46 @@ pub(crate) fn append_edge_eligibility_sql(
     sql
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn body_fts_rank_sql(
     validity: &str,
     lifecycle: &str,
     eligibility: &str,
     limit_clause: &str,
 ) -> String {
+    body_fts_rank_sql_view(validity, lifecycle, eligibility, limit_clause, &ReadView::default())
+}
+
+pub(crate) fn body_fts_rank_sql_view(
+    validity: &str,
+    lifecycle: &str,
+    eligibility: &str,
+    limit_clause: &str,
+    view: &ReadView,
+) -> String {
+    let existence = view.ownerless_existence_sql("cn");
     format!(
         "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
          bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
-         WHERE search_index MATCH ?1 \
-           AND cn.superseded_at IS NULL \
-           AND (cn.state = 'active' OR cn.state IS NULL)\
-           {validity}{lifecycle}{eligibility} \
+         WHERE search_index MATCH ?1 {existence}{validity}{lifecycle}{eligibility} \
          ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
     )
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
 pub(crate) fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
+    edge_fts_rank_sql_view(validity, eligibility, &ReadView::default())
+}
+
+pub(crate) fn edge_fts_rank_sql_view(validity: &str, eligibility: &str, view: &ReadView) -> String {
+    let existence = view.edge_existence_sql("ce");
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
          ce.logical_id, ce.source_id, sei.rowid \
          FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
-         WHERE search_index_edges MATCH ?1 \
-           AND ce.superseded_at IS NULL{validity}{eligibility} \
+         WHERE search_index_edges MATCH ?1 {existence}{validity}{eligibility} \
          ORDER BY bm25(search_index_edges), sei.write_cursor"
     )
 }
@@ -770,6 +832,38 @@ pub(crate) fn property_fts_cohort_stream_sql(
            AND rank MATCH '{rank_mapping}'
          ORDER BY rank"
     )
+}
+
+pub(crate) fn text_hit_passes_filter_view(
+    tx: &Connection,
+    id: u64,
+    kind: &str,
+    filter: Option<&SearchFilter>,
+    view: &ReadView,
+) -> rusqlite::Result<bool> {
+    let Some(filter) = filter else { return Ok(true) };
+    if (!view.include_superseded && !view.include_inactive) || filter.attributes.is_empty() {
+        return text_hit_passes_filter(tx, id, kind, Some(filter));
+    }
+    let mut base = filter.clone();
+    base.attributes.clear();
+    if !text_hit_passes_filter(tx, id, kind, Some(&base))? {
+        return Ok(false);
+    }
+    let body: Option<String> = tx
+        .query_row("SELECT body FROM canonical_nodes WHERE write_cursor=?1", [id], |r| r.get(0))
+        .optional()?;
+    let Some(body) = body else { return Ok(false) };
+    let registry = load_projection_registry(tx)?;
+    for (name, wanted) in &filter.attributes {
+        let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+        if crate::projection_registry::extract_scalar_attribute(tx, &body, name, stored)?.as_ref()
+            != Some(wanted)
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 /// G10 — does a text-branch hit satisfy the filter? The vector branch is
@@ -1037,5 +1131,107 @@ mod slice85_boundary_tests {
             Ok(()) => panic!("an undeclared attribute must be rejected"),
         }
         assert!(validate_filter_attributes_on_snapshot(&conn, &SearchFilter::default()).is_ok());
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_relaxed_node_windows_still_filter_expired_edges() {
+    let conn = crate::vector_storage::slice70_mapping_fixture(false);
+    conn.execute("UPDATE vector_default SET valid_from=?1 WHERE rowid=101", [i64::MAX]).unwrap();
+    let vector = serde_json::to_string(&vec![1.0f32; 8]).unwrap();
+    for id in 1000..1201 {
+        conn.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(?1,vec_f32(?2),vec_quantize_binary(vec_f32(?2)),'edge_fact','edge_fact',0,'',0,-9223372036854775808,0)",params![id,vector]).unwrap();
+    }
+    let view = ReadView { include_out_of_window: true, ..ReadView::default() };
+    let sql = build_vector_phase1_sql(None, 192, &view);
+    let mut stmt = conn.prepare(&sql).unwrap();
+    let mut values =
+        vec![rusqlite::types::Value::Text(vector.clone()), rusqlite::types::Value::Text(vector)];
+    if stmt.parameter_count() == 3 {
+        values.push(rusqlite::types::Value::Integer(1));
+    }
+    let mut ids = stmt
+        .query_map(rusqlite::params_from_iter(values), |r| r.get::<_, i64>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    ids.sort_unstable();
+    assert_eq!(ids, [101, 102]);
+}
+
+#[cfg(test)]
+#[test]
+fn slice70_native_view_matrix_and_endpoint_bounds() {
+    let conn = crate::vector_storage::slice70_mapping_fixture(false);
+    let vector = serde_json::to_string(&vec![1.0f32; 8]).unwrap();
+    for code in 0..4i64 {
+        for id in [101, 102] {
+            conn.execute(
+                "UPDATE vector_default SET lifecycle=?1 WHERE rowid=?2",
+                params![code, id],
+            )
+            .unwrap();
+        }
+        for superseded in [false, true] {
+            for inactive in [false, true] {
+                let view = ReadView {
+                    include_superseded: superseded,
+                    include_inactive: inactive,
+                    include_out_of_window: superseded ^ inactive,
+                    ..ReadView::default()
+                };
+                let filter = SearchFilter {
+                    kind: Some("doc".into()),
+                    source_type: Some("article".into()),
+                    created_after: Some(0),
+                    status: Some(String::new()),
+                    ..SearchFilter::default()
+                };
+                let sql = build_vector_phase1_sql(Some(&filter), 192, &view);
+                let mut values = vec![
+                    rusqlite::types::Value::Text(vector.clone()),
+                    rusqlite::types::Value::Text(vector.clone()),
+                ];
+                values.extend(vector_filter_values(Some(&filter)));
+                values.push(rusqlite::types::Value::Integer(1));
+                let ids = conn
+                    .prepare(&sql)
+                    .unwrap()
+                    .query_map(rusqlite::params_from_iter(values), |r| r.get::<_, i64>(0))
+                    .unwrap()
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .unwrap();
+                let expected = (superseded || code & 2 == 0) && (inactive || code & 1 == 0);
+                assert_eq!(ids.len(), if expected { 2 } else { 0 }, "code{code} {view:?}");
+            }
+        }
+    }
+    for id in [101, 102] {
+        conn.execute("UPDATE vector_default SET lifecycle=0 WHERE rowid=?1", [id]).unwrap();
+    }
+    for (from, until) in
+        [(None, None), (None, Some(i64::MIN)), (None, Some(i64::MAX)), (Some(i64::MAX), None)]
+    {
+        let (lower, upper) = crate::vector_storage::vector_validity_bounds(from, until);
+        for id in [101, 102] {
+            conn.execute(
+                "UPDATE vector_default SET valid_from=?1,valid_until=?2 WHERE rowid=?3",
+                params![lower, upper, id],
+            )
+            .unwrap();
+        }
+        for now in [i64::MIN, -1, 0, i64::MAX] {
+            let sql = build_vector_phase1_sql(None, 192, &ReadView::default());
+            let ids = conn
+                .prepare(&sql)
+                .unwrap()
+                .query_map(params![vector, vector, now], |r| r.get::<_, i64>(0))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap();
+            let expected = from.is_none_or(|v| v <= now) && until.is_none_or(|v| v > now);
+            assert_eq!(ids.len(), if expected { 2 } else { 0 }, "{from:?} {until:?} at{now}");
+        }
     }
 }

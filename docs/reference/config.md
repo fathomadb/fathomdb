@@ -26,7 +26,7 @@ so call `configure_runtime` or open the first Engine before it. This API does no
 
 ## Engine configuration
 
-Engine-owned runtime knobs (0.8.27; the GPU pool settings 0.8.28). The same knobs are exposed by
+Engine-owned runtime knobs (0.8.28; the GPU pool settings 0.8.28). The same knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
 
@@ -45,6 +45,22 @@ cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 | GPU pool mode (0.8.28) | `cuda_pool` | `cudaPool` | `"auto"`, `"on"`, `"off"` | `FATHOMDB_POOL_MODE`, else `"auto"` | The Jetson private CUDA memory pool ([embedder](../embedder.md#jetson-private-cuda-memory-pool)); `"off"` keeps the earlier allocator. |
 | GPU pool cap (0.8.28) | `cuda_pool_max_size` | `cudaPoolMaxSize` | `33,554,432..` bytes | `FATHOMDB_POOL_MAXSIZE`, else 1/20 of device memory (3 GiB on the AGX Orin 64 GB) | The pool's cap; it serves about a third of it on JetPack 6. |
 | GPU pool release threshold (0.8.28) | `cuda_pool_release_threshold` | `cudaPoolReleaseThreshold` | `"0"`, `"max"` | `FATHOMDB_POOL_RELEASE_THRESHOLD`, else `"0"` | `"0"`: freed GPU memory returns to the system automatically. `"max"`: it stays reserved while any FathomDB model is open in the process and is returned when the last one closes. |
+
+### Query compilation and persisted erasure policy
+
+`query_stop_words` / `queryStopWords` is fixed at open and is not persisted.
+`QueryStopWords` combines `(base ∪ extra) \ keep`: base is `"fathomdb"` or
+`"none"`; extra/keep contain at most 256 lowercase alphanumeric tokens each,
+at most 64 characters per token. Keep must belong to the base, and extra must
+not. Matching is exact before stemming, without diacritic folding. The effective
+list hash is `stop_words_sha256` / `stopWordsSha256` on the open report and traces.
+
+`physical_erasure_policy` / `physicalErasurePolicy` is different: `None`/omitted
+honors the stored policy on reopen and defaults a new store to `"autonomous"`.
+An explicit `"autonomous"` or `"explicit_maintenance"` request on reopen must
+match the persisted policy or open is refused. It cannot be switched at runtime.
+See [maintenance](../operations/erasure.md#schedule-an-explicit-maintenance-window)
+for queueing, exclusive windows and durable incomplete outcomes.
 
 The three GPU pool settings take effect only on AArch64 Linux CUDA builds;
 elsewhere they are validated, read back and held to the rule below, but do
@@ -145,7 +161,8 @@ exists.
 
 Only `slow_threshold_ms` / `slowThresholdMs` is mutable post-open via
 `engine.set_slow_threshold_ms` / `engine.setSlowThresholdMs`. All
-other knobs are open-time only. The setter changes the effective threshold,
+other runtime knobs are open-time only; erasure scheduling policy is persisted
+and must also agree on reopen. The setter changes the effective threshold,
 not the requested-open configuration snapshot.
 
 ## See also

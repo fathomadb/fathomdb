@@ -1,7 +1,7 @@
 # Prompt context from search hits
 
 `pack_context` turns ranked search hits into prompt text within a
-character budget. The first few items are shown in full. The rest keep the
+Unicode-scalar item-text budget. The first few items are shown in full. The rest keep the
 parts that usually hold the answer, by default the user's own words, and show
 only a short excerpt of the others. Every item comes back with provenance, so
 you can see what was cut.
@@ -36,7 +36,8 @@ The defaults are 30,000 characters in total, 4,000 per item, the top 3
 items in full, and a 300-character excerpt shared by the non-user parts of
 each later item. If your answers live in assistant or tool text, add those
 roles to `keep_roles`. Headers are not charged to the budget; `text_chars`
-gives the full length.
+gives the full rendered scalar length. Headers and separators can make that
+rendered length exceed the item-text budget; the budget is not a token count.
 
 To show particular items in full wherever they rank, list their ids in
 `full_ids` (TypeScript `fullIds`), for example every hit from the top hit's

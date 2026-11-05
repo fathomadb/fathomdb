@@ -11,7 +11,7 @@
 //! applied inside one `BEGIN IMMEDIATE` together with the version bump, so a
 //! crash mid-step rolls back and the step re-runs whole.
 //!
-//! The ordered historical steps remain testable, but 0.8.26 has no public
+//! The ordered historical steps remain testable, but current opens have no public
 //! automatic-upgrade route: every non-empty database must already carry the
 //! exact current `PRAGMA user_version` before product open.
 
@@ -20,7 +20,8 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 34;
+/// Exact admitted on-disk format; nonempty stores at another version are refused.
+pub const SCHEMA_VERSION: u32 = 36;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -242,7 +243,7 @@ pub const MIGRATIONS: &[Migration] = &[
               CREATE TABLE IF NOT EXISTS _fathomdb_vector_rows(
                   rowid INTEGER PRIMARY KEY,
                   kind TEXT NOT NULL,
-                  write_cursor INTEGER NOT NULL UNIQUE
+                  write_cursor INTEGER NOT NULL
               );",
     },
     Migration {
@@ -268,35 +269,10 @@ pub const MIGRATIONS: &[Migration] = &[
               CREATE INDEX IF NOT EXISTS canonical_edges_source_id_idx
                   ON canonical_edges(source_id);",
     },
-    // 0.7.0 Pack 1 — Vector binary-quantization data encoding.
-    // Per `dev/design/0.7.0-vector-quant-pack1.md` D4 (fix-3). Stages
-    // the existing f32 corpus + kind mapping into a regular SQL table,
-    // drops + recreates `vector_default` with the new schema (sibling
-    // `embedding_bin bit[768]`, `source_type TEXT partition key`,
-    // `kind TEXT`, `created_at INTEGER`), then repopulates with
-    // SQL-side `vec_quantize_binary` and the D3 CASE mapping. A
-    // prefix CHECK-constraint preflight aborts the migration if any
-    // `_fathomdb_vector_rows.kind` is outside the locked vocabulary.
-    //
-    // `<dim>=768` is hardcoded against the default profile
-    // (`load_default_profile` -> `DEFAULT_EMBEDDER_DIMENSION` in
-    // fathomdb-engine). The design notes this constraint and defers
-    // a runtime-dim migration to 0.7.1.
+    // Historical registry preflight retained for fresh bootstrap. Public open
+    // refuses non-current stores before this registry can run on their content.
     Migration {
         step_id: 9,
-        // SQL-side: D4 fix-3.1 preflight only. The vec0 reshape itself is
-        // dim-aware and lives in the engine crate's
-        // `ensure_vector_partition_pack1` (called by `ensure_vector_partition`
-        // immediately after `migrate_with_event_sink` returns). Splitting the
-        // preflight (SQL, in-tx with `apply_one`) from the reshape (Rust,
-        // dim-driven by `_fathomdb_embedder_profiles.dimension`) is required
-        // because `fathomdb-schema::Migration` is a `&'static str` with no
-        // runtime parameterization, and the existing dim=8 / dim=384 test
-        // suite must stay GREEN. The reshape is idempotent across crashes:
-        // if open fails between this step's commit (user_version=9) and the
-        // Rust reshape, the next open re-detects the old shape and replays
-        // the reshape. See dev/plans/runs/0.7.0-PVQ-P1-IMPL-output.json
-        // for the design-memo deviation note.
         sql: "CREATE TEMP TABLE _vec0_migration_assertion(
                   check_passes INTEGER NOT NULL CHECK(check_passes = 1)
               );
@@ -1335,6 +1311,42 @@ pub const MIGRATIONS: &[Migration] = &[
     Migration {
         step_id: 34,
         sql: "-- MIGRATION-ACCRETION-EXEMPTION: 0.8.26 fresh-database-only release sentinel; content-free marker only, no historical row, schema, or projection change.\nSELECT 1;",
+    },
+    Migration {
+        step_id: 35,
+        sql: concat!("-- MIGRATION-ACCRETION-EXEMPTION: fresh-format-35 vector coverage; prior stores are refused before migration. No stored content is migrated.
+              CREATE INDEX _fathomdb_vector_rows_cursor_idx ON _fathomdb_vector_rows(write_cursor);
+              CREATE TABLE _fathomdb_vector_spans(
+                  vector_rowid INTEGER PRIMARY KEY,
+                  write_cursor INTEGER NOT NULL CHECK(write_cursor>0),
+                  window_number INTEGER NOT NULL CHECK(window_number>=0),
+                  byte_start INTEGER NOT NULL CHECK(byte_start>=0),
+                  byte_end INTEGER,
+                  body_length INTEGER NOT NULL CHECK(body_length>=0),
+                  UNIQUE(write_cursor,window_number),
+                  CHECK(byte_start<=body_length),
+                  CHECK(byte_end IS NULL OR (byte_start<=byte_end AND byte_end<=body_length))
+              );
+              CREATE TRIGGER _fathomdb_vector_spans_mapping_delete
+              AFTER DELETE ON _fathomdb_vector_rows
+              BEGIN DELETE FROM _fathomdb_vector_spans WHERE vector_rowid=OLD.rowid; END;\n",
+              "CREATE TRIGGER _fathomdb_read_visibility_vs_ai AFTER INSERT ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\nCREATE TRIGGER _fathomdb_read_visibility_vs_au AFTER UPDATE ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\nCREATE TRIGGER _fathomdb_read_visibility_vs_ad AFTER DELETE ON _fathomdb_vector_spans BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n"
+        ),
+    },
+    Migration {
+        step_id: 36,
+        sql: "CREATE TABLE _fathomdb_erasure_requests(
+                  ticket TEXT PRIMARY KEY NOT NULL,
+                  idempotency_key TEXT UNIQUE NOT NULL,
+                  payload TEXT NOT NULL CHECK(json_valid(payload)),
+                  phase TEXT GENERATED ALWAYS AS (json_extract(payload,'$.status.phase')) STORED NOT NULL
+                    CHECK(phase IN ('queued','executing','sanitizing','finalizing','complete','withdrawn_before_removal')),
+                  CHECK(json_type(payload,'$.ticket')='text' AND json_extract(payload,'$.ticket') IS NOT NULL AND ticket=json_extract(payload,'$.ticket')),
+                  CHECK(json_type(payload,'$.key')='text' AND json_extract(payload,'$.key') IS NOT NULL AND idempotency_key=json_extract(payload,'$.key'))
+              );
+              CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);
+              INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_physical_erasure_policy','autonomous');
+              INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_erasure_store',lower(hex(randomblob(16))));",
     },
 ];
 

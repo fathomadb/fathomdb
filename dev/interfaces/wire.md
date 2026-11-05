@@ -1,10 +1,10 @@
 ---
 title: Wire Format
-date: 2026-09-15
-target_release: 0.8.26
-desc: On-disk + IPC formats (if any) for 0.8.26; short OK
+date: 2026-11-04
+target_release: 0.8.28
+desc: On-disk + IPC formats (if any) for 0.8.28; short OK
 blast_radius: architecture.md § 5; design/engine.md; design/migrations.md
-status: draft-0.8.26
+status: draft-0.8.28
 ---
 
 # Wire Format
@@ -27,7 +27,7 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.26 development line `fathomdb-schema::SCHEMA_VERSION` is **34**. Step 28
+0.8.28 development line `fathomdb-schema::SCHEMA_VERSION` is **36**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -58,11 +58,16 @@ Ownership split:
 - `design/migrations.md` owns how successful migrations advance it
 - `design/engine.md` owns when it is read on the open path
 
+Format 35 adds per-vector UTF-8 head spans, permits distinct vector IDs for
+future windows of one record, uses 64-row vec0 chunks, and keys node body
+FTS rowids by write cursor. No format-34 content is migrated. Coverage and
+vectors are committed and removed together; unknown coverage is NULL.
+
 ## Compatibility contract
 
-- a missing or zero-length path bootstraps directly to schema 34
+- a missing or zero-length path bootstraps directly to schema 36
 - a non-empty database opens only when its effective committed
-  `PRAGMA user_version` is exactly 34; schema 33, future versions, and
+  `PRAGMA user_version` is exactly 36; schema 35 and earlier, future versions, and
   non-empty zero-version SQLite files return the typed incompatible-schema
   error before product mutation
 - there is no public automatic migration, compatibility reader, translator,
@@ -186,3 +191,39 @@ characters (`nonce[16] || ciphertext[300] || mac[32]`), 704 characters total.
 The evidence sidecar and resolver carry no write cursor; the pre-existing graph
 target `writeCursor` is unchanged. `includeOutOfWindow: true` is refused at
 `/context/context/view/includeOutOfWindow` for evidence-bearing expansion.
+
+## Built-in provider admission and verification metadata
+
+Production provider admission is pinned BGE/Mean or explicit none; no arbitrary
+provider selection is supported before 1.x. New projection embedder strings are
+rejected before mutation, while omitted/null selectors remain valid. Existing
+stored strings, profiles, probe references and TC-68 markers are retained without
+migration, relabeling or provider substitution. Well-formed historical metadata
+remains inspectable under deliberate no-provider access, subject to normal
+integrity validation; re-applying an unsupported historical selector is refused.
+
+The checker gate, fingerprint recipe and inputs, persistent-marker authority and
+90/45/0 ordinary embedding cadence remain unchanged. A valid marker remains
+reusable across restart and MCP reconstruction; cached acceptance is not fresh
+verification in this process and can hide same-identity backend/device/library
+drift. Marker-write failure retains its best-effort behavior. An actual refusal
+returns the typed open error and no engine; newly rejected first-population
+references are not published. This adds no new cache, descriptor or schema step.
+[Full limits and error payloads](rust.md#built-in-provider-admission-and-cached-verification)
+include deliberate mutable no-provider access and the unrepaired provider-free
+dense rebuild defect. Loader/device, Mean/CLS distinction and mean recovery
+ordering remain unchanged; none of this authenticates historical vector provenance.
+
+## Format 36 explicit erasure authority
+
+Format 36 is a fresh-store boundary. Both policies require validated persisted
+physical-erasure policy and opaque store identity metadata. The bounded erasure
+request/terminal-receipt table is distinct from the executing RootDebt journal.
+Queued selector/cut/fence authority is not structural-zero proof. Activation binds
+one ticket and its current immutable scope atomically to native deletion/debt.
+Identity-bearing request material is scrubbed before identity-free finalization;
+only actual registered-copy proof, original-sink discharge and WAL TRUNCATE permit
+terminal Complete. Offline activated completion publishes the same ticket receipt.
+The [production design](../design/explicit-maintenance-erasure/production-design.md)
+owns metadata budgets, phases and validation. Format 35 binaries refuse 36, and
+this release refuses previous formats; no migration or metadata-only opt-in exists.

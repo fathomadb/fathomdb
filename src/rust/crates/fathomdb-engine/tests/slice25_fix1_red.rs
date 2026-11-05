@@ -645,7 +645,6 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         let db_path = path(&dir, &format!("operation-fault-{fault_index}"));
         let opened =
             Engine::open_with_embedder_for_test(&db_path, Arc::new(RollbackEmbedder)).unwrap();
-        assert!(!opened.report.dense_disabled, "rollback embedder must exercise dense writes");
         configure_rollback_projections(&opened.engine);
         let rollback_tables = [
             "canonical_nodes",

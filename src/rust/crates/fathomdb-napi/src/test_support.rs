@@ -19,6 +19,16 @@ impl Engine {
         call_engine_sync(move || {
             let requested = engine.config();
             Ok(EngineConfig {
+                physical_erasure_policy: requested.physical_erasure_policy.map(
+                    |value| match value {
+                        fathomdb_engine::PhysicalErasurePolicy::Autonomous => {
+                            "autonomous".to_string()
+                        }
+                        fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance => {
+                            "explicit_maintenance".to_string()
+                        }
+                    },
+                ),
                 embedder_pool_size: requested.embedder_pool_size.map(|value| value as f64),
                 scheduler_runtime_threads: requested
                     .scheduler_runtime_threads
@@ -123,6 +133,7 @@ pub(crate) fn call_panicking_engine_for_test() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fathomdb_engine::TestEmbedderChoice;
     use proptest::prelude::*;
 
     fn rewrite_schema_header(path: &std::path::Path, version: u32) {
@@ -346,7 +357,7 @@ mod tests {
         let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
         assert_eq!(envelope["code"], CODE_INCOMPATIBLE_SCHEMA_VERSION);
         assert_eq!(envelope["payload"]["seen"], 33);
-        assert_eq!(envelope["payload"]["supported"], 34);
+        assert_eq!(envelope["payload"]["supported"], 36);
     }
 
     #[test]
@@ -401,9 +412,9 @@ mod tests {
             selected_cuda_uuid: Some("GPU-test".to_string()),
             reason: None,
         };
-        let opened = RustEngine::open_with_choice(
+        let opened = RustEngine::open_with_test_choice_for_test(
             directory.path().join("napi-device-resolution.sqlite"),
-            EmbedderChoice::CallerWithDeviceResolution {
+            TestEmbedderChoice::CallerWithDeviceResolution {
                 embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
                 device_resolution: resolution,
             },

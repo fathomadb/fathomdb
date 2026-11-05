@@ -9,7 +9,7 @@ status: locked
 
 # Bindings — Design
 
-## 0.8.26 current-profile additions
+## Current profile (0.8.28)
 
 Rust, Python, and TypeScript expose one changed-in-place V1 actuation grammar
 with the same five operation capabilities and compact receipt semantics. Thin
@@ -22,10 +22,17 @@ conversion preserves distinct target and terminal-edge selectors and rejects
 incoherent resolved identity fields. It does not turn point resolution into
 ranked search or add a parallel graph API.
 
-All bindings apply the schema-34 fresh-database admission rule and map a
+All bindings apply the schema-36 fresh-database admission rule and map a
 noncurrent nonempty database to their typed incompatible-schema open error.
 `data-plane-integrity` remains CLI-only and is absent from governed Python and
 TypeScript surfaces.
+
+The .28 additions preserve three-SDK spelling/default parity for context pack,
+query stop words, independent historical-view flags, metadata/property filters,
+filtered direct body FTS and explicit erasure maintenance. Detailed contracts
+remain in the interfaces and maintained retrieval/maintenance owners. Rust's
+application SDK is distinct from the lower-level facade; PyO3/NAPI remain native
+transport bindings, not three interchangeable ABI implementations.
 
 This file is **cross-cutting**. It commits to invariants that hold _across_ every public binding (Python, TypeScript, CLI) collectively, plus the protocol that connects each binding to the underlying Rust engine. Per-binding signatures, examples, and error cases live in `interfaces/{python,ts,cli}.md`; this file does not duplicate those.
 
@@ -35,7 +42,7 @@ Per `plan.md` Phase 3 step 4, `design/bindings.md` is written first to test whet
 
 | Cross-cutting concern                                                                                                                   | Why not in `interfaces/<lang>.md`                                                                                                                                                                                                                    |
 | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Canonical-operation parity (every live operation is present in both SDK bindings, with idiomatic spelling)                            | Per-surface files would each enumerate their own symbols; a parity claim across bindings cannot be expressed by any single file.                                                                                                                     |
+| Canonical-operation parity (every live operation is present across the three application SDKs, with idiomatic spelling)                            | Per-surface files would each enumerate their own symbols; a parity claim across bindings cannot be expressed by any single file.                                                                                                                     |
 | Error-mapping _protocol_ (one class per variant; typed attrs not stringified args; single rooted hierarchy; no string-pattern dispatch) | The protocol commitments are properties OF the bindings collectively. The mapping _matrix itself_ lives in `design/errors.md` (architecture.md § 2) and is cited from interfaces/\*.md; this file commits the protocol that any matrix must satisfy. |
 | Async dispatch model and where Invariants A–D land per binding                                                                          | A property of the engine boundary expressed differently per language; the _protocol_ (e.g. "Promise edges live in TS only; Python is sync") is shared.                                                                                               |
 | Embedder identity + cross-language consistency (same DB opened from Python and TS resolves the same `EmbedderIdentity`)                 | Multi-binding invariant; not a per-language signature.                                                                                                                                                                                               |
@@ -64,9 +71,9 @@ flattened `signed_members` MUST exactly equal the signed allowlist, preserving
 the signed bytes while removing aliases and casing differences from parity
 comparison. The invariant has three permanent clauses:
 
-- **Cross-binding parity.** The claim is symmetric _across SDK bindings_ (Python
-  and TypeScript): a canonical operation is live in both bindings or in neither.
-  Adding an operation requires updating both SDK bindings and the companion map
+- **Cross-binding parity.** The claim is symmetric across the Rust application
+  SDK, Python and TypeScript. Adding a governed operation requires updating the
+  three application SDKs and the canonical companion map
   together. Runtime spelling may differ only through the explicit per-binding
   mapping (`read.get_many` / `read.getMany`, for example).
 - **Recovery-name denylist** (see below) — preserved verbatim.

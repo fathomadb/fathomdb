@@ -202,9 +202,10 @@ impl Engine {
         if !importance.is_finite() || !(0.0..=1.0).contains(&importance) {
             return Err(EngineError::WriteValidation);
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        erasure_queue::guard_admin(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -220,6 +221,7 @@ impl Engine {
     }
 
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
+        let _operation = self.ensure_open()?;
         let category = if batch_is_admin(batch) {
             lifecycle::EventCategory::Admin
         } else {
@@ -423,19 +425,29 @@ impl Engine {
     }
 
     fn write_inner(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
 
         if batch.is_empty() {
             return Err(EngineError::WriteValidation);
         }
 
+        let _metric_scope = physical_metrics::scope(&self.physical_maintenance.metrics);
+        let turn_wait = physical_metrics::stage("foreground_turn_wait");
+        let _turn = self.physical_maintenance.writer_turn()?;
+        drop(turn_wait);
+        let writer_wait = physical_metrics::stage("foreground_writer_wait");
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        drop(writer_wait);
+        let _writer_hold = physical_metrics::stage("foreground_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         #[cfg(feature = "test-hooks")]
         let abort_next_commit_for_test =
             crate::write_commit::take_write_commit_abort_marker_for_test(connection)
                 .map_err(|_| EngineError::Storage)?;
-        dependency_closure::maintain_before_writer(connection)?;
+        erasure_queue::guard_plain(connection, batch)?;
+        if !physical_erasure::guard_plain_write(connection, batch)? {
+            dependency_closure::maintain_before_writer(connection)?;
+        }
         let plans = validate_batch(connection, batch)?;
         validate_nested_projection_sources_for_write(connection, batch)?;
         // The enrolment decision is read-only here. Registration and stranded-row
@@ -525,7 +537,7 @@ impl Engine {
         body: &str,
         row_kind: RowKind,
     ) -> Result<WriteReceipt, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
 

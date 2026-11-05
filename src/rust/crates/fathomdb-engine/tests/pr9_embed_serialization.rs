@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, PreparedWrite};
+use fathomdb_engine::{Engine, EngineConfig, PreparedWrite, TestEmbedderChoice};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -68,9 +68,9 @@ fn one_slot_provider_pool_has_one_active_call() {
     let max_in_flight = Arc::new(AtomicUsize::new(0));
     let embedder =
         Arc::new(ConcurrencyProbeEmbedder::new(max_in_flight.clone(), Duration::from_millis(50)));
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder),
+        TestEmbedderChoice::Caller(embedder),
         EngineConfig { embedder_pool_size: Some(1), ..EngineConfig::default() },
     )
     .expect("open");

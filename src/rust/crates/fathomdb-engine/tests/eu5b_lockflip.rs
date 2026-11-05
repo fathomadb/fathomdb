@@ -5,7 +5,7 @@
 //!
 //! 1. `DEFAULT_EMBEDDER_*` constants point at fathomdb-bge-small-en-v1.5 /
 //!    5c38ec7c... / 384.
-//! 2. `EmbedderChoice::Default` materialises a real BGE embedder, the open
+//! 2. `TestEmbedderChoice::Default` materialises a real BGE embedder, the open
 //!    succeeds, and the reported identity is the bge-small one. (Feature-gated
 //!    behind `default-embedder`; cold-open downloads ~133 MB from HuggingFace.)
 //! 3. `OpenReport.embedder_mean_centering_required` is true for Default.
@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use fathomdb_embedder::EmbedderEvent;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, MEAN_VEC_PIN_THRESHOLD};
+use fathomdb_engine::{Engine, TestEmbedderChoice, MEAN_VEC_PIN_THRESHOLD};
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -69,7 +69,7 @@ fn default_embedder_constants_flipped_to_bge_small() {
 }
 
 // ---------------------------------------------------------------------------
-// Tests 2 / 3 / 5 — EmbedderChoice::Default round-trip (cold open).
+// Tests 2 / 3 / 5 — TestEmbedderChoice::Default round-trip (cold open).
 //
 // These run only with the `default-embedder` feature enabled (and require
 // network access for the HuggingFace fetch).
@@ -80,8 +80,8 @@ fn default_embedder_constants_flipped_to_bge_small() {
 fn embedder_choice_default_succeeds_with_bge_identity() {
     skip_if_no_network!();
     let (_dir, path) = fixture_path("eu5b_default_succeeds");
-    let opened = Engine::open_with_choice(&path, EmbedderChoice::Default)
-        .expect("EmbedderChoice::Default must succeed after EU-5b");
+    let opened = Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::Default)
+        .expect("TestEmbedderChoice::Default must succeed after EU-5b");
     assert_eq!(opened.report.default_embedder.name, "fathomdb-bge-small-en-v1.5");
 }
 
@@ -90,8 +90,8 @@ fn embedder_choice_default_succeeds_with_bge_identity() {
 fn open_report_embedder_mean_centering_required_true_for_default() {
     skip_if_no_network!();
     let (_dir, path) = fixture_path("eu5b_mc_required");
-    let opened = Engine::open_with_choice(&path, EmbedderChoice::Default)
-        .expect("EmbedderChoice::Default must succeed after EU-5b");
+    let opened = Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::Default)
+        .expect("TestEmbedderChoice::Default must succeed after EU-5b");
     assert!(
         opened.report.embedder_mean_centering_required,
         "Default identity must report MC-required after the EU-5b flip"
@@ -103,8 +103,8 @@ fn open_report_embedder_mean_centering_required_true_for_default() {
 fn open_report_embedder_events_populated_for_default() {
     skip_if_no_network!();
     let (_dir, path) = fixture_path("eu5b_events");
-    let opened = Engine::open_with_choice(&path, EmbedderChoice::Default)
-        .expect("EmbedderChoice::Default must succeed");
+    let opened = Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::Default)
+        .expect("TestEmbedderChoice::Default must succeed");
     assert!(
         !opened.report.embedder_events.is_empty(),
         "Default open must surface loader events (downloads or cache hits)"
@@ -120,8 +120,8 @@ fn open_report_embedder_download_ms_some_on_cold_open() {
     //  cache root; this test asserts only the non-`None` shape on first
     //  Default open in the process, which is the documented contract.)
     let (_dir, path) = fixture_path("eu5b_download_ms");
-    let opened = Engine::open_with_choice(&path, EmbedderChoice::Default)
-        .expect("EmbedderChoice::Default must succeed");
+    let opened = Engine::open_with_test_choice_for_test(&path, TestEmbedderChoice::Default)
+        .expect("TestEmbedderChoice::Default must succeed");
     // Either Some(>0) on cold, or None on warm — but the field must be
     // surfaced (no longer hard-coded `None` regardless of state).
     if let Some(ms) = opened.report.embedder_download_ms {
@@ -209,9 +209,9 @@ fn open_with_simulated_bge(
     name: &str,
 ) -> (TempDir, std::path::PathBuf, fathomdb_engine::OpenedEngine) {
     let (dir, path) = fixture_path(name);
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         &path,
-        EmbedderChoice::Caller(Arc::new(SimulatedBgeEmbedder::default())),
+        TestEmbedderChoice::Caller(Arc::new(SimulatedBgeEmbedder::default())),
     )
     .expect("open with simulated bge");
     (dir, path, opened)

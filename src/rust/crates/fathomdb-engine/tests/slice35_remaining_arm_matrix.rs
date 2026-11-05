@@ -116,10 +116,10 @@ fn vector_knn_applies_native_eligibility_before_its_candidate_limit() {
             "INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) \
              VALUES({cursor},'{kind}',{cursor}); \
              INSERT INTO vector_default( \
-               rowid,embedding,embedding_bin,source_type,kind,created_at,status \
+               rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until \
              ) VALUES( \
                {cursor},X'{vector_hex}',vec_quantize_binary(X'{vector_hex}'), \
-               'node_body','{kind}',0,'' \
+               'node_body','{kind}',0,'',0,-9223372036854775808,9223372036854775807 \
              );"
         ));
     }

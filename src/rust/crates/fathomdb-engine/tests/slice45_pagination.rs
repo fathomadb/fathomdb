@@ -137,7 +137,7 @@ fn canonical_pages_are_frozen_complete_and_cursor_bound() {
 }
 
 #[test]
-fn canonical_pages_support_explicit_superseded_history_without_relaxing_search() {
+fn canonical_pages_and_search_support_explicit_superseded_history() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("history{SQLITE_SUFFIX}"));
     let opened = open(&path);
@@ -158,10 +158,15 @@ fn canonical_pages_support_explicit_superseded_history_without_relaxing_search()
         first.items.into_iter().chain(second.items).map(|row| row.body).collect::<Vec<_>>(),
         [r#"{"version":1}"#, r#"{"version":2}"#]
     );
-    assert!(matches!(
-        opened.engine.search_frozen("version", &frozen, 0, false, 0.3, 0, false, 10),
-        Err(EngineError::InvalidArgument { .. })
-    ));
+    assert_eq!(
+        opened
+            .engine
+            .search_frozen("version", &frozen, 0, false, 0.3, 0, false, 10)
+            .unwrap()
+            .results
+            .len(),
+        2
+    );
     opened.engine.close().unwrap();
 }
 
@@ -527,10 +532,13 @@ fn page_reader_snapshot_linearizes_before_concurrent_write() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_page_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_page_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         let frozen = frozen.clone();
@@ -576,10 +584,13 @@ fn operational_page_snapshot_linearizes_before_concurrent_replacement() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_page_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_page_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         let frozen = frozen.clone();
@@ -632,10 +643,13 @@ fn operational_point_snapshot_linearizes_before_concurrent_replacement() {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_page_after_validation_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    arm_page_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            hook_ready.wait();
+            hook_release.wait();
+        }),
+    );
     let worker = {
         let engine = Arc::clone(&engine);
         let frozen = frozen.clone();
@@ -752,5 +766,62 @@ fn unsupported_operational_format_is_a_typed_refusal() {
         Err(EngineError::Page(error))
             if error.reason == PageErrorReason::CollectionFormatUnsupported
     ));
+    opened.engine.close().unwrap();
+}
+
+#[test]
+fn historical_flags_compose_in_frozen_search_and_canonical_pages() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("slice80-frozen-history{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    let mut pending = node("pending", "history pending");
+    if let PreparedWrite::Node { state, .. } = &mut pending {
+        *state = InitialState::Pending;
+    }
+    opened.engine.write(&[node("item", "history retired"), pending]).unwrap();
+    opened.engine.write(&[node("item", "history current")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    for (superseded, inactive, expected) in [
+        (false, false, vec!["history current"]),
+        (true, false, vec!["history current", "history retired"]),
+        (false, true, vec!["history current", "history pending"]),
+        (true, true, vec!["history current", "history pending", "history retired"]),
+    ] {
+        let expected = expected.into_iter().map(str::to_owned).collect::<BTreeSet<_>>();
+        let context = ReadContextV1::new(
+            ReadView {
+                include_superseded: superseded,
+                include_inactive: inactive,
+                valid_as_of: Some(1_800_000_000),
+                ..ReadView::default()
+            },
+            SearchFilter::default(),
+        )
+        .unwrap();
+        let frozen = opened.engine.freeze_read_context(&context).unwrap();
+        let search =
+            opened.engine.search_frozen("history", &frozen, 0, false, 0.3, 0, false, 10).unwrap();
+        assert_eq!(
+            search.results.into_iter().map(|hit| hit.body).collect::<BTreeSet<_>>(),
+            expected
+        );
+        let mut cursor = None;
+        let mut bodies = BTreeSet::new();
+        for _ in 0..4 {
+            let result = opened
+                .engine
+                .read_canonical_page("slice45_doc", &frozen, &page(1, cursor))
+                .unwrap();
+            for row in result.items {
+                assert!(bodies.insert(row.body), "pages must not duplicate a revision");
+            }
+            cursor = result.next_cursor;
+            if cursor.is_none() {
+                break;
+            }
+        }
+        assert!(cursor.is_none(), "finite history must finish pagination");
+        assert_eq!(bodies, expected);
+    }
     opened.engine.close().unwrap();
 }

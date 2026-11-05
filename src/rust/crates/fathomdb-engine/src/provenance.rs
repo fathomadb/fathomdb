@@ -254,7 +254,7 @@ impl Engine {
     /// are excluded from every result.
     #[cfg(feature = "operator")]
     pub fn trace_source_ref(&self, source_id: &str) -> Result<TraceReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if source_id.is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -315,7 +315,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn provenance_row_count_for_test(&self) -> Result<u64, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection
@@ -329,7 +329,7 @@ impl Engine {
         &self,
         collection: &str,
     ) -> Result<Option<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         connection

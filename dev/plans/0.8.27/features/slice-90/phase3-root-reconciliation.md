@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: da946704440c3ebd5c63f25e5e6566641241ed85
+lib_rs_blob: cbfbc15c1678f5ece4b74b697de5828f519cf9fc
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -38,32 +38,56 @@ retained fixtures, producing `0226b8836c929a30793b8913461f5abf341123c2`.
 `fathomdb_query` stop-word re-exports (`QueryStopWords`, `StopWordBase`,
 `StopWordRejection`, `DEFAULT_STOP_WORDS_SHA256`) and the root storage field
 `query_stop_words`, producing `d7065f6f041f547a1d124182983f17268a379145`.
+0.8.28 Slice 42 changed only the root `tests` module (the Windows
+verbatim-path guard tests moved to the version-only predicate, and its
+portable test joined them), producing `12e4a6448f727d4afd940a9386d4c4e7d1e05f09`.
+0.8.28 Slice 50 implements owner `seq-359`'s narrow provider-admission policy:
+actual verification refusal fails open without returning an attached engine,
+removing the `dense_disabled`, `dense_disabled_reason`, and
+`vector_equivalence_refusals` storage fields. It also adds the
+`provider_admission_tests` unit-test module and the corresponding root
+composition changes, producing the blob above. The root storage fields are
+then 41; the approved root method inventory was unchanged.
+
+0.8.28 Slice 50 scan qualification adds the `test-hooks` re-exports
+`ProjectionScanPageForTest` and `ProjectionScanForTest`, producing
+`c182b0b20f9c96582aa5fe84773beb5a270f294a`. Production root storage is unchanged.
+
+0.8.28 Slice 85 adds persisted physical policy, published explicit-debt state, and
+maintenance admission ownership. These three named fields bring root storage to
+46 fields; their semantic consumers remain outside root. The current-format
+lock-admission test expects format 36. The blob above includes these changes.
+
 Agent-access Block 1 added the `hints`, `snippet` and `snippet_query` module
 declarations and their public re-exports, plus the `ArmDegradation` and
 `DegradationReason` re-exports. On its own branch that gave
-`af36592d1aa97d5a304397fc42b03607ad63db70`; merged onto 0.8.28 in
-`dev/0.8.29` it gives the blob above. The root storage fields are now 44; the
-approved root method inventory is unchanged.
+`af36592d1aa97d5a304397fc42b03607ad63db70`; its earlier `dev/0.8.29` integration produced
+`da946704440c3ebd5c63f25e5e6566641241ed85` with 44 root storage fields.
+The final .28 forward handoff retains its 46-field current inventory and these
+.29 module/type exports, producing the blob above. Root method ownership is
+unchanged.
 
 ## Remaining root declarations
 
 | Declaration | Disposition |
 | --- | --- |
-| `Engine` and its 44 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
+| `Engine` and its 46 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
+| `Engine::maintenance_transaction_for_test<T>` | Approved 0.8.28 Slice 81 cross-domain maintenance fixture; public, doc-hidden and `any(test, feature = "test-hooks")`. Holds the actual Engine writer through an IMMEDIATE transaction and commit/RAII rollback; returns successful-call mutex wait and occupancy. Callback must not control transactions or reenter Engine. |
 | `Engine::run_one_thread_poison_for_test` | Approved Slice 140 composite write/search/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
-The exact 44 storage fields are grouped here to prevent a generic
+The exact 46 storage fields are grouped here to prevent a generic
 "remaining state" exemption:
 
 | Storage role | Root field names |
 | --- | --- |
-| Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence`, `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusals` |
+| Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence` |
 | Connections and lifecycle | `closed`, `close_lock`, `lock`, `connection`, `reader_pool`, `profile_contexts`, `reader_lookaside_rcs`, `managed_connections`, `writer_connection_registration`, `actual_checkpoint_observations`, `binding_native_state_observations`, `wal_attribution` |
+| Physical cleanup | `physical_maintenance`, `physical_service_gate`, `physical_policy`, `explicit_debt`, `maintenance_admission` |
 | Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
 | Embed dispatch state | `runtime_embedder`, `embed_dispatch` |
 | Events and telemetry | `counters`, `subscribers`, `profiling_enabled`, `slow_threshold_ms`, `telemetry`, `telemetry_enabled` |
@@ -71,6 +95,7 @@ The exact 44 storage fields are grouped here to prevent a generic
 
 Root also composes module declarations, imports, and public re-exports. The
 remaining `#[cfg(test)]` modules are `gpu_allocation_witness_opt_in_tests`,
+`provider_admission_tests`,
 `slice20_fix1_tests`, `slice90_close_tests`,
 `slice90_concurrent_close_tests`, `slice90_close_review_tests`,
 `slice90_post_probe_real_error_tests`, and `tests`. They are test containers,
@@ -85,3 +110,32 @@ free function, trait, or implementation body. There are zero unresolved
 root-owned production items against the accepted map. Feature-qualified
 public/hidden surface comparison and the full release gate remain separate
 candidate checks.
+
+0.8.28 Slice 60 adds the private `vector_spans` module declaration and updates
+the current schema-version fixture to 35; root field and method ownership
+remain unchanged. The inventory blob above tracks those changes.
+
+0.8.28 Slice 80 adds the feature-gated private property corpus rendezvous
+re-exports (`arm_property_corpus_hook_for_test`, `PropertyCorpusPauseForTest`).
+Root field and method ownership remain unchanged; the inventory blob above
+tracks this composition-only update.
+
+0.8.28 Slice 81 adds the explicitly inventoried generic
+`maintenance_transaction_for_test<T>` fixture, changing the whole-file blob from
+`53f4187db2a9d2025fffdc78310d0edc2799dcf9` to the value above. The seam is owned
+at root because it supplies an atomic actual-writer capability for cross-domain
+experimental maintenance, not a production domain operation. Production root
+storage, methods and runtime behavior remain unchanged; no pending-closure fence
+is bypassed. Its reviewed contract is in the [Rust interface](../../../../interfaces/rust.md)
+and [Slice 81 design](../../../../plans/0.8.28/features/slice-81/design.md).
+
+0.8.28 Slice 82 adds the private `physical_erasure` module and the feature-gated
+`arm_physical_erasure_hook_for_test` re-export. Root fields and method ownership
+remain unchanged. Physical debt and sanitation live in the new internal module;
+the rendezvous implementation is owned by `test_hooks`. The current blob above
+tracks this composition-only update.
+
+0.8.28 Slice 83 adds the owned physical-maintenance worker and singleton service
+guard, represented by the two physical-cleanup fields above. It retains the root
+facade methods and exact storage inventory; the current blob includes those
+changes and the new private cleanup modules.

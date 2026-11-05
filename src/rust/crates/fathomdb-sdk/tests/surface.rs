@@ -97,9 +97,6 @@ fn engine_search_signatures() {
 
 #[test]
 fn engine_instrumentation_signatures() {
-    let _: fn(&Engine) -> bool = Engine::dense_disabled;
-    let _: fn(&Engine) -> Option<String> = Engine::dense_disabled_reason;
-    let _: fn(&Engine) -> u64 = Engine::vector_equivalence_refusal_count;
     let _: fn(&Engine, &str) -> Result<()> = Engine::enable_telemetry;
     let _: fn(&Engine) -> Option<String> = Engine::last_telemetry_query_id;
     let _: fn(&Engine, &str, &[u64], &[u64], &str) -> Result<()> = Engine::record_feedback;
@@ -216,7 +213,7 @@ fn search_filter_arg_accepts_both_filter_forms() {
 
 /// The shared Python/TypeScript error classes, minus the `Error` suffix, plus
 /// the base. Python: `fathomdb.errors`; TypeScript: `src/ts/src/errors.ts`.
-const SHARED_ERROR_CLASSES: [&str; 45] = [
+const SHARED_ERROR_CLASSES: [&str; 47] = [
     "EngineError",
     "RuntimeConfigurationError",
     "StorageError",
@@ -254,10 +251,12 @@ const SHARED_ERROR_CLASSES: [&str; 45] = [
     "DependencyTraceError",
     "GraphExpansionError",
     "VectorEquivalenceMismatchError",
+    "VectorVerificationError",
     "InvalidArgumentError",
     "IllegalTransitionError",
     "NotLifecycleAddressableError",
     "ErasureIncompleteError",
+    "MaintenanceError",
     "ProjectionDestructiveError",
     "CudaPoolExhaustedError",
     "CudaContextLostError",

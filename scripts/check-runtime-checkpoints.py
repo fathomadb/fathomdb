@@ -91,7 +91,9 @@ class Validation:
             text=True,
             stdout=subprocess.PIPE,
         ).stdout.strip()
-        return (self.root / common).resolve().parent / DURABLE_SLICE90_BUNDLES
+        # The archive root may be relocated behind a symlink (cold storage), so
+        # it is canonicalized once; bundles inside it must still be canonical.
+        return ((self.root / common).resolve().parent / DURABLE_SLICE90_BUNDLES).resolve()
 
     def durable_evidence_present(self) -> bool:
         durable = self.durable_bundle_directory()

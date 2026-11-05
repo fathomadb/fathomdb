@@ -66,6 +66,69 @@ pub struct RecoveryHint {
     pub doc_anchor: &'static str,
 }
 
+/// Typed dispatch cause when an open-time vector verification cannot complete.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VectorVerificationFailure {
+    /// No provider was configured for the requested verification.
+    NotConfigured,
+    /// The bounded dispatcher had no admission capacity.
+    Saturated,
+    /// The request deadline elapsed before provider execution.
+    QueuedExpired,
+    /// Provider execution exceeded its request deadline.
+    StartedTimeout,
+    /// The provider returned its original typed failure.
+    Provider(RuntimeEmbedderError),
+    /// The provider returned an unexpected output shape or dimension.
+    InvalidOutput,
+    /// The provider panicked; the original string payload is preserved when available.
+    Panic { message: String },
+    /// Stored verification metadata cannot be interpreted as the committed baseline.
+    InvalidState { message: String },
+    /// Dispatch was already closing.
+    Closing,
+    /// The request was cancelled before completion.
+    Cancelled,
+}
+
+impl VectorVerificationFailure {
+    /// Stable machine-readable cause code; provider details remain in the variant.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::NotConfigured => "not_configured",
+            Self::Saturated => "saturated",
+            Self::QueuedExpired => "queued_expired",
+            Self::StartedTimeout => "started_timeout",
+            Self::Provider(_) => "provider",
+            Self::InvalidOutput => "invalid_output",
+            Self::Panic { .. } => "panic",
+            Self::InvalidState { .. } => "invalid_state",
+            Self::Closing => "closing",
+            Self::Cancelled => "cancelled",
+        }
+    }
+}
+
+impl Display for VectorVerificationFailure {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Provider(error) => write!(f, "provider: {error}"),
+            Self::Panic { message } => write!(f, "provider panic: {message}"),
+            Self::InvalidState { message } => write!(f, "invalid verification state: {message}"),
+            other => f.write_str(other.code()),
+        }
+    }
+}
+
+impl Error for VectorVerificationFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Provider(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineOpenError {
     RuntimeConfiguration(RuntimeConfigurationError),
@@ -91,6 +154,17 @@ pub enum EngineOpenError {
     EmbedderDimensionMismatch {
         stored: u32,
         supplied: u32,
+    },
+    /// The numeric compatibility comparison rejected this runtime.
+    VectorEquivalenceMismatch {
+        reason: String,
+    },
+    /// Required numeric verification could not complete; no engine is returned.
+    /// `probe_ordinal` is zero for whole-baseline preflight failures; the cause
+    /// names the affected state, not a claimed successful inference of probe zero.
+    VectorVerification {
+        probe_ordinal: u32,
+        cause: VectorVerificationFailure,
     },
     /// Embedder runtime returned a typed error during `Engine::open`.
     Embedder(RuntimeEmbedderError),
@@ -162,6 +236,8 @@ impl Display for EngineOpenError {
                 f,
                 "embedder vector dimension mismatch: stored {stored}, supplied {supplied}",
             ),
+            Self::VectorEquivalenceMismatch { reason } => write!(f, "vector compatibility mismatch: {reason}"),
+            Self::VectorVerification { probe_ordinal, cause } => write!(f, "vector verification could not complete at probe {probe_ordinal}: {} ({cause:?})", cause.code()),
             Self::Embedder(err) => match err {
                 RuntimeEmbedderError::Timeout => write!(f, "embedder timeout during open"),
                 RuntimeEmbedderError::Failed { message } => {
@@ -214,7 +290,14 @@ impl Display for EngineOpenError {
     }
 }
 
-impl Error for EngineOpenError {}
+impl Error for EngineOpenError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::VectorVerification { cause, .. } => Some(cause),
+            _ => None,
+        }
+    }
+}
 
 fn write_pool_exhausted(
     f: &mut Formatter<'_>,
@@ -293,6 +376,8 @@ impl From<RuntimeEmbedderError> for EngineOpenError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineError {
+    /// Typed, identity-free explicit maintenance refusal.
+    Maintenance(MaintenanceError),
     Storage,
     Projection,
     Vector,
@@ -391,19 +476,10 @@ pub enum EngineError {
     InvalidArgument {
         msg: String,
     },
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — the open-time
-    /// self-check re-embedded the 45 committed probes with the live backend and
-    /// found a divergence beyond the frozen D4 floor (a Phase-1 mean-centered
-    /// `embedding_bin` sign flip, OR a Phase-2 un-centered L2 distance over
-    /// `VECTOR_EQUIVALENCE_L2_EPSILON`). `Engine::open` succeeded into a degraded
-    /// state (`dense_disabled = true`); this query-time error is raised at the
-    /// single choke point [`Engine::search_inner_with_stats`] BEFORE any embedding
-    /// / vector SQL / graph seeding / CE rerank, refusing EVERY vector-dependent
-    /// arm (`search`, `search_expand`, explain/rerank, graph-arm). The explicit
-    /// text-only/FTS-only path ([`Engine::search_text_only`]) stays serviceable.
-    /// Sibling of the open-time `EngineOpenError::EmbedderIdentityMismatch`; per
-    /// ADR-0.8.18 codex R2 U1-1 the refusal surfaces as an `EngineError` (queries
-    /// never surface `EngineOpenError`). `reason` carries a human-readable summary.
+    /// Low-level mismatch vocabulary retained for error interoperation.
+    /// The compatibility checker emits [`EngineOpenError::VectorEquivalenceMismatch`]
+    /// during admission and never returns an engine in a refused-provider state.
+    /// This runtime variant is not emitted by that checker.
     VectorEquivalenceMismatch {
         reason: String,
     },
@@ -558,6 +634,7 @@ impl From<DataPlaneIntegrityErrorV1> for EngineError {
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Maintenance(error) => error.fmt(f),
             Self::Storage => write!(f, "storage error"),
             Self::Projection => write!(f, "projection error"),
             Self::Vector => write!(f, "vector error"),
@@ -655,6 +732,7 @@ impl EngineError {
     /// `dev/design/errors.md` § Binding-facing class matrix.
     pub(crate) fn stable_code(&self) -> &'static str {
         match self {
+            Self::Maintenance(_) => "MaintenanceError",
             Self::Storage => "StorageError",
             Self::Projection => "ProjectionError",
             Self::Vector => "VectorError",

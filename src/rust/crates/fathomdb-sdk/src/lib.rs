@@ -46,7 +46,14 @@ pub mod graph;
 pub mod read;
 
 pub use engine::Engine;
+mod maintenance;
 pub use error::{CudaErrorDetails, Error, ErrorKind, Result};
+pub use fathomdb_engine::{
+    CleanupResult, ErasureBlocker, ErasureLogicalState, ErasurePhase, ErasureServiceState,
+    ErasureStatus, MaintenanceError, PhysicalErasurePolicy, PhysicalErasureSelector, QueueResult,
+    WithdrawResult,
+};
+pub use maintenance::ErasureMaintenance;
 pub use options::{
     FrozenSearchOptions, ListOptions, NeighborsOptions, OpenOptions, ProjectedTextSearchOptions,
     RerankOptions, SearchExpandOptions, SearchFilterArg, SearchOptions, TextSearchOptions,
@@ -177,3 +184,6 @@ pub use fathomdb_schema::MigrationStepReport;
 /// ```
 #[doc(hidden)]
 pub mod core_surface_absence_proof {}
+
+/// Typed cause of an open-time vector verification failure; no engine is returned.
+pub use fathomdb_engine::VectorVerificationFailure;

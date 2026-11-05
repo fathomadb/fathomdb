@@ -1,0 +1,81 @@
+---
+title: Slice 95 — candidate qualification matrix
+status: IN_PROGRESS
+target_release: 0.8.28
+---
+
+# Candidate qualification matrix
+
+This is the compact execution inventory required by S95-1 and S95-6, not a new
+validator or acceptance oracle. [Plan](plan.md) and [design](design.md) retain
+scope; [status](status.md) records the eventual verdict. Executable inputs must
+be reviewed and frozen before final broad work. Publication remains held.
+
+## Hosted CI inventory
+
+All commands are owned by `.github/workflows/ci.yml`; bind final outcomes to its
+exact dispatched commit and actual jobs, rather than copying an older run.
+
+| Jobs | Purpose and route | Selection and evidence policy |
+| --- | --- | --- |
+| changes | Pinned paths-filter, trusted ci-lite classification, validated manual candidate | Automatic paths remain proportional; successful exact-candidate dispatch selects all eight scoped drivers even with empty diff. Invalid dispatch cannot allocate qualification work. |
+| verify-fast / verify | Canonical agent-verify fast (lint/type/security/cheap suites) and complementary heavy (Rust/Python/TS) | Total/disjoint registration, real nonzero failures and actual counts; pinned cold prerequisites. Fast diagnostics survive genuine classifier failure, not invalid candidate validation. Owned redacted spill evidence on failure. |
+| rust-workspace-race-report | Parallel Rust diagnostic | Compile jobs=2; test threading unchanged; debug/incremental and target caching disabled, cache save disabled. Actual Cargo exit/count/log and resource transitions remain separate from advisory wrapper/upload results. |
+| security | Strict AC-036/037/038/050a/050c on ubuntu-22.04 | Live namespace/catch lines and 0 violations/blockers/downgrades required. Verify-fast's optional live downgrade is not a substitute. |
+| default-embedder-tests | Cached BGE CPU/live Rust/Python/Node tests | Warm failure is visible skipped live coverage, never a release pass; no retries/quarantine. |
+| wheel-size-gate | Five CPU target wheel-size cells | Shipped default-embedder size against existing platform budgets. No-feature size informational; actual five rows required. |
+| native-artifact-runtime-validation / collect-native-artifact-receipts | Five fresh candidate wheel+Node/addon installed-consumer rows and existing collector | Linux x64/ARM64, macOS x64/ARM64, Windows x64; isolated strict modular TS consumer plus runtime calls. Receipt collector rejects missing/duplicate/cross-candidate rows. Native hashes do not cover main package/declarations; retain those identities separately. |
+| windows-wal-checkpoint-diagnosis / windows-wal-attribution | Real Windows WAL diagnosis and installed hook-wheel attribution | Exact candidate and explicit PowerShell external exit checks; distinct WAL receipt. Shipped package tests cannot depend on disposable private hooks. |
+| gitleaks | Pinned tracked-tree scan | Always-on advisory policy unchanged. Generated evidence is scanned separately locally. |
+| shell-lint | Pinned ShellCheck install/lint and job contract | Independent always-on cheap signal, including docs changes. Fixtures isolate host binaries; real installer/version checks stay strict. |
+| board-currency / ledger-integrity / plan-anchors | Git/state/ledger/plan consistency | Independent always-on, no docs-only shortcut; no hand-edited generated current pointers. |
+| governed-surface-pin / pinned-override-rot / c1-contract-conformance | Approved surfaces, dependency pins and C1 contracts | Independent always-on; preserve ratified pins/frozen baselines. |
+| transcript-hygiene / release-state-views / commission-manifest | Safe tracked transcripts, generated views and commission references | Independent always-on; tests remain real and fail closed. |
+| design-status / steward-orient / docs | Design metadata, orientation fixture and strict MkDocs | Independent always-on; orientation fixture is a test, not adoption of a Steward role. |
+| markdownlint | Markdown-only automatic shortcut | Intentionally skipped during full manual qualification, whose verifier/docs jobs cover the applicable checks. |
+
+The eight scoped drivers are verify, race report, security, default embedder,
+wheel size, native artifacts and the two Windows WAL jobs. Independent jobs
+retain their ordinary-check identity and do not become candidate package receipts
+merely because they ran. Queued/cancelled/skipped/zero-test rows are not passes.
+
+## Local final candidate routes
+
+| Obligation | Existing command/inputs and acceptance | Execution disposition |
+| --- | --- | --- |
+| Canonical correctness | Node25.9 PATH, checkout-owned .venv, CARGO_BUILD_JOBS=2 scripts/agent-verify.sh; strict tracing executor | One clean final broad round, then only failed/invalidated scopes. Record registered/ran/pass/fail/skip/excluded totals. |
+| Confirmed-debt admission | RED bff636c3b / GREEN aabfbee8e, Astra design/code APPROVE; independent27 real-DB tests PASS | CI8 discovered by canonical hosted serial tests; unchanged original regressions, true-debt priority/progress and genuine Autonomous saturation refusal. Final core-source phase gets one broad round. |
+| Feature coverage | check-test-target-coverage.py; test-feature-complete.sh --scratch with live cached BGE/reranker/nomic/ONNX and two RTX3090s | Inventory at baseline:356 targets,36 feature-complete-only. Recompute current accounting through existing runner, no fixed-count oracle. Separate named cold-storage target avoids root disk pressure. |
+| Strict security | STRICT=1 scripts/agent-security.sh | Host supports namespaces/ptrace unconfined. Record both actual AC037 live pass lines and 0/0/0; no artificial host-security grant/revert. |
+| AC011 writes | CARGO_NET_OFFLINE=true scripts/run-ac011-write-throughput.sh; canonical windchill3/NVMe TMPDIR | Existing 5-second warmup/60-second measurements; >=1000/s 1KB and >=100/s 100KB. Time after competing builds finish. |
+| AC012/013 latency | Release perf_gates exact selectors with AGENT_LONG=1; AC012_CORPUS_N=10000; AC013_CORPUS_N=10000 and AC013_VECTOR_DIM=768 | Existing text p50/p99 <=20/150ms; vector <=80/300ms,1000 samples. Synthetic recall/stress remain report-only. |
+| AC081 absolute reads | Release perf_gates::ac_081_absolute_read_performance; seven fresh processes of one hashed executable | Existing <=500ms sequential/<=100ms concurrent; retired AC020 ratios stay retired. |
+| Long reliability | AGENT_LONG=1 exact lifecycle_reliability::ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl and cursor_read_after_write::projection_cursor_bounds_observed_row_count | Actual60-second schema-warning window and1000 cursor-race iterations. Reuse final full-gate AC017/018/081c rather than repeat unaffected coverage. |
+| AC073 stress / legacy EU7 | Release ignored eu7_real_corpus_ac_validation; CUDA, N7667,100 queries,1000 bootstrap/latency samples,250/thread | Retain actual exit and independently evaluate stress. Superseded recall assertion can produce exit101; never label the overall run PASS. Corpus staging receipt binds13 top-level JSONLs/96,704,727 bytes. |
+| AC075 fidelity | Existing experiments.tc5_gpu_v2 dry-run/run, candidate-bound bridge7667 real docs/100 queries/K192/top10/exact f32 truth | CI-high >=0.90. Reuse frozen input/model pins; renew candidate SHA, CUDA wheel/runtime/CLI/private benchmark hashes. Explicit .28 release/.27 package validator binding remains unchanged. No 2M sweep. |
+| Packages/consumer boundaries | CI five-target native matrix and distinct WAL; independent Linux installed consumer/missing-export control and external Rust source archive | Preserve dependency/native/package hashes, actual resolved paths/lockfiles/runtime flags. Earlier S92 examples reusable only after explicit relevant-input comparison; CPU dev proof is not optimized/registry/CUDA proof. |
+| Documentation/contracts | Slice92 baseline plus affected docs/index/lifecycle/authority/generator/parity/surface checks, strict local MkDocs | No new full audit or structural framework. Pending .28 docs/published .27 receipts/manifests stay distinct. |
+| Evidence safety | Pinned gitleaks-current.sh and separate retained generated-evidence directory scan | Record separate outcomes. Redact generated secrets before retention; advisory policy unchanged, no new broad suppression. |
+| Local/release rehearsal | local-dry-run.sh; separate release.yml dry_run=true,release_version,candidate_commit | Pending .28 version/Axis E/trusted provenance preparation; immutable dry-run already exempts main ancestry. No old-version substitution or pre-tag-ready claim. |
+
+D28-09/10/11 and populated-open deferrals remain. Do not repeat frozen layout
+sweeps or reopen erasure optimization. CUDA driver/toolkit stay unchanged.
+
+## Resources and executor prerequisites
+
+The source checkout has its own Python3.12/Node25.9 tooling. Feature builds use
+`/media/coreyt/C8D47C11D47C03CA/data/linux-cold/fathomdb-s95-feature-target`
+with206,392,377,344 initial free bytes, jobs2 and runner-owned debug0/incremental0.
+Root NVMe remains the measured database/TMPDIR location. Sandbox read-only mounts
+and denied namespaces/GPU probes do not describe the actual unconfined executor.
+The idle checkout-owned debug cache was copied to cold storage and every file, mode
+and symlink verified before reclaiming its original duplicate. Its logical path
+remains unchanged through a symlink; relocation receipt records identities.
+No shared cache is deleted. Never run timing concurrently with builds.
+
+The standing Windows VM's old registration expired; its configuration remains
+untouched. A distinct temporary runner may be provisioned from verified public
+distribution binaries, excluding credentials/config/workspaces. Confirm exact
+repository, labels, online/idle and executing runner identity. Remove only
+task-owned registration/process/files after jobs and artifact collection finish.
+No workflow trust restriction or persistent host security setting changes.

@@ -15,7 +15,7 @@ pub use data_plane::{inspect_data_plane_integrity, recover_truncate_wal};
 pub struct CompleteErasuresReport {
     /// `Done` only after checkpoint and closure completion; `Busy` remains owed.
     pub status: TruncateWalStatus,
-    /// Opaque ids of closures considered by this invocation.
+    /// Opaque closure or maintenance identities considered by this invocation.
     pub closure_ids: Vec<String>,
     /// SQLite checkpoint busy indicator.
     pub busy: u32,
@@ -25,19 +25,19 @@ pub struct CompleteErasuresReport {
     pub checkpointed_frames: u32,
 }
 
-/// Content-free operator diagnosis of one owed physical dependency closure.
+/// Content-free operator diagnosis of an owed closure or physical maintenance item.
 #[cfg(feature = "operator")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PendingErasure {
-    /// Opaque closure identifier, sufficient for the operator report.
+    /// Opaque closure identifier or operator-only maintenance identity.
     pub closure_id: String,
-    /// `purged` or `source_erased`.
+    /// Closure cause, `physical_erasure`, or store-wide `retained_terms`.
     pub cause: String,
-    /// Durable closure phase.
+    /// Durable closure or sanitation phase.
     pub phase: String,
     /// Boundary still owed, if recorded.
     pub blocker: Option<String>,
-    /// Monotonic closure sequence.
+    /// Monotonic closure sequence; zero for maintenance identities.
     pub sequence: u64,
 }
 
@@ -215,7 +215,7 @@ impl Engine {
         &self,
         opts: CheckIntegrityOpts,
     ) -> Result<IntegrityReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         Ok(IntegrityReport {
@@ -233,7 +233,7 @@ impl Engine {
     /// cannot be read. This operator-only read does not change durable state.
     #[cfg(feature = "operator")]
     pub fn pending_erasures(&self) -> Result<Vec<PendingErasure>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let queue_pending: i64 = connection
@@ -243,7 +243,7 @@ impl Engine {
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
-        dependency_closure::pending_physical_closures(connection)?
+        let mut rows = dependency_closure::pending_physical_closures(connection)?
             .into_iter()
             .map(|pending| {
                 Ok(PendingErasure {
@@ -258,7 +258,14 @@ impl Engine {
                     sequence: pending.sequence,
                 })
             })
-            .collect()
+            .collect::<Result<Vec<_>, EngineError>>()?;
+        rows.extend(physical_erasure::diagnostics(connection)?);
+        if queue_pending > 0 {
+            for row in &mut rows {
+                row.blocker = Some("telemetry_redaction".into());
+            }
+        }
+        Ok(rows)
     }
 
     /// Doctor bit-preserving export. Runs `VACUUM INTO` to produce a
@@ -271,7 +278,7 @@ impl Engine {
         out: &Path,
         manifest: &Path,
     ) -> Result<SafeExportArtifact, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
@@ -308,7 +315,7 @@ impl Engine {
         supplied_identity: &str,
         supplied_dimension: u32,
     ) -> Result<VerifyEmbedderReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let stored = load_default_profile(connection).map_err(|_| EngineError::Storage)?;
@@ -336,7 +343,7 @@ impl Engine {
     /// Canonical tables appear first per [`CANONICAL_TABLES`].
     #[cfg(feature = "operator")]
     pub fn dump_schema(&self) -> Result<DumpSchemaReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let user_version: u32 = connection
@@ -351,7 +358,7 @@ impl Engine {
     /// counts only; projection / FTS / vec0 shadow tables are excluded.
     #[cfg(feature = "operator")]
     pub fn dump_row_counts(&self) -> Result<DumpRowCountsReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut counts = Vec::with_capacity(CANONICAL_TABLES.len());
@@ -386,7 +393,7 @@ impl Engine {
     /// opens no transaction.
     #[cfg(feature = "operator")]
     pub fn orphan_provenance(&self) -> Result<OrphanProvenanceReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
 
@@ -472,7 +479,7 @@ impl Engine {
     /// kinds from `_fathomdb_vector_kinds`.
     #[cfg(feature = "operator")]
     pub fn dump_profile(&self) -> Result<DumpProfileReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let stored = load_default_profile(connection).map_err(|_| EngineError::Storage)?;
@@ -651,7 +658,7 @@ impl Engine {
     /// Enumerate schema objects for the no-reverse-table contract test.
     #[cfg(feature = "test-hooks")]
     pub fn schema_objects_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut statement = connection

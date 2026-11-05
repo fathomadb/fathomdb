@@ -31,7 +31,7 @@ const SERVING_DOMAIN_V2: &[u8] = b"fathomdb.projection-serving-binding.v2\0";
 const SERVING_DOMAIN_V3: &[u8] = b"fathomdb.projection-serving-binding.v3\0";
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
-const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 18] = [
+const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 19] = [
     ("cn", "canonical_nodes"),
     ("ce", "canonical_edges"),
     ("ar", "_fathomdb_artifact_revisions"),
@@ -50,6 +50,7 @@ const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 18] = [
     ("pc", "_fathomdb_projection_generation_current"),
     ("oc", "operational_collections"),
     ("os", "operational_state"),
+    ("vs", "_fathomdb_vector_spans"),
 ];
 
 /// Versioned search eligibility and validity requested by a caller.
@@ -373,7 +374,9 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
             return Err("invalid frozen-read branch-sensitive state".to_string());
         }
     }
-    let trigger_tables = if schema_version >= 33 {
+    let trigger_tables = if schema_version >= 35 {
+        &VISIBILITY_TRIGGER_TABLES[..19]
+    } else if schema_version >= 33 {
         &VISIBILITY_TRIGGER_TABLES[..18]
     } else if schema_version >= 32 {
         &VISIBILITY_TRIGGER_TABLES[..16]
@@ -412,6 +415,12 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     ).map_err(|error| error.to_string())?;
     if count != i64::try_from(trigger_tables.len() * 3).unwrap_or(i64::MAX) {
         return Err("unexpected frozen-read visibility trigger".to_string());
+    }
+    if schema_version >= 35
+        && !crate::vector_spans::cleanup_trigger_is_valid(connection)
+            .map_err(|error| error.to_string())?
+    {
+        return Err("missing or altered vector span cleanup trigger".to_string());
     }
     if schema_version >= 33 {
         validate_page_index(
@@ -846,7 +855,7 @@ impl Engine {
         context: &FrozenReadContextV1,
         page: &PageRequestV1,
     ) -> Result<Slice45FrozenStageTiming, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let started = Instant::now();
@@ -872,7 +881,7 @@ impl Engine {
         &self,
         context: &ReadContextV1,
     ) -> Result<Slice45MintStageTiming, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let (_, generation, timing) = mint_measured(connection, context)?;

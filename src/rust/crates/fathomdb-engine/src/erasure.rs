@@ -283,17 +283,22 @@ fn collect_erased_stable_ids_for_cursors(
     Ok(ids)
 }
 
-/// 0.8.20 Slice 5 fix-1 (codex §9 P2) — record, INSIDE the erasing transaction,
-/// that a telemetry redaction is owed for `erased_stable_ids`.
-///
-/// Must be called in the same transaction as the DELETEs. That is the whole
-/// point: "the rows are gone" and "a redaction is owed for them" then commit
-/// atomically, so no crash or failure can leave the first true and the second
-/// unrecorded. [`Engine::discharge_pending_redactions`] drains the queue and
-/// deletes the entry only once the sink has actually been rewritten.
-///
-/// `record_key` is the VERB, never a stable id — the ids live in the payload,
-/// which is deleted on discharge.
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct PendingRedaction {
+    version: u32,
+    verb: String,
+    erased_stable_ids: Vec<String>,
+    sink_fingerprints: Vec<String>,
+}
+
+fn telemetry_incomplete() -> EngineError {
+    EngineError::ErasureIncomplete {
+        stage: "telemetry_redaction".into(),
+        detail: "original telemetry sink redaction remains owed; reattach each registered original sink and retry; malformed or unbound legacy obligations cannot be authenticated".into(),
+    }
+}
+
 fn enqueue_pending_redaction(
     tx: &Connection,
     verb: &str,
@@ -303,8 +308,17 @@ fn enqueue_pending_redaction(
     if erased_stable_ids.is_empty() {
         return Ok(());
     }
-    let payload =
-        serde_json::json!({ "verb": verb, "erased_stable_ids": erased_stable_ids }).to_string();
+    let sink_fingerprints = telemetry::registered_sinks(tx)?;
+    if sink_fingerprints.is_empty() {
+        return Ok(());
+    }
+    let payload = serde_json::to_string(&PendingRedaction {
+        version: 1,
+        verb: verb.into(),
+        erased_stable_ids: erased_stable_ids.to_vec(),
+        sink_fingerprints,
+    })
+    .map_err(|_| EngineError::Storage)?;
     tx.execute(
         "INSERT INTO operational_mutations(
             collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
@@ -548,6 +562,7 @@ impl Engine {
     /// from a no-embedder session rather than returning that feedback instead
     /// of discharging the destructive request.
     fn freeze_projection_for_erasure(&self) -> Result<(), EngineError> {
+        let _drain = self.physical_maintenance.metrics.timer("projection_drain");
         let no_configured_embedder = match self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS) {
             Ok(()) => false,
             Err(EngineError::EmbedderRequired(_)) => true,
@@ -578,6 +593,7 @@ impl Engine {
     }
 
     fn freeze_projection_for_closure_retry(&self) -> Result<(), EngineError> {
+        let _drain = self.physical_maintenance.metrics.timer("projection_drain");
         self.projection_runtime.set_frozen(true);
         if self.projection_runtime.wait_for_workers_idle(LIFECYCLE_DRAIN_TIMEOUT_MS) {
             Ok(())
@@ -592,10 +608,100 @@ impl Engine {
         verb: &'static str,
         closure_ids: &[ClosureOperationId],
     ) -> Result<(), EngineError> {
+        self.finish_physical_dependency_closures_with_sinks(verb, closure_ids, None)
+    }
+
+    pub(crate) fn finish_physical_dependency_closures_with_sinks(
+        &self,
+        verb: &'static str,
+        closure_ids: &[ClosureOperationId],
+        sinks: Option<&BTreeMap<String, PathBuf>>,
+    ) -> Result<(), EngineError> {
+        let result = self.finish_physical_dependency_closures_inner(verb, closure_ids, sinks);
+        if let Err(error) = &result {
+            let guard = self.physical_writer(true)?;
+            physical_erasure::record_blocker(guard.as_ref().ok_or(EngineError::Closing)?, error)?;
+        }
+        result
+    }
+
+    fn finish_physical_dependency_closures_inner(
+        &self,
+        verb: &'static str,
+        closure_ids: &[ClosureOperationId],
+        sinks: Option<&BTreeMap<String, PathBuf>>,
+    ) -> Result<(), EngineError> {
         {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(true)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::validate_physical_closures(connection, closure_ids)?;
+            physical_erasure::validate_pending(connection, closure_ids)?;
+            // A provider attached on an owed reopen could not graft survivors
+            // at open. This replay only enrols/requeues surviving vector owners;
+            // it preserves FTS contents and durable merge continuation progress.
+            if self.runtime_embedder.is_some()
+                && physical_erasure::redacted_ids(connection)?.is_none()
+            {
+                let _graft = self.physical_maintenance.metrics.timer("deferred_graft");
+                boot_graft_declared_vector_backfill(connection)
+                    .map_err(|_| EngineError::Storage)?;
+            }
+            dependency_closure::validate_physical_closures(connection, closure_ids)?;
+            physical_erasure::validate_pending(connection, closure_ids)?;
+        }
+        loop {
+            let done = {
+                let waiting = self.physical_maintenance.metrics.timer("sanitation_writer_wait");
+                let connection = self.physical_writer(false)?;
+                drop(waiting);
+                let _holding = self.physical_maintenance.metrics.timer("sanitation_writer_hold");
+                let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+                let _sanitation = self.physical_maintenance.metrics.timer("sanitation");
+                physical_erasure::sanitize_unit(connection)?
+            };
+            physical_erasure::faultpoint("after_sanitation_unit")?;
+            if done {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let reader_admission = self.reader_pool.physical_admission();
+        let drain = self.physical_maintenance.metrics.timer("reader_drain");
+        let _reader_pause = self.physical_maintenance.metrics.timer("reader_pause");
+        let _readers = match reader_admission.pause() {
+            Ok(readers) => readers,
+            Err(error) => {
+                drop(drain);
+                drop(_reader_pause);
+                // Preserve actual bounded checkpoint observations, but a failed
+                // drain never authorizes journal scrubbing or completion.
+                let _ = self.checkpoint_erasure_at_rest(verb);
+                return Err(error);
+            }
+        };
+        drop(drain);
+        if let Some(sinks) = sinks {
+            let connection = self.physical_writer(true)?;
+            let c = connection.as_ref().ok_or(EngineError::Closing)?;
+            for path in sinks.values() {
+                let temporary = Mutex::new(Some(telemetry::original_attachment(path.clone())));
+                match discharge_pending_redactions_on(c, &temporary) {
+                    Ok(()) | Err(EngineError::ErasureIncomplete { .. }) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            if !pending_original_fingerprints(c)?.is_empty() {
+                return Err(telemetry_incomplete());
+            }
+        } else {
+            self.discharge_pending_redactions(verb)?;
+        }
+        {
+            let connection = self.physical_writer(true)?;
+            physical_erasure::prepare_redacted(
+                connection.as_ref().ok_or(EngineError::Closing)?,
+                closure_ids,
+            )?;
         }
         if let Err(error) = self.complete_erasure_at_rest(verb) {
             let blocker = match &error {
@@ -607,15 +713,31 @@ impl Engine {
                 _ => None,
             };
             if let Some(blocker) = blocker {
-                let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+                let connection = self.physical_writer(true)?;
                 let connection = connection.as_ref().ok_or(EngineError::Closing)?;
                 dependency_closure::mark_physical_incomplete(connection, closure_ids, blocker)?;
             }
             return Err(error);
         }
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = self.physical_writer(true)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        dependency_closure::complete_physical_closures(connection, closure_ids)
+        physical_erasure::finalize(connection, closure_ids)?;
+        self.physical_maintenance.metrics.complete_lifecycle();
+        Ok(())
+    }
+
+    fn finish_redacted_before_request(&self) -> Result<(), EngineError> {
+        let ids = {
+            let connection = self.physical_writer(false)?;
+            physical_erasure::redacted_ids(connection.as_ref().ok_or(EngineError::Closing)?)?
+        };
+        if let Some(ids) = ids {
+            self.freeze_projection_for_closure_retry()?;
+            let result = self.finish_physical_dependency_closures("erase_source", &ids);
+            self.projection_runtime.set_frozen(false);
+            result?;
+        }
+        Ok(())
     }
 
     /// OPP-12 Phase-1 (0.8.19 Slice 10, R-PG-1/2) — irreversibly hard-erase a
@@ -636,24 +758,48 @@ impl Engine {
     /// `_fathomdb_projection_state` and `_fathomdb_vector_kinds` are NOT keyed to
     /// a node id and are DELIBERATELY untouched.
     ///
-    /// Erasure completeness relies on the standing `PRAGMA secure_delete=ON`
-    /// (design §3 gap-4) which zeroes every freed page — so no per-purge `VACUUM`.
-    /// (Freelist content written on a pre-20 DB before `secure_delete` was on is a
-    /// documented residual; there is no forced migration-time `VACUUM`.)
+    /// Physical completion requires registered FTS sanitation, original-sink
+    /// redaction and successful WAL truncation. The standing SQLite
+    /// `secure_delete=ON` zeroes freed ordinary/shadow pages; it does not by itself
+    /// remove retained FTS terms. Durable root debt fences mutation until complete.
     pub fn purge(&self, logical_id: &str) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        self.require_autonomous_erasure()?;
+        let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
+        let _operation = self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
+        let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
+        let _service = self.physical_service_gate.try_lock().map_err(|error| match error {
+            std::sync::TryLockError::Poisoned(_) => EngineError::Storage,
+            std::sync::TryLockError::WouldBlock => EngineError::ErasureIncomplete {
+                stage: "physical_admission".into(),
+                detail: "the singleton physical cleanup service is already occupied".into(),
+            },
+        })?;
+        drop(queue);
+        self.finish_redacted_before_request()?;
+        let _physical_attempt = self.physical_attempt();
 
         let pending = {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(false)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::pending_physical_retry(connection, "purge", &lid)?
         };
-        if !pending.is_empty() {
+        let root_retry = {
+            let guard = self.physical_writer(false)?;
+            physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, "purge", &lid)?
+        };
+        if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
             let result = self.finish_physical_dependency_closures("purge", &pending);
             self.projection_runtime.set_frozen(false);
             return result;
+        }
+
+        {
+            let guard = self.physical_writer(false)?;
+            dependency_closure::guard_no_pending_physical(
+                guard.as_ref().ok_or(EngineError::Closing)?,
+            )?;
         }
 
         // Drain in-flight projection work before the erase, exactly as
@@ -682,9 +828,14 @@ impl Engine {
     /// returned: they are enqueued for redaction inside this transaction (see
     /// [`enqueue_pending_redaction`]), because a caller-held vector is lost on the
     /// retry path that codex Â§9 P2 found.
-    fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+    pub(crate) fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
+        let _native = self.physical_maintenance.metrics.timer("native");
+        let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
+        let mut connection = self.physical_writer(false)?;
+        drop(waiting);
+        let _holding = self.physical_maintenance.metrics.timer("native_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        physical_erasure::envelope(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -704,9 +855,26 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let from_state = match current {
             None => {
-                // Idempotent: nothing to erase.
-                tx.commit().map_err(|_| EngineError::Storage)?;
-                return Ok(Vec::new());
+                let touching: bool = tx
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE from_id=?1 OR to_id=?1)",
+                        [lid],
+                        |r| r.get(0),
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                if !touching {
+                    let root = physical_erasure::capture(
+                        &tx,
+                        &[],
+                        self.next_cursor.load(Ordering::SeqCst),
+                    )?;
+                    physical_erasure::admit(&tx, root, "purge", lid, &[])?;
+                    tx.commit().map_err(|_| EngineError::Storage)?;
+                    return Ok(Vec::new());
+                }
+                // An absent node does not prove its independently admitted
+                // touching-edge scope is empty. Use the full cascade below.
+                LifecycleState::Deleted
             }
             Some(s) => LifecycleState::from_str_opt(&s).ok_or(EngineError::Storage)?,
         };
@@ -773,7 +941,7 @@ impl Engine {
             collect_erased_stable_ids_for_cursors(&tx, &node_cursors, &edge_cursors)?;
         let pending_cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
         let enqueued =
-            self.telemetry_enabled.load(Ordering::Acquire) && !erased_stable_ids.is_empty();
+            !erased_stable_ids.is_empty() && !telemetry::registered_sinks(&tx)?.is_empty();
 
         let mut closure_ids = Vec::new();
         let proof_boundary =
@@ -794,6 +962,7 @@ impl Engine {
                 .map_err(|_| EngineError::Storage)?;
             erased_source_ids.extend(rows);
         }
+        let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, erased_source_ids)?;
         let proof_scope =
@@ -837,9 +1006,8 @@ impl Engine {
         // list is gone, so a newly registered projection table is erased here
         // without touching this site. vec0 rowid == the canonical row's
         // write_cursor (see `_fathomdb_vector_rows`).
-        for cursor in node_cursors.iter().chain(edge_cursors.iter()) {
-            erase_row_projections(&tx, *cursor).map_err(|_| EngineError::Storage)?;
-        }
+        erase_row_projections(&tx, affected_cursors.as_slice())
+            .map_err(|_| EngineError::Storage)?;
 
         // Erase every exact row in the admitted physical closure, including
         // registered dependents whose logical identity is unrelated to the
@@ -862,20 +1030,22 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
 
         // 0.8.20 Slice 5 fix-1 (codex §9 P2) — durably record the redaction this
-        // erasure now owes, atomically with the deletes above. Only when a sink
-        // is attached: with telemetry never enabled there is no file the ids
-        // could have leaked into, so there is nothing to owe.
+        // erasure now owes, atomically with the deletes above. Registered
+        // original sinks remain obligations across attachment changes/reopens.
         if enqueued {
             enqueue_pending_redaction(&tx, "purge", &erased_stable_ids, pending_cursor)?;
         }
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
+        physical_erasure::admit(&tx, root_debt, "purge", lid, &closure_ids)?;
+        physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         if enqueued {
             self.next_cursor.store(pending_cursor, Ordering::SeqCst);
         }
         self.counters.record_admin();
+        physical_erasure::faultpoint("after_delete_commit")?;
         Ok(closure_ids)
     }
 
@@ -913,6 +1083,7 @@ impl Engine {
     /// reserved `source_id`; [`EngineError::ErasureIncomplete`] if the erasure
     /// could not be completed at rest (see [`Engine::complete_erasure_at_rest`]).
     pub fn erase_source(&self, source_id: &str) -> Result<ExciseReport, EngineError> {
+        self.require_autonomous_erasure()?;
         // Construct-to-validate: reuse the newtype's rule rather than restating
         // it, so the erasure boundary and the write boundary cannot drift.
         let _validated = SourceId::new(source_id)?;
@@ -927,8 +1098,9 @@ impl Engine {
     /// `_engine:*` substrate, which the governed SDK verb refuses.
     #[cfg(feature = "operator")]
     pub fn excise_source(&self, source_id: &str) -> Result<ExciseReport, EngineError> {
+        self.require_autonomous_erasure()?;
         if source_id.is_empty() {
-            self.ensure_open()?;
+            let _operation = self.ensure_open()?;
             return Err(EngineError::WriteValidation);
         }
         self.erase_source_shared("excise_source", source_id)
@@ -946,8 +1118,17 @@ impl Engine {
         verb: &'static str,
         source_id: &str,
     ) -> Result<ExciseReport, EngineError> {
-        self.ensure_open()?;
-
+        let _call = self.physical_maintenance.metrics.timer("call_lifecycle");
+        let _operation = self.ensure_open()?;
+        let queue = self.physical_maintenance.metrics.timer("service_queue_wait");
+        let _service = self.physical_service_gate.try_lock().map_err(|error| match error {
+            std::sync::TryLockError::Poisoned(_) => EngineError::Storage,
+            std::sync::TryLockError::WouldBlock => EngineError::ErasureIncomplete {
+                stage: "physical_admission".into(),
+                detail: "the singleton physical cleanup service is already occupied".into(),
+            },
+        })?;
+        drop(queue);
         #[cfg(feature = "test-hooks")]
         {
             if let Some(hook) = self
@@ -961,12 +1142,19 @@ impl Engine {
             slice15_erasure_lock_hook::fire();
         }
 
+        self.finish_redacted_before_request()?;
+        let _physical_attempt = self.physical_attempt();
+
         let pending = {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = self.physical_writer(false)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             dependency_closure::pending_physical_retry(connection, verb, source_id)?
         };
-        if !pending.is_empty() {
+        let root_retry = {
+            let guard = self.physical_writer(false)?;
+            physical_erasure::retry(guard.as_ref().ok_or(EngineError::Closing)?, verb, source_id)?
+        };
+        if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
             let result = (|| {
                 self.finish_physical_dependency_closures(verb, &pending)?;
@@ -979,6 +1167,13 @@ impl Engine {
             })();
             self.projection_runtime.set_frozen(false);
             return result;
+        }
+
+        {
+            let guard = self.physical_writer(false)?;
+            dependency_closure::guard_no_pending_physical(
+                guard.as_ref().ok_or(EngineError::Closing)?,
+            )?;
         }
 
         // Drain MUST succeed before the excise transaction. SQLite-WAL
@@ -1032,7 +1227,10 @@ impl Engine {
         // runs AFTER the pending rows have been deleted, so the freed pages
         // holding them (zeroed by `secure_delete=ON`) are checkpointed out too.
         self.discharge_pending_redactions(verb)?;
+        self.checkpoint_erasure_at_rest(verb)
+    }
 
+    fn checkpoint_erasure_at_rest(&self, verb: &'static str) -> Result<(), EngineError> {
         let mut last: Option<TruncateWalReport> = None;
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
             self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
@@ -1133,178 +1331,12 @@ impl Engine {
     /// and the pending row is deleted the moment the sink is clean, on pages
     /// `secure_delete=ON` zeroes and the subsequent `TRUNCATE` checkpoint clears
     /// from the log.
-    fn discharge_pending_redactions(&self, verb: &'static str) -> Result<(), EngineError> {
-        let pending = self.load_pending_redactions()?;
-        if pending.is_empty() {
-            return Ok(());
-        }
-
-        let mut ids: Vec<String> =
-            pending.iter().flat_map(|(_, ids)| ids.iter().cloned()).collect();
-        ids.sort_unstable();
-        ids.dedup();
-
-        // A queue entry exists ⇒ a sink was attached when the rows were deleted ⇒
-        // the ids are in that file. Never clear the queue without redacting.
-        if !self.telemetry_enabled.load(Ordering::Acquire) {
-            return Err(EngineError::ErasureIncomplete {
-                stage: "telemetry_redaction".to_string(),
-                detail: format!(
-                    "`{verb}` has {} outstanding telemetry redaction(s) covering {} erased \
-                     stable id(s), but no telemetry sink is attached to this engine — the ids \
-                     cannot be removed from the sink file. Re-enable telemetry on the same sink \
-                     path and retry.",
-                    pending.len(),
-                    ids.len()
-                ),
-            });
-        }
-
-        // On failure the queue rows stay put and the error propagates: the verb
-        // does not report success, and the next call retries the same obligation.
-        self.redact_telemetry_stable_ids(verb, &ids)?;
-
-        let row_ids: Vec<i64> = pending.iter().map(|(row_id, _)| *row_id).collect();
-        self.clear_pending_redactions(&row_ids)
-    }
-
-    /// Read the outstanding redaction queue: `(operational_mutations.id, ids)`.
-    fn load_pending_redactions(&self) -> Result<Vec<(i64, Vec<String>)>, EngineError> {
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut stmt = connection
-            .prepare(
-                "SELECT id, payload_json FROM operational_mutations \
-                 WHERE collection_name = ?1 ORDER BY id",
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let rows = stmt
-            .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-            })
-            .map_err(|_| EngineError::Storage)?;
-        let mut pending = Vec::new();
-        for row in rows {
-            let (row_id, payload) = row.map_err(|_| EngineError::Storage)?;
-            // A payload we cannot parse is an obligation we cannot discharge;
-            // keeping it (empty) is safe — it never unblocks a false success,
-            // and `discharge_pending_redactions` still refuses.
-            let ids = serde_json::from_str::<serde_json::Value>(&payload)
-                .ok()
-                .and_then(|v| v.get("erased_stable_ids").cloned())
-                .and_then(|v| serde_json::from_value::<Vec<String>>(v).ok())
-                .unwrap_or_default();
-            pending.push((row_id, ids));
-        }
-        Ok(pending)
-    }
-
-    /// Retire queue entries whose redaction has been PERFORMED. Committed before
-    /// the caller's WAL truncation so the freed pages are checkpointed out.
-    fn clear_pending_redactions(&self, row_ids: &[i64]) -> Result<(), EngineError> {
-        if row_ids.is_empty() {
-            return Ok(());
-        }
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut stmt = connection
-            .prepare("DELETE FROM operational_mutations WHERE id = ?1")
-            .map_err(|_| EngineError::Storage)?;
-        for row_id in row_ids {
-            stmt.execute([row_id]).map_err(|_| EngineError::Storage)?;
-        }
-        Ok(())
-    }
-
-    /// 0.8.20 Slice 5b (R-20-E6) — SELECTIVE redaction of erased stable ids from
-    /// the opt-in telemetry sink.
-    ///
-    /// `capture_telemetry` persists `result_stable_ids` — `l:`/`h:` prefixed ids
-    /// — into a JSONL file that outlives the erased rows, and nothing in the
-    /// engine could previously remove them. A retained `l:` id is not inert:
-    /// [`derive_logical_id`] is `SHA256(lowercase(kind) + ":" + lowercase(name))`,
-    /// and the case-folding of BOTH inputs shrinks the preimage space, so a
-    /// surviving id is dictionary-attackable back to the natural key it was
-    /// derived from. An `h:` id is a plain `SHA256(body)`, confirmable against a
-    /// guessed body.
-    ///
-    /// **This MUST NOT truncate the sink.** `sink_path` is CALLER-SUPPLIED and
-    /// may hold unrelated operator eval history that the erasure obligation never
-    /// covered; the v3 truncation approach was rejected as unsafe. Only the
-    /// matching `result_stable_ids` ELEMENTS are replaced with
-    /// [`REDACTED_STABLE_ID`], preserving record count, record order and
-    /// positional alignment with the parallel `result_ids` array. Lines that are
-    /// not engine-authored JSON events are copied through verbatim.
-    ///
-    /// **Crash safety.** The rewrite is write-temp-then-`rename`: a sibling
-    /// `.redact.tmp` is written and fsynced, then atomically renamed over the
-    /// sink, so a crash leaves either the old file or the new one — never a
-    /// half-rewritten sink. The telemetry mutex is held across the whole rewrite,
-    /// so no in-process `capture_telemetry` can append into the window; an
-    /// out-of-process appender is handled by re-reading and folding in the tail
-    /// delta before the rename (bounded retry).
-    ///
-    /// The privacy contract is unchanged: query TEXT and `source_id` are never
-    /// captured (ADR-0.8.8 §C), so there is nothing else in the sink to redact.
-    /// The fast-OFF atomic guard is preserved — when telemetry was never enabled
-    /// this is a single relaxed-ordering load and no mutex acquisition.
-    fn redact_telemetry_stable_ids(
-        &self,
-        verb: &'static str,
-        erased_stable_ids: &[String],
-    ) -> Result<(), EngineError> {
-        // Fast OFF path — mirrors `capture_telemetry`. No mutex, no I/O.
-        if erased_stable_ids.is_empty() || !self.telemetry_enabled.load(Ordering::Acquire) {
-            return Ok(());
-        }
-        let guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
-        let Some(sink) = guard.as_ref() else { return Ok(()) };
-        let erased: std::collections::HashSet<&str> =
-            erased_stable_ids.iter().map(String::as_str).collect();
-
-        match redact_jsonl_stable_ids(sink.path(), &erased) {
-            Ok(()) => Ok(()),
-            // 0.8.20 Slice 5 fix-3 (codex §9 round-3 P2) — `NotFound` is NOT a
-            // discharge. It previously returned `Ok(())` ("the sink is gone,
-            // nothing to redact"), which cleared the durable pending queue and
-            // let the verb report success. That inference does not hold: a path
-            // cannot distinguish `rm` from `mv`, and log rotation of a
-            // caller-supplied sink is an ordinary operational event that leaves
-            // the erased `l:`/`h:` ids fully readable under the rotated name.
-            //
-            // The burden of proof is on DISCHARGING the obligation, and the
-            // engine cannot meet it here: `TelemetrySink` holds a PATH, not an
-            // open handle, so there is no `nlink == 0` witness that the inode was
-            // actually unlinked — and even that would not cover a copy taken
-            // before the deletion. So there is no narrow provable case to carve
-            // out, and `NotFound` fails closed.
-            //
-            // This cannot fire spuriously for a sink that never existed:
-            // `enable_telemetry` CREATES the file before arming capture, so for
-            // any engine with telemetry enabled the sink demonstrably existed and
-            // `NotFound` means it existed and then vanished.
-            Err(err) => Err(EngineError::ErasureIncomplete {
-                stage: "telemetry_redaction".to_string(),
-                detail: if err.kind() == std::io::ErrorKind::NotFound {
-                    format!(
-                        "`{verb}` deleted its rows, but the telemetry sink {} no longer exists, \
-                         so the erased stable ids could not be redacted from it. A missing path \
-                         does NOT prove the sink was deleted — if it was rotated or moved aside, \
-                         the erased ids are still readable under its new name. The pending \
-                         redaction is durable: restore the sink at this path and retry (if the \
-                         sink really was destroyed, an empty file at this path discharges the \
-                         obligation).",
-                        sink.path().display()
-                    )
-                } else {
-                    format!(
-                        "`{verb}` deleted its rows, but the erased stable ids could not be \
-                         redacted from the telemetry sink {}: {err}",
-                        sink.path().display()
-                    )
-                },
-            }),
-        }
+    fn discharge_pending_redactions(&self, _verb: &'static str) -> Result<(), EngineError> {
+        let guard = self.physical_writer(true)?;
+        discharge_pending_redactions_on(
+            guard.as_ref().ok_or(EngineError::Closing)?,
+            &self.telemetry,
+        )
     }
 
     /// The erased rows' prefixed stable ids ([`IdSpace::to_prefixed`]) are NOT
@@ -1317,13 +1349,18 @@ impl Engine {
     /// body behind BOTH `erase_source` (governed SDK) and `excise_source`
     /// (operator seam). Still private; the gate that matters is on the two
     /// public spellings.
-    fn excise_source_inner(
+    pub(crate) fn excise_source_inner(
         &self,
         verb: &'static str,
         source_id: &str,
     ) -> Result<(ExciseReport, Vec<ClosureOperationId>), EngineError> {
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let _native = self.physical_maintenance.metrics.timer("native");
+        let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
+        let mut connection = self.physical_writer(false)?;
+        drop(waiting);
+        let _holding = self.physical_maintenance.metrics.timer("native_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        physical_erasure::envelope(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -1374,6 +1411,7 @@ impl Engine {
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+        let root_debt = physical_erasure::capture(&tx, &affected_cursors, proof_boundary)?;
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, [source_id.to_string()])?;
         let proof_scope = dependency_closure::physical_proof_scope(
@@ -1420,12 +1458,8 @@ impl Engine {
         // every functional test because both v2 read paths discard candidates
         // lacking a live `canonical_nodes` row. `erase_row_projections` covers
         // every registered projection, so the omission cannot recur.
-        let mut shadow_invalidated: u64 = 0;
-        for cursor in node_cursors.iter().chain(edge_cursors.iter()) {
-            shadow_invalidated = shadow_invalidated.saturating_add(
-                erase_row_projections(&tx, *cursor).map_err(|_| EngineError::Storage)?,
-            );
-        }
+        let shadow_invalidated = erase_row_projections(&tx, affected_cursors.as_slice())
+            .map_err(|_| EngineError::Storage)?;
 
         let nodes_excised = tx
             .execute("DELETE FROM canonical_nodes WHERE source_id = ?1", [source_id])
@@ -1481,14 +1515,15 @@ impl Engine {
         // 0.8.20 Slice 5 fix-1 (codex §9 P2) — durably record the redaction this
         // erasure owes, atomically with the deletes. Shares `audit_cursor`: one
         // erasure event, and this row is retired as soon as the sink is clean.
-        if self.telemetry_enabled.load(Ordering::Acquire) {
-            enqueue_pending_redaction(&tx, verb, &erased_stable_ids, audit_cursor)?;
-        }
+        enqueue_pending_redaction(&tx, verb, &erased_stable_ids, audit_cursor)?;
 
         dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
+        physical_erasure::admit(&tx, root_debt, verb, source_id, &closure_ids)?;
+        physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.next_cursor.store(audit_cursor, Ordering::SeqCst);
+        physical_erasure::faultpoint("after_delete_commit")?;
         Ok((
             ExciseReport {
                 source_ref: source_id.to_string(),
@@ -1536,7 +1571,7 @@ impl Engine {
         collection: &str,
         record_key: &str,
     ) -> Result<ExciseRecordReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         if collection.is_empty() || record_key.is_empty() {
             return Err(EngineError::WriteValidation);
         }
@@ -1567,8 +1602,9 @@ impl Engine {
         collection: &str,
         record_key: &str,
     ) -> Result<ExciseRecordReport, EngineError> {
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let mut connection = self.physical_writer(false)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        erasure_queue::guard_admin(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -1619,4 +1655,104 @@ impl Engine {
             state_rows_excised,
         })
     }
+}
+
+pub(crate) fn discharge_pending_redactions_on(
+    connection: &Connection,
+    telemetry: &Mutex<Option<telemetry::TelemetrySink>>,
+) -> Result<(), EngineError> {
+    let mut statement = connection.prepare(
+            "SELECT id,payload_json FROM operational_mutations WHERE collection_name=?1 ORDER BY id"
+        ).map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+        })
+        .map_err(|_| EngineError::Storage)?;
+    let mut pending = Vec::new();
+    for row in rows {
+        let (id, raw) = row.map_err(|_| EngineError::Storage)?;
+        let obligation: PendingRedaction =
+            serde_json::from_str(&raw).map_err(|_| telemetry_incomplete())?;
+        if obligation.version != 1
+            || obligation.erased_stable_ids.is_empty()
+            || obligation.sink_fingerprints.is_empty()
+            || obligation.sink_fingerprints.iter().any(|s| {
+                s.len() != 64
+                    || !s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            })
+        {
+            return Err(telemetry_incomplete());
+        }
+        pending.push((id, obligation));
+    }
+    drop(statement);
+    if pending.is_empty() {
+        return Ok(());
+    }
+    let guard = telemetry.lock().map_err(|_| EngineError::Storage)?;
+    let sink = guard.as_ref().ok_or_else(telemetry_incomplete)?;
+    let fingerprint = telemetry::sink_fingerprint(sink.path())?;
+    let ids = pending
+        .iter()
+        .filter(|(_, debt)| debt.sink_fingerprints.contains(&fingerprint))
+        .flat_map(|(_, debt)| debt.erased_stable_ids.iter().map(String::as_str))
+        .collect::<std::collections::HashSet<_>>();
+    if ids.is_empty() {
+        return Err(telemetry_incomplete());
+    }
+    redact_jsonl_stable_ids(sink.path(), &ids).map_err(|_| telemetry_incomplete())?;
+    physical_erasure::faultpoint("after_sink_redaction")?;
+    let mut owed = false;
+    physical_erasure::transaction(connection, || {
+        for (id, mut debt) in pending {
+            debt.sink_fingerprints.retain(|value| value != &fingerprint);
+            if debt.sink_fingerprints.is_empty() {
+                connection
+                    .execute("DELETE FROM operational_mutations WHERE id=?1", [id])
+                    .map_err(|_| EngineError::Storage)?;
+            } else {
+                owed = true;
+                connection
+                    .execute(
+                        "UPDATE operational_mutations SET payload_json=?2 WHERE id=?1",
+                        params![
+                            id,
+                            serde_json::to_string(&debt).map_err(|_| EngineError::Storage)?
+                        ],
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+            }
+        }
+        Ok(())
+    })?;
+    if owed {
+        return Err(telemetry_incomplete());
+    }
+    Ok(())
+}
+
+pub(crate) fn pending_original_fingerprints(c: &Connection) -> Result<Vec<String>, EngineError> {
+    let mut statement = c
+        .prepare("SELECT payload_json FROM operational_mutations WHERE collection_name=?1")
+        .map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map([ERASURE_PENDING_REDACTION_COLLECTION], |r| r.get::<_, String>(0))
+        .map_err(|_| EngineError::Storage)?;
+    let mut originals = Vec::new();
+    for row in rows {
+        let raw = row.map_err(|_| EngineError::Storage)?;
+        let debt: PendingRedaction =
+            serde_json::from_str(&raw).map_err(|_| telemetry_incomplete())?;
+        if debt.version != 1
+            || debt.erased_stable_ids.is_empty()
+            || debt.sink_fingerprints.is_empty()
+        {
+            return Err(telemetry_incomplete());
+        }
+        originals.extend(debt.sink_fingerprints);
+    }
+    originals.sort_unstable();
+    originals.dedup();
+    Ok(originals)
 }

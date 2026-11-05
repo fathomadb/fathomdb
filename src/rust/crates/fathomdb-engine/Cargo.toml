@@ -16,7 +16,7 @@ fathomdb-embedder.workspace = true
 fathomdb-embedder-api.workspace = true
 fathomdb-query.workspace = true
 fathomdb-schema.workspace = true
-rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint"] }
 jsonschema = { version = "0.18", default-features = false }
 serde_json = "1"
 serde = "1"
@@ -80,6 +80,22 @@ rerank-metal = ["default-reranker", "fathomdb-embedder/rerank-metal"]
 # forwarded by any shipped facade or binding.
 slice72-test-hooks = []
 slice72-gpu-tests = ["embed-cuda", "rerank-cuda", "slice72-test-hooks"]
+
+[[test]]
+name = "slice82_physical_erasure"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice82_telemetry"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice82_batch"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice82_recovery"
+required-features = ["test-hooks", "operator"]
 
 # The corpus-ingest example calls the operator-seam `trace_source_ref`, so it
 # only builds when the `operator` feature is enabled (skipped on default builds).
@@ -805,12 +821,14 @@ name = "perf_gates_devloop"
 required-features = ["test-hooks"]
 
 [dev-dependencies]
+# Default integration tests need injected providers; normal builds exclude this dependency.
+fathomdb-engine = { workspace = true, features = ["test-hooks"] }
 # `dirs::cache_dir()` is the root the embedder loader uses for pinned weights
 # (`<cache>/fathomdb/embedders/`); `nomic_smoke` locates its weights there.
 dirs = "5"
 libc = "0.2"
 proptest = "1"
-rusqlite = { version = "0.40", features = ["bundled", "fallible_uint", "hooks"] }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint", "hooks"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
@@ -823,3 +841,91 @@ required-features = ["test-hooks"]
 [[test]]
 name = "snippet_cost_receipt"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "provider_admission"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice23_text_limit_prefix_stability"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice35_actuation_performance"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_graph_arm_row_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_node_fts_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice135_edge_fts_error"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice60_store_format"
+required-features = ["operator", "test-hooks"]
+
+[[test]]
+name = "slice70_native_eligibility"
+required-features = ["operator", "test-hooks"]
+
+[[test]]
+name = "slice80_history"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice83_availability"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice83_routes"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_policy"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_ownership"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_callbacks"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_queue"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_owner_races"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_physical"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_provider"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_crash"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_scope"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_qualification"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice85_budget"
+required-features = ["test-hooks", "operator"]

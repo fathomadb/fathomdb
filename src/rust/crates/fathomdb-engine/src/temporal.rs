@@ -140,23 +140,20 @@ impl ReadView {
         FrozenView { view: self, now, edge_now: resolved }
     }
 
-    /// 0.8.20 Slice 15b fix-2 — the `search` path honours the VALIDITY axis of a
-    /// `ReadView` and refuses the EXISTENCE axis. See [`Engine::search_view`] for
-    /// why refusing beats silently ignoring.
-    pub(crate) fn reject_existence_relaxation_on_search(&self) -> Result<(), EngineError> {
-        let relaxed = match (self.include_superseded, self.include_inactive) {
-            (true, true) => "include_superseded + include_inactive",
-            (true, false) => "include_superseded",
-            (false, true) => "include_inactive",
-            (false, false) => return Ok(()),
-        };
-        Err(EngineError::InvalidArgument {
-            msg: format!(
-                "ReadView.{relaxed} is not supported on the search path; search hydrates from \
-                 projection indexes that are not version-complete, so only the validity axis \
-                 (valid_as_of / include_out_of_window) is honoured. Use read_list for history."
-            ),
-        })
+    pub(crate) fn edge_existence_sql(&self, alias: &str) -> String {
+        if self.include_superseded {
+            String::new()
+        } else {
+            format!(" AND {alias}.superseded_at IS NULL")
+        }
+    }
+
+    pub(crate) fn ownerless_existence_sql(&self, alias: &str) -> String {
+        let mut sql = self.edge_existence_sql(alias);
+        if !self.include_inactive {
+            sql.push_str(&format!(" AND ({alias}.state = 'active' OR {alias}.state IS NULL)"));
+        }
+        sql
     }
 }
 

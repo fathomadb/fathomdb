@@ -91,6 +91,7 @@ impl Engine {
         cmd: &[&str],
         axes: &[ConsolidateAxis],
     ) -> Result<ConsolidateReceipt, EngineError> {
+        let _operation = self.ensure_open()?;
         // Reuse the shared transport verbatim; remap its (Extractor-flavoured)
         // transport error to the task-specific Consolidator leaf.
         let mut session = self
@@ -202,7 +203,7 @@ impl Engine {
         &self,
         axis: &ConsolidateAxis,
     ) -> Result<Vec<ConsolidateCandidateEdge>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut stmt = connection
@@ -254,6 +255,7 @@ impl Engine {
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        erasure_queue::guard_admin(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -311,34 +313,9 @@ impl Engine {
                         params![ts, edge_ref],
                     )
                     .map_err(|_| EngineError::Storage)?;
-                    // fix-1 [P1]: prune the STATIC projection shadow rows so the
-                    // consolidated-away edge stops surfacing in FTS/vector — but
-                    // ONLY when the edge is ended as of the engine's "now",
-                    // mirroring the graph-traversal filter `edge_validity_sql`.
-                    // A future-dated t_invalid keeps the edge valid ⇒ keep the
-                    // projection. NON-DESTRUCTIVE: the canonical_edges row + body
-                    // survive (ADR-0.8.12 §2.1).
-                    //
-                    // TC-33: this used to be `SELECT datetime(?1) <= datetime('now')`
-                    // — an inline clock, AND a misleading error class: junk made
-                    // the SELECT yield SQL NULL, so `r.get::<bool>` failed as
-                    // `EngineError::Storage`. Both timestamps are integers now, so
-                    // the comparison is plain Rust against the bound `:now` seam.
                     if let Some(cursor) = active_cursor {
-                        let ended = ts <= current_epoch_seconds();
-                        if ended {
-                            // fix-2 [P2]: KEEP the projection terminal row. The
-                            // canonical_edges row stays NON-superseded (invalidate
-                            // is metadata-only), and `database_has_pending_projection_work`
-                            // flags any non-superseded edge that has a body but no
-                            // terminal as pending; since `next_pending_projection_jobs`
-                            // only scans cursors ABOVE the stored projection cursor, an
-                            // already-projected invalidated edge would never be requeued
-                            // and `drain()`/`wait_for_idle` would hang forever. Dropping
-                            // the FTS/vec shadows (below) hides it from active retrieval;
-                            // retaining the terminal keeps the scheduler idle.
-                            Self::prune_edge_projection_shadows(&tx, cursor, true)?;
-                        }
+                        vector_storage::refresh_vector_eligibility_for_cursor(&tx, cursor)
+                            .map_err(|_| EngineError::Storage)?;
                     }
                     receipt.edges_invalidated = receipt.edges_invalidated.saturating_add(1);
                 }
@@ -355,14 +332,9 @@ impl Engine {
                         params![cursor, edge_ref],
                     )
                     .map_err(|_| EngineError::Storage)?;
-                    // fix-1 [P1]: a superseded edge is unconditionally out of the
-                    // active set (graph traversal filters `superseded_at IS NULL`),
-                    // so prune its FTS/vector projection shadow rows to match.
                     if let Some(active_cursor) = active_cursor {
-                        // A superseded row is excluded from the pending-work check
-                        // (`superseded_at IS NOT NULL`), so dropping its terminal too
-                        // is safe (matches the excise pattern) and cannot phantom-pend.
-                        Self::prune_edge_projection_shadows(&tx, active_cursor, false)?;
+                        vector_storage::refresh_vector_eligibility_for_cursor(&tx, active_cursor)
+                            .map_err(|_| EngineError::Storage)?;
                     }
                     receipt.edges_superseded = receipt.edges_superseded.saturating_add(1);
                 }
@@ -398,48 +370,68 @@ impl Engine {
         .optional()
         .map_err(|_| EngineError::Storage)
     }
+}
 
-    /// fix-1 [P1] — prune the STATIC projection shadow rows for a canonical
-    /// row's `write_cursor` so a consolidated-away edge stops surfacing in
-    /// FTS/vector retrieval. Mirrors the excision pattern at
-    /// `excise_source_inner` (invalidate-not-delete: the canonical row + body
-    /// are NEVER touched here).
-    ///
-    /// `keep_terminal` retains the `_fathomdb_projection_terminal` marker — set it
-    /// when the canonical row stays NON-superseded (an `invalidate` verdict), so the
-    /// projection scheduler still treats the cursor as done (fix-2 [P2]); clear it
-    /// when the row is superseded (excluded from the pending-work scan anyway).
-    ///
-    /// FIXED (0.8.12 Slice A, R-CON-2 named default-ON blocker; Slice-20 codex
-    /// §9 [P2]): a full `rebuild_projections` re-projects every non-superseded
-    /// edge with a body from `canonical_edges` — this used to re-materialise an
-    /// invalidated edge's FTS/vec shadows even though graph traversal excludes
-    /// it via the `t_invalid > now` filter. The FTS rebuild SELECT
-    /// (`rebuild_shadow_state`), the vec projection queue
-    /// (`next_pending_projection_jobs`), and the pending-work probe
-    /// (`database_has_pending_projection_work`) now all carry the same
-    /// `edge_validity_sql` filter as graph traversal (TC-33: INTEGER compare
-    /// against the bound `:now`, formerly `datetime(t_invalid) > datetime('now')`),
-    /// so a rebuild is durable across the recency exclusion.
-    fn prune_edge_projection_shadows(
-        tx: &rusqlite::Transaction<'_>,
-        cursor: i64,
-        keep_terminal: bool,
-    ) -> Result<(), EngineError> {
-        tx.execute("DELETE FROM search_index_edges WHERE write_cursor = ?1", [cursor])
-            .map_err(|_| EngineError::Storage)?;
-        // vec0 rowid is the canonical row's write_cursor. TC-76: via the one
-        // vec0-delete primitive ([`delete_vector_partition_row`]).
-        delete_vector_partition_row(tx, cursor).map_err(|_| EngineError::Storage)?;
-        tx.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1", [cursor])
-            .map_err(|_| EngineError::Storage)?;
-        if !keep_terminal {
-            tx.execute(
-                "DELETE FROM _fathomdb_projection_terminal WHERE write_cursor = ?1",
-                [cursor],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        }
-        Ok(())
-    }
+#[cfg(test)]
+#[test]
+fn slice70_future_invalidation_refreshes_native_edge_deadline() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("edge-deadline.sqlite");
+    let opened = Engine::open(&path).unwrap();
+    let node = |id: &str| PreparedWrite::Node {
+        logical_id: Some(id.into()),
+        kind: "doc".into(),
+        body: "body".into(),
+        source_id: SourceId::new("test:slice70").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    };
+    opened
+        .engine
+        .write(&[
+            node("left"),
+            node("right"),
+            PreparedWrite::Edge {
+                logical_id: Some("edge".into()),
+                kind: "link".into(),
+                from: "left".into(),
+                to: "right".into(),
+                body: Some("edge body".into()),
+                source_id: SourceId::new("test:slice70").unwrap(),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            },
+        ])
+        .unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let dim = default_profile_dimension(&conn).unwrap();
+    let vector = serde_json::to_string(&vec![1.0f32; dim as usize]).unwrap();
+    conn.execute("INSERT INTO _fathomdb_vector_rows VALUES(3,'edge_fact',3)", []).unwrap();
+    conn.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(3,vec_f32(?1),vec_quantize_binary(vec_f32(?1)),'edge_fact','edge_fact',0,'',0,-9223372036854775808,9223372036854775807)",[vector]).unwrap();
+    let cluster = [ConsolidateCandidateEdge {
+        edge_ref: "edge".into(),
+        body: Some("edge body".into()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        source_doc_id: None,
+        extractor_model_id: None,
+    }];
+    opened.engine.apply_consolidate_verdicts(&cluster,&[serde_json::json!({"edge_ref":"edge","verdict":"invalidate","t_invalid":"2099-01-01T00:00:00Z"})],&mut ConsolidateReceipt::default()).unwrap();
+    let end = conn
+        .query_row("SELECT t_invalid FROM canonical_edges WHERE write_cursor=3", [], |r| {
+            r.get::<_, i64>(0)
+        })
+        .unwrap();
+    assert_eq!(
+        conn.query_row("SELECT valid_until FROM vector_default WHERE rowid=3", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        end - 1
+    );
 }

@@ -9,6 +9,10 @@ status: accepted; dispatch and deadline details partially superseded by ADR-0.8.
 
 # ADR-0.6.0 — Embedder protocol
 
+> **Partial supersession (0.8.28, owner seq-359):**
+> [`ADR-0.8.28-vector-compatibility-open-policy`](ADR-0.8.28-vector-compatibility-open-policy.md).
+> The user-provider attachment promises below are deferred before 1.x. The low-level trait, dispatch, no-reentry and finish-and-discard contracts remain.
+
 **Status:** accepted (HITL 2026-04-27).
 Invariant 4's exact pool/default and Invariant 5's deadline mechanics are
 partially superseded by

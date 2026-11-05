@@ -305,6 +305,7 @@ fn engine_kind(error: &EngineError) -> ErrorKind {
         EngineError::IllegalTransition { .. } => ErrorKind::IllegalTransition,
         EngineError::NotLifecycleAddressable { .. } => ErrorKind::NotLifecycleAddressable,
         EngineError::ErasureIncomplete { .. } => ErrorKind::ErasureIncomplete,
+        EngineError::Maintenance(_) => ErrorKind::Maintenance,
         EngineError::ProjectionDestructive { .. } => ErrorKind::ProjectionDestructive,
         // Variants compiled only with the engine's `operator` feature (which
         // workspace builds unify on) surface as the base class, as in Python.
@@ -331,6 +332,8 @@ fn open_kind(error: &EngineOpenError) -> ErrorKind {
         EngineOpenError::CudaPoolExhausted { .. } => ErrorKind::CudaPoolExhausted,
         EngineOpenError::CudaContextLost { .. } => ErrorKind::CudaContextLost,
         EngineOpenError::CudaPrivateBuildRefused { .. } => ErrorKind::CudaPrivateBuildRefused,
+        EngineOpenError::VectorEquivalenceMismatch { .. } => ErrorKind::VectorEquivalenceMismatch,
+        EngineOpenError::VectorVerification { .. } => ErrorKind::VectorVerification,
         EngineOpenError::Io { .. } => ErrorKind::Storage,
     }
 }
@@ -452,10 +455,12 @@ error_kinds! {
     DependencyTrace => "DependencyTraceError",
     GraphExpansion => "GraphExpansionError",
     VectorEquivalenceMismatch => "VectorEquivalenceMismatchError",
+    VectorVerification => "VectorVerificationError",
     InvalidArgument => "InvalidArgumentError",
     IllegalTransition => "IllegalTransitionError",
     NotLifecycleAddressable => "NotLifecycleAddressableError",
     ErasureIncomplete => "ErasureIncompleteError",
+    Maintenance => "MaintenanceError",
     ProjectionDestructive => "ProjectionDestructiveError",
     CudaPoolExhausted => "CudaPoolExhaustedError",
     CudaContextLost => "CudaContextLostError",

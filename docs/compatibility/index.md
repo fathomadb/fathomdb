@@ -1,7 +1,10 @@
 # Compatibility
 
+> Documentation targets 0.8.28; publication is pending. Install routes apply
+> once matching artifacts are published.
+
 Supported platforms, toolchains, and version-alignment policy for the
-**0.8.27** release.
+**0.8.28** release.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -19,7 +22,7 @@ targets those three interpreters explicitly.
 
 Node **25.x**. CI, development, and the release build use exact Node **25.9.0**.
 The package declares `engines.node = ">=25 <26"`. Compatibility with other
-Node release lines is not part of the 0.8.27 contract.
+Node release lines is not part of the 0.8.28 contract.
 
 ## Supported Rust toolchain
 
@@ -28,7 +31,7 @@ and release jobs.
 
 ## Prebuilt artifacts — five native targets
 
-⚠ **The 0.8.27 wheel and npm platform binaries support Linux
+⚠ **The 0.8.28 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc, macOS x64 and
 arm64, and Windows x64.** Linux musl and other targets remain source-build-only.
 
@@ -60,25 +63,25 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-For a confirmed classic Jetson Orin only, the 0.8.27 distribution route for
-the exact `fathomdb==0.8.27+tegra` wheel is the interim first-party PEP 503
+For a confirmed classic Jetson Orin only, the 0.8.28 distribution route for
+the exact `fathomdb==0.8.28+tegra` wheel is the interim first-party PEP 503
 index. Install it only after the retained manifest lists the exact wheel and
 digest:
 
 ```bash
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.27+tegra'
+  'fathomdb==0.8.28+tegra'
 ```
 
 Do not use a floating requirement or `--extra-index-url`: pip merges candidate
-sets and does not prioritize indexes. The Pages route is interim 0.8.27
+sets and does not prioritize indexes. The Pages route is interim 0.8.28
 hosting, not a durable multi-version distribution decision. Use
 `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
 before diagnosing an incompatible CUDA provider.
 
 For Node.js, the generic `linux-arm64-gnu` npm package stays CPU-only on every
-AArch64 host, including Jetson. In 0.8.27, a
+AArch64 host, including Jetson. In 0.8.28, a
 confirmed classic Jetson Orin can add the CUDA-capable
 `fathomdb-linux-arm64-gnu-tegra` package. It is distributed only as an
 exact-version tarball from the Tegra Pages site, never from the npm registry,
@@ -114,20 +117,23 @@ Python and npm native packages in this release.
   [`sqlite-vec`](https://github.com/asg017/sqlite-vec) extension.
 - Wheels and platform `.node` binaries statically link a compatible
   build of `sqlite-vec`.
-- Rust + source-build users need a working SQLite + `sqlite-vec`
-  available to the loader.
+- Rust/source builds use bundled SQLite through `rusqlite` 0.41.1 /
+  `libsqlite3-sys` 0.39.1 (SQLite 3.54.1), and `sqlite-vec` 0.1.9 through the
+  Rust dependency. Ordinary builds do not require system SQLite headers or
+  a separately installed extension. CUDA source builds retain toolkit/linker
+  requirements described in the installation guides.
 
 ## On-disk schema
 
-The 0.8.27 line sets `SCHEMA_VERSION` to **34**. A missing or
-zero-length path bootstraps directly at schema 34. A non-empty database opens
-only when its effective committed `PRAGMA user_version` is exactly 34; older,
+The 0.8.28 line sets `SCHEMA_VERSION` to **36**. A missing or
+zero-length path bootstraps directly at schema 36. A non-empty database opens
+only when its effective committed `PRAGMA user_version` is exactly 36; older,
 future, and non-empty zero-version databases are rejected before product
 mutation. There is no public automatic migration or compatibility reader.
 
 ## Versioning — two axes
 
-0.8.27 follows two-axis versioning:
+0.8.28 follows two-axis versioning:
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -149,15 +155,15 @@ This decouples embedder-protocol stability from binding cadence.
 | Search results are ordered by **RRF fusion**, not union-dedup | re-baseline any pinned result ordering |
 | `valid_from >= valid_until` is refused with a **message-less** `WriteValidationError` (was `InvalidArgumentError` carrying both bounds) | validate the pair before calling |
 | A projection spec with `fts` / `vector` but no `searchable` role is refused | add the role, or name the projection in `drop` |
-| Public open does not upgrade older non-empty databases | create a fresh 0.8.27 database and re-ingest through the public write surface |
+| Public open does not upgrade older non-empty databases | create a fresh 0.8.28 database and re-ingest through the public write surface |
 
 The [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 is the authoritative list.
 
 ## 0.5.x / 0.6.x compatibility
 
-**No 0.5.x compatibility shims or public migrations.** Do not point 0.8.27
-binaries at an older non-empty database. Create a fresh schema-34 database and
+**No 0.5.x compatibility shims or public migrations.** Do not point 0.8.28
+binaries at an older non-empty database. Create a fresh schema-36 database and
 re-ingest through the public write surface.
 
 ## Performance posture
@@ -189,9 +195,11 @@ the language route that matches your application and deployment. See
 
 ## API surface gaps
 
-- **Custom Python / TypeScript embedder implementations** are not
-  exposed; the choice is the built-in default embedder or none.
-- **`SearchFilter.status`** is wired end-to-end but has no population
-  source, so a `status=`-filtered query prunes every row.
+- **Caller-supplied engine embedders** are unsupported before 1.x in every SDK;
+  the choice is the pinned built-in default provider or none.
+- **`SearchFilter.status`** has no nonempty population source. Projected rows
+  carry the empty-string sentinel, so `status=""` can match them; a nonempty
+  status cannot. Missing vector/projection metadata does not match status/time
+  predicates. `created_after` means inclusive projection time, not a JSON field.
 - **No restore verb.** `purge` is irreversible by design; there is no
   `restore_logical_id` on any surface.

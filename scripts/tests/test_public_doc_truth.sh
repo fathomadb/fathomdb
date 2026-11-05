@@ -14,6 +14,7 @@ make_fixture() {
   python3 - "$REPO_ROOT" "$FIXTURE" <<'PY'
 import ast
 from pathlib import Path
+import re
 import shutil
 import sys
 root, fixture = map(Path, sys.argv[1:])
@@ -24,7 +25,8 @@ for e in a.value.elts:
     dest = fixture / p
     dest.parent.mkdir(parents=True, exist_ok=True)
     # A historical checkout remains a valid no-marker fallback case.
-    text = (root / p).read_text().replace('0.8.27', '0.8.26')
+    text = re.sub(r'0\.8\.(?:27|28)', '0.8.26', (root / p).read_text())
+    text = re.sub(r'SCHEMA_VERSION` to \*\*(?:35|36)\*\*', 'SCHEMA_VERSION` to **34**', text)
     text += '\nCurrent published release: v0.8.26 is published.\n'
     text += '\nNative platforms: Linux x86_64, Linux AArch64, macOS x64/arm64, and Windows x64.\n'
     if p.as_posix() == 'docs/install/typescript.md':
@@ -35,6 +37,9 @@ for e in a.value.elts:
     dest.write_text(text)
 for p in ['Cargo.toml', 'scripts/release-current.py', 'dev/platform-capabilities.json', 'dev/plans/release-state-0.8.26.json', 'dev/plans/runs/STATUS-0.8.26.md', 'docs/generated/contributor-map.md']:
     shutil.copyfile(root / p, fixture / p)
+schema = fixture / 'src/rust/crates/fathomdb-schema/src/lib.rs'
+schema.parent.mkdir(parents=True, exist_ok=True)
+schema.write_text('pub const SCHEMA_VERSION: u32 = 34;\n')
 PY
   git -C "$FIXTURE" init -q
   git -C "$FIXTURE" add .
@@ -42,23 +47,27 @@ PY
 
 pending_fixture() {
   make_fixture
-  python3 - "$REPO_ROOT" "$FIXTURE" <<'PY'
+  python3 - "$REPO_ROOT" "$FIXTURE" "${1:-0.8.27}" "${2:-34}" <<'PY'
 import ast
 import json
 from pathlib import Path
+import re
 import sys
-root, fixture = map(Path, sys.argv[1:])
+root, fixture = map(Path, sys.argv[1:3])
+version, schema = sys.argv[3], int(sys.argv[4])
 m = ast.parse((root / 'scripts/check-public-doc-truth.py').read_text())
 a = next(n for n in m.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'PUBLIC_DOCS' for t in n.targets))
 for e in a.value.elts:
     p = Path(e.args[0].value)
-    text = (root / p).read_text()
-    text = text.replace('The published 0.8.27 line', 'The 0.8.27 line')
-    text = text.replace('Install the published 0.8.27 CLI', 'Install the 0.8.27 CLI')
+    text = re.sub(r'0\.8\.(?:27|28)', version, (root / p).read_text())
+    text = re.sub(r'SCHEMA_VERSION` to \*\*(?:34|35|36)\*\*', f'SCHEMA_VERSION` to **{schema}**', text)
+    text = text.replace(f'The published {version} line', f'The {version} line')
+    text = text.replace(f'Install the published {version} CLI', f'Install the {version} CLI')
     (fixture / p).write_text(text)
-state = {'release': '0.8.27', 'board': 'dev/plans/runs/STATUS-0.8.27.md', 'schema_version': 34, 'public_docs_target_release': '0.8.27', 'published': None}
-(fixture / 'dev/plans/release-state-0.8.27.json').write_text(json.dumps(state) + '\n')
-(fixture / state['board']).write_text('# Active release 0.8.27\n')
+state = {'release': version, 'board': f'dev/plans/runs/STATUS-{version}.md', 'schema_version': schema, 'public_docs_target_release': version, 'published': None}
+(fixture / f'dev/plans/release-state-{version}.json').write_text(json.dumps(state) + '\n')
+(fixture / state['board']).write_text(f'# Active release {version}\n')
+(fixture / 'src/rust/crates/fathomdb-schema/src/lib.rs').write_text(f'pub const SCHEMA_VERSION: u32 = {schema};\n')
 PY
   git -C "$FIXTURE" add .
 }
@@ -99,6 +108,46 @@ git -C "$FIXTURE" add .
 expect_pass 'newest valid tracked published record wins'
 pending_fixture
 expect_pass 'pending 0.8.27 target accepts publication-facing docs without publication claim'
+pending_fixture 0.8.28 36
+expect_pass 'pending 0.8.28 format36 target follows source instead of historical format34'
+pending_fixture 0.8.28 36
+mutate_state 0.8.28 schema_version 35
+expect_fail 'pending state must match source format36' 'documentation target.*source schema 36'
+pending_fixture 0.8.28 36
+sed -i 's/SCHEMA_VERSION: u32 = 36/SCHEMA_VERSION: u32 = 35/' "$FIXTURE/src/rust/crates/fathomdb-schema/src/lib.rs"
+expect_fail 'changed source format invalidates pending target' 'documentation target.*source schema 35'
+pending_fixture 0.8.28 36
+python3 - "$FIXTURE/src/rust/crates/fathomdb-schema/src/lib.rs" <<'PY2'
+from pathlib import Path
+import sys
+Path(sys.argv[1]).unlink()
+PY2
+expect_fail 'missing schema source cannot bless pending docs' 'cannot read.*schema source'
+pending_fixture 0.8.28 36
+printf '\npub const SCHEMA_VERSION: u32 = 36;\n' >>"$FIXTURE/src/rust/crates/fathomdb-schema/src/lib.rs"
+expect_fail 'ambiguous source schema cannot bless pending docs' 'exactly one.*SCHEMA_VERSION'
+pending_fixture 0.8.28 36
+sed -i 's/SCHEMA_VERSION` to \*\*36\*\*/SCHEMA_VERSION` to **35**/' "$FIXTURE/docs/compatibility/index.md"
+expect_fail 'pending compatibility must describe format36' 'schema-36 fresh-database'
+pending_fixture 0.8.28 36
+sed -i 's/no public automatic migration/automatic migration/' "$FIXTURE/docs/compatibility/index.md"
+expect_fail 'format36 retains no automatic migration' 'schema-36 fresh-database'
+pending_fixture 0.8.28 36
+printf '\nFathomDB 0.8.28 is already published.\n' >>"$FIXTURE/README.md"
+expect_fail 'format36 documentation target is not a publication receipt' 'README.md.*unpublished.*published'
+pending_fixture 0.8.28 36
+mutate_state 0.8.28 published '{"tag":"v0.8.28","tag_commit":"1111111111111111111111111111111111111111","published_on":"2026-11-04","npm_dist_tag":"latest"}'
+expect_pass 'eventual published 0.8.28 uses reviewed format36 fact'
+mutate_state 0.8.28 schema_version 35
+expect_fail 'published format36 guard is independent of selected target' 'published release state.*schema 36'
+pending_fixture 0.8.28 36
+python3 - "$FIXTURE/dev/plans/release-state-9.9.9.json" <<'PY2'
+from pathlib import Path
+import json,sys
+Path(sys.argv[1]).write_text(json.dumps({'release':'9.9.9','schema_version':36,'published':{'tag':'v9.9.9','tag_commit':'1'*40,'published_on':'2026-11-04','npm_dist_tag':'latest'}}))
+PY2
+git -C "$FIXTURE" add .
+expect_fail 'unknown published version cannot borrow current source schema' 'no reviewed schema.*9.9.9'
 pending_fixture
 mutate_state 0.8.27 schema_version 35
 expect_fail 'selected active target schema must be 34 independently of historical state' 'documentation target.*schema 34'

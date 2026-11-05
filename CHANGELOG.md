@@ -14,6 +14,30 @@ AC-050c) gates merges against this invariant.
 
 ### Added
 
+- (Slice 85) Persisted `PhysicalErasurePolicy` and typed queue/status/withdraw
+  operations, owned explicit maintenance windows, durable incomplete fences,
+  original-sink reattachment and offline activated-ticket reconciliation.
+  Queueing preserves logical visibility; there is no deadline guarantee.
+- (Slice 80) Independent search visibility flags and canonical historical
+  property filtering, with lexical fallback for incomplete historical dense coverage.
+- (Slice 50) Typed open-time vector-verification failures distinguish actual
+  mismatch from inability to verify. Failure returns no Engine; deliberate
+  no-provider reopening remains ordinary mutable access, not dense repair.
+
+- (Slice 90) Direct body FTS accepts `SearchFilter` in Rust, Python and
+  TypeScript, before candidate bounds, deduplication, ranking and result limit.
+  Read views and existing positional calls are preserved. Declared attribute
+  filters are node-scoped; status/time retain existing projected-metadata
+  availability rules. The operation remains FTS-only and provider-free.
+
+- (Slice 70) Dense KNN filters lifecycle and validity before its candidate cap;
+  ineligible vectors no longer disable unrelated eligible dense results.
+  Record-mapped updates and erasure maintain all vector IDs atomically.
+
+- (Slice 60) Per-vector head coverage distinguishes known UTF-8 byte endpoints
+  from unknown coverage. `fathomdb-embedder-api` 0.8.0 adds the default-unknown
+  `Embedder::truncation_offset` method; Candle BGE reports its actual endpoint.
+
 - A private CUDA memory pool on the Jetson AGX Orin 64 GB, behind the new
   `tegra-pool` Cargo feature (implied by `embed-cuda` and `rerank-cuda`
   since Slice 31). In `tegra-pool` builds every
@@ -85,6 +109,18 @@ AC-050c) gates merges against this invariant.
 
 ### Changed
 
+- (Slices 60/85) Current store format is 36. Intermediate format 35 introduced
+  64-row vector chunks, cursor-keyed node body FTS and head coverage; format36
+  adds validated erasure policy/queue/fence metadata. Previous formats are
+  refused without migration. Rebuild/recenter preserve coverage semantics.
+
+- (Slice 42) Updated the SQLite stack to `rusqlite` 0.41 and the crates.io
+  `libsqlite3-sys` 0.39 (SQLite 3.54.1); the vendored `libsqlite3-sys`
+  0.38.1 is gone. `fathomdb_schema::migrate` takes a `rusqlite` 0.41
+  `Connection`, and a Rust consumer cannot also link `rusqlite` 0.40 (both
+  link the native `sqlite3`). On Windows the engine refuses an
+  unsimplifiable local `\\?\C:\` database path only when the linked SQLite
+  predates 3.53.3, which can only happen with a non-bundled SQLite.
 - (Slice 40) The text-query compiler also drops the fragments that
   splitting on an apostrophe leaves ("s", "t", "ll", "re", "ve", "m", as in
   "Cow's", "don't", "we'll", "they're", "I've", "I'm") and the short function
@@ -114,15 +150,14 @@ AC-050c) gates merges against this invariant.
   `#[non_exhaustive]`; `RerankerDevicePolicyError`, `EmbedderLoadError` and
   `RerankerLoadError` gain the CUDA variants; `rerank_passages` returns
   `RerankPassagesError`.
-- The Fathom Candle crates move to 0.10.3 (`candle-kernels` stays 0.10.2).
 - (Slice 31) FathomDB consumes its published fork crates from crates.io:
   `candle-core-fathomdb`, `candle-nn-fathomdb` and
   `candle-transformers-fathomdb` 0.11.0 (exact pins), which bring
   `cudarc-fathomdb` 0.19.10; the vendored cudarc 0.19.7 copy and its test
   are removed, and only `candle-kernels` stays a git patch (at the Candle
   fork's `182ceab0`). `tegra-pool` no longer enables the
-  `fathomdb-private-pool` marker and the embedder has no direct `cudarc`
-  dependency, so a downstream build of the published crates can use
+  `fathomdb-private-pool` marker. The embedder directly pins optional
+  `cudarc-fathomdb = "=0.19.10"` for CUDA builds; a downstream build can use
   `tegra-pool` (it links `libcudart` dynamically).
 - (Slice 31) A GPU below the build's compute-capability floor (7.5 on
   x86_64, 8.7 for Jetson) is refused as `cuda_incompatible` before a device
@@ -160,6 +195,14 @@ AC-050c) gates merges against this invariant.
 
 ### Fixed
 
+- (Slice 95) Idle Autonomous maintenance confirms physical debt before reserving
+  physical service, so a debt-free contended primary does not refuse foreground
+  erasure. Pending debt retains priority and genuine service contention refuses.
+
+- Bound both pending-projection scan arms before their merged cursor sort.
+  Scheduler and readiness scans retain their existing results while avoiding
+  repeated sorting of the full pending backlog.
+
 - (Slice 40) A large read no longer slows later reads on the same engine.
   Each SQLite connection now has its own page cache: the bundled build
   drops `SQLITE_ENABLE_MEMORY_MANAGEMENT`, which made one connection's
@@ -167,11 +210,9 @@ AC-050c) gates merges against this invariant.
   reopened (about 2.5× slower reads afterwards). Results are unchanged. The
   page-cache ceiling is unchanged (2,000 KiB per connection, twelve
   connections per engine by default), but resident page memory can now
-  rise toward it, up to about 24 MB per engine. Rust builds that resolve
-  the registry `libsqlite3-sys` keep the shared cache until a release
-  contains rusqlite commit `f31f7324`; until then,
-  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives
-  the same behaviour.
+  rise toward it, up to about 24 MB per engine. Since Slice 42 this also
+  holds for `cargo install fathomdb-cli` and the published Rust crates,
+  which now build the crates.io `libsqlite3-sys` 0.39 without the flag.
 - (Slice 40) Search ranking: each fusion arm (vector, text, graph) now
   credits a body at most once, at the rank of its first occurrence. Before,
   rows sharing a byte-identical body each added a term, so a duplicated
@@ -192,6 +233,16 @@ AC-050c) gates merges against this invariant.
   the rank stream skips rows outside the cohort before joining the node.
   Results, scores and order are unchanged; larger cohorts and unfiltered
   searches take the previous stream.
+
+### Removed
+
+- Production `EmbedderChoice::Caller` / `CallerWithDeviceResolution` admission
+  (and corresponding borrowed caller variants); production selects Default or
+  None. Standalone/test/evaluation implementations do not restore injection.
+- Refused-open `dense_disabled` / `dense_disabled_reason` report fields,
+  accessors and refusal counter, including binding camelCase counterparts;
+  attached runtime Refused / VectorEquivalenceDisabled modes. Verification
+  refusal now returns no Engine.
 
 ## 0.8.27 — 2026-10-10
 

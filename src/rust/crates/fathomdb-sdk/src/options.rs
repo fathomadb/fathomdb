@@ -100,6 +100,8 @@ impl Default for SearchOptions {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct TextSearchOptions {
+    /// Closed metadata predicates, applied before candidate collection.
+    pub filter: Option<SearchFilter>,
     pub view: ReadView,
     pub limit: usize,
     pub snippet: Option<SnippetOptions>,
@@ -107,7 +109,7 @@ pub struct TextSearchOptions {
 
 impl Default for TextSearchOptions {
     fn default() -> Self {
-        Self { view: ReadView::default(), limit: 10, snippet: None }
+        Self { filter: None, view: ReadView::default(), limit: 10, snippet: None }
     }
 }
 

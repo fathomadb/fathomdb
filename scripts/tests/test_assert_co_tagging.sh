@@ -76,7 +76,7 @@ grep -q 'User-Agent:' "$ASSERT" \
   || fail "assert-co-tagging.sh missing User-Agent header"
 
 # Positive case: all three crates present at 0.6.0 (Axis W) /
-# 0.6.0-rc.1 (Axis E read from src/rust/crates/fathomdb-embedder-api/Cargo.toml).
+# 0.8.0 (Axis E read from src/rust/crates/fathomdb-embedder-api/Cargo.toml).
 start_server ok
 if ASSERT_CO_TAGGING_REGISTRY="http://127.0.0.1:${PORT}" "$ASSERT" 0.6.0 >/dev/null 2>&1; then
   pass "all three sibling crates present at 0.6.0 → pass"

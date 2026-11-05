@@ -189,6 +189,7 @@ impl Engine {
         task: ProviderTask,
         cmd: &[&str],
     ) -> Result<ProviderSession, EngineError> {
+        let _operation = self.ensure_open()?;
         let (program, args) = cmd.split_first().ok_or(EngineError::Extractor)?;
         let mut child = Command::new(program)
             .args(args)

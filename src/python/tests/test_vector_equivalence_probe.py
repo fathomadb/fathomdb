@@ -1,25 +1,9 @@
-"""0.8.18 Slice 5 (#5 vector-equivalence probe) — Python SDK surface parity (X1).
-
-Verifies the Python binding surfaces the #5 vector-equivalence probe contract at
-Py↔TS parity (mirror of `src/ts/tests/vector-equivalence-probe.test.ts`):
-
-  - `VectorEquivalenceMismatchError` is an importable leaf of `EngineError` and
-    carries a `reason` attribute (parity with `EmbedderIdentityMismatchError`).
-  - `OpenReport` surfaces `dense_disabled` (+ `dense_disabled_reason`); a healthy
-    (non-divergent) open reports `dense_disabled == False` (R-VEQ-6).
-  - the `Engine.search_text_only` FTS-only path exists and serves.
-  - the degraded-observability accessors exist and report the healthy default.
-
-The DIVERGENCE behaviour (a divergent backend trips the refusal; sub-epsilon
-float noise does not) is proven end-to-end at the engine layer in Rust
-(`fathomdb-engine/tests/vector_equivalence_probe.rs`), which re-embeds through the
-SAME live-backend path the binding uses — this suite pins the SDK SURFACE parity.
-"""
+"""Failed-open verification classes and report surface parity with TypeScript."""
 
 from __future__ import annotations
 
 from fathomdb import Engine
-from fathomdb.errors import EngineError, VectorEquivalenceMismatchError
+from fathomdb.errors import CudaPoolExhaustedError, EngineError, VectorEquivalenceMismatchError, VectorVerificationError
 
 # 0.8.20 (R-20-E3): `source_id` is mandatory on every canonical write.
 _SOURCE_ID = "py-test:vector-equivalence-probe"
@@ -33,18 +17,15 @@ def test_vector_equivalence_mismatch_is_engine_error_leaf() -> None:
     assert err.reason == "P1 flips=3"
 
 
-def test_open_report_surfaces_dense_disabled_default_false(db_path: str) -> None:
+def test_open_report_and_engine_have_no_refused_open_state(db_path: str) -> None:
     engine = Engine.open(db_path)
     try:
         report = engine.open_report()
-        assert hasattr(report, "dense_disabled")
-        assert report.dense_disabled is False
-        assert hasattr(report, "dense_disabled_reason")
-        assert report.dense_disabled_reason is None
-        # engine-attached observability accessors mirror the report.
-        assert engine.dense_disabled() is False
-        assert engine.dense_disabled_reason() is None
-        assert engine.vector_equivalence_refusal_count() == 0
+        assert not hasattr(report, "dense_disabled")
+        assert not hasattr(report, "dense_disabled_reason")
+        assert not hasattr(engine, "dense_disabled")
+        assert not hasattr(engine, "dense_disabled_reason")
+        assert not hasattr(engine, "vector_equivalence_refusal_count")
     finally:
         engine.close()
 
@@ -61,3 +42,17 @@ def test_search_text_only_serves(db_path: str) -> None:
         assert hasattr(result, "results")
     finally:
         engine.close()
+
+
+def test_vector_verification_constructor_preserves_typed_provider_payload() -> None:
+    provider = CudaPoolExhaustedError("oom", ordinal=2, max_size_bytes=12345, message="original detail")
+    error = VectorVerificationError("cannot verify", probe_ordinal=7, cause_code="provider", cause_message="original detail", provider_kind="cuda_pool_exhausted", provider_error=provider)
+    assert isinstance(error, EngineError)
+    assert error.probe_ordinal == 7
+    assert error.cause_code == "provider"
+    assert error.cause_message == "original detail"
+    assert error.provider_kind == "cuda_pool_exhausted"
+    assert error.provider_error is provider
+    assert isinstance(error.provider_error, CudaPoolExhaustedError)
+    assert error.provider_error.ordinal == 2
+    assert error.provider_error.max_size_bytes == 12345

@@ -3,9 +3,9 @@
 //!
 //! An internal workspace crate. **To use FathomDB, depend on the `fathomdb`
 //! facade crate** and opt into the default embedder at open; you do not need to
-//! name this crate. To write your OWN embedder, implement the trait in
-//! `fathomdb-embedder-api` — which pulls in no model runtime — rather than
-//! depending on this one.
+//! name this crate. Low-level implementations and constructors remain available
+//! for standalone use, tests and offline evaluation. Custom provider attachment
+//! to a production engine is not supported before 1.x.
 //!
 //! The default embedder is `bge-small-en-v1.5` (384-dim) running on a pure-Rust
 //! `candle-transformers` BERT in process: no Python, no sidecar. It is gated
@@ -182,9 +182,9 @@ mod nomic;
 
 // 0.8.16 Slice 10 (ADR-0.8.16-onnx-embedder-backend) — cross-vendor ONNX
 // Runtime BGE-small embedder. Behind its own NON-default `onnx-embedder`
-// feature so the thin default build pulls in zero ONNX code/deps; injected
-// by the caller via `EmbedderChoice::CallerWithDeviceResolution` so the
-// engine records the resolved ONNX session outcome.
+// feature so the thin default build pulls in zero ONNX code/deps. Retained for
+// standalone/offline evaluation; production engine admission cannot attach it.
+// Explicit test/evaluation admission can record its resolved session outcome.
 #[cfg(feature = "onnx-embedder")]
 mod ort_bge;
 
@@ -203,6 +203,7 @@ pub use candle_bge::{
 pub use candle_bge::{ExplicitCandleDevice, Tc5CandleConstruction, Tc5DeviceAttestation};
 #[cfg(feature = "tc5-benchmark")]
 pub use loader::tc5_local_asset_directory_identity;
+/// Retained standalone/evaluation backend; no production engine attachment before 1.x.
 #[cfg(feature = "default-embedder")]
 pub use nomic::{NomicEmbedder, NOMIC_DIM};
 
@@ -216,6 +217,7 @@ pub use candle_reranker::RERANKER_REVISION;
 #[cfg(feature = "default-reranker")]
 pub use candle_reranker::{CandleTinyBertReranker, RerankerLoadError, DEFAULT_RERANKER_NAME};
 
+/// Deterministic low-level test fixture, not a production engine provider.
 #[derive(Clone, Debug)]
 pub struct NoopEmbedder {
     identity: EmbedderIdentity,

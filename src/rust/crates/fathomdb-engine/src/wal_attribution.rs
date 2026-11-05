@@ -252,6 +252,11 @@ pub(super) struct WalAttributionCollector {
     #[cfg(any(test, feature = "test-hooks"))]
     pub(super) reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook,
     #[cfg(any(test, feature = "test-hooks"))]
+    pub(super) frozen_after_validation_hook:
+        crate::test_hooks::frozen_after_validation_hook::FrozenAfterValidationHook,
+    #[cfg(feature = "test-hooks")]
+    pub(super) property_corpus_hook: crate::test_hooks::property_corpus_hook::PropertyCorpusHook,
+    #[cfg(any(test, feature = "test-hooks"))]
     pub(super) reader_snapshot_pause: Mutex<Option<ReaderSnapshotPause>>,
     #[cfg(test)]
     pub(super) reader_handoff_pause: Mutex<Option<ReaderHandoffPause>>,
@@ -296,6 +301,13 @@ impl WalAttributionCollector {
             checkpoint_active: AtomicBool::new(false),
             #[cfg(any(test, feature = "test-hooks"))]
             reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook::default(),
+            #[cfg(any(test, feature = "test-hooks"))]
+            frozen_after_validation_hook:
+                crate::test_hooks::frozen_after_validation_hook::FrozenAfterValidationHook::default(
+                ),
+            #[cfg(feature = "test-hooks")]
+            property_corpus_hook:
+                crate::test_hooks::property_corpus_hook::PropertyCorpusHook::default(),
             #[cfg(any(test, feature = "test-hooks"))]
             reader_snapshot_pause: Mutex::new(None),
             #[cfg(test)]

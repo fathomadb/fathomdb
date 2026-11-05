@@ -3,23 +3,29 @@ use crate::mean::MEAN_VEC_PIN_THRESHOLD;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+    // Only the authenticated DELETE-only cleanup trigger is harmless while
+    // insertion visibility is coalesced. TEMP/name-spoofed triggers stay custom.
+    if !crate::vector_spans::cleanup_trigger_is_valid(connection)? {
+        return Ok(false);
+    }
     let unexpected: bool = connection
         .prepare_cached(
             "SELECT EXISTS(
              SELECT 1 FROM sqlite_master
              WHERE type='trigger'
                AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','_fathomdb_projection_terminal',
                    '_fathomdb_embedder_profiles','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state',
                    'vector_default'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
+               AND name!='_fathomdb_vector_spans_mapping_delete'
              UNION ALL
              SELECT 1 FROM sqlite_temp_master
              WHERE type='trigger'
                AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','_fathomdb_projection_terminal',
                    '_fathomdb_embedder_profiles','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state',
                    'vector_default'
@@ -84,7 +90,7 @@ pub(crate) fn terminal_state_for_cursor(
         })
 }
 
-fn projection_physical_tuple_is_empty(
+pub(crate) fn projection_physical_tuple_is_empty(
     connection: &Connection,
     cursor: u64,
 ) -> rusqlite::Result<bool> {
@@ -97,7 +103,9 @@ fn projection_physical_tuple_is_empty(
     let vector_count: u64 = connection
         .prepare_cached("SELECT COUNT(*) FROM vector_default WHERE rowid=?1")?
         .query_row([cursor], |row| row.get(0))?;
-    Ok(sidecar_count == 0 && vector_count == 0)
+    Ok(sidecar_count == 0
+        && vector_count == 0
+        && crate::vector_spans::count_for_cursor(connection, cursor)? == 0)
 }
 
 fn projection_tuple_corruption() -> rusqlite::Error {
@@ -211,7 +219,15 @@ pub(crate) fn commit_projection_outcomes(
     let effective_at = current_epoch_seconds();
     for outcome in outcomes {
         match outcome {
-            ProjectionOutcome::Success { cursor, kind, blob, bin_blob, generation_id } => {
+            ProjectionOutcome::Success {
+                cursor,
+                kind,
+                blob,
+                bin_blob,
+                body_length,
+                byte_end,
+                generation_id,
+            } => {
                 if current_generation_id != *generation_id {
                     continue;
                 }
@@ -262,6 +278,10 @@ pub(crate) fn commit_projection_outcomes(
                      VALUES(?1, ?2, ?3)",
                     params![cursor, kind, cursor],
                 )?;
+                tx.execute(
+                    "INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) VALUES(?1,?1,0,0,?2,?3)",
+                    params![cursor, byte_end, body_length],
+                )?;
                 // EU-5a2/EU-5f — sign-quant input is the mean-subtracted
                 // vector iff a mean is live (`current_mean`); otherwise the
                 // un-centered `bin_blob`. A row inserted just before the
@@ -285,12 +305,14 @@ pub(crate) fn commit_projection_outcomes(
                 // `write_cursor` (== rowid) — but ONLY when attr columns exist, so
                 // the common no-filterable hot path stays byte-identical and does
                 // NO extra lookup.
+                let (lifecycle, valid_from, valid_until) =
+                    vector_storage::vector_eligibility_for_cursor(&tx, *cursor as i64)?;
                 if actual_vector_attr_columns(&tx)?.is_empty() {
                     tx.execute(
                         "INSERT INTO vector_default(
-                            rowid, embedding, embedding_bin, source_type, kind, created_at, status
-                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '')",
-                        params![cursor, blob, centered_blob, source_type, kind, now_unix],
+                            rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until
+                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9)",
+                        params![cursor, blob, centered_blob, source_type, kind, now_unix,lifecycle,valid_from,valid_until],
                     )?;
                 } else {
                     let body: String = tx
@@ -302,11 +324,11 @@ pub(crate) fn commit_projection_outcomes(
                         .optional()?
                         .unwrap_or_default();
                     let (cols_sql, ph_sql, attr_vals) =
-                        vector_attr_insert_fragments(&tx, &body, 7)?;
+                        vector_attr_insert_fragments(&tx, &body, 10)?;
                     let sql = format!(
                         "INSERT INTO vector_default(
-                            rowid, embedding, embedding_bin, source_type, kind, created_at, status{cols_sql}
-                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, ''{ph_sql})"
+                            rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
+                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9{ph_sql})"
                     );
                     let mut pv: Vec<rusqlite::types::Value> = vec![
                         rusqlite::types::Value::Integer(*cursor as i64),
@@ -315,6 +337,9 @@ pub(crate) fn commit_projection_outcomes(
                         rusqlite::types::Value::Text(source_type.to_string()),
                         rusqlite::types::Value::Text(kind.to_string()),
                         rusqlite::types::Value::Integer(now_unix),
+                        rusqlite::types::Value::Integer(lifecycle),
+                        rusqlite::types::Value::Integer(valid_from),
+                        rusqlite::types::Value::Integer(valid_until),
                     ];
                     pv.extend(attr_vals);
                     tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;
@@ -475,15 +500,25 @@ impl Engine {
         kind: &str,
         generation_id: ProjectionGenerationId,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let vector =
             vec![0.25_f32; self.projection_runtime.shared.embedder_identity.dimension as usize];
         let blob = encode_vector_blob(&vector);
+        let body_length: usize = {
+            let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = guard.as_ref().ok_or(EngineError::Closing)?;
+            connection.query_row(
+                "SELECT length(CAST(body AS BLOB)) FROM canonical_nodes WHERE write_cursor=?1 UNION ALL SELECT length(CAST(body AS BLOB)) FROM canonical_edges WHERE write_cursor=?1 LIMIT 1",
+                [cursor], |row| row.get(0),
+            ).optional().map_err(|_| EngineError::Storage)?.unwrap_or(0)
+        };
         let outcome = ProjectionOutcome::Success {
             cursor,
             kind: kind.to_string(),
             blob: blob.clone(),
             bin_blob: blob,
+            body_length,
+            byte_end: None,
             generation_id,
         };
         let mut connection = open_runtime_connection(
@@ -494,5 +529,23 @@ impl Engine {
         .map_err(|_| EngineError::Storage)?;
         commit_projection_outcomes(&mut connection, &[outcome], &self.projection_runtime.shared, 0)
             .map_err(|_| EngineError::Storage)
+    }
+}
+
+#[cfg(test)]
+mod span_trigger_tests {
+    use super::*;
+
+    #[test]
+    fn owned_span_cleanup_allows_coalescing_but_custom_span_triggers_do_not() {
+        crate::configure_runtime_for_open().unwrap();
+        let connection = Connection::open_in_memory().unwrap();
+        fathomdb_schema::migrate(&connection).unwrap();
+        assert!(projection_batch_has_no_custom_triggers(&connection).unwrap());
+        for temp in ["", "TEMP "] {
+            connection.execute_batch(&format!("CREATE {temp}TRIGGER custom_span AFTER INSERT ON _fathomdb_vector_spans BEGIN SELECT 1; END;")).unwrap();
+            assert!(!projection_batch_has_no_custom_triggers(&connection).unwrap());
+            connection.execute_batch("DROP TRIGGER custom_span").unwrap();
+        }
     }
 }

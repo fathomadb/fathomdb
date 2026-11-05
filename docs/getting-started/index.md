@@ -1,6 +1,6 @@
 # Getting Started
 
-> **Release 0.8.27, pre-1.0 beta.** Choose Python, TypeScript, or the Rust
+> **Release 0.8.28, pre-1.0 beta.** Choose Python, TypeScript, or the Rust
 > application SDK. Install the exact release version.
 
 Native Python and Node artifacts cover Linux x86_64/glibc, Linux
@@ -15,7 +15,7 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## What ships in 0.8.27
+## What ships in 0.8.28
 
 The Python, TypeScript, and Rust application SDKs use equivalent idiomatic
 names and the same governed operation membership. The separate Rust facade
@@ -49,10 +49,10 @@ exposes lower-level inherent methods and re-exported types:
 - Operator CLI: `fathomdb doctor` (integrity, bounded data-plane integrity,
   safe-export, verify-embedder, trace, dumps, `orphan-provenance`) and
   `fathomdb recover --accept-data-loss` (truncate-wal, rebuild-vec0,
-  rebuild-projections, excise-source, excise-record).
+  rebuild-projections, complete-erasures, excise-source, excise-record).
 - Local-first storage on SQLite (FTS5 + `sqlite-vec`), on-disk schema
-  version **34**. Public opens create a fresh schema-34 database or accept an
-  existing schema-34 database; they do not upgrade older non-empty databases.
+  version **36**. Public opens create a fresh schema-36 database or accept an
+  existing schema-36 database; they do not upgrade older non-empty databases.
 - Two-axis versioning: workspace lockstep across the
   runtime/binding/CLI crates and the independently versioned
   `fathomdb-embedder-api` trait crate.
@@ -83,8 +83,8 @@ surface. Rust users can also consume the lower-level `fathomdb` facade crate. Th
 - Published performance evidence is workload- and environment-specific, not a
   general latency SLA; measure on the intended corpus and hardware. See
   [compatibility § performance posture](../compatibility/index.md).
-- **Custom Python / TypeScript embedder implementations** are not
-  exposed; the binding choice is the built-in default embedder or none.
+- **Caller-supplied engine embedders** are unsupported before 1.x in every SDK;
+  production engine admission selects the pinned built-in default or none.
 - **No compatibility shims or public automatic upgrades.** A non-empty
-  database must already have the compiled schema version (34) — see
+  database must already have the compiled schema version (36) — see
   [compatibility](../compatibility/index.md).

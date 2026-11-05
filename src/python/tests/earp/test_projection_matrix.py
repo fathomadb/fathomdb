@@ -6,8 +6,7 @@ never converted into an empty retrieval result:
 * `vector_dense_readiness` — polled from `read.projections()`;
 * `vector_unsupported_kinds` — only on the `ProjectionDelta` that
   `configure_projections` returns;
-* `dense_disabled` — only on `open_report`, with the refusal count read
-  separately from `Engine.vector_equivalence_refusal_count()`.
+* `open_report` — successful open observations; actual refusal returns no handle.
 
 Design of record: `dev/design/earp-slice-7-design.md`.
 """
@@ -284,7 +283,7 @@ def test_none_readiness_on_a_vector_spec_is_a_contract_violation() -> None:
 def test_absent_signals_are_omitted_not_empty() -> None:
     """A sidecar reader distinguishes "not declared" from "not captured" by
     ABSENCE of configure_delta/readiness, never by an empty mapping."""
-    value = ProjectionWitnesses(open_report={"dense_disabled": False}).as_value()
+    value = ProjectionWitnesses(open_report={"query_backend": "sqlite"}).as_value()
     assert set(value) == {"open_report"}
 
 
@@ -343,9 +342,10 @@ def test_delta_witness_is_recorded_verbatim_from_its_true_source(tmp_path: Path)
 def test_sidecar_carries_the_three_signals_under_their_source_names(tmp_path: Path) -> None:
     result = _run(tmp_path, _config(_fixture_file(tmp_path)))
     witnesses = _sidecar(result)["scenario"]["projection_witnesses"]
-    assert witnesses["open_report"]["dense_disabled"] is False
+    assert "dense_disabled" not in witnesses["open_report"]
+    assert "dense_disabled_reason" not in witnesses["open_report"]
     assert witnesses["open_report"]["query_backend"]
-    assert witnesses["open_report"]["refusal_count"] == 0
+    assert "refusal_count" not in witnesses["open_report"]
     assert witnesses["configure_delta"]["built"] == ["title"]
     assert witnesses["readiness"] == {"title": "not_declared"}
 
@@ -572,28 +572,11 @@ def test_unavailable_is_a_settled_poll_state(tmp_path: Path) -> None:
     }
 
 
-def test_degraded_open_with_a_dense_declaration_is_blocked_not_failed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """AC-7 -- the fact-3 defect, fixed: classify_open only ACCUMULATES the
-    DENSE_DISABLED blocker and the run proceeds to the poll, which pre-S10
-    crashed the run to verdict=FAILED (bare AssertionError, empty blockers,
-    no readiness in the sidecar). There is no open-report seam, so the
-    degraded report is synthesized by patching `_report_mapping` -- the same
-    synthetic-shape rationale as poll_override."""
+def test_no_provider_open_records_unavailable_without_refused_handle_state(tmp_path: Path) -> None:
+    """Deliberate no-provider access retains FTS and honest deferred dense readiness."""
     pytest.importorskip("fathomdb._fathomdb", reason="native binding not built")
     from eval.earp import runner as runner_module  # noqa: PLC0415
     from fathomdb.types import ProjectionSpec  # noqa: PLC0415
-
-    real_mapping = runner_module._report_mapping
-
-    def degraded(report: Any) -> dict[str, Any]:
-        value = real_mapping(report)
-        value["dense_disabled"] = True
-        value["dense_disabled_reason"] = "vector_equivalence_disabled"
-        return value
-
-    monkeypatch.setattr(runner_module, "_report_mapping", degraded)
 
     doc = _config(_fixture_file(tmp_path))
     scenario = _vector_scenario(doc)
@@ -618,15 +601,16 @@ def test_degraded_open_with_a_dense_declaration_is_blocked_not_failed(
         ts=TS,
         poll_override=poll,
     )
-    assert result.verdict is RunVerdict.BLOCKED, (result.verdict, result.failure)
-    assert result.failure is None, result.failure
-    codes = {b.code for b in result.blockers}
-    assert BlockerCode.DENSE_DISABLED in codes
+    assert result.verdict is RunVerdict.COMPLETE, (result.verdict, result.failure)
+    assert result.failure is None
+    assert BlockerCode.DENSE_DISABLED not in {b.code for b in result.blockers}
     sidecar = _sidecar(result)
-    assert sidecar["verdict"] == "blocked"
-    assert sidecar["scenario"]["projection_witnesses"]["readiness"] == {
-        "title": "unavailable"
-    }
+    assert sidecar["verdict"] == "complete"
+    observed = sidecar["scenario"]["projection_witnesses"]
+    assert observed["readiness"] == {"title": "unavailable"}
+    assert "dense_disabled" not in observed["open_report"]
+    assert "dense_disabled_reason" not in observed["open_report"]
+    assert "refusal_count" not in observed["open_report"]
 
 
 def test_projection_status_is_captured_as_the_fourth_witness(tmp_path: Path) -> None:

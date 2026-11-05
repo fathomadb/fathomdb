@@ -18,7 +18,8 @@ Read these first — this is where the current release actually lives.
     schedule-of-record; `0.8.6-0.8.16-PROGRAM-SEQUENCING.md` is retained
     historical sequencing evidence
   - `plans/runs/` — per-release boards and run results;
-    the **live board** is named by `plans/release-state-*.json`'s `board` key — resolve it there, never hardcode a version (`scripts/steward-orient.sh` prints it)
+    the **live board/state tuple** is resolved by `python3 scripts/release-current.py`;
+    never infer it from a wildcard listing or hardcode a version
   - `plans/release-state-<version>.json` — machine state for the release; one
     writer only
   - `plans/prompts/` — commission prompts and hand-offs, incl.
@@ -34,7 +35,7 @@ root.
 ## Engineering reference
 
 - [`design/fathomdb-data-plane-architecture-v2.md`](design/fathomdb-data-plane-architecture-v2.md)
-  — the current system and data-plane architecture, including the 0.8.27 profile
+  — the current system and data-plane architecture, including the current 0.8.28 profile
 - [`architecture.md`](architecture.md) — the retained superseded 0.6.0
   architecture snapshot
 - `adr/` architectural decisions and their decision index

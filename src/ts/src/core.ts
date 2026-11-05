@@ -22,7 +22,7 @@ import {
   searchProjectedText,
 } from "./search.js";
 import { traceDependency, searchWithEvidence, resolveEvidence, resolveGraphEvidence } from "./evidence.js";
-import { denseDisabled, denseDisabledReason, vectorEquivalenceRefusalCount, openReport } from "./open.js";
+import { openReport } from "./open.js";
 import { embed } from "./embedding.js";
 import {
   enableTelemetry,
@@ -63,6 +63,7 @@ import {
   FrozenReadContextV1,
   FrozenSearchOptions,
   SearchOptions,
+  TextSearchOptions,
   SearchExpandOptions,
   Filter,
   SearchResult,
@@ -77,11 +78,16 @@ import {
 } from "./evidence.js";
 import { OpenReport, CounterSnapshot, SubscriberCallback } from "./open.js";
 
-import { intercept } from "./native-call.js";
+import { intercept, interceptSync } from "./native-call.js";
+import { ErasureMaintenance, type PhysicalErasurePolicy, type PhysicalErasureSelector,
+  type QueueResult, type ErasureStatus, type WithdrawResult, erasureSelector, queueResult,
+  erasureStatus } from "./maintenance.js";
 
 import { SearchExpandResult, GraphEvidenceResolveRequestV1, ResolvedGraphEvidenceV1 } from "./graph.js";
 
 export interface EngineConfig {
+  /** Persisted scheduling. Unset honors reopen policy; new stores default autonomous. */
+  readonly physicalErasurePolicy?: "autonomous" | "explicit_maintenance";
   readonly embedderPoolSize?: number;
   readonly schedulerRuntimeThreads?: number;
   readonly provenanceRowCap?: number;
@@ -162,6 +168,7 @@ export const ENGINE_CONFIG_LIMITS = {
 } as const;
 
 const ENGINE_CONFIG_STRINGS = {
+  physicalErasurePolicy: ["autonomous", "explicit_maintenance"],
   cudaPool: ["auto", "on", "off"],
   cudaPoolReleaseThreshold: ["0", "max"],
 } as const;
@@ -229,6 +236,36 @@ export class Engine {
       : { useDefaultEmbedder, engineConfig: config };
     const inner = await intercept(() => native.Engine.open(path, nativeOptions));
     return new Engine(inner, config);
+  }
+
+  /** Queue immutable intent. Accepted leaves existing read visibility unchanged. */
+  async queuePhysicalErasure(selector: PhysicalErasureSelector, idempotencyKey: string): Promise<QueueResult> {
+    const lowered = erasureSelector(selector);
+    return queueResult(await intercept(() => this.#native.queuePhysicalErasure(lowered, idempotencyKey)));
+  }
+
+  /** Read one store-bound ticket; unknown/wrong-store tickets return null without scope. */
+  async physicalErasureStatus(ticket: string): Promise<ErasureStatus | null> {
+    const status = await intercept(() => this.#native.physicalErasureStatus(ticket));
+    return status === null ? null : erasureStatus(status);
+  }
+
+  /** Withdraw Queued only; no physical success or active cancellation is implied. */
+  async withdrawQueuedErasure(ticket: string): Promise<WithdrawResult> {
+    return await intercept(() => this.#native.withdrawQueuedErasure(ticket)) as WithdrawResult;
+  }
+
+  /** Return persisted scheduling honored by this open incarnation. */
+  physicalErasurePolicy(): PhysicalErasurePolicy {
+    return interceptSync(() => this.#native.physicalErasurePolicy()) as PhysicalErasurePolicy;
+  }
+
+  /** Acquire exclusive service admission; wait does not limit active SQLite commands. */
+  async beginErasureMaintenance(acquisitionWaitMs = 0): Promise<ErasureMaintenance> {
+    if (!Number.isSafeInteger(acquisitionWaitMs) || acquisitionWaitMs < 0) {
+      throw new RangeError("acquisitionWaitMs must be a nonnegative safe integer");
+    }
+    return new ErasureMaintenance(await intercept(() => this.#native.beginErasureMaintenance(acquisitionWaitMs)));
   }
 
   /**
@@ -408,10 +445,10 @@ export class Engine {
      * true }` returns hits whatever their `[validFrom, validUntil)` window;
      * `{ validAsOf: t }` evaluates validity at the bound instant `t`.
      *
-     * The EXISTENCE flags (`includeSuperseded` / `includeInactive`) are REFUSED
-     * on the search path with a typed `InvalidArgumentError` — search hydrates
-     * from projection indexes that are not version-complete, so they have no
-     * truthful answer here. They are refused rather than silently ignored.
+     * `includeSuperseded` admits historical versions and `includeInactive`
+     * admits inactive rows independently. Validity and source-dependency
+     * restrictions still apply. Incomplete historical dense projections
+     * report vector soft fallback. Use read.list to enumerate every version.
      */
     view?: SearchOptions,
   ): Promise<SearchResult> { return search(this.#native, query, filter, rerankDepth, useGraphArm, alpha, poolN, explain, view); }
@@ -419,15 +456,18 @@ export class Engine {
   /**
    * 0.8.18 Slice 5 (#5 vector-equivalence probe) — the explicit text-only /
    * FTS-only search path. It does NOT embed the query and NEVER throws
-   * `VectorEquivalenceMismatchError`, so it stays serviceable when the engine
-   * opened in the degraded `denseDisabled` state. It does not invoke vector
+   * `VectorEquivalenceMismatchError`. Deliberate provider-free opens retain this
+   * path. It does not invoke vector
    * recall, CE reranking, or the graph arm. Matching node- and edge-body FTS
    * candidates are deterministically body-deduplicated and ranked before
-   * `limit` is applied. For one immutable selection and effective validity time,
+   * `limit` is applied. `view.filter` is evaluated before candidate caps,
+   * deduplication and ranking. Attributes are node-scoped; status/time require
+   * existing vector metadata, with missing metadata failing to match.
+   * For one immutable selection, query, filter and effective validity time,
    * smaller accepted limits are prefixes of larger limits; this does not extend
    * to hybrid search.
    */
-  async searchTextOnly(query: string, view?: SearchOptions): Promise<SearchResult> { return searchTextOnly(this.#native, query, view); }
+  async searchTextOnly(query: string, view?: TextSearchOptions): Promise<SearchResult> { return searchTextOnly(this.#native, query, view); }
 
   /** Search exactly one declared `searchable` property-FTS projection. */
   async searchProjectedText(
@@ -436,25 +476,6 @@ export class Engine {
     filter?: SearchFilter,
     view?: SearchOptions,
   ): Promise<SearchResult> { return searchProjectedText(this.#native, query, name, filter, view); }
-
-  /**
-   * 0.8.18 Slice 5 (R-VEQ-6) — `true` iff the engine opened degraded (the #5
-   * self-check found a vector-equivalence divergence and every dense arm is
-   * refusing). Mirrors `OpenReport.denseDisabled`.
-   */
-  denseDisabled(): boolean { return denseDisabled(this.#native); }
-
-  /**
-   * 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state,
-   * or `null` when dense is healthy.
-   */
-  denseDisabledReason(): string | null { return denseDisabledReason(this.#native); }
-
-  /**
-   * 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: query-time dense-arm refusals
-   * raised because the engine opened degraded.
-   */
-  vectorEquivalenceRefusalCount(): number { return vectorEquivalenceRefusalCount(this.#native); }
 
   async close(): Promise<void> {
     await intercept(() => this.#native.close());

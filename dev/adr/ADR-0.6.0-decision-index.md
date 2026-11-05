@@ -165,8 +165,26 @@ Slice-0 gate before Slices 15 and 25 open.
 | - | -------- | ------------------ | ------------ | -------- |
 | 62 | architecture | On the Jetson AGX Orin 64 GB, behind the non-default `tegra-pool` feature, allocate every FathomDB CUDA context from one private capped pool with release threshold 0; decide once at first GPU use, fall back to the 0.8.27 path at the decision and fail closed with typed errors afterwards; amend ADR-0.6.0-embedder-protocol for three `EmbedderError` variants (axis E 0.7.0) | accepted (owner rulings 25–38; 2026-10-08 HITL); amended by Slice 31: published fork crates | ADR-0.8.28-tegra-private-cuda-pool.md |
 | 63 | release | FathomDB GPU artifacts support CUDA 12.x and 13.x libraries on Turing or newer GPUs; 12.6 is the shipping floor, 13.0 the next artifact, 11.x unsupported; every release re-reviews CUDA usage and importance | accepted (owner, 2026-10-11); amended by Slice 31: loaded-library check and GPU floor | ADR-0.8.28-cuda-version-support-policy.md |
-| 64 | architecture | Build the bundled SQLite without `SQLITE_ENABLE_MEMORY_MANAGEMENT` so each connection has its own page cache and no global page-cache mutex; no page-cache knob, ceiling unchanged; published Rust crates documented (`LIBSQLITE3_FLAGS`), not mitigated; corrects the page-cache premise of ADR-0.7.0-ac020-architectural-lever | accepted (owner conditional approval 2026-10-16; Unit I gate passed 2026-10-17 at `d10ad65d5`) | ADR-0.8.28-sqlite-per-connection-page-cache.md |
+| 64 | architecture | Build the bundled SQLite without `SQLITE_ENABLE_MEMORY_MANAGEMENT` so each connection has its own page cache and no global page-cache mutex; no page-cache knob, ceiling unchanged; published Rust crates get it from `libsqlite3-sys` 0.39; corrects the page-cache premise of ADR-0.7.0-ac020-architectural-lever | accepted (owner conditional approval 2026-10-16; Unit I gate passed 2026-10-17 at `d10ad65d5`); exit completed 0.8.28 Slice 42 | ADR-0.8.28-sqlite-per-connection-page-cache.md |
 | 65 | interface | Ship an opt-in role-tagged round body as a stored-bytes format: each part is U+001E plus a role code (U+0010 none, U+0011 user, U+0012 assistant, U+0013 system, U+0014 tool) and its text, joined by `\n`; nothing writes it unless the caller encodes; FTS tokens and scores and default-embedder vectors match the plain body (tested); hazards (`str.splitlines()`, XON/XOFF, XML 1.0, byte-level body dedupe) documented; withdrawing it would need a data migration | accepted (owner, 2026-10-16; can be revisited) | none; `dev/plans/0.8.28/features/slice-41/design.md` § 3 and `dev/interfaces/python.md` § Context pack |
+
+| 66 | architecture | Format 35 uses qualified 64-row vec0 chunks, cursor-keyed body FTS and per-vector UTF-8 head coverage; refuses old stores without migration; embedder-api Axis E 0.8.0 | accepted (owner Slice 60 scope; Astra review and independent qualification 2026-11-01) | [ADR-0.8.28-store-format-35.md](ADR-0.8.28-store-format-35.md) |
+
+Accepted by owner `seq-359`: [narrow vector compatibility admission and deliberate
+access](ADR-0.8.28-vector-compatibility-open-policy.md), following the separate
+[Astra-medium design review](../plans/0.8.28/features/slice-50/built-in-provider-narrow-review.md).
+Built-in-only production admission before 1.x, typed failed open on actual checker
+refusal, minimum baseline failure atomicity and no-provider metadata correction;
+existing TC-68 cache/settings/cadence/residual and runtime/mean behavior stay fixed.
+The superseded evidence-cache/runtime redesign remains outside scope. Separate
+Astra-medium implementation review gates landing; publication is not authorized.
+
+## Phase 0.8.28 physical cleanup
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 68 | architecture | Scoped unrelated writes and autonomous resumable physical cleanup; retain synchronous physical success and open end-phase guarantee decision | Owner-authorized Slice 83 implementation, Astra-reviewed design | ADR-0.8.28-resumable-physical-cleanup.md |
+| 69 | interface | Persist opt-in explicit erasure maintenance: unchanged queued visibility, exclusive windows, durable incomplete fences, original-sink and offline ticket reconciliation, and fresh format 36; Autonomous retains its scheduling | accepted (owner contract approval 2026-11-04; Astra concrete design approval) | [ADR-0.8.28-explicit-erasure-maintenance.md](ADR-0.8.28-explicit-erasure-maintenance.md) |
 
 ## Phase 0.8.29 (agent access)
 

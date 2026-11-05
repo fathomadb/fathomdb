@@ -652,3 +652,86 @@ fn snippets_are_deterministic_through_the_sdk() {
     assert_eq!(kind_of(engine.search_text_only("zanzibar", options)), ErrorKind::InvalidArgument);
     engine.close().expect("close");
 }
+
+#[test]
+fn filtered_text_and_snippets_compose_without_changing_ranked_hits() {
+    let (_dir, engine) = open_engine();
+    let term = "s95composed";
+    let body = format!("{} {term} targetmarker {}", "padding ".repeat(200), "tail ".repeat(80));
+    engine
+        .write(&[
+            node(Some("target"), "note", &body, "target-source"),
+            node(Some("distractor"), "doc", term, "other-source"),
+        ])
+        .expect("write");
+    engine.drain(10_000).expect("drain");
+    let mut unfiltered = TextSearchOptions::default();
+    unfiltered.limit = 1;
+    assert_eq!(engine.search_text_only(term, unfiltered).unwrap().results[0].kind, "doc");
+    let mut filter = SearchFilter::default();
+    filter.kind = Some("note".into());
+    let mut options = TextSearchOptions::default();
+    options.filter = Some(filter);
+    options.limit = 1;
+    let plain = engine.search_text_only(term, options.clone()).expect("filtered plain");
+    assert_eq!(plain.results.len(), 1);
+    assert_eq!(plain.results[0].body, body);
+    assert!(plain.snippets.is_none());
+    let mut snippet = fathomdb_sdk::SnippetOptions::default();
+    snippet.max_bytes = 120;
+    options.snippet = Some(snippet);
+    let combined = engine.search_text_only(term, options.clone()).expect("filtered snippets");
+    assert_eq!(combined.results, plain.results);
+    let snippets = combined.snippets.expect("requested snippets must accompany filtered hits");
+    assert_eq!(snippets.len(), 1);
+    assert_eq!(snippets[0].anchor, fathomdb_sdk::SnippetAnchor::Match);
+    assert!(snippets[0].text.contains(term));
+    for &(start, end) in &snippets[0].spans {
+        assert_eq!(body.as_bytes().get(start as usize..end as usize), Some(term.as_bytes()));
+    }
+    options.filter.as_mut().unwrap().kind = Some("missing".into());
+    let absent = engine.search_text_only(term, options).expect("nonmatching filter");
+    assert!(absent.results.is_empty());
+    assert_eq!(absent.snippets, Some(Vec::new()));
+    engine.close().expect("close");
+}
+
+#[test]
+fn filtered_text_snippets_keep_historical_view_axes_independent() {
+    let (_dir, engine) = open_engine();
+    let term = "s95history";
+    let old = format!("{} {term} retired", "oldpadding ".repeat(120));
+    let pending = format!("{} {term} pending", "pendingpadding ".repeat(120));
+    let mut inactive = node(Some("pending"), "note", &pending, "source");
+    if let PreparedWrite::Node { state, .. } = &mut inactive {
+        *state = InitialState::Pending;
+    }
+    engine.write(&[node(Some("versioned"), "note", &old, "source"), inactive]).unwrap();
+    engine.write(&[node(Some("versioned"), "note", term, "source")]).unwrap();
+    engine.drain(10_000).unwrap();
+    for (superseded, inactive, count) in
+        [(false, false, 1), (true, false, 2), (false, true, 2), (true, true, 3)]
+    {
+        let mut filter = SearchFilter::default();
+        filter.kind = Some("note".into());
+        let mut options = TextSearchOptions::default();
+        options.filter = Some(filter);
+        options.view.include_superseded = superseded;
+        options.view.include_inactive = inactive;
+        options.snippet = Some(fathomdb_sdk::SnippetOptions::default());
+        let result = engine.search_text_only(term, options).expect("historical filtered snippets");
+        assert_eq!(result.results.len(), count);
+        let snippets = result.snippets.expect("historical hits retain requested sidecars");
+        assert_eq!(snippets.len(), count);
+        for (hit, snippet) in result.results.iter().zip(&snippets) {
+            assert!(snippet.text.contains(term));
+            for &(start, end) in &snippet.spans {
+                assert_eq!(
+                    hit.body.as_bytes().get(start as usize..end as usize),
+                    Some(term.as_bytes())
+                );
+            }
+        }
+    }
+    engine.close().expect("close");
+}

@@ -413,13 +413,8 @@ fn filtered_and_explained_search_hide_out_of_window_nodes() {
 // Scope guard — the existence axis is NOT honoured on search
 // ---------------------------------------------------------------------------
 
-/// fix-2 scopes the `search` `ReadView` to the VALIDITY axis only. The existence
-/// flags stay the business of the read verbs: relaxing `superseded_at IS NULL`
-/// on search would resurrect exactly the stale-content leak the Slice-15 fix-1
-/// review closed. Silently IGNORING them would be the dead surface this fix
-/// exists to remove, so they are refused with a typed error instead.
 #[test]
-fn search_refuses_a_view_that_relaxes_the_existence_axis() {
+fn search_accepts_existence_views() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "existence_refusal");
     seed(&path, &[node_win("A", "scope guard body", None, None)]);
@@ -431,10 +426,9 @@ fn search_refuses_a_view_that_relaxes_the_existence_axis() {
         ReadView { include_superseded: true, ..ReadView::default() },
         ReadView { include_inactive: true, ..ReadView::default() },
     ] {
-        let err = engine.search_view("scope", &view).expect_err("must refuse");
-        assert!(
-            matches!(err, fathomdb_engine::EngineError::InvalidArgument { .. }),
-            "existence flags on a search view must be a TYPED refusal, never a silent ignore: {err:?}"
+        assert_eq!(
+            bodies(&engine.search_view("scope", &view).unwrap()),
+            vec!["scope guard body".to_string()]
         );
     }
 

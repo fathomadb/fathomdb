@@ -147,6 +147,7 @@ impl SearchReaderWork {
         result_limit: usize,
         candidate_limit: usize,
         view: ReadView,
+        filter: Option<SearchFilter>,
     ) -> Self {
         Self {
             #[cfg(feature = "test-hooks")]
@@ -157,7 +158,7 @@ impl SearchReaderWork {
             result_limit,
             candidate_limit,
             direct_text_candidate_limit: Some(MAX_SEARCH_RESULT_LIMIT),
-            filter: None,
+            filter: filter.map(Box::new),
             recency_enabled: false,
             importance_enabled: false,
             vector_stage_only: false,
@@ -180,7 +181,6 @@ impl SearchReaderWork {
 pub(crate) struct FrozenQueryRuntime {
     embed_dispatch: Arc<EmbedDispatcher>,
     embedder_identity: EmbedderIdentity,
-    dense_disabled_reason: Option<String>,
     observed_generation: Arc<AtomicU64>,
 }
 
@@ -188,10 +188,9 @@ impl FrozenQueryRuntime {
     pub(crate) fn new(
         embed_dispatch: Arc<EmbedDispatcher>,
         embedder_identity: EmbedderIdentity,
-        dense_disabled_reason: Option<String>,
         observed_generation: Arc<AtomicU64>,
     ) -> Self {
-        Self { embed_dispatch, embedder_identity, dense_disabled_reason, observed_generation }
+        Self { embed_dispatch, embedder_identity, observed_generation }
     }
 }
 
@@ -248,6 +247,18 @@ pub(crate) fn read_projected_text_in_tx(
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;
     }
+    if view.include_superseded || view.include_inactive {
+        return read_historical_projected_text(
+            &tx,
+            &compiled.match_expression,
+            name,
+            filter,
+            limit,
+            frozen,
+            &registry,
+            attribution,
+        );
+    }
     let node_predicate = frozen.node_sql("n", 3);
     let mut params = vec![
         rusqlite::types::Value::Text(name.to_string()),
@@ -256,7 +267,8 @@ pub(crate) fn read_projected_text_in_tx(
     if let Some(now) = frozen.now_param() {
         params.push(rusqlite::types::Value::Integer(now));
     }
-    let filter_predicate = append_node_eligibility_sql(filter, "n", &mut params);
+    let filter_predicate =
+        crate::filter::append_node_eligibility_sql_view(&tx, filter, "n", &mut params, &view)?;
     #[cfg(feature = "test-hooks")]
     let force_full_sort =
         std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
@@ -373,6 +385,179 @@ pub(crate) fn read_projected_text_in_tx(
         degradations: Vec::new(),
         snippets: None,
     })
+}
+
+fn open_historical_property_corpus() -> rusqlite::Result<Connection> {
+    let corpus = Connection::open_in_memory()?;
+    corpus.execute_batch(
+        "PRAGMA temp_store=MEMORY;
+        CREATE VIRTUAL TABLE history_property USING fts5(
+        attr_value,attr_name UNINDEXED,write_cursor UNINDEXED,eligible UNINDEXED,
+        tokenize='porter unicode61 remove_diacritics 2')",
+    )?;
+    Ok(corpus)
+}
+
+#[allow(clippy::too_many_arguments)] // snapshot corpus and test-only reader rendezvous
+fn read_historical_projected_text(
+    tx: &Connection,
+    match_expression: &str,
+    name: &str,
+    filter: Option<&SearchFilter>,
+    limit: usize,
+    view: FrozenView,
+    registry: &std::collections::BTreeMap<String, crate::projection_registry::StoredProjection>,
+    _attribution: &WalAttributionCollector,
+) -> ProjectedTextReaderResponse {
+    // The caller holds one main-store snapshot through registry, corpus and
+    // winner hydration. The private database and its temp sorters are memory
+    // only and are dropped before the pooled reader sends success or error.
+    let mut corpus = open_historical_property_corpus()?;
+    let mut params = vec![rusqlite::types::Value::Integer(view.edge_now())];
+    let eligibility =
+        crate::filter::append_node_eligibility_sql_view(tx, filter, "n", &mut params, &view.view)?;
+    let predicate = view.node_sql("n", 1);
+    let eligible: std::collections::HashSet<u64> = {
+        let mut stmt=tx.prepare(&format!("SELECT n.write_cursor FROM canonical_nodes n WHERE ?1 IS NOT NULL{predicate}{eligibility}"))?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |r| r.get(0))?;
+        rows.collect::<rusqlite::Result<_>>()?
+    };
+    let corpus_tx = corpus.transaction()?;
+    {
+        let mut insert=corpus_tx.prepare("INSERT INTO history_property(attr_value,attr_name,write_cursor,eligible) VALUES(?1,?2,?3,?4)")?;
+        let mut baseline = std::collections::HashSet::new();
+        // BM25 statistics belong to the entire persistent property corpus,
+        // including other fields and rows excluded by this query's filters.
+        let mut stmt = tx.prepare(
+            "SELECT attr_value,attr_name,write_cursor FROM property_search_index ORDER BY rowid",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((r.get::<_, Option<String>>(0)?, r.get::<_, String>(1)?, r.get::<_, u64>(2)?))
+        })?;
+        for row in rows {
+            let (value, attribute, cursor) = row?;
+            insert.execute(params![value, attribute, cursor, eligible.contains(&cursor)])?;
+            baseline.insert((cursor, attribute));
+        }
+        // Add only lifecycle-relaxed owners, with source authority at the
+        // same frozen instant. Own validity affects output, not corpus stats.
+        let existence = view.view.existence_sql("n");
+        let dependency = dependency_closure::read_eligibility_sql(
+            "n",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            1,
+        );
+        let scalar = crate::projection_registry::scalar_attribute_sql("n.body", "?2");
+        let mut additions = tx.prepare(&format!(
+            "SELECT n.write_cursor,{scalar} FROM canonical_nodes n
+            WHERE ?1 IS NOT NULL AND (n.superseded_at IS NOT NULL OR n.state!='active')
+            {existence}{dependency} ORDER BY n.write_cursor"
+        ))?;
+        for (attribute, stored) in registry.iter().filter(|(_, stored)| stored.wants_property_fts())
+        {
+            let path = crate::projection_registry::projection_json_path(attribute, stored);
+            let rows = additions.query_map(params![view.edge_now(), path], |r| {
+                Ok((r.get::<_, u64>(0)?, r.get::<_, Option<String>>(1)?))
+            })?;
+            for row in rows {
+                let (cursor, value) = row?;
+                if let Some(value) = value {
+                    if !baseline.contains(&(cursor, attribute.clone())) {
+                        insert.execute(params![
+                            value,
+                            attribute,
+                            cursor,
+                            eligible.contains(&cursor)
+                        ])?;
+                    }
+                }
+            }
+        }
+    }
+    corpus_tx.commit()?;
+    #[cfg(feature = "test-hooks")]
+    crate::test_hooks::property_corpus_hook::fire(_attribution)?;
+    let mut rank = corpus.prepare(
+        "SELECT write_cursor,bm25(history_property) FROM history_property
+        WHERE history_property MATCH ?1 AND attr_name=?2 AND eligible=1
+        ORDER BY bm25(history_property),write_cursor LIMIT ?3",
+    )?;
+    let winners = rank.query_map(params![match_expression, name, limit as i64], |r| {
+        Ok((r.get::<_, u64>(0)?, r.get::<_, f64>(1)?))
+    })?;
+    let mut hydrate = tx.prepare(
+        "SELECT body,kind,logical_id,source_id FROM canonical_nodes WHERE write_cursor=?1",
+    )?;
+    let mut results = Vec::new();
+    for winner in winners {
+        let (cursor, score) = winner?;
+        let hit = hydrate.query_row([cursor], |r| {
+            let body: String = r.get(0)?;
+            let logical_id: Option<String> = r.get(2)?;
+            Ok(SearchHit {
+                id: derive_stable_id(logical_id.as_deref(), &body),
+                body,
+                kind: r.get(1)?,
+                write_cursor: cursor,
+                source_id: r.get(3)?,
+                score: -score,
+                branch: SoftFallbackBranch::Text,
+                ce_score: None,
+            })
+        })?;
+        results.push(hit);
+    }
+    Ok(SearchResult {
+        projection_cursor: load_projection_cursor(tx)?,
+        soft_fallback: None,
+        results,
+        explanation: None,
+    })
+}
+
+fn historical_dense_incomplete(tx: &Connection, view: FrozenView) -> rusqlite::Result<bool> {
+    let node_predicate = view.node_sql("n", 1);
+    let edge_predicate = format!(
+        "{}{}",
+        view.view.edge_existence_sql("e"),
+        edge_validity_sql_for_view("e", 1, &view.view)
+    );
+    let declared = crate::vector_projection_declared(tx)?;
+    let mut stmt = tx.prepare(&format!(
+        "SELECT n.write_cursor,n.kind,0 FROM canonical_nodes n
+        WHERE n.row_kind IN ('leaf','coverage') {node_predicate}
+        AND (?2 OR EXISTS(SELECT 1 FROM _fathomdb_vector_kinds vk WHERE vk.kind=n.kind))
+        UNION ALL SELECT e.write_cursor,'edge_fact',1 FROM canonical_edges e
+        WHERE e.body IS NOT NULL {edge_predicate}"
+    ))?;
+    let rows = stmt.query_map(params![view.edge_now(), declared], |r| {
+        Ok((r.get::<_, u64>(0)?, r.get::<_, String>(1)?, r.get::<_, bool>(2)?))
+    })?;
+    let mut incomplete = false;
+    for row in rows {
+        let (cursor, kind, edge) = row?;
+        if !edge && !crate::kind_is_vector_committable(&kind) {
+            continue;
+        }
+        if crate::projection_commit::projection_physical_tuple_is_empty(tx, cursor)? {
+            incomplete = true;
+            continue;
+        }
+        let completion = crate::projection_generation::member_completion(
+            tx,
+            cursor,
+            &kind,
+            edge,
+            ProjectionRuntimeStateV1::Usable,
+        )
+        .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        if completion != crate::projection_generation::Completion::Complete {
+            incomplete = true;
+        }
+    }
+    Ok(incomplete)
 }
 
 /// Largest attribute cohort that takes the cohort-prefiltered rank stream.
@@ -554,7 +739,6 @@ pub(crate) enum SearchReaderError {
     InvalidFilter(String),
     RerankerDevicePolicy(RerankerDevicePolicyError),
     FrozenRead(FrozenReadError),
-    VectorEquivalenceMismatch(String),
     WriteValidation,
     InvalidArgument(String),
 }
@@ -1234,8 +1418,23 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         if let Some(now) = now_param {
             edge_seed_params.push(rusqlite::types::Value::Integer(now));
         }
-        let from_filter = append_node_eligibility_sql(filter, "ef", &mut edge_seed_params);
-        let to_filter = append_node_eligibility_sql(filter, "et", &mut edge_seed_params);
+        let from_filter = crate::filter::append_node_eligibility_sql_view(
+            tx,
+            filter,
+            "ef",
+            &mut edge_seed_params,
+            &view.view,
+        )?;
+        let to_filter = crate::filter::append_node_eligibility_sql_view(
+            tx,
+            filter,
+            "et",
+            &mut edge_seed_params,
+            &view.view,
+        )?;
+        let from_existence = view.view.existence_sql("ef");
+        let to_existence = view.view.existence_sql("et");
+        let edge_seed_existence = view.view.edge_existence_sql("ce");
         let from_validity = view.validity_sql("ef", endpoint_now_index);
         let to_validity = view.validity_sql("et", endpoint_now_index);
         let from_dependency = dependency_closure::read_eligibility_sql(
@@ -1257,13 +1456,13 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
              FROM search_index_edges sei \
              JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
              WHERE search_index_edges MATCH ?1 \
-               AND ce.superseded_at IS NULL{} \
+               {edge_seed_existence}{} \
                AND (ce.temporal_fallback IS NULL OR ce.temporal_fallback = 0) \
                AND (EXISTS(SELECT 1 FROM canonical_nodes ef WHERE ef.logical_id=ce.from_id \
-                    AND ef.superseded_at IS NULL AND ef.state='active'\
+                    {from_existence}\
                     {from_validity}{from_dependency}{from_filter}) \
                  OR EXISTS(SELECT 1 FROM canonical_nodes et WHERE et.logical_id=ce.to_id \
-                    AND et.superseded_at IS NULL AND et.state='active'\
+                    {to_existence}\
                     {to_validity}{to_dependency}{to_filter})) \
              ORDER BY bm25(search_index_edges), sei.write_cursor \
              LIMIT ?2",
@@ -1307,6 +1506,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         // Provenance = the node's own `source_id` (the session it was extracted from).
         {
             // `?1` MATCH, `?2` LIMIT ⇒ `:now` binds at `?3`.
+            let seed_existence = view.view.existence_sql("cn");
             let seed_validity = view.validity_sql("cn", 3);
             let seed_eligibility = dependency_closure::read_eligibility_sql(
                 "cn",
@@ -1322,15 +1522,19 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             if let Some(now) = now_param {
                 seed_params.push(rusqlite::types::Value::Integer(now));
             }
-            let seed_filter = append_node_eligibility_sql(filter, "cn", &mut seed_params);
+            let seed_filter = crate::filter::append_node_eligibility_sql_view(
+                tx,
+                filter,
+                "cn",
+                &mut seed_params,
+                &view.view,
+            )?;
             let mut node_seed_stmt = tx.prepare(&format!(
                 "SELECT cn.logical_id, cn.source_id \
                  FROM search_index si \
                  JOIN canonical_nodes cn ON cn.write_cursor = si.write_cursor \
                  WHERE search_index MATCH ?1 \
-                   AND cn.superseded_at IS NULL \
-                   AND cn.state = 'active' \
-                   AND cn.logical_id IS NOT NULL\
+                   {seed_existence} AND cn.logical_id IS NOT NULL\
                    {seed_validity}{seed_eligibility}{seed_filter} \
                  ORDER BY bm25(search_index), si.write_cursor \
                  LIMIT ?2"
@@ -1359,6 +1563,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         // 0, hop_score 1.0) — so an edge-only query match surfaces the connected ENTITY
         // nodes, not just the fact body (codex §9 [P2]). Seeds whose body is already in
         // the two-arm result are skipped; the cap is respected.
+        let active_existence = view.view.existence_sql("canonical_nodes");
         let active_validity = view.validity_sql("canonical_nodes", 2);
         let active_eligibility = dependency_closure::read_eligibility_sql(
             "canonical_nodes",
@@ -1371,23 +1576,38 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         if let Some(now) = now_param {
             active_params_template.push(rusqlite::types::Value::Integer(now));
         }
-        let active_filter =
-            append_node_eligibility_sql(filter, "canonical_nodes", &mut active_params_template);
+        let active_filter = crate::filter::append_node_eligibility_sql_view(
+            tx,
+            filter,
+            "canonical_nodes",
+            &mut active_params_template,
+            &view.view,
+        )?;
         let mut active_stmt = tx.prepare(&format!(
-            "SELECT kind, body, write_cursor FROM canonical_nodes \
-             WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-             {active_validity}{active_eligibility}{active_filter} LIMIT 1"
+            "SELECT kind, body, write_cursor, source_id FROM canonical_nodes \
+             WHERE logical_id = ?1{active_existence}\
+             {active_validity}{active_eligibility}{active_filter} ORDER BY write_cursor DESC LIMIT 1"
         ))?;
         for (lid, source_id, seed_confidence, graph_origin) in candidate_seeds {
             stats.seeds_considered += 1;
             let mut active_params = active_params_template.clone();
             active_params[0] = rusqlite::types::Value::Text(lid.clone());
-            let row: Option<(String, String, i64)> = active_stmt
+            let row: Option<(String, String, i64, Option<String>)> = active_stmt
                 .query_row(rusqlite::params_from_iter(active_params.iter()), |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, Option<String>>(3)?,
+                    ))
                 })
                 .optional()?;
-            if let Some((kind, body, write_cursor)) = row {
+            if let Some((kind, body, write_cursor, selected_source)) = row {
+                let source_id = if matches!(&graph_origin, CapturedGraphOrigin::EntitySeed) {
+                    selected_source
+                } else {
+                    source_id
+                };
                 stats.seeds_resolved += 1;
                 if visited.insert(lid.clone()) {
                     // Cause-A: the seed's `logical_id` is in hand (`lid`) — derive the
@@ -1425,6 +1645,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     // holds the depth-0 emitted seeds; BFS appends the reachable neighbors.
     // Both statements are prepared ONCE outside the loops — re-preparing inside
     // would issue O(frontier_size × neighbors) sqlite3_prepare_v2 calls.
+    let edge_existence = view.view.edge_existence_sql("e");
     let target_node = view.node_sql("target", 3);
     let mut edge_params_template = vec![
         rusqlite::types::Value::Text(String::new()),
@@ -1433,7 +1654,13 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     if let Some(now) = now_param {
         edge_params_template.push(rusqlite::types::Value::Integer(now));
     }
-    let target_filter = append_node_eligibility_sql(filter, "target", &mut edge_params_template);
+    let target_filter = crate::filter::append_node_eligibility_sql_view(
+        tx,
+        filter,
+        "target",
+        &mut edge_params_template,
+        &view.view,
+    )?;
     let mut edge_stmt = tx.prepare(
         // G0 Phase-2 (BLOCK-2): carry the traversed edge's `source_id` so a
         // graph-reached neighbor can resolve back to the session it was extracted
@@ -1451,12 +1678,11 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         &format!(
             "SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor \
              FROM canonical_edges e \
-             JOIN canonical_nodes target ON target.logical_id = \
-               CASE WHEN e.from_id = ?1 THEN e.to_id ELSE e.from_id END \
              WHERE (e.from_id = ?1 OR e.to_id = ?1) \
-               AND e.superseded_at IS NULL{} \
+               {edge_existence}{} \
                AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
-               {target_node}{target_filter} \
+               AND EXISTS(SELECT 1 FROM canonical_nodes target WHERE target.logical_id = \
+               CASE WHEN e.from_id = ?1 THEN e.to_id ELSE e.from_id END {target_node}{target_filter}) \
              ORDER BY e.write_cursor \
              LIMIT 64",
             edge_validity_sql_for_view("e", 2, &view.view)
@@ -1464,6 +1690,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     )?;
     // Fetch write_cursor alongside kind+body so graph-arm hits carry a real id
     // for apply_recency_reweight (id=0 would force min_id=0 and distort span).
+    let body_existence = view.view.existence_sql("canonical_nodes");
     let body_validity = view.validity_sql("canonical_nodes", 2);
     let body_eligibility = dependency_closure::read_eligibility_sql(
         "canonical_nodes",
@@ -1476,13 +1703,18 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     if let Some(now) = now_param {
         body_params_template.push(rusqlite::types::Value::Integer(now));
     }
-    let body_filter =
-        append_node_eligibility_sql(filter, "canonical_nodes", &mut body_params_template);
+    let body_filter = crate::filter::append_node_eligibility_sql_view(
+        tx,
+        filter,
+        "canonical_nodes",
+        &mut body_params_template,
+        &view.view,
+    )?;
     let mut body_stmt = tx.prepare(&format!(
         "SELECT kind, body, write_cursor FROM canonical_nodes \
-         WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
+         WHERE logical_id = ?1{body_existence}\
          {body_validity}{body_eligibility}{body_filter} \
-         LIMIT 1"
+         ORDER BY write_cursor DESC LIMIT 1"
     ))?;
 
     'frontier: while let Some((lid, depth)) = frontier.pop_front() {
@@ -1648,7 +1880,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             }));
         }
         #[cfg(any(test, feature = "test-hooks"))]
-        frozen_after_validation_hook::fire();
+        frozen_after_validation_hook::fire(attribution);
     }
     let mut degradations = Vec::new();
     let owned_compiled;
@@ -1678,9 +1910,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             return Err(SearchReaderError::InvalidArgument(
                 "alpha must be a finite number".to_string(),
             ));
-        }
-        if let Some(reason) = runtime.dense_disabled_reason.as_ref() {
-            return Err(SearchReaderError::VectorEquivalenceMismatch(reason.clone()));
         }
         if raw_query.trim().is_empty() || raw_query.as_bytes().contains(&0) {
             return Err(SearchReaderError::WriteValidation);
@@ -1735,15 +1964,24 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             String::new()
         }
     };
-    let vector_eligibility_degraded = query_vector.is_some()
-        && dependency_closure::vector_arm_requires_fallback(
-            &tx,
-            has_source_dependencies,
-            view.view.include_superseded,
-            view.view.include_inactive,
-            view.view.include_out_of_window,
-            view.edge_now(),
-        )?;
+    let history_incomplete = if (view.view.include_superseded || view.view.include_inactive)
+        && direct_text_candidate_limit.is_none()
+    {
+        let incomplete = historical_dense_incomplete(&tx, view)?;
+        query_vector.is_none() || incomplete
+    } else {
+        false
+    };
+    let vector_eligibility_degraded = history_incomplete
+        || query_vector.is_some()
+            && dependency_closure::vector_arm_requires_fallback(
+                &tx,
+                has_source_dependencies,
+                view.view.include_superseded,
+                view.view.include_inactive,
+                view.view.include_out_of_window,
+                view.edge_now(),
+            )?;
     let vector_results = if let Some(query_vector) =
         query_vector.filter(|_| !vector_eligibility_degraded)
     {
@@ -1762,46 +2000,17 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // `set_search_limit_for_test` seam may raise it for recall tests.
             // The seam never changes `final_limit`; visible results are still
             // truncated to that caller-requested limit after ranking.
-            // G10: the metadata filter is appended to this single phase-1
-            // statement (`AND col=?n` from ?3); `filter=None` keeps the SQL
-            // byte-identical to 0.7.2. `?1`/`?2` are the sign-quant + f32 query
-            // vectors; filter values bind at ?3.. in `vector_filter_clause`
-            // order.
-            // fix-3 (F1, codex §9 [P2]) — OVERFETCH the phase-2 rerank so the
-            // validity/existence filter applied at hydration cannot starve the
-            // result set.
-            //
-            // The defect: hydration drops rows that are expired, superseded or
-            // inactive, but it ran on candidates ALREADY truncated to
-            // `final_limit`. If the nearest `final_limit` neighbours were all
-            // out-of-window they consumed every slot and were then dropped, so
-            // valid rows just below the cutoff were never considered — a
-            // default search silently returned too few hits, or none.
-            //
-            // Why overfetch rather than filtering in SQL: the natural fix is to
-            // join `canonical_nodes` into the candidate query, but (i) phase 1
-            // is a `vec0` KNN and ADR-0.8.11 D3 forbids demoting it with
-            // non-metadata predicates, and (ii) an `EXISTS` per candidate
-            // would probe `canonical_nodes_write_cursor_idx` for the whole
-            // pool on EVERY query — a guaranteed cost to fix a degenerate
-            // case.
-            //
-            // Overfetching is free by comparison: phase 2 already computes
-            // `vec_distance_l2` for all `TOP_K_BIT_CANDIDATES` in order to sort
-            // them, so raising the LIMIT only returns more of a result set that
-            // was already materialized. No extra vec0 work, no schema change,
-            // no new index, no second query. The hydration loop below then
-            // stops at `max(final_limit, VECTOR_FUSION_POOL)` SURVIVING hits.
-            //
-            // `max` (not a bare constant) preserves both the test seam's
-            // deeper candidate fanout and the caller's requested result limit.
+            // Direct lifecycle and validity eligibility runs inside native KNN.
+            // Retain the existing rerank/fusion fanout and canonical hydration
+            // guards without letting excluded rows consume the binary cap.
             let candidate_limit = candidate_limit.max(final_limit).max(TOP_K_BIT_CANDIDATES);
-            let sql = build_vector_phase1_sql(filter, candidate_limit);
+            let sql = build_vector_phase1_sql(filter, candidate_limit, &view.view);
             let mut params: Vec<rusqlite::types::Value> = vec![
                 rusqlite::types::Value::Text(bin_vector.to_string()),
                 rusqlite::types::Value::Text(query_vector.to_string()),
             ];
             params.extend(vector_filter_values(filter));
+            params.push(rusqlite::types::Value::Integer(view.edge_now()));
             let mut statement = prepare_search_statement(&tx, &sql)?;
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
@@ -1812,8 +2021,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         }
         // G1: carry the canonical row's `write_cursor` (interim id), `kind`,
         // `body`, and the `vec_distance_l2` rerank score per hit. The
-        // `_fathomdb_vector_rows.rowid` equals the canonical `write_cursor`,
-        // so the candidate rowid IS the hit id.
+        // Production still emits only head vectors with ID equal to the record
+        // cursor. Future window grouping/hydration is a separate feature.
         //
         // G11 (Slice 15) fix: edge bodies are projected into vector_default under
         // kind = "edge_fact"; their write_cursor is in canonical_edges, not
@@ -1848,13 +2057,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // from another. `?1` is the candidate rowid, so `:now` binds at `?2`.
         // On a corpus that never authored a window every row is NULL/NULL and
         // the conjunct matches everything ⇒ default behaviour is unchanged.
+        let node_existence = view.view.existence_sql("canonical_nodes");
         let node_validity = view.validity_sql("canonical_nodes", 2);
         let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
         let mut node_stmt = prepare_search_statement(
             &tx,
             &format!(
                 "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
-             WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
+             WHERE write_cursor = ?1{node_existence}\
              {node_validity}{node_eligibility} LIMIT 1"
             ),
         )?;
@@ -1870,13 +2080,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // (the :9161 no-inline-clock rule). edge_now is ALWAYS present, so unlike
         // node validity this conjunct is unconditional (an edge invalidated in the
         // past stays excluded even when node existence is relaxed).
+        let edge_existence = view.view.edge_existence_sql("canonical_edges");
         let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
         let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
         let mut edge_stmt = prepare_search_statement(
             &tx,
             &format!(
                 "SELECT body, logical_id, source_id FROM canonical_edges \
-             WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
+             WHERE write_cursor = ?1 AND body IS NOT NULL{edge_existence}\
              {edge_validity}{edge_eligibility} LIMIT 1"
             ),
         )?;
@@ -2061,6 +2272,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // with no DEFAULT), so both disjuncts are TRUE for every row and the
         // row-set, the `bm25(search_index), write_cursor` ordering and the
         // scores are all byte-unchanged.
+        let text_existence = view.view.ownerless_existence_sql("cn");
         let text_validity = view.validity_sql("cn", 2);
         let text_eligibility = read_dependency_eligibility("cn", 2);
         let mut text_params: Vec<rusqlite::types::Value> =
@@ -2068,7 +2280,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         if let Some(now) = now_param {
             text_params.push(rusqlite::types::Value::Integer(now));
         }
-        let text_filter = append_node_eligibility_sql(filter, "cn", &mut text_params);
+        let text_filter = crate::filter::append_node_eligibility_sql_view(
+            &tx,
+            filter,
+            "cn",
+            &mut text_params,
+            &view.view,
+        )?;
         #[cfg(feature = "test-hooks")]
         let force_full_sort =
             std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
@@ -2094,8 +2312,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 view.view.include_out_of_window,
                 view.edge_now(),
             )?;
-        let join_sql =
-            body_fts_rank_sql(&text_validity, &text_eligibility, &text_filter, &limit_clause);
+        let join_sql = crate::filter::body_fts_rank_sql_view(
+            &text_validity,
+            &text_eligibility,
+            &text_filter,
+            &limit_clause,
+            &view.view,
+        );
         let rank_stream_requested =
             direct_text_candidate_limit.is_some() && filter.is_none() && !force_full_sort;
         let rank_stream_eligible = rank_stream_requested
@@ -2122,9 +2345,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                  FROM search_index \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
                  WHERE search_index MATCH ?1 \
-                   AND cn.superseded_at IS NULL \
-                   AND (cn.state = 'active' OR cn.state IS NULL)\
-                   {text_validity}{text_eligibility}{text_filter} \
+                   {text_existence}{text_validity}{text_eligibility}{text_filter} \
                    AND rank MATCH '{rank_mapping}' \
                  ORDER BY rank"
             );
@@ -2345,7 +2566,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         ];
         let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
         let edge_eligibility = format!("{edge_dependency}{edge_filter}");
-        let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
+        let edge_sql =
+            crate::filter::edge_fts_rank_sql_view(&edge_validity, &edge_eligibility, &view.view);
         let mut stmt = prepare_search_statement(&tx, &edge_sql)?;
         let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
             let body = row.get::<_, String>(0)?;
@@ -2643,9 +2865,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                                     ProjectionReadinessV1::Blocked => {
                                         Some(StructuralDegradationCodeV1::ProjectionBlocked)
                                     }
-                                    ProjectionReadinessV1::Deferred => {
-                                        Some(StructuralDegradationCodeV1::ProjectionDeferred)
-                                    }
                                     _ => None,
                                 }
                             };
@@ -2738,8 +2957,7 @@ use crate::embedding::search_query_vector;
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
-    append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
-    build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter,
+    append_edge_eligibility_sql, build_vector_phase1_sql, hit_attributes_pass_filter,
     property_fts_cohort_stream_sql, property_fts_rank_sql, property_fts_rank_stream_sql,
     validate_filter_attributes_on_snapshot, vector_filter_values, SearchFilter,
     SnapshotFilterError,
@@ -2805,4 +3023,23 @@ fn keep_rowids(
             hit
         })
         .collect()
+}
+
+#[cfg(all(test, feature = "test-hooks"))]
+mod historical_property_lifecycle_tests {
+    use super::*;
+
+    #[test]
+    fn private_property_corpus_uses_memory_for_main_and_temporary_storage() {
+        crate::configure_runtime_for_open().unwrap();
+        let corpus = open_historical_property_corpus().unwrap();
+        let temp_store: i64 = corpus.query_row("PRAGMA temp_store", [], |row| row.get(0)).unwrap();
+        assert_eq!(temp_store, 2);
+        let file: String = corpus
+            .query_row("SELECT file FROM pragma_database_list WHERE name='main'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(file, "");
+    }
 }

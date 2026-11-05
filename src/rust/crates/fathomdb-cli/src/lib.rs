@@ -1985,14 +1985,76 @@ fn emit_data_plane_integrity_error_fields(
 
 fn emit_engine_open_error(verb: &str, err: &EngineOpenError) -> i32 {
     let outcome = engine_open_error_to_outcome(err);
-    let payload = json!({
-        "status": "error",
-        "verb": verb,
-        "code": engine_open_error_code(err),
-        "detail": err.to_string(),
-    });
-    println!("{payload}");
+    println!("{}", engine_open_error_json(verb, err));
     outcome_to_exit_code(outcome)
+}
+
+fn engine_open_error_json(verb: &str, err: &EngineOpenError) -> Value {
+    let mut payload = json!({
+        "status": "error", "verb": verb,
+        "code": engine_open_error_code(err), "detail": err.to_string(),
+    });
+    match err {
+        EngineOpenError::VectorEquivalenceMismatch { reason } => {
+            payload["reason"] = json!(reason);
+        }
+        EngineOpenError::VectorVerification { probe_ordinal, cause } => {
+            use fathomdb::VectorVerificationFailure as Cause;
+            use fathomdb_embedder_api::EmbedderError as Provider;
+            payload["probeOrdinal"] = json!(probe_ordinal);
+            payload["causeCode"] = json!(cause.code());
+            payload["causeMessage"] = json!(match cause {
+                Cause::Panic { message } | Cause::InvalidState { message } => message.clone(),
+                Cause::Provider(
+                    Provider::Failed { message }
+                    | Provider::CudaPoolExhausted { message, .. }
+                    | Provider::CudaPrivateBuildRefused { message, .. },
+                ) => message.clone(),
+                Cause::Provider(error) => format!("{error:?}"),
+                _ => cause.code().to_string(),
+            });
+            let (kind, provider) = match cause {
+                Cause::Provider(error) => {
+                    let (kind, code, details) = match error {
+                        Provider::Failed { message } => {
+                            ("failed", "EmbedderError", json!({ "message": message }))
+                        }
+                        Provider::Timeout => ("timeout", "EmbedderError", Value::Null),
+                        Provider::CudaPoolExhausted { ordinal, max_size_bytes, message } => (
+                            "cuda_pool_exhausted",
+                            "CudaPoolExhaustedError",
+                            json!({ "ordinal": ordinal, "maxSizeBytes": max_size_bytes, "message": message }),
+                        ),
+                        Provider::CudaContextLost {
+                            recorded_context_id,
+                            current_context_id,
+                            driver_error,
+                            operation,
+                        } => (
+                            "cuda_context_lost",
+                            "CudaContextLostError",
+                            json!({ "recordedContextId": recorded_context_id.to_string(), "currentContextId": current_context_id.map(|id| id.to_string()), "driverError": driver_error, "operation": operation }),
+                        ),
+                        Provider::CudaPrivateBuildRefused { ordinal, message } => (
+                            "cuda_private_build_refused",
+                            "CudaPrivateBuildRefusedError",
+                            json!({ "ordinal": ordinal, "message": message }),
+                        ),
+                        _ => ("unknown", "EmbedderError", Value::Null),
+                    };
+                    (
+                        json!(kind),
+                        json!({ "code": code, "message": error.to_string(), "payload": details }),
+                    )
+                }
+                _ => (Value::Null, Value::Null),
+            };
+            payload["providerKind"] = kind;
+            payload["providerError"] = provider;
+        }
+        _ => {}
+    }
+    payload
 }
 
 fn engine_error_code(err: &EngineError) -> &'static str {
@@ -2019,6 +2081,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::SchemaValidation => "SchemaValidationError",
         EngineError::Overloaded => "OverloadedError",
         EngineError::Closing => "ClosingError",
+        EngineError::Maintenance(_) => "MaintenanceError",
         EngineError::Extractor => "ExtractorError",
         EngineError::Consolidator => "ConsolidatorError",
         // G4 (Slice 35) — filter predicate construction error.
@@ -2059,6 +2122,8 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
         EngineOpenError::CudaPoolExhausted { .. } => "CudaPoolExhaustedError",
         EngineOpenError::CudaContextLost { .. } => "CudaContextLostError",
         EngineOpenError::CudaPrivateBuildRefused { .. } => "CudaPrivateBuildRefusedError",
+        EngineOpenError::VectorEquivalenceMismatch { .. } => "VectorEquivalenceMismatchError",
+        EngineOpenError::VectorVerification { .. } => "VectorVerificationError",
         EngineOpenError::Io { .. } => "IoError",
     }
 }
@@ -2562,6 +2627,55 @@ mod tests {
     }
 
     #[test]
+    fn cli_verification_provider_payload_retains_original_cuda_details() {
+        use fathomdb::VectorVerificationFailure;
+        let error = EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::Provider(
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal: 2,
+                    max_size_bytes: 12345,
+                    message: "original allocator detail".into(),
+                },
+            ),
+        };
+        let payload = engine_open_error_json("inspect", &error);
+        assert_eq!(payload["providerKind"], "cuda_pool_exhausted");
+        assert_eq!(payload["providerError"]["code"], "CudaPoolExhaustedError");
+        assert_eq!(payload["providerError"]["payload"]["ordinal"], 2);
+        assert_eq!(payload["providerError"]["payload"]["maxSizeBytes"], 12345);
+        assert_eq!(payload["providerError"]["payload"]["message"], "original allocator detail");
+    }
+
+    #[test]
+    fn vector_open_refusals_have_stable_class_payload_and_exit_code() {
+        use fathomdb::VectorVerificationFailure;
+        let numeric = EngineOpenError::VectorEquivalenceMismatch { reason: "P1 flips=3".into() };
+        assert_eq!(engine_open_error_code(&numeric), "VectorEquivalenceMismatchError");
+        assert_eq!(engine_open_error_json("inspect", &numeric)["reason"], "P1 flips=3");
+        let error = EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::StartedTimeout,
+        };
+        assert_eq!(engine_open_error_code(&error), "VectorVerificationError");
+        assert_eq!(outcome_to_exit_code(engine_open_error_to_outcome(&error)), 70);
+        let payload = engine_open_error_json("inspect", &error);
+        assert_eq!(payload["probeOrdinal"], 7);
+        assert_eq!(payload["causeCode"], "started_timeout");
+        assert!(payload["providerError"].is_null());
+        let state = EngineOpenError::VectorVerification {
+            probe_ordinal: 0,
+            cause: VectorVerificationFailure::InvalidState {
+                message: "stored reference detail".into(),
+            },
+        };
+        let payload = engine_open_error_json("inspect", &state);
+        assert_eq!(payload["causeCode"], "invalid_state");
+        assert_eq!(payload["causeMessage"], "stored reference detail");
+        assert!(payload["providerError"].is_null());
+    }
+
+    #[test]
     fn outcome_mapping_covers_cli_md_exit_classes() {
         assert_eq!(outcome_to_exit_code(CliOutcome::Clean), 0);
         assert_eq!(outcome_to_exit_code(CliOutcome::RecoveryAcceptedLoss), 64);
@@ -2596,6 +2710,13 @@ mod tests {
             field_path: "/evidenceRef".to_owned(),
         });
         assert_eq!(engine_error_code(&error), "EvidenceError");
+    }
+
+    #[test]
+    fn maintenance_refusal_uses_the_stable_cli_error_code() {
+        let error = EngineError::Maintenance(fathomdb::MaintenanceError::MaintenanceRequired);
+        assert_eq!(engine_error_code(&error), "MaintenanceError");
+        assert_eq!(engine_error_to_outcome(&error), CliOutcome::Unrecoverable);
     }
 
     /// 0.8.28 Slice 30 (R30-04) — each CUDA pool kind has its own stable code

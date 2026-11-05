@@ -1,8 +1,8 @@
 ---
 title: Rust Public Interface
-date: 2026-09-21
-target_release: 0.8.27
-desc: Public Rust surface (traits, functions, types, errors) for 0.8.27
+date: 2026-11-04
+target_release: 0.8.28
+desc: Public Rust surface (traits, functions, types, errors) for 0.8.28
 blast_radius: src/rust/crates/fathomdb; design/engine.md; design/bindings.md; design/errors.md; design/lifecycle.md
 status: locked
 ---
@@ -19,9 +19,9 @@ contract is [`rust-sdk.md`](rust-sdk.md) (0.8.27 Slice 132).
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
 All public `Engine::open*` routes bootstrap a missing or zero-length path at
-schema 34. A non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 34. Any other version returns
-`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 34 }` before
+schema 36. A non-empty database is admitted only when its effective committed
+`PRAGMA user_version` is exactly 36. Any other version returns
+`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 36 }` before
 product mutation or migration events. There is no public automatic-upgrade
 route; the custom migration seam is private to explicitly feature-gated engine
 tests and is not forwarded by the facade.
@@ -57,20 +57,18 @@ it; a process that has latched `TooLate` must restart. No path calls
 `sqlite3_shutdown()` to force the choice. The API is not a database connection
 permission or file-access boundary.
 
-SQLite page cache (0.8.28 Slice 40). Artifacts built from this repository
-(the Python wheel, the npm addon and a CLI built from this workspace) build
-the bundled SQLite without
-`SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite connection keeps its own
-page cache of SQLite's default 2,000 KiB. A Rust build that resolves the
-registry `libsqlite3-sys` keeps SQLite's shared page cache, where one large
-read can slow later reads until the engine is reopened. rusqlite removed the
-flag upstream (commit `f31f7324`); Rust consumers get the fix from the first
-`libsqlite3-sys` release that contains it, and until then
-`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives the
-same behaviour as the workspace build. `cargo install fathomdb-cli` is such a
-registry build: it keeps the shared page cache until a `libsqlite3-sys` release
-contains `f31f7324`, unless `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`
-is set for the install.
+SQLite page cache (0.8.28 Slices 40 and 42). Every build bundles SQLite
+3.54.1 from the crates.io `libsqlite3-sys` 0.39.1 (through `rusqlite` 0.41),
+which is built without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so each SQLite
+connection keeps its own page cache of SQLite's default 2,000 KiB. That holds
+for the Python wheel, the npm addon, `cargo install fathomdb-cli` and every
+consumer of the published Rust crates; no build flag is needed. A consumer that
+links its own SQLite instead of the bundled one (for example through
+`LIBSQLITE3_SYS_USE_PKG_CONFIG`) gets that library's page-cache mode. The
+0.8.27 registry crates still resolve `libsqlite3-sys` 0.38 and share one page
+cache across connections; for them,
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives one
+page cache per connection.
 
 ## Per-engine configuration (0.8.27 Slice 90)
 
@@ -466,10 +464,8 @@ re-derivable from the record alone (R80-13). Device identity is not part of
 ### `OpenReport::embedder_device_resolution` (0.8.23 Slice 70)
 
 `OpenReport::embedder_device_resolution` is the immutable strict CPU/CUDA
-selection consumed by the embedder constructor. It is present for the default
-embedder and for `EmbedderChoice::CallerWithDeviceResolution`; it is `None`
-when open receives no device-resolution report (for example, no embedder or
-the legacy `Caller` variant). It preserves the exact requested policy
+selection consumed by the embedder constructor. It is present for the built-in
+default embedder and `None` when no provider is configured. It preserves the exact requested policy
 (`auto`, `cpu`, or `cuda:N`), artifact CUDA capability, effective CPU/CUDA
 backend, the ordered process-visible CUDA inventory (`visible_ordinal`, UUID,
 name, compute capability), optional selected UUID, and an automatic-fallback
@@ -488,48 +484,60 @@ is a CLI-only result and is deliberately distinct: a
 but `doctor gpu` maps it to `probe_failed` and exit `70`. Rust SDK consumers do
 not receive a doctor API or configuration setter.
 
-A report-bearing `OrtBgeEmbedder` caller uses `CallerWithDeviceResolution`,
-rather than the legacy `Caller` variant, so its final ONNX Runtime
-session/provider outcome reaches the same report once.
+### Built-in provider admission and cached verification
 
-### `OpenReport::dense_disabled` and the cached equivalence verdict (0.8.20 Slice 22, TC-68)
+Production engine admission supports only the pinned built-in BGE/Mean provider
+or explicit no-provider access. User-specified providers are unsupported before
+1.x and are not promised for 1.0. Device selection is separate from provider
+selection. Low-level embedder traits, standalone/test/evaluation constructors and
+ONNX evaluation support do not grant production engine admission; feature
+unification does not restore caller-provider injection. Standalone CLS embedding
+remains a separate supported helper and does not select the engine's Mean provider.
+Loader construction, supported device policy, ambient precision behavior and
+mean pin/recompute/recovery ordering are unchanged.
 
-`OpenReport::dense_disabled` / `Engine::dense_disabled()` still mean "the dense arm
-is refusing", and `EngineError::VectorEquivalenceMismatch` plus the
-`Engine::search_text_only` fallback are unchanged. **What changed is when the check
-behind them runs.** The 0.8.18 vector-equivalence self-check used to re-embed its
-45 probes on *every* open; since 0.8.20 the engine caches that verdict against a
-fingerprint of the embedder identity, the pinned `mean_vec`, the probe fixture,
-both divergence floors and the stored reference baseline. An open whose fingerprint
-is unchanged does **zero** probe embeds and reuses the previous verdict. The
-fingerprint is held in one internal marker row — no `SCHEMA_VERSION` bump, no
-migration step, no new public surface.
+New projection declarations accept only omitted/null embedder selectors. Every
+string is rejected before mutation, including empty strings, `default` and model
+names. Historical stored strings remain verbatim on reads with no provider;
+re-applying such a declaration is refused rather than silently selecting BGE.
+Vector configuration carries no provider identity string.
 
-Read `dense_disabled` accordingly: it reports the arm's status **as verified at the
-last open whose fingerprint differed**, not a fresh re-verification at this open. A
-same-identity backend drift (candle CPU↔CUDA, a rebuilt library or driver) is
-therefore no longer caught per-open — the ruled trade, with the residual and the
-rejected mitigations written up in
-`dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md`. An identity
-*change* is unaffected: `EngineOpenError::EmbedderIdentityMismatch` /
-`EmbedderDimensionMismatch` still refuse the open ahead of any cache. An unreadable
-or absent cached verdict runs the probe rather than trusting it, a failing verdict
-is never cached, and a divergence found on a re-run still yields
-`dense_disabled = true` (`R-VEQ-4`, unchanged).
+The existing checker gate remains: an effective registered vector kind or durable
+prospective dense declaration engages verification; a retained baseline alone
+introduces no new probe gate. No-provider and ordinary vector-less opens use zero
+probes. Preserve the 45-probe fixture, structural validation, identity/dimension
+rules, P1 zero binary flips and P2 maximum uncentered L2 `1e-5`. Ordinary clean
+first population performs 90 embeddings (45 references plus 45 confirmation), a
+fresh check of an existing baseline performs 45, and a valid cached open performs
+zero. Rejected first population does not publish its new references.
 
-**Scope.** `R-VEQ-4` is a guarantee about **accident** — corruption, truncation, a
-half-written or pre-cache workspace. The self-check is **not** tamper evidence: an
-actor with write access to the database file can rewrite `_fathomdb_embed_probe`'s
-stored references, which defeats the check even when it runs all 45 embeds — exactly
-as it did before the cache existed — or the cached marker, or the corpus and its
-vectors outright. Nothing at rest is authenticated. Do not read `dense_disabled` as
-a tamper signal. **The cache does make one of those routes cheaper**, and that is
-conceded rather than argued away: forging the marker needs only a publicly
-computable digest, where re-authoring the baseline needs the other backend's 45
-exact embeddings. Its bound is the residual above — a same-identity drift is already
-served off an honestly recorded marker, no forgery required. Threat model, the
-measurement, the concession and the bound: §8.3–§8.5 of
-`dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md`.
+The persistent TC-68 marker remains authoritative for cached acceptance. The
+fingerprint recipe and inputs remain unchanged: stored identity, pinned mean,
+probe fixture, divergence floors and stored reference baseline. Missing, stale or
+malformed markers retain existing validation/recheck behavior; a marker-write
+failure remains a successful verified open with possible rechecking later. A
+process restart, MCP idle close, or A/B/A reconstruction does not force a fresh
+check. Cached acceptance is **not fresh verification in this process**.
+
+A valid marker can hide same-identity backend, pooling, device or library drift
+because those runtime facts are not fingerprint inputs. Closing provider injection
+does not remove that residual. Finite probes establish neither universal numerical
+equivalence nor historical vector provenance; stored references and the marker
+are not authenticated. This change adds no process cache, new fingerprint inputs,
+per-call numerical check, runtime descriptor or cache revocation policy. The
+existing cache rationale and threat model remain in
+[TC-68](../design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md).
+
+An actual checker refusal fails open and returns no engine or successful report.
+There is no automatic provider-free retry. A caller deliberately selects the
+existing no-provider option for canonical/text/lifecycle/erasure access, subject
+to normal integrity checks and deferred dense-work rules. Existing historical
+profiles are validated as metadata without pretending they use BGE. No-provider
+mean recovery and explicit recompute keep their existing behavior and make no
+numerical compatibility claim. No-provider access is ordinary mutable access,
+not forensic mode or a repaired dense backend. Existing operator rebuild behavior
+can invalidate dense state without a usable provider; this change neither fixes
+nor certifies that path safe and adds no diagnostic CLI.
 
 ## Engine-attached instrumentation / control methods
 
@@ -550,6 +558,16 @@ timeout elapses first.
 subscriber only; it has no heartbeat-cadence option and does not itself
 produce operation heartbeats. The payload semantics remain owned by
 `design/lifecycle.md` and `design/migrations.md`.
+
+Cleanup-scheduler debt-presence probes are excluded from subscriber profile and
+slow-statement callbacks. Foreground statements and actual cleanup work retain
+their configured instrumentation; see the profiling contract in `design/lifecycle.md`.
+
+Each Engine owns one joined physical-cleanup thread in addition to its eight
+reader workers, projection dispatcher and configured projection workers. Closing
+the Engine joins that cleanup thread; it adds no SQLite connection. Installed
+binding topology checks therefore expect ten fixed threads plus the configured
+projection-worker count, and exact baseline restoration after close.
 
 ## Companion embedder contract
 
@@ -725,9 +743,11 @@ Source supersession, soft deletion, purge, and source erasure atomically close
 every direct Slice 20 dependent. A nonterminal closure is an unconditional
 eligibility and projection-publication barrier under every `ReadView`.
 Physical closure shares the existing telemetry/WAL completion boundary and is
-completed only by an exact retry of the originating physical operation; other
-writes receive the existing `ErasureIncomplete { stage:
-"dependency_closure" }` failure.
+serviced by exact retry or autonomous idle/reopen maintenance. During sanitation,
+only certified unrelated plain legacy node/edge writes are admitted; other
+mutations and projection publication remain fenced. Finalization persists a
+global mutation fence until physical completion. See the
+[successor decision](../adr/ADR-0.8.28-resumable-physical-cleanup.md).
 
 `Engine::read_dependency_closure(ClosureLookupV1)` is the sole public closure
 read. It returns `Option<ClosureStatusV1>` for one opaque Engine-minted
@@ -855,15 +875,30 @@ row-set, the `bm25()` ordering and the scores byte-unchanged.
 `search_reranked(q, f, d, g, a, p)` is exactly
 `search_reranked_view(q, f, d, g, a, p, false, &ReadView::default())`.
 
-**Axis scope — VALIDITY only.** `valid_as_of` and `include_out_of_window` are
-honoured. `include_superseded` and `include_inactive` are **refused** with
-`EngineError::InvalidArgument`, NOT silently ignored: search hydrates from
-projection indexes (`search_index`, `vector_default`) that are not
-version-complete, so the existence axis has no truthful answer on this path, and
-relaxing `superseded_at IS NULL` here would re-open the stale-body leak the
-Slice-15 fix-1 review closed. Use `read_list` to enumerate history. **This is a
-decision owed to HITL** — refusing is the smallest coherent option, but ignoring
-or fully honouring are both defensible alternatives.
+**Independent view axes.** `valid_as_of`, `include_out_of_window`,
+`include_superseded` and `include_inactive` are honored. Default search excludes
+superseded/inactive rows. Relaxed hybrid search validates historical physical
+vector completeness and reports a whole-vector-arm soft fallback when history
+is unavailable, including absent runtime; partial tuples remain corruption.
+Direct text does not report vector fallback. History remains ranked retrieval,
+not an enumeration of every revision. Graph entities select the newest eligible
+revision; canonical historical attributes support relaxed filters.
+
+Property FTS with either existence flag builds a private per-call in-memory
+corpus from the persistent property baseline plus authorized canonical history.
+Validity-only/default property queries retain the indexed path. All extraction,
+ranking and hydration share one reader snapshot; the private connection drops
+on return/error. The opt-in corpus copies baseline and added scalar bytes, scans canonical nodes
+per FTS declaration,
+can prolong WAL snapshots, queueing and close, and has no added deadline/cap.
+Concurrent reads may return coherent pre-erasure/supersession data; erasure does
+not revoke returned memory. See the [mechanics and invocation table](../plans/0.8.28/features/slice-80/design.md#historical-property-fts-lifecycle-and-ranking).
+
+Evidence existence flags relax artifact lifecycle only. Pinned sources remain
+strictly active/nonsuperseded and access-authorized, including graph-origin
+sources. Historical self-sourced records may consequently remain unavailable.
+Retained/repaired edge FTS can change BM25 corpus statistics and strict scores;
+ranking algorithms and default eligibility are unchanged.
 
 The instant is INTEGER epoch SECONDS, read in Rust and BOUND as a positional
 parameter (never `datetime('now')`), once per query — the same `:now` seam as
@@ -914,8 +949,7 @@ surface:
   `ProjectionSpec` or the internal lifecycle `ProjectionStatus`.
 
 `ProjectionRuntimeStatus` has `runtime_embedder_available`, its closed
-`ProjectionRuntimeUnavailabilityReason` (`"none" | "no_runtime" |
-"vector_equivalence_disabled"`), sorted `ProjectionRuntimeStatusEntry` values,
+`ProjectionRuntimeUnavailabilityReason` (`"none" | "no_runtime"`), sorted `ProjectionRuntimeStatusEntry` values,
 and sorted/deduplicated `vector_unsupported_kinds`. Each entry has its name and
 closed `ProjectionStatusDenseReadiness` (`"not_declared" | "unavailable" |
 "embedding" | "ready"`). `not_declared` means the stored declaration has no
@@ -961,16 +995,16 @@ is an additive, pure current read. `EmbeddingReadiness` exposes
 `state: EmbeddingReadinessState`, `usable_embedder`, `pending_count`, sorted
 `affected_kinds`, and `blocked: Option<EmbedderRequired>`; it exposes no pending
 body text. `EmbeddingReadinessState` has the closed values `Ready`,
-`Processing`, `Deferred`, and `Blocked` (`as_str()` supplies the lower-case
+`Processing` and `Blocked` (`as_str()` supplies the lower-case
 wire forms).
 
 `blocked` is present only for pending work with no configured runtime. Its
 `EmbedderRequired` payload has stable code `FDB_EMBEDDER_REQUIRED`, an
 `EmbeddingOperation`, state `Blocked`, ordered remediations, and a documentation
 URL. In the same condition `Engine::drain` returns
-`EngineError::EmbedderRequired` immediately. An attached runtime refused by the
-identity/equivalence guard, and a live worker failure, remain operational:
-readiness is `Deferred` and `drain` retains ordinary bounded behavior.
+`EngineError::EmbedderRequired` immediately. Actual open-time identity/equivalence
+refusal returns no engine. Later worker failures retain operational readiness
+and ordinary bounded drain behavior.
 
 Types:
 
@@ -984,7 +1018,7 @@ Types:
 - `ProjectionFts { tokenizer: Option<String> }` and `ProjectionVector { embedder:
   Option<String>, dense_readiness: Option<DenseReadiness> }` — the
   `searchable→FTS` / `searchable→vector` sub-target selectors (`None` embedder ⇒
-  engine default). `dense_readiness` was added additively by 0.8.20 Slice 20
+  engine default; every new string selector is rejected before mutation). `dense_readiness` was added additively by 0.8.20 Slice 20
   (R-20-DR); see below.
 - `DenseReadiness` — a three-variant enum, `Unavailable`, `Embedding`, and
   `Ready`, with `as_str` / `from_str_opt` giving the
@@ -1080,13 +1114,13 @@ axis. It is `None` on every caller-authored spec.
 - **`DenseReadiness` has exactly three variants**, `Unavailable`, `Embedding`,
   and `Ready`, wire spellings `"unavailable"` / `"embedding"` / `"ready"`.
   The signed target meaning is: `Unavailable` for no usable dense runtime
-  (absent or equivalence-refused), `Embedding` for a usable runtime with
+  (absent), `Embedding` for a usable runtime with
   eligible outstanding work, and `Ready` for usable, quiescent work.
   **`pending` is RESERVED for the orthogonal ADMISSION axis** (quarantine/trust
   — an app judgment) and is deliberately never an index-readiness value.
   `from_str_opt("pending")` is `None`.
 - **Runtime selection.** `read_projections` first applies one
-  usable-dense-runtime predicate: no runtime or an equivalence refusal yields
+  usable-dense-runtime predicate: no runtime yields
   `Unavailable`. With a usable runtime it derives `Embedding` / `Ready` from
   the shared outstanding-work predicate. This adds no schema step or stored
   readiness field.
@@ -1142,7 +1176,7 @@ in Rust, Python and TypeScript:
   `edge_fact` for edge bodies). Rows of ANY other `kind` are accepted and stay
   lexically searchable, but get **no vector** and are not counted as outstanding
   work, so readiness reaches `Ready` only with a usable dense runtime. An
-  absent or equivalence-refused runtime instead selects `Unavailable`. This is
+  absent runtime instead selects `Unavailable`. This is
   **not** an error condition: the write is not rejected and no typed error is
   raised.
   **Since 0.8.20 Slice 22 (`TC-67`) it is no longer silent, either:** the excluded
@@ -1187,10 +1221,8 @@ in Rust, Python and TypeScript:
   (`FDB_EMBEDDER_REQUIRED`) rather than spending its scheduler timeout. It is
   **not** lost — no failure is recorded and no terminal is written, so the next
   session opened WITH an approved runtime embeds it through the ordinary
-  scheduler, with no re-apply and no operator `rebuild`. An attached runtime
-  refused by the equivalence guard is different operational deferral: it is not
-  `FDB_EMBEDDER_REQUIRED`, and a bounded `drain` may return
-  `EngineError::Scheduler`. (Reporting `Ready` here instead would be a torn
+  scheduler, with no re-apply and no operator `rebuild`. Actual verification
+  refusal fails open before an engine is returned. (Reporting `Ready` here instead would be a torn
   `ready`-without-vector — the silent miss this slice exists to eliminate.)
 - **`drain` remains bounded**, returning the typed timeout error rather than
   blocking; a caller sizes `timeout_ms` for the backfill it just asked for.
@@ -1663,6 +1695,28 @@ The operator-gated `Engine::pending_erasures()` returns content-free
 `PendingErasure` records for doctor diagnosis; it does not expose source
 identity or alter closure state.
 
+Slice 82 extends that diagnosis to root-only erasures and retained FTS terms.
+Operator identities `root-erasure` and `retained-terms` use sequence zero and are
+not governed dependency-closure lookup IDs. `retained_terms` is a maintenance
+cause, with `dirty`, `cleaning` or `finalizing` phase. Missing current-format
+sanitation metadata is legacy dirty debt. The offline completion path processes
+it even without dependent closures; only a clean certificate with no physical
+or telemetry debt produces the unchanged no-op. Supported FTS mutations invalidate
+the certificate without performing sanitation. Every admitted root erase/purge
+persists its obligation atomically with deletion. Slice 83 permits certified
+unrelated plain legacy writes during sanitation, then restores the global
+mutation fence for identity-free finalization. Publication remains fenced.
+One joined Engine-owned worker resumes debt on idle/reopen; finite owned-reader
+drain and external checkpoint refusals retain debt without claiming success.
+
+Erasure covers registered original telemetry sink paths prospectively: enabling
+a sink registers its canonical path fingerprint durably before capture. Changing
+the attached sink does not discharge other registered sinks; reattach each owed
+original path and exact-retry. Unbound legacy queue entries refuse; prior
+unregistered/rotated copies cannot be reconstructed. See the
+[production design](../plans/0.8.28/features/slice-82/design.md) for scope and
+crash/finalization invariants.
+
 These functions and their operator-specific reports are absent when `operator`
 is disabled.
 
@@ -1911,3 +1965,149 @@ full-render override.
 Applications use the `fathomdb-sdk` spellings in
 [`rust-sdk.md`](rust-sdk.md); the behaviour is in [`python.md`](python.md)
 § Context pack.
+
+## Vector verification open errors
+
+`EngineOpenError::VectorEquivalenceMismatch { reason }` reports actual numeric
+refusal. `EngineOpenError::VectorVerification { probe_ordinal, cause }` reports
+an inability to verify, preserving the reexported `VectorVerificationFailure`.
+Its stable `code()` values are `not_configured`, `saturated`, `queued_expired`,
+`started_timeout`, `provider`, `invalid_output`, `panic`, `invalid_state`,
+`closing`, `cancelled`. `Provider(RuntimeEmbedderError)` retains the original
+provider payload, including CUDA details; `Panic` and `InvalidState` retain their
+original message. `probe_ordinal` is zero-based for the 45 stored probes; `0`
+is also the convention for whole-baseline/required-mean preflight failure and
+does not always identify the first probe. The source chain is open error →
+verification cause → original provider error where present. Invalid profile
+metadata retains the existing `Corruption` classification; SQL I/O retains `Io`.
+Existing bounded cleanup releases database ownership before returning refusal;
+later runtime failures retain their operation-specific behavior.
+
+No refused-open `dense_disabled`/`dense_disabled_reason` report fields, engine
+accessors or `vector_equivalence_refusal_count` remain. Successful projection
+runtime state is `Absent`/`Usable`, with unavailable reason `None`/`NoRuntime`;
+obsolete `Refused`/`VectorEquivalenceDisabled` modes are removed. The existing
+operation `EngineError::VectorEquivalenceMismatch` and its binding class remain.
+
+These removals do not change `ProjectionDelta.deferred`, durable pending work,
+or retained graph/structural codec vocabulary (`deferred`/`projection_deferred`).
+Only mappings derived from the removed refused-open runtime state disappear.
+
+## Embedder head coverage (format 35)
+
+The independent `fathomdb-embedder-api` 0.8.0 trait adds
+`truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError>`.
+The default returns unknown (`None`). A known exclusive UTF-8 byte end must
+be within the input and on a character boundary; the input byte length means
+full coverage. The provider uses the same tokenizer/truncation policy as
+embedding. Projection dispatch captures coverage inside its normal deadline
+and failure boundary, and the engine stores it atomically with each vector.
+Candle BGE reports exact head coverage; providers that cannot report it
+remain unknown. This is metadata, not a new provider admission surface.
+
+## Native vector eligibility (format 35)
+
+Dense search applies direct lifecycle and validity eligibility inside vec0
+before its binary candidate cap. Superseded, inactive and out-of-window
+vectors do not disable dense retrieval for unrelated eligible records.
+Source dependency and unfinished closure barriers retain their conservative
+fallback. Canonical hydration checks remain in place.
+
+The internal projection stores lifecycle bits and inclusive validity bounds;
+unknown canonical endpoints use min/max sentinels. Updates and erasure resolve
+all vector IDs through record identity. An unmapped physical head refuses
+erasure transactionally rather than reporting success with residue. The vec0
+layout supports at most ten
+filterable attributes; an over-capacity configuration fails atomically.
+`include_out_of_window` keeps its node-window behavior and the existing
+unconditional edge-expiry check. Public `include_superseded` and
+`include_inactive` search admission is supported with independent lifecycle gates.
+
+### Maintenance transaction seam (internal tests)
+
+`Engine::maintenance_transaction_for_test` exists only under `cfg(test)` or the
+explicit `test-hooks` feature. It runs a trusted callback in an immediate
+transaction under the real writer mutex, commits on success and rolls back on
+error before releasing that mutex. Callbacks must not issue transaction-control
+SQL or reenter the Engine. The result contains the callback value, mutex wait and
+successful lock occupancy through transaction finalization; failed calls return
+no timing tuple. Closing and storage errors retain their existing Engine meanings.
+A callback panic rolls back while unwinding and poisons the mutex. This helper
+changes no default admission, public erasure outcome or shipped schema.
+
+## Explicit physical-erasure maintenance (0.8.28 Slice 85)
+
+The [approved contract](../design/explicit-maintenance-erasure/contract.md) and
+[production design](../design/explicit-maintenance-erasure/production-design.md)
+own format-36 policy, immutable scope, admission and physical proof.
+
+The lower-level `fathomdb` facade re-exports all twelve maintenance types from
+`fathomdb-engine`: `PhysicalErasurePolicy`, `MaintenanceError`, `ErasureServiceState`,
+`ErasureMaintenance`, `PhysicalErasureSelector`, `ErasureLogicalState`, `ErasurePhase`,
+`ErasureBlocker`, `ErasureStatus`, `QueueResult`, `WithdrawResult`, and `CleanupResult`.
+
+Persisted `PhysicalErasurePolicy::{Autonomous, ExplicitMaintenance}` is selected for fresh
+stores with `EngineConfig.physical_erasure_policy`; absent configuration honors
+persisted policy on reopen. Missing/unknown policy is corruption, and mismatching
+selection refuses before mutation. Both profiles use current-only fresh format 36.
+
+`Engine::physical_erasure_policy` observes the effective policy.
+`Engine::queue_physical_erasure(selector, key)` returns `QueueResult`;
+`physical_erasure_status(ticket)` returns `Option<ErasureStatus>`;
+`withdraw_queued_erasure(ticket)` returns `WithdrawResult`.
+`PhysicalErasureSelector` is `SourceAllAtCut { source_id }` or
+`DeletedLogicalAllAtCut { logical_id }`. The normal new-queue path returns
+`NeedsMaintenanceAdmission` when cheap authoritative resource proof is unavailable.
+`Accepted { ticket, logical_state: UnchangedByThisRequest }` promises intent only.
+
+`Engine::begin_erasure_maintenance(self: &Arc<Self>, acquisition_wait_ms)` returns
+an owned non-cloneable `ErasureMaintenance`, bound to this open Engine. Methods
+are `queue_physical_erasure`, `complete_physical_erasure`,
+`reattach_original_erasure_sink(ticket, path)` and `close(&mut self)`.
+Fallible methods return `Result<_, EngineError>`; close reports service state.
+Acquisition wait limits only cooperative drain; it is not an active SQL deadline.
+`CleanupResult::{Complete { receipt }, Incomplete { status }}` preserves actual
+physical-success meaning. A storage error after commit can still leave durable
+owed work; query the ticket afterward. Status is identity-free and contains phase,
+logical state, blocker, service state and safe target count.
+
+Newcomers under maintenance refuse `EngineError::Maintenance(MaintenanceBusy)`;
+ordinary direct explicit erase/purge refuses `MaintenanceRequired`. Queued plain
+writes must prove source/stable-ID/old-new-endpoint disjointness. Unprovable
+provenance/dependency/lifecycle/actuation/global admin effects refuse
+`QueuedScopeFenced`. Exact identity-bearing pending retries return the same
+ticket. Keys are retired at the identity-free Finalizing boundary and remain
+retired for terminal receipts; admission returns `KeyRetired`, while retries of
+actual finalization use the original ticket. Wrong-store/unknown well-formed
+status is None.
+Handle drop releases only ephemeral gates; post-delete writes remain fenced
+through reopen until actual cleanup. Allowed coherent reads suppress telemetry
+capture while fenced. Explicit reopen executes no physical cleanup; original
+sink reattachment and offline activated-ticket completion share physical authority.
+
+## Filtered direct body FTS (0.8.28 Slice 90)
+
+The core full-arity entry is
+`Engine::search_text_only_filtered(query, Option<SearchFilter>, &ReadView, limit)`.
+Existing query/view/limit methods delegate with no filter. Rust SDK
+`TextSearchOptions` adds `filter: Option<SearchFilter>` (default `None`).
+
+The existing closed filter applies to node and edge body candidates before
+candidate truncation, body deduplication, ranking and returned limit. Attribute
+predicates are ANDed, require declared `filterable` projections, and are
+node-scoped (edge hits do not match them). Validation occurs in the same reader
+snapshot, with typed `InvalidFilter` even when the query has no matches.
+Source type uses the established node kind mapping and `edge_fact` for edges;
+kind matches the node kind or edge relation kind.
+
+`status` and `created_after` preserve G10 projected-metadata semantics:
+status is the empty-string sentinel; creation time is projection time, with an
+inclusive lower bound. Missing vector metadata fails to match. These fields do
+not read JSON body values or populate metadata. Reading existing metadata does
+not execute vector retrieval. Source type, kind and declared attributes work
+on provider-free stores; status/time may return no matches there.
+
+ReadView existence and validity axes compose with the filter. No embedding,
+dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
+corpus, effective validity time and filter, smaller result limits are ordered
+prefixes of larger ones. None and empty filters retain unfiltered behavior.

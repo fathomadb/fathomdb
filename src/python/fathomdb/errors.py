@@ -110,6 +110,7 @@ from fathomdb._fathomdb import (
 )
 from fathomdb._fathomdb import (
     VectorEquivalenceMismatchError as _VectorEquivalenceMismatchError,
+    VectorVerificationError as _VectorVerificationError,
 )
 from fathomdb._fathomdb import (
     IllegalTransitionError as _IllegalTransitionError,
@@ -119,6 +120,7 @@ from fathomdb._fathomdb import (
 )
 from fathomdb._fathomdb import (
     ErasureIncompleteError as _ErasureIncompleteError,
+    MaintenanceError as _MaintenanceError,
 )
 from fathomdb._fathomdb import (
     ProjectionDestructiveError as _ProjectionDestructiveError,
@@ -168,8 +170,9 @@ ConsolidatorError = _ConsolidatorError
 # G4 (Slice 35) — filter predicate construction error (non-allowlisted path).
 InvalidFilterError = _InvalidFilterError
 InvalidArgumentError = _InvalidArgumentError
-# 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
+# Open-time numeric refusal; no Engine is returned.
 VectorEquivalenceMismatchError = _VectorEquivalenceMismatchError
+VectorVerificationError = _VectorVerificationError
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors. Parity-safe
 # field names (S7): `from_state`/`to_state` (never `from`, a Python keyword).
 IllegalTransitionError = _IllegalTransitionError
@@ -179,6 +182,7 @@ NotLifecycleAddressableError = _NotLifecycleAddressableError
 # concurrent reader pinned a WAL snapshot and `wal_checkpoint(TRUNCATE)` stayed
 # busy. Retryable: re-run the verb once the reader has finished.
 ErasureIncompleteError = _ErasureIncompleteError
+MaintenanceError = _MaintenanceError
 # 0.8.20 Slice 15d (R-20-PR) — `configure_projections` refused a destructive
 # change to a live projection without an explicit `drop`; carries `name`/`delta`.
 ProjectionDestructiveError = _ProjectionDestructiveError
@@ -229,12 +233,14 @@ _install_typed_init(CudaPrivateBuildRefusedError, ("ordinal", "message"))
 _install_typed_init(
     EmbedderRequiredError, ("code", "operation", "state", "remediations", "documentation_url")
 )
-# 0.8.18 Slice 5 — the query-time refusal carries the divergence `reason`.
+# Numeric refusal reuses the existing class and preserves its divergence reason.
 _install_typed_init(VectorEquivalenceMismatchError, ("reason",))
+_install_typed_init(VectorVerificationError, ("probe_ordinal", "cause_code", "cause_message", "provider_kind", "provider_error"))
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb payloads.
 _install_typed_init(IllegalTransitionError, ("from_state", "to_state", "legal"))
 _install_typed_init(NotLifecycleAddressableError, ("id_space",))
 # 0.8.20 Slice 5b — the incomplete-erasure refusal carries the uncompleted stage.
+_install_typed_init(MaintenanceError, ("reason",))
 _install_typed_init(ErasureIncompleteError, ("stage", "detail"))
 # 0.8.20 Slice 15d — the destructive-projection refusal carries name/delta.
 _install_typed_init(ProjectionDestructiveError, ("name", "delta"))
@@ -269,6 +275,7 @@ __all__ = [
     "ConsolidatorError",
     "EngineError",
     "ErasureIncompleteError",
+    "MaintenanceError",
     "EvidenceError",
     "ExtractorError",
     "FrozenReadError",
@@ -294,6 +301,7 @@ __all__ = [
     "SchemaValidationError",
     "StorageError",
     "VectorEquivalenceMismatchError",
+    "VectorVerificationError",
     "VectorError",
     "WriteValidationError",
 ]

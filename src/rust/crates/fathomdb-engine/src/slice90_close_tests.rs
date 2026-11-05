@@ -1,5 +1,5 @@
 use super::reader_pool::ReaderRequest;
-use super::{EmbedderChoice, Engine, EngineConfig, EngineError, ReadView};
+use super::{Engine, EngineConfig, EngineError, ReadView, TestEmbedderChoice};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -95,9 +95,9 @@ fn incomplete_close_quiesces_database_and_later_close_reports_provider_exit() {
     let (entered_tx, entered_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
     let provider = Arc::new(HeldProvider { entered: entered_tx, release: Mutex::new(release_rx) });
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         EngineConfig { embedder_call_timeout_ms: Some(2_000), ..EngineConfig::default() },
     )
     .expect("open real database");
@@ -111,9 +111,9 @@ fn incomplete_close_quiesces_database_and_later_close_reports_provider_exit() {
     let live_at_return = accounting.snapshot().live_workers;
     let connections_at_return =
         opened.engine.managed_connections.live.lock().expect("registry").len();
-    let reopened = Engine::open_with_choice_and_config(
+    let reopened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig::default(),
     )
     .expect("SQLite admission lock released after quiescence");
@@ -143,9 +143,9 @@ fn timed_out_close_retains_provider_until_later_close_releases_it() {
     let (release_tx, release_rx) = mpsc::channel();
     let provider = Arc::new(HeldProvider { entered: entered_tx, release: Mutex::new(release_rx) });
     let weak = Arc::downgrade(&provider);
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         dir.path().join("retain.sqlite"),
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig { embedder_call_timeout_ms: Some(2_000), ..EngineConfig::default() },
     )
     .expect("open real database");

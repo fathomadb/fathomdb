@@ -607,12 +607,12 @@ export const read = {
       ),
       readiness: projectionResponseEnum(
         value.readiness,
-        ["ready", "processing", "blocked", "deferred", "degraded"] as const,
+        ["ready", "processing", "blocked", "degraded"] as const,
         "/readiness",
       ),
       runtimeState: projectionResponseEnum(
         value.runtimeState,
-        ["absent", "usable", "refused"] as const,
+        ["absent", "usable"] as const,
         "/runtimeState",
       ),
     };
@@ -634,12 +634,12 @@ export const read = {
       schemaVersion: 1,
       readiness: projectionResponseEnum(
         value.readiness,
-        ["ready", "processing", "blocked", "deferred", "degraded"] as const,
+        ["ready", "processing", "blocked", "degraded"] as const,
         "/readiness",
       ),
       runtimeState: projectionResponseEnum(
         value.runtimeState,
-        ["absent", "usable", "refused"] as const,
+        ["absent", "usable"] as const,
         "/runtimeState",
       ),
     };

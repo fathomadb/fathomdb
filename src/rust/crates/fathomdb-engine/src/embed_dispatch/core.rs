@@ -1,5 +1,6 @@
 //! Fixed, engine-owned provider dispatch. This module owns no database state.
 
+use crate::maintenance_admission::callback::Callback;
 use std::any::Any;
 use std::collections::VecDeque;
 use std::io;
@@ -49,6 +50,13 @@ impl std::fmt::Debug for DispatchError {
 pub(crate) enum EmbedOutput {
     One(Vector),
     Batch(Vec<Vector>),
+    Projection(Vec<ProjectedEmbedding>),
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct ProjectedEmbedding {
+    pub(crate) vector: Vector,
+    pub(crate) byte_end: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -75,6 +83,8 @@ impl DispatchAccounting {
 enum RequestBody {
     One(String),
     Batch(Vec<String>),
+    ProjectionOne(String),
+    ProjectionBatch(Vec<String>),
 }
 
 struct Request {
@@ -409,6 +419,17 @@ impl EmbedDispatcher {
         self.submit(RequestBody::One(text))
     }
 
+    pub(crate) fn submit_projection(&self, text: String) -> Result<EmbedReply, DispatchError> {
+        self.submit(RequestBody::ProjectionOne(text))
+    }
+
+    pub(crate) fn submit_projection_batch(
+        &self,
+        texts: Vec<String>,
+    ) -> Result<EmbedReply, DispatchError> {
+        self.submit(RequestBody::ProjectionBatch(texts))
+    }
+
     pub(crate) fn submit_batch(&self, texts: Vec<String>) -> Result<EmbedReply, DispatchError> {
         self.submit(RequestBody::Batch(texts))
     }
@@ -590,6 +611,7 @@ fn valid(vector: &Vector, dimension: usize) -> bool {
 }
 
 fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchError> {
+    let _callback = Callback::enter();
     let provider = shared
         .provider
         .lock()
@@ -599,18 +621,30 @@ fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchErr
         .ok_or(DispatchError::Closing)?;
     let expected_rows = match &body {
         RequestBody::One(_) => None,
-        RequestBody::Batch(texts) => Some(texts.len()),
+        RequestBody::ProjectionOne(_) => Some(1),
+        RequestBody::Batch(texts) | RequestBody::ProjectionBatch(texts) => Some(texts.len()),
     };
     let outcome = catch_unwind(AssertUnwindSafe(|| match body {
-        RequestBody::One(text) => provider.embed(&text).map(EmbedOutput::One),
+        RequestBody::One(text) => {
+            provider.embed(&text).map(EmbedOutput::One).map_err(DispatchError::Provider)
+        }
         RequestBody::Batch(texts) => {
             let inputs: Vec<&str> = texts.iter().map(String::as_str).collect();
-            provider.embed_batch(&inputs).map(EmbedOutput::Batch)
+            provider.embed_batch(&inputs).map(EmbedOutput::Batch).map_err(DispatchError::Provider)
+        }
+        RequestBody::ProjectionOne(text) => {
+            let vector = provider.embed(&text).map_err(DispatchError::Provider)?;
+            projection_output(provider.as_ref(), &[text], vec![vector])
+        }
+        RequestBody::ProjectionBatch(texts) => {
+            let inputs: Vec<&str> = texts.iter().map(String::as_str).collect();
+            let vectors = provider.embed_batch(&inputs).map_err(DispatchError::Provider)?;
+            projection_output(provider.as_ref(), &texts, vectors)
         }
     }));
     match outcome {
         Err(payload) => Err(DispatchError::Panic(payload)),
-        Ok(Err(error)) => Err(DispatchError::Provider(error)),
+        Ok(Err(error)) => Err(error),
         Ok(Ok(EmbedOutput::One(vector))) if valid(&vector, shared.dimension) => {
             Ok(EmbedOutput::One(vector))
         }
@@ -621,8 +655,37 @@ fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchErr
         {
             Ok(EmbedOutput::Batch(vectors))
         }
+        Ok(Ok(EmbedOutput::Projection(rows)))
+            if Some(rows.len()) == expected_rows
+                && !rows.is_empty()
+                && rows.iter().all(|row| valid(&row.vector, shared.dimension)) =>
+        {
+            Ok(EmbedOutput::Projection(rows))
+        }
         Ok(Ok(_)) => Err(DispatchError::InvalidOutput),
     }
+}
+
+fn projection_output(
+    provider: &dyn Embedder,
+    texts: &[String],
+    vectors: Vec<Vector>,
+) -> Result<EmbedOutput, DispatchError> {
+    if texts.len() != vectors.len() {
+        return Err(DispatchError::InvalidOutput);
+    }
+    let rows = texts
+        .iter()
+        .zip(vectors)
+        .map(|(text, vector)| {
+            let byte_end = provider.truncation_offset(text).map_err(DispatchError::Provider)?;
+            if byte_end.is_some_and(|end| end > text.len() || !text.is_char_boundary(end)) {
+                return Err(DispatchError::InvalidOutput);
+            }
+            Ok(ProjectedEmbedding { vector, byte_end })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(EmbedOutput::Projection(rows))
 }
 
 fn worker_loop(shared: Arc<Shared>) {

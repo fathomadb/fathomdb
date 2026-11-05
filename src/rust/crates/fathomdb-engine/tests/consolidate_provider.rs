@@ -216,20 +216,10 @@ fn recency_consolidation_invalidates_older_edge() {
 // fix-2 [P2] — invalidate must not leave phantom pending projection work
 // ---------------------------------------------------------------------------
 
-/// fix-2 [P2]: an `invalidate` verdict prunes the edge's FTS/vec shadows (hiding
-/// it from active retrieval) but the canonical row stays NON-superseded, so its
-/// `_fathomdb_projection_terminal` marker MUST be retained — otherwise
-/// `database_has_pending_projection_work` reports permanent pending work (the
-/// cursor is below the projection head, so it is never requeued) and
-/// `drain()`/`wait_for_idle` time out forever.
-///
-/// White-box: the no-embedder test harness does not run the projection scheduler
-/// (no `drain()`), so we INSERT the projection terminal marker directly to simulate
-/// an already-projected edge, then assert `invalidate` retains it (fix-2) while its
-/// FTS shadow is pruned. Contrast: `supersede` (a tombstoned row is excluded from
-/// the pending-work scan) DOES drop the terminal.
+/// Invalidated edges retain their terminal and historical lexical/vector rows.
+/// Expiry independently excludes them from current retrieval and pending work.
 #[test]
-fn invalidate_retains_projection_terminal_while_pruning_fts() {
+fn invalidate_retains_projection_terminal_and_historical_fts() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "phantom");
     let opened = Engine::open_without_embedder_for_test(&path).expect("open");
@@ -289,10 +279,7 @@ fn invalidate_retains_projection_terminal_while_pruning_fts() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(
-        fts_after, 0,
-        "invalidated edge's FTS shadow must be pruned (hidden from retrieval)"
-    );
+    assert_eq!(fts_after, 1, "invalidated edge retains lexical history");
 }
 
 // ---------------------------------------------------------------------------
@@ -550,9 +537,7 @@ fn empty_cluster_is_skipped() {
 // fix-1 [P1] — a consolidated-away edge is hidden from active FTS retrieval
 // ---------------------------------------------------------------------------
 
-/// After `invalidate` (ended as of now), the stale edge's FTS shadow row is
-/// pruned so `search_index_edges` no longer surfaces it — while the winning
-/// edge stays searchable. The canonical row + body survive (§2.1).
+/// Invalidated edge history remains indexed while current-view predicates hide it.
 #[test]
 fn invalidate_hides_stale_edge_from_edge_fts() {
     let dir = TempDir::new().unwrap();
@@ -581,13 +566,28 @@ fn invalidate_hides_stale_edge_from_edge_fts() {
 
     let conn = Connection::open(&path).unwrap();
     // The invalidated (older) edge is gone from edge FTS; the winner remains.
-    assert_eq!(
-        edge_fts_count(&conn, "acme"),
-        0,
-        "invalidated edge must NO LONGER appear in edge FTS (shadow pruned)"
-    );
+    assert_eq!(edge_fts_count(&conn, "acme"), 1, "invalidated edge retains historical FTS");
     assert!(edge_fts_count(&conn, "globex") > 0, "winning edge must still be FTS-searchable");
 
+    let historical = fathomdb_engine::ReadView {
+        valid_as_of: Some(0),
+        include_superseded: true,
+        ..Default::default()
+    };
+    assert!(opened
+        .engine
+        .search_text_only_view("acme", &historical)
+        .unwrap()
+        .results
+        .iter()
+        .any(|hit| hit.body == "Bob works for Acme"));
+    assert!(opened
+        .engine
+        .search_text_only("acme")
+        .unwrap()
+        .results
+        .iter()
+        .all(|hit| hit.body != "Bob works for Acme"));
     // NON-DESTRUCTIVE: the canonical_edges row + body survive.
     let (acme_body, acme_ti, acme_sup) = edge_row(&conn, "edge-acme");
     assert_eq!(acme_body.as_deref(), Some("Bob works for Acme"), "body preserved (no rewrite)");
@@ -595,9 +595,7 @@ fn invalidate_hides_stale_edge_from_edge_fts() {
     assert!(acme_sup.is_none(), "invalidate is not a tombstone");
 }
 
-/// A `supersede` verdict unconditionally prunes the loser's FTS shadow (it is
-/// out of the active set); the winner remains searchable, and the loser row +
-/// body survive.
+/// Superseded lexical history remains indexed; default search hides the loser.
 #[test]
 fn supersede_hides_loser_from_edge_fts() {
     let dir = TempDir::new().unwrap();
@@ -643,13 +641,24 @@ for line in sys.stdin:
     assert_eq!(receipt.edges_superseded, 1, "one supersede verdict applied");
 
     let conn = Connection::open(&path).unwrap();
-    assert_eq!(
-        edge_fts_count(&conn, "acme"),
-        0,
-        "superseded edge must NO LONGER appear in edge FTS (shadow pruned)"
-    );
+    assert_eq!(edge_fts_count(&conn, "acme"), 1, "superseded edge retains historical FTS");
     assert!(edge_fts_count(&conn, "globex") > 0, "kept edge must still be FTS-searchable");
 
+    let historical = fathomdb_engine::ReadView { include_superseded: true, ..Default::default() };
+    assert!(opened
+        .engine
+        .search_text_only_view("acme", &historical)
+        .unwrap()
+        .results
+        .iter()
+        .any(|hit| hit.body == "Bob works for Acme"));
+    assert!(opened
+        .engine
+        .search_text_only("acme")
+        .unwrap()
+        .results
+        .iter()
+        .all(|hit| hit.body != "Bob works for Acme"));
     // Loser row + body survive (invalidate-not-delete).
     let (acme_body, _ti, acme_sup) = edge_row(&conn, "edge-acme");
     assert_eq!(acme_body.as_deref(), Some("Bob works for Acme"), "loser body preserved");

@@ -67,9 +67,9 @@ by the post-publish smoke step below: already-present immutable artifacts may
 be validated and skipped, but no release is complete until every required
 target has its public installed-package proof.
 
-Tier inter-step sleep: keep the pre-0.6.0 60-second
-crates.io-index-propagation sleep between tiers. Without the sleep,
-later tiers race the index and fail dependency resolution.
+After each relevant publish tier, the workflow uses
+`scripts/release/wait-for-crate-version.sh` to wait for the exact registry
+version before dependent publication. Fixed sleeps are not registry proof.
 
 ## RC1 bootstrap publish (2026-05-18)
 
@@ -233,7 +233,9 @@ commit via its `Cargo.toml`.
 
 ## Post-publish smoke
 
-Slice 50 of 0.8.26 owns integrated **non-publishing** candidate verification.
+The live release plan owns integrated **non-publishing** candidate verification
+(0.8.28 Slice 95, after Slice 92 documentation convergence). The .26 Slice 50
+record is historical evidence, not current ownership.
 That pre-publication matrix must not be cited as registry or post-publish
 evidence. Publication and the registry-installed smoke below remain separately
 authorized release actions.

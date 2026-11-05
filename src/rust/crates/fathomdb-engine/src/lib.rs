@@ -64,6 +64,15 @@ mod dependency_trace;
 mod embed_dispatch;
 mod embedding;
 mod erasure;
+mod erasure_maintenance;
+mod erasure_queue;
+pub use erasure_maintenance::{
+    ErasureMaintenance, ErasureServiceState, MaintenanceError, PhysicalErasurePolicy,
+};
+pub use erasure_queue::{
+    CleanupResult, ErasureBlocker, ErasureLogicalState, ErasurePhase, ErasureStatus,
+    PhysicalErasureSelector, QueueResult, WithdrawResult,
+};
 mod errors;
 mod evidence;
 mod filter;
@@ -80,10 +89,18 @@ mod identity;
 mod index_projector;
 mod ingest;
 pub mod lifecycle;
+mod maintenance_admission;
 mod mean;
 mod open;
 mod operator;
 mod pagination;
+mod physical_erasure;
+mod physical_maintenance;
+mod physical_metrics;
+mod physical_reader_admission;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use test_hooks::arm_physical_erasure_hook_for_test;
 mod projection_commit;
 mod projection_generation;
 mod projection_rebuild;
@@ -98,6 +115,8 @@ pub use projection_runtime::{
     ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason,
     ProjectionStatusDenseReadiness,
 };
+#[cfg(feature = "test-hooks")]
+pub use projection_runtime::{ProjectionScanForTest, ProjectionScanPageForTest};
 mod projection_worker;
 mod provenance;
 mod provider;
@@ -132,6 +151,7 @@ pub use telemetry::CounterSnapshot;
 mod temporal;
 mod test_hooks;
 mod vector_equivalence;
+mod vector_spans;
 mod vector_storage;
 mod wal_attribution;
 mod wal_runtime;
@@ -192,7 +212,7 @@ pub use embedding::{
 pub use erasure::{ExciseRecordReport, ExciseReport};
 pub use errors::{
     CorruptionDetail, CorruptionKind, CorruptionLocator, EngineError, EngineOpenError, OpenStage,
-    RecoveryHint,
+    RecoveryHint, VectorVerificationFailure,
 };
 pub use evidence::{
     encode_resolved_graph_evidence_v1, EvidenceArmV1, EvidenceArtifactClassV1,
@@ -365,7 +385,8 @@ pub(crate) use test_hooks::PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT;
 pub use test_hooks::{
     arm_erasure_before_primary_lock_hook_for_test,
     arm_explanation_after_telemetry_lock_hook_for_test,
-    arm_explanation_before_telemetry_lock_hook_for_test,
+    arm_explanation_before_telemetry_lock_hook_for_test, arm_property_corpus_hook_for_test,
+    PropertyCorpusPauseForTest,
 };
 #[cfg(any(test, feature = "test-hooks"))]
 pub use test_hooks::{
@@ -375,7 +396,7 @@ pub use test_hooks::{
 };
 #[cfg(any(test, feature = "test-hooks"))]
 pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactionPauseForTest};
-use vector_equivalence::{run_vector_equivalence_probe, usable_dense_runtime};
+use vector_equivalence::run_vector_equivalence_probe;
 #[cfg(any(test, feature = "test-hooks", feature = "operator"))]
 use vector_storage::load_default_profile;
 use vector_storage::{
@@ -474,6 +495,8 @@ const PROJECTION_WORKERS: usize = 2;
 pub struct Engine {
     path: PathBuf,
     requested_config: EngineConfig,
+    physical_policy: PhysicalErasurePolicy,
+    explicit_debt: AtomicBool,
     /// The effective query stop words, shared with every reader worker.
     query_stop_words: Arc<fathomdb_query::StopWordSet>,
     #[allow(dead_code)]
@@ -496,8 +519,11 @@ pub struct Engine {
     erasure_before_primary_lock_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
     close_lock: Mutex<()>,
+    maintenance_admission: Arc<maintenance_admission::Admission>,
+    physical_service_gate: Arc<Mutex<()>>,
+    physical_maintenance: physical_maintenance::PhysicalMaintenance,
     lock: Mutex<Option<File>>,
-    connection: Mutex<Option<Connection>>,
+    connection: Arc<Mutex<Option<Connection>>>,
     reader_pool: ReaderWorkerPool,
     counters: lifecycle::Counters,
     subscribers: Arc<lifecycle::SubscriberRegistry>,
@@ -508,7 +534,7 @@ pub struct Engine {
     runtime_embedder: Option<Weak<dyn Embedder>>,
     embed_dispatch: Arc<EmbedDispatcher>,
     runtime_embedder_identity: EmbedderIdentity,
-    projection_runtime: ProjectionRuntime,
+    projection_runtime: Arc<ProjectionRuntime>,
     /// Slice 65 — private, opt-in owner attribution for WAL checkpoint
     /// investigations. It never enters the SDK surface or `EngineError`.
     wal_attribution: Arc<WalAttributionCollector>,
@@ -553,7 +579,7 @@ pub struct Engine {
     /// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry sink. `None` (default) = OFF.
     /// Local JSONL append; no network/egress. The OFF path never takes this lock —
     /// it is gated by `telemetry_enabled` (below).
-    telemetry: Mutex<Option<telemetry::TelemetrySink>>,
+    telemetry: Arc<Mutex<Option<telemetry::TelemetrySink>>>,
     /// 0.8.8 Slice 15 — fast OFF-path guard. `false` (default) → search does ZERO
     /// telemetry work: a single `Relaxed` atomic load, NO mutex acquisition (the
     /// §B.1 footprint / zero-cost gate, codex §9 P2). Set `true` by
@@ -562,21 +588,6 @@ pub struct Engine {
     telemetry_enabled: AtomicBool,
     explanation_open_nonce: u128,
     explanation_sequence: AtomicU64,
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4/6) — degraded-open
-    /// latch, re-derived at every open by the #5 self-check. `true` ⇒ every
-    /// vector-dependent arm refuses at the `search_inner_with_stats` choke point
-    /// with `EngineError::VectorEquivalenceMismatch`. Read lock-free on the query
-    /// hot path (a single `Relaxed`/`Acquire` load); the text-only/FTS-only path
-    /// never reads it.
-    dense_disabled: AtomicBool,
-    /// R-VEQ-6 — the human-readable reason attached to the query-time refusal (and
-    /// surfaced on `OpenReport.dense_disabled_reason`). Set once at open; read only
-    /// when `dense_disabled` is `true`.
-    dense_disabled_reason: Mutex<Option<String>>,
-    /// R-VEQ-6 — telemetry counter: number of query-time vector-dependent-arm
-    /// refusals raised because the engine opened in the `dense_disabled` state.
-    /// Observable pre/post-query via `vector_equivalence_refusal_count`.
-    vector_equivalence_refusals: AtomicU64,
     #[cfg(any(test, feature = "test-hooks"))]
     force_next_commit_failure: AtomicBool,
     #[cfg(any(test, feature = "test-hooks"))]
@@ -632,6 +643,9 @@ mod gpu_allocation_witness_opt_in_tests {
 }
 
 pub use lifecycle::Subscription;
+#[cfg(any(test, feature = "test-hooks", feature = "tc5-benchmark"))]
+#[doc(hidden)]
+pub use open::TestEmbedderChoice;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
 
 impl Engine {
@@ -649,7 +663,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn execute_for_test(&self, sql: &str) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let started = Instant::now();
         {
             let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -658,6 +672,34 @@ impl Engine {
         }
         self.detect_slow(started, lifecycle::EventCategory::Search);
         Ok(())
+    }
+
+    /// Run one test-only maintenance transaction on the Engine writer.
+    ///
+    /// The callback must not issue transaction-control SQL or reenter the Engine.
+    /// On success the transaction commits; on error it rolls back before releasing
+    /// the writer. Returns the callback value, mutex wait and lock occupancy through
+    /// transaction finalization. Storage errors map to `EngineError::Storage`;
+    /// a closing Engine returns `EngineError::Closing`. Callback panics unwind
+    /// through rollback and poison the writer mutex.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn maintenance_transaction_for_test<T>(
+        &self,
+        operation: impl FnOnce(&rusqlite::Transaction<'_>) -> rusqlite::Result<T>,
+    ) -> Result<(T, std::time::Duration, std::time::Duration), EngineError> {
+        let _operation = self.ensure_open()?;
+        let waiting = Instant::now();
+        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let wait = waiting.elapsed();
+        let acquired = Instant::now();
+        let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let transaction = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let value = operation(&transaction).map_err(|_| EngineError::Storage)?;
+        transaction.commit().map_err(|_| EngineError::Storage)?;
+        Ok((value, wait, acquired.elapsed()))
     }
 
     /// One-thread-poison robustness fixture (AC-009).
@@ -673,7 +715,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn run_one_thread_poison_for_test(&self) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
 
         // Forward-progress writer seeds a row so readers + the poison
         // thread share a non-trivial canonical state.
@@ -759,7 +801,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn query_i64_col_for_test(&self, sql: &str) -> Result<Vec<i64>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut stmt = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
@@ -775,7 +817,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn query_text_col_for_test(&self, sql: &str) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let mut stmt = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
@@ -784,14 +826,17 @@ impl Engine {
         rows.collect::<rusqlite::Result<Vec<String>>>().map_err(|_| EngineError::Storage)
     }
 
-    fn ensure_open(&self) -> Result<(), EngineError> {
+    fn ensure_open(&self) -> Result<maintenance_admission::Operation, EngineError> {
         if self.closed.load(Ordering::SeqCst) {
             return Err(EngineError::Closing);
         }
 
-        Ok(())
+        self.maintenance_admission.enter()
     }
 }
+
+#[cfg(test)]
+mod provider_admission_tests;
 
 #[cfg(test)]
 mod slice20_fix1_tests;
@@ -820,12 +865,11 @@ mod tests {
         acquire_lock_without_metadata_mutation, derive_stable_id,
         install_admission_locked_hook_for_test, native_connection_state_for_test,
         prepare_search_statement, resolve_source_type, retain_complete_rank_boundary_candidates,
-        DeviceResolution, EmbedderChoice, Engine, EngineConfig, EngineError, EngineOpenError,
-        IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
-        NativeTransactionState, PreparedWrite, ProjectionRuntime,
-        ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
-        SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
-        PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,
+        DeviceResolution, Engine, EngineConfig, EngineError, EngineOpenError, IdSpace, IdSpaceKind,
+        InitialState, LoaderInfo, ManagedConnectionRegistry, NativeTransactionState, PreparedWrite,
+        ProjectionRuntime, ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole,
+        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, TestEmbedderChoice,
+        WalAttributionCollector, WalAttributionRole, PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -864,24 +908,49 @@ mod tests {
         assert_eq!(sqlite_runtime_path(Path::new(&long)), Path::new(&long));
     }
 
+    #[test]
+    fn local_verbatim_path_needs_newer_sqlite_decides_by_version_alone() {
+        use super::connection_runtime::{
+            local_verbatim_path_needs_newer_sqlite, SQLITE_LOCAL_VERBATIM_WAL_FIX,
+        };
+
+        let local = r"\\?\C:\ci\NUL.txt";
+        assert_eq!(SQLITE_LOCAL_VERBATIM_WAL_FIX, 3_053_003);
+        assert!(local_verbatim_path_needs_newer_sqlite(local, false, 3_053_002));
+        assert!(!local_verbatim_path_needs_newer_sqlite(local, false, 3_053_003));
+        assert!(!local_verbatim_path_needs_newer_sqlite(local, false, 3_054_001));
+        assert!(!local_verbatim_path_needs_newer_sqlite(local, true, 3_053_002));
+        for remote in [r"\\server\share\db.sqlite", r"\\?\UNC\server\share\db.sqlite"] {
+            assert!(!local_verbatim_path_needs_newer_sqlite(remote, false, 3_053_002));
+        }
+    }
+
     #[cfg(windows)]
     #[test]
     fn unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths() {
-        use super::connection_runtime::sqlite_local_verbatim_path_requires_patched_vfs;
+        use super::connection_runtime::{
+            local_verbatim_path_needs_newer_sqlite, sqlite_runtime_path,
+        };
 
         let short = Path::new(r"\\?\C:\ci\safe\db.sqlite");
         let reserved = Path::new(r"\\?\C:\ci\NUL.txt");
         let trailing_dot = Path::new(r"\\?\C:\ci\trailing.");
         let long = format!(r"\\?\C:\{}\db.sqlite", "segment1234\\".repeat(27));
         let unc = Path::new(r"\\server\share\db.sqlite");
+        let needs_newer = |path: &Path, version| {
+            local_verbatim_path_needs_newer_sqlite(
+                &path.to_string_lossy(),
+                sqlite_runtime_path(path) != path,
+                version,
+            )
+        };
 
-        assert!(!sqlite_local_verbatim_path_requires_patched_vfs(short, 3_053_002, false));
+        assert!(!needs_newer(short, 3_053_002));
         for path in [reserved, trailing_dot, Path::new(&long)] {
-            assert!(sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_002, false));
-            assert!(!sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_002, true));
-            assert!(!sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_003, false));
+            assert!(needs_newer(path, 3_053_002));
+            assert!(!needs_newer(path, 3_053_003));
         }
-        assert!(!sqlite_local_verbatim_path_requires_patched_vfs(unc, 3_053_002, false));
+        assert!(!needs_newer(unc, 3_053_002));
     }
 
     #[cfg(windows)]
@@ -923,11 +992,11 @@ mod tests {
     #[test]
     fn local_canonical_path_does_not_strand_idle_wal_readers() {
         crate::configure_runtime_for_open().unwrap();
-        if !super::connection_runtime::sqlite_local_verbatim_vfs_is_patched()
-            && rusqlite::version_number() < 3_053_003
-        {
-            return;
-        }
+        assert!(
+            rusqlite::version_number() >= super::connection_runtime::SQLITE_LOCAL_VERBATIM_WAL_FIX,
+            "linked SQLite {} predates the local verbatim-path WAL fix",
+            rusqlite::version()
+        );
         for database in 0..3 {
             let dir = TempDir::new().expect("tempdir");
             let path = canonical_database_path(&dir.path().join(format!("wal-{database}.sqlite")))
@@ -1085,8 +1154,8 @@ mod tests {
         assert!(!older_installed_schema, "the losing older opener must not install schema 33");
         let opened = current.join().expect("current opener thread").expect("current open");
         assert_eq!(opened.report.schema_version_before, 0);
-        assert_eq!(opened.report.schema_version_after, 34);
-        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(34));
+        assert_eq!(opened.report.schema_version_after, 36);
+        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(36));
         opened.engine.close().expect("close current engine");
     }
 
@@ -1364,9 +1433,9 @@ mod tests {
             selected_cuda_uuid: None,
             reason: Some(DeviceResolutionReason::CudaProbeFailed),
         };
-        let opened = Engine::open_with_choice(
+        let opened = Engine::open_with_test_choice_for_test(
             dir.path().join("caller-device-resolution.sqlite"),
-            EmbedderChoice::CallerWithDeviceResolution {
+            TestEmbedderChoice::CallerWithDeviceResolution {
                 embedder: Arc::new(NoopEmbedder::default()),
                 device_resolution: resolution.clone(),
             },
@@ -1417,9 +1486,9 @@ mod tests {
         let dir = TempDir::new().expect("temp dir");
         for count in [1_u64, 2, 4, 64] {
             let path = dir.path().join(format!("projection-{count}.sqlite"));
-            let opened = Engine::open_with_choice_and_config(
+            let opened = Engine::open_with_test_choice_and_config_for_test(
                 path,
-                EmbedderChoice::None,
+                TestEmbedderChoice::None,
                 EngineConfig { scheduler_runtime_threads: Some(count), ..EngineConfig::default() },
             )
             .expect("configured open");
@@ -1501,9 +1570,9 @@ mod tests {
             entered: AtomicBool::new(false),
             cvar: Condvar::new(),
         });
-        let opened = Engine::open_with_choice_and_config(
+        let opened = Engine::open_with_test_choice_and_config_for_test(
             dir.path().join("projection-admission.sqlite"),
-            EmbedderChoice::Caller(Arc::new(ProjectionAdmissionEmbedder(Arc::clone(&gate)))),
+            TestEmbedderChoice::Caller(Arc::new(ProjectionAdmissionEmbedder(Arc::clone(&gate)))),
             EngineConfig { scheduler_runtime_threads: Some(1), ..EngineConfig::default() },
         )
         .expect("configured open");
@@ -1648,9 +1717,9 @@ mod tests {
     fn configured_projection_workers_are_isolated_between_open_engines() {
         let dir = TempDir::new().expect("temp dir");
         let open = |name, count| {
-            Engine::open_with_choice_and_config(
+            Engine::open_with_test_choice_and_config_for_test(
                 dir.path().join(name),
-                EmbedderChoice::None,
+                TestEmbedderChoice::None,
                 EngineConfig { scheduler_runtime_threads: Some(count), ..EngineConfig::default() },
             )
             .expect("configured engine")

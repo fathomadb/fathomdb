@@ -15,8 +15,6 @@ pub enum EmbeddingReadinessState {
     Ready,
     /// A usable embedder is processing eligible work.
     Processing,
-    /// Work exists but the session is unavailable for a non-configuration reason.
-    Deferred,
     /// Work exists and this session has no configured embedder.
     Blocked,
 }
@@ -28,7 +26,6 @@ impl EmbeddingReadinessState {
         match self {
             Self::Ready => "ready",
             Self::Processing => "processing",
-            Self::Deferred => "deferred",
             Self::Blocked => "blocked",
         }
     }
@@ -72,7 +69,7 @@ pub struct EmbedderRequired {
 /// A Rust-owned, pure current report for embedding readiness.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmbeddingReadiness {
-    /// `ready`, `processing`, `deferred`, or `blocked`.
+    /// `ready`, `processing`, or `blocked`.
     pub state: EmbeddingReadinessState,
     /// Whether this session can use its dense runtime now.
     pub usable_embedder: bool,
@@ -156,7 +153,9 @@ pub(crate) fn dispatch_embed_vector(
 ) -> Result<Vec<f32>, DispatchError> {
     match dispatcher.submit_text(text.to_owned())?.wait()? {
         EmbedOutput::One(vector) => Ok(vector),
-        EmbedOutput::Batch(_) => unreachable!("single embed request returned a batch"),
+        EmbedOutput::Batch(_) | EmbedOutput::Projection(_) => {
+            unreachable!("single embed request returned another output kind")
+        }
     }
 }
 
@@ -184,7 +183,7 @@ pub(crate) fn query_vector_or_degradation(
 
 impl Engine {
     pub(crate) fn usable_dense_runtime(&self) -> bool {
-        self.runtime_embedder.is_some() && !self.dense_disabled.load(Ordering::Acquire)
+        self.runtime_embedder.is_some()
     }
 
     /// 0.7.2 PR-2b — NON-test observation seam. Drains and returns every
@@ -195,7 +194,7 @@ impl Engine {
     /// recompute never surfaces. Mirrors the at-open
     /// `OpenReport.embedder_events` channel for the steady-state path.
     pub fn drain_embedder_events(&self) -> Result<Vec<EmbedderEvent>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut events = self
             .projection_runtime
             .shared
@@ -222,7 +221,7 @@ impl Engine {
     /// ([`EngineError::CudaPoolExhausted`], [`EngineError::CudaContextLost`],
     /// [`EngineError::CudaPrivateBuildRefused`]).
     pub fn embed_text(&self, text: &str) -> Result<Vec<f32>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         dispatch_embed_vector(&self.embed_dispatch, text).map_err(|error| match error {
             DispatchError::NotConfigured => EngineError::EmbedderNotConfigured,
             DispatchError::Saturated | DispatchError::QueuedExpired => EngineError::Overloaded,
@@ -242,7 +241,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn drain_mean_centering_events_for_test(&self) -> Result<Vec<EmbedderEvent>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut events = self
             .projection_runtime
             .shared

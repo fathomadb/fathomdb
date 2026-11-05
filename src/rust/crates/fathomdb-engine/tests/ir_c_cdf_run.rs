@@ -173,7 +173,7 @@ mod cdf_runner_impl {
     use corpus_subset::{load_subset_or_skip, Doc, VECTOR_KIND};
     use fathomdb_embedder::CandleBgeEmbedder;
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-    use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite};
+    use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice};
     use ir_eval::{load_gold_set, required_doc_ids, validate_gold_set, QueryClass};
     use ir_retrieval::{compile_content_or, fts_bodies, map_bodies};
     use rusqlite::{Connection, OpenFlags};
@@ -352,9 +352,9 @@ mod cdf_runner_impl {
         ));
         let dir = tempfile::TempDir::new().expect("tempdir");
         let db_path = dir.path().join("ir_c_cdf.sqlite");
-        let opened = Engine::open_with_choice(
+        let opened = Engine::open_with_test_choice_for_test(
             &db_path,
-            EmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
+            TestEmbedderChoice::Caller(embedder.clone() as Arc<dyn Embedder>),
         )
         .expect("open engine with real bge embedder");
         assert_eq!(

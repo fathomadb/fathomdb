@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    EmbedderChoice, Engine, EngineConfig, EngineError, InitialState, PreparedWrite, SourceId,
+    Engine, EngineConfig, EngineError, InitialState, PreparedWrite, SourceId, TestEmbedderChoice,
 };
 use tempfile::TempDir;
 
@@ -191,9 +191,9 @@ fn default_engine_has_exact_five_worker_resources_and_twenty_waiting_slots() {
     let path = dir.path().join("default-2-5.sqlite");
     let baseline = engine_threads();
     let (embedder, entered) = provider();
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
         EngineConfig::default(),
     )
     .expect("default real-engine open");
@@ -257,9 +257,9 @@ fn explicit_two_one_engine_has_exact_managed_roles_and_cleanup() {
         embedder_pool_size: Some(1),
         ..EngineConfig::default()
     };
-    let opened = Engine::open_with_choice_and_config(
+    let opened = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder.clone()),
+        TestEmbedderChoice::Caller(embedder.clone()),
         config.clone(),
     )
     .expect("2/1 real-engine open");
@@ -282,9 +282,12 @@ fn explicit_two_one_engine_has_exact_managed_roles_and_cleanup() {
     await_threads(&baseline);
     await_database_descriptors(&path, 0);
     drop(engine);
-    let reopened =
-        Engine::open_with_choice_and_config(&path, EmbedderChoice::Caller(embedder), config)
-            .expect("2/1 reopen");
+    let reopened = Engine::open_with_test_choice_and_config_for_test(
+        &path,
+        TestEmbedderChoice::Caller(embedder),
+        config,
+    )
+    .expect("2/1 reopen");
     await_threads(&expected_threads(&baseline, 2, 1));
     assert_live_connections(&reopened.engine, 2);
     reopened.engine.close().expect("2/1 reopen close");
@@ -305,9 +308,9 @@ fn configured_engine_matrix_has_exact_live_resources_and_reopen_cleanup() {
             ..EngineConfig::default()
         };
         let (embedder, entered) = provider();
-        let opened = Engine::open_with_choice_and_config(
+        let opened = Engine::open_with_test_choice_and_config_for_test(
             &path,
-            EmbedderChoice::Caller(embedder.clone()),
+            TestEmbedderChoice::Caller(embedder.clone()),
             config.clone(),
         )
         .expect("configured real-engine open");
@@ -365,9 +368,12 @@ fn configured_engine_matrix_has_exact_live_resources_and_reopen_cleanup() {
         await_threads(&baseline);
         await_database_descriptors(&path, 0);
         drop(engine);
-        let reopened =
-            Engine::open_with_choice_and_config(&path, EmbedderChoice::Caller(embedder), config)
-                .expect("configured reopen");
+        let reopened = Engine::open_with_test_choice_and_config_for_test(
+            &path,
+            TestEmbedderChoice::Caller(embedder),
+            config,
+        )
+        .expect("configured reopen");
         await_threads(&expected_threads(&baseline, scheduler as usize, pool as usize));
         assert_live_connections(&reopened.engine, scheduler);
         reopened.engine.close().expect("reopen close");
@@ -388,9 +394,12 @@ fn no_provider_allocates_no_embed_workers_and_reopens_cleanly() {
         ..EngineConfig::default()
     };
     for _ in 0..2 {
-        let opened =
-            Engine::open_with_choice_and_config(&path, EmbedderChoice::None, config.clone())
-                .expect("no-provider open");
+        let opened = Engine::open_with_test_choice_and_config_for_test(
+            &path,
+            TestEmbedderChoice::None,
+            config.clone(),
+        )
+        .expect("no-provider open");
         await_threads(&expected_threads(&baseline, 2, 0));
         assert_live_connections(&opened.engine, 2);
         await_database_descriptors(&path, 1 + 8 + 1 + 2);

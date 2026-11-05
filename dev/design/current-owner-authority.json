@@ -53,10 +53,46 @@
       ]
     },
     {
+      "path": "dev/design/explicit-maintenance-erasure/contract.md",
+      "profile": "current",
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.28-explicit-erasure-maintenance.md"
+      ],
+      "implementation_witness": [
+        "src/rust/crates/fathomdb-engine/src/erasure_maintenance.rs",
+        "src/rust/crates/fathomdb-engine/src/erasure_queue.rs"
+      ],
+      "evidence_only": [
+        "dev/notes/erasure-optimization-sequence-findings.md"
+      ]
+    },
+    {
+      "path": "dev/design/explicit-maintenance-erasure/production-design.md",
+      "profile": "current",
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.28-explicit-erasure-maintenance.md",
+        "dev/design/explicit-maintenance-erasure/contract.md"
+      ],
+      "implementation_witness": [
+        "src/rust/crates/fathomdb-engine/src/erasure_queue.rs",
+        "src/rust/crates/fathomdb-engine/tests/slice85_physical.rs"
+      ],
+      "evidence_only": [
+        "dev/notes/erasure-optimization-sequence-findings.md"
+      ]
+    },
+    {
       "path": "dev/design/fathomdb-data-plane-architecture-v2.md",
       "profile": "current",
-      "semantic_authority": ["dev/requirements.md"],
-      "implementation_witness": ["scripts/check-architecture-authority.py"],
+      "semantic_authority": [
+        "dev/interfaces/rust.md",
+        "dev/requirements.md"
+      ],
+      "implementation_witness": [
+        "scripts/check-architecture-authority.py",
+        "src/rust/crates/fathomdb-engine/src/open.rs",
+        "src/rust/crates/fathomdb-schema/src/lib.rs"
+      ],
       "evidence_only": []
     },
     {
@@ -111,8 +147,12 @@
     {
       "path": "dev/design/perf-regression-detection.md",
       "profile": "current",
-      "semantic_authority": ["dev/adr/ADR-0.6.0-retrieval-latency-gates.md"],
-      "implementation_witness": ["scripts/perf-experiments/aggregate.py"],
+      "semantic_authority": [
+        "dev/adr/ADR-0.6.0-retrieval-latency-gates.md"
+      ],
+      "implementation_witness": [
+        "src/rust/crates/fathomdb-cli/src/bin/perf-regression-check.rs"
+      ],
       "evidence_only": []
     },
     {

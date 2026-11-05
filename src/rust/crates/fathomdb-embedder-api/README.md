@@ -3,8 +3,10 @@
 The embedder contract for **FathomDB**, a local-first embedded retrieval engine built on SQLite.
 
 This crate is the seam between FathomDB and whatever produces your vectors. It contains a trait, an
-identity struct, an error enum and a type alias — nothing else, and no dependencies. Implement
-`Embedder` here and the engine can use your model without knowing anything about it.
+identity struct, a non-exhaustive error enum and a vector alias. It supports
+standalone implementations, tests and evaluation. Production engine admission
+before 1.x accepts only the pinned built-in provider or none; implementing the
+trait does not enable caller injection.
 
 ## Its own version axis
 
@@ -18,28 +20,24 @@ surface is small and intended to be stable, but it has not yet been declared fro
 
 ## The surface
 
+The trait's central methods are shown below; use generated rustdoc for the full
+error enum (including typed CUDA failures) and provided implementations.
+
 ```rust
-pub type Vector = Vec<f32>;
-
-pub struct EmbedderIdentity {
-    pub name: String,
-    pub revision: String,
-    pub dimension: u32,
-}
-
-pub enum EmbedderError {
-    Failed { message: String },
-    Timeout,
-}
+use fathomdb_embedder_api::{EmbedderError, EmbedderIdentity, Vector};
 
 pub trait Embedder: Send + Sync {
     fn identity(&self) -> EmbedderIdentity;
     fn embed(&self, input: &str) -> Result<Vector, EmbedderError>;
-
-    // Default implementation loops `embed`.
+    fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError>;
     fn embed_batch(&self, inputs: &[&str]) -> Result<Vec<Vector>, EmbedderError>;
 }
 ```
+
+`truncation_offset` has a default `Ok(None)` implementation. A known offset is
+the exclusive UTF-8 byte end represented by the head embedding, bounded by the
+input and on a code-point boundary; it uses the same tokenizer/truncation policy,
+without inference or configuration mutation. Unknown is not full coverage.
 
 Two contracts are worth stating out loud:
 

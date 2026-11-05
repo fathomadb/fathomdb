@@ -246,11 +246,6 @@ fn run_dataset(dataset_id: &str) {
     let database = directory.join("fathom-benchmark.sqlite");
     let opened =
         Engine::open_with_embedder_for_test(&database, embedder).expect("open benchmark database");
-    assert!(
-        !opened.report.dense_disabled,
-        "benchmark database cannot serve dense retrieval: {:?}",
-        opened.report.dense_disabled_reason
-    );
     let engine = &opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("configure vector kind");
 
@@ -452,11 +447,6 @@ fn run_tiny_fixture() {
     drop(opened);
     let reopened = Engine::open_with_embedder_for_test(&database, make_embedder())
         .expect("reopen populated real Engine for tiny fixture");
-    assert!(
-        !reopened.report.dense_disabled,
-        "reopening a benchmark corpus must preserve dense retrieval: {:?}",
-        reopened.report.dense_disabled_reason
-    );
     reopened.engine.set_vector_stage_only_for_test(true);
     let after_restart = reopened
         .engine
@@ -468,7 +458,6 @@ fn run_tiny_fixture() {
     drop(reopened);
     let verified = Engine::open_with_embedder_for_test(&database, make_embedder())
         .expect("reopen benchmark after probe baseline was established");
-    assert!(!verified.report.dense_disabled, "same-identity probe baseline must verify");
     verified.engine.set_vector_stage_only_for_test(true);
     let after_verification = verified
         .engine

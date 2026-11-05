@@ -2,7 +2,9 @@
 //! successful, incomplete search result.
 
 use fathomdb_embedder::NoopEmbedder;
-use fathomdb_engine::{EmbedderChoice, Engine, EngineError, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{
+    Engine, EngineError, InitialState, PreparedWrite, SourceId, TestEmbedderChoice,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -24,9 +26,11 @@ fn node(id: &str) -> PreparedWrite {
 fn malformed_edge_fts_kind_must_not_silently_remove_a_committed_hit() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("logic-probe{SQLITE_SUFFIX}"));
-    let opened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .unwrap();
+    let opened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .unwrap();
     let receipt = opened
         .engine
         .write(&[
@@ -74,10 +78,12 @@ fn malformed_edge_fts_kind_must_not_silently_remove_a_committed_hit() {
         .unwrap();
     assert_eq!(physical, ("blob".to_owned(), 1), "the FTS row must still match the query");
     drop(connection);
-    let reopened =
-        Engine::open_with_choice(&path, EmbedderChoice::Caller(Arc::new(NoopEmbedder::default())))
-            .unwrap()
-            .engine;
+    let reopened = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(NoopEmbedder::default())),
+    )
+    .unwrap()
+    .engine;
     let observed = reopened.search_text_only("slice135uniqueedgefact");
     assert!(
         matches!(observed, Err(EngineError::Storage)),

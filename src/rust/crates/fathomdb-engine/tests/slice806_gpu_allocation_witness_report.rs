@@ -8,11 +8,15 @@
 //! a witness. A zero-valued struct must never be reachable — that would make a
 //! zero allocation delta representable as success, which R80-12 forbids.
 
+#[cfg(feature = "test-hooks")]
 use fathomdb_embedder::{
     CudaDeviceInfo, DeviceResolution, DeviceResolutionReason, EffectiveEmbedDevice,
     EmbedDevicePolicy, NoopEmbedder,
 };
-use fathomdb_engine::{EmbedderChoice, Engine};
+use fathomdb_engine::Engine;
+#[cfg(feature = "test-hooks")]
+use fathomdb_engine::TestEmbedderChoice;
+#[cfg(feature = "test-hooks")]
 use std::sync::Arc;
 use tempfile::tempdir;
 
@@ -28,6 +32,7 @@ fn a_plain_open_reports_no_gpu_allocation_witness() {
 }
 
 #[test]
+#[cfg(feature = "test-hooks")]
 fn a_caller_supplied_cuda_resolution_still_reports_no_witness() {
     // The strongest form of the absence rule: a report that *does* carry a
     // CUDA `DeviceResolution` must still carry no witness. Device selection is
@@ -50,9 +55,9 @@ fn a_caller_supplied_cuda_resolution_still_reports_no_witness() {
     };
 
     let directory = tempdir().expect("temporary database directory");
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         directory.path().join("caller-cuda.sqlite"),
-        EmbedderChoice::CallerWithDeviceResolution {
+        TestEmbedderChoice::CallerWithDeviceResolution {
             embedder: Arc::new(NoopEmbedder::default()),
             device_resolution: resolution.clone(),
         },
@@ -67,6 +72,7 @@ fn a_caller_supplied_cuda_resolution_still_reports_no_witness() {
 }
 
 #[test]
+#[cfg(feature = "test-hooks")]
 fn a_cpu_resolution_reports_no_witness() {
     let resolution = DeviceResolution {
         requested_policy: EmbedDevicePolicy::Auto,
@@ -78,9 +84,9 @@ fn a_cpu_resolution_reports_no_witness() {
     };
 
     let directory = tempdir().expect("temporary database directory");
-    let opened = Engine::open_with_choice(
+    let opened = Engine::open_with_test_choice_for_test(
         directory.path().join("caller-cpu.sqlite"),
-        EmbedderChoice::CallerWithDeviceResolution {
+        TestEmbedderChoice::CallerWithDeviceResolution {
             embedder: Arc::new(NoopEmbedder::default()),
             device_resolution: resolution,
         },
@@ -123,7 +129,7 @@ fn an_opted_in_witness_that_cannot_be_produced_fails_the_open() {
     let directory = tempdir().expect("temporary database directory");
     let result = Engine::open_with_choice(
         directory.path().join("requested-witness.sqlite"),
-        EmbedderChoice::Default,
+        fathomdb_engine::EmbedderChoice::Default,
     );
 
     // SAFETY: paired with the serialized mutation above.

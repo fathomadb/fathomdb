@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use std::sync::atomic::Ordering;
 
 use crate::embedding::embedder_required_for;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
@@ -91,7 +90,6 @@ pub enum ProjectionReadinessV1 {
     Ready,
     Processing,
     Blocked,
-    Deferred,
     Degraded,
 }
 
@@ -103,7 +101,6 @@ impl ProjectionReadinessV1 {
             Self::Ready => "ready",
             Self::Processing => "processing",
             Self::Blocked => "blocked",
-            Self::Deferred => "deferred",
             Self::Degraded => "degraded",
         }
     }
@@ -114,7 +111,6 @@ impl ProjectionReadinessV1 {
 pub enum ProjectionRuntimeStateV1 {
     Absent,
     Usable,
-    Refused,
 }
 
 impl ProjectionRuntimeStateV1 {
@@ -124,7 +120,6 @@ impl ProjectionRuntimeStateV1 {
         match self {
             Self::Absent => "absent",
             Self::Usable => "usable",
-            Self::Refused => "refused",
         }
     }
 }
@@ -363,7 +358,7 @@ fn authoritative_boundary(connection: &Connection) -> Result<u64, EngineError> {
     Ok(boundary.max(reserved).max(closure_boundary))
 }
 
-fn bootstrap_is_fresh(connection: &Connection) -> Result<bool, EngineError> {
+fn bootstrap_is_fresh(connection: &Connection, schema_version: u32) -> Result<bool, EngineError> {
     for table in [
         "canonical_nodes",
         "canonical_edges",
@@ -382,6 +377,7 @@ fn bootstrap_is_fresh(connection: &Connection) -> Result<bool, EngineError> {
         "_fathomdb_projection_terminal",
         "_fathomdb_vector_kinds",
         "_fathomdb_vector_rows",
+        "_fathomdb_vector_spans",
         "_fathomdb_embed_probe",
         "search_index",
         "search_index_v2",
@@ -389,9 +385,16 @@ fn bootstrap_is_fresh(connection: &Connection) -> Result<bool, EngineError> {
         "property_search_index",
         "vector_default",
     ] {
+        if table == "_fathomdb_vector_spans" && schema_version < 35 {
+            continue;
+        }
         if count(connection, table)? != 0 {
             return Ok(false);
         }
+    }
+
+    if schema_version >= 36 && count(connection, "_fathomdb_erasure_requests")? != 0 {
+        return Ok(false);
     }
 
     let seeded_collection_is_exact: bool = connection
@@ -429,6 +432,12 @@ fn bootstrap_is_fresh(connection: &Connection) -> Result<bool, EngineError> {
     for row in rows {
         let (key, value) = row.map_err(|_| EngineError::Storage)?;
         let baseline = match key.as_str() {
+            "_fathomdb_physical_erasure_policy" if schema_version >= 36 => {
+                matches!(value.as_str(), "autonomous" | "explicit_maintenance")
+            }
+            "_fathomdb_erasure_store" if schema_version >= 36 => {
+                value.len() == 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }
             "_fathomdb_database_id" => {
                 value.len() == 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
             }
@@ -622,7 +631,7 @@ pub(crate) fn bootstrap(
     let generation_rows = count(connection, "_fathomdb_projection_generations")?;
     let current_rows = count(connection, "_fathomdb_projection_generation_current")?;
     if generation_rows == 0 && current_rows == 0 {
-        let fresh = bootstrap_is_fresh(connection)?;
+        let fresh = bootstrap_is_fresh(connection, schema_version)?;
         if !fresh && !allow_populated_legacy_bootstrap {
             return Err(corruption());
         }
@@ -739,13 +748,14 @@ pub(crate) fn current_generation(connection: &Connection) -> Result<GenerationRo
     Ok(GenerationRow { id, digest, boundary, origin })
 }
 
-fn member_completion(
+pub(crate) fn member_completion(
     connection: &Connection,
     cursor: u64,
     expected_kind: &str,
     is_edge: bool,
     runtime_state: ProjectionRuntimeStateV1,
 ) -> Result<Completion, EngineError> {
+    crate::vector_spans::validate(connection, Some(cursor))?;
     let terminal: Option<String> = connection
         .query_row(
             "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
@@ -949,11 +959,10 @@ pub(crate) fn dense_member_kind_at(
         .query_row([cursor], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let Some((body, superseded_at, t_invalid)) = edge else {
+    let Some((body, _superseded_at, t_invalid)) = edge else {
         return Ok(None);
     };
     if body.is_none()
-        || superseded_at.is_some()
         || t_invalid.is_some_and(|end| end <= effective_at)
         || !super::dependency_closure::projection_owner_is_eligible_at(
             connection,
@@ -1054,7 +1063,7 @@ fn unregistered_edge_completion_sql() -> &'static str {
         LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=e.write_cursor
         LEFT JOIN vector_default vd ON vd.rowid=e.write_cursor
         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind='edge_fact'
-        WHERE e.body IS NOT NULL AND e.superseded_at IS NULL
+        WHERE e.body IS NOT NULL
           AND (e.t_invalid IS NULL OR e.t_invalid>?1)
           AND NOT EXISTS(
             SELECT 1 FROM _fathomdb_artifact_revisions r
@@ -1165,7 +1174,7 @@ fn empty_physical_fast_path(
     let (edge_count, first_edge): (u64, Option<u64>) = connection
         .query_row(
             "SELECT COUNT(*),MIN(write_cursor) FROM canonical_edges
-             WHERE body IS NOT NULL AND superseded_at IS NULL
+             WHERE body IS NOT NULL
                AND (t_invalid IS NULL OR t_invalid>?1)",
             [effective_at],
             |row| Ok((row.get(0)?, row.get(1)?)),
@@ -1298,6 +1307,7 @@ fn physical_completion(
     runtime_state: ProjectionRuntimeStateV1,
     observed_boundary: u64,
 ) -> Result<CompletionSummary, EngineError> {
+    crate::vector_spans::validate(connection, None)?;
     validate_registered_provenance_integrity(connection)?;
     let cross_owner_cursor: bool = connection
         .query_row(
@@ -1382,7 +1392,7 @@ pub(crate) fn status_in_snapshot(
     } else {
         match runtime_state {
             ProjectionRuntimeStateV1::Absent => ProjectionReadinessV1::Blocked,
-            ProjectionRuntimeStateV1::Refused => ProjectionReadinessV1::Deferred,
+
             ProjectionRuntimeStateV1::Usable => ProjectionReadinessV1::Processing,
         }
     };
@@ -1410,7 +1420,7 @@ pub(crate) fn next_status_membership_boundary(
         .query_row(
             "WITH boundaries(boundary) AS (\
                SELECT t_invalid FROM canonical_edges \
-               WHERE body IS NOT NULL AND superseded_at IS NULL \
+               WHERE body IS NOT NULL \
                  AND t_invalid>?1 \
                UNION ALL \
                SELECT source_node.valid_from \
@@ -1492,7 +1502,7 @@ impl Engine {
         &self,
         effective_at_epoch_s: i64,
     ) -> Result<ProjectionGenerationStatusV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -1500,8 +1510,6 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let runtime_state = if self.runtime_embedder.is_none() {
             ProjectionRuntimeStateV1::Absent
-        } else if self.dense_disabled.load(std::sync::atomic::Ordering::SeqCst) {
-            ProjectionRuntimeStateV1::Refused
         } else {
             ProjectionRuntimeStateV1::Usable
         };
@@ -1554,7 +1562,7 @@ impl Engine {
             )
             .into());
         }
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -1562,8 +1570,6 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let runtime_state = if self.runtime_embedder.is_none() {
             ProjectionRuntimeStateV1::Absent
-        } else if self.dense_disabled.load(std::sync::atomic::Ordering::SeqCst) {
-            ProjectionRuntimeStateV1::Refused
         } else {
             ProjectionRuntimeStateV1::Usable
         };
@@ -1665,7 +1671,7 @@ impl Engine {
             Completion::Pending => {
                 let readiness = match runtime_state {
                     ProjectionRuntimeStateV1::Absent => ProjectionReadinessV1::Blocked,
-                    ProjectionRuntimeStateV1::Refused => ProjectionReadinessV1::Deferred,
+
                     ProjectionRuntimeStateV1::Usable => ProjectionReadinessV1::Processing,
                 };
                 (readiness, true, false)
@@ -1780,12 +1786,10 @@ impl Engine {
     /// because the effective-arm predicate is the engine's
     /// `StoredProjection::wants_vector` predicate.
     pub fn read_projection_status(&self) -> Result<ProjectionRuntimeStatus, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let runtime_embedder_available = self.usable_dense_runtime();
         let runtime_unavailability_reason = if runtime_embedder_available {
             ProjectionRuntimeUnavailabilityReason::None
-        } else if self.dense_disabled.load(Ordering::Acquire) {
-            ProjectionRuntimeUnavailabilityReason::VectorEquivalenceDisabled
         } else {
             ProjectionRuntimeUnavailabilityReason::NoRuntime
         };
@@ -1835,17 +1839,14 @@ impl Engine {
     /// work. A `Blocked` report carries the exact payload that [`Self::drain`]
     /// returns immediately as [`EngineError::EmbedderRequired`].
     pub fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let pending = pending_embedding_work(connection).map_err(|_| EngineError::Storage)?;
         let pending_count = pending.iter().map(|(_, count)| *count).sum();
         let affected_kinds: Vec<String> = pending.iter().map(|(kind, _)| kind.clone()).collect();
         let usable_embedder = self.usable_dense_runtime();
-        // The scheduler intentionally drops a runtime that equivalence refused,
-        // but it remains attached to this Engine. Only an actually absent
-        // configuration is the typed caller-remediable outcome; a refused or
-        // failed live runtime remains an operational deferred condition.
+        // Returned engines have either an admitted provider or explicit None.
         let blocked = if !pending.is_empty() && self.runtime_embedder.is_none() {
             Some(embedder_required_for(&affected_kinds))
         } else {
@@ -1855,10 +1856,8 @@ impl Engine {
             EmbeddingReadinessState::Blocked
         } else if pending.is_empty() {
             EmbeddingReadinessState::Ready
-        } else if usable_embedder {
-            EmbeddingReadinessState::Processing
         } else {
-            EmbeddingReadinessState::Deferred
+            EmbeddingReadinessState::Processing
         };
         Ok(EmbeddingReadiness { state, usable_embedder, pending_count, affected_kinds, blocked })
     }
@@ -1874,7 +1873,7 @@ impl Engine {
     pub fn transition_projection_generation_for_test(
         &self,
     ) -> Result<ProjectionGenerationId, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -1893,7 +1892,8 @@ impl Engine {
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn projection_generation_status_full_owner_scan_count_for_test(&self) -> u64 {
-        self.projection_generation_status_full_owner_scan_count.load(Ordering::Relaxed)
+        self.projection_generation_status_full_owner_scan_count
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Return `EXPLAIN QUERY PLAN` details for the production status queries.
@@ -1902,7 +1902,7 @@ impl Engine {
     pub fn projection_generation_status_query_plans_for_test(
         &self,
     ) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_ref().ok_or(EngineError::Closing)?;
         status_query_plans_for_test(connection)
@@ -1949,11 +1949,7 @@ mod tests {
         let sidecars = [None, Some(("doc", true)), Some(("doc", false)), Some(("wrong", true))];
         let physicals =
             [None, Some(("article", "doc")), Some(("wrong", "doc")), Some(("article", "wrong"))];
-        let runtimes = [
-            ProjectionRuntimeStateV1::Absent,
-            ProjectionRuntimeStateV1::Usable,
-            ProjectionRuntimeStateV1::Refused,
-        ];
+        let runtimes = [ProjectionRuntimeStateV1::Absent, ProjectionRuntimeStateV1::Usable];
 
         for terminal in terminals {
             for sidecar in sidecars {

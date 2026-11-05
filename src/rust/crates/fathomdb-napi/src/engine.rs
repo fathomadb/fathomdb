@@ -57,6 +57,74 @@ impl Engine {
         })
     }
 
+    /// Queue immutable intent without changing read visibility.
+    #[napi]
+    pub async fn queue_physical_erasure(
+        &self,
+        selector: JsonValue,
+        key: String,
+    ) -> Result<JsonValue> {
+        let selector = serde_json::from_value(selector)
+            .map_err(|_| engine_error_to_napi(RustEngineError::WriteValidation))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.queue_physical_erasure(selector, &key)).await?;
+        serde_json::to_value(result).map_err(|_| engine_error_to_napi(RustEngineError::Storage))
+    }
+
+    /// Read one store-bound ticket without disclosing a selector.
+    #[napi]
+    pub async fn physical_erasure_status(&self, ticket: String) -> Result<JsonValue> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.physical_erasure_status(&ticket)).await?;
+        serde_json::to_value(result).map_err(|_| engine_error_to_napi(RustEngineError::Storage))
+    }
+
+    /// Withdraw queued intent only; never cancels activated debt.
+    #[napi]
+    pub async fn withdraw_queued_erasure(&self, ticket: String) -> Result<String> {
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.withdraw_queued_erasure(&ticket)).await?;
+        let encoded = serde_json::to_value(result)
+            .map_err(|_| engine_error_to_napi(RustEngineError::Storage))?;
+        Ok(encoded.as_str().ok_or_else(|| engine_error_to_napi(RustEngineError::Storage))?.into())
+    }
+
+    /// Return persisted scheduling honored by this open incarnation.
+    #[napi]
+    pub fn physical_erasure_policy(&self) -> Result<String> {
+        call_engine_sync(|| {
+            Ok(match self.inner.physical_erasure_policy() {
+                fathomdb_engine::PhysicalErasurePolicy::Autonomous => "autonomous",
+                fathomdb_engine::PhysicalErasurePolicy::ExplicitMaintenance => {
+                    "explicit_maintenance"
+                }
+            }
+            .to_string())
+        })
+    }
+
+    /// Acquire an exclusive window; wait bounds admission only, not active SQL.
+    #[napi]
+    pub async fn begin_erasure_maintenance(
+        &self,
+        acquisition_wait_ms: f64,
+    ) -> Result<ErasureMaintenance> {
+        let wait = checked_config_number(
+            "acquisition_wait_ms",
+            Some(acquisition_wait_ms),
+            0,
+            (1u64 << 53) - 1,
+        )?
+        .unwrap_or(0);
+        let engine = Arc::clone(&self.inner);
+        let handle = call_engine(move || engine.begin_erasure_maintenance(wait)).await?;
+        Ok(ErasureMaintenance {
+            inner: Arc::new(Mutex::new(handle)),
+            #[cfg(feature = "test-hooks")]
+            pause: Arc::new(std::sync::Mutex::new(None)),
+        })
+    }
+
     /// Structured open report captured at [`Engine::open`] time. Sync
     /// accessor (no Promise — the data lives on the engine struct
     /// after open). Idempotent: each call returns a fresh copy of the
@@ -582,8 +650,8 @@ impl Engine {
 
     /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the explicit
     /// text-only / FTS-only search path. Does NOT embed the query and NEVER raises
-    /// `FDB_VECTOR_EQUIVALENCE_MISMATCH`, so it stays serviceable when the engine
-    /// opened in the degraded `denseDisabled` state. Matching node- and edge-body
+    /// `FDB_VECTOR_EQUIVALENCE_MISMATCH`. Deliberate provider-free opens retain
+    /// this path. Matching node- and edge-body
     /// FTS candidates are deterministically body-deduplicated and ranked before
     /// `limit`; no vector recall, CE rerank, or graph arm runs on this path.
     #[napi]
@@ -597,6 +665,7 @@ impl Engine {
         query: String,
         view: Option<ReadViewInput>,
         limit: Option<u32>,
+        filter: Option<SearchFilterInput>,
         snippet: Option<SnippetOptionsInput>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
@@ -607,37 +676,15 @@ impl Engine {
                 JsonValue::Null,
             ));
         }
+        let filter = search_filter_input_to_rust(filter)?;
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
         let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let engine = Arc::clone(&self.inner);
-        let result = call_engine(move || {
-            engine.search_text_only_view_with_snippets(&query, &view, limit, snippet.as_ref())
-        })
-        .await?;
+        let result =
+            call_engine(move || engine.search_text_only_filtered(&query, filter, &view, limit))
+                .await?;
         Ok(SearchResult::from_rust(result))
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — `true` iff the engine opened degraded (the #5
-    /// self-check found a vector-equivalence divergence and every dense arm is
-    /// refusing). Mirrors `OpenReport.denseDisabled`.
-    #[napi]
-    pub fn dense_disabled(&self) -> bool {
-        self.inner.dense_disabled()
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state,
-    /// or `null` when dense is healthy.
-    #[napi]
-    pub fn dense_disabled_reason(&self) -> Option<String> {
-        self.inner.dense_disabled_reason()
-    }
-
-    /// 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: query-time dense-arm refusals
-    /// raised because the engine opened degraded.
-    #[napi]
-    pub fn vector_equivalence_refusal_count(&self) -> i64 {
-        self.inner.vector_equivalence_refusal_count() as i64
     }
 
     #[napi(ts_return_type = "Promise<void>")]

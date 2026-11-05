@@ -199,7 +199,7 @@ pub(super) fn read_embedding_readiness(
 // the native boundary (the Python `fathomdb.types.ProjectionSpec` dataclass
 // translates the nested `fts?`/`vector?` shape to/from these fields). `fts` /
 // `vector` booleans carry the SUB-OBJECT PRESENCE; the optional tokenizer /
-// embedder carry the value (None = engine default).
+// tokenizer carries a value; new embedder selectors accept only None (engine default).
 #[pyclass(module = "fathomdb._fathomdb", name = "ProjectionSpec", get_all, from_py_object)]
 #[derive(Clone)]
 pub(super) struct PyProjectionSpec {
@@ -313,7 +313,7 @@ impl PyProjectionSpec {
             }
             (true, Some("")) => {
                 return Err(InvalidArgumentError::new_err(format!(
-                    "projection {:?}: vector_embedder is an empty string, which the engine normalizes to the default and cannot round-trip; omit vector_embedder for the engine default",
+                    "projection {:?}: string vector_embedder selectors are unsupported; omit vector_embedder for the engine default",
                     self.name
                 )));
             }

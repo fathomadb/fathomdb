@@ -3,8 +3,8 @@ title: ADR-0.8.28-sqlite-per-connection-page-cache
 date: 2026-10-16
 target_release: 0.8.28
 desc: The bundled SQLite is built without SQLITE_ENABLE_MEMORY_MANAGEMENT, so each connection has its own page cache and no global page-cache mutex; successor note to the page-cache premise of ADR-0.7.0-ac020-architectural-lever
-blast_radius: third_party/libsqlite3-sys-0.38.1/build.rs and its vendored-tree digest pins; every artifact built from this workspace; published Rust crates only through LIBSQLITE3_FLAGS
-status: accepted (owner conditional approval 2026-10-16, "If Unit I's gate passes, I approve the ADR"; Unit I gate REQ40-I6 passed 2026-10-17 at d10ad65d5 against 417eac27d)
+blast_radius: every artifact built from this workspace and, since 0.8.28 Slice 42, every build of the published Rust crates (crates.io libsqlite3-sys 0.39)
+status: accepted (owner conditional approval 2026-10-16, "If Unit I's gate passes, I approve the ADR"; Unit I gate REQ40-I6 passed 2026-10-17 at d10ad65d5 against 417eac27d); exit completed 0.8.28 Slice 42
 ---
 
 # ADR-0.8.28 — one SQLite page cache per connection
@@ -81,6 +81,19 @@ against the H3 commit `417eac27d`, on all four clauses. One heavy read no
 longer slows later reads (at most 1.02× before, 2.7× at H3). Latency is
 equal or lower in every cell. Retrieval results are identical. The results
 are in [Slice 40 test-plan § 3h.6](../plans/0.8.28/features/slice-40/test-plan.md).
+
+## Exit (0.8.28 Slice 42, 2026-10-31)
+
+The planned exit happened. `libsqlite3-sys` 0.39 (0.39.1 bundles SQLite
+3.54.1) builds without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so FathomDB moved
+to `rusqlite` 0.41.1 and deleted the vendored `libsqlite3-sys` 0.38.1 and
+its root patch. Published crates and `cargo install fathomdb-cli` now get
+one page cache per connection without `LIBSQLITE3_FLAGS`; the Decision
+bullet on published crates is history from that point. The decision itself
+is unchanged, and `bundled_sqlite_keeps_a_page_cache_per_connection` still
+fails if a later bump brings the flag back. The retired patch note is in
+git history at `59079d5c5` (`third_party/libsqlite3-sys-0.38.1/FATHOMDB-PATCH.md`).
+See `dev/plans/0.8.28/features/slice-42/design.md` § 2.
 
 ## References
 

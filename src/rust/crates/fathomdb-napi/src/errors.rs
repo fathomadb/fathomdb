@@ -44,11 +44,13 @@ pub(crate) const CODE_INVALID_FILTER: &str = "FDB_INVALID_FILTER";
 pub(crate) const CODE_INVALID_ARGUMENT: &str = "FDB_INVALID_ARGUMENT";
 // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal code.
 pub(crate) const CODE_VECTOR_EQUIVALENCE_MISMATCH: &str = "FDB_VECTOR_EQUIVALENCE_MISMATCH";
+pub(crate) const CODE_VECTOR_VERIFICATION: &str = "FDB_VECTOR_VERIFICATION";
 // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors.
 pub(crate) const CODE_ILLEGAL_TRANSITION: &str = "FDB_ILLEGAL_TRANSITION";
 pub(crate) const CODE_NOT_LIFECYCLE_ADDRESSABLE: &str = "FDB_NOT_LIFECYCLE_ADDRESSABLE";
 // 0.8.20 Slice 5b (R-20-E5) — an erasure verb deleted its rows but could not
 // complete the erasure at rest.
+pub(crate) const CODE_MAINTENANCE: &str = "FDB_MAINTENANCE";
 pub(crate) const CODE_ERASURE_INCOMPLETE: &str = "FDB_ERASURE_INCOMPLETE";
 // 0.8.20 Slice 15d (R-20-PR) — configure_projections refused a destructive
 // change without an explicit drop.
@@ -322,6 +324,9 @@ pub(crate) fn engine_error_to_napi(err: RustEngineError) -> Error {
             format!("vector-equivalence self-check failed; dense retrieval refused: {reason}"),
             json!({ "reason": reason }),
         ),
+        RustEngineError::Maintenance(reason) => {
+            typed_error(CODE_MAINTENANCE, reason.to_string(), json!({"reason": reason}))
+        }
         RustEngineError::ErasureIncomplete { stage, detail } => typed_error(
             CODE_ERASURE_INCOMPLETE,
             format!("erasure incomplete at stage '{stage}': {detail}"),
@@ -591,6 +596,10 @@ pub(crate) fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             ),
             json!({ "stored": stored, "supplied": supplied }),
         ),
+        EngineOpenError::VectorEquivalenceMismatch { reason } => typed_error(
+            CODE_VECTOR_EQUIVALENCE_MISMATCH, format!("vector equivalence mismatch: {reason}"), json!({ "reason": reason }),
+        ),
+        EngineOpenError::VectorVerification { probe_ordinal, cause } => vector_verification_to_napi(probe_ordinal, cause),
         EngineOpenError::Embedder(err) => embedder_api_error_to_napi(err, "embedder error during open"),
         EngineOpenError::EmbedDevicePolicy(error) => embed_device_policy_error_to_napi(error),
         EngineOpenError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
@@ -617,6 +626,54 @@ pub(crate) fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             JsonValue::Null,
         ),
     }
+}
+
+fn vector_verification_to_napi(
+    probe_ordinal: u32,
+    cause: fathomdb_engine::VectorVerificationFailure,
+) -> Error {
+    use fathomdb_engine::VectorVerificationFailure as Cause;
+    let message = match &cause {
+        Cause::Panic { message } | Cause::InvalidState { message } => message.clone(),
+        Cause::Provider(
+            fathomdb_embedder_api::EmbedderError::Failed { message }
+            | fathomdb_embedder_api::EmbedderError::CudaPoolExhausted { message, .. }
+            | fathomdb_embedder_api::EmbedderError::CudaPrivateBuildRefused { message, .. },
+        ) => message.clone(),
+        Cause::Provider(error) => format!("{error:?}"),
+        _ => cause.code().to_string(),
+    };
+    let code = cause.code();
+    let (provider_kind, provider_error) = if let Cause::Provider(provider) = cause {
+        let kind = match &provider {
+            fathomdb_embedder_api::EmbedderError::Failed { .. } => "failed",
+            fathomdb_embedder_api::EmbedderError::Timeout => "timeout",
+            fathomdb_embedder_api::EmbedderError::CudaPoolExhausted { .. } => "cuda_pool_exhausted",
+            fathomdb_embedder_api::EmbedderError::CudaContextLost { .. } => "cuda_context_lost",
+            fathomdb_embedder_api::EmbedderError::CudaPrivateBuildRefused { .. } => {
+                "cuda_private_build_refused"
+            }
+            _ => "unknown",
+        };
+        let error = embedder_api_error_to_napi(provider, "vector verification provider");
+        // The existing translator emits a structured envelope, never an untyped reason.
+        let envelope: JsonValue =
+            serde_json::from_str(&error.reason).expect("typed provider envelope");
+        (Some(kind), envelope)
+    } else {
+        (None, JsonValue::Null)
+    };
+    typed_error(
+        CODE_VECTOR_VERIFICATION,
+        format!("vector verification could not complete at probe {probe_ordinal}: {message}"),
+        json!({
+            "probeOrdinal": probe_ordinal,
+            "causeCode": code,
+            "causeMessage": message,
+            "providerKind": provider_kind,
+            "providerError": provider_error,
+        }),
+    )
 }
 
 pub(crate) fn runtime_configuration_error_to_napi(error: RustRuntimeConfigurationError) -> Error {
@@ -649,4 +706,83 @@ pub(crate) fn runtime_configuration_error_to_napi(error: RustRuntimeConfiguratio
 
 pub(crate) fn panic_error() -> Error {
     typed_error(CODE_PANIC, "engine panic (see logs)", JsonValue::Null)
+}
+
+#[cfg(test)]
+mod vector_open_tests {
+    use super::*;
+    use fathomdb_engine::VectorVerificationFailure;
+
+    #[test]
+    fn verification_envelope_preserves_provider_context_and_payload() {
+        let error = engine_open_error_to_napi(EngineOpenError::VectorVerification {
+            probe_ordinal: 7,
+            cause: VectorVerificationFailure::Provider(
+                fathomdb_embedder_api::EmbedderError::CudaPoolExhausted {
+                    ordinal: 2,
+                    max_size_bytes: 12345,
+                    message: "original allocator detail".into(),
+                },
+            ),
+        });
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["code"], "FDB_VECTOR_VERIFICATION");
+        assert_eq!(envelope["payload"]["probeOrdinal"], 7);
+        assert_eq!(envelope["payload"]["causeCode"], "provider");
+        assert_eq!(envelope["payload"]["providerKind"], "cuda_pool_exhausted");
+        assert_eq!(envelope["payload"]["providerError"]["code"], "FDB_CUDA_POOL_EXHAUSTED");
+        assert_eq!(envelope["payload"]["providerError"]["payload"]["ordinal"], 2);
+        assert_eq!(envelope["payload"]["providerError"]["payload"]["maxSizeBytes"], 12345);
+        assert_eq!(
+            envelope["payload"]["providerError"]["payload"]["message"],
+            "original allocator detail"
+        );
+    }
+
+    #[test]
+    fn failed_provider_and_provider_timeout_remain_distinct() {
+        for (provider, kind) in [
+            (
+                fathomdb_embedder_api::EmbedderError::Failed { message: "original detail".into() },
+                "failed",
+            ),
+            (fathomdb_embedder_api::EmbedderError::Timeout, "timeout"),
+        ] {
+            let error = engine_open_error_to_napi(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause: VectorVerificationFailure::Provider(provider),
+            });
+            let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+            assert_eq!(envelope["payload"]["providerKind"], kind);
+            assert_eq!(envelope["payload"]["providerError"]["code"], "FDB_EMBEDDER");
+        }
+    }
+
+    #[test]
+    fn numeric_refusal_and_dispatch_failure_have_distinct_envelopes() {
+        let error = engine_open_error_to_napi(EngineOpenError::VectorEquivalenceMismatch {
+            reason: "P1 flips=3".into(),
+        });
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["code"], "FDB_VECTOR_EQUIVALENCE_MISMATCH");
+        assert_eq!(envelope["payload"]["reason"], "P1 flips=3");
+        for cause in [
+            VectorVerificationFailure::StartedTimeout,
+            VectorVerificationFailure::InvalidOutput,
+            VectorVerificationFailure::Panic { message: "original panic".into() },
+        ] {
+            let code = cause.code();
+            let error = engine_open_error_to_napi(EngineOpenError::VectorVerification {
+                probe_ordinal: 4,
+                cause,
+            });
+            let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+            assert_eq!(envelope["code"], "FDB_VECTOR_VERIFICATION");
+            assert_eq!(envelope["payload"]["causeCode"], code);
+            assert!(envelope["payload"]["providerError"].is_null());
+            if code == "panic" {
+                assert_eq!(envelope["payload"]["causeMessage"], "original panic");
+            }
+        }
+    }
 }

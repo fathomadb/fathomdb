@@ -65,7 +65,17 @@ const raceUpload = steps("rust-workspace-race-report").find(
   (step) => String(step.uses || "").startsWith("actions/upload-artifact@"),
 ) || {};
 
+const raceJob = jobs["rust-workspace-race-report"] || {};
+const raceCache = actionStep("rust-workspace-race-report", "Swatinem/rust-cache@");
+const resourceSteps = steps("rust-workspace-race-report").filter((step) => String(step.name || "").startsWith("Resource snapshot"));
 const contract = {
+  raceBuildJobs: String((raceJob.env || {}).CARGO_BUILD_JOBS || ""),
+  raceDebug: String((raceJob.env || {}).CARGO_PROFILE_TEST_DEBUG || ""),
+  raceIncremental: String((raceJob.env || {}).CARGO_INCREMENTAL || ""),
+  raceNoPostCacheArchive: String((raceCache.with || {})["save-if"]) === "false",
+  raceNoTargetCache: String((raceCache.with || {})["cache-targets"]) === "false",
+  raceResourceSnapshots: resourceSteps.length >= 3 && resourceSteps.every((step) => String(step.run || "").includes("df -B1") && String(step.run || "").includes("free -b")),
+  raceParallelTests: !String(race.run || "").includes("--test-threads=1"),
   fastPython: cacheContract("verify-fast", "actions/setup-python@"),
   fastNode: cacheContract("verify-fast", "actions/setup-node@"),
   heavyPython: cacheContract("verify", "actions/setup-python@"),
@@ -113,6 +123,14 @@ expect_value() {
   fi
 }
 
+expect_value raceBuildJobs 2 "parallel diagnostic bounds Cargo build concurrency"
+expect_value raceDebug 0 "parallel diagnostic omits test debug artifacts"
+expect_value raceIncremental 0 "parallel diagnostic disables incremental artifacts"
+expect_value raceNoPostCacheArchive true "parallel diagnostic disables post-job cache archive peaks"
+expect_value raceNoTargetCache true "parallel diagnostic does not restore/save target directories"
+expect_value raceResourceSnapshots true "parallel diagnostic records resource transitions around cache and artifact work"
+expect_value raceParallelTests true "parallel diagnostic preserves libtest concurrency"
+
 expect_value noRipgrepInstall true "verify-fast has no package-manager Ripgrep installation"
 if grep -Fq 'rg -Fq' "$DEV_TOOLS_CONTRACT"; then
   fail "developer-environment contract still requires Ripgrep for fixed-string matching"
@@ -128,7 +146,7 @@ expect_value fastNode.path $'package-lock.json\nsrc/ts/package-lock.json' \
 expect_value heavyPython.cache pip "verify enables pip caching"
 expect_value heavyPython.path src/python/pyproject.toml "verify keys pip cache from the Python project"
 expect_value heavyNode.cache npm "verify enables npm caching"
-expect_value heavyNode.path src/ts/package-lock.json "verify keys npm cache from the TypeScript lock"
+expect_value heavyNode.path $'package-lock.json\nsrc/ts/package-lock.json'  "verify keys npm cache from the TypeScript lock"
 expect_value embedderPython.cache pip "default-embedder enables pip caching"
 expect_value embedderPython.path src/python/pyproject.toml \
   "default-embedder keys pip cache from the Python project"

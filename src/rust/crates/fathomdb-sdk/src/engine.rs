@@ -29,7 +29,7 @@ use crate::options::{
 /// Calls are synchronous and the handle is `Send + Sync`. `close` is
 /// idempotent; after it, operations fail with `ErrorKind::Closing`.
 pub struct Engine {
-    core: CoreEngine,
+    core: Arc<CoreEngine>,
     report: OpenReport,
     config: EngineConfig,
     subscriber: Mutex<SubscriberSlot>,
@@ -59,7 +59,7 @@ impl Engine {
         };
         let opened = CoreEngine::open_with_choice_and_config(path, choice, options.config.clone())?;
         Ok(Engine {
-            core: opened.engine,
+            core: Arc::new(opened.engine),
             report: opened.report,
             config: options.config,
             subscriber: Mutex::new(SubscriberSlot::default()),
@@ -68,6 +68,45 @@ impl Engine {
 
     pub(crate) fn core(&self) -> &CoreEngine {
         &self.core
+    }
+
+    /// Return the validated scheduling policy honored by this open incarnation.
+    pub fn physical_erasure_policy(&self) -> fathomdb_engine::PhysicalErasurePolicy {
+        self.core.physical_erasure_policy()
+    }
+
+    /// Acquire exclusive maintenance. `acquisition_wait_ms` bounds cooperative
+    /// admission/drain only; it is not an active cleanup deadline.
+    /// Returns a typed maintenance refusal when another owner or reader blocks it.
+    pub fn begin_erasure_maintenance(
+        &self,
+        acquisition_wait_ms: u64,
+    ) -> Result<crate::ErasureMaintenance> {
+        Ok(crate::ErasureMaintenance {
+            inner: self.core.begin_erasure_maintenance(acquisition_wait_ms)?,
+        })
+    }
+
+    /// Request bounded immutable intent. Acceptance leaves read visibility unchanged;
+    /// heavy admission returns NeedsMaintenanceAdmission until a window is held.
+    pub fn queue_physical_erasure(
+        &self,
+        selector: crate::PhysicalErasureSelector,
+        key: &str,
+    ) -> Result<crate::QueueResult> {
+        Ok(self.core.queue_physical_erasure(selector, key)?)
+    }
+
+    /// Read one store-bound ticket without exposing its selector. Unknown or
+    /// wrong-store well-formed tickets return None; malformed tickets fail.
+    pub fn physical_erasure_status(&self, ticket: &str) -> Result<Option<crate::ErasureStatus>> {
+        Ok(self.core.physical_erasure_status(ticket)?)
+    }
+
+    /// Withdraw queued intent only. Activated work cannot be cancelled, and
+    /// withdrawal never certifies physical erasure.
+    pub fn withdraw_queued_erasure(&self, ticket: &str) -> Result<crate::WithdrawResult> {
+        Ok(self.core.withdraw_queued_erasure(ticket)?)
     }
 
     /// The report produced when this database was opened.
@@ -212,7 +251,13 @@ impl Engine {
         )?)
     }
 
-    /// Lexical (FTS-only) search; never embeds the query.
+    /// Search node/edge body FTS without embedding, vectors, reranking or graph work.
+    ///
+    /// `options.filter` is applied before candidate caps, deduplication, ranking
+    /// and limit. Attributes are node-scoped; status/time require existing vector
+    /// metadata. Missing metadata does not match. A smaller accepted limit is an
+    /// ordered prefix for the same snapshot, query, filter and effective view.
+    /// Invalid options or snapshot/storage failures return the typed SDK error.
     pub fn search_text_only(
         &self,
         query: &str,
@@ -220,11 +265,14 @@ impl Engine {
     ) -> Result<SearchResult> {
         guard::ranked_limit("limit", options.limit)?;
         guard::text(query)?;
-        Ok(self.core.search_text_only_view_with_snippets(
+        if let Some(filter) = &options.filter {
+            guard::search_filter(filter)?;
+        }
+        Ok(self.core.search_text_only_filtered(
             query,
+            options.filter,
             &options.view,
             options.limit,
-            options.snippet.as_ref(),
         )?)
     }
 
@@ -351,21 +399,6 @@ impl Engine {
     pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
         guard::text(text)?;
         Ok(self.core.embed_text(text)?)
-    }
-
-    /// Whether the dense arm is disabled for this open.
-    pub fn dense_disabled(&self) -> bool {
-        self.core.dense_disabled()
-    }
-
-    /// Why the dense arm is disabled, if it is.
-    pub fn dense_disabled_reason(&self) -> Option<String> {
-        self.core.dense_disabled_reason()
-    }
-
-    /// Query-time dense refusals since open.
-    pub fn vector_equivalence_refusal_count(&self) -> u64 {
-        self.core.vector_equivalence_refusal_count()
     }
 
     /// Enable opt-in local telemetry capture to a JSONL file.

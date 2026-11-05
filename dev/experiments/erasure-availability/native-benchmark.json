@@ -1,0 +1,99 @@
+{
+  "kind": "owner-requested single native large-fresh benchmark",
+  "independent_of_72_attempt_campaign": true,
+  "command": [
+    "/tmp/current-history-followups-independent-target/release/probe",
+    "legacy",
+    "/tmp/fathomdb-slice81-campaign/node-default.sqlite",
+    "/tmp/fathomdb-slice81-native-benchmark/native.sqlite",
+    "node"
+  ],
+  "source_sha": "92bd89d0e2d5e3c168352474c94303254b01a6f0",
+  "binary_sha256": "77ae0ddbe51011f43080fb44538b942da7788f9dbecd7b2814f8ab01acb144d5",
+  "fresh_master_sha256": "6973c7cdd54ccec38ded1ac7aafd247f9df937b437d609665ec9507743aba76d",
+  "inputs_unchanged_after_run": true,
+  "dataset": {
+    "owners": 10000,
+    "revisions_per_owner": 5,
+    "target_owners": 1000,
+    "primary_bytes": 1024
+  },
+  "erased_revisions": 5000,
+  "native_call_ns": 264781348412,
+  "native_seconds": 264.781348412,
+  "total_command_seconds": 265.87,
+  "user_cpu_seconds": 119.93,
+  "system_cpu_seconds": 145.87,
+  "maximum_rss_kib": 260552,
+  "exit_status": 0,
+  "inventory_after": {
+    "canonical_edges": 0,
+    "canonical_nodes": 45000,
+    "families": [
+      {
+        "ddl": "CREATE VIRTUAL TABLE search_index USING fts5(\n                  body,\n                  kind UNINDEXED,\n                  write_cursor UNINDEXED,\n                  tokenize = 'porter unicode61 remove_diacritics 2'\n              )",
+        "matches": 0,
+        "rows": 45000,
+        "shadow_markers": 15,
+        "table": "search_index"
+      },
+      {
+        "ddl": "CREATE VIRTUAL TABLE search_index_edges USING fts5(\n                  body,\n                  kind UNINDEXED,\n                  write_cursor UNINDEXED,\n                  tokenize = 'porter unicode61 remove_diacritics 2'\n              )",
+        "matches": 0,
+        "rows": 0,
+        "shadow_markers": 0,
+        "table": "search_index_edges"
+      },
+      {
+        "ddl": "CREATE VIRTUAL TABLE property_search_index USING fts5(\n                  attr_value,\n                  attr_name UNINDEXED,\n                  write_cursor UNINDEXED,\n                  tokenize = 'porter unicode61 remove_diacritics 2'\n              )",
+        "matches": 0,
+        "rows": 0,
+        "shadow_markers": 0,
+        "table": "property_search_index"
+      },
+      {
+        "ddl": "CREATE VIRTUAL TABLE search_index_v2 USING fts5(\n                  kind,\n                  body,\n                  status,\n                  write_cursor UNINDEXED,\n                  tokenize = 'porter unicode61 remove_diacritics 2'\n              )",
+        "matches": 0,
+        "rows": 45000,
+        "shadow_markers": 12,
+        "table": "search_index_v2"
+      }
+    ],
+    "sqlite": "3.54.1",
+    "survivor_owners": 9000,
+    "target_owners": 0
+  },
+  "physical_after": {
+    "native.sqlite": {
+      "exists": true,
+      "literal_marker_occurrences": 27
+    },
+    "native.sqlite-wal": {
+      "exists": true,
+      "literal_marker_occurrences": 0
+    }
+  },
+  "environment": {
+    "system": "Linux",
+    "node": "windchill3",
+    "release": "7.0.0-38-generic",
+    "version": "#38~24.04.4-Ubuntu SMP PREEMPT_DYNAMIC Mon Sep 14 16:37:11 UTC 2",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "cpu_model": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+    "logical_cpus": 24,
+    "memory_total": [
+      "MemTotal:       65685524 kB"
+    ],
+    "cache": "existing master reused; no cache flush; warm-cache single sample",
+    "competing_project_workload": "full gate finished before native timing; verifier held further tests"
+  },
+  "qualification": "one idle warm-cache native-call elapsed sample, not an SLA; native success and logical removal do not establish physical erasure; no incremental sanitation performed",
+  "raw_sha256": {
+    "manifest.json": "5f55798ce8d8280554ab078862c085784476d36bb0328295d49013c374b4ef90",
+    "machine.json": "c118d1c87fec1f4ec2b5871e0fbfba95fc3f609861dc75b914f433cc98cf355a",
+    "result.json": "51558131967e97c7a1a3228fa0f7c5fcb549c1f4c8c9c1a64409426e1dfd0f82",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "time.txt": "64de487cab2314708650be83f86267c742ac0e3deaefc704cdc70d832362817a"
+  }
+}

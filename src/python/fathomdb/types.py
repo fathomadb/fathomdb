@@ -54,7 +54,7 @@ GraphExpansionDegradationCodeV1 = Literal[
 ]
 
 #: Engine-set dense-projection readiness values. ``"unavailable"`` means an
-#: absent or equivalence-refused runtime; ``"embedding"`` / ``"ready"`` apply
+#: absent runtime; ``"embedding"`` / ``"ready"`` apply
 #: only with a usable runtime. ``"pending"`` is deliberately absent: it belongs
 #: to the orthogonal admission axis, not readiness.
 DenseReadiness = Literal["unavailable", "embedding", "ready"]
@@ -62,8 +62,8 @@ DenseReadiness = Literal["unavailable", "embedding", "ready"]
 #: Reason an open engine session cannot use the shared dense runtime. ``"none"``
 #: occurs exactly when :attr:`ProjectionRuntimeStatus.runtime_embedder_available`
 #: is true.
-ProjectionRuntimeUnavailabilityReason = Literal["none", "no_runtime", "vector_equivalence_disabled"]
-EmbeddingReadinessState = Literal["ready", "processing", "deferred", "blocked"]
+ProjectionRuntimeUnavailabilityReason = Literal["none", "no_runtime"]
+EmbeddingReadinessState = Literal["ready", "processing", "blocked"]
 EmbeddingOperation = Literal["graph_edge_body_projection", "vector_projection"]
 
 #: Projection-status dense readiness. ``"not_declared"`` is distinct from
@@ -285,8 +285,8 @@ class ActuationReceiptV1:
     closure_operation_ids: tuple[str, ...]
 
 
-ProjectionReadinessV1 = Literal["ready", "processing", "blocked", "deferred", "degraded"]
-ProjectionRuntimeStateV1 = Literal["absent", "usable", "refused"]
+ProjectionReadinessV1 = Literal["ready", "processing", "blocked", "degraded"]
+ProjectionRuntimeStateV1 = Literal["absent", "usable"]
 ProjectionGenerationOriginV1 = Literal["fresh", "legacy_unverified", "configuration", "rebuild"]
 
 
@@ -992,6 +992,7 @@ class ProjectionSpec:
     #: ``True`` when the ``searchable→vector`` sub-target is declared.
     vector: bool = False
     #: Optional embedder override; ``None`` = engine default (only with ``vector``).
+    # New declarations accept only None; historical strings remain readable.
     vector_embedder: str | None = None
     #: 0.8.22 Slice 21 (F5) — **READ METADATA, engine-set.** ``"unavailable"``,
     #: ``"embedding"``, or ``"ready"`` when returned by
@@ -1000,8 +1001,8 @@ class ProjectionSpec:
     #:
     #: ``filterable`` / ``searchable→FTS`` are same-transaction (non-stale on
     #: commit) so they carry no readiness; ``searchable→vector`` is async and
-    #: rebuild-durable, so it does. With no usable dense runtime (absent or
-    #: equivalence-refused), it is ``"unavailable"``. Otherwise the value is
+    #: rebuild-durable, so it does. With no configured runtime it is
+    #: ``"unavailable"``. Otherwise the value is
     #: DERIVED from outstanding projection work, never stored — which is what makes
     #: ``{vector-insert ∧ readiness := ready}`` atomic by construction: a
     #: ``"ready"`` reading can never be observed with the vector row absent.
@@ -1540,14 +1541,6 @@ class OpenReport:
     embedder_events: list[EmbedderEvent] = field(default_factory=list)
     embedder_mean_centering_required: bool = False
     embedder_mean_vec_pinned: bool = False
-    # 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6) — ``True`` iff the
-    # open-time self-check found a vector-equivalence divergence and every
-    # vector-dependent arm now refuses at query time with
-    # ``VectorEquivalenceMismatchError``. The ``search_text_only`` path stays
-    # serviceable. ``dense_disabled_reason`` carries the divergence summary
-    # (``None`` when healthy).
-    dense_disabled: bool = False
-    dense_disabled_reason: str | None = None
     embedder_device_resolution: DeviceResolution | None = None
     reranker_device_resolution: DeviceResolution | None = None
     # 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation

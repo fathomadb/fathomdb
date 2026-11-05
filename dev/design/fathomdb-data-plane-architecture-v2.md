@@ -2,14 +2,14 @@
 title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
-implementation_status: active authority; historical 0.8.26 profile with current 0.8.27 ownership addenda
-target_release: 0.8.27
+implementation_status: active authority; current 0.8.28 profile with retained 0.8.26 history
+target_release: 0.8.28
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-10-10 by 0.8.27 Slice 140
+last_reconciled: 2026-11-04 by 0.8.28 Slice 92
 ---
 
 # FathomDB data-plane architecture v2
@@ -66,7 +66,7 @@ behavior merely because it appears later in this document.
 
 Version 2.2 recorded the 0.8.26 source candidate after Slice 40. This
 historical profile applies its accepted decisions to the v2 model and is the
-baseline for the current 0.8.27 addenda below. It does not introduce a new
+baseline for the current 0.8.28 profile below. It does not introduce a new
 decision or claim publication. Detailed field/error contracts remain in
 [`dev/interfaces/`](../interfaces/README.md), accepted decisions remain in the
 [`ADR index`](../adr/ADR-0.6.0-decision-index.md), and topic implementation
@@ -90,7 +90,7 @@ The 0.8.26 Rust workspace had ten members:
 the native crates. Only documented facade/binding APIs are public contracts;
 engine module/file boundaries remain internal and may change.
 
-## Current 0.8.27 profile
+## Current 0.8.28 profile
 
 ### Workspace and application SDK ownership
 
@@ -113,7 +113,7 @@ The [Rust SDK contract](../interfaces/rust-sdk.md) and
 [generated contributor map](../../docs/generated/contributor-map.md) give
 current operation and package paths. Rust engine file/module boundaries are
 internal implementation ownership, not SDK contracts. The following addenda
-record implemented 0.8.27 boundaries without rewriting the historical model.
+record implemented boundaries retained from 0.8.27 without rewriting the historical model.
 
 ### 0.8.27 Python diagnostic transport addendum
 
@@ -205,10 +205,10 @@ An actual future engine heartbeat event can still be forwarded.
 ### Open, storage, and concurrency
 
 `Engine::open` configures the process SQLite runtime before admission. A
-missing or zero-length path bootstraps directly at schema 34. A nonempty
+missing or zero-length path bootstraps directly at schema 36. A nonempty
 database is admitted only when its effective committed schema and required
 shape are current; otherwise it is refused under the persistent admission lock
-before product mutation. There is no 0.8.26 migration from an earlier database.
+before product mutation. There is no public migration from an earlier database.
 
 Canonical records, provenance, dependencies, operational state, actuation
 receipts, projection state, FTS, and vector state remain in one SQLite product
@@ -227,6 +227,22 @@ while ratified 0.8.14 EXP-S D2/D5 established and preserved asynchronous vector
 projection workers with serialized commits. There is never more than one
 SQLite write transaction at a time, but projection publication no longer runs
 on the primary writer connection.
+
+### Current storage, retrieval and maintenance boundaries
+
+The .28 SQLite registry dependencies provide per-connection page caches. Current
+format36 retains format35's cursor-keyed FTS, 64-row vec0 chunks and UTF-8 head
+coverage, adding persisted maintenance policy/queue/fence metadata. Old formats
+are refused, not migrated. Runtime vec0 lifecycle/validity metadata enforces dense
+eligibility before KNN limits; historical-view fallback and direct filtered body
+FTS share the maintained [retrieval owner](retrieval.md).
+
+Production provider admission selects built-in default or none. Numerical
+mismatch/verification failure returns no Engine; persistent acceptance cache
+limitations remain explicit in [embedder.md](embedder.md). The
+[maintenance contract](explicit-maintenance-erasure/contract.md) owns exclusive
+explicit windows and durable incomplete obligations; queued intent does not
+revoke logical visibility. No SLA or new erasure campaign follows.
 
 ### Governed read and evidence paths
 
@@ -452,10 +468,11 @@ reuses, amends, or supersedes them.
 
 ## Release allocation
 
-The current 0.8.27 work is allocated by
-[`plan-0.8.27.md`](../plans/plan-0.8.27.md); Slice 140 reconciles current
-SDK/owner documentation, Slice 150 owns final qualification and Slice 160
-owns publication.
+The current 0.8.28 work is allocated by
+[`plan-0.8.28.md`](../plans/plan-0.8.28.md): Slice 92 converges documentation,
+Slice 95 owns final CI/candidate qualification, and publication remains separately
+authorized. The .27 ownership refactor and qualification are historical evidence
+in [`plan-0.8.27.md`](../plans/plan-0.8.27.md).
 
 The historical 0.8.26 profile was allocated by
 [`plan-0.8.26.md`](../plans/plan-0.8.26.md). Its implemented public boundaries

@@ -1,11 +1,14 @@
 # fathomdb
 
+> Documentation targets 0.8.28; publication is pending. Install routes apply
+> once matching artifacts are published.
+
 The Rust facade crate for **FathomDB** — a local-first, embedded retrieval engine for application
 and agent workloads, built on SQLite.
 
 For the application surface shared with the Python and TypeScript SDKs
 (`Engine`, `read`, `graph`, `admin`, and the same option defaults and error
-categories), use `fathomdb-sdk` 0.8.27; follow the [SDK installation route](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/rust.md#install-the-application-sdk). This crate remains the lower-level engine facade. It is a thin
+categories), use `fathomdb-sdk` 0.8.28; follow the [SDK installation route](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/install/rust.md#install-the-application-sdk). This crate remains the lower-level engine facade. It is a thin
 re-export of the public surface of [`fathomdb-engine`](https://crates.io/crates/fathomdb-engine), so
 you get one dependency and one import path instead of the workspace's internal crate split.
 
@@ -18,7 +21,7 @@ maturity of the 0.8.x publish pipeline as an API stability promise.
 ## Install
 
 ```bash
-cargo add fathomdb@=0.8.27
+cargo add fathomdb@=0.8.28
 ```
 
 ## Example

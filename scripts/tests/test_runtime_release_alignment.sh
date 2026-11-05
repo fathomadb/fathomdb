@@ -45,7 +45,9 @@ fi
 if grep -q 'actionlint/v1.7.12/scripts/download-actionlint.bash' "$release" \
   && grep -q 'bash -s -- 1.7.12' "$release" \
   && grep -q 'readonly ACTIONLINT_VERSION="1.7.12"' "$REPO_ROOT/scripts/agent-lint.sh" \
-  && grep -q 'readonly ACTIONLINT_VERSION="1.7.12"' "$REPO_ROOT/scripts/bootstrap.sh"; then
+  && grep -Fqx 'readonly ACTIONLINT_VERSION="1.7.12"' "$REPO_ROOT/scripts/install-actionlint.sh" \
+  && grep -Fqx 'bash "$SCRIPT_DIR/install-actionlint.sh"' "$REPO_ROOT/scripts/bootstrap.sh" \
+  && grep -Fqx 'bash "$SCRIPT_DIR/install-actionlint.sh"' "$REPO_ROOT/scripts/bootstrap-heavy.sh"; then
   pass "actionlint is pinned identically in CI and local tooling"
 else
   fail "actionlint must be pinned to 1.7.12 in CI and local tooling"

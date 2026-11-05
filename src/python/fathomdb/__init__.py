@@ -36,8 +36,14 @@ from fathomdb._sdk_context_pack import (
 )
 from fathomdb._sdk_search import snippet_for
 from fathomdb.config import EngineConfig, QueryStopWords
-from fathomdb.engine import Engine
+from fathomdb.maintenance import (
+    CleanupResult, ErasureBlocker, ErasureLogicalState, ErasurePhase, ErasureServiceState,
+    ErasureStatus, PhysicalErasurePolicy, PhysicalErasureSelector, QueueResult,
+    SourceAllAtCut, DeletedLogicalAllAtCut, WithdrawResult,
+)
+from fathomdb.engine import Engine, ErasureMaintenance
 from fathomdb.errors import (
+    MaintenanceError,
     DependencyTraceError,
     EvidenceError,
     FrozenReadError,
@@ -199,7 +205,12 @@ __all__ = [
     "EvidenceSearchRequestV1",
     "EvidenceSearchResultV1",
     "EvidenceSidecarEntryV1",
+    "MaintenanceError",
     "Engine",
+    "ErasureMaintenance",
+    "CleanupResult", "ErasureBlocker", "ErasureLogicalState", "ErasurePhase",
+    "ErasureServiceState", "ErasureStatus", "PhysicalErasurePolicy", "PhysicalErasureSelector",
+    "QueueResult", "SourceAllAtCut", "DeletedLogicalAllAtCut", "WithdrawResult",
     "EngineConfig",
     "QueryStopWords",
     "Filter",

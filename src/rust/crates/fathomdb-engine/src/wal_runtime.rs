@@ -197,7 +197,7 @@ impl Engine {
     /// Read the exact live engine-owned SQLite handle inventory without opening a probe.
     #[cfg(feature = "test-hooks")]
     pub fn d27_connection_inventory_for_test(&self) -> Result<String, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let workers = self.resolved_config.scheduler_runtime_threads;
         if !self.managed_connections.exact_live(workers) {
             return Err(EngineError::Storage);
@@ -625,7 +625,7 @@ impl Engine {
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn binding_native_state_inventory_for_test(&self) -> Result<String, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let inventory = self.native_state_inventory_for_test();
         if !inventory.complete {
             return Err(EngineError::Storage);
@@ -639,7 +639,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn binding_connection_inventory_for_test(&self) -> Result<String, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let deadline = Instant::now() + Duration::from_secs(2);
         let worker_count = self.projection_runtime.shared.worker_count;
         while !self.managed_connections.exact_live(worker_count) && Instant::now() < deadline {
@@ -694,7 +694,7 @@ impl Engine {
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn checkpoint_at_rest_for_test(&self) -> Result<Vec<(bool, u32, u32)>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut reports = Vec::new();
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
             self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
@@ -753,7 +753,7 @@ impl Engine {
     /// checkpointed in that case.
     #[cfg(feature = "operator")]
     pub fn truncate_wal(&self) -> Result<TruncateWalReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         // The operator verb keeps SQLite's own busy handler: `recover
         // --truncate-wal` is an explicit, foreground operator act, so waiting out
         // a transient reader is the helpful behaviour.
@@ -779,7 +779,11 @@ impl Engine {
         &self,
         honor_busy_timeout: bool,
     ) -> Result<TruncateWalReport, EngineError> {
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let _checkpoint = self.physical_maintenance.metrics.timer("checkpoint");
+        let waiting = self.physical_maintenance.metrics.timer("checkpoint_writer_wait");
+        let connection = self.physical_writer(true)?;
+        drop(waiting);
+        let _holding = self.physical_maintenance.metrics.timer("checkpoint_writer_hold");
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
 
         let restore_timeout_ms: Option<i64> = if honor_busy_timeout {

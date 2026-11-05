@@ -10,8 +10,9 @@ wrapper converts native return values into the dataclasses in
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 from fathomdb import (
     _sdk_evidence,
@@ -44,6 +45,7 @@ from fathomdb._sdk_search import (
     _map_native_search_result as _map_native_search_result,  # noqa: F401
 )
 from fathomdb._sdk_search import _map_per_hit_explain as _map_per_hit_explain  # noqa: F401
+from fathomdb.maintenance import CleanupResult, ErasureStatus, PhysicalErasureSelector, QueueResult, WithdrawResult
 from fathomdb.config import EngineConfig
 from fathomdb.filter import Filter
 from fathomdb.types import (
@@ -94,6 +96,30 @@ class Engine:
         self._native = native
         self._path = path
         self._config = config
+
+    def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult:
+        """Queue immutable intent; data stays readable until committed removal."""
+        return cast(QueueResult, json.loads(self._native.queue_physical_erasure(json.dumps(selector), idempotency_key)))
+
+    def physical_erasure_status(self, ticket: str) -> ErasureStatus | None:
+        """Read one ticket; unknown/wrong-store tickets return None without scope."""
+        return cast(ErasureStatus | None, json.loads(self._native.physical_erasure_status(ticket)))
+
+    def withdraw_queued_erasure(self, ticket: str) -> WithdrawResult:
+        """Withdraw Queued only; no physical-completion claim or active cancellation."""
+        return cast(WithdrawResult, json.loads(self._native.withdraw_queued_erasure(ticket)))
+
+    def physical_erasure_policy(self) -> str:
+        """Return persisted scheduling honored by this open incarnation."""
+        return self._native.physical_erasure_policy()
+
+    def begin_erasure_maintenance(self, acquisition_wait_ms: int = 0) -> "ErasureMaintenance":
+        """Acquire exclusive service admission; the wait is not an SQL deadline."""
+        if isinstance(acquisition_wait_ms, bool) or not isinstance(acquisition_wait_ms, int):
+            raise TypeError("acquisition_wait_ms must be an integer")
+        if not 0 <= acquisition_wait_ms <= 2**53 - 1:
+            raise ValueError("acquisition_wait_ms must be in 0..=2**53-1")
+        return ErasureMaintenance(self._native.begin_erasure_maintenance(acquisition_wait_ms))
 
     @classmethod
     def open(
@@ -334,12 +360,12 @@ class Engine:
                 window; ``ReadView(valid_as_of=t)`` evaluates validity at the
                 bound instant ``t``.
 
-                Only the VALIDITY axis is honoured here. The existence flags
-                (``include_superseded`` / ``include_inactive``) raise
-                ``InvalidArgumentError`` on the search path rather than being
-                silently ignored: search hydrates from projection indexes that
-                are not version-complete, so they have no truthful answer.
-                Use ``read.list`` to enumerate history.
+                ``include_superseded`` admits historical versions and
+                ``include_inactive`` admits inactive rows independently.
+                Validity and source-dependency restrictions still apply.
+                Incomplete historical dense projections cause an explicit
+                vector soft fallback. Search remains ranked retrieval;
+                use ``read.list`` to enumerate every version.
             snippet: EP-17 ``SnippetOptions``. When set, ``SearchResult.snippets``
                 holds one match-centred ``SnippetV1`` per hit; ``None``
                 (default) leaves it ``None`` and the result unchanged.
@@ -454,20 +480,18 @@ class Engine:
         return _sdk_search.search_projected_text(self, query, name, filter, view=view, limit=limit)
 
     def search_text_only(
-        self,
-        query: str,
-        view: ReadView | None = None,
-        *,
-        limit: int = 10,
-        snippet: SnippetOptions | None = None,
+        self, query: str, view: ReadView | None = None, *, limit: int = 10,
+        filter: SearchFilter | None = None, snippet: SnippetOptions | None = None,
     ) -> SearchResult:
         """0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only / FTS-only search.
 
         Does NOT embed the query and NEVER raises
-        ``VectorEquivalenceMismatchError``, so it stays serviceable when the engine
-        opened in the degraded ``dense_disabled`` state (the D2 "keep FTS servable"
-        contract). It does not invoke vector recall, CE reranking, or the graph
-        arm. Matching node- and edge-body FTS candidates are deterministically
+        ``VectorEquivalenceMismatchError``. Deliberate provider-free opens retain
+        this path. It does not invoke vector recall, CE reranking, or the graph
+        arm. Filters apply before candidate bounds, deduplication and ranking.
+        Attribute predicates are node-scoped; status/time need existing projected
+        metadata and fail to match when absent. No metadata is populated here.
+        Matching node- and edge-body FTS candidates are deterministically
         body-deduplicated and ranked before ``limit`` is applied. For one
         immutable selection and effective validity time, smaller accepted limits
         are prefixes of larger limits; this does not extend to hybrid search.
@@ -475,24 +499,7 @@ class Engine:
         ``snippet`` (EP-17) fills ``SearchResult.snippets`` with one
         match-centred ``SnippetV1`` per hit; ``None`` leaves it ``None``.
         """
-        return _sdk_search.search_text_only(self, query, view, limit=limit, snippet=snippet)
-
-    def dense_disabled(self) -> bool:
-        """0.8.18 Slice 5 (R-VEQ-6) — ``True`` iff the engine opened degraded.
-
-        The open-time #5 self-check found a vector-equivalence divergence and every
-        vector-dependent arm now refuses at query time with
-        ``VectorEquivalenceMismatchError``. Mirrors ``OpenReport.dense_disabled``.
-        """
-        return _sdk_instrumentation.dense_disabled(self)
-
-    def dense_disabled_reason(self) -> str | None:
-        """0.8.18 Slice 5 (R-VEQ-6) — reason for the degraded state, or ``None``."""
-        return _sdk_instrumentation.dense_disabled_reason(self)
-
-    def vector_equivalence_refusal_count(self) -> int:
-        """0.8.18 Slice 5 (R-VEQ-6) — count of query-time dense-arm refusals."""
-        return _sdk_instrumentation.vector_equivalence_refusal_count(self)
+        return _sdk_search.search_text_only(self, query, view, limit=limit, filter=filter, snippet=snippet)
 
     def enable_telemetry(self, sink_path: str) -> None:
         """0.8.8 Slice 15 (OPP-9) — enable opt-in local telemetry capture to a
@@ -593,3 +600,32 @@ class Engine:
 
 
 __all__ = ["Engine"]
+
+
+class ErasureMaintenance:
+    """Exclusive service window. Drop/close never forgives durable physical debt."""
+
+    def __init__(self, native: Any) -> None:
+        self._native = native
+
+    def queue_physical_erasure(self, selector: PhysicalErasureSelector, idempotency_key: str) -> QueueResult:
+        """Perform heavy non-destructive preflight inside this window."""
+        return cast(QueueResult, json.loads(self._native.queue_physical_erasure(json.dumps(selector), idempotency_key)))
+
+    def complete_physical_erasure(self, ticket: str) -> CleanupResult:
+        """Attempt exact physical completion; Incomplete retains durable owed work."""
+        return cast(CleanupResult, json.loads(self._native.complete_physical_erasure(ticket)))
+
+    def reattach_original_erasure_sink(self, ticket: str, path: str) -> None:
+        """Reattach only a recorded original; never register or substitute a sink."""
+        self._native.reattach_original_erasure_sink(ticket, path)
+
+    def close(self) -> str:
+        """Release temporary ownership and return service state, not completion."""
+        return self._native.close()
+
+    def __enter__(self) -> "ErasureMaintenance":
+        return self
+
+    def __exit__(self, *_args: Any) -> None:
+        self.close()

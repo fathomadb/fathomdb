@@ -1,0 +1,1164 @@
+{
+  "started_utc": "2026-11-01T02:51:47.862291+00:00",
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--release",
+    "-p",
+    "fathomdb-engine",
+    "--features",
+    "test-hooks,embed-cuda",
+    "--test",
+    "slice50_fresh_open_cost",
+    "--",
+    "--ignored",
+    "--exact",
+    "fresh_open_cost",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "git": {
+    "exit_code": 0,
+    "stdout": "e49609fac6539d993fb4387150985f4649917289\n",
+    "stderr": ""
+  },
+  "status": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "cpu": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+  "rustc": {
+    "exit_code": 0,
+    "stdout": "rustc 1.95.0 (59807616e 2026-04-14)\n",
+    "stderr": ""
+  },
+  "probe_sha256": "85ee3cbef441c207904dc7644f24285431c6d63397a65ef1a00aac136e68d74e",
+  "runner_sha256": "d490fd2a4c9de01b56cfed8058d2944ce631845307e8174b4b98aca62bd96488",
+  "env": {
+    "CUDA_PATH": "/usr/local/cuda-12.6",
+    "CUDA_COMPUTE_CAP": "86",
+    "RAYON_NUM_THREADS": null,
+    "OMP_NUM_THREADS": null,
+    "MKL_NUM_THREADS": null,
+    "OPENBLAS_NUM_THREADS": null,
+    "CUDA_VISIBLE_DEVICES": "0"
+  },
+  "assets_before": {
+    "directory": "/home/coreyt/.cache/fathomdb/embedders/0b2926f8a9b1",
+    "files": [
+      {
+        "file": "config.json",
+        "sha256": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+        "bytes": 743
+      },
+      {
+        "file": "tokenizer.json",
+        "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+        "bytes": 711396
+      },
+      {
+        "file": "model.safetensors",
+        "sha256": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+        "bytes": 133466304
+      }
+    ]
+  },
+  "devices": [
+    {
+      "requested": "cuda:0",
+      "gpu_before": {
+        "exit_code": 0,
+        "stdout": "0, NVIDIA GeForce RTX 3090, 580.178.04, 4 MiB, 24122 MiB, 0 %\n1, NVIDIA GeForce RTX 3090, 580.178.04, 3 MiB, 24122 MiB, 0 %\n2, Quadro K620, 580.178.04, 1188 MiB, 803 MiB, 2 %\n",
+        "stderr": ""
+      },
+      "load_before": "3.82 3.47 2.66 4/3924 1323064",
+      "exit_code": 0,
+      "gpu_after": {
+        "exit_code": 0,
+        "stdout": "0, NVIDIA GeForce RTX 3090, 580.178.04, 4 MiB, 24122 MiB, 0 %\n1, NVIDIA GeForce RTX 3090, 580.178.04, 3 MiB, 24122 MiB, 0 %\n2, Quadro K620, 580.178.04, 1149 MiB, 843 MiB, 1 %\n",
+        "stderr": ""
+      },
+      "load_after": "4.24 3.57 2.70 6/3926 1325695",
+      "samples": [
+        {
+          "close_ms": 2.855729,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.25256,
+          "pair": 0,
+          "probe_embeds": 0,
+          "total_ms": 12.10861,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 3.1445230000000004,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 172.82773500000002,
+          "pair": 0,
+          "probe_embeds": 45,
+          "total_ms": 175.97285,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 4.235232,
+          "lifecycle": "reuse",
+          "model_load_ms": 3.1e-05,
+          "open_ms": 165.28888899999998,
+          "pair": 1,
+          "probe_embeds": 45,
+          "total_ms": 169.524492,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 2.086217,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.128005,
+          "pair": 1,
+          "probe_embeds": 0,
+          "total_ms": 11.214603,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 1.635947,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 8.613314,
+          "pair": 2,
+          "probe_embeds": 0,
+          "total_ms": 10.249601,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.4506689999999995,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 161.437952,
+          "pair": 2,
+          "probe_embeds": 45,
+          "total_ms": 165.888992,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 4.226556,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 162.735961,
+          "pair": 3,
+          "probe_embeds": 45,
+          "total_ms": 166.962888,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 2.693042,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.178771000000001,
+          "pair": 3,
+          "probe_embeds": 0,
+          "total_ms": 11.872114,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 2.2001619999999997,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 10.073069,
+          "pair": 4,
+          "probe_embeds": 0,
+          "total_ms": 12.273661,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.508217,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 170.130164,
+          "pair": 4,
+          "probe_embeds": 45,
+          "total_ms": 174.639013,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 4.384714,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 167.172855,
+          "pair": 5,
+          "probe_embeds": 45,
+          "total_ms": 171.55804899999998,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 3.022714,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.803229,
+          "pair": 5,
+          "probe_embeds": 0,
+          "total_ms": 12.826264,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 2.651344,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.190873,
+          "pair": 6,
+          "probe_embeds": 0,
+          "total_ms": 11.842508,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.344728,
+          "lifecycle": "reuse",
+          "model_load_ms": 4.9999999999999996e-05,
+          "open_ms": 168.17240999999999,
+          "pair": 6,
+          "probe_embeds": 45,
+          "total_ms": 172.51776099999998,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 3.665637,
+          "lifecycle": "reuse",
+          "model_load_ms": 0.000111,
+          "open_ms": 165.592552,
+          "pair": 7,
+          "probe_embeds": 45,
+          "total_ms": 169.258821,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 1.618033,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 8.771122,
+          "pair": 7,
+          "probe_embeds": 0,
+          "total_ms": 10.389575,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 2.322423,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 8.54767,
+          "pair": 8,
+          "probe_embeds": 0,
+          "total_ms": 10.870372999999999,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 3.6774199999999997,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 167.203001,
+          "pair": 8,
+          "probe_embeds": 45,
+          "total_ms": 170.88097199999999,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 3.9397240000000004,
+          "lifecycle": "reuse",
+          "model_load_ms": 4.1e-05,
+          "open_ms": 165.357699,
+          "pair": 9,
+          "probe_embeds": 45,
+          "total_ms": 169.297885,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 3.3815809999999997,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 9.866449,
+          "pair": 9,
+          "probe_embeds": 0,
+          "total_ms": 13.24835,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 5.757395,
+          "lifecycle": "reload",
+          "model_load_ms": 110.969496,
+          "open_ms": 9.662744,
+          "pair": 0,
+          "probe_embeds": 0,
+          "total_ms": 126.390005,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 13.717746,
+          "lifecycle": "reload",
+          "model_load_ms": 111.029589,
+          "open_ms": 191.718254,
+          "pair": 0,
+          "probe_embeds": 45,
+          "total_ms": 316.46647,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 8.337964999999999,
+          "lifecycle": "reload",
+          "model_load_ms": 120.14740499999999,
+          "open_ms": 189.340116,
+          "pair": 1,
+          "probe_embeds": 45,
+          "total_ms": 317.826057,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 9.180254,
+          "lifecycle": "reload",
+          "model_load_ms": 120.665042,
+          "open_ms": 15.721648000000002,
+          "pair": 1,
+          "probe_embeds": 0,
+          "total_ms": 145.567584,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 7.5206420000000005,
+          "lifecycle": "reload",
+          "model_load_ms": 113.77991899999999,
+          "open_ms": 11.435348999999999,
+          "pair": 2,
+          "probe_embeds": 0,
+          "total_ms": 132.736301,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 11.162995,
+          "lifecycle": "reload",
+          "model_load_ms": 114.46892,
+          "open_ms": 194.542604,
+          "pair": 2,
+          "probe_embeds": 45,
+          "total_ms": 320.17508,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 10.226999000000001,
+          "lifecycle": "reload",
+          "model_load_ms": 113.54686,
+          "open_ms": 198.80097899999998,
+          "pair": 3,
+          "probe_embeds": 45,
+          "total_ms": 322.575519,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 7.921398,
+          "lifecycle": "reload",
+          "model_load_ms": 117.317164,
+          "open_ms": 9.80914,
+          "pair": 3,
+          "probe_embeds": 0,
+          "total_ms": 135.048665,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 6.101134,
+          "lifecycle": "reload",
+          "model_load_ms": 113.397017,
+          "open_ms": 9.658966999999999,
+          "pair": 4,
+          "probe_embeds": 0,
+          "total_ms": 129.157578,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 11.43565,
+          "lifecycle": "reload",
+          "model_load_ms": 114.147474,
+          "open_ms": 205.789097,
+          "pair": 4,
+          "probe_embeds": 45,
+          "total_ms": 331.372841,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 11.153868000000001,
+          "lifecycle": "reload",
+          "model_load_ms": 109.787746,
+          "open_ms": 183.43204799999998,
+          "pair": 5,
+          "probe_embeds": 45,
+          "total_ms": 304.374153,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 6.388165000000001,
+          "lifecycle": "reload",
+          "model_load_ms": 111.19353899999999,
+          "open_ms": 9.528601,
+          "pair": 5,
+          "probe_embeds": 0,
+          "total_ms": 127.11067600000001,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 7.686635,
+          "lifecycle": "reload",
+          "model_load_ms": 113.811099,
+          "open_ms": 10.185501,
+          "pair": 6,
+          "probe_embeds": 0,
+          "total_ms": 131.683585,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 11.942836999999999,
+          "lifecycle": "reload",
+          "model_load_ms": 110.15083200000001,
+          "open_ms": 191.141747,
+          "pair": 6,
+          "probe_embeds": 45,
+          "total_ms": 313.23604700000004,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 9.961177999999999,
+          "lifecycle": "reload",
+          "model_load_ms": 110.887923,
+          "open_ms": 197.057791,
+          "pair": 7,
+          "probe_embeds": 45,
+          "total_ms": 317.90747200000004,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 6.5041839999999995,
+          "lifecycle": "reload",
+          "model_load_ms": 112.106822,
+          "open_ms": 9.678282999999999,
+          "pair": 7,
+          "probe_embeds": 0,
+          "total_ms": 128.289701,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 7.129945,
+          "lifecycle": "reload",
+          "model_load_ms": 110.311224,
+          "open_ms": 9.52287,
+          "pair": 8,
+          "probe_embeds": 0,
+          "total_ms": 126.96441,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 10.796754,
+          "lifecycle": "reload",
+          "model_load_ms": 109.608679,
+          "open_ms": 186.836793,
+          "pair": 8,
+          "probe_embeds": 45,
+          "total_ms": 307.242747,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 11.243898,
+          "lifecycle": "reload",
+          "model_load_ms": 112.240997,
+          "open_ms": 183.83640100000002,
+          "pair": 9,
+          "probe_embeds": 45,
+          "total_ms": 307.321847,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 9.651533,
+          "lifecycle": "reload",
+          "model_load_ms": 112.89976899999999,
+          "open_ms": 10.694782,
+          "pair": 9,
+          "probe_embeds": 0,
+          "total_ms": 133.246686,
+          "verification": "cached"
+        }
+      ],
+      "metadata": {
+        "effective": "cuda:0",
+        "identity": "EmbedderIdentity { name: \"fathomdb-bge-small-en-v1.5\", revision: \"5c38ec7c405ec4b44b94cc5a9bb96e735b38267a\", dimension: 384 }",
+        "loader_download_bytes": 0,
+        "mean_pinned": true,
+        "pairs_per_lifecycle": 10,
+        "pooling": "Mean",
+        "probe_count": 45,
+        "rayon_num_threads": null,
+        "requested": "cuda:0",
+        "rows": 300,
+        "sqlite_version": "3.54.1",
+        "vectorless_embeds": 0,
+        "verified_cache_hits_per_construction": 3
+      },
+      "complete": true,
+      "summary": [
+        {
+          "lifecycle": "reuse",
+          "metric": "open_ms",
+          "fresh": {
+            "n": 10,
+            "min": 161.437952,
+            "median": 166.3827035,
+            "p95_nearest_rank": 172.82773500000002,
+            "max": 172.82773500000002
+          },
+          "cached": {
+            "n": 10,
+            "min": 8.54767,
+            "median": 9.184822,
+            "p95_nearest_rank": 10.073069,
+            "max": 10.073069
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 152.824638,
+            "median": 157.095528,
+            "p95_nearest_rank": 163.57517500000003,
+            "max": 163.57517500000003
+          }
+        },
+        {
+          "lifecycle": "reuse",
+          "metric": "total_ms",
+          "fresh": {
+            "n": 10,
+            "min": 165.888992,
+            "median": 170.202732,
+            "p95_nearest_rank": 175.97285,
+            "max": 175.97285
+          },
+          "cached": {
+            "n": 10,
+            "min": 10.249601,
+            "median": 11.857311,
+            "p95_nearest_rank": 13.24835,
+            "max": 13.24835
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 155.09077399999998,
+            "median": 158.8005155,
+            "p95_nearest_rank": 163.86424,
+            "max": 163.86424
+          }
+        },
+        {
+          "lifecycle": "reload",
+          "metric": "open_ms",
+          "fresh": {
+            "n": 10,
+            "min": 183.43204799999998,
+            "median": 191.4300005,
+            "p95_nearest_rank": 205.789097,
+            "max": 205.789097
+          },
+          "cached": {
+            "n": 10,
+            "min": 9.52287,
+            "median": 9.7437115,
+            "p95_nearest_rank": 15.721648000000002,
+            "max": 15.721648000000002
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 173.14161900000002,
+            "median": 181.505878,
+            "p95_nearest_rank": 196.13013,
+            "max": 196.13013
+          }
+        },
+        {
+          "lifecycle": "reload",
+          "metric": "total_ms",
+          "fresh": {
+            "n": 10,
+            "min": 304.374153,
+            "median": 317.14626350000003,
+            "p95_nearest_rank": 331.372841,
+            "max": 331.372841
+          },
+          "cached": {
+            "n": 10,
+            "min": 126.390005,
+            "median": 130.4205815,
+            "p95_nearest_rank": 145.567584,
+            "max": 145.567584
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 172.25847299999998,
+            "median": 184.49562050000003,
+            "p95_nearest_rank": 202.215263,
+            "max": 202.215263
+          }
+        }
+      ]
+    },
+    {
+      "requested": "cpu",
+      "gpu_before": {
+        "exit_code": 0,
+        "stdout": "0, NVIDIA GeForce RTX 3090, 580.178.04, 4 MiB, 24122 MiB, 0 %\n1, NVIDIA GeForce RTX 3090, 580.178.04, 3 MiB, 24122 MiB, 0 %\n2, Quadro K620, 580.178.04, 1293 MiB, 699 MiB, 14 %\n",
+        "stderr": ""
+      },
+      "load_before": "4.24 3.57 2.70 7/3927 1325713",
+      "exit_code": 0,
+      "gpu_after": {
+        "exit_code": 0,
+        "stdout": "0, NVIDIA GeForce RTX 3090, 580.178.04, 4 MiB, 24122 MiB, 0 %\n1, NVIDIA GeForce RTX 3090, 580.178.04, 3 MiB, 24122 MiB, 0 %\n2, Quadro K620, 580.178.04, 1179 MiB, 813 MiB, 3 %\n",
+        "stderr": ""
+      },
+      "load_after": "9.90 5.54 3.46 6/3868 1331047",
+      "samples": [
+        {
+          "close_ms": 2.9723800000000002,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 8.793985000000001,
+          "pair": 0,
+          "probe_embeds": 0,
+          "total_ms": 11.766755,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.150011,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 2355.04875,
+          "pair": 0,
+          "probe_embeds": 45,
+          "total_ms": 2359.199173,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 4.410283,
+          "lifecycle": "reuse",
+          "model_load_ms": 4.9999999999999996e-05,
+          "open_ms": 2292.6539159999998,
+          "pair": 1,
+          "probe_embeds": 45,
+          "total_ms": 2297.0646490000004,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 2.567816,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.369671,
+          "pair": 1,
+          "probe_embeds": 0,
+          "total_ms": 11.937818,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 2.938906,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.076569,
+          "pair": 2,
+          "probe_embeds": 0,
+          "total_ms": 12.015845,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.227087,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 2411.035225,
+          "pair": 2,
+          "probe_embeds": 45,
+          "total_ms": 2415.262712,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 3.79415,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 2267.47938,
+          "pair": 3,
+          "probe_embeds": 45,
+          "total_ms": 2271.273952,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 2.328995,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 8.586985,
+          "pair": 3,
+          "probe_embeds": 0,
+          "total_ms": 10.9164,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 3.233131,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 10.807163999999998,
+          "pair": 4,
+          "probe_embeds": 0,
+          "total_ms": 14.040666,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.40926,
+          "lifecycle": "reuse",
+          "model_load_ms": 4.1e-05,
+          "open_ms": 2324.552995,
+          "pair": 4,
+          "probe_embeds": 45,
+          "total_ms": 2328.962747,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 4.394233,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 2321.147339,
+          "pair": 5,
+          "probe_embeds": 45,
+          "total_ms": 2325.542003,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 2.662986,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 9.495549,
+          "pair": 5,
+          "probe_embeds": 0,
+          "total_ms": 12.158885,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 3.516425,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 8.967492,
+          "pair": 6,
+          "probe_embeds": 0,
+          "total_ms": 12.484210000000001,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 3.008378,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 2448.0852779999996,
+          "pair": 6,
+          "probe_embeds": 45,
+          "total_ms": 2451.094066,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 4.400564,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 2643.426304,
+          "pair": 7,
+          "probe_embeds": 45,
+          "total_ms": 2647.8272779999998,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 3.5917879999999998,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 8.983974,
+          "pair": 7,
+          "probe_embeds": 0,
+          "total_ms": 12.576113,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 3.214696,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 10.122321999999999,
+          "pair": 8,
+          "probe_embeds": 0,
+          "total_ms": 13.337418999999999,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.539016,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 2461.856441,
+          "pair": 8,
+          "probe_embeds": 45,
+          "total_ms": 2466.395837,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 4.378442,
+          "lifecycle": "reuse",
+          "model_load_ms": 2.9999999999999997e-05,
+          "open_ms": 2411.448976,
+          "pair": 9,
+          "probe_embeds": 45,
+          "total_ms": 2415.82784,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 2.63361,
+          "lifecycle": "reuse",
+          "model_load_ms": 4e-05,
+          "open_ms": 9.80302,
+          "pair": 9,
+          "probe_embeds": 0,
+          "total_ms": 12.43699,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 6.94712,
+          "lifecycle": "reload",
+          "model_load_ms": 116.945563,
+          "open_ms": 10.760437,
+          "pair": 0,
+          "probe_embeds": 0,
+          "total_ms": 134.653712,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 6.815192000000001,
+          "lifecycle": "reload",
+          "model_load_ms": 115.04207099999999,
+          "open_ms": 2616.4165869999997,
+          "pair": 0,
+          "probe_embeds": 45,
+          "total_ms": 2738.2744199999997,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 8.578979,
+          "lifecycle": "reload",
+          "model_load_ms": 115.395338,
+          "open_ms": 2623.6476570000004,
+          "pair": 1,
+          "probe_embeds": 45,
+          "total_ms": 2747.622766,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 6.718278000000001,
+          "lifecycle": "reload",
+          "model_load_ms": 116.966484,
+          "open_ms": 11.022001,
+          "pair": 1,
+          "probe_embeds": 0,
+          "total_ms": 134.707464,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 4.876804,
+          "lifecycle": "reload",
+          "model_load_ms": 122.418784,
+          "open_ms": 10.957768999999999,
+          "pair": 2,
+          "probe_embeds": 0,
+          "total_ms": 138.253847,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 6.6332580000000005,
+          "lifecycle": "reload",
+          "model_load_ms": 116.751188,
+          "open_ms": 2614.495711,
+          "pair": 2,
+          "probe_embeds": 45,
+          "total_ms": 2737.8805970000003,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 6.892467,
+          "lifecycle": "reload",
+          "model_load_ms": 121.302537,
+          "open_ms": 2601.640774,
+          "pair": 3,
+          "probe_embeds": 45,
+          "total_ms": 2729.8362100000004,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 6.462676,
+          "lifecycle": "reload",
+          "model_load_ms": 120.295287,
+          "open_ms": 9.611468,
+          "pair": 3,
+          "probe_embeds": 0,
+          "total_ms": 136.369792,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 7.695212,
+          "lifecycle": "reload",
+          "model_load_ms": 118.756994,
+          "open_ms": 9.584458,
+          "pair": 4,
+          "probe_embeds": 0,
+          "total_ms": 136.03707400000002,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 8.905536,
+          "lifecycle": "reload",
+          "model_load_ms": 116.784432,
+          "open_ms": 2418.234289,
+          "pair": 4,
+          "probe_embeds": 45,
+          "total_ms": 2543.9247680000003,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 5.7971710000000005,
+          "lifecycle": "reload",
+          "model_load_ms": 114.86307699999999,
+          "open_ms": 2566.282294,
+          "pair": 5,
+          "probe_embeds": 45,
+          "total_ms": 2686.943012,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 7.303353,
+          "lifecycle": "reload",
+          "model_load_ms": 118.19935299999999,
+          "open_ms": 9.819511,
+          "pair": 5,
+          "probe_embeds": 0,
+          "total_ms": 135.322708,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 5.96137,
+          "lifecycle": "reload",
+          "model_load_ms": 115.912027,
+          "open_ms": 9.646364,
+          "pair": 6,
+          "probe_embeds": 0,
+          "total_ms": 131.520222,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 7.776826,
+          "lifecycle": "reload",
+          "model_load_ms": 115.31235500000001,
+          "open_ms": 2486.818305,
+          "pair": 6,
+          "probe_embeds": 45,
+          "total_ms": 2609.907937,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 8.047888,
+          "lifecycle": "reload",
+          "model_load_ms": 114.267073,
+          "open_ms": 2455.206851,
+          "pair": 7,
+          "probe_embeds": 45,
+          "total_ms": 2577.522252,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 6.041241,
+          "lifecycle": "reload",
+          "model_load_ms": 114.38183000000001,
+          "open_ms": 9.392315,
+          "pair": 7,
+          "probe_embeds": 0,
+          "total_ms": 129.815867,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 5.160949,
+          "lifecycle": "reload",
+          "model_load_ms": 114.681355,
+          "open_ms": 9.62311,
+          "pair": 8,
+          "probe_embeds": 0,
+          "total_ms": 129.465946,
+          "verification": "cached"
+        },
+        {
+          "close_ms": 7.337287,
+          "lifecycle": "reload",
+          "model_load_ms": 116.762152,
+          "open_ms": 2537.965133,
+          "pair": 8,
+          "probe_embeds": 45,
+          "total_ms": 2662.0651239999997,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 5.801449,
+          "lifecycle": "reload",
+          "model_load_ms": 114.368315,
+          "open_ms": 2576.943827,
+          "pair": 9,
+          "probe_embeds": 45,
+          "total_ms": 2697.114031,
+          "verification": "fresh"
+        },
+        {
+          "close_ms": 6.304627999999999,
+          "lifecycle": "reload",
+          "model_load_ms": 114.7466,
+          "open_ms": 9.306534,
+          "pair": 9,
+          "probe_embeds": 0,
+          "total_ms": 130.358172,
+          "verification": "cached"
+        }
+      ],
+      "metadata": {
+        "effective": "cpu",
+        "identity": "EmbedderIdentity { name: \"fathomdb-bge-small-en-v1.5\", revision: \"5c38ec7c405ec4b44b94cc5a9bb96e735b38267a\", dimension: 384 }",
+        "loader_download_bytes": 0,
+        "mean_pinned": true,
+        "pairs_per_lifecycle": 10,
+        "pooling": "Mean",
+        "probe_count": 45,
+        "rayon_num_threads": null,
+        "requested": "cpu",
+        "rows": 300,
+        "sqlite_version": "3.54.1",
+        "vectorless_embeds": 0,
+        "verified_cache_hits_per_construction": 3
+      },
+      "complete": true,
+      "summary": [
+        {
+          "lifecycle": "reuse",
+          "metric": "open_ms",
+          "fresh": {
+            "n": 10,
+            "min": 2267.47938,
+            "median": 2383.0419875,
+            "p95_nearest_rank": 2643.426304,
+            "max": 2643.426304
+          },
+          "cached": {
+            "n": 10,
+            "min": 8.586985,
+            "median": 9.22312,
+            "p95_nearest_rank": 10.807163999999998,
+            "max": 10.807163999999998
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 2258.8923950000003,
+            "median": 2373.9503605,
+            "p95_nearest_rank": 2634.44233,
+            "max": 2634.44233
+          }
+        },
+        {
+          "lifecycle": "reuse",
+          "metric": "total_ms",
+          "fresh": {
+            "n": 10,
+            "min": 2271.273952,
+            "median": 2387.2309425000003,
+            "p95_nearest_rank": 2647.8272779999998,
+            "max": 2647.8272779999998
+          },
+          "cached": {
+            "n": 10,
+            "min": 10.9164,
+            "median": 12.2979375,
+            "p95_nearest_rank": 14.040666,
+            "max": 14.040666
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 2260.357552,
+            "median": 2375.3396425,
+            "p95_nearest_rank": 2635.2511649999997,
+            "max": 2635.2511649999997
+          }
+        },
+        {
+          "lifecycle": "reload",
+          "metric": "open_ms",
+          "fresh": {
+            "n": 10,
+            "min": 2418.234289,
+            "median": 2571.6130605,
+            "p95_nearest_rank": 2623.6476570000004,
+            "max": 2623.6476570000004
+          },
+          "cached": {
+            "n": 10,
+            "min": 9.306534,
+            "median": 9.634737000000001,
+            "p95_nearest_rank": 11.022001,
+            "max": 11.022001
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 2408.649831,
+            "median": 2562.0500380000003,
+            "p95_nearest_rank": 2612.6256560000006,
+            "max": 2612.6256560000006
+          }
+        },
+        {
+          "lifecycle": "reload",
+          "metric": "total_ms",
+          "fresh": {
+            "n": 10,
+            "min": 2543.9247680000003,
+            "median": 2692.0285215000004,
+            "p95_nearest_rank": 2747.622766,
+            "max": 2747.622766
+          },
+          "cached": {
+            "n": 10,
+            "min": 129.465946,
+            "median": 134.680588,
+            "p95_nearest_rank": 138.253847,
+            "max": 138.253847
+          },
+          "paired_delta": {
+            "n": 10,
+            "min": 2407.8876940000005,
+            "median": 2559.1880815,
+            "p95_nearest_rank": 2612.915302,
+            "max": 2612.915302
+          }
+        }
+      ]
+    }
+  ],
+  "assets_after": {
+    "directory": "/home/coreyt/.cache/fathomdb/embedders/0b2926f8a9b1",
+    "files": [
+      {
+        "file": "config.json",
+        "sha256": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+        "bytes": 743
+      },
+      {
+        "file": "tokenizer.json",
+        "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+        "bytes": 711396
+      },
+      {
+        "file": "model.safetensors",
+        "sha256": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+        "bytes": 133466304
+      }
+    ]
+  },
+  "ended_utc": "2026-11-01T02:53:07.365395+00:00"
+}

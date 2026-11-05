@@ -181,6 +181,13 @@ pub(crate) fn run_pin_and_requantize_pass(
             .map_err(|_| EngineError::Storage)?
         };
 
+        let eligibility: (i64, i64, i64) = tx
+            .query_row(
+                "SELECT lifecycle,valid_from,valid_until FROM vector_default WHERE rowid=?1",
+                [rowid],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|_| EngineError::Storage)?;
         delete_vector_partition_row(tx, *rowid).map_err(|_| EngineError::Storage)?;
 
         // Slice 10 / G10 — `status` ships the empty-string sentinel (vec0 TEXT
@@ -189,12 +196,12 @@ pub(crate) fn run_pin_and_requantize_pass(
         let mut ph_sql = String::new();
         for (i, col) in attr_cols.iter().enumerate() {
             cols_sql.push_str(&format!(", {col}"));
-            ph_sql.push_str(&format!(", ?{}", 7 + i));
+            ph_sql.push_str(&format!(", ?{}", 10 + i));
         }
         let sql = format!(
             "INSERT INTO vector_default(
-                rowid, embedding, embedding_bin, source_type, kind, created_at, status{cols_sql}
-             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, ''{ph_sql})"
+                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
+             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9{ph_sql})"
         );
         let mut pv: Vec<rusqlite::types::Value> = vec![
             rusqlite::types::Value::Integer(*rowid),
@@ -203,6 +210,9 @@ pub(crate) fn run_pin_and_requantize_pass(
             rusqlite::types::Value::Text(source_type),
             rusqlite::types::Value::Text(kind),
             rusqlite::types::Value::Integer(created_at),
+            rusqlite::types::Value::Integer(eligibility.0),
+            rusqlite::types::Value::Integer(eligibility.1),
+            rusqlite::types::Value::Integer(eligibility.2),
         ];
         for v in attr_vals {
             pv.push(rusqlite::types::Value::Text(v));
@@ -412,7 +422,7 @@ impl Engine {
     /// un-centered workspace).
     #[cfg(feature = "operator")]
     pub fn recompute_mean(&self) -> Result<MeanRecomputeReport, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let identity = self.runtime_embedder_identity.clone();
         if !identity_requires_mean_centering(&identity) {
             return Err(EngineError::EmbedderNotConfigured);
@@ -428,6 +438,7 @@ impl Engine {
                 .unwrap_or_else(|p| p.into_inner());
             let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+            erasure_queue::guard_admin(connection)?;
             dependency_closure::maintain_before_writer(connection)?;
             let tx = connection
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)

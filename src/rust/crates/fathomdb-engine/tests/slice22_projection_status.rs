@@ -282,21 +282,24 @@ fn status_covers_embedding_ready_and_the_equivalence_refusal_reason() {
         Arc::new(DelayEmbedder::faithful(identity.clone(), Duration::ZERO)),
     )
     .expect("reopen to persist an accepted equivalence baseline");
-    assert!(!accepted.report.dense_disabled, "fixture: faithful runtime is accepted");
     accepted.engine.close().expect("close accepted baseline");
     force_probe_verdict_rerun(&path);
 
     let rejected =
-        Engine::open_with_embedder_for_test(&path, Arc::new(DelayEmbedder::divergent(identity)))
-            .expect("degraded open stays serviceable");
-    let status = rejected.engine.read_projection_status().expect("refusal status");
+        Engine::open_with_embedder_for_test(&path, Arc::new(DelayEmbedder::divergent(identity)));
+    assert!(matches!(
+        rejected,
+        Err(fathomdb_engine::EngineOpenError::VectorEquivalenceMismatch { .. })
+    ));
+    let recovered = Engine::open(&path).expect("explicit no-provider status inspection");
+    let status = recovered.engine.read_projection_status().expect("absent runtime status");
     assert!(!status.runtime_embedder_available);
     assert_eq!(
         status.runtime_unavailability_reason,
-        ProjectionRuntimeUnavailabilityReason::VectorEquivalenceDisabled
+        ProjectionRuntimeUnavailabilityReason::NoRuntime
     );
     assert_eq!(entry(&status, "summary"), ProjectionStatusDenseReadiness::Unavailable);
-    rejected.engine.close().expect("close degraded runtime");
+    recovered.engine.close().unwrap();
 }
 
 // Uses `Engine::set_legacy_projection_vector_declared_for_test`, a debug-build-only hook.

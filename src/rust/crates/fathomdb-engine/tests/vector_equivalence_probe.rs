@@ -19,7 +19,10 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, EngineError};
+use fathomdb_engine::{
+    Engine, EngineConfig, EngineError, EngineOpenError, TestEmbedderChoice,
+    VectorVerificationFailure,
+};
 use tempfile::TempDir;
 
 const DIM: usize = 384;
@@ -250,7 +253,6 @@ fn set_pinned_mean(path: &std::path::Path, mean: Option<Vec<u8>>) {
 
 /// Seed a bge-identity workspace (registered vector kind + 45 UN-centered f32
 /// references) with a pinned all-`1.0` mean, leaving the DB ready for an MC-branch
-/// CHECK on the next open. Returns with `dense_disabled == false`.
 fn seed_bge_references_with_pinned_mean(path: &std::path::Path) {
     // Session 1 — create the profile (bge identity) + register the vector kind.
     let opened = Engine::open_with_embedder_for_test(path, Arc::new(BgeRefEmbedder))
@@ -264,7 +266,6 @@ fn seed_bge_references_with_pinned_mean(path: &std::path::Path) {
     // Session 2 — kind registered + references empty ⇒ persist UN-centered refs.
     let opened = Engine::open_with_embedder_for_test(path, Arc::new(BgeRefEmbedder))
         .expect("bge session 2 open persists references");
-    assert!(!opened.report.dense_disabled, "first registration is never degraded");
     opened.engine.close().expect("close bge session 2");
 
     // TC-68 — the population open also CACHED its passing verdict. Clear it so the
@@ -276,24 +277,55 @@ fn seed_bge_references_with_pinned_mean(path: &std::path::Path) {
 /// reference backend, leaving the DB ready for a divergence CHECK on the next
 /// open. Two opens: session 1 registers the kind (the probe is gated on a
 /// registered vector kind, so it is inert here); session 2 sees the kind and
-/// persists the references. Both leave `dense_disabled == false`.
 fn seed_references(path: &std::path::Path) {
     // Session 1 — register the vector kind (probe inert: no kind at open yet).
     let opened =
         Engine::open_with_embedder_for_test(path, Arc::new(RefEmbedder)).expect("session 1 open");
     opened.engine.configure_vector_kind_for_test("note").expect("register vector kind");
-    assert!(!opened.report.dense_disabled, "session 1 is never degraded");
     opened.engine.close().expect("close session 1");
 
     // Session 2 — kind now registered + references empty ⇒ persist references.
     let opened = Engine::open_with_embedder_for_test(path, Arc::new(RefEmbedder))
         .expect("session 2 open persists references");
-    assert!(!opened.report.dense_disabled, "first registration is never degraded");
     opened.engine.close().expect("close session 2");
 
     // TC-68 — the population open also CACHED its passing verdict. Clear it so the
     // next open genuinely re-runs the check (see `force_probe_verdict_rerun`).
     force_probe_verdict_rerun(path);
+}
+
+fn numeric_refusal(path: &std::path::Path, provider: Arc<dyn Embedder>) -> String {
+    match Engine::open_with_embedder_for_test(path, provider) {
+        Err(EngineOpenError::VectorEquivalenceMismatch { reason }) => reason,
+        Err(error) => panic!("expected numeric mismatch, got {error:?}"),
+        Ok(opened) => {
+            opened.engine.close().unwrap();
+            panic!("divergence accepted")
+        }
+    }
+}
+
+fn verification_refusal(
+    path: &std::path::Path,
+    provider: Arc<dyn Embedder>,
+) -> VectorVerificationFailure {
+    match Engine::open_with_embedder_for_test(path, provider) {
+        Err(EngineOpenError::VectorVerification { cause, .. }) => cause,
+        Err(error) => panic!("expected unverifiable provider, got {error:?}"),
+        Ok(opened) => {
+            opened.engine.close().unwrap();
+            panic!("unverifiable provider accepted")
+        }
+    }
+}
+
+fn assert_explicit_none_text_access(path: &std::path::Path) {
+    let opened = Engine::open(path).expect("explicit no-provider recovery");
+    assert!(
+        opened.engine.search_text_only("memory").is_ok(),
+        "text access remains available by explicit choice"
+    );
+    opened.engine.close().unwrap();
 }
 
 // ---- R-VEQ-1 — probe set persisted at first vector-kind registration ---------
@@ -352,25 +384,8 @@ fn divergent_backend_trips_dense_refusal() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-
-    // Reopen with a DIVERGENT backend of the SAME identity.
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder))
-        .expect("open must SUCCEED (degraded), never fail");
-    let engine = opened.engine;
-
-    // Degraded-open, not open-failure (R-VEQ-4).
-    assert!(opened.report.dense_disabled, "divergent backend must degrade the open");
-
-    // Every vector-dependent arm refuses with the typed query-time error.
-    match engine.search("memory") {
-        Err(EngineError::VectorEquivalenceMismatch { .. }) => {}
-        other => panic!("hybrid search must refuse with VectorEquivalenceMismatch, got {other:?}"),
-    }
-
-    // FTS-only path still serves.
-    let fts = engine.search_text_only("memory").expect("FTS-only path must stay serviceable");
-    let _ = fts; // may be empty (no rows written) — the point is it does not refuse.
-    engine.close().unwrap();
+    numeric_refusal(&path, Arc::new(DivergentEmbedder));
+    assert_explicit_none_text_access(&path);
 }
 
 #[test]
@@ -384,7 +399,6 @@ fn same_backend_float_noise_does_not_trip() {
         .expect("open with float-noise backend");
     let engine = opened.engine;
 
-    assert!(!opened.report.dense_disabled, "sub-epsilon float noise must NOT degrade the open");
     // Dense arm served (does not refuse). Result may be empty (no rows) — the
     // contract is "no VectorEquivalenceMismatch".
     match engine.search("memory") {
@@ -404,19 +418,8 @@ fn probe_p1_flip_count_matches_embedding_bin() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-
-    // Full-negation backend: reference is all-positive (bits all 1), reembed is
-    // all-negative (bits all 0), so EVERY bit flips: 384 bits × 45 probes = 17280.
-    // The exact count proves the probe computes `embedding_bin` via the SAME
-    // `vec_quantize_binary(sign(x))` path and counts flips exactly (P1 floor = 0).
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder)).unwrap();
-    assert!(opened.report.dense_disabled);
-    let reason = opened.report.dense_disabled_reason.clone().expect("degraded reason present");
-    assert!(
-        reason.contains("flips=17280"),
-        "P1 must count exactly 384*45=17280 sign flips, reason was: {reason}"
-    );
-    opened.engine.close().unwrap();
+    let reason = numeric_refusal(&path, Arc::new(DivergentEmbedder));
+    assert!(reason.contains("flips=17280"), "P1 must count exactly 384*45 sign flips: {reason}");
 }
 
 // ---- R-VEQ-3b (P2) — un-centered L2 within epsilon --------------------------
@@ -426,17 +429,8 @@ fn probe_p2_l2_within_epsilon() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-
-    // +1e-3 constant: NO sign flips (P1 flips = 0) but L2 ≈ 2e-2 > 1e-5 — P2 trips
-    // ALONE, proving the Phase-2 L2 axis is asserted independently of P1.
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(P2OnlyEmbedder)).unwrap();
-    assert!(opened.report.dense_disabled, "P2 L2 over epsilon must degrade the open");
-    let reason = opened.report.dense_disabled_reason.clone().expect("reason present");
-    assert!(
-        reason.contains("flips=0"),
-        "P2-only divergence must NOT flip any P1 bit, reason was: {reason}"
-    );
-    opened.engine.close().unwrap();
+    let reason = numeric_refusal(&path, Arc::new(P2OnlyEmbedder));
+    assert!(reason.contains("flips=0"), "P2-only divergence must not flip any P1 bit: {reason}");
 }
 
 // ---- R-VEQ-3c — centering gate (non-MC/no-pin ⇒ un-centered both sides) ------
@@ -453,115 +447,63 @@ fn probe_respects_mean_centering_gate_non_mc_path() {
     let path = db_path(&dir);
     seed_references(&path);
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder)).unwrap();
-    assert!(
-        !opened.report.dense_disabled,
-        "identical backend on the non-MC un-centered path must be 0 flips / 0 L2"
-    );
     opened.engine.close().unwrap();
 }
 
 // ---- R-VEQ-4 — degraded-open + choke-point coverage + FTS serviceable --------
 
 #[test]
-fn divergent_open_is_degraded_not_failed() {
+fn divergent_open_fails_before_returning_an_engine() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-    // open() returns Ok, not Err — the refusal is query-time, not open-time.
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder))
-        .expect("degraded open must SUCCEED");
-    assert!(opened.report.dense_disabled);
-    assert!(opened.engine.dense_disabled(), "engine accessor mirrors the report");
-    opened.engine.close().unwrap();
+    numeric_refusal(&path, Arc::new(DivergentEmbedder));
+    // Failure releases admission for the explicit recovery choice.
+    assert_explicit_none_text_access(&path);
 }
 
 #[test]
-fn every_vector_dependent_arm_refuses_with_typed_error() {
+fn failed_admission_precedes_all_vector_calls_and_matching_recovery_serves() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder)).unwrap();
-    let engine = opened.engine;
-
-    let is_veq = |r: &Result<_, EngineError>| {
-        matches!(r, Err(EngineError::VectorEquivalenceMismatch { .. }))
-    };
-
-    assert!(is_veq(&engine.search("q")), "search must refuse");
-    assert!(is_veq(&engine.search_filtered("q", None)), "search_filtered must refuse");
-    assert!(
-        is_veq(&engine.search_reranked("q", None, 5, false, 1.0, 5)),
-        "search_reranked (CE) must refuse"
-    );
-    assert!(
-        is_veq(&engine.search_explained("q", None, 5, false, 1.0, 5)),
-        "search_explained (explain/rerank) must refuse"
-    );
-    assert!(
-        is_veq(&engine.search_reranked("q", None, 0, true, 0.3, 0)),
-        "graph-arm (use_graph_arm=true) must refuse"
-    );
-    // searchExpand rides the same choke point via search_inner.
-    assert!(
-        matches!(
-            engine.search_expand("q", None, 1),
-            Err(EngineError::VectorEquivalenceMismatch { .. })
-        ),
-        "search_expand must refuse"
-    );
-    engine.close().unwrap();
+    // No engine handle exists from which any vector-dependent operation can run.
+    numeric_refusal(&path, Arc::new(DivergentEmbedder));
+    let recovered = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder)).unwrap();
+    assert!(recovered.engine.search("q").is_ok());
+    assert!(recovered.engine.search_filtered("q", None).is_ok());
+    assert!(recovered.engine.search_reranked("q", None, 5, false, 1.0, 5).is_ok());
+    assert!(recovered.engine.search_explained("q", None, 5, false, 1.0, 5).is_ok());
+    assert!(recovered.engine.search_reranked("q", None, 0, true, 0.3, 0).is_ok());
+    assert!(recovered.engine.search_expand("q", None, 1).is_ok());
+    recovered.engine.close().unwrap();
 }
 
 #[test]
-fn fts_only_path_still_serves_when_degraded() {
+fn explicit_none_recovers_text_access_after_failed_admission() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder)).unwrap();
-    let engine = opened.engine;
-    // The explicit text-only route never routes through the vector choke point,
-    // so it returns Ok even while every dense arm refuses.
-    assert!(engine.search_text_only("anything").is_ok(), "FTS-only path must serve when degraded");
-    assert!(engine.search("anything").is_err(), "the dense arm still refuses");
-    engine.close().unwrap();
+    numeric_refusal(&path, Arc::new(DivergentEmbedder));
+    assert_explicit_none_text_access(&path);
 }
 
 // ---- R-VEQ-6 — degraded observability + telemetry counter + reopen-sticky ----
 
 #[test]
-fn open_report_surfaces_dense_disabled_and_counter_and_reopen_stays_degraded() {
+fn numeric_error_surfaces_reason_and_retries_refuse_until_matching_recovery() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-
-    // First divergent reopen: report surfaces dense_disabled + reason; counter
-    // increments per refused query.
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder)).unwrap();
-    let engine = opened.engine;
-    assert!(opened.report.dense_disabled);
-    assert!(opened.report.dense_disabled_reason.is_some(), "reason surfaced on the report");
-    assert_eq!(engine.vector_equivalence_refusal_count(), 0, "counter starts at 0");
-    let _ = engine.search("q");
-    let _ = engine.search("q2");
-    assert_eq!(engine.vector_equivalence_refusal_count(), 2, "counter increments per refusal");
-    engine.close().unwrap();
-
-    // Reopen AGAIN with the divergent backend: state re-derived, still degraded
-    // (never silently re-enables dense).
-    let reopened = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder)).unwrap();
-    assert!(reopened.report.dense_disabled, "reopen with a divergent backend stays degraded");
-    reopened.engine.close().unwrap();
-
-    // Reopen with the FAITHFUL backend: the check clears (dense re-enabled).
+    let first = numeric_refusal(&path, Arc::new(DivergentEmbedder));
+    let second = numeric_refusal(&path, Arc::new(DivergentEmbedder));
+    assert_eq!(first, second, "failed retry re-derives the same numerical diagnosis");
     let healthy = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder)).unwrap();
-    assert!(!healthy.report.dense_disabled, "reopen with a matching backend clears the degrade");
     healthy.engine.close().unwrap();
 }
 
 // ---- fix-1 DEFECT #1 — fail-SAFE (never fail-open) on an un-verifiable arm ----
 
-/// A probe embedder that PANICS at CHECK time ⇒ open SUCCEEDS (no wedge), but the
-/// dense arm is REFUSED (`dense_disabled=true`), a dense query raises
 /// `VectorEquivalenceMismatch`, and the text-only/FTS path still serves. Before
 /// fix-1 this failed open (dense served on an un-verifiable arm).
 #[test]
@@ -569,46 +511,24 @@ fn panicking_embedder_at_check_fails_safe_not_open() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(PanicEmbedder))
-        .expect("a panicking probe embedder must NOT wedge open (open still succeeds)");
-    let engine = opened.engine;
-
-    assert!(
-        opened.report.dense_disabled,
-        "an un-verifiable (panicking) embedder must fail SAFE: dense refused"
-    );
-    assert!(opened.report.dense_disabled_reason.is_some(), "a refusal reason is surfaced");
-    match engine.search("memory") {
-        Err(EngineError::VectorEquivalenceMismatch { .. }) => {}
-        other => panic!("dense query must refuse with VectorEquivalenceMismatch, got {other:?}"),
-    }
-    assert!(engine.search_text_only("memory").is_ok(), "FTS-only path must still serve");
-    engine.close().unwrap();
+    assert!(matches!(
+        verification_refusal(&path, Arc::new(PanicEmbedder)),
+        VectorVerificationFailure::Panic { .. }
+    ));
+    assert_explicit_none_text_access(&path);
 }
 
 /// A probe embedder that ERRORS at CHECK time ⇒ same fail-SAFE contract as the
-/// panicking one (open succeeds, dense refused, FTS serves).
 #[test]
 fn erroring_embedder_at_check_fails_safe_not_open() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir);
     seed_references(&path);
-
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(ErrorEmbedder))
-        .expect("an erroring probe embedder must NOT wedge open");
-    let engine = opened.engine;
-
-    assert!(
-        opened.report.dense_disabled,
-        "an un-verifiable (erroring) embedder must fail SAFE: dense refused"
-    );
-    match engine.search("memory") {
-        Err(EngineError::VectorEquivalenceMismatch { .. }) => {}
-        other => panic!("dense query must refuse with VectorEquivalenceMismatch, got {other:?}"),
-    }
-    assert!(engine.search_text_only("memory").is_ok(), "FTS-only path must still serve");
-    engine.close().unwrap();
+    assert!(matches!(
+        verification_refusal(&path, Arc::new(ErrorEmbedder)),
+        VectorVerificationFailure::Provider(_)
+    ));
+    assert_explicit_none_text_access(&path);
 }
 
 /// POPULATION path (first registration): if the embedder cannot produce the
@@ -627,17 +547,10 @@ fn population_failure_fails_safe_and_persists_no_partial_baseline() {
 
     // Session 2 — kind registered + references empty ⇒ POPULATION runs, but the
     // panicking backend cannot produce any reference ⇒ fail-SAFE.
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(PanicEmbedder))
-        .expect("population failure must NOT wedge open");
-    assert!(
-        opened.report.dense_disabled,
-        "a baseline that cannot be established must fail SAFE: dense refused"
-    );
-    match opened.engine.search("q") {
-        Err(EngineError::VectorEquivalenceMismatch { .. }) => {}
-        other => panic!("dense query must refuse, got {other:?}"),
-    }
-    opened.engine.close().unwrap();
+    assert!(matches!(
+        verification_refusal(&path, Arc::new(PanicEmbedder)),
+        VectorVerificationFailure::Panic { .. }
+    ));
 
     // No partial baseline was persisted (atomic population; rollback on failure).
     let conn = rusqlite::Connection::open(&path).unwrap();
@@ -647,7 +560,7 @@ fn population_failure_fails_safe_and_persists_no_partial_baseline() {
 }
 
 #[test]
-fn timed_out_population_probe_degrades_open_without_persisting_baseline() {
+fn timed_out_population_probe_fails_open_without_persisting_baseline() {
     let dir = TempDir::new().expect("test directory");
     let path = db_path(&dir);
     let seeded = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder)).expect("open");
@@ -657,18 +570,26 @@ fn timed_out_population_probe_degrades_open_without_persisting_baseline() {
     let (release, held) = mpsc::channel();
     let provider =
         Arc::new(FirstProbeParked { calls: AtomicUsize::new(0), release: Mutex::new(held) });
+    let release_thread = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(150));
+        release.send(()).expect("release late provider");
+    });
     let started = Instant::now();
-    let opened = Engine::open_with_choice_and_config(
+    let result = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
-    )
-    .expect("timeout must degrade open rather than fail it");
+    );
+    assert!(matches!(
+        result,
+        Err(EngineOpenError::VectorVerification {
+            cause: VectorVerificationFailure::StartedTimeout,
+            ..
+        })
+    ));
     let elapsed = started.elapsed();
-    release.send(()).ok();
-    assert!(opened.report.dense_disabled, "unverified vector arm must be refused");
     assert!(elapsed < Duration::from_millis(250), "open probe must honor the 50ms deadline");
-    opened.engine.close().expect("close degraded session");
+    release_thread.join().unwrap();
     let connection = rusqlite::Connection::open(&path).expect("read probe state");
     let rows: i64 = connection
         .query_row("SELECT COUNT(*) FROM _fathomdb_embed_probe", [], |row| row.get(0))
@@ -685,19 +606,24 @@ fn timed_out_verification_preserves_baseline_and_drops_late_result() {
     let (release, held) = mpsc::channel();
     let provider =
         Arc::new(FirstProbeParked { calls: AtomicUsize::new(0), release: Mutex::new(held) });
+    let release_thread = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(150));
+        release.send(()).expect("release late provider");
+    });
     let started = Instant::now();
-    let opened = Engine::open_with_choice_and_config(
+    let result = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(provider.clone()),
+        TestEmbedderChoice::Caller(provider.clone()),
         EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
-    )
-    .expect("timed-out verification degrades open");
-    assert!(started.elapsed() < Duration::from_millis(250));
-    assert!(opened.report.dense_disabled);
+    );
     assert!(matches!(
-        opened.engine.search("anything"),
-        Err(EngineError::VectorEquivalenceMismatch { .. })
+        result,
+        Err(EngineOpenError::VectorVerification {
+            cause: VectorVerificationFailure::StartedTimeout,
+            ..
+        })
     ));
+    assert!(started.elapsed() < Duration::from_millis(250));
     assert_eq!(provider.calls.load(Ordering::SeqCst), 1, "refusal precedes query dispatch");
     let conn = rusqlite::Connection::open(&path).expect("inspect baseline");
     let baseline: i64 = conn
@@ -714,8 +640,7 @@ fn timed_out_verification_preserves_baseline_and_drops_late_result() {
     assert_eq!(verdict, 0, "failed verification does not cache a passing verdict");
     drop(conn);
 
-    release.send(()).expect("release late provider result");
-    opened.engine.close().expect("close degraded engine");
+    release_thread.join().unwrap();
     assert_eq!(provider.calls.load(Ordering::SeqCst), 1, "verification stopped after timeout");
     let conn = rusqlite::Connection::open(&path).expect("inspect late completion");
     let baseline_after: i64 = conn
@@ -733,7 +658,6 @@ fn timed_out_verification_preserves_baseline_and_drops_late_result() {
     drop(conn);
     let healthy = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder))
         .expect("healthy backend re-verifies");
-    assert!(!healthy.report.dense_disabled);
     healthy.engine.close().expect("close healthy engine");
 }
 
@@ -759,7 +683,6 @@ fn post_open_registration_serves_in_session_and_baselines_at_next_open() {
     // (no probe embeds on the write path) and the dense arm is NOT degraded.
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder)).expect("open");
     let engine = opened.engine;
-    assert!(!opened.report.dense_disabled, "a vector-less open is not degraded");
     engine.configure_vector_kind_for_test("note").expect("register vector kind post-open");
     engine
         .write(&[PreparedWrite::Node {
@@ -773,7 +696,6 @@ fn post_open_registration_serves_in_session_and_baselines_at_next_open() {
             valid_until: None,
         }])
         .expect("write must not block on / be gated by the probe");
-    assert!(!engine.dense_disabled(), "in-session serving is safe (same live backend)");
     // In-session serving is not refused (the registering backend is serving).
     assert!(engine.search("post-open").is_ok(), "in-session dense query is served");
     engine.close().unwrap();
@@ -789,7 +711,6 @@ fn post_open_registration_serves_in_session_and_baselines_at_next_open() {
     // the 45-probe baseline from the identity-matched embedder (hole (a) closed).
     let reopened =
         Engine::open_with_embedder_for_test(&path, Arc::new(RefEmbedder)).expect("reopen");
-    assert!(!reopened.report.dense_disabled, "baseline establishment at reopen is not degraded");
     reopened.engine.close().unwrap();
 
     let conn = rusqlite::Connection::open(&path).unwrap();
@@ -802,10 +723,7 @@ fn post_open_registration_serves_in_session_and_baselines_at_next_open() {
     // baseline (forward drift detection works after the reopen baseline), on an
     // open where the probe actually RUNS (TC-68 — see `force_probe_verdict_rerun`).
     force_probe_verdict_rerun(&path);
-    let divergent = Engine::open_with_embedder_for_test(&path, Arc::new(DivergentEmbedder))
-        .expect("divergent reopen (degraded)");
-    assert!(divergent.report.dense_disabled, "forward drift is caught after the reopen baseline");
-    divergent.engine.close().unwrap();
+    numeric_refusal(&path, Arc::new(DivergentEmbedder));
 }
 
 // ---- fix-1 DEFECT #5 / CONCERN #9 — MC-required-WITH-pin P1 branch ------------
@@ -821,10 +739,6 @@ fn mc_required_with_pin_same_backend_does_not_trip() {
 
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(BgeRefEmbedder))
         .expect("bge same-backend reopen");
-    assert!(
-        !opened.report.dense_disabled,
-        "the MC-with-pin same-backend path must be 0 flips / 0 L2 (dense served)"
-    );
     match opened.engine.search("q") {
         Ok(_) | Err(EngineError::EmbedderNotConfigured) => {}
         Err(EngineError::VectorEquivalenceMismatch { .. }) => {
@@ -845,18 +759,11 @@ fn mc_required_with_pin_centered_flip_trips_dense() {
     let path = db_path(&dir);
     seed_bge_references_with_pinned_mean(&path);
 
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(BgeMeanReflectEmbedder))
-        .expect("bge reflect reopen (degraded)");
-    assert!(
-        opened.report.dense_disabled,
-        "a mean-centered sign flip must degrade the open on the MC-with-pin path"
-    );
-    let reason = opened.report.dense_disabled_reason.clone().expect("reason present");
+    let reason = numeric_refusal(&path, Arc::new(BgeMeanReflectEmbedder));
     assert!(
         !reason.contains("flips=0 "),
-        "centering must be applied (flips > 0) with the pinned mean, reason was: {reason}"
+        "centering branch must preserve its measured flip result: {reason}"
     );
-    opened.engine.close().unwrap();
 }
 
 /// Contrast that PROVES centering is the cause: the SAME reflect backend, with the
@@ -872,16 +779,11 @@ fn mc_reflect_without_pin_takes_uncentered_path_zero_flips() {
     // Un-pin the mean: the bge identity now falls back to the un-centered path.
     set_pinned_mean(&path, None);
 
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(BgeMeanReflectEmbedder))
-        .expect("bge reflect reopen (un-pinned)");
-    // P2 still trips (L2 large) ⇒ degraded, but P1 sees ZERO raw-sign flips.
-    assert!(opened.report.dense_disabled, "the reflect backend still trips P2 (L2) un-centered");
-    let reason = opened.report.dense_disabled_reason.clone().expect("reason present");
+    let reason = numeric_refusal(&path, Arc::new(BgeMeanReflectEmbedder));
     assert!(
         reason.contains("flips=0 "),
-        "un-centered, the reflect backend must show 0 raw-sign flips, reason was: {reason}"
+        "centering branch must preserve its measured flip result: {reason}"
     );
-    opened.engine.close().unwrap();
 }
 
 // ---- fix-2 DEFECT #1 residual — the STORED baseline must be COMPLETE -----------
@@ -905,23 +807,13 @@ fn encode_le_f32(v: &[f32]) -> Vec<u8> {
 }
 
 /// Assert the fail-SAFE contract after a baseline corruption: faithful reopen is
-/// DEGRADED (not failed), a dense query refuses with the typed error, and the
 /// text-only path still serves.
-fn assert_degraded_but_fts_serves(path: &std::path::Path) {
-    let opened = Engine::open_with_embedder_for_test(path, Arc::new(RefEmbedder))
-        .expect("a corrupt/partial baseline must NOT wedge open (open still succeeds)");
-    let engine = opened.engine;
-    assert!(
-        opened.report.dense_disabled,
-        "an incomplete/tampered stored baseline must fail SAFE: dense refused"
-    );
-    assert!(opened.report.dense_disabled_reason.is_some(), "a refusal reason is surfaced");
-    match engine.search("memory") {
-        Err(EngineError::VectorEquivalenceMismatch { .. }) => {}
-        other => panic!("dense query must refuse with VectorEquivalenceMismatch, got {other:?}"),
-    }
-    assert!(engine.search_text_only("memory").is_ok(), "FTS-only path must still serve");
-    engine.close().unwrap();
+fn assert_invalid_baseline_and_explicit_text_recovery(path: &std::path::Path) {
+    assert!(matches!(
+        verification_refusal(path, Arc::new(RefEmbedder)),
+        VectorVerificationFailure::InvalidState { .. }
+    ));
+    assert_explicit_none_text_access(path);
 }
 
 /// Partial baseline (44 of 45 rows): DELETE one committed probe. Faithful reopen
@@ -942,7 +834,7 @@ fn partial_baseline_missing_one_row_fails_safe_not_open() {
         assert_eq!(rows, 44, "precondition: the stored baseline is now partial (44 of 45)");
     }
 
-    assert_degraded_but_fts_serves(&path);
+    assert_invalid_baseline_and_explicit_text_recovery(&path);
 }
 
 /// Substituted foreign probe (self-consistent text+vector): REPLACE one committed
@@ -968,7 +860,7 @@ fn substituted_probe_text_verifying_against_itself_fails_safe_not_open() {
         .expect("substitute a self-consistent foreign probe");
     }
 
-    assert_degraded_but_fts_serves(&path);
+    assert_invalid_baseline_and_explicit_text_recovery(&path);
 }
 
 /// Re-attributed embedder identity: REWRITE the stored `embedder_name` to a foreign
@@ -986,7 +878,7 @@ fn re_attributed_embedder_identity_fails_safe_not_open() {
             .expect("re-attribute the stored embedder identity");
     }
 
-    assert_degraded_but_fts_serves(&path);
+    assert_invalid_baseline_and_explicit_text_recovery(&path);
 }
 
 /// Non-contiguous ordinals WITHOUT a row-count change: move `probe_ordinal` 44 to a
@@ -1010,7 +902,7 @@ fn non_contiguous_ordinals_fail_safe_not_open() {
         assert_eq!(rows, 45, "precondition: the row COUNT is still 45 (only the ordinal moved)");
     }
 
-    assert_degraded_but_fts_serves(&path);
+    assert_invalid_baseline_and_explicit_text_recovery(&path);
 }
 
 /// fix-3 — MANGLED/TRUNCATED reference blob (length != `4 * dim`): TRUNCATE one
@@ -1071,5 +963,5 @@ fn mangled_reference_blob_wrong_length_fails_safe_not_open() {
         );
     }
 
-    assert_degraded_but_fts_serves(&path);
+    assert_invalid_baseline_and_explicit_text_recovery(&path);
 }

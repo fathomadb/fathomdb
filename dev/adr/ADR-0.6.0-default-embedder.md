@@ -9,6 +9,10 @@ status: implemented
 
 # ADR-0.6.0 — Default embedder architecture
 
+> **Partial supersession (0.8.28, owner seq-359):**
+> [`ADR-0.8.28-vector-compatibility-open-policy`](ADR-0.8.28-vector-compatibility-open-policy.md).
+> The pinned built-in BGE/Mean engine path remains. Any caller-provider attachment or recovery advice below is historical; production admission accepts only Default or None.
+
 **Status:** implemented in 0.7.1 (accepted HITL 2026-04-25, decision-recording;
 implemented by the 0.7.1 EMBEDDER-UNDEFER campaign — see the "Status update"
 section below).

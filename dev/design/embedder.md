@@ -11,6 +11,40 @@ status: locked
 
 # Embedder Design
 
+## Production provider admission (0.8.28)
+
+[`ADR-0.8.28-vector-compatibility-open-policy`](../adr/ADR-0.8.28-vector-compatibility-open-policy.md)
+closes production engine admission to pinned built-in BGE/Mean or explicit None
+before 1.x. The low-level trait, Noop, Nomic, optional ONNX, selectable pooling
+constructors and existing offline evaluation features remain available for their
+standalone/test/evaluation roles. They cannot select a production engine provider.
+Hidden fake-provider openers are gated separately; support-feature unification
+does not add variants to production `EmbedderChoice`. The supported standalone
+CLS helper returns vectors without selecting an engine provider.
+
+Every string projection embedder selector is rejected before mutation, including
+empty/default/model names; omitted/null declarations remain valid. Existing
+historical selectors and profile identities remain truthful metadata under None.
+Provider-enabled admission refuses historical selectors instead of substituting
+the built-in provider. None validates the stored profile as data, preserving
+existing corruption and mean-recovery behavior; it performs no inference.
+
+The existing compatibility gate and TC-68 persistent marker remain authoritative.
+A clean first population uses 90 embeddings, a fresh existing-baseline check 45,
+a valid cached open zero, and current vectorless/None paths zero. Cached acceptance
+survives restart and can still hide same-identity backend drift. There is no
+per-call numeric check, cache-setting change or new invalidation rule. An actual
+checker refusal returns a typed open error and no engine. Registered first
+population is confirmed before its reference transaction is published; failure
+publishes neither rejected references nor a new success marker. This is not a
+whole-open rollback or a change to earlier mean recovery.
+
+Recovery is deliberate: retry the same compatible built-in environment, or open
+None for valid metadata, canonical/text/lifecycle/erasure operations and visible
+pending dense work. None does not make dense work drainable; the separately
+known provider-free rebuild defect remains deferred. No automatic None fallback,
+rebuild orchestration or diagnostic command is introduced.
+
 > **Requirement traceability (Steward, 2026-07-28; added after independent audit).** CONSULTED BY
 > **`R-20-VC` / TC-68** (0.8.20 Slice 22) — `_fathomdb_embedder_profiles.identity_name` and the
 > fail-closed profile pin define what an *embedder identity* is, and therefore what TC-68's fingerprint
@@ -32,8 +66,8 @@ No provider means no embed workers or request queue. More than one worker
 permits concurrent calls on the shared provider; it does not serialize them.
 Projection, ordinary and frozen search, direct `Engine::embed_text`, and
 open-time vector-equivalence inference all use this dispatcher. The
-default-compiled `write_vector_for_test` seam is the sole temporary exception
-and supplies no deadline or capacity evidence.
+`write_vector_for_test` seam exists only under unit-test/explicit `test-hooks`
+gating and supplies no production deadline or capacity evidence.
 
 Each admitted call receives one absolute monotonic deadline before enqueue
 (default 30,000 ms, accepted `1..=u32::MAX`). Queue wait and provider service
@@ -71,6 +105,11 @@ create binding-specific surface.
 ---
 
 ## §0 — Mean-centering sub-design
+
+The mean/encoding invariants remain current. Historical migration and
+caller-provider examples below are retained rationale, not production injection
+or cross-format upgrade support; current admission is defined above and in
+[`migrations.md`](migrations.md).
 
 ### §0.1 Why it exists
 

@@ -17,8 +17,8 @@ use fathomdb_embedder::{
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::slice72_test_hooks::install_ce_forward_rendezvous;
 use fathomdb_engine::{
-    try_rerank_fused, EmbedderChoice, Engine, IdSpace, InitialState, PreparedWrite, SearchHit,
-    SoftFallbackBranch, SourceId,
+    try_rerank_fused, Engine, IdSpace, InitialState, PreparedWrite, SearchHit, SoftFallbackBranch,
+    SourceId, TestEmbedderChoice,
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -964,9 +964,9 @@ impl Slice72Run {
         );
         let bge = CandleBgeEmbedder::new().expect("load cache-only real BGE");
         let wrapper = Arc::new(RendezvousBge { inner: bge, rendezvous: Mutex::new(None) });
-        let opened = Engine::open_with_choice(
+        let opened = Engine::open_with_test_choice_for_test(
             self.stage.path().join("slice72.sqlite"),
-            EmbedderChoice::Caller(wrapper.clone()),
+            TestEmbedderChoice::Caller(wrapper.clone()),
         )
         .expect("open real engine");
         let engine = Arc::new(opened.engine);

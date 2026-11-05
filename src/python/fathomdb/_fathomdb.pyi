@@ -448,15 +448,24 @@ class OpenReport:
     embedder_events: list[EmbedderEvent]
     embedder_mean_centering_required: bool
     embedder_mean_vec_pinned: bool
-    dense_disabled: bool
-    dense_disabled_reason: str | None
     embedder_device_resolution: DeviceResolution | None
     reranker_device_resolution: DeviceResolution | None
     # `None` means no witness was taken, never "a witness measured nothing".
     embedder_gpu_allocation_witness: GpuAllocationWitness | None
     stop_words_sha256: str
 
+class ErasureMaintenance:
+    def reattach_original_erasure_sink(self, ticket: str, path: str) -> None: ...
+    def complete_physical_erasure(self, ticket: str) -> str: ...
+    def queue_physical_erasure(self, selector_json: str, key: str) -> str: ...
+    def close(self) -> str: ...
+
 class Engine:
+    def queue_physical_erasure(self, selector_json: str, key: str) -> str: ...
+    def physical_erasure_status(self, ticket: str) -> str: ...
+    def withdraw_queued_erasure(self, ticket: str) -> str: ...
+    def physical_erasure_policy(self) -> str: ...
+    def begin_erasure_maintenance(self, acquisition_wait_ms: int) -> ErasureMaintenance: ...
     @staticmethod
     def open(
         path: str,
@@ -563,11 +572,10 @@ class Engine:
         pool_n: int | None = ...,
         explain: bool = ...,
         attributes: list[tuple[str, str]] | None = ...,
-        # 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — optional VALIDITY view.
-        # `None` (default) is the strict view: active-only, non-superseded, and
-        # valid AT QUERY TIME. The EXISTENCE flags (`include_superseded` /
-        # `include_inactive`) raise `InvalidArgumentError` on this path rather
-        # than being silently ignored. See `fathomdb.engine.Engine.search`.
+        # Optional lifecycle and validity view. Defaults to active,
+        # non-superseded rows valid at query time. The existence flags compose
+        # independently; unavailable dense history reports vector soft fallback.
+        # See `fathomdb.engine.Engine.search`.
         view: ReadView | None = ...,
         limit: int = ...,
         # EP-17: a `fathomdb.SnippetOptions` (read by attribute).
@@ -589,15 +597,12 @@ class Engine:
     # optional validity view as `search` (0.8.20 Slice 15b fix-2).
     # EP-17: `snippet` is a `fathomdb.SnippetOptions` (read by attribute).
     def search_text_only(
-        self,
-        query: str,
-        view: ReadView | None = ...,
-        limit: int = ...,
+        self, query: str, view: ReadView | None = ..., limit: int = ..., *,
+        source_type: str | None = ..., kind: str | None = ...,
+        created_after: int | None = ..., status: str | None = ...,
+        attributes: list[tuple[str, str]] | None = ...,
         snippet: object | None = ...,
     ) -> SearchResult: ...
-    def dense_disabled(self) -> bool: ...
-    def dense_disabled_reason(self) -> str | None: ...
-    def vector_equivalence_refusal_count(self) -> int: ...
     # 0.8.8 Slice 15 (OPP-9) — opt-in local telemetry capture.
     def enable_telemetry(self, sink_path: str) -> None: ...
     def last_telemetry_query_id(self) -> str | None: ...
@@ -1089,10 +1094,19 @@ class InvalidFilterError(EngineError): ...
 # Slice 20 — depth > 3 or other argument validation failure.
 class InvalidArgumentError(EngineError): ...
 
-# 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
+# Actual numeric verification refusal fails open with its original reason.
 class VectorEquivalenceMismatchError(EngineError):
     reason: str | None
     def __init__(self, *args: Any, reason: str | None = ...) -> None: ...
+
+class VectorVerificationError(EngineError):
+    """Open failed because vector verification could not complete; no engine exists."""
+    probe_ordinal: int | None
+    cause_code: str | None
+    cause_message: str | None
+    provider_kind: str | None
+    provider_error: EmbedderError | None
+    def __init__(self, *args: Any, probe_ordinal: int | None = ..., cause_code: str | None = ..., cause_message: str | None = ..., provider_kind: str | None = ..., provider_error: EmbedderError | None = ...) -> None: ...
 
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors. Parity-safe
 # field names (S7): `from_state`/`to_state` (never `from`, a Python keyword).
@@ -1133,3 +1147,7 @@ class ProjectionGenerationError(EngineError):
     reason: str
     field_path: str
     def __init__(self, *args: Any, reason: str = ..., field_path: str = ...) -> None: ...
+
+class MaintenanceError(EngineError):
+    reason: str
+    def __init__(self, *args: Any, reason: str = ...) -> None: ...

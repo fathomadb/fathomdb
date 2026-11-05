@@ -408,16 +408,18 @@ pub(crate) fn measure_physical_closures(
         canonical_rows = canonical_rows.saturating_add(nodes).saturating_add(edges);
         active_nodes = active_nodes.saturating_add(active);
         current_edges = current_edges.saturating_add(current);
-        for projection in ROW_OWNED_PROJECTIONS.iter() {
-            let sql = format!(
-                "SELECT COUNT(*) FROM {} WHERE {}=?1",
-                projection.table, projection.cursor_column
-            );
-            let count: i64 = connection
-                .query_row(&sql, [cursor], |row| row.get(0))
-                .map_err(|_| EngineError::Storage)?;
-            projection_rows = projection_rows.saturating_add(count);
-        }
+    }
+    let encoded_cursors =
+        serde_json::to_string(&scope.cursors).map_err(|_| EngineError::Storage)?;
+    for projection in ROW_OWNED_PROJECTIONS {
+        let sql = format!(
+            "SELECT COUNT(*) FROM {} WHERE {} IN (SELECT value FROM json_each(?1))",
+            projection.table, projection.cursor_column
+        );
+        let count: i64 = connection
+            .query_row(&sql, [&encoded_cursors], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        projection_rows = projection_rows.saturating_add(count);
     }
     for revision in &scope.revisions {
         let count: i64 = connection
@@ -594,40 +596,25 @@ pub(crate) fn record_physical_closure(
     Ok(Some(id))
 }
 
-pub(crate) fn complete_physical_closures(
+pub(crate) fn complete_physical_closures_in(
     connection: &Connection,
     ids: &[ClosureOperationId],
 ) -> Result<(), EngineError> {
-    if ids.is_empty() {
-        return Ok(());
-    }
-    connection.execute_batch("BEGIN IMMEDIATE").map_err(|_| EngineError::Storage)?;
-    let result = (|| {
-        validate_physical_closures(connection, ids)?;
-        for id in ids {
-            let changed = connection
-                .execute(
-                    "UPDATE _fathomdb_dependency_closures \
-                     SET phase='complete',blocker_code=NULL \
-                     WHERE closure_operation_id=?1 \
-                       AND phase IN ('at_rest_pending','incomplete') \
-                       AND cause IN ('purged','source_erased')",
-                    [id.as_str()],
-                )
-                .map_err(|_| EngineError::Storage)?;
-            if changed != 1 {
-                return Err(EngineError::Storage);
-            }
-        }
-        Ok(())
-    })();
-    match result {
-        Ok(()) => connection.execute_batch("COMMIT").map_err(|_| EngineError::Storage),
-        Err(error) => {
-            let _ = connection.execute_batch("ROLLBACK");
-            Err(error)
+    validate_physical_closures(connection, ids)?;
+    for id in ids {
+        let changed = connection
+            .execute(
+                "UPDATE _fathomdb_dependency_closures SET phase='complete',blocker_code=NULL \
+             WHERE closure_operation_id=?1 AND phase IN ('at_rest_pending','incomplete') \
+             AND cause IN ('purged','source_erased')",
+                [id.as_str()],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if changed != 1 {
+            return Err(EngineError::Storage);
         }
     }
+    Ok(())
 }
 
 pub(crate) fn validate_physical_closures(
@@ -770,7 +757,13 @@ fn validate_physical_zero(
         )
         .map_err(|_| EngineError::Storage)?;
     let admitted_generation = u64::try_from(row.3).map_err(|_| EngineError::Storage)?;
-    if current_write_boundary > row.2
+    let safe_boundary = physical_erasure::closure_safe_boundary(
+        connection,
+        id,
+        u64::try_from(row.2).map_err(|_| EngineError::Storage)?,
+        admitted_generation.saturating_add(1),
+    )?;
+    if current_write_boundary > i64::try_from(safe_boundary).map_err(|_| EngineError::Storage)?
         || load_dependency_generation(connection)? != admitted_generation.saturating_add(1)
     {
         return Err(EngineError::Storage);
@@ -884,10 +877,11 @@ pub(crate) fn guard_no_pending_physical(connection: &Connection) -> Result<(), E
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
-    if physical {
+    if physical || physical_erasure::active(connection)? {
         return Err(EngineError::ErasureIncomplete {
             stage: "dependency_closure".to_string(),
-            detail: "a physical dependency closure is awaiting its exact erasure retry".to_string(),
+            detail: "physical cleanup remains owed and this mutation is outside its admitted scope"
+                .to_string(),
         });
     }
     Ok(())
@@ -925,34 +919,6 @@ pub(crate) fn vector_arm_requires_fallback(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
-    let direct_state_unsafe: bool = crate::prepare_search_statement(
-        connection,
-        "SELECT EXISTS(\
-           SELECT 1 FROM _fathomdb_vector_rows vr \
-           LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' \
-           LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' \
-           WHERE (vr.kind='edge_fact' AND (e.write_cursor IS NULL \
-                    OR (?2=0 AND e.superseded_at IS NOT NULL) \
-                    OR (?4=0 AND e.t_invalid IS NOT NULL AND e.t_invalid<=?1))) \
-              OR (vr.kind!='edge_fact' AND (n.write_cursor IS NULL \
-                    OR (?2=0 AND n.superseded_at IS NOT NULL) \
-                    OR (?3=0 AND n.state!='active') \
-                    OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) \
-                                  OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))))) \
-           LIMIT 1)",
-    )?
-    .query_row(
-        params![
-            effective_at,
-            i64::from(include_superseded),
-            i64::from(include_inactive),
-            i64::from(include_out_of_window),
-        ],
-        |row| row.get(0),
-    )?;
-    if direct_state_unsafe {
-        return Ok(true);
-    }
     if !has_source_dependencies {
         return Ok(false);
     }
@@ -1793,7 +1759,7 @@ impl Engine {
         &self,
         lookup: ClosureLookupV1,
     ) -> Result<Option<ClosureStatusV1>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         valid_closure_sequence(connection)

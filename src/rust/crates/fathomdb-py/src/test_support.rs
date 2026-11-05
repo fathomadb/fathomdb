@@ -65,6 +65,7 @@ pub(super) fn native_raw_wal_checkpoint_for_test(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fathomdb_engine::TestEmbedderChoice;
 
     #[test]
     fn engine_config_from_py_preserves_each_requested_field_and_omission() {
@@ -94,6 +95,7 @@ mod tests {
                     cuda_pool_max_size: None,
                     cuda_pool_release_threshold: None,
                     query_stop_words: None,
+                    physical_erasure_policy: None,
                 }
             );
         });
@@ -325,7 +327,7 @@ mod tests {
             };
             assert!(error.is_instance_of::<IncompatibleSchemaVersionError>(py));
             assert!(error.to_string().contains("schema version 33"));
-            assert!(error.to_string().contains("supported version 34"));
+            assert!(error.to_string().contains("supported version 36"));
         });
     }
 
@@ -392,9 +394,9 @@ mod tests {
                 selected_cuda_uuid: Some("GPU-test".to_string()),
                 reason: None,
             };
-            let opened = RustEngine::open_with_choice(
+            let opened = RustEngine::open_with_test_choice_for_test(
                 directory.path().join("python-device-resolution.sqlite"),
-                EmbedderChoice::CallerWithDeviceResolution {
+                TestEmbedderChoice::CallerWithDeviceResolution {
                     embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
                     device_resolution: resolution,
                 },

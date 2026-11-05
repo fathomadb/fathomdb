@@ -1,4 +1,4 @@
-use super::{EmbedderChoice, Engine, EngineConfig, EngineError};
+use super::{Engine, EngineConfig, EngineError, TestEmbedderChoice};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -27,9 +27,9 @@ fn drop_after_incomplete_close_retains_worker_accounting_without_new_deadline() 
     let (entered_tx, entered_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
     let provider = Arc::new(HeldProvider { entered: entered_tx, release: Mutex::new(release_rx) });
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         dir.path().join("drop.sqlite"),
-        EmbedderChoice::Caller(provider),
+        TestEmbedderChoice::Caller(provider),
         EngineConfig { embedder_call_timeout_ms: Some(2_000), ..EngineConfig::default() },
     )
     .expect("open real database")

@@ -1,12 +1,15 @@
 //! **FathomDB embedder API** — the semver-stable trait contract for embedder
-//! plugins.
+//! implementations.
 //!
 //! This crate is the seam between FathomDB and whatever produces vectors. It
 //! contains a trait, an identity struct and an error type, and nothing else: it
 //! deliberately pulls in no model runtime, so implementing it costs you no
 //! dependency on ours.
 //!
-//! Implement `Embedder` to plug your own model in. `EmbedderIdentity`
+//! The trait remains available for internal dispatch, standalone use, tests and
+//! offline evaluation. Implementing it does not permit attaching a custom provider
+//! to a production engine before 1.x; production admission accepts only the pinned
+//! built-in BGE/Mean provider or no provider. `EmbedderIdentity`
 //! (`name` + `revision` + `dimension`) is the contract that keeps stored
 //! vectors interpretable: the engine records it on first configure and refuses
 //! to reopen a database under a different identity, because vector identity
@@ -76,10 +79,24 @@ pub enum EmbedderError {
     CudaPrivateBuildRefused { ordinal: usize, message: String },
 }
 
+/// Low-level vector producer for dispatch, standalone use and evaluation.
+/// Implementations are not a production engine provider-selection API before 1.x.
 pub trait Embedder: Send + Sync {
     fn identity(&self) -> EmbedderIdentity;
 
     fn embed(&self, input: &str) -> Result<Vector, EmbedderError>;
+
+    /// Report the exclusive UTF-8 byte end represented by the head embedding.
+    ///
+    /// `None` means coverage is unknown. `Some(input.len())` means the whole
+    /// input is represented, including empty input; a smaller offset identifies
+    /// truncation. Known offsets must be within `input` and on a UTF-8 boundary.
+    /// Use exactly the tokenizer and truncation policy used by [`Self::embed`].
+    /// Return an error if that coverage cannot be computed reliably. This method
+    /// must not mutate provider configuration or perform model inference.
+    fn truncation_offset(&self, _input: &str) -> Result<Option<usize>, EmbedderError> {
+        Ok(None)
+    }
 
     /// Embed many inputs in one call. The default implementation loops [`embed`],
     /// so every backend works unchanged; backends with a true batched forward
@@ -96,6 +113,14 @@ pub trait Embedder: Send + Sync {
         inputs.iter().map(|input| self.embed(input)).collect()
     }
 }
+
+impl std::fmt::Display for EmbedderError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{self:?}")
+    }
+}
+
+impl std::error::Error for EmbedderError {}
 
 #[cfg(test)]
 mod tests {

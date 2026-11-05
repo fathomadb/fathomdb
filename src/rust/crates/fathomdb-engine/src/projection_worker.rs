@@ -4,6 +4,15 @@ use crate::lifecycle::sqlite_extended_code_name;
 use crate::projection_runtime::PROJECTION_COMMIT_BATCH;
 use crate::projection_runtime::PROJECTION_TEMPORAL_WAKE_POLL;
 
+struct ProjectionScan(Arc<ProjectionRuntimeShared>);
+impl Drop for ProjectionScan {
+    fn drop(&mut self) {
+        let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
+        state.active_scans -= 1;
+        self.0.state_cvar.notify_all();
+    }
+}
+
 #[cfg(any(test, feature = "test-hooks"))]
 fn report_runtime_connection_inventory_for_test(
     shared: &ProjectionRuntimeShared,
@@ -257,8 +266,19 @@ pub(crate) fn projection_dispatcher_loop(
             }
             state.pending_scan = false;
             state.next_temporal_scan_epoch_s = None;
+            state.active_scans += 1;
             state.in_flight.clone()
         };
+
+        let _scan = ProjectionScan(Arc::clone(&shared));
+        #[cfg(any(test, feature = "test-hooks"))]
+        {
+            let pause = shared.projection_scan_pause.lock().unwrap().take();
+            if let Some((ready, release)) = pause {
+                let _ = ready.send(());
+                let _ = release.recv_timeout(Duration::from_secs(5));
+            }
+        }
 
         // Fetch up to the in-flight budget in one SQL roundtrip and
         // enqueue them as a batch — previously this loop fetched ONE job
@@ -530,6 +550,8 @@ pub(crate) enum ProjectionOutcome {
         kind: String,
         blob: Vec<u8>,
         bin_blob: Vec<u8>,
+        body_length: usize,
+        byte_end: Option<usize>,
         generation_id: ProjectionGenerationId,
     },
     Failure {
@@ -614,12 +636,15 @@ fn embed_projection_batch(
         });
         #[cfg(feature = "test-hooks")]
         let result = crate::embed_dispatch::d27_observation::with_owner(owner, || {
-            shared.embed_dispatch.submit_batch(bodies.clone()).and_then(EmbedReply::wait)
+            shared.embed_dispatch.submit_projection_batch(bodies.clone()).and_then(EmbedReply::wait)
         });
         #[cfg(not(feature = "test-hooks"))]
-        let result = shared.embed_dispatch.submit_batch(bodies.clone()).and_then(EmbedReply::wait);
+        let result = shared
+            .embed_dispatch
+            .submit_projection_batch(bodies.clone())
+            .and_then(EmbedReply::wait);
         match result {
-            Ok(EmbedOutput::Batch(vectors)) => break vectors,
+            Ok(EmbedOutput::Projection(vectors)) => break vectors,
             Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
                 if !wait_for_projection_retry(shared, Duration::from_millis(25)) {
                     return jobs.iter().map(|_| ProjectionOutcome::Deferred).collect();
@@ -637,13 +662,15 @@ fn embed_projection_batch(
     }
     jobs.iter()
         .zip(vectors)
-        .map(|(job, vector)| {
-            let blob = encode_vector_blob(&vector);
+        .map(|(job, projected)| {
+            let blob = encode_vector_blob(&projected.vector);
             ProjectionOutcome::Success {
                 cursor: job.cursor,
                 kind: job.kind.clone(),
                 bin_blob: blob.clone(),
                 blob,
+                body_length: job.body.len(),
+                byte_end: projected.byte_end,
                 generation_id: job.generation_id.clone(),
             }
         })
@@ -766,12 +793,18 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
             Some(crate::embed_dispatch::d27_observation::Owner::Projection {
                 projection_cursors: vec![job.cursor],
             }),
-            || shared.embed_dispatch.submit_text(job.body.clone()).and_then(EmbedReply::wait),
+            || shared.embed_dispatch.submit_projection(job.body.clone()).and_then(EmbedReply::wait),
         );
         #[cfg(not(feature = "test-hooks"))]
-        let result = shared.embed_dispatch.submit_text(job.body.clone()).and_then(EmbedReply::wait);
+        let result =
+            shared.embed_dispatch.submit_projection(job.body.clone()).and_then(EmbedReply::wait);
+        let mut byte_end = None;
         let vector = match result {
-            Ok(EmbedOutput::One(vector)) => vector,
+            Ok(EmbedOutput::Projection(mut rows)) => {
+                let row = rows.pop().expect("single projection output");
+                byte_end = row.byte_end;
+                row.vector
+            }
             Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
                 if !wait_for_projection_retry(shared, Duration::from_millis(25)) {
                     return ProjectionOutcome::Deferred;
@@ -800,7 +833,9 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
                 last_code = crate::embedding::map_runtime_embedder_error(error).stable_code();
                 Vec::new()
             }
-            Ok(EmbedOutput::Batch(_)) => unreachable!("single embedding returned a batch"),
+            Ok(EmbedOutput::Batch(_) | EmbedOutput::One(_)) => {
+                unreachable!("projection returned foreground output")
+            }
         };
         if vector.is_empty() {
             if spent_attempts >= delays.len() {
@@ -835,6 +870,8 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
             kind: job.kind.clone(),
             blob,
             bin_blob,
+            body_length: job.body.len(),
+            byte_end,
             generation_id: job.generation_id.clone(),
         };
     }
@@ -887,7 +924,7 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
          LEFT JOIN _fathomdb_projection_terminal pt
            ON pt.write_cursor = ce.write_cursor
          WHERE ce.body IS NOT NULL
-           AND ce.superseded_at IS NULL{}
+           {}
            AND pt.write_cursor IS NULL",
         edge_validity_sql("ce", now_idx)
     )
@@ -895,27 +932,71 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
 
 const PROJECTION_CANDIDATE_PAGE: usize = 256;
 
+// Each arm must stream its write_cursor index and stop after one page of
+// matching rows. The outer sort then receives at most two pages; an outer
+// LIMIT alone sorts the whole pending backlog on every scan. Predicates may
+// still reject arbitrarily many index entries before an arm fills its page.
+pub(crate) fn candidate_page_sql() -> String {
+    format!(
+        "SELECT pending.write_cursor,pending.kind FROM (
+           SELECT * FROM (SELECT n.write_cursor,n.kind
+           FROM canonical_nodes n
+           JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+           LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
+           WHERE n.write_cursor>?1 AND (?2 IS NULL OR n.write_cursor<=?2)
+             AND pt.write_cursor IS NULL
+           ORDER BY n.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE})
+           UNION ALL
+           SELECT * FROM (SELECT ce.write_cursor,'edge_fact'
+           {}
+             AND ce.write_cursor>?1 AND (?2 IS NULL OR ce.write_cursor<=?2)
+           ORDER BY ce.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE})
+         ) AS pending ORDER BY pending.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE}",
+        pending_edge_projection_from_where(3),
+    )
+}
+
+pub(crate) fn scheduler_scan_sql() -> String {
+    format!(
+        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
+             SELECT * FROM (SELECT canonical_nodes.write_cursor AS write_cursor,
+                    canonical_nodes.kind AS kind,
+                    canonical_nodes.body AS body
+             FROM canonical_nodes
+             JOIN _fathomdb_vector_kinds
+               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
+             LEFT JOIN _fathomdb_projection_terminal
+               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
+             WHERE canonical_nodes.write_cursor > ?1
+               AND _fathomdb_projection_terminal.write_cursor IS NULL
+             ORDER BY canonical_nodes.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE})
+
+             UNION ALL
+
+             SELECT * FROM (SELECT ce.write_cursor AS write_cursor,
+                    'edge_fact' AS kind,
+                    ce.body AS body
+             {edge_arm}
+               AND ce.write_cursor > ?1
+             ORDER BY ce.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE})
+         ) AS pending
+         CROSS JOIN _fathomdb_projection_generation_current AS current
+         WHERE current.singleton=1
+         ORDER BY pending.write_cursor
+         LIMIT {PROJECTION_CANDIDATE_PAGE}",
+        // The persisted projection cursor remains the healthy fast path. TC-33:
+        // `?1` is the page cursor and the edge validity instant binds at `?2`.
+        edge_arm = pending_edge_projection_from_where(2),
+    )
+}
+
 fn pending_projection_candidate_page(
     connection: &Connection,
     after_cursor: u64,
     through_cursor: Option<u64>,
     effective_at: i64,
 ) -> rusqlite::Result<Vec<(u64, String)>> {
-    let sql = format!(
-        "SELECT pending.write_cursor,pending.kind FROM (
-           SELECT n.write_cursor,n.kind
-           FROM canonical_nodes n
-           JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
-           LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
-           WHERE n.write_cursor>?1 AND (?2 IS NULL OR n.write_cursor<=?2)
-             AND pt.write_cursor IS NULL
-           UNION ALL
-           SELECT ce.write_cursor,'edge_fact'
-           {}
-             AND ce.write_cursor>?1 AND (?2 IS NULL OR ce.write_cursor<=?2)
-         ) AS pending ORDER BY pending.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE}",
-        pending_edge_projection_from_where(3),
-    );
+    let sql = candidate_page_sql();
     connection
         .prepare_cached(&sql)?
         .query_map(params![after_cursor, through_cursor, effective_at], |row| {
@@ -1033,35 +1114,7 @@ fn next_pending_projection_jobs(
     // The UNION is ordered by write_cursor so projection proceeds in
     // insertion order across nodes and edges.
     //
-    let sql = format!(
-        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
-             SELECT canonical_nodes.write_cursor AS write_cursor,
-                    canonical_nodes.kind AS kind,
-                    canonical_nodes.body AS body
-             FROM canonical_nodes
-             JOIN _fathomdb_vector_kinds
-               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
-             LEFT JOIN _fathomdb_projection_terminal
-               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
-             WHERE canonical_nodes.write_cursor > ?1
-               AND _fathomdb_projection_terminal.write_cursor IS NULL
-
-             UNION ALL
-
-             SELECT ce.write_cursor AS write_cursor,
-                    'edge_fact' AS kind,
-                    ce.body AS body
-             {edge_arm}
-               AND ce.write_cursor > ?1
-         ) AS pending
-         CROSS JOIN _fathomdb_projection_generation_current AS current
-         WHERE current.singleton=1
-         ORDER BY pending.write_cursor
-         LIMIT {PROJECTION_CANDIDATE_PAGE}",
-        // The persisted projection cursor remains the healthy fast path. TC-33:
-        // `?1` is the page cursor and the edge validity instant binds at `?2`.
-        edge_arm = pending_edge_projection_from_where(2),
-    );
+    let sql = scheduler_scan_sql();
     let mut statement = connection.prepare_cached(&sql)?;
     // SQLite starts the implicit read transaction at statement execution; do
     // not call this a transaction before `query_map` succeeds.
@@ -1168,8 +1221,6 @@ pub(crate) fn connection_has_pending_projection_work(
     // G11 (Slice 15) fix-1 [P2] — also check canonical_edges for edge bodies
     // that were not projected before the engine closed. Without this check,
     // drain() returns idle while edge vectors remain unembedded on reopen.
-    // fix-31 [P2]: exclude superseded edges from the pending check so the
-    // scheduler does not pick up stale tombstoned rows as projection work.
     // 0.8.12 Slice A (R-CON-2 named default-ON blocker; Slice-20 codex §9
     // [P2]) — also exclude t_invalid-excluded (recency-consolidated) edges,
     // mirroring `next_pending_projection_jobs`'s edge arm. Required: without

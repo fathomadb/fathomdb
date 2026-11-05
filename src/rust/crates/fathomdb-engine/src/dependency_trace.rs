@@ -16,8 +16,7 @@ use sha2::{Digest, Sha256};
 use crate::write_commit::load_next_cursor;
 use crate::{
     edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, projection_generation,
-    text_hit_passes_filter, valid_caller_identity, Engine, EngineError, FrozenReadContextV1,
-    LifecycleState, ReadContextV1,
+    valid_caller_identity, Engine, EngineError, FrozenReadContextV1, LifecycleState, ReadContextV1,
 };
 #[cfg(feature = "test-hooks")]
 use crate::{filter::SearchFilter, telemetry, temporal::ReadView};
@@ -368,11 +367,12 @@ fn visible_artifact(
         let visible = (context.view.include_inactive || state == LifecycleState::Active)
             && (context.view.include_superseded || superseded.is_none())
             && (context.view.include_out_of_window || valid)
-            && text_hit_passes_filter(
+            && crate::filter::text_hit_passes_filter_view(
                 connection,
                 u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
                 &kind,
                 Some(&context.eligibility),
+                &context.view,
             )
             .map_err(|_| EngineError::Storage)?;
         (
@@ -1543,7 +1543,7 @@ impl Engine {
         &self,
         request: DependencyTraceRequestV1,
     ) -> Result<DependencyTraceResultV1, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         crate::dependency_trace::execute(connection, request)
@@ -1554,7 +1554,7 @@ impl Engine {
     /// Query-plan details for both indexed dependency-trace directions.
     #[cfg(feature = "test-hooks")]
     pub fn dependency_trace_query_plans_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         let candidate_queries = candidate_queries_for_test();
@@ -1682,7 +1682,7 @@ impl Engine {
         &self,
         count: u32,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;

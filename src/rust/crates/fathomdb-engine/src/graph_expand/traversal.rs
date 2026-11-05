@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use crate::dependency_closure;
-use crate::filter::{
-    append_node_eligibility_sql, validate_filter_attributes_on_snapshot, SearchFilter,
-    SnapshotFilterError,
-};
+use crate::filter::{validate_filter_attributes_on_snapshot, SearchFilter, SnapshotFilterError};
 use crate::frozen_read::{self, FrozenReadError};
 use crate::read::NodeRecord;
 use crate::reader_transaction::begin_attributed_reader_tx;
@@ -174,56 +171,61 @@ LIMIT {cap}"
 ///
 /// Returns 5 columns: logical_id, kind, body, write_cursor, min_depth.
 fn build_bfs_with_depth_sql(
+    connection: &Connection,
     view: FrozenView,
     filter: Option<&SearchFilter>,
-) -> (String, Vec<rusqlite::types::Value>) {
+) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
     let cap = GRAPH_NEIGHBORS_HARD_CAP;
-    let cte_cap = cap * cap; // same multigraph-safe headroom as build_bfs_sql
-                             // TC-33: `?1` anchor, `?2` depth ⇒ the edge `:now` binds at `?3`. This is a
-                             // SECOND, separate BFS template — the edge-validity predicate has to be
-                             // re-grounded here too or `search_expand` silently keeps the old semantics.
+    let cte_cap = cap * cap;
     let anchor_node = view.node_sql("n", 3);
     let next_node = view.node_sql("next_n", 3);
     let projection_node = view.node_sql("n", 3);
     let edge_valid = edge_validity_sql_for_view("e", 3, &view.view);
-    // Reserve ?1 (root), ?2 (depth), and ?3 (the frozen validity instant).
-    // Eligibility is emitted independently at each node position because a
-    // recursive frontier must never admit an ineligible node and the final
-    // cap must count only eligible rows.
+    let edge_existence = view.view.edge_existence_sql("e");
     let mut params = vec![rusqlite::types::Value::Null; 3];
-    let anchor_eligibility = append_node_eligibility_sql(filter, "n", &mut params);
-    let next_eligibility = append_node_eligibility_sql(filter, "next_n", &mut params);
-    let projection_eligibility = append_node_eligibility_sql(filter, "n", &mut params);
-    let sql = format!(
-        "WITH RECURSIVE
-  traversal(logical_id, depth, visited) AS (
-    SELECT n.logical_id, 0, char(30) || n.logical_id || char(30)
-    FROM canonical_nodes n
-    WHERE n.logical_id = ?1 AND ?3 IS NOT NULL{anchor_node}{anchor_eligibility}
-    UNION ALL
-    SELECT
-      CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END,
-      t.depth + 1,
-      t.visited || CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END || char(30)
-    FROM traversal t
-    JOIN canonical_edges e ON (e.from_id = t.logical_id OR e.to_id = t.logical_id)
-    JOIN canonical_nodes next_n
-      ON next_n.logical_id = CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END
-      {next_node}{next_eligibility}
-    WHERE t.depth < ?2
-      AND e.superseded_at IS NULL{edge_valid}
-      AND instr(t.visited,
-            char(30) || CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END || char(30)) = 0
-    LIMIT {cte_cap}
-  )
-SELECT n.logical_id, n.kind, n.body, n.write_cursor, MIN(tr.depth) AS min_depth
-FROM traversal tr
-JOIN canonical_nodes n ON n.logical_id = tr.logical_id
-WHERE tr.logical_id != ?1{projection_node}{projection_eligibility}
-GROUP BY n.logical_id
-LIMIT {cap}"
-    );
-    (sql, params)
+    let anchor_eligibility = crate::filter::append_node_eligibility_sql_view(
+        connection,
+        filter,
+        "n",
+        &mut params,
+        &view.view,
+    )?;
+    let next_eligibility = crate::filter::append_node_eligibility_sql_view(
+        connection,
+        filter,
+        "next_n",
+        &mut params,
+        &view.view,
+    )?;
+    let projection_eligibility = crate::filter::append_node_eligibility_sql_view(
+        connection,
+        filter,
+        "n",
+        &mut params,
+        &view.view,
+    )?;
+    let sql=format!("WITH RECURSIVE traversal(logical_id,depth,visited) AS (
+      SELECT DISTINCT n.logical_id,0,char(30)||n.logical_id||char(30)
+      FROM canonical_nodes n WHERE n.logical_id=?1 AND ?3 IS NOT NULL{anchor_node}{anchor_eligibility}
+      UNION ALL
+      SELECT CASE WHEN e.from_id=t.logical_id THEN e.to_id ELSE e.from_id END,t.depth+1,
+        t.visited || CASE WHEN e.from_id=t.logical_id THEN e.to_id ELSE e.from_id END || char(30)
+      FROM traversal t JOIN canonical_edges e ON (e.from_id=t.logical_id OR e.to_id=t.logical_id)
+      WHERE t.depth<?2{edge_existence}{edge_valid}
+        AND EXISTS(SELECT 1 FROM canonical_nodes next_n
+          WHERE next_n.logical_id=CASE WHEN e.from_id=t.logical_id THEN e.to_id ELSE e.from_id END
+          {next_node}{next_eligibility})
+        AND instr(t.visited,char(30)||CASE WHEN e.from_id=t.logical_id THEN e.to_id ELSE e.from_id END||char(30))=0
+      LIMIT {cte_cap}
+    ), reached AS (SELECT logical_id,MIN(depth) AS min_depth FROM traversal GROUP BY logical_id),
+    candidates AS (
+      SELECT n.logical_id,n.kind,n.body,n.write_cursor,r.min_depth,
+        ROW_NUMBER() OVER(PARTITION BY n.logical_id ORDER BY n.write_cursor DESC) AS revision_rank
+      FROM reached r JOIN canonical_nodes n ON n.logical_id=r.logical_id
+      WHERE r.logical_id!=?1{projection_node}{projection_eligibility}
+    ) SELECT logical_id,kind,body,write_cursor,min_depth FROM candidates WHERE revision_rank=1
+      ORDER BY min_depth,logical_id LIMIT {cap}");
+    Ok((sql, params))
 }
 
 /// 0.8.20 Slice 10b (R-20-NV) — the validity-boundary hook, on the DEFERRED
@@ -384,10 +386,11 @@ pub(crate) fn search_expand_on_snapshot(
              WHERE write_cursor = ?1{node_predicate}
              LIMIT 1"
         ))?;
+        let edge_existence = frozen.view.edge_existence_sql("canonical_edges");
         let edge_predicate = edge_validity_sql_for_view("canonical_edges", 2, &frozen.view);
         let mut edge_stmt = tx.prepare(&format!(
             "SELECT 1 FROM canonical_edges
-             WHERE write_cursor = ?1 AND superseded_at IS NULL{edge_predicate}
+             WHERE write_cursor = ?1{edge_existence}{edge_predicate}
              LIMIT 1"
         ))?;
         for hit in search_hits {
@@ -435,7 +438,7 @@ pub(crate) fn search_expand_on_snapshot(
     // Step 2: for each root logical_id, run the BFS and collect expanded nodes.
     // A node already in `hit_id_set` is NOT added to `expanded`.
     // Use the depth-aware variant so each node reports its actual BFS distance.
-    let (bfs_sql, bfs_parameter_template) = build_bfs_with_depth_sql(frozen, filter);
+    let (bfs_sql, bfs_parameter_template) = build_bfs_with_depth_sql(tx, frozen, filter)?;
     let depth_i64 = depth as i64;
     // nearest_hop: for each expanded logical_id track the minimum hop count
     // seen across ALL search-hit roots. A node reachable from multiple roots

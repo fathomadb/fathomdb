@@ -122,6 +122,18 @@ The owner placed filtered direct body FTS in 0.8.28 as D28-14 on 2026-10-13.
 Automatic routing is outside this scope; default changes require their own
 reviewed contracts and gates.
 
+Owner update (2026-11-03): the [live release plan](plans/plan-0.8.28.md) and
+[release state](plans/release-state-0.8.28.json) govern current allocation rather
+than the older candidate intake below. Slice 81's erasure-availability POC is
+complete; its [results](experiments/erasure-availability/RESULTS.md) do not qualify
+a production erasure fix or SLA. The approved [CH1 plan](plans/ch1-production-erasure-plan.md)
+is assigned to Slice 82 (physical correctness/native cost) and Slice 83
+(resumability/availability), then Slice 90. HITL resolved the original end-of-83 contract/API decision on 2026-11-04 by
+approving [explicit maintenance](design/explicit-maintenance-erasure/contract.md)
+and assigning [Slice 85](plans/0.8.28/features/slice-85/plan.md), then 90.
+Queued eligibility remains unchanged until maintenance; the approved fresh-store
+format revision/API are not implemented yet and introduce no numerical deadline.
+
 | ID | Candidate work | Proof required before promotion |
 | --- | --- | --- |
 | **D28-01** | Manual named-profile configuration and qualification. | At least one non-A0 treatment has a reviewed, reproducible use case. |

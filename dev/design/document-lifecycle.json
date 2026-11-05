@@ -745,7 +745,7 @@
       "topic": "actuation",
       "role": "design",
       "owner": "dev/design/actuation.md",
-      "release": "current:0.8.27",
+      "release": "current:0.8.28",
       "successor": null
     },
     {
@@ -938,6 +938,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/current-history-search.md",
+      "class": "proposal",
+      "topic": "retrieval-history-isolation",
+      "role": "proposal",
+      "owner": "dev/design/current-history-search.md",
+      "release": "future:unassigned",
+      "successor": null
+    },
+    {
       "path": "dev/design/dedicated-checkout-per-orchestration-guard-proposal.md",
       "class": "reference",
       "topic": "dedicated-checkout-per-orchestration-guard-proposal",
@@ -1100,6 +1109,42 @@
       "successor": null
     },
     {
+      "path": "dev/design/explicit-maintenance-erasure/README.md",
+      "class": "proposal",
+      "topic": "explicit-maintenance-erasure",
+      "role": "index",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "future:0.8.28",
+      "successor": null
+    },
+    {
+      "path": "dev/design/explicit-maintenance-erasure/contract.md",
+      "class": "maintained",
+      "topic": "explicit-maintenance-erasure",
+      "role": "contract",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "current:0.8.28",
+      "successor": null
+    },
+    {
+      "path": "dev/design/explicit-maintenance-erasure/implementation-plan.md",
+      "class": "proposal",
+      "topic": "explicit-maintenance-erasure",
+      "role": "implementation-plan",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "future:0.8.28",
+      "successor": null
+    },
+    {
+      "path": "dev/design/explicit-maintenance-erasure/production-design.md",
+      "class": "maintained",
+      "topic": "explicit-maintenance-erasure",
+      "role": "production-design",
+      "owner": "dev/design/explicit-maintenance-erasure/contract.md",
+      "release": "current:0.8.28",
+      "successor": null
+    },
+    {
       "path": "dev/design/fathomdb-data-plane-architecture-v1.md",
       "class": "superseded",
       "topic": "fathomdb-data-plane-architecture-v1",
@@ -1114,7 +1159,7 @@
       "topic": "data-plane",
       "role": "architecture",
       "owner": "dev/design/fathomdb-data-plane-architecture-v2.md",
-      "release": "current:0.8.27",
+      "release": "current:0.8.28",
       "successor": null
     },
     {

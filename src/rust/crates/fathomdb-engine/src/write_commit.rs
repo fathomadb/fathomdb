@@ -23,7 +23,13 @@ pub(crate) fn load_next_cursor(connection: &Connection) -> u64 {
             |row| row.get::<_, u64>(0),
         )
         .unwrap_or(0);
-    nodes.max(edges).max(mutations).max(state).max(reserved).max(closure_boundary)
+    nodes
+        .max(edges)
+        .max(mutations)
+        .max(state)
+        .max(reserved)
+        .max(closure_boundary)
+        .max(physical_erasure::cursor_floor(connection).unwrap_or(0))
 }
 
 /// The write-cursor high-water mark reserved by schema step 23, or 0 when the
@@ -392,7 +398,12 @@ impl Drop for TriggerStateGuard<'_> {
     }
 }
 
-fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+pub(crate) fn canonical_batch_has_no_custom_triggers(
+    connection: &Connection,
+) -> rusqlite::Result<bool> {
+    if !crate::vector_spans::cleanup_trigger_is_valid(connection)? {
+        return Ok(false);
+    }
     let unexpected: bool = connection
         .prepare_cached(
             "SELECT EXISTS(
@@ -404,10 +415,11 @@ fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
                    'canonical_attributes','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','operational_mutations',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
+               AND name!='_fathomdb_vector_spans_mapping_delete'
              UNION ALL
              SELECT 1 FROM sqlite_temp_master
              WHERE type='trigger'
@@ -417,7 +429,7 @@ fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
                    'canonical_attributes','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','operational_mutations',
+                   '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
@@ -601,7 +613,10 @@ pub(crate) fn apply_batch_in_transaction(
     vector_kinds_to_enrol: &[String],
     closure_mode: dependency_closure::SoftClosureMode,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
-    dependency_closure::guard_no_pending_physical(tx)?;
+    let scoped_physical = physical_erasure::guard_plain_write(tx, batch)?;
+    if !scoped_physical {
+        dependency_closure::guard_no_pending_physical(tx)?;
+    }
     let mut closure_ids = Vec::new();
     for kind in vector_kinds_to_enrol {
         register_vector_kind(tx, kind)?;
@@ -613,6 +628,10 @@ pub(crate) fn apply_batch_in_transaction(
         // Per-row cursor: row i gets `base_cursor + i + 1`. See the
         // comment in `Engine::write_inner`.
         let cursor = base_cursor.saturating_add((i as u64).saturating_add(1));
+        if scoped_physical {
+            physical_erasure::guard_plain_write(tx, std::slice::from_ref(original_write))?;
+        }
+        erasure_queue::guard_plain(tx, std::slice::from_ref(original_write))?;
         let write = storage_write_shape(original_write);
         match (write.as_ref(), plan) {
             (
@@ -673,6 +692,7 @@ pub(crate) fn apply_batch_in_transaction(
                     // `canonical_nodes WHERE superseded_at IS NULL` join, so purging
                     // them here would be a behaviour change outside this fix's scope.
                     for sc in &prior_g0 {
+                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                         purge_row_projections_for_cursor_in(
                             tx,
                             *sc,
@@ -746,8 +766,7 @@ pub(crate) fn apply_batch_in_transaction(
                 // re-ingest of the same edge logical_id SUPERSEDES, never forks).
                 // No-op when logical_id is None.
                 if let Some(logical_id) = logical_id {
-                    // fix-30 [P2]: collect prior active cursors BEFORE tombstoning
-                    // so stale vector_default rows can be pruned.
+                    // Retained vectors must receive the canonical supersession metadata.
                     let prior_g0 = prior_edge_cursors_by_logical_id(tx, logical_id)?;
                     tx.execute(
                         "UPDATE canonical_edges SET superseded_at = ?1
@@ -755,26 +774,7 @@ pub(crate) fn apply_batch_in_transaction(
                         params![cursor, logical_id],
                     )?;
                     for sc in &prior_g0 {
-                        delete_vector_partition_row(tx, *sc)?;
-                        tx.execute(
-                            "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
-                            [sc],
-                        )?;
-                        // fix-32 [P2]: record terminal so advance_projection_cursor
-                        // can walk past this now-superseded cursor.
-                        // TC-45: the token MUST be 'up_to_date', NOT 'superseded'.
-                        // The terminal table (schema step 7) carries
-                        // CHECK(state IN ('failed','up_to_date')) and the writer is
-                        // INSERT OR IGNORE, which SILENTLY SKIPS a CHECK-violating
-                        // row — so 'superseded' was dropped without error and this
-                        // cursor stalled forever (nothing backfills it: the job
-                        // query and the pending-work probe both exclude superseded
-                        // edges). 'up_to_date' is the CHECK-valid, non-'failed'
-                        // terminal and is semantically exact here: the row is
-                        // tombstoned and its vector shadow just deleted, so there is
-                        // no further projection work for this cursor. Same reasoning
-                        // and same token as the step-23 backfill (fix-4, TC-33).
-                        record_projection_terminal(tx, *sc as u64, "up_to_date")?;
+                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                     }
                 }
                 // G11 — invalidate-not-accumulate: for fact-edges (body IS NOT NULL),
@@ -783,7 +783,7 @@ pub(crate) fn apply_batch_in_transaction(
                 // logical_id tombstone: it is keyed on the triple, not the identity.
                 // Regular edges (body=None) skip this path — they retain G0 semantics.
                 if body.is_some() {
-                    // fix-30 [P2]: collect and prune vector shadow for the superseded edge.
+                    // Update all vector rows for superseded endpoint facts.
                     let prior_g11 = prior_edge_cursors_by_triple(tx, from, to, kind)?;
                     tx.execute(
                         "UPDATE canonical_edges SET superseded_at = ?1
@@ -791,18 +791,7 @@ pub(crate) fn apply_batch_in_transaction(
                         params![cursor, from, to, kind],
                     )?;
                     for sc in &prior_g11 {
-                        delete_vector_partition_row(tx, *sc)?;
-                        tx.execute(
-                            "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
-                            [sc],
-                        )?;
-                        // fix-32 [P2]: mark terminal so projection cursor can advance.
-                        // TC-45: 'up_to_date', NOT 'superseded' — see the identical
-                        // note on the G0 prune loop above. The step-7 CHECK admits
-                        // only ('failed','up_to_date') and INSERT OR IGNORE swallows
-                        // a violating row, so 'superseded' never landed and wedged
-                        // the shared readiness watermark.
-                        record_projection_terminal(tx, *sc as u64, "up_to_date")?;
+                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
                     }
                 }
                 let temporal_fallback_i: Option<i64> =
@@ -952,6 +941,9 @@ pub(crate) fn apply_batch_in_transaction(
 
     enforce_provenance_retention(tx, provenance_row_cap)?;
     advance_projection_cursor(tx)?;
+    if scoped_physical {
+        physical_erasure::certify_plain_write(tx, base_cursor.saturating_add(batch.len() as u64))?;
+    }
 
     Ok((dangling_edge_endpoints, unstranded, closure_ids))
 }

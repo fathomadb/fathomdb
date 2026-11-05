@@ -198,7 +198,7 @@ impl Engine {
         to_state: LifecycleState,
         reason: Option<String>,
     ) -> Result<(), EngineError> {
-        self.ensure_open()?;
+        let _operation = self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
 
         // Settle in-flight projection work first: the async projection worker
@@ -215,6 +215,7 @@ impl Engine {
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        erasure_queue::guard_admin(connection)?;
         dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -297,6 +298,8 @@ impl Engine {
         .map_err(|_| EngineError::Storage)?;
 
         if let Some((_, cursor, _, body, _)) = &current {
+            vector_storage::refresh_vector_eligibility_for_cursor(&tx, *cursor)
+                .map_err(|_| EngineError::Storage)?;
             purge_row_projections_for_cursor_in(
                 &tx,
                 *cursor,

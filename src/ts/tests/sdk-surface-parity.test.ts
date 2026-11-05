@@ -12,8 +12,6 @@ const ENGINE_NON_COMMAND = new Set([
   "attachSubscriber",
   "config",
   "counters",
-  "denseDisabled",
-  "denseDisabledReason",
   "drain",
   "enableTelemetry",
   "lastTelemetryQueryId",
@@ -21,7 +19,6 @@ const ENGINE_NON_COMMAND = new Set([
   "recordFeedback",
   "setProfiling",
   "setSlowThresholdMs",
-  "vectorEquivalenceRefusalCount",
 ]);
 const PACKAGE_NON_COMMAND = new Set([
   "embedBatchCls",
@@ -96,7 +93,7 @@ test("TypeScript surface equals the live canonical operation set", async () => {
       ],
       { encoding: "utf8" },
     );
-    assert.match(output, /ok +sdk-surface-parity: typescript 48\/48 live canonical operations/);
+    assert.match(output, /ok +sdk-surface-parity: typescript 53\/53 live canonical operations/);
   } finally {
     await engine.close();
   }

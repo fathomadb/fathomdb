@@ -17,4 +17,4 @@ There is no JavaScript API here. Installing it directly does nothing useful.
 
 MIT. See the `LICENSE` file shipped in this package.
 
-Source, issues and full documentation: <https://github.com/coreyt/fathomdb>
+Source, issues and full documentation: <https://github.com/fathomadb/fathomdb>

@@ -1,0 +1,49 @@
+    Finished `release` profile [optimized] target(s) in 0.15s
+     Running tests/slice50_fresh_open_cost.rs (target/release/deps/slice50_fresh_open_cost-52f8aec4ee4f6bd8)
+
+running 1 test
+test fresh_open_cost ... FRESH_OPEN_META {"effective":"cpu","identity":"EmbedderIdentity { name: \"fathomdb-bge-small-en-v1.5\", revision: \"5c38ec7c405ec4b44b94cc5a9bb96e735b38267a\", dimension: 384 }","loader_download_bytes":0,"mean_pinned":true,"pairs_per_lifecycle":10,"pooling":"Mean","probe_count":45,"rayon_num_threads":null,"requested":"cpu","rows":300,"sqlite_version":"3.54.1","vectorless_embeds":0,"verified_cache_hits_per_construction":3}
+FRESH_OPEN_COST {"close_ms":2.9723800000000002,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":8.793985000000001,"pair":0,"probe_embeds":0,"total_ms":11.766755,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.150011,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":2355.04875,"pair":0,"probe_embeds":45,"total_ms":2359.199173,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":4.410283,"lifecycle":"reuse","model_load_ms":0.000049999999999999996,"open_ms":2292.6539159999998,"pair":1,"probe_embeds":45,"total_ms":2297.0646490000004,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":2.567816,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.369671,"pair":1,"probe_embeds":0,"total_ms":11.937818,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":2.938906,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.076569,"pair":2,"probe_embeds":0,"total_ms":12.015845,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.227087,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":2411.035225,"pair":2,"probe_embeds":45,"total_ms":2415.262712,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":3.79415,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":2267.47938,"pair":3,"probe_embeds":45,"total_ms":2271.273952,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":2.328995,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":8.586985,"pair":3,"probe_embeds":0,"total_ms":10.9164,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":3.233131,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":10.807163999999998,"pair":4,"probe_embeds":0,"total_ms":14.040666,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.40926,"lifecycle":"reuse","model_load_ms":0.000041,"open_ms":2324.552995,"pair":4,"probe_embeds":45,"total_ms":2328.962747,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":4.394233,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":2321.147339,"pair":5,"probe_embeds":45,"total_ms":2325.542003,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":2.662986,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":9.495549,"pair":5,"probe_embeds":0,"total_ms":12.158885,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":3.516425,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":8.967492,"pair":6,"probe_embeds":0,"total_ms":12.484210000000001,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":3.008378,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":2448.0852779999996,"pair":6,"probe_embeds":45,"total_ms":2451.094066,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":4.400564,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":2643.426304,"pair":7,"probe_embeds":45,"total_ms":2647.8272779999998,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":3.5917879999999998,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":8.983974,"pair":7,"probe_embeds":0,"total_ms":12.576113,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":3.214696,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":10.122321999999999,"pair":8,"probe_embeds":0,"total_ms":13.337418999999999,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.539016,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":2461.856441,"pair":8,"probe_embeds":45,"total_ms":2466.395837,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":4.378442,"lifecycle":"reuse","model_load_ms":0.000029999999999999997,"open_ms":2411.448976,"pair":9,"probe_embeds":45,"total_ms":2415.82784,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":2.63361,"lifecycle":"reuse","model_load_ms":0.00004,"open_ms":9.80302,"pair":9,"probe_embeds":0,"total_ms":12.43699,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":6.94712,"lifecycle":"reload","model_load_ms":116.945563,"open_ms":10.760437,"pair":0,"probe_embeds":0,"total_ms":134.653712,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":6.815192000000001,"lifecycle":"reload","model_load_ms":115.04207099999999,"open_ms":2616.4165869999997,"pair":0,"probe_embeds":45,"total_ms":2738.2744199999997,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":8.578979,"lifecycle":"reload","model_load_ms":115.395338,"open_ms":2623.6476570000004,"pair":1,"probe_embeds":45,"total_ms":2747.622766,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":6.718278000000001,"lifecycle":"reload","model_load_ms":116.966484,"open_ms":11.022001,"pair":1,"probe_embeds":0,"total_ms":134.707464,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":4.876804,"lifecycle":"reload","model_load_ms":122.418784,"open_ms":10.957768999999999,"pair":2,"probe_embeds":0,"total_ms":138.253847,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":6.6332580000000005,"lifecycle":"reload","model_load_ms":116.751188,"open_ms":2614.495711,"pair":2,"probe_embeds":45,"total_ms":2737.8805970000003,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":6.892467,"lifecycle":"reload","model_load_ms":121.302537,"open_ms":2601.640774,"pair":3,"probe_embeds":45,"total_ms":2729.8362100000004,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":6.462676,"lifecycle":"reload","model_load_ms":120.295287,"open_ms":9.611468,"pair":3,"probe_embeds":0,"total_ms":136.369792,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":7.695212,"lifecycle":"reload","model_load_ms":118.756994,"open_ms":9.584458,"pair":4,"probe_embeds":0,"total_ms":136.03707400000002,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":8.905536,"lifecycle":"reload","model_load_ms":116.784432,"open_ms":2418.234289,"pair":4,"probe_embeds":45,"total_ms":2543.9247680000003,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":5.7971710000000005,"lifecycle":"reload","model_load_ms":114.86307699999999,"open_ms":2566.282294,"pair":5,"probe_embeds":45,"total_ms":2686.943012,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":7.303353,"lifecycle":"reload","model_load_ms":118.19935299999999,"open_ms":9.819511,"pair":5,"probe_embeds":0,"total_ms":135.322708,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":5.96137,"lifecycle":"reload","model_load_ms":115.912027,"open_ms":9.646364,"pair":6,"probe_embeds":0,"total_ms":131.520222,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":7.776826,"lifecycle":"reload","model_load_ms":115.31235500000001,"open_ms":2486.818305,"pair":6,"probe_embeds":45,"total_ms":2609.907937,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":8.047888,"lifecycle":"reload","model_load_ms":114.267073,"open_ms":2455.206851,"pair":7,"probe_embeds":45,"total_ms":2577.522252,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":6.041241,"lifecycle":"reload","model_load_ms":114.38183000000001,"open_ms":9.392315,"pair":7,"probe_embeds":0,"total_ms":129.815867,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":5.160949,"lifecycle":"reload","model_load_ms":114.681355,"open_ms":9.62311,"pair":8,"probe_embeds":0,"total_ms":129.465946,"verification":"cached"}
+FRESH_OPEN_COST {"close_ms":7.337287,"lifecycle":"reload","model_load_ms":116.762152,"open_ms":2537.965133,"pair":8,"probe_embeds":45,"total_ms":2662.0651239999997,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":5.801449,"lifecycle":"reload","model_load_ms":114.368315,"open_ms":2576.943827,"pair":9,"probe_embeds":45,"total_ms":2697.114031,"verification":"fresh"}
+FRESH_OPEN_COST {"close_ms":6.304627999999999,"lifecycle":"reload","model_load_ms":114.7466,"open_ms":9.306534,"pair":9,"probe_embeds":0,"total_ms":130.358172,"verification":"cached"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.91s
+

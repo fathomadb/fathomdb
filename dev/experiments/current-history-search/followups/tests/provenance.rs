@@ -1,0 +1,280 @@
+use current_history_followups::ledger::Ledger;
+use fathomdb_engine::*;
+use sha2::{Digest, Sha256};
+
+fn source() -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "source".into(),
+        body: "source bytes".into(),
+        source_id: SourceId::new("source").unwrap(),
+        logical_id: Some("authority".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::canonical(
+            ArtifactRevisionId::new("source-r1").unwrap(),
+            SourceVersionId::new("source-v1").unwrap(),
+        ),
+    })
+}
+fn derived(revision: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: body.into(),
+        source_id: SourceId::new("source").unwrap(),
+        logical_id: Some("claim".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new("source-v1").unwrap(),
+            SourceRevisionId::new("source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(
+                Sha256::digest(b"source bytes")
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>(),
+            )
+            .unwrap(),
+        ),
+    })
+}
+#[test]
+fn exact_intrinsic_revision_and_source_authority_survive_fragment_selection() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("provenance.sqlite")).unwrap();
+    ledger.engine.write(&[source()]).unwrap();
+    let a =
+        ledger.change_prepared(derived("assertion-r1", "oldneedle A"), (0, 100), false).unwrap();
+    let b = ledger.change_prepared(derived("assertion-r2", "new B"), (20, 40), false).unwrap();
+    assert_eq!(ledger.selected("claim", 10, b as i64).unwrap(), vec![(a, "oldneedle A".into())]);
+    let intrinsic:(String,String)=ledger.read.query_row("SELECT ar.revision_id,link.source_revision_id FROM _fathomdb_artifact_revisions ar JOIN _fathomdb_source_links link ON link.artifact_revision_id=ar.revision_id WHERE ar.write_cursor=?1",[a],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+    assert_eq!(intrinsic, ("assertion-r1".into(), "source-r1".into()));
+    ledger.engine.drain(10_000).unwrap();
+    let frozen = ledger
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView { include_superseded: true, ..Default::default() },
+                SearchFilter::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let request = EvidenceSearchRequestV1 {
+        schema_version: 1,
+        query: "oldneedle".into(),
+        context: frozen.clone(),
+        rerank_depth: 0,
+        use_graph_arm: false,
+        alpha: 0.3,
+        pool_n: 0,
+        include_explanation: false,
+        limit: 10,
+    };
+    let evidence = ledger.engine.search_with_evidence(&request).unwrap();
+    assert_eq!(evidence.evidence[0].artifact_revision_id, "assertion-r1");
+    let resolved = ledger
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence.evidence[0].evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(resolved.artifact_revision_id, "assertion-r1");
+    assert_eq!(resolved.source_revision_id, "source-r1");
+    assert_eq!(resolved.canonical_source_body, "source bytes");
+    ledger.engine.transition("authority", LifecycleState::Deleted, None).unwrap();
+    assert!(
+        ledger.selected("claim", 10, b as i64).unwrap().is_empty(),
+        "historical K cannot restore current source authority"
+    );
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn declared_derived_revision_requires_positive_source_link() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("missing-link.sqlite")).unwrap();
+    ledger.engine.write(&[source()]).unwrap();
+    let cut = ledger.change_prepared(derived("assertion-r1", "body"), (0, 100), false).unwrap();
+    ledger
+        .engine
+        .execute_for_test(
+            "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='assertion-r1'",
+        )
+        .unwrap();
+    assert!(ledger.selected("claim", 10, cut as i64).unwrap().is_empty());
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn temporal_adapter_refuses_independent_canonical_validity_windows() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("double-window.sqlite")).unwrap();
+    ledger.engine.write(&[source()]).unwrap();
+    let PreparedWrite::ProvenancedNode(mut node) = derived("assertion-r1", "body") else {
+        unreachable!()
+    };
+    node.valid_from = Some(1);
+    assert!(ledger.change_prepared(PreparedWrite::ProvenancedNode(node), (0, 100), false).is_err());
+    assert_eq!(
+        ledger.engine.query_i64_col_for_test("SELECT COUNT(*) FROM poc_claims").unwrap(),
+        vec![0]
+    );
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn current_family_tracks_source_boundaries_and_actual_source_revocation() {
+    use current_history_followups::current::CurrentStore;
+    let dir = tempfile::tempdir().unwrap();
+    let store = CurrentStore::open(&dir.path().join("current-source.sqlite")).unwrap();
+    let PreparedWrite::ProvenancedNode(mut canonical) = source() else { unreachable!() };
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    canonical.valid_until = Some(now + 100);
+    store
+        .write(&[PreparedWrite::ProvenancedNode(canonical), derived("assertion-r1", "needle")])
+        .unwrap();
+    store.bootstrap(now).unwrap();
+    assert_eq!(store.search("needle", now, 10).unwrap().rows.len(), 1);
+    assert!(
+        store.search("needle", now + 100, 10).unwrap().rows.is_empty(),
+        "source expiry must remove dependent rows"
+    );
+    store.close().unwrap();
+
+    let store = CurrentStore::open(&dir.path().join("current-revoke.sqlite")).unwrap();
+    store.write(&[source(), derived("assertion-r1", "needle")]).unwrap();
+    store.bootstrap(now).unwrap();
+    store
+        .with_writer(|engine| engine.transition("authority", LifecycleState::Deleted, None))
+        .unwrap();
+    assert!(
+        store.search("needle", now, 10).unwrap().rows.is_empty(),
+        "source revocation invalidates and refreshes dependencies"
+    );
+    store.close().unwrap();
+}
+
+#[test]
+fn temporal_claim_kind_is_immutable() {
+    let dir = tempfile::tempdir().unwrap();
+    let ledger = Ledger::open(&dir.path().join("kind.sqlite")).unwrap();
+    ledger.engine.write(&[source()]).unwrap();
+    ledger.change_prepared(derived("assertion-r1", "body"), (0, 100), false).unwrap();
+    let PreparedWrite::ProvenancedNode(mut node) = derived("assertion-r2", "other") else {
+        unreachable!()
+    };
+    node.kind = "different-type".into();
+    assert!(ledger.change_prepared(PreparedWrite::ProvenancedNode(node), (20, 40), false).is_err());
+    ledger.engine.close().unwrap();
+}
+
+#[test]
+fn historical_backend_rechecks_current_source_and_evidence_authority() {
+    use current_history_followups::{fixture, history};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("backend-authority.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    engine.write(&[source()]).unwrap();
+    let receipt = engine.write(&[derived("assertion-r1", "needle")]).unwrap();
+    engine.drain(10_000).unwrap();
+    let cursor = receipt.row_cursors[0];
+    let cut = receipt.cursor;
+    engine.execute_for_test(&format!("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER,version INTEGER,commit_cut INTEGER); INSERT INTO poc_versions VALUES({cursor},0,0,{cut}); CREATE TABLE poc_temporal_fragments(cursor INTEGER,ordinal INTEGER,v0 INTEGER,v1 INTEGER,k0 INTEGER,k1 INTEGER); INSERT INTO poc_temporal_fragments VALUES({cursor},0,0,100,{cut},NULL);")).unwrap();
+    let mut main =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    main.execute_batch("PRAGMA query_only=ON").unwrap();
+    let (selected, hydrate) = fixture::queries("node", 0, "prior");
+    {
+        let tx = main.transaction().unwrap();
+        assert_eq!(
+            history::search(&tx, &selected, &hydrate, "needle", 10, true, || Ok(()))
+                .unwrap()
+                .documents,
+            1
+        );
+    }
+    let context = engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView { include_superseded: true, ..Default::default() },
+                SearchFilter::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let issued = engine
+        .search_with_evidence(&EvidenceSearchRequestV1 {
+            schema_version: 1,
+            query: "needle".into(),
+            context: context.clone(),
+            rerank_depth: 0,
+            use_graph_arm: false,
+            alpha: 0.3,
+            pool_n: 0,
+            include_explanation: false,
+            limit: 10,
+        })
+        .unwrap();
+    assert_eq!(issued.evidence[0].artifact_revision_id, "assertion-r1");
+    engine.transition("authority", LifecycleState::Deleted, None).unwrap();
+    {
+        let tx = main.transaction().unwrap();
+        let denied =
+            history::search(&tx, &selected, &hydrate, "needle", 10, true, || Ok(())).unwrap();
+        assert_eq!(denied.documents, 0);
+        assert!(denied.hits.is_empty());
+    }
+    assert!(engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: issued.evidence[0].evidence_ref.clone(),
+            context
+        })
+        .is_err());
+    engine.close().unwrap();
+}
+
+#[test]
+fn reused_historical_selector_resolves_source_authority_once_per_request() {
+    use current_history_followups::{fixture, history};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("authority-clock.sqlite");
+    let engine = Engine::open(&path).unwrap().engine;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    let PreparedWrite::ProvenancedNode(mut canonical) = source() else { unreachable!() };
+    canonical.valid_until = Some(now + 100);
+    engine.write(&[PreparedWrite::ProvenancedNode(canonical)]).unwrap();
+    let receipt = engine.write(&[derived("assertion-r1", "needle")]).unwrap();
+    let cursor = receipt.row_cursors[0];
+    let cut = receipt.cursor;
+    engine.execute_for_test(&format!("CREATE TABLE poc_versions(cursor INTEGER PRIMARY KEY,ordinal INTEGER,version INTEGER,commit_cut INTEGER); INSERT INTO poc_versions VALUES({cursor},0,0,{cut}); CREATE TABLE poc_temporal_fragments(cursor INTEGER,ordinal INTEGER,v0 INTEGER,v1 INTEGER,k0 INTEGER,k1 INTEGER); INSERT INTO poc_temporal_fragments VALUES({cursor},0,0,100,{cut},NULL);")).unwrap();
+    let mut main =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let (selected, hydrate) = fixture::queries("node", 0, "prior");
+    for (authority, expected) in [(now, 1), (now + 100, 0)] {
+        let tx = main.transaction().unwrap();
+        let result = history::search_options(
+            &tx,
+            &selected,
+            &hydrate,
+            "needle",
+            history::Options { authority_epoch: Some(authority), ..Default::default() },
+            || Ok(()),
+        )
+        .unwrap();
+        assert_eq!(result.documents, expected);
+    }
+    engine.close().unwrap();
+}

@@ -59,3 +59,11 @@ wrapper succeeded but actual Cargo101 has one property fixture failure; resource
 headroom remained healthy. CI9/CI10 actor/resource isolation corrections have
 Astra-approved designs. Their scoped GREEN and fresh exact-candidate CI remain
 pending. Publication is held; version/AxisE/rehearsal preparation remains pending.
+
+CI9/CI10 are implemented and Astra code APPROVE at9328885b2: actor-property
+1/1 (24cases), normal-parallel engine library144/144, idle-debt and genuine
+Autonomous saturation1/1 each. All six controlled8GiB fixture suites pass825
+unchanged assertions after observed RED; real default preflight remains
+byte-identical and still rejects8GiB with its10GiB requirement. These fixture-only
+changes get focused local rechecks; final exact-candidate hosted qualification
+and remaining feature/package/performance work are still pending.

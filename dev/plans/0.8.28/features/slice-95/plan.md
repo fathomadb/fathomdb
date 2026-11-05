@@ -125,7 +125,7 @@ records the observed failures, lock-order constraints and deterministic RED/GREE
 
 | ID | Additional decisive acceptance |
 | --- | --- |
-| S95-12 confirmed-debt admission | A debt-free contended primary cannot make an idle Autonomous poller occupy physical service and refuse fresh foreground erasure. Deterministic real-DB admission/completion coverage fails before the fix and passes after; true debt retains priority/progress and a genuine competing service retains typed refusal. The three original hosted failures pass unchanged. No retries, fixture serialization, weaker success assertions, new policy or deadline. |
+| S95-12 confirmed-debt admission | A debt-free contended primary cannot make an idle Autonomous poller occupy physical service and refuse fresh foreground erasure. Deterministic real-DB admission/completion coverage fails before the fix and passes after; true debt retains priority/progress and a genuine competing service retains typed refusal. The three original hosted failures pass unchanged. No retries or serialization of these three fixtures/workspace, weaker success assertions, new policy or deadline. |
 
 ### Fixture findings allocated during final qualification
 

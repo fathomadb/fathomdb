@@ -66,6 +66,8 @@ function verifierContract(jobName, tier, spillDir) {
     verbose: Boolean(verifyStep && verifyStep.env && String(verifyStep.env.AGENT_VERBOSE) === "1"),
     collect_on_failure: Boolean(collectStep && collectStep.if === "failure()"),
     collect_uses_runner_temp: Boolean(collectStep && collectStep.run.includes(`\${RUNNER_TEMP}/${spillDir}`)),
+    collect_invocation_only: Boolean(collectStep && collectStep.run.includes('--source-dir "$AGENT_LOG_DIR"')),
+    fresh_spill_directory: steps.some((step) => String(step.run || "").includes('AGENT_LOG_DIR="$(mktemp -d') && String(step.run || "").includes('GITHUB_ENV')),
     upload_on_failure: Boolean(uploadStep && uploadStep.if === "failure()"),
     upload_pinned: Boolean(uploadStep && uploadStep.uses === "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"),
     upload_exact_path: Boolean(uploadStep && uploadStep.with.path === `\${{ runner.temp }}/${spillDir}`),
@@ -101,6 +103,8 @@ assert_true() {
 
 for verifier_tier in fast heavy; do
   assert_true "$verifier_tier" tier "$verifier_tier verifier runs its explicit tier"
+  assert_true "$verifier_tier" collect_invocation_only "$verifier_tier collector is restricted to the invocation spill directory"
+  assert_true "$verifier_tier" fresh_spill_directory "$verifier_tier creates a fresh producer spill directory"
   assert_true "$verifier_tier" verbose "$verifier_tier verifier enables per-suite status/timing on a green run"
   assert_true "$verifier_tier" collect_on_failure "$verifier_tier spill collection runs only after a verifier failure"
   assert_true "$verifier_tier" collect_uses_runner_temp "$verifier_tier spill collection uses runner-owned temporary storage"
@@ -189,6 +193,7 @@ fi
 EMPTY_SOURCE="$TMPROOT/empty-spill-source"
 EMPTY_DESTINATION="$TMPROOT/empty-spill-destination"
 mkdir -p "$EMPTY_SOURCE"
+: >"$EMPTY_SOURCE/fathomdb-agent-empty-123.log"
 set +e
 EMPTY_OUT="$(bash "$COLLECTOR" --source-dir "$EMPTY_SOURCE" --destination "$EMPTY_DESTINATION" 2>&1)"
 EMPTY_RC=$?
@@ -199,6 +204,55 @@ if [ "$EMPTY_RC" -ne 0 ] \
   pass "collector hard-fails before creating an uploadable manifest when no regular spill logs exist"
 else
   fail "collector must fail loudly without an uploadable manifest for zero logs (rc=$EMPTY_RC): $EMPTY_OUT"
+fi
+
+
+# A preflight failure is real diagnostic evidence even before any suite runs.
+PREFLIGHT_FIX="$TMPROOT/preflight-repo"
+OWN_SPILLS="$TMPROOT/owned-spills"
+FOREIGN_SPILLS="$TMPROOT/foreign-spills"
+mkdir -p "$PREFLIGHT_FIX/scripts/lib" "$OWN_SPILLS" "$FOREIGN_SPILLS"
+cp "$REPO_ROOT/scripts/agent-verify.sh" "$PREFLIGHT_FIX/scripts/agent-verify.sh"
+cp "$OUTPUT_LIB" "$PREFLIGHT_FIX/scripts/lib/agent-output.sh"
+git -C "$PREFLIGHT_FIX" init --quiet
+printf 'foreign diagnostic\n' >"$FOREIGN_SPILLS/fathomdb-agent-foreign-123.log"
+set +e
+PREFLIGHT_OUT="$(cd "$PREFLIGHT_FIX" && AGENT_LOG_DIR="$OWN_SPILLS" bash scripts/agent-verify.sh --tier=heavy 2>&1)"
+PREFLIGHT_RC=$?
+set -e
+PREFLIGHT_DEST="$TMPROOT/preflight-artifact"
+set +e
+PREFLIGHT_COLLECT="$(bash "$COLLECTOR" --source-dir "$OWN_SPILLS" --destination "$PREFLIGHT_DEST" 2>&1)"
+PREFLIGHT_COLLECT_RC=$?
+set -e
+if [ "$PREFLIGHT_RC" -ne 0 ] && [ "$PREFLIGHT_COLLECT_RC" -eq 0 ] &&
+  grep -Fq 'checkout-owned .venv/bin/python is missing' "$PREFLIGHT_DEST"/fathomdb-agent-*.log &&
+  ! grep -RqF 'foreign diagnostic' "$PREFLIGHT_DEST"; then
+  pass "real preflight failure preserves genuine invocation-only diagnostic evidence"
+else
+  fail "preflight evidence missing/foreign (verify=$PREFLIGHT_RC collector=$PREFLIGHT_COLLECT_RC output=$PREFLIGHT_OUT collect=$PREFLIGHT_COLLECT)"
+fi
+
+LONG_SPILLS="$TMPROOT/long-spills"
+mkdir -p "$LONG_SPILLS"
+cat >"$TMPROOT/long-driver.sh" <<'LONG'
+#!/usr/bin/env bash
+set -euo pipefail
+. "$OUTPUT_LIB"
+run_capped long-fixture bash -c 'for ((i=1;i<=250;i++)); do echo "diagnostic $i"; done; echo "GITHUB_TOKEN=dummy-secret"; exit 73'
+LONG
+set +e
+LONG_OUT="$(OUTPUT_LIB="$OUTPUT_LIB" AGENT_LOG_DIR="$LONG_SPILLS" bash "$TMPROOT/long-driver.sh" 2>&1)"
+LONG_RC=$?
+set -e
+LONG_DEST="$TMPROOT/long-artifact"
+if [ "$LONG_RC" -eq 73 ] && [[ "$LONG_OUT" == *"output truncated"* ]] &&
+  bash "$COLLECTOR" --source-dir "$LONG_SPILLS" --destination "$LONG_DEST" &&
+  grep -Fq 'diagnostic 250' "$LONG_DEST"/fathomdb-agent-*.log &&
+  ! grep -RqF 'dummy-secret' "$LONG_DEST"; then
+  pass "truncated failure keeps exact exit and full redacted spill evidence"
+else
+  fail "long failure lost its exit or uncapped diagnostics (exit=$LONG_RC output=$LONG_OUT)"
 fi
 
 if [ "$FAILED" -gt 0 ]; then

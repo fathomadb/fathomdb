@@ -305,3 +305,21 @@ or Pages publication, main merge, paid/GPU campaign beyond existing authorizatio
 or post-publication smoke is authorized by creating Slice 95. Publication and its
 registry-installed end-to-end proof follow the separate owner ruling and release
 runbook; do not import historical oracle-retirement work already completed.
+
+## CI15: retain classified fidelity evidence
+
+Final-source CI exposed missing post-cutover classification for the newly
+registered TC5 receipt; fast lint stopped before its 198 suites. Astra approved
+the bounded correction under S95-5/6/10: preserve the immutable record, resolved
+configuration, metrics and index; add the existing classification sidecar, a
+truthfully retrospective measurement plan and two exact-record-hash amendments
+using the already supported missing-plan and missing-kind locator reasons.
+
+The [retrospective derivation](../../../../../experiments/configs/scale-01/slice95-release-fidelity-postrun.md)
+binds the actual measured source and private vector-stage execution. It makes no
+preregistration, public-search, latency or byte-immutability claim. Observed
+validate-tree RED precedes GREEN; all 38 existing classification tests pass.
+Astra code review and separate verification check semantic metric coverage and
+unchanged immutable evidence. No product AC, validator bypass or new exception
+class is introduced. Recheck affected metadata/fast verification; records-only
+changes retain explicit source-attributed reuse of unchanged executable evidence.

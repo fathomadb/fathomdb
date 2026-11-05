@@ -358,3 +358,22 @@ bound; the additional hit-cursor witness is scoped to this provider-free fixture
 S95-6/9 require meaningful concurrent evidence; no unrelated local regression
 restart is needed. Astra approved this refinement after rejecting the weaker
 positive-activity-only version.
+
+## CI15: classify the registered TC5 fidelity receipt
+
+**Astra design review APPROVE on 2026-11-05.** Use the existing classification
+schema/API and closed amendment reasons. The immutable record's missing plan and
+untyped external summary locators each receive one exact-run/record-hash-bound
+amendment. The retrospective plan and sidecar bind eight scalar metrics and
+explicitly exclude 30 identity/control leaves; preserve original record, config,
+metrics and index bytes. No schema, validator or historical policy is broadened.
+
+Classify actual private `tc5_vector_stage` storage, corpus/gold and deterministic
+recall/bootstrap work as data-plane components. The public-operation taxonomy has
+no label for this private path; empty call paths/witnesses are truthful. Bind the
+measured `5f668f330` source and original artifacts directly, rather than invent a
+public `Engine.search` or external-retrieval witness. The companion derivation
+states retrospective timing and fidelity-only limits, including the changed
+post-run database hash of unknown cause. Normal API idempotence, portable tree
+validation, existing 38 tests and independent immutable-byte/hash checks verify
+this correction after the observed lint RED. AC011 and publication holds remain.

@@ -267,10 +267,12 @@ def expected_scoped_condition(categories: tuple[str, ...]) -> str:
     drivers = " || ".join(f"needs.changes.outputs.{name} == 'true'" for name in categories)
     return " ".join(
         (
+            "!cancelled() && needs.changes.result == 'success' && (",
+            "needs.changes.outputs.release_qualification == 'true' ||",
             "needs.changes.outputs.ci_workflow == 'true' || (",
             "needs.changes.outputs.docs_only != 'true' &&",
             f"( {drivers} ) &&",
-            "needs.changes.outputs.ci_mode != 'lite' )",
+            "needs.changes.outputs.ci_mode != 'lite' ) )",
         )
     )
 
@@ -283,8 +285,10 @@ def evaluate_routes(
     label: str,
     *,
     run_cancelled: bool = False,
+    event: str = "push",
 ) -> set[str]:
     context = {f"needs.changes.outputs.{key}": value for key, value in outputs.items()}
+    context["github.event_name"] = event
     context["needs.changes.result"] = result
     context["run.cancelled"] = "true" if run_cancelled else "false"
     selected: set[str] = set()
@@ -340,7 +344,7 @@ def run_marker_script(
             "PR_AUTHOR_ASSOCIATION": association,
             "PR_HEAD_SHA": candidate if event == "pull_request" else "",
             "PR_HEAD_REPOSITORY": head_repository if event == "pull_request" else "",
-            "PUSH_SHA": candidate if event == "push" else "",
+            "PUSH_SHA": candidate if event in {"push", "workflow_dispatch"} else "",
             "REPOSITORY": "fathomadb/fathomdb",
             "GITHUB_OUTPUT": str(output),
         }
@@ -427,7 +431,7 @@ def main() -> int:
         checks.require(False, "ci.yml is missing verify-fast")
     else:
         condition = normalized_condition(verify_fast)
-        expected = "!cancelled() && ( needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true' )"
+        expected = "!cancelled() && ( github.event_name != 'workflow_dispatch' || needs.changes.outputs.release_qualification == 'true' ) && ( needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true' )"
         checks.require(condition == expected, "verify-fast does not have the failure-aware baseline condition")
         checks.require(
             condition is None or "always()" not in condition,
@@ -584,9 +588,47 @@ def main() -> int:
     )
     checks.require(not cancelled_routes, f"cancelled run still selects {sorted(cancelled_routes)}")
 
+    for label, mode in (("manual-empty-diff", "normal"), ("manual-already-merged-lite", "lite")):
+        outputs = {category: "false" for category in CATEGORIES}
+        outputs.update(docs_only="false", ci_mode=mode, release_qualification="true")
+        selected = evaluate_routes(conditions, outputs, "success", checks, label, event="workflow_dispatch")
+        checks.require(selected == set(SCOPED_DRIVERS) | {"verify-fast"}, f"{label}: not every qualification job selected: {sorted(selected)}")
+        cancelled = evaluate_routes(conditions, outputs, "success", checks, label, event="workflow_dispatch", run_cancelled=True)
+        checks.require(not cancelled, f"{label}: cancelled manual run kept jobs alive")
+    validated_failure = dict(failed_outputs, release_qualification="true")
+    selected = evaluate_routes(conditions, validated_failure, "failure", checks, "manual-classifier-failure", event="workflow_dispatch")
+    checks.require(selected == {"verify-fast"}, "valid manual classifier failure lost isolated fast diagnostics")
+    rejected_failure = dict(failed_outputs, release_qualification="")
+    selected = evaluate_routes(conditions, rejected_failure, "failure", checks, "manual-rejected", event="workflow_dispatch")
+    checks.require(not selected, "invalid manual request launched qualification")
+
+    validation = step_block(changes, step_id="candidate")
+    validation_script = block_scalar(validation, "run", 8) if validation else None
+    checks.require(validation_script is not None, "changes is missing early candidate validation")
+    checks.require("release_qualification: ${{ steps.candidate.outputs.release_qualification }}" in changes, "changes does not export validated qualification")
+    if validation_script is not None:
+        checks.require(changes.index(validation) < changes.index("- uses: actions/checkout@"), "candidate validation occurs after checkout")
+        sha = "1" * 40
+        for label, event, candidate, ref, expected in (
+            ("valid", "workflow_dispatch", sha, "refs/heads/release/0.8.28", True),
+            ("short", "workflow_dispatch", "1234", "refs/heads/release/0.8.28", False),
+            ("upper", "workflow_dispatch", "A" * 40, "refs/heads/release/0.8.28", False),
+            ("mismatch", "workflow_dispatch", "2" * 40, "refs/heads/release/0.8.28", False),
+            ("wrong-ref", "workflow_dispatch", sha, "refs/heads/main", False),
+            ("automatic", "push", "", "refs/heads/main", True),
+        ):
+            with tempfile.TemporaryDirectory(prefix="fathomdb-ci-candidate-") as temp:
+                output = Path(temp) / "output"
+                environment = dict(os.environ, EVENT_NAME=event, CANDIDATE_SHA=candidate, GITHUB_SHA=sha, GITHUB_REF=ref, GITHUB_OUTPUT=str(output))
+                result = subprocess.run(["bash", "-c", validation_script], env=environment, text=True, capture_output=True, check=False)
+                emitted = action_outputs(output) if output.exists() else {}
+                checks.require((result.returncode == 0) == expected, f"candidate {label}: exit={result.returncode}, stderr={result.stderr}")
+                checks.require(emitted.get("release_qualification") == ("true" if expected and event == "workflow_dispatch" else "false" if expected else None), f"candidate {label}: invalid qualification output {emitted}")
+
     marker_step = step_block(changes, name="Determine CI mode")
     marker_script = block_scalar(marker_step, "run", 8) if marker_step is not None else None
     marker_scenarios = (
+        ("manual-lite", "[ci-lite]", "workflow_dispatch", "OWNER", "fathomadb/fathomdb", "normal"),
         ("trusted-pr", "[ci-lite]", "pull_request", "OWNER", "fathomadb/fathomdb", "lite"),
         ("fork-pr", "[ci-lite]", "pull_request", "CONTRIBUTOR", "fork/fathomdb", "normal"),
         ("untrusted-same-repo", "[ci-lite]", "pull_request", "CONTRIBUTOR", "fathomadb/fathomdb", "normal"),

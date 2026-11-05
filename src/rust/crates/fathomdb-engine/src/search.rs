@@ -514,6 +514,8 @@ fn read_historical_projected_text(
         soft_fallback: None,
         results,
         explanation: None,
+        degradations: Vec::new(),
+        snippets: None,
     })
 }
 

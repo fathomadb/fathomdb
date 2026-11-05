@@ -165,6 +165,7 @@ else
   RUNNER_TEMP="$TMPROOT/runner-temp"
   SUMMARY="$TMPROOT/summary.md"
   mkdir -p "$FAKE_BIN" "$RUNNER_TEMP"
+  printf 'resource_phase=fixture-before-cache\n' >"$RUNNER_TEMP/rust-workspace-resources.log"
   cat >"$FAKE_BIN/bash" <<EOF
 #!$REAL_BASH
 if [ "\$1" = "scripts/test-rust-workspace.sh" ] && [ "\$2" = "--parallel-report" ]; then

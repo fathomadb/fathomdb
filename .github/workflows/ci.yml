@@ -456,26 +456,72 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
+      - name: Resource snapshot before dependency cache
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "resource_phase=before-cache"
+            echo "target_cache=disabled cache_post_archive=disabled"
+            echo "cargo_build_jobs=$CARGO_BUILD_JOBS incremental=$CARGO_INCREMENTAL test_debug=$CARGO_PROFILE_TEST_DEBUG libtest_threads=default"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } | tee -a "$RUNNER_TEMP/rust-workspace-resources.log"
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-targets: false
+          save-if: false
+      - name: Resource snapshot after dependency cache
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "resource_phase=after-cache"
+            echo "target_cache=disabled cache_post_archive=disabled"
+            echo "cargo_build_jobs=$CARGO_BUILD_JOBS incremental=$CARGO_INCREMENTAL test_debug=$CARGO_PROFILE_TEST_DEBUG libtest_threads=default"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } | tee -a "$RUNNER_TEMP/rust-workspace-resources.log"
       - name: Parallel Rust workspace race report
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           log="$RUNNER_TEMP/rust-workspace-parallel.log"
+          cat "$RUNNER_TEMP/rust-workspace-resources.log" > "$log"
           artifact_name="rust-workspace-parallel-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           started_seconds="$(date +%s)"
-          bash scripts/test-rust-workspace.sh --parallel-report >"$log" 2>&1
+          set +e
+          bash scripts/test-rust-workspace.sh --parallel-report >>"$log" 2>&1
           rc=$?
           set -e
           ended_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           ended_seconds="$(date +%s)"
           duration_seconds=$((ended_seconds - started_seconds))
+          test_result_summaries="$(awk '/^test result:/{n++} END{print n+0}' "$log")"
+          {
+            echo "resource_phase=after-tests"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } >> "$log"
           {
             echo "mode=parallel-report"
             echo "sha=${GITHUB_SHA}"
@@ -486,6 +532,8 @@ jobs:
             echo "log_name=$(basename "$log")"
             echo "artifact_name=${artifact_name}"
             echo "exit_code=${rc}"
+            echo "test_result_summaries=${test_result_summaries}"
+            echo "cache_post_archive=disabled"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$rc" -ne 0 ]; then
             echo "::warning title=Rust workspace parallel report::parallel run exited ${rc}; inspect artifact=${artifact_name}"
@@ -497,6 +545,20 @@ jobs:
         with:
           name: rust-workspace-parallel-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/rust-workspace-parallel.log
+      - name: Resource snapshot after artifact upload
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "resource_phase=after-upload-final"
+            echo "target_cache=disabled cache_post_archive=disabled"
+            echo "cargo_build_jobs=$CARGO_BUILD_JOBS incremental=$CARGO_INCREMENTAL test_debug=$CARGO_PROFILE_TEST_DEBUG libtest_threads=default"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } | tee -a "$RUNNER_TEMP/rust-workspace-resources.log"
 
 
   # Gate (n) — agent-security battery (AC-036/037/038/050a/050c).

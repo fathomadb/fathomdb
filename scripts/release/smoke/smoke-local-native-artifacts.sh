@@ -318,6 +318,8 @@ EOF
 (
   cd "$CONSUMER"
   npm install --offline --ignore-scripts
+  "$NODE_CMD" "$REPO_ROOT/scripts/release/smoke/check-installed-types.mjs" \
+    "$CONSUMER" "$TS_DIR/node_modules/typescript/bin/tsc" "$MAIN/$main_tarball" "$PLATFORM/$platform_tarball"
   "$NODE_CMD" --input-type=module - "$WORK/node-runtime-performance.fathom" <<'JS'
 import { Engine, admin } from "fathomdb";
 
@@ -358,8 +360,8 @@ console.log("slice85-runtime-node-invalid: pass");
 JS
   "$NODE_CMD" --input-type=module - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
     "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'JS'
-import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { Engine } from "fathomdb";
 
 const fixture = JSON.parse(readFileSync(process.argv[2], "utf8"));
@@ -474,12 +476,7 @@ JS
   "$NODE_CMD" --input-type=module - "$WORK/npm-graph-evidence.fdb" <<'JS'
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { Engine, graph } from "fathomdb";
-
-const declarations = readFileSync("node_modules/fathomdb/dist/index.d.ts", "utf8");
-assert.match(declarations, /interface GraphEvidenceResolveRequestV1/);
-assert.match(declarations, /resolveGraphEvidence/);
 
 const sourceBody = "installed npm graph evidence bytes";
 const digestHex = createHash("sha256").update(sourceBody).digest("hex");

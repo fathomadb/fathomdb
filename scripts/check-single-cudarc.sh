@@ -71,7 +71,7 @@ def pinned_version() -> str:
 
 def cargo_tree(*args: str) -> list[str]:
     result = subprocess.run(
-        ["cargo", "tree", "--offline", "--locked", *args, "--prefix", "none"],
+        ["cargo", "tree", "--color", "never", "--offline", "--locked", *args, "--prefix", "none"],
         cwd=root, capture_output=True, text=True, check=False,
     )
     if result.returncode != 0:

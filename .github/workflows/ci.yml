@@ -140,7 +140,29 @@ jobs:
       security_harness: ${{ steps.filter.outputs.security_harness }}
       native_artifact_harness: ${{ steps.filter.outputs.native_artifact_harness }}
       ci_mode: ${{ steps.ci_mode.outputs.ci_mode }}
+      release_qualification: ${{ steps.candidate.outputs.release_qualification }}
     steps:
+      - name: Validate manual candidate before checkout and classification
+        id: candidate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              printf 'candidate_sha must be lowercase 40-hex\n' >&2
+              exit 1
+            fi
+            if [[ "$GITHUB_REF" != refs/heads/release/* ]] || [ "$CANDIDATE_SHA" != "$GITHUB_SHA" ]; then
+              printf 'candidate_sha must equal the dispatched release-branch commit\n' >&2
+              exit 1
+            fi
+            echo "release_qualification=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_qualification=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
@@ -164,6 +186,10 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            echo "ci_mode=normal" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           candidate="$PUSH_SHA"
           trusted_source=true
           if [ "$EVENT_NAME" = "pull_request" ]; then
@@ -215,6 +241,8 @@ jobs:
               - 'scripts/lib/agent-python-env.sh'
               - 'scripts/bootstrap.sh'
               - 'scripts/bootstrap-heavy.sh'
+              - 'scripts/install-actionlint.sh'
+              - 'scripts/install-shellcheck.sh'
             rust_test_harness:
               - 'scripts/test-rust-workspace.sh'
             security_harness:
@@ -234,6 +262,8 @@ jobs:
               - 'scripts/release/slice50-candidate-manifest.py'
               - 'scripts/release/smoke/smoke-local-native-artifacts.sh'
               - 'scripts/release/smoke/smoke-local-native-artifacts.ps1'
+              - 'scripts/release/smoke/check-installed-types.mjs'
+              - 'scripts/release/smoke/installed-graph-evidence.mts'
               - 'scripts/release/smoke/slice73-windows-napi-modules.json'
               - 'src/conformance/provenance-v1.json'
               - 'src/conformance/governed-surface-allowlist.json'
@@ -262,6 +292,10 @@ jobs:
     if: >-
       !cancelled() &&
       (
+        github.event_name != 'workflow_dispatch' ||
+        needs.changes.outputs.release_qualification == 'true'
+      ) &&
+      (
         needs.changes.result != 'success' ||
         needs.changes.outputs.docs_only != 'true'
       )
@@ -277,6 +311,8 @@ jobs:
           TMPDIR="$RUNNER_TEMP/fathomdb-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "$TMPDIR"
           echo "TMPDIR=$TMPDIR" >> "$GITHUB_ENV"
+          AGENT_LOG_DIR="$(mktemp -d "$RUNNER_TEMP/fathomdb-agent-spills.XXXXXX")"
+          echo "AGENT_LOG_DIR=$AGENT_LOG_DIR" >> "$GITHUB_ENV"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
@@ -306,7 +342,7 @@ jobs:
         run: |
           set -euo pipefail
           spill_dir="${RUNNER_TEMP}/fathomdb-agent-spill-logs-fast"
-          bash scripts/collect-agent-spill-logs.sh --destination "$spill_dir"
+          bash scripts/collect-agent-spill-logs.sh --source-dir "$AGENT_LOG_DIR" --destination "$spill_dir"
       - name: Upload redacted fast verifier spill logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -322,6 +358,8 @@ jobs:
   verify:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -333,6 +371,7 @@ jobs:
           needs.changes.outputs.rust_test_harness == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -353,6 +392,8 @@ jobs:
           TMPDIR="$RUNNER_TEMP/fathomdb-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "$TMPDIR"
           echo "TMPDIR=$TMPDIR" >> "$GITHUB_ENV"
+          AGENT_LOG_DIR="$(mktemp -d "$RUNNER_TEMP/fathomdb-agent-spills.XXXXXX")"
+          echo "AGENT_LOG_DIR=$AGENT_LOG_DIR" >> "$GITHUB_ENV"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
@@ -362,7 +403,9 @@ jobs:
         with:
           node-version: "25.9.0"
           cache: npm
-          cache-dependency-path: src/ts/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            src/ts/package-lock.json
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
@@ -378,7 +421,8 @@ jobs:
           # summary.
           AGENT_VERBOSE: "1"
         run: bash scripts/agent-verify.sh --tier=heavy
-      # run_capped keeps complete diagnostics in /tmp, while the log exposes
+      # run_capped keeps full diagnostics in the invocation-owned spill directory,
+      # while the job log exposes
       # only its first 200 lines. Collect redacted, regular spill files after
       # any verify failure so a long test/ruff failure remains root-causable
       # after this ephemeral runner exits. The collector deliberately rejects
@@ -389,7 +433,7 @@ jobs:
         run: |
           set -euo pipefail
           spill_dir="${RUNNER_TEMP}/fathomdb-agent-spill-logs"
-          bash scripts/collect-agent-spill-logs.sh --destination "$spill_dir"
+          bash scripts/collect-agent-spill-logs.sh --source-dir "$AGENT_LOG_DIR" --destination "$spill_dir"
       - name: Upload redacted agent verifier spill logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -403,6 +447,8 @@ jobs:
   rust-workspace-race-report:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -412,28 +458,75 @@ jobs:
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
       )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
+      - name: Resource snapshot before dependency cache
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "resource_phase=before-cache"
+            echo "target_cache=disabled cache_post_archive=disabled"
+            echo "cargo_build_jobs=$CARGO_BUILD_JOBS incremental=$CARGO_INCREMENTAL test_debug=$CARGO_PROFILE_TEST_DEBUG libtest_threads=default"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } | tee -a "$RUNNER_TEMP/rust-workspace-resources.log"
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-targets: false
+          save-if: false
+      - name: Resource snapshot after dependency cache
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "resource_phase=after-cache"
+            echo "target_cache=disabled cache_post_archive=disabled"
+            echo "cargo_build_jobs=$CARGO_BUILD_JOBS incremental=$CARGO_INCREMENTAL test_debug=$CARGO_PROFILE_TEST_DEBUG libtest_threads=default"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } | tee -a "$RUNNER_TEMP/rust-workspace-resources.log"
       - name: Parallel Rust workspace race report
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           log="$RUNNER_TEMP/rust-workspace-parallel.log"
+          cat "$RUNNER_TEMP/rust-workspace-resources.log" > "$log"
           artifact_name="rust-workspace-parallel-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           started_seconds="$(date +%s)"
-          bash scripts/test-rust-workspace.sh --parallel-report >"$log" 2>&1
+          set +e
+          bash scripts/test-rust-workspace.sh --parallel-report >>"$log" 2>&1
           rc=$?
           set -e
           ended_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           ended_seconds="$(date +%s)"
           duration_seconds=$((ended_seconds - started_seconds))
+          test_result_summaries="$(awk '/^test result:/{n++} END{print n+0}' "$log")"
+          {
+            echo "resource_phase=after-tests"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } >> "$log"
           {
             echo "mode=parallel-report"
             echo "sha=${GITHUB_SHA}"
@@ -444,6 +537,8 @@ jobs:
             echo "log_name=$(basename "$log")"
             echo "artifact_name=${artifact_name}"
             echo "exit_code=${rc}"
+            echo "test_result_summaries=${test_result_summaries}"
+            echo "cache_post_archive=disabled"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$rc" -ne 0 ]; then
             echo "::warning title=Rust workspace parallel report::parallel run exited ${rc}; inspect artifact=${artifact_name}"
@@ -455,6 +550,20 @@ jobs:
         with:
           name: rust-workspace-parallel-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/rust-workspace-parallel.log
+      - name: Resource snapshot after artifact upload
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "resource_phase=after-upload-final"
+            echo "target_cache=disabled cache_post_archive=disabled"
+            echo "cargo_build_jobs=$CARGO_BUILD_JOBS incremental=$CARGO_INCREMENTAL test_debug=$CARGO_PROFILE_TEST_DEBUG libtest_threads=default"
+            df -B1 "$PWD" "$RUNNER_TEMP"
+            free -b
+            if [ -d target ]; then du -sB1 target; fi
+            du -sB1 "$RUNNER_TEMP"
+          } | tee -a "$RUNNER_TEMP/rust-workspace-resources.log"
 
 
   # Gate (n) — agent-security battery (AC-036/037/038/050a/050c).
@@ -471,6 +580,8 @@ jobs:
   security:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -481,6 +592,7 @@ jobs:
           needs.changes.outputs.security_harness == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: ubuntu-22.04
     timeout-minutes: 20
@@ -517,6 +629,8 @@ jobs:
   default-embedder-tests:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -526,6 +640,7 @@ jobs:
           needs.changes.outputs.typescript == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -651,6 +766,8 @@ jobs:
   windows-wal-checkpoint-diagnosis:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -658,6 +775,7 @@ jobs:
           needs.changes.outputs.rust == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: windows-latest
     timeout-minutes: 15
@@ -688,6 +806,8 @@ jobs:
   windows-wal-attribution:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -697,6 +817,7 @@ jobs:
           needs.changes.outputs.windows == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: windows-latest
     timeout-minutes: 30
@@ -990,6 +1111,8 @@ jobs:
   wheel-size-gate:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -998,6 +1121,7 @@ jobs:
           needs.changes.outputs.python == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     strategy:
       fail-fast: false
@@ -1104,6 +1228,8 @@ jobs:
   native-artifact-runtime-validation:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -1114,6 +1240,7 @@ jobs:
           needs.changes.outputs.native_artifact_harness == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     strategy:
       fail-fast: false

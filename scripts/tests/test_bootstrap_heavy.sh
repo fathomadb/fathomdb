@@ -37,27 +37,45 @@ else
   FAKE_BIN="$WORK/bin"
   CALLS="$WORK/calls"
   mkdir -p "$FIXTURE/src/python" "$FIXTURE/src/ts" "$FAKE_BIN"
-  : >"$FIXTURE/src/python/pyproject.toml"
+  cp "$REPO_ROOT/src/python/pyproject.toml" "$FIXTURE/src/python/pyproject.toml"
+  mkdir -p "$FIXTURE/scripts/tests" "$FIXTURE/scripts/lib"
+  cp "$REPO_ROOT/scripts/tests/test_dev_environment_tools.sh" "$FIXTURE/scripts/tests/"
+  cp "$REPO_ROOT/scripts/lib/"{shellcheck,gitleaks,actionlint}-version.sh "$FIXTURE/scripts/lib/"
   : >"$FIXTURE/src/ts/package.json"
   git -C "$FIXTURE" init --quiet
 
-  printf '%s\n' \
-    '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'if [ "$1" != "-m" ] || [ "$2" != "venv" ]; then exit 91; fi' \
-    'mkdir -p "$3/bin"' \
-    'printf '\''%s\n'\'' '\''#!/usr/bin/env bash'\'' '\''printf "python" >> "$FAKE_CALL_LOG"'\'' '\''printf "|%s" "$@" >> "$FAKE_CALL_LOG"'\'' '\''printf "\\n" >> "$FAKE_CALL_LOG"'\'' > "$3/bin/python"' \
-    'chmod +x "$3/bin/python"' >"$FAKE_BIN/python3.13"
+  cat >"$FAKE_BIN/python3.13" <<'PYTHON'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$1" != "-m" ] || [ "$2" != "venv" ]; then exit 91; fi
+mkdir -p "$3/bin"
+cat >"$3/bin/python" <<'VENV'
+#!/usr/bin/env bash
+printf 'python' >> "$FAKE_CALL_LOG"
+printf '|%s' "$@" >> "$FAKE_CALL_LOG"
+printf '\n' >> "$FAKE_CALL_LOG"
+if [ "$*" = '-m pip install -e src/python[dev]' ]; then
+  printf '#!/usr/bin/env bash\nprintf "ruff 0.15.17\\n"\n' > .venv/bin/ruff
+  printf '#!/usr/bin/env bash\nprintf "pyright 1.1.410\\n"\n' > .venv/bin/pyright
+  chmod +x .venv/bin/ruff .venv/bin/pyright
+fi
+VENV
+chmod +x "$3/bin/python"
+PYTHON
   chmod +x "$FAKE_BIN/python3.13"
 
   printf '%s\n' \
     '#!/usr/bin/env bash' \
     'printf "npm|%s" "$PWD" >> "$FAKE_CALL_LOG"' \
     'printf "|%s" "$@" >> "$FAKE_CALL_LOG"' \
-    'printf "\\n" >> "$FAKE_CALL_LOG"' >"$FAKE_BIN/npm"
+    'printf "\\n" >> "$FAKE_CALL_LOG"' \
+    'if [ "$PWD" = "$FAKE_REPO" ]; then mkdir -p node_modules/js-yaml; fi' >"$FAKE_BIN/npm"
   chmod +x "$FAKE_BIN/npm"
 
-  for forbidden in cargo go sudo apt-get lychee actionlint shellcheck gitleaks; do
+  printf '#!/usr/bin/env bash\nprintf "1.7.12\\n"\n' >"$FAKE_BIN/actionlint"
+  printf '#!/usr/bin/env bash\nprintf "version: 0.11.0\\n"\n' >"$FAKE_BIN/shellcheck"
+  chmod +x "$FAKE_BIN/actionlint" "$FAKE_BIN/shellcheck"
+  for forbidden in cargo go sudo apt-get lychee gitleaks; do
     printf '%s\n' \
       '#!/usr/bin/env bash' \
       'printf "forbidden|%s\\n" "$(basename "$0")" >> "$FAKE_CALL_LOG"' \
@@ -68,7 +86,7 @@ else
   set +e
   helper_out="$(
     cd "$FIXTURE" &&
-      PATH="$FAKE_BIN:/usr/bin:/bin" FAKE_CALL_LOG="$CALLS" bash "$HELPER" 2>&1
+      HOME="$WORK/home" PATH="$FAKE_BIN:/usr/bin:/bin" FAKE_CALL_LOG="$CALLS" FAKE_REPO="$FIXTURE" bash "$HELPER" 2>&1
   )"
   helper_rc=$?
   set -e
@@ -83,10 +101,10 @@ else
   else
     fail "heavy bootstrap creates a checkout-owned virtualenv"
   fi
-  if grep -Fxq 'python|-m|pip|install|-e|src/python[test]' "$CALLS"; then
-    pass "heavy bootstrap installs the Python test extra exactly"
+  if grep -Fxq 'python|-m|pip|install|-e|src/python[dev]' "$CALLS"; then
+    pass "heavy bootstrap installs the pinned Python developer extra needed by preflight"
   else
-    fail "heavy bootstrap installs the Python test extra exactly"
+    fail "heavy bootstrap installs the pinned Python developer extra needed by preflight"
   fi
   if grep -Fxq 'python|-c|import pytest, hypothesis' "$CALLS"; then
     pass "heavy bootstrap verifies pytest and Hypothesis imports"
@@ -98,15 +116,41 @@ else
   else
     fail "heavy bootstrap installs the locked TypeScript dependencies in src/ts"
   fi
-  if [ "$(grep -c '^npm|' "$CALLS" || true)" -eq 1 ]; then
-    pass "heavy bootstrap does not install root Markdown dependencies"
+  if [ "$(grep -c '^npm|' "$CALLS" || true)" -eq 2 ]; then
+    pass "heavy bootstrap installs root and TypeScript locked dependencies"
   else
-    fail "heavy bootstrap does not install root Markdown dependencies"
+    fail "heavy bootstrap installs root and TypeScript locked dependencies"
   fi
-  if grep -Eq 'forbidden|\[dev\]|ruff|pyright|--upgrade' "$CALLS"; then
-    fail "heavy bootstrap excludes developer-only and unrelated tooling"
+  if grep -Eq 'forbidden|--upgrade' "$CALLS"; then
+    fail "heavy bootstrap excludes unrelated Cargo/OS tooling and unpinned upgrades"
   else
-    pass "heavy bootstrap excludes developer-only and unrelated tooling"
+    pass "heavy bootstrap excludes unrelated Cargo/OS tooling and unpinned upgrades"
+  fi
+  set +e
+  tool_out="$(cd "$FIXTURE" && HOME="$WORK/home" PATH="$FAKE_BIN:/usr/bin:/bin" bash scripts/tests/test_dev_environment_tools.sh 2>&1)"
+  tool_rc=$?
+  set -e
+  if [ "$tool_rc" -eq 0 ]; then
+    pass "cold heavy setup satisfies the real pinned-tool preflight"
+  else
+    fail "cold heavy setup misses actual prerequisites (rc=$tool_rc output=$tool_out)"
+  fi
+  if (cd "$FIXTURE" && HOME="$WORK/home" PATH="$FAKE_BIN:/usr/bin:/bin" FAKE_CALL_LOG="$CALLS" FAKE_REPO="$FIXTURE" bash "$HELPER" >/dev/null 2>&1); then
+    pass "restored dependency directories retain deterministic heavy setup"
+  else
+    fail "restored dependency directories break heavy setup"
+  fi
+  printf '#!/usr/bin/env bash\nexit 71\n' >"$FAKE_BIN/actionlint"
+  before="$(grep -c '^python|' "$CALLS" || true)"
+  set +e
+  (cd "$FIXTURE" && HOME="$WORK/home" PATH="$FAKE_BIN:/usr/bin:/bin" FAKE_CALL_LOG="$CALLS" FAKE_REPO="$FIXTURE" bash "$HELPER" >/dev/null 2>&1)
+  bad_rc=$?
+  set -e
+  after="$(grep -c '^python|' "$CALLS" || true)"
+  if [ "$bad_rc" -ne 0 ] && [ "$before" -eq "$after" ]; then
+    pass "broken required installer fails before native Python installation"
+  else
+    fail "broken required installer did not stop heavy setup before native build"
   fi
 fi
 

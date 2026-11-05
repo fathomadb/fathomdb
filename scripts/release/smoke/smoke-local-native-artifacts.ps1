@@ -331,6 +331,9 @@ console.log("local N-API package runtime validation: ok");
   try {
     & npm install --offline --ignore-scripts
     if ($LASTEXITCODE -ne 0) { throw 'smoke-local-native-artifacts: local npm install failed' }
+    $typeCompiler = Join-Path $TsDirectory 'node_modules/typescript/bin/tsc'
+    & node (Join-Path $repoRoot 'scripts/release/smoke/check-installed-types.mjs') $consumer $typeCompiler (Join-Path $main $mainTarball) (Join-Path $platform $platformTarball)
+    if ($LASTEXITCODE -ne 0) { throw 'smoke-local-native-artifacts: installed public types failed' }
     & node smoke.mjs (Join-Path $work 'npm-smoke.fdb')
     if ($LASTEXITCODE -ne 0) { throw 'smoke-local-native-artifacts: local npm runtime smoke failed' }
   } finally {

@@ -19,7 +19,12 @@ run_capped() {
   local verb="$1"
   shift
 
-  local spill="/tmp/fathomdb-agent-${verb}-$$.log"
+  local spill_dir="${AGENT_LOG_DIR:-/tmp}"
+  if [[ "$spill_dir" != /* ]] || [ ! -d "$spill_dir" ] || [ -L "$spill_dir" ]; then
+    printf 'run_capped: spill directory must be an existing absolute regular directory: %s\n' "$spill_dir" >&2
+    return 2
+  fi
+  local spill="$spill_dir/fathomdb-agent-${verb}-$$.log"
   local start_ms end_ms duration_ms
   local rc=0
 

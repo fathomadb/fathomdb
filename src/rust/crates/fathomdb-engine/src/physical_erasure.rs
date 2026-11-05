@@ -675,6 +675,8 @@ mod tests {
                 engine
                     .write(&[make_node("subject", "target"), make_node("survivor", "other")])
                     .unwrap();
+                // Observe each injected retry before autonomous cleanup can advance it.
+                engine.physical_maintenance.stop();
                 for fail in failures {
                     if fail {
                         crate::test_hooks::physical_erasure_hooks::arm(

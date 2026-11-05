@@ -8,7 +8,9 @@ target_release: 0.8.29
 
 Owner-directed handoff under the [release plan](../plan-0.8.29.md), completing
 0.8.28 Slice 95's existing handover obligation. Inputs: .29 `d29dcced95` and
-final .28 `16234813cf9e4aeaa09f99b5f5f98459bd415af3`; merge base `59079d5c`.
+final .28 source C `5f668f33056d0a550c51810f6ebeeb1ef7d60695`; merge base
+`59079d5c`. Mechanical checkpoint `73eb608eb` first integrates .28 `16234813`;
+the source C merge adds the final documentation and CI9/CI10 fixture corrections.
 The .28 candidate remains immutable. Astra approved this bounded integration
 and the explicit superseded MCP expectation adjustment before resolution.
 
@@ -51,6 +53,14 @@ seq-359. Remove live attached-dense-state orientation/search assumptions and its
 orient field, rather than silently substituting a no-provider Engine. Existing
 pure hints facts and their controls remain independent of live Engine admission.
 
+The accepted [seq-359 admission ADR](../../adr/ADR-0.8.28-vector-compatibility-open-policy.md)
+and the existing partial-supersession notice in the
+[vector-equivalence ADR](../../adr/ADR-0.8.18-vector-equivalence-self-check.md)
+replace its former R-VEQ-4/6 degraded-open contract. The accepted
+[.29 hints ADR](../../adr/ADR-0.8.29-agent-hints-sidecar.md) does not require an
+attached dense-disabled Engine or orient field; its pure facts remain valid.
+No new decision or provider compatibility shim is needed for this alignment.
+
 Reconcile the non-frozen test using its real corrupted-reference fixture: the
 configured-provider orient and search calls must fail unavailable/open_failed
 with typed vector-mismatch detail. After shutdown, a separate deliberate
@@ -72,7 +82,9 @@ filter/snippet/provider/admission controls and frozen baseline checks remain.
 Astra reviews actual resolutions before canonical promotion. Focused Rust, SDK,
 Python/TS installed-binding and MCP protocol/provider checks must bind the merged
 source; target/docs/generated views also require their existing validators.
-No verification result is claimed yet. Parent owns build scheduling and canonical
+Source C is merged without conflict. Formatting, design-reference and Python lint
+hooks passed on the mechanical checkpoint; no runtime RED/GREEN or merged-source
+verification result is claimed yet. Parent owns build scheduling and canonical
 checkout environments; isolated resolution never borrows another target or venv.
 No version cut, publication, default-release activation or relabeling of .28
 platform/package receipts is part of this integration.

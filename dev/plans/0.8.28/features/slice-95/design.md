@@ -156,3 +156,55 @@ round after it stabilizes. Earlier CI harness evidence stays separately useful;
 runtime/artifact evidence must be refreshed for the corrected source. The final
 manual CI run must bind the exact reviewed candidate; do not relabel earlier
 platform receipts or substitute delta-only PR CI without owner authority.
+
+## CI9: foreground rollback property owns its actor
+
+Candidate run41964943428 at16234813c completed the resource-bounded parallel
+report without disk exhaustion but actual Cargo exited101. Its one failed
+property observed sanitation family1 after a foreground injected rollback,
+where it asserted family0. This is a fixture isolation defect: the thread-local
+one-shot hook faults the foreground transaction only. The accepted Autonomous
+worker may acquire the released service and advance committed debt before the
+property reacquires primary to inspect it. No atomicity or survivor-loss defect
+is shown by that observation.
+
+After the property's real seed write, stop/join the existing per-Engine worker
+before arming foreground faults. This follows the existing synchronous-blocker
+fixture. Preserve all24 cases, fault/outcome/root/family/survivor checks and final
+retry. No production code, hook, policy, scheduler, assertion or skip change.
+Separate idle-debt, priority and genuine Autonomous contention controls remain
+active. Astra approved the actor-isolation design; code approval follows review of
+the exact fixture delta.
+
+The original hosted failure is observed RED. Run the corrected property and
+whole engine unit library with normal parallel test threading, plus maintenance,
+idle-debt and genuine-service controls as GREEN. Review the exact fixture delta.
+The completed canonical local run retains its original SHA/outcome; only affected
+scopes need local rechecks for this fixture-only correction. Run exact workspace
+all-targets check on the final commit. Dispatch fresh full manual CI on that
+commit: prior162 platform receipts remain attributed to162, never relabeled.
+No evidence-reuse waiver or new gate is introduced. Publication remains held.
+
+## CI10: disposable landing fixtures declare their resource budget
+
+Run41964943428's independent transcript job passed the real hygiene gate and
+all but one fixture assertion. Its tiny clean linked-repository positive control
+ran default preflight on an8GiB-free executor and failed the unrelated10GiB
+workspace-build floor. The first local collection's six ambient-disk fixture
+failures are the same blast radius, not additional product failures.
+
+Astra audited all35 preflight calls in the six existing landing, board-currency,
+ledger, governed-surface, C1 and transcript fixture helpers. They use disposable
+repositories and none tests the default disk floor. Give only these helpers an
+explicit1GiB fixture budget via the existing --min-disk-gb option, before caller
+arguments so explicit overrides retain precedence. Preserve every assertion,
+positive/negative/fail-open control and explicit flag-composition arm. The real
+production default and disk predicate remain10GiB and byte-identical.
+
+Observe all six original suites under a fixture-owned8GiB df environment as RED;
+after the six localized invocation corrections, run them unchanged under the
+same condition as GREEN. Separately require genuine default preflight without
+an override to reject8GiB with its named HARD10GiB requirement. No runner cleanup,
+new framework, fake database, retry, skip or waiver is introduced. Astra approved
+the design and audited scope; code approval follows the exact delta and results.
+Include the fixture changes in fresh final exact-candidate CI. Publication held.

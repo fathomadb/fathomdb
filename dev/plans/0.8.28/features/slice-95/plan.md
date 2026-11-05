@@ -125,7 +125,20 @@ records the observed failures, lock-order constraints and deterministic RED/GREE
 
 | ID | Additional decisive acceptance |
 | --- | --- |
-| S95-12 confirmed-debt admission | A debt-free contended primary cannot make an idle Autonomous poller occupy physical service and refuse fresh foreground erasure. Deterministic real-DB admission/completion coverage fails before the fix and passes after; true debt retains priority/progress and a genuine competing service retains typed refusal. The three original hosted failures pass unchanged. No retries, fixture serialization, weaker success assertions, new policy or deadline. |
+| S95-12 confirmed-debt admission | A debt-free contended primary cannot make an idle Autonomous poller occupy physical service and refuse fresh foreground erasure. Deterministic real-DB admission/completion coverage fails before the fix and passes after; true debt retains priority/progress and a genuine competing service retains typed refusal. The three original hosted failures pass unchanged. No retries or serialization of these three fixtures/workspace, weaker success assertions, new policy or deadline. |
+
+### Fixture findings allocated during final qualification
+
+Run41964943428 and the completed local205-suite collection distinguish two
+fixture defects from product failures. CI9 isolates the foreground rollback
+property from valid Autonomous progress; CI10 gives six disposable-repository
+landing fixture helpers an explicit1GiB budget while preserving the real10GiB
+default. The reviewed [CI9](design.md#ci9-foreground-rollback-property-owns-its-actor)
+and [CI10](design.md#ci10-disposable-landing-fixtures-declare-their-resource-budget)
+amendments retain observed RED, unchanged assertions and scoped GREEN, plus
+fresh final exact-candidate CI. S95-2/3/8 govern these corrections; no new product
+requirement or numerical SLA is added. Production-default rejection at8GiB and
+separate genuine Autonomous progress/refusal remain decisive negative controls.
 
 ## Bounded design and repair sequence
 

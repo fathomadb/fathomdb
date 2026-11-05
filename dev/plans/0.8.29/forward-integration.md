@@ -15,7 +15,7 @@ Source D `bef17bfab777e3ea3ad90b66ed122795dfbc0969` merged without conflict
 at `6674cf79d`, adding CI11 discovery diagnostics, mandatory UTF-8 coverage and
 the exact deferred timing disposition. Source E
 `86fb2924c3f10a6b0d4ff04fbd00b8ac7c67bf3d` adds CI12's accepted bounded
-logger-admission repair and documentation. The current forward input is source F
+logger-admission repair and documentation. The executable forward input is source F
 `3a05a45cbaff04f29ff4992d678e23a191717f62`, importing reviewed CI13/CI14
 fixture corrections, qualification metadata and the registered TC5 fidelity
 record without conflict. `logging_subscriber.rs` remains byte-identical to E.
@@ -137,10 +137,23 @@ fidelity evidence; it supplies no replacement timing qualification.
 
 Source D/E/F forwards passed the focused 23-check test-target suite, 384-target
 coverage and diff validation. No Rust compilation or broad gate ran for these
-forward merges. F-specific close/dispatcher/long-cursor checks remain future
-parent-owned verification after review and promotion. No full F-forwarded .29
-gate or platform/performance campaign is claimed. .28 Slice 95 remains in
+forward merges. Parent-owned F rechecks at `2803eb7f1` passed ten close/provider
+controls, the strong 1,000-search cursor fixture and ten Python logging tests,
+with a source-bound native receipt. No full F-forwarded .29 gate or
+platform/performance campaign is claimed. .28 Slice 95 remains in
 progress: AC011a measured 999.652/s and did not meet its required floor; owner
 direction is pending. Publication remains held. Parent owns review, promotion
 and qualification; the canonical checkouts remain untouched by this isolated
 work.
+
+## Final metadata forward
+
+Metadata/status input `6479399fe09b42dac28763cc19467405e96d553c` includes CI15's
+retrospective TC5 data-plane classification, approved at `af7e570ff`. Its plan,
+sidecar and two existing exact-record amendments preserve immutable evidence and
+measured identities; no public-search witness or preregistration is claimed.
+This forward has zero executable delta, so the existing canonical and affected
+F receipts retain their original source identities and are reused by unchanged
+inputs. Only portable classification, state-view and Markdown validation run
+for this metadata forward; no full canonical rerun is claimed. Slice 95 remains
+**IN_PROGRESS** with **AC011a FAIL**, owner direction pending and publication held.

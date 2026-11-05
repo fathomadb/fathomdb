@@ -5,145 +5,78 @@ status: IN_PROGRESS
 
 # Slice 95 status
 
-**IN_PROGRESS.** Execution baseline `6ae55c2e42e5aa447bc9f13265f6bf5a9e97f6e2`.
-[Plan](plan.md) S95-1–13 and [design](design.md) define the bounded repair and
-qualification work. Slice 92's completed baseline is consumed; no new full
-documentation audit or product feature is allocated. Publication remains held.
+**IN_PROGRESS. Publication held.** Required AC011a measured
+999.651557 commits/s against the unchanged 1,000 minimum. This is a valid
+non-pass; no cause, repair or owner waiver is established. Owner direction on
+further performance work or disposition remains pending. The latest exact-source
+CI has a fast-tier lint non-pass; its metadata correction is reviewed and
+independently verified, with final fast collection still pending.
 
-Astra source audits confirm CI1/3/4/6/7, isolate CI5 to fixtures and classify CI2
-as infrastructure/resource evidence. Astra design review APPROVE;
-each behavior gets observed RED/GREEN. Separate verification follows repairs.
+The [plan](plan.md), [design](design.md), [qualification matrix](qualification.md)
+and [source-bound evidence summary](qualification-evidence.json) record the
+scope, acceptance, identities and limitations. Slice 92's completed documentation
+baseline is consumed; later repair deltas have scoped documentation checks.
 
-Refreshed gh run 41885604931 remains older a2fb4a647: fast/heavy/race and four
-native legs failed, Windows native queued; older Windows WAL success is not
-candidate qualification. Local tools/live namespace/ptrace/GPU assets are
-available; corpus staging and feature-build disk budget need resolution.
+## Implemented and reviewed
 
-No final candidate, hosted success or readiness verdict yet. Immutable dry-run
-already exempts main ancestry; version/Axis E/trusted provenance prerequisites
-remain distinct. No version cut, main merge, tag or publication is performed.
+Astra approved design and code reviews for CI1–15. Observed RED/GREEN covers
+cold prerequisite setup, bounded parallel builds/cache behavior, installed
+modular TypeScript contracts, deterministic dependency/tool fixtures, retained
+failure diagnostics and manual qualification routing. Genuine hosted failures
+also exposed and repaired confirmed-debt service admission (CI8) and
+below-capacity Python subscriber delivery (CI12). Existing product thresholds,
+public APIs, queue capacity and actual saturation controls remain intact.
 
-## Execution checkpoint
+CI9/10 isolate foreground actors and disposable-repository disk fixtures.
+CI11 corrects stale feature expectations and retains complete compiler output.
+CI13 verifies actual provider-close deadline decisions; early-start and renewal
+mutations fail. CI14 proves nonempty concurrent lexical reads with successful
+advancing writes, propagates writer errors and rejects a stale-response-cursor
+mutation. These last two repairs change test instrumentation/fixtures only.
 
-CI1–CI7 implemented with observed RED/GREEN and Astra code APPROVE through
-c0c8367ce; independent real-workspace color RED/GREEN replay confirms the
-reported failure. Merged candidatefb76c8ff9 ran the first local205-suite
-collection:196passed,9failed. All nine affected scopes subsequently pass at
-06a286876 after the two approved pin/doc corrections and actual disk recovery.
-This is assembled verification, not an uninterrupted full-gate pass.
+Separate verification confirms final code `3a05a45cb`: 10 close/provider
+controls, 1,000 cursor searches with 239 writes/238 during reads/999 advancing
+hits/zero violations, target accounting (356 targets/36 feature-only), generated
+contracts and 10 unchanged Python subscriber tests using a freshly verified
+native module. Earlier deterministic tests and mutation evidence remain retained.
 
-Hosted run41956270895 proves real cold heavy preflight, installed/type/native
-execution on four hosted CPU targets and separate Windows WAL controls. Its
-serial Rust failure exposes CI8; the parallel diagnostic's actual Cargo exit101
-is retained separately from its green advisory wrapper. No final CI PASS or
-readiness claim is made. Astra approved the confirmed-debt admission amendment and GREEN aabfbee8e
-after deterministic RED bff636c3b. Independent real-DB verification passes
-27 tests, including unchanged hosted regressions, idle debt completion and
-genuine Autonomous saturation refusal. Final qualification is pending. Publication remains held.
+## Qualification and remaining requirements
 
-## Corrected production qualification checkpoint
+| Requirement | Current evidence and disposition |
+| --- | --- |
+| S95-1/2/3/9 CI coverage and robustness | Inventory and focused controls pass. Hosted cold setup reaches real tests; bounded parallel Rust evidence has zero failures and healthy measured headroom. Actual test results remain separate from advisory wrapper success. |
+| S95-4 installed consumers | Linux Python/Node examples, strict positive/negative TypeScript consumers, external Rust source archive and immutable CLI doctor pass. Candidate-bound Windows configuration supplements and prior five-platform collector pass on their recorded sources. All five final-source native platforms and the collector pass. No registry-resolved .28 claim. |
+| S95-5 documentation | Slice 92 baseline retained; affected interface/generator/lifecycle/surface/feature/target checks pass. The classification correction passes the portable validator and 38 tests; scoped Markdown validation passes. No repeated full documentation audit. |
+| S95-6 broad and feature checks | One clean .28 canonical round passed 205/205 at `16234813c`, actual child exit 0; outer session 143 has unknown cause and is recorded separately. Later repairs have focused checks and fresh hosted verification. Feature assembly: 180 planned, 165 passed, 0 failed, 15 reviewed ignored. No uninterrupted full-local pass is claimed on the later source. |
+| S95-6 performance and reliability | **AC011a FAIL, unwaived.** AC011b 307.292/s, AC012 1/3 ms, AC013 55/61 ms, seven AC081 hard limits, 60-second AC021 and AC073 stress 47 ms pass. Existing AC081 soft warnings remain. Diagnostic tracing is nonqualifying and establishes no cause. |
+| S95-6 accepted fidelity | Real TC5: 7,667 docs/100 queries/1,000 bootstrap, recall .958, CI [.938,.974], measured source `5f668f330`. Private vector-stage fidelity only; post-run database hash changed for unknown reason. EU7's retired recall assertion separately exits 101; its overall run is not called PASS. |
+| S95-7 hosted CI | Run 42005653176 on `3a05a45cb` is **not qualified**: fast lint rejects the missing TC5 classification, so 198 cheap suites did not run. All five native targets/collector, five size cells, parallel Rust, strict security, default-provider and distinct Windows WAL pass. Heavy verification/audit and corrected fast collection are pending. Earlier failures and successful run 41971020280 retain their actual source attribution. |
+| S95-8 handoff | .29 has an uninterrupted 205/205 pass at `6674cf79d`, followed by reviewed forwards through `2803eb7f1` with affected native/logging/close/cursor checks passing. Final metadata forward, explicit branch pushes and cleanup remain pending. |
+| S95-10 evidence safety | Pinned tracked-source Gitleaks passes with zero leaks. Separate scan covers 1,466 retained files/224.6 MB, including the full diagnostic trace: one match is independently verified as a source-file digest. Actual scanner exit 1 and the finding are retained; no suppression or zero-findings claim. |
+| S95-11 rehearsal | Local preflight records .28 target versus unbumped .27 manifests. Immutable release dry-run remains pending version/Axis E/trusted workflow preparation. Its existing main-ancestry exemption is preserved. No version cut, main merge, tag, registry/Pages publication or release dispatch occurred. |
 
-At clean16234813cf9e4aeaa09f99b5f5f98459bd415af3 the independent canonical
-local invocation passed all205/205 suites, skipped0/excluded0, lint/typecheck
-and live security0 violations/0 blockers/0 downgrades. Gate child exit0 and
-44m19s are recorded separately from an outer-session143 reported afterward
-(cause unknown); the sealed
-log ends with the actual205/205 summary. This is an uninterrupted canonical
-pass on that exact source, not the earlier assembled qualification.
+## Current follow-up and cleanup
 
-CI41964943428 at the sameSHA passed canonical fast/heavy, four native platforms,
-five wheel-size cells and distinct Windows WAL controls. Transcript fixture
-headroom8GiB<10GiB and temporary Windows setup execution-policy failures are
-retained; neither is a passing native-Windows/collector result. The diagnostic
-wrapper succeeded but actual Cargo101 has one property fixture failure; resource
-headroom remained healthy. CI9/CI10 actor/resource isolation corrections have
-Astra-approved designs. Their scoped GREEN and fresh exact-candidate CI remain
-pending. Publication is held; version/AxisE/rehearsal preparation remains pending.
+Astra approved a narrow retrospective TC5 classification: preserve immutable
+record/config/metrics/index bytes, add a data-plane plan/sidecar and the existing
+exact-run/hash-bound plan and missing-kind artifact amendments. No preregistration,
+public-search witness or new exemption is invented. Correction `af7e570ff` has
+Astra design/code approval, 38 passing classification tests and independent
+portable validation with all immutable bytes preserved. Refresh affected fast
+collection and retain explicit unchanged-input reuse for executable evidence.
 
-CI9/CI10 are implemented and Astra code APPROVE at9328885b2: actor-property
-1/1 (24cases), normal-parallel engine library144/144, idle-debt and genuine
-Autonomous saturation1/1 each. All six controlled8GiB fixture suites pass825
-unchanged assertions after observed RED; real default preflight remains
-byte-identical and still rejects8GiB with its10GiB requirement. These fixture-only
-changes get focused local rechecks; final exact-candidate hosted qualification
-and remaining feature/package/performance work are still pending.
+Two completed task worktrees/branches are removed after clean/merged checks;
+the metadata and .29 integration worktrees remain until final integration.
+The temporary Windows runner uses a disposable disk; original runner credentials,
+service, VM configuration and persistent execution policy remain unchanged.
+Restore the VM's original off state and remove task resources after CI completes.
 
-## Feature qualification checkpoint
+The checkout-owned debug cache remains intact on cold storage through its original
+logical path. Root free space is smaller than the cache, so restoring its physical
+location would require discarding other data; no user cache is purged. Preserve
+its relocation/verification receipt. Remove only task-owned corpus staging and
+feature build outputs once no remaining checks use them.
 
-Clean5f668f330 completed CI41971020280 successfully, including all five native
-CPU rows/collector, five wheel-size cells, distinct Windows WAL, fast198/198,
-heavy7/7 and actual parallel Rust results with zero failures. Exact evidence
-and qualifications are retained for final reconciliation; they are not receipts
-for subsequent source changes. Independent local workspace all-targets and
-normal-parallel engine144/144 pass. Fresh Linux installed consumers, strict
-TypeScript negative control, Rust source consumer and immutable CLI doctor pass.
-Windows installed configuration supplements pass independently; temporary VM
-resources/runner were cleaned and the original VM returned off.
-
-The first full feature round at that source exits1:164passed,0failed,16ignored,
-nine findings. CI11 corrects stale feature fixtures/dispositions and compiler
-stdout retention; Astra design review and scoped implementation/verification
-are in progress. The original full run stays a non-pass. Required performance,
-long reliability, final .29 canonical gate, exact-candidate refresh and closure
-remain pending. Publication is held.
-
-## Subscriber admission checkpoint
-
-Final sourceD bef17bfab has assembled feature PASS180planned/165passed/0failed/
-15ignored with55 successful fresh listings, all seven repaired configurations,
-no plan-key drift and preserved raw failure/supplement evidence. Independent
-relevant-input comparison permits attributed reuse of unaffected5f artifacts.
-
-CI41983987975 is an overall FAIL: fast198/198, heavy6/7, with one Python
-subscriber pairing failure (1708passed/39skipped). All five native rows/collector,
-five size cells, strict live security, default-provider and distinct Windows WAL
-pass. The parallel diagnostic has zero actual test failures, independently
-separated from its advisory wrapper. CI12 repairs a real below-capacity queue
-admission defect under the accepted ADR; Astra concrete design APPROVE and
-isolated RED/GREEN implementation are in progress. Original Python assertions
-remain unchanged. The .29 canonical gate continues on frozen6674cf79; forward
-this later repair and recheck only affected scopes. Publication remains held.
-
-## Current required non-passes and follow-up
-
-CI12 is complete at4a985b6da and merged into sourceE86fb2924. Astra final code
-APPROVE; independent shipping CPU wheel10/10 subscriber tests, canonical native
-receipt/recheck10/10, fresh Python examples5/5 and affected feature assembly
-180planned/165passed/0failed/15ignored pass. Exact CI41991174061 passes Python
-and every applicable job except a provider-close fixture's207.54ms wall-time
-assertion. CI13 replaces that timing proxy with actual deadline decisions;
-CI14 strengthens the existing cursor fixture's positive-write evidence.
-
-The .29 forward baseline has an uninterrupted205/205 canonical pass on6674cf79,
-then approved sourceE forwarde97d290fa with39 PyO3 units and10 Python tests plus
-current native receipt passing. This is an attributed broad-plus-focused
-assembly; no full-gate claim on the later source is substituted.
-
-AC011a is a valid required FAIL:999.651557/s <1000/s. It is not rounded, retried
-into green or waived. AC011b307.292/s, AC0121/3ms, AC01355/61ms, AC081 seven
-hard limits (existing sequential warnings),60s schema reliability and AC073
-real-corpus stress47ms<=297ms pass. The original cursor path executes1000
-searches but needs CI14's nonempty concurrent witness. EU7's retired recall
-assertion remains an overall101; accepted TC5 fidelity is separately retained.
-Diagnostic tracing is complete and nonqualifying; no causal optimization is
-established. Owner direction is pending on further performance work/disposition.
-Slice95 remains IN_PROGRESS; publication is held.
-
-CI14 review rejected a positive-activity-only revision because identical bodies
-reuse one row and make1<=cursor inert. The approved refinement uses one logical
-ID with distinct matching revisions and explicit no-provider access, retains the
-row-count bound and checks each advancing hit cursor against its response cursor.
-A frozen-response mutation must fail; source behavior remains unchanged.
-
-CI13/14 are implemented and Astra code APPROVE through78a8a3908, merged at
-fe37e312e. Actual-deadline oracle rejects early-start and renewal mutations;
-10 focused controls,144 parallel engine units and17 dispatcher tests pass.
-The final cursor fixture rejects invalid writes and a stale-response mutation
-(999 advancing-hit violations while the old count bound reports0). Restored
-GREEN completes1000 searches with300 successful writes,299 during reads,
-999 advancing hits and zero violations. Shipping behavior is unchanged.
-Fresh exact-candidate CI and final independent integration checks follow.
-The [safe TC5 receipt](../../../../../experiments/runs/slice95-tc5-release-fidelity-20261105T0546Z-7b0bd356/record.json)
-is registered through the existing experiment writer/index. It remains a5f
-fidelity execution with the explicit post-run database-hash caveat, not a new
-measurement or an immutability claim. AC011a and publication holds remain.
+D28-09/10/11 and populated-open deferrals remain. Slice 95 cannot close while the
+required AC011a non-pass lacks a pass or explicit owner-authorized disposition.
+Publication authorization remains separate and held.

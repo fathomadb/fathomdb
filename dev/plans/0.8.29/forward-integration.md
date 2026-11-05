@@ -13,13 +13,15 @@ initial .28 source C `5f668f33056d0a550c51810f6ebeeb1ef7d60695`; merge base
 the source C merge adds the final documentation and CI9/CI10 fixture corrections.
 Source D `bef17bfab777e3ea3ad90b66ed122795dfbc0969` merged without conflict
 at `6674cf79d`, adding CI11 discovery diagnostics, mandatory UTF-8 coverage and
-the exact deferred timing disposition. The current forward input is source E
-`86fb2924c3f10a6b0d4ff04fbd00b8ac7c67bf3d`, merging CI12's accepted bounded
-logger-admission repair and its reviewed documentation without conflict.
-`logging_subscriber.rs` is byte-identical to E. Existing .29 signatures, MCP,
-filter/snippet contracts and frozen oracles remain intact. Source C/D/E remain
-immutable. Astra approved the bounded integration and the explicit superseded
-MCP expectation adjustment before resolution.
+the exact deferred timing disposition. Source E
+`86fb2924c3f10a6b0d4ff04fbd00b8ac7c67bf3d` adds CI12's accepted bounded
+logger-admission repair and documentation. The current forward input is source F
+`3a05a45cbaff04f29ff4992d678e23a191717f62`, importing reviewed CI13/CI14
+fixture corrections, qualification metadata and the registered TC5 fidelity
+record without conflict. `logging_subscriber.rs` remains byte-identical to E.
+Existing .29 signatures, MCP, filter/snippet contracts and frozen oracles remain
+intact. Source C/D/E/F remain immutable. Astra approved the bounded integration
+and the explicit superseded MCP expectation adjustment before resolution.
 
 ## Combined contracts
 
@@ -117,15 +119,28 @@ Frozen Python baseline, MCP hints-off fixture and EP-03 byte oracle are unchange
 the imported approved Python additions match source C. The existing .29 overflow
 chunking analysis is only cataloged; its parked feature scope is unchanged.
 
-Astra review of the actual resolutions and parent-owned promotion remain pending.
-No full workspace gate, .29 platform/performance campaign, version cut,
-publication, default-release activation or relabeling of .28 receipts is claimed.
-The source D and E forwards passed the focused 23-check test-target suite,
-384-target coverage and diff validation. No Rust compilation or broad gate ran
-for either forward. The original canonical .29 full gate is running on frozen
-`6674cf79d`; its receipt retains that identity. After E promotion, qualification
-must assemble that original result with affected CI12 rechecks on the promoted
-candidate. Neither an assembled pass nor a single full run of the E-forwarded
-.29 source is claimed while those checks remain pending. Parent owns review,
-promotion and qualification. The .28 source candidates and both canonical
-checkouts remain untouched by this isolated work.
+Astra approved the prior integration and E promotion. The original canonical .29
+full gate passed 205/205 on frozen `6674cf79d`; affected E rechecks passed 39
+Rust/PyO3 tests and ten Python subscriber tests. These are assembled receipts
+with distinct source identities, not a single full gate on E or F.
+
+CI13 replaces proxy wall-clock bounds with cfg(test)-only observations of the
+actual post-SQLite boundary, first provider deadline, reuse, timeout decisions
+and zero additional waits after expiry. CI14 retains the 1,000-search race,
+first/read-phase commit rendezvous and cleanup; explicit provider-free admission
+and one logical identity with distinct revisions require advancing hit cursors.
+Every matching hit cursor must fit that fresh lexical snapshot's response cursor.
+The frozen-response control catches 999 violations while the old row-count bound
+remains zero; restored real writers pass. No production timing algorithm or API
+changes accompany these fixture corrections. The imported TC5 record preserves
+fidelity evidence; it supplies no replacement timing qualification.
+
+Source D/E/F forwards passed the focused 23-check test-target suite, 384-target
+coverage and diff validation. No Rust compilation or broad gate ran for these
+forward merges. F-specific close/dispatcher/long-cursor checks remain future
+parent-owned verification after review and promotion. No full F-forwarded .29
+gate or platform/performance campaign is claimed. .28 Slice 95 remains in
+progress: AC011a measured 999.652/s and did not meet its required floor; owner
+direction is pending. Publication remains held. Parent owns review, promotion
+and qualification; the canonical checkouts remain untouched by this isolated
+work.

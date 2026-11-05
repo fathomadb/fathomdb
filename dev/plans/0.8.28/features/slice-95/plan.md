@@ -108,7 +108,7 @@ candidate-bound release-readiness verdict. S95 labels are local acceptance;
 | S95-3 bounded parallel report | S95-CI2 is fixed: record initial free bytes, build/cache/scratch policy, available memory and build concurrency before the run; select a bounded treatment from existing CI facilities. The intended parallel tests reach execution and retain actual exit/count/log evidence without disk exhaustion. Preserve the report's advisory scheduling semantics; do not serialize away its purpose or call a green wrapper a passing test run. Measure free-space transitions through cache restore, build, test, artifact upload and cache post-processing. Reserve measured peak headroom; cache/upload failures remain distinct from the actual parallel test exit/counts. |
 | S95-4 installed consumer quality | S95-CI3 and other concrete package-route defects are resolved. Fresh candidate Python wheels, Node packages/addons and the supported Rust consumer route work outside source checkouts. Prove exported modular TypeScript types via a real consumer compilation and execute native calls; a missing-export control fails. Bind source, package/native hashes, dependency resolution, toolchain/runtime and flags. Use the existing five-target receipt collector plus the distinct Windows WAL receipt, and reject private-hook dependencies in shipped-artifact tests. The external Rust source archive includes manifests, lockfile, Rust sources and active patches; record consumer lockfile and resolved paths. This is not registry-resolved .crate proof. No stale installed artifact or unpublished dependency substitution is a pass. |
 | S95-5 docs and contracts | Consume Slice 92's completed documentation baseline; check later repair deltas and final consistency. As-built interfaces, generated operation docs, examples, manifests, supported runtime/platform claims and release notes agree. Run existing surface/parity/feature/test-target comparators and documentation validators. Preserve frozen historical baselines and declare only approved deltas. Run lifecycle/current-owner authority checks and code-grounded semantic review separately. Correct stale references or claims; do not start a new structural refactor or oracle framework. |
-| S95-6 final candidate qualification | One clean reviewed candidate has passing applicable canonical local, feature, security, performance and platform/installed-artifact evidence under the matrix below, or an existing explicit owner-authorized non-pass disposition. Record actual counts, skips, commands, exits, inputs and artifact identity. Permanent feature-complete and target-coverage checks account for every non-exempt target with live prerequisites and reviewed skip/ignored allowlists; unavailable assets/platforms are not implicit exemptions. Missing required evidence remains a named readiness blocker; earlier-slice receipts are reused only with an explicit relevant-input comparison. |
+| S95-6 final candidate qualification | One clean reviewed candidate has passing applicable canonical local, feature, security, performance and platform/installed-artifact evidence under the matrix below, or an existing explicit owner-authorized non-pass disposition. Record actual counts, skips, commands, exits, inputs and artifact identity. Permanent feature-complete and target-coverage checks account for every non-exempt target with live prerequisites and reviewed skip/ignored allowlists; unavailable assets/platforms are not implicit exemptions. Long cursor evidence must witness successful writes during reads, propagated writer errors, positive matching rows and advancing hit cursors bounded by the response cursor in an explicit provider-free synchronous lexical fixture. Missing required evidence remains a named readiness blocker; earlier-slice receipts are reused only with an explicit relevant-input comparison. |
 | S95-7 hosted CI result | Use gh to dispatch/inspect the exact reviewed candidate. Every applicable job is accounted for: success, actual failure, intentional diagnostic/non-applicable, or explicit unavailable/queued blocker. Inspect failed logs/artifacts and false-green paths. Do not treat cancelled/queued/skipped or zero-test results as passes, or silently invent a waiver. No branch protection, merge queue or soak-period policy is added. |
 | S95-8 closure and hand-over | Independent Astra review and separate verification find no unresolved material defect in changes/evidence. Status records readiness, residual risks, source/artifact identities, exact broad/resumed provenance, and remaining owner decisions. Update release JSON and regenerate its views; land and clean up task-only worktrees/branches. Keep publication authorization separate. Preserve the existing 0.8.29 hand-over rule at final verification and forward later verification fixes as already directed. |
 | S95-9 CI routing and harness robustness | Existing executable routing/tier/hygiene controls pass the cases below, with real pinned matcher behavior. Fast/heavy registrations are total and disjoint, and a failing registered suite keeps its nonzero verdict. No retries, quarantine, broadened exclusions or changed diagnostic scheduling disguise a failure. |
@@ -227,6 +227,29 @@ behavioral tests/reproducers where needed. Stage/commit RED before GREEN for eac
 new behavior. Keep substantive test oracles read-only during fixes; approved
 contract/inventory updates remain explicit. Review implementation with Astra.
 This planning slice adds no new product API, schema or erasure behavior.
+
+### Dated qualification findings and bounded follow-up
+
+SourceE86fb2924 fixed CI12 and passes the independent installed-wheel subscriber
+suite10/10, fresh Python examples5/5 and affected PyO3 feature coverage. Its
+exact CI41991174061 passed all applicable jobs except one close-fixture wall-time
+assertion; [CI13](design.md#ci13-observe-the-provider-deadline-rather-than-teardown-wall-time)
+replaces that proxy with actual deadline decisions, preserving production code.
+[CI14](design.md#ci14-witness-concurrent-progress-in-the-long-cursor-fixture)
+adds the missing positive concurrent-write witness to the existing long fixture.
+Observed failures/mutation sensitivity precede GREEN; Astra reviews design/code
+and a separate verifier checks the focused results. Final exact-candidate CI
+remains required; neither finding justifies a full cold local/feature restart.
+
+The qualified AC011a run is a required non-pass:59986 commits in60.006908962s,
+999.651557/s <1000/s. AC011b, AC012/013, all seven hard AC081 observations,
+AC021 and the accepted real-corpus AC073 stress assessment pass. AC081 retains
+its existing sequential warning. The retired EU7 recall assertion exits101;
+accepted TC5 fidelity remains separately attributed. No threshold, protocol or
+baseline is changed. Bounded diagnostic tracing is nonqualifying and does not
+establish a preparation-cost cause. Further performance direction is requested
+under the saved characterize-underperformance-then-HITL policy; no waiver or
+optimization is assumed. S95-6 cannot be closed on the current throughput result.
 
 ### B. Freeze and qualify the final candidate
 

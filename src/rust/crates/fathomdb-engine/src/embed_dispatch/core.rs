@@ -336,10 +336,31 @@ impl Shared {
     }
 }
 
+#[cfg(test)]
+#[allow(dead_code)] // Standalone dispatcher tests do not observe Engine close.
+#[derive(Clone, Debug)]
+pub(crate) struct DrainDecision {
+    pub(crate) proposed_deadline: Instant,
+    pub(crate) selected_deadline: Instant,
+    pub(crate) timeout_at: Option<Instant>,
+    pub(crate) waits: usize,
+}
+
+#[cfg(test)]
+#[allow(dead_code)] // Only Engine close tests consume this std-only observation.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DrainObservation {
+    pub(crate) sqlite_boundaries: Vec<(Instant, usize)>,
+    pub(crate) proposals: Vec<(Instant, Instant)>,
+    pub(crate) decisions: Vec<DrainDecision>,
+}
+
 pub(crate) struct EmbedDispatcher {
     shared: Option<Arc<Shared>>,
     handles: Mutex<Vec<JoinHandle<()>>>,
     drain_deadline: Mutex<Option<Instant>>,
+    #[cfg(test)]
+    drain_observation: Arc<Mutex<DrainObservation>>,
     #[cfg(test)]
     #[allow(dead_code)] // Standalone core tests include this module without engine lifecycle.
     drain_budget_ms: AtomicU64,
@@ -356,6 +377,8 @@ impl EmbedDispatcher {
                 shared: None,
                 handles: Mutex::new(Vec::new()),
                 drain_deadline: Mutex::new(None),
+                #[cfg(test)]
+                drain_observation: Arc::default(),
                 #[cfg(test)]
                 drain_budget_ms: AtomicU64::new(30_000),
             });
@@ -410,6 +433,8 @@ impl EmbedDispatcher {
             shared: Some(shared),
             handles: Mutex::new(handles),
             drain_deadline: Mutex::new(None),
+            #[cfg(test)]
+            drain_observation: Arc::default(),
             #[cfg(test)]
             drain_budget_ms: AtomicU64::new(30_000),
         })
@@ -521,6 +546,22 @@ impl EmbedDispatcher {
         self.drain_budget_ms.store(budget_ms, Ordering::Relaxed);
     }
 
+    #[cfg(test)]
+    #[allow(dead_code)] // Standalone dispatcher tests do not observe Engine close.
+    pub(crate) fn drain_observation_for_test(&self) -> Arc<Mutex<DrainObservation>> {
+        Arc::clone(&self.drain_observation)
+    }
+
+    #[cfg(test)]
+    #[allow(dead_code)] // Standalone core tests have no SQLite owners.
+    pub(crate) fn observe_sqlite_quiescence_for_test(&self, owners: usize) {
+        self.drain_observation
+            .lock()
+            .expect("drain observation")
+            .sqlite_boundaries
+            .push((Instant::now(), owners));
+    }
+
     /// Returns `None` while a provider worker remains. On success the caller
     /// receives the released provider so it can drop it after leaving every
     /// engine lock: a caller-supplied `Drop` may re-enter `Engine::close`.
@@ -530,6 +571,18 @@ impl EmbedDispatcher {
         let budget = Duration::from_millis(self.drain_budget_ms.load(Ordering::Relaxed));
         #[cfg(not(test))]
         let budget = Duration::from_secs(30);
+        #[cfg(test)]
+        {
+            let proposed_at = Instant::now();
+            let deadline = proposed_at + budget;
+            self.drain_observation
+                .lock()
+                .expect("drain observation")
+                .proposals
+                .push((proposed_at, deadline));
+            self.drain_until(deadline)
+        }
+        #[cfg(not(test))]
         self.drain_until(Instant::now() + budget)
     }
 
@@ -549,16 +602,40 @@ impl EmbedDispatcher {
         let Some(shared) = &self.shared else {
             return Some(None);
         };
+        #[cfg(test)]
+        let proposed_deadline = deadline;
         let deadline = {
             let mut first =
                 self.drain_deadline.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             *first.get_or_insert(deadline)
         };
+        #[cfg(test)]
+        let decision = {
+            let mut observation = self.drain_observation.lock().expect("drain observation");
+            let index = observation.decisions.len();
+            observation.decisions.push(DrainDecision {
+                proposed_deadline,
+                selected_deadline: deadline,
+                timeout_at: None,
+                waits: 0,
+            });
+            index
+        };
         let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         while state.live_workers != 0 {
             let now = Instant::now();
             if now >= deadline {
+                #[cfg(test)]
+                {
+                    self.drain_observation.lock().expect("drain observation").decisions[decision]
+                        .timeout_at = Some(now);
+                }
                 return None;
+            }
+            #[cfg(test)]
+            {
+                self.drain_observation.lock().expect("drain observation").decisions[decision]
+                    .waits += 1;
             }
             state = shared
                 .changed

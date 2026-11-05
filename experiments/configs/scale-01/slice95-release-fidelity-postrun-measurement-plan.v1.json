@@ -1,0 +1,318 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "slice95-release-fidelity-postrun-v1",
+  "components": [
+    {
+      "id": "corpus",
+      "name": "TC5 real corpus and exact-f32 same-model ground truth",
+      "kind": "corpus_gold"
+    },
+    {
+      "id": "vector-stage",
+      "name": "Private Engine.tc5_vector_stage CPU sqlite-vec candidates and exact-f32 rerank with CUDA model embeddings",
+      "kind": "fathomdb_storage"
+    },
+    {
+      "id": "metric",
+      "name": "Deterministic recall and bootstrap uncertainty calculation",
+      "kind": "deterministic_metric"
+    }
+  ],
+  "call_paths": [],
+  "comparisons": [],
+  "metric_bindings": [
+    {
+      "id": "recall-at-10",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/metrics/recall_at_10",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "vector-stage",
+        "metric"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "bootstrap-sigma",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/metrics/bootstrap_sigma",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "vector-stage",
+        "metric"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "ci95-low",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/metrics/ci_95/0",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "vector-stage",
+        "metric"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "ci95-high",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/metrics/ci_95/1",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "vector-stage",
+        "metric"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "document-count",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/document_count",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "query-completion-count",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/query_completion_count",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus",
+        "vector-stage",
+        "metric"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "bootstrap-resamples",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/bootstrap_resamples",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "metric"
+      ],
+      "execution_witness_ids": []
+    },
+    {
+      "id": "synthetic-document-count",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/synthetic_document_count",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "corpus"
+      ],
+      "execution_witness_ids": []
+    }
+  ],
+  "measurement_roots": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointers": [
+        "/metrics",
+        "/document_count",
+        "/query_completion_count",
+        "/bootstrap_resamples",
+        "/synthetic_document_count"
+      ]
+    }
+  ],
+  "metric_exclusions": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/action",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/arm",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/binary_digest",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/candidate/benchmark_binary_sha256",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/candidate/fathomdb_bin_sha256",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/candidate/package_version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/candidate/python_wheel_sha256",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/candidate/sha",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/candidate/version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/claim_boundary",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/fixture_digest",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/ground_truth_sha256",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/index_digest",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/program_track",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/bootstrap_seed",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/candidate_execution",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/candidate_k",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/cross_encoder_route",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/cuda_uuid",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/embed_device",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/embedding_execution",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/exact_f32_rerank_execution",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/ground_truth",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/model_asset_digest",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/query_select_seed",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/release",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/sut",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/provenance/top_k",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/schema_version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/sut_result_sha256",
+      "reason": "identifier_or_hash"
+    }
+  ],
+  "claims": [
+    {
+      "id": "tc5-vector-stage-fidelity-and-uncertainty-only",
+      "layer": "data_plane",
+      "metric_ids": [
+        "recall-at-10",
+        "bootstrap-sigma",
+        "ci95-low",
+        "ci95-high"
+      ]
+    },
+    {
+      "id": "recorded-tc5-coverage",
+      "layer": "data_plane",
+      "metric_ids": [
+        "document-count",
+        "query-completion-count",
+        "bootstrap-resamples",
+        "synthetic-document-count"
+      ]
+    }
+  ],
+  "execution_witness_bindings": []
+}

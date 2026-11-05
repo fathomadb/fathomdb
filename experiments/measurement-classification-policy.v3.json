@@ -317,6 +317,16 @@
         "sha256": "c64eef03e3a804b20f46a848e296c13bfa33940890c8a3e6a2595a2a46fcb1e7",
         "plan_id": "comp02b-filtered-v1"
       }
+    },
+    {
+      "run_id": "slice95-tc5-release-fidelity-20261105T0546Z-7b0bd356",
+      "record_sha256": "ca59426663824855cb90ceadab72daed992ea58a556eb2c46a48c0bddf1703a4",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/scale-01/slice95-release-fidelity-postrun-measurement-plan.v1.json",
+        "sha256": "71a891223022f64014566eae2caf4505ed49e15a93c5189b5ea6eb0182bb0100",
+        "plan_id": "slice95-release-fidelity-postrun-v1"
+      }
     }
   ],
   "external_artifact_locator_amendments": [
@@ -339,6 +349,11 @@
       "run_id": "scale-02-slice40-cuda-throughput-20260905T1421Z-fc632910",
       "record_sha256": "7469be197e855c7b1f59ae3375792826640ebdd45896f31e441ec84e775d4d36",
       "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "slice95-tc5-release-fidelity-20261105T0546Z-7b0bd356",
+      "record_sha256": "ca59426663824855cb90ceadab72daed992ea58a556eb2c46a48c0bddf1703a4",
+      "reason": "absolute_external_summary_missing_kind_in_immutable_record"
     }
   ],
   "misclassified_postcutover_runs": [

@@ -13,8 +13,8 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    ArmDegradation, DegradationReason, EmbedderChoice, Engine, EngineConfig, InitialState,
-    PreparedWrite, SearchResult, SoftFallbackBranch, SourceId,
+    ArmDegradation, DegradationReason, Engine, EngineConfig, InitialState, PreparedWrite,
+    SearchResult, SoftFallbackBranch, SourceId, TestEmbedderChoice,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -75,9 +75,9 @@ fn wait_until(what: &str, mut condition: impl FnMut() -> bool) {
 
 fn open_engine(dir: &TempDir, embedder: Arc<GatedEmbedder>, timeout_ms: u64) -> Arc<Engine> {
     let path = dir.path().join(format!("ep03{SQLITE_SUFFIX}"));
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder),
+        TestEmbedderChoice::Caller(embedder),
         EngineConfig {
             embedder_pool_size: Some(1),
             embedder_call_timeout_ms: Some(timeout_ms),
@@ -196,9 +196,9 @@ fn open_provenanced_engine(dir: &TempDir, embedder: Arc<GatedEmbedder>) -> Arc<E
         SourceVersionId, WriteProvenanceV1,
     };
     let path = dir.path().join(format!("ep03-frozen{SQLITE_SUFFIX}"));
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(embedder),
+        TestEmbedderChoice::Caller(embedder),
         EngineConfig {
             embedder_pool_size: Some(1),
             embedder_call_timeout_ms: Some(300),

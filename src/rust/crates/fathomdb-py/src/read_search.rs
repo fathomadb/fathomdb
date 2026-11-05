@@ -515,7 +515,7 @@ mod degradation_tests {
     use std::time::{Duration, Instant};
 
     use fathomdb_embedder_api::{Embedder, EmbedderError, Vector};
-    use fathomdb_engine::{EmbedderChoice, EngineConfig, PreparedWrite, SourceId};
+    use fathomdb_engine::{EngineConfig, PreparedWrite, SourceId, TestEmbedderChoice};
 
     /// Blocks in `embed` while closed, so one held call occupies the only
     /// provider worker and a queued query embedding expires (QueuedExpired).
@@ -556,9 +556,9 @@ mod degradation_tests {
         let path = dir.path().join(format!("py_ep03{}", fathomdb_schema::SQLITE_SUFFIX));
         let gate = Arc::new(Gate::default());
         let engine = Arc::new(
-            fathomdb_engine::Engine::open_with_choice_and_config(
+            fathomdb_engine::Engine::open_with_test_choice_and_config_for_test(
                 &path,
-                EmbedderChoice::Caller(gate.clone()),
+                TestEmbedderChoice::Caller(gate.clone()),
                 EngineConfig {
                     embedder_pool_size: Some(1),
                     embedder_call_timeout_ms: Some(300),

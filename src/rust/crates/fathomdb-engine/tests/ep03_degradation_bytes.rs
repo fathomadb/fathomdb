@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    EmbedderChoice, Engine, EngineConfig, InitialState, PreparedWrite, SourceId,
+    Engine, EngineConfig, InitialState, PreparedWrite, SourceId, TestEmbedderChoice,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -40,9 +40,9 @@ const PINNED: &str = concat!(
 fn degradations_leave_results_and_soft_fallback_byte_identical() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("ep03-bytes{SQLITE_SUFFIX}"));
-    let engine = Engine::open_with_choice_and_config(
+    let engine = Engine::open_with_test_choice_and_config_for_test(
         &path,
-        EmbedderChoice::Caller(Arc::new(ByteSumEmbedder)),
+        TestEmbedderChoice::Caller(Arc::new(ByteSumEmbedder)),
         EngineConfig::default(),
     )
     .expect("open")

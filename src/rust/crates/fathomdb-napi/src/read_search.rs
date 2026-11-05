@@ -757,7 +757,8 @@ mod degradation_tests {
 
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use fathomdb_engine::{
-        EmbedderChoice, Engine as EngEngine, EngineConfig, InitialState, PreparedWrite, SourceId,
+        Engine as EngEngine, EngineConfig, InitialState, PreparedWrite, SourceId,
+        TestEmbedderChoice,
     };
 
     /// Blocks in `embed` while closed, so one held call occupies the only
@@ -799,9 +800,9 @@ mod degradation_tests {
         let path = dir.path().join(format!("napi_ep03{}", fathomdb_schema::SQLITE_SUFFIX));
         let gate = Arc::new(Gate::default());
         let engine = Arc::new(
-            EngEngine::open_with_choice_and_config(
+            EngEngine::open_with_test_choice_and_config_for_test(
                 &path,
-                EmbedderChoice::Caller(gate.clone()),
+                TestEmbedderChoice::Caller(gate.clone()),
                 EngineConfig {
                     embedder_pool_size: Some(1),
                     embedder_call_timeout_ms: Some(300),

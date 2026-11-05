@@ -104,4 +104,3 @@ bash "$SCRIPT_DIR/install-actionlint.sh"
 # linter produces a lint run that cannot fail, which is the TC-37 vacuous-green
 # trap that hid a red `main` for three weeks.
 bash "$SCRIPT_DIR/install-shellcheck.sh"
-

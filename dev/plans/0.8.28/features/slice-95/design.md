@@ -208,3 +208,41 @@ an override to reject8GiB with its named HARD10GiB requirement. No runner cleanu
 new framework, fake database, retry, skip or waiver is introduced. Astra approved
 the design and audited scope; code approval follows the exact delta and results.
 Include the fixture changes in fresh final exact-candidate CI. Publication held.
+
+## CI11: feature inventory and complete compiler diagnostics
+
+**Astra written amendment review APPROVE on 2026-11-05.**
+
+The first full feature-complete invocation at5f668f330 ran164 tests successfully
+with zero test failures,16 ignored and nine findings. Seven configurations
+could not compile the same ignored slice50_fresh_open_cost target: it still
+accessed removed OpenReport.dense_disabled. One real BGE UTF8 extent test lacked
+a valid ignore disposition, and one crash-child feature disposition was stale.
+Keep the original exit1 and summary; this is not a passing feature round.
+
+Apply only the accepted contract/inventory corrections. Successful open().unwrap()
+already proves admission under seq359, so remove only the obsolete report-field
+assertion. Preserve every provider-count, readiness, fingerprint and timing
+assertion and the existing opt-in timing ignore. Classify that newly discoverable
+single timing test explicitly under the accepted populated-open timing deferral;
+do not execute or reopen the deferred experiment. Remove the UTF8 test's ignore
+and execute its unchanged body against the real pinned BGE cache. Remove only
+the stale feature-only crash-child allowlist row; baseline parent/child behavior
+and its explicit child ignore remain unchanged.
+
+The existing listing helper discarded Cargo's JSON stdout, including the full
+compiler diagnostic. Preserve complete stdout and stderr in distinct labeled
+sections without claiming chronological interleaving; keep parsing, failed-target
+accounting and exit semantics unchanged. Add observed RED/GREEN in the existing
+test-target unit framework: diagnostic present only on stdout, distinct stderr,
+actual listing helper, failure accounting and successful-listing control.
+
+Astra reviews this amendment and the exact implementation. Re-list all seven
+affected configurations and account for every newly visible test, including the
+explicit deferred timing test. Reuse the164 unaffected passes only after an
+explicit relevant-input comparison; run the now-live UTF8 test and existing
+feature-runner/coverage validators. Report assembled qualification with the
+original failure retained. Refresh exact-candidate manual CI after source and
+executable inputs stabilize; forward the corrections into .29 before its final
+gate. No production API, threshold, retry, broad exclusion or new framework is
+introduced. Publication remains held.

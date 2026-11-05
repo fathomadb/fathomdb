@@ -803,7 +803,9 @@ def _list_tests(
     completed = subprocess.run(
         command, cwd=REPO_ROOT, env=env, check=False, capture_output=True, text=True
     )
-    log.write_text(completed.stderr)
+    log.write_text(
+        f"=== stdout ===\n{completed.stdout}\n=== stderr ===\n{completed.stderr}"
+    )
     executables: list[str] = []
 
     def lister(executable: str) -> tuple[str, str]:

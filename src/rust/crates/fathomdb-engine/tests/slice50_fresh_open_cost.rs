@@ -74,7 +74,6 @@ fn seed(path: &Path, model: Arc<CandleBgeEmbedder>, rows: usize) {
     setup.engine.close().unwrap();
     let counter = counted(model);
     let baseline = Engine::open_with_embedder_for_test(path, counter.clone()).unwrap();
-    assert!(!baseline.report.dense_disabled);
     assert!(baseline.report.embedder_mean_vec_pinned);
     assert_eq!(counter.calls.load(Ordering::SeqCst), 90);
     assert_eq!(baseline.engine.read_embedding_readiness().unwrap().pending_count, 0);

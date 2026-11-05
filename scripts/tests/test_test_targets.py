@@ -976,6 +976,73 @@ def test_derive_extra_sets(fc: ModuleType, tt: ModuleType) -> None:
     assert len(drift) == 1 and "new" in drift[0], drift
 
 
+def test_listing_preserves_both_captured_streams(fc: ModuleType) -> None:
+    import os
+    import sys
+
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        real_run = fc.subprocess.run
+        captures: list[tuple[Path, str, str]] = []
+        for succeeds in (True, False):
+            executable = base / "listed-test"
+            executable.write_text(
+                f"#!{sys.executable}\n"
+                "import sys\n"
+                "assert sys.argv[1:] == ['--list', '--format', 'terse']\n"
+                "print('tests::works: test')\n"
+            )
+            executable.chmod(0o755)
+            target = {"name": "fixture", "kind": ["test"]}
+            record = (
+                {"reason": "compiler-artifact", "target": target,
+                 "profile": {"test": True}, "executable": str(executable)}
+                if succeeds else
+                {"reason": "compiler-message", "target": target,
+                 "message": {"level": "error", "rendered":
+                             "error[E0609]: no field dense_disabled on OpenReport\n"}}
+            )
+            stdout = json.dumps(record) + "\n"
+            stderr = "cargo stderr marker: " + ("finished\n" if succeeds else "failed\n")
+            code = 0 if succeeds else 101
+
+            def run(command: list[str], **kwargs: Any) -> Any:
+                if command[0] != "cargo":
+                    return real_run(command, **kwargs)
+                assert command == [
+                    "cargo", "build", "--locked", "-p", "fixture",
+                    "--no-default-features", "--features", "hooks", "--tests",
+                    "--keep-going", "--message-format", "json",
+                ], command
+                return real_run(
+                    [sys.executable, "-c",
+                     "import sys;sys.stdout.write(sys.argv[1]);"
+                     "sys.stderr.write(sys.argv[2]);sys.exit(int(sys.argv[3]))",
+                     stdout, stderr, str(code)],
+                    **kwargs,
+                )
+
+            fc.subprocess.run = run
+            log = base / ("success.log" if succeeds else "failure.log")
+            try:
+                listing, failed = fc._list_tests(
+                    "fixture", ["hooks"], dict(os.environ), log
+                )
+            finally:
+                fc.subprocess.run = real_run
+            assert listing == ({"fixture": {"tests::works"}} if succeeds else {})
+            assert failed == ([] if succeeds else ["fixture"])
+            if succeeds:
+                assert not executable.exists(), "listed executables must still be cleaned up"
+            captures.append((log, stdout, stderr))
+        for log, stdout, stderr in reversed(captures):
+            contents = log.read_text()
+            assert stdout in contents, (log.name, contents)
+            assert stderr in contents, (log.name, contents)
+            assert "=== stdout ===\n" in contents, contents
+            assert "=== stderr ===\n" in contents, contents
+
+
 def test_plan_runs(fc: ModuleType, tt: ModuleType) -> None:
     """plan_runs over the fixture crate with fake listings: a test behind an
     item-level cfg on a feature no target requires is planned under its derived
@@ -1463,6 +1530,7 @@ def main() -> None:
         test_slice72_assets,
         test_weight_provisioning,
         test_onnx_provisioning,
+        test_listing_preserves_both_captured_streams,
         test_run_pairs,
     ):
         test(fc)

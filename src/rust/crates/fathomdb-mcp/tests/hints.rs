@@ -68,9 +68,9 @@ fn hints_of(result: &Value) -> Vec<Value> {
 /// text search on a store whose hybrid route is usable. Here condition 1
 /// (the call ran in text mode) and conditions 2-3 (a usable embedder that
 /// the configuration permits) are made false in turn through the adapter;
-/// this build has no embedder, so the positive case and condition 4
-/// (`dense_disabled`) are tested through the pure `search_hints` with
-/// `hybrid_available` true and false (fathomdb-engine `hints` unit tests).
+/// the pure `search_hints` controls test `hybrid_available` true and false.
+/// A built-in provider refusal fails open and never supplies an attached
+/// dense-disabled Engine.
 #[tokio::test(flavor = "multi_thread")]
 async fn empty_text_search_suggests_hybrid_only_when_hybrid_available() {
     let (_fixture, harness) = harness_with(river_notes(3, 40), json!({})).await;

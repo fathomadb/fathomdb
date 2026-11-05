@@ -127,12 +127,6 @@ pub struct EmbeddingReadinessOut {
     pub affected_kinds: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize, JsonSchema)]
-pub struct DenseDisabled {
-    pub disabled: bool,
-    pub reason: Option<String>,
-}
-
 /// `orient` result.
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct OrientOutput {
@@ -141,7 +135,6 @@ pub struct OrientOutput {
     pub projections: Vec<ProjectionRow>,
     pub projection_status: ProjectionStatusOut,
     pub embedding_readiness: EmbeddingReadinessOut,
-    pub dense_disabled: DenseDisabled,
     /// Kind enumeration needs an engine addition (MR-022).
     pub kinds: Unavailable,
     pub counts: Unavailable,

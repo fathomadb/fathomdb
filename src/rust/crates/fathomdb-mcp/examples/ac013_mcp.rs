@@ -322,7 +322,6 @@ fn sdk(path: &Path, out: &Path) {
         engine.embed(q).expect("embed");
         embed_us.push(started.elapsed().as_micros() as u64);
     }
-    let dense_disabled = engine.dense_disabled();
     engine.close().expect("close");
     write_samples(out, "sdk_search_us.txt", &search_us);
     write_samples(out, "sdk_embed_us.txt", &embed_us);
@@ -334,7 +333,6 @@ fn sdk(path: &Path, out: &Path) {
             "search": summary(&search_us),
             "embed_only": summary(&embed_us),
             "mean_hits": hits as f64 / samples() as f64,
-            "dense_disabled": dense_disabled,
         })
     );
 }

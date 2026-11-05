@@ -369,9 +369,9 @@ async fn the_default_snippet_cap_is_300_bytes_from_the_record_start() {
 /// A store whose open-time vector-equivalence check fails, through the real
 /// engine path: references persisted by the default embedder are negated and
 /// the cached verdict cleared, so the next open re-runs the check, finds the
-/// embedder diverges from its references and disables the dense side.
+/// embedder diverges from its references and refuses the open.
 #[cfg(feature = "default-embedder")]
-fn dense_disabled_store(fixture: &Fixture) {
+fn vector_mismatch_store(fixture: &Fixture) {
     let path = fixture.path("a.sqlite");
     let options = fathomdb_sdk::OpenOptions { use_default_embedder: true, ..Default::default() };
     // The first open declares a vector projection and writes nodes, which
@@ -387,8 +387,7 @@ fn dense_disabled_store(fixture: &Fixture) {
     };
     engine.configure_projections(&[spec], &[]).expect("declare a vector projection");
     engine.write(&river_notes(3)).expect("write notes");
-    // Embed them now: once the dense side is disabled nothing embeds them,
-    // and the adapter's shutdown drain would wait out its whole deadline.
+    // Persist all work before corrupting references for the next open.
     engine.drain(600_000).expect("drain the vector work");
     engine.close().expect("close");
     let engine = fathomdb_sdk::Engine::open(&path, options).expect("reopen with embedder");
@@ -423,9 +422,9 @@ fn dense_disabled_store(fixture: &Fixture) {
 
 #[cfg(feature = "default-embedder")]
 #[tokio::test(flavor = "multi_thread")]
-async fn hybrid_on_dense_disabled_store_is_not_ready_use_text() {
+async fn vector_mismatch_refuses_adapter_open_until_none_is_explicit() {
     let fixture = Fixture::new();
-    dense_disabled_store(&fixture);
+    vector_mismatch_store(&fixture);
     let config = fixture.config(json!({
         "stores": {"a": {"path": "a.sqlite"}},
         "default_store": "a",
@@ -435,18 +434,26 @@ async fn hybrid_on_dense_disabled_store_is_not_ready_use_text() {
         "call_deadline_ms": 900000
     }));
     let harness = Harness::start(config).await;
-    let orient = harness.ok("orient", json!({})).await;
-    assert_eq!(orient["dense_disabled"]["disabled"], true, "precondition: {orient}");
+    for (tool, args) in [
+        ("orient", json!({})),
+        ("search", json!({"query": "river", "mode": "hybrid"})),
+        ("search", json!({"query": "river", "mode": "text"})),
+    ] {
+        let error = harness.err(tool, args).await;
+        assert_eq!(error["class"], "unavailable", "{error}");
+        assert_eq!(error["code"], "open_failed", "{error}");
+        assert_eq!(error["detail"], "VectorEquivalenceMismatchError", "{error}");
+    }
+    harness.shutdown().await;
 
-    let error = harness.err("search", json!({"query": "river", "mode": "hybrid"})).await;
-    assert_eq!(error["class"], "not_ready", "{error}");
-    assert_eq!(error["code"], "vector_disabled", "{error}");
-    assert_eq!(error["detail"], "VectorEquivalenceMismatchError", "{error}");
-    let remedy = error["remedy"].as_str().expect("remedy");
-    assert!(remedy.contains("mode") && remedy.contains("text"), "{remedy}");
-
+    let config = fixture.config(json!({
+        "stores": {"a": {"path": "a.sqlite"}},
+        "default_store": "a",
+        "use_default_embedder": false
+    }));
+    let harness = Harness::start(config).await;
     let found = harness.ok("search", json!({"query": "river", "mode": "text"})).await;
-    assert!(!refs(&found).is_empty(), "text search still answers: {found}");
+    assert!(!refs(&found).is_empty(), "deliberate None-provider text access: {found}");
     harness.shutdown().await;
 }
 

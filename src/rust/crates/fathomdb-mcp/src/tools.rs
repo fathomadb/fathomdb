@@ -24,9 +24,9 @@ use crate::error::ToolError;
 use crate::hints::{self, SearchPageFacts, SearchPlan};
 use crate::hooks::Hooks;
 use crate::output::{
-    Budget, Degradation, DenseDisabled, EmbeddingReadinessOut, Envelope, ExpandOutput,
-    ExplanationOut, FeedbackOutput, FeedbackStatus, FetchItem, FetchOutput, Hit, ListStoresOutput,
-    ModeWord, NotRecordedReason, OrientOutput, PerHitOut, ProjectionDenseRow, ProjectionRow,
+    Budget, Degradation, EmbeddingReadinessOut, Envelope, ExpandOutput, ExplanationOut,
+    FeedbackOutput, FeedbackStatus, FetchItem, FetchOutput, Hit, ListStoresOutput, ModeWord,
+    NotRecordedReason, OrientOutput, PerHitOut, ProjectionDenseRow, ProjectionRow,
     ProjectionStatusOut, Readiness, RecordOut, SearchOutput, StoreRow, Target, TraceOut,
     Unavailable, UnavailableWord, UseStoreOutput,
 };
@@ -426,7 +426,6 @@ struct OrientRead {
     projections: Vec<ProjectionRow>,
     status: ProjectionStatusOut,
     readiness: EmbeddingReadinessOut,
-    dense: DenseDisabled,
 }
 
 pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
@@ -471,10 +470,6 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     pending_count: readiness.pending_count,
                     affected_kinds: readiness.affected_kinds,
                 },
-                dense: DenseDisabled {
-                    disabled: engine.dense_disabled(),
-                    reason: engine.dense_disabled_reason(),
-                },
             })
         })
         .await?;
@@ -484,7 +479,6 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         projections: read.projections,
         projection_status: read.status,
         embedding_readiness: read.readiness,
-        dense_disabled: read.dense,
         kinds: Unavailable::new(),
         counts: Unavailable::new(),
     };
@@ -505,11 +499,10 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         ));
     }
     text.push_str(&format!(
-        "\nembedding: state={} usable_embedder={} pending={}\ndense_disabled: {}\nkinds: unavailable\ncounts: unavailable",
+        "\nembedding: state={} usable_embedder={} pending={}\nkinds: unavailable\ncounts: unavailable",
         output.embedding_readiness.state,
         output.embedding_readiness.usable_embedder,
-        output.embedding_readiness.pending_count,
-        output.dense_disabled.disabled
+        output.embedding_readiness.pending_count
     ));
     Ok(finish(&output, text, max_tokens, false).0)
 }
@@ -520,18 +513,16 @@ struct SearchRun {
     snippets: Vec<SnippetV1>,
     explanation: Option<Explanation>,
     soft_fallback: Option<SoftFallbackBranch>,
-    dense_disabled: bool,
     degradations: Vec<ArmDegradation>,
 }
 
 impl SearchRun {
-    fn from_result(result: SearchResult, dense_disabled: bool) -> Self {
+    fn from_result(result: SearchResult) -> Self {
         Self {
             hits: result.results,
             snippets: result.snippets.unwrap_or_default(),
             explanation: result.explanation,
             soft_fallback: result.soft_fallback.map(|fallback| fallback.branch),
-            dense_disabled,
             degradations: result.degradations,
         }
     }
@@ -549,12 +540,6 @@ fn search_degradations(
             degradation.push(Degradation {
                 arm: branch_str(branch).to_string(),
                 reason: "soft_fallback".to_string(),
-            });
-        }
-        if run.dense_disabled {
-            degradation.push(Degradation {
-                arm: "vector".to_string(),
-                reason: "dense_disabled".to_string(),
             });
         }
         if !embedder_usable {
@@ -958,7 +943,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     engine.search(&request.query, options)?
                 }
             };
-            Ok(SearchRun::from_result(result, engine.dense_disabled()))
+            Ok(SearchRun::from_result(result))
         },
     )
     .await?;
@@ -983,10 +968,9 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let canonical_json = serde_json::to_string(&canonical).expect("serializes");
     let trace = run.explanation.as_ref().map(trace_out);
     // § 3.3: a text search may suggest hybrid only when the store has a
-    // usable embedder the configuration permits and the dense arm is on.
+    // usable embedder the configuration permits. Refused opens yield no Engine.
     let hybrid_available = answered.info.embedder_usable
-        && (answered.info.hosted || ctx.shared.config.use_default_embedder)
-        && !run.dense_disabled;
+        && (answered.info.hosted || ctx.shared.config.use_default_embedder);
     let plan = SearchPlan::new(
         hints::enabled(args.hints, ctx.shared.config.hints),
         &SearchPageFacts {
@@ -1489,7 +1473,7 @@ mod degradation_tests {
     fn a_run_without_its_snippet_sidecar_is_an_internal_error() {
         let result = overloaded_hybrid_result();
         assert!(result.snippets.is_none(), "precondition: no snippets were requested");
-        let run = SearchRun::from_result(result, false);
+        let run = SearchRun::from_result(result);
         let per_hit = vec![None; run.hits.len()];
         let page = search_page(&run, &per_hit, 0, false);
         assert!(
@@ -1536,7 +1520,7 @@ mod degradation_tests {
 
     #[test]
     fn hybrid_search_reports_embedder_overloaded_degradation() {
-        let run = SearchRun::from_result(overloaded_hybrid_result(), false);
+        let run = SearchRun::from_result(overloaded_hybrid_result());
         assert_eq!(
             search_degradations(SearchMode::Hybrid, &run, true),
             vec![entry("vector", "embedder_overloaded")]

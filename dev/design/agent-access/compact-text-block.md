@@ -156,17 +156,20 @@ error <q ref> <class>/<code>
 
 **`orient`**
 
+Provider verification refusal fails open with typed detail and no attached
+Engine under [seq-359](../../adr/ADR-0.8.28-vector-compatibility-open-policy.md);
+`orient` therefore has no dense-disabled field.
+
 ```text
 orient store=<q> epoch=<n> validity_instant=<n> tokens=<used>/<max>
 projection <q name> roles=<a,b> fts=<bool> vector=<bool> dense=<readiness>
 embedding: state=<word> usable_embedder=<bool> pending=<n> [affected_kinds=<q>,<q>,…]
 runtime_embedder: available=<bool> [reason=<word>]
 [vector_unsupported_kinds=<q>,<q>,…]
-dense_disabled: <bool> [reason=<q>]
 ```
 
 Today's text block leaves out the projection status, the affected kinds and
-the reason the vector side is disabled. Agents need these to tell why hybrid
+the runtime unavailability reason. Agents need these to tell why hybrid
 search degrades, so the text carries them. The `kinds` and `counts`
 placeholders (always `unavailable`) are dropped.
 
@@ -193,7 +196,7 @@ field.
 | `state` (`{status: unavailable}`) | dropped | A constant placeholder until a freshness check exists (B2-1 restores it as a real field). |
 | `verdict` (`unavailable`) | dropped | A constant placeholder until scores are calibrated (MR-031). |
 | orient `kinds`, `counts` | dropped | Constant placeholders. |
-| orient projection status, affected kinds, dense-disabled reason | kept (new to the text) | See `orient` above. |
+| orient projection status, affected kinds, runtime unavailability reason | kept (new to the text) | See `orient` above. |
 | fetch per-item errors, `body_cut` | kept | One outcome per reference. |
 
 A placeholder that later becomes a real value goes into the text in the same

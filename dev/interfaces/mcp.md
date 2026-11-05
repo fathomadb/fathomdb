@@ -121,6 +121,8 @@ This is the one vocabulary table (MR-072):
   `embedder_overloaded`, or a graph code (`query_seed_text_fallback`,
   `projection_legacy_unverified`, `projection_processing`,
   `projection_blocked`, `projection_deferred`, `projection_degraded`).
+  `dense_disabled` remains a pure hint vocabulary value; admitted built-in
+  engines do not emit that fact after the seq-359 failed-open decision.
 - Bounds: at most one hint per reason, in the table's order. `cut_by_budget`
   and `more_results` exclude each other. A cut-ref hint lists every cut ref
   in result order up to 50; refs beyond 50, and refs longer than 128 bytes
@@ -163,7 +165,10 @@ Args: `store`. Result adds:
 - `projections`: from `read.projections` — `{name, roles, fts, vector}` (whether
   each is configured) in name order.
 - `projection_status`, `embedding_readiness`: summarized from the SDK.
-- `dense_disabled`: `{disabled, reason}`.
+An actual provider verification refusal returns `unavailable/open_failed` with
+its typed detail; no Engine or `dense_disabled` orient field is returned.
+Text access requires a separate deliberate None-provider configuration, as
+accepted by [seq-359](../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
 - `kinds`, `counts`: `{ "status": "unavailable" }` (MR-022 **[engine]**).
 
 ### `search`
@@ -234,7 +239,7 @@ Result adds:
   or `partial` (fewer results than `limit` while a degradation entry is present,
   so `complete` cannot be claimed, MR-032.3) (MR-030).
 - `degradation` (hybrid only): `{arm, reason}` entries from the engine's soft
-  fallback (`soft_fallback`) and dense-disabled state (`dense_disabled`), plus
+  fallback (`soft_fallback`), plus
   `{arm: "vector", reason: "embedder_unavailable"}`, which the adapter adds when
   the store's embedding readiness, read once per open epoch, reports no usable
   embedder (the engine reports no soft fallback in that case, MR-032.1), plus

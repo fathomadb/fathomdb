@@ -126,7 +126,8 @@ Closed field value sets in v1:
   arms the adapter already reports (`tools.rs:283-290`, `tools.rs:1042-1046`).
 - `cause`: `soft_fallback`, `dense_disabled`, `embedder_unavailable` (the
   adapter's existing degradation reasons, `tools.rs:668-688`), plus the
-  `graph` codes of `tools.rs:947-958`.
+  `graph` codes of `tools.rs:947-958`. `dense_disabled` remains valid as a pure
+  caller-supplied hint fact; admitted built-in engines no longer emit it.
 
 Versioning:
 
@@ -278,12 +279,10 @@ these hold:
 3. The configuration permits hybrid. For an adapter-opened store, that means
    `use_default_embedder` is true, which `search_mode: hybrid` requires
    (`config.rs:257-259`). For a hosted engine, condition 2 decides it.
-4. `run.dense_disabled` is false, as read after the text run
-   (`tools.rs:663`).
-
-`dense_disabled` can still turn on during the suggested hybrid run (only that
-run's result shows it), so the suggestion stays advisory. A hybrid run that
-then degrades reports `degraded`. When the conditions do not hold, `no_results`
+An actual built-in provider verification refusal fails open with no Engine
+([seq-359](../../adr/ADR-0.8.28-vector-compatibility-open-policy.md)); it is
+not an attached dense-disabled state. Suggestions remain advisory, and a later
+hybrid run can report its actual degradations. When the conditions do not hold, `no_results`
 carries no `mode`, and its template says "rephrase with synonyms, names or
 related events". That wording already exists in the guide (`edge.rs:35-37`).
 In the engine subset, the caller supplies the result of conditions 2–4 as
@@ -310,7 +309,7 @@ In the engine subset, the caller supplies the result of conditions 2–4 as
   over bodies.
 - **No new reads.** Every input is already in scope: `kept`, `page_hits`,
   `page_limit`, `degradation`, `mode`, `answered.info`, `continuation`, the
-  `snippet_cut` and `body_cut` flags, `run.dense_disabled`, and
+  `snippet_cut` and `body_cut` flags, and
   `session.default_store()`.
 - **Error-path data only on error.** B2-4 and B2-5 build their details only
   when the call is already failing (§ 6).
@@ -482,8 +481,9 @@ slot, and it is a compile-time constant (`error.rs:30`).
 - **Why there is no `index_not_ready` hint.** `EmptyNotReady` fires on zero
   hits with *any* degradation entry (`shape.rs:62-64`, called with
   `!degradation.is_empty()` at `tools.rs:773-779`). The entries are a soft
-  fallback, dense disabled, or no usable embedder (`tools.rs:668-688`). In all
-  three the text arm ran, so rephrasing can help. The response therefore
+  fallback, no usable embedder, or the engine's per-arm degradation. In
+  these cases the text arm ran, so rephrasing can help. A failed provider
+  verification returns an open error rather than an empty search. The response therefore
   carries `no_results` plus `degraded`. `index_not_ready` is reserved for a
   real projection-readiness signal (such as EP-03's typed degradation).
 - `weak_results` is reserved. The only calibrated per-hit score today is the

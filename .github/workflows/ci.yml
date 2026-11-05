@@ -140,7 +140,29 @@ jobs:
       security_harness: ${{ steps.filter.outputs.security_harness }}
       native_artifact_harness: ${{ steps.filter.outputs.native_artifact_harness }}
       ci_mode: ${{ steps.ci_mode.outputs.ci_mode }}
+      release_qualification: ${{ steps.candidate.outputs.release_qualification }}
     steps:
+      - name: Validate manual candidate before checkout and classification
+        id: candidate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              printf 'candidate_sha must be lowercase 40-hex\n' >&2
+              exit 1
+            fi
+            if [[ "$GITHUB_REF" != refs/heads/release/* ]] || [ "$CANDIDATE_SHA" != "$GITHUB_SHA" ]; then
+              printf 'candidate_sha must equal the dispatched release-branch commit\n' >&2
+              exit 1
+            fi
+            echo "release_qualification=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_qualification=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
@@ -164,6 +186,10 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            echo "ci_mode=normal" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           candidate="$PUSH_SHA"
           trusted_source=true
           if [ "$EVENT_NAME" = "pull_request" ]; then
@@ -262,6 +288,10 @@ jobs:
     if: >-
       !cancelled() &&
       (
+        github.event_name != 'workflow_dispatch' ||
+        needs.changes.outputs.release_qualification == 'true'
+      ) &&
+      (
         needs.changes.result != 'success' ||
         needs.changes.outputs.docs_only != 'true'
       )
@@ -322,6 +352,8 @@ jobs:
   verify:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -333,6 +365,7 @@ jobs:
           needs.changes.outputs.rust_test_harness == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -403,6 +436,8 @@ jobs:
   rust-workspace-race-report:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -411,6 +446,7 @@ jobs:
           needs.changes.outputs.rust_test_harness == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -471,6 +507,8 @@ jobs:
   security:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -481,6 +519,7 @@ jobs:
           needs.changes.outputs.security_harness == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: ubuntu-22.04
     timeout-minutes: 20
@@ -517,6 +556,8 @@ jobs:
   default-embedder-tests:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -526,6 +567,7 @@ jobs:
           needs.changes.outputs.typescript == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -651,6 +693,8 @@ jobs:
   windows-wal-checkpoint-diagnosis:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -658,6 +702,7 @@ jobs:
           needs.changes.outputs.rust == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: windows-latest
     timeout-minutes: 15
@@ -688,6 +733,8 @@ jobs:
   windows-wal-attribution:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -697,6 +744,7 @@ jobs:
           needs.changes.outputs.windows == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     runs-on: windows-latest
     timeout-minutes: 30
@@ -990,6 +1038,8 @@ jobs:
   wheel-size-gate:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -998,6 +1048,7 @@ jobs:
           needs.changes.outputs.python == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     strategy:
       fail-fast: false
@@ -1104,6 +1155,8 @@ jobs:
   native-artifact-runtime-validation:
     needs: changes
     if: >-
+      !cancelled() && needs.changes.result == 'success' && (
+      needs.changes.outputs.release_qualification == 'true' ||
       needs.changes.outputs.ci_workflow == 'true' ||
       (
         needs.changes.outputs.docs_only != 'true' &&
@@ -1114,6 +1167,7 @@ jobs:
           needs.changes.outputs.native_artifact_harness == 'true'
         ) &&
         needs.changes.outputs.ci_mode != 'lite'
+      )
       )
     strategy:
       fail-fast: false

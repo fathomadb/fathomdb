@@ -408,6 +408,41 @@ mod tests {
     }
 
     #[test]
+    fn bookkeeping_contention_preserves_non_overloaded_event_pairs() {
+        let queue = Arc::new(Queue::new());
+        let state = queue.state.lock().unwrap();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let producer_queue = Arc::clone(&queue);
+        let producer = thread::spawn(move || {
+            producer_queue.push(event());
+            producer_queue.push(Record::Event(Event {
+                phase: Phase::Finished,
+                source: EventSource::Engine,
+                category: EventCategory::Writer,
+                code: None,
+            }));
+            done_tx.send(()).unwrap();
+        });
+        let completed_while_locked = done_rx.recv_timeout(Duration::from_secs(1)).is_ok();
+        drop(state);
+        producer.join().unwrap();
+        let describe = |record| match record {
+            Some(Record::Event(Event { phase, .. })) => format!("{phase:?}"),
+            Some(Record::Dropped(count)) => format!("Dropped({count})"),
+            Some(_) => "other record".into(),
+            None => "no record".into(),
+        };
+        let observed = [describe(queue.next()), describe(queue.next())];
+        queue.disable();
+        assert!(completed_while_locked, "producers must not wait for consumer bookkeeping");
+        assert_eq!(
+            observed,
+            ["Started", "Finished"],
+            "spare capacity must preserve exact FIFO pairing without loss"
+        );
+    }
+
+    #[test]
     fn overload_is_bounded_reported_and_disabled_atomically() {
         let queue = Queue::new();
         for _ in 0..CAPACITY {

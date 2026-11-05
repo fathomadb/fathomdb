@@ -361,6 +361,7 @@ JS
   "$NODE_CMD" --input-type=module - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
     "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'JS'
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { Engine } from "fathomdb";
 
 const fixture = JSON.parse(readFileSync(process.argv[2], "utf8"));

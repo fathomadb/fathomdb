@@ -286,6 +286,57 @@ mod tests {
         assert!(asserted, "a busy primary must not hide potentially owed work from priority");
     }
 
+    #[cfg(feature = "test-hooks")]
+    #[test]
+    fn debt_free_primary_contention_does_not_reserve_physical_service() {
+        let directory = tempfile::tempdir().unwrap();
+        let engine =
+            Arc::new(Engine::open(directory.path().join("probe-admission.sqlite")).unwrap().engine);
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "private worker admission marker".into(),
+                source_id: SourceId::new("target-source").unwrap(),
+                logical_id: Some("target".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.drain(1_000).unwrap();
+        let primary = engine.connection.lock().unwrap();
+        let debt_free = matches!(physical_erasure::active(primary.as_ref().unwrap()), Ok(false));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !engine.physical_maintenance.shared.priority.load(Ordering::Acquire)
+            && Instant::now() < deadline
+        {
+            std::thread::yield_now();
+        }
+        let priority = engine.physical_maintenance.shared.priority.load(Ordering::Acquire);
+        let service_available = engine.physical_service_gate.try_lock().is_ok();
+        let (admitted_tx, admitted_rx) = mpsc::channel();
+        engine.arm_erasure_before_primary_lock_hook_for_test(Box::new(move || {
+            let _ = admitted_tx.send(());
+        }));
+        let foreground = Arc::clone(&engine);
+        let erase = std::thread::spawn(move || foreground.erase_source("target-source"));
+        let admitted = admitted_rx.recv_timeout(Duration::from_secs(2)).is_ok();
+        // Neither a failed rendezvous nor the expected RED may strand an actor.
+        drop(primary);
+        let erased = erase.join();
+        let closed = engine.close();
+        assert!(debt_free, "the held primary must have no committed physical debt");
+        assert!(priority, "a contended primary must still publish maintenance priority");
+        assert!(
+            service_available,
+            "speculative debt probing occupied the service before checking the held primary"
+        );
+        assert!(admitted, "the foreground erase must be admitted before primary release");
+        assert_eq!(erased.unwrap().unwrap().nodes_excised, 1);
+        closed.unwrap();
+    }
+
     #[test]
     fn ordinary_writer_cannot_miss_the_maintenance_priority_release() {
         let maintenance = Arc::new(PhysicalMaintenance::default());

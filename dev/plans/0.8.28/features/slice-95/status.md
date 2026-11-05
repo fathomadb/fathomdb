@@ -40,3 +40,22 @@ readiness claim is made. Astra approved the confirmed-debt admission amendment a
 after deterministic RED bff636c3b. Independent real-DB verification passes
 27 tests, including unchanged hosted regressions, idle debt completion and
 genuine Autonomous saturation refusal. Final qualification is pending. Publication remains held.
+
+## Corrected production qualification checkpoint
+
+At clean16234813cf9e4aeaa09f99b5f5f98459bd415af3 the independent canonical
+local invocation passed all205/205 suites, skipped0/excluded0, lint/typecheck
+and live security0 violations/0 blockers/0 downgrades. Gate child exit0 and
+44m19s are recorded separately from an outer-session143 reported afterward
+(cause unknown); the sealed
+log ends with the actual205/205 summary. This is an uninterrupted canonical
+pass on that exact source, not the earlier assembled qualification.
+
+CI41964943428 at the sameSHA passed canonical fast/heavy, four native platforms,
+five wheel-size cells and distinct Windows WAL controls. Transcript fixture
+headroom8GiB<10GiB and temporary Windows setup execution-policy failures are
+retained; neither is a passing native-Windows/collector result. The diagnostic
+wrapper succeeded but actual Cargo101 has one property fixture failure; resource
+headroom remained healthy. CI9/CI10 actor/resource isolation corrections have
+Astra-approved designs. Their scoped GREEN and fresh exact-candidate CI remain
+pending. Publication is held; version/AxisE/rehearsal preparation remains pending.

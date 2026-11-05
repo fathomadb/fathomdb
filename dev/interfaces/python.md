@@ -203,7 +203,9 @@ The helper maps engine events into Python `logging.LogRecord`s with the stable
 `fathomdb` payload described by `design/bindings.md`. The logger remains
 caller-owned and must expose a callable `log` method and support weak
 references. Delivery is opt-in and bounded; if a slow logger overruns the
-queue, later delivery includes a `fathomdb.dropped_records` warning. Logger
+queue, later delivery includes a `fathomdb.dropped_records` warning. Exact
+delivery and phase pairing hold below capacity while the logger is live and
+functioning. Logger
 exceptions do not change database operation results. A logger callback that
 reenters a FathomDB database operation receives `InvalidArgumentError` before
 dispatch. No binding-generated heartbeat or operation ID is promised by this

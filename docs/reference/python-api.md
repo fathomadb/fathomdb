@@ -337,7 +337,8 @@ Bind engine events into a Python `logging.Logger`. Engine events are
 mapped to `logging.LogRecord` with the stable `fathomdb` payload. The logger
 is caller-owned. Delivery uses a bounded queue: a slow logger can lose
 records, and a `dropped_records` warning reports the count when it catches
-up. Logger failures do not fail database calls. Logger handlers cannot
+up. Delivery and phase pairing are preserved below capacity while the logger
+is live and functioning. Logger failures do not fail database calls. Logger handlers cannot
 reenter FathomDB database operations. This helper does not emit heartbeats.
 
 ### Properties

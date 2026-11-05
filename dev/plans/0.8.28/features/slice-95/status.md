@@ -6,7 +6,7 @@ status: IN_PROGRESS
 # Slice 95 status
 
 **IN_PROGRESS.** Execution baseline `6ae55c2e42e5aa447bc9f13265f6bf5a9e97f6e2`.
-[Plan](plan.md) S95-1–12 and [design](design.md) define the bounded repair and
+[Plan](plan.md) S95-1–13 and [design](design.md) define the bounded repair and
 qualification work. Slice 92's completed baseline is consumed; no new full
 documentation audit or product feature is allocated. Publication remains held.
 
@@ -86,3 +86,20 @@ stdout retention; Astra design review and scoped implementation/verification
 are in progress. The original full run stays a non-pass. Required performance,
 long reliability, final .29 canonical gate, exact-candidate refresh and closure
 remain pending. Publication is held.
+
+## Subscriber admission checkpoint
+
+Final sourceD bef17bfab has assembled feature PASS180planned/165passed/0failed/
+15ignored with55 successful fresh listings, all seven repaired configurations,
+no plan-key drift and preserved raw failure/supplement evidence. Independent
+relevant-input comparison permits attributed reuse of unaffected5f artifacts.
+
+CI41983987975 is an overall FAIL: fast198/198, heavy6/7, with one Python
+subscriber pairing failure (1708passed/39skipped). All five native rows/collector,
+five size cells, strict live security, default-provider and distinct Windows WAL
+pass. The parallel diagnostic has zero actual test failures, independently
+separated from its advisory wrapper. CI12 repairs a real below-capacity queue
+admission defect under the accepted ADR; Astra concrete design APPROVE and
+isolated RED/GREEN implementation are in progress. Original Python assertions
+remain unchanged. The .29 canonical gate continues on frozen6674cf79; forward
+this later repair and recheck only affected scopes. Publication remains held.

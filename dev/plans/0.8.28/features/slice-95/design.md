@@ -9,7 +9,7 @@ target_release: 0.8.28
 ## Execution reconciliation
 
 Execution baseline: `6ae55c2e42e5aa447bc9f13265f6bf5a9e97f6e2`.
-The [improved plan](plan.md) remains the scope and S95-1–12 acceptance authority.
+The [improved plan](plan.md) remains the scope and S95-1–13 acceptance authority.
 Changes since its reconciliation baseline `48b23c479` are:
 
 1. Slice 92 completed documentation convergence, all 27 maintained-owner audits,
@@ -88,7 +88,7 @@ If .28 version/Axis E/provenance preparation remains unauthorized, record that
 prerequisite and pending rehearsal; do not substitute an old-version rehearsal.
 No tag, registry/Pages publication or publish workflow with dry_run=false occurs.
 
-The final [status](status.md) maps S95-1–12 to commands, artifacts, source/input
+The final [status](status.md) maps S95-1–13 to commands, artifacts, source/input
 identities, reviews and actual results. Report assembled/resumed evidence and
 readiness blockers honestly. Forward final verification fixes under the existing
 .29 hand-over rule, then clean up only the task implementation worktree/branch.
@@ -246,3 +246,53 @@ original failure retained. Refresh exact-candidate manual CI after source and
 executable inputs stabilize; forward the corrections into .29 before its final
 gate. No production API, threshold, retry, broad exclusion or new framework is
 introduced. Publication remains held.
+
+## CI12: preserve subscriber admission below capacity
+
+**Astra concrete design review APPROVE on 2026-11-05.** Exact candidate
+bef17bfab run41983987975 passed fast198/198 and every other applicable job,
+but heavy6/7 failed Python:1failed,1708passed,39skipped. The unchanged real
+write test observed phases [None, finished], missing Started. Preserve its raw
+failure and assertions. The first payload was not printed, so attributing None
+to a loss warning remains a source-supported explanation, not a captured fact.
+
+The accepted Python subscriber ADR guarantees exact delivery/pairing below
+capacity with a live functioning logger. Queue::push instead drops on any
+bookkeeping try_lock contention, even when empty. Repair this production
+admission defect; do not call ordinary contention overload or relax the test.
+
+Use std::sync::mpsc::sync_channel with the existing4096 capacity and a private
+record/Stop envelope. Producers check enabled and try_send without the consumer's
+bookkeeping mutex, Python invocation or I/O. Only actual Full counts as overflow;
+Disconnected ends delivery. Keep a saturating atomic loss counter. The receiver
+and warning/normal-record fairness state remain under consumer bookkeeping.
+Avoid prefetch storage that would add another queued record beyond capacity.
+Restore deferred loss counts with saturating atomic addition, never overwrite
+concurrent losses. Stop is private control traffic and never a diagnostic/loss.
+
+Disable publishes enabled=false before sending Stop, then clears receiver state.
+An empty waiting receiver wakes; a full receiver is already ready. Check disabled
+after wake and suppress queued delivery. Disconnect or bookkeeping poison ends
+delivery consistently without panicking into database callers or retaining an
+enabled dead consumer. Never hold bookkeeping across Python. Preserve weak
+ownership, profile/error payloads, handler fault/reentry containment, replacement,
+the single retiring-worker bound and the already-dequeued callback allowance.
+No dependency, public API, lifecycle phase or accepted policy changes.
+
+RED holds the existing bookkeeping mutex with capacity available, pushes Started
+and Finished on another actor, and requires producer completion while held.
+Release/join before assertions. Current code reports Dropped(2); GREEN delivers
+the two FIFO phases without loss. Preserve overflow/fairness/disable oracle
+intent and prove disable wakes an idle receiver without waiting its one-second
+timeout. Run unchanged real-DB Python subscriber lifecycle/reentry/replacement
+coverage against a fresh installed native wheel. Stage/commit RED before GREEN;
+Astra reviews exact code and a separate verifier checks outcomes.
+
+The blast radius is Python native subscriber delivery. Refresh its native unit,
+installed-wheel/Python runtime and affected feature evidence, then exact-candidate
+CI. Explicitly compare unaffected core/Node/measurement inputs before reuse;
+do not repeat a cold full local/feature campaign for this module repair. The
+already-running .29 gate keeps its original source/outcome; forward the fix
+and recheck affected scopes afterward. Correct the maintained binding design's
+stale full-or-contended loss claim and state the accepted contract in Python
+reference/release guidance. Publication remains held.

@@ -127,6 +127,20 @@ records the observed failures, lock-order constraints and deterministic RED/GREE
 | --- | --- |
 | S95-12 confirmed-debt admission | A debt-free contended primary cannot make an idle Autonomous poller occupy physical service and refuse fresh foreground erasure. Deterministic real-DB admission/completion coverage fails before the fix and passes after; true debt retains priority/progress and a genuine competing service retains typed refusal. The three original hosted failures pass unchanged. No retries or serialization of these three fixtures/workspace, weaker success assertions, new policy or deadline. |
 
+### Python subscriber finding allocated during final qualification
+
+Exact candidatebef17bfab completed fast198/198 and all other applicable jobs,
+but its heavy Python suite failed the unchanged real-write phase-pairing test.
+The accepted subscriber ADR guarantees delivery below capacity; producer
+try_lock contention incorrectly loses records before capacity exhaustion. The
+[CI12 design](design.md#ci12-preserve-subscriber-admission-below-capacity)
+preserves the public contract and existing assertions through a bounded standard
+channel, deterministic native RED/GREEN and fresh installed-wheel verification.
+
+| ID | Additional decisive acceptance |
+| --- | --- |
+| S95-13 subscriber admission | With spare capacity and a live functioning logger, consumer bookkeeping cannot discard Started/Finished or reorder their FIFO delivery. Only true capacity exhaustion counts loss. Capacity4096, warning fairness, nonblocking producers, weak ownership, reentry/handler containment, prompt disable and bounded replacement/close remain correct. Deterministic contention RED/GREEN and unchanged real-DB Python tests pass on a fresh native wheel; affected artifacts/features and final exact-candidate CI are refreshed. No retries, weaker phase assertions or new queue framework. |
+
 ### Fixture findings allocated during final qualification
 
 Run41964943428 and the completed local205-suite collection distinguish two

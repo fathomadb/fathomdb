@@ -67,3 +67,22 @@ unchanged assertions after observed RED; real default preflight remains
 byte-identical and still rejects8GiB with its10GiB requirement. These fixture-only
 changes get focused local rechecks; final exact-candidate hosted qualification
 and remaining feature/package/performance work are still pending.
+
+## Feature qualification checkpoint
+
+Clean5f668f330 completed CI41971020280 successfully, including all five native
+CPU rows/collector, five wheel-size cells, distinct Windows WAL, fast198/198,
+heavy7/7 and actual parallel Rust results with zero failures. Exact evidence
+and qualifications are retained for final reconciliation; they are not receipts
+for subsequent source changes. Independent local workspace all-targets and
+normal-parallel engine144/144 pass. Fresh Linux installed consumers, strict
+TypeScript negative control, Rust source consumer and immutable CLI doctor pass.
+Windows installed configuration supplements pass independently; temporary VM
+resources/runner were cleaned and the original VM returned off.
+
+The first full feature round at that source exits1:164passed,0failed,16ignored,
+nine findings. CI11 corrects stale feature fixtures/dispositions and compiler
+stdout retention; Astra design review and scoped implementation/verification
+are in progress. The original full run stays a non-pass. Required performance,
+long reliability, final .29 canonical gate, exact-candidate refresh and closure
+remain pending. Publication is held.

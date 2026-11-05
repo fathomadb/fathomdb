@@ -140,6 +140,21 @@ fresh final exact-candidate CI. S95-2/3/8 govern these corrections; no new produ
 requirement or numerical SLA is added. Production-default rejection at8GiB and
 separate genuine Autonomous progress/refusal remain decisive negative controls.
 
+### Feature findings allocated during final qualification
+
+The first feature round at5f668f330 supplied164 passing live tests and nine
+findings: seven configurations hit one obsolete report-field assertion in an
+ignored cost experiment; one real UTF8 extent test remained ignored; one
+feature-only crash-child disposition was stale. The compiler logger also
+omitted stdout diagnostics. The [CI11 amendment](design.md#ci11-feature-inventory-and-complete-compiler-diagnostics)
+allocates minimal contract/inventory corrections and observed logging RED/GREEN.
+S95-1/5/6/10 require complete relisting of affected configurations, unchanged
+substantive assertions, actual cached-model UTF8 execution, explicit disposition
+of the existing deferred timing experiment and full compiler streams. Original
+failures remain attributed; reuse of unaffected passes requires exact input
+comparison. Refresh final exact-candidate CI and .29 forward integration. No new
+product requirement, performance campaign or numerical SLA is added.
+
 ## Bounded design and repair sequence
 
 ### A. Converge CI and consumer checks

@@ -307,6 +307,8 @@ jobs:
           TMPDIR="$RUNNER_TEMP/fathomdb-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "$TMPDIR"
           echo "TMPDIR=$TMPDIR" >> "$GITHUB_ENV"
+          AGENT_LOG_DIR="$(mktemp -d "$RUNNER_TEMP/fathomdb-agent-spills.XXXXXX")"
+          echo "AGENT_LOG_DIR=$AGENT_LOG_DIR" >> "$GITHUB_ENV"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
@@ -336,7 +338,7 @@ jobs:
         run: |
           set -euo pipefail
           spill_dir="${RUNNER_TEMP}/fathomdb-agent-spill-logs-fast"
-          bash scripts/collect-agent-spill-logs.sh --destination "$spill_dir"
+          bash scripts/collect-agent-spill-logs.sh --source-dir "$AGENT_LOG_DIR" --destination "$spill_dir"
       - name: Upload redacted fast verifier spill logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -386,6 +388,8 @@ jobs:
           TMPDIR="$RUNNER_TEMP/fathomdb-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "$TMPDIR"
           echo "TMPDIR=$TMPDIR" >> "$GITHUB_ENV"
+          AGENT_LOG_DIR="$(mktemp -d "$RUNNER_TEMP/fathomdb-agent-spills.XXXXXX")"
+          echo "AGENT_LOG_DIR=$AGENT_LOG_DIR" >> "$GITHUB_ENV"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
@@ -422,7 +426,7 @@ jobs:
         run: |
           set -euo pipefail
           spill_dir="${RUNNER_TEMP}/fathomdb-agent-spill-logs"
-          bash scripts/collect-agent-spill-logs.sh --destination "$spill_dir"
+          bash scripts/collect-agent-spill-logs.sh --source-dir "$AGENT_LOG_DIR" --destination "$spill_dir"
       - name: Upload redacted agent verifier spill logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

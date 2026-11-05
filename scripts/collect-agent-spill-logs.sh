@@ -40,7 +40,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$destination" ] || [ ! -d "$source_dir" ]; then
+if [ -z "$destination" ] || [ ! -d "$source_dir" ] || [ -L "$source_dir" ]; then
   usage
   exit 2
 fi
@@ -64,7 +64,7 @@ regular_candidates=()
 skipped_nonregular=0
 shopt -s nullglob
 for candidate in "$source_dir"/fathomdb-agent-*.log; do
-  if [ -L "$candidate" ] || [ ! -f "$candidate" ]; then
+  if [ -L "$candidate" ] || [ ! -f "$candidate" ] || [ ! -s "$candidate" ]; then
     skipped_nonregular=$((skipped_nonregular + 1))
     continue
   fi

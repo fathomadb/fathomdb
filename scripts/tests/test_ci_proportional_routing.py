@@ -532,6 +532,10 @@ def main() -> int:
             {"native-artifact-runtime-validation"},
             True,
         ),
+        ("installed-type-helper", ("scripts/release/smoke/check-installed-types.mjs",), {"native_artifact_harness": "true"}, {"native-artifact-runtime-validation"}, True),
+        ("installed-type-fixture", ("scripts/release/smoke/installed-graph-evidence.mts",), {"native_artifact_harness": "true"}, {"native-artifact-runtime-validation"}, True),
+        ("heavy-actionlint-installer", ("scripts/install-actionlint.sh",), {"verify_harness": "true"}, {"verify"}, True),
+        ("heavy-shellcheck-installer", ("scripts/install-shellcheck.sh",), {"verify_harness": "true"}, {"verify"}, True),
         (
             "ci-workflow-lite",
             (".github/workflows/ci.yml",),

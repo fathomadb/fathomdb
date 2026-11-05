@@ -30,8 +30,9 @@
 | `dev/plans/plan-0.8.28.md` | Active release plan through documentation convergence and final CI qualification; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/release-state-0.8.28.json` | Active release state with Slice 92 before Slice 95; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/runs/STATUS-0.8.28.md` | Active release board with documentation and CI qualification work remaining; publication separately held. | 0.8.28 Slice 92 | 2026-11-04 |
-| `dev/plans/0.8.28/features/slice-95/status.md` | Planned CI and release-readiness status after Slice 92; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/status.md` | CI repair and release-readiness execution status after Slice 92; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-95/plan.md` | CI repairs and final qualification plan consuming Slice 92 documentation; publication separately held. | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-95/design.md` | Bounded CI repairs, RED/GREEN controls and candidate qualification design. | 0.8.28 Slice 95 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-92/status.md` | Documentation convergence status and verification outcomes | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-92/plan.md` | Documentation audit/convergence scope, requirements and execution plan; publication separately held. | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/release-state-0.8.27.json` | **Published 0.8.27 single writer.** Owns the release ladder, ruled/open decisions, schema baseline, live next-slice pointer, and publication state. | 0.8.27 Slice 140 | 2026-10-10 |

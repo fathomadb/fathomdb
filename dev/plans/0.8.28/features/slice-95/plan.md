@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 95 — CI completeness and final release readiness
-status: PLANNED
+status: IN_PROGRESS
 target_release: 0.8.28
 planning_baseline: 8aa724ba0a1f6c7030fd43e85d936d8ddb1f2272
 reconciliation_baseline: 48b23c479826c647affde9e9a1b6c69ee8f37f4c
@@ -15,7 +15,9 @@ candidate qualification. This is the release-closing engineering slice;
 publication remains a separate owner decision. Creation of this plan performs
 no CI repair, qualification run, version cut or publication. Astra reviewed this
 initial planning scope and acceptance. The comparative CI/release review below
-strengthens that scope; implementation and new qualification remain unstarted.
+strengthens that scope. Execution reconciliation and the concrete repair design
+are recorded in [design](design.md); implementation and qualification now proceed
+under that bounded design.
 
 ## Dependency and documentation handoff
 
@@ -106,7 +108,7 @@ candidate-bound release-readiness verdict. S95 labels are local acceptance;
 | S95-8 closure and hand-over | Independent Astra review and separate verification find no unresolved material defect in changes/evidence. Status records readiness, residual risks, source/artifact identities, exact broad/resumed provenance, and remaining owner decisions. Update release JSON and regenerate its views; land and clean up task-only worktrees/branches. Keep publication authorization separate. Preserve the existing 0.8.29 hand-over rule at final verification and forward later verification fixes as already directed. |
 | S95-9 CI routing and harness robustness | Existing executable routing/tier/hygiene controls pass the cases below, with real pinned matcher behavior. Fast/heavy registrations are total and disjoint, and a failing registered suite keeps its nonzero verdict. No retries, quarantine, broadened exclusions or changed diagnostic scheduling disguise a failure. |
 | S95-10 diagnosable and safe evidence | A forced preflight failure before the first suite retains useful real diagnostics; a truncated later failure retains full redacted spill evidence and its actual exit/count/time data. Empty/symlinked/foreign logs are not uploadable proof. Tracked-tree and generated retained-evidence scans have separate pinned-tool outcomes; generated secrets are corrected/redacted before retention, with no broad new suppression or historical-debt campaign. Existing advisory Gitleaks job policy is unchanged. |
-| S95-11 release rehearsal truth | Ordinary CI, local release dry-run and immutable-candidate release.yml dry-run have separate evidence/dispositions. Validate version/Axis E/co-tagging, trusted workflow/runner provenance and the non-publishing route before expensive work. If main ancestry/version preparation needs separate authority, record that prerequisite and the rehearsal as pending; do not bypass checks or claim pre-tag readiness. Publication and registry-installed proofs remain separate. |
+| S95-11 release rehearsal truth | Ordinary CI, local release dry-run and immutable-candidate release.yml dry-run have separate evidence/dispositions. Validate version/Axis E/co-tagging, trusted workflow/runner provenance and the non-publishing route before expensive work. If version/Axis E or trusted workflow preparation needs separate authority, record that prerequisite and the rehearsal as pending; do not bypass checks or claim pre-tag readiness. Publication and registry-installed proofs remain separate. |
 
 ## Bounded design and repair sequence
 
@@ -185,8 +187,9 @@ validator, scheduler or general test framework.
 Use the existing [AC-037 live runbook](../../../../release/ac-037-live-netns-hitl-runbook.md)
 and [current-owner authority catalog](../../../../design/current-owner-authority.json).
 The non-publishing rehearsal is planned here, but neither this amendment nor a
-green CI run authorizes the version cut/main integration needed by its release
-entry checks. Prepare concrete inputs and retain a named pending prerequisite
+green CI run authorizes a version cut or main integration. Immutable
+nonpublishing dispatch already has the documented ancestry exemption; its
+version/Axis E and trusted workflow entry checks still apply. Prepare concrete inputs and retain a named pending prerequisite
 until that authority exists. Report CI repair, candidate qualification and
 pre-tag rehearsal readiness distinctly; none authorizes publication.
 

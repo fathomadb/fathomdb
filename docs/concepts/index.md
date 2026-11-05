@@ -112,9 +112,10 @@ Three distinct identifiers, deliberately not interchangeable:
 - **`SearchHit.id`** — a typed `IdSpace` (`{space, value}`) returned by
   `search`. `space` is `logical` (`l:`), `content` (`h:`) or `passage`
   (`p:`). Stable across sessions and re-ingest.
-- **`write_cursor`** — the engine's positional book-keeping value. It
-  is reassigned on re-projection, is **not** cross-session stable, and
-  the SDKs no longer surface it as a hit id.
+- **`write_cursor`** — the store-local position of a committed canonical
+  revision. It persists across reopening and projection rebuilds, but changes
+  on re-ingestion and is not a portable identity across recreated stores. Use
+  the public typed ID for record identity.
 
 ## Canonical rows and projections
 

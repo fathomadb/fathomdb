@@ -235,7 +235,7 @@ This file owns the stable inputs bindings map from:
 
 ## Binding-facing class matrix
 
-The matrix below is the canonical 44-row cross-binding class-stem table for
+The matrix below is the canonical cross-binding class-stem table for
 0.8.28.
 Per-language interface docs may apply idiomatic casing, but they must not
 rename the semantic class stems or collapse distinct rows.
@@ -245,8 +245,8 @@ Its stable `FDB_EMBEDDER_REQUIRED` payload has `operation`, `state`, ordered
 `remediations`, and the documentation URL; Python exposes
 `documentation_url`, TypeScript exposes `documentationUrl`. It applies only to
 an absent configured runtime. `SchedulerError` remains the bounded-drain result
-while outstanding operational work, such as equivalence-refused work, prevents
-idleness. A worker that exhausts retries instead records a durable `failed`
+while in-flight or capacity-starved pending work prevents idleness. Verification
+refusal returns no Engine and cannot create an attached refused-work session. A worker that exhausts retries instead records a durable `failed`
 terminal, after which `drain` may return `Ok` once idle. Neither is this
 configuration error.
 
@@ -312,6 +312,7 @@ provider panics keep their operation-specific panic boundary.
 | `EngineError::IllegalTransition`      | `IllegalTransitionError`         | `IllegalTransitionError`         | runtime failure       |
 | `EngineError::NotLifecycleAddressable` | `NotLifecycleAddressableError`  | `NotLifecycleAddressableError`   | runtime failure       |
 | `EngineError::ErasureIncomplete`      | `ErasureIncompleteError`         | `ErasureIncompleteError`         | retryable incomplete erasure |
+| `EngineError::Maintenance` | `MaintenanceError` | `MaintenanceError` | runtime failure |
 | `EngineError::ProjectionDestructive`  | `ProjectionDestructiveError`     | `ProjectionDestructiveError`     | caller confirmation required |
 | `EngineError::CudaPoolExhausted` / `EngineOpenError::CudaPoolExhausted` | `CudaPoolExhaustedError` | `CudaPoolExhaustedError` | runtime failure |
 | `EngineError::CudaContextLost` / `EngineOpenError::CudaContextLost` | `CudaContextLostError` | `CudaContextLostError` | runtime failure |
@@ -319,7 +320,8 @@ provider panics keep their operation-specific panic boundary.
 
 2026-10-08 amendment (0.8.28 Slice 30, R30-04): the three CUDA
 private-memory-pool kinds. Each class derives from `EmbedderError` in both
-SDKs (and `ErrorKind::Embedder` in `fathomdb-sdk`). Payloads:
+SDKs. Rust has distinct CUDA `ErrorKind` variants whose `parent()` is
+`ErrorKind::Embedder`; enum variants do not inherit. Payloads:
 `CudaPoolExhausted` — `ordinal`, `max_size_bytes`, `message`;
 `CudaContextLost` — `recorded_context_id`, `current_context_id` (nullable),
 `driver_error`, `operation`; `CudaPrivateBuildRefused` — `ordinal`,

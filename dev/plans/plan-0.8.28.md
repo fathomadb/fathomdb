@@ -172,11 +172,17 @@ before Slice 95. These explicit placements do not change this policy for other g
 
 ## Immediate next slice
 
-**Product implementation complete through Slice 90. Immediate next: Slice 92**
-([plan](0.8.28/features/slice-92/plan.md)) for documentation audit and convergence,
-then Slice 95 for CI completeness, runner repair and final release readiness.
-Publication remains held; the existing 0.8.29 hand-over rule applies when final
-verification begins. Adding Slice 92 does not itself start that hand-over.
+<!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 92** (`DOCUMENTATION-CONVERGENCE`) — Code-grounded user, contributor and project documentation audit and convergence
+
+**Remaining ladder:** 92 → 95.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+
+Product implementation completed through Slice 90 before the documentation
+convergence allocated to [Slice 92](0.8.28/features/slice-92/plan.md).
+[Slice 95](0.8.28/features/slice-95/plan.md) owns CI repairs and final release
+qualification. Publication remains held; the existing 0.8.29 hand-over rule
+applies when final verification begins. Documentation convergence alone does
+not start that hand-over.
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).

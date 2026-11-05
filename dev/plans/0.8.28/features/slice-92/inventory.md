@@ -96,3 +96,12 @@ packaging-prose changes require a targeted repack/recheck, not native recompilat
 | Release plan/state/board and Slice95 handoff | Select pending public_docs_target_release .28 without publication mutation; register design/inventory and hand reviewed baseline to95 after verification. |
 | Contributor/agent methods and tooling | Retain TDD/scoped/full gate/worktree/CI boundaries; checker regression fixes use RED/GREEN. No new lifecycle system, size gate, deployment or scope reallocation. |
 | Historical corpus | Retain prior release notes, closed slice/progress/experiment/proposal records and frozen public baselines in place. They are evidence, not current semantic authority. No bulk deletion/move/archive or ledger rewrite. |
+
+## Final gate follow-ups
+
+The existing preparation test exposed stale .27 current-navigation banners on
+three historical release notes. Only the banners and matching index metadata
+now point to pending .28; historical bodies/statuses remain intact. Supplemental
+Astra source review removed stale fixed taxonomy counts, supplied the missing
+runtime MaintenanceError matrix row, and corrected write_cursor persistence
+wording. No runtime behavior, historical decision or test oracle changed.

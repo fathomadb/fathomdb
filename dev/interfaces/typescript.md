@@ -934,8 +934,8 @@ above; Python source builds now do the same (owner ruling Q38). The rule is
   crash the process until the 0.8.29 fix.
 
 TypeScript exposes one concrete class per canonical row in
-`design/errors.md` — **44** of them as of 0.8.28, 1:1 with the Python set
-below `EngineError`.
+`design/errors.md`, matching the Python set below `EngineError`. The maintained
+matrix owns the current membership.
 
 Class examples:
 

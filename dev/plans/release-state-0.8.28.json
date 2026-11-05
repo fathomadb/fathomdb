@@ -68,6 +68,9 @@
   "release_readiness": null,
   "published": null,
   "generated_views": [
-    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
+    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Open decisions", "renders": "the count of unruled decisions"},
+    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.28.md", "location": "Immediate next slice", "renders": "next_slice and remaining_ladder"},
+    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Current state", "renders": "next_slice and local release-branch completions"},
+    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.28.md", "location": "Immediate next action", "renders": "lifecycle-aware next action and remaining_ladder"}
   ]
 }

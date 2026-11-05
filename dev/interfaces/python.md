@@ -887,8 +887,8 @@ memory quota, scheduler, or evidence that retrieval/FTS/fusion/graph work used
 the GPU.
 
 Python exposes one catch-all base class, `EngineError`, plus one concrete
-subclass per canonical row in `design/errors.md` — **44** of them as of 0.8.28,
-1:1 with the TypeScript set below `FathomDbError`.
+subclass per canonical row in `design/errors.md`, matching the TypeScript set
+below `FathomDbError`. The maintained matrix owns the current membership.
 
 Examples of caller-visible subclasses:
 

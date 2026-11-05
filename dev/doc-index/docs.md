@@ -50,8 +50,8 @@
 | `docs/positions/recovery-surface.md` | Position: recovery surface (denylist, CLI-only) | preserved by 25/30 | 2026-05-01 |
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
 | `docs/positions/embedder-identity.md` | Position: embedder identity | — | 2026-05-01 |
-| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/release-notes/0.8.26.md` | Historical 0.8.26 highlights, schema boundary, published artifacts and install routes | 0.8.27 Slice 10 | 2026-09-21 |
 | `dev/releases/0.8.0.md` | **0.8.0 internal release record** — engineering companion to the user notes: behavior-compat events, AC-075/076 gate restructure (◆ B-1), CI split, verification posture; every claim traces to a measured Slice-40 result or signed ADR | 40/GA-2 | 2026-06-08 |

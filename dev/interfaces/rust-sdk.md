@@ -324,17 +324,12 @@ produce it for `CudaPoolExhausted`, `CudaContextLost` and
 of one of those kinds); `Error::cuda_details()` returns the payload, and
 `None` for every other error. Context ids are `u64`.
 
-`ErrorKind` is a fieldless `Copy` enum with 45 variants:
-
-- one for each of the 44 non-base error classes Python and TypeScript share,
-  with the `Error` suffix removed: 42 true leaves plus the parents `Vector` and
-  `Embedder`;
-- `Engine` for the base-class fallback.
-
-`ErrorKind::ALL` lists all 45 variants in the order the Python binding
-declares the classes: base first, then `RuntimeConfiguration`, `Storage`, and
-so on through `ProjectionDestructive`, `CudaPoolExhausted`, `CudaContextLost`
-and `CudaPrivateBuildRefused`.
+`ErrorKind` is a fieldless `Copy` enum. There is one variant for each shared
+non-base Python/TypeScript class, with the `Error` suffix removed, including the
+`Vector` and `Embedder` category parents, plus `Engine` for base-class fallback.
+`ErrorKind::ALL` enumerates the current membership in source order; the maintained
+error matrix owns the cross-language mapping. New verification and maintenance
+families remain distinct rather than being collapsed into generic storage.
 
 `ErrorKind::parent()` returns:
 

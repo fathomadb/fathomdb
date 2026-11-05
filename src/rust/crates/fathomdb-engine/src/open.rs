@@ -1820,24 +1820,13 @@ fn table_exists(connection: &Connection, table: &str) -> bool {
         .is_ok()
 }
 
-// EU-5b lock-flip: the engine's default embedder identity is now the
-// pinned bge-small variant. Pre-existing 0.7.0 workspaces opened with
-// `EmbedderChoice::Default` will fail-closed on identity mismatch per
-// ADR-0.6.0-vector-identity-embedder-owned; callers can still hold an
-// historic profiles remain available through explicit no-provider metadata access.
+// Historical profiles remain readable through explicit no-provider admission;
+// production Default must match the pinned built-in identity.
 pub(crate) const DEFAULT_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";
 pub(crate) const DEFAULT_EMBEDDER_REVISION: &str = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a";
 pub(crate) const DEFAULT_EMBEDDER_DIMENSION: u32 = 384;
 
-/// Identity name of the bge-small embedder. `OpenReport.embedder_mean_centering_required`
-/// is `true` iff the live embedder identity reports this name. NoopEmbedder
-/// is `false`. Lifted out as a constant so the EU-5b lock-flip (when the
-/// engine's default identity becomes bge-small) is a single-line change.
-///
-/// TODO(EU-5b): when `DEFAULT_EMBEDDER_NAME` flips to this constant, the
-/// Default path will populate `embedder_mean_centering_required = true`
-/// without further engine work. Caller-supplied bge-small (rare today)
-/// already does the right thing.
+// Mean-centering follows the admitted built-in identity, not a device/backend name.
 pub(crate) const BGE_SMALL_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";
 
 static EXPLANATION_OPEN_NONCE_SEQUENCE: AtomicU64 = AtomicU64::new(0);

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 92 — documentation audit and convergence
-status: PLANNED
+status: APPROVED
 target_release: 0.8.28
 planning_baseline: 896ff59e96caa3b98c98e4b246c407b088dbaf28
 planned_on: 2026-11-04
@@ -52,7 +52,11 @@ The initial review at the planning baseline enumerated these material inputs:
    except for concrete defects; explaining the delivered contract adds no new
    campaign, guarantee or optimization work.
 
-**Disposition:** add this bounded convergence slice. At execution, enumerate
+**Execution reconciliation:** approved at `77b6f0b4d`; the only change since
+planning was the placement/handoff commit, with no product delta. Astra reviewed
+the concrete [design](design.md) and [audit inventory](inventory.md).
+
+**Disposition:** execute this bounded convergence slice. At execution, enumerate
 commits and allocated items since this baseline, review the related slice
 plans/statuses and assigned functions, then adjust the audit before editing.
 Reject a new documentation system, whole-tree rewrite, fixed historical counts,

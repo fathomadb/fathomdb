@@ -1,7 +1,7 @@
 # SDK Parity
 
 Python, TypeScript, and Rust (`fathomdb-sdk`) share the high-level application
-operation surface in 0.8.27. The CLI remains a separate operator surface.
+operation surface in 0.8.28. The CLI remains a separate operator surface.
 
 ## Shared behavior
 

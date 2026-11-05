@@ -9,6 +9,18 @@ status: locked
 
 # Test Plan
 
+## Current applicability
+
+The stable 0.6 rewrite identifiers below are retained traceability, not permission
+for public migration or superseded identity/provider behavior. Current contracts
+are owned by accepted [ADRs](adr/ADR-0.6.0-decision-index.md), maintained
+[interfaces](interfaces/rust.md) and the [active architecture](design/fathomdb-data-plane-architecture-v2.md).
+0.8.28 admits fresh/current format36 only, with logical_id-alone active identity,
+built-in-provider-or-none admission and explicit maintenance as documented there.
+Current release-local needs/requirements and accepted measurement replacements
+are in the [release plan](plans/plan-0.8.28.md). Historical migration fixtures do
+not establish a public upgrade path; global acceptance IDs/thresholds are unchanged.
+
 This file binds every `acceptance.md` criterion to an executable test identity,
 layer, owner, fixture family, and scaffold location.
 
@@ -41,9 +53,9 @@ anchor. No test id is valid without an AC back-reference.
 | AC-057a..AC-060b | integration          | Rust facade, Python, TypeScript                       | public-surface introspection, cursor read/write fixture, typed error matrix, JSON Schema payloads                                         | `src/rust/crates/fathomdb/tests/public_surface.rs`; `src/python/tests/test_public_surface.py`; `src/ts/tests/public-surface.test.ts`                                                                                                                            |
 | AC-061a..AC-063c | integration          | `fathomdb-engine` + `fathomdb-cli`                    | op-store append/latest collections, registry lifecycle, projection failure/restart/regenerate                                             | `src/rust/crates/fathomdb-engine/tests/op_store.rs`; `src/rust/crates/fathomdb-cli/tests/recovery_cli.rs`                                                                                                                                                       |
 | AC-G1-\*, AC-FTS-tokenizer-floor | unit/functional | `fathomdb-engine`, Python, TypeScript | structured `SearchHit` shape (id/kind/body/score/branch), dedup-on-body + vector-first order, FTS5 tokenizer recall floor across the step-11 migration, **SDK functional-harness tier** (write → search → retrieve, structured hit shape end-to-end across the FFI, cross-binding equivalence) | `src/rust/crates/fathomdb-engine/tests/pr_g1_search_hits.rs`; `src/rust/crates/fathomdb-engine/tests/pr_g1_tokenizer_recall.rs`; `src/python/tests/test_functional_search.py`; `src/ts/tests/functional-search.test.ts` |
-| AC-G0-\* (Slice 15, keystone) | unit/functional | `fathomdb-schema`, `fathomdb-engine`, Python, TypeScript | **G0 canonical-identity substrate** — step-12 migration pins (`logical_id`/`superseded_at` columns + partial-unique-active + folded G4/G5 indexes on both canonical tables; `user_version == 12`), accretion-exemption-marker mirror (additive `ALTER` passes the guard ONLY with the marker); engine identity tier — tombstone-then-insert supersession idempotence (one active per `(logical_id, kind)`), **partial-unique NULL-safety** (many NULL-`logical_id` rows coexist active), two-active-same-key collision fires, superseded+active coexist, `WriteReceipt.row_cursors` 1:1 with the batch, legacy v11→v12 in-place upgrade with NULL back-fill; **SDK row_cursors + Py≡TS equivalence + supersession write case** | `src/rust/crates/fathomdb-schema/tests/migrations.rs`; `src/rust/crates/fathomdb-engine/tests/pr_g0_identity.rs`; `src/python/tests/test_functional_search.py`; `src/ts/tests/functional-search.test.ts` |
+| AC-G0-\* (Slice 15, keystone) | unit/functional | `fathomdb-schema`, `fathomdb-engine`, Python, TypeScript | **G0 canonical-identity substrate** — step-12 migration pins (`logical_id`/`superseded_at` columns + partial-unique-active + folded G4/G5 indexes on both canonical tables; `user_version == 12`), accretion-exemption-marker mirror (additive `ALTER` passes the guard ONLY with the marker); engine identity tier — tombstone-then-insert supersession idempotence (one active per `logical_id`, separately for nodes/edges), **partial-unique NULL-safety** (many NULL-`logical_id` rows coexist active), two-active-same-key collision fires, superseded+active coexist, `WriteReceipt.row_cursors` 1:1 with the batch, legacy v11→v12 in-place upgrade with NULL back-fill; **SDK row_cursors + Py≡TS equivalence + supersession write case** | `src/rust/crates/fathomdb-schema/tests/migrations.rs`; `src/rust/crates/fathomdb-engine/tests/pr_g0_identity.rs`; `src/python/tests/test_functional_search.py`; `src/ts/tests/functional-search.test.ts` |
 | G8/F10 (Slice 20; gap-tracked, no AC id) | unit/functional | `fathomdb-engine`, Python, TypeScript | **G8 dangling-edge flag-and-count** — `WriteReceipt.dangling_edge_endpoints`: one-missing-endpoint counts 1, same-batch later-inserted node NOT flagged (cross-row), edge→superseded node counts, default flag-and-count commits the batch, sum-over-both-endpoints (both-missing → 2), **per-endpoint EXISTS probe hits the step-12 partial index `canonical_nodes_logical_active_idx` (EXPLAIN QUERY PLAN, no SCAN)**, legacy NULL-`logical_id` baseline writes with a well-defined count; **SDK `dangling_edge_endpoints` + Py≡TS equivalence (clean 0, both-missing 2)** | `src/rust/crates/fathomdb-engine/tests/pr_g8_dangling_edges.rs`; `src/python/tests/test_functional_search.py`; `src/ts/tests/functional-search.test.ts` |
-| AC-G9-\*, AC-G10-\*, AC-G12-recency (Slice 10) | unit/functional | `fathomdb-engine`, Python, TypeScript | **G9 RRF-fusion tier** — `fuse_rrf` formula (`Σ 1/(60+rank)`), agreement-outranks-single-branch, vector-first tiebreak, dedup-on-body, `rerank_fused` identity stub, end-to-end determinism, vector-empty soft-fallback before branch collapse; **G10 filtered-KNN tier** — `SearchFilter` prunes in phase 1, **`filter=None` byte-identical-to-0.7.2 SQL pin**, aux-vs-`TEXT` regression, 3-way shape-sentinel back-fills `status` on a simulated Pack-1 DB, `status` empty-string sentinel prunes; **G12-recency tier** — off-by-default no-op / equal-RRF tie reorders by recency / clear-signal not overridden / reweight-latency gate; **SDK filter parity + cross-binding RRF order** | `src/rust/crates/fathomdb-engine/tests/pr_g9_rrf_fusion.rs`; `src/rust/crates/fathomdb-engine/tests/pr_g10_filtered_knn.rs`; `src/rust/crates/fathomdb-engine/tests/pr_g12_recency.rs`; `src/python/tests/test_functional_search.py`; `src/ts/tests/functional-search.test.ts` |
+| AC-G9-\*, AC-G10-\*, AC-G12-recency (Slice 10) | unit/functional | `fathomdb-engine`, Python, TypeScript | **G9 RRF-fusion tier** — `fuse_rrf` formula (`Σ w/(30+rank)`), agreement-outranks-single-branch, vector-first tiebreak, dedup-on-body, `rerank_fused` identity stub, end-to-end determinism, vector-empty soft-fallback before branch collapse; **G10 filtered-KNN tier** — `SearchFilter` prunes in phase 1, **`filter=None` byte-identical-to-0.7.2 SQL pin**, aux-vs-`TEXT` regression, 3-way shape-sentinel back-fills `status` on a simulated Pack-1 DB, `status` empty-string sentinel prunes; **G12-recency tier** — off-by-default no-op / equal-RRF tie reorders by recency / clear-signal not overridden / reweight-latency gate; **SDK filter parity + cross-binding RRF order** | `src/rust/crates/fathomdb-engine/tests/pr_g9_rrf_fusion.rs`; `src/rust/crates/fathomdb-engine/tests/pr_g10_filtered_knn.rs`; `src/rust/crates/fathomdb-engine/tests/pr_g12_recency.rs`; `src/python/tests/test_functional_search.py`; `src/ts/tests/functional-search.test.ts` |
 
 ## Required Fixtures
 
@@ -76,15 +88,14 @@ reused across suites:
      exercise: AC-021's 60 s spec-conforming window, AC-059b's
      ~1000-iteration cursor-race fixture
      (`cursor_read_after_write::projection_cursor_bounds_observed_row_count`),
-     and AC-081a/b's absolute sequential/eight-reader comparison once that
-     read-mix fixture is landed. `agent-verify` runs the AC-021 5 s
+     and AC-081a/b's implemented absolute sequential/eight-reader comparison
+     (`perf_gates.rs::ac_081_absolute_read_performance`). `agent-verify` runs the AC-021 5 s
      smoke variant only; the smoke run
      does not satisfy AC-021's measurement protocol on its own.
    - `scripts/check.sh` with `AGENT_LONG=1` (full evidence gate) runs
      everything `agent-verify` runs PLUS the long-run variants: AC-021's
      60 s spec-conforming window, AC-059b's ~1000-iteration race
-     fixture, and AC-081a/b's sequential/eight-reader comparison once the
-     read-mix fixture is protocol-complete. AC-059b has no smoke
+     fixture, and AC-081a/b's implemented sequential/eight-reader comparison. AC-059b has no smoke
      variant — its evidence comes exclusively from this gate.
 
    A reviewer reading just this section should be able to attribute each

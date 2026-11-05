@@ -1,7 +1,7 @@
 ---
 title: Retrieval Subsystem Design
 date: 2026-09-17
-target_release: 0.8.26
+target_release: 0.8.28
 desc: Current lexical, vector, fusion, reranking, graph, frozen-view, explanation, and evidence pipeline
 blast_radius: fathomdb-query; fathomdb-engine retrieval/frozen/evidence/graph paths; SDK search and graph interfaces
 status: ACTIVE
@@ -44,6 +44,29 @@ Retrieval is a typed, bounded data-plane operation:
 Eligibility-before-truncation is load-bearing. A hidden, expired, deleted,
 superseded, ineligible, or wrong-generation row cannot consume a bounded slot
 and then disappear after ranking. Current and frozen paths share that rule.
+
+## Current .28 selection and query compilation
+
+Direct node/edge body FTS applies optional SearchFilter eligibility in its
+snapshot-local SQL before candidate caps, deduplication, ranking and limit.
+A same-selection/query/filter/effective-time comparison preserves the ordered
+prefix as the accepted limit grows. This does not promise hybrid prefix order.
+Node attributes use declared filterable projections; a nonempty attribute
+filter excludes edge hits rather than ignoring its predicates. Status/time require existing vector metadata, with empty-string status
+and inclusive projection time; missing rows fail to match. Kind/source type and
+available attributes work without a provider.
+
+Independent include_superseded/include_inactive flags widen lifecycle visibility
+without weakening validity, dependency or mandatory edge-expiry rules. Historical
+property predicates use canonical rows; incomplete historical dense coverage
+uses lexical fallback. Dense direct lifecycle/validity eligibility is compiled
+inside vec0 before its cap, replacing the old whole-store eligibility scan.
+
+Query stop words are fixed at open, matched exactly before stemming, and
+identified by their effective hash. Context pack is a stateless SDK renderer;
+full_ids overrides automatic tiers, scalar item-text budgets exclude rendering
+overhead. Neither adds a retrieval/model round or changes stored body bytes.
+Details remain in the interfaces and public context/filter guides.
 
 ## Candidate arms
 
@@ -90,8 +113,9 @@ Absent stored importance or confidence remains neutral. When ranking or an
 opt-in explanation reads those values, a statement or row-decoding failure
 returns `EngineError::Storage` rather than treating the failed lookup as absent.
 
-Dense-equivalence failure disables vector-dependent work without disabling the
-text-only path. Device selection for the embedder and cross-encoder is
+Numerical compatibility failure refuses open with no Engine. An explicit
+subsequent no-provider open can supply text-only access if otherwise admissible;
+there is no attached refused Engine or automatic retry. Device selection for the embedder and cross-encoder is
 independent; a reranker device result never attests the embedding or SQLite
 candidate path.
 

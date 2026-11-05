@@ -12,10 +12,10 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-**Product implementation complete through Slice 90. Slice 92 is planned next**
+**Product implementation complete through Slice 90. Slice 92 is in progress**
 for [documentation audit and convergence](../0.8.28/features/slice-92/plan.md).
 Slice 95 follows with [CI repairs and final qualification](../0.8.28/features/slice-95/plan.md),
-strengthened by the 0.8.26/0.8.27 review. No Slice 92/95 execution or publication
+strengthened by the 0.8.26/0.8.27 review. Slice 92 is executing; no Slice 95 qualification or publication
 is claimed; physical erasure is done except for defects.
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
@@ -75,7 +75,7 @@ Ruled on 2026-10-30 and 2026-10-31 (release state, `decisions.ruled`):
 - **D28-12** is met for vector and hybrid latency; populated-open latency
   moves to 0.8.29.
 - **Slice 92.** Owner placed documentation audit/convergence after 90 and before
-  95 on 2026-11-04 (seq-365); execution has not started.
+  95 on 2026-11-04 (seq-365); documentation convergence is in progress.
 - **Slice 95.** Owner placed CI completeness and final release-readiness work
   initially after 90 on 2026-11-04 (seq-364); now depends on 92. Physical erasure is done except for
   defects; publication remains held.
@@ -108,7 +108,7 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 84 | Cleanup contention investigation | 84 and 84b investigations complete; both optimizations NOT QUALIFIED and rejected. Baseline production restored at `426d2278258076bfb98df47c51c214338e0559f2`; scoped/resumed verification complete. [Status](../0.8.28/features/slice-84/status.md). |
 | 85 | Explicit physical-erasure maintenance | Complete on canonical `release/0.8.28` at `a2fb4a6475500b70676f9f54aff251df60f3e07c`; Astra final approval, independent S85-1–8, assembled gate and first bounded screen pass. Hosted CI setup/disk/legacy-smoke limitations remain follow-up. [Status](../0.8.28/features/slice-85/status.md). |
 | 90 | D28-14 filtered direct body FTS | Complete at `14d710093f1b3e061d4625c0a62665a6ff899372`; Astra design/code approval, independent verification and fresh binding tests. [Status](../0.8.28/features/slice-90/status.md). |
-| 92 | Documentation audit and convergence | PLANNED after 90 and before 95; user, contributor and project truth/hygiene, S92-1–8. [Plan](../0.8.28/features/slice-92/plan.md); [status](../0.8.28/features/slice-92/status.md). |
+| 92 | Documentation audit and convergence | IN_PROGRESS after 90 and before 95; user, contributor and project truth/hygiene, S92-1–8. [Plan](../0.8.28/features/slice-92/plan.md); [status](../0.8.28/features/slice-92/status.md). |
 | 95 | CI completeness and final release readiness | PLANNED after 92; S95-CI1–CI7 repairs and S95-1–11 acceptance incorporate historical CI/platform/feature/rehearsal robustness. [Plan](../0.8.28/features/slice-95/plan.md); [status](../0.8.28/features/slice-95/status.md). |
 
 Implementation ladder complete. Slice 84/84b closed with negative qualification. Slices 41 and 42 were added by owner rulings on

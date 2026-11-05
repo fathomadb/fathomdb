@@ -5,7 +5,7 @@ application-surface verbs like `search`, `get`, or `list`. Use the SDK
 for those.
 
 Authoritative spec:
-[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/cli.md);
+[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/cli.md);
 recovery semantics owned by `dev/design/recovery.md`.
 
 ## Roots
@@ -92,15 +92,15 @@ Inspection failures use `inspection_unavailable`, `inspection_lock_missing`,
 `database_schema_mismatch`, or `integrity_corrupt` without exposing raw SQLite
 diagnostics.
 
-Install the 0.8.27 CLI at the exact version and confirm its identity:
+Install the 0.8.28 CLI at the exact version and confirm its identity:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.27' --locked
+cargo install fathomdb-cli --version '=0.8.28' --locked
 fathomdb --version
 ```
 
 During source qualification, use the [Rust install procedure](../install/rust.md).
-Public 0.8.27 opens require a fresh or already-current schema-34 database; an
+Public 0.8.28 opens require a fresh or already-current schema-36 database; an
 older non-empty database is rejected before product mutation.
 
 ### GPU and platform diagnostics
@@ -157,7 +157,7 @@ exits `70`; otherwise it exits `0`. See
 [GPU acceleration](../embedder.md#cuda-library-and-gpu-requirements).
 
 For a confirmed classic Jetson/Tegra CUDA host, `fathomdb doctor gpu --help`
-prints the exact interim 0.8.27 command: `fathomdb==0.8.27+tegra` from
+prints the exact interim 0.8.28 command: `fathomdb==0.8.28+tegra` from
 `https://fathomadb.github.io/fathomdb/tegra/simple/`. It uses one index and an
 exact version; do not use a floating requirement or `--extra-index-url`.
 Unsupported targets have no supported Tegra CUDA route.
@@ -235,6 +235,7 @@ See [Erasure](../operations/erasure.md) for the full erasure boundary.
 ```text
 fathomdb recover --accept-data-loss
   [--truncate-wal]
+  [--complete-erasures]
   [--rebuild-vec0]
   [--rebuild-projections]
   [--excise-source <id>]
@@ -255,6 +256,19 @@ command.
 `--excise-collection` and `--excise-record-key` are required together;
 they erase every append-only-log version of one op-store record key
 plus its latest-state row.
+
+### Complete activated erasure debt
+
+`fathomdb recover --accept-data-loss --complete-erasures --json ./store.sqlite`
+finishes owed activated cleanup; it does not activate arbitrary queued intent.
+It retains exact current-schema admission, original-sink reconciliation and WAL
+truncation prerequisites. Unavailable original sinks or pinned external readers
+remain incomplete outcomes, not success. Ordinary recovery exit classes below
+apply. See [erasure](../operations/erasure.md#schedule-an-explicit-maintenance-window).
+
+Projection/vector rebuild is not certified numerical compatibility repair. In
+particular, no-provider rebuild of previously dense state has a known limitation:
+it can invalidate that state without a usable provider.
 
 ### `--excise-source` vs the SDK erasure verbs
 
@@ -302,4 +316,4 @@ See [Python API](python-api.md) / [TypeScript API](typescript-api.md).
 
 - [Errors](errors.md)
 - [Install — Rust / CLI](../install/rust.md)
-- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/cli.md)
+- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/cli.md)

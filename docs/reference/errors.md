@@ -1,8 +1,8 @@
 # Errors
 
 Single-rooted exception hierarchy. Python root is `EngineError`; TS root is
-`FathomDbError`. Both bindings expose the same **44 typed classes below the
-root** in idiomatic spelling: Python payload fields use snake_case and
+`FathomDbError`. Both bindings expose matching typed error categories
+in idiomatic spelling: Python payload fields use snake_case and
 TypeScript uses camelCase. Panic carriers are deliberately outside the
 catch-all root.
 
@@ -68,7 +68,7 @@ try {
 | `DatabaseLockedError`              | On-disk lock held by another process                                          | `holder_pid` / `holderPid`                                               | wait for holder to release, or kill it |
 | `CorruptionError`                  | Open-time integrity failure                                                   | `kind`, `stage`, `recovery_hint_code` / camelCase + `doc_anchor`         | follow `recovery_hint_code`; see `doctor` + `recover` |
 | `RuntimeConfigurationError`        | SQLite startup mode is late, conflicts, or SQLite rejected configuration      | `reason`, `requested_mode`, `effective_mode`, `sqlite_code` / camelCase | configure once before the first Engine open; restart to change mode |
-| `IncompatibleSchemaVersionError`   | DB on-disk schema not compatible with this build                              | —                                                                        | upgrade engine; or downgrade DB                                |
+| `IncompatibleSchemaVersionError`   | DB on-disk schema not compatible with this build                              | —                                                                        | use the matching old product for export, then re-ingest into a fresh current store; no in-place upgrade/downgrade                                |
 | `MigrationError`                   | Migration step failed                                                         | —                                                                        | see `doctor check-integrity`; may require `recover` |
 | `EmbedderIdentityMismatchError`    | Configured embedder identity differs from stored                              | `stored_name`, `stored_revision`, `supplied_name`, `supplied_revision`   | restore prior embedder OR re-embed with new identity |
 | `EmbedderDimensionMismatchError`   | Configured embedder dimension differs from stored                             | `stored`, `supplied`                                                     | restore prior dimension OR re-embed |
@@ -76,7 +76,9 @@ try {
 | `ConsolidatorError`                | BYO-LLM consolidation provider protocol error (`consolidate_with_provider`)  | —                                                                        | check provider command + advertised tasks |
 | `InvalidArgumentError`             | Invalid argument, including native per-engine configuration range/capacity; also `depth > 3` in `graph.neighbors`, a ranked-search limit outside `1..=100`, or an unrecognised enum spelling | — | fix the call argument |
 | `InvalidFilterError`               | Invalid filter predicate — e.g. non-allowlisted `json_path` in `read.list`   | —                                                                        | use an allowlisted path (`$.status`, `$.priority`, `$.tags`, `$.kind`, `$.created_at`) |
-| `VectorEquivalenceMismatchError`   | Open-time vector-equivalence self-check found a divergence, so vector-dependent arms refuse at query time | `reason`                                     | use `search_text_only` / `searchTextOnly`; re-embed under the current backend |
+| `VectorEquivalenceMismatchError`   | Open-time numerical divergence; no Engine is returned | `reason`                                     | inspect backend provenance; explicitly reopen without a provider for canonical/text access, not certified dense repair |
+| `VectorVerificationError` | Open could not establish numerical verification; no Engine is returned | `probe_ordinal`, `cause_code`, `cause_message`, `provider_kind`, `provider_error` / camelCase | diagnose the original typed provider cause; no automatic no-provider retry |
+| `MaintenanceError` | Policy, ticket, maintenance ownership or durable-fence refusal | `reason` | follow the maintenance outcome; closing a handle does not forgive activated debt |
 | `IllegalTransitionError`           | `transition` asked for a lifecycle move the state machine forbids            | `from_state`, `to_state`, `legal` / `fromState`, `toState`, `legal`      | pick a target from `legal` |
 | `NotLifecycleAddressableError`     | `transition` / `purge` addressed a non-`l:` id (`h:` content, `p:` passage)  | `id_space` / `idSpace`                                                   | only `logical`-space ids are lifecycle-addressable |
 | `ErasureIncompleteError`           | An erasure verb deleted its rows but could not finish the erasure at rest    | `stage`, `detail`                                                        | retry the verb (idempotent) once concurrent readers have finished |

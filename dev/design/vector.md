@@ -20,7 +20,10 @@ composition remain in `retrieval.md`.
 `_fathomdb_embedder_profiles` stores the configured profile name, immutable
 embedder name/revision, dimension, and optional little-endian f32 workspace
 mean. `_fathomdb_vector_rows` is the ordinary-SQL sidecar mapping one vec0 row
-ID to its kind and unique canonical write cursor.
+ID to its kind and canonical write cursor. Distinct vector IDs can map to one
+canonical revision; current production stores one head-window vector per row.
+`_fathomdb_vector_spans` records per-vector UTF-8 start/end/total-byte coverage;
+unknown coverage is NULL, not a claim of full-body embedding.
 
 The engine creates the dimension-aware `vector_default` vec0 table. Its current
 shape is:
@@ -28,11 +31,17 @@ shape is:
 - `embedding float[dimension]` for the uncentered f32 vector;
 - `embedding_bin bit[dimension]` for the mean-centered sign bits;
 - `source_type TEXT partition key`;
-- indexed metadata `kind`, `created_at`, and `status`; and
+- indexed metadata `kind`, projection `created_at`, sentinel `status`,
+  `lifecycle`, `valid_from` and `valid_until`; and
 - one `attr_<lowercase UTF-8 hex> TEXT` metadata column for each declared
   filterable projection attribute.
 
-The schema crate owns the ordinary profile/sidecar tables. The engine owns the
+The vec0 chunk size is 64 rows. Lifecycle and validity metadata stay synchronized
+with canonical writes/supersession/erasure; dense eligibility runs inside the KNN
+statement before its candidate cap, with dependency fallback preserved. Head-span
+metadata does not enable chunked retrieval.
+
+The schema crate owns the ordinary profile/sidecar/span tables. The engine owns the
 runtime-dimension vec0 DDL because SQLite virtual-table construction depends on
 the admitted profile dimension. `ADR-0.8.11-filter-grammar-unification.md`
 owns which public filters may lower to the indexed metadata columns.
@@ -57,8 +66,11 @@ predicate.
 
 ## Erasure and recovery
 
-Canonical purge and source excision delete both `_fathomdb_vector_rows` and the
-corresponding `vector_default` row before reporting erasure complete. The
+Canonical purge and source excision remove record-mapped sidecars, span rows and
+corresponding `vector_default` rows before physical success. Under persisted
+explicit-maintenance policy, queued intent leaves visibility unchanged until
+activated; the [maintenance owner](explicit-maintenance-erasure/contract.md)
+defines exclusive cleanup, durable incomplete fences and original-sink/WAL proof. The
 dimension/profile metadata is not reconstructed from a vector shadow row.
 
 `rebuild_vec0` treats vector state as derived: it truncates vec0 plus sidecar
@@ -71,7 +83,8 @@ known historical schema transition; generalized silent repair is not allowed.
 
 - Schema/profile/sidecar: `src/rust/crates/fathomdb-schema/src/lib.rs`.
 - vec0 DDL, encoding, query, erasure, and rebuild:
-  `src/rust/crates/fathomdb-engine/src/lib.rs`.
+  `src/rust/crates/fathomdb-engine/src/vector_storage.rs`, `search.rs`,
+  `erasure.rs` and the maintained operator modules.
 - Shape and encoding: `vector_quant_pack1.rs` and `pr2b_mean_recompute.rs`.
 - Snapshot/filter lowering: `slice15e_prekn_filterable.rs` and
   `slice45_nested_source_projections.rs`.

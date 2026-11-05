@@ -9,6 +9,18 @@ status: locked
 
 # User Needs
 
+## Current applicability
+
+The stable 0.6 rewrite identifiers below are retained traceability, not permission
+for public migration or superseded identity/provider behavior. Current contracts
+are owned by accepted [ADRs](adr/ADR-0.6.0-decision-index.md), maintained
+[interfaces](interfaces/rust.md) and the [active architecture](design/fathomdb-data-plane-architecture-v2.md).
+0.8.28 admits fresh/current format36 only, with logical_id-alone active identity,
+built-in-provider-or-none admission and explicit maintenance as documented there.
+Current release-local needs/requirements and accepted measurement replacements
+are in the [release plan](plans/plan-0.8.28.md). Historical migration fixtures do
+not establish a public upgrade path; global acceptance IDs/thresholds are unchanged.
+
 This file captures the user-needs framing for the 0.6.0 rewrite: who FathomDB
 is for, what outcomes they need, and what constraints matter. It is intentionally
 not a requirements list and does not own numerical targets.

@@ -1,9 +1,9 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/python.md).
 
-> **Release 0.8.27, pre-1.0 beta.**
+> **Release 0.8.28, pre-1.0 beta.**
 
 ## Representative top-level imports
 
@@ -70,9 +70,13 @@ The structured open report is available after open via
 
 The structured open report defined in `dev/design/engine.md`:
 `migration_version_reached`, embedder identity confirmation,
-open-stage data, `dense_disabled` / `dense_disabled_reason`, and the
+open-stage data, `stop_words_sha256`, and the
 embedder telemetry fields (`embedder_download_ms`, `embedder_events`,
 `embedder_mean_centering_required`, `embedder_mean_vec_pinned`).
+
+Numerical mismatch or inability to verify fails open without an Engine; there
+is no dense-disabled report mode. See [compatibility errors](errors.md) and
+[provider verification](../embedder.md#cross-backend-discipline).
 
 ### `engine.write(batch=None) -> WriteReceipt`
 
@@ -183,9 +187,10 @@ arm (0.8.1 R3).
   data in `SearchResult.explanation`; non-boolean values raise `TypeError`.
 - `view` (`ReadView | None`, default `None`) — controls validity at query time
   or an explicit `valid_as_of` instant. `include_out_of_window=True` widens
-  validity windows. Search rejects `include_superseded` and
-  `include_inactive` with `InvalidArgumentError`; projection indexes cannot
-  answer those existence-history views. Use `read.list` for that history.
+  validity windows. `include_superseded` and `include_inactive` are independent
+  opt-ins; validity, dependency and mandatory edge-expiry restrictions still
+  apply. Incomplete historical dense coverage uses the defined lexical fallback
+  rather than silently returning an incomplete dense answer.
 - `limit` (`int`, default `10`) — maximum ranked hits returned. It must be in
   `1..=100`; zero, negative values, and values above 100 raise
   `InvalidArgumentError` and are never silently clamped.
@@ -202,16 +207,26 @@ arm (0.8.1 R3).
 > deliberate, documented 0.8.0 ranking change; pre-0.8.0 union-dedup ordering is
 > not retained. See [hybrid search guide](../guides/hybrid-search-filtering.md).
 
-### `engine.search_text_only(query, view=None, *, limit=10) -> SearchResult`
+### `engine.search_text_only(query, view=None, *, limit=10, filter=None) -> SearchResult`
 
 Run direct FTS retrieval without embedding, vector retrieval, CE reranking, or
 graph expansion. Matching node- and edge-body candidates are deterministically
 body-deduplicated and ranked before `limit` is applied. The node candidate input
-is fixed at 100, so for the same immutable selection, query, and effective
+is fixed at 100, so for the same immutable selection, query, filter, and effective
 validity time, a smaller accepted limit returns the ordered prefix of a larger
 one. Compare `view=ReadView(valid_as_of=...)` calls only at the same explicit
 instant; an omitted `valid_as_of` resolves per call. This guarantee does not
 extend to hybrid `engine.search`.
+
+`filter` is keyword-only and accepts `SearchFilter | None`. Existing positional
+`view` calls remain valid. Predicates apply to snapshot-local node/edge body
+FTS before candidate caps, deduplication, ranking and limit. Attributes are
+node-scoped ordered AND equality over declared filterable projections. Kind/
+source type and available attributes work without a provider. Status/time require
+existing vector metadata: projected status is the empty-string sentinel and
+`created_after` / `createdAfter` is inclusive projection time. Missing metadata
+does not match. This is body FTS, with no vector, reranker or graph work. See
+[filter guide](../guides/hybrid-search-filtering.md).
 
 ### `engine.search_projected_text(query, name, filter=None, *, view=None, limit=10) -> SearchResult`
 
@@ -534,9 +549,12 @@ For an effective vector declaration, the returned
 `ProjectionSpec.vector_dense_readiness: DenseReadiness | None` is engine-set
 read metadata, never part of configuration. Supplying a valid readiness value
 with `vector=True` to `configure_projections` is accepted but inert, so a result
-from `read.projections` can be configured again as a no-op; an invalid spelling
+from `read.projections` can be configured again as a no-op when its provider
+selectors are still valid for production admission. Historical caller selector
+strings are readable but refused on new configuration. An invalid spelling
 or a readiness with `vector=False` is rejected. With no usable dense runtime
-(including an equivalence refusal), the engine reports `"unavailable"`.
+the engine reports `"unavailable"`; numerical verification refusal returns no
+Engine and is not an attached readiness state.
 With a usable runtime it reports `"embedding"` while eligible shared work is
 outstanding; after `engine.drain(...)` completes and no further work is issued,
 it reports `"ready"`. `DenseReadiness` is exactly `"unavailable" |
@@ -557,7 +575,7 @@ The frozen result has these fields:
 ProjectionRuntimeStatus(
     runtime_embedder_available: bool,
     runtime_unavailability_reason: (
-        "none" | "no_runtime" | "vector_equivalence_disabled"
+        "none" | "no_runtime"
     ),
     projections: tuple[ProjectionRuntimeStatusEntry, ...],
     vector_unsupported_kinds: tuple[str, ...],
@@ -833,10 +851,22 @@ CUDA-capable package do not rebuild to switch between CPU and GPU. See
 this does not make SQLite retrieval, FTS, fusion, graph, or storage GPU work,
 and FathomDB provides no GPU reservation or hard memory cap.
 
+## Explicit erasure maintenance
+
+The persisted policy and owned maintenance window are available in all three SDKs.
+Python uses `begin_erasure_maintenance`, `queue_physical_erasure`,
+`physical_erasure_status`, `withdraw_queued_erasure` and
+`complete_physical_erasure`; TypeScript uses camelCase counterparts. Queueing
+leaves existing logical visibility unchanged. A window excludes ordinary work;
+activated incomplete debt retains durable write fences and original-sink/WAL
+requirements. Acquisition wait is not a cleanup timeout. Handle close does not
+forgive debt. See [the complete maintenance example](../operations/erasure.md#schedule-an-explicit-maintenance-window)
+for typed outcomes, original-sink reattachment and retry rules.
+
 ## See also
 
 - [Quickstart](../getting-started/quickstart.md)
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/dev/interfaces/python.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/python.md)

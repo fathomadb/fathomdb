@@ -60,7 +60,7 @@ impl Engine {
     pub fn drain(&self, timeout_ms: u64) -> Result<(), EngineError> {
         let _operation = self.ensure_open()?;
         // Only a session with no configured embedder can produce the typed
-        // missing-configuration result. A configured (including refused)
+        // missing-configuration result. A configured usable
         // runtime goes straight to the scheduler's authoritative idle check,
         // avoiding an otherwise duplicate full pending-work scan.
         if self.runtime_embedder.is_none() {

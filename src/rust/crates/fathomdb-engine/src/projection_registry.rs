@@ -69,7 +69,7 @@ pub struct ProjectionFts {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum DenseReadiness {
     /// Engine-selected state for a session with no usable dense runtime (an
-    /// absent embedder or refused vector equivalence). Caller input remains
+    /// absent embedder). Open-time verification refusal returns no Engine. Input remains
     /// accept-inert; reads select this through the shared runtime predicate.
     Unavailable,
     /// At least one row in the vector projection's row set has not yet reached a

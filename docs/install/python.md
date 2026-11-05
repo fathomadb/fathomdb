@@ -1,10 +1,13 @@
 # Install — Python
 
+> Documentation targets 0.8.28; publication is pending. Exact-version install
+> commands apply once matching registry or Pages artifacts are published.
+
 The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).
 
-> **Release 0.8.27, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
+> **Release 0.8.28, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
 > AArch64/glibc, macOS x64/arm64, and Windows x64. Other hosts must use the
 > from-source path below. FathomDB is pre-1.0 and the surface is **beta**.
 
@@ -17,19 +20,18 @@ required on supported platforms).
   - macOS `x86_64-apple-darwin`
   - macOS `aarch64-apple-darwin`
   - Windows `x86_64-pc-windows-msvc`
-- SQLite with the [`sqlite-vec`](https://github.com/asg017/sqlite-vec)
-  extension available to the loader (statically linked into the wheel
-  for supported platforms).
+- Official wheels bundle SQLite and statically link `sqlite-vec`; no system
+  SQLite headers or separate extension installation are needed.
 
 ## Install the wheel
 
 ```bash
-pip install fathomdb==0.8.27
+pip install fathomdb==0.8.28
 ```
 
 ## Build from source
 
-Editable from a trusted `release/0.8.27` checkout using [maturin](https://www.maturin.rs/):
+Editable from a trusted `release/0.8.28` checkout using [maturin](https://www.maturin.rs/):
 
 ```bash
 git clone https://github.com/fathomadb/fathomdb
@@ -45,9 +47,9 @@ only supported native-build path for development.
 ## Jetson / Tegra CUDA
 
 On a confirmed classic Jetson Orin (L4T R36 / JetPack 6, CUDA 12.6), install
-the exact 0.8.27 Tegra build from the first-party index. Confirm its
-`0.8.27+tegra` wheel entry and SHA-256 in the
-[retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/scripts/release/tegra-pages-retained.json)
+the exact 0.8.28 Tegra build from the first-party index. Confirm its
+`0.8.28+tegra` wheel entry and SHA-256 in the
+[retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/scripts/release/tegra-pages-retained.json)
 before installation:
 
 ```bash
@@ -55,11 +57,11 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.27+tegra'
+  'fathomdb==0.8.28+tegra'
 ```
 
 This is a detection-gated, exact-version route: do not use a floating version
-or `--extra-index-url`. The GitHub Pages transport is interim 0.8.27 hosting
+or `--extra-index-url`. The GitHub Pages transport is interim 0.8.28 hosting
 and is published only through the documented exact-SHA workflow. Unsupported JetPack,
 generic AArch64/SBSA, and Thor hosts have no supported Tegra CUDA route. Do not
 use a generic AArch64 CUDA build on classic Tegra; the SDK emits a visible
@@ -97,17 +99,14 @@ for a richer walkthrough.
 
 ## Troubleshooting
 
-- **`ImportError: libsqlite3 ...`** — your system SQLite is older than
-  the version the wheel was built against. Install via your package
-  manager (`apt install libsqlite3-dev`, `brew install sqlite`, etc.)
-  or upgrade.
-- **`OSError: sqlite-vec extension not found`** — `sqlite-vec` is
-  statically linked into the official wheels. If you are building from
-  source, ensure `sqlite-vec` is installed and discoverable by the
-  build script.
-- **`pip install -e src/python/` fails on `maturin`** — install maturin
-  explicitly (`pip install maturin`) and retry. The build also requires
-  a stable Rust toolchain (`rustup default stable`).
+- **SQLite or extension load errors** — official wheels bundle SQLite and
+  `sqlite-vec`. Verify the exact wheel/platform and environment rather than
+  installing unrelated system SQLite libraries. Source builds use the pinned
+  bundled Rust dependencies and need supported C/C++ build tools.
+- **Editable native build failure** — follow the contributor bootstrap and
+  `pip install -e src/python/` route with Rust 1.95.0 or newer. Do not copy a
+  separately built native module into the package.
+
 - **`fathomdb.errors.DatabaseLockedError`** — another process holds an
   exclusive lock on the DB file. See
   [errors reference](../reference/errors.md).

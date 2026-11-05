@@ -66,8 +66,8 @@ No provider means no embed workers or request queue. More than one worker
 permits concurrent calls on the shared provider; it does not serialize them.
 Projection, ordinary and frozen search, direct `Engine::embed_text`, and
 open-time vector-equivalence inference all use this dispatcher. The
-default-compiled `write_vector_for_test` seam is the sole temporary exception
-and supplies no deadline or capacity evidence.
+`write_vector_for_test` seam exists only under unit-test/explicit `test-hooks`
+gating and supplies no production deadline or capacity evidence.
 
 Each admitted call receives one absolute monotonic deadline before enqueue
 (default 30,000 ms, accepted `1..=u32::MAX`). Queue wait and provider service
@@ -105,6 +105,11 @@ create binding-specific surface.
 ---
 
 ## §0 — Mean-centering sub-design
+
+The mean/encoding invariants remain current. Historical migration and
+caller-provider examples below are retained rationale, not production injection
+or cross-format upgrade support; current admission is defined above and in
+[`migrations.md`](migrations.md).
 
 ### §0.1 Why it exists
 

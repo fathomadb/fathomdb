@@ -1,10 +1,13 @@
 # Install — Rust
 
+> Documentation targets 0.8.28; publication is pending. Exact-version install
+> commands apply once matching registry or Pages artifacts are published.
+
 Rust application code uses `fathomdb-sdk`, the peer of the Python and
 TypeScript SDKs. The lower-level facade and operator CLI remain separate
 consumption routes:
 
-- **`fathomdb-sdk`** (0.8.27) — the
+- **`fathomdb-sdk`** (0.8.28) — the
   [Rust SDK](../reference/rust-sdk.md) with the Python/TypeScript surface.
 - **`fathomdb` facade crate** — re-exports the runtime verbs from
   `fathomdb-engine` for downstream Rust libraries and applications.
@@ -12,62 +15,59 @@ consumption routes:
   `fathomdb recover` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
-> **Release 0.8.27, pre-1.0 beta.**
+> **Release 0.8.28, pre-1.0 beta.**
 
 ## Requirements
 
-- Rust **stable** toolchain (`rustup default stable`).
-- SQLite headers + a system `sqlite-vec` build, or vendored equivalent
-  (the workspace builds `sqlite-vec` from source by default).
-- A Rust-supported target and a working SQLite + `sqlite-vec` build. The
-  Python and npm native-artifact boundary covers Linux x86_64
-  (`x86_64-unknown-linux-gnu`), Linux AArch64
-  (`aarch64-unknown-linux-gnu`), macOS x64/arm64, and Windows x64; Rust crates
-  compile from source.
+- Rust **1.95.0** or newer (declared MSRV; CI pins 1.95.0).
+- A supported Rust target, C/C++ build tools and the normal platform linker.
+  `rusqlite` bundles SQLite; `sqlite-vec` is a pinned Rust dependency. No system
+  SQLite headers or separately installed extension are required.
+- Python/npm artifacts cover Linux x86_64 and Linux AArch64 glibc, macOS
+  x64/arm64 and Windows x64. Rust crates compile from source; CUDA builds have
+  the toolkit/library requirements in the [embedder guide](../embedder.md).
 
 ## Install the lower-level facade and CLI
 
 Lower-level library:
 
 ```bash
-cargo add fathomdb@=0.8.27
+cargo add fathomdb@=0.8.28
 ```
 
 CLI:
 
 ```bash
-cargo install fathomdb-cli --version 0.8.27
+cargo install fathomdb-cli --version 0.8.28
 ```
 
-From 0.8.28, `cargo install` and the published crates build SQLite 3.54.1
-from `libsqlite3-sys` 0.39, with one page cache per connection; no flag is
-needed. Version 0.8.27 builds `libsqlite3-sys` 0.38, which shares one page
-cache across connections, so one large read can slow later reads until the
-CLI reopens the database. To install 0.8.27 with one page cache per
-connection, set the flag for the install:
+From 0.8.28, source crates use `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1
+(SQLite 3.54.1) without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so page caches are
+per connection without a caller flag. The preceding 0.8.27 source
+used 0.38; that historical difference does not require a .28 build workaround.
 
-```bash
-LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo install fathomdb-cli --version 0.8.27
-```
+Candidate examples must use the matching source archive/workspace and active
+patches while registry publication is pending. A path dependency that silently
+resolves older sibling registry crates is not proof of the .28 candidate.
 
-For the immutable 0.8.27 data-plane inspection route, pin the exact version and
+For the immutable 0.8.28 data-plane inspection route, pin the exact version and
 verify the discovered binary:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.27' --locked
+cargo install fathomdb-cli --version '=0.8.28' --locked
 fathomdb --version
 ```
 
-Public 0.8.27 opens bootstrap a missing or zero-length path directly at schema
-34 and accept a non-empty database only when its committed schema is exactly
-34. There is no public automatic-upgrade route.
+Public 0.8.28 opens bootstrap a missing or zero-length path directly at schema
+36 and accept a non-empty database only when its committed schema is exactly
+36. There is no public automatic-upgrade route.
 
 ## Install the application SDK
 
 For the application surface shared with Python and TypeScript:
 
 ```bash
-cargo add fathomdb-sdk@=0.8.27
+cargo add fathomdb-sdk@=0.8.28
 ```
 
 Use this complete program in `src/main.rs`, then run `cargo run`:
@@ -86,7 +86,7 @@ fn main() -> fathomdb_sdk::Result<()> {
 
 See the [Rust SDK reference](../reference/rust-sdk.md) for operations and
 option defaults. To build from source, use a trusted
-`release/0.8.27` checkout beside the application:
+`release/0.8.28` checkout beside the application:
 
 ```bash
 cargo add fathomdb-sdk --path ../fathomdb/src/rust/crates/fathomdb-sdk

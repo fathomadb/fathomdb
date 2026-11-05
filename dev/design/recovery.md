@@ -1,7 +1,7 @@
 ---
 title: Recovery Subsystem Design
 date: 2026-09-17
-target_release: 0.8.26
+target_release: 0.8.28
 desc: Current operator diagnostics, maintenance, export, and loss-authorized recovery boundary
 blast_radius: fathomdb-cli; operator feature; requirements REQ-035..REQ-040 and REQ-054; interfaces/cli.md
 status: ACTIVE
@@ -69,6 +69,14 @@ commits are excluded by the shared `commit_gate`; injected failure rolls the
 transaction back. Shared dependency-closure maintenance remains owned by its
 own design and is not new doctor mutation authority.
 
+Current explicit-policy ticket/fence admission and offline receipt reconciliation
+are owned by the [maintenance contract](explicit-maintenance-erasure/contract.md)
+and its [production design](explicit-maintenance-erasure/production-design.md).
+Queued intent is not activated by offline completion. Activated debt still needs
+its exact original sinks and WAL closure; unknown or unavailable sinks remain
+owed. Rebuild without a usable provider can invalidate existing dense state and
+is not certified numerical compatibility repair.
+
 ## Recovery inventory
 
 The recovery parser exposes six actions:
@@ -96,7 +104,7 @@ open-time heal and not a separate `regenerate` root.
 Most database-bearing commands use operator-enabled Engine methods and inherit
 the engine's admission lock, primary writer, reader, projection, and close
 rules. Readout does not imply that `Engine::open` itself is immutable: public
-0.8.26 admission accepts only a current schema-34 database or a fresh path.
+0.8.28 admission accepts only a current schema-36 database or a fresh path.
 
 `data-plane-integrity` is the deliberate exception. It does not call
 `Engine::open`, does not start workers, and does not migrate, repair, rebuild,
@@ -115,7 +123,7 @@ requires an existing nonempty regular database, acquires the canonical product
 lock, rechecks those facts, and refuses a nonempty rollback journal. It probes
 the main file through immutable/read-only/query-only SQLite before classifying
 the fixed 32-byte WAL header under the lock. A malformed WAL may be discarded
-only when the standalone main file is schema 34 and satisfies current Fathom
+only when the standalone main file is schema 36 and satisfies current Fathom
 schema invariants; a valid WAL is checked through SQLite's effective
 main-plus-WAL view because it may carry pending schema state. The effective-view
 probe snapshots transient SHM state and restores it when validation refuses.
@@ -202,7 +210,7 @@ exits `65`.
 
 `E_CORRUPT_WAL_REPLAY` refuses normal open. The explicitly acknowledged
 `--truncate-wal` path independently validates the main database, holds the
-product lock, rejects a counterfeit schema-34 database, preserves database,
+product lock, rejects a counterfeit schema-36 database, preserves database,
 WAL, and transient SHM bytes on preflight refusal, and lets SQLite perform the
 checkpoint/discard. Its report adds
 `discarded_corrupt_wal`, true only when the locked header classification was

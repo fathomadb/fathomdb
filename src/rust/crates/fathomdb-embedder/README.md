@@ -15,7 +15,8 @@ If you just want FathomDB to embed things for you, depend on
 `default-embedder` feature — the engine pulls this crate in.
 
 Depend on it directly if you want to construct an embedder yourself, or want the reranker without
-the engine.
+the engine. Production engine admission before 1.x still accepts only the
+pinned default or none; standalone construction does not enable injection.
 
 ## Status: pre-1.0, beta
 
@@ -31,7 +32,7 @@ network access. Everything below is opt-in at build time.
 
 | Feature | What it adds |
 | --- | --- |
-| `default-embedder` | `CandleBgeEmbedder` — the pinned default (`fathomdb-bge-small-en-v1.5`, 384 dimensions) on the [candle](https://github.com/huggingface/candle) runtime — plus `NomicEmbedder` (768 dimensions) and the `loader` module. |
+| `default-embedder` | `CandleBgeEmbedder` — the pinned default (`fathomdb-bge-small-en-v1.5`, 384 dimensions) on the qualified `candle-*-fathomdb` 0.11.0 fork runtime — plus `NomicEmbedder` (768 dimensions) and the `loader` module. |
 | `onnx-embedder` | `OrtBgeEmbedder`, the same BGE model under ONNX Runtime, carrying its own distinct embedder identity (`fathomdb-bge-small-en-v1.5-onnx`). Useful where the candle stack is not viable. |
 | `default-reranker` | `CandleTinyBertReranker` (`fathomdb-ms-marco-TinyBERT-L2-v2`) — cross-encoder scoring of `(query, passage)` pairs. |
 | `embed-cuda` / `embed-metal` | Candle GPU build support. The public embedder policy currently selects CUDA only. |
@@ -45,6 +46,13 @@ device or records a typed CPU outcome; `cpu` never initializes CUDA; and
 `cuda_not_compiled` for `auto`. `FATHOMDB_RERANK_DEVICE` is separate: its
 strict `auto|cpu|cuda:N` grammar and forced-CUDA error behavior apply only to the
 reranker, never the embedder.
+
+CUDA features imply `tegra-pool`: qualified AGX Orin builds use the private
+pool, while generic AArch64 CPU artifacts do not acquire CUDA capability. CUDA
+Python/Node builds on AArch64 can initialize the driver at import; select CPU
+policies before import or use the documented early-init control. See the
+[embedder guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/embedder.md)
+for pool configuration, fork/linkage requirements and import/fork limits.
 
 ## Weight loading
 

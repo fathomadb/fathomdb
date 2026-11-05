@@ -106,7 +106,7 @@ append log.
 An op-store write may be committed by itself or in the same batch as primary
 entity writes. In both cases:
 
-- the op-store row participates in the same single writer-thread transaction as
+- the op-store row participates in the same mutex-serialized caller-write transaction as
   the rest of the accepted batch
 - unknown collection names, collection-kind misuse, or registry violations fail
   the submission before partial commit and surface as `OpStoreError`

@@ -9,6 +9,13 @@ blast_radius: projection registry, projection extraction, property index, Rust/P
 
 # Nested-Source Projections
 
+## Current applicability
+
+Nested source-path extraction is shipped; historical rollout/problem discussion
+below is rationale. Current historical-view property filtering uses the canonical
+row selected by that view, not an unrelated current head. The declared grammar
+is unchanged; see the [retrieval owner](retrieval.md) and .28 interfaces.
+
 ## Decision
 
 HITL selected this design for Memex B15 (steward ledger `seq-242` (remap authorization), decision

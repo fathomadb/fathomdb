@@ -19,6 +19,18 @@ green devloop run is never mistaken for a ship verdict (or vice versa).
 
 ---
 
+## Current execution applicability (0.8.28)
+
+The historical tier descriptions below specify measurement/threshold intent,
+not an always-running hosted job policy. Current CI routes fast/heavy jobs by
+path and explicit dispatch; engine test targets also require their declared
+Cargo features and live prerequisites. Use scripts/agent-test.sh and the current
+feature matrix for registration, and the live release plan for accepted gate
+replacements/deferrals. Slice 95 owns final qualification; no table row below
+creates a new mandatory job or revives a superseded measurement. AC-037 live
+proof follows the current runbook, not the obsolete runner-image assumptions
+in the historical job rows.
+
 ## Honest per-AC gate map (where each gate runs, and what it asserts)
 
 > Added in **0.8.9 (R-PG-1)** so the board never implies a floor CI does not

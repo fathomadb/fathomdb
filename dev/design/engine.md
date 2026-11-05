@@ -1,7 +1,7 @@
 ---
 title: Engine Subsystem Design
 date: 2026-09-17
-target_release: 0.8.26
+target_release: 0.8.28
 desc: Current open, connection, write, projection, cursor, identity, and close design
 blast_radius: fathomdb-engine runtime/writer/reader; interfaces/*.md; requirements and acceptance engine intersections
 status: ACTIVE
@@ -12,14 +12,14 @@ status: ACTIVE
 This file owns the current engine runtime and storage coordination contract.
 Public language spelling remains in `dev/interfaces/`; error variants remain in
 [`errors.md`](errors.md); embedder identity and mean centering remain in
-[`embedder.md`](embedder.md); and projection generations remain in their
-feature designs.
+[`embedder.md`](embedder.md); and projection generations remain in the maintained
+[`projections.md`](projections.md) and [`recovery-0.8.25.md`](recovery-0.8.25.md) owners.
 
 ## Open path
 
-Public 0.8.26 open is fresh-only. A missing or zero-length path is bootstrapped
-directly to schema 34. A nonempty database is accepted only when its
-`PRAGMA user_version` is exactly 34; every other version returns
+Public 0.8.28 open is fresh-only. A missing or zero-length path is bootstrapped
+directly to schema 36. A nonempty database is accepted only when its
+`PRAGMA user_version` is exactly 36; every other version returns
 `IncompatibleSchemaVersion` before product mutation. Public open does not run
 an in-place migration ladder.
 
@@ -129,9 +129,11 @@ Dense projection is asynchronous: committed source state becomes vector-ready
 only when the owning projection generation records a successful current
 outcome. Failed or stale work is explicit state, not silent eligibility.
 
-Dense rows share the schema-owned `vector_default` virtual table. Authority and
+Dense rows share the engine-created runtime-dimension `vector_default` vec0
+table with 64-row chunks and native lifecycle/validity metadata. Authority and
 recovery metadata live in `_fathomdb_vector_rows`, the projection registry, and
-generation tables. The current design does not create one vector table per
+generation tables. `_fathomdb_vector_spans` records UTF-8 head coverage per
+vector row; vector IDs need not equal canonical cursors. The current design does not create one vector table per
 kind; `source_type` and `kind` distinguish governed rows inside the shared
 projection.
 
@@ -159,7 +161,7 @@ public knob requires all supported bindings in the same slice. Configuration
 does not select a legacy schema, enable automatic recovery, supply vector
 identity strings, or expose raw SQL.
 
-The five open-time settings resolve and validate before filesystem, lock,
+The runtime settings below resolve and validate before filesystem, lock,
 provider, SQLite or worker work. Rust owns the effective defaults and final
 range/capacity checks; the SDKs may reject malformed input earlier without
 changing the accepted values. `EngineOpenError::EngineConfiguration` reports
@@ -173,6 +175,17 @@ mode failures remain `EngineOpenError::RuntimeConfiguration`.
 | `embedder_call_timeout_ms` | `1..=u32::MAX`; `30_000` ms | One absolute queue-plus-service deadline per call or batch across all production inference routes. |
 | `provenance_row_cap` | `0..=2^53-1`; `1_000_000` rows | Bounds retained provenance after write and actuation commits; zero disables retention. |
 | `slow_threshold_ms` | `0..=2^53-1`; `100` ms | Operation and SQLite-statement slow signals when elapsed time is strictly greater than the threshold. Zero accepts every positive duration. |
+
+The additional CUDA pool fields are process-wide settings described in
+[`embedder.md`](embedder.md) and the interfaces. `query_stop_words` is an
+open-only query compiler setting, with a hash reported on open/traces.
+`physical_erasure_policy` is persisted: omitted honors reopen policy and defaults
+new stores to Autonomous; an explicit conflicting request refuses open.
+[`Explicit maintenance`](explicit-maintenance-erasure/contract.md) owns queue,
+exclusive-window, durable-debt and fence semantics. Its owned maintenance handle
+excludes ordinary readers/writers/admin/projection work; closing it releases
+temporary ownership without forgiving activated debt. Current storage is format36
+for both policies, with no migration or immediate-revocation/deadline guarantee.
 
 The reader pool remains eight dedicated workers and is not controlled by
 either executor setting. The primary writer and projection `commit_gate`
@@ -241,4 +254,4 @@ the same one-deadline rule. Cleanup does not replace the original open error.
 
 Historical dedicated-writer-thread, caller `row_id`, per-kind vector-table,
 single-cursor-per-batch, restore, and public migration-on-open descriptions are
-retained in Git history but are not current 0.8.26 authority.
+retained in Git history but are not current 0.8.28 authority.

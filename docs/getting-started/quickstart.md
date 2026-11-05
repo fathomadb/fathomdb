@@ -2,7 +2,7 @@
 
 End-to-end walkthrough: install, open a fresh DB, write rows, search,
 inspect counters, close, exit cleanly. Python and TypeScript examples use the
-0.8.27 SDKs. The Rust application SDK has its own
+0.8.28 SDKs. The Rust application SDK has its own
 [runnable example](../install/rust.md#install-the-application-sdk).
 
 This page covers the same five operations in the same order as the
@@ -142,8 +142,9 @@ After step 3 + 4 you should see `writes >= 1` and `queries >= 1`.
 
 ## 6. Close + exit cleanly
 
-`engine.close()` releases the SQLite handles, joins the writer thread,
-drains the scheduler, and releases the on-disk lock. The process must
+`engine.close()` stops admission and projection work, quiesces SQLite owners
+and releases the lock, then drains provider workers under the shared bounded
+shutdown budget. An unfinished provider can raise `SchedulerError`. The process must
 exit cleanly afterwards — the wheel-on-disk lock cleanup and process
 exit are the bug signal `smoke-pypi-wheel.sh` watches for.
 
@@ -189,7 +190,7 @@ sequence per AC-056.
 - [Concepts](../concepts/index.md) — engine lifecycle, canonical rows,
   embedder model, recovery surface.
 - [Reference — Python API](../reference/python-api.md) — full surface.
-- [Reference — errors](../reference/errors.md) — the 41-class taxonomy
+- [Reference — errors](../reference/errors.md) — the shared typed taxonomy
   and recovery hints.
 - [Reference — CLI](../reference/cli.md) — operator verbs (`doctor`,
   `recover`).

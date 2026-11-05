@@ -95,13 +95,17 @@ Workflow contract:
 This keeps projection retry policy fixed and automatic behavior narrow, while
 still giving operators a concrete repair path.
 
-## Restart semantics
+## Restart and pending selection
 
-0.6.0 keeps no durable projection queue table.
+Pending work is rediscovered from durable canonical/generation/terminal state;
+there is no standalone durable queue table. The projection watermark is not a
+complete pending predicate: eligible stranded work can exist below it. Bounded
+selection excludes terminal failures and in-flight claims, retains current
+eligibility and uses the configured admission/scan limit. Offset/page work does
+not grow with the whole pending backlog before selecting that bounded batch.
+Without a provider, dense work remains pending rather than falsely completing.
 
-- Rows whose canonical cursor is ahead of `projection_cursor` are re-enqueued on
-  open because they are still pending work.
-- Rows already marked terminal-failed are not silently retried on restart,
-  because `projection_cursor` has advanced past them.
-- The explicit regenerate workflow is therefore the only repair path for
-  exhausted failures in 0.6.0.
+Terminal failure audit is distinct from current pending selection. Restart does
+not silently retry exhausted failures; explicit regenerate remains the operator
+path, with the provider-free dense-rebuild limitation documented by the embedder
+owner. Generation and membership are revalidated before publication.

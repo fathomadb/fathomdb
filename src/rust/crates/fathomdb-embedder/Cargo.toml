@@ -46,23 +46,12 @@ candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.
 cudarc-fathomdb     = { version = "=0.19.10", optional = true, default-features = false }
 tokenizers          = { version = "0.20", optional = true, default-features = false, features = ["onig"] }
 
-# 0.8.16 Slice 10 (ADR-0.8.16-onnx-embedder-backend §2) — cross-vendor ONNX
-# Runtime backend for `OrtBgeEmbedder` (mod ort_bge), a caller-supplied
-# `impl Embedder` injected via `EmbedderChoice::CallerWithDeviceResolution`
-# so `OpenReport` records its final session outcome. Optional + feature-gated
-# behind `onnx-embedder` so the thin
-# `default = []` build stays ML-free and gains ZERO new deps (EMB-3
-# wheel-size gate / footprint invariant). Pinned to `=2.0.0-rc.10`: the
-# `ort` 2.0 line is the maintained series (1.x is EOL) but is published
-# only as release candidates; rc.10 is the latest rc that builds cleanly
-# in the offline envelope (rc.12 has an ort/ort-sys VitisAI EP mismatch).
-# RC PIN ACCEPTED BY HITL 2026-07-08 (this is a non-default, opt-in
-# eval-only feature); the eventual 2.0-STABLE bump is tracked as TC-9.
-# `load-dynamic`
-# dlopens the ONNX Runtime native lib at RUNTIME (via ORT_DYLIB_PATH), so
-# `cargo build`/`cargo check` never download or link a native binary at
-# build time (no `download-binaries`); the runtime lib is an offline
-# build/eval concern, not a compile dep.
+# Standalone/evaluation ONNX backend. Production engines accept only the pinned
+# built-in provider or None; enabling this feature does not restore injection.
+# The opt-in eval-only rc.10 pin was owner-approved on 2026-07-08; rc.12 had
+# an ort/ort-sys VitisAI mismatch. A stable 2.0 bump remains tracked as TC-9.
+# load-dynamic uses ORT_DYLIB_PATH at runtime, without build-time native downloads.
+# Contract: dev/adr/ADR-0.8.16-onnx-embedder-backend.md.
 ort = { version = "=2.0.0-rc.10", optional = true, default-features = false, features = ["load-dynamic"] }
 
 [features]
@@ -100,7 +89,7 @@ default-reranker = [
 # FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N (unset is `auto` there). The thin
 # feature-off build stays ML-free, so its tests and byte-stability are unaffected.
 # Cross-vendor (AMD ROCm / Intel) is NOT a candle backend — that path is a separate
-# `impl Embedder` (ONNX-Runtime) reported via CallerWithDeviceResolution; see
+# standalone `impl Embedder` (ONNX-Runtime), not production engine injection; see
 # dev/design/0.8.1-embedder-gpu-and-portability.md.
 embed-cuda = ["default-embedder", "tegra-pool", "dep:cudarc-fathomdb", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 embed-metal = ["default-embedder", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]

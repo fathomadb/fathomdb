@@ -460,7 +460,10 @@ export class Engine {
    * path. It does not invoke vector
    * recall, CE reranking, or the graph arm. Matching node- and edge-body FTS
    * candidates are deterministically body-deduplicated and ranked before
-   * `limit` is applied. For one immutable selection and effective validity time,
+   * `limit` is applied. `view.filter` is evaluated before candidate caps,
+   * deduplication and ranking. Attributes are node-scoped; status/time require
+   * existing vector metadata, with missing metadata failing to match.
+   * For one immutable selection, query, filter and effective validity time,
    * smaller accepted limits are prefixes of larger limits; this does not extend
    * to hybrid search.
    */

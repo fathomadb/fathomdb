@@ -170,7 +170,7 @@ ConsolidatorError = _ConsolidatorError
 # G4 (Slice 35) — filter predicate construction error (non-allowlisted path).
 InvalidFilterError = _InvalidFilterError
 InvalidArgumentError = _InvalidArgumentError
-# 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
+# Open-time numeric refusal; no Engine is returned.
 VectorEquivalenceMismatchError = _VectorEquivalenceMismatchError
 VectorVerificationError = _VectorVerificationError
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb typed errors. Parity-safe

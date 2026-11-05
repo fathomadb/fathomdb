@@ -7,7 +7,7 @@ target_release: 0.8.28 Slice 85
 
 # Approved contract and explicit cleanup API
 
-This proposal answers the original end-of-Slice-83 guarantee/API question using
+This contract answers the original end-of-Slice-83 guarantee/API question using
 [completed findings](../../notes/erasure-optimization-sequence-findings.md).
 HITL approved this contract on 2026-11-04 and assigned implementation to
 [Slice 85](../../plans/0.8.28/features/slice-85/plan.md). Concrete design, accepted
@@ -31,7 +31,7 @@ and projection deletion, which itself takes measurable time. A cheap source flag
 plus output filtering would not preserve BM25 statistics, candidate caps, graph,
 vector, property, historical/frozen and evidence authority. Those semantics cannot
 be inferred from these experiments. Fast logical revocation is a separate possible
-successor, not a hidden dependency or implemented feature of this proposal.
+successor, not a hidden dependency or implemented feature of this contract.
 
 Users needing immediate non-disclosure must choose maintenance now, or continue
 using an existing applicable revocation contract with its actual guarantees;
@@ -65,7 +65,7 @@ about its cut, not a certificate for future writes or unknown historical copies.
 
 ## Opt-in and existing behavior
 
-Proposed `PhysicalErasurePolicy`: `Autonomous` or `ExplicitMaintenance`, stored
+`PhysicalErasurePolicy`: `Autonomous` or `ExplicitMaintenance`, stored
 in validated database metadata under the canonical product lock. Autonomous
 remains the default profile; explicit mode requires deliberate selection. All
 opens must honor the persisted mode; a mismatching explicit open request refuses
@@ -73,8 +73,8 @@ before mutation. Reopen cannot silently re-enable background cleanup.
 
 **Old-binary safety is a release prerequisite.** Pre-Slice-85 format-35 binaries do
 not know these queue/fence rules. A policy key alone is unsafe. The concrete
-proposal is a fresh-store format revision, assigned when implementation is placed,
-so earlier binaries refuse the new file before mutation. The feature release
+implementation uses fresh-store format 36, so earlier binaries refuse the
+new file before mutation. The feature release
 refuses prior-format files; no data migration, metadata-only opt-in of existing
 files or dual-format compatibility shim is included. Autonomous and explicit
 profiles both use that new admitted format. New-file initialization always writes
@@ -84,10 +84,10 @@ alternative minimum-reader mechanism is acceptable only if existing older binari
 already enforce it, proved with an actual older-binary refusal oracle.
 
 Existing stores/debt remain owned by the old product until completed/exported
-through its existing supported procedures. This proposal does not convert them.
-Within the new format, a policy change requires no active root debt, physical
-closure, redaction debt, maintenance owner or queued request; recorded terminal
-receipts remain read-only. Malformed/unknown policy refuses open. Missing FTS clean
+through its existing supported procedures. This contract does not convert them.
+V1 exposes no policy-change API. A separately approved future change would
+require no active root debt, physical closure, redaction debt, maintenance owner
+or queued request; recorded terminal receipts would remain read-only. Malformed/unknown policy refuses open. Missing FTS clean
 metadata still means dirty retained-term history, never a clean certificate.
 
 | Surface | Autonomous policy | ExplicitMaintenance policy |
@@ -103,13 +103,16 @@ singleton RootDebt and merely stopping its worker. Queue intent precedes the
 physical zero proof; RootDebt remains the one executing operation. This separates
 normal queued service from the expensive post-delete scoped-certification path.
 
-## Proposed API surface
+## API surface
 
-These are the approved contract-level names/types, not existing methods; exact
-wire/SDK forms are settled in Slice 85 design within these semantics. Rust is normative;
-Python uses snake_case and TypeScript camelCase with identical outcome meanings.
-CLI equivalents are a later operator mapping of the same authority, not a second
-implementation. No new MCP surface is included in v1.
+The contract vocabulary below summarizes the delivered APIs. Exact implemented
+signatures/carriers are maintained in the [Rust](../../interfaces/rust.md),
+[Python](../../interfaces/python.md) and [TypeScript](../../interfaces/typescript.md)
+interfaces. Python uses snake_case and TypeScript camelCase with identical outcome
+meanings; Rust exposes typed enums and an owned maintenance handle. Existing
+CLI activated-debt completion reuses the same authority and offline receipt
+reconciliation, rather than activating queued intent. No maintenance MCP surface
+is included in v1.
 
 ```text
 Engine::queue_physical_erasure(SourceAllAtCut | DeletedLogicalAllAtCut,
@@ -150,7 +153,7 @@ committed cursor cut, request version, safe idempotency binding and the queued
 mutation fence together. Logical-ID requests retain deleted-first validation;
 source validation retains the governed SourceId contract. Admission fails without
 a request on invalid input, queue/metadata capacity, unsupported scope or failure
-to install complete mutation guards. Proposed maximum is 16 queued requests plus
+to install complete mutation guards. Maximum is 16 queued requests plus
 one executing root. Limits are admission limits, not a completion-time bound.
 
 Admissibility includes the existing exact target-cursor and work/resource limits,

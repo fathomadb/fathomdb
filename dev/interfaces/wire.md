@@ -65,9 +65,9 @@ vectors are committed and removed together; unknown coverage is NULL.
 
 ## Compatibility contract
 
-- a missing or zero-length path bootstraps directly to schema 35
+- a missing or zero-length path bootstraps directly to schema 36
 - a non-empty database opens only when its effective committed
-  `PRAGMA user_version` is exactly 35; schema 34 and earlier, future versions, and
+  `PRAGMA user_version` is exactly 36; schema 35 and earlier, future versions, and
   non-empty zero-version SQLite files return the typed incompatible-schema
   error before product mutation
 - there is no public automatic migration, compatibility reader, translator,

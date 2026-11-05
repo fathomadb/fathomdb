@@ -87,8 +87,14 @@ different remediation or cross-doc ownership.
 | `SchemaValidationError`         | JSON Schema rejection for op-store payloads        | `EngineError`     | `design/op-store.md`    | fix payload contents against registered `schema_id`                             |
 | `EmbedderIdentityMismatchError` | open-time stored-vs-supplied identity comparison   | `EngineOpenError` | `design/embedder.md`    | open-time incompatibility, not runtime write/query failure                      |
 | `MigrationError`                | schema migration execution                         | `EngineOpenError` | `design/migrations.md`  | open-time schema transition failure with per-step reporting                     |
+| `MaintenanceError` | runtime maintenance-operation policy, ticket, ownership or durable-fence refusal | `EngineError::Maintenance` | `design/explicit-maintenance-erasure/contract.md` | closed reason maps to Python MaintenanceError / TypeScript FDB_MAINTENANCE; incomplete activated debt is not generic storage failure |
 | `VectorEquivalenceMismatchError` | actual open-time numeric probe mismatch | `EngineOpenError` | `design/embedder.md` | no Engine is returned; `reason` preserves the numerical diagnosis |
 | `VectorVerificationError` | open-time verification cannot complete or reference state is invalid | `EngineOpenError` | `design/embedder.md` | typed cause distinct from a measured numeric mismatch and SQLite storage failure |
+
+An explicit open-policy mismatch is `EngineOpenError::EngineConfiguration`
+(`PhysicalErasurePolicyMismatch`), mapped to InvalidArgumentError by the SDKs.
+Malformed persisted policy is open-time corruption. Neither is the runtime
+MaintenanceError family.
 
 `Overloaded` and `Closing` remain direct `EngineError` variants rather than
 module errors because they are cross-cutting runtime states:

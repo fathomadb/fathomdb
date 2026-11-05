@@ -11,7 +11,7 @@
 //! applied inside one `BEGIN IMMEDIATE` together with the version bump, so a
 //! crash mid-step rolls back and the step re-runs whole.
 //!
-//! The ordered historical steps remain testable, but 0.8.26 has no public
+//! The ordered historical steps remain testable, but current opens have no public
 //! automatic-upgrade route: every non-empty database must already carry the
 //! exact current `PRAGMA user_version` before product open.
 
@@ -20,6 +20,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
+/// Exact admitted on-disk format; nonempty stores at another version are refused.
 pub const SCHEMA_VERSION: u32 = 36;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.

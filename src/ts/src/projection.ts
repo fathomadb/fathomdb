@@ -92,7 +92,9 @@ export interface ProjectionSpec {
    *
    * Supplying it to `configureProjections` is INERT — it is not part of the
    * declaration and the engine always reports the derived truth — so
-   * `read.projections` output still re-applies as a no-op. Supplying it with
+   * `read.projections` output re-applies only when its provider selectors are
+   * valid for current production admission. Historical caller-selector strings
+   * remain readable but are refused on new declarations. Supplying it with
    * `vector: false`, or any spelling outside
    * `{"unavailable", "embedding", "ready"}`, throws a
    * typed `FDB_INVALID_ARGUMENT` (it could not round-trip).

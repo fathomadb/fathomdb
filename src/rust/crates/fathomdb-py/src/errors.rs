@@ -45,7 +45,7 @@ create_exception!(_fathomdb, EvidenceError, EngineError);
 create_exception!(_fathomdb, PageError, EngineError);
 create_exception!(_fathomdb, DependencyTraceError, EngineError);
 create_exception!(_fathomdb, GraphExpansionError, EngineError);
-// 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
+// Open-time numeric refusal; no Engine is returned.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
 create_exception!(_fathomdb, VectorVerificationError, EngineError);
 // Slice 20 (G5/G6) — traversal depth > 3 or other out-of-range argument.

@@ -1,15 +1,19 @@
 # FathomDB
 
+> Documentation targets 0.8.28; publication is pending. Exact-version install
+> commands apply once matching registry or Pages artifacts are published.
+
 FathomDB is an embedded retrieval and graph data system for applications and
 agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through
 the Python, TypeScript, or Rust application SDK.
 
-## Release 0.8.27
+## Release 0.8.28
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
-0.8.27 provides three application SDKs and classic Jetson Orin CUDA delivery
-for Python and Node.js. See the [release notes](docs/release-notes/0.8.27.md)
+0.8.28 adds filtered body FTS, search visibility controls, context packing and
+explicit erasure maintenance, with fresh store format 36. It retains three
+application SDKs and the classic Jetson Orin Python/Node CUDA delivery routes. See the [release notes](docs/release-notes/0.8.28.md)
 and [changelog](CHANGELOG.md).
 
 ## What you can build
@@ -35,9 +39,9 @@ error classes. See [SDK parity](docs/positions/sdk-parity.md).
 
 | Language | Package and installation | Import | Documentation |
 | --- | --- | --- | --- |
-| Python | `python -m pip install fathomdb==0.8.27` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
-| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.27` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
-| Rust application SDK | `cargo add fathomdb-sdk@=0.8.27` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
+| Python | `python -m pip install fathomdb==0.8.28` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
+| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.28` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
+| Rust application SDK | `cargo add fathomdb-sdk@=0.8.28` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
 
 The [`fathomdb` Rust crate](docs/reference/rust-api.md) is the
 lower-level engine facade. The application SDK is `fathomdb-sdk`.
@@ -94,7 +98,7 @@ device selection and shared-GPU limits.
 The operator CLI is installed from source; no prebuilt CLI binary is published:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.27' --locked
+cargo install fathomdb-cli --version '=0.8.28' --locked
 ```
 
 Use the [CLI reference](docs/reference/cli.md) and

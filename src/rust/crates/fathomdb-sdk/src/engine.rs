@@ -249,7 +249,13 @@ impl Engine {
         )?)
     }
 
-    /// Lexical (FTS-only) search; never embeds the query.
+    /// Search node/edge body FTS without embedding, vectors, reranking or graph work.
+    ///
+    /// `options.filter` is applied before candidate caps, deduplication, ranking
+    /// and limit. Attributes are node-scoped; status/time require existing vector
+    /// metadata. Missing metadata does not match. A smaller accepted limit is an
+    /// ordered prefix for the same snapshot, query, filter and effective view.
+    /// Invalid options or snapshot/storage failures return the typed SDK error.
     pub fn search_text_only(
         &self,
         query: &str,

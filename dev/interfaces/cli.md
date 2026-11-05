@@ -355,7 +355,7 @@ Exit class: `recover-*` = 0 / 64 / 70 / 71.
 first calling fail-closed `Engine::open`. It still requires
 `--accept-data-loss`, holds the canonical product lock, refuses a nonempty
 rollback journal and invalid database, and delegates destructive WAL recovery
-to SQLite. A malformed WAL requires schema 34 and current Fathom schema
+to SQLite. A malformed WAL requires schema 36 and current Fathom schema
 invariants in the standalone main file; a healthy or absent WAL requires the
 same in SQLite's effective view and may therefore carry current schema state
 over an older standalone main. If effective-view preflight refuses, it restores

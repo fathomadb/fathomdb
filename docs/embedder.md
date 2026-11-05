@@ -3,10 +3,10 @@
 FathomDB can embed your documents for you with a built-in, in-process embedder,
 so you do not have to wire up an embedding model yourself. It is **opt-in**: a
 fresh engine has no embedder configured and vector writes fail with
-`EmbedderNotConfiguredError` until you either enable the default embedder or supply
-your own (Rust only, today).
+`EmbedderNotConfiguredError` until you enable the pinned default provider.
+Caller-supplied engine providers are unsupported before 1.x in all SDKs.
 
-> Status: 0.8.27 release documentation. The ANN-fidelity
+> Status: 0.8.28 release documentation; the following measurement is historical. The ANN-fidelity
 > recall@10,
 > measured on the pre-fusion **vector stage** (the SUT the 0.90 floor gates), is
 > **0.896** (95% CI 0.864–0.925, N=7,667) and holds the **0.90 floor under the
@@ -62,8 +62,8 @@ The embedder-enabled native binary is larger; see your platform package notes.
 
 If you do not pass the flag, the engine opens normally but has no embedder, and
 vector writes raise `EmbedderNotConfiguredError`. This is unchanged from earlier
-releases. Supplying your own custom embedder is available in the Rust API today;
-custom Python/TypeScript embedders are planned for a later release.
+releases. Production engine opens in every SDK select only the pinned built-in provider
+or none. Standalone trait implementations do not enable engine injection.
 
 ## First use: weight download
 
@@ -430,33 +430,25 @@ them — model, revision, **and backend numerics**. `EmbedderIdentity`
 mismatch but **not** numeric divergence between two backends sharing one
 identity.
 
-Since 0.8.18 the engine also runs a **vector-equivalence self-check** at open:
-45 pinned probes are compared against a stored reference baseline, and a
-divergence past the floor sets `dense_disabled` so every vector-dependent arm
-refuses at query time with `VectorEquivalenceMismatchError`. The FTS-only path
-(`search_text_only` / `searchTextOnly`) stays serviceable.
+The engine checks stored identity/dimension before numerical verification. For
+built-in-provider stores it compares pinned probes with the stored baseline when
+verification is needed. Actual divergence refuses **open**, returning no Engine,
+with `VectorEquivalenceMismatchError`; provider/probe failure or invalid output
+raises `VectorVerificationError` instead. There is no attached `dense_disabled`
+mode and no automatic provider-free retry.
 
-⚠ **Since 0.8.20 that verdict is cached.** The engine fingerprints the embedder
-identity, the pinned mean vector, the probe fixture, the divergence floors and
-the stored baseline; an open whose fingerprint is unchanged does **zero** probe
-embeds and reuses the previous verdict. So `dense_disabled` reports the arm's
-status *as verified at the last open whose fingerprint differed*, not a fresh
-per-open re-verification — a same-identity backend drift (CPU↔GPU, a rebuilt
-library or driver) is no longer caught per-open. An identity *change* still
-refuses the open ahead of any cache. **The self-check is not tamper evidence**:
-nothing at rest is authenticated, so an actor with write access to the database
-file can rewrite the baseline, the cached marker, or the vectors. Do not read
-`dense_disabled` as a tamper signal.
+An unchanged persistent fingerprint reuses prior acceptance with zero probe
+embeds. It binds identity, pinned mean, probes, floors and baseline, but excludes
+device/runtime/library/driver facts. Same-identity backend drift therefore may
+reuse acceptance without a fresh check. Markers are not tamper evidence; keep
+build-and-read backend provenance consistent rather than treating a marker as
+cross-backend certification.
 
-A **same-backend build-and-read** discipline therefore remains the conservative
-default: read an index with the same backend that built it.
-
-In practice the divergence for this model is tiny: measured CPU-vs-CUDA cosine
-was **0.99999983** (max per-component Δ ≈ 1.6e-7), and at the 1-bit sign-bit
-quantization the retrieval path actually uses, **0 of 6,144 bits disagreed** —
-the CUDA-built and CPU-read codes were identical on the probe set. The
-same-backend rule is the conservative default; the probe-set guard will replace
-it with an enforced, calibrated tolerance.
+A caller can deliberately reopen with no provider for mutable canonical, text,
+lifecycle and erasure access, subject to the ordinary validation rules. This is
+not verification, a read-only quarantine or automatic dense repair. In particular,
+a no-provider rebuild can invalidate dense state without a usable provider.
+See [errors](reference/errors.md) for typed failures and operational limits.
 
 ## Caveats and limitations
 
@@ -479,8 +471,8 @@ it with an enforced, calibrated tolerance.
   [compatibility § performance posture](compatibility/index.md).
 - **Topic-drift mean** (see above): pinned on the first 256 docs; reindex to
   refresh.
-- **Custom Python/TypeScript embedders** are not exposed as of 0.8.20; the
-  binding surface is binary (built-in default embedder, or none).
+- **Caller-supplied engine embedders** are unsupported before 1.x across Rust,
+  Python and TypeScript; production selects the built-in default or none.
 
 ## Upgrading an existing workspace
 

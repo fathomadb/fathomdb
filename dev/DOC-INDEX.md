@@ -30,6 +30,7 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
+
 | `dev/doc-index/dev.md` | Long-form detail for the `dev/` section below | DOC-HYGIENE-1 T2/5 | 2026-07-24 |
 | `dev/doc-index/design.md` | Long-form detail for the `dev/design/` section below | DOC-HYGIENE-1 T2/5 | 2026-07-24 |
 | `dev/doc-index/adr.md` | Long-form detail for the `dev/adr/` section below | DOC-HYGIENE-1 T2/5 | 2026-07-24 |
@@ -43,13 +44,14 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `dev/README.md` | Entry map for the engineering docs tree | — | 2026-08-23 |
+| `dev/interfaces/wire.md` | Wire Format — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/README.md` | Entry map for the engineering docs tree | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.25/scope-adjustment-2026-09-10-ac020.md` | Slice 75 checkpoint and AC-020 recovery ladder 76/77/80/85 | 0.8.25 planning | 2026-09-10 |
 | `dev/plans/0.8.25/ac020-experiment-protocol.md` | Statistics-enabled experiment controls, correctness, quantitative selection and budgets | Slices 76/77 | 2026-09-10 |
 | `dev/plans/0.8.25/features/slice-76/plan.md` · `dev/plans/0.8.25/features/slice-77/plan.md` | Sequential attribution and adaptive candidate-selection experiments | Slices 76/77 | 2026-09-10 |
 | `dev/plans/0.8.25/features/slice-80/plan.md` · `dev/plans/0.8.25/features/slice-85/plan.md` | Consulted implementation and final verification/CI/non-publishing packaging | Slices 80/85 | 2026-09-10 |
 | `dev/plans/runs/0.8.25-ac020-research/report.md` | Byte-identical retained research input; experimental recommendations qualified by recovery protocol | AC-020 research | 2026-09-10 |
-| `dev/needs.md` | Product/consumer needs driving requirements | — | 2026-05-28 |
+| `dev/needs.md` | Product/consumer needs driving requirements | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/notes/fathomdb-quality-testing-roadmap.md` | Quality analysis of FathomDB's change curve, SQLite testing practices, and release-line fit; required reading when planning a new release | Release planning reference | 2026-10-06 |
 | `dev/notes/earp-agent-orientation.md` · `earp-hitl-decisions.md` | EARP navigation, boundaries, and current HITL rulings | EARP developer harness | 2026-08-08 |
 | `dev/notes/0.8.23-architecture-tradeoffs.md` | 0.8.23 architecture documentation follow-up | 0.8.23 planning | 2026-08-07 |
@@ -65,9 +67,9 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through Slice 65 | 0.8.26 Slice 65 | 2026-09-21 |
 | `dev/plans/plan-0.8.28.md` | Active release plan through documentation convergence and final CI qualification | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/release-state-0.8.28.json` | Active release state with Slice 92 before Slice 95 | 0.8.28 Slices 92/95 | 2026-11-04 |
-| `dev/plans/runs/STATUS-0.8.28.md` | Active release board with documentation and CI qualification work remaining | 0.8.28 Slices 92/95 | 2026-11-04 |
-| `dev/plans/0.8.28/features/slice-92/plan.md` | Documentation audit/convergence scope, requirements and execution plan | 0.8.28 Slices 92/95 | 2026-11-04 |
-| `dev/plans/0.8.28/features/slice-92/status.md` | Planned documentation audit/convergence status | 0.8.28 Slices 92/95 | 2026-11-04 |
+| `dev/plans/runs/STATUS-0.8.28.md` | Active release board with documentation and CI qualification work remaining | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/plan.md` | Documentation audit/convergence scope, requirements and execution plan | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/status.md` | Documentation convergence status and verification outcomes | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-95/plan.md` | CI repairs and final qualification plan consuming Slice 92 documentation | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-95/status.md` | Planned CI and release-readiness status after Slice 92 | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
@@ -103,16 +105,16 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.24/features/slice-30/{prep,draft-contracts,research,design,decision,status}.md` | Corrected same-`fathomdb` Tegra topology, interim GitHub Pages publisher design, target evidence, and deferred durable-hosting review | 0.8.24 Slice 30 | 2026-08-25 |
 | `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
-| `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |
+| `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/ROADMAP.md` | Consolidated post-0.8.26 roadmap and backlog with links to owning records | Program Steward / HITL | 2026-09-21 |
 | `dev/acceptance.md` | Acceptance criteria (AC-*); AC-076 distinguishes its hybrid fixture from bounded direct-text rank collection | 40/GA-2 mints AC-075/076; 0.8.24 Slice 20 corrects AC-076 mechanism | 2026-08-24 |
-| `dev/interfaces/rust.md` | Rust public interface (owner of Rust-visible spelling + governed facade contract); Slice 21 records dense readiness and Slice 22 records the pure projection-status facade. | 27 (governed-surface contract); Slices 21/22 integrated in `main` | 2026-08-08 |
+| `dev/interfaces/rust.md` | Rust public interface (owner of Rust-visible spelling + governed facade contract); Slice 21 records dense readiness and Slice 22 records the pure projection-status facade. | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/interfaces/python.md` | Python public interface (owner of Python-visible spelling + attribute casing); Slice 21 records engine-set dense readiness and Slice 22 records `read.projection_status`. | Slices 21/22 integrated in `main`; parity owned by `design/bindings.md` | 2026-08-08 |
 | `dev/interfaces/typescript.md` | TypeScript public interface (owner of TS-visible spelling + export shape); Slice 21 records engine-set dense readiness and Slice 22 records `read.projectionStatus`. | Slices 21/22 integrated in `main`; parity owned by `design/bindings.md` | 2026-08-08 |
-| `dev/interfaces/cli.md` | CLI public interface (concrete flag spelling, root paths, exit-code classes, `--json` wrapping for the two-root... | 34 (dump-mutations); owned-by ADR-0.6.0-cli-scope | 2026-06-06 |
+| `dev/interfaces/cli.md` | CLI public interface (concrete flag spelling, root paths, exit-code classes, `--json` wrapping for the two-root... | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/architecture.md` | Superseded 0.6.0 architecture snapshot with an active-successor pointer | 0.8.26 Slice 45 | 2026-09-15 |
-| `dev/test-plan.md` | Test strategy + tiers (incl. functional-harness tier X1 + the Slice 10 G9/G10/G12-recency tier) | 5 adds functional tier; 10 adds RRF/filter/recency tier | 2026-06-03 |
-| `dev/traceability.md` | REQ ↔ AC ↔ test trace matrix | 25 re-points REQ-053↔new AC; 30 adds read ACs | 2026-05-28 |
+| `dev/test-plan.md` | Test strategy + tiers (incl. functional-harness tier X1 + the Slice 10 G9/G10/G12-recency tier) | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/traceability.md` | REQ ↔ AC ↔ test trace matrix | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/security-review.md` | Security review (SR-*) | — (SR-005/SR-011 candidate reserved-gap) | 2026-05-02 |
 | `dev/learnings.md` | Cross-phase engineering learnings | per-slice as discovered | 2026-05-31 |
 | `dev/tegra-platform-reference.md` | Tegra/L4T platform reference: build, packaging, CI, detection, GPU-evidence facts and traps | 0.8.23 Slice 80 (80.5/80.6) | 2026-08-19 |
@@ -139,9 +141,18 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
+| `dev/design/embedder.md` | Embedder Design — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/errors.md` | Errors Design — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/explicit-maintenance-erasure/contract.md` | Approved contract and explicit cleanup API — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/nested-source-projections.md` | Nested-Source Projections — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/perf-gates.md` | Perf gates — the two-tier model — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/recovery.md` | Recovery design — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/release.md` | Release Design — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/retrieval-result-limits.md` | Retrieval Result Limits — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/scheduler.md` | Scheduler Design — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/design/README.md` | Lifecycle-aware design navigation and placement rules | 0.8.26 Slice 46 | 2026-09-15 |
 | `dev/design/document-lifecycle.json` | Exact machine-checked lifecycle and ownership catalog for every design document | 0.8.26 Slice 46 | 2026-09-15 |
-| `dev/design/actuation.md` | Current actuation contract for atomic batches, idempotency, receipts, replay, and erasure | 0.8.26 Slice 46 | 2026-09-15 |
+| `dev/design/actuation.md` | Current actuation contract for atomic batches, idempotency, receipts, replay, and erasure | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/design/steward-cold-start-budget.md` | Steward cold-start token budget — RATIFIED plan (ledger `seq-226`); §3 liveness filter, `steward_cold_start_set` ratchet, repo-prune merge verdict | — (program hygiene; Phase 3 gated on 0.8.20 publish) | 2026-07-31 |
 | `dev/design/gpu-eval-activities-policy.md` | Policy — repo MUST use the 3090s for eval/embed activities when there is room | 0.8.14 Slice 20 (eu7 policy) | 2026-07-05 |
 | `dev/design/0.8.23-gpu-artifacts.md` | Design for Linux CUDA release artifacts and trusted GPU proof | 0.8.23 Slices 0/5 | 2026-08-10 |
@@ -171,7 +182,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/agent-harness-bootstrap-prompt.md` | Method on-ramp (portable distillation) | method on-ramp (cross-release) | 2026-06-26 |
 | `scripts/preflight.sh` | Orchestrator preflight gate | binds every spawn | 2026-06-26 |
 | `scripts/check-c1-conformance.sh` · `scripts/c1-conformance-pin.json` | RUBRIC-H7 `can-i-deploy` gate (R-20-H7) — pins the ratified `OPP-12-C1-converged-contract.md` bytes and asserts its 26 CHECKABLE clauses against as-built code; the pin carries the full reviewable clause registry (26 CHECKABLE / 12 CROSS-REPO / 7 PROSE) | 0.8.20 Slice 30 (R-20-H7); publish precondition | 2026-07-27 |
-| `dev/design/bindings.md` | SDK bindings spec; §1 governed SDK surface invariant (allowlist + parity, AC-074); §10 recovery-unreachability... | 25 rewrote §1/§13/§14; §10 preserved | 2026-06-04 |
+| `dev/design/bindings.md` | SDK bindings spec; §1 governed SDK surface invariant (allowlist + parity, AC-074); §10 recovery-unreachability... | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/design/0.8.0-agent-memory-fit.md` | Agent-memory gap ladder (G0–G12) + §7 read-verb HITL questions | scope source for 0.8.0 | 2026-06-02 |
 | `dev/design/0.8.0-v05-feature-triage.md` | v0.5.x feature triage (ship/defer/drop) | scope source of truth | 2026-06-02 |
 | `dev/design/0.8.0-slice-5-G1-design.md` | Slice 5 design memo — structured `SearchHit` shape, per-branch score, dedup/order, step-11 tokenizer migration +... | 5 (G1) | 2026-06-02 |
@@ -201,11 +212,11 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/fathomdb-graph-vs-mem0-zep-and-longmemeval-diagnosis.md` | Graph implementation vs Mem0/GraphRAG/Zep + LongMemEval diagnosis | 0.8.1 graph track (input to experiments) | 2026-06-14 |
 | `dev/design/0.8.1-slice-10-reranker-design.md` | 0.8.1 Slice 10 design memo — IMPLEMENTED 0.8.2 Slice E1 | 0.8.1 Slice 10 (R1) → impl 0.8.2 Slice E1; standalone API Slice E2 | 2026-06-18 |
 | `dev/design/agent-memory-impl-strategy.md` | Slice shapes / impl strategy for the gap ladder | 5/10/15/20/30 shapes | 2026-06-02 |
-| `dev/design/retrieval.md` | Retrieval pipeline design, including exact direct-text FTS rank-boundary collection and fallback | 5/10; 0.8.24 Slice 20 | 2026-08-24 |
-| `dev/design/projections.md` | Projection model | 5/15 | (tree) |
-| `dev/design/migrations.md` | Migration model (forward-only, accretion guard; index-only additive steps need no marker) | 5/15/33 (schema 10→11→13) | 2026-06-05 |
+| `dev/design/retrieval.md` | Retrieval pipeline design, including exact direct-text FTS rank-boundary collection and fallback | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/projections.md` | Projection model | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/design/migrations.md` | Migration model (forward-only, accretion guard; index-only additive steps need no marker) | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/design/vector.md`, `ann-index-vec0.md` | Vector store / vec0 ANN index | 10/15 | (tree) |
-| `dev/design/op-store.md` | Operational mutation store (incl. the Slice 30 `read.collection`/`read.mutations` read-back contract: reader-pool... | 30/33/34 (`read.collection`/`read.mutations`) | 2026-06-06 |
+| `dev/design/op-store.md` | Operational mutation store (incl. the Slice 30 `read.collection`/`read.mutations` read-back contract: reader-pool... | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/design/engine.md`, `lifecycle.md`, `scheduler.md`, `recovery.md`, `errors.md`, `embedder.md`, `embedder-decision.md`, `release.md`, `perf-gates.md`, `perf-regression-detection.md`, `0.7.0-vector-quant-pack1.md`, `0.7.1-EU-6-FIX-*.md` | Engine/lifecycle/scheduler/recovery/error/embedder/release/perf design notes | per-slice as touched | (tree) |
 | `dev/design/0.8.20-sqlite-vec-99-vec0-delete-probe.md` | Finding — sqlite-vec `vec0` DELETE fails for >12-byte TEXT metadata; engine workaround; remedy is a bump to 0.1.9 | 0.8.20 Slice 22 (R-20-VC leg 4); TC-76 re-open trigger | 2026-07-28 |
 | `dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md` | Cache the 0.8.18 vector-equivalence verdict on an embedder-identity fingerprint so `Engine::open` cost is constant | 0.8.20 Slice 22 (R-20-VC leg 2) | 2026-07-28 |
@@ -214,7 +225,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/0.8.20-slice-31-sbom-survey-tool.md` | Spec of record for `scripts/sbom-survey` — CycloneDX SBOM over tracked manifests, tiering, used-vs-published diff; 23 criteria | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3; no requirement id, TC-76) | 2026-07-29 |
 | `dev/design/chunking-strategy-and-test-guidance.md` | Verbatim chunking strategy and test guidance | performance experiments | 2026-08-15 |
 | `dev/design/fathomdb-data-plane-architecture-v1.md` | Superseded data-plane architecture retained as reviewed history | 0.8.25 history | 2026-09-02 |
-| `dev/design/fathomdb-data-plane-architecture-v2.md` | Active v2.2 architecture with historical 0.8.26 and current 0.8.27 SDK ownership profiles | 0.8.27 Slice 140 | 2026-10-10 |
+| `dev/design/fathomdb-data-plane-architecture-v2.md` | Active architecture with current .28 profile and retained historical baselines | 0.8.28 Slice 92 | 2026-11-04 |
 | `scripts/sbom-survey/README.md` | Operating note for the dependency-survey mini-project — how to run the suite, and why it is deliberately not CI-gating | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3) | 2026-07-29 |
 | `scripts/sbom-survey/smoke-install-run.sh` | TC-115 install-then-run smoke — installs the tool into a throwaway venv, invokes the INSTALLED console script, and asserts its artifacts are byte-identical to a source-tree run. Deliberately NOT CI-wired (`seq-172`) | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3) | 2026-07-29 |
 | `dev/plans/runs/0.8.20-slice-33-library-sweep-3-FINDINGS.md` | **Findings of record** for Library Sweep #3 — the ONLINE `sbom-survey` run at `29c2eae0`: 774 components, 28 direct outdated, per-dependency surgical verdicts, and the hand-off to 0.8.22. ASCERTAIN-ONLY; applied nothing | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3; no requirement id, TC-76) | 2026-07-29 |
@@ -255,6 +266,8 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
+| `dev/plans/0.8.28/features/slice-92/design.md` | Documentation owner, schema-target correction and verification design | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/plans/0.8.28/features/slice-92/inventory.md` | Code-grounded audit dispositions and witnesses for user, contributor and project documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md` | Current program schedule-of-record (THE master). | Program Steward (keeps true) | 2026-08-10 |
 | `dev/plans/0.8.6-0.8.16-PROGRAM-SEQUENCING.md` | Superseded historical sequencing record. | historical | 2026-08-10 |
 | `dev/plans/prompts/0.8.x-STEWARD-HANDOFF.md` | Program Steward hand-off — role/mandate (canonical). | Program Steward (entry point) | 2026-06-27 |
@@ -339,36 +352,47 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `docs/index.md` | Docs home for the 0.8.27 three-SDK surface | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/getting-started/index.md` | Getting-started overview for the 0.8.27 SDKs | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/getting-started/quickstart.md` | 0.8.27 Python write/read quickstart and SDK navigation | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/install/python.md` | Python 0.8.27 native and digest-qualified Tegra install routes | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/install/typescript.md` | TypeScript 0.8.27 native and verified Tegra Pages install routes | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/install/rust.md` | Rust SDK, lower-level facade and exact-version CLI installation | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/reference/rust-sdk.md` | Rust application SDK shape, options, errors and shared governed operations | 0.8.27 Slice 140 | 2026-10-10 |
+| `CHANGELOG.md` | Changelog — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/operations/integrity-inspection.md` | Immutable integrity inspection — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/release-notes/0.8.28.md` | Pending .28 retrieval, provider, format36, maintenance and dependency changes | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/python/README.md` | FathomDB — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/rust/crates/fathomdb-cli/README.md` | fathomdb-cli — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/rust/crates/fathomdb-embedder-api/README.md` | Embedder trait, head coverage and standalone-use admission boundary | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/rust/crates/fathomdb-embedder/README.md` | Built-in standalone runtimes, qualified forks, CUDA pool and loader behavior | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/rust/crates/fathomdb-sdk/README.md` | fathomdb-sdk — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/rust/crates/fathomdb/README.md` | fathomdb — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/ts/README.md` | fathomdb — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/index.md` | Docs home for the 0.8.28 three-SDK surface | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/getting-started/index.md` | Getting-started overview for the 0.8.28 SDKs | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/getting-started/quickstart.md` | 0.8.28 Python write/read quickstart and SDK navigation | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/install/python.md` | Python 0.8.28 native and digest-qualified Tegra install routes | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/install/typescript.md` | TypeScript 0.8.28 native and verified Tegra Pages install routes | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/install/rust.md` | Rust SDK, lower-level facade and exact-version CLI installation | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/reference/rust-sdk.md` | Rust application SDK shape, options, errors and shared governed operations | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/generated/sdk-operation-map.md` | Source-generated index of 44 Python, TypeScript and Rust governed operations | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/generated/contributor-map.md` | Source-generated Rust, Python, TypeScript and typed developer entry-point map | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/contributing/index.md` | Contributor setup, TDD, scoped/full verification and release-state workflow | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/release-notes/0.8.27.md` | 0.8.27 changes, three SDKs, Jetson delivery and release qualification limits | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/reference/index.md` | API-reference overview for the 0.8.27 surface | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/reference/python-api.md` | Python 0.8.27 API reference, including embedder and search-view options | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/reference/typescript-api.md` | TypeScript 0.8.27 API reference and default-embedder open options | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/reference/rust-api.md` | Lower-level Rust facade reference for 0.8.27 | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/reference/cli.md` | Operator CLI reference, including integrity and CUDA diagnostics | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/reference/errors.md` | Error reference (taxonomy) | 0.8.24 Slice 7 link correction | 2026-08-23 |
-| `docs/reference/config.md` | Config reference | 0.8.24 Slice 7 link correction | 2026-08-23 |
-| `docs/concepts/index.md` | Concepts overview for the current retrieval and graph surface | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/embedder.md` | Default embedder, opt-in configuration and runtime policy | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/compatibility/index.md` | 0.8.27 native platform, schema-34 and Tegra verification boundaries | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/operations/index.md` | Operations guide for the current release surface | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/reference/index.md` | API-reference overview for the 0.8.28 surface | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/reference/python-api.md` | Python 0.8.28 API reference, including embedder and search-view options | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/reference/typescript-api.md` | TypeScript 0.8.28 API reference and default-embedder open options | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/reference/rust-api.md` | Lower-level Rust facade reference for 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/reference/cli.md` | Operator CLI reference, including integrity and CUDA diagnostics | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/reference/errors.md` | Error reference (taxonomy) | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/reference/config.md` | Config reference | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/concepts/index.md` | Concepts overview for the current retrieval and graph surface | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/embedder.md` | Default embedder, opt-in configuration and runtime policy | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/compatibility/index.md` | .28 native/platform, format36 and conditional artifact-install boundaries | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/operations/index.md` | Operations guide for the current release surface | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/operations/worktree-consolidation.md` | Worktree consolidation protocol overview | 0.8.24 Slice 7 link correction | 2026-08-23 |
 | `docs/operations/erasure.md` | Erasure boundary | 0.8.20 Slice 5d (R-20-E4/E8, design §4 item 12) | 2026-07-19 |
 | `docs/guides/index.md` | Guides hub for the current retrieval surface | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/guides/structured-search-hits.md` | Structured `SearchHit` usage guide (id/kind/body/score/branch; Py + TS) | 5 (G1); 10 (score → RRF) | 2026-06-03 |
 | `docs/guides/retrieve-by-id.md` | Retrieve-by-id guide — `read.get`/`read.get_many` point lookup by `logical_id` (active-only) +... | 30 (G2/G3) | 2026-06-04 |
-| `docs/guides/hybrid-search-filtering.md` | Hybrid-search guide — RRF plus Python/TS metadata and declared-projection attribute filters | 0.8.22 documentation correctness | 2026-08-08 |
+| `docs/guides/hybrid-search-filtering.md` | RRF, three-SDK metadata/property filters, direct body FTS and historical-view limits | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/guides/prompt-context.md` | Stateless context rendering with Unicode-scalar item budgets and provenance | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/positions/index.md` | Positions hub | — | 2026-05-01 |
-| `docs/positions/sdk-parity.md` | Three-SDK operation, option and language-specific error parity | 0.8.27 Slice 140 | 2026-10-10 |
+| `docs/positions/sdk-parity.md` | Three-SDK operation, option and language-specific error parity | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/positions/recovery-surface.md` | Position: recovery surface (denylist, CLI-only) | preserved by 25/30 | 2026-05-01 |
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
 | `docs/release-notes/0.8.26.md` | Historical 0.8.26 highlights, schema boundary, published artifacts and install routes | 0.8.27 Slice 10 | 2026-09-21 |

@@ -14,6 +14,16 @@ AC-050c) gates merges against this invariant.
 
 ### Added
 
+- (Slice 85) Persisted `PhysicalErasurePolicy` and typed queue/status/withdraw
+  operations, owned explicit maintenance windows, durable incomplete fences,
+  original-sink reattachment and offline activated-ticket reconciliation.
+  Queueing preserves logical visibility; there is no deadline guarantee.
+- (Slice 80) Independent search visibility flags and canonical historical
+  property filtering, with lexical fallback for incomplete historical dense coverage.
+- (Slice 50) Typed open-time vector-verification failures distinguish actual
+  mismatch from inability to verify. Failure returns no Engine; deliberate
+  no-provider reopening remains ordinary mutable access, not dense repair.
+
 - (Slice 90) Direct body FTS accepts `SearchFilter` in Rust, Python and
   TypeScript, before candidate bounds, deduplication, ranking and result limit.
   Read views and existing positional calls are preserved. Declared attribute
@@ -99,9 +109,10 @@ AC-050c) gates merges against this invariant.
 
 ### Changed
 
-- (Slice 60) Store format 35 uses 64-row vector chunks and cursor-keyed node
-  body FTS rows. Prior stores, including format 34, are refused without an
-  automatic migration. Rebuild and recenter maintain vector coverage.
+- (Slices 60/85) Current store format is 36. Intermediate format 35 introduced
+  64-row vector chunks, cursor-keyed node body FTS and head coverage; format36
+  adds validated erasure policy/queue/fence metadata. Previous formats are
+  refused without migration. Rebuild/recenter preserve coverage semantics.
 
 - (Slice 42) Updated the SQLite stack to `rusqlite` 0.41 and the crates.io
   `libsqlite3-sys` 0.39 (SQLite 3.54.1); the vendored `libsqlite3-sys`
@@ -139,15 +150,14 @@ AC-050c) gates merges against this invariant.
   `#[non_exhaustive]`; `RerankerDevicePolicyError`, `EmbedderLoadError` and
   `RerankerLoadError` gain the CUDA variants; `rerank_passages` returns
   `RerankPassagesError`.
-- The Fathom Candle crates move to 0.10.3 (`candle-kernels` stays 0.10.2).
 - (Slice 31) FathomDB consumes its published fork crates from crates.io:
   `candle-core-fathomdb`, `candle-nn-fathomdb` and
   `candle-transformers-fathomdb` 0.11.0 (exact pins), which bring
   `cudarc-fathomdb` 0.19.10; the vendored cudarc 0.19.7 copy and its test
   are removed, and only `candle-kernels` stays a git patch (at the Candle
   fork's `182ceab0`). `tegra-pool` no longer enables the
-  `fathomdb-private-pool` marker and the embedder has no direct `cudarc`
-  dependency, so a downstream build of the published crates can use
+  `fathomdb-private-pool` marker. The embedder directly pins optional
+  `cudarc-fathomdb = "=0.19.10"` for CUDA builds; a downstream build can use
   `tegra-pool` (it links `libcudart` dynamically).
 - (Slice 31) A GPU below the build's compute-capability floor (7.5 on
   x86_64, 8.7 for Jetson) is refused as `cuda_incompatible` before a device
@@ -219,6 +229,16 @@ AC-050c) gates merges against this invariant.
   the rank stream skips rows outside the cohort before joining the node.
   Results, scores and order are unchanged; larger cohorts and unfiltered
   searches take the previous stream.
+
+### Removed
+
+- Production `EmbedderChoice::Caller` / `CallerWithDeviceResolution` admission
+  (and corresponding borrowed caller variants); production selects Default or
+  None. Standalone/test/evaluation implementations do not restore injection.
+- Refused-open `dense_disabled` / `dense_disabled_reason` report fields,
+  accessors and refusal counter, including binding camelCase counterparts;
+  attached runtime Refused / VectorEquivalenceDisabled modes. Verification
+  refusal now returns no Engine.
 
 ## 0.8.27 — 2026-10-10
 

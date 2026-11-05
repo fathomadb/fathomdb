@@ -2,22 +2,23 @@
 title: Migrations Subsystem Design
 date: 2026-04-30
 target_release: 0.6.0
-desc: Auto-migration behavior at Engine.open and accretion-guard ownership
+desc: Current fresh-bootstrap boundary, historical migration loop and accretion-guard ownership
 blast_radius: fathomdb-schema; Engine.open; REQ-042, REQ-045
 status: locked
 ---
 
 # Migrations Design
 
-This file owns the migration loop that runs during `Engine.open`, the per-step
-event contract, and the accretion-guard rules cited by REQ-042 / REQ-045.
+This file owns internal fresh-bootstrap step authorship, its per-step event
+contract and the accretion guard. The old public migration loop is retained
+below as history; it is not current admission authority.
 
-## 0.8.26 public boundary
+## Current public boundary (0.8.28)
 
 The migration loop below is a locked historical implementation/design record.
-The 0.8.26 public runtime does not apply it to a nonempty earlier database.
+The 0.8.28 public runtime does not apply it to a nonempty earlier database.
 Public open accepts a missing/zero-length path and internally constructs the
-current schema at version 34; any nonempty database with another user version
+current schema at version 36; any nonempty database with another user version
 is refused before product mutation. There is no historical upgrade matrix,
 receipt conversion, or cross-version replay path.
 

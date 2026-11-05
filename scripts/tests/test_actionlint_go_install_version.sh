@@ -94,7 +94,7 @@ if [ "$lint_status" -eq 0 ] || ! grep -Fq 'fake cargo reached' <<<"$lint_output"
   exit 1
 fi
 
-for script in scripts/bootstrap.sh scripts/agent-lint.sh; do
+for script in scripts/install-actionlint.sh scripts/agent-lint.sh; do
   if ! grep -Fq 'lib/actionlint-version.sh' "$REPO_ROOT/$script" \
     || ! grep -Fq 'read_actionlint_version' "$REPO_ROOT/$script" \
     || ! grep -Fq 'find_actionlint_bin' "$REPO_ROOT/$script"; then
@@ -103,7 +103,7 @@ for script in scripts/bootstrap.sh scripts/agent-lint.sh; do
   fi
 done
 
-if ! grep -Fq 'GITHUB_PATH' "$REPO_ROOT/scripts/bootstrap.sh"; then
+if ! grep -Fq 'GITHUB_PATH' "$REPO_ROOT/scripts/install-actionlint.sh"; then
   printf 'FAIL  bootstrap must persist its actionlint directory for later GitHub Actions steps\n' >&2
   exit 1
 fi

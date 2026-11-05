@@ -128,7 +128,7 @@ expect_value fastNode.path $'package-lock.json\nsrc/ts/package-lock.json' \
 expect_value heavyPython.cache pip "verify enables pip caching"
 expect_value heavyPython.path src/python/pyproject.toml "verify keys pip cache from the Python project"
 expect_value heavyNode.cache npm "verify enables npm caching"
-expect_value heavyNode.path src/ts/package-lock.json "verify keys npm cache from the TypeScript lock"
+expect_value heavyNode.path $'package-lock.json\nsrc/ts/package-lock.json'  "verify keys npm cache from the TypeScript lock"
 expect_value embedderPython.cache pip "default-embedder enables pip caching"
 expect_value embedderPython.path src/python/pyproject.toml \
   "default-embedder keys pip cache from the Python project"

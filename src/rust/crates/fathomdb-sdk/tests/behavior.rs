@@ -735,3 +735,66 @@ fn filtered_text_snippets_keep_historical_view_axes_independent() {
     }
     engine.close().expect("close");
 }
+
+#[test]
+fn filtered_snippets_keep_node_attribute_scope_and_edge_rowid_identity() {
+    let (_dir, engine) = open_engine();
+    engine
+        .configure_projections(
+            &[fathomdb_sdk::ProjectionSpec {
+                name: "group".into(),
+                roles: [fathomdb_sdk::ProjectionRole::Filterable].into(),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let term = "s95rowidentity";
+    let body = serde_json::json!({
+        "text": format!("{} {term} target", "padding ".repeat(200)),
+        "group": "wanted"
+    })
+    .to_string();
+    let mut linked = edge("n0", "n1");
+    if let PreparedWrite::Edge { logical_id, body: edge_body, .. } = &mut linked {
+        *logical_id = Some("edge-target".into());
+        *edge_body = Some(body.clone());
+    }
+    engine
+        .write(&[
+            node(Some("n0"), "note", "endpoint zero", "source"),
+            node(Some("n1"), "note", "endpoint one", "source"),
+            node(Some("target"), "note", &body, "source"),
+            linked,
+        ])
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("group".into(), "wanted".into())];
+    let mut options = TextSearchOptions::default();
+    options.filter = Some(filter);
+    let mut snippet = fathomdb_sdk::SnippetOptions::default();
+    snippet.max_bytes = 120;
+    options.snippet = Some(snippet);
+    for (filter, id) in [(options.filter.clone().unwrap(), "target"), {
+        let mut filter = SearchFilter::default();
+        filter.kind = Some("links".into());
+        (filter, "edge-target")
+    }] {
+        options.filter = Some(filter);
+        let result = engine.search_text_only(term, options.clone()).unwrap();
+        assert_eq!(result.results.len(), 1);
+        assert_eq!(result.results[0].id.value, id);
+        let snippets = result.snippets.unwrap();
+        assert_eq!(snippets.len(), 1);
+        assert_eq!(snippets[0].anchor, fathomdb_sdk::SnippetAnchor::Match);
+        assert!(!snippets[0].spans.is_empty());
+        for &(start, end) in &snippets[0].spans {
+            assert_eq!(&body.as_bytes()[start as usize..end as usize], term.as_bytes());
+        }
+    }
+    options.filter.as_mut().unwrap().attributes = vec![("undeclared".into(), "wanted".into())];
+    assert_eq!(kind_of(engine.search_text_only(term, options)), ErrorKind::InvalidFilter);
+    engine.close().unwrap();
+}

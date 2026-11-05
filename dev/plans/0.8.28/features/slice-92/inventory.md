@@ -1,6 +1,6 @@
 ---
 title: Slice 92 — documentation audit inventory
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.28
 ---
 

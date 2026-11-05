@@ -12,10 +12,10 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 92 (DOCUMENTATION-CONVERGENCE), IN_PROGRESS.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) · 60 (`e240efd4b91b8e3ba4ea53dc3edea73639f44747`) · 70 (`398d5c1edaf58d0d2dd68ac13136f3939130059a`) · 80 (`d641f43f73d0576fc24af28c80d5be199fc5332f`) · 81 (`7ca1d182bef03c69199f538904ce8332842d80a2`) · 82 (`ab046b2167c64b5edc3109c0d9cd087ec4ef8487`) · 83 (`af84f12f82d092a00a8d14f3fe657eff79bf0b4f`) · 84 (`426d2278258076bfb98df47c51c214338e0559f2`) · 85 (`a2fb4a6475500b70676f9f54aff251df60f3e07c`) · 90 (`14d710093f1b3e061d4625c0a62665a6ff899372`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 95 (CI-RELEASE-READINESS), PLANNED.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) · 60 (`e240efd4b91b8e3ba4ea53dc3edea73639f44747`) · 70 (`398d5c1edaf58d0d2dd68ac13136f3939130059a`) · 80 (`d641f43f73d0576fc24af28c80d5be199fc5332f`) · 81 (`7ca1d182bef03c69199f538904ce8332842d80a2`) · 82 (`ab046b2167c64b5edc3109c0d9cd087ec4ef8487`) · 83 (`af84f12f82d092a00a8d14f3fe657eff79bf0b4f`) · 84 (`426d2278258076bfb98df47c51c214338e0559f2`) · 85 (`a2fb4a6475500b70676f9f54aff251df60f3e07c`) · 90 (`14d710093f1b3e061d4625c0a62665a6ff899372`) · 92 (`7b24e4c0913ec6585781b1148b81da0853f9dd67`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
 
-Product implementation is complete through Slice 90. The documentation
-baseline is owned by [Slice 92](../0.8.28/features/slice-92/status.md);
+Product implementation is complete through Slice 90. The completed documentation
+baseline is recorded by [Slice 92](../0.8.28/features/slice-92/status.md);
 [Slice 95](../0.8.28/features/slice-95/plan.md) owns CI repairs and final
 qualification, strengthened by the 0.8.26/0.8.27 review. No Slice 95
 qualification or publication is claimed; physical erasure is done except for
@@ -52,7 +52,7 @@ Astra reviews, independent checks, scale and GPU recall qualification.
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Continue Slice 92 (DOCUMENTATION-CONVERGENCE)** — Code-grounded user, contributor and project documentation audit and convergence. **Remaining ladder:** 92 → 95.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Commission Slice 95 (CI-RELEASE-READINESS)** — CI completeness and quality, runner repairs, documentation/package convergence and final release qualification. **Remaining ladder:** 95.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
@@ -78,7 +78,7 @@ Ruled on 2026-10-30 and 2026-10-31 (release state, `decisions.ruled`):
 - **D28-12** is met for vector and hybrid latency; populated-open latency
   moves to 0.8.29.
 - **Slice 92.** Owner placed documentation audit/convergence after 90 and before
-  95 on 2026-11-04 (seq-365); documentation convergence is in progress.
+  95 on 2026-11-04 (seq-365); documentation convergence is complete; qualification remains with95.
 - **Slice 95.** Owner placed CI completeness and final release-readiness work
   initially after 90 on 2026-11-04 (seq-364); now depends on 92. Physical erasure is done except for
   defects; publication remains held.
@@ -111,7 +111,7 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 84 | Cleanup contention investigation | 84 and 84b investigations complete; both optimizations NOT QUALIFIED and rejected. Baseline production restored at `426d2278258076bfb98df47c51c214338e0559f2`; scoped/resumed verification complete. [Status](../0.8.28/features/slice-84/status.md). |
 | 85 | Explicit physical-erasure maintenance | Complete on canonical `release/0.8.28` at `a2fb4a6475500b70676f9f54aff251df60f3e07c`; Astra final approval, independent S85-1–8, assembled gate and first bounded screen pass. Hosted CI setup/disk/legacy-smoke limitations remain follow-up. [Status](../0.8.28/features/slice-85/status.md). |
 | 90 | D28-14 filtered direct body FTS | Complete at `14d710093f1b3e061d4625c0a62665a6ff899372`; Astra design/code approval, independent verification and fresh binding tests. [Status](../0.8.28/features/slice-90/status.md). |
-| 92 | Documentation audit and convergence | IN_PROGRESS after 90 and before 95; user, contributor and project truth/hygiene, S92-1–8. [Plan](../0.8.28/features/slice-92/plan.md); [status](../0.8.28/features/slice-92/status.md). |
+| 92 | Documentation audit and convergence | Complete at `7b24e4c0913ec6585781b1148b81da0853f9dd67`; S92-1–8, Astra design/code and separate consumer verification; assembled full/scoped gate results recorded. [Plan](../0.8.28/features/slice-92/plan.md); [status](../0.8.28/features/slice-92/status.md). |
 | 95 | CI completeness and final release readiness | PLANNED after 92; S95-CI1–CI7 repairs and S95-1–11 acceptance incorporate historical CI/platform/feature/rehearsal robustness. [Plan](../0.8.28/features/slice-95/plan.md); [status](../0.8.28/features/slice-95/status.md). |
 
 Implementation ladder complete. Slice 84/84b closed with negative qualification. Slices 41 and 42 were added by owner rulings on

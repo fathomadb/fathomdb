@@ -173,9 +173,9 @@ before Slice 95. These explicit placements do not change this policy for other g
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 92** (`DOCUMENTATION-CONVERGENCE`) — Code-grounded user, contributor and project documentation audit and convergence
+**IMMEDIATE NEXT: Slice 95** (`CI-RELEASE-READINESS`) — CI completeness and quality, runner repairs, documentation/package convergence and final release qualification
 
-**Remaining ladder:** 92 → 95.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
+**Remaining ladder:** 95.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
 Product implementation completed through Slice 90 before the documentation
 convergence allocated to [Slice 92](0.8.28/features/slice-92/plan.md).
@@ -378,7 +378,8 @@ requirements say otherwise.
   hygiene against accepted authority and implementation. Reuse current catalogs,
   generated navigation and docs checks; correct the pending format-36 truth
   checker through RED/GREEN. [Plan](0.8.28/features/slice-92/plan.md), S92-1–8;
-  [status](0.8.28/features/slice-92/status.md). Planning only.
+  [status](0.8.28/features/slice-92/status.md). Complete with Astra reviews,
+  independent examples and assembled full/scoped verification.
 - **Slice 95 — CI completeness and final release readiness.** Owner placement
   on 2026-11-04 (steward ledger seq-364), initially after 90; now depends on 92.
   Slice 92 owns documentation convergence; 95 checks its baseline and later

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 92 — documentation audit and convergence
-status: APPROVED
+status: COMPLETE
 target_release: 0.8.28
 planning_baseline: 896ff59e96caa3b98c98e4b246c407b088dbaf28
 planned_on: 2026-11-04
@@ -10,8 +10,8 @@ planned_on: 2026-11-04
 
 Owner placement on 2026-11-04 (ledger seq-365): after completed Slice 90 and before Slice 95,
 audit and update user, contributor and project documentation for the as-built
-0.8.28 release. This plan defines the audit and correction work; it does not
-claim that the documentation has already been reconciled. Slice 95 retains CI
+0.8.28 release. The audit and corrections are complete; [status](status.md) records the
+reviewed baseline, acceptance and assembled verification provenance. Slice 95 retains CI
 repairs, assembled final qualification and non-publishing release rehearsal.
 
 ## Historical review and initial reconciliation

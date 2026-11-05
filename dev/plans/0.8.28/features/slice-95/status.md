@@ -8,7 +8,9 @@ status: PLANNED
 **PLANNED; execution NOT_STARTED.** Owner placed Slice 95 after completed
 Slice 90 on 2026-11-04 (steward ledger seq-364). Owner placement of Slice 92
 (seq-365) now makes its documentation convergence a prerequisite; S95-5 consumes
-that baseline and checks later repair deltas rather than repeating the audit.
+that completed baseline and checks later repair deltas rather than repeating the audit.
+Slice92 completed at `7b24e4c0913ec6585781b1148b81da0853f9dd67`; its
+[status](../slice-92/status.md) records assembled verification and candidate-consumer limits.
 
 The [plan](plan.md) now reconciles the 0.8.26 Slice 50/65 and 0.8.27 Slice
 150/publication-close lessons with current CI. S95-CI1–CI7 explicitly cover
@@ -40,7 +42,7 @@ repository-rule lint of all four changed Markdown files,
 and `git diff --check`. These checks do not establish execution or release
 readiness.
 
-Next: complete Slice 92 documentation convergence, then refresh current
-code/CI/dependencies, audit the job/evidence matrix and
+Next: consume completed Slice92 documentation, refresh current code/CI/dependencies,
+audit the job/evidence matrix and
 review the concrete repair design before RED/GREEN implementation. No new CI run,
 repair, qualification result or ready-to-publish verdict is claimed by this plan.

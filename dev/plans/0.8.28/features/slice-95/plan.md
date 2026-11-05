@@ -26,6 +26,14 @@ checks. S95-5 remains final semantic/structural consistency verification and any
 correction caused by subsequent CI/package repairs; do not repeat the full audit.
 The CI repair and qualification scope below is retained.
 
+Slice92 is complete at `7b24e4c0913ec6585781b1148b81da0853f9dd67`; its
+[status](../slice-92/status.md) records the reviewed baseline, real consumer
+examples and assembled verification (196/205 initially passed; nine affected
+suites passed scoped reruns). Current documentation targets pending .28, not a
+publication receipt. Preserve the required generated plan/board pointers and
+refresh only documentation invalidated by later repairs. Final CI/platform/
+feature/performance/security/rehearsal obligations below remain assigned here.
+
 ## Historical model and reconciliation
 
 The model is the documentation/contract convergence in

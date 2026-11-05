@@ -12,6 +12,8 @@
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
+| `src/ts/npm/linux-arm64-gnu/README.md` | Platform-native package usage and canonical repository link | 0.8.28 Slice 92 | 2026-11-04 |
+| `src/ts/npm/linux-x64-gnu/README.md` | Platform-native package usage and canonical repository link | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/operations/integrity-inspection.md` | Immutable integrity inspection — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/release-notes/0.8.28.md` | Pending .28 retrieval, provider, format36, maintenance and dependency changes | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/index.md` | Docs home for the 0.8.28 three-SDK surface | 0.8.28 Slice 92 | 2026-11-04 |
@@ -37,7 +39,7 @@
 | `docs/compatibility/index.md` | .28 native/platform, format36 and conditional artifact-install boundaries | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/operations/index.md` | Operations guide for the current release surface | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/operations/worktree-consolidation.md` | Worktree consolidation protocol overview | 0.8.24 Slice 7 link correction | 2026-08-23 |
-| `docs/operations/erasure.md` | **Erasure boundary** — what `erase_source`/`purge` guarantee and, explicitly, what they do NOT (copies, SQLite free pages absent `VACUUM`, CoW/snapshotted filesystems, backups); the retention-exempt erasure-audit record; the non-PII `source_id` rule with its CORRECTED rationale (design defect D-A: v4 §3.6's "audit retains `source_id` permanently" premise was verified FALSE and is SUPERSEDED IN PART — the real basis is an unswept audit row, now made durable) + the `derive_logical_id` case-folding note (D-C); `doctor orphan-provenance` usage | 0.8.20 Slice 5d (R-20-E4/E8, design §4 item 12) | 2026-07-19 |
+| `docs/operations/erasure.md` | Autonomous/explicit maintenance, physical-success limits and public identity guidance | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/guides/index.md` | Guides hub for the current retrieval surface | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/guides/structured-search-hits.md` | Structured `SearchHit` usage guide (id/kind/body/score/branch; Py + TS) | 5 (G1); 10 (score → RRF) | 2026-06-03 |
 | `docs/guides/retrieve-by-id.md` | Retrieve-by-id guide — `read.get`/`read.get_many` point lookup by `logical_id` (active-only) + `read.collection`/`read.mutations` paginated op-store read-back (mandatory limit + after-id cursor); Py + TS | 30 (G2/G3) | 2026-06-04 |

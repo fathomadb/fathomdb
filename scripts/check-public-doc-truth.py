@@ -202,7 +202,11 @@ def missing_platform_boundaries(text: str) -> list[str]:
 
 
 def source_schema_version(root: Path) -> int:
-    """Read the single current schema declaration for a pending docs target."""
+    """Return the current source format under the repository root.
+
+    Missing, ambiguous or invalid schema declarations fail closed via SystemExit.
+    The caller must first select an identity-validated pending docs target.
+    """
     relative = Path("src/rust/crates/fathomdb-schema/src/lib.rs")
     try:
         source = (root / relative).read_text()

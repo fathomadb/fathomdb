@@ -142,14 +142,15 @@ The reason is that `source_id` outlives the rows it names:
 > audit collections from the sweep. That section of v4 is marked SUPERSEDED IN
 > PART.
 
-The same reasoning applies to `logical_id`, and more sharply. A `logical_id` is
-derived as:
+Treat caller-supplied `logical_id` values as public identifiers too. Direct
+canonical writes accept opaque IDs such as `note:1`; they are not universally
+derived from a name. Extractor ingestion derives entity IDs internally as:
 
 ```text
 logical_id = SHA256( lowercase(kind) + ":" + lowercase(name) )
 ```
 
-The inputs are **case-folded** before hashing. That is load-bearing for identity
+For those extractor-derived IDs, inputs are **lowercased** before hashing. That is load-bearing for identity
 collapse (so `Alice Smith` and `alice smith` are one entity), but it also
 *shrinks the preimage space*: a dictionary attack over plausible names does not
 have to guess capitalisation. Do not treat a `logical_id` hash as though it

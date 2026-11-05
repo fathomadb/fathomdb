@@ -79,6 +79,13 @@ and explicit-maintenance guidance. Run exact documented code where complete;
 record fixture/assembly details for fragments. Registry installation and hosted
 platform qualification remain Slice95/publication evidence, not source proof.
 
+Independent execution found and corrected one retained guide claim: direct
+writes accept caller-supplied opaque logical IDs; only extractor-ingestion paths
+use the internal lowercase kind/name hash (`identity.rs`, `ingest.rs`). The
+privacy caveat now applies specifically to those derived IDs. Native Linux npm
+package READMEs also shed the stale .20 label and old repository URL; these
+packaging-prose changes require a targeted repack/recheck, not native recompilation.
+
 ## Project and historical hygiene
 
 | Cohort | Disposition and authority |

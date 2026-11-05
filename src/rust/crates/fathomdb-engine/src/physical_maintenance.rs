@@ -85,22 +85,32 @@ impl PhysicalMaintenance {
                     if !active {
                         continue;
                     }
-                    let Ok(_service) = service.try_lock() else {
-                        continue;
-                    };
                     shared.priority.store(true, Ordering::Release);
                     let turn = shared.turn.lock().unwrap_or_else(|p| p.into_inner());
                     let priority = MaintenanceTurn { shared: &shared, _turn: turn };
+                    let mut service_guard = None;
                     let result = (|| {
                         let waiting = metrics.timer("maintenance_writer_wait");
                         let guard = physical_metrics::writer(&metrics, &connection, false)?;
                         drop(waiting);
                         let holding = metrics.timer("maintenance_writer_hold");
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
-                        if !connection_runtime::internal_debt_probe(|| physical_erasure::active(c))?
-                        {
+                        let active =
+                            connection_runtime::internal_debt_probe(|| physical_erasure::active(c))
+                                .inspect_err(|error| {
+                                    // Before service admission, only this primary guard
+                                    // prevents attributing a blocker to a later request.
+                                    let _ = physical_erasure::record_blocker(c, error);
+                                })?;
+                        if !active {
                             return Ok(false);
                         }
+                        // Foreground erasure owns service before primary. Never
+                        // wait on its service guard while holding primary.
+                        let Ok(ownership) = service.try_lock() else {
+                            return Ok(false);
+                        };
+                        service_guard = Some(ownership);
                         metrics.begin_lifecycle();
                         let ids = physical_erasure::pending_ids(c)?;
                         dependency_closure::validate_physical_closures(c, &ids)?;
@@ -135,14 +145,17 @@ impl PhysicalMaintenance {
                         projections.notify_new_work();
                         Ok(true)
                     })();
-                    if let Err(error) = &result {
-                        if let Ok(guard) = connection.lock() {
-                            if let Some(c) = guard.as_ref() {
-                                let _ = physical_erasure::record_blocker(c, error);
+                    if service_guard.is_some() {
+                        if let Err(error) = &result {
+                            if let Ok(guard) = connection.lock() {
+                                if let Some(c) = guard.as_ref() {
+                                    let _ = physical_erasure::record_blocker(c, error);
+                                }
                             }
                         }
                     }
                     drop(priority);
+                    drop(service_guard);
                     delay = if matches!(result, Ok(true)) {
                         Duration::from_millis(5)
                     } else {

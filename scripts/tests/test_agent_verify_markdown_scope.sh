@@ -20,8 +20,9 @@ cleanup() {
 trap cleanup EXIT
 
 FIXTURE="$TMPROOT/repo"
-mkdir -p "$FIXTURE/scripts"
+mkdir -p "$FIXTURE/scripts/lib"
 cp "$VERIFY" "$FIXTURE/scripts/agent-verify.sh"
+cp "$REPO_ROOT/scripts/lib/agent-output.sh" "$FIXTURE/scripts/lib/agent-output.sh"
 git -C "$FIXTURE" init -q
 
 make_stub() {

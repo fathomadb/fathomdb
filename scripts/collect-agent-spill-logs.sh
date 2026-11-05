@@ -13,9 +13,9 @@ usage() {
   cat >&2 <<'USAGE'
 Usage: collect-agent-spill-logs.sh --destination <directory> [--source-dir <directory>]
 
-Copies and redacts /tmp/fathomdb-agent-*.log into a runner-owned artifact
-directory. --source-dir exists only to let the recurrence test use a disposable
-fixture; CI uses the default /tmp source.
+Copies and redacts nonempty regular fathomdb-agent-*.log files into an artifact
+directory. CI passes its fresh invocation-owned --source-dir; local callers
+retain the /tmp default. Symlinked and empty candidates are not evidence.
 USAGE
 }
 

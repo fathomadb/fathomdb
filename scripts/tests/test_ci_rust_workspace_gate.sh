@@ -168,7 +168,7 @@ else
   cat >"$FAKE_BIN/bash" <<EOF
 #!$REAL_BASH
 if [ "\$1" = "scripts/test-rust-workspace.sh" ] && [ "\$2" = "--parallel-report" ]; then
-  printf 'known stdout\\n'
+  printf 'known stdout\\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\\n'
   printf 'known stderr\\n' >&2
   exit 73
 fi
@@ -185,6 +185,7 @@ EOF
   set -e
   LOG_PATH="$RUNNER_TEMP/rust-workspace-parallel.log"
   if [ "$BODY_RC" -eq 0 ] && grep -q 'exit_code=73' "$SUMMARY" \
+    && grep -q 'test_result_summaries=1' "$SUMMARY" \
     && grep -q 'artifact_name=rust-workspace-parallel-99-7' "$SUMMARY" \
     && grep -q 'artifact=rust-workspace-parallel-99-7' "$TMPROOT/reporter.out" \
     && grep -q 'known stdout' "$LOG_PATH" && grep -q 'known stderr' "$LOG_PATH"; then

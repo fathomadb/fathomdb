@@ -296,3 +296,65 @@ already-running .29 gate keeps its original source/outcome; forward the fix
 and recheck affected scopes afterward. Correct the maintained binding design's
 stale full-or-contended loss claim and state the accepted contract in Python
 reference/release guidance. Publication remains held.
+
+## CI13: observe the provider deadline rather than teardown wall time
+
+**Astra design and code review APPROVE on 2026-11-05.** SourceE86fb2924
+run41991174061 passed fast198/198, Python and every other applicable job, but
+heavy Rust failed one of144 engine units. The close fixture reported207.540814ms
+against its200ms bound. Its timestamp precedes releasing the primary mutex,
+remaining SQLite disposal, scheduling and channel delivery. That interval does
+not measure the configured40ms provider budget. Source still drains SQLite
+before joining providers and stores the first deadline with get_or_insert.
+
+Preserve the existing production deadline and Scheduler/worker/owner contracts.
+Use private cfg(test) observations of the actual post-SQLite boundary, zero
+managed owners, proposed clock/budget, stored deadline and timeout decisions.
+No deadline may exist while the real primary transaction is held. First,
+concurrent, repeated and Engine Drop attempts select the identical deadline;
+already-expired attempts request no additional timed wait. The observer survives
+Engine Drop without retaining the Engine. Release the held provider explicitly
+after close/Drop observations, with cleanup guards/watchdogs that join actors
+on failure. Replace proxy wall-time assertions and the fixed300ms release;
+do not raise200ms or change production scheduling/deadline calculation.
+
+Retain the hosted failure as observed RED. The replacement oracle must reject
+isolated early-start and renewal mutations; restore source before GREEN.
+Focused close/failed-open/provider-retention controls, the normal-parallel engine
+unit library and standalone dispatcher controls verify the bounded blast radius.
+No full local restart; final exact-candidate CI remains required. S95-6/8 govern
+this fixture correction; no new product policy, deadline or API is introduced.
+
+## CI14: witness concurrent progress in the long cursor fixture
+
+**Astra design review APPROVE on 2026-11-05.** Independent review found that the
+existing1000-search fixture ignores writer errors and can pass with entirely
+empty searches. The earlier execution proves the search path ran, not positive
+concurrent-write evidence. Its comment about a compiled-SQL row is stale.
+
+Strengthen this existing test only. Require a successful real commit before the
+reads and at least one successful commit during the read phase through explicit
+rendezvous. Propagate writer errors and record positive matching-row observations.
+Use explicit provider-free open, one logical ID and distinct matching revision
+bodies so each iteration can observe advancing committed data. Identical-body
+reuse otherwise makes the old row-count check inert after the first barrier.
+In this fresh synchronous lexical-only fixture, additionally require each
+matching hit.write_cursor <= response.projection_cursor, and observe a hit cursor
+beyond the first real successful WriteReceipt cursor. This is not a general
+promise for stores with asynchronous dense-projection backlog.
+
+Keep1000 searches, the50us writer throttle,60-second anti-hang watchdog and
+original returned-row-count <= projection_cursor invariant. Stop/join the writer
+on all failure paths without a second panic during unwinding. Remove the stale
+comment; no new framework, product API or timing SLA.
+
+Demonstrate the original fixture's vacuous pass under a disabled/invalid writer,
+then the strengthened fixture's rejection under the same mutation. Also freeze
+later response cursors at the first real receipt: the advancing-hit oracle must
+reject that stale-cursor mutation even when the row-count check cannot. Restore
+the real writer and run the actual long body plus focused cursor controls. Report
+safe progress/advancing-hit counts. The row-count comparison remains a lower
+bound; the additional hit-cursor witness is scoped to this provider-free fixture.
+S95-6/9 require meaningful concurrent evidence; no unrelated local regression
+restart is needed. Astra approved this refinement after rejecting the weaker
+positive-activity-only version.

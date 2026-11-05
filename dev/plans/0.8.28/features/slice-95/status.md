@@ -103,3 +103,34 @@ admission defect under the accepted ADR; Astra concrete design APPROVE and
 isolated RED/GREEN implementation are in progress. Original Python assertions
 remain unchanged. The .29 canonical gate continues on frozen6674cf79; forward
 this later repair and recheck only affected scopes. Publication remains held.
+
+## Current required non-passes and follow-up
+
+CI12 is complete at4a985b6da and merged into sourceE86fb2924. Astra final code
+APPROVE; independent shipping CPU wheel10/10 subscriber tests, canonical native
+receipt/recheck10/10, fresh Python examples5/5 and affected feature assembly
+180planned/165passed/0failed/15ignored pass. Exact CI41991174061 passes Python
+and every applicable job except a provider-close fixture's207.54ms wall-time
+assertion. CI13 replaces that timing proxy with actual deadline decisions;
+CI14 strengthens the existing cursor fixture's positive-write evidence.
+
+The .29 forward baseline has an uninterrupted205/205 canonical pass on6674cf79,
+then approved sourceE forwarde97d290fa with39 PyO3 units and10 Python tests plus
+current native receipt passing. This is an attributed broad-plus-focused
+assembly; no full-gate claim on the later source is substituted.
+
+AC011a is a valid required FAIL:999.651557/s <1000/s. It is not rounded, retried
+into green or waived. AC011b307.292/s, AC0121/3ms, AC01355/61ms, AC081 seven
+hard limits (existing sequential warnings),60s schema reliability and AC073
+real-corpus stress47ms<=297ms pass. The original cursor path executes1000
+searches but needs CI14's nonempty concurrent witness. EU7's retired recall
+assertion remains an overall101; accepted TC5 fidelity is separately retained.
+Diagnostic tracing is complete and nonqualifying; no causal optimization is
+established. Owner direction is pending on further performance work/disposition.
+Slice95 remains IN_PROGRESS; publication is held.
+
+CI14 review rejected a positive-activity-only revision because identical bodies
+reuse one row and make1<=cursor inert. The approved refinement uses one logical
+ID with distinct matching revisions and explicit no-provider access, retains the
+row-count bound and checks each advancing hit cursor against its response cursor.
+A frozen-response mutation must fail; source behavior remains unchanged.

@@ -1,0 +1,173 @@
+diff --git a/src/rust/crates/fathomdb-engine/src/write_commit.rs b/src/rust/crates/fathomdb-engine/src/write_commit.rs
+index e274f3cdb..cd71b3b8f 100644
+--- a/src/rust/crates/fathomdb-engine/src/write_commit.rs
++++ b/src/rust/crates/fathomdb-engine/src/write_commit.rs
+@@ -119,6 +119,22 @@ thread_local! {
+     pub(crate) static CANONICAL_BODY_HASH_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+ }
+ 
++#[cfg(test)]
++#[derive(Default)]
++struct EndpointPrepareDiagnostic {
++    initial_prepares: u64,
++    prepare_ns: u128,
++    exists_calls: u64,
++    reprepares: i64,
++    runs: i64,
++    vm_steps: i64,
++}
++
++#[cfg(test)]
++thread_local! {
++    static ENDPOINT_PREPARE_DIAGNOSTIC: std::cell::RefCell<Option<EndpointPrepareDiagnostic>> = const { std::cell::RefCell::new(None) };
++}
++
+ pub(crate) fn canonical_body_hash(body: &str) -> String {
+     #[cfg(test)]
+     CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(calls.get() + 1));
+@@ -909,9 +925,24 @@ pub(crate) fn apply_batch_in_transaction(
+             }
+         }
+ 
++        #[cfg(test)]
++        let diagnostic_started = ENDPOINT_PREPARE_DIAGNOSTIC
++            .with(|state| state.borrow().as_ref().map(|_| std::time::Instant::now()));
+         let mut probe = tx.prepare(
+             "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL LIMIT 1",
+         )?;
++        #[cfg(test)]
++        if let Some(started) = diagnostic_started {
++            let elapsed = started.elapsed();
++            ENDPOINT_PREPARE_DIAGNOSTIC.with(|state| {
++                let mut state = state.borrow_mut();
++                let stats = state.as_mut().expect("diagnostic enabled");
++                stats.initial_prepares += 1;
++                stats.prepare_ns += elapsed.as_nanos();
++            });
++        }
++        #[cfg(test)]
++        let mut diagnostic_exists_calls = 0_u64;
+         let mut count: u64 = 0;
+         for (i, write) in batch.iter().enumerate() {
+             let write = storage_write_shape(write);
+@@ -930,12 +961,26 @@ pub(crate) fn apply_batch_in_transaction(
+                 }
+                 // Probe `from_id` and `to_id` independently (0, 1, or 2 per edge).
+                 for endpoint in [from, to] {
++                    #[cfg(test)]
++                    {
++                        diagnostic_exists_calls += 1;
++                    }
+                     if !probe.exists(params![endpoint])? {
+                         count = count.saturating_add(1);
+                     }
+                 }
+             }
+         }
++        #[cfg(test)]
++        ENDPOINT_PREPARE_DIAGNOSTIC.with(|state| {
++            if let Some(stats) = state.borrow_mut().as_mut() {
++                stats.exists_calls += diagnostic_exists_calls;
++                stats.reprepares +=
++                    i64::from(probe.get_status(rusqlite::StatementStatus::RePrepare));
++                stats.runs += i64::from(probe.get_status(rusqlite::StatementStatus::Run));
++                stats.vm_steps += i64::from(probe.get_status(rusqlite::StatementStatus::VmStep));
++            }
++        });
+         count
+     };
+ 
+@@ -1023,3 +1068,93 @@ impl Engine {
+         self.force_next_commit_failure.store(true, Ordering::SeqCst);
+     }
+ }
++
++#[cfg(test)]
++mod endpoint_prepare_diagnostic {
++    use super::{EndpointPrepareDiagnostic, ENDPOINT_PREPARE_DIAGNOSTIC};
++    use crate::{Engine, InitialState, PreparedWrite, SourceId};
++    use std::time::{Duration, Instant};
++
++    fn parameter(name: &str, default: u64) -> u64 {
++        std::env::var(name)
++            .map_or(default, |value| value.parse().expect("unsigned diagnostic parameter"))
++    }
++
++    fn node_count(engine: &Engine) -> u64 {
++        engine
++            .connection
++            .lock()
++            .unwrap()
++            .as_ref()
++            .unwrap()
++            .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
++            .unwrap()
++    }
++
++    #[test]
++    #[ignore = "diagnostic only; reserve an isolated execution slot"]
++    fn phase2_endpoint_prepare_diagnostic() {
++        let commits = parameter("AC011_DIAGNOSTIC_COMMITS", 1_000);
++        let payload_bytes = parameter("AC011_DIAGNOSTIC_PAYLOAD_BYTES", 1_024);
++        let warmup_ms = parameter("AC011_DIAGNOSTIC_WARMUP_MS", 5_000);
++        assert!(commits > 0 && payload_bytes > 0);
++        let dir = tempfile::TempDir::new().unwrap();
++        let path =
++            dir.path().join(format!("ac011-endpoint-prepare{}", fathomdb_schema::SQLITE_SUFFIX));
++        let opened = Engine::open(&path).expect("open write-throughput fixture");
++        let write = PreparedWrite::Node {
++            kind: "throughput".to_string(),
++            body: "x".repeat(usize::try_from(payload_bytes).unwrap()),
++            source_id: SourceId::new("test:ac011").expect("test source id"),
++            logical_id: None,
++            state: InitialState::Active,
++            reason: None,
++            valid_from: None,
++            valid_until: None,
++        };
++        let warmup_deadline = Instant::now() + Duration::from_millis(warmup_ms);
++        let mut warmup_commits = 0_u64;
++        while Instant::now() < warmup_deadline {
++            opened.engine.write(std::slice::from_ref(&write)).expect("warmup commit");
++            warmup_commits += 1;
++        }
++        let rows_before = node_count(&opened.engine);
++        ENDPOINT_PREPARE_DIAGNOSTIC.with(|state| {
++            *state.borrow_mut() = Some(EndpointPrepareDiagnostic::default());
++        });
++        let started = Instant::now();
++        for _ in 0..commits {
++            let receipt =
++                opened.engine.write(std::slice::from_ref(&write)).expect("measured commit");
++            assert_eq!(receipt.dangling_edge_endpoints, 0);
++        }
++        let elapsed = started.elapsed();
++        let stats = ENDPOINT_PREPARE_DIAGNOSTIC.with(|state| state.borrow_mut().take().unwrap());
++        let rows_after = node_count(&opened.engine);
++        eprintln!(
++            "AC011_ENDPOINT_PREPARE {}",
++            serde_json::json!({
++                "diagnostic_only": true,
++                "fixture_path": path,
++                "commits": commits,
++                "payload_bytes": payload_bytes,
++                "warmup_ms": warmup_ms,
++                "warmup_commits": warmup_commits,
++                "elapsed_ns": elapsed.as_nanos(),
++                "initial_prepares": stats.initial_prepares,
++                "prepare_ns": stats.prepare_ns,
++                "exists_calls": stats.exists_calls,
++                "reprepares": stats.reprepares,
++                "runs": stats.runs,
++                "vm_steps": stats.vm_steps,
++                "canonical_row_delta": rows_after - rows_before,
++            })
++        );
++        assert_eq!(rows_after - rows_before, commits);
++        assert_eq!(stats.initial_prepares, commits);
++        assert_eq!(stats.exists_calls, 0);
++        assert_eq!(stats.reprepares, 0);
++        assert_eq!(stats.runs, 0);
++        assert_eq!(stats.vm_steps, 0);
++    }
++}

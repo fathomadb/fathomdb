@@ -1028,3 +1028,77 @@ impl Engine {
         self.force_next_commit_failure.store(true, Ordering::SeqCst);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::count_dangling_edge_endpoints;
+    use crate::{Engine, InitialState, PreparedWrite, SourceId};
+    use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+
+    #[test]
+    fn node_only_dangling_check_does_not_require_endpoint_reads() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("endpoint-independent.sqlite")).unwrap();
+        let source_id = SourceId::new("test:endpoint-independent").unwrap();
+        let node = PreparedWrite::Node {
+            kind: "note".to_string(),
+            body: "endpointindependent".to_string(),
+            source_id: source_id.clone(),
+            logical_id: None,
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        };
+        let edge = PreparedWrite::Edge {
+            kind: "related".to_string(),
+            from: "missing-from".to_string(),
+            to: "missing-to".to_string(),
+            source_id,
+            logical_id: None,
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        };
+        {
+            let mut guard = opened.engine.connection.lock().unwrap();
+            let connection = guard.as_mut().unwrap();
+            // Restrict only the isolated endpoint pass, not other Node write SQL.
+            connection
+                .authorizer(Some(|context: AuthContext<'_>| {
+                    if context.accessor.is_none()
+                        && matches!(
+                            context.action,
+                            AuthAction::Read { table_name: "canonical_nodes", .. }
+                        )
+                    {
+                        Authorization::Deny
+                    } else {
+                        Authorization::Allow
+                    }
+                }))
+                .unwrap();
+            let node_result =
+                count_dangling_edge_endpoints(connection, std::slice::from_ref(&node));
+            let edge_error = count_dangling_edge_endpoints(connection, std::slice::from_ref(&edge))
+                .expect_err("Edge endpoint checks must consult SQLite");
+            connection.authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
+            assert!(matches!(edge_error, rusqlite::Error::SqliteFailure(error, _)
+                if error.code == rusqlite::ErrorCode::AuthorizationForStatementDenied));
+            assert_eq!(count_dangling_edge_endpoints(connection, &[edge]).unwrap(), 2);
+            assert!(
+                matches!(node_result, Ok(0)),
+                "Node-only dangling check must not read endpoint state: {node_result:?}"
+            );
+        }
+        let receipt = opened.engine.write(&[node]).unwrap();
+        assert_eq!(receipt.cursor, 1);
+        assert_eq!(receipt.dangling_edge_endpoints, 0);
+        let search = opened.engine.search_text_only("endpointindependent").unwrap();
+        assert_eq!(search.results.len(), 1);
+        assert_eq!(search.results[0].body, "endpointindependent");
+    }
+}

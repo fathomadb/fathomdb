@@ -355,3 +355,11 @@ unchanged canonical AC011a/b helper once after a reviewed repair on an isolated
 ready host; do not retry into green. Recheck the repair's blast radius, update
 source-attributed qualification, forward to .29 and clean up. Hosted fast remains
 pending until the acceptance candidate is settled. Publication remains held.
+
+Phase 2 is complete: the scoped probe confirmed 1,000 endpoint compilations and
+zero executions for the 1,000 Node writes. Astra approved only lazy preparation
+after effective-edge filtering, with a real-SQLite no-read Node regression, Edge
+error/count controls and unchanged receipt/search behavior. The historical miss
+is not causally explained by this evidence. Keep the retained probe rerunnable
+from its historical source, remove active instrumentation, then complete focused
+RED/GREEN, code review and the unchanged acceptance gates.

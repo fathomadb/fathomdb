@@ -401,7 +401,23 @@ The existing row-trigger fallback is not an approved shortcut: even a single
 Node write can make several mutations, whereas the accepted managed transaction
 performs one checked nonce-bearing visibility advance.
 
-No production repair is selected yet. Require a concrete avoidable mechanism,
-review its invariant-preserving change and correctness RED, restore diagnostic
-patches, then implement/verify only that repair. Thresholds, protocol, NORMAL
-synchronous mode, checkpoint policy and public contracts remain unchanged.
+**Astra repair design APPROVE on 2026-11-07.** The second bounded diagnostic
+confirmed 1,000 initial endpoint-statement preparations and zero executions for
+1,000 successful anonymous Node writes. This proves unused work in that sample;
+it does not establish production speedup or the cause of the historical miss.
+The retained probe and its rerun instructions live in
+`dev/experiments/ac011-endpoint-prepare/`; raw output remains ignored.
+
+Restore uninstrumented source, then mechanically extract the existing
+endpoint-count block at its unchanged post-batch/pre-retention call site. A real
+SQLite authorizer scoped to helper calls denies canonical-node reads: Node-only
+counting must still return zero, while an Edge control must propagate denial and
+count two missing endpoints after denial is removed. A real Engine write receipt
+and lexical-search control, plus existing edge/mixed/supersession checks, preserve
+observable behavior. Observe and retain the failing Node-only test before GREEN.
+
+The repair prepares the same statement lazily on the first effective Edge after
+the existing in-batch supersession skip and reuses it for that helper call. Keep
+final post-batch endpoint visibility, logical-ID supersession, independent endpoint
+checks and saturation unchanged. No transaction, trigger, nonce, cursor, worker,
+guard or durability change. Thresholds and the canonical qualifier stay unchanged.

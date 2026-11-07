@@ -5,14 +5,16 @@ status: IN_PROGRESS
 
 # Slice 95 status
 
-**IN_PROGRESS. Publication held.** Required AC011a measured
+**IN_PROGRESS. Publication held.** The earlier qualified AC011a measured
 999.651557 commits/s against the unchanged 1,000 minimum. This is a valid
 non-pass; no cause, repair or owner waiver is established. On 2026-11-05 the
 owner directed focused diagnosis and repair with the threshold retained.
-The Astra-approved bounded diagnosis is in progress. The latest exact-source
+The Astra-approved bounded diagnosis is in progress. The first instrumented
+diagnostic reported 1,149.955/s, but it is not an acceptance result. The reviewed
+lazy-preparation repair is integrated; its unchanged acceptance gates are next. The latest exact-source
 CI has a fast-tier lint non-pass; its metadata correction is reviewed and
 independently verified, with local fast 198/198 passing on the clean corrected records candidate.
-Corrected-source hosted fast remains pending; the local pass is not a hosted pass.
+Fresh hosted qualification and a final local code-phase gate for the CI16 repair remain pending.
 
 The [plan](plan.md), [design](design.md), [qualification matrix](qualification.md)
 and [source-bound evidence summary](qualification-evidence.json) record the
@@ -47,10 +49,10 @@ native module. Earlier deterministic tests and mutation evidence remain retained
 | Requirement | Current evidence and disposition |
 | --- | --- |
 | S95-1/2/3/9 CI coverage and robustness | Inventory and focused controls pass. Hosted cold setup reaches real tests; bounded parallel Rust evidence has zero failures and healthy measured headroom. Actual test results remain separate from advisory wrapper success. |
-| S95-4 installed consumers | Linux Python/Node examples, strict positive/negative TypeScript consumers, external Rust source archive and immutable CLI doctor pass. Candidate-bound Windows configuration supplements and prior five-platform collector pass on their recorded sources. All five final-source native platforms and the collector pass. No registry-resolved .28 claim. |
+| S95-4 installed consumers | Linux Python/Node examples, strict positive/negative TypeScript consumers, external Rust source archive and immutable CLI doctor pass. Candidate-bound Windows configuration supplements and the earlier five-platform collector pass on their recorded sources. All five prior-code native platforms and the collector pass; the CI16 repair requires fresh candidate CI. No registry-resolved .28 claim. |
 | S95-5 documentation | Slice 92 baseline retained; affected interface/generator/lifecycle/surface/feature/target checks pass. The classification correction passes the portable validator and 38 tests; scoped Markdown validation passes. No repeated full documentation audit. |
 | S95-6 broad and feature checks | One clean .28 canonical round passed 205/205 at `16234813c`, actual child exit 0; outer session 143 has unknown cause and is recorded separately. Later repairs have focused checks and fresh hosted verification. Feature assembly: 180 planned, 165 passed, 0 failed, 15 reviewed ignored. No uninterrupted full-local pass is claimed on the later source. |
-| S95-6 performance and reliability | **AC011a FAIL, unwaived.** AC011b 307.292/s, AC012 1/3 ms, AC013 55/61 ms, seven AC081 hard limits, 60-second AC021 and AC073 stress 47 ms pass. Existing AC081 soft warnings remain. Diagnostic tracing is nonqualifying and establishes no cause. |
+| S95-6 performance and reliability | **Earlier AC011a FAIL, unwaived; repaired-candidate qualification pending.** AC011b 307.292/s, AC012 1/3 ms, AC013 55/61 ms, seven AC081 hard limits, 60-second AC021 and AC073 stress 47 ms pass. Existing AC081 soft warnings remain. Diagnostic tracing is nonqualifying and establishes no cause. |
 | S95-6 accepted fidelity | Real TC5: 7,667 docs/100 queries/1,000 bootstrap, recall .958, CI [.938,.974], measured source `5f668f330`. Private vector-stage fidelity only; post-run database hash changed for unknown reason. EU7's retired recall assertion separately exits 101; its overall run is not called PASS. |
 | S95-7 hosted CI | Run 42005653176 on `3a05a45cb` is **not qualified**: fast lint rejects the missing TC5 classification, so 198 cheap suites did not run. All five native targets/collector, five size cells, parallel Rust, strict security, default-provider and distinct Windows WAL pass. Heavy also passes 7/7 in 1,503 seconds. Corrected records candidate `6479399fe` passes local fast 198/198, lint/type/security 0/0/0. Corrected-source hosted fast remains pending; no overall CI-green claim. Earlier failures and successful run 41971020280 retain their actual source attribution. |
 | S95-8 handoff | .29 has an uninterrupted 205/205 pass at `6674cf79d`, followed by reviewed forwards through `2803eb7f1` with affected native/logging/close/cursor checks passing. Reviewed metadata forward `d68de5db5` imports all nine final records exactly, with zero executable delta and passing scoped validators. All prior-phase task worktrees/branches were removed. Later records-only forwards preserve exact imported bytes and unchanged executable inputs. |
@@ -87,10 +89,44 @@ its relocation/verification receipt. The cleanup receipt records the exact task 
 CI16 records the authorized continuation: at most two diagnostic runs, followed
 by review of an evidenced mechanism and focused TDD before any production repair.
 Diagnostic runs cannot qualify throughput; no infrastructure or acceptance knob
-is changed. A new isolated worktree exists only for this continuation and will be
+is changed. A replacement isolated worktree exists only for this continuation and will be
 merged/cleaned after the verified repair. Prior cleanup records remain accurate
 for the completed phase.
 
 D28-09/10/11 and populated-open deferrals remain. Slice 95 cannot close while the
 required AC011a non-pass lacks a pass or explicit owner-authorized disposition.
 Publication authorization remains separate and held.
+
+## Diagnostic continuation on 2026-11-07
+
+The historical Phase 1 result was 68,998 commits at a rounded 1,149.955/s.
+Commit processing and the transaction body
+were the largest observed phases; measured lock waits were small in that run.
+The original temporary probe files and raw logs are no longer available, so that
+summary is a historical transcription, not a fresh independently verified result.
+Its instrumented rate does not qualify AC011a or explain the earlier miss.
+
+The next bounded diagnostic uses 1,000 unchanged node writes to count/time the
+exact unused edge-endpoint statement preparation and distinguish execution from
+preparation/repreparation. The probe must be committed, rerunnable and indexed;
+new raw output uses persistent ignored storage. A fresh isolated worktree at
+`/home/coreyt/projects/fathomdb-worktrees/slice95-ac011-repair` replaces the missing
+temporary worktree. Review an evidenced minimal repair and deterministic RED
+before implementation; then use unchanged AC011a/b acceptance. Publication held.
+
+Phase 2 independently confirmed 1,000 successful writes/rows and 1,000 initial
+endpoint-query preparations with zero executions or automatic repreparations.
+Astra approved lazy preparation on the first effective Edge and the scoped
+real-SQLite RED design. Uninstrumented source was restored before production TDD. The Node-only test
+failed on forbidden SQLite access at RED `592b64510`, then passed unchanged at
+GREEN `ec7b7f014`. The implementation prepares only on the first effective Edge.
+Astra code review found no material defect; 36 scoped controls and Clippy pass.
+A separate verifier reran the new unit and all eight dangling-edge tests, and
+confirmed the canonical qualifier remains byte-identical. This establishes avoidable work, not the cause of the old miss
+or a throughput acceptance pass.
+
+The [retained SQL probe](../../../../experiments/ac011-endpoint-prepare/README.md)
+is committed and rerunnable. No diagnostic output is throughput acceptance. The
+next steps are unchanged AC011a/b on the clean reviewed candidate, one final
+canonical code-phase gate and fresh hosted CI, followed by the .29 forward and
+cleanup. No new feature, durability setting or publication permission is involved.

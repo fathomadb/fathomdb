@@ -890,54 +890,7 @@ pub(crate) fn apply_batch_in_transaction(
     // it SEARCHes the index with no SCAN (see `tests/pr_g8_dangling_edges.rs`
     // case (f)). There is no node-kind to match: `canonical_edges` stores only
     // the edge's own kind, not the endpoint node's kind.
-    let dangling_edge_endpoints = {
-        // O(N) pre-pass: record, per `logical_id`, the LAST (highest) index at
-        // which an `Edge { logical_id: Some(_), .. }` with that id appears. Keyed
-        // by `logical_id` ALONE (Decision 5, HITL-SIGNED 2026-06-05) to match the
-        // supersession UPDATE, which keys by logical_id alone: a kind-change
-        // re-ingest of the same edge logical_id SUPERSEDES the earlier one.
-        // Iterating front-to-back and overwriting means the stored value ends up
-        // as the final index for each id. An edge at index `i` with that id is
-        // then in-batch-superseded iff `last_index[lid] > i`. This is
-        // behavior-identical to the prior per-edge `batch[i+1..]` `.any(..)` scan
-        // (which was O(N²) under the single-writer txn) — same skip-set, same count.
-        let mut last_index: HashMap<String, usize> = HashMap::new();
-        for (i, write) in batch.iter().enumerate() {
-            let write = storage_write_shape(write);
-            if let PreparedWrite::Edge { logical_id: Some(lid), .. } = write.as_ref() {
-                last_index.insert(lid.clone(), i);
-            }
-        }
-
-        let mut probe = tx.prepare(
-            "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL LIMIT 1",
-        )?;
-        let mut count: u64 = 0;
-        for (i, write) in batch.iter().enumerate() {
-            let write = storage_write_shape(write);
-            if let PreparedWrite::Edge { from, to, logical_id, .. } = write.as_ref() {
-                // Honor `edge.superseded_at IS NULL`: an edge inserted in this
-                // batch is active unless a LATER same-batch edge with the same
-                // `Some(logical_id)` tombstoned it (the loop's supersession
-                // UPDATE). Skip such an in-batch-superseded edge. Edges with
-                // `logical_id: None` are never superseded-in-batch.
-                if let Some(lid) = logical_id {
-                    let superseded_in_batch =
-                        last_index.get(lid.as_str()).is_some_and(|&last| last > i);
-                    if superseded_in_batch {
-                        continue;
-                    }
-                }
-                // Probe `from_id` and `to_id` independently (0, 1, or 2 per edge).
-                for endpoint in [from, to] {
-                    if !probe.exists(params![endpoint])? {
-                        count = count.saturating_add(1);
-                    }
-                }
-            }
-        }
-        count
-    };
+    let dangling_edge_endpoints = count_dangling_edge_endpoints(tx, batch)?;
 
     enforce_provenance_retention(tx, provenance_row_cap)?;
     advance_projection_cursor(tx)?;
@@ -946,6 +899,58 @@ pub(crate) fn apply_batch_in_transaction(
     }
 
     Ok((dangling_edge_endpoints, unstranded, closure_ids))
+}
+
+fn count_dangling_edge_endpoints(
+    tx: &Connection,
+    batch: &[PreparedWrite],
+) -> rusqlite::Result<u64> {
+    // O(N) pre-pass: record, per `logical_id`, the LAST (highest) index at
+    // which an `Edge { logical_id: Some(_), .. }` with that id appears. Keyed
+    // by `logical_id` ALONE (Decision 5, HITL-SIGNED 2026-06-05) to match the
+    // supersession UPDATE, which keys by logical_id alone: a kind-change
+    // re-ingest of the same edge logical_id SUPERSEDES the earlier one.
+    // Iterating front-to-back and overwriting means the stored value ends up
+    // as the final index for each id. An edge at index `i` with that id is
+    // then in-batch-superseded iff `last_index[lid] > i`. This is
+    // behavior-identical to the prior per-edge `batch[i+1..]` `.any(..)` scan
+    // (which was O(N²) under the single-writer txn) — same skip-set, same count.
+    let mut last_index: HashMap<String, usize> = HashMap::new();
+    for (i, write) in batch.iter().enumerate() {
+        let write = storage_write_shape(write);
+        if let PreparedWrite::Edge { logical_id: Some(lid), .. } = write.as_ref() {
+            last_index.insert(lid.clone(), i);
+        }
+    }
+
+    let mut probe = tx.prepare(
+        "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL LIMIT 1",
+    )?;
+    let mut count: u64 = 0;
+    for (i, write) in batch.iter().enumerate() {
+        let write = storage_write_shape(write);
+        if let PreparedWrite::Edge { from, to, logical_id, .. } = write.as_ref() {
+            // Honor `edge.superseded_at IS NULL`: an edge inserted in this
+            // batch is active unless a LATER same-batch edge with the same
+            // `Some(logical_id)` tombstoned it (the loop's supersession
+            // UPDATE). Skip such an in-batch-superseded edge. Edges with
+            // `logical_id: None` are never superseded-in-batch.
+            if let Some(lid) = logical_id {
+                let superseded_in_batch =
+                    last_index.get(lid.as_str()).is_some_and(|&last| last > i);
+                if superseded_in_batch {
+                    continue;
+                }
+            }
+            // Probe `from_id` and `to_id` independently (0, 1, or 2 per edge).
+            for endpoint in [from, to] {
+                if !probe.exists(params![endpoint])? {
+                    count = count.saturating_add(1);
+                }
+            }
+        }
+    }
+    Ok(count)
 }
 
 /// Cap sweep over the op-store mutation log: keeps the newest `cap` SWEEPABLE

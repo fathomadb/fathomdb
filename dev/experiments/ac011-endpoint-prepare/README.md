@@ -76,3 +76,93 @@ the probe remains reproducible:
 ```bash
 git apply --reverse dev/experiments/ac011-endpoint-prepare/probe.patch
 ```
+
+## Release foreground wall/thread-CPU attribution
+
+`release-wait.patch` is a separately reviewed diagnostic after the unchanged
+canonical AC-011a failed on candidate
+`13c6470b5b5700c61c68ce8d10257551fbd2c9ca`. It targets that candidate's production
+source. Keep the original endpoint probe above as historical evidence; its
+1,000-write debug sample does not characterize this release-mode miss.
+
+The new patch adds an ignored integration sampler to `perf_gates.rs`, temporary
+hidden Linux/test-hooks start/snapshot methods, and a private per-thread timing
+collector. The engine library builds with `cfg(not(test))`, matching canonical
+qualification. No unit-test sampler is used. No global physical metrics or SQL
+trace is enabled. Worker scheduling, all existing calls, lock/guard/error/drop
+paths, transaction protocol, NORMAL synchronization, checkpoint policy and
+acceptance thresholds remain unchanged.
+
+The collector reads `Instant` and checked libc `CLOCK_THREAD_CPUTIME_ID` in the
+same order for each span (wall then CPU at start; CPU then wall at end). Only the
+foreground thread is armed. A sample merges only when `Engine::write` returns a
+successful receipt. The overlapping `Engine::write` reference includes the
+existing operation guard's destruction; it is not added to exclusive stage sums.
+
+| Exclusive stage | Existing boundary |
+| --- | --- |
+| `turn_wait` | `writer_turn()` acquisition |
+| `writer_mutex_wait` | writer `connection.lock()` acquisition |
+| `pretransaction` | post-lock guards, validation, enrolment/job collection and cursor metadata, ending before `commit_batch` |
+| `begin` | actual `transaction_with_behavior(Immediate)` |
+| `trigger_check_disable` | canonical trigger predicate and trigger suppression |
+| `apply_body` | `apply_batch_in_transaction` |
+| `visibility_advance_restore` | visibility advance, then a separate interval for restore and guard destruction |
+| `commit` | actual `tx.commit()` |
+
+Each stage reports successful sample counts, interval counts, wall nanoseconds,
+thread-CPU nanoseconds and signed wall-minus-CPU nanoseconds. The visibility stage
+has two disjoint intervals but one sample per successful measured commit; other
+stages have one interval. Canonical Node writes must exercise every stage. The
+report also includes reference totals, exclusive sums, signed uncovered wall,
+CPU and non-CPU residuals, and a flag for negative residuals. No value is clamped.
+Uncovered time includes lifecycle/initial checks, canonical-batch classification,
+combinator gaps, receipt work, notification, remaining guard destruction and
+instrumentation outside the measured spans.
+
+The integration sampler retains the canonical anonymous Node, five-second
+warmup and 60-second measured loop, including the final complete commit. It
+captures original elapsed time before snapshot/report serialization. Defaults are
+parameterized for rerunnability; this authorized single run uses exactly:
+
+| Environment parameter | Value |
+| --- | --- |
+| `AC011_WAIT_WARMUP_MS` | `5000` |
+| `AC011_WAIT_MEASUREMENT_MS` | `60000` |
+| `AC011_WAIT_PAYLOAD_BYTES` | `1024` |
+
+```bash
+git apply dev/experiments/ac011-endpoint-prepare/release-wait.patch
+CARGO_TARGET_DIR="$PWD/target" CARGO_BUILD_JOBS=2 cargo test --offline --release \
+  -p fathomdb-engine --features test-hooks --test perf_gates \
+  ac_011_release_foreground_wall_cpu_diagnostic --no-run
+```
+
+After concrete-patch review and the parent's isolated-slot grant, execute the
+printed release integration executable once. Retain complete raw stdout/stderr,
+actual exit, command, source/patch identity, toolchain/features/profile and fixture
+path under the parent's persistent ignored evidence directory. No generated
+results or receipts are committed.
+
+```bash
+AC011_WAIT_WARMUP_MS=5000 AC011_WAIT_MEASUREMENT_MS=60000 \
+  AC011_WAIT_PAYLOAD_BYTES=1024 /absolute/release/executable/printed/by/cargo \
+  ac_011_release_foreground_wall_cpu_diagnostic \
+  --ignored --exact --nocapture --test-threads=1
+```
+
+`AC011_RELEASE_WAIT` contains the JSON report. Counts must reconcile with
+successful measured commits. A stage qualifies for further focused investigation
+only if its signed non-CPU total is both at least 50% of reference foreground
+non-CPU time and at least 10% of reference write wall time. Examine signed
+residuals and instrumentation overhead before attribution; incoherent counts,
+material negative residuals, or no qualifying concentration mean inconclusive.
+Stop after this one run. Commit concentration alone does not prove fsync or
+checkpoint causation. No baseline comparison, syscall trace, automatic retry,
+production repair or throughput acceptance claim follows from this diagnostic.
+
+Restore all active instrumentation before any later production repair:
+
+```bash
+git apply --reverse dev/experiments/ac011-endpoint-prepare/release-wait.patch
+```

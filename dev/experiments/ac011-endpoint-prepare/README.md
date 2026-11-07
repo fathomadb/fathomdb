@@ -30,6 +30,11 @@ speedup or the cause of the earlier throughput miss.
 | `AC011_DIAGNOSTIC_PAYLOAD_BYTES` | `1024` | Positive Node body byte count |
 | `AC011_DIAGNOSTIC_WARMUP_MS` | `5000` | Warmup duration in milliseconds |
 
+The patch targets the production source at retained tool commit
+`9f112e6dc93165c5ba54d7edd60f3aade395f37e`. The later repair extracts its
+counting block; reproduce this historical diagnostic from an isolated checkout
+of that tool commit after the normal repository worktree preflight.
+
 Run from the assigned worktree. Keep its own target directory and build with two
 jobs offline; do not borrow a Python environment or another checkout's target.
 Compilation is permitted before reserving the isolated execution slot:

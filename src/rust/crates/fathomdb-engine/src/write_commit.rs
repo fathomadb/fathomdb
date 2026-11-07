@@ -923,9 +923,7 @@ fn count_dangling_edge_endpoints(
         }
     }
 
-    let mut probe = tx.prepare(
-        "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL LIMIT 1",
-    )?;
+    let mut probe = None;
     let mut count: u64 = 0;
     for (i, write) in batch.iter().enumerate() {
         let write = storage_write_shape(write);
@@ -942,6 +940,12 @@ fn count_dangling_edge_endpoints(
                     continue;
                 }
             }
+            if probe.is_none() {
+                probe = Some(tx.prepare(
+                    "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL LIMIT 1",
+                )?);
+            }
+            let probe = probe.as_mut().expect("endpoint probe prepared for active edge");
             // Probe `from_id` and `to_id` independently (0, 1, or 2 per edge).
             for endpoint in [from, to] {
                 if !probe.exists(params![endpoint])? {

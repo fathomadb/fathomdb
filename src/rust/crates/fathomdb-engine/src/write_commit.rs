@@ -354,13 +354,13 @@ fn register_artifact_identity(
 /// Temporarily suppress schema triggers on the writer connection. External
 /// connections retain the schema-33 triggers, and `Drop` restores this
 /// connection during error unwinding before the transaction rolls back.
-pub(crate) struct TriggerStateGuard<'connection> {
+pub(crate) struct VisibilityCoalescingGuard<'connection> {
     connection: &'connection Connection,
     restored: bool,
 }
 
-impl<'connection> TriggerStateGuard<'connection> {
-    pub(crate) fn disable(connection: &'connection Connection) -> Result<Self, CommitBatchError> {
+impl<'connection> VisibilityCoalescingGuard<'connection> {
+    pub(crate) fn arm(connection: &'connection Connection) -> Result<Self, CommitBatchError> {
         if !connection
             .db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER)
             .map_err(|_| CommitBatchError::WriterPoisoned)?
@@ -387,7 +387,7 @@ impl<'connection> TriggerStateGuard<'connection> {
     }
 }
 
-impl Drop for TriggerStateGuard<'_> {
+impl Drop for VisibilityCoalescingGuard<'_> {
     fn drop(&mut self) {
         if !self.restored {
             self.restored = self
@@ -525,7 +525,7 @@ fn commit_batch_transaction(
     // trigger selects the unchanged row-trigger path so application extensions
     // still observe every row.
     if canonical_batch && canonical_batch_has_no_custom_triggers(&tx)? {
-        let mut trigger_guard = TriggerStateGuard::disable(&tx)?;
+        let mut trigger_guard = VisibilityCoalescingGuard::arm(&tx)?;
         let attempted = apply_batch_in_transaction(
             &tx,
             batch,

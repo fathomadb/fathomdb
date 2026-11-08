@@ -402,7 +402,7 @@ pub(crate) use write::storage_write_shape;
 pub use write::{PreparedWrite, WriteReceipt};
 pub(crate) use write_commit::{
     advance_read_visibility, apply_batch_in_transaction, canonical_body_hash,
-    checked_locator_columns, commit_batch, CommitBatchError, TriggerStateGuard,
+    checked_locator_columns, commit_batch, CommitBatchError, VisibilityCoalescingGuard,
 };
 pub use write_types::RowKind;
 pub(crate) use write_validation::{

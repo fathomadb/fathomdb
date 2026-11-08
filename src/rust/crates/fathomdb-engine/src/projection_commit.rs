@@ -208,7 +208,7 @@ pub(crate) fn commit_projection_outcomes(
     };
     let mut staged_events: Vec<EmbedderEvent> = Vec::new();
     let mut trigger_guard = if coalesce_visibility {
-        Some(TriggerStateGuard::disable(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?)
+        Some(VisibilityCoalescingGuard::arm(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?)
     } else {
         None
     };

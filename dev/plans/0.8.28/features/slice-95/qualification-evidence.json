@@ -2,7 +2,7 @@
   "schema": "fathomdb.slice95.qualification-summary/v1",
   "status": "IN_PROGRESS",
   "publication": "HELD",
-  "code_candidate": "13c6470b5b5700c61c68ce8d10257551fbd2c9ca",
+  "code_candidate": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
   "canonical_local_28": {
     "source": "16234813cf9e4aeaa09f99b5f5f98459bd415af3",
     "registered": 205,
@@ -36,8 +36,20 @@
       "waiver": null,
       "diagnostic": "separate traced run nonqualifying; no cause established; no kernel/threshold changes",
       "owner_direction": "2026-11-05: continue focused diagnosis and repair; retain threshold; no waiver",
-      "continuation": "Reviewed ec7b7f014 lazy endpoint preparation passes focused correctness checks; unchanged canonical qualification on 13c6470b5 fails at 827.267649/s. No waiver or subsequent acceptance pass.",
+      "continuation": "Two Astra-reviewed, independently verified policy-neutral repairs are integrated. Current unchanged qualifier FAIL at 932.474344/s; stop further code/measurements for reviewed reassessment. No causal speedup, waiver or acceptance pass claimed.",
       "current_repaired_candidate": {
+        "source": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
+        "commits": 55950,
+        "seconds": 60.001650826,
+        "per_second": 932.4743441184733,
+        "minimum": 1000,
+        "result": "FAIL",
+        "helper_exit": 101,
+        "ac011b": "not reached",
+        "environment": "Independent recomputation: before, after and enclosing interval applicable; exact source/binary/source-bundle/release profile agree.",
+        "raw_log": "target/slice95-ac011-evidence/metadata-reuse/canonical.log"
+      },
+      "previous_repaired_candidate": {
         "source": "13c6470b5b5700c61c68ce8d10257551fbd2c9ca",
         "commits": 49639,
         "seconds": 60.003555154,
@@ -172,11 +184,12 @@
     "tag_or_registry_or_pages_publication": false
   },
   "open_requirements": {
-    "S95-6": "Current canonical AC011a827.268/sFAIL; no waiver. Whole-test sync trace material but no removable sync defect. Durability contract clarification pending before any checkpoint/acknowledgement redesign; final acceptance remains open.",
+    "S95-6": "Current canonical AC011a 932.474344/s FAIL at10ca01503; no waiver; AC011b not reached. Two focused repairs complete and correctness verified; next repair/investigation requires reviewed reassessment, not a blind retry. Durability policy unchanged; owner question applies only before policy redesign.",
     "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
-    "S95-8": "Reviewed repair/tools/records merged into .29 at 6f67219e7d70286f5a073b5651663734efd1d8a9; separate verifier passed Node unit1/G8 tests8 and release-state views. Task worktree and merged branch removed. Final acceptance remains OPEN.",
+    "S95-8": "Reviewed10ca01503 repair merged into .29 at b56083f16eeae80cbeef79dfef21cda55d5d429c; separate14control PASS, exact source/qualifier and cleanstate verified. Task worktree/branch removed after preserving raw logs. Final acceptance remains OPEN.",
     "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim.",
-    "session_durability_contract": "Owner question pending: accepted NORMAL + <=100ms powercutloss + zeroOScrashloss not established by frame-only policy/process-kill fixture. No policy change authorized."
+    "session_durability_contract": "Owner question pending: accepted NORMAL + <=100ms powercutloss + zeroOScrashloss not established by frame-only policy/process-kill fixture. No policy change authorized.",
+    "cpu_profile_access": "Astra proposes one bounded CPU profile; unprivileged /bin/true preflight denied by host perf_event_paranoid=4. No benchmark profile ran. Session owner choice pending: narrowly privileged profile or separately reviewed instrumentation. No kernel changes/fallback/retry inferred."
   },
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
@@ -184,7 +197,7 @@
     "windows": "Restored originallyoff; originalpersistentXML byteidentical, originalrunner hash/service/policies unchanged, task26/27registrations absent, taskguestfolder/disposabledisk removed",
     "staged_inputs": "13ownedhashverifiedcorpusJSONLs removed; sourcecorpus unchanged; task-onlyfeaturetarget removed",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
-    "continuation": "Replacement task worktree and branch removed after clean/merged checks against both .28 and .29; tools retained in Git, raw evidence retained in canonical .28 target/slice95-ac011-evidence."
+    "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained."
   },
   "receipts": {
     "canonical_28": {

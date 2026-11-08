@@ -5,13 +5,16 @@ status: IN_PROGRESS
 
 # Slice 95 status
 
-**IN_PROGRESS. Publication held.** The earlier qualified AC011a measured
-999.651557 commits/s against the unchanged 1,000 minimum. This is a valid
+**IN_PROGRESS. Publication held.** The latest clean candidate `13c6470b5` measured
+827.267649 commits/s against the unchanged 1,000 minimum (49,639 commits over
+60.003555154 seconds). Its canonical helper exited 101 before AC011b. The prior
+qualified baseline was 999.651557/s. This is a valid
 non-pass; no cause, repair or owner waiver is established. On 2026-11-05 the
 owner directed focused diagnosis and repair with the threshold retained.
 The Astra-approved bounded diagnosis is in progress. The first instrumented
 diagnostic reported 1,149.955/s, but it is not an acceptance result. The reviewed
-lazy-preparation repair is integrated; its unchanged acceptance gates are next. The latest exact-source
+lazy-preparation repair is integrated and correctness-verified, but it has not
+satisfied throughput acceptance. The latest exact-source
 CI has a fast-tier lint non-pass; its metadata correction is reviewed and
 independently verified, with local fast 198/198 passing on the clean corrected records candidate.
 Fresh hosted qualification and a final local code-phase gate for the CI16 repair remain pending.
@@ -81,10 +84,11 @@ registrations, folder and disposable disk removed. Exactly 13 matching staged
 corpus files and the task-only feature target are removed; source corpus and
 shared/user caches remain intact.
 
-The checkout-owned debug cache remains intact on cold storage through its original
-logical path. Root free space is smaller than the cache, so restoring its physical
-location would require discarding other data; no user cache is purged. Preserve
-its relocation/verification receipt. The cleanup receipt records the exact task inputs removed.
+The previous phase preserved the checkout-owned debug cache on external cold
+storage. On 2026-11-07 that volume is unmounted, leaving the original debug-cache
+symlink unresolved; its contents are not freshly inspected. Do not discard data
+or change the mount. Current verification will use a fresh checkout-owned Cargo
+target directory. Prior cleanup/relocation claims describe their recorded phase.
 
 CI16 records the authorized continuation: at most two diagnostic runs, followed
 by review of an evidenced mechanism and focused TDD before any production repair.
@@ -130,3 +134,56 @@ is committed and rerunnable. No diagnostic output is throughput acceptance. The
 next steps are unchanged AC011a/b on the clean reviewed candidate, one final
 canonical code-phase gate and fresh hosted CI, followed by the .29 forward and
 cleanup. No new feature, durability setting or publication permission is involved.
+
+The unchanged canonical qualification on `13c6470b5` failed AC011a at 827.268/s;
+no source, binary or release-profile mismatch was found. Existing before/after
+readiness checks remain applicable (no recorded competing workload or swap).
+Whole-job CPU use was about 61%; that suggests waiting but does not identify its
+cause. No rerun into green occurred, and AC011b was not reached.
+
+Astra reassessed the diagnostic budget and approved one further release-mode
+foreground wall/thread-CPU attribution run. It preserves the 5s/60s workload and
+all guards, worker, trigger, synchronization and checkpoint behavior. Investigate
+a wait stage only if it explains at least half the foreground non-CPU time and
+at least 10% of write wall time; otherwise report an inconclusive result.
+Production changes and additional runs require review of that evidence.
+
+The release wall/thread-CPU diagnostic completed with matching success/stage
+counts. Its signed non-CPU residual was -397.121ms, so the preregistered verdict
+remains inconclusive. Review found nested wall/CPU clock boundaries can produce
+that residual; the result is not silently corrected. Conservative analysis makes
+the commit span a strong read-only lead, not proof of a SQLite or fsync cause.
+The instrumented 1,011.349/s rate is not acceptance. Active instrumentation is
+removed, and the retained tool remains rerunnable.
+
+Source review confirms SQLite's default 1,000-frame auto-checkpoint can execute
+synchronously from COMMIT under NORMAL mode. Astra approved one bounded
+fsync/fdatasync-only trace of the unchanged canonical binary, with seccomp filtering,
+120s watchdog and 32MiB raw-output cap. Whole-test foreground DB/WAL sync spans
+>=5s justify only further read-only checkpoint/storage investigation. Startup,
+warmup and teardown remain included; no measured-window percentage or policy
+change is inferred. The tracer capability preflight passed.
+
+The bounded sync trace independently verified 19.537003s of whole-test foreground
+DB/WAL sync spans (2,282 DB and 4,562 WAL calls), with no syscall error, missing
+identity, cap hit, timeout or fallback warning. This meets only the reviewed
+read-only follow-up criterion; traced throughput is not acceptance. Source review
+found normal checkpoint/restart synchronization, not a removable duplicate sync.
+
+**[session] Durability contract decision pending.** The accepted
+[durability ADR](../../../../adr/ADR-0.6.0-durability-fsync-policy.md) requires
+NORMAL, <=100ms final-commit loss on power cut and zero OS-crash commit loss.
+Frame-only checkpointing does not establish the time bound during low/idle
+traffic. The process-kill fixture preserves host caches, and the separate
+OS-crash test remains explicitly ignored for a missing VM fixture. These are
+contract/evidence gaps, not permission to enlarge the checkpoint window. No
+existing ruling waiving these durability promises was found in the live state
+or ledger review.
+
+The owner has been asked to select an explicitly reviewed durability direction:
+preserve the strongest acknowledgement guarantees with suitable synchronization
+and qualification, or explicitly adopt NORMAL with bounded loss for machine
+failures and implement/validate its cadence. The 1,000/s threshold and publication
+hold remain unchanged in either direction. No answer, waiver, checkpoint or
+synchronization change is inferred. The current reviewed SQL repair and retained
+tools may be integrated independently; policy changes and final acceptance wait.

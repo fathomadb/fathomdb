@@ -363,3 +363,22 @@ error/count controls and unchanged receipt/search behavior. The historical miss
 is not causally explained by this evidence. Keep the retained probe rerunnable
 from its historical source, remove active instrumentation, then complete focused
 RED/GREEN, code review and the unchanged acceptance gates.
+
+The first canonical repaired-candidate qualification failed at 827.268/s and
+stopped before AC011b; no threshold or policy was changed. Astra reassessed the
+two-diagnostic budget and approved one foreground release-mode wall/thread-CPU
+attribution run under the design's concentration/reconciliation decision rule.
+It is diagnostic-only; no automatic extra run or production repair follows.
+
+The wall/thread-CPU result retained a negative accounting residual and therefore
+its original inconclusive verdict. Following source/clock review, Astra approved
+one narrowly filtered, bounded whole-test sync trace under the design's explicit
+limits. It may justify only read-only investigation, not a checkpoint policy
+change, acceptance claim or retry.
+
+The sync-only observation meets its material-span criterion, but no removable
+duplicate sync was established. Before changing checkpoint/acknowledgement policy,
+resolve the accepted NORMAL/100ms/zero-OS-crash contract mismatch explicitly with
+the owner. Do not turn process-kill tests into machine-crash evidence or enlarge
+the checkpoint interval to make throughput green. Keep existing numerical targets
+unmodified until an explicit successor contract is approved.

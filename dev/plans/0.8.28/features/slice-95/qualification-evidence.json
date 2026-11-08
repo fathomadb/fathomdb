@@ -36,7 +36,19 @@
       "waiver": null,
       "diagnostic": "separate traced run nonqualifying; no cause established; no kernel/threshold changes",
       "owner_direction": "2026-11-05: continue focused diagnosis and repair; retain threshold; no waiver",
-      "continuation": "ec7b7f014 lazy-endpoint preparation repair reviewed and independently verified; old nonpass unwaived pending unchanged qualifier on new candidate"
+      "continuation": "ec7b7f014 lazy-endpoint preparation repair reviewed and independently verified; old nonpass unwaived pending unchanged qualifier on new candidate",
+      "current_repaired_candidate": {
+        "source": "13c6470b5b5700c61c68ce8d10257551fbd2c9ca",
+        "commits": 49639,
+        "seconds": 60.003555154,
+        "per_second": 827.267648935147,
+        "minimum": 1000,
+        "result": "FAIL",
+        "helper_exit": 101,
+        "ac011b": "not reached",
+        "environment": "Existing policy applicable; no invalidator or source/profile mismatch found",
+        "raw_log": "target/slice95-ac011-evidence/canonical-ac011.log"
+      }
     },
     "ac011b": {
       "result": "PASS",
@@ -160,10 +172,11 @@
     "tag_or_registry_or_pages_publication": false
   },
   "open_requirements": {
-    "S95-6": "CI16 repair integrated after realSQLite RED/GREEN,36 scoped controls,Clippy,Astra approval and separate9test recheck; final performance and code-phase gate pending",
+    "S95-6": "Current canonical AC011a827.268/sFAIL; no waiver. Whole-test sync trace material but no removable sync defect. Durability contract clarification pending before any checkpoint/acknowledgement redesign; final acceptance remains open.",
     "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
     "S95-8": "Acceptance staysOPEN; taskcleanup and reviewed .29metadataforward complete. Later records-only forwards preserve exact imported bytes and unchanged executable inputs.",
-    "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim."
+    "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim.",
+    "session_durability_contract": "Owner question pending: accepted NORMAL + <=100ms powercutloss + zeroOScrashloss not established by frame-only policy/process-kill fixture. No policy change authorized."
   },
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
@@ -172,7 +185,7 @@
     ],
     "windows": "Restored originallyoff; originalpersistentXML byteidentical, originalrunner hash/service/policies unchanged, task26/27registrations absent, taskguestfolder/disposabledisk removed",
     "staged_inputs": "13ownedhashverifiedcorpusJSONLs removed; sourcecorpus unchanged; task-onlyfeaturetarget removed",
-    "debug_cache": "Checkout-owned cache retained at coldpath via target/debug symlink; physical restore willnotfitroot withoutdiscardingotherdata, so cache retained and relocationreceipt preserved; no shared/usercachepurge",
+    "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
     "continuation": "2026-11-07: missingtemporaryworktreeregistrationremoved, replacementisolatedWTcreated; newdiagnostictoolscommitted/rerunnable, rawoutputpersistentignored target/slice95-ac011-evidence"
   },
   "receipts": {

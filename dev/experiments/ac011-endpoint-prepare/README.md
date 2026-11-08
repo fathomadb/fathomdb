@@ -166,3 +166,70 @@ Restore all active instrumentation before any later production repair:
 ```bash
 git apply --reverse dev/experiments/ac011-endpoint-prepare/release-wait.patch
 ```
+
+## Bounded canonical sync-only trace
+
+`sync_trace.py` retains the separately Astra-reviewed sync-only follow-up.
+`test_sync_trace.py` uses small hand-computed traces for parser math, foreground
+identity, worker separation and unfinished/resumed accounting. Neither tool
+changes or rebuilds the canonical engine. The parent selects the unmodified
+candidate `73746...` executable and owns the sole workload execution slot.
+
+The runner requests strace `--seccomp-bpf -q -f -ttt -T -yy` with only
+`fsync,fdatasync,prctl` selected. Root's strace 6.8 preflight confirmed
+`seccomp filter enabled`; retain that preflight alongside the actual evidence.
+The tracer writes through a passed pipe descriptor. A bounded writer retains
+at most **33,554,432 bytes (32 MiB)** of raw trace; reaching that cap or the
+**120-second watchdog** terminates then kills the owned process group and marks
+the result inconclusive. A two-second termination grace may follow the watchdog.
+No file-size resource limit is applied to SQLite. Tracee stdout/stderr go directly
+to task files so pipe draining cannot deadlock on their output.
+
+Run parser tests without tracing:
+
+```bash
+python3 -m unittest discover -s dev/experiments/ac011-endpoint-prepare \
+  -p test_sync_trace.py
+```
+
+Only after Astra's static approval and root's isolated-slot grant, run once:
+
+```bash
+AGENT_LONG=1 FATHOMDB_TIER1_WRITE_PERF=1 python3 \
+  dev/experiments/ac011-endpoint-prepare/sync_trace.py run \
+  --output-prefix /persistent/ignored/evidence/canonical-sync \
+  --binary /absolute/unmodified/canonical/perf_gates-executable -- \
+  ac_011a_write_throughput_1kb --exact --nocapture --test-threads=1
+```
+
+`--max-bytes` and `--timeout-seconds` expose those default bounds for reuse;
+this authorization uses the exact defaults. `--fixture-basename` defaults to the
+canonical `AC-011a_write_throughput.sqlite`. The output prefix supplies `.trace`,
+`.stdout`, `.stderr`, `.metadata.json` and `.report.json`; all belong in persistent
+ignored storage, never source control. Metadata retains the actual tracer/tracee
+exit, command, elapsed time and any cap/timeout/setup stop reason. Exit 101 from a
+completed canonical test is retained as its benchmark failure, not a tracer error;
+the runner propagates it when attribution is otherwise conclusive. Exit 2 means
+inconclusive analysis. No wrapper exit is a throughput acceptance verdict.
+
+Re-analyze retained evidence without running any command:
+
+```bash
+python3 dev/experiments/ac011-endpoint-prepare/sync_trace.py analyze \
+  --output-prefix /persistent/ignored/evidence/canonical-sync
+```
+
+The analyzer finds the foreground TID through successful
+`PR_SET_NAME("ac_011a_write_t")`, identifies the unique resolved fixture DB/WAL
+stem, and separates every other TID. It groups resolved paths as DB, WAL,
+directory or other, reporting calls, successes, errors and exact decimal duration
+sums/maxima. Unfinished/resumed pairs count once; unmatched records remain explicit
+incompleteness. Sync errors, unresolved TID/FD/fixture identity, parser loss,
+truncation, watchdog or tracer diagnostics/fallback make the result inconclusive.
+
+This is **whole-test scope**, including startup, five-second warmup, 60-second
+measurement and teardown. Foreground fixture DB/WAL observed sync sum **≥5.0 s**
+permits read-only checkpoint/storage investigation as material observed spans.
+Below that criterion means only that material spans were not established here;
+it proves nothing about locks or historical runs. No measured-window percentage,
+gain, fsync/checkpoint cause, production change or acceptance claim follows.

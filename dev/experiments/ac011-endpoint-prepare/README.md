@@ -309,3 +309,60 @@ speedup. No retry, policy change or production repair follows automatically.
 python3 -m unittest discover -s dev/experiments/ac011-endpoint-prepare \
   -p 'test_cpu_profile*.py'
 ```
+
+## Process-local offline libdwfl bias correction
+
+`dwfl_bias.c` is the separately Astra-approved, narrowly configured interposer
+for re-exporting the existing recording. It changes only `dwfl_report_elf` calls
+whose `file_name` exactly equals `FATHOMDB_DWFL_TARGET`, whose base equals
+`FATHOMDB_DWFL_BAD_BASE`, and whose `add_p_vaddr` is false. It forwards every other
+argument and the real return value unchanged through `dlsym(RTLD_NEXT, ...)`.
+No filename normalization, ELF mutation, installed-tool patch, global preload,
+new recording or workload is involved. The original inconclusive export remains
+retained; corrected output must use separate files.
+
+`dwfl_bias_abi.h` supplies only native ELF64 opaque declarations and the signature
+from the [primary elfutils implementation](https://www.sourceware.org/elfutils/coverage/libdwfl/dwfl_report_elf.c.gcov.html),
+lines 293–295. System `<elf.h>` supplies `Elf64_Addr`; `<stdbool.h>` supplies `bool`.
+No elfutils development package is required. `test_dwfl_bias.c` builds a tiny fake
+next library and driver; `test_dwfl_bias.py` exercises the actual preload ABI,
+exact/near/other filenames, wrong/already-correct bases, true `add_p_vaddr`, all
+other arguments, returned pointer and two audit records. Compiler defaults are
+`cc -std=c11 -Wall -Wextra -Werror`; `CC` and `DWFL_BIAS_TEST_OUTPUT` configure reuse.
+
+```bash
+python3 -m unittest discover -s dev/experiments/ac011-endpoint-prepare \
+  -p test_dwfl_bias.py
+mkdir -p "$BIAS_OUT"
+cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+  dev/experiments/ac011-endpoint-prepare/dwfl_bias.c -ldl \
+  -o "$BIAS_OUT/libdwfl_bias.so"
+```
+
+Use an ignored user-owned `BIAS_OUT` and the exact recorded `PROFILE_BINARY`
+filename. Root owns the reviewed offline export from unchanged `RETAINED_DATA`:
+
+```bash
+FATHOMDB_DWFL_TARGET="$PROFILE_BINARY" \
+FATHOMDB_DWFL_BAD_BASE=0x59018f058000 \
+FATHOMDB_DWFL_CORRECT_BASE=0x59018f057000 \
+FATHOMDB_DWFL_AUDIT="$BIAS_OUT/corrected.audit" \
+LD_PRELOAD="$BIAS_OUT/libdwfl_bias.so" DEBUGINFOD_URLS= \
+  /usr/bin/perf --buildid-dir "$BIAS_OUT/buildids" script --demangle \
+  --show-lost-events -F comm,pid,tid,time,event,ip,sym,dso -i "$RETAINED_DATA" \
+  > "$BIAS_OUT/corrected.script" 2> "$BIAS_OUT/corrected.stderr"
+```
+
+The example bases describe this retained record only; both are configurable env
+values, not compiled-in addresses. Target filename comparison is exact. Use a
+fresh audit file per export: every corrected call appends its process-local
+count, before/after bases and filename. Audit open/write/close or symbol-resolution
+failure terminates explicitly; corrections are never logged to decoder stderr,
+and actual decoder warnings remain untouched. Generated `.so`, fake ABI binaries,
+exports, audit files and test logs stay ignored under `target/`.
+
+Root/independent verification must audit representative corrected callers against
+retained stack bytes and CFI before aggregating. Existing classification rules,
+95%/20%/200 gates and original inconclusive results stay unchanged. This tool
+repairs only the configured offline module-bias input; passing its fixture is
+not proof of recovered unwinds, workload improvement or acceptance.

@@ -386,3 +386,31 @@ retained stack bytes and CFI before aggregating. Existing classification rules,
 95%/20%/200 gates and original inconclusive results stay unchanged. This tool
 repairs only the configured offline module-bias input; passing its fixture is
 not proof of recovered unwinds, workload improvement or acceptance.
+
+### Standard independent offline decoder
+
+Samply's published perf importer uses Framehop, an independent unwinder:
+[released importer source](https://github.com/mstange/samply/blob/samply-v0.13.1/samply/src/import/perf.rs).
+A similar ELF load-bias failure is discussed in the
+[elfutils maintainer thread](https://sourceware.org/pipermail/elfutils-devel/2023q1/005935.html).
+These sources justify independent offline decoding, not another recording.
+
+Install pinned `samply` 0.13.1 from crates.io into an ignored private tool directory
+with `cargo install --locked --version 0.13.1 --root TOOL_ROOT samply` (supply a
+separate `--target-dir`). Convert a copy of pipe-mode data using plain
+`perf inject -i ORIGINAL.data -o FILEMODE.data`, without JIT/itrace options.
+Require complete raw sample-record preservation before using the converted file.
+Then run the standard command locally:
+
+```bash
+DEBUGINFOD_URLS= samply import --save-only --unstable-presymbolicate   --output independent.json FILEMODE.data
+```
+
+Keep task-owned XDG cache/config directories. No server, browser, upload, new
+recording or database rebuild is needed. Use sample rows, not flamegraph widths;
+no thread reuse, recursion folding or filtering. Inspect raw timestamps, numeric
+TIDs, module-relative PCs and library build IDs. The 0.13.1 importer drops its
+internal truncation marker, so import success is not complete-unwind evidence.
+Retain any architecture warning and verify actual ELF/register architecture.
+Pair raw samples and independently validate recovered callers against CFI/stack
+bytes. Preserve original exports and all unchanged attribution/acceptance limits.

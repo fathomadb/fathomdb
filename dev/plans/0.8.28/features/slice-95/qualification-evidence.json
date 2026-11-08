@@ -184,16 +184,18 @@
     "tag_or_registry_or_pages_publication": false
   },
   "open_requirements": {
-    "S95-6": "Current canonical AC011a 932.474344/s FAIL at10ca01503; no waiver; AC011b not reached. Two focused repairs complete and correctness verified; next repair/investigation requires reviewed reassessment, not a blind retry. Durability policy unchanged; owner question applies only before policy redesign.",
+    "S95-6": "Canonical932.474344/sFAIL unchanged/unwaived. Offlineprofile recovery verified,49%compilation/21%guards;26.13%allFGsamples automaticreprepare. Next reviewedformat37 transactionalgate repair; fullgate/exactCI pending.",
     "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
     "S95-8": "Reviewed10ca01503 repair merged into .29 at b56083f16eeae80cbeef79dfef21cda55d5d429c; separate14control PASS, exact source/qualifier and cleanstate verified. Task worktree/branch removed after preserving raw logs. Final acceptance remains OPEN.",
     "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim.",
-    "session_durability_contract": "Owner question pending: accepted NORMAL + <=100ms powercutloss + zeroOScrashloss not established by frame-only policy/process-kill fixture. No policy change authorized.",
-    "cpu_profile_access": "Astra proposes one bounded CPU profile; unprivileged /bin/true preflight denied by host perf_event_paranoid=4. No benchmark profile ran. Session owner choice pending: narrowly privileged profile or separately reviewed instrumentation. No kernel changes/fallback/retry inferred."
+    "session_durability_contract": "Literal originalADR verified byfile/gitblame; no durability policy choice is needed for CPUdiagnosis. Earlier promptpremature; WAL+NORMAL unchanged, no successor contract/waiver selected.",
+    "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
   },
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
-    "remaining_task_worktrees": [],
+    "remaining_task_worktrees": [
+      "/home/coreyt/projects/fathomdb-worktrees/slice95-cpu-profile"
+    ],
     "windows": "Restored originallyoff; originalpersistentXML byteidentical, originalrunner hash/service/policies unchanged, task26/27registrations absent, taskguestfolder/disposabledisk removed",
     "staged_inputs": "13ownedhashverifiedcorpusJSONLs removed; sourcecorpus unchanged; task-onlyfeaturetarget removed",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
@@ -369,5 +371,24 @@
     "actual_exit": 0,
     "scope": "local affected fast tier; not hosted or fullworkspace pass",
     "elapsed_seconds": 1286.4628593921661
+  },
+  "cpu_profile_recovery": {
+    "capture_source": "903baf41cf42a59fc8363ae9bfcbc0dfe39c2204",
+    "original_data_sha256": "d1cff453c7b6ad2f24bf99bd0eaaaef9650b9590509cec3b4bd5d12e8f236397",
+    "binary_sha256": "bc61c376e060309450cdfdc01d9db5cbf45c33ab87f6939deb750312d135e2a4",
+    "collector_exit": 0,
+    "benchmark_exit": 101,
+    "diagnostic_rate": 987.714166894,
+    "foreground_samples": 3284,
+    "worker_samples": 1,
+    "known_leaves": 3254,
+    "compilation_samples": 1609,
+    "guard_samples": 690,
+    "reprepare_samples": 858,
+    "initial_prepare_samples": 751,
+    "corrector": "ca3d814be156d933d402c5d6c609bacffee9c74e",
+    "independent_decoder": "Samply0.13.1/Framehop; all3285rows retained,3277nativechainsagree,8differencesexplicit",
+    "verdict": "Supports focused design only; originalinconclusive preserved; no throughputacceptance/fullunwindclaim",
+    "raw_dir": "target/slice95-ac011-evidence/cpu-profile"
   }
 }

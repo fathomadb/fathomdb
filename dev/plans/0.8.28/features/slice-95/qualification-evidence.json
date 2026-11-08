@@ -2,7 +2,7 @@
   "schema": "fathomdb.slice95.qualification-summary/v1",
   "status": "IN_PROGRESS",
   "publication": "HELD",
-  "code_candidate": "3a05a45cbaff04f29ff4992d678e23a191717f62",
+  "code_candidate": "13c6470b5b5700c61c68ce8d10257551fbd2c9ca",
   "canonical_local_28": {
     "source": "16234813cf9e4aeaa09f99b5f5f98459bd415af3",
     "registered": 205,
@@ -36,7 +36,7 @@
       "waiver": null,
       "diagnostic": "separate traced run nonqualifying; no cause established; no kernel/threshold changes",
       "owner_direction": "2026-11-05: continue focused diagnosis and repair; retain threshold; no waiver",
-      "continuation": "ec7b7f014 lazy-endpoint preparation repair reviewed and independently verified; old nonpass unwaived pending unchanged qualifier on new candidate",
+      "continuation": "Reviewed ec7b7f014 lazy endpoint preparation passes focused correctness checks; unchanged canonical qualification on 13c6470b5 fails at 827.267649/s. No waiver or subsequent acceptance pass.",
       "current_repaired_candidate": {
         "source": "13c6470b5b5700c61c68ce8d10257551fbd2c9ca",
         "commits": 49639,
@@ -174,19 +174,17 @@
   "open_requirements": {
     "S95-6": "Current canonical AC011a827.268/sFAIL; no waiver. Whole-test sync trace material but no removable sync defect. Durability contract clarification pending before any checkpoint/acknowledgement redesign; final acceptance remains open.",
     "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
-    "S95-8": "Acceptance staysOPEN; taskcleanup and reviewed .29metadataforward complete. Later records-only forwards preserve exact imported bytes and unchanged executable inputs.",
+    "S95-8": "Reviewed repair/tools/records merged into .29 at 6f67219e7d70286f5a073b5651663734efd1d8a9; separate verifier passed Node unit1/G8 tests8 and release-state views. Task worktree and merged branch removed. Final acceptance remains OPEN.",
     "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim.",
     "session_durability_contract": "Owner question pending: accepted NORMAL + <=100ms powercutloss + zeroOScrashloss not established by frame-only policy/process-kill fixture. No policy change authorized."
   },
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
-    "remaining_task_worktrees": [
-      "/home/coreyt/projects/fathomdb-worktrees/slice95-ac011-repair"
-    ],
+    "remaining_task_worktrees": [],
     "windows": "Restored originallyoff; originalpersistentXML byteidentical, originalrunner hash/service/policies unchanged, task26/27registrations absent, taskguestfolder/disposabledisk removed",
     "staged_inputs": "13ownedhashverifiedcorpusJSONLs removed; sourcecorpus unchanged; task-onlyfeaturetarget removed",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
-    "continuation": "2026-11-07: missingtemporaryworktreeregistrationremoved, replacementisolatedWTcreated; newdiagnostictoolscommitted/rerunnable, rawoutputpersistentignored target/slice95-ac011-evidence"
+    "continuation": "Replacement task worktree and branch removed after clean/merged checks against both .28 and .29; tools retained in Git, raw evidence retained in canonical .28 target/slice95-ac011-evidence."
   },
   "receipts": {
     "canonical_28": {

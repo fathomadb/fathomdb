@@ -382,3 +382,32 @@ resolve the accepted NORMAL/100ms/zero-OS-crash contract mismatch explicitly wit
 the owner. Do not turn process-kill tests into machine-crash evidence or enlarge
 the checkpoint interval to make throughput green. Keep existing numerical targets
 unmodified until an explicit successor contract is approved.
+
+### CI16 follow-up: reuse compiled metadata reads
+
+Astra design review approved one further policy-neutral repair on 2026-11-07.
+Existing attribution shows substantial pretransaction/body CPU work, and source
+review identifies repeated compilation of the identical open-state query in
+`physical_erasure::load`. Material sync spans do not establish that other safe
+optimizations are exhausted. No additional diagnostic run precedes this TDD work.
+
+Requirements and acceptance for this change:
+
+- Reuse only compiled SQL within stable SQLite configuration; execute every
+  existing read with its current key and current database contents. Preserve all
+  guard calls, validation, defaults, errors, trigger/transaction lifetimes and
+  durability behavior. Do not cache decoded metadata or alter cache capacity.
+- A real-SQLite authorizer regression must first fail on repeated compilation of
+  the actual loader, then pass unchanged with statement reuse across both keys.
+  UPDATE, DELETE, malformed JSON, invalid typed state and recovery controls must
+  continue to observe current data and fail closed where required.
+- Real trigger enable/disable and schema invalidation controls must allow safe
+  SQLite reprepare and fresh reads. Existing admission, erasure, maintenance,
+  rollback and write-visibility controls cover the affected call paths.
+- Separate verification checks the frozen RED/GREEN and unchanged qualifiers.
+  Astra reviews code before integration. Then run unchanged canonical AC011a/b
+  once on the clean reviewed candidate; retain any non-pass without retrying it
+  into green. Final local/hosted qualification remains required before closure.
+
+The pending owner durability choice governs policy changes only; this statement
+preparation repair preserves the current policy and can proceed independently.

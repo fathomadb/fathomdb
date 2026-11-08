@@ -50,8 +50,10 @@ def analyze(lines, fixture_basename=FIXTURE, external_issues=()):
             issues.append(f'line {number}: unparsed syscall on TID {tid}')
             continue
         name, arguments, result, duration = call.groups()
-        success = result.split()[0] == '0'
-        if not success:
+        returned = result.split()[0]
+        success = returned == '0'
+        error = returned.startswith('-') or returned == '?'
+        if error or (name != 'prctl' and not success):
             issues.append(f'line {number}: {name} error on TID {tid}: {result}')
         if name == 'prctl':
             match = re.match(r'PR_SET_NAME,\s*"([^\"]+)"', arguments)
@@ -191,6 +193,10 @@ def _run(args):
                     except subprocess.TimeoutExpired:
                         reason = 'watchdog'
                         _terminate(process)
+        except BaseException:
+            if process is not None:
+                _terminate(process)
+            raise
         finally:
             os.close(read_fd)
     metadata = dict(command=command, return_code=process.returncode if process else None,

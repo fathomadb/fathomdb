@@ -173,7 +173,8 @@ git apply --reverse dev/experiments/ac011-endpoint-prepare/release-wait.patch
 `test_sync_trace.py` uses small hand-computed traces for parser math, foreground
 identity, worker separation and unfinished/resumed accounting. Neither tool
 changes or rebuilds the canonical engine. The parent selects the unmodified
-candidate `73746...` executable and owns the sole workload execution slot.
+canonical executable, retains its source/binary identity separately, and owns
+this sole workload execution slot.
 
 The runner requests strace `--seccomp-bpf -q -f -ttt -T -yy` with only
 `fsync,fdatasync,prctl` selected. Root's strace 6.8 preflight confirmed

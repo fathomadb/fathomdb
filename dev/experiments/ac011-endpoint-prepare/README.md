@@ -237,8 +237,9 @@ gain, fsync/checkpoint cause, production change or acceptance claim follows.
 
 ## User-owned benchmark with attached CPU sampling
 
-`cpu_profile.py` and `test_cpu_profile.py` retain the separately approved CPU
-profile. Tests cover hand-computed attribution/thresholds and FIFO ordering with
+`cpu_profile.py`, `test_cpu_profile.py` and `test_cpu_profile_cleanup.py` retain
+this separately approved CPU profile. Tests cover hand-computed attribution,
+thresholds, terminal cleanup/exit accounting and FIFO ordering with
 only normal-user `/bin/true`. The worker never runs the canonical profile or a
 privileged smoke. Root owns the sole reviewed workload slot and desktop approval.
 
@@ -306,5 +307,5 @@ speedup. No retry, policy change or production repair follows automatically.
 
 ```bash
 python3 -m unittest discover -s dev/experiments/ac011-endpoint-prepare \
-  -p test_cpu_profile.py
+  -p 'test_cpu_profile*.py'
 ```

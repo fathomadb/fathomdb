@@ -178,16 +178,37 @@ def enable_then_continue(control_fd, ack_fd, continuation, pump=lambda: None):
 
 
 def finish_collector(collector, request_stop, pump, drained=lambda: True):
-    """Finish collector control before releasing its stopped benchmark target."""
-    request_stop()
-    while collector.poll() is None or not drained():
-        pump()
-    return []
+    """Retain the stopped PID until collector termination despite control/interrupt errors."""
+    issues = []
+
+    def remember(error):
+        message = f'{type(error).__name__}: {error}'
+        if message not in issues:
+            issues.append(message)
+
+    try:
+        request_stop()
+    except BaseException as error:
+        remember(error)
+    while True:
+        try:
+            if collector.poll() is not None and drained():
+                return issues
+            if issues:
+                time.sleep(.02)
+            pump()
+        except BaseException as error:
+            remember(error)
 
 
 def recording_issues(metadata):
     """Return recording failures that prevent a CPU attribution verdict."""
-    return [metadata['stop_reason']] if metadata['stop_reason'] else []
+    issues = [metadata['stop_reason']] if metadata['stop_reason'] else []
+    if metadata.get('benchmark_exit') not in (0, 101):
+        issues.append(f'unexpected benchmark exit: {metadata.get("benchmark_exit")}')
+    if metadata.get('collector_exit') != 0:
+        issues.append(f'collector exit: {metadata.get("collector_exit")}')
+    return issues
 
 
 def _record(args):
@@ -196,7 +217,8 @@ def _record(args):
     env = dict(os.environ, DEBUGINFOD_URLS='')
     arguments = args.arguments[1:] if args.arguments[:1] == ['--'] else args.arguments
     started = time.monotonic()
-    metadata = dict(stop_reason=None, enabled=False, data_bytes=0, benchmark_command=[args.binary, *arguments],
+    metadata = dict(stop_reason=None, enabled=False, data_bytes=0,
+                    benchmark_command=[args.binary, *arguments],
                     perf_version=subprocess.check_output(['/usr/bin/perf', 'version'], text=True).strip())
     child, collector, eof, retaining = None, None, False, True
     with (tempfile.TemporaryDirectory(prefix='cpu-control-', dir=prefix.parent) as directory,
@@ -208,6 +230,38 @@ def _record(args):
         for path in (ctl, ack):
             os.mkfifo(path, 0o600)
         control_fd, ack_fd = [os.open(path, os.O_RDWR | os.O_NONBLOCK) for path in (ctl, ack)]
+
+        def pump():
+            nonlocal eof, retaining
+            if eof:
+                time.sleep(.02)
+                return
+            ready, _, _ = select.select([collector.stdout], [], [], .1)
+            if not ready:
+                return
+            try:
+                chunk = os.read(collector.stdout.fileno(), 65536)
+            except BlockingIOError:
+                return
+            except OSError as error:
+                metadata['stop_reason'] = metadata['stop_reason'] or f'profile pipe read: {error}'
+                eof = True
+                return
+            if not chunk:
+                eof = True
+                return
+            available = LIMIT - metadata['data_bytes']
+            if retaining:
+                try:
+                    data.write(chunk[:available])
+                    metadata['data_bytes'] += min(available, len(chunk))
+                except OSError as error:
+                    metadata['stop_reason'] = metadata['stop_reason'] or f'profile data write: {error}'
+                    retaining = False
+            if len(chunk) >= available:
+                metadata['stop_reason'] = metadata['stop_reason'] or 'hard_256MiB_cap'
+                retaining = False
+
         try:
             child, metadata['identity'] = start_stopped_benchmark(args.binary, arguments, stdout, stderr, env)
             command = ['pkexec', '--disable-internal-agent', '/usr/bin/timeout', '--signal=INT',
@@ -220,29 +274,6 @@ def _record(args):
             collector = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=collector_errors, env=env)
             os.set_blocking(collector.stdout.fileno(), False)
 
-            def pump():
-                nonlocal eof, retaining
-                if eof:
-                    time.sleep(.02)
-                    return
-                ready, _, _ = select.select([collector.stdout], [], [], .1)
-                if ready:
-                    chunk = os.read(collector.stdout.fileno(), 65536)
-                    if not chunk:
-                        eof = True
-                        return
-                    available = LIMIT - metadata['data_bytes']
-                    if retaining:
-                        try:
-                            data.write(chunk[:available])
-                            metadata['data_bytes'] += min(available, len(chunk))
-                        except OSError as error:
-                            metadata['stop_reason'] = f'profile data write: {error}'
-                            retaining = False
-                    if len(chunk) >= available:
-                        metadata['stop_reason'] = metadata['stop_reason'] or 'hard_256MiB_cap'
-                        retaining = False
-
             def ready_pump():
                 pump()
                 if metadata['stop_reason'] or collector.poll() is not None:
@@ -250,41 +281,33 @@ def _record(args):
 
             def resume():
                 metadata['enable_ack_seconds'] = time.monotonic() - started
-                metadata['enabled'] = True
                 metadata['continued_at'] = time.monotonic()
                 os.kill(child.pid, signal.SIGCONT)
+                metadata['enabled'] = True
 
-            try:
-                enable_then_continue(control_fd, ack_fd, resume, ready_pump)
-                while child.poll() is None and metadata['stop_reason'] is None:
-                    pump()
-                    if collector.poll() is not None and child.poll() is None:
-                        metadata['stop_reason'] = metadata['stop_reason'] or 'collector_exited_early'
-                    if time.monotonic() - metadata['continued_at'] >= 120:
-                        metadata['stop_reason'] = 'benchmark_120s_watchdog'
-            except BaseException as error:
-                metadata['stop_reason'] = metadata['stop_reason'] or f'{type(error).__name__}: {error}'
-            finally:
-                os.write(control_fd, b'stop\n')
-                if metadata['enabled'] and child.poll() is None:
-                    _kill_benchmark(child)
-                # Auth precedes the privileged timeout. Reserve a stopped PID until
-                # the collector is terminal, even if GUI authorization is delayed.
-                while collector.poll() is None or not eof:
-                    try:
-                        pump()
-                    except KeyboardInterrupt:
-                        metadata['stop_reason'] = 'interrupted_waiting_for_collector'
-                        print('Cancel/finish desktop authentication; stopped PID remains reserved.', flush=True)
-                metadata['collector_exit'] = collector.wait()
-                collector.stdout.close()
+            enable_then_continue(control_fd, ack_fd, resume, ready_pump)
+            while child.poll() is None and metadata['stop_reason'] is None:
+                pump()
+                if collector.poll() is not None and child.poll() is None:
+                    metadata['stop_reason'] = metadata['stop_reason'] or 'collector_exited_early'
+                if time.monotonic() - metadata['continued_at'] >= 120:
+                    metadata['stop_reason'] = metadata['stop_reason'] or 'benchmark_120s_watchdog'
         except BaseException as error:
             metadata['stop_reason'] = metadata['stop_reason'] or f'{type(error).__name__}: {error}'
-            if collector is not None and collector.poll() is None:
-                os.write(control_fd, b'stop\n')
-                print('Waiting for collector termination before releasing stopped benchmark PID.', flush=True)
-                collector.wait()
         finally:
+            # Only an ACKed, resumed benchmark may be killed before collector exit.
+            # A pending GUI authorization must retain its STOPPED target PID.
+            if child is not None and metadata['enabled'] and child.poll() is None:
+                _kill_benchmark(child)
+            if collector is not None:
+                cleanup_issues = finish_collector(collector,
+                                                 lambda: os.write(control_fd, b'stop\n'),
+                                                 pump, lambda: eof)
+                if cleanup_issues:
+                    metadata['cleanup_issues'] = cleanup_issues
+                    metadata['stop_reason'] = metadata['stop_reason'] or '; '.join(cleanup_issues)
+                metadata['collector_exit'] = collector.returncode
+                collector.stdout.close()
             if child is not None:
                 if child.poll() is None:
                     _kill_benchmark(child)
@@ -292,11 +315,12 @@ def _record(args):
             os.close(control_fd)
             os.close(ack_fd)
     metadata['elapsed_seconds_including_auth'] = time.monotonic() - started
-    if metadata.get('collector_exit') != 0:
-        metadata['stop_reason'] = metadata['stop_reason'] or 'collector_nonzero_exit'
+    issues = recording_issues(metadata)
+    if issues:
+        metadata['stop_reason'] = metadata['stop_reason'] or '; '.join(issues)
     Path(str(prefix) + '.metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
     print(json.dumps(metadata, indent=2))
-    return 2 if metadata['stop_reason'] else metadata['benchmark_exit']
+    return 2 if issues else metadata['benchmark_exit']
 
 
 def _export_analyze(args):

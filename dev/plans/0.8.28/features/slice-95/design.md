@@ -476,3 +476,24 @@ checkpointing and the available process-kill evidence establish. A successor
 contract/durability design requires an explicit owner ruling before policy
 changes; no such ruling is inferred from this diagnostic. Existing settings and
 performance thresholds remain in force.
+
+### Reuse only the compiled open-state read
+
+**Astra design review APPROVE on 2026-11-07.** Limit production edits to
+`physical_erasure::load<T>`: prepare the identical keyed SELECT with
+`Connection::prepare_cached`, call `query_row` on that statement and return it
+before the existing optional/error/JSON-decoding chain. Preserve SQL, keys,
+read frequency, validation and error mapping. SQLite owns invalidation and
+repreparation after trigger configuration or schema changes; no metadata value
+is retained between reads and no caller or guard is removed.
+
+A private real-SQLite unit fixture installs an authorizer after setup/cache flush
+and counts only top-level reads of the open-state value column during actual
+loader calls. Repeated ROOT/FTS/ROOT reads must compile once in stable state;
+this deterministically fails before the repair. Current-value controls mutate,
+delete, corrupt and repair metadata; typed sanitation validation remains strict.
+Trigger off/on and schema-change controls verify fresh reads and safe reprepare
+without demanding reuse across invalidations. Keep test source frozen for GREEN.
+Use focused admission/erasure/maintenance/rollback/visibility checks, Astra code
+review and independent verification. This is an evidenced avoidable compilation
+mechanism, not a proven explanation of the throughput failure or a speedup claim.

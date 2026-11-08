@@ -58,13 +58,12 @@ fn load<T: serde::de::DeserializeOwned>(
     c: &Connection,
     key: &str,
 ) -> Result<Option<T>, EngineError> {
-    c.query_row("SELECT value FROM _fathomdb_open_state WHERE key=?1", [key], |r| {
-        r.get::<_, String>(0)
-    })
-    .optional()
-    .map_err(|_| EngineError::Storage)?
-    .map(|raw| serde_json::from_str(&raw).map_err(|_| EngineError::Storage))
-    .transpose()
+    c.prepare_cached("SELECT value FROM _fathomdb_open_state WHERE key=?1")
+        .and_then(|mut statement| statement.query_row([key], |r| r.get::<_, String>(0)))
+        .optional()
+        .map_err(|_| EngineError::Storage)?
+        .map(|raw| serde_json::from_str(&raw).map_err(|_| EngineError::Storage))
+        .transpose()
 }
 
 fn store(c: &Connection, key: &str, value: &impl Serialize) -> Result<(), EngineError> {

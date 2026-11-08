@@ -58,13 +58,12 @@ fn load<T: serde::de::DeserializeOwned>(
     c: &Connection,
     key: &str,
 ) -> Result<Option<T>, EngineError> {
-    c.query_row("SELECT value FROM _fathomdb_open_state WHERE key=?1", [key], |r| {
-        r.get::<_, String>(0)
-    })
-    .optional()
-    .map_err(|_| EngineError::Storage)?
-    .map(|raw| serde_json::from_str(&raw).map_err(|_| EngineError::Storage))
-    .transpose()
+    c.prepare_cached("SELECT value FROM _fathomdb_open_state WHERE key=?1")
+        .and_then(|mut statement| statement.query_row([key], |r| r.get::<_, String>(0)))
+        .optional()
+        .map_err(|_| EngineError::Storage)?
+        .map(|raw| serde_json::from_str(&raw).map_err(|_| EngineError::Storage))
+        .transpose()
 }
 
 fn store(c: &Connection, key: &str, value: &impl Serialize) -> Result<(), EngineError> {
@@ -529,6 +528,149 @@ pub(crate) fn diagnostics(c: &Connection) -> Result<Vec<PendingErasure>, EngineE
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::config::DbConfig;
+    use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+
+    fn metadata_load_fixture() -> (Connection, Arc<AtomicUsize>) {
+        crate::configure_runtime(crate::RuntimeSqliteMode::Performance).unwrap();
+        let mut c = Connection::open_in_memory().unwrap();
+        c.execute_batch(
+            "CREATE TABLE _fathomdb_open_state(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
+        )
+        .unwrap();
+        store(&c, ROOT_KEY, &serde_json::json!({"marker": 1})).unwrap();
+        store(
+            &c,
+            FTS_KEY,
+            &Sanitation { version: 1, phase: "dirty".into(), family: 0, started: false },
+        )
+        .unwrap();
+        c.flush_prepared_statement_cache();
+        let compilations = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&compilations);
+        c.authorizer(Some(move |context: AuthContext<'_>| {
+            if context.accessor.is_none()
+                && matches!(
+                    context.action,
+                    AuthAction::Read { table_name: "_fathomdb_open_state", column_name: "value" }
+                )
+            {
+                observed.fetch_add(1, Ordering::Relaxed);
+            }
+            Authorization::Allow
+        }))
+        .unwrap();
+        (c, compilations)
+    }
+
+    #[test]
+    fn metadata_load_reuses_compilation_and_observes_current_values_and_validation() {
+        let (c, compilations) = metadata_load_fixture();
+        assert_eq!(
+            load::<serde_json::Value>(&c, ROOT_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 1}))
+        );
+        assert_eq!(
+            load::<Sanitation>(&c, FTS_KEY).unwrap(),
+            Some(Sanitation { version: 1, phase: "dirty".into(), family: 0, started: false })
+        );
+        assert_eq!(
+            load::<serde_json::Value>(&c, ROOT_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 1}))
+        );
+        let stable_compilations = compilations.load(Ordering::Relaxed);
+
+        store(&c, ROOT_KEY, &serde_json::json!({"marker": 2})).unwrap();
+        assert_eq!(
+            load::<serde_json::Value>(&c, ROOT_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 2}))
+        );
+        c.execute("DELETE FROM _fathomdb_open_state WHERE key=?1", [ROOT_KEY]).unwrap();
+        assert!(load::<serde_json::Value>(&c, ROOT_KEY).unwrap().is_none());
+        c.execute(
+            "INSERT INTO _fathomdb_open_state(key,value) VALUES(?1,?2)",
+            [ROOT_KEY, "not-json"],
+        )
+        .unwrap();
+        assert!(matches!(load::<serde_json::Value>(&c, ROOT_KEY), Err(EngineError::Storage)));
+        store(&c, ROOT_KEY, &serde_json::json!({"marker": 3})).unwrap();
+        assert_eq!(
+            load::<serde_json::Value>(&c, ROOT_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 3}))
+        );
+
+        assert_eq!(state(&c).unwrap().phase, "dirty");
+        store(
+            &c,
+            FTS_KEY,
+            &serde_json::json!({"version": 1, "phase": "invalid", "family": 0, "started": false}),
+        )
+        .unwrap();
+        assert!(matches!(state(&c), Err(EngineError::Storage)));
+        assert_eq!(
+            stable_compilations, 1,
+            "ROOT/FTS/ROOT reads must compile the keyed SELECT once"
+        );
+        assert_eq!(compilations.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn metadata_load_reprepares_after_trigger_changes_and_reuses_each_stable_state() {
+        let (c, compilations) = metadata_load_fixture();
+        assert!(load::<serde_json::Value>(&c, ROOT_KEY).unwrap().is_some());
+        let initial = compilations.load(Ordering::Relaxed);
+        assert!(!c.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, false).unwrap());
+        assert_eq!(
+            load::<serde_json::Value>(&c, ROOT_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 1}))
+        );
+        let disabled_first = compilations.load(Ordering::Relaxed);
+        assert_eq!(load::<Sanitation>(&c, FTS_KEY).unwrap().unwrap().phase, "dirty");
+        let disabled_second = compilations.load(Ordering::Relaxed);
+        assert!(c.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, true).unwrap());
+        assert_eq!(
+            load::<serde_json::Value>(&c, ROOT_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 1}))
+        );
+        let restored_first = compilations.load(Ordering::Relaxed);
+        assert_eq!(load::<Sanitation>(&c, FTS_KEY).unwrap().unwrap().phase, "dirty");
+        let restored_second = compilations.load(Ordering::Relaxed);
+        assert!(c.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER).unwrap());
+        assert_eq!(
+            (initial, disabled_first, disabled_second, restored_first, restored_second),
+            (1, 2, 2, 3, 3),
+            "trigger invalidation recompiles once, then stable reads reuse it"
+        );
+    }
+
+    #[test]
+    fn metadata_load_schema_failure_recovers_fresh_data_and_statement_reuse() {
+        let (c, compilations) = metadata_load_fixture();
+        assert!(load::<serde_json::Value>(&c, ROOT_KEY).unwrap().is_some());
+        c.execute_batch("DROP TABLE _fathomdb_open_state").unwrap();
+        assert!(matches!(load::<serde_json::Value>(&c, ROOT_KEY), Err(EngineError::Storage)));
+        c.execute_batch(
+            "CREATE TABLE _fathomdb_open_state(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
+        )
+        .unwrap();
+        store(&c, ROOT_KEY, &serde_json::json!({"marker": 7})).unwrap();
+        store(&c, FTS_KEY, &serde_json::json!({"marker": 8})).unwrap();
+        assert_eq!(
+            load::<serde_json::Value>(&c, ROOT_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 7}))
+        );
+        let recreated_first = compilations.load(Ordering::Relaxed);
+        assert_eq!(
+            load::<serde_json::Value>(&c, FTS_KEY).unwrap(),
+            Some(serde_json::json!({"marker": 8}))
+        );
+        assert_eq!(recreated_first, 2);
+        assert_eq!(
+            compilations.load(Ordering::Relaxed),
+            recreated_first,
+            "the recreated schema must recover a reusable fresh statement"
+        );
+    }
 
     #[cfg(feature = "operator")]
     #[test]

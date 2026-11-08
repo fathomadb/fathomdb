@@ -55,7 +55,7 @@ native module. Earlier deterministic tests and mutation evidence remain retained
 | S95-4 installed consumers | Linux Python/Node examples, strict positive/negative TypeScript consumers, external Rust source archive and immutable CLI doctor pass. Candidate-bound Windows configuration supplements and the earlier five-platform collector pass on their recorded sources. All five prior-code native platforms and the collector pass; the CI16 repair requires fresh candidate CI. No registry-resolved .28 claim. |
 | S95-5 documentation | Slice 92 baseline retained; affected interface/generator/lifecycle/surface/feature/target checks pass. The classification correction passes the portable validator and 38 tests; scoped Markdown validation passes. No repeated full documentation audit. |
 | S95-6 broad and feature checks | One clean .28 canonical round passed 205/205 at `16234813c`, actual child exit 0; outer session 143 has unknown cause and is recorded separately. Later repairs have focused checks and fresh hosted verification. Feature assembly: 180 planned, 165 passed, 0 failed, 15 reviewed ignored. No uninterrupted full-local pass is claimed on the later source. |
-| S95-6 performance and reliability | **Earlier AC011a FAIL, unwaived; repaired-candidate qualification pending.** AC011b 307.292/s, AC012 1/3 ms, AC013 55/61 ms, seven AC081 hard limits, 60-second AC021 and AC073 stress 47 ms pass. Existing AC081 soft warnings remain. Diagnostic tracing is nonqualifying and establishes no cause. |
+| S95-6 performance and reliability | **Current candidate AC011a FAIL at 827.267649/s, unwaived.** AC011b 307.292/s, AC012 1/3 ms, AC013 55/61 ms, seven AC081 hard limits, 60-second AC021 and AC073 stress 47 ms pass. Existing AC081 soft warnings remain. Diagnostic tracing is nonqualifying and establishes no cause. |
 | S95-6 accepted fidelity | Real TC5: 7,667 docs/100 queries/1,000 bootstrap, recall .958, CI [.938,.974], measured source `5f668f330`. Private vector-stage fidelity only; post-run database hash changed for unknown reason. EU7's retired recall assertion separately exits 101; its overall run is not called PASS. |
 | S95-7 hosted CI | Run 42005653176 on `3a05a45cb` is **not qualified**: fast lint rejects the missing TC5 classification, so 198 cheap suites did not run. All five native targets/collector, five size cells, parallel Rust, strict security, default-provider and distinct Windows WAL pass. Heavy also passes 7/7 in 1,503 seconds. Corrected records candidate `6479399fe` passes local fast 198/198, lint/type/security 0/0/0. Corrected-source hosted fast remains pending; no overall CI-green claim. Earlier failures and successful run 41971020280 retain their actual source attribution. |
 | S95-8 handoff | .29 has an uninterrupted 205/205 pass at `6674cf79d`, followed by reviewed forwards through `2803eb7f1` with affected native/logging/close/cursor checks passing. Reviewed metadata forward `d68de5db5` imports all nine final records exactly, with zero executable delta and passing scoped validators. All prior-phase task worktrees/branches were removed. Later records-only forwards preserve exact imported bytes and unchanged executable inputs. |
@@ -93,8 +93,8 @@ target directory. Prior cleanup/relocation claims describe their recorded phase.
 CI16 records the authorized continuation: at most two diagnostic runs, followed
 by review of an evidenced mechanism and focused TDD before any production repair.
 Diagnostic runs cannot qualify throughput; no infrastructure or acceptance knob
-is changed. A replacement isolated worktree exists only for this continuation and will be
-merged/cleaned after the verified repair. Prior cleanup records remain accurate
+is changed. The replacement continuation worktree and branch are now removed after verified
+integration into both .28 and .29. Prior cleanup records remain accurate
 for the completed phase.
 
 D28-09/10/11 and populated-open deferrals remain. Slice 95 cannot close while the
@@ -187,3 +187,10 @@ failures and implement/validate its cadence. The 1,000/s threshold and publicati
 hold remain unchanged in either direction. No answer, waiver, checkpoint or
 synchronization change is inferred. The current reviewed SQL repair and retained
 tools may be integrated independently; policy changes and final acceptance wait.
+
+The reviewed repair, diagnostic tools and current records are merged into .29 at
+`6f67219e7d70286f5a073b5651663734efd1d8a9`. Separate verification passes the Node
+unit (1), dangling-edge suite (8) and release-state views, with a clean tree and
+unchanged canonical performance tests. The replacement task worktree and branch
+are removed; raw evidence remains in the canonical .28 checkout. Integration is
+complete for this repair; throughput acceptance and final qualification remain open.

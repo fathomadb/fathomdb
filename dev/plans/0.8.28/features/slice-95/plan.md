@@ -434,3 +434,10 @@ The unprivileged permission preflight failed with host policy
 is not authorized by this proposal: the owner has been asked to authorize a
 narrow privileged profile or select a separately reviewed instrumentation plan.
 Preserve the latest valid throughput failure and all existing thresholds.
+
+The owner authorized elevated CPU profiling on 2026-11-08. Desktop authentication
+preflight succeeded; the approved attach design keeps the benchmark unprivileged
+and unchanged. Implement/review the retained bounded runner with failing focused
+measurement/control checks first, then collect the single profile and obtain
+independent attribution verification. Durability clarification is not a request
+to change WAL/NORMAL or choose a new contract before this investigation.

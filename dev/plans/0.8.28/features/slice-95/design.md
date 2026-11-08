@@ -520,3 +520,22 @@ The unprivileged permission preflight failed with host policy
 is not authorized by this proposal: the owner has been asked to authorize a
 narrow privileged profile or select a separately reviewed instrumentation plan.
 Preserve the latest valid throughput failure and all existing thresholds.
+
+### Authorized CPU-profile attach execution
+
+Owner authorized elevated profiling on 2026-11-08; desktop `pkexec perf stat`
+preflight succeeded. No durability-policy decision is needed for profiling.
+Astra approved a retained normal-user attach runner: start a stopped shell
+launcher in the existing session/autogroup, confirm its identity, then attach
+privileged `perf` through `pkexec` and a 120s INT/2s KILL `timeout`. Use initially
+disabled events and control-FIFO enable acknowledgement before continuing the
+launcher into the unchanged binary. Database execution remains unprivileged.
+
+Retain 99Hz `cpu-clock:u`, DWARF 8192, native `--max-size=256M` plus a hard
+256MiB output-pipe cap. On completion/failure, stop the collector through its
+FIFO; the privileged timeout bounds collection independently. Clean only the
+owned normal-user workload group. Authentication failure never starts workload.
+Use `--no-buildid-cache` and disable debuginfod. Preserve the existing symbol,
+foreground/exclusive-sample and hotspot thresholds; no acceptance or automatic
+repair follows. Review the small runner and hand-computed attribution/control
+checks before the sole workload profile. No engine or kernel settings change.

@@ -323,3 +323,62 @@ Astra code review and separate verification check semantic metric coverage and
 unchanged immutable evidence. No product AC, validator bypass or new exception
 class is introduced. Recheck affected metadata/fast verification; records-only
 changes retain explicit source-attributed reuse of unchanged executable evidence.
+
+## CI16: focused AC011 diagnosis and repair
+
+On 2026-11-05 the owner directed: continue focused diagnosis and repair, retaining
+the threshold. AC011a's valid 999.651557/s non-pass remains unwaived. S95-6 governs
+this work; its >=1,000/s and AC011b's >=100/s, 5-second warmup, 60-second window,
+sequential commits, workload and canonical host/storage remain unchanged.
+
+Astra reviewed a bounded two-stage diagnosis. First, preserve the exact workload
+and original threshold assertion while temporarily adding aggregate phase timers
+in an isolated worktree: admission waits, guards/validation, transaction begin,
+trigger check, body, visibility advance and actual commit. Enable existing
+metrics only after warmup and capture original elapsed/rate before printing.
+Diagnostic instrumentation perturbs execution by an unknown amount; neither its
+throughput nor overlapping stage totals qualify acceptance or prove the tiny
+observed deficit. Interpret worker/shared metrics separately from per-write
+counts. Preserve every fence, error path, lock lifetime and worker activity.
+
+If needed, the second diagnostic counts actual SQL compilation/repreparation and
+execution in the dominant phase. At most two diagnostic runs precede a new design
+decision. No kernel/infrastructure knob, checkpoint, durability or trigger-policy
+change is allocated. Finding a preparation call alone does not justify caching:
+trigger configuration changes can expire prepared statements.
+
+An evidenced avoidable mechanism receives Astra design review, a deterministic
+correctness RED, focused GREEN/controls and Astra code review. Restore all
+throwaway instrumentation before that production TDD phase. The separate verifier
+checks source identity, unchanged acceptance and measured evidence. Run the
+unchanged canonical AC011a/b helper once after a reviewed repair on an isolated
+ready host; do not retry into green. Recheck the repair's blast radius, update
+source-attributed qualification, forward to .29 and clean up. Hosted fast remains
+pending until the acceptance candidate is settled. Publication remains held.
+
+Phase 2 is complete: the scoped probe confirmed 1,000 endpoint compilations and
+zero executions for the 1,000 Node writes. Astra approved only lazy preparation
+after effective-edge filtering, with a real-SQLite no-read Node regression, Edge
+error/count controls and unchanged receipt/search behavior. The historical miss
+is not causally explained by this evidence. Keep the retained probe rerunnable
+from its historical source, remove active instrumentation, then complete focused
+RED/GREEN, code review and the unchanged acceptance gates.
+
+The first canonical repaired-candidate qualification failed at 827.268/s and
+stopped before AC011b; no threshold or policy was changed. Astra reassessed the
+two-diagnostic budget and approved one foreground release-mode wall/thread-CPU
+attribution run under the design's concentration/reconciliation decision rule.
+It is diagnostic-only; no automatic extra run or production repair follows.
+
+The wall/thread-CPU result retained a negative accounting residual and therefore
+its original inconclusive verdict. Following source/clock review, Astra approved
+one narrowly filtered, bounded whole-test sync trace under the design's explicit
+limits. It may justify only read-only investigation, not a checkpoint policy
+change, acceptance claim or retry.
+
+The sync-only observation meets its material-span criterion, but no removable
+duplicate sync was established. Before changing checkpoint/acknowledgement policy,
+resolve the accepted NORMAL/100ms/zero-OS-crash contract mismatch explicitly with
+the owner. Do not turn process-kill tests into machine-crash evidence or enlarge
+the checkpoint interval to make throughput green. Keep existing numerical targets
+unmodified until an explicit successor contract is approved.

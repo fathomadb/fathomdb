@@ -377,3 +377,102 @@ states retrospective timing and fidelity-only limits, including the changed
 post-run database hash of unknown cause. Normal API idempotence, portable tree
 validation, existing 38 tests and independent immutable-byte/hash checks verify
 this correction after the observed lint RED. AC011 and publication holds remain.
+
+## CI16: bound the write-throughput diagnosis
+
+**Astra diagnostic design review APPROVE on 2026-11-05.** The owner authorized
+focused diagnosis and repair with the original thresholds retained. No arithmetic
+artifact is established: even dividing 59,986 commits by exactly 60 seconds falls
+below 1,000/s. The final complete commit legitimately extends elapsed time.
+
+Use at most two diagnostic runs before reassessing the design. Phase 1 adds only
+temporary aggregate timers around the synchronous write phases, using existing
+physical metrics after the unchanged warmup and the same AC011a body. Capture
+original elapsed/rate before metric serialization. Only successful foreground
+per-write phase counts should equal measured commits; worker/shared stages and
+nested durations are separate observations. Actual tx.commit belongs inside its
+commit timer. Preserve guards, lock/error/RAII lifetimes and worker activity.
+Instrumentation overhead is unknown and cannot establish a saving of 0.0348%.
+
+Phase 2, if needed, isolates the dominant phase's actual SQL preparation,
+repreparation and execution. Existing trigger toggles can expire prepared
+statements, so cached preparation is not automatically a reuse improvement.
+The existing row-trigger fallback is not an approved shortcut: even a single
+Node write can make several mutations, whereas the accepted managed transaction
+performs one checked nonce-bearing visibility advance.
+
+**Astra repair design APPROVE on 2026-11-07.** The second bounded diagnostic
+confirmed 1,000 initial endpoint-statement preparations and zero executions for
+1,000 successful anonymous Node writes. This proves unused work in that sample;
+it does not establish production speedup or the cause of the historical miss.
+The retained probe and its rerun instructions live in
+`dev/experiments/ac011-endpoint-prepare/`; raw output remains ignored.
+
+Restore uninstrumented source, then mechanically extract the existing
+endpoint-count block at its unchanged post-batch/pre-retention call site. A real
+SQLite authorizer scoped to helper calls denies canonical-node reads: Node-only
+counting must still return zero, while an Edge control must propagate denial and
+count two missing endpoints after denial is removed. A real Engine write receipt
+and lexical-search control, plus existing edge/mixed/supersession checks, preserve
+observable behavior. Observe and retain the failing Node-only test before GREEN.
+
+The repair prepares the same statement lazily on the first effective Edge after
+the existing in-batch supersession skip and reuses it for that helper call. Keep
+final post-batch endpoint visibility, logical-ID supersession, independent endpoint
+checks and saturation unchanged. No transaction, trigger, nonce, cursor, worker,
+guard or durability change. Thresholds and the canonical qualifier stay unchanged.
+
+### Current wait attribution after qualification failure
+
+**Astra diagnostic design APPROVE on 2026-11-07.** The correctness-verified lazy
+repair does not satisfy the unchanged gate: clean `13c6470b5` measured 827.268/s.
+No source/profile or existing readiness invalidator was found. Whole-job 61% CPU
+is not foreground attribution and does not establish I/O or lock causation.
+
+Run exactly one further release-mode diagnostic with unchanged 5s warmup/60s
+workload. Retain temporary foreground-only wall and thread-CPU timers for disjoint
+turn wait, writer-mutex wait, guards/validation, BEGIN, trigger admission/disable,
+mutation body, visibility/restore and actual commit. Record total Engine::write
+as an overlapping reference, successful per-stage counts, exclusive sums and
+uncovered residual. Retain raw differences; do not add nested/global metrics or
+call the instrumented rate acceptance. Preserve every guard and its lifetime.
+
+A wait stage warrants focused follow-up only if its signed non-CPU component
+accounts for >=50% of measured foreground non-CPU time and >=10% of total write
+wall time. Commit concentration
+warrants sync/checkpoint attribution, not an immediate fsync conclusion or policy
+change. CPU concentration identifies a stage, not permission to cache/remove its
+fences. If counters/residual do not reconcile or no stage concentrates, stop with
+an inconclusive result. No simultaneous tracing, baseline A/B, kernel/perf setting
+or automatic further qualification retry is authorized by this diagnostic design.
+
+### Sync-only attribution after the inconclusive residual
+
+**Astra diagnostic design APPROVE on 2026-11-07.** Keep the negative residual and
+original inconclusive verdict. Source-established clock nesting supports only a
+conservative commit-span lead, including clock boundaries; it is not a strict
+inside-SQLite waiting bound. Do not authorize a repair from it.
+
+One further trace uses the unchanged canonical release binary and AC011a workload,
+filtering only fsync, fdatasync and prctl with working seccomp filtering. Resolve
+the exact foreground test TID from PR_SET_NAME; keep every other TID separate.
+Group resolved fixture DB/WAL/directory/other paths and report success/error,
+count, sum and maximum observed syscall wall spans. Whole-test startup, warmup,
+measurement and teardown are included. Tracing/scheduling overhead is unknown.
+
+Bound execution to 120s and raw trace to 32MiB using an owned process group and
+output pipe; never impose an SQLite-file size limit. Missing identities, errors,
+truncation or filtering fallback mean inconclusive/anomalous. A foreground fixture
+DB/WAL sync-span sum >=5s supports read-only checkpoint/storage investigation;
+a smaller sum neither implies locks nor excludes sync from the earlier miss.
+No acceptance verdict, measured-window fraction, automatic retry, checkpoint or
+NORMAL policy change is authorized. Retain the small runner/analyzer and its
+hand-computed measurement-math tests; raw data remains ignored.
+
+The trace met that criterion at 19.537003s, and review found expected checkpoint
+and WAL-header synchronization rather than an evidenced removable sync. The
+accepted durability ADR's numerical loss promises are stronger than frame-only
+checkpointing and the available process-kill evidence establish. A successor
+contract/durability design requires an explicit owner ruling before policy
+changes; no such ruling is inferred from this diagnostic. Existing settings and
+performance thresholds remain in force.

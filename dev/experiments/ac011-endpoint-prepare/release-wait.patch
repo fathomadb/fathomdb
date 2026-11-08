@@ -1,0 +1,427 @@
+diff --git a/src/rust/crates/fathomdb-engine/src/write.rs b/src/rust/crates/fathomdb-engine/src/write.rs
+index 7b8a2064c..763879334 100644
+--- a/src/rust/crates/fathomdb-engine/src/write.rs
++++ b/src/rust/crates/fathomdb-engine/src/write.rs
+@@ -221,6 +221,8 @@ impl Engine {
+     }
+ 
+     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        let _diagnostic_sample = crate::write_commit::wait_diagnostic::sample();
+         let _operation = self.ensure_open()?;
+         let category = if batch_is_admin(batch) {
+             lifecycle::EventCategory::Admin
+@@ -240,6 +242,8 @@ impl Engine {
+                     self.counters.record_write(rows);
+                 }
+                 self.emit_event(lifecycle::Phase::Finished, category, None);
++                #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++                crate::write_commit::wait_diagnostic::success();
+                 Ok(receipt)
+             }
+             Err(err) => {
+@@ -258,6 +262,20 @@ impl Engine {
+         }
+     }
+ 
++    /// Begin temporary foreground timing on this thread; nested writes are unsupported.
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    #[doc(hidden)]
++    pub fn start_write_wait_diagnostic_for_test(&self) {
++        crate::write_commit::wait_diagnostic::enable();
++    }
++
++    /// Stop temporary timing and return successful-write aggregates for this thread.
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    #[doc(hidden)]
++    pub fn take_write_wait_diagnostic_for_test(&self) -> serde_json::Value {
++        crate::write_commit::wait_diagnostic::take()
++    }
++
+     /// 0.8.20 Slice 20c (R-20-DR remainder) — **late enrolment**, the write-path
+     /// half of the C4 rider.
+     ///
+@@ -433,12 +451,22 @@ impl Engine {
+ 
+         let _metric_scope = physical_metrics::scope(&self.physical_maintenance.metrics);
+         let turn_wait = physical_metrics::stage("foreground_turn_wait");
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        let diagnostic_turn = crate::write_commit::wait_diagnostic::stage(0);
+         let _turn = self.physical_maintenance.writer_turn()?;
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        drop(diagnostic_turn);
+         drop(turn_wait);
+         let writer_wait = physical_metrics::stage("foreground_writer_wait");
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        let diagnostic_mutex = crate::write_commit::wait_diagnostic::stage(1);
+         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        drop(diagnostic_mutex);
+         drop(writer_wait);
+         let _writer_hold = physical_metrics::stage("foreground_writer_hold");
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        let diagnostic_pretransaction = crate::write_commit::wait_diagnostic::stage(2);
+         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+         #[cfg(feature = "test-hooks")]
+         let abort_next_commit_for_test =
+@@ -476,6 +504,8 @@ impl Engine {
+         let has_edge_body_work = batch.iter().any(|write| {
+             matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { body: Some(_), .. })
+         });
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        drop(diagnostic_pretransaction);
+         let (dangling_edge_endpoints, unstranded, _closure_ids) = match commit_batch(
+             connection,
+             batch,
+diff --git a/src/rust/crates/fathomdb-engine/src/write_commit.rs b/src/rust/crates/fathomdb-engine/src/write_commit.rs
+index 3442d25c4..8d34695bf 100644
+--- a/src/rust/crates/fathomdb-engine/src/write_commit.rs
++++ b/src/rust/crates/fathomdb-engine/src/write_commit.rs
+@@ -517,33 +517,57 @@ fn commit_batch_transaction(
+                 | PreparedWrite::ProvenancedEdge(_)
+         )
+     });
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    let diagnostic_begin = wait_diagnostic::stage(3);
+     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    drop(diagnostic_begin);
+     // Slice 71B: the standard canonical mutation closure contains only the
+     // visibility triggers. Suppress them on this connection, perform the same
+     // checked nonce-bearing invalidation once after all mutations succeed, then
+     // restore trigger execution before commit. An unexpected main or TEMP
+     // trigger selects the unchanged row-trigger path so application extensions
+     // still observe every row.
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    let diagnostic_triggers = wait_diagnostic::stage(4);
+     if canonical_batch && canonical_batch_has_no_custom_triggers(&tx)? {
+         let mut trigger_guard = TriggerStateGuard::disable(&tx)?;
+-        let attempted = apply_batch_in_transaction(
+-            &tx,
+-            batch,
+-            plans,
+-            base_cursor,
+-            provenance_row_cap,
+-            vector_kinds_to_enrol,
+-            dependency_closure::SoftClosureMode::Complete,
+-        )
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        drop(diagnostic_triggers);
++        let attempted = {
++            #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++            let _diagnostic_apply = wait_diagnostic::stage(5);
++            apply_batch_in_transaction(
++                &tx,
++                batch,
++                plans,
++                base_cursor,
++                provenance_row_cap,
++                vector_kinds_to_enrol,
++                dependency_closure::SoftClosureMode::Complete,
++            )
++        }
+         .and_then(|result| {
++            #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++            let diagnostic_visibility = wait_diagnostic::stage(6);
+             advance_read_visibility(&tx)?;
++            #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++            drop(diagnostic_visibility);
+             Ok(result)
+         });
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        let diagnostic_restore = wait_diagnostic::stage(6);
+         let restored = trigger_guard.restore();
+         drop(trigger_guard);
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        drop(diagnostic_restore);
+         return match (attempted, restored) {
+             (Ok(result), Ok(())) => {
++                #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++                let diagnostic_commit = wait_diagnostic::stage(7);
+                 tx.commit()?;
++                #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++                drop(diagnostic_commit);
+                 Ok(result)
+             }
+             (Err(error), Ok(())) => Err(error),
+@@ -551,16 +575,26 @@ fn commit_batch_transaction(
+         };
+     }
+ 
+-    let result = apply_batch_in_transaction(
+-        &tx,
+-        batch,
+-        plans,
+-        base_cursor,
+-        provenance_row_cap,
+-        vector_kinds_to_enrol,
+-        dependency_closure::SoftClosureMode::Complete,
+-    )?;
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    drop(diagnostic_triggers);
++    let result = {
++        #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++        let _diagnostic_apply = wait_diagnostic::stage(5);
++        apply_batch_in_transaction(
++            &tx,
++            batch,
++            plans,
++            base_cursor,
++            provenance_row_cap,
++            vector_kinds_to_enrol,
++            dependency_closure::SoftClosureMode::Complete,
++        )?
++    };
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    let diagnostic_commit = wait_diagnostic::stage(7);
+     tx.commit()?;
++    #[cfg(all(feature = "test-hooks", target_os = "linux"))]
++    drop(diagnostic_commit);
+     Ok(result)
+ }
+ 
+@@ -1106,3 +1140,179 @@ mod tests {
+         assert_eq!(search.results[0].body, "endpointindependent");
+     }
+ }
++
++#[cfg(all(feature = "test-hooks", target_os = "linux"))]
++pub(crate) mod wait_diagnostic {
++    use std::cell::RefCell;
++    use std::time::Instant;
++
++    const NAMES: [&str; 8] = [
++        "turn_wait",
++        "writer_mutex_wait",
++        "pretransaction",
++        "begin",
++        "trigger_check_disable",
++        "apply_body",
++        "visibility_advance_restore",
++        "commit",
++    ];
++
++    #[derive(Clone, Copy, Default)]
++    struct Metric {
++        wall_ns: u128,
++        cpu_ns: u128,
++        intervals: u64,
++        samples: u64,
++    }
++
++    #[derive(Default)]
++    struct Current {
++        metrics: [Metric; 8],
++        successful: bool,
++    }
++
++    #[derive(Default)]
++    struct State {
++        current: Option<Current>,
++        metrics: [Metric; 8],
++        commits: u64,
++        write_wall_ns: u128,
++        write_cpu_ns: u128,
++    }
++
++    thread_local! { static STATE: RefCell<Option<State>> = const { RefCell::new(None) }; }
++
++    fn cpu_ns() -> u128 {
++        let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
++        // The kernel writes one initialized timespec for the calling thread only.
++        let status = unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut time) };
++        assert_eq!(status, 0, "CLOCK_THREAD_CPUTIME_ID unavailable");
++        u128::try_from(time.tv_sec).unwrap() * 1_000_000_000 + u128::try_from(time.tv_nsec).unwrap()
++    }
++
++    struct Stamp {
++        wall: Instant,
++        cpu_ns: u128,
++    }
++
++    impl Stamp {
++        fn now() -> Self {
++            Self { wall: Instant::now(), cpu_ns: cpu_ns() }
++        }
++        fn elapsed(&self) -> (u128, u128) {
++            let cpu = cpu_ns() - self.cpu_ns;
++            (self.wall.elapsed().as_nanos(), cpu)
++        }
++    }
++
++    pub(crate) struct Interval {
++        index: usize,
++        started: Stamp,
++    }
++
++    impl Drop for Interval {
++        fn drop(&mut self) {
++            let (wall, cpu) = self.started.elapsed();
++            STATE.with(|state| {
++                let mut state = state.borrow_mut();
++                let metric =
++                    &mut state.as_mut().unwrap().current.as_mut().unwrap().metrics[self.index];
++                metric.wall_ns += wall;
++                metric.cpu_ns += cpu;
++                metric.intervals += 1;
++            });
++        }
++    }
++
++    pub(crate) fn stage(index: usize) -> Option<Interval> {
++        STATE.with(|state| {
++            state
++                .borrow()
++                .as_ref()
++                .and_then(|s| s.current.as_ref())
++                .map(|_| Interval { index, started: Stamp::now() })
++        })
++    }
++
++    pub(crate) struct WriteSample {
++        started: Stamp,
++    }
++
++    pub(crate) fn sample() -> Option<WriteSample> {
++        STATE.with(|state| {
++            state.borrow_mut().as_mut().map(|state| {
++                assert!(state.current.is_none(), "nested diagnostic write");
++                state.current = Some(Current::default());
++                WriteSample { started: Stamp::now() }
++            })
++        })
++    }
++
++    pub(crate) fn success() {
++        STATE.with(|state| {
++            if let Some(current) = state.borrow_mut().as_mut().and_then(|s| s.current.as_mut()) {
++                current.successful = true;
++            }
++        });
++    }
++
++    impl Drop for WriteSample {
++        fn drop(&mut self) {
++            let (wall, cpu) = self.started.elapsed();
++            STATE.with(|state| {
++                let mut state = state.borrow_mut();
++                let state = state.as_mut().unwrap();
++                let current = state.current.take().unwrap();
++                if !current.successful {
++                    return;
++                }
++                state.commits += 1;
++                state.write_wall_ns += wall;
++                state.write_cpu_ns += cpu;
++                for (total, interval) in state.metrics.iter_mut().zip(current.metrics) {
++                    total.wall_ns += interval.wall_ns;
++                    total.cpu_ns += interval.cpu_ns;
++                    total.intervals += interval.intervals;
++                    total.samples += u64::from(interval.intervals > 0);
++                }
++            });
++        }
++    }
++
++    pub(crate) fn enable() {
++        STATE.with(|state| *state.borrow_mut() = Some(State::default()));
++    }
++
++    pub(crate) fn take() -> serde_json::Value {
++        let state = STATE.with(|state| state.borrow_mut().take().unwrap());
++        assert!(state.current.is_none(), "diagnostic write still active");
++        let exclusive_wall: u128 = state.metrics.iter().map(|m| m.wall_ns).sum();
++        let exclusive_cpu: u128 = state.metrics.iter().map(|m| m.cpu_ns).sum();
++        let residual_wall = state.write_wall_ns as i128 - exclusive_wall as i128;
++        let residual_cpu = state.write_cpu_ns as i128 - exclusive_cpu as i128;
++        let stages: Vec<_> = NAMES
++            .iter()
++            .zip(state.metrics)
++            .map(|(name, m)| {
++                serde_json::json!({
++                    "stage": name, "sample_count": m.samples, "interval_count": m.intervals,
++                    "wall_ns": m.wall_ns, "thread_cpu_ns": m.cpu_ns,
++                    "non_cpu_ns": m.wall_ns as i128 - m.cpu_ns as i128,
++                })
++            })
++            .collect();
++        serde_json::json!({
++            "successful_commits": state.commits,
++            "write_wall_ns": state.write_wall_ns,
++            "write_thread_cpu_ns": state.write_cpu_ns,
++            "write_non_cpu_ns": state.write_wall_ns as i128 - state.write_cpu_ns as i128,
++            "exclusive_wall_ns": exclusive_wall,
++            "exclusive_thread_cpu_ns": exclusive_cpu,
++            "uncovered_wall_ns": residual_wall,
++            "uncovered_thread_cpu_ns": residual_cpu,
++            "uncovered_non_cpu_ns": residual_wall - residual_cpu,
++            "negative_residual": residual_wall < 0 || residual_cpu < 0 || residual_wall - residual_cpu < 0,
++            "stages": stages,
++        })
++    }
++}
+diff --git a/src/rust/crates/fathomdb-engine/tests/perf_gates.rs b/src/rust/crates/fathomdb-engine/tests/perf_gates.rs
+index a60a8c5cb..8359a6446 100644
+--- a/src/rust/crates/fathomdb-engine/tests/perf_gates.rs
++++ b/src/rust/crates/fathomdb-engine/tests/perf_gates.rs
+@@ -1895,3 +1895,60 @@ fn ac_a3_threadsafe_and_compile_options() {
+         .expect("write reader_pragmas.json");
+     eprintln!("A3_READER_PRAGMAS: {pragma_json}");
+ }
++
++#[cfg(target_os = "linux")]
++#[test]
++#[ignore = "diagnostic only; reserve an isolated execution slot"]
++fn ac_011_release_foreground_wall_cpu_diagnostic() {
++    let parameter = |name: &str, default: u64| {
++        std::env::var(name)
++            .map_or(default, |v| v.parse::<u64>().expect("unsigned diagnostic parameter"))
++    };
++    let warmup_ms = parameter("AC011_WAIT_WARMUP_MS", 5_000);
++    let measurement_ms = parameter("AC011_WAIT_MEASUREMENT_MS", 60_000);
++    let payload_bytes = parameter("AC011_WAIT_PAYLOAD_BYTES", 1_024);
++    assert!(measurement_ms > 0 && payload_bytes > 0);
++    let (_dir, path) = fixture_path("AC011_release_foreground_wall_cpu");
++    let opened = Engine::open(&path).expect("open write-throughput fixture");
++    let write = PreparedWrite::Node {
++        kind: "throughput".to_string(),
++        body: "x".repeat(usize::try_from(payload_bytes).unwrap()),
++        source_id: fathomdb_engine::SourceId::new("test:ac011").expect("test source id"),
++        logical_id: None,
++        state: fathomdb_engine::InitialState::Active,
++        reason: None,
++        valid_from: None,
++        valid_until: None,
++    };
++    let warmup_deadline = Instant::now() + Duration::from_millis(warmup_ms);
++    while Instant::now() < warmup_deadline {
++        opened.engine.write(std::slice::from_ref(&write)).expect("warmup commit");
++    }
++    opened.engine.start_write_wait_diagnostic_for_test();
++    let started = Instant::now();
++    let deadline = started + Duration::from_millis(measurement_ms);
++    let mut commits = 0_u64;
++    while Instant::now() < deadline {
++        opened.engine.write(std::slice::from_ref(&write)).expect("measured commit");
++        commits += 1;
++    }
++    let elapsed = started.elapsed();
++    let foreground = opened.engine.take_write_wait_diagnostic_for_test();
++    eprintln!(
++        "AC011_RELEASE_WAIT {}",
++        serde_json::json!({
++            "diagnostic_only": true, "fixture_path": path,
++            "warmup_ms": warmup_ms, "measurement_ms": measurement_ms,
++            "payload_bytes": payload_bytes, "commits": commits,
++            "elapsed_ns": elapsed.as_nanos(),
++            "diagnostic_commits_per_second": commits as f64 / elapsed.as_secs_f64(),
++            "foreground": foreground,
++        })
++    );
++    assert_eq!(foreground["successful_commits"].as_u64(), Some(commits));
++    for stage in foreground["stages"].as_array().unwrap() {
++        assert_eq!(stage["sample_count"].as_u64(), Some(commits));
++        let intervals = if stage["stage"] == "visibility_advance_restore" { 2 } else { 1 };
++        assert_eq!(stage["interval_count"].as_u64(), Some(commits * intervals));
++    }
++}

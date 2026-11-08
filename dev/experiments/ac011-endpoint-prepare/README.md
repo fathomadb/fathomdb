@@ -315,8 +315,21 @@ python3 -m unittest discover -s dev/experiments/ac011-endpoint-prepare \
 `dwfl_bias.c` is the separately Astra-approved, narrowly configured interposer
 for re-exporting the existing recording. It changes only `dwfl_report_elf` calls
 whose `file_name` exactly equals `FATHOMDB_DWFL_TARGET`, whose base equals
-`FATHOMDB_DWFL_BAD_BASE`, and whose `add_p_vaddr` is false. It forwards every other
-argument and the real return value unchanged through `dlsym(RTLD_NEXT, ...)`.
+`FATHOMDB_DWFL_BAD_BASE`, and whose `add_p_vaddr` is false. First registrations
+and fallbacks forward every remaining argument and native return value unchanged
+through `dlsym(RTLD_NEXT, ...)`.
+For these exact matches only, `fd==-1` permits lookup with real
+`dwfl_addrmodule(dwfl, corrected_base)` and `dwfl_module_info`. Reuse requires a
+native module whose start equals the corrected base, whose range is nonempty,
+and whose mainfile exactly equals the target. The interposer returns that existing
+native handle instead of re-registering during an active DWARF walk. Wrong/missing
+metadata falls back to the normal corrected report. Nonnegative FDs always reach
+the real reporter, preserving its ownership/consumption behavior. Neither native
+lookup API nor any sample address is intercepted or falsified. Their ABI comes
+from the primary [module-info](https://www.sourceware.org/elfutils/coverage/libdwfl/dwfl_module_info.c.gcov.html)
+and [address-lookup](https://www.sourceware.org/elfutils/coverage/libdwfl/dwfl_addrmodule.c.gcov.html)
+implementations.
+
 No filename normalization, ELF mutation, installed-tool patch, global preload,
 new recording or workload is involved. The original inconclusive export remains
 retained; corrected output must use separate files.
@@ -327,12 +340,15 @@ lines 293–295. System `<elf.h>` supplies `Elf64_Addr`; `<stdbool.h>` supplies 
 No elfutils development package is required. `test_dwfl_bias.c` builds a tiny fake
 next library and driver; `test_dwfl_bias.py` exercises the actual preload ABI,
 exact/near/other filenames, wrong/already-correct bases, true `add_p_vaddr`, all
-other arguments, returned pointer and two audit records. Compiler defaults are
+other arguments, returned pointer and two audit records. The additional
+`test_dwfl_bias_reuse.c` / `test_dwfl_bias_reuse.py` fixture verifies duplicate
+native-handle reuse and missing/wrong filename/start/range/FD fallbacks. The seven
+original controls use fd77 to keep exercising the native reporter. Compiler defaults are
 `cc -std=c11 -Wall -Wextra -Werror`; `CC` and `DWFL_BIAS_TEST_OUTPUT` configure reuse.
 
 ```bash
 python3 -m unittest discover -s dev/experiments/ac011-endpoint-prepare \
-  -p test_dwfl_bias.py
+  -p 'test_dwfl_bias*.py'
 mkdir -p "$BIAS_OUT"
 cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
   dev/experiments/ac011-endpoint-prepare/dwfl_bias.c -ldl \
@@ -356,7 +372,11 @@ LD_PRELOAD="$BIAS_OUT/libdwfl_bias.so" DEBUGINFOD_URLS= \
 The example bases describe this retained record only; both are configurable env
 values, not compiled-in addresses. Target filename comparison is exact. Use a
 fresh audit file per export: every corrected call appends its process-local
-count, before/after bases and filename. Audit open/write/close or symbol-resolution
+total count, action (`registered` or `reused`), per-action count, before/after
+bases and filename. `registered` counts forwarded native-registration attempts:
+the audit precedes the real call and does not assert native success. `reused`
+counts confirmed existing native handles returned without re-reporting.
+Audit open/write/close or symbol-resolution
 failure terminates explicitly; corrections are never logged to decoder stderr,
 and actual decoder warnings remain untouched. Generated `.so`, fake ABI binaries,
 exports, audit files and test logs stay ignored under `target/`.

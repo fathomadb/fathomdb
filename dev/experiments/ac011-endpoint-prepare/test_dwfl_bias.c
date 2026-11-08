@@ -14,7 +14,7 @@ Dwfl_Module *dwfl_report_elf(Dwfl *dwfl, const char *name,
                            GElf_Addr base, bool add_p_vaddr) {
     assert(dwfl == (Dwfl *)&dwfl_marker);
     assert(strcmp(name, "stable-module") == 0);
-    assert(fd == -1);
+    assert(fd == 77);
     printf("%" PRIx64 " %d %d %s %s\n", base, add_p_vaddr, fd, name, file_name);
     return (Dwfl_Module *)&module_marker;
 }
@@ -24,7 +24,7 @@ extern int module_marker;
 
 static void report(const char *filename, GElf_Addr base, bool add_p_vaddr) {
     Dwfl_Module *module = dwfl_report_elf((Dwfl *)&dwfl_marker, "stable-module",
-                                        filename, -1, base, add_p_vaddr);
+                                        filename, 77, base, add_p_vaddr);
     assert(module == (Dwfl_Module *)&module_marker);
 }
 

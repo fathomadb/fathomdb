@@ -42,7 +42,7 @@ class DwflBiasTests(unittest.TestCase):
         self.assertEqual([int(row[0], 16) for row in rows],
                          [0x4000, 0x5000, 0x5000, 0x6000, 0x5000, 0x4000, 0x4000])
         self.assertEqual([int(row[1]) for row in rows], [0, 0, 0, 0, 1, 0, 0])
-        self.assertEqual([row[2:4] for row in rows], [['-1', 'stable-module']] * 7)
+        self.assertEqual([row[2:4] for row in rows], [['77', 'stable-module']] * 7)
         self.assertEqual([row[4] for row in rows], [target, other, near, target, target, target, target])
         self.assertEqual(result.stderr, '')
         corrections = audit.read_text().splitlines()

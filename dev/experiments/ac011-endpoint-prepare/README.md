@@ -234,3 +234,78 @@ permits read-only checkpoint/storage investigation as material observed spans.
 Below that criterion means only that material spans were not established here;
 it proves nothing about locks or historical runs. No measured-window percentage,
 gain, fsync/checkpoint cause, production change or acceptance claim follows.
+
+## User-owned benchmark with attached CPU sampling
+
+`cpu_profile.py`, `test_cpu_profile.py` and `test_cpu_profile_cleanup.py` retain
+this separately approved CPU profile. Tests cover hand-computed attribution,
+thresholds, terminal cleanup/exit accounting and FIFO ordering with
+only normal-user `/bin/true`. The worker never runs the canonical profile or a
+privileged smoke. Root owns the sole reviewed workload slot and desktop approval.
+
+The runner launches `/bin/sh -c 'kill -STOP "$$"; exec "$@"'` as a new process
+group in the existing session, observes STOP and checks unchanged UID, SID and
+autogroup. The benchmark executes as the normal user; only perf is privileged:
+
+```text
+pkexec --disable-internal-agent /usr/bin/timeout --signal=INT --kill-after=2 120 \
+  /usr/bin/perf record -D -1 --control=fifo:CTL,ACK -e cpu-clock:u -F 99 \
+  --call-graph dwarf,8192 --max-size=256M --no-buildid-cache -p PID -o -
+```
+
+User-owned nonblocking FIFOs enable events, require `ack` and only then send
+SIGCONT. Inherited events cover later benchmark threads. No new session,
+`preexec_fn`, kernel/capability/sudo configuration or root-owned database is used.
+Authentication precedes the privileged timeout: while approval is pending, the
+benchmark PID stays stopped/reserved until the collector is terminal. Cancellation
+queues FIFO `stop`; desktop authorization may need user action to finish/cancel.
+The runner never signals a root PID. Actual benchmark execution has a 120-second
+watchdog; perf has its separate privileged 120-second timeout and two-second kill
+backstop. Authentication wait is not claimed to be inside either collection bound.
+
+Perf streams into a normal-user writer with a hard **268,435,456-byte (256 MiB)**
+cap, including headers. On benchmark completion/failure, cap or watchdog, FIFO
+`stop` ends collection and the pipe drains/flushed output is retained. Cap,
+collector/export failure or incomplete output is inconclusive. `DEBUGINFOD_URLS`
+is cleared; recording avoids build-ID-cache writes and export uses a task-owned
+build-ID directory. Metadata includes exact commands, perf version, identity,
+actual benchmark/collector exits, stop reason and authentication-inclusive elapsed
+time. All raw output and JSON belong under an ignored evidence prefix.
+
+After review, root runs the unchanged canonical executable/environment once:
+
+```bash
+AGENT_LONG=1 FATHOMDB_TIER1_WRITE_PERF=1 python3 \
+  dev/experiments/ac011-endpoint-prepare/cpu_profile.py record \
+  --output-prefix /persistent/ignored/evidence/cpu-profile --binary BINARY -- \
+  ac_011a_write_throughput_1kb --exact --nocapture --test-threads=1
+python3 dev/experiments/ac011-endpoint-prepare/cpu_profile.py analyze \
+  --output-prefix /persistent/ignored/evidence/cpu-profile
+```
+
+The currently supplied executable is the canonical .28
+`target/release/deps/perf_gates-3ffa5706c34cc98f`, SHA-256
+`bc61c376e060309450cdfdc01d9db5cbf45c33ab87f6939deb750312d135e2a4`;
+root retains its source/environment binding separately. No Rust build is needed.
+Benchmark exit 101 remains its actual test result, not a profiling setup failure.
+
+Analysis exports explicit `comm,pid,tid,time,event,ip,sym,dso` fields with demangled
+full call chains and lost-event records. The exact `ac_011a_write_t` comm identifies
+one numeric foreground TID; all other TIDs remain separate. Finite source-backed
+anchor lists live in the script: the innermost compilation, FTS flush/merge or
+engine-guard anchor assigns at most one family. An unknown frame before an anchor
+makes the sample unclassified; an unknown outer frame does not erase an already
+known anchor. Raw leaves, chains, selected anchors and unknown/lost/unwind flags
+remain available for audit.
+
+Require **≥95% known foreground leaves**, without claiming complete unwinds. A
+family must have **≥20% of all foreground user-CPU samples AND ≥200 samples** to
+support a focused design only. Workers never enter that denominator. Explicit
+loss/unwind/export/truncation warnings make the result inconclusive. Whole-test
+sampling is not throughput acceptance, measured-window attribution or proof of a
+speedup. No retry, policy change or production repair follows automatically.
+
+```bash
+python3 -m unittest discover -s dev/experiments/ac011-endpoint-prepare \
+  -p 'test_cpu_profile*.py'
+```

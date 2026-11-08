@@ -497,3 +497,26 @@ without demanding reuse across invalidations. Keep test source frozen for GREEN.
 Use focused admission/erasure/maintenance/rollback/visibility checks, Astra code
 review and independent verification. This is an evidenced avoidable compilation
 mechanism, not a proven explanation of the throughput failure or a speedup claim.
+
+The metadata-read repair is correctness-complete at `10ca01503`, with frozen
+RED/GREEN, Astra code approval and independent 14-control verification. The next
+single unchanged canonical qualifier nevertheless failed at 932.474344/s.
+Two focused repairs have now completed without satisfying AC011a; stop further
+implementation/measurement for a reviewed source/evidence/design reassessment.
+No automatic next diagnostic, speculative caching campaign, acceptance retry or
+policy change follows. Performance acceptance and final qualification remain open.
+
+Astra's next proposed investigation is one 99Hz `cpu-clock:u` profile of the exact
+failed release binary, with DWARF call chains, unchanged 5s/60s workload and
+preserved session/autogroup. Workers remain separate from foreground user-CPU
+samples. Bound it to 120s and 256MiB; preflight permissions and symbolization.
+Require >=95% symbolized samples and a foreground family with >=20% exclusive
+user-CPU samples and >=200 samples before proposing a focused design; avoid
+inclusive-stack double counting. Unwind loss, incomplete output or permission
+failure is inconclusive and permits no second profile, policy change or repair.
+
+The unprivileged permission preflight failed with host policy
+`perf_event_paranoid=4`; no workload profile or kernel change occurred. Execution
+is not authorized by this proposal: the owner has been asked to authorize a
+narrow privileged profile or select a separately reviewed instrumentation plan.
+Preserve the latest valid throughput failure and all existing thresholds.

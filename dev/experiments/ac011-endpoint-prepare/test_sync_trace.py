@@ -6,7 +6,8 @@ from sync_trace import analyze
 
 class SyncTraceMathTests(unittest.TestCase):
     def test_foreground_identity_groups_and_hand_computed_totals(self):
-        trace = '''11 100.000000 prctl(PR_SET_NAME, "ac_011a_write_t") = 0 <0.000010>
+        trace = '''10 99.000000 prctl(PR_GET_DUMPABLE) = 1 <0.000010>
+11 100.000000 prctl(PR_SET_NAME, "ac_011a_write_t") = 0 <0.000010>
 11 101.000000 fdatasync(7</tmp/fixture/AC-011a_write_throughput.sqlite-wal>) = 0 <1.250000>
 11 103.000000 fsync(7</tmp/fixture/AC-011a_write_throughput.sqlite-wal>) = 0 <0.750000>
 11 104.000000 fdatasync(8</tmp/fixture/AC-011a_write_throughput.sqlite>) = 0 <3.500000>

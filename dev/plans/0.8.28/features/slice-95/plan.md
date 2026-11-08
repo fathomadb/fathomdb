@@ -434,3 +434,74 @@ The unprivileged permission preflight failed with host policy
 is not authorized by this proposal: the owner has been asked to authorize a
 narrow privileged profile or select a separately reviewed instrumentation plan.
 Preserve the latest valid throughput failure and all existing thresholds.
+
+The owner authorized elevated CPU profiling on 2026-11-08. Desktop authentication
+preflight succeeded; the approved attach design keeps the benchmark unprivileged
+and unchanged. Implement/review the retained bounded runner with failing focused
+measurement/control checks first, then collect the single profile and obtain
+independent attribution verification. Durability clarification is not a request
+to change WAL/NORMAL or choose a new contract before this investigation.
+
+### Offline decoder recovery on 2026-11-08
+
+The authorized capture completed with collector0, no cap/timeout/loss warning,
+normal UID/session/autogroup and benchmark101 (diagnostic987.714/s). Original
+call-chain export suppresses994 leaves; a paired raw-IP export resolves3254/3284
+foreground leaves (99.0865%). This is leaf coverage, not recovered caller context.
+Keep original attribution inconclusive and the valid932.474344/s gate failure.
+
+Astra approved an offline, process-local decoder correction after ELF/source
+review: RX segment virtual/file offsets differ by0x1000; perf's libdw module
+registration supplies59018f058000 instead of the proven59018f057000 load bias.
+Retain a tiny dwfl_report_elf interposer with deterministic correction/passthrough
+RED/GREEN and code review. Correct only this exact executable and proven bad base;
+leave all other calls unchanged and log correction counts. No original recording,
+ELF, installed tool, engine, durability setting or attribution threshold changes.
+Re-export the existing capture, require identical raw sample identities/IP/counts,
+validate representative callers against recorded stack/CFI, then obtain separate
+verification before using unchanged family thresholds for a focused repair design.
+
+### CI16 production repair after recovered evidence
+
+Changes since the prior plan: offline recovery is independently verified; 858
+of3,284 foreground user-CPU samples are automatic SQLite recompilation. Current
+DBCONFIG trigger toggles expire cached and FTS statements. Further small cache
+changes do not remove that mechanism. Astra approved the bounded transactional
+visibility-coalescing design and format37 to preserve exact current-only layout
+admission. No durability policy or performance threshold changes are allocated.
+
+Requirements/acceptance within S95-6:
+
+- Add one constrained integer coalescing flag to the existing visibility-state
+  singleton. All57 visibility triggers honor it; vector-span cleanup remains
+  active and unchanged. Ordinary external SQLite mutations still invalidate.
+- Arm only in an owned IMMEDIATE transaction after unchanged main/TEMP custom
+  trigger admission. Canonical and projection transactions retain one checked
+  generation/random-nonce advance and clear the flag before successful commit.
+- All top-level mutation/frozen-read binding paths fail closed on missing,
+  malformed or committed-armed state, including custom-trigger fallback and
+  noncoalescing/actuation/maintenance paths. Lower helpers within a legitimately
+  owned coalescing transaction must continue to work.
+- Rollback, savepoints, exhaustion, aborts and cursor publication remain atomic.
+  SQL cleanup must never autocommit a new mutation after SQLite already rolled
+  back the owned transaction. Preserve established errors/poison behavior.
+- Current format37 accepts its exact layout; format36 is refused before any
+  mutation, including WAL/sidecar cases. No nonempty data migration or compatibility
+  shim. Update the ADR/interface/manifest and affected pending public documentation
+  plus release-state schema target together; historical proof records stay intact.
+
+Implementation is test-first: mechanically name the private coalescing seam if
+needed, then observe real SQLite held-statement RePrepare RED across the existing
+suppression interval. Add behavior REDs for the new gate and admission boundaries
+before implementation; freeze each test during its fix. GREEN replaces global
+trigger toggling with the owned transactional flag and exact schema37 layout.
+Run scoped visibility/custom-trigger/vector-cleanup/rollback/fence/open controls,
+Astra code review and separate verification. Then prepare the final candidate,
+run unchanged AC011a/b once, and complete final local/hosted qualification. Do not
+repeat full regressions while resolving individual findings. Publication held.
+
+Preserve historical visibility SQL generators and migration steps. Fresh-bootstrap
+step37 adds the coalescing column before replacing all57 visibility triggers, so
+earlier steps cannot reference an absent flag. Retain the read-only native
+SQLITE_DBCONFIG_ENABLE_TRIGGER admission check and established error/poison behavior
+for pre-disabled connections; remove the setters/toggling, not that check.

@@ -172,7 +172,7 @@ identity, cap hit, timeout or fallback warning. This meets only the reviewed
 read-only follow-up criterion; traced throughput is not acceptance. Source review
 found normal checkpoint/restart synchronization, not a removable duplicate sync.
 
-**[session] Durability contract decision pending.** The accepted
+**Durability discrepancy identified; no policy choice is required for profiling.** The accepted
 [durability ADR](../../../../adr/ADR-0.6.0-durability-fsync-policy.md) requires
 NORMAL, <=100ms final-commit loss on power cut and zero OS-crash commit loss.
 Frame-only checkpointing does not establish the time bound during low/idle
@@ -236,3 +236,47 @@ performance-monitoring access denied. No benchmark profile ran or kernel setting
 changed. A session question now asks the owner to authorize narrowly scoped
 privileged profiling or choose a separately reviewed instrumentation design.
 Until resolved, do not bypass permissions or start a fallback/profile/repair.
+
+On 2026-11-08 the owner authorized elevated CPU profiling and requested the
+literal durability-ADR basis. The current ADR explicitly specifies WAL/NORMAL,
+zero OS-crash commit loss and at most100ms power-cut loss; no contract decision
+or policy change was made. The earlier policy question was premature for CPU
+diagnosis. `sudo -n` required a password, but the normal desktop `pkexec perf stat`
+authentication preflight succeeded. Astra approved a stopped normal-user launcher
+plus privileged, bounded perf attach; tool implementation/review precedes the
+single profile. Publication and the unchanged throughput non-pass remain held.
+
+## Offline profile recovery complete on 2026-11-08
+
+The retained capture completed with collector0, normal UID/session/autogroup,
+no cap/timeout/loss warning and benchmark101 (diagnostic987.714/s). Its original
+68.8% leaf result was an export/unwind failure. Raw-IP export preserves every
+sample and resolves3254/3284 foreground leaves (99.0865%). ELF, captured stack
+bytes and CFI reproduce a one-page module-bias defect. Bias correction alone
+failed because perf re-registers the corrected module inside its active unwind;
+GDB records that transition. The reviewed process-local native-module reuse
+correction restores callers without changing the recording or executable.
+
+Astra approved exact scoped corrector `ca3d814be`; separate verification passes
+both ABI fixtures and confirms identical3285 sample identities/IPs. Compilation
+is1609/3284 foreground user-CPU samples (48.995%); guards690 (21.011%); both meet
+the unchanged investigation criteria. Of compilation samples,858 are automatic
+reprepare and751 initial compilation. These are whole-test CPU samples, not
+measured-window latency or an acceptance result.
+
+Following the owner's requested web search, pinned Samply0.13.1 independently
+imports a standard perf file copy using Framehop. Plain perf inject preserves
+all3285 complete raw sample records byte-for-byte, including registers/stacks.
+Samply retains all3284 foreground rows plus one worker;3277 address chains match
+after accounting only for duplicate-PC inline aliases. Seven chains differ by
+outer-tail length and one diverges after a PLT leaf. These eight differences,
+Samply's missing-architecture-header warning and its hidden truncation-marker
+limitation remain explicit; no complete-unwind claim is made. Representative
+recovered callers match actual captured bytes and CFI in both decoders.
+
+The original inconclusive exports and first failed correction are retained.
+No new capture, benchmark, engine, durability setting or threshold changed.
+The valid canonical932.474344/s failure remains unwaived. Next is a reviewed
+format37 transactional visibility-coalescing repair that avoids global statement
+invalidation while preserving existing visibility, fallback, rollback and cleanup
+contracts; implementation and final qualification remain pending.

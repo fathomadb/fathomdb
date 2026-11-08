@@ -520,3 +520,80 @@ The unprivileged permission preflight failed with host policy
 is not authorized by this proposal: the owner has been asked to authorize a
 narrow privileged profile or select a separately reviewed instrumentation plan.
 Preserve the latest valid throughput failure and all existing thresholds.
+
+### Authorized CPU-profile attach execution
+
+Owner authorized elevated profiling on 2026-11-08; desktop `pkexec perf stat`
+preflight succeeded. No durability-policy decision is needed for profiling.
+Astra approved a retained normal-user attach runner: start a stopped shell
+launcher in the existing session/autogroup, confirm its identity, then attach
+privileged `perf` through `pkexec` and a 120s INT/2s KILL `timeout`. Use initially
+disabled events and control-FIFO enable acknowledgement before continuing the
+launcher into the unchanged binary. Database execution remains unprivileged.
+
+Retain 99Hz `cpu-clock:u`, DWARF 8192, native `--max-size=256M` plus a hard
+256MiB output-pipe cap. On completion/failure, stop the collector through its
+FIFO; the privileged timeout bounds collection independently. Clean only the
+owned normal-user workload group. Authentication failure never starts workload.
+Use `--no-buildid-cache` and disable debuginfod. Preserve the existing symbol,
+foreground/exclusive-sample and hotspot thresholds; no acceptance or automatic
+repair follows. Review the small runner and hand-computed attribution/control
+checks before the sole workload profile. No engine or kernel settings change.
+
+### Offline decoder recovery on 2026-11-08
+
+The authorized capture completed with collector0, no cap/timeout/loss warning,
+normal UID/session/autogroup and benchmark101 (diagnostic987.714/s). Original
+call-chain export suppresses994 leaves; a paired raw-IP export resolves3254/3284
+foreground leaves (99.0865%). This is leaf coverage, not recovered caller context.
+Keep original attribution inconclusive and the valid932.474344/s gate failure.
+
+Astra approved an offline, process-local decoder correction after ELF/source
+review: RX segment virtual/file offsets differ by0x1000; perf's libdw module
+registration supplies59018f058000 instead of the proven59018f057000 load bias.
+Retain a tiny dwfl_report_elf interposer with deterministic correction/passthrough
+RED/GREEN and code review. Correct only this exact executable and proven bad base;
+leave all other calls unchanged and log correction counts. No original recording,
+ELF, installed tool, engine, durability setting or attribution threshold changes.
+Re-export the existing capture, require identical raw sample identities/IP/counts,
+validate representative callers against recorded stack/CFI, then obtain separate
+verification before using unchanged family thresholds for a focused repair design.
+
+### Format37 owned transactional visibility coalescing
+
+Astra reviewed and approved this mechanism after recovered profile evidence.
+Keep exact current-only admission: advance to37 and refuse36 before mutation,
+instead of admitting two incompatible36 layouts. A successor technical ADR,
+interfaces, exact schema manifest and pending release docs must describe the new
+layout together. Existing public method/durability contracts remain unchanged.
+
+Use one `coalescing` flag in `_fathomdb_read_visibility_state`, constrained to
+integer0/1 and default0. Only the57 visibility triggers are gated; the authenticated
+vector-span DELETE cleanup trigger stays active. Missing/NULL state must not make
+an SQL WHEN expression silently false. Reader binding and every outer writer
+entry validate clean state before effects; owned nested helpers may observe1.
+
+Within the existing BEGIN IMMEDIATE and fresh custom-trigger admission, arm0→1,
+apply the unchanged mutations and fresh fences, then perform exactly one checked
+generation/state_nonce update that clears the flag before COMMIT. Custom main or
+TEMP triggers select the ordinary ungated path. External writers see only the
+committed clean marker, with SQLite writer isolation preserved. No UDF or global
+DBCONFIG toggle is needed, so statement validity is preserved without caching data.
+
+Guard ownership/cleanup must distinguish active transaction from SQLite's automatic
+rollback: do not execute SQL disarm in autocommit mode. For an active owned
+transaction, restore/advance before commit; failures roll back with original
+nonce/generation/cursor and clean committed flag. Verify commit-hook abort,
+RAISE(ABORT), RAISE(ROLLBACK), exhaustion, savepoints and reuse/reopen explicitly.
+A held real statement must execute current reads across arm/restore with zero
+RePrepare; current DBCONFIG code supplies the deterministic mechanism RED.
+
+Design review must enumerate actual canonical/projection/actuation/maintenance
+entry seams and trigger coverage before GREEN. No shortcut removes fresh guard
+reads, custom-trigger detection, vector cleanup or nonce-bearing invalidation.
+
+Preserve historical visibility SQL generators and migration steps. Fresh-bootstrap
+step37 adds the coalescing column before replacing all57 visibility triggers, so
+earlier steps cannot reference an absent flag. Retain the read-only native
+SQLITE_DBCONFIG_ENABLE_TRIGGER admission check and established error/poison behavior
+for pre-disabled connections; remove the setters/toggling, not that check.

@@ -42,6 +42,7 @@ AGENT_TEST="$REPO_ROOT/scripts/agent-test.sh"
 AGENT_OUTPUT_LIB="$REPO_ROOT/scripts/lib/agent-output.sh"
 AGENT_SUITE_RUN_LIB="$REPO_ROOT/scripts/lib/agent-suite-run.sh"
 AGENT_PYTHON_ENV_LIB="$REPO_ROOT/scripts/lib/agent-python-env.sh"
+REAL_PYTHON="$(command -v python3)"
 
 FAILED=0
 pass() { printf 'PASS  %s\n' "$1"; }
@@ -187,6 +188,123 @@ if [ "$A3_RC" -eq 2 ]; then
 else
   fail "arm A3: expected rc=2 for an unmatched exclude label, got rc=$A3_RC: $A3_OUT"
 fi
+
+# ---- Arm A4: wall-clock corrections cannot change suite elapsed time. -------
+CLOCK_BIN="$TMPROOT/clock-bin"
+CLOCK_LOGS="$TMPROOT/clock-logs"
+mkdir -p "$CLOCK_BIN" "$CLOCK_LOGS"
+printf '100000\n' >"$TMPROOT/wall-state"
+cat >"$CLOCK_BIN/date" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+read -r wall <"$FAKE_WALL_STATE"
+printf '%s\n' "$((wall - 1000))" >"$FAKE_WALL_STATE"
+printf '%s\n' "$wall"
+EOF
+chmod +x "$CLOCK_BIN/date"
+DRIVER_CLOCK="$TMPROOT/driver_clock.sh"
+cat >"$DRIVER_CLOCK" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+. "$AGENT_OUTPUT_LIB"
+. "$AGENT_SUITE_RUN_LIB"
+run_suite clock-pass "$REAL_PYTHON" -c 'import time; time.sleep(0.02)'
+run_suite clock-fail "$REAL_PYTHON" -c 'import time; time.sleep(0.02); print("\n".join(f"failure-line-{i:03d}" for i in range(1, 211))); raise SystemExit(7)'
+suite_summary_and_exit
+EOF
+set +e
+CLOCK_OUT="$(PATH="$CLOCK_BIN:$PATH" FAKE_WALL_STATE="$TMPROOT/wall-state"   AGENT_OUTPUT_LIB="$AGENT_OUTPUT_LIB" AGENT_SUITE_RUN_LIB="$AGENT_SUITE_RUN_LIB"   REAL_PYTHON="$REAL_PYTHON" AGENT_LOG_DIR="$CLOCK_LOGS" AGENT_VERBOSE=1   GITHUB_ACTIONS=true GITHUB_STEP_SUMMARY="$TMPROOT/clock-summary"   bash "$DRIVER_CLOCK" 2>&1)"
+CLOCK_RC=$?
+set -e
+printf '%s\n' "$CLOCK_OUT" >"$TMPROOT/clock-output"
+if "$REAL_PYTHON" - "$TMPROOT" "$CLOCK_RC" <<'PYCLOCK'
+from pathlib import Path
+import re
+import sys
+root = Path(sys.argv[1])
+assert sys.argv[2] == "1", "failed suite must retain aggregate exit1"
+text = (root / "clock-output").read_text()
+rows = re.findall(r"^\| (clock-\w+) \| (PASS|FAIL) \| (\d+) \| (-?\d+) \|$",
+                  (root / "clock-summary").read_text(), re.M)
+assert [(name, state, rc) for name, state, rc, ms in rows] == [
+    ("clock-pass", "PASS", "0"), ("clock-fail", "FAIL", "7")], rows
+assert "registered=2 ran=2 passed=1 failed=1 skipped=0 excluded=0" in text
+assert "FAILED SUITES: clock-fail" in text
+assert "output truncated (210 lines total); full log:" in text
+spill, = (root / "clock-logs").glob("fathomdb-agent-clock-fail-*.log")
+assert spill.read_text().splitlines() == [f"failure-line-{i:03d}" for i in range(1, 211)]
+assert int((root / "wall-state").read_text()) < 100000
+assert all(int(ms) > 0 for name, state, rc, ms in rows), rows
+PYCLOCK
+then
+  pass "arm A4: backwards wall clock preserves positive durations, verdicts and full spill"
+else
+  fail "arm A4: backwards wall clock broke elapsed reporting: $CLOCK_OUT"
+fi
+
+# ---- Arm A5: optional/unusable Python cannot hide a suite or invent timing. --
+DRIVER_NO_CLOCK="$TMPROOT/driver_no_clock.sh"
+cat >"$DRIVER_NO_CLOCK" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+. "$AGENT_OUTPUT_LIB"
+. "$AGENT_SUITE_RUN_LIB"
+if [ "$CLOCK_MODE" = absent ] && command -v python3 >/dev/null 2>&1; then exit 99; fi
+run_suite untimed-pass /bin/bash -c 'printf "pass work\n"'
+run_suite untimed-fail /bin/bash -c 'printf "fail work\n"; exit 7'
+skip_suite test-python "pytest not installed or no tests dir"
+suite_summary_and_exit
+EOF
+for CLOCK_MODE in absent failed nonnumeric; do
+  NO_CLOCK_BIN="$TMPROOT/no-clock-$CLOCK_MODE"
+  NO_CLOCK_LOGS="$TMPROOT/no-clock-logs-$CLOCK_MODE"
+  mkdir -p "$NO_CLOCK_BIN" "$NO_CLOCK_LOGS"
+  for tool in date rm wc head; do
+    tool_path="$(command -v "$tool")"
+    ln -s "$tool_path" "$NO_CLOCK_BIN/$tool"
+  done
+  if [ "$CLOCK_MODE" != absent ]; then
+    cat >"$NO_CLOCK_BIN/python3" <<'EOF'
+#!/bin/sh
+if [ "$CLOCK_MODE" = failed ]; then exit 1; fi
+printf 'not-a-number\n'
+EOF
+    chmod +x "$NO_CLOCK_BIN/python3"
+  fi
+  set +e
+  export CLOCK_MODE
+  NO_CLOCK_OUT="$(PATH="$NO_CLOCK_BIN" \
+    AGENT_OUTPUT_LIB="$AGENT_OUTPUT_LIB" AGENT_SUITE_RUN_LIB="$AGENT_SUITE_RUN_LIB" \
+    AGENT_LOG_DIR="$NO_CLOCK_LOGS" AGENT_VERBOSE=1 GITHUB_ACTIONS=true \
+    GITHUB_STEP_SUMMARY="$TMPROOT/no-clock-summary-$CLOCK_MODE" \
+    /bin/bash "$DRIVER_NO_CLOCK" 2>&1)"
+  NO_CLOCK_RC=$?
+  set -e
+  printf '%s\n' "$NO_CLOCK_OUT" >"$TMPROOT/no-clock-output-$CLOCK_MODE"
+  if "$REAL_PYTHON" - "$TMPROOT" "$CLOCK_MODE" "$NO_CLOCK_RC" <<'PYNOCLK'
+from pathlib import Path
+import re
+import sys
+root = Path(sys.argv[1])
+mode = sys.argv[2]
+assert sys.argv[3] == "1", "clock unavailability must not replace suite verdict"
+text = (root / f"no-clock-output-{mode}").read_text()
+rows = re.findall(r"^\| ([^|]+) \| ([A-Z]+) \| ([^|]+) \| ([^|]+) \|$",
+                  (root / f"no-clock-summary-{mode}").read_text(), re.M)
+assert rows == [("untimed-pass", "PASS", "0", "unavailable"),
+                ("untimed-fail", "FAIL", "7", "unavailable"),
+                ("test-python", "SKIP", "0", "0")], rows
+assert "registered=3 ran=2 passed=1 failed=1 skipped=1 excluded=0" in text
+assert "FAILED SUITES: untimed-fail" in text
+spill, = (root / f"no-clock-logs-{mode}").glob("fathomdb-agent-untimed-fail-*.log")
+assert spill.read_text() == "fail work\n"
+PYNOCLK
+  then
+    pass "arm A5: $CLOCK_MODE clock keeps suites/skip/verdict and reports unavailable"
+  else
+    fail "arm A5: $CLOCK_MODE clock lost truthful unavailable duration: $NO_CLOCK_OUT"
+  fi
+done
 
 # ============================================================================
 # Arm B: run_capped's return contract is intact. Anti-regression guard for
@@ -374,6 +492,7 @@ mkdir -p "$FIXTURE_CHECKOUT/.venv/bin"
 
 cat >"$FIXTURE_CHECKOUT/.venv/bin/python3" <<'EOF'
 #!/bin/sh
+if [ "$#" -gt 0 ]; then exec "$FIXTURE_REAL_PYTHON" "$@"; fi
 printf 'fixture checkout venv python3\n'
 EOF
 chmod +x "$FIXTURE_CHECKOUT/.venv/bin/python3"
@@ -413,6 +532,7 @@ F_OUT="$(PATH=/usr/bin:/bin \
   AGENT_SUITE_RUN_LIB="$AGENT_SUITE_RUN_LIB" \
   AGENT_PYTHON_ENV_LIB="$AGENT_PYTHON_ENV_LIB" \
   FIXTURE_CHECKOUT="$FIXTURE_CHECKOUT" \
+  FIXTURE_REAL_PYTHON="$REAL_PYTHON" \
   PROBE_SUITE="$PROBE_SUITE" \
   AGENT_VERBOSE=1 \
   bash "$DRIVER_F" 2>&1)"

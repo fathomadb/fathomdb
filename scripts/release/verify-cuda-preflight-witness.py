@@ -443,7 +443,10 @@ def validate_allocation_witness(
     control_after = require_positive_int(
         measurement["control_free_after_bytes"], f"GPU {consumer} allocation control free-after",
     )
-    if count > 16 or measurement["control_delta_bytes"] != control_before - control_after or measurement["control_delta_bytes"] < request:
+    control_delta = measurement["control_delta_bytes"]
+    if not isinstance(control_delta, int) or isinstance(control_delta, bool):
+        fail(f"GPU {consumer} allocation control delta must be an integer")
+    if count > 16 or control_delta != control_before - control_after or control_delta < request:
         fail(f"GPU {consumer} allocation witness lacks a live control allocation")
 
 

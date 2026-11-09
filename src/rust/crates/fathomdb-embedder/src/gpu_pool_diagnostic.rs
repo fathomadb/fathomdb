@@ -24,6 +24,14 @@ struct Diagnostic {
     control_valid: bool,
 }
 
+pub(super) fn run_optional<D, V>(
+    _diagnostic: Option<D>,
+    work: impl FnOnce(Option<&mut D>) -> V,
+    _emit: impl FnOnce(&D, &V),
+) -> V {
+    work(None)
+}
+
 fn after_verdict<T>(_diagnostic: &mut Diagnostic, _probe: &mut dyn PoolProbe, verdict: T) -> T {
     verdict
 }
@@ -94,6 +102,34 @@ mod tests {
             self.pending =
                 if self.fail == "release" { self.release_bytes + 1 } else { self.release_bytes };
             Ok(())
+        }
+    }
+
+    #[test]
+    fn optional_production_wrapper_does_no_diagnostic_work_when_off_and_emits_v1_error_when_on() {
+        use std::cell::RefCell;
+        for enabled in [false, true] {
+            let events = RefCell::new(Vec::new());
+            let result = run_optional(
+                enabled.then(Diagnostic::default),
+                |diagnostic| {
+                    events.borrow_mut().push("original-v1");
+                    if diagnostic.is_some() {
+                        events.borrow_mut().push("diagnostic-probe");
+                    }
+                    Err::<(), _>("original-v1-error")
+                },
+                |_, result| {
+                    assert_eq!(*result, Err("original-v1-error"));
+                    events.borrow_mut().push("emit-error");
+                },
+            );
+            assert_eq!(result, Err("original-v1-error"));
+            if enabled {
+                assert_eq!(*events.borrow(), ["original-v1", "diagnostic-probe", "emit-error"]);
+            } else {
+                assert_eq!(*events.borrow(), ["original-v1"]);
+            }
         }
     }
 

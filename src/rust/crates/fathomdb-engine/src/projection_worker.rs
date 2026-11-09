@@ -1260,3 +1260,31 @@ pub(crate) fn pending_embedding_work(
     }
     Ok(counts.into_iter().collect())
 }
+
+#[cfg(test)]
+#[test]
+fn dispatcher_cursor_repair_refuses_committed_armed_visibility() {
+    let dir = tempfile::tempdir().unwrap();
+    let opened = Engine::open(dir.path().join("dispatcher-admission.sqlite")).unwrap();
+    let guard = opened.engine.connection.lock().unwrap();
+    let connection = guard.as_ref().unwrap();
+    connection
+        .execute_batch(
+            "INSERT INTO canonical_nodes(write_cursor,kind,body,source_id)
+         VALUES(1,'doc','pending','test:s95-dispatcher');
+         INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind) VALUES('doc');",
+        )
+        .unwrap();
+    store_projection_cursor(connection, 5).unwrap();
+    connection.execute("UPDATE _fathomdb_read_visibility_state SET coalescing=1", []).unwrap();
+    let result = next_pending_projection_jobs(
+        connection,
+        &BTreeSet::new(),
+        1,
+        true,
+        &opened.engine.projection_runtime.shared.wal_attribution,
+        0,
+    );
+    assert!(result.is_err(), "dispatcher admitted a durable cursor repair while armed");
+    assert_eq!(load_projection_cursor(connection).unwrap(), 5);
+}

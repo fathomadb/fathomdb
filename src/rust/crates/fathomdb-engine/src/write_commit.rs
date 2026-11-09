@@ -1134,3 +1134,23 @@ mod tests {
         assert_eq!(search.results[0].body, "endpointindependent");
     }
 }
+
+#[cfg(test)]
+#[test]
+fn coalescing_refuses_pre_disabled_native_triggers_without_mutation() {
+    let dir = tempfile::tempdir().unwrap();
+    let opened = Engine::open(dir.path().join("native-disabled.sqlite")).unwrap();
+    let mut primary = opened.engine.connection.lock().unwrap();
+    let connection = primary.as_mut().unwrap();
+    connection.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, false).unwrap();
+    let tx =
+        connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).unwrap();
+    assert!(matches!(VisibilityCoalescingGuard::arm(&tx), Err(CommitBatchError::WriterPoisoned)));
+    assert_eq!(
+        tx.query_row("SELECT coalescing FROM _fathomdb_read_visibility_state", [], |row| row
+            .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    assert!(!tx.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER).unwrap());
+}

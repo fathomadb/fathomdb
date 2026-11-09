@@ -341,7 +341,7 @@ def validate_gpu_observation(path: Path, consumer: str) -> None:
     require_exact_keys(value, {
         "schema_version", "consumer", "requested_policy", "status", "effective_device",
         "visible_devices", "selected_uuid", "nvidia_smi_uuid", "process_id",
-        "nvidia_smi_compute_process_id", "process_name", "allocation_witness",
+        "nvidia_smi_compute_process_id", "process_name", "allocation_witness", "pid_namespace",
     }, f"GPU {consumer} observation")
     if (
         value["schema_version"] != "fathomdb.cuda-device-observation/v1"
@@ -375,7 +375,25 @@ def validate_gpu_observation(path: Path, consumer: str) -> None:
     ):
         fail(f"GPU {consumer} observation lacks PID correlation")
     require_string(value["process_name"], f"GPU {consumer} process name")
-    validate_allocation_witness(value["allocation_witness"], consumer, device, process_id)
+    inner_pid = validate_pid_namespace(value["pid_namespace"], process_id, consumer)
+    validate_allocation_witness(value["allocation_witness"], consumer, device, inner_pid)
+
+
+def validate_pid_namespace(value: object, host_pid: int, consumer: str) -> int:
+    """Bind the live host/SMI consumer PID to its unchanged namespace PID1."""
+    if not isinstance(value, dict):
+        fail(f"GPU {consumer} PID namespace proof must be an object")
+    require_exact_keys(value, {"source", "nspid"}, f"GPU {consumer} PID namespace")
+    if value["source"] != "host_proc_status":
+        fail(f"GPU {consumer} PID namespace lacks the kernel source")
+    pids = value["nspid"]
+    if not isinstance(pids, list) or len(pids) < 2 or any(
+        not isinstance(pid, int) or isinstance(pid, bool) or pid < 1 for pid in pids
+    ):
+        fail(f"GPU {consumer} NSpid must be at least two positive integer PIDs")
+    if pids[0] != host_pid or pids[-1] != 1:
+        fail(f"GPU {consumer} PID namespace does not bind host PID to consumer PID1")
+    return pids[-1]
 
 
 def normalize_cuda_uuid(value: str) -> str:

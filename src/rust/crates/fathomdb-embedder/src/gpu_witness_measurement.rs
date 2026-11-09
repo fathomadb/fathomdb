@@ -38,7 +38,7 @@ pub enum GpuAllocationMeasurement {
         delta_bytes: i128,
         /// Exact touched control size, 64 MiB.
         control_request_bytes: u64,
-        /// Post-forward current USED before the diagnostic control.
+        /// Post-forward current USED before the same-pool control.
         control_before_bytes: u64,
         /// Current USED while that control is live and complete.
         control_live_bytes: u64,

@@ -91,7 +91,9 @@ impl PhysicalMaintenance {
                     let mut service_guard = None;
                     let result = (|| {
                         let waiting = metrics.timer("maintenance_writer_wait");
-                        let guard = physical_metrics::writer(&metrics, &connection, false)?;
+                        let guard = connection_runtime::internal_debt_probe(|| {
+                            physical_metrics::writer(&metrics, &connection, false)
+                        })?;
                         drop(waiting);
                         let holding = metrics.timer("maintenance_writer_hold");
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;

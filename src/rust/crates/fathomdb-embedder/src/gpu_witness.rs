@@ -890,10 +890,22 @@ impl Default for AllocationWitnessConfig {
 pub fn run_default_embedder_allocation_witness(
     config: AllocationWitnessConfig,
 ) -> Result<GpuAllocationWitness, GpuWitnessError> {
-    use fathomdb_embedder_api::Embedder;
+    crate::gpu_pool_diagnostic::run_optional(
+        crate::gpu_pool_diagnostic::Session::enabled(),
+        |diagnostic| run_default_embedder_allocation_witness_inner(config, diagnostic),
+        |diagnostic, verdict| diagnostic.emit(verdict),
+    )
+}
 
+#[cfg(feature = "embed-cuda")]
+fn run_default_embedder_allocation_witness_inner(
+    config: AllocationWitnessConfig,
+    mut diagnostic: Option<&mut crate::gpu_pool_diagnostic::Session>,
+) -> Result<GpuAllocationWitness, GpuWitnessError> {
     use crate::candle_bge::{attest_retained_cuda_device, CandleBgeEmbedder};
+    use crate::gpu_pool_diagnostic::ObservedSampler;
     use crate::loader::load_pinned_default_embedder;
+    use fathomdb_embedder_api::Embedder;
 
     // 1. Resolve the product policy and construct the Candle CUDA device.
     let resolution = crate::candle_bge::resolve_default_embedder_device_from_env()
@@ -914,6 +926,10 @@ pub fn run_default_embedder_allocation_witness(
     let (device, retained_ordinal, retained_uuid) = attest_retained_cuda_device(config.ordinal)
         .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
 
+    if let Some(diagnostic) = diagnostic.as_deref_mut() {
+        diagnostic.attach(&device, config.ordinal, &retained_uuid);
+    }
+
     // Reading the cache is pure host IO; doing it before the "before" sample
     // brackets the delta as tightly as possible around the device upload.
     let weights = load_pinned_default_embedder()
@@ -928,14 +944,14 @@ pub fn run_default_embedder_allocation_witness(
     // until after the post-load sample.
     let mut allocator = CudaDriverControlAllocator::default();
     let control = observe_control_allocation(
-        &mut sampler,
+        &mut ObservedSampler::new(&mut sampler, diagnostic.as_deref_mut(), false),
         &mut allocator,
         config.control_allocation_bytes,
         config.max_control_blocks,
     )?;
 
     let (before, embedder, after) = observe_model_load(
-        &mut sampler,
+        &mut ObservedSampler::new(&mut sampler, diagnostic.as_deref_mut(), true),
         || {
             CandleBgeEmbedder::new_from_weights_on_device(weights, device.clone())
                 .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })
@@ -959,7 +975,11 @@ pub fn run_default_embedder_allocation_witness(
         .map(|vector| vector.len())
         .map_err(|error| GpuWitnessError::ProbeFailed { message: format!("{error:?}") })?;
 
-    evaluate_allocation_witness(AllocationWitnessInputs {
+    if let Some(diagnostic) = diagnostic.as_deref_mut() {
+        diagnostic.forward_completed(dimension);
+    }
+
+    let verdict = evaluate_allocation_witness(AllocationWitnessInputs {
         requested_ordinal: config.ordinal,
         effective_device: EffectiveEmbedDevice::Cuda(info),
         cpu_reason: resolution.reason,
@@ -970,7 +990,13 @@ pub fn run_default_embedder_allocation_witness(
         control: Some(control),
         delta_floor_bytes: config.delta_floor_bytes,
         embedded_vector_dim: Some(dimension),
-    })
+    });
+    let verdict = match diagnostic {
+        Some(diagnostic) => diagnostic.finish(verdict),
+        None => verdict,
+    };
+    drop(embedder);
+    verdict
 }
 
 #[cfg(test)]

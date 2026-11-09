@@ -450,6 +450,14 @@ witness is requested and cannot be produced, `Engine::open` fails with
 degrades to `None`. An unrecognized value of the variable is rejected at open
 time rather than read as "off".
 
+The private evidence-only `FATHOMDB_GPU_POOL_DIAGNOSTIC=1` opt-in adds a
+separate `fathomdb.tegra-gpu-pool-diagnostic/v1` line on captured stderr during
+an already requested CUDA witness. It preserves the original v1 result and
+OpenReport surface, including failures; diagnostic errors invalidate only that
+diagnostic. All other values leave it off. The controlled driver, sequential
+counter reads and nonqualifying scope are documented in
+[`dev/experiments/tegra-pool-diagnostic/README.md`](../experiments/tegra-pool-diagnostic/README.md).
+
 The record carries `device_ordinal_requested`, `device_ordinal_actual`,
 `device_uuid`, `device_name`, `compute_capability`, `free_before_bytes`,
 `free_after_bytes`, `total_bytes`, `delta_bytes`, `delta_floor_bytes`,

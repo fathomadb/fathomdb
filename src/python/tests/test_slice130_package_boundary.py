@@ -308,6 +308,27 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     for path_name, old_row in provider_removals.items():
         assert expected.pop(path_name) == old_row
 
+    # CI23 replaces only the six old flat witness fields with the tagged union.
+    witness_removals = {
+        f"{namespace}.GpuAllocationWitness.{name}": {
+            "kind": "python-attribute",
+            "path": f"{namespace}.GpuAllocationWitness.{name}",
+            "signature": f"{name}: {annotation}",
+        }
+        for namespace in ("fathomdb", "fathomdb.types")
+        for name, annotation in (
+            ("sole_gpu_consumer_precondition", "str"),
+            ("control_allocation_request_bytes", "int"),
+            ("control_block_count", "int"),
+            ("control_free_before_bytes", "int"),
+            ("control_free_after_bytes", "int"),
+            ("control_delta_bytes", "int"),
+        )
+    }
+    assert len(witness_removals) == 12
+    for path_name, old_row in witness_removals.items():
+        assert expected.pop(path_name) == old_row
+
     provider_literals = {
         "EmbeddingReadinessState": (
             "Literal['ready', 'processing', 'deferred', 'blocked']",
@@ -342,7 +363,7 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     expected[verification_error["path"]] = verification_error
     observed = {row["path"]: row for row in declarations}
     assert len(declarations) == len(observed) == len(expected) == (
-        1132 + len(declared) - 8 + 1 + 2 * len(EP03_EP17_TYPE_DECLARATIONS) + 1
+        1132 + len(declared) - 8 + 1 - 12 + 2 * len(EP03_EP17_TYPE_DECLARATIONS) + 1
     )
     assert observed == expected
 
@@ -350,6 +371,75 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     for current, historical in EP03_EP17_STUB_EDITS:
         assert stub.count(current) == 1, current
         stub = stub.replace(current, historical)
+    # Reverse the exact approved v2 native block, not a prefix or observed set.
+    current_witness_stub = '''class GpuGlobalFreeMeasurement:
+    """Native discrete global counter and raw control."""
+    kind: Literal["global_free"]
+    control_allocation_request_bytes: int
+    control_block_count: int
+    control_free_before_bytes: int
+    control_free_after_bytes: int
+    control_delta_bytes: int
+    sole_gpu_consumer_precondition: str
+
+class GpuPrivatePoolUsedMeasurement:
+    """Native integrated private USED model/control proof."""
+    kind: Literal["private_pool_used"]
+    context_id: str
+    pool_identity: str
+    used_before_bytes: int
+    used_after_bytes: int
+    delta_bytes: int
+    control_request_bytes: int
+    control_before_bytes: int
+    control_live_bytes: int
+    control_released_bytes: int
+    pool_exclusivity_precondition: str
+
+class GpuAllocationWitness:
+    schema: str
+    process_id: int
+    device_integrated: bool
+    device_ordinal_requested: int
+    device_ordinal_actual: int
+    device_uuid: str
+    device_name: str
+    compute_capability: str
+    free_before_bytes: int
+    free_after_bytes: int
+    total_bytes: int
+    delta_bytes: int
+    delta_floor_bytes: int
+    embedded_vector_dim: int
+    measurement: GpuGlobalFreeMeasurement | GpuPrivatePoolUsedMeasurement
+
+'''
+    historical_witness_stub = '''class GpuAllocationWitness:
+    # 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+    # `fathomdb.tegra-gpu-allocation-witness/v1` record. Every number the
+    # verdict used is present so a reader re-derives it rather than trusting it.
+    schema: str
+    sole_gpu_consumer_precondition: str
+    device_ordinal_requested: int
+    device_ordinal_actual: int
+    device_uuid: str
+    device_name: str
+    compute_capability: str
+    free_before_bytes: int
+    free_after_bytes: int
+    total_bytes: int
+    delta_bytes: int
+    delta_floor_bytes: int
+    control_allocation_request_bytes: int
+    control_block_count: int
+    control_free_before_bytes: int
+    control_free_after_bytes: int
+    control_delta_bytes: int
+    embedded_vector_dim: int
+
+'''
+    assert stub.count(current_witness_stub) == 1
+    stub = stub.replace(current_witness_stub, historical_witness_stub, 1)
     verification_error_stub = (
         "class VectorVerificationError(EngineError):\n"
         '    """Open failed because vector verification could not complete; no engine exists."""\n'

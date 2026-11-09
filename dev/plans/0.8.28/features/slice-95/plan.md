@@ -792,3 +792,45 @@ Preserve isolation, current outer v2/v3, bundle allowlists and all artifact/UUID
 checks; no namespace weakening or claimed PID substitution. Observe focused
 parser/mapping/state-race REDs before GREEN and require the real mandatory GPU
 workflow observations. Rust/SDK in-process PID semantics remain unchanged.
+
+### CI24: seed the projection race before arming its pause
+
+The final parallel report at `4e6760744` retains cargo exit 101: 2390 passed,
+one failed and 65 ignored. The job's advisory green status does not replace
+that result. The failure is the seed helper's dependency registration in
+`projection_worker_before_admission_cannot_publish_dependency_residue`.
+Source exposes a fixture lock cycle: the worker can hold its WAL write
+transaction at an already-armed pause while seeding needs another immediate
+transaction; pause release follows seeding. The exact CI SQLite cause was not
+captured, and this does not establish a production storage defect.
+
+Astra approved the fixture correction: immediately after open, freeze the
+scheduler, drain while empty, configure and finish seeding, arm the WAL pause,
+then unfreeze. Preserve all existing lifecycle/vector assertions and timeouts.
+The retained failing test is RED; GREEN runs the affected 28-test target in
+parallel, including the existing reverse-order control, with scoped format and
+Clippy checks. Require exact code review and separate target verification.
+S95-9 includes this setup ordering. Reuse source-identical gates with their
+original provenance; qualify this test-only correction separately and run the
+trusted release rehearsal from the final candidate. Another full CI matrix is
+unnecessary for this bounded finding.
+
+### CI25: enumerate the approved Python witness contract delta
+
+The same candidate's local and hosted Python suites each fail two frozen
+package-boundary comparisons: exports 148 versus 145 and declarations 1321
+versus 1285. S95-5 includes the approved v2 measurement classes/union, new
+witness fields and superseded flat control fields in the explicit surface
+registry and native-stub reversal. Astra approved a manual two-file amendment:
+append the finite additions, remove only exact enumerated old rows, and reverse
+the exact current native block to its literal predecessor before checking the
+unchanged historical checksum. Preserve the frozen baseline, prior registry
+entries and prior digest. Review the explicit draft before GREEN; run only the
+boundary module and its scoped lint, followed by separate verification.
+
+The local graph target also found zero of 60 inputs after task copies had been
+cleaned before the final gate. The original 13 files remain intact. Restore
+only their verified copies, retain their original hash/acquisition limitations,
+and rerun the graph target with the existing oracle. S95-6 requires keeping
+applicable inputs through the last gate; clean the copies after verification.
+Retain all initial non-passes and report assembled, source-bound qualification.

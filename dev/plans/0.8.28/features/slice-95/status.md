@@ -16,7 +16,9 @@ verified same-context private-pool counter feasibility in one process: model
 USED132848640 bytes, forward384, touched64MiB control and exact release, while
 the original global witness still failed. Historical research found the same
 class of failure and no missing witness repair. Astra approved the CI23 v2
-technical design; implementation and current-artifact qualification remain.
+technical design. Core, SDK and namespace sealing changes now have Astra code
+approval and separate focused verification; final consumer integration and
+current-artifact qualification remain.
 CI21 repairs12 negative elapsed-time reports without changing test verdicts.
 
 Local engine/performance qualification remains bound to its recorded sources,
@@ -81,21 +83,18 @@ suppression or integrity artifact changed.
 
 ## Remaining work
 
-- Complete both Mac CPU wheel/addon runtime rows and the five-target collector,
-  plus the genuine non-Tegra ARM driverless Tegra-addon control. Existing local
-  machines cannot satisfy those host requirements; no platform waiver is inferred.
-- Resolve whether the owner's local-only condition covers GPU execution only or
-  all execution, before any hosted CPU/macOS dispatch. The owner already approved
-  environment review for local execution including Windows and Tegra; do not ask
-  for that same approval again within its confirmed condition.
-- Complete exact-candidate CI and the separate nonpublishing release-workflow
-  rehearsal. The reviewed skip-marked/manual route preserves Pages/publication
-  holds and existing environment/ancestry controls. Local helper passes do not
-  supply trusted-workflow provenance. No hosted run was dispatched under the
-  conditional approval.
-- Finish task-resource cleanup after the remaining execution gates. The local
-  baseline records passed scoped checks and were forwarded to .29. Close
-  status/state only after all required qualification.
+- Finish and review the v2 producer/consumer integration, then verify its focused
+  RED/GREEN controls independently. Core, SDK and namespace sealing checks pass.
+- Qualify the repaired exact-source installed Tegra Python/Node packages and
+  genuine non-Tegra ARM driverless control. Preserve all earlier witness failures.
+- Run one batched final exact-source CPU CI, followed by the trusted main-route
+  nonpublishing release rehearsal with actual local x64 GPU package proofs.
+  Earlier CPU CI already passed all five targets; it is a source-bound baseline.
+- Forward the final changes and records to .29, close status/state, and clean up
+  task-owned runners, selector override and scratch resources after preservation.
+
+Hosted CPU/macOS is approved. GPU execution remains local, including the Windows
+VM and Tegra. Publication, tags, registries and Pages remain held.
 
 ## Retained limits and resources
 

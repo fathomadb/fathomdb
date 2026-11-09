@@ -158,3 +158,84 @@ fn an_opted_in_witness_that_cannot_be_produced_fails_the_open() {
         "the refusal must carry the witness's own failure tag: {rendered}"
     );
 }
+
+proptest::proptest! {
+    #![proptest_config(proptest::test_runner::Config::with_cases(24))]
+
+    #[test]
+    fn current_witness_tagged_measurements_preserve_canonical_observations(
+        private in proptest::bool::ANY,
+        before in 0_u64..1_048_576,
+        growth in 67_108_864_u64..200_000_000,
+        context_id in proptest::prop_oneof![proptest::strategy::Just(0_u64), proptest::strategy::Just(u64::MAX), proptest::num::u64::ANY],
+        pool_suffix in "[a-zA-Z0-9\"\\\\]{1,12}",
+    ) {
+        use fathomdb_embedder::{
+            ControlAllocationObservation, GpuAllocationMeasurement, GpuAllocationWitness,
+            PRIVATE_POOL_EXCLUSIVITY_PRECONDITION,
+        };
+        let pool_identity = format!("pool:{pool_suffix}");
+        let context_text = context_id.to_string();
+        let measurement = if private {
+            GpuAllocationMeasurement::PrivatePoolUsed {
+                context_id: context_text.clone(), pool_identity: pool_identity.clone(),
+                used_before_bytes: before, used_after_bytes: before + growth,
+                delta_bytes: i128::from(growth), control_request_bytes: 67_108_864,
+                control_before_bytes: before + growth,
+                control_live_bytes: before + growth + 67_108_864,
+                control_released_bytes: before + growth,
+                pool_exclusivity_precondition: PRIVATE_POOL_EXCLUSIVITY_PRECONDITION.into(),
+            }
+        } else {
+            GpuAllocationMeasurement::from_global_control(ControlAllocationObservation {
+                requested_bytes: 268_435_456, block_count: 1,
+                free_before_bytes: 42_000_000_000, free_after_bytes: 41_700_000_000,
+            })
+        };
+        let free_before = 40_000_000_000;
+        let free_after = if private { free_before + 1234 } else { free_before - growth };
+        let witness = GpuAllocationWitness {
+            process_id: 4242, device_integrated: private,
+            device_ordinal_requested: 0, device_ordinal_actual: 0,
+            device_uuid: "GPU-11111111-2222-3333-4444-555555555555".into(),
+            device_name: "fixture GPU".into(), compute_capability: "8.7".into(),
+            free_before_bytes: free_before, free_after_bytes: free_after,
+            total_bytes: 48_000_000_000,
+            delta_bytes: i128::from(free_before) - i128::from(free_after),
+            delta_floor_bytes: 67_108_864, embedded_vector_dim: 384, measurement,
+        };
+        let raw = witness.to_canonical_json();
+        let value: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        proptest::prop_assert_eq!(&raw, &format!("{}\n", serde_json::to_string(&value).unwrap()));
+        proptest::prop_assert_eq!(value["schema"].as_str(), Some("fathomdb.tegra-gpu-allocation-witness/v2"));
+        proptest::prop_assert_eq!(value["process_id"].as_u64(), Some(4242));
+        proptest::prop_assert_eq!(value["device_integrated"].as_bool(), Some(private));
+        proptest::prop_assert_eq!(value["delta_bytes"].as_i64(), Some(if private { -1234 } else { growth as i64 }));
+        let proof = &value["measurement"];
+        let mut keys: Vec<&str> = proof.as_object().unwrap().keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        if private {
+            proptest::prop_assert_eq!(keys, vec!["context_id", "control_before_bytes", "control_live_bytes", "control_released_bytes", "control_request_bytes", "delta_bytes", "kind", "pool_exclusivity_precondition", "pool_identity", "used_after_bytes", "used_before_bytes"]);
+            proptest::prop_assert_eq!(proof["kind"].as_str(), Some("private_pool_used"));
+            proptest::prop_assert_eq!(proof["context_id"].as_str(), Some(context_text.as_str()));
+            proptest::prop_assert_eq!(proof["pool_identity"].as_str(), Some(pool_identity.as_str()));
+            proptest::prop_assert_eq!(proof["used_before_bytes"].as_u64(), Some(before));
+            proptest::prop_assert_eq!(proof["used_after_bytes"].as_u64(), Some(before + growth));
+            proptest::prop_assert_eq!(proof["delta_bytes"].as_u64(), Some(growth));
+            proptest::prop_assert_eq!(proof["control_before_bytes"].as_u64(), Some(before + growth));
+            proptest::prop_assert_eq!(proof["control_request_bytes"].as_u64(), Some(67_108_864));
+            proptest::prop_assert_eq!(proof["pool_exclusivity_precondition"].as_str(), Some("no competing allocations or frees may occur in the witnessed private pool during model and control observation"));
+            proptest::prop_assert_eq!(proof["control_live_bytes"].as_u64(), Some(before + growth + 67_108_864));
+            proptest::prop_assert_eq!(proof["control_released_bytes"].as_u64(), Some(before + growth));
+        } else {
+            proptest::prop_assert_eq!(keys, vec!["control_allocation_request_bytes", "control_block_count", "control_delta_bytes", "control_free_after_bytes", "control_free_before_bytes", "kind", "sole_gpu_consumer_precondition"]);
+            proptest::prop_assert_eq!(proof["kind"].as_str(), Some("global_free"));
+            proptest::prop_assert_eq!(proof["control_allocation_request_bytes"].as_u64(), Some(268_435_456));
+            proptest::prop_assert_eq!(proof["control_delta_bytes"].as_u64(), Some(300_000_000));
+            proptest::prop_assert_eq!(proof["control_block_count"].as_u64(), Some(1));
+            proptest::prop_assert_eq!(proof["control_free_before_bytes"].as_u64(), Some(42_000_000_000));
+            proptest::prop_assert_eq!(proof["control_free_after_bytes"].as_u64(), Some(41_700_000_000));
+            proptest::prop_assert_eq!(proof["sole_gpu_consumer_precondition"].as_str(), Some("the witness process must be the sole GPU consumer of the selected discrete device"));
+        }
+    }
+}

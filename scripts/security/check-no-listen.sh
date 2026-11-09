@@ -23,7 +23,13 @@ if ! command -v strace >/dev/null 2>&1; then
     exit 2
 fi
 
-BIN="$REPO_ROOT/target/debug/examples/security_cycle"
+# Cargo runs from the checkout below, including for relative target paths.
+CARGO_TARGET_PATH="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
+case "$CARGO_TARGET_PATH" in
+    /*) ;;
+    *) CARGO_TARGET_PATH="$REPO_ROOT/$CARGO_TARGET_PATH" ;;
+esac
+BIN="$CARGO_TARGET_PATH/debug/examples/security_cycle"
 if [ ! -x "$BIN" ]; then
     echo "AC-036: building security_cycle example binary..." >&2
     (cd "$REPO_ROOT" && cargo build -p fathomdb-engine --example security_cycle --quiet)

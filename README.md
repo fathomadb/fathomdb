@@ -12,7 +12,7 @@ the Python, TypeScript, or Rust application SDK.
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
 0.8.28 adds filtered body FTS, search visibility controls, context packing and
-explicit erasure maintenance, with fresh store format 36. It retains three
+explicit erasure maintenance, with fresh store format 37. It retains three
 application SDKs and the classic Jetson Orin Python/Node CUDA delivery routes. See the [release notes](docs/release-notes/0.8.28.md)
 and [changelog](CHANGELOG.md).
 

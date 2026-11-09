@@ -179,7 +179,7 @@ specific caller source.
 
 ## Schedule an explicit maintenance window
 
-New format-36 stores can opt into persisted explicit maintenance:
+New format-37 stores can opt into persisted explicit maintenance:
 
 ```python
 from secrets import token_hex
@@ -217,7 +217,7 @@ Handle close/drop releases temporary ownership but cannot forgive durable debt.
 Explicit reopen preserves policy/fences and performs no autonomous cleanup.
 
 Autonomous remains the default. Direct online erase/purge under explicit policy
-refuses `maintenance_required`; use the window's selected ticket. Fresh format 36
+refuses `maintenance_required`; use the window's selected ticket. Fresh format 37
 is required for both profiles: earlier stores are refused, with no automatic
 migration or in-place opt-in. Finish/export old stores using their supported old
 product procedures. This API promises no immediate revocation, completion deadline,

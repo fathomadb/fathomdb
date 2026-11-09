@@ -2459,7 +2459,7 @@ mod span_erasure_tests {
         crate::register_sqlite_vec_extension();
         let mut connection = Connection::open_in_memory().unwrap();
         fathomdb_schema::migrate(&connection).unwrap();
-        ensure_vector_partition(&mut connection, 8).unwrap();
+        ensure_vector_partition(&connection, 8).unwrap();
         connection
             .execute("INSERT INTO _fathomdb_vector_spans VALUES(42,42,0,0,NULL,0)", [])
             .unwrap();

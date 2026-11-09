@@ -15,7 +15,7 @@ open → write / search / admin.configure / instrumentation → close → proces
    at `path`. The handle owns the primary SQLite connection, the reader pool with
    thread-affine workers, the scheduler, the op-store, and the
    embedder pool. A missing or zero-length database is initialized at schema
-   36. A non-empty database must already have schema 36; public open does not
+   37. A non-empty database must already have schema 37; public open does not
    upgrade it and rejects a different version with a typed incompatibility error.
 2. **Write / search / configure** — application code calls the
    governed verb surface. Writes are serialized on the primary

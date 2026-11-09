@@ -63,11 +63,16 @@ future windows of one record, uses 64-row vec0 chunks, and keys node body
 FTS rowids by write cursor. No format-34 content is migrated. Coverage and
 vectors are committed and removed together; unknown coverage is NULL.
 
+Format 37 adds a constrained transaction-owned visibility coalescing marker.
+It retains the format-36 maintenance tables/policy and format-35 vector layout.
+All57 visibility triggers retain external-writer invalidation; vector mapping
+DELETE cleanup stays active. Earlier nonempty formats are refused, not migrated.
+
 ## Compatibility contract
 
-- a missing or zero-length path bootstraps directly to schema 36
+- a missing or zero-length path bootstraps directly to schema 37
 - a non-empty database opens only when its effective committed
-  `PRAGMA user_version` is exactly 36; schema 35 and earlier, future versions, and
+  `PRAGMA user_version` is exactly 37; schema 36 and earlier, future versions, and
   non-empty zero-version SQLite files return the typed incompatible-schema
   error before product mutation
 - there is no public automatic migration, compatibility reader, translator,

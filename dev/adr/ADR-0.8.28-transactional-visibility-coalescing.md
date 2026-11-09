@@ -102,7 +102,8 @@ legitimately run inside an armed transaction.
 | `enable_telemetry` | Before sink creation and sink registration SQL; callback-only logging/atomic configuration acquires no new database lock |
 | `boot_graft_declared_vector_backfill`, `reconcile_edge_history_on_boot` | Their standalone transaction admission; `reenqueue_stranded_vector_rows` remains an owned lower helper |
 | Frozen `binding_for_snapshot`, `validate_on_open` | Clean state before binding/validation; historical private migration fixtures below37 retain historical manifests |
-| Boot profile/vec0 setup, inert enrolment, attribute reconcile, fresh sanitation and probe publication | Owned IMMEDIATE and clean admission around actual initialization/repair writes; lower helpers remain usable in owned transactions; probe marker failures stay best effort |
+| Boot/worker profile/vec0 setup, inert enrolment, attribute reconcile, fresh sanitation and probe publication | Owned IMMEDIATE and clean admission around actual initialization/repair writes; lower helpers remain usable in owned transactions; probe marker failures stay best effort |
+| Dispatcher `next_pending_projection_jobs` cursor repair | Own IMMEDIATE plus clean admission around durable rewind only; existing scans/no-runtime behavior and owned lower `store_projection_cursor` are unchanged |
 | Offline recovery admission | Existing exact-version preflight plus current visibility-state/manifest validation before maintenance mutation |
 
 Pure reads, subscriber bookkeeping and shutdown are not new SQL mutation

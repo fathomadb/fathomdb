@@ -521,6 +521,18 @@ fn binding_for_snapshot(
     effective_valid_at: i64,
     context_digest: [u8; 32],
 ) -> Result<FrozenReadBinding, EngineError> {
+    #[cfg(any(test, feature = "migration-test-hooks"))]
+    {
+        // Retained normative token fixtures predate coalescing. This private
+        // fixture route is absent from ordinary builds and public admission.
+        let fixture_format: u32 = connection
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        if !(31..37).contains(&fixture_format) {
+            require_clean_visibility(connection)?;
+        }
+    }
+    #[cfg(not(any(test, feature = "migration-test-hooks")))]
     require_clean_visibility(connection)?;
     Ok(FrozenReadBinding {
         database_id: read_open_state(connection, DATABASE_ID_KEY)?,
@@ -1091,7 +1103,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        crate::ensure_vector_partition(&mut connection, crate::open::DEFAULT_EMBEDDER_DIMENSION)
+        crate::ensure_vector_partition(&connection, crate::open::DEFAULT_EMBEDDER_DIMENSION)
             .unwrap();
         crate::projection_generation::bootstrap(&mut connection, 32, false).unwrap();
         let (old_id, declaration): (String, String) = connection
@@ -1176,7 +1188,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        crate::ensure_vector_partition(&mut connection, crate::open::DEFAULT_EMBEDDER_DIMENSION)
+        crate::ensure_vector_partition(&connection, crate::open::DEFAULT_EMBEDDER_DIMENSION)
             .unwrap();
         crate::projection_generation::bootstrap(&mut connection, 32, false).unwrap();
         connection

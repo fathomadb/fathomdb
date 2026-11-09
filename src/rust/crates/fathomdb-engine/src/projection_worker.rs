@@ -386,7 +386,12 @@ pub(crate) fn projection_worker_loop(
             return;
         }
     };
-    if ensure_vector_partition(&mut connection, shared.embedder_identity.dimension).is_err() {
+    let partition_setup = (|| {
+        let tx = crate::frozen_read::begin_visibility_writer(&connection)?;
+        ensure_vector_partition(&tx, shared.embedder_identity.dimension)?;
+        tx.commit()
+    })();
+    if partition_setup.is_err() {
         report_projection_runtime_startup_failure(&startup, startup_role, "vector_partition_setup");
         return;
     }
@@ -1181,7 +1186,9 @@ fn next_pending_projection_jobs(
         };
         scan_cursor = cursor.saturating_sub(1);
         if scan_cursor < persisted_cursor {
-            store_projection_cursor(connection, scan_cursor)?;
+            let tx = crate::frozen_read::begin_visibility_writer(connection)?;
+            store_projection_cursor(&tx, scan_cursor)?;
+            tx.commit()?;
         }
     }
 }

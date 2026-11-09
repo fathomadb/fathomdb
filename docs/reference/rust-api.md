@@ -73,7 +73,7 @@ applied before direct node/edge body-FTS caps, deduplication, ranking and limit.
 See [filter semantics](../guides/hybrid-search-filtering.md) for metadata and
 historical-view limits. Application SDK users pass `TextSearchOptions.filter`.
 
-Fresh stores use format 36. `PhysicalErasurePolicy` is persisted; the typed
+Fresh stores use format 37. `PhysicalErasurePolicy` is persisted; the typed
 queue/status/withdraw APIs and owned `ErasureMaintenance` handle implement the
 [explicit-maintenance contract](../operations/erasure.md#schedule-an-explicit-maintenance-window).
 Open mismatch/verification failures return no Engine. Production provider choice

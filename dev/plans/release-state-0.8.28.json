@@ -5,7 +5,7 @@
   "plan": "dev/plans/plan-0.8.28.md",
   "active_ref": "refs/heads/release/0.8.28",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
-  "schema_version": 36,
+  "schema_version": 37,
   "public_docs_target_release": "0.8.28",
   "origin_main_schema_version": 34,
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",

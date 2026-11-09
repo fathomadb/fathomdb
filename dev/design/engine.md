@@ -18,8 +18,8 @@ Public language spelling remains in `dev/interfaces/`; error variants remain in
 ## Open path
 
 Public 0.8.28 open is fresh-only. A missing or zero-length path is bootstrapped
-directly to schema 36. A nonempty database is accepted only when its
-`PRAGMA user_version` is exactly 36; every other version returns
+directly to schema 37. A nonempty database is accepted only when its
+`PRAGMA user_version` is exactly 37; every other version returns
 `IncompatibleSchemaVersion` before product mutation. Public open does not run
 an in-place migration ladder.
 
@@ -184,7 +184,7 @@ new stores to Autonomous; an explicit conflicting request refuses open.
 [`Explicit maintenance`](explicit-maintenance-erasure/contract.md) owns queue,
 exclusive-window, durable-debt and fence semantics. Its owned maintenance handle
 excludes ordinary readers/writers/admin/projection work; closing it releases
-temporary ownership without forgiving activated debt. Current storage is format36
+temporary ownership without forgiving activated debt. Current storage is format37
 for both policies, with no migration or immediate-revocation/deadline guarantee.
 
 The reader pool remains eight dedicated workers and is not controlled by
@@ -255,3 +255,14 @@ the same one-deadline rule. Cleanup does not replace the original open error.
 Historical dedicated-writer-thread, caller `row_id`, per-kind vector-table,
 single-cursor-per-batch, restore, and public migration-on-open descriptions are
 retained in Git history but are not current 0.8.28 authority.
+
+## Transactional visibility coalescing (format37)
+
+The [technical successor ADR](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+owns the exact57-trigger manifest and outer writer admission inventory. An owned
+IMMEDIATE canonical/projection transaction arms the persisted integer marker,
+retains fresh fence reads and mapping cleanup, and atomically advances the
+checked generation/random nonce while clearing the marker before commit.
+Missing, malformed or committed-armed state refuses writer/frozen binding
+admission. Native trigger execution is checked but never toggled. Transaction
+rollback owns cleanup; no destructor SQL can create an autocommit disarm.

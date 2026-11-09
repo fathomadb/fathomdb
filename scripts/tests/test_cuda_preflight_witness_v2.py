@@ -90,6 +90,7 @@ def main() -> None:
         current = json.loads(
             (REPO / "scripts/tests/fixtures/tegra-gpu-witness/v2/global-free.json").read_bytes()
         )
+        current = dict(current, process_id=1)
         assert set(current) == {
             "schema", "process_id", "device_integrated", "device_ordinal_requested",
             "device_ordinal_actual", "device_uuid", "device_name", "compute_capability",
@@ -103,7 +104,7 @@ def main() -> None:
             "sole_gpu_consumer_precondition",
         }
         assert current["schema"] == "fathomdb.tegra-gpu-allocation-witness/v2"
-        assert current["device_integrated"] is False and current["process_id"] == 4242
+        assert current["device_integrated"] is False and current["process_id"] == 1
         assert current["delta_bytes"] == current["free_before_bytes"] - current["free_after_bytes"] == 200_000_000
         assert measurement["control_delta_bytes"] == measurement["control_free_before_bytes"] - measurement["control_free_after_bytes"] == 300_000_000
         assert measurement["kind"] == "global_free" and measurement["control_block_count"] == 1
@@ -111,6 +112,8 @@ def main() -> None:
         for consumer in ("python", "napi"):
             observed = json.loads((valid / f"gpu-{consumer}-cuda-witness.json").read_bytes())
             assert observed["allocation_witness"] == current
+            assert observed["process_id"] == observed["nvidia_smi_compute_process_id"] == 4242
+            assert observed["pid_namespace"] == {"source": "host_proc_status", "nspid": [4242, 1]}
 
         legacy = tmp / "legacy-no-allocation-witness"
         shutil.copytree(valid, legacy)
@@ -153,6 +156,38 @@ def main() -> None:
                 shutil.copytree(valid, broken)
                 record_name = f"gpu-{consumer}-cuda-witness.json"
                 rewrite(broken / record_name, lambda observation: mutation(observation["allocation_witness"]))
+                reseal(broken, record_name)
+                reject(broken, f"{consumer} {label}")
+
+        namespace_mutations = (
+            ("missing namespace", lambda o: o.pop("pid_namespace")),
+            ("missing source", lambda o: o["pid_namespace"].pop("source")),
+            ("missing PID list", lambda o: o["pid_namespace"].pop("nspid")),
+            ("unknown namespace key", lambda o: o["pid_namespace"].update(untrusted=True)),
+            ("wrong source", lambda o: o["pid_namespace"].update(source="environment")),
+            ("not an array", lambda o: o["pid_namespace"].update(nspid="4242 1")),
+            ("empty PID list", lambda o: o["pid_namespace"].update(nspid=[])),
+            ("single PID", lambda o: o["pid_namespace"].update(nspid=[4242])),
+            ("boolean PID", lambda o: o["pid_namespace"].update(nspid=[4242, True])),
+            ("floating PID", lambda o: o["pid_namespace"].update(nspid=[4242, 1.0])),
+            ("zero PID", lambda o: o["pid_namespace"].update(nspid=[4242, 0])),
+            ("negative PID", lambda o: o["pid_namespace"].update(nspid=[4242, -1])),
+            ("wrong host PID", lambda o: o["pid_namespace"].update(nspid=[4243, 1])),
+            ("wrong inner PID", lambda o: o["pid_namespace"].update(nspid=[4242, 2])),
+            ("matching non-init PID", lambda o: (o["pid_namespace"].update(nspid=[4242, 2]), o["allocation_witness"].update(process_id=2))),
+        )
+        for consumer in ("python", "napi"):
+            nested = tmp / f"nested-pid-namespace-{consumer}"
+            shutil.copytree(valid, nested)
+            record_name = f"gpu-{consumer}-cuda-witness.json"
+            rewrite(nested / record_name, lambda o: o["pid_namespace"].update(nspid=[4242, 37, 1]))
+            reseal(nested, record_name)
+            nested_result = run(nested)
+            assert nested_result.returncode == 0, nested_result.stderr
+            for index, (label, mutation) in enumerate(namespace_mutations):
+                broken = tmp / f"namespace-{consumer}-{index}"
+                shutil.copytree(valid, broken)
+                rewrite(broken / record_name, mutation)
                 reseal(broken, record_name)
                 reject(broken, f"{consumer} {label}")
 

@@ -114,6 +114,8 @@ def gpu_observation(consumer: str) -> dict[str, object]:
     allocation_witness = json.loads(
         (Path(__file__).parent / "fixtures/tegra-gpu-witness/v2/global-free.json").read_bytes()
     )
+    # The container entrypoint execs the consumer as namespace PID1.
+    allocation_witness = dict(allocation_witness, process_id=1)
     return {
         "schema_version": "fathomdb.cuda-device-observation/v1",
         "consumer": consumer,
@@ -130,6 +132,7 @@ def gpu_observation(consumer: str) -> dict[str, object]:
         "nvidia_smi_uuid": uuid,
         "process_id": 4242,
         "nvidia_smi_compute_process_id": 4242,
+        "pid_namespace": {"source": "host_proc_status", "nspid": [4242, 1]},
         "process_name": "fixture-runtime",
         "allocation_witness": allocation_witness,
     }

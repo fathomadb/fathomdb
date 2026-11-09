@@ -22,7 +22,7 @@ conversion preserves distinct target and terminal-edge selectors and rejects
 incoherent resolved identity fields. It does not turn point resolution into
 ranked search or add a parallel graph API.
 
-All bindings apply the schema-36 fresh-database admission rule and map a
+All bindings apply the schema-37 fresh-database admission rule and map a
 noncurrent nonempty database to their typed incompatible-schema open error.
 `data-plane-integrity` remains CLI-only and is absent from governed Python and
 TypeScript surfaces.

@@ -597,3 +597,83 @@ step37 adds the coalescing column before replacing all57 visibility triggers, so
 earlier steps cannot reference an absent flag. Retain the read-only native
 SQLITE_DBCONFIG_ENABLE_TRIGGER admission check and established error/poison behavior
 for pre-disabled connections; remove the setters/toggling, not that check.
+
+## CI17: owned target paths and supported macOS ARM runners
+
+Final qualification found two harness defects, not product throughput failures.
+With the preserved cold-cache symlink and a fresh checkout-owned
+`CARGO_TARGET_DIR`, both security wrappers built `security_cycle` into the owned
+target but searched the old hardcoded `target/debug` path. Resolve the default,
+absolute or repository-relative Cargo target directory consistently and quote
+paths with spaces. Preserve syscall tracing, live namespace execution, missing
+binary failures, ptrace classification and strict exit policy. Do not copy an
+old executable into the expected path or change the preserved cold cache.
+
+The 20-case fake-CLI fixture executes the actual wrappers and proves executable
+selection/build behavior only. It is permanently registered in the
+existing fast tier; real strict AC036/037 checks remain required. No mocked
+application/database or fake security pass is introduced.
+
+GitHub rejected two ARM jobs before any step with configuration
+`macos-14-arm64-us-default` unsupported. Its [current hosted-runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+identifies `macos-15` as ARM64 and `macos-15-intel` separately as Intel. Replace
+only the six maintained ARM image labels and their current manifest/fixture
+expectations. Keep all five delivery targets, deployment floors, size budgets,
+architecture triples and published-package contracts unchanged. Retain the
+cancelled run's actual disposition; no cancelled job is a pass.
+
+Astra approved design and exact repair `c02990583a3c2106afc27205f78d0a966ae8c6bd`
+after RED `cb52bb9cd`. Separate focused verification confirms the 20 path cases,
+17 policy assertions, platform and native/type-export controls. Runtime/Cargo
+inputs and AC011 remain unchanged. Resume final local security/tests and fresh
+exact-candidate CI; do not collect another profile or repeat passing throughput
+for these harness-only changes. Final version preparation below allocates its
+separate final-artifact qualification.
+
+## Final version preparation under publication hold
+
+The later owner objective authorizes local completion of 0.8.28 except actual
+release. Astra reviewed mechanical Axis-W alignment through the existing setter,
+unchanged Axis E unless its drift guard requires otherwise, refreshed generated
+docs, and separate final artifact/consumer qualification. Preserve source-level
+regression results whose inputs are unchanged; rerun only failures and affected
+scopes. Qualify one final versioned AC011 pair rather than repeating diagnosis.
+
+TC5 configuration uses a finite package-version set only for release 0.8.28:
+historical 0.8.27 and final 0.8.28. Check string type before membership so malformed
+lists/dicts retain the typed configuration refusal. Other release mappings,
+artifact hashes, exact installed-distribution version and isolated runtime
+checks remain unchanged. The approved fixture amendment precedes the observed
+RED and frozen GREEN; independent verification covers all 22 parser cases.
+
+Local dry-run and corrected ordinary CI remain separate from the hosted trusted
+release rehearsal. The latter still requires main ancestry even though the
+lower nonpublishing gate exempts it. Main pushes can automatically deploy Pages;
+no main push, tag or registry/Pages publication is part of this preparation.
+Do not dispatch an expensive rehearsal that cannot satisfy its prerequisites.
+
+## CI18–19: final qualification corrections
+
+Astra approved two bounded corrections after the full collection. The physical
+transaction fixture lacked the newly required visibility state and never reached
+its first callback. Bootstrap the real current schema and prove callback entry,
+one inserted child, failed deferred COMMIT, zero retained children, autocommit
+and retry. Keep the production guard unchanged. Approved format37 test/inventory
+amendments preserve old/future/signed refusals and the fixed root-owner inventory.
+
+The idle worker can find the primary connection contended, then acquire it through
+`physical_metrics::writer`; its new admission SELECT dispatches a profile before
+the existing quiet debt check. Put only this initial writer acquisition inside
+`internal_debt_probe`. A deterministic contention/priority transition regression
+must first observe the extra profile and then pass unchanged with zero idle
+profiles and positive foreground dispatch. Finalizing acquisition, actual cleanup,
+errors, nested suppression and existing exact-profile controls stay intact.
+
+Package-evidence format expectations are separate from DB compatibility. Current
+wheel scripts must assert supported37 when refusing seen33. Candidate-manifest
+validation takes its existing assembly Axis W: .28 requires37; other historical
+axes retain the existing34 expectation. Frozen .26/Slice65 records stay unchanged.
+Astra approved this bounded special case rather than a new version-policy layer.
+Observe .28/37 positive and .28/34 negative REDs before GREEN; retain independent
+native-receipt, wheel-harness and unchanged Slice65 controls. Final installed .28
+wheel execution is required separately from the existing-native diagnostic RED.

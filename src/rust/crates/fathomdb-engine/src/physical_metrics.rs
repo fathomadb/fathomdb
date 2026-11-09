@@ -157,6 +157,7 @@ pub(crate) fn writer<'a>(
     let connection = connection.lock().map_err(|_| EngineError::Storage)?;
     drop(phase_wait);
     drop(waiting);
+    crate::frozen_read::require_clean_visibility(connection.as_ref().ok_or(EngineError::Closing)?)?;
     Ok(PhysicalWriter {
         _scope: scope(metrics),
         _phase: finalizing.then(|| metrics.timer("finalization_writer_hold")),

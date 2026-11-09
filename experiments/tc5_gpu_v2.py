@@ -217,10 +217,11 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
                 "historical TC-5 configuration cannot carry a candidate binding"
             )
     else:
-        expected_package = {
-            "0.8.25": "0.8.24",
-            "0.8.26": "0.8.26",
-            "0.8.28": "0.8.27",
+        # Retain .28's pre-cut evidence while admitting its final package.
+        expected_packages = {
+            "0.8.25": {"0.8.24"},
+            "0.8.26": {"0.8.26"},
+            "0.8.28": {"0.8.27", "0.8.28"},
         }[document["release"]]
         if (
             not isinstance(candidate, dict)
@@ -231,7 +232,8 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
                 character not in "0123456789abcdef" for character in candidate["sha"]
             )
             or candidate.get("version") != document["release"]
-            or candidate.get("package_version") != expected_package
+            or not isinstance(candidate.get("package_version"), str)
+            or candidate["package_version"] not in expected_packages
             or not all(
                 isinstance(candidate.get(key), str) and candidate[key]
                 for key in ("python_wheel", "benchmark_binary")

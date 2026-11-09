@@ -1641,6 +1641,7 @@ impl Engine {
             let tx = connection
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
                 .map_err(|_| EngineError::Storage)?;
+            crate::frozen_read::require_clean_visibility(&tx)?;
             dependency_closure::guard_no_pending_physical(&tx)?;
             let applied = apply_projection_config(&tx, specs, drop, dense_arm_live)?;
             if !applied.0.unchanged {
@@ -1914,6 +1915,8 @@ fn registry_governs_an_inert_dense_arm(conn: &Connection) -> rusqlite::Result<bo
 pub(crate) fn reconcile_inert_vector_enrolments_on_boot(
     conn: &Connection,
 ) -> rusqlite::Result<bool> {
+    let tx = crate::frozen_read::begin_visibility_writer(conn)?;
+    let conn = &tx;
     if !registry_governs_an_inert_dense_arm(conn)? {
         return Ok(false);
     }
@@ -1928,6 +1931,7 @@ pub(crate) fn reconcile_inert_vector_enrolments_on_boot(
         return Ok(false);
     }
     unenrol_registry_vector_node_kinds(conn)?;
+    tx.commit()?;
     Ok(true)
 }
 
@@ -2165,6 +2169,7 @@ pub(crate) fn boot_graft_declared_vector_backfill(
     }
     let tx =
         rusqlite::Transaction::new_unchecked(connection, rusqlite::TransactionBehavior::Immediate)?;
+    crate::frozen_read::require_clean_visibility(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let enqueued = enqueue_declared_vector_backfill(&tx)?;
     tx.commit()?;
     Ok(enqueued)
@@ -2272,6 +2277,8 @@ pub(crate) fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Resul
     }
     conn.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
+        crate::frozen_read::require_clean_visibility(conn)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
         for (name, stored) in &registry {
             clear_attribute_projection(conn, name)?;
             backfill_attribute(conn, name, stored)?;
@@ -2392,6 +2399,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         let changed = tx
             .execute(
                 "UPDATE _fathomdb_projection_registry SET vector_declared = 1 WHERE name = ?1",
@@ -2423,6 +2431,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         let changed = tx
             .execute(
                 "UPDATE _fathomdb_projection_registry \
@@ -2450,7 +2459,7 @@ mod span_erasure_tests {
         crate::register_sqlite_vec_extension();
         let mut connection = Connection::open_in_memory().unwrap();
         fathomdb_schema::migrate(&connection).unwrap();
-        ensure_vector_partition(&mut connection, 8).unwrap();
+        ensure_vector_partition(&connection, 8).unwrap();
         connection
             .execute("INSERT INTO _fathomdb_vector_spans VALUES(42,42,0,0,NULL,0)", [])
             .unwrap();
@@ -2469,6 +2478,8 @@ mod span_erasure_tests {
 pub(crate) fn reconcile_edge_history_on_boot(connection: &Connection) -> rusqlite::Result<bool> {
     connection.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
+        crate::frozen_read::require_clean_visibility(connection)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
         let now = crate::current_epoch_seconds();
         let rows = {
             let mut stmt = connection.prepare(

@@ -351,50 +351,76 @@ fn register_artifact_identity(
     Ok(())
 }
 
-/// Temporarily suppress schema triggers on the writer connection. External
-/// connections retain the schema-33 triggers, and `Drop` restores this
-/// connection during error unwinding before the transaction rolls back.
-pub(crate) struct TriggerStateGuard<'connection> {
-    connection: &'connection Connection,
+/// Own visibility coalescing inside an already-owned writer transaction.
+/// Transaction rollback is the only destructor cleanup: SQL here must never
+/// reopen a write after SQLite has automatically rolled the transaction back.
+pub(crate) struct VisibilityCoalescingGuard<'transaction, 'connection> {
+    transaction: &'transaction rusqlite::Transaction<'connection>,
     restored: bool,
 }
 
-impl<'connection> TriggerStateGuard<'connection> {
-    pub(crate) fn disable(connection: &'connection Connection) -> Result<Self, CommitBatchError> {
-        if !connection
+impl<'transaction, 'connection> VisibilityCoalescingGuard<'transaction, 'connection> {
+    pub(crate) fn arm(
+        transaction: &'transaction rusqlite::Transaction<'connection>,
+    ) -> Result<Self, CommitBatchError> {
+        if !transaction
             .db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER)
             .map_err(|_| CommitBatchError::WriterPoisoned)?
         {
             return Err(CommitBatchError::WriterPoisoned);
         }
-        let enabled = connection
-            .set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, false)
-            .map_err(|_| CommitBatchError::WriterPoisoned)?;
-        if enabled {
-            return Err(CommitBatchError::WriterPoisoned);
+        crate::frozen_read::require_clean_visibility(transaction)?;
+        if transaction.is_autocommit() {
+            return Err(rusqlite::Error::InvalidQuery.into());
         }
-        Ok(Self { connection, restored: false })
+        let changed = transaction.execute(
+            "UPDATE _fathomdb_read_visibility_state SET coalescing=1
+             WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0",
+            [],
+        )?;
+        if changed != 1 {
+            return Err(rusqlite::Error::InvalidQuery.into());
+        }
+        Ok(Self { transaction, restored: false })
     }
 
     pub(crate) fn restore(&mut self) -> Result<(), CommitBatchError> {
-        match self.connection.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, true) {
-            Ok(true) => {
-                self.restored = true;
-                Ok(())
-            }
-            _ => Err(CommitBatchError::WriterPoisoned),
+        if self.restored || self.transaction.is_autocommit() {
+            self.restored = true;
+            return Ok(());
         }
+        let flag = self
+            .transaction
+            .query_row(
+                "SELECT coalescing FROM _fathomdb_read_visibility_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|_| CommitBatchError::WriterPoisoned)?;
+        if flag == 1 {
+            let changed = self
+                .transaction
+                .execute(
+                    "UPDATE _fathomdb_read_visibility_state SET coalescing=0
+                 WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1",
+                    [],
+                )
+                .map_err(|_| CommitBatchError::WriterPoisoned)?;
+            if changed != 1 {
+                return Err(CommitBatchError::WriterPoisoned);
+            }
+        } else if flag != 0 {
+            return Err(CommitBatchError::WriterPoisoned);
+        }
+        self.restored = true;
+        Ok(())
     }
 }
 
-impl Drop for TriggerStateGuard<'_> {
+impl Drop for VisibilityCoalescingGuard<'_, '_> {
     fn drop(&mut self) {
-        if !self.restored {
-            self.restored = self
-                .connection
-                .set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, true)
-                .unwrap_or(false);
-        }
+        // The owned transaction rolls back on error; cleanup SQL could otherwise
+        // autocommit after SQLite has already performed RAISE(ROLLBACK).
     }
 }
 
@@ -518,14 +544,15 @@ fn commit_batch_transaction(
         )
     });
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    crate::frozen_read::require_clean_visibility(&tx)?;
     // Slice 71B: the standard canonical mutation closure contains only the
-    // visibility triggers. Suppress them on this connection, perform the same
+    // visibility triggers. Coalesce them in this transaction, perform the same
     // checked nonce-bearing invalidation once after all mutations succeed, then
-    // restore trigger execution before commit. An unexpected main or TEMP
+    // clear coalescing before commit. An unexpected main or TEMP
     // trigger selects the unchanged row-trigger path so application extensions
     // still observe every row.
     if canonical_batch && canonical_batch_has_no_custom_triggers(&tx)? {
-        let mut trigger_guard = TriggerStateGuard::disable(&tx)?;
+        let mut trigger_guard = VisibilityCoalescingGuard::arm(&tx)?;
         let attempted = apply_batch_in_transaction(
             &tx,
             batch,
@@ -585,8 +612,9 @@ pub(crate) fn advance_read_visibility(connection: &Connection) -> rusqlite::Resu
         .prepare_cached(
             "UPDATE _fathomdb_read_visibility_state
          SET generation=generation+1,
-             state_nonce=lower(hex(randomblob(32)))
-         WHERE singleton=1 AND generation<9223372036854775807",
+             state_nonce=lower(hex(randomblob(32))),coalescing=0
+         WHERE singleton=1 AND generation<9223372036854775807
+           AND typeof(coalescing)='integer' AND coalescing IN(0,1)",
         )?
         .execute([])?;
     if changed != 1 {
@@ -1105,4 +1133,24 @@ mod tests {
         assert_eq!(search.results.len(), 1);
         assert_eq!(search.results[0].body, "endpointindependent");
     }
+}
+
+#[cfg(test)]
+#[test]
+fn coalescing_refuses_pre_disabled_native_triggers_without_mutation() {
+    let dir = tempfile::tempdir().unwrap();
+    let opened = Engine::open(dir.path().join("native-disabled.sqlite")).unwrap();
+    let mut primary = opened.engine.connection.lock().unwrap();
+    let connection = primary.as_mut().unwrap();
+    connection.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, false).unwrap();
+    let tx =
+        connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).unwrap();
+    assert!(matches!(VisibilityCoalescingGuard::arm(&tx), Err(CommitBatchError::WriterPoisoned)));
+    assert_eq!(
+        tx.query_row("SELECT coalescing FROM _fathomdb_read_visibility_state", [], |row| row
+            .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    assert!(!tx.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER).unwrap());
 }

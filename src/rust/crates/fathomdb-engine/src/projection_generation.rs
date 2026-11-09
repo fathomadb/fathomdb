@@ -642,6 +642,14 @@ pub(crate) fn bootstrap(
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        // Only the private historical token fixtures bootstrap older layouts.
+        #[cfg(any(test, feature = "migration-test-hooks"))]
+        let historical_fixture = (32..37).contains(&schema_version);
+        #[cfg(not(any(test, feature = "migration-test-hooks")))]
+        let historical_fixture = false;
+        if !historical_fixture {
+            crate::frozen_read::require_clean_visibility(&tx)?;
+        }
         tx.execute(
             "INSERT INTO _fathomdb_projection_generations(\
                schema_version,generation_id,declaration_sha256,transition_boundary,role,origin\
@@ -1879,6 +1887,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         let generation = transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(generation)

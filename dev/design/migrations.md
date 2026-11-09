@@ -18,7 +18,7 @@ below as history; it is not current admission authority.
 The migration loop below is a locked historical implementation/design record.
 The 0.8.28 public runtime does not apply it to a nonempty earlier database.
 Public open accepts a missing/zero-length path and internally constructs the
-current schema at version 36; any nonempty database with another user version
+current schema at version 37; any nonempty database with another user version
 is refused before product mutation. There is no historical upgrade matrix,
 receipt conversion, or cross-version replay path.
 
@@ -26,6 +26,12 @@ Migration-step definitions and the accretion guard remain maintained developer
 contracts for schema authorship and fresh bootstrap construction. They do not
 override the public fresh-database admission rule in `design/engine.md` and the
 accepted 0.8.26 breaking-boundary ADR.
+
+Step37 adds the constrained `coalescing` column before replacing all57 visibility
+triggers. Historical step SQL generators remain unchanged; no earlier bootstrap
+step references the column. The [coalescing ADR](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+owns layout, manifest, rollback and admission semantics. Format36 nonempty files
+are refused before WAL/setup mutation; this step is fresh construction only.
 
 ## Ownership boundary
 

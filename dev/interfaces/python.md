@@ -17,9 +17,9 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
-`Engine.open` bootstraps a missing or zero-length path at schema 36. A
+`Engine.open` bootstraps a missing or zero-length path at schema 37. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 36; any other version raises
+`PRAGMA user_version` is exactly 37; any other version raises
 `IncompatibleSchemaVersionError` before product mutation. Python exposes no
 automatic-upgrade or custom-migration route.
 
@@ -1520,7 +1520,7 @@ Only mappings derived from the removed refused-open runtime state disappear.
 
 The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
 and [production design](../design/explicit-maintenance-erasure/production-design.md)
-own guarantees, scope, limits and recovery. Fresh format 36 requires valid persisted
+own guarantees, scope, limits and recovery. Fresh format 37 requires valid persisted
 policy metadata. Earlier formats are refused before mutation; no upgrade is offered.
 `EngineConfig.physical_erasure_policy` is `"autonomous"`, `"explicit_maintenance"`
 or `None` (honor persisted policy; new stores default Autonomous). A mismatch

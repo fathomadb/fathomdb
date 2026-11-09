@@ -466,7 +466,7 @@ jobs:
             target: x86_64-apple-darwin
             manylinux: "auto"
             interpreters: "python3.10 python3.11 python3.12"
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64-apple-darwin
             manylinux: "auto"
             interpreters: "python3.10 python3.11 python3.12"
@@ -530,7 +530,7 @@ jobs:
           - runner: macos-15-intel
             target: x86_64-apple-darwin
             label: darwin-x64
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64-apple-darwin
             label: darwin-arm64
           - runner: windows-latest
@@ -1370,7 +1370,7 @@ jobs:
           fi
 
   publish-npm-platform-darwin-arm64:
-    runs-on: macos-14
+    runs-on: macos-15
     if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.all-builds-passed.result == 'success' }}
     needs: all-builds-passed
     permissions:
@@ -1599,7 +1599,7 @@ jobs:
       - run: bash scripts/release/smoke/smoke-npm-package.sh "${{ steps.ver.outputs.version }}"
 
   post-publish-smoke-darwin-arm64:
-    runs-on: macos-14
+    runs-on: macos-15
     if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.wait-for-package-registry-visibility.result == 'success' }}
     needs: [wait-for-package-registry-visibility]
     steps:

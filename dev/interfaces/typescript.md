@@ -17,9 +17,9 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
-`Engine.open` bootstraps a missing or zero-length path at schema 36. A
+`Engine.open` bootstraps a missing or zero-length path at schema 37. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 36; any other version rejects with the typed
+`PRAGMA user_version` is exactly 37; any other version rejects with the typed
 `FDB_INCOMPATIBLE_SCHEMA_VERSION` envelope before product mutation. TypeScript
 exposes no automatic-upgrade or custom-migration route.
 
@@ -1470,7 +1470,7 @@ Only mappings derived from the removed refused-open runtime state disappear.
 
 The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
 and [production design](../design/explicit-maintenance-erasure/production-design.md)
-own guarantees, scope, limits and recovery. Fresh format 36 requires persisted
+own guarantees, scope, limits and recovery. Fresh format 37 requires persisted
 policy metadata; prior formats are refused before mutation with no upgrade.
 `EngineConfig.physicalErasurePolicy` is `"autonomous"` or `"explicit_maintenance"`;
 unset honors reopen policy and defaults fresh stores to Autonomous. Mismatch

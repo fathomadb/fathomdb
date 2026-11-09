@@ -1329,10 +1329,21 @@ impl Engine {
                 })?
         };
         let embedder_identity = stored_identity.as_ref().unwrap_or(embedder_identity);
-        let mut embedder_mean_vec_pinned = check_embedder_profile(&connection, embedder_identity)?;
-        ensure_vector_partition(&mut connection, embedder_identity.dimension).map_err(|_| {
-            EngineOpenError::Io { message: "could not initialize vector partition".to_string() }
-        })?;
+        let mut embedder_mean_vec_pinned = {
+            let tx = frozen_read::begin_visibility_writer(&connection).map_err(|_| {
+                EngineOpenError::Io {
+                    message: "could not admit vector storage initialization".into(),
+                }
+            })?;
+            let pinned = check_embedder_profile(&tx, embedder_identity)?;
+            ensure_vector_partition(&tx, embedder_identity.dimension).map_err(|_| {
+                EngineOpenError::Io { message: "could not initialize vector partition".to_string() }
+            })?;
+            tx.commit().map_err(|_| EngineOpenError::Io {
+                message: "could not commit vector storage initialization".into(),
+            })?;
+            pinned
+        };
         projection_generation::bootstrap(
             &mut connection,
             migration.schema_version_after,
@@ -1433,8 +1444,10 @@ impl Engine {
         // absent (no embedder). Runs on the writer connection, single-threaded,
         // before readers spawn — like the boot re-derive above.
         if !physical_debt {
-            let tx = connection.transaction().map_err(|_| EngineOpenError::Io {
-                message: "could not begin vector-attr reconcile on boot".to_string(),
+            let tx = frozen_read::begin_visibility_writer(&connection).map_err(|_| {
+                EngineOpenError::Io {
+                    message: "could not begin vector-attr reconcile on boot".to_string(),
+                }
             })?;
             reconcile_vector_attr_columns(&tx, embedder_identity.dimension).map_err(|_| {
                 EngineOpenError::Io {
@@ -1619,6 +1632,8 @@ fn edge_vector_prune_complete(connection: &Connection) -> rusqlite::Result<bool>
 fn prune_orphaned_edge_vectors(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
+        crate::frozen_read::require_clean_visibility(connection)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
         let sidecar: std::collections::HashSet<i64> = {
             let mut statement = connection.prepare("SELECT rowid FROM _fathomdb_vector_rows")?;
             let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;

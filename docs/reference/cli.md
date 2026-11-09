@@ -100,7 +100,7 @@ fathomdb --version
 ```
 
 During source qualification, use the [Rust install procedure](../install/rust.md).
-Public 0.8.28 opens require a fresh or already-current schema-36 database; an
+Public 0.8.28 opens require a fresh or already-current schema-37 database; an
 older non-empty database is rejected before product mutation.
 
 ### GPU and platform diagnostics

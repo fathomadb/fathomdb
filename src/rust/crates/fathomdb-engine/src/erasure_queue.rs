@@ -642,6 +642,7 @@ pub(crate) fn guard_plain(c: &Connection, batch: &[PreparedWrite]) -> Result<(),
     Ok(())
 }
 pub(crate) fn guard_admin(c: &Connection) -> Result<(), EngineError> {
+    crate::frozen_read::require_clean_visibility(c)?;
     validate_active(c)?;
     if !queued(c)?.is_empty() {
         return Err(error(MaintenanceError::QueuedScopeFenced));
@@ -665,6 +666,7 @@ impl Engine {
         }
         let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let c = guard.as_ref().ok_or(EngineError::Closing)?;
+        crate::frozen_read::require_clean_visibility(c)?;
         if let Some(result) = by_key(c, key, &selector)? {
             return Ok(result);
         }
@@ -700,6 +702,7 @@ impl Engine {
         let tx = c
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         let Some(mut request) = load(&tx, ticket)? else { return Ok(WithdrawResult::Unknown) };
         if request.status.phase == ErasurePhase::WithdrawnBeforeRemoval {
             return Ok(WithdrawResult::WithdrawnBeforeRemoval);
@@ -737,6 +740,7 @@ impl ErasureMaintenance {
             let tx = c
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
                 .map_err(|_| EngineError::Storage)?;
+            crate::frozen_read::require_clean_visibility(&tx)?;
             if let Some(result) = by_key(&tx, key, &selector)? {
                 return Ok(result);
             }
@@ -893,6 +897,7 @@ impl ErasureMaintenance {
             let fingerprint = telemetry::sink_fingerprint(&path)?;
             let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
             let c = guard.as_ref().ok_or(EngineError::Closing)?;
+            crate::frozen_read::require_clean_visibility(c)?;
             let mut request =
                 load(c, ticket)?.ok_or_else(|| error(MaintenanceError::UnknownTicket))?;
             if request.status.phase == ErasurePhase::Queued {
@@ -927,11 +932,15 @@ impl ErasureMaintenance {
                 .map_err(|_| error(MaintenanceError::MaintenanceBusy))?;
             {
                 let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
+                crate::frozen_read::require_clean_visibility(
+                    guard.as_ref().ok_or(EngineError::Closing)?,
+                )?;
                 validate_active(guard.as_ref().ok_or(EngineError::Closing)?)?;
             }
             let result = self.complete_ticket_inner(ticket);
             let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
             let c = guard.as_ref().ok_or(EngineError::Closing)?;
+            crate::frozen_read::require_clean_visibility(c)?;
             let active = match physical_erasure::active(c) {
                 Ok(active) => active,
                 Err(error) => {
@@ -987,6 +996,7 @@ impl ErasureMaintenance {
         {
             let guard = self.engine.connection.lock().map_err(|_| EngineError::Storage)?;
             let c = guard.as_ref().ok_or(EngineError::Closing)?;
+            crate::frozen_read::require_clean_visibility(c)?;
             let originals = if request.status.phase == ErasurePhase::Queued {
                 request.originals.extend(telemetry::registered_sinks(c)?);
                 request.originals.sort_unstable();

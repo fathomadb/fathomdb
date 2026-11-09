@@ -5,278 +5,141 @@ status: IN_PROGRESS
 
 # Slice 95 status
 
-**IN_PROGRESS. Publication held.** Latest clean candidate
-`10ca015034f6c55c5c2193a75e1eb4056d5bb948` measured **932.474344 commits/s** against
-the unchanged **1,000 minimum** (55,950 commits over 60.001650826 seconds).
-The canonical helper exited 101 before AC011b. Separate verification confirms
-source/binary/profile identity and applicable before/after/enclosing readiness.
-Previous valid non-passes were 999.651557/s and 827.267649/s; none is waived.
+**IN_PROGRESS. Publication held.** The reviewed format-37 runtime repair is
+integrated into `dev/0.8.28` at
+`6d580ec57692241c28a5113e374102cddc42e559`. The unchanged canonical AC011 helper
+passes both gates: **1 KB 1,315.423 commits/s** against 1,000 and **100 KB
+305.975 commits/s** against 100. Actual helper/time exits are 0; separate
+verification confirms source/executable identity and applicable before, after
+and enclosing host readiness. No threshold, workload, WAL/NORMAL setting or
+publication decision changed.
 
-Two narrow repairs are implemented with observed RED, frozen GREEN, Astra design
-and code approval and separate verification: lazy unused-endpoint preparation and
-compiled open-state statement reuse with fresh reads. Both are integrated into
-.28 and forwarded to .29. Their correctness is established; passing throughput
-is not. After these two repairs, stop further implementation or measurement for
-an explicit reviewed reassessment. Do not infer a causal speedup from separate
-qualification runs or weaken durability/thresholds. Final local code-phase gate
-and fresh exact-candidate hosted qualification remain pending.
+The complete [before/after history](qualification.md#ac011-before-and-after-the-repairs)
+retains the original 999.651557/s failure, then 827.267649/s after lazy edge-query
+preparation and 932.474344/s after compiled metadata-query reuse. Earlier 100 KB
+was 307.292/s; the two intermediate helpers stopped before that test. These are
+separate observations, not a paired causal speedup experiment.
 
-The [plan](plan.md), [design](design.md), [qualification matrix](qualification.md)
-and [source-bound evidence summary](qualification-evidence.json) record the
-scope, acceptance, identities and limitations. Slice 92's completed documentation
-baseline is consumed; later repair deltas have scoped documentation checks.
+## Implemented repair and documentation
 
-## Implemented and reviewed
+The [accepted technical ADR](../../../../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+records the measured automatic-reprepare mechanism, alternatives, exact 57-trigger
+manifest and admission inventory. Transaction-owned visibility coalescing replaces
+native trigger toggles. All outer writer families, boot effects and dispatcher
+cursor repair validate clean state while holding the SQLite writer lock.
+Generation/nonce publication and rollback remain atomic; authenticated vector
+cleanup stays active. Current-only admission advances to format 37 without a
+nonempty data migration. Maintained architecture, engine/bootstrap designs,
+interfaces, public compatibility and release notes describe the implementation.
 
-Astra approved design and code reviews for CI1–15. Observed RED/GREEN covers
-cold prerequisite setup, bounded parallel builds/cache behavior, installed
-modular TypeScript contracts, deterministic dependency/tool fixtures, retained
-failure diagnostics and manual qualification routing. Genuine hosted failures
-also exposed and repaired confirmed-debt service admission (CI8) and
-below-capacity Python subscriber delivery (CI12). Existing product thresholds,
-public APIs, queue capacity and actual saturation controls remain intact.
+Astra approved design and exact code at `6d580ec57`. The implementer passes
+Clippy/typecheck, 19 visibility units, four fallback units, eight historical-token
+controls, 127 tests across 13 integration targets, 10 schema tests and scoped
+documentation/state checks. Separate verification executes nine Cargo commands,
+all exit 0: 44 unit executions / 32 unique tests, 56 integration passes and three
+actuation passes, plus the store-format parent's deliberately invoked child.
+No vacuous selectors or failed tests were accepted.
 
-CI9/10 isolate foreground actors and disposable-repository disk fixtures.
-CI11 corrects stale feature expectations and retains complete compiler output.
-CI13 verifies actual provider-close deadline decisions; early-start and renewal
-mutations fail. CI14 proves nonempty concurrent lexical reads with successful
-advancing writes, propagates writer errors and rejects a stale-response-cursor
-mutation. These last two repairs change test instrumentation/fixtures only.
+Guard RED is `9bed85123`; boot RED is immutable intermediate `85fe1ba1a`;
+corrected dispatcher RED is `a2d352d0e`. Original dispatcher `637496211` and its
+first export/debug logs are **invalid/inconclusive fixture evidence**. The
+corrected fixture proves a real clean cursor rewind before its refusal oracle.
+New guard/admission/format tests remain frozen; original token fixture bytes and
+assertions remain unchanged. Historical format exceptions are narrowly compiled
+under test/migration-test-hooks; ordinary production and current-format
+admission stay strict.
 
-Separate verification confirms final code `3a05a45cb`: 10 close/provider
-controls, 1,000 cursor searches with 239 writes/238 during reads/999 advancing
-hits/zero violations, target accounting (356 targets/36 feature-only), generated
-contracts and 10 unchanged Python subscriber tests using a freshly verified
-native module. Earlier deterministic tests and mutation evidence remain retained.
+Raw implementation and separate-verification logs are copied into canonical
+`target/slice95-ac011-evidence/visibility-coalescing/` and
+`visibility-coalescing-verifier/`. The current passing executable is preserved
+by hash beside its qualifier logs. The broad local format-37 collection has now run; its nonzero result and focused
+follow-ups are recorded below. Hosted qualification remains pending.
 
-## Qualification and remaining requirements
+## Harness qualification follow-up
 
-| Requirement | Current evidence and disposition |
+Initial local attempt at `022341dbc` stopped before workspace Clippy/typecheck/tests on missing
+module classifications. Reviewed metadata-only `8798ba038` passes its exact
+boundary gate: 118 modules, 18 governed and 104 configurations. The resumed
+attempt passed lint/typecheck, then strict security reported 0 violations,
+2 blockers and 0 downgrades: the wrappers searched the hardcoded cache path rather
+than the owned Cargo target. Live namespace catch itself passed; application
+security is not claimed from that incomplete battery. No broad suites ran.
+
+CI run42542957407 on `8798ba038` rejected both macOS ARM image cells before steps.
+It was cancelled after preserving the failure annotations and actual results:
+22 successful, 11 cancelled and one skipped job. No overall CI pass is claimed.
+Reviewed harness repair `c02990583` resolves Cargo target paths and uses supported
+ARM runner images while keeping delivery/deployment/budget contracts unchanged.
+Its 20 path cases, policy/platform/native fixtures and permanent registration
+pass independently. The resumed clean collection passes real strict security
+with zero violations, blockers and downgrades; full qualification remains open.
+See the [bounded design](design.md#ci17-owned-target-paths-and-supported-macos-arm-runners).
+
+## Final qualification still required
+
+| Obligation | Current disposition |
 | --- | --- |
-| S95-1/2/3/9 CI coverage and robustness | Inventory and focused controls pass. Hosted cold setup reaches real tests; bounded parallel Rust evidence has zero failures and healthy measured headroom. Actual test results remain separate from advisory wrapper success. |
-| S95-4 installed consumers | Linux Python/Node examples, strict positive/negative TypeScript consumers, external Rust source archive and immutable CLI doctor pass. Candidate-bound Windows configuration supplements and the earlier five-platform collector pass on their recorded sources. All five prior-code native platforms and the collector pass; the CI16 repair requires fresh candidate CI. No registry-resolved .28 claim. |
-| S95-5 documentation | Slice 92 baseline retained; affected interface/generator/lifecycle/surface/feature/target checks pass. The classification correction passes the portable validator and 38 tests; scoped Markdown validation passes. No repeated full documentation audit. |
-| S95-6 broad and feature checks | One clean .28 canonical round passed 205/205 at `16234813c`, actual child exit 0; outer session 143 has unknown cause and is recorded separately. Later repairs have focused checks and fresh hosted verification. Feature assembly: 180 planned, 165 passed, 0 failed, 15 reviewed ignored. No uninterrupted full-local pass is claimed on the later source. |
-| S95-6 performance and reliability | **Current candidate AC011a FAIL at 932.474344/s, unwaived.** AC011b 307.292/s, AC012 1/3 ms, AC013 55/61 ms, seven AC081 hard limits, 60-second AC021 and AC073 stress 47 ms pass. Existing AC081 soft warnings remain. Diagnostic tracing is nonqualifying and establishes no cause. |
-| S95-6 accepted fidelity | Real TC5: 7,667 docs/100 queries/1,000 bootstrap, recall .958, CI [.938,.974], measured source `5f668f330`. Private vector-stage fidelity only; post-run database hash changed for unknown reason. EU7's retired recall assertion separately exits 101; its overall run is not called PASS. |
-| S95-7 hosted CI | Run 42005653176 on `3a05a45cb` is **not qualified**: fast lint rejects the missing TC5 classification, so 198 cheap suites did not run. All five native targets/collector, five size cells, parallel Rust, strict security, default-provider and distinct Windows WAL pass. Heavy also passes 7/7 in 1,503 seconds. Corrected records candidate `6479399fe` passes local fast 198/198, lint/type/security 0/0/0. Corrected-source hosted fast remains pending; no overall CI-green claim. Earlier failures and successful run 41971020280 retain their actual source attribution. |
-| S95-8 handoff | .29 has an uninterrupted 205/205 pass at `6674cf79d`, followed by reviewed forwards through `2803eb7f1` with affected native/logging/close/cursor checks passing. Reviewed metadata forward `d68de5db5` imports all nine final records exactly, with zero executable delta and passing scoped validators. All prior-phase task worktrees/branches were removed. Later records-only forwards preserve exact imported bytes and unchanged executable inputs. |
-| S95-10 evidence safety | Pinned tracked-source Gitleaks passes with zero leaks on `6479399fe`. Separate scan covers 1,466 retained files/224.6 MB, including the full diagnostic trace: one match is independently verified as a source-file digest. Actual scanner exit 1 and the finding are retained. A separate added/changed-evidence supplement scans 56 files/3.77 MB with zero findings/errors/drift; no suppression or relabeling of the original result. |
-| S95-12 confirmed-debt admission | Astra-approved CI8 RED/GREEN and independent 27 real-DB controls pass; the original hosted failures pass unchanged. Genuine competing-service refusal and true-debt progress are preserved. |
-| S95-13 subscriber admission | Astra-approved CI12 deterministic native RED/GREEN, 36 PyO3 units, fresh shipping-wheel 10/10 subscriber tests and five examples pass. Final-code Python CI and affected feature/native refresh pass; capacity 4096 and full-only loss remain. |
-| S95-11 rehearsal | Local preflight records .28 target versus unbumped .27 manifests. Immutable release dry-run remains pending version/Axis E/trusted workflow preparation. Its existing main-ancestry exemption is preserved. No version cut, main merge, tag, registry/Pages publication or release dispatch occurred. |
+| Full local and feature/security gates | Clean `ff253a0a0` collection: 206 ran / 202 passed / four failed; lint, typecheck and real strict security passed. Rust originally failed seven targets; corpus_graph now passes its unchanged 1/1 recheck after verified input staging. Six targets still require focused diagnosis; root inventory is stale. Generated contributor map refreshed; Pages-site 20/20 and retention 45/45 resumed passes. Feature qualification still pending. Prior format-36 source `16234813c` passed 205/205 with actual child 0; outer 143 had unknown cause. Earlier feature assembly was 180 planned / 165 pass / 15 reviewed ignored. These are historical results, not format-37 qualification. |
+| Other performance/reliability | Refresh AC012/013/081, long AC021 and advancing-cursor checks on fresh candidate databases. Earlier limits passed with the recorded AC081 soft warnings. The 6d source pass remains retained; no same-binary retry is planned. One final version-aligned canonical pair is allocated for the final artifacts. |
+| Native platforms and consumers | Refresh the five supported CPU wheel/addon receipts, collector, separate Windows WAL proof and external Rust source-archive consumer against this candidate. No registry-resolved .28 claim. |
+| Accepted fidelity | Rebuild candidate CUDA wheel/CLI/private benchmark and run the unchanged TC5 bridge on a fresh format-37 database. Frozen corpus/model inputs remain. Earlier source `5f668f330` measured recall .958, CI [.938,.974]; it is historical private vector-stage evidence, with the recorded post-run database-hash caveat. |
+| Hosted CI | Fresh exact-candidate dispatch pending. Prior run 42005653176 on `3a05a45cb` failed only fast classification lint before its 198 suites; all five native/collector, heavy 7/7, race/security/default-provider and Windows WAL jobs passed on that older source. Classification correction `af7e570ff` and local fast 198/198 passed; no current overall CI-green claim. |
+| Documentation and evidence | Slice 92 baseline consumed; format-37 design/interface/public-document deltas have scoped checks. Current decision/rationale and full measurement history are committed and reviewed. Source and retained generated-evidence scans remain distinct. |
+| .29 handover and cleanup | Prior repairs/tools are forwarded through `c25d045cf`. Forward this reviewed runtime and final records, run scoped consumer checks, then remove the clean merged task worktree/branch after preserving logs. |
+| Nonpublishing rehearsal | Owner authorizes local .28 version preparation; Axis-W setter/lockstep checks pass at .28. Axis E stays 0.8.0 with its existing not-yet-on-registry/publish-time compiled-check disposition; final artifacts remain pending. Hosted trusted route still requires main ancestry, while main pushes can deploy Pages. Keep that prerequisite and publication held. No main merge, tag, registry/Pages publication or release dispatch occurred. |
 
-## Current follow-up and cleanup
+CI1–15 engineering is already implemented and reviewed: cold prerequisite setup,
+bounded parallel builds/cache and diagnostics, installed modular TypeScript
+contracts, confirmed-debt service admission, below-capacity subscriber delivery,
+provider-close sensitivity and positive advancing-cursor proof. Their historical
+qualification remains source-attributed in [qualification-evidence.json](qualification-evidence.json).
+No unrelated erasure optimization or new test framework is allocated.
 
-Astra approved a narrow retrospective TC5 classification: preserve immutable
-record/config/metrics/index bytes, add a data-plane plan/sidecar and the existing
-exact-run/hash-bound plan and missing-kind artifact amendments. No preregistration,
-public-search witness or new exemption is invented. Correction `af7e570ff` has
-Astra design/code approval, 38 passing classification tests and independent
-portable validation with all immutable bytes preserved. Clean `6479399fe` passes the affected local fast collection (198/198),
-with live security 0/0/0. Retain explicit unchanged-input reuse for executable
-evidence; hosted fast refresh remains pending until the final acceptance
-candidate is settled. Do not add a new workflow or replay the full native matrix
-solely for these records-only changes.
+## Investigation, contract limits and retained resources
 
-All worktrees/branches from CI1–15 were removed after clean/merged checks.
-The standing Windows VM is restored off with byte-identical original persistent
-configuration, original runner hash/service/policies unchanged, and task runner
-registrations, folder and disposable disk removed. Exactly 13 matching staged
-corpus files and the task-only feature target are removed; source corpus and
-shared/user caches remain intact.
+Offline profile recovery is complete and independently verified. The unchanged
+recording resolves 3,254/3,284 foreground leaves (99.0865%); 858 samples are
+SQLite automatic reprepare. Native DWARF recovery and independent Samply/Framehop
+corroboration retain the eight explicit chain differences and incomplete-unwind
+limitations. Diagnostic rates never qualify AC011. Original and failed exports
+remain retained; no further capture was made.
 
-The previous phase preserved the checkout-owned debug cache on external cold
-storage. On 2026-11-07 that volume is unmounted, leaving the original debug-cache
-symlink unresolved; its contents are not freshly inspected. Do not discard data
-or change the mount. Current verification will use a fresh checkout-owned Cargo
-target directory. Prior cleanup/relocation claims describe their recorded phase.
+The accepted durability ADR's WAL/NORMAL, zero-OS-crash-loss and 100 ms power-loss
+wording has an unresolved contract/evidence discrepancy. No successor policy,
+waiver or new owner ruling was selected. The earlier policy-choice question was
+withdrawn as a prerequisite for this policy-neutral repair; it is not an open
+permission request to proceed with profiling or SQL work. Do not call process-kill
+proof a machine-crash/power-cut guarantee.
 
-CI16 records the authorized continuation: at most two diagnostic runs, followed
-by review of an evidenced mechanism and focused TDD before any production repair.
-Diagnostic runs cannot qualify throughput; no infrastructure or acceptance knob
-is changed. The replacement continuation worktree and branch are now removed after verified
-integration into both .28 and .29. Prior cleanup records remain accurate
-for the completed phase.
+The canonical checkout's original `target/debug` symlink points at unmounted cold
+storage. Do not discard it or change the mount; use a fresh checkout-owned target
+for final verification. The standing Windows VM was observed off for AC011; its
+original persistent configuration and runner remain preserved. Prior CI1–15 task
+worktrees/branches, disposable VM resources and staged corpus copies were cleaned.
+Current runtime task resources remain until verified handover/cleanup.
 
-D28-09/10/11 and populated-open deferrals remain. Slice 95 cannot close while the
-required AC011a non-pass lacks a pass or explicit owner-authorized disposition.
-Publication authorization remains separate and held.
+D28-09/10/11 and populated-open deferrals remain unchanged. Slice 95 stays open
+until required final qualification and cleanup are complete. Publication remains
+a separate owner decision and is held.
 
-## Diagnostic continuation on 2026-11-07
+## Current focused follow-up
 
-The historical Phase 1 result was 68,998 commits at a rounded 1,149.955/s.
-Commit processing and the transaction body
-were the largest observed phases; measured lock waits were small in that run.
-The original temporary probe files and raw logs are no longer available, so that
-summary is a historical transcription, not a fresh independently verified result.
-Its instrumented rate does not qualify AC011a or explain the earlier miss.
+Actual local full exit is 1 (`target/slice95-final-format37/local-verify-ff253.log`),
+not an uninterrupted pass. The seven Rust targets cover schema refusal/format
+expectations, physical transaction retryability, corpus graph and profiling
+counts. Corpus_graph now passes its unchanged 1/1 rerun after verified input staging; six original targets remain. Diagnose before changing assertions. The two Pages failures share the
+stale generated contributor-map hash and now pass their affected reruns. Verified
+corpus copies are staged for the existing local corpus route, with acquisition
+limitations unchanged. TC5 inputs are independently verified; parser final-version
+support has Astra approval and 22/22 independent passes and is integrated at `48345c193`; its canonical recheck also passes 22/22.
+Mechanical local Axis W is now 0.8.28; lockstep checks and the unchanged Axis-E
+0.8.0 guard pass. No artifact or release-workflow pass follows from that metadata.
+No new Actions run has been dispatched while local qualification is incomplete.
 
-The next bounded diagnostic uses 1,000 unchanged node writes to count/time the
-exact unused edge-endpoint statement preparation and distinguish execution from
-preparation/repreparation. The probe must be committed, rerunnable and indexed;
-new raw output uses persistent ignored storage. A fresh isolated worktree at
-`/home/coreyt/projects/fathomdb-worktrees/slice95-ac011-repair` replaces the missing
-temporary worktree. Review an evidenced minimal repair and deterministic RED
-before implementation; then use unchanged AC011a/b acceptance. Publication held.
-
-Phase 2 independently confirmed 1,000 successful writes/rows and 1,000 initial
-endpoint-query preparations with zero executions or automatic repreparations.
-Astra approved lazy preparation on the first effective Edge and the scoped
-real-SQLite RED design. Uninstrumented source was restored before production TDD. The Node-only test
-failed on forbidden SQLite access at RED `592b64510`, then passed unchanged at
-GREEN `ec7b7f014`. The implementation prepares only on the first effective Edge.
-Astra code review found no material defect; 36 scoped controls and Clippy pass.
-A separate verifier reran the new unit and all eight dangling-edge tests, and
-confirmed the canonical qualifier remains byte-identical. This establishes avoidable work, not the cause of the old miss
-or a throughput acceptance pass.
-
-The [retained SQL probe](../../../../experiments/ac011-endpoint-prepare/README.md)
-is committed and rerunnable. No diagnostic output is throughput acceptance. The
-next steps are unchanged AC011a/b on the clean reviewed candidate, one final
-canonical code-phase gate and fresh hosted CI, followed by the .29 forward and
-cleanup. No new feature, durability setting or publication permission is involved.
-
-The unchanged canonical qualification on `13c6470b5` failed AC011a at 827.268/s;
-no source, binary or release-profile mismatch was found. Existing before/after
-readiness checks remain applicable (no recorded competing workload or swap).
-Whole-job CPU use was about 61%; that suggests waiting but does not identify its
-cause. No rerun into green occurred, and AC011b was not reached.
-
-Astra reassessed the diagnostic budget and approved one further release-mode
-foreground wall/thread-CPU attribution run. It preserves the 5s/60s workload and
-all guards, worker, trigger, synchronization and checkpoint behavior. Investigate
-a wait stage only if it explains at least half the foreground non-CPU time and
-at least 10% of write wall time; otherwise report an inconclusive result.
-Production changes and additional runs require review of that evidence.
-
-The release wall/thread-CPU diagnostic completed with matching success/stage
-counts. Its signed non-CPU residual was -397.121ms, so the preregistered verdict
-remains inconclusive. Review found nested wall/CPU clock boundaries can produce
-that residual; the result is not silently corrected. Conservative analysis makes
-the commit span a strong read-only lead, not proof of a SQLite or fsync cause.
-The instrumented 1,011.349/s rate is not acceptance. Active instrumentation is
-removed, and the retained tool remains rerunnable.
-
-Source review confirms SQLite's default 1,000-frame auto-checkpoint can execute
-synchronously from COMMIT under NORMAL mode. Astra approved one bounded
-fsync/fdatasync-only trace of the unchanged canonical binary, with seccomp filtering,
-120s watchdog and 32MiB raw-output cap. Whole-test foreground DB/WAL sync spans
->=5s justify only further read-only checkpoint/storage investigation. Startup,
-warmup and teardown remain included; no measured-window percentage or policy
-change is inferred. The tracer capability preflight passed.
-
-The bounded sync trace independently verified 19.537003s of whole-test foreground
-DB/WAL sync spans (2,282 DB and 4,562 WAL calls), with no syscall error, missing
-identity, cap hit, timeout or fallback warning. This meets only the reviewed
-read-only follow-up criterion; traced throughput is not acceptance. Source review
-found normal checkpoint/restart synchronization, not a removable duplicate sync.
-
-**Durability discrepancy identified; no policy choice is required for profiling.** The accepted
-[durability ADR](../../../../adr/ADR-0.6.0-durability-fsync-policy.md) requires
-NORMAL, <=100ms final-commit loss on power cut and zero OS-crash commit loss.
-Frame-only checkpointing does not establish the time bound during low/idle
-traffic. The process-kill fixture preserves host caches, and the separate
-OS-crash test remains explicitly ignored for a missing VM fixture. These are
-contract/evidence gaps, not permission to enlarge the checkpoint window. No
-existing ruling waiving these durability promises was found in the live state
-or ledger review.
-
-The owner has been asked to select an explicitly reviewed durability direction:
-preserve the strongest acknowledgement guarantees with suitable synchronization
-and qualification, or explicitly adopt NORMAL with bounded loss for machine
-failures and implement/validate its cadence. The 1,000/s threshold and publication
-hold remain unchanged in either direction. No answer, waiver, checkpoint or
-synchronization change is inferred. The current reviewed SQL repair and retained
-tools may be integrated independently; policy changes and final acceptance wait.
-
-The reviewed repair, diagnostic tools and current records are merged into .29 at
-`6f67219e7d70286f5a073b5651663734efd1d8a9`. Separate verification passes the Node
-unit (1), dangling-edge suite (8) and release-state views, with a clean tree and
-unchanged canonical performance tests. The replacement task worktree and branch
-are removed; raw evidence remains in the canonical .28 checkout. Integration is
-complete for this repair; throughput acceptance and final qualification remain open.
-
-## Metadata read repair and current reassessment
-
-Astra approved statement-only reuse in `physical_erasure::load<T>` under the
-existing S95-6 performance requirement. RED `f718be50bc7df9b875236bed208a700107ad47b4`
-failed all three real-SQLite compilation assertions; GREEN
-`10ca015034f6c55c5c2193a75e1eb4056d5bb948` passes those tests unchanged. Current
-UPDATE/DELETE values, corrupt JSON, invalid typed state, missing-table recovery,
-actual trigger off/on invalidation and stable-state reuse are covered. Every
-existing read and fence, SQL/key, error mapping and durability setting remains.
-
-Astra code review approved the exact clean GREEN commit. Separate verification
-passes 14 scoped controls, including all three new regressions, erasure units,
-rollback/visibility and queue/physical-fence cases; scoped Clippy passes. Raw logs
-are preserved under canonical `target/slice95-ac011-evidence/metadata-reuse/`.
-
-One unchanged canonical qualification on that clean commit then failed at
-932.474344/s. Its exact counts, binary, source bundle, optimized profile, actual
-exit and applicable readiness were independently recomputed. AC011b was not
-reached. This is not acceptance or proof of causal improvement over 827.268/s.
-The two-repair retry boundary now requires source/evidence/design reassessment
-before any further implementation or measurement. Existing policy remains in
-force; the pending durability question does not block policy-neutral work.
-
-The metadata repair is independently verified on .29 merge
-`b56083f16eeae80cbeef79dfef21cda55d5d429c`: identical incoming loader source,
-14 focused controls passing, clean tree and unchanged qualifier. Its task
-worktree and merged branch are removed, with all raw task logs preserved first.
-
-Astra's read-only reassessment does not justify a third micro-repair. Trigger
-configuration invalidates SQLite prepared statements, including FTS5 internals;
-required dual-index commit flushing/merging is another plausible CPU cost.
-Neither is quantified by the current sync trace. Astra proposed one bounded
-user-CPU sampling investigation of the exact failed binary, preserving launch
-session/autogroup and the unchanged workload; it is not acceptance. Its permission
-preflight (`perf 7.0.14`, `perf_event_paranoid=4`) failed: no supported events and
-performance-monitoring access denied. No benchmark profile ran or kernel setting
-changed. A session question now asks the owner to authorize narrowly scoped
-privileged profiling or choose a separately reviewed instrumentation design.
-Until resolved, do not bypass permissions or start a fallback/profile/repair.
-
-On 2026-11-08 the owner authorized elevated CPU profiling and requested the
-literal durability-ADR basis. The current ADR explicitly specifies WAL/NORMAL,
-zero OS-crash commit loss and at most100ms power-cut loss; no contract decision
-or policy change was made. The earlier policy question was premature for CPU
-diagnosis. `sudo -n` required a password, but the normal desktop `pkexec perf stat`
-authentication preflight succeeded. Astra approved a stopped normal-user launcher
-plus privileged, bounded perf attach; tool implementation/review precedes the
-single profile. Publication and the unchanged throughput non-pass remain held.
-
-## Offline profile recovery complete on 2026-11-08
-
-The retained capture completed with collector0, normal UID/session/autogroup,
-no cap/timeout/loss warning and benchmark101 (diagnostic987.714/s). Its original
-68.8% leaf result was an export/unwind failure. Raw-IP export preserves every
-sample and resolves3254/3284 foreground leaves (99.0865%). ELF, captured stack
-bytes and CFI reproduce a one-page module-bias defect. Bias correction alone
-failed because perf re-registers the corrected module inside its active unwind;
-GDB records that transition. The reviewed process-local native-module reuse
-correction restores callers without changing the recording or executable.
-
-Astra approved exact scoped corrector `ca3d814be`; separate verification passes
-both ABI fixtures and confirms identical3285 sample identities/IPs. Compilation
-is1609/3284 foreground user-CPU samples (48.995%); guards690 (21.011%); both meet
-the unchanged investigation criteria. Of compilation samples,858 are automatic
-reprepare and751 initial compilation. These are whole-test CPU samples, not
-measured-window latency or an acceptance result.
-
-Following the owner's requested web search, pinned Samply0.13.1 independently
-imports a standard perf file copy using Framehop. Plain perf inject preserves
-all3285 complete raw sample records byte-for-byte, including registers/stacks.
-Samply retains all3284 foreground rows plus one worker;3277 address chains match
-after accounting only for duplicate-PC inline aliases. Seven chains differ by
-outer-tail length and one diverges after a PLT leaf. These eight differences,
-Samply's missing-architecture-header warning and its hidden truncation-marker
-limitation remain explicit; no complete-unwind claim is made. Representative
-recovered callers match actual captured bytes and CFI in both decoders.
-
-The original inconclusive exports and first failed correction are retained.
-No new capture, benchmark, engine, durability setting or threshold changed.
-The valid canonical932.474344/s failure remains unwaived. Next is a reviewed
-format37 transactional visibility-coalescing repair that avoids global statement
-invalidation while preserving existing visibility, fallback, rollback and cleanup
-contracts; implementation and final qualification remain pending.
+Astra approved focused CI18–19 corrections: real current-schema rollback fixture,
+format37 refusal expectations and quiet idle-probe admission. The latter has an
+observed contention RED and reviewed GREEN; remaining targeted verification is
+pending. Current wheel evidence also has a reproduced stale supported34 assertion;
+its bounded format37 producer/verifier and .28-aware manifest correction is planned
+without changing historical .26 receipts. Local versioned release preflight at
+`48345c193` passes; full local rehearsal and final artifact qualification remain.

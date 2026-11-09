@@ -40,7 +40,9 @@ implementation and qualification are complete at `a2fb4a647`; see the
 
 ## Format and policy
 
-Fresh stores use format 36 with additive fresh-schema queue/receipt tables.
+Slice85 introduced format36 with additive fresh-schema queue/receipt tables.
+The [format37 successor](../../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+retains that layout and contract while adding transaction-owned visibility coalescing.
 Current-only admission refuses 35 before opening a mutating connection; no
 production upgrade route is added. Migration-test hooks remain test-only.
 Policy metadata is required even for Autonomous, has exact supported version and

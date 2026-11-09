@@ -73,7 +73,8 @@ before mutation. Reopen cannot silently re-enable background cleanup.
 
 **Old-binary safety is a release prerequisite.** Pre-Slice-85 format-35 binaries do
 not know these queue/fence rules. A policy key alone is unsafe. The concrete
-implementation uses fresh-store format 36, so earlier binaries refuse the
+implementation introduced fresh-store format36; the current format37 successor
+retains this contract and adds transactional visibility coalescing, so earlier binaries refuse the
 new file before mutation. The feature release
 refuses prior-format files; no data migration, metadata-only opt-in of existing
 files or dual-format compatibility shim is included. Autonomous and explicit

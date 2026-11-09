@@ -1996,6 +1996,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         dependency_closure::guard_no_pending_physical(&tx)?;
         if let Some(receipt) = load_receipt(&tx, &request.operation_id, digest, Some(request))? {
             tx.commit().map_err(|_| EngineError::Storage)?;

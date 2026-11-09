@@ -192,6 +192,12 @@ Astra-medium implementation review gates landing; publication is not authorized.
 | - | -------- | ------------------ | ------------ | -------- |
 | 66 | interface | Add a FathomDB-authored hints sidecar of suggested next calls: a pure engine subset (`no_results`, `degraded`, `more_results`) plus the MCP adapter wire type and adapter-only reasons; data-free trust rule; MCP on by default, SDK off until the 0.8.29 tests decide; hints share the response budget | accepted by repository-owner 2026-10-18 (hints-sidecar design § 10) | ADR-0.8.29-agent-hints-sidecar.md |
 
+## Phase 0.8.28 visibility coalescing
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 70 | architecture | Transaction-owned visibility coalescing, constrained format37 marker and unchanged external invalidation/mapping cleanup | Accepted technical successor under committed Slice95 requirements; Astra design/code approval and independent verification at6d580ec57; no new HITL ruling declared | [ADR-0.8.28-transactional-visibility-coalescing.md](ADR-0.8.28-transactional-visibility-coalescing.md) |
+
 ## Categories
 
 acceptance | architecture | design | interface.

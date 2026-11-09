@@ -146,6 +146,7 @@ run_tier_suite fast test-check-design-lifecycle bash scripts/tests/test_check_de
 run_tier_suite fast test-slice70-embedding-docs-contract bash scripts/tests/test_slice70_embedding_docs_contract.sh
 run_tier_suite fast test-slice70-cli-artifact-design bash scripts/tests/test_slice70_cli_artifact_design.sh
 run_tier_suite fast test-ac036-ptrace-blocker bash scripts/tests/test_ac036_ptrace_blocker.sh
+run_tier_suite fast test-security-cycle-target-dir bash scripts/tests/test_security_cycle_target_dir.sh
 run_tier_suite fast test-agent-verify-markdown-scope bash scripts/tests/test_agent_verify_markdown_scope.sh
 
 # The partition gate itself is intentionally early: if a registration is

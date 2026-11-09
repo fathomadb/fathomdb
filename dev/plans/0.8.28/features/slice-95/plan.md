@@ -268,12 +268,15 @@ validator, scheduler or general test framework.
 
 Use the existing [AC-037 live runbook](../../../../release/ac-037-live-netns-hitl-runbook.md)
 and [current-owner authority catalog](../../../../design/current-owner-authority.json).
-The non-publishing rehearsal is planned here, but neither this amendment nor a
-green CI run authorizes a version cut or main integration. Immutable
-nonpublishing dispatch already has the documented ancestry exemption; its
-version/Axis E and trusted workflow entry checks still apply. Prepare concrete inputs and retain a named pending prerequisite
-until that authority exists. Report CI repair, candidate qualification and
-pre-tag rehearsal readiness distinctly; none authorizes publication.
+The owner subsequently directed completion of 0.8.28 except actual release.
+This authorizes mechanical Axis-W 0.8.28 alignment and local nonpublishing
+preparation. Preserve Axis E unless its existing drift guard requires a change.
+The lower release gate exempts immutable nonpublishing candidates from main
+ancestry, but the hosted trusted workflow still requires origin/main ancestry.
+Main pushes can also deploy Pages automatically. Keep main integration and hosted
+rehearsal pending that publication-coupled prerequisite; do not bypass either
+check. Report ordinary CI, local rehearsal and hosted rehearsal separately.
+No tag, registry or Pages publication is authorized.
 
 At execution, bind each row to its actual required scope, executor, inputs,
 command, acceptance and available evidence before costly work. This is the
@@ -300,9 +303,10 @@ unchanged; code or gate-input fixes invalidate only affected evidence.
 
 Write [status](status.md), update the release state and regenerate views. Keep
 status concise with exact commands/evidence locators and outstanding blockers.
-Physical erasure is complete except for defects. No version cut, v* tag, registry
-or Pages publication, main merge, paid/GPU campaign beyond existing authorization,
-or post-publication smoke is authorized by creating Slice 95. Publication and its
+Physical erasure is complete except for defects. The later owner objective
+authorizes local version preparation; creating Slice 95 alone did not. No v* tag,
+registry or Pages publication, main merge, paid/GPU campaign beyond existing
+authorization, or post-publication smoke is authorized here. Publication and its
 registry-installed end-to-end proof follow the separate owner ruling and release
 runbook; do not import historical oracle-retirement work already completed.
 
@@ -505,3 +509,103 @@ step37 adds the coalescing column before replacing all57 visibility triggers, so
 earlier steps cannot reference an absent flag. Retain the read-only native
 SQLITE_DBCONFIG_ENABLE_TRIGGER admission check and established error/poison behavior
 for pre-disabled connections; remove the setters/toggling, not that check.
+
+### Reviewed implementation and qualification on 2026-11-08
+
+The transactional repair is implemented at `6d580ec57692241c28a5113e374102cddc42e559`
+with Astra design/code approval and separate focused verification. Review closed
+boot and dispatcher writer-admission gaps; retained normative token fixtures use
+only the reviewed test-private historical seam. The unchanged canonical AC011a/b
+helper passes at 1,315.423/s and 305.975/s with valid readiness and helper exit 0.
+The [full before/after table](qualification.md#ac011-before-and-after-the-repairs)
+retains every earlier failure and source; no causal percentage gain is inferred.
+
+Finish one clean local/feature/security round, refresh the format-bound native,
+consumer, other performance/reliability and TC5 fidelity evidence, and obtain
+exact-candidate hosted CI before closure. Forward the final runtime/records to
+.29 and clean task resources. The later owner objective authorizes local version
+preparation under S95-11; trusted hosted workflow/main prerequisites remain
+separate and publication stays held. Keep the architectural decision and as-built owner docs
+current, including its alternatives, writer-lock admission, fresh bootstrap,
+external SQL, rollback and test-private boundaries.
+
+### CI17 qualification findings and bounded correction
+
+Changes since the reviewed runtime plan: first local attempt stopped at missing
+new-test module metadata; the four-line reviewed policy correction is `8798ba038`.
+The next attempt passed lint/typecheck but stopped at two missing-executable
+security blockers caused by hardcoded target paths; no broad test suites ran.
+Hosted run42542957407 then rejected both ARM image cells before steps. The run
+was stopped to avoid continuing a qualification that could not complete: final
+22 successful, 11 cancelled and one skipped job; it is not qualified.
+
+Existing S95-1/2/6/7/9 acceptance allocates only the required harness corrections:
+resolve actual default/relative/absolute/spaced Cargo target paths while preserving
+strict security behavior, and use supported macOS ARM images without changing
+any delivery target, deployment floor or budget. The [CI17 design](design.md#ci17-owned-target-paths-and-supported-macos-arm-runners)
+records alternatives and boundaries. Observed RED `cb52bb9cd`, frozen GREEN
+`c02990583` and Astra/independent checks precede integration. The existing fast
+registration now totals206 labels (199 fast, seven heavy); these are registrations,
+not completed broad results. Real strict security, broad tests and corrected
+exact-candidate CI remain required. These harness-only changes do not warrant
+repeating AC011; later final version preparation allocates its own artifact check.
+
+### Final version preparation and resumed qualification
+
+Changes since CI17: the owner requested completion of 0.8.28 except actual
+release and frugal Actions use. The clean local collection at `ff253a0a0` ran
+206/206 suites: 202 passed, four failed. Lint, typecheck and strict security
+passed with zero violations, blockers or downgrades. Preserve that nonzero
+result; the seven failing Rust targets, root inventory and generated-doc
+failures receive focused diagnosis and only affected reruns. Restored verified
+local corpus copies support the existing corpus route; the recorded acquisition
+limitations remain, and TC5 retains its separately pinned input pack.
+
+Astra reviewed the bounded preparation plan: use `set-version.sh --workspace
+0.8.28`, validate lockstep and the existing Axis-E guard, and refresh derived
+docs. Mechanical version alignment is the TDD exception. Existing source-level
+regression evidence can be reused explicitly where executable inputs are
+unchanged; final versioned artifacts, consumers and one final canonical AC011
+pair require fresh execution. No new profiling, protocol, dataset or threshold
+change is allocated. Run the corrected exact-candidate hosted CI once after local
+qualification and final artifact preparation; do not dispatch it while debugging.
+
+TC5 release 0.8.28 configuration accepts exactly historical package 0.8.27 and
+final package 0.8.28, preserving all other release mappings and exact artifact,
+installed-version and isolated-interpreter checks. The obsolete 0.8.28 rejection
+fixture is explicitly replaced before RED freeze; retain historical success,
+reject 0.8.26/0.8.29 and malformed non-string values. Observed RED `b04c8268b`
+preceded frozen GREEN `1bfabf2b2`; Astra approved code and a separate verifier
+passed all 22 parser tests. This is parser readiness, not final fidelity proof.
+
+### CI18–19: focused final qualification corrections
+
+Astra reviewed the seven original Rust-target failures. Restoring verified raw
+inputs resolves corpus_graph without a source change. Current-format oracles
+must explicitly align to the accepted 37 boundary: retain old 32/34/36, future38
+and negative signed CLI refusals; preserve the binding seen33/error/immutability
+checks while updating supported37; retain policy and root-owner assertions.
+The physical transaction fixture must bootstrap a real current database, enter
+its callback and insert a deferred-invalid child before testing actual failed
+COMMIT, rollback to zero rows, autocommit and successful retry. Never weaken the
+production visibility admission to accommodate a bare test fixture.
+
+The remaining profiling defect is an idle maintenance admission query exposed
+outside the existing internal-probe suppression. Require deterministic observed
+RED under primary contention and a foreground-positive control; GREEN wraps only
+the initial writer acquisition in that existing suppression. Preserve later
+cleanup telemetry, guards and error behavior, and the original configuration
+exact-count test. Astra reviews code; independent verification reruns affected
+targets and worker controls, without restarting the full206 collection.
+
+Installed-package preflight also finds maintained scripts expecting supported
+format34. The existing real format37 native runtime reproduces the old producer
+assertion failure; this is diagnostic evidence, not final installed-artifact
+qualification. Align only the current wheel producer/verifier to37. The downstream
+candidate-manifest validator must require37 for Axis W0.8.28 while preserving its
+historical34 behavior and frozen .26/Slice65 receipts. First observe downstream
+.28/37 acceptance RED and .28/34 rejection RED, then GREEN with frozen tests.
+Keep seen33 refusal, file immutability, evidence rows, hashes and public retrieval
+assertions unchanged. Scope is the three maintained scripts and two existing
+fixtures, followed by their targeted checks and final real .28 artifact profile.
+No TS/workflow, engine policy or historical receipt rewrite is allocated.

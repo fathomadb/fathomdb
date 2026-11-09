@@ -39,7 +39,7 @@ pub(crate) fn kind_is_vector_indexed(
 }
 
 pub(crate) fn ensure_vector_partition(
-    connection: &mut Connection,
+    connection: &Connection,
     dimension: u32,
 ) -> rusqlite::Result<()> {
     let existing_sql: Option<String> = connection

@@ -125,9 +125,9 @@ Python and npm native packages in this release.
 
 ## On-disk schema
 
-The 0.8.28 line sets `SCHEMA_VERSION` to **36**. A missing or
-zero-length path bootstraps directly at schema 36. A non-empty database opens
-only when its effective committed `PRAGMA user_version` is exactly 36; older,
+The 0.8.28 line sets `SCHEMA_VERSION` to **37**. A missing or
+zero-length path bootstraps directly at schema 37. A non-empty database opens
+only when its effective committed `PRAGMA user_version` is exactly 37; older,
 future, and non-empty zero-version databases are rejected before product
 mutation. There is no public automatic migration or compatibility reader.
 
@@ -163,7 +163,7 @@ is the authoritative list.
 ## 0.5.x / 0.6.x compatibility
 
 **No 0.5.x compatibility shims or public migrations.** Do not point 0.8.28
-binaries at an older non-empty database. Create a fresh schema-36 database and
+binaries at an older non-empty database. Create a fresh schema-37 database and
 re-ingest through the public write surface.
 
 ## Performance posture

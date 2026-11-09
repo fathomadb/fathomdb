@@ -1147,7 +1147,7 @@ jobs:
             label: darwin-x64
             manylinux: "auto"
             baseline_bytes: 7400000
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64-apple-darwin
             label: darwin-arm64
             manylinux: "auto"
@@ -1258,7 +1258,7 @@ jobs:
             target: x86_64-apple-darwin
             label: darwin-x64
             manylinux: "auto"
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64-apple-darwin
             label: darwin-arm64
             manylinux: "auto"

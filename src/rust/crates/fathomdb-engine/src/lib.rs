@@ -411,7 +411,7 @@ pub(crate) use write::storage_write_shape;
 pub use write::{PreparedWrite, WriteReceipt};
 pub(crate) use write_commit::{
     advance_read_visibility, apply_batch_in_transaction, canonical_body_hash,
-    checked_locator_columns, commit_batch, CommitBatchError, TriggerStateGuard,
+    checked_locator_columns, commit_batch, CommitBatchError, VisibilityCoalescingGuard,
 };
 pub use write_types::RowKind;
 pub(crate) use write_validation::{
@@ -1154,8 +1154,8 @@ mod tests {
         assert!(!older_installed_schema, "the losing older opener must not install schema 33");
         let opened = current.join().expect("current opener thread").expect("current open");
         assert_eq!(opened.report.schema_version_before, 0);
-        assert_eq!(opened.report.schema_version_after, 36);
-        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(36));
+        assert_eq!(opened.report.schema_version_after, 37);
+        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(37));
         opened.engine.close().expect("close current engine");
     }
 
@@ -4012,3 +4012,9 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod visibility_coalescing_tests;
+
+#[cfg(test)]
+mod visibility_admission_tests;

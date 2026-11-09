@@ -132,10 +132,13 @@ reported vector_equivalence
 reported vector_spans
 reported vector_storage
 reported vector_storage::tests
+reported visibility_admission_tests
+reported visibility_coalescing_tests
 governed wal_attribution
 reported wal_runtime
 reported write
 reported write_commit
+reported write_commit::tests
 reported write_types
 reported write_validation
 field actual_checkpoint_observations root
@@ -236,3 +239,4 @@ unparsed-macro evidence::tests <module> proptest 174c5b885c19479e
 unparsed-macro frozen_read::tests <module> proptest 8077e5a8a7846daf
 unparsed-macro pagination::tests <module> proptest b18a9c1d1a2ce7f9
 unparsed-macro root::tests <module> proptest ea8d95990855291e
+unparsed-macro visibility_coalescing_tests <module> proptest::proptest e248e1679fc0f020

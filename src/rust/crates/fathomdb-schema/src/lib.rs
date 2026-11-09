@@ -21,7 +21,7 @@ use std::time::Instant;
 use rusqlite::Connection;
 
 /// Exact admitted on-disk format; nonempty stores at another version are refused.
-pub const SCHEMA_VERSION: u32 = 36;
+pub const SCHEMA_VERSION: u32 = 37;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -116,6 +116,35 @@ macro_rules! read_visibility_nonce_upgrade_sql {
             "CREATE TRIGGER _fathomdb_read_visibility_step33_cutover_guard BEFORE UPDATE ON _fathomdb_read_visibility_state WHEN OLD.generation=9223372036854775807 BEGIN SELECT RAISE(ABORT,'read visibility generation exhausted'); END;\n",
             "UPDATE _fathomdb_read_visibility_state SET generation=generation+1,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1;\n",
             "DROP TRIGGER _fathomdb_read_visibility_step33_cutover_guard;"
+        )
+    };
+}
+
+// Fresh bootstrap only: older nonempty stores are refused before migration.
+macro_rules! read_visibility_coalescing_upgrade_sql {
+    ($(($short:literal, $table:literal)),+ $(,)?) => {
+        concat!(
+            "ALTER TABLE _fathomdb_read_visibility_state ADD COLUMN coalescing INTEGER NOT NULL DEFAULT 0 CHECK(typeof(coalescing)='integer' AND coalescing IN(0,1));\n",
+            $(
+                "DROP TRIGGER _fathomdb_read_visibility_", $short, "_ai;\n",
+                "DROP TRIGGER _fathomdb_read_visibility_", $short, "_au;\n",
+                "DROP TRIGGER _fathomdb_read_visibility_", $short, "_ad;\n",
+                visibility_coalescing_trigger_sql!($short, "ai", "INSERT", $table),
+                visibility_coalescing_trigger_sql!($short, "au", "UPDATE", $table),
+                visibility_coalescing_trigger_sql!($short, "ad", "DELETE", $table),
+            )+
+        )
+    };
+}
+
+macro_rules! visibility_coalescing_trigger_sql {
+    ($short:literal, $suffix:literal, $operation:literal, $table:literal) => {
+        concat!(
+            "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_", $suffix,
+            " AFTER ", $operation, " ON ", $table,
+            " WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1)",
+            " BEGIN SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0) THEN RAISE(ABORT,'read visibility coalescing state unavailable') END;",
+            " UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n"
         )
     };
 }
@@ -1347,6 +1376,30 @@ pub const MIGRATIONS: &[Migration] = &[
               CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);
               INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_physical_erasure_policy','autonomous');
               INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_erasure_store',lower(hex(randomblob(16))));",
+    },
+    Migration {
+        step_id: 37,
+        sql: read_visibility_coalescing_upgrade_sql!(
+            ("cn", "canonical_nodes"),
+            ("ce", "canonical_edges"),
+            ("ar", "_fathomdb_artifact_revisions"),
+            ("sv", "_fathomdb_source_versions"),
+            ("sl", "_fathomdb_source_links"),
+            ("sd", "_fathomdb_source_dependencies"),
+            ("dc", "_fathomdb_dependency_closures"),
+            ("pr", "_fathomdb_projection_registry"),
+            ("ca", "canonical_attributes"),
+            ("ps", "_fathomdb_projection_state"),
+            ("pt", "_fathomdb_projection_terminal"),
+            ("vk", "_fathomdb_vector_kinds"),
+            ("vr", "_fathomdb_vector_rows"),
+            ("ep", "_fathomdb_embedder_profiles"),
+            ("pg", "_fathomdb_projection_generations"),
+            ("pc", "_fathomdb_projection_generation_current"),
+            ("oc", "operational_collections"),
+            ("os", "operational_state"),
+            ("vs", "_fathomdb_vector_spans"),
+        ),
     },
 ];
 

@@ -205,7 +205,7 @@ An actual future engine heartbeat event can still be forwarded.
 ### Open, storage, and concurrency
 
 `Engine::open` configures the process SQLite runtime before admission. A
-missing or zero-length path bootstraps directly at schema 36. A nonempty
+missing or zero-length path bootstraps directly at schema 37. A nonempty
 database is admitted only when its effective committed schema and required
 shape are current; otherwise it is refused under the persistent admission lock
 before product mutation. There is no public migration from an earlier database.
@@ -231,9 +231,13 @@ on the primary writer connection.
 ### Current storage, retrieval and maintenance boundaries
 
 The .28 SQLite registry dependencies provide per-connection page caches. Current
-format36 retains format35's cursor-keyed FTS, 64-row vec0 chunks and UTF-8 head
-coverage, adding persisted maintenance policy/queue/fence metadata. Old formats
-are refused, not migrated. Runtime vec0 lifecycle/validity metadata enforces dense
+format 37 retains format 36's maintenance policy/queue/fence metadata and
+format 35's cursor-keyed FTS, 64-row vec0 chunks and UTF-8 head coverage. It adds
+[transaction-owned visibility coalescing](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+to avoid connection-wide prepared-statement invalidation. Canonical/projection
+batches retain one checked generation/nonce advance; vector cleanup stays active,
+and outer writer admissions validate clean state under the SQLite write lock.
+Old formats are refused, not migrated. Runtime vec0 lifecycle/validity metadata enforces dense
 eligibility before KNN limits; historical-view fallback and direct filtered body
 FTS share the maintained [retrieval owner](retrieval.md).
 

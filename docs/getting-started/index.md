@@ -51,8 +51,8 @@ exposes lower-level inherent methods and re-exported types:
   `fathomdb recover --accept-data-loss` (truncate-wal, rebuild-vec0,
   rebuild-projections, complete-erasures, excise-source, excise-record).
 - Local-first storage on SQLite (FTS5 + `sqlite-vec`), on-disk schema
-  version **36**. Public opens create a fresh schema-36 database or accept an
-  existing schema-36 database; they do not upgrade older non-empty databases.
+  version **37**. Public opens create a fresh schema-37 database or accept an
+  existing schema-37 database; they do not upgrade older non-empty databases.
 - Two-axis versioning: workspace lockstep across the
   runtime/binding/CLI crates and the independently versioned
   `fathomdb-embedder-api` trait crate.

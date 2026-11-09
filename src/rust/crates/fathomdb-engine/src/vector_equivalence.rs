@@ -251,7 +251,7 @@ fn persist_probe_baseline(
     connection: &Connection,
     rows: &[StoredProbeRow],
 ) -> Result<(), EngineOpenError> {
-    let tx = connection.unchecked_transaction().map_err(|e| {
+    let tx = crate::frozen_read::begin_visibility_writer(connection).map_err(|e| {
         probe_storage(format!("could not open the probe-baseline transaction: {e}"))
     })?;
     for (ordinal, probe, blob, name, revision, dim) in rows {
@@ -413,11 +413,13 @@ fn probe_verification_is_cached(connection: &Connection, fingerprint: &str) -> b
 /// and the consequence of the missing marker is simply that the next open re-runs
 /// the probe — more work, never less. That is the fail-safe direction.
 fn record_probe_verification(connection: &Connection, fingerprint: &str) {
-    let _ = connection.execute(
+    let Ok(tx) = crate::frozen_read::begin_visibility_writer(connection) else { return };
+    let _ = tx.execute(
         "INSERT INTO _fathomdb_open_state(key, value) VALUES(?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![VECTOR_EQUIVALENCE_VERDICT_CACHE_KEY, fingerprint],
     );
+    let _ = tx.commit();
 }
 
 /// 0.8.20 Slice 22 (TC-68) — drop any cached verdict.
@@ -426,10 +428,12 @@ fn record_probe_verification(connection: &Connection, fingerprint: &str) {
 /// carry a marker a later registered open might match. A prospective arm has not
 /// joined durable state yet and deliberately preserves its snapshot on refusal.
 fn clear_probe_verification(connection: &Connection) {
-    let _ = connection.execute(
+    let Ok(tx) = crate::frozen_read::begin_visibility_writer(connection) else { return };
+    let _ = tx.execute(
         "DELETE FROM _fathomdb_open_state WHERE key = ?1",
         [VECTOR_EQUIVALENCE_VERDICT_CACHE_KEY],
     );
+    let _ = tx.commit();
 }
 
 /// 0.8.18 Slice 5 — SUBSEQUENT open: re-embed the 45 probes and assert BOTH

@@ -396,9 +396,37 @@ def test_0828_candidate_rejects_missing_or_mismatched_binding(tmp_path, mutation
     elif mutation == "stale-release":
         value["candidate"]["version"] = "0.8.26"
     elif mutation == "wrong-package":
-        value["candidate"]["package_version"] = "0.8.28"
+        value["candidate"]["package_version"] = "0.8.26"
     else:
         value["candidate"]["sha"] = "not-a-sha"
     path.write_text(json.dumps(value), encoding="utf-8")
     with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="0.8.28 TC-5 requires an exact candidate binding"):
+        tc5_gpu_v2.load_config(path)
+
+
+def test_0828_candidate_accepts_final_package_with_exact_binding(tmp_path):
+    path = _candidate_config(tmp_path, release="0.8.28", package_version="0.8.28")
+    config = tc5_gpu_v2.load_config(path)
+
+    assert config.release == config.candidate_version == "0.8.28"
+    assert config.package_version == "0.8.28"
+    assert config.candidate_sha == "1" * 40
+    assert config.python_wheel_sha256 == _sha(config.python_wheel)
+    assert config.fathomdb_bin_sha256 == _sha(config.fathomdb_bin)
+    assert config.benchmark_binary_sha256 == _sha(config.benchmark_binary)
+
+
+@pytest.mark.parametrize("package_version", ["0.8.26", "0.8.29", [], {}])
+def test_0828_candidate_rejects_unadmitted_or_malformed_package_versions(
+    tmp_path, package_version
+):
+    path = _candidate_config(tmp_path, release="0.8.28", package_version="0.8.27")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["candidate"]["package_version"] = package_version
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+    with pytest.raises(
+        tc5_gpu_v2.Tc5GpuV2Error,
+        match="0.8.28 TC-5 requires an exact candidate binding",
+    ):
         tc5_gpu_v2.load_config(path)

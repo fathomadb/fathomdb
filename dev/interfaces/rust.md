@@ -19,9 +19,9 @@ contract is [`rust-sdk.md`](rust-sdk.md) (0.8.27 Slice 132).
 ## Fresh-database open boundary (0.8.26 Slice 40)
 
 All public `Engine::open*` routes bootstrap a missing or zero-length path at
-schema 36. A non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 36. Any other version returns
-`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 36 }` before
+schema 37. A non-empty database is admitted only when its effective committed
+`PRAGMA user_version` is exactly 37. Any other version returns
+`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 37 }` before
 product mutation or migration events. There is no public automatic-upgrade
 route; the custom migration seam is private to explicitly feature-gated engine
 tests and is not forwarded by the facade.
@@ -2042,7 +2042,7 @@ changes no default admission, public erasure outcome or shipped schema.
 
 The [approved contract](../design/explicit-maintenance-erasure/contract.md) and
 [production design](../design/explicit-maintenance-erasure/production-design.md)
-own format-36 policy, immutable scope, admission and physical proof.
+own format-37 policy, immutable scope, admission and physical proof.
 
 The lower-level `fathomdb` facade re-exports all twelve maintenance types from
 `fathomdb-engine`: `PhysicalErasurePolicy`, `MaintenanceError`, `ErasureServiceState`,
@@ -2052,7 +2052,7 @@ The lower-level `fathomdb` facade re-exports all twelve maintenance types from
 Persisted `PhysicalErasurePolicy::{Autonomous, ExplicitMaintenance}` is selected for fresh
 stores with `EngineConfig.physical_erasure_policy`; absent configuration honors
 persisted policy on reopen. Missing/unknown policy is corruption, and mismatching
-selection refuses before mutation. Both profiles use current-only fresh format 36.
+selection refuses before mutation. Both profiles use current-only fresh format 37.
 
 `Engine::physical_erasure_policy` observes the effective policy.
 `Engine::queue_physical_erasure(selector, key)` returns `QueueResult`;

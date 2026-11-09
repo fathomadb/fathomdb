@@ -43,3 +43,7 @@ committed bounded empirical screen reports actual outcomes without an SLA.
 The contract and production design are maintained code-backed authorities. The
 implementation outline remains a planning reference; current execution and final
 qualification are recorded in the [slice status](../../plans/0.8.28/features/slice-85/status.md).
+
+Current store construction uses the [format37 visibility successor](../../adr/ADR-0.8.28-transactional-visibility-coalescing.md).
+The format36 qualification above remains historical evidence for Slice85; it is
+not acceptance evidence for the new format37 candidate.

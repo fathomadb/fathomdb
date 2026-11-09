@@ -2,7 +2,7 @@
   "schema": "fathomdb.slice95.qualification-summary/v1",
   "status": "IN_PROGRESS",
   "publication": "HELD",
-  "code_candidate": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
+  "code_candidate": "6d580ec57692241c28a5113e374102cddc42e559",
   "canonical_local_28": {
     "source": "16234813cf9e4aeaa09f99b5f5f98459bd415af3",
     "registered": 205,
@@ -36,19 +36,7 @@
       "waiver": null,
       "diagnostic": "separate traced run nonqualifying; no cause established; no kernel/threshold changes",
       "owner_direction": "2026-11-05: continue focused diagnosis and repair; retain threshold; no waiver",
-      "continuation": "Two Astra-reviewed, independently verified policy-neutral repairs are integrated. Current unchanged qualifier FAIL at 932.474344/s; stop further code/measurements for reviewed reassessment. No causal speedup, waiver or acceptance pass claimed.",
-      "current_repaired_candidate": {
-        "source": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
-        "commits": 55950,
-        "seconds": 60.001650826,
-        "per_second": 932.4743441184733,
-        "minimum": 1000,
-        "result": "FAIL",
-        "helper_exit": 101,
-        "ac011b": "not reached",
-        "environment": "Independent recomputation: before, after and enclosing interval applicable; exact source/binary/source-bundle/release profile agree.",
-        "raw_log": "target/slice95-ac011-evidence/metadata-reuse/canonical.log"
-      },
+      "continuation": "Transactional format37 repair is Astra design/code approved and independently verified. Unchanged canonical AC011a/b PASS at6d580ec57. Earlier non-passes remain historical/unwaived. Final format37 qualification pending.",
       "previous_repaired_candidate": {
         "source": "13c6470b5b5700c61c68ce8d10257551fbd2c9ca",
         "commits": 49639,
@@ -60,6 +48,39 @@
         "ac011b": "not reached",
         "environment": "Existing policy applicable; no invalidator or source/profile mismatch found",
         "raw_log": "target/slice95-ac011-evidence/canonical-ac011.log"
+      },
+      "metadata_reuse_candidate": {
+        "source": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
+        "commits": 55950,
+        "seconds": 60.001650826,
+        "per_second": 932.4743441184733,
+        "minimum": 1000,
+        "result": "FAIL",
+        "helper_exit": 101,
+        "ac011b": "not reached",
+        "environment": "Independent recomputation: before, after and enclosing interval applicable; exact source/binary/source-bundle/release profile agree.",
+        "raw_log": "target/slice95-ac011-evidence/metadata-reuse/canonical.log"
+      },
+      "current_repaired_candidate": {
+        "source": "6d580ec57692241c28a5113e374102cddc42e559",
+        "commits": 78932,
+        "reported_measurement_ms": 60005,
+        "reported_per_second": 1315.423,
+        "minimum": 1000,
+        "result": "PASS",
+        "helper_exit": 0,
+        "ac011b": {
+          "commits": 18364,
+          "reported_measurement_ms": 60018,
+          "reported_per_second": 305.975,
+          "minimum": 100,
+          "result": "PASS"
+        },
+        "precision": "Reported milliseconds truncated; rates rounded3decimals. No nanosecond precision inferred.",
+        "environment": "Before/after/enclosing readiness applicable; independently verified; parent observed VMoff without separate receipt.",
+        "binary_sha256": "38e50e6e00411c8c1f8d9c36f823713fb0ee787e33a96e73e40d51dff5791615",
+        "input_sha256": "a827a61842a70a64044eb52c9c9f0d6d616607dc29d7421abfc0995681825b90",
+        "raw_log": "target/slice95-ac011-evidence/visibility-coalescing/canonical.log"
       }
     },
     "ac011b": {
@@ -110,7 +131,8 @@
       "ac073_limit_ms": 297,
       "ac073_result": "PASS"
     },
-    "reuse_on_f": "SourceF changes only test observers/cursor fixture and documentation; other measurement inputs unchanged and independently compared"
+    "reuse_on_f": "SourceF changes only test observers/cursor fixture and documentation; other measurement inputs unchanged and independently compared",
+    "scope": "Historical pre-format37 observations are bound to source86fb and recorded per-repair sources. The current_repaired_candidate object explicitly records the format37 AC011 pass; other runtime qualification still requires refresh."
   },
   "cursor": {
     "source": "78a8a3908591677e640cd086f0fba67f66d30b34",
@@ -184,10 +206,10 @@
     "tag_or_registry_or_pages_publication": false
   },
   "open_requirements": {
-    "S95-6": "Canonical932.474344/sFAIL unchanged/unwaived. Offlineprofile recovery verified,49%compilation/21%guards;26.13%allFGsamples automaticreprepare. Next reviewedformat37 transactionalgate repair; fullgate/exactCI pending.",
+    "S95-6": "Reviewed6d format37 AC011 PASS1315.423/305.975 unchanged thresholds; full ff253202/206 and focused followups recorded in final_format37_qualification. Final versioned artifacts/perf/reliability/fidelity/feature qualification remain.",
     "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
     "S95-8": "Reviewed10ca01503 repair merged into .29 at b56083f16eeae80cbeef79dfef21cda55d5d429c; separate14control PASS, exact source/qualifier and cleanstate verified. Task worktree/branch removed after preserving raw logs. Final acceptance remains OPEN.",
-    "S95-11": "Version/AxisE/trusted workflow preparation and separate nonpublishingrelease rehearsal pending, as explicitly permitted by plan; no prereadiness claim.",
+    "S95-11": "Ownergoal authorizes localW0.8.28 alignment; AxisE0.8.0 existingguard passes with its reported publish-time limit. Localdryrun pending; hostedtrustedworkflow main ancestry/Pages prerequisite held; no publication.",
     "session_durability_contract": "Literal originalADR verified byfile/gitblame; no durability policy choice is needed for CPUdiagnosis. Earlier promptpremature; WAL+NORMAL unchanged, no successor contract/waiver selected.",
     "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
   },
@@ -390,5 +412,116 @@
     "independent_decoder": "Samply0.13.1/Framehop; all3285rows retained,3277nativechainsagree,8differencesexplicit",
     "verdict": "Supports focused design only; originalinconclusive preserved; no throughputacceptance/fullunwindclaim",
     "raw_dir": "target/slice95-ac011-evidence/cpu-profile"
+  },
+  "format37_repair": {
+    "source": "6d580ec57692241c28a5113e374102cddc42e559",
+    "review": "Astra design/code APPROVE exact source; independent9commands0,44unitexecutions32unique+56integration+3actuation; no full/performance claim from scopedtests",
+    "reds": {
+      "guard": "9bed85123",
+      "boot": "85fe1ba1a9fe6a37eeceff98280d204d45a40610",
+      "dispatcher_corrected": "a2d352d0e",
+      "dispatcher_invalid_excluded": "637496211"
+    },
+    "oracles": "Newguard/admission/format tests frozen; original tokenfixture bytes unchanged; historicalseams cfgtest/migration-test-hooks only",
+    "pending": [
+      "final local/feature/security round",
+      "other finalcandidate perf/reliability",
+      "five native/platform receipts+WindowsWAL",
+      "externalRustconsumer",
+      "freshTC5fidelity",
+      "exactcandidate hostedCI",
+      ".29forward and taskcleanup"
+    ],
+    "publication": "HELD",
+    "profiled_original_elf": {
+      "source": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
+      "sha256": "bc61c376e060309450cdfdc01d9db5cbf45c33ab87f6939deb750312d135e2a4",
+      "recovery": "Byte-identical rebuild after normal cache pathname reuse; no workload or profile rerun",
+      "preserved_path": "target/slice95-ac011-evidence/cpu-profile/retained-original-perf-gates"
+    }
+  },
+  "qualification_candidate": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
+  "ci17_harness": {
+    "source": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
+    "red": "cb52bb9cdeb6bda1ad3b38d5b516e766e6d1d43a",
+    "review": "Astra design/exact CODE APPROVE; separate focused verification PASS",
+    "checks": {
+      "cli_path_cases": 20,
+      "policy_assertions": 17,
+      "loader_triples": 10,
+      "release_targets": 5,
+      "published_targets": 5,
+      "native_types_missing_export": "PASS Node25.9",
+      "registered_fast": 199,
+      "registered_heavy": 7
+    },
+    "unchanged": "Engine/Cargo inputs, deploymentfloors/budgets and canonicalAC011 helper/tests",
+    "actual_strict_security": "PASS on ff253a0a034c6f85ca09cf05df9a6532230271ed: actual AC036 and live AC037 positive/catch; 0 violations, 0 blockers, 0 downgrades",
+    "first_local_attempt": "022 lint missingtestmetadata beforebroadtests",
+    "second_local_attempt": "8798 lint/typecheckpassed thensecuritymissingbinary blockers; no broadtests",
+    "hosted_run": {
+      "id": 42542957407,
+      "source": "8798ba0385b86d9de93118abfd4524abfc13bef1",
+      "result": "CANCELLED_NOT_QUALIFIED",
+      "successful_jobs": 22,
+      "cancelled_jobs": 11,
+      "skipped_jobs": 1,
+      "trigger": "BothmacOSARMconfiguration cellsunsupported beforesteps; owner-task cancellation preventsremainingwaste",
+      "annotation": "configuration macos-14-arm64-us-default is not supported"
+    },
+    "logs": "target/slice95-final-format37/harness-repair/",
+    "pending": "Focused correction of full-test failures; feature/performance/package/fidelity qualification; corrected exact-candidate CI"
+  },
+  "final_format37_qualification": {
+    "source": "ff253a0a034c6f85ca09cf05df9a6532230271ed",
+    "full_local": {
+      "actual_exit": 1,
+      "registered": 206,
+      "ran": 206,
+      "passed": 202,
+      "failed": 4,
+      "skipped": 0,
+      "excluded": 0,
+      "lint": "PASS",
+      "typecheck": "PASS",
+      "strict_security": "PASS 0/0/0 live",
+      "failed_suites": [
+        "test-slice90-root-reconciliation",
+        "test-pages-site",
+        "test-tegra-pages-retention",
+        "test-rust"
+      ],
+      "log": "target/slice95-final-format37/local-verify-ff253.log"
+    },
+    "resumed": {
+      "pages_site": "20 passed; exit0 after generated contributor-map refresh",
+      "pages_retention": "45 passed; exit0 after same refresh",
+      "corpus_graph": "1 passed; exit0 after verified13file local corpus staging; source unchanged"
+    },
+    "remaining_rust_targets": [
+      "slice30_operator_integrity_cli",
+      "physical_erasure unit",
+      "slice85_policy",
+      "slice90_engine_configuration",
+      "fathomdb-napi lib",
+      "fathomdb-py lib"
+    ],
+    "local_version_preparation": {
+      "axis_w": "0.8.28",
+      "axis_e": "0.8.0",
+      "setter_tests": "PASS",
+      "version_surfaces": "PASS",
+      "axis_e_guard": "PASS with not-yet-on-registry / publish-time compiled verification limitation",
+      "independent": "All11files literal0.8.27 to0.8.28 only; source bodies unchanged"
+    },
+    "tc5_parser": {
+      "red": "b04c8268bfdfb222492256240299731e51c11dbe",
+      "green": "1bfabf2b26db190b913de3dedd6377f39d99bbcb",
+      "code_review": "Astra APPROVE",
+      "independent": "22 passed; exit0; tests frozen fromRED; awaiting integration"
+    },
+    "hosted_ci": "No corrected dispatch before localgreen/finalcandidate",
+    "hosted_release_rehearsal": "Main ancestry still required by trusted workflow; main pushes can publish Pages. Held prerequisite, no bypass or dispatch.",
+    "publication": "HELD"
   }
 }

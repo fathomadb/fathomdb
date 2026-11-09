@@ -42,8 +42,13 @@ The session holds the actual witnessed stream, context and private pool. Identit
 includes PID, ordinal, UUID, checked context ID as lossless text and raw handles.
 Primary global samples remain truthful, including zero/negative deltas. Current
 private primary model/control observations are retained by the witness record;
-the diagnostic records its additional control separately. USED, RESERVED and
-global reads are sequential, not atomic. A non-private allocator is unsupported
+the diagnostic records its additional control separately. Primary reads are
+USED then global; extra diagnostic reads are USED, RESERVED then global. All are
+sequential, not atomic. Only completed private brackets contribute the retained
+model-global pair. Early private failures retain available identity, primary
+error and forward dimension if completed; this is not a complete trace of
+partial model-bracket counters. Source `395e1a99d` retains the original CI22
+experiment's observation behavior. A non-private allocator is unsupported
 for this extra diagnostic and receives no diagnostic control.
 
 Only after the original primary observations, checked model load, real forward

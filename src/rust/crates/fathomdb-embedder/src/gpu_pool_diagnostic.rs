@@ -227,7 +227,7 @@ mod hardware {
             })).collect();
             let record = json!({
                 "schema":"fathomdb.tegra-gpu-pool-diagnostic/v2", "pid":std::process::id(),
-                "identity":self.identity,"sampling":"sequential non-atomic; original global then USED/RESERVED/global",
+                "identity":self.identity,"sampling":"sequential non-atomic; private primary reads USED/global; extra diagnostic controls read USED/RESERVED/global",
                 "witness":witness,"witness_global_samples":self.witness_global_samples,"samples":samples,"errors":self.record.errors,
                 "witness_verdict_reached":self.witness_verdict_reached,
                 "embedded_vector_dim":self.record.forward_dimension,

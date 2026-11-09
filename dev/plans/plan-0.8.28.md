@@ -144,8 +144,8 @@ Requirements and acceptance criteria are per slice:
   and reviewed before design.
 
 - Slice 92: S92-1–8 in the [documentation audit/convergence plan](0.8.28/features/slice-92/plan.md).
-- Slice 95: S95-1–12 in the [CI/release-readiness plan](0.8.28/features/slice-95/plan.md),
-  including the comparative 0.8.26/0.8.27 robustness review and S95-CI1–CI10 repairs.
+- Slice 95: S95-1–11 in the [CI/release-readiness plan](0.8.28/features/slice-95/plan.md),
+  including the comparative 0.8.26/0.8.27 robustness review and S95-CI1–CI25 repairs.
 
 `dev/acceptance.md` remains locked; these identifiers are release-local.
 
@@ -177,12 +177,13 @@ before Slice 95. These explicit placements do not change this policy for other g
 
 **Remaining ladder:** 95.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
 
-Product implementation completed through Slice 90 before the documentation
-convergence allocated to [Slice 92](0.8.28/features/slice-92/plan.md).
-[Slice 95](0.8.28/features/slice-95/plan.md) owns CI repairs and final release
-qualification. Publication remains held; the existing 0.8.29 hand-over rule
-applies when final verification begins. Documentation convergence alone does
-not start that hand-over.
+Product implementation through Slice90, Slice92 documentation and Slice95
+prepublication preparation are complete. The qualified implementation
+`3741dfb8a3d85bced4bfac6047083cc7e30da314` is integrated on `origin/main`.
+[Slice95 status](0.8.28/features/slice-95/status.md) records the assembled
+full/scoped qualification and trusted nonpublishing rehearsal. Publication is
+held; the remaining Slice95 pointer is publication authorization. The .29 code
+handover preserves its MCP/filtered-body-FTS requirements and existing behavior.
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
@@ -390,8 +391,8 @@ requirements say otherwise.
   feature coverage; distinguish ordinary CI from non-publishing release rehearsal.
   Audit documentation and applicable final candidate evidence. Physical erasure stays
   closed except for defects. [Plan](0.8.28/features/slice-95/plan.md) and
-  [planned status](0.8.28/features/slice-95/status.md); no execution/publication
-  result is claimed.
+  [completion status](0.8.28/features/slice-95/status.md). Prepublication work is
+  complete through reviewed scoped corrections and trusted rehearsal; publication remains held.
 
 ## Slice ladder
 

@@ -411,7 +411,7 @@ def _assert_schema_33_refusal(root: Path) -> dict[str, object]:
     except IncompatibleSchemaVersionError as error:
         diagnostic = str(error)
         assert "schema version 33" in diagnostic
-        assert "supported version 34" in diagnostic
+        assert "supported version 37" in diagnostic
     else:
         raise AssertionError("installed artifact accepted schema 33")
     after = _directory_snapshot(root)
@@ -419,7 +419,7 @@ def _assert_schema_33_refusal(root: Path) -> dict[str, object]:
     return {
         "database": database.name,
         "expected_schema": 33,
-        "supported_schema": 34,
+        "supported_schema": 37,
         "outcome": "typed_refusal",
         "before": before,
         "after": after,

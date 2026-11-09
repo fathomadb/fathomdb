@@ -782,3 +782,13 @@ was inferred there, not established for Slice95. Study ruling16 scopes study
 reporting. Current CI22 live USED/control data remain verified. Astra reviewed
 this reconciliation and approved the concrete CI23 technical design; proceed
 with TDD, exact code review and independent qualification.
+
+Producer reconciliation during CI23: Docker's namespace PID and existing host
+SMI PID differ. Acceptance now requires a kernel-derived pid_namespace object
+in each existing sealed x64 GPU observation, with a live unchanged Docker PID
+recheck and exact host/inner binding. Astra approved the bounded
+[container process design](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md#container-process-binding).
+Preserve isolation, current outer v2/v3, bundle allowlists and all artifact/UUID
+checks; no namespace weakening or claimed PID substitution. Observe focused
+parser/mapping/state-race REDs before GREEN and require the real mandatory GPU
+workflow observations. Rust/SDK in-process PID semantics remain unchanged.

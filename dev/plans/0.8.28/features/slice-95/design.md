@@ -814,3 +814,17 @@ exact implementation, and a separate verifier owns affected execution. Existing
 mandatory package/policy/heap/workflow GPU rows provide qualification; do not add
 another three-process campaign. Final exact-candidate full CI is batched after
 these local proofs; publication remains held throughout.
+
+### CI23 producer PID namespace reconciliation
+
+Reading the actual GPU Docker entrypoints exposed an integration mismatch:
+current witness process_id is namespace-local1; existing Docker/NVIDIA-SMI
+identity is the host PID. Astra approved preserving PID isolation and adding
+one required kernel-derived pid_namespace object to each existing sealed GPU
+observation. The [ADR](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md#container-process-binding)
+defines exact fields, live-state recheck and first/last PID relationships.
+Keep outer v2/v3 and artifact allowlists; never rewrite the in-process witness,
+trust a PID environment claim or add host-PID namespace access. TDD covers
+missing/malformed/duplicate NSpid, invalid entries, wrong host/inner PIDs and a
+changed/stopped container before sealing. Real existing local GPU preflight
+and package rehearsal provide final producer proof after code review.

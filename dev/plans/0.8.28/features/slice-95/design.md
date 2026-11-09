@@ -828,3 +828,27 @@ trust a PID environment claim or add host-PID namespace access. TDD covers
 missing/malformed/duplicate NSpid, invalid entries, wrong host/inner PIDs and a
 changed/stopped container before sealing. Real existing local GPU preflight
 and package rehearsal provide final producer proof after code review.
+
+## CI24: quiescent setup for the projection interleaving
+
+Before creating seed work, freeze the existing scheduler and drain the empty
+engine. The dispatcher checks frozen state and registers active scans under
+one mutex; empty drain accounts for scans, jobs, queue and durable work. Finish
+the real writes and dependency registration before arming the after-WAL pause.
+Unfreezing requests a scan of the seeded work. The existing pause/readiness,
+blocked-transition, release, drain and vector assertions remain the experiment.
+This removes the fixture's setup lock cycle using existing controls; it changes
+neither production admission nor SQLite busy policy. Astra reviewed this design
+and the exact fixture patch. The retained CI failure supplies RED; focused
+parallel and reverse-order controls provide GREEN and independent verification.
+
+## CI25: explicit Python surface accounting for witness v2
+
+The accepted witness contract is the source of the finite comparator delta.
+Append its reviewed declarations without modifying prior entries. Match every
+superseded flat witness row in full before removal, preserving unrelated common
+identity/global/forward fields. Require one exact occurrence of the current
+native v2 class/witness block, reverse it to the literal former block, then run
+the existing historical digest check. This retains a byte-level oracle for
+unapproved changes. Review the manually enumerated delta before freezing GREEN;
+retain the actual local/hosted boundary failures. No runtime behavior changes.

@@ -164,25 +164,14 @@
     "registration": "Immutable safe record retained; retrospective data-plane plan/sidecar+two exacthashbound existingamendments at af7e570ff, Astra design/codeAPPROVE and independent portablevalidator PASS.38testsPASS,8metrics30exclusions,immutable record/config/metrics/index unchanged."
   },
   "ci": {
-    "latest_run": 42005653176,
-    "source": "3a05a45cbaff04f29ff4992d678e23a191717f62",
-    "overall": "FAIL_AT_F; runtime jobs all complete; corrected-source hosted fast pending",
-    "fast": "FAIL at measurement classification lint;198 cheap suites did not run",
-    "other_jobs": "All5native+collector,5size cells,strictsecurity0/0/0,parallelRust2352pass0fail65ignored369rawsummaries,defaultprovider,distinctWindowsWAL,heavy7/7PASS1503s.32jobssuccess/1fastfailure/1intentionalmarkdownskip. F audit frozen b270fc943d34655adfaf6b3dd48e48103f0b97a715b307a2a825c732890da49b.",
-    "original_runs_preserved": [
-      41885604931,
-      41956270895,
-      41964943428,
-      41971020280,
-      41983987975,
-      41991174061
-    ],
-    "prior_all_applicable_success": {
-      "run": 41971020280,
-      "source": "5f668f33056d0a550c51810f6ebeeb1ef7d60695",
-      "not_final_source": true
-    },
-    "metadata_correction": "af7e570ff classification correction independently verified. Clean records-only6479399 localfast198/198 passed with lint/type/security0/0/0; hostedfast198 remains pending, not substituted by localpass. No overallCIgreen claim."
+    "latest_task_run": 42542957407,
+    "source": "8798ba0385b86d9de93118abfd4524abfc13bef1",
+    "overall": "CANCELLED_NOT_QUALIFIED",
+    "successful_jobs": 22,
+    "cancelled_jobs": 11,
+    "skipped_jobs": 1,
+    "reason": "Unsupported macOS ARM configuration; preserve annotations and cancellation, not a pass",
+    "fresh_dispatch": "NOT_STARTED; owner local-only scope clarification pending; no implicit platform waiver"
   },
   "forward_29": {
     "broad_source": "6674cf79daa9040b4967ecc8fbe4a44eb8ea4e15",
@@ -198,30 +187,30 @@
   },
   "rehearsal": {
     "ordinary_ci": "separate qualification",
-    "local_preflight": "actual non-pass .28 target vs unbumped .27 manifests",
-    "immutable_release_dry_run": "PENDING version/AxisE/trusted workflow preparation; not dispatched",
-    "main_ancestry": "documented immutable dry-run exemption exists",
+    "local_preflight": "PASS versionedgates at48345; complete localrehearsal e090 exit0,leaf3/3",
+    "immutable_release_dry_run": "PENDINGexecutionlocation clarification/localrunner setup; existingGPUenvironmentapproval conditionalLOCALalreadygiven, no repeatrequestwithinconfirmedcondition",
+    "main_ancestry": "Lower immutable dry-run gate exempts main ancestry; trusted main-owned workflow retains candidate ancestry. Reviewed qualified skip-marked FF route resolves preparation coupling without bypass; latest execution-location condition still applies.",
     "version_cut": false,
     "main_merge": false,
-    "tag_or_registry_or_pages_publication": false
+    "tag_or_registry_or_pages_publication": false,
+    "historical_local_preflight": "actual non-pass .28 target vs unbumped .27 manifests"
   },
   "open_requirements": {
-    "S95-6": "Reviewed6d format37 AC011 PASS1315.423/305.975 unchanged thresholds; full ff253202/206 and focused followups recorded in final_format37_qualification. Final versioned artifacts/perf/reliability/fidelity/feature qualification remain.",
-    "S95-7": "Fhostedfast didnotrun198; correction passes local198, hostedcorrectedfast remains pending. RuntimeFrows reused with independently verified unchangedinputs.",
-    "S95-8": "Reviewed10ca01503 repair merged into .29 at b56083f16eeae80cbeef79dfef21cda55d5d429c; separate14control PASS, exact source/qualifier and cleanstate verified. Task worktree/branch removed after preserving raw logs. Final acceptance remains OPEN.",
-    "S95-11": "Ownergoal authorizes localW0.8.28 alignment; AxisE0.8.0 existingguard passes with its reported publish-time limit. Localdryrun pending; hostedtrustedworkflow main ancestry/Pages prerequisite held; no publication.",
+    "S95-6": "Alllocalcore proof at e090 now recorded local_final_e090. Nativeplatform/deliveryrows and applicablelocalTegra/Windows evidence stillneeded; do notclaim overallrelease qualification.",
+    "S95-7": "Fresh exactcandidate CI pending ownerlocal-onlycondition clarification. No newActionsdispatch; cancelled42542957407 notqualified.",
+    "S95-8": "Runtimeforward577d243a3b34f54d85ce809c0b60f3edc5c1f942, Astrareviewed+42independent MCP/visibilitypasses; finalpackage/recordsforwardpending.",
+    "S95-11": "FullLOCALnonpublishingrehearsal0. Reviewedskipci/manualCI/nonforcequalifiedSHA:main/dryrunroute preservesPageshold andexistingguards. OwnerALREADYconditionallyapprovesGPUenvironmentreviewiflocal; allhostedCPU/macscopeclarificationpending, noimplicitplatformwaiver.",
     "session_durability_contract": "Literal originalADR verified byfile/gitblame; no durability policy choice is needed for CPUdiagnosis. Earlier promptpremature; WAL+NORMAL unchanged, no successor contract/waiver selected.",
     "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
   },
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
-    "remaining_task_worktrees": [
-      "/home/coreyt/projects/fathomdb-worktrees/slice95-cpu-profile"
-    ],
-    "windows": "Restored originallyoff; originalpersistentXML byteidentical, originalrunner hash/service/policies unchanged, task26/27registrations absent, taskguestfolder/disposabledisk removed",
-    "staged_inputs": "13ownedhashverifiedcorpusJSONLs removed; sourcecorpus unchanged; task-onlyfeaturetarget removed",
+    "remaining_task_worktrees": [],
+    "windows": "Currenttask64GiBdisk stillCONFIGattached/Rprepped; originalXML+runnerstate retained, no registration/token/listener created; VMlastobservedoff. Cleanup still required.",
+    "staged_inputs": "13ownedverifiedcorpus copies stillstaged pendingdependentwork, sourcecorpus unchanged. RestoredTC5pack andqualifierraw evidence retained.",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
-    "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained."
+    "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained.",
+    "current_worker_cleanup": "Cleanfullymerged8c workerWT/branch removed after73evidencefilescopiedbyte-identical; runtime-worker-cleanup.json"
   },
   "receipts": {
     "canonical_28": {
@@ -424,13 +413,11 @@
     },
     "oracles": "Newguard/admission/format tests frozen; original tokenfixture bytes unchanged; historicalseams cfgtest/migration-test-hooks only",
     "pending": [
-      "final local/feature/security round",
-      "other finalcandidate perf/reliability",
-      "five native/platform receipts+WindowsWAL",
-      "externalRustconsumer",
-      "freshTC5fidelity",
-      "exactcandidate hostedCI",
-      ".29forward and taskcleanup"
+      "freshCPU/platformwheel+addon rows+collector and distinctWindowsWAL/localTegra",
+      "executionlocation clarification and exactcandidateCI",
+      "separateworkflowrehearsal subjectexecutioncondition",
+      "source/evidence safety scans",
+      "final .29 package/records forward and remaining owned resource cleanup"
     ],
     "publication": "HELD",
     "profiled_original_elf": {
@@ -440,7 +427,7 @@
       "preserved_path": "target/slice95-ac011-evidence/cpu-profile/retained-original-perf-gates"
     }
   },
-  "qualification_candidate": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
+  "qualification_candidate": "e090418becabd9610cea3b372f249e9f8bd3ccf9",
   "ci17_harness": {
     "source": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
     "red": "cb52bb9cdeb6bda1ad3b38d5b516e766e6d1d43a",
@@ -470,7 +457,7 @@
       "annotation": "configuration macos-14-arm64-us-default is not supported"
     },
     "logs": "target/slice95-final-format37/harness-repair/",
-    "pending": "Focused correction of full-test failures; feature/performance/package/fidelity qualification; corrected exact-candidate CI"
+    "pending": "Currentremainingwork in local_final_e090/open_requirements; harnesslocal fixes/security/feature/perf completed; exactCI/platform execution remains pending."
   },
   "final_format37_qualification": {
     "source": "ff253a0a034c6f85ca09cf05df9a6532230271ed",
@@ -498,14 +485,6 @@
       "pages_retention": "45 passed; exit0 after same refresh",
       "corpus_graph": "1 passed; exit0 after verified13file local corpus staging; source unchanged"
     },
-    "remaining_rust_targets": [
-      "slice30_operator_integrity_cli",
-      "physical_erasure unit",
-      "slice85_policy",
-      "slice90_engine_configuration",
-      "fathomdb-napi lib",
-      "fathomdb-py lib"
-    ],
     "local_version_preparation": {
       "axis_w": "0.8.28",
       "axis_e": "0.8.0",
@@ -522,6 +501,165 @@
     },
     "hosted_ci": "No corrected dispatch before localgreen/finalcandidate",
     "hosted_release_rehearsal": "Main ancestry still required by trusted workflow; main pushes can publish Pages. Held prerequisite, no bypass or dispatch.",
+    "publication": "HELD",
+    "historical_scope": "Initial ff253 collection/followup snapshot; current local results and resolved failures are in local_final_e090.",
+    "initial_remaining_rust_targets": [
+      "slice30_operator_integrity_cli",
+      "physical_erasure unit",
+      "slice85_policy",
+      "slice90_engine_configuration",
+      "fathomdb-napi lib",
+      "fathomdb-py lib"
+    ]
+  },
+  "historical_ci_before_format37": {
+    "latest_run": 42005653176,
+    "source": "3a05a45cbaff04f29ff4992d678e23a191717f62",
+    "overall": "FAIL_AT_F; runtime jobs all complete; corrected-source hosted fast pending",
+    "fast": "FAIL at measurement classification lint;198 cheap suites did not run",
+    "other_jobs": "All5native+collector,5size cells,strictsecurity0/0/0,parallelRust2352pass0fail65ignored369rawsummaries,defaultprovider,distinctWindowsWAL,heavy7/7PASS1503s.32jobssuccess/1fastfailure/1intentionalmarkdownskip. F audit frozen b270fc943d34655adfaf6b3dd48e48103f0b97a715b307a2a825c732890da49b.",
+    "original_runs_preserved": [
+      41885604931,
+      41956270895,
+      41964943428,
+      41971020280,
+      41983987975,
+      41991174061
+    ],
+    "prior_all_applicable_success": {
+      "run": 41971020280,
+      "source": "5f668f33056d0a550c51810f6ebeeb1ef7d60695",
+      "not_final_source": true
+    },
+    "metadata_correction": "af7e570ff classification correction independently verified. Clean records-only6479399 localfast198/198 passed with lint/type/security0/0/0; hostedfast198 remains pending, not substituted by localpass. No overallCIgreen claim."
+  },
+  "local_final_e090": {
+    "source": "e090418becabd9610cea3b372f249e9f8bd3ccf9",
+    "broad": "ff253 collection206 ran/202 initialpass/4fail; all failures resolved by reviewed focused resumptions, not uninterrupted new full pass",
+    "feature": {
+      "measured_source": "2e2189429fc573262a893526c255ae562f9a20a4",
+      "runs": 23,
+      "planned": 180,
+      "passed": 165,
+      "ignored_allowlisted": 15,
+      "failed": 0,
+      "independent": "installed-artifact-verifier/verification.json; all621 feature inputs identical at e090"
+    },
+    "artifact": "Fresh0.8.28 localCUDAwheel/CLI/private executor;637 artifact objects identical2e/e090; immutablebinarycopies and isolated install;19Pythonfiles/native match,24graph rows/reopen/refusal33supported37+immutableDB/lock pass. No testhooks/reranker. CPU execution of CUDA wheel, not CPU delivery matrix.",
+    "external_rust": "Source2e616archiveobjects match; isolated own target offline build/write/read/erase/control/close/reopen/exit0; sixFathom source paths/nohooks/patches, Rust/Cargo identicale090",
+    "tc5": {
+      "runner_exit": 0,
+      "documents": 7667,
+      "queries": 100,
+      "bootstrap": 1000,
+      "synthetic": 0,
+      "recall": 0.958,
+      "ci": [
+        0.9380000000000002,
+        0.9740000000000003
+      ],
+      "sigma": 0.009210423443034523,
+      "accepted_ci_high_minimum": 0.9,
+      "result": "PASS_FIDELITY_ONLY",
+      "cuda_uuid": "GPU-abda0cf9-d660-ca2b-ef17-ee6b89e3eca4",
+      "claim_limit": "Privatevectorstage, no latency/publicsearch/wholehybrid/byteimmutability claim; postDBdigest differs, IDs digestonly executor-attested overlap",
+      "independent": "tc5-independent-verifier/verification.json"
+    },
+    "ac011": {
+      "helper_exit": 0,
+      "a_commits": 72934,
+      "a_reported_ms": 60000,
+      "a_commits_per_second": 1215.559,
+      "b_commits": 17481,
+      "b_reported_ms": 60013,
+      "b_commits_per_second": 291.286,
+      "minimums_unchanged": [
+        1000,
+        100
+      ],
+      "readiness": "before/after/enclosing applicable;142swapinpages diagnostic, nozeroSwap/allhostidle claim",
+      "binary_sha256": "66d4cd83cd4905aa4e3d1fbe0d1a2dba60f17211e249e0e956d142ec2d0e7948",
+      "input_sha256": "af41948c155d4cd065905f1283abe98f353782886efa682ea1e6f08ad10e2928",
+      "profile": "opt3/debug0/debugassertionsfalse/default+testhooks; cache/sealed same; helper/perfgates unchanged"
+    },
+    "ac012_ac013": {
+      "n": 10000,
+      "samples": 1000,
+      "text_p50_p99_ms": [
+        1,
+        2
+      ],
+      "vector_p50_p99_ms": [
+        56,
+        86
+      ],
+      "vector_dim": 768,
+      "dimension_proof": "Actual driver env recorded retrospectively + source default; not printed by rawmarker",
+      "outcome": "NUMERICAL_PASS",
+      "environment_limit": "Outerpre-run only; no immediateend/enclosing readyclaim; AC08190Cgate not these rows"
+    },
+    "ac081": {
+      "qualified_observations": 7,
+      "status": "PASS_WITH_WARNING",
+      "sequential_median_ns": 259829636,
+      "concurrent_median_ns": 43159602,
+      "sequential_warning_observations": 7,
+      "hard_limits_ms": [
+        500,
+        100
+      ],
+      "readiness": "Everypreflight+actualstart/end applicable,unchangedcriteria",
+      "diagnostics": "3swapinpages across campaign(2insidecell1,1between3/4),0out",
+      "prior_attempt": "NumericPASS289477361/45210172ns; thermalstart90.375C/end90.25C outside90 ceiling, retainednonqualifying outsidequalifiedseven; Astrareviewed onefreshcampaignaftercooling, no replacementloop"
+    },
+    "long_correctness": {
+      "actual_exits": [
+        0,
+        0
+      ],
+      "ac021_seconds": 60,
+      "ddl_cycles": 60,
+      "rebuilds": 60,
+      "sqlite_schema_warnings": 0,
+      "cursor_searches": 1000,
+      "successful_writes": 199,
+      "writes_during_reads": 198,
+      "advancing_hits": 999,
+      "cursor_violations": 0,
+      "hit_cursor_violations": 0
+    },
+    "legacy_eu7": {
+      "overall_exit": 101,
+      "legacy_recall": 0.775,
+      "legacy_ci": [
+        0.746,
+        0.801
+      ],
+      "stress": "AC073 PASS46ms<301ms actualDurationcriterion;8threadsx250,N7667,noPadding",
+      "latency_p50_p99_ms": [
+        19,
+        31
+      ],
+      "real_available_docs": 18472,
+      "queries": 100,
+      "bootstrap": 1000,
+      "latency_samples": 1000,
+      "input_scope": "13actualhashinputs with historicMuSiQuemismatch/absentHotpot disclosed,MuSiQue contributes0acceptedrows; notacquisitionqualification",
+      "not_overall_pass": true
+    },
+    "local_release_rehearsal": {
+      "actual_exit": 0,
+      "optimized_workspace_build": 0,
+      "leaf_package_passes": 3,
+      "leaf_dry_run_publish_passes": 3,
+      "uploads": "all explicitly aborted",
+      "axis_e": "0.8.0 unpublished-version guard branch, not compiled registryAPIproof"
+    },
+    "independent_performance": "final-performance/independent-final-verification.json; all4sealed profiles/hashes/source verified; no reruns",
+    "evidence_root": "target/slice95-final-format37",
     "publication": "HELD"
-  }
+  },
+  "historical_artifact_locator_limit": "Older /tmp/fathomdb-s95-* directories are absent; preservedtracked transcriptions/hashrefs are historical, not currenton-diskrawproof. Currentlocal evidence lives under canonical target/slice95-final-format37.",
+  "historical_harness_qualification_candidate": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
+  "qualification_candidate_scope": "Localruntimequalification only; final platform/CI/rehearsal readiness not complete"
 }

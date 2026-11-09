@@ -75,7 +75,7 @@ assert payload["schema_version"] == "fathomdb.slice50-graph-evidence/v1"
 module.validate_rows(payload["rows"])
 refusal = payload["schema_33_refusal"]
 assert refusal["expected_schema"] == 33
-assert refusal["supported_schema"] == 34
+assert refusal["supported_schema"] == 37
 assert refusal["outcome"] == "typed_refusal"
 assert refusal["before"] == refusal["after"]
 PY

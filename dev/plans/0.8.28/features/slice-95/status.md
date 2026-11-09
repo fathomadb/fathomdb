@@ -5,141 +5,99 @@ status: IN_PROGRESS
 
 # Slice 95 status
 
-**IN_PROGRESS. Publication held.** The reviewed format-37 runtime repair is
-integrated into `dev/0.8.28` at
-`6d580ec57692241c28a5113e374102cddc42e559`. The unchanged canonical AC011 helper
-passes both gates: **1 KB 1,315.423 commits/s** against 1,000 and **100 KB
-305.975 commits/s** against 100. Actual helper/time exits are 0; separate
-verification confirms source/executable identity and applicable before, after
-and enclosing host readiness. No threshold, workload, WAL/NORMAL setting or
-publication decision changed.
+**IN_PROGRESS. Publication held.** Local core qualification is complete as an
+assembled result at `e090418becabd9610cea3b372f249e9f8bd3ccf9`. The final versioned
+AC011 pair passes at **1,215.559 commits/s for 1 KB** and **291.286 commits/s for
+100 KB**, with unchanged floors of 1,000 and 100. Native platform/package and CI
+qualification, execution-location clarification, final handover and resource
+cleanup remain. There is no published-release or overall CI-green claim.
 
-The complete [before/after history](qualification.md#ac011-before-and-after-the-repairs)
-retains the original 999.651557/s failure, then 827.267649/s after lazy edge-query
-preparation and 932.474344/s after compiled metadata-query reuse. Earlier 100 KB
-was 307.292/s; the two intermediate helpers stopped before that test. These are
-separate observations, not a paired causal speedup experiment.
-
-## Implemented repair and documentation
+## Implemented and reviewed
 
 The [accepted technical ADR](../../../../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
-records the measured automatic-reprepare mechanism, alternatives, exact 57-trigger
-manifest and admission inventory. Transaction-owned visibility coalescing replaces
-native trigger toggles. All outer writer families, boot effects and dispatcher
-cursor repair validate clean state while holding the SQLite writer lock.
-Generation/nonce publication and rollback remain atomic; authenticated vector
-cleanup stays active. Current-only admission advances to format 37 without a
-nonempty data migration. Maintained architecture, engine/bootstrap designs,
-interfaces, public compatibility and release notes describe the implementation.
+records transactional visibility coalescing, all 57 triggers, writer-lock
+admission, fresh format37 and unchanged external invalidation/vector cleanup.
+The repair at `6d580ec57` and the final idle-probe correction at `674ec8a51`
+have Astra design/code approval and independent verification. The latter wraps
+only initial maintenance writer admission in the existing quiet-probe scope;
+actual cleanup and foreground telemetry remain observable. The real-schema
+rollback fixture now proves callback/insert, failed deferred COMMIT, rollback,
+autocommit and retry. Approved current-format fixture updates retain refusal
+and immutability oracles. Independent focused verification passes 35 tests.
 
-Astra approved design and exact code at `6d580ec57`. The implementer passes
-Clippy/typecheck, 19 visibility units, four fallback units, eight historical-token
-controls, 127 tests across 13 integration targets, 10 schema tests and scoped
-documentation/state checks. Separate verification executes nine Cargo commands,
-all exit 0: 44 unit executions / 32 unique tests, 56 integration passes and three
-actuation passes, plus the store-format parent's deliberately invoked child.
-No vacuous selectors or failed tests were accepted.
+CI1–19 include cold setup, bounded diagnostic resources, installed TS export
+checks, safe diagnostics/manual routing, confirmed-debt admission, subscriber
+and cursor controls, owned Cargo paths, supported macOS ARM images and format37
+package evidence. Astra approved each bounded change; separate checks pass.
+Package correction `8c5f543a4` is merged: current wheel evidence requires37,
+while historical .26/34 and Slice65 controls remain unchanged.
 
-Guard RED is `9bed85123`; boot RED is immutable intermediate `85fe1ba1a`;
-corrected dispatcher RED is `a2d352d0e`. Original dispatcher `637496211` and its
-first export/debug logs are **invalid/inconclusive fixture evidence**. The
-corrected fixture proves a real clean cursor rewind before its refusal oracle.
-New guard/admission/format tests remain frozen; original token fixture bytes and
-assertions remain unchanged. Historical format exceptions are narrowly compiled
-under test/migration-test-hooks; ordinary production and current-format
-admission stay strict.
+Maintained architecture, interfaces and pending public documentation describe the
+format break and ownership boundaries. The [full measurement history](qualification.md#ac011-before-and-after-the-repairs)
+retains every earlier non-pass and source; distinct runs are not a causal speedup
+experiment. No threshold, WAL/NORMAL setting or durability policy changed.
 
-Raw implementation and separate-verification logs are copied into canonical
-`target/slice95-ac011-evidence/visibility-coalescing/` and
-`visibility-coalescing-verifier/`. The current passing executable is preserved
-by hash beside its qualifier logs. The broad local format-37 collection has now run; its nonzero result and focused
-follow-ups are recorded below. Hosted qualification remains pending.
+## Current local proof
 
-## Harness qualification follow-up
+Raw current evidence is under canonical `target/slice95-final-format37/`.
+[Qualification evidence](qualification-evidence.json) records source and scope.
 
-Initial local attempt at `022341dbc` stopped before workspace Clippy/typecheck/tests on missing
-module classifications. Reviewed metadata-only `8798ba038` passes its exact
-boundary gate: 118 modules, 18 governed and 104 configurations. The resumed
-attempt passed lint/typecheck, then strict security reported 0 violations,
-2 blockers and 0 downgrades: the wrappers searched the hardcoded cache path rather
-than the owned Cargo target. Live namespace catch itself passed; application
-security is not claimed from that incomplete battery. No broad suites ran.
-
-CI run42542957407 on `8798ba038` rejected both macOS ARM image cells before steps.
-It was cancelled after preserving the failure annotations and actual results:
-22 successful, 11 cancelled and one skipped job. No overall CI pass is claimed.
-Reviewed harness repair `c02990583` resolves Cargo target paths and uses supported
-ARM runner images while keeping delivery/deployment/budget contracts unchanged.
-Its 20 path cases, policy/platform/native fixtures and permanent registration
-pass independently. The resumed clean collection passes real strict security
-with zero violations, blockers and downgrades; full qualification remains open.
-See the [bounded design](design.md#ci17-owned-target-paths-and-supported-macos-arm-runners).
-
-## Final qualification still required
-
-| Obligation | Current disposition |
+| Obligation | Verified result and limit |
 | --- | --- |
-| Full local and feature/security gates | Clean `ff253a0a0` collection: 206 ran / 202 passed / four failed; lint, typecheck and real strict security passed. Rust originally failed seven targets; corpus_graph now passes its unchanged 1/1 recheck after verified input staging. Six targets still require focused diagnosis; root inventory is stale. Generated contributor map refreshed; Pages-site 20/20 and retention 45/45 resumed passes. Feature qualification still pending. Prior format-36 source `16234813c` passed 205/205 with actual child 0; outer 143 had unknown cause. Earlier feature assembly was 180 planned / 165 pass / 15 reviewed ignored. These are historical results, not format-37 qualification. |
-| Other performance/reliability | Refresh AC012/013/081, long AC021 and advancing-cursor checks on fresh candidate databases. Earlier limits passed with the recorded AC081 soft warnings. The 6d source pass remains retained; no same-binary retry is planned. One final version-aligned canonical pair is allocated for the final artifacts. |
-| Native platforms and consumers | Refresh the five supported CPU wheel/addon receipts, collector, separate Windows WAL proof and external Rust source-archive consumer against this candidate. No registry-resolved .28 claim. |
-| Accepted fidelity | Rebuild candidate CUDA wheel/CLI/private benchmark and run the unchanged TC5 bridge on a fresh format-37 database. Frozen corpus/model inputs remain. Earlier source `5f668f330` measured recall .958, CI [.938,.974]; it is historical private vector-stage evidence, with the recorded post-run database-hash caveat. |
-| Hosted CI | Fresh exact-candidate dispatch pending. Prior run 42005653176 on `3a05a45cb` failed only fast classification lint before its 198 suites; all five native/collector, heavy 7/7, race/security/default-provider and Windows WAL jobs passed on that older source. Classification correction `af7e570ff` and local fast 198/198 passed; no current overall CI-green claim. |
-| Documentation and evidence | Slice 92 baseline consumed; format-37 design/interface/public-document deltas have scoped checks. Current decision/rationale and full measurement history are committed and reviewed. Source and retained generated-evidence scans remain distinct. |
-| .29 handover and cleanup | Prior repairs/tools are forwarded through `c25d045cf`. Forward this reviewed runtime and final records, run scoped consumer checks, then remove the clean merged task worktree/branch after preserving logs. |
-| Nonpublishing rehearsal | Owner authorizes local .28 version preparation; Axis-W setter/lockstep checks pass at .28. Axis E stays 0.8.0 with its existing not-yet-on-registry/publish-time compiled-check disposition; final artifacts remain pending. Hosted trusted route still requires main ancestry, while main pushes can deploy Pages. Keep that prerequisite and publication held. No main merge, tag, registry/Pages publication or release dispatch occurred. |
+| Broad local collection | Clean `ff253a0a0`: all 206 ran, 202 initially passed, four failed. Lint/typecheck and real strict security passed,0 violations / 0 blockers / 0 downgrades. Root inventory8/8, Pages20/20 and retention45/45, corpus graph1/1 and the affected Rust cases pass focused resumptions after reviewed corrections. This is assembled coverage, not an uninterrupted final full-gate pass. |
+| Feature coverage | Source 2e2189429: 23 runs, 180 planned, 165 passed, 15 exact allowlisted ignored,zero failures/skip markers/missing results. Independent audit confirms live prerequisites and retained GPU receipts. Ignored tests remain exemptions, not passes. Relevant inputs are identical at e090. |
+| Fresh artifacts and installed Python | Final 0.8.28 CUDA wheel/CLI/private executor built from 2e2189429; 637 relevant artifact inputs identical at e090. Binaries preserved separately from mutable Cargo caches. Isolated noneditable wheel: 19 Python files/native bytes match; 24 graph rows/reopen pass, schema 33 refuses supported 37 with unchanged DB/lock bytes. No private test hooks/reranker in this wheel. CPU execution of a CUDA-capable local wheel is not the five-platform CPU delivery matrix. |
+| External Rust consumer | Exact 2e source archive: 616 exported objects match Git. Offline isolated build and real write/read/erase/control-survival/close/reopen/exit pass. Six Fathom dependencies resolve inside the archive; no test hooks or added patches. Relevant Rust/Cargo inputs unchanged at e090. |
+| Accepted TC5 fidelity | Fresh database, 7667 real documents, 100 queries, 1000 bootstrap resamples, zero synthetic: recall 0.958, 95% CI [0.938, 0.974]; accepted CI-high >=0.90 passes. Raw executor0 and independent query/hash/bootstrap audit pass. CUDA embeddings used the explicitly pinned second RTX 3090; CPU sqlite-vec candidates/exact-f32 rerank. Private-stage fidelity only, no latency/public-search/whole-hybrid claim. Post-run DB hash differs from the pre-query hash; retained without an immutability claim. Raw ID overlap remains executor-attested. |
+| AC011 final version | Unchanged canonical helper 0, 1215.559/s and 291.286/s; compiler-selected default/test-hooks optimized binary matches its sealed copy. Before/after/enclosing readiness applicable. Machine-wide swap-in 142 pages is retained diagnostic data, not a zero-swap claim. |
+| AC012/013 | N=10000 and 1000 samples: text p50/p99=1/2ms; vector 56/86ms with configured/default dimension 768. Numerical gates pass. Dimension provenance is the actual driver environment plus unchanged source default; the raw marker does not print it. Only outer pre-run readiness exists; no immediate-end/enclosing readiness claim. |
+| AC081 absolute reads | Seven fresh applicable observations of one sealed binary pass hard 500/100ms limits. Sequential/concurrent medians 259.829636/43.159602ms; all seven retain sequential soft warnings. Initial numeric-pass observation at 90.375C is separately retained as environment-invalid. Astra approved one fresh campaign after natural cooling with readiness before every cell; no threshold change, replacement loop or select-best result. Fresh-campaign swap-in 3 pages is diagnostic. |
+| Long correctness | Independent AC021: 60s, 60 DDL cycles, 60 rebuilds, zero SQLITE_SCHEMA warnings. Cursor: 1000 searches, 199 successful writes/198 during reads, 999 advancing hits, zero cursor/hit violations. Both actual exits0. |
+| Legacy corpus stress | Actual overall exit 101 from superseded recall 0.775/CI [0.746, 0.801]; never an overall pass. Separate accepted AC073 stress passes 46ms <301ms with 8x250 requests, N=7667, no padding. Real setup 18472 documents, 100 queries/1000 bootstrap/1000 latency samples. 13 staged actual-hash inputs retain the MuSiQue acquisition mismatch and absent Hotpot limitation; MuSiQue contributes no accepted rows in this route. |
+| Local release rehearsal | Existing full local dry-run once: workspace optimized build 0, three leaf packages and three publish dry-runs pass with all uploads aborted. API 0.8.0 / schema 0.8.28 / query 0.8.28 archives retained. Axis-E guard passes its unpublished-version branch, not a compiled published-API comparison. |
+| .29 runtime handover | Clean 577d243a3: Astra-approved conflict resolution and 42 independent scoped MCP/visibility tests pass; version/inventory/module/Markdown checks pass. Final package/record handover remains. No .29 full-gate or .28 platform claim from these tests. |
 
-CI1–15 engineering is already implemented and reviewed: cold prerequisite setup,
-bounded parallel builds/cache and diagnostics, installed modular TypeScript
-contracts, confirmed-debt service admission, below-capacity subscriber delivery,
-provider-close sensitivity and positive advancing-cursor proof. Their historical
-qualification remains source-attributed in [qualification-evidence.json](qualification-evidence.json).
-No unrelated erasure optimization or new test framework is allocated.
+## Remaining work
 
-## Investigation, contract limits and retained resources
+- Finish the five supported CPU wheel/addon installed-consumer rows and collector,
+  separate Windows WAL proof, and applicable local Tegra package/runtime checks.
+  Current source is not registry-qualified or macOS-qualified by local Linux proof.
+- Resolve the scope of the owner's local-only condition before any hosted
+  dispatch. No Mac/platform waiver is inferred. Preserve all required evidence
+  in the plan rather than silently narrowing the platform matrix.
+- Complete exact-candidate CI and the separate nonpublishing release-workflow
+  rehearsal subject to that execution condition. The reviewed skip-marked
+  candidate route can keep push-triggered Pages/duplicate CI dormant while
+  manual dispatch remains available. Existing environment controls remain.
+- Run final source and retained-evidence safety scans, finish scoped documentation
+  checks and .29 forwarding, then close the status/state only after all required
+  qualification and cleanup are proven.
 
-Offline profile recovery is complete and independently verified. The unchanged
-recording resolves 3,254/3,284 foreground leaves (99.0865%); 858 samples are
-SQLite automatic reprepare. Native DWARF recovery and independent Samply/Framehop
-corroboration retain the eight explicit chain differences and incomplete-unwind
-limitations. Diagnostic rates never qualify AC011. Original and failed exports
-remain retained; no further capture was made.
+The owner confirmed coreyt and approved environment review **only for local
+execution**, explicitly including the Windows VM and Tegra 10.83.10.13. Do not
+request that same approval again once its condition is confirmed. The pending
+question concerns whether remaining hosted CPU/macOS jobs are permitted; no
+hosted run has been dispatched under this conditional approval.
 
-The accepted durability ADR's WAL/NORMAL, zero-OS-crash-loss and 100 ms power-loss
-wording has an unresolved contract/evidence discrepancy. No successor policy,
-waiver or new owner ruling was selected. The earlier policy-choice question was
-withdrawn as a prerequisite for this policy-neutral repair; it is not an open
-permission request to proceed with profiling or SQL work. Do not call process-kill
-proof a machine-crash/power-cut guarantee.
+## Retained limits and resources
 
-The canonical checkout's original `target/debug` symlink points at unmounted cold
-storage. Do not discard it or change the mount; use a fresh checkout-owned target
-for final verification. The standing Windows VM was observed off for AC011; its
-original persistent configuration and runner remain preserved. Prior CI1–15 task
-worktrees/branches, disposable VM resources and staged corpus copies were cleaned.
-Current runtime task resources remain until verified handover/cleanup.
+The original task worktree/branch is clean, fully merged and removed; 73 evidence
+files were copied byte-for-byte. Canonical dev/release checkouts remain. The
+standing Windows VM's owned 64GiB task disk is still configured; original XML,
+runner hashes/service/policies must be restored at cleanup. No task runner
+registration/token/listener was created yet. A local Linux X64 GPU runner is
+also not registered; do not start or modify the standing Fathom/Coral services.
+Tegra's existing dirty checkout was inspected read-only and must remain untouched.
 
-D28-09/10/11 and populated-open deferrals remain unchanged. Slice 95 stays open
-until required final qualification and cleanup are complete. Publication remains
-a separate owner decision and is held.
+The original target/debug symlink still points at absent cold storage; preserve
+it. Current qualification uses owned targets and sealed artifacts. Staged raw
+corpus copies remain until dependent work finishes. The restored TC5 input pack
+and qualified evidence remain retained for replay. Older /tmp 86fb evidence paths
+are absent; their tracked historical transcriptions are not present raw logs.
 
-## Current focused follow-up
-
-Actual local full exit is 1 (`target/slice95-final-format37/local-verify-ff253.log`),
-not an uninterrupted pass. The seven Rust targets cover schema refusal/format
-expectations, physical transaction retryability, corpus graph and profiling
-counts. Corpus_graph now passes its unchanged 1/1 rerun after verified input staging; six original targets remain. Diagnose before changing assertions. The two Pages failures share the
-stale generated contributor-map hash and now pass their affected reruns. Verified
-corpus copies are staged for the existing local corpus route, with acquisition
-limitations unchanged. TC5 inputs are independently verified; parser final-version
-support has Astra approval and 22/22 independent passes and is integrated at `48345c193`; its canonical recheck also passes 22/22.
-Mechanical local Axis W is now 0.8.28; lockstep checks and the unchanged Axis-E
-0.8.0 guard pass. No artifact or release-workflow pass follows from that metadata.
-No new Actions run has been dispatched while local qualification is incomplete.
-
-Astra approved focused CI18–19 corrections: real current-schema rollback fixture,
-format37 refusal expectations and quiet idle-probe admission. The latter has an
-observed contention RED and reviewed GREEN; remaining targeted verification is
-pending. Current wheel evidence also has a reproduced stale supported34 assertion;
-its bounded format37 producer/verifier and .28-aware manifest correction is planned
-without changing historical .26 receipts. Local versioned release preflight at
-`48345c193` passes; full local rehearsal and final artifact qualification remain.
+Offline profile recovery is complete; the original recording and byte-identical
+recovered ELF remain preserved. No extra profile was collected. The literal
+accepted durability ADR's zero-OS-crash/100ms wording retains its documented
+contract/evidence discrepancy; no successor policy or waiver was selected, and
+process-kill tests are not machine-crash/power-cut proof. D28-09/10/11 and
+populated-open deferrals remain unchanged. Publication is a separate held step.

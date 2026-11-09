@@ -261,3 +261,27 @@ fixture database.
 - `ADR-0.6.0-embedder-protocol` owns the `fathomdb-embedder-api` trait
   stability posture.
 - REQ-047, REQ-048, REQ-049, REQ-050, REQ-052.
+
+## Nonpublishing qualification while Pages is held
+
+A main push can deploy public documentation. For an authorized nonpublishing
+integration, a reviewed final candidate may carry literal `[skip ci]` in its
+commit message, with normal hooks. GitHub suppresses push/PR workflows for that
+marker; manual dispatch still runs. Qualify that exact release-ref SHA through
+full manual CI before main integration. Recheck the remote-main ancestry and
+current protection/required-check policy; stop if a non-force fast-forward is
+not permitted. Push the qualified SHA explicitly, preserving any dirty local
+main checkout, and verify that no push-triggered Pages run was created.
+
+The separate release workflow rehearsal is manually dispatched from main with
+`dry_run=true`, explicit release version and that candidate SHA. Preserve trusted
+workflow/runner checks and every existing environment-approval rule. Honor the
+owner's execution-location conditions; do not infer approval for hosted jobs or
+missing platforms. Publisher jobs skipped by the candidate route are not proof
+that their bodies ran; local leaf packaging and actual CUDA package rehearsals
+have distinct evidence. No tag, registry/Pages publication or post-publish smoke
+is part of this route. Records-only follow-ups retain input-equivalence proof
+and are not relabeled as the earlier CI-qualified SHA.
+
+GitHub documents the marker's event scope in
+[Skipping workflow runs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs).

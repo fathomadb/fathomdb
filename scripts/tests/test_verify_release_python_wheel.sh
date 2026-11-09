@@ -87,7 +87,7 @@ open(sys.argv[1], "w", encoding="utf-8").write(json.dumps({
     "rows": rows,
     "schema_33_refusal": {
         "expected_schema": 33,
-        "supported_schema": 34,
+        "supported_schema": 37,
         "outcome": "typed_refusal",
         "before": [{"name": "schema-33.sqlite", "size": 1, "sha256": "a" * 64}],
         "after": [{"name": "schema-33.sqlite", "size": 1, "sha256": "a" * 64}],

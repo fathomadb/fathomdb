@@ -1,6 +1,6 @@
 """Minimal GPU-primary SCALE-01 TC-5 v2 runner.
 
-The runner creates one fresh FathomDB per arm, uses the released 0.8.23 Python
+The runner creates one fresh FathomDB per arm, uses the configured qualified Python
 wheel for GPU ingestion, then invokes the cache-only private Rust vector-stage
 executable once per query. Raw manifests stay in the external run directory;
 the aggregate receipt contains no corpus text, paths, predictions, or latency

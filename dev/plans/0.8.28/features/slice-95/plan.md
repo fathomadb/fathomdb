@@ -273,9 +273,10 @@ This authorizes mechanical Axis-W 0.8.28 alignment and local nonpublishing
 preparation. Preserve Axis E unless its existing drift guard requires a change.
 The lower release gate exempts immutable nonpublishing candidates from main
 ancestry, but the hosted trusted workflow still requires origin/main ancestry.
-Main pushes can also deploy Pages automatically. Keep main integration and hosted
-rehearsal pending that publication-coupled prerequisite; do not bypass either
-check. Report ordinary CI, local rehearsal and hosted rehearsal separately.
+Main pushes can also deploy Pages automatically. The reviewed skip-marked
+manual-qualification route below resolves that coupling without bypassing checks.
+Main integration still waits for actual qualification and satisfaction of the
+owner's execution-location condition. Report ordinary CI, local rehearsal and hosted rehearsal separately.
 No tag, registry or Pages publication is authorized.
 
 At execution, bind each row to its actual required scope, executor, inputs,
@@ -305,7 +306,8 @@ Write [status](status.md), update the release state and regenerate views. Keep
 status concise with exact commands/evidence locators and outstanding blockers.
 Physical erasure is complete except for defects. The later owner objective
 authorizes local version preparation; creating Slice 95 alone did not. No v* tag,
-registry or Pages publication, main merge, paid/GPU campaign beyond existing
+registry or Pages publication, main merge outside the reviewed nonpublishing
+route, paid/GPU campaign beyond existing
 authorization, or post-publication smoke is authorized here. Publication and its
 registry-installed end-to-end proof follow the separate owner ruling and release
 runbook; do not import historical oracle-retirement work already completed.
@@ -609,3 +611,38 @@ Keep seen33 refusal, file immutability, evidence rows, hashes and public retriev
 assertions unchanged. Scope is the three maintained scripts and two existing
 fixtures, followed by their targeted checks and final real .28 artifact profile.
 No TS/workflow, engine policy or historical receipt rewrite is allocated.
+
+### Final local results and execution-location condition
+
+Changes since CI18–19: full local feature coverage, fresh versioned artifacts,
+installed wheel/Rust consumers, accepted TC5 fidelity, final canonical writes,
+latency gates, absolute reads, long correctness and local release rehearsal now
+have source-bound proof at e090. Current status/qualification retain counts,
+limits and every non-pass. One AC081 observation passed numerically but exceeded
+its existing90C environment ceiling; Astra approved one fresh seven-process
+campaign after natural cooling, with readiness before every cell and unchanged
+start/end assessment. All seven qualify; preserve the invalid attempt outside
+that campaign and all soft warnings. AC012/013 retain their existing numerical
+acceptance; do not invent an AC081-specific temperature gate or claim missing
+end/enclosing readiness. Legacy EU7 remains overall101 while its accepted stress
+row passes. No product code, threshold, host policy or measurement retry loop is
+allocated by these execution adjustments.
+
+Astra reviewed a standard nonpublishing completion route: the exact final
+candidate contains literal `[skip ci]` with normal hooks, undergoes full manual
+CI on its matching release ref, and only after success may fast-forward remote
+main without force. GitHub's marker suppresses push/PR workflows, including
+Pages and duplicate automatic CI, but not manual dispatch. Recheck remote
+ancestry/protection and the exact marker immediately before that push; leave a
+dirty local main untouched. The existing main-owned release dry-run then uses
+explicit true/version/candidateSHA and retains every trusted/environment check.
+Publishers are intentionally skipped, not exercised. No tag or publication is
+authorized. Later records-only commits preserve tested-input equivalence and do
+not relabel a new HEAD as the earlier exact CI candidate.
+
+The owner's latest approval is conditional on **local execution**, including the
+Windows VM and Tegra10.83.10.13. That conditional environment approval persists;
+no repeat permission request is needed once satisfied. Clarification of whether
+hosted CPU/macOS qualification is also forbidden is pending. Until then dispatch
+no hosted work, and infer no platform waiver. Complete independent local work
+and keep the remaining platform/CI/rehearsal requirement explicitly open.

@@ -174,7 +174,7 @@ def validate_manifest(payload: object) -> dict[str, object]:
         or graph_profile["source_size"] != graph_record["size"]
     ):
         raise ValueError("graph evidence source binding mismatch")
-    _validate_graph_evidence(graph_profile["payload"])
+    _validate_graph_evidence(graph_profile["payload"], axes["workspace"])
     return payload
 
 
@@ -198,7 +198,7 @@ def _graph_validator():
     return module
 
 
-def _validate_graph_evidence(payload: object) -> dict[str, object]:
+def _validate_graph_evidence(payload: object, workspace: str) -> dict[str, object]:
     if not isinstance(payload, dict) or set(payload) != {
         "schema_version",
         "rows",
@@ -220,7 +220,7 @@ def _validate_graph_evidence(payload: object) -> dict[str, object]:
         raise ValueError("invalid schema-33 refusal keys")
     if (
         refusal["expected_schema"] != 33
-        or refusal["supported_schema"] != 34
+        or refusal["supported_schema"] != (37 if workspace in {"0.8.28", "0.8.29"} else 34)
         or refusal["outcome"] != "typed_refusal"
         or refusal["before"] != refusal["after"]
     ):
@@ -282,7 +282,7 @@ def assemble(args: argparse.Namespace) -> dict[str, object]:
     commands = dict(_command(value) for value in args.command)
     unresolved = dict(_command(value) for value in args.external_state)
     graph_payload = json.loads(evidence_coordinates["graph-evidence"].read_text(encoding="utf-8"))
-    _validate_graph_evidence(graph_payload)
+    _validate_graph_evidence(graph_payload, axes["workspace"])
     evidence_records = [
         _file_record(kind, evidence_coordinates[kind]) for kind in sorted(EVIDENCE_KINDS)
     ]

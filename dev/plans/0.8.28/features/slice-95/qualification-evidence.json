@@ -743,6 +743,32 @@
       "preservation": "620 raw files mirrored SHA256-equal; sealed artifacts/source/models unchanged"
     },
     "receipt": "target/slice95-final-format37/approved-ci/ci20-hardware/verification.json",
-    "next": "CI22 one opt-in same-context pool accounting diagnostic, unchanged v1 verdict; no successor qualification yet"
+    "next": "CI22 feasibility verified separately; original failures unchanged. CI23 accepted technical v2 design and TDD in progress; qualification pending."
+  },
+  "ci22_counter_feasibility": {
+    "source": "395e1a99dc9477e7eb6783d3599ef907b532a016",
+    "addon_sha256": "9083bbc149dbd48daff8f44ea269b3e601179fad81ab30548e68efba4fe78a52",
+    "result": "PREREGISTERED_FEASIBILITY_MET_NOT_QUALIFICATION",
+    "processes": 1,
+    "original_v1_exit": 1,
+    "original_v1_global_delta_bytes": -374050816,
+    "model_used_before_bytes": 0,
+    "model_used_after_bytes": 132848640,
+    "embedded_vector_dim": 384,
+    "control_request_bytes": 67108864,
+    "control_used_before_bytes": 132848640,
+    "control_used_live_bytes": 199957504,
+    "control_used_released_bytes": 132848640,
+    "source_artifact_model_bindings": "Verified;75 mirrored files hash-equal;13,701 Git source objects/six models unchanged; prior620 files unchanged",
+    "retries": 0,
+    "next": "CI23 Astra-approved current v2 tagged measurement design, TDD underway; current artifact qualification pending"
+  },
+  "prior_pool_and_dependency_research": {
+    "fathom_history": "No missing witness fix found in inspected branches/worktrees/reflogs/project transcripts; historical not-pushed pool commits are ancestors395. Stale tracking refs, no fetch. Earlier healthy-load negative global witness -125792256 retained; USED_HIGH133035264 was peak, not current. Reclaim inference stays inference; ruling16 scopes study reporting.",
+    "actual_compiled_dependencies": "Published cudarc-fathomdb0.19.10 b777f8d94; Candle core/nn/transformers0.11.0 K9 182ceab054; candle-kernels K9 Git patch/static CUDART.499 package files and25 kernel files authenticated, exact compiler paths/fingerprint edges and sealed addon matched. No additional active override or missing runtime patch. Local fork runtime sources match qualified pins; newer source-tree changes are docs/qualification/CI tooling.",
+    "receipts": [
+      "target/slice95-final-format37/approved-ci/tegra-prior-pool-research/research.json",
+      "target/slice95-final-format37/approved-ci/tegra-patched-dependencies-research/research.json"
+    ]
   }
 }

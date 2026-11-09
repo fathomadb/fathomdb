@@ -38,6 +38,18 @@ source/artifacts/models and the earlier620 files. This is counter feasibility,
 not qualification or an established cause for earlier shared-counter failures.
 Raw local evidence: `target/slice95-final-format37/approved-ci/ci22-hardware/`.
 
+The follow-up dependency audit binds that exact sealed addon to published
+cudarc-fathomdb0.19.10 atb777f8d94 and Candle core/nn/transformers0.11.0 atK9
+182ceab054, plus the active candle-kernels Git patch atK9 with static CUDART.
+All499 packaged files match lock-authenticated crate archives; all25 kernel
+files match Git objects. Compiler dependency paths/fingerprints and the sealed
+addon agree. Local fork runtime sources match those qualified pins; newer local
+fork commits concern qualification/CI tooling and documentation. The remote
+fork history reveals no missing runtime repair. Tracking refs were inspected
+without fetching. This correction requires no library/pin update or fork rerun.
+Sanitized dependency evidence is under
+`target/slice95-final-format37/approved-ci/tegra-patched-dependencies-research/`.
+
 [NVIDIA CUDA12.6.1](https://docs.nvidia.com/cuda/archive/12.6.1/cuda-driver-api/group__CUDA__MALLOC__ASYNC.html)
 distinguishes live application allocation accounting (USED) from reserved
 backing memory. Neither reserved/high-water bytes nor shared UMA free memory
@@ -102,7 +114,8 @@ The v2 canonical snake-case shape is:
   control_released_bytes and pool_exclusivity_precondition.
 
 Private success can coexist with a NEGATIVE common global delta: those fields
-remain truthful diagnostics. Private acceptance uses only its own USED delta
+remain truthful diagnostics. Global free samples may be zero; require
+0<=free<=total, positive total and correct common signed arithmetic. Private acceptance uses only its own USED delta
 and control accounting alongside common identity, process, floor and forward
 checks. Exact variant key sets exclude irrelevant optional bags/fake values.
 RESERVED/high-water observations remain optional developer diagnostics, not new

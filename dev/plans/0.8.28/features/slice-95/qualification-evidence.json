@@ -1,7 +1,7 @@
 {
   "schema": "fathomdb.slice95.qualification-summary/v1",
-  "status": "PREP_COMPLETE_PUBLISH_HELD",
-  "publication": "HELD",
+  "status": "PUBLICATION_AUTHORIZED_PREFLIGHT_PENDING",
+  "publication": "AUTHORIZED at seq-366; no tag/registry/Pages publication started",
   "code_candidate": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
   "canonical_local_28": {
     "mode": "ASSEMBLED",
@@ -287,7 +287,7 @@
     "preserved_worker_files": 129,
     "gpu_cleanup": "target/slice95-final-format37/approved-ci/ci25-gpu-scratch-cleanup.json",
     "gpu_executor": "Temporaryrunner29 stopped/deregistered; private tmp2 root removed after no active processes/container mounts; original selectorGPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b restored. Standingservices/driver/toolkit unchanged.",
-    "windows": "Exact oldqcow2 deleted per owner approval; original disk/XML691a… unchanged,VMoff,serviceAutoStopped/policies/publichashes unchanged. Runner30 auto-removed. TaskCcache retained pending explicit deletion approval.",
+    "windows": "Exact owner-approved C:\\fathomdb-s95-ci-20261109 deleted; independent separate SSH absence PASS;97,482 files/4,527,596,302logicalbytes. Original disk/XML691a unchanged; VMoff, serviceAutoStopped/policies/standing public/config hashes unchanged. Exact oldqcow2 remains absent.",
     "staged_inputs": "13restaged96,704,727B copies removed after resumed real graph pass and independent original/copy hashes. Originalcorpus/restoredTC5pack preserved.",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
     "retained": "Canonical qualification evidence, original profile/recoveredELF and sealed Tegra diagnostic exports retained as evidence backups. Original Tegra project/branches/model caches untouched.",
@@ -295,8 +295,16 @@
       "target/slice95-final-format37/approved-ci/ci23-windows/final-verification.json",
       "target/slice95-final-format37/approved-ci/ci25-gpu-executor-restored.json",
       "target/slice95-final-format37/approved-ci/ci25-gpu-scratch-cleanup.json",
-      "target/slice95-final-format37/approved-ci/ci25-owned-source-cleanup.json"
-    ]
+      "target/slice95-final-format37/approved-ci/ci25-owned-source-cleanup.json",
+      "target/slice95-final-format37/approved-ci/ci26-windows-cleanup/verification.json"
+    ],
+    "publication_gpu_preparation": {
+      "path": "/mnt/data/tmp2/fathomdb-s95-publish-gpu-20261109",
+      "registration": "not performed",
+      "listener": "not started",
+      "receipt": "target/slice95-final-format37/approved-ci/ci26-gpu-preparation/preparation.json",
+      "standing_services_driver_toolkit": "unchanged"
+    }
   },
   "receipts": {
     "canonical_28": {
@@ -956,7 +964,7 @@
       "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
     },
     "resources": {
-      "completed_task_worktrees": "All CI1–15 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
+      "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
       "remaining_task_worktrees": [
         "/mnt/data/tmp2/fathomdb-s95-ci20-wt (exclusive implementer; CI20/21 merged, CI22 active)"
       ],
@@ -1002,9 +1010,9 @@
     "S95-11": "Local/ordinaryCI/trusted-main dry-run scopes separated; publication and registry postpublish consumption held"
   },
   "post_preparation_holds": {
-    "publication": "Explicit owner authorization still required for tag, registries and Pages; postpublish registry-installed smoke follows actual publication.",
+    "publication": "Owner authorization seq-366 recorded. Protected CUDA environment lacks v0.8.28 tag; auto-review rejected adding it without explicit protection-policy approval. CLI runner-group read denied403 (no admin:org scope). Preserve review rules; no bypass/tag/publish.",
     "external_observations": "Exact maintained pending_external lists above remain unexecuted scope, not passed or waived.",
-    "windows_task_directory": "C:\\fathomdb-s95-ci-20261109 retained4,527,596,302 logical bytes; automatic approval review rejected deletion because approval named only qcow2. Exact owner question pending; no deletion or workaround. VMoff/no task credentials/listener."
+    "windows_task_directory": "RESOLVED: seq-366 explicit approval; exact directory deleted and independently verified absent, original VM/service/policies/hashes preserved."
   },
   "prepublication_final": {
     "candidate": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
@@ -1016,5 +1024,13 @@
     "axis_e": "0.8.0",
     "engine_baseline": "Original e090 accepted measurements and2e feature evidence with original limits; relevant production/performance inputs compared unchanged outside opt-in witness.",
     "publication": "HELD"
+  },
+  "publication_authorization": {
+    "source": "steward ledger seq-366",
+    "date": "2026-11-09",
+    "order": "delete only C:\\fathomdb-s95-ci-20261109; verify cleanup; then publish0.8.28",
+    "route_preflight": "PENDING explicit exact-tag policy approval and runner-group admin/read access",
+    "publication_started": false,
+    "design_review": "Astra APPROVE publication sequence with exact-tag routing, no skip token, retained Pages artifacts and actual registry-installed verification"
   }
 }

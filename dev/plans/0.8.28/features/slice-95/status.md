@@ -5,7 +5,8 @@ status: COMPLETE
 
 # Slice 95 status
 
-**PREPUBLICATION COMPLETE. Publication held.** Reviewed implementation
+**PREPUBLICATION COMPLETE. Publication authorized; routing preflight pending.**
+Reviewed implementation
 `3741dfb8a3d85bced4bfac6047083cc7e30da314` is integrated into `origin/main`,
 `dev/0.8.28` and `release/0.8.28`. Astra design/code reviews and separate
 verification close the implementation and qualification findings. The
@@ -70,10 +71,17 @@ All499 packaged files and25 kernel files match their source objects/archives;
 local fork runtime code matches the qualified pins. No missing runtime patch
 or dependency update was identified in the bounded branch/transcript audit.
 
-## Publication hold, retained limits and cleanup
+## Publication authorization, retained limits and cleanup
 
-The next action is explicit owner publication authorization. No tag, registry
-or Pages publication occurred. Publisher jobs being skipped does not show their
+The owner authorized publication on 2026-11-09 at steward ledger seq-366,
+after exact Windows task-directory cleanup. No tag, registry or Pages
+publication has started. The required pre-push guard cannot read GPU runner
+group3 with the current CLI scopes (HTTP403). The protected CUDA environment
+also lacks the exact `v0.8.28` tag policy. Automatic approval review rejected
+adding that policy without explicit permission to modify protection settings.
+Next: obtain that narrow approval and runner-group access, preserve required
+reviewers, verify both tag routes, then push the annotated tag once.
+Publisher jobs being skipped does not show their
 publish/dry-run bodies executed. The original three local leaf dry-runs retain
 their unchanged-input scope. Registry-installed end-to-end smoke follows actual
 publication. Required rehearsal `pending_external` CLI observations remain
@@ -92,8 +100,17 @@ The exact oldqcow2 task disk was deleted under its explicit approval; runner30
 auto-removed and the VM is off. Sealed Tegra diagnostic exports and the original
 profile/recovered ELF remain retained evidence backups.
 
-The optional Windows task cache `C:\fathomdb-s95-ci-20261109` remains retained
-(4,527,596,302 logical bytes). Automatic approval review rejected its deletion
-because the recorded deletion approval named only the qcow2 disk; an exact owner
-question is pending. No deletion or workaround occurred. This cleanup decision
-confers no permission to delete the directory.
+The owner-authorized Windows task directory `C:\fathomdb-s95-ci-20261109`
+was deleted and independently verified absent:97,482 files and4,527,596,302
+logical bytes. No reparse points or active task processes were present. The
+C-root entry diff contains only that directory; standing runner/configuration
+hashes, Auto/Stopped service, execution policies and original VM XML are
+unchanged. The VM is off; the old task qcow2 remains absent. Receipt:
+`target/slice95-final-format37/approved-ci/ci26-windows-cleanup/verification.json`.
+The earlier deletion rejection is resolved by seq-366 and is historical.
+
+A fresh private local GPU executor is prepared under
+`/mnt/data/tmp2/fathomdb-s95-publish-gpu-20261109`, with public runner bits and
+private Rust/tool caches. It is unregistered and has no listener; standing
+services, driver580 and primary CUDA12.6 are unchanged. Preparation receipt:
+`target/slice95-final-format37/approved-ci/ci26-gpu-preparation/preparation.json`.

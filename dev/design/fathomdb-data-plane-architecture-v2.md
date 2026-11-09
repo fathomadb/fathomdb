@@ -231,9 +231,13 @@ on the primary writer connection.
 ### Current storage, retrieval and maintenance boundaries
 
 The .28 SQLite registry dependencies provide per-connection page caches. Current
-format37 retains format36 maintenance metadata and format35's cursor-keyed FTS, 64-row vec0 chunks and UTF-8 head
-coverage, adding persisted maintenance policy/queue/fence metadata. Old formats
-are refused, not migrated. Runtime vec0 lifecycle/validity metadata enforces dense
+format 37 retains format 36's maintenance policy/queue/fence metadata and
+format 35's cursor-keyed FTS, 64-row vec0 chunks and UTF-8 head coverage. It adds
+[transaction-owned visibility coalescing](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+to avoid connection-wide prepared-statement invalidation. Canonical/projection
+batches retain one checked generation/nonce advance; vector cleanup stays active,
+and outer writer admissions validate clean state under the SQLite write lock.
+Old formats are refused, not migrated. Runtime vec0 lifecycle/validity metadata enforces dense
 eligibility before KNN limits; historical-view fallback and direct filtered body
 FTS share the maintained [retrieval owner](retrieval.md).
 

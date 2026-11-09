@@ -2,7 +2,7 @@
   "schema": "fathomdb.slice95.qualification-summary/v1",
   "status": "IN_PROGRESS",
   "publication": "HELD",
-  "code_candidate": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
+  "code_candidate": "6d580ec57692241c28a5113e374102cddc42e559",
   "canonical_local_28": {
     "source": "16234813cf9e4aeaa09f99b5f5f98459bd415af3",
     "registered": 205,
@@ -36,19 +36,7 @@
       "waiver": null,
       "diagnostic": "separate traced run nonqualifying; no cause established; no kernel/threshold changes",
       "owner_direction": "2026-11-05: continue focused diagnosis and repair; retain threshold; no waiver",
-      "continuation": "Two Astra-reviewed, independently verified policy-neutral repairs are integrated. Current unchanged qualifier FAIL at 932.474344/s; stop further code/measurements for reviewed reassessment. No causal speedup, waiver or acceptance pass claimed.",
-      "current_repaired_candidate": {
-        "source": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
-        "commits": 55950,
-        "seconds": 60.001650826,
-        "per_second": 932.4743441184733,
-        "minimum": 1000,
-        "result": "FAIL",
-        "helper_exit": 101,
-        "ac011b": "not reached",
-        "environment": "Independent recomputation: before, after and enclosing interval applicable; exact source/binary/source-bundle/release profile agree.",
-        "raw_log": "target/slice95-ac011-evidence/metadata-reuse/canonical.log"
-      },
+      "continuation": "Transactional format37 repair is Astra design/code approved and independently verified. Unchanged canonical AC011a/b PASS at6d580ec57. Earlier non-passes remain historical/unwaived. Final format37 qualification pending.",
       "previous_repaired_candidate": {
         "source": "13c6470b5b5700c61c68ce8d10257551fbd2c9ca",
         "commits": 49639,
@@ -60,6 +48,39 @@
         "ac011b": "not reached",
         "environment": "Existing policy applicable; no invalidator or source/profile mismatch found",
         "raw_log": "target/slice95-ac011-evidence/canonical-ac011.log"
+      },
+      "metadata_reuse_candidate": {
+        "source": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
+        "commits": 55950,
+        "seconds": 60.001650826,
+        "per_second": 932.4743441184733,
+        "minimum": 1000,
+        "result": "FAIL",
+        "helper_exit": 101,
+        "ac011b": "not reached",
+        "environment": "Independent recomputation: before, after and enclosing interval applicable; exact source/binary/source-bundle/release profile agree.",
+        "raw_log": "target/slice95-ac011-evidence/metadata-reuse/canonical.log"
+      },
+      "current_repaired_candidate": {
+        "source": "6d580ec57692241c28a5113e374102cddc42e559",
+        "commits": 78932,
+        "reported_measurement_ms": 60005,
+        "reported_per_second": 1315.423,
+        "minimum": 1000,
+        "result": "PASS",
+        "helper_exit": 0,
+        "ac011b": {
+          "commits": 18364,
+          "reported_measurement_ms": 60018,
+          "reported_per_second": 305.975,
+          "minimum": 100,
+          "result": "PASS"
+        },
+        "precision": "Reported milliseconds truncated; rates rounded3decimals. No nanosecond precision inferred.",
+        "environment": "Before/after/enclosing readiness applicable; independently verified; parent observed VMoff without separate receipt.",
+        "binary_sha256": "38e50e6e00411c8c1f8d9c36f823713fb0ee787e33a96e73e40d51dff5791615",
+        "input_sha256": "a827a61842a70a64044eb52c9c9f0d6d616607dc29d7421abfc0995681825b90",
+        "raw_log": "target/slice95-ac011-evidence/visibility-coalescing/canonical.log"
       }
     },
     "ac011b": {
@@ -110,7 +131,8 @@
       "ac073_limit_ms": 297,
       "ac073_result": "PASS"
     },
-    "reuse_on_f": "SourceF changes only test observers/cursor fixture and documentation; other measurement inputs unchanged and independently compared"
+    "reuse_on_f": "SourceF changes only test observers/cursor fixture and documentation; other measurement inputs unchanged and independently compared",
+    "scope": "Historical pre-format37 observations are bound to source86fb and recorded per-repair sources. The current_repaired_candidate object explicitly records the format37 AC011 pass; other runtime qualification still requires refresh."
   },
   "cursor": {
     "source": "78a8a3908591677e640cd086f0fba67f66d30b34",
@@ -390,5 +412,32 @@
     "independent_decoder": "Samply0.13.1/Framehop; all3285rows retained,3277nativechainsagree,8differencesexplicit",
     "verdict": "Supports focused design only; originalinconclusive preserved; no throughputacceptance/fullunwindclaim",
     "raw_dir": "target/slice95-ac011-evidence/cpu-profile"
+  },
+  "format37_repair": {
+    "source": "6d580ec57692241c28a5113e374102cddc42e559",
+    "review": "Astra design/code APPROVE exact source; independent9commands0,44unitexecutions32unique+56integration+3actuation; no full/performance claim from scopedtests",
+    "reds": {
+      "guard": "9bed85123",
+      "boot": "85fe1ba1a9fe6a37eeceff98280d204d45a40610",
+      "dispatcher_corrected": "a2d352d0e",
+      "dispatcher_invalid_excluded": "637496211"
+    },
+    "oracles": "Newguard/admission/format tests frozen; original tokenfixture bytes unchanged; historicalseams cfgtest/migration-test-hooks only",
+    "pending": [
+      "final local/feature/security round",
+      "other finalcandidate perf/reliability",
+      "five native/platform receipts+WindowsWAL",
+      "externalRustconsumer",
+      "freshTC5fidelity",
+      "exactcandidate hostedCI",
+      ".29forward and taskcleanup"
+    ],
+    "publication": "HELD",
+    "profiled_original_elf": {
+      "source": "10ca015034f6c55c5c2193a75e1eb4056d5bb948",
+      "sha256": "bc61c376e060309450cdfdc01d9db5cbf45c33ab87f6939deb750312d135e2a4",
+      "recovery": "Byte-identical rebuild after normal cache pathname reuse; no workload or profile rerun",
+      "preserved_path": "target/slice95-ac011-evidence/cpu-profile/retained-original-perf-gates"
+    }
   }
 }

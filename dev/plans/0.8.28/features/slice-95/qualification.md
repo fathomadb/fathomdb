@@ -49,7 +49,7 @@ merely because they ran. Queued/cancelled/skipped/zero-test rows are not passes.
 | Feature coverage | check-test-target-coverage.py; test-feature-complete.sh --scratch with live cached BGE/reranker/nomic/ONNX and two RTX3090s | Inventory at baseline:356 targets,36 feature-complete-only. Recompute current accounting through existing runner, no fixed-count oracle. Separate named cold-storage target avoids root disk pressure. |
 | Python subscriber admission | CI12 deterministic native contention RED/GREEN; unchanged installed-wheel subscriber lifecycle/reentry/replacement suite | Preserve accepted below-capacity delivery,4096 bound/full-only loss and prompt disable; refresh affected Python artifacts/features and final exact-candidate CI. |
 | Strict security | STRICT=1 scripts/agent-security.sh | Host supports namespaces/ptrace unconfined. Record both actual AC037 live pass lines and 0/0/0; no artificial host-security grant/revert. |
-| AC011 writes | CARGO_NET_OFFLINE=true scripts/run-ac011-write-throughput.sh; canonical windchill3/NVMe TMPDIR | ActualE86fb:1KB999.651557/s FAIL;100KB307.292/s PASS. Keep >=1000/>=100 and5s/60s protocol unchanged. Diagnostic tracing never qualifies; owner direction pending. |
+| AC011 writes | CARGO_NET_OFFLINE=true scripts/run-ac011-write-throughput.sh; canonical windchill3/NVMe TMPDIR | Reviewed6d580ec57:1 KB1315.423/s PASS;100 KB305.975/s PASS, helper0; before/after/enclosing readiness applicable. Preserve all earlier non-passes in the history below. Thresholds and5s/60s protocol unchanged; diagnostic tracing never qualifies. |
 | AC012/013 latency | Release perf_gates exact selectors with AGENT_LONG=1; AC012_CORPUS_N=10000; AC013_CORPUS_N=10000 and AC013_VECTOR_DIM=768 | Existing text p50/p99 <=20/150ms; vector <=80/300ms,1000 samples. Synthetic recall/stress remain report-only. |
 | AC081 absolute reads | Release perf_gates::ac_081_absolute_read_performance; seven fresh processes of one hashed executable | Existing <=500ms sequential/<=100ms concurrent; retired AC020 ratios stay retired. |
 | Long reliability | AGENT_LONG=1 exact lifecycle_reliability::ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl and cursor_read_after_write::projection_cursor_bounds_observed_row_count | Actual60s/60DDL/60rebuilds/schema0 PASS. Original1000-search cursor path passed but lacked positive-write proof; CI14 strengthens that existing fixture. Reuse unaffected AC017/018/081c. |
@@ -81,3 +81,44 @@ distribution binaries, excluding credentials/config/workspaces. Confirm exact
 repository, labels, online/idle and executing runner identity. Remove only
 task-owned registration/process/files after jobs and artifact collection finish.
 No workflow trust restriction or persistent host security setting changes.
+
+## AC011 before and after the repairs
+
+All rows use the unchanged canonical AC011 workloads on windchill3/Linux x86_64
+and local NVMe: sequential commits, 5-second warmup and 60-second measured window.
+The three repair qualifications use `scripts/run-ac011-write-throughput.sh`;
+the baseline row retains separately observed AC011a and AC011b results. Minimums remain 1,000/s for 1 KB and 100/s for 100 KB.
+These are distinct qualification runs, not a paired causal experiment. The
+instrumented timing/trace/profile rates are excluded from this table.
+
+| Candidate stage | Exact measured source | 1 KB commits/s | 100 KB commits/s | Helper result |
+| --- | --- | ---: | ---: | --- |
+| Before the performance repairs | `86fb2924c3f10a6b0d4ff04fbd00b8ac7c67bf3d` | 999.651557 — FAIL | 307.292 — PASS | Individual original observations; retain the1 KB failure |
+| Lazy edge-endpoint preparation | `13c6470b5b5700c61c68ce8d10257551fbd2c9ca` | 827.267649 — FAIL | Not reached | 101 |
+| Compiled metadata-query reuse with fresh reads | `10ca015034f6c55c5c2193a75e1eb4056d5bb948` | 932.474344 — FAIL | Not reached | 101 |
+| Transaction-owned visibility coalescing, format 37 | `6d580ec57692241c28a5113e374102cddc42e559` | 1,315.423 — PASS | 305.975 — PASS | 0 |
+
+The original1 KB sample completed 59,986 commits in 60.006908962 seconds. The
+next two samples completed 49,639 in 60.003555154 seconds and 55,950 in 60.001650826
+seconds. Their failure diagnostics retain full elapsed precision. The current
+passing samples report 78,932 commits / 60,005 ms and 18,364 commits / 60,018 ms;
+passing durations are truncated milliseconds and rates rounded to three decimals.
+Do not infer nanosecond precision or a separate measured percent speedup.
+
+Current source bundle SHA256 is
+`a827a61842a70a64044eb52c9c9f0d6d616607dc29d7421abfc0995681825b90`;
+optimized executable SHA256 is
+`38e50e6e00411c8c1f8d9c36f823713fb0ee787e33a96e73e40d51dff5791615`.
+It uses opt-level 3, no debug assertions and the existing default/test-hooks route;
+no migration hooks. The helper and performance tests are byte-identical to the
+pre-repair baseline. Separate verification confirms both actual test executions,
+helper/time exits 0 and applicable before/after/enclosing readiness. The Windows
+VM was observed off by the parent; no separate VM-state receipt was retained.
+
+Raw current logs/identity/readiness and the preserved executable are under
+canonical `.28/target/slice95-ac011-evidence/visibility-coalescing/`. Earlier
+canonical repair logs are under the same evidence root's top level and
+`metadata-reuse/`; the original baseline is source-attributed in
+[qualification-evidence.json](qualification-evidence.json). This throughput pass
+does not substitute for final local/feature/security, native-platform/consumer,
+other performance/reliability, fidelity or hosted CI qualification on format 37.

@@ -1,6 +1,6 @@
 ---
 title: Owned transactional read-visibility coalescing and store format 37
-status: proposed; technical implementation design reviewed
+status: accepted technical implementation; Astra design/code review and independent verification
 date: 2026-11-08
 target_release: 0.8.28 Slice 95
 ---
@@ -8,7 +8,7 @@ target_release: 0.8.28 Slice 95
 # Owned transactional visibility coalescing
 
 The committed [Slice 95 requirements](../plans/0.8.28/features/slice-95/plan.md#ci16-production-repair-after-recovered-evidence)
-authorize format37 and this mechanism. This technical record does not declare a
+authorize format 37 and this mechanism. This technical record does not declare a
 new HITL ruling. It succeeds the connection-wide suppression mechanism of
 [Slice 71 phase 3](../plans/0.8.25/features/slice-71/write-regression-subplan.md#phase-3--select-and-independently-review-the-correction),
 and advances the current-only boundary in
@@ -16,16 +16,34 @@ and advances the current-only boundary in
 The [frozen-read contract](ADR-0.8.25-frozen-pagination-and-operational-state.md),
 vector layout/cleanup, branch-sensitive nonce, WAL/NORMAL and public APIs remain.
 
+## Reason and alternatives
+
+The retained user-CPU profile identified 858 of 3,284 foreground samples in
+SQLite automatic statement reprepare. The previous connection-wide native
+trigger toggles expire prepared programs, including cached queries and FTS
+internals. A real held-statement regression reproduces that invalidation and
+requires zero automatic reprepares across the new ownership interval.
+
+Reusing more prepared statements while retaining the toggles leaves that
+invalidation mechanism in place. A connection-local SQL function would make the
+trigger definitions unusable to ordinary external SQLite clients. The selected
+transaction-owned persisted marker gates only the 57 visibility triggers and
+keeps the authenticated vector DELETE cleanup active. It requires one additive
+layout field and explicit outer-writer admission, rather than decoded-data caches
+or a new writer architecture. The [qualification history](../plans/0.8.28/features/slice-95/qualification.md#ac011-before-and-after-the-repairs)
+records all passing and failing measurements; separate runs do not establish an
+exact causal speedup. WAL/NORMAL and all numerical acceptance limits stay fixed.
+
 ## Exact layout and trigger manifest
 
-`SCHEMA_VERSION=37`. Existing nonempty36 databases, including WAL-backed ones,
+`SCHEMA_VERSION=37`. Existing nonempty format 36 databases, including WAL-backed ones,
 are rejected by `admit_current_database` before mutating open/setup. Historical
-migration SQL stays byte-for-byte unchanged. Fresh bootstrap appends step37:
+migration SQL stays byte-for-byte unchanged. Fresh bootstrap appends step 37:
 first add `coalescing INTEGER NOT NULL DEFAULT 0 CHECK(typeof(coalescing)='integer'
 AND coalescing IN(0,1))`, then replace these visibility trigger triples.
 
 Each name is `_fathomdb_read_visibility_<short>_<ai|au|ad>` for AFTER
-INSERT/UPDATE/DELETE respectively: exactly19 triples /57 triggers.
+INSERT/UPDATE/DELETE respectively: exactly 19 triples / 57 triggers.
 
 | Short | Real owning table |
 | --- | --- |
@@ -49,9 +67,9 @@ INSERT/UPDATE/DELETE respectively: exactly19 triples /57 triggers.
 | os | operational_state |
 | vs | _fathomdb_vector_spans |
 
-A new generator supplies step37; engine validation expects the exact same manifest. Earlier
+A new generator supplies step 37; engine validation expects the exact same manifest. Earlier
 generators never reference `coalescing`. A trigger skips only when a real singleton
-contains integer1. Otherwise its body requires an existing integer0 singleton or
+contains integer 1. Otherwise its body requires an existing integer 0 singleton or
 raises ABORT, then performs the existing checked generation/random nonce update.
 Missing/NULL/noninteger state cannot turn a WHEN condition silently false.
 The authenticated vector-span mapping DELETE cleanup trigger is unchanged and
@@ -60,23 +78,23 @@ state retain ordinary row-trigger invalidation; no connection-local UDF is used.
 
 ## Ownership and completion
 
-Mechanically rename the private `TriggerStateGuard` seam to
-`VisibilityCoalescingGuard`, `disable` to `arm`, before behavior REDs. Its constructor
+The private `VisibilityCoalescingGuard::arm` replaces the former native
+`TriggerStateGuard::disable` interval. Its constructor
 borrows an owned `rusqlite::Transaction` created with IMMEDIATE. It retains the
 read-only native ENABLE_TRIGGER refusal and checks clean singleton state, then
-changes0→1 inside that transaction after the unchanged fresh main/TEMP custom
+changes 0→1 inside that transaction after the unchanged fresh main/TEMP custom
 trigger admission. Custom-trigger fallback never arms and uses ordinary triggers.
 
 Canonical and projection writers retain their current mutation/fence calls.
 The existing checked visibility advance also clears the flag in the same UPDATE.
 For projection outcomes with no existing `visibility_changed`, restore clears the
-flag without inventing a visibility advance. Successful commit requires clean0.
+flag without inventing a visibility advance. Successful commit requires clean 0.
 This preserves the current relevant-change predicate and one advance per relevant
 coalesced transaction. Non-coalesced explicit advances remain supported.
 
 `restore` never issues SQL in autocommit mode: SQLite may already have executed
-RAISE(ROLLBACK). Active owned-transaction restore may clear1→0; a prior successful
-advance already left0. A missing/malformed active state fails through the existing
+RAISE(ROLLBACK). Active owned-transaction restore may clear 1→0; a prior successful
+advance already left 0. A missing/malformed active state fails through the existing
 restore/poison path. The guard destructor issues no SQL: transaction RAII rollback
 restores the original clean state on every earlier error. Exhaustion retains its
 existing Storage/retry behavior; pre-disabled native triggers retain refusal and
@@ -85,7 +103,7 @@ rollback cannot publish a cursor or a committed armed flag.
 
 ## Fresh admission seams
 
-`require_clean` reads integer0 from the singleton; it caches no value. It is an
+`require_clean` reads integer 0 from the singleton; it caches no value. It is an
 outer-boundary check, not a blanket addition to `root`, `state`, per-row
 `guard_plain`, `guard_no_pending_physical`, or visibility-generation helpers that
 legitimately run inside an armed transaction.
@@ -101,7 +119,7 @@ legitimately run inside an armed transaction.
 | `begin_erasure_maintenance` | After cooperative drain, before returning ownership; refusal unwinds process admission/freeze |
 | `enable_telemetry` | Before sink creation and sink registration SQL; callback-only logging/atomic configuration acquires no new database lock |
 | `boot_graft_declared_vector_backfill`, `reconcile_edge_history_on_boot` | Their standalone transaction admission; `reenqueue_stranded_vector_rows` remains an owned lower helper |
-| Frozen `binding_for_snapshot`, `validate_on_open` | Clean state before binding/validation; historical private migration fixtures below37 retain historical manifests |
+| Frozen `binding_for_snapshot`, `validate_on_open` | Clean state before binding/validation; historical private migration fixtures below 37 retain historical manifests |
 | Boot/worker profile/vec0 setup, inert enrolment, attribute reconcile, fresh sanitation and probe publication | Owned IMMEDIATE and clean admission around actual initialization/repair writes; lower helpers remain usable in owned transactions; probe marker failures stay best effort |
 | Dispatcher `next_pending_projection_jobs` cursor repair | Own IMMEDIATE plus clean admission around durable rewind only; existing scans/no-runtime behavior and owned lower `store_projection_cursor` are unchanged |
 | Offline recovery admission | Existing exact-version preflight plus current visibility-state/manifest validation before maintenance mutation |
@@ -117,6 +135,21 @@ clean SELECT outside that boundary alone is insufficient. In particular,
 holds the new boundary before touching its sink. Implementation review checks
 every primary/runtime write callsite against this table and adds any uncovered
 concrete ingress before GREEN.
+
+## Historical fixture boundary
+
+Pinned format 31/32 token fixtures keep their original bytes and assertions.
+Only builds with `cfg(test)` or the engine-only `migration-test-hooks` feature
+may bypass the new field check for the known historical formats 31–36 binding and formats 32–36
+bootstrap fixtures. Ordinary builds always require the clean marker. Current format 37,
+unknown formats and missing-column errors do not gain a bypass. Public admission
+still refuses every noncurrent nonempty database; this is a private fixture seam,
+not runtime compatibility or a data migration.
+
+Astra approved the design and exact implementation at
+`6d580ec57692241c28a5113e374102cddc42e559`; separate focused verification passed.
+This technical acceptance executes the existing Slice 95 requirements and declares
+no new owner ruling or publication authorization.
 
 ## Decisive tests and release truth
 

@@ -264,5 +264,6 @@ IMMEDIATE canonical/projection transaction arms the persisted integer marker,
 retains fresh fence reads and mapping cleanup, and atomically advances the
 checked generation/random nonce while clearing the marker before commit.
 Missing, malformed or committed-armed state refuses writer/frozen binding
-admission. Native trigger execution is checked but never toggled. Transaction
+admission. Native trigger execution is checked but never toggled, preserving compiled
+SQLite programs across the owned interval. Transaction
 rollback owns cleanup; no destructor SQL can create an autocommit disarm.

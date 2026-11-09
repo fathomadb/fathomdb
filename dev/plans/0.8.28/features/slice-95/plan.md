@@ -505,3 +505,22 @@ step37 adds the coalescing column before replacing all57 visibility triggers, so
 earlier steps cannot reference an absent flag. Retain the read-only native
 SQLITE_DBCONFIG_ENABLE_TRIGGER admission check and established error/poison behavior
 for pre-disabled connections; remove the setters/toggling, not that check.
+
+### Reviewed implementation and qualification on 2026-11-08
+
+The transactional repair is implemented at `6d580ec57692241c28a5113e374102cddc42e559`
+with Astra design/code approval and separate focused verification. Review closed
+boot and dispatcher writer-admission gaps; retained normative token fixtures use
+only the reviewed test-private historical seam. The unchanged canonical AC011a/b
+helper passes at 1,315.423/s and 305.975/s with valid readiness and helper exit 0.
+The [full before/after table](qualification.md#ac011-before-and-after-the-repairs)
+retains every earlier failure and source; no causal percentage gain is inferred.
+
+Finish one clean local/feature/security round, refresh the format-bound native,
+consumer, other performance/reliability and TC5 fidelity evidence, and obtain
+exact-candidate hosted CI before closure. Forward the final runtime/records to
+.29 and clean task resources. S95-11's separate version/Axis E/trusted-workflow
+prerequisites remain honestly pending; no release preparation or publication
+permission is inferred. Keep the architectural decision and as-built owner docs
+current, including its alternatives, writer-lock admission, fresh bootstrap,
+external SQL, rollback and test-private boundaries.

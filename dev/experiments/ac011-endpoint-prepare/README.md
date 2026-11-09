@@ -414,3 +414,17 @@ internal truncation marker, so import success is not complete-unwind evidence.
 Retain any architecture warning and verify actual ELF/register architecture.
 Pair raw samples and independently validate recovered callers against CFI/stack
 bytes. Preserve original exports and all unchanged attribution/acceptance limits.
+
+### Preserve the exact executable across later builds
+
+Cargo reuses the release test-executable pathname. The later format-37 build
+replaced that cache file; rebuilding pinned runtime source
+`10ca015034f6c55c5c2193a75e1eb4056d5bb948` without running it reproduced the exact
+original SHA256 `bc61c376e060309450cdfdc01d9db5cbf45c33ab87f6939deb750312d135e2a4`.
+Its preserved copy is canonical
+`target/slice95-ac011-evidence/cpu-profile/retained-original-perf-gates`;
+`original-elf-recovery.json` records the byte-identical comparison. This was an
+artifact recovery, with no workload or additional profile collection. Future
+offline decoding must select that matching ELF rather than assume the mutable
+Cargo cache still contains it. The format-37 qualified executable is separately
+preserved under `visibility-coalescing/qualified-perf-gates` with its own identity.

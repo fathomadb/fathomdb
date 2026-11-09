@@ -54,18 +54,18 @@ merely because they ran. Queued/cancelled/skipped/zero-test rows are not passes.
 | AC081 absolute reads | Release perf_gates::ac_081_absolute_read_performance; seven fresh processes of one hashed executable | Existing <=500ms sequential/<=100ms concurrent; retired AC020 ratios stay retired. |
 | Long reliability | AGENT_LONG=1 exact lifecycle_reliability::ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl and cursor_read_after_write::projection_cursor_bounds_observed_row_count | Actual60s/60DDL/60rebuilds/schema0 PASS. Original1000-search cursor path passed but lacked positive-write proof; CI14 strengthens that existing fixture. Reuse unaffected AC017/018/081c. |
 | AC073 stress / legacy EU7 | Release ignored eu7_real_corpus_ac_validation; CUDA, N7667,100 queries,1000 bootstrap/latency samples,250/thread | Retain actual exit and independently evaluate stress. Superseded recall assertion can produce exit101; never label the overall run PASS. Corpus staging receipt binds13 top-level JSONLs/96,704,727 bytes. |
-| AC075 fidelity | Existing experiments.tc5_gpu_v2 dry-run/run, candidate-bound bridge7667 real docs/100 queries/K192/top10/exact f32 truth | CI-high >=0.90. Reuse frozen input/model pins; renew candidate SHA, CUDA wheel/runtime/CLI/private benchmark hashes. Explicit .28 release/.27 package validator binding remains unchanged. No 2M sweep. |
+| AC075 fidelity | Existing experiments.tc5_gpu_v2 dry-run/run, candidate-bound bridge7667 real docs/100 queries/K192/top10/exact f32 truth | CI-high >=0.90. Reuse frozen input/model pins; renew candidate SHA, CUDA wheel/runtime/CLI/private benchmark hashes. For release .28, accept historical package .27 or final .28 only; final qualification uses .28. Exact artifact/distribution/runtime checks remain unchanged. No 2M sweep. |
 | Packages/consumer boundaries | CI five-target native matrix and distinct WAL; independent Linux installed consumer/missing-export control and external Rust source archive | Preserve dependency/native/package hashes, actual resolved paths/lockfiles/runtime flags. Earlier S92 examples reusable only after explicit relevant-input comparison; CPU dev proof is not optimized/registry/CUDA proof. |
 | Documentation/contracts | Slice92 baseline plus affected docs/index/lifecycle/authority/generator/parity/surface checks, strict local MkDocs | No new full audit or structural framework. Pending .28 docs/published .27 receipts/manifests stay distinct. |
 | Evidence safety | Pinned gitleaks-current.sh and separate retained generated-evidence directory scan | Record separate outcomes. Redact generated secrets before retention; advisory policy unchanged, no new broad suppression. |
-| Local/release rehearsal | local-dry-run.sh; separate release.yml dry_run=true,release_version,candidate_commit | Pending .28 version/Axis E/trusted provenance preparation; immutable dry-run already exempts main ancestry. No old-version substitution or pre-tag-ready claim. |
+| Local/release rehearsal | local-dry-run.sh; separate release.yml dry_run=true,release_version,candidate_commit | Local Axis W is aligned to .28 and Axis E guard passes at 0.8.0, with registry/compiled verification deferred to publish time as reported by that guard. Local rehearsal remains pending; hosted trusted workflow requires main ancestry although the lower nonpublishing gate exempts it. Main can automatically deploy Pages, so that prerequisite remains held. No old-version substitution or pre-tag-ready claim. |
 
 D28-09/10/11 and populated-open deferrals remain. Do not repeat frozen layout
 sweeps or reopen erasure optimization. CUDA driver/toolkit stay unchanged.
 
 ## Resources and executor prerequisites
 
-The source checkout has its own Python3.12/Node25.9 tooling. Feature builds use
+Historical execution used checkout-owned Python3.12/Node25.9 tooling. Feature builds used
 `/media/coreyt/C8D47C11D47C03CA/data/linux-cold/fathomdb-s95-feature-target`
 with206,392,377,344 initial free bytes, jobs2 and runner-owned debug0/incremental0.
 Root NVMe remains the measured database/TMPDIR location. Sandbox read-only mounts
@@ -73,10 +73,16 @@ and denied namespaces/GPU probes do not describe the actual unconfined executor.
 The idle checkout-owned debug cache was copied to cold storage and every file, mode
 and symlink verified before reclaiming its original duplicate. Its logical path
 remains unchanged through a symlink; relocation receipt records identities.
-No shared cache is deleted. Never run timing concurrently with builds.
+No shared cache was deleted. That cold volume is now absent; preserve the
+original target/debug symlink and use checkout-owned target/s95-canonical-target
+on NVMe for current qualification. The current checkout owns Python3.13 tools
+and Node25.9. Never run timing concurrently with builds.
 
-The standing Windows VM's old registration expired; its configuration remains
-untouched. A distinct temporary runner may be provisioned from verified public
+The standing Windows VM's old registration expired. Its original persistent
+configuration and runner files are preserved. A task-owned 64 GiB disk is
+currently attached in the offline configuration and prepared as R:; the VM is
+off and no task runner is registered. Restore the original configuration and
+remove only that owned disk at cleanup. A distinct temporary runner may be provisioned from verified public
 distribution binaries, excluding credentials/config/workspaces. Confirm exact
 repository, labels, online/idle and executing runner identity. Remove only
 task-owned registration/process/files after jobs and artifact collection finish.

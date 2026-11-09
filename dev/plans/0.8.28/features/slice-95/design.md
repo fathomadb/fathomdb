@@ -626,4 +626,28 @@ Astra approved design and exact repair `c02990583a3c2106afc27205f78d0a966ae8c6bd
 after RED `cb52bb9cd`. Separate focused verification confirms the 20 path cases,
 17 policy assertions, platform and native/type-export controls. Runtime/Cargo
 inputs and AC011 remain unchanged. Resume final local security/tests and fresh
-exact-candidate CI; do not collect another profile or repeat passing throughput.
+exact-candidate CI; do not collect another profile or repeat passing throughput
+for these harness-only changes. Final version preparation below allocates its
+separate final-artifact qualification.
+
+## Final version preparation under publication hold
+
+The later owner objective authorizes local completion of 0.8.28 except actual
+release. Astra reviewed mechanical Axis-W alignment through the existing setter,
+unchanged Axis E unless its drift guard requires otherwise, refreshed generated
+docs, and separate final artifact/consumer qualification. Preserve source-level
+regression results whose inputs are unchanged; rerun only failures and affected
+scopes. Qualify one final versioned AC011 pair rather than repeating diagnosis.
+
+TC5 configuration uses a finite package-version set only for release 0.8.28:
+historical 0.8.27 and final 0.8.28. Check string type before membership so malformed
+lists/dicts retain the typed configuration refusal. Other release mappings,
+artifact hashes, exact installed-distribution version and isolated runtime
+checks remain unchanged. The approved fixture amendment precedes the observed
+RED and frozen GREEN; independent verification covers all 22 parser cases.
+
+Local dry-run and corrected ordinary CI remain separate from the hosted trusted
+release rehearsal. The latter still requires main ancestry even though the
+lower nonpublishing gate exempts it. Main pushes can automatically deploy Pages;
+no main push, tag or registry/Pages publication is part of this preparation.
+Do not dispatch an expensive rehearsal that cannot satisfy its prerequisites.

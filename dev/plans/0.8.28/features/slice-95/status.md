@@ -52,8 +52,8 @@ admission stay strict.
 Raw implementation and separate-verification logs are copied into canonical
 `target/slice95-ac011-evidence/visibility-coalescing/` and
 `visibility-coalescing-verifier/`. The current passing executable is preserved
-by hash beside its qualifier logs. Full local and hosted qualification has not
-yet run for this new format-37 runtime.
+by hash beside its qualifier logs. The broad local format-37 collection has now run; its nonzero result and focused
+follow-ups are recorded below. Hosted qualification remains pending.
 
 ## Harness qualification follow-up
 
@@ -71,21 +71,22 @@ It was cancelled after preserving the failure annotations and actual results:
 Reviewed harness repair `c02990583` resolves Cargo target paths and uses supported
 ARM runner images while keeping delivery/deployment/budget contracts unchanged.
 Its 20 path cases, policy/platform/native fixtures and permanent registration
-pass independently; real strict security and full qualification remain pending.
+pass independently. The resumed clean collection passes real strict security
+with zero violations, blockers and downgrades; full qualification remains open.
 See the [bounded design](design.md#ci17-owned-target-paths-and-supported-macos-arm-runners).
 
 ## Final qualification still required
 
 | Obligation | Current disposition |
 | --- | --- |
-| Full local and feature/security gates | Pending one final clean code-phase round with checkout-owned tools/target. Prior format-36 source `16234813c` passed 205/205 with actual child 0; outer 143 had unknown cause. Earlier feature assembly was 180 planned / 165 pass / 15 reviewed ignored. These are historical results, not format-37 qualification. |
-| Other performance/reliability | Refresh AC012/013/081, long AC021 and advancing-cursor checks on fresh candidate databases. Earlier limits passed with the recorded AC081 soft warnings. No extra AC011 retry is planned. |
+| Full local and feature/security gates | Clean `ff253a0a0` collection: 206 ran / 202 passed / four failed; lint, typecheck and real strict security passed. Rust originally failed seven targets; corpus_graph now passes its unchanged 1/1 recheck after verified input staging. Six targets still require focused diagnosis; root inventory is stale. Generated contributor map refreshed; Pages-site 20/20 and retention 45/45 resumed passes. Feature qualification still pending. Prior format-36 source `16234813c` passed 205/205 with actual child 0; outer 143 had unknown cause. Earlier feature assembly was 180 planned / 165 pass / 15 reviewed ignored. These are historical results, not format-37 qualification. |
+| Other performance/reliability | Refresh AC012/013/081, long AC021 and advancing-cursor checks on fresh candidate databases. Earlier limits passed with the recorded AC081 soft warnings. The 6d source pass remains retained; no same-binary retry is planned. One final version-aligned canonical pair is allocated for the final artifacts. |
 | Native platforms and consumers | Refresh the five supported CPU wheel/addon receipts, collector, separate Windows WAL proof and external Rust source-archive consumer against this candidate. No registry-resolved .28 claim. |
 | Accepted fidelity | Rebuild candidate CUDA wheel/CLI/private benchmark and run the unchanged TC5 bridge on a fresh format-37 database. Frozen corpus/model inputs remain. Earlier source `5f668f330` measured recall .958, CI [.938,.974]; it is historical private vector-stage evidence, with the recorded post-run database-hash caveat. |
 | Hosted CI | Fresh exact-candidate dispatch pending. Prior run 42005653176 on `3a05a45cb` failed only fast classification lint before its 198 suites; all five native/collector, heavy 7/7, race/security/default-provider and Windows WAL jobs passed on that older source. Classification correction `af7e570ff` and local fast 198/198 passed; no current overall CI-green claim. |
 | Documentation and evidence | Slice 92 baseline consumed; format-37 design/interface/public-document deltas have scoped checks. Current decision/rationale and full measurement history are committed and reviewed. Source and retained generated-evidence scans remain distinct. |
 | .29 handover and cleanup | Prior repairs/tools are forwarded through `c25d045cf`. Forward this reviewed runtime and final records, run scoped consumer checks, then remove the clean merged task worktree/branch after preserving logs. |
-| Nonpublishing rehearsal | Separate S95-11 disposition: aligned .28 version/Axis E and trusted-workflow preparation remain pending. Do not substitute an old-version rehearsal or claim pre-tag readiness. No version cut, main merge, tag, registry/Pages publication or release dispatch occurred. |
+| Nonpublishing rehearsal | Owner authorizes local .28 version preparation; Axis-W setter/lockstep checks pass at .28. Axis E stays 0.8.0 with its existing not-yet-on-registry/publish-time compiled-check disposition; final artifacts remain pending. Hosted trusted route still requires main ancestry, while main pushes can deploy Pages. Keep that prerequisite and publication held. No main merge, tag, registry/Pages publication or release dispatch occurred. |
 
 CI1–15 engineering is already implemented and reviewed: cold prerequisite setup,
 bounded parallel builds/cache and diagnostics, installed modular TypeScript
@@ -120,3 +121,17 @@ Current runtime task resources remain until verified handover/cleanup.
 D28-09/10/11 and populated-open deferrals remain unchanged. Slice 95 stays open
 until required final qualification and cleanup are complete. Publication remains
 a separate owner decision and is held.
+
+## Current focused follow-up
+
+Actual local full exit is 1 (`target/slice95-final-format37/local-verify-ff253.log`),
+not an uninterrupted pass. The seven Rust targets cover schema refusal/format
+expectations, physical transaction retryability, corpus graph and profiling
+counts. Corpus_graph now passes its unchanged 1/1 rerun after verified input staging; six original targets remain. Diagnose before changing assertions. The two Pages failures share the
+stale generated contributor-map hash and now pass their affected reruns. Verified
+corpus copies are staged for the existing local corpus route, with acquisition
+limitations unchanged. TC5 inputs are independently verified; parser final-version
+support has Astra approval and 22/22 independent passes but is not yet integrated.
+Mechanical local Axis W is now 0.8.28; lockstep checks and the unchanged Axis-E
+0.8.0 guard pass. No artifact or release-workflow pass follows from that metadata.
+No new Actions run has been dispatched while local qualification is incomplete.

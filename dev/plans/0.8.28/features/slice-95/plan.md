@@ -268,12 +268,15 @@ validator, scheduler or general test framework.
 
 Use the existing [AC-037 live runbook](../../../../release/ac-037-live-netns-hitl-runbook.md)
 and [current-owner authority catalog](../../../../design/current-owner-authority.json).
-The non-publishing rehearsal is planned here, but neither this amendment nor a
-green CI run authorizes a version cut or main integration. Immutable
-nonpublishing dispatch already has the documented ancestry exemption; its
-version/Axis E and trusted workflow entry checks still apply. Prepare concrete inputs and retain a named pending prerequisite
-until that authority exists. Report CI repair, candidate qualification and
-pre-tag rehearsal readiness distinctly; none authorizes publication.
+The owner subsequently directed completion of 0.8.28 except actual release.
+This authorizes mechanical Axis-W 0.8.28 alignment and local nonpublishing
+preparation. Preserve Axis E unless its existing drift guard requires a change.
+The lower release gate exempts immutable nonpublishing candidates from main
+ancestry, but the hosted trusted workflow still requires origin/main ancestry.
+Main pushes can also deploy Pages automatically. Keep main integration and hosted
+rehearsal pending that publication-coupled prerequisite; do not bypass either
+check. Report ordinary CI, local rehearsal and hosted rehearsal separately.
+No tag, registry or Pages publication is authorized.
 
 At execution, bind each row to its actual required scope, executor, inputs,
 command, acceptance and available evidence before costly work. This is the
@@ -300,9 +303,10 @@ unchanged; code or gate-input fixes invalidate only affected evidence.
 
 Write [status](status.md), update the release state and regenerate views. Keep
 status concise with exact commands/evidence locators and outstanding blockers.
-Physical erasure is complete except for defects. No version cut, v* tag, registry
-or Pages publication, main merge, paid/GPU campaign beyond existing authorization,
-or post-publication smoke is authorized by creating Slice 95. Publication and its
+Physical erasure is complete except for defects. The later owner objective
+authorizes local version preparation; creating Slice 95 alone did not. No v* tag,
+registry or Pages publication, main merge, paid/GPU campaign beyond existing
+authorization, or post-publication smoke is authorized here. Publication and its
 registry-installed end-to-end proof follow the separate owner ruling and release
 runbook; do not import historical oracle-retirement work already completed.
 
@@ -519,9 +523,9 @@ retains every earlier failure and source; no causal percentage gain is inferred.
 Finish one clean local/feature/security round, refresh the format-bound native,
 consumer, other performance/reliability and TC5 fidelity evidence, and obtain
 exact-candidate hosted CI before closure. Forward the final runtime/records to
-.29 and clean task resources. S95-11's separate version/Axis E/trusted-workflow
-prerequisites remain honestly pending; no release preparation or publication
-permission is inferred. Keep the architectural decision and as-built owner docs
+.29 and clean task resources. The later owner objective authorizes local version
+preparation under S95-11; trusted hosted workflow/main prerequisites remain
+separate and publication stays held. Keep the architectural decision and as-built owner docs
 current, including its alternatives, writer-lock admission, fresh bootstrap,
 external SQL, rollback and test-private boundaries.
 
@@ -543,4 +547,33 @@ records alternatives and boundaries. Observed RED `cb52bb9cd`, frozen GREEN
 `c02990583` and Astra/independent checks precede integration. The existing fast
 registration now totals206 labels (199 fast, seven heavy); these are registrations,
 not completed broad results. Real strict security, broad tests and corrected
-exact-candidate CI remain required. Passing AC011 is unchanged and is not retried.
+exact-candidate CI remain required. These harness-only changes do not warrant
+repeating AC011; later final version preparation allocates its own artifact check.
+
+### Final version preparation and resumed qualification
+
+Changes since CI17: the owner requested completion of 0.8.28 except actual
+release and frugal Actions use. The clean local collection at `ff253a0a0` ran
+206/206 suites: 202 passed, four failed. Lint, typecheck and strict security
+passed with zero violations, blockers or downgrades. Preserve that nonzero
+result; the seven failing Rust targets, root inventory and generated-doc
+failures receive focused diagnosis and only affected reruns. Restored verified
+local corpus copies support the existing corpus route; the recorded acquisition
+limitations remain, and TC5 retains its separately pinned input pack.
+
+Astra reviewed the bounded preparation plan: use `set-version.sh --workspace
+0.8.28`, validate lockstep and the existing Axis-E guard, and refresh derived
+docs. Mechanical version alignment is the TDD exception. Existing source-level
+regression evidence can be reused explicitly where executable inputs are
+unchanged; final versioned artifacts, consumers and one final canonical AC011
+pair require fresh execution. No new profiling, protocol, dataset or threshold
+change is allocated. Run the corrected exact-candidate hosted CI once after local
+qualification and final artifact preparation; do not dispatch it while debugging.
+
+TC5 release 0.8.28 configuration accepts exactly historical package 0.8.27 and
+final package 0.8.28, preserving all other release mappings and exact artifact,
+installed-version and isolated-interpreter checks. The obsolete 0.8.28 rejection
+fixture is explicitly replaced before RED freeze; retain historical success,
+reject 0.8.26/0.8.29 and malformed non-string values. Observed RED `b04c8268b`
+preceded frozen GREEN `1bfabf2b2`; Astra approved code and a separate verifier
+passed all 22 parser tests. This is parser readiness, not final fidelity proof.

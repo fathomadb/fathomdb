@@ -106,6 +106,12 @@ def main() -> None:
         reject(root, global_record, "discrete global proof on the Tegra route")
         accept(root, measured(valid, context_id="0"), "valid zero-valued uint64 context ID")
 
+        accept(root, dict(valid, free_before_bytes=0, free_after_bytes=0, delta_bytes=0),
+               "zero global diagnostic samples with valid private USED proof")
+        reject(root, dict(valid, free_before_bytes=-1, free_after_bytes=0, delta_bytes=-1),
+               "negative global diagnostic bytes")
+        reject(root, dict(valid, total_bytes=0), "nonpositive global diagnostic total")
+
         # The private USED delta is authoritative; global arithmetic remains truthful.
         zero = measured(valid, used_after_bytes=0, delta_bytes=0)
         diagnostics["zero delta"] = reject(root, zero, "a zero delta")

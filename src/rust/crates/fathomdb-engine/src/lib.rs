@@ -4003,3 +4003,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod visibility_coalescing_tests;

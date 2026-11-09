@@ -151,6 +151,14 @@ _github_emit_failure_annotations() {
   done
 }
 
+# Direct heavy runs can legitimately skip Python; missing timing must not skip work.
+_suite_monotonic_ms() {
+  local value
+  value="$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)' 2>/dev/null)" || return 1
+  [[ "$value" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$value"
+}
+
 # Usage: run_suite <label> <cmd...>
 # Runs <cmd...> under the REAL run_capped (agent-output.sh), records the
 # outcome, and ALWAYS returns 0 so `set -e` in the caller cannot abort the
@@ -167,11 +175,14 @@ run_suite() {
     return 0
   fi
 
-  start_ms=$(date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+  start_ms="$(_suite_monotonic_ms)" || start_ms=""
   rc=0
   run_capped "$label" "$@" || rc=$?
-  end_ms=$(date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
-  ms=$((end_ms - start_ms))
+  end_ms="$(_suite_monotonic_ms)" || end_ms=""
+  ms="unavailable"
+  if [ -n "$start_ms" ] && [ -n "$end_ms" ]; then
+    ms=$((10#$end_ms - 10#$start_ms))
+  fi
 
   if [ "$rc" -eq 0 ]; then
     _record "$label" "PASS" "$rc" "$ms"

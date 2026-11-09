@@ -287,7 +287,7 @@
     "preserved_worker_files": 129,
     "gpu_cleanup": "target/slice95-final-format37/approved-ci/ci25-gpu-scratch-cleanup.json",
     "gpu_executor": "Temporaryrunner29 stopped/deregistered; private tmp2 root removed after no active processes/container mounts; original selectorGPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b restored. Standingservices/driver/toolkit unchanged.",
-    "windows": "Exact owner-approved C:\\fathomdb-s95-ci-20261109 deleted; independent separate SSH absence PASS;97,482 files/4,527,596,302logicalbytes. Original disk/XML691a unchanged; VMoff, serviceAutoStopped/policies/standing public/config hashes unchanged. Exact oldqcow2 remains absent.",
+    "windows": "Cleanup complete/verified; subsequent owner-directed readiness repair re-registered existing runner31 and official updater2.338.2. Existing Auto/NETWORKSERVICE serviceRunning, VMrunning; actual Windows CI+controlledrestartPASS. Deleted task directory absent; originalXML/policies preserved. No newVM/disk.",
     "staged_inputs": "13restaged96,704,727B copies removed after resumed real graph pass and independent original/copy hashes. Originalcorpus/restoredTC5pack preserved.",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
     "retained": "Canonical qualification evidence, original profile/recoveredELF and sealed Tegra diagnostic exports retained as evidence backups. Original Tegra project/branches/model caches untouched.",
@@ -304,7 +304,8 @@
       "listener": "not started",
       "receipt": "target/slice95-final-format37/approved-ci/ci26-gpu-preparation/preparation.json",
       "standing_services_driver_toolkit": "unchanged"
-    }
+    },
+    "gpu_standing_readiness": "Original orgCUDA runner6/group3 registration deleted; userunit endlessrestart stopped, enabled unit bytes unchanged; admin/runneraccess403 prevents restoration. Coral/driver/toolkit unchanged; no repoGPU substitute."
   },
   "receipts": {
     "canonical_28": {
@@ -1032,5 +1033,63 @@
     "route_preflight": "PENDING explicit exact-tag policy approval and runner-group admin/read access",
     "publication_started": false,
     "design_review": "Astra APPROVE publication sequence with exact-tag routing, no skip token, retained Pages artifacts and actual registry-installed verification"
+  },
+  "runner_readiness_followup": {
+    "source": "owner2026-11-09 request to run existing local runners and verify actual ghCI reachability",
+    "source_commit": "af37af56f460b4a3c17a77b11b0f9ff0e769cb15",
+    "code_review": "Astra APPROVE bb5ea9b7e6b59ab6f4679d1426c7e808b6053aee; all3reviewed objects match integratedaf37",
+    "red": "7b4b86a28",
+    "corrected_red": "daa172616",
+    "green": "bb5ea9b7e6b59ab6f4679d1426c7e808b6053aee",
+    "scoped_tests": "existing release-workflow-scope0/actionlint0/normal workspace-alltargets-clippy0",
+    "windows": {
+      "runner_id": 31,
+      "state": "online; existing Auto serviceRunning NETWORKSERVICE; VMrunning",
+      "old_registration": 24,
+      "version": "2.338.2 official automaticupdate",
+      "actual_ci_job": 129494925358,
+      "outcome": "SUCCESS",
+      "hostname": "MEMEX-AFE8V4I00",
+      "idle_service_restart": "PASS; freshsession/APIonline afterward",
+      "cleanup": "deleted C:\\fathomdb-s95-ci-20261109 remains absent; originalXML/policies unchanged",
+      "capture_limit": "local repair collector UnicodeDecodeError after remote command; mutation exit not retained, no synthetic0/replay; actual state/restart/CI success independently checked",
+      "alias_limit": "SSH alias existence remains false despite actual service restart and Worker CI success; no cause claimed"
+    },
+    "tegra": {
+      "runner_id": 22,
+      "state": "online; original standing service unchanged",
+      "actual_ci_job": 129494925495,
+      "outcome": "SUCCESS",
+      "hostname": "ubuntu",
+      "readiness": "CUDA12.6/toolchains/6pinned modelcachehashes/disk PASS"
+    },
+    "gpu": {
+      "original_org_runner": 6,
+      "group": 3,
+      "group_name": "fathomdb-gpu-release",
+      "state": "registration deleted server-side; broken restart loop stopped, enabled unit contents unchanged",
+      "actual_ci_job": 129494925601,
+      "outcome": "CANCELLED_UNASSIGNED",
+      "remaining": "organization registration/group access currentHTTP403; restore original restricted route, verify workflow eligibility; no repo substitute/policy bypass"
+    },
+    "manual_probe": {
+      "run": 42715234671,
+      "overall": "CANCELLED",
+      "actual_successful_jobs": 2,
+      "all_three_pass": false
+    },
+    "automatic_ci": {
+      "run": 42715120008,
+      "scope": "proportional; heavy/platform matrix skipped",
+      "terminal_outcome": "CANCELLED",
+      "jobs": {
+        "success": 15,
+        "cancelled": 1,
+        "skipped": 10
+      },
+      "reason": "Astra-approved bounded cancellation of still-bootstrapping verify-fast after focused checks and actual identity jobs; user minimizes Actions spend; no rerun/fullgreen claim"
+    },
+    "owned_implementation_cleanup": "worktree /mnt/data/tmp2/fathomdb-s95-runner-readiness and branchllm/s95-runner-readiness removed;10logs hash-preserved",
+    "evidence_root": "target/slice95-final-format37/approved-ci/ci27-runner-readiness"
   }
 }

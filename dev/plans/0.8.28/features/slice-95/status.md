@@ -90,14 +90,15 @@ retain their existing dispositions. The literal durability ADR/evidence
 discrepancy remains documented; process-kill tests are not machine-crash or
 power-cut proof.
 
-Task worktrees/branches are merged and removed;129 worker evidence files were
+The prepublication task worktrees/branches were merged and removed;129 worker evidence files were
 preserved with equal hashes. Temporary GPU runner29 is stopped/deregistered,
 its private tmp2 directory removed, and the original selector restored. All13
 restaged corpus copies were removed after original/copy checks and the real
 graph pass; originals and qualification evidence remain. Original Windows disk,
-XML, standing runner/service/policies and original project edits are preserved.
+XML, standing runner/service/policies and original project edits were preserved
+by that cleanup. The later owner-directed runner restoration is recorded below.
 The exact oldqcow2 task disk was deleted under its explicit approval; runner30
-auto-removed and the VM is off. Sealed Tegra diagnostic exports and the original
+auto-removed and the VM was off after that cleanup. Sealed Tegra diagnostic exports and the original
 profile/recovered ELF remain retained evidence backups.
 
 The owner-authorized Windows task directory `C:\fathomdb-s95-ci-20261109`
@@ -105,7 +106,7 @@ was deleted and independently verified absent:97,482 files and4,527,596,302
 logical bytes. No reparse points or active task processes were present. The
 C-root entry diff contains only that directory; standing runner/configuration
 hashes, Auto/Stopped service, execution policies and original VM XML are
-unchanged. The VM is off; the old task qcow2 remains absent. Receipt:
+unchanged. The VM was off after cleanup; the old task qcow2 remains absent. Receipt:
 `target/slice95-final-format37/approved-ci/ci26-windows-cleanup/verification.json`.
 The earlier deletion rejection is resolved by seq-366 and is historical.
 
@@ -114,3 +115,45 @@ A fresh private local GPU executor is prepared under
 private Rust/tool caches. It is unregistered and has no listener; standing
 services, driver580 and primary CUDA12.6 are unchanged. Preparation receipt:
 `target/slice95-final-format37/approved-ci/ci26-gpu-preparation/preparation.json`.
+
+## Self-hosted runner readiness follow-up
+
+On 2026-11-09 the owner requested running local runners and actual GitHub CI
+reachability. The existing Windows VM suffices; no new VM/disk was created.
+Its deleted registration24 and broken public junctions were repaired through
+an Astra-approved bounded script, using an ephemeral repository registration
+token on encrypted stdin. Registration31 is online; the existing Auto service
+runs as NETWORK SERVICE. The official runner updated itself to2.338.2. A
+controlled idle service restart and fresh GitHub session pass. The deleted
+Slice95 task directory remains absent, and original VM XML/policies are
+unchanged. The initial local console collector failed decoding Windows output;
+no remote repair exit0 is invented and no mutation was replayed. Actual state
+and subsequent CI execution independently prove the scoped result. SSH alias
+existence checks remain inconsistent with successful service/worker execution;
+the underlying cause is not claimed.
+
+Manual readiness run42715234671 at
+`af37af56f460b4a3c17a77b11b0f9ff0e769cb15` actually completed Windows
+job129494925358 on runner31/`MEMEX-AFE8V4I00` and Jetson job129494925495 on
+runner22/`ubuntu`, both SUCCESS. Tegra toolchains/CUDA/pinned model caches and
+disk space were checked. The CUDA job129494925601 had no assigned runner and
+was cancelled; the overall run is CANCELLED, not a three-platform pass. The
+original organization CUDA runner6 in restricted group3 has a deleted
+registration; its endless restart loop was stopped without changing its unit,
+driver580, primary CUDA12.6 or Coral service. Organization runner/group APIs
+return403 with current CLI scopes. Restore that original registration and
+verify group/workflow eligibility with authorized organization access; no
+repository-runner replacement or protection-policy bypass was used.
+
+The manual/main-only identity probe has empty permissions, fixed labels and
+three-minute job limits; it performs no checkout, build or inference. Astra
+code review approves `bb5ea9b7e6b59ab6f4679d1426c7e808b6053aee`; its three
+reviewed objects match integrated `af37af56f`. RED and corrected RED precede
+GREEN; the existing focused scope test, actionlint and normal workspace clippy
+hooks pass. The one automatic proportional CI run is42715120008; heavy and
+platform build rows were skipped. The run was cancelled during the remaining
+bootstrap to limit Actions spend, with Astra approval:15 jobs succeeded,1 was
+cancelled and10 skipped. No rerun or full CI-green claim is made.
+The owned implementation worktree/branch was removed after preserving ten
+evidence files with equal hashes. Evidence root:
+`target/slice95-final-format37/approved-ci/ci27-runner-readiness/`.

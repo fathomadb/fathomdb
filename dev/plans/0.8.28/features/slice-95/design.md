@@ -776,11 +776,41 @@ post-release USED equal to the completed precontrol baseline.
 Do not move the existing GiB control into the capped pool. No retry, row reorder,
 sleep, pool-setting change, v1 field relabeling or fallback selection by result.
 
-One fresh installed Node row process awaits its sole Engine.open, starting no
-workers or other SDK calls. Retain its source hash, command and PID to attest
+One fresh installed Node row process awaits its sole Engine.open without
+launching concurrent SDK/GPU work; native runtime worker threads still exist. Retain its source hash, command and PID to attest
 that controlled window; claim no general runtime concurrency guarantee. If exact binding, checked reads/completion, model USED
 increase>=64MiB and control rise/release all hold, review a successor ADR and
 schema/interface design before adopting that method. Otherwise stop that
 proposal. RESERVED/high-water/global counters remain diagnostic and cannot
 substitute for live application allocations. The private-pool ADR's wording
 about a memory-release signal does not waive release qualification.
+
+## CI23: current method-specific allocation proof
+
+The verified CI22 paired observation satisfies its predeclared feasibility rule.
+The [v2 technical successor](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md)
+is the concrete contract and ordering design. It replaces only the opt-in GPU
+proof mechanism/record and its adapters/validators. Select from the actual held
+context's hardware attribute and allocator before collecting values. Refuse an
+unexpected discrete+Private combination. Complete the held context before the
+initial private baseline; completion failure prevents sampling/loading. Private
+USED growth and a touched64MiB same-pool live/released control replace the old
+outside-pool GiB depletion control on integrated devices. Negative global free
+movement remains truthful diagnostic data, not a private failure or a fabricated
+counter. Unusable integrated allocation modes refuse the witness explicitly.
+
+Use one typed tagged measurement union across Rust/Python/TypeScript, including
+lossless context/pool identity and process binding. Keep strict variant parsing,
+source-bound installed artifacts and real forward controls. Update top-level-only
+Node extraction deliberately. Original v1 results remain v1 results. Current
+acceptance is derived from raw model/control observations and preconditions,
+not from the diagnostic's integrity flag. No global locking/pool-policy redesign.
+
+TDD covers both selection paths/refusal, signed arithmetic/floors/release,
+identity/forward/completion failures, production ordering/lifetime and both SDK
+mapping variants. Contract fixture changes are reviewed before RED/freeze;
+existing unrelated tests and historical evidence stay intact. Astra reviews the
+exact implementation, and a separate verifier owns affected execution. Existing
+mandatory package/policy/heap/workflow GPU rows provide qualification; do not add
+another three-process campaign. Final exact-candidate full CI is batched after
+these local proofs; publication remains held throughout.

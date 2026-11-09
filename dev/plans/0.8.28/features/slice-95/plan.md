@@ -729,3 +729,56 @@ Missing/private-mismatched identity, counter/synchronization errors or failed
 control accounting stop the proposal. Only a verified same-pool model USED delta
 at least64MiB plus live/released control justifies designing a successor witness;
 it is not itself qualification or proof of the earlier failure's cause.
+
+### CI23: replace the un-attributable integrated-GPU measurement
+
+Changes since CI22 planning: its single preregistered installed Node process
+preserved original v1 exit1/global delta-374050816, while actual held Private
+pool USED rose0→132848640, forward384 and its touched64MiB control rose/released
+exactly. All identity/counter/completion/source/artifact/model checks pass,
+with all75 files mirrored unchanged. This meets the declared feasibility rule;
+it is not qualification or a retrospective explanation/waiver of v1 failures.
+
+Adjust S95-6/7/10/11 acceptance through the
+[technical successor](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md):
+current v2 has an explicit tagged measurement, truthful global diagnostics and
+raw method-specific proof. Integrated/private selection precedes measurements;
+integrated non-private is a named witness refusal. Private acceptance retains
+64MiB model growth, actual device/process/context/pool identity, checked
+completion, forward384 and one touched same-pool64MiB control with exact release.
+Discrete GPU proof retains its original global control and PID obligations.
+Normal device/allocation policy, model pins, format37 and performance floors stay.
+
+Acceptance requires coherent Rust/Python/N-API/TypeScript contracts, explicit
+nested Node conversion and both strict verifiers rejecting missing/mismatched
+variants, weak floors/control, wrong identity/dimension and invalid arithmetic.
+Historical v1 records/negatives remain unchanged. Existing diagnostic reproduction
+at395 remains available; current terminology follows the actual primary schema.
+
+Astra reviews the concrete ADR/design before implementation and exact code after
+TDD. First review necessary contract-fixture amendments, then observe failing
+behavioral tests; implement GREEN with assertions frozen. Independently test
+selection, arithmetic/error/order/lifetime, SDK mappings and validators. Reuse
+existing mandatory installed Node/Python and workflow/driverless/x64 GPU rows;
+no extra campaign or broad regression for this bounded opt-in witness change.
+Final full exact-source manual CPU CI remains batched, followed by the trusted
+nonpublishing release rehearsal and final .29 handover/status/resource cleanup.
+
+The owner additionally requests read-only research on Tegra's original
+`/home/coreyt/projects/fathomdb/` checkout, local branches/unpushed work and
+pool-related agent transcripts. Inspect that history for existing fixes or
+contradictory evidence before CI23 implementation. Preserve the checkout,
+transcripts and sealed evidence. Reconcile concrete findings into this design;
+no speculative cause or duplicate replacement work follows merely from a plan.
+
+Research reconciliation: the inspected Tegra branches, worktrees, reflogs and
+project transcripts revealed no missing witness fix. Historical d861ead76 and
+8d53418d pool fixes are ancestors of current395; reflog-only close fixes match
+known patches. Remaining local-only-versus-tracking commits concern older
+packaging/diagnostics; tracking refs were stale and no fetch occurred. The study
+already retained a healthy-load negative global counter (-125792256), with
+133035264 USED_HIGH peak rather than a current live-model measurement. Reclaim
+was inferred there, not established for Slice95. Study ruling16 scopes study
+reporting. Current CI22 live USED/control data remain verified. Astra reviewed
+this reconciliation and approved the concrete CI23 technical design; proceed
+with TDD, exact code review and independent qualification.

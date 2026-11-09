@@ -12,7 +12,11 @@ The separate Tegra workflow failed its allocation witness. CI20 repairs checked
 CUDA completion and failure-evidence retention; independent compilation and
 focused tests pass, but fresh hardware qualification still fails on its second
 process (9539584 <67108864 bytes). The campaign stopped without retry. CI22
-investigates same-context private-pool accounting before any witness replacement.
+verified same-context private-pool counter feasibility in one process: model
+USED132848640 bytes, forward384, touched64MiB control and exact release, while
+the original global witness still failed. Historical research found the same
+class of failure and no missing witness repair. Astra approved the CI23 v2
+technical design; implementation and current-artifact qualification remain.
 CI21 repairs12 negative elapsed-time reports without changing test verdicts.
 
 Local engine/performance qualification remains bound to its recorded sources,

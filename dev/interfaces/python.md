@@ -222,30 +222,52 @@ helper; see `ADR-0.8.27-python-subscriber-delivery`.
 
 ### `OpenReport.embedder_gpu_allocation_witness` (0.8.23 Slice 80.6)
 
-`engine.open_report().embedder_gpu_allocation_witness` is a frozen-dataclass
-`GpuAllocationWitness | None`: the retained
-`fathomdb.tegra-gpu-allocation-witness/v1` record measured **in this process**
-during the open (`design/0.8.23-aarch64-tegra.md` D-80.6-6, AC80-6, R80-13).
+`engine.open_report().embedder_gpu_allocation_witness` is a frozen dataclass
+`GpuAllocationWitness | None`. Current records use
+`fathomdb.tegra-gpu-allocation-witness/v2` under
+`ADR-0.8.28-attributable-cuda-allocation-witness.md`; current verifiers reject
+historical v1 records without rewriting them.
 
-`None` means **no witness was taken**, never "a witness measured nothing". A
-zero, negative, or below-floor allocation delta is a typed failure inside the
-witness and fails the open, so a zero-valued record is unreachable here.
+`None` means no witness was taken. The existing
+`FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) opts a CUDA-selected default
+embedder into an in-process witness. A requested default-embedder witness failure fails the open
+with its named failure, including `unsupported_allocation_method`; it never
+becomes `None`. Ordinary opens do not incur its second model load/control.
 
-It is populated only when `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) is
-set, the wheel has CUDA compiled in, and the device policy actually selected
-CUDA for the default embedder. It is opt-in because producing it costs a second
-model load plus a multi-gigabyte deliberate control allocation. A requested
-witness that cannot be produced raises at open time naming the witness's own
-failure tag; it never degrades to `None`.
+Common fields include `schema`, `process_id`, `device_integrated`, requested/actual
+device ordinals, UUID/name/compute capability, `free_before_bytes`,
+`free_after_bytes`, `total_bytes`, signed `delta_bytes`, `delta_floor_bytes`,
+`embedded_vector_dim` and `measurement`. The PID is this process's PID in its namespace.
+The global diagnostic delta remains before-minus-after, including zero or
+negative values on successful private witnesses. Device/process identity,
+at least 64 MiB model growth and a real forward of 384 dimensions remain required.
 
-The frozen fields are `schema`, `sole_gpu_consumer_precondition`,
-`device_ordinal_requested`, `device_ordinal_actual`, `device_uuid`,
-`device_name`, `compute_capability`, `free_before_bytes`, `free_after_bytes`,
-`total_bytes`, `delta_bytes`, `delta_floor_bytes`,
-`control_allocation_request_bytes`, `control_block_count`,
-`control_free_before_bytes`, `control_free_after_bytes`,
-`control_delta_bytes`, and `embedded_vector_dim` — every number the verdict
-used, so a reader re-derives the verdict rather than trusting it (R80-13).
+`GpuAllocationMeasurement` is the tagged union of two exact shapes:
+
+- `GpuGlobalFreeMeasurement`, `kind="global_free"`, carries
+  `control_allocation_request_bytes`, `control_block_count`,
+  `control_free_before_bytes`, `control_free_after_bytes`,
+  `control_delta_bytes`, `sole_gpu_consumer_precondition`. Actual discrete,
+  non-private contexts use this method; the common global model decrement
+  must meet the floor and the bounded raw control must be charged in full.
+- `GpuPrivatePoolUsedMeasurement`, `kind="private_pool_used"`, carries
+  `context_id`, `pool_identity`, `used_before_bytes`, `used_after_bytes`, `delta_bytes`,
+  `control_request_bytes`, `control_before_bytes`, `control_live_bytes`,
+  `control_released_bytes`, `pool_exclusivity_precondition`.
+  Actual integrated private contexts use checked live USED growth and one
+  exact 64 MiB touched same-pool control with exact release to the post-forward
+  baseline. Context identity remains decimal text (including zero/max uint64),
+  and pool identity remains an opaque string.
+
+The enum/tag selects the authoritative arithmetic before measurements. No
+result-dependent fallback, irrelevant optional fields or fabricated counters
+exist. The global method requires the selected device's sole GPU consumer;
+the private method requires no competing allocation/free in its held pool.
+These are operator/qualification preconditions, not new SDK locks or a claim
+that Node has one OS thread. Neither method changes normal allocation policy.
+
+Both measurement dataclasses and the witness are frozen. Python byte counts
+remain exact integers; `dataclasses.asdict` retains the nested tagged shape.
 
 ### `OpenReport.embedder_device_resolution` (0.8.23 Slice 70)
 

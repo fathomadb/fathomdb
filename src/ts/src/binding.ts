@@ -615,11 +615,41 @@ export interface NativeEmbedderDeviceResolution {
   reason: string | null;
 }
 
-// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
-// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in this process.
+/** Discrete-device raw control for the global-free witness. */
+export interface NativeGpuGlobalFreeMeasurement {
+  kind: "global_free";
+  controlAllocationRequestBytes: number;
+  controlBlockCount: number;
+  controlFreeBeforeBytes: number;
+  controlFreeAfterBytes: number;
+  controlDeltaBytes: number;
+  soleGpuConsumerPrecondition: string;
+}
+
+/** Integrated-device live USED proof from its actual private pool. */
+export interface NativeGpuPrivatePoolUsedMeasurement {
+  kind: "private_pool_used";
+  /** Checked uint64 context identity, kept as lossless decimal text. */
+  contextId: string;
+  poolIdentity: string;
+  usedBeforeBytes: number;
+  usedAfterBytes: number;
+  deltaBytes: number;
+  controlRequestBytes: number;
+  controlBeforeBytes: number;
+  controlLiveBytes: number;
+  controlReleasedBytes: number;
+  poolExclusivityPrecondition: string;
+}
+
+/** Exactly one current method-specific allocation proof. */
+export type NativeGpuAllocationMeasurement = NativeGpuGlobalFreeMeasurement | NativeGpuPrivatePoolUsedMeasurement;
+
+/** Current in-process witness; global values remain diagnostic on private pools. */
 export interface NativeGpuAllocationWitness {
   schema: string;
-  soleGpuConsumerPrecondition: string;
+  processId: number;
+  deviceIntegrated: boolean;
   deviceOrdinalRequested: number;
   deviceOrdinalActual: number;
   deviceUuid: string;
@@ -630,12 +660,8 @@ export interface NativeGpuAllocationWitness {
   totalBytes: number;
   deltaBytes: number;
   deltaFloorBytes: number;
-  controlAllocationRequestBytes: number;
-  controlBlockCount: number;
-  controlFreeBeforeBytes: number;
-  controlFreeAfterBytes: number;
-  controlDeltaBytes: number;
   embeddedVectorDim: number;
+  measurement: NativeGpuAllocationMeasurement;
 }
 
 export interface NativeOpenReport {

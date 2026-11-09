@@ -18,6 +18,9 @@ from fathomdb.types import (
     EmbedderIdentity,
     FrozenReadContextV1,
     GpuAllocationWitness,
+    GpuAllocationMeasurement,
+    GpuGlobalFreeMeasurement,
+    GpuPrivatePoolUsedMeasurement,
     MigrationStepReport,
     OpenReport,
     ReadContextV1,
@@ -214,16 +217,40 @@ def _validate_frozen_trace_context(value: Any) -> FrozenReadContextV1:
     return value
 
 
+def _map_gpu_allocation_measurement(native: Any) -> GpuAllocationMeasurement:
+    if native.kind == "global_free":
+        return GpuGlobalFreeMeasurement(
+            kind="global_free",
+            control_allocation_request_bytes=native.control_allocation_request_bytes,
+            control_block_count=native.control_block_count,
+            control_free_before_bytes=native.control_free_before_bytes,
+            control_free_after_bytes=native.control_free_after_bytes,
+            control_delta_bytes=native.control_delta_bytes,
+            sole_gpu_consumer_precondition=native.sole_gpu_consumer_precondition,
+        )
+    elif native.kind == "private_pool_used":
+        return GpuPrivatePoolUsedMeasurement(
+            kind="private_pool_used",
+            context_id=native.context_id,
+            pool_identity=native.pool_identity,
+            used_before_bytes=native.used_before_bytes,
+            used_after_bytes=native.used_after_bytes,
+            delta_bytes=native.delta_bytes,
+            control_request_bytes=native.control_request_bytes,
+            control_before_bytes=native.control_before_bytes,
+            control_live_bytes=native.control_live_bytes,
+            control_released_bytes=native.control_released_bytes,
+            pool_exclusivity_precondition=native.pool_exclusivity_precondition,
+        )
+    raise ValueError(f"invalid native GPU allocation measurement kind: {native.kind!r}")
+
+
 def _map_gpu_allocation_witness(native: Any) -> GpuAllocationWitness:
-    """Map the native GPU allocation witness field-for-field.
-
-    Deliberately exhaustive: R80-13 requires the record stay re-derivable, so
-    nothing here summarizes, rounds, or drops a number.
-    """
-
+    """Map common identity and the exact tagged native observations losslessly."""
     return GpuAllocationWitness(
         schema=native.schema,
-        sole_gpu_consumer_precondition=native.sole_gpu_consumer_precondition,
+        process_id=native.process_id,
+        device_integrated=native.device_integrated,
         device_ordinal_requested=native.device_ordinal_requested,
         device_ordinal_actual=native.device_ordinal_actual,
         device_uuid=native.device_uuid,
@@ -234,14 +261,9 @@ def _map_gpu_allocation_witness(native: Any) -> GpuAllocationWitness:
         total_bytes=native.total_bytes,
         delta_bytes=native.delta_bytes,
         delta_floor_bytes=native.delta_floor_bytes,
-        control_allocation_request_bytes=native.control_allocation_request_bytes,
-        control_block_count=native.control_block_count,
-        control_free_before_bytes=native.control_free_before_bytes,
-        control_free_after_bytes=native.control_free_after_bytes,
-        control_delta_bytes=native.control_delta_bytes,
         embedded_vector_dim=native.embedded_vector_dim,
+        measurement=_map_gpu_allocation_measurement(native.measurement),
     )
-
 
 def _map_cuda_device_info(native: Any) -> CudaDeviceInfo:
     allocator = native.cuda_allocator

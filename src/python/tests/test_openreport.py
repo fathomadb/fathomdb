@@ -16,7 +16,11 @@ Spec refs:
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
 from types import SimpleNamespace
+
+import pytest
 
 from fathomdb import Engine
 from fathomdb._sdk_open import _map_cuda_device_info
@@ -248,33 +252,38 @@ def test_open_report_exposes_absent_gpu_allocation_witness(db_path: str) -> None
         engine.close()
 
 
-def test_open_report_maps_a_present_gpu_allocation_witness() -> None:
-    """R80-13 — every number the verdict used survives the mapping.
-
-    The point of the field is that a reader re-derives the verdict rather than
-    trusting it, so the assertions below recompute the delta, the floor
-    comparison, and the control-allocation check from the mapped record alone.
-    """
-
+@pytest.mark.parametrize("kind,context_id", [
+    ("global_free", None),
+    ("private_pool_used", "0"),
+    ("private_pool_used", "18446744073709551615"),
+])
+def test_open_report_maps_a_present_gpu_allocation_witness(kind: str, context_id: str | None) -> None:
+    """Every typed variant and lossless identity survives the real SDK mapper."""
+    integrated = kind == "private_pool_used"
+    measurement = (
+        dict(
+            kind="private_pool_used", context_id=context_id, pool_identity="0x1234",
+            used_before_bytes=0, used_after_bytes=132_848_640, delta_bytes=132_848_640,
+            control_request_bytes=67_108_864, control_before_bytes=132_848_640,
+            control_live_bytes=199_957_504, control_released_bytes=132_848_640,
+            pool_exclusivity_precondition="no competing allocations or frees may occur in the witnessed private pool during model and control observation",
+        )
+        if integrated else dict(
+            kind="global_free", control_allocation_request_bytes=1_073_741_824,
+            control_block_count=8, control_free_before_bytes=42_000_000_000,
+            control_free_after_bytes=40_800_000_000, control_delta_bytes=1_200_000_000,
+            sole_gpu_consumer_precondition="the witness process must be the sole GPU consumer of the selected discrete device",
+        )
+    )
     witness = SimpleNamespace(
-        schema="fathomdb.tegra-gpu-allocation-witness/v1",
-        sole_gpu_consumer_precondition="the witness run must be the sole GPU consumer",
-        device_ordinal_requested=0,
-        device_ordinal_actual=0,
-        device_uuid="GPU-11111111-2222-3333-4444-555555555555",
-        device_name="Orin",
-        compute_capability="8.7",
-        free_before_bytes=40_000_000_000,
-        free_after_bytes=39_856_635_904,
-        total_bytes=65_000_000_000,
-        delta_bytes=143_364_096,
-        delta_floor_bytes=67_108_864,
-        control_allocation_request_bytes=1_073_741_824,
-        control_block_count=8,
-        control_free_before_bytes=42_000_000_000,
-        control_free_after_bytes=40_800_000_000,
-        control_delta_bytes=1_200_000_000,
-        embedded_vector_dim=384,
+        schema="fathomdb.tegra-gpu-allocation-witness/v2", process_id=4242,
+        device_integrated=integrated, device_ordinal_requested=0, device_ordinal_actual=0,
+        device_uuid="GPU-11111111-2222-3333-4444-555555555555", device_name="Orin",
+        compute_capability="8.7", free_before_bytes=40_000_000_000,
+        free_after_bytes=40_374_050_816 if integrated else 39_856_635_904,
+        total_bytes=65_000_000_000, delta_bytes=-374_050_816 if integrated else 143_364_096,
+        delta_floor_bytes=67_108_864, embedded_vector_dim=384,
+        measurement=SimpleNamespace(**measurement),
     )
     native = SimpleNamespace(
         schema_version_before=1,
@@ -293,34 +302,36 @@ def test_open_report_maps_a_present_gpu_allocation_witness() -> None:
     )
 
     mapped = _map_open_report(native).embedder_gpu_allocation_witness
-
     assert mapped is not None
-    assert mapped.schema == "fathomdb.tegra-gpu-allocation-witness/v1"
-    assert "sole GPU consumer" in mapped.sole_gpu_consumer_precondition
+    assert mapped.schema == "fathomdb.tegra-gpu-allocation-witness/v2"
+    assert mapped.process_id == 4242
+    assert mapped.device_integrated is integrated
     assert mapped.device_ordinal_requested == 0
     assert mapped.device_ordinal_actual == 0
     assert mapped.device_uuid == "GPU-11111111-2222-3333-4444-555555555555"
     assert mapped.device_name == "Orin"
     assert mapped.compute_capability == "8.7"
     assert mapped.free_before_bytes == 40_000_000_000
-    assert mapped.free_after_bytes == 39_856_635_904
+    assert mapped.free_after_bytes == (40_374_050_816 if integrated else 39_856_635_904)
     assert mapped.total_bytes == 65_000_000_000
-    assert mapped.delta_bytes == 143_364_096
+    assert mapped.delta_bytes == (-374_050_816 if integrated else 143_364_096)
     assert mapped.delta_floor_bytes == 67_108_864
-    assert mapped.control_allocation_request_bytes == 1_073_741_824
-    assert mapped.control_block_count == 8
-    assert mapped.control_free_before_bytes == 42_000_000_000
-    assert mapped.control_free_after_bytes == 40_800_000_000
-    assert mapped.control_delta_bytes == 1_200_000_000
     assert mapped.embedded_vector_dim == 384
-
-    # The verdict is re-derivable from the record alone.
     assert mapped.free_before_bytes - mapped.free_after_bytes == mapped.delta_bytes
-    assert mapped.delta_bytes >= mapped.delta_floor_bytes
-    assert (
-        mapped.control_free_before_bytes - mapped.control_free_after_bytes
-        >= mapped.control_allocation_request_bytes
-    )
+    assert asdict(mapped)["measurement"] == measurement
+    proof = mapped.measurement
+    if proof.kind == "global_free":
+        assert mapped.delta_bytes >= mapped.delta_floor_bytes
+        assert proof.control_free_before_bytes - proof.control_free_after_bytes == proof.control_delta_bytes
+        assert proof.control_delta_bytes >= proof.control_allocation_request_bytes
+    else:
+        assert mapped.delta_bytes < 0
+        assert proof.used_after_bytes - proof.used_before_bytes == proof.delta_bytes
+        assert proof.delta_bytes >= mapped.delta_floor_bytes
+        assert proof.control_live_bytes - proof.control_before_bytes == 67_108_864
+        assert proof.control_released_bytes == proof.control_before_bytes
+        assert isinstance(proof.context_id, str)
+        assert json.loads(json.dumps(asdict(mapped)))["measurement"]["context_id"] == context_id
 
 
 def test_open_signature_returns_engine_handle(db_path: str) -> None:

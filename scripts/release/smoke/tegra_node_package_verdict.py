@@ -75,7 +75,21 @@ def extract_witness(evidence: Path, out: Path) -> int:
     if not isinstance(witness, dict) or not witness:
         print("tegra-node-smoke: the forced-CUDA embed row carries no GPU allocation witness", file=sys.stderr)
         return 1
-    out.write_bytes(canonical_json({snake(key): value for key, value in witness.items()}))
+    pid = row.get("process_id")
+    witness_pid = witness.get("processId")
+    if (
+        not isinstance(pid, int) or isinstance(pid, bool) or pid < 1
+        or not isinstance(witness_pid, int) or isinstance(witness_pid, bool) or witness_pid != pid
+    ):
+        print("tegra-node-smoke: allocation witness does not belong to the row process", file=sys.stderr)
+        return 1
+    measurement = witness.get("measurement")
+    if not isinstance(measurement, dict) or not measurement:
+        print("tegra-node-smoke: allocation witness carries no tagged measurement", file=sys.stderr)
+        return 1
+    record = {snake(key): value for key, value in witness.items()}
+    record["measurement"] = {snake(key): value for key, value in measurement.items()}
+    out.write_bytes(canonical_json(record))
     return 0
 
 

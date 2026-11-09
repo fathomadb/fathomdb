@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-from cuda_preflight_v2_fixture import CANDIDATE, OTHER_CANDIDATE, canonical, make_incompatible_fixture, make_valid
+from cuda_preflight_v2_fixture import CANDIDATE, OTHER_CANDIDATE, canonical, gpu_observation, make_incompatible_fixture, make_valid
 
 
 REPO = Path(__file__).resolve().parents[2]
@@ -78,20 +79,207 @@ def rewrite_forced_message(
             reseal(root, name)
 
 
+def check_pid_namespace_producer(root: Path) -> None:
+    """Execute the real embedded sealer against controlled kernel/CLI facts."""
+    root.mkdir()
+    script = (REPO / "scripts/release/cuda-preflight.sh").read_text()
+    marker = 'python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json"'
+    program = script[script.index(marker):].split("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+    tools = root / "bin"
+    tools.mkdir()
+    docker = tools / "docker"
+    docker.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, sys\n"
+        "from pathlib import Path\n"
+        "assert sys.argv[1:] == ['inspect', '--format', '{{json .State}}', 'fixture-container']\n"
+        "with Path(os.environ['FIXTURE_TRACE']).open('a') as out: out.write('state\\n')\n"
+        "packet = json.loads(Path(os.environ['FIXTURE_STATE']).read_text())\n"
+        "if packet.get('exit'): sys.exit(packet['exit'])\n"
+        "print(json.dumps(packet['state']))\n"
+    )
+    docker.chmod(0o755)
+    bootstrap = r'''
+import sys
+from pathlib import Path
+from unittest.mock import patch
+program, status, read_error, source, target, trace = sys.argv[1:]
+original_read, original_write = Path.read_text, Path.write_text
+
+def read(path, *args, **kwargs):
+    if str(path).startswith('/proc/'):
+        assert str(path) == '/proc/4242/status'
+        with Path(trace).open('a') as out: out.write('status\n')
+        if read_error == 'true': raise PermissionError('fixture status read refused')
+        return status
+    return original_read(path, *args, **kwargs)
+
+def write(path, *args, **kwargs):
+    if str(path) == target:
+        with Path(trace).open('a') as out: out.write('seal\n')
+    return original_write(path, *args, **kwargs)
+
+sys.argv = ['cuda-preflight.sh:gpu-sealer', source, target,
+            'GPU-11111111-2222-3333-4444-555555555555', '4242', 'fixture-runtime', 'fixture-container']
+with patch.object(Path, 'read_text', read), patch.object(Path, 'write_text', write):
+    exec(compile(program, 'cuda-preflight.sh:gpu-sealer', 'exec'), {'__name__': '__main__'})
+'''
+    source_record = gpu_observation("python")
+    for field in ("schema_version", "nvidia_smi_uuid", "process_id",
+                  "nvidia_smi_compute_process_id", "process_name", "pid_namespace"):
+        source_record.pop(field)
+    source = root / "report.json"
+    source.write_bytes(canonical(source_record))
+    good_status = "Name:\tpython\nNSpid:\t4242\t1\n"
+    good_state = {"Running": True, "Pid": 4242}
+    cases = [
+        ("valid", good_status, good_state, False, 0, True),
+        ("nested", "NSpid:\t4242\t37\t1\n", good_state, False, 0, True),
+        ("missing", "Name:\tpython\n", good_state, False, 0, False),
+        ("duplicate", good_status + "NSpid:\t4242\t1\n", good_state, False, 0, False),
+        ("empty", "NSpid:\n", good_state, False, 0, False),
+        ("single", "NSpid:\t4242\n", good_state, False, 0, False),
+        ("zero", "NSpid:\t4242\t0\n", good_state, False, 0, False),
+        ("negative", "NSpid:\t4242\t-1\n", good_state, False, 0, False),
+        ("float", "NSpid:\t4242\t1.0\n", good_state, False, 0, False),
+        ("wrong-host", "NSpid:\t4243\t1\n", good_state, False, 0, False),
+        ("wrong-inner", "NSpid:\t4242\t2\n", good_state, False, 0, False),
+        ("read-error", good_status, good_state, True, 0, False),
+        ("stopped", good_status, {"Running": False, "Pid": 4242}, False, 0, False),
+        ("changed", good_status, {"Running": True, "Pid": 4243}, False, 0, False),
+        ("state-pid-float", good_status, {"Running": True, "Pid": 4242.0}, False, 0, False),
+        ("state-pid-string", good_status, {"Running": True, "Pid": "4242"}, False, 0, False),
+        ("state-missing", good_status, {"Running": True}, False, 0, False),
+        ("inspect-error", good_status, good_state, False, 17, False),
+    ]
+    for label, status, state, read_error, exit_code, accepted in cases:
+        target = root / f"{label}.json"
+        trace = root / f"{label}.trace"
+        trace.write_text("")
+        state_path = root / f"{label}.state"
+        state_path.write_text(json.dumps({"state": state, "exit": exit_code}))
+        environment = dict(os.environ, PATH=f"{tools}:{os.environ['PATH']}",
+                           FIXTURE_TRACE=str(trace), FIXTURE_STATE=str(state_path))
+        result = subprocess.run(
+            [sys.executable, "-c", bootstrap, program, status, str(read_error).lower(),
+             str(source), str(target), str(trace)],
+            env=environment, capture_output=True, text=True, check=False,
+        )
+        events = trace.read_text().splitlines()
+        if accepted:
+            assert result.returncode == 0, f"{label}: {result.stderr}"
+            observed = json.loads(target.read_bytes())
+            expected_pids = [4242, 37, 1] if label == "nested" else [4242, 1]
+            assert observed.get("pid_namespace") == {"source": "host_proc_status", "nspid": expected_pids}, label
+            assert observed["process_id"] == observed["nvidia_smi_compute_process_id"] == 4242
+            assert observed["allocation_witness"] == source_record["allocation_witness"], "never rewrite inner PID or proof"
+            assert events == ["status", "state", "seal"], f"{label}: {events}"
+            assert target.read_bytes() == canonical(observed)
+        else:
+            assert result.returncode != 0, f"accepted producer {label}"
+            assert not target.exists(), f"producer sealed before refusing {label}"
+            assert events.count("status") == 1, f"no read retries for {label}: {events}"
+            assert events.count("state") <= 1, f"no state retries for {label}: {events}"
+
+
+def check_consumer_witness_adapters() -> None:
+    """Run actual pure consumer adapters without opening an Engine."""
+    import ast
+    import textwrap
+    from types import SimpleNamespace
+
+    python_sources = (
+        REPO / "scripts/release/cuda-preflight.sh",
+        REPO / "scripts/release/smoke/smoke-tegra-pages-wheel.sh",
+        REPO / ".github/workflows/jetson-tegra-cuda-evidence.yml",
+    )
+    for path in python_sources:
+        source = path.read_text()
+        start = source.index("def _witness_for_process(")
+        indent = len(source[:start].rsplit("\n", 1)[-1])
+        lines = source[start:].splitlines()
+        body = [lines[0]]
+        for line in lines[1:]:
+            if line.strip() and len(line) - len(line.lstrip()) <= indent:
+                break
+            body.append(line[indent:])
+        namespace = {"os": os}
+        exec(compile(ast.parse(textwrap.dedent("\n".join(body))), str(path), "exec"), namespace)
+        adapter = namespace["_witness_for_process"]
+        witness = SimpleNamespace(process_id=os.getpid())
+        assert adapter(witness) is witness
+        assert adapter(None) is None
+        for pid in (os.getpid() + 1, 0, True, float(os.getpid())):
+            try:
+                adapter(SimpleNamespace(process_id=pid))
+            except (ValueError, RuntimeError):
+                pass
+            else:
+                raise AssertionError(f"{path}: accepted foreign or malformed PID {pid!r}")
+
+    def js_function(path: Path, name: str) -> str:
+        source = path.read_text()
+        start = source.index(f"function {name}(")
+        return source[start:source.index("\n}", start) + 2]
+
+    fixture = json.loads((REPO / "scripts/tests/fixtures/tegra-gpu-witness/v2/global-free.json").read_bytes())
+    # Explicit SDK names are independent of the producer's snake_case mapping.
+    keys = dict(zip(
+        ("schema", "process_id", "device_integrated", "device_ordinal_requested", "device_ordinal_actual", "device_uuid", "device_name", "compute_capability", "free_before_bytes", "free_after_bytes", "total_bytes", "delta_bytes", "delta_floor_bytes", "embedded_vector_dim"),
+        ("schema", "processId", "deviceIntegrated", "deviceOrdinalRequested", "deviceOrdinalActual", "deviceUuid", "deviceName", "computeCapability", "freeBeforeBytes", "freeAfterBytes", "totalBytes", "deltaBytes", "deltaFloorBytes", "embeddedVectorDim"), strict=True))
+    measurement_keys = dict(zip(
+        ("kind", "sole_gpu_consumer_precondition", "control_allocation_request_bytes", "control_block_count", "control_free_before_bytes", "control_free_after_bytes", "control_delta_bytes"),
+        ("kind", "soleGpuConsumerPrecondition", "controlAllocationRequestBytes", "controlBlockCount", "controlFreeBeforeBytes", "controlFreeAfterBytes", "controlDeltaBytes"), strict=True))
+    raw = {keys[key]: value for key, value in fixture.items() if key != "measurement"}
+    raw["measurement"] = {measurement_keys[key]: value for key, value in fixture["measurement"].items()}
+    program = "const assert = require('node:assert/strict');\n"
+    program += js_function(REPO / "scripts/release/cuda-preflight.sh", "allocationWitnessRecord")
+    program += f"\nconst raw = {json.dumps(raw)}; const expected = {json.dumps(fixture)};\n"
+    program += "raw.processId = process.pid; expected.process_id = process.pid;\n"
+    program += "assert.deepEqual(allocationWitnessRecord(raw), expected);\n"
+    program += "for (const change of [{processId: process.pid + 1}, {processId: true}, {deviceIntegrated: true}, {measurement: {...raw.measurement, kind: 'private_pool_used'}}]) assert.throws(() => allocationWitnessRecord({...raw, ...change}));\n"
+    program += js_function(REPO / "scripts/release/smoke/tegra_node_package_row.mjs", "witnessForProcess")
+    program += "\nassert.equal(witnessForProcess(raw), raw); assert.equal(witnessForProcess(null), null); for (const pid of [process.pid + 1, 0, true, process.pid + 0.5]) assert.throws(() => witnessForProcess({...raw, processId: pid}));\n"
+    result = subprocess.run(["node", "--input-type=commonjs", "-e", program], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
 def main() -> None:
     assert (REPO / "scripts/release/cuda-rerank-preflight-witness.schema.json").is_file()
     with tempfile.TemporaryDirectory() as directory:
         tmp = Path(directory)
         valid = tmp / "valid"
-        shutil.copytree(FIXTURES / "valid", valid)
-        regenerated = tmp / "regenerated"
-        make_valid(regenerated, REPO)
-        assert {
-            path.relative_to(valid): path.read_bytes() for path in sorted(valid.rglob("*")) if path.is_file()
-        } == {
-            path.relative_to(regenerated): path.read_bytes()
-            for path in sorted(regenerated.rglob("*")) if path.is_file()
-        }, "committed valid fixture is not deterministic"
+        # Frozen v1 envelope bytes remain historical inputs and must now refuse.
+        historical_result = run(FIXTURES / "valid")
+        assert historical_result.returncode != 0, "accepted a historical v1 allocation witness"
+        make_valid(valid, REPO)
+        current = json.loads(
+            (REPO / "scripts/tests/fixtures/tegra-gpu-witness/v2/global-free.json").read_bytes()
+        )
+        current = dict(current, process_id=1)
+        assert set(current) == {
+            "schema", "process_id", "device_integrated", "device_ordinal_requested",
+            "device_ordinal_actual", "device_uuid", "device_name", "compute_capability",
+            "free_before_bytes", "free_after_bytes", "total_bytes", "delta_bytes",
+            "delta_floor_bytes", "embedded_vector_dim", "measurement",
+        }
+        measurement = current["measurement"]
+        assert set(measurement) == {
+            "kind", "control_allocation_request_bytes", "control_block_count",
+            "control_free_before_bytes", "control_free_after_bytes", "control_delta_bytes",
+            "sole_gpu_consumer_precondition",
+        }
+        assert current["schema"] == "fathomdb.tegra-gpu-allocation-witness/v2"
+        assert current["device_integrated"] is False and current["process_id"] == 1
+        assert current["delta_bytes"] == current["free_before_bytes"] - current["free_after_bytes"] == 200_000_000
+        assert measurement["control_delta_bytes"] == measurement["control_free_before_bytes"] - measurement["control_free_after_bytes"] == 300_000_000
+        assert measurement["kind"] == "global_free" and measurement["control_block_count"] == 1
+        assert measurement["control_allocation_request_bytes"] == 268_435_456
+        for consumer in ("python", "napi"):
+            observed = json.loads((valid / f"gpu-{consumer}-cuda-witness.json").read_bytes())
+            assert observed["allocation_witness"] == current
+            assert observed["process_id"] == observed["nvidia_smi_compute_process_id"] == 4242
+            assert observed["pid_namespace"] == {"source": "host_proc_status", "nspid": [4242, 1]}
 
         legacy = tmp / "legacy-no-allocation-witness"
         shutil.copytree(valid, legacy)
@@ -107,6 +295,67 @@ def main() -> None:
 
         result = run(valid)
         assert result.returncode == 0, result.stderr
+
+        mutations = (
+            ("zero model delta", lambda w: w.update(free_after_bytes=w["free_before_bytes"], delta_bytes=0)),
+            ("negative model delta", lambda w: w.update(free_after_bytes=w["free_before_bytes"] + 1, delta_bytes=-1)),
+            ("below floor", lambda w: w.update(free_after_bytes=w["free_before_bytes"] - 1024, delta_bytes=1024)),
+            ("weak floor", lambda w: w.update(delta_floor_bytes=1024)),
+            ("global arithmetic", lambda w: w.update(delta_bytes=w["delta_bytes"] + 1)),
+            ("missing control", lambda w: w["measurement"].pop("control_delta_bytes")),
+            ("unobserved control", lambda w: w["measurement"].update(control_free_after_bytes=41_999_999_999, control_delta_bytes=1)),
+            ("false control delta", lambda w: w["measurement"].update(control_delta_bytes=1)),
+            ("floating control delta", lambda w: w["measurement"].update(control_delta_bytes=300_000_000.0)),
+            ("zero blocks", lambda w: w["measurement"].update(control_block_count=0)),
+            ("too many blocks", lambda w: w["measurement"].update(control_block_count=17)),
+            ("zero request", lambda w: w["measurement"].update(control_allocation_request_bytes=0)),
+            ("wrong precondition", lambda w: w["measurement"].update(sole_gpu_consumer_precondition="fine")),
+            ("wrong PID", lambda w: w.update(process_id=4243)),
+            ("wrong forward", lambda w: w.update(embedded_vector_dim=383)),
+            ("wrong hardware", lambda w: w.update(device_integrated=True)),
+            ("mixed fields", lambda w: w["measurement"].update(used_before_bytes=0)),
+            ("wrong method", lambda w: w["measurement"].update(kind="private_pool_used")),
+        )
+        for consumer in ("python", "napi"):
+            for index, (label, mutation) in enumerate(mutations):
+                broken = tmp / f"allocation-{consumer}-{index}"
+                shutil.copytree(valid, broken)
+                record_name = f"gpu-{consumer}-cuda-witness.json"
+                rewrite(broken / record_name, lambda observation: mutation(observation["allocation_witness"]))
+                reseal(broken, record_name)
+                reject(broken, f"{consumer} {label}")
+
+        namespace_mutations = (
+            ("missing namespace", lambda o: o.pop("pid_namespace")),
+            ("missing source", lambda o: o["pid_namespace"].pop("source")),
+            ("missing PID list", lambda o: o["pid_namespace"].pop("nspid")),
+            ("unknown namespace key", lambda o: o["pid_namespace"].update(untrusted=True)),
+            ("wrong source", lambda o: o["pid_namespace"].update(source="environment")),
+            ("not an array", lambda o: o["pid_namespace"].update(nspid="4242 1")),
+            ("empty PID list", lambda o: o["pid_namespace"].update(nspid=[])),
+            ("single PID", lambda o: o["pid_namespace"].update(nspid=[4242])),
+            ("boolean PID", lambda o: o["pid_namespace"].update(nspid=[4242, True])),
+            ("floating PID", lambda o: o["pid_namespace"].update(nspid=[4242, 1.0])),
+            ("zero PID", lambda o: o["pid_namespace"].update(nspid=[4242, 0])),
+            ("negative PID", lambda o: o["pid_namespace"].update(nspid=[4242, -1])),
+            ("wrong host PID", lambda o: o["pid_namespace"].update(nspid=[4243, 1])),
+            ("wrong inner PID", lambda o: o["pid_namespace"].update(nspid=[4242, 2])),
+            ("matching non-init PID", lambda o: (o["pid_namespace"].update(nspid=[4242, 2]), o["allocation_witness"].update(process_id=2))),
+        )
+        for consumer in ("python", "napi"):
+            nested = tmp / f"nested-pid-namespace-{consumer}"
+            shutil.copytree(valid, nested)
+            record_name = f"gpu-{consumer}-cuda-witness.json"
+            rewrite(nested / record_name, lambda o: o["pid_namespace"].update(nspid=[4242, 37, 1]))
+            reseal(nested, record_name)
+            nested_result = run(nested)
+            assert nested_result.returncode == 0, nested_result.stderr
+            for index, (label, mutation) in enumerate(namespace_mutations):
+                broken = tmp / f"namespace-{consumer}-{index}"
+                shutil.copytree(valid, broken)
+                rewrite(broken / record_name, mutation)
+                reseal(broken, record_name)
+                reject(broken, f"{consumer} {label}")
 
         # Tegra's NVIDIA-SMI omits `GPU-`, though it identifies the same
         # driver UUID as the in-process and selected-device records.
@@ -295,6 +544,8 @@ def main() -> None:
             )
             assert result.returncode != 0, f"accepted resealed arbitrary incompatible {consumer} message"
 
+        check_pid_namespace_producer(tmp / "producer")
+        check_consumer_witness_adapters()
     print("CUDA preflight witness v2 behavioral tests passed")
 
 

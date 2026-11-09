@@ -70,8 +70,8 @@ pub use fathomdb_embedder::{
     CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo,
     CudaLibraryRefusal, CudaLibraryRefusalReason, CudaLibraryReport, CudaVisibleDevice,
     DeviceResolution, EffectiveEmbedDevice, EffectiveRerankerDevice, EmbedDevicePolicyError,
-    EmbedderEvent, GpuAllocationWitness, ModuleLoadInit, ReleaseThreshold,
-    RerankerDevicePolicyError, RerankerDeviceResolution,
+    EmbedderEvent, GpuAllocationMeasurement, GpuAllocationWitness, ModuleLoadInit,
+    ReleaseThreshold, RerankerDevicePolicyError, RerankerDeviceResolution,
 };
 // The GPU memory pool settings of `EngineConfig` and their conflict.
 pub use fathomdb_embedder::{

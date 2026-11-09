@@ -86,73 +86,38 @@ fn after_verdict<T>(diagnostic: &mut Diagnostic, probe: &mut dyn PoolProbe, verd
 #[cfg(feature = "embed-cuda")]
 mod hardware {
     use super::*;
-    use crate::gpu_witness::{
-        normalize_cuda_uuid, GpuAllocationWitness, GpuMemorySampler, GpuWitnessError,
-    };
-    use candle_core::cuda::cudarc::driver::{
-        result, sys, AllocMode, CudaContext, CudaMemPool, CudaSlice, CudaStream, DevicePtrMut,
-    };
+    use crate::gpu_witness::{GpuAllocationWitness, GpuMemorySampler, GpuWitnessError};
+    use crate::gpu_witness_private::{HeldPrivatePool, PrivateWitnessProbe};
     use serde_json::{json, Value};
     use std::io::Write;
-    use std::sync::Arc;
 
-    struct RetainedPool {
-        context: Arc<CudaContext>,
-        stream: Arc<CudaStream>,
-        pool: Arc<CudaMemPool>,
-        control: Option<CudaSlice<u8>>,
-    }
-
-    impl PoolProbe for RetainedPool {
+    impl PoolProbe for HeldPrivatePool {
         fn complete(&mut self) -> Result<(), String> {
-            self.context.synchronize().map_err(|error| format!("context completion: {error}"))
+            PrivateWitnessProbe::complete(self).map_err(|error| error.to_string())
         }
         fn read(&mut self) -> Result<Sample, String> {
-            self.context.bind_to_thread().map_err(|error| format!("bind: {error}"))?;
-            let used = self.pool.used_current().map_err(|error| format!("USED: {error}"))?;
-            let reserved =
-                self.pool.reserved_current().map_err(|error| format!("RESERVED: {error}"))?;
-            let (free, total) =
-                self.context.mem_get_info().map_err(|error| format!("global: {error}"))?;
-            Ok(Sample {
-                used,
-                reserved,
-                global: GpuMemorySample { free_bytes: free as u64, total_bytes: total as u64 },
-            })
+            let used = self.read_used().map_err(|error| error.to_string())?;
+            let reserved = self.read_reserved().map_err(|error| error.to_string())?;
+            let global = self.read_global().map_err(|error| error.to_string())?;
+            Ok(Sample { used, reserved, global })
         }
         fn allocate(&mut self, bytes: u64) -> Result<(), String> {
-            let bytes = usize::try_from(bytes).map_err(|error| error.to_string())?;
-            // The retained stream's context owns this exact private pool.
-            self.control =
-                Some(unsafe { self.stream.alloc::<u8>(bytes) }.map_err(|error| error.to_string())?);
-            Ok(())
+            PrivateWitnessProbe::allocate(self, bytes).map_err(|error| error.to_string())
         }
         fn touch(&mut self, pattern: u8) -> Result<(), String> {
-            let control = self.control.as_mut().ok_or("control allocation absent")?;
-            let (pointer, _record) = control.device_ptr_mut(&self.stream);
-            // The owned buffer remains live until checked completion and release.
-            unsafe {
-                result::memset_d8_async(
-                    pointer,
-                    pattern,
-                    CONTROL_BYTES as usize,
-                    self.stream.cu_stream(),
-                )
-            }
-            .map_err(|error| error.to_string())
+            PrivateWitnessProbe::touch(self, pattern).map_err(|error| error.to_string())
         }
         fn release(&mut self) -> Result<(), String> {
-            drop(self.control.take());
-            self.context.check_err().map_err(|error| format!("control drop: {error}"))
+            PrivateWitnessProbe::release(self).map_err(|error| error.to_string())
         }
     }
 
     pub(crate) struct Session {
         record: Diagnostic,
         identity: Option<Value>,
-        probe: Option<RetainedPool>,
-        v1_samples: Vec<Value>,
-        original_verdict_reached: bool,
+        probe: Option<HeldPrivatePool>,
+        witness_global_samples: Vec<Value>,
+        witness_verdict_reached: bool,
     }
 
     impl Session {
@@ -161,8 +126,8 @@ mod hardware {
                 record: Diagnostic::default(),
                 identity: None,
                 probe: None,
-                v1_samples: Vec::new(),
-                original_verdict_reached: false,
+                witness_global_samples: Vec::new(),
+                witness_verdict_reached: false,
             })
         }
 
@@ -194,41 +159,13 @@ mod hardware {
                 "pool_handle": pool.as_ref().map(|pool| format!("{:p}", pool.raw())),
                 "allocation_mode": format!("{:?}", context.alloc_mode()),
             }));
-            if context.alloc_mode() != AllocMode::Private {
-                return Err("unsupported: witnessed context does not use a private pool".into());
-            }
-            let pool = pool.ok_or("unsupported: retained private pool absent")?;
-            if context.ordinal() != requested || !Arc::ptr_eq(stream.context(), &context) {
-                return Err("retained stream/context ordinal mismatch".into());
-            }
-            context.bind_to_thread().map_err(|error| format!("identity bind: {error}"))?;
-            let mut context_id = 0;
-            // The context is retained by this session; the checked call only reads its ID.
-            unsafe { sys::cuCtxGetId(context.cu_ctx(), &mut context_id) }
-                .result()
-                .map_err(|error| format!("context ID: {error}"))?;
-            let uuid = context
-                .uuid()
-                .map_err(|error| format!("UUID: {error}"))?
-                .bytes
-                .map(|byte| byte.to_ne_bytes()[0]);
-            let hex: String = uuid.iter().map(|byte| format!("{byte:02x}")).collect();
-            let uuid = format!(
-                "GPU-{}-{}-{}-{}-{}",
-                &hex[..8],
-                &hex[8..12],
-                &hex[12..16],
-                &hex[16..20],
-                &hex[20..]
-            );
-            if normalize_cuda_uuid(&uuid) != normalize_cuda_uuid(retained_uuid) {
-                return Err("retained context UUID mismatch".into());
-            }
+            let probe = HeldPrivatePool::new(device, requested, retained_uuid)
+                .map_err(|error| error.to_string())?;
             if let Some(identity) = self.identity.as_mut() {
-                identity["context_id"] = json!(context_id);
-                identity["context_uuid"] = json!(uuid);
+                identity["context_id"] = json!(probe.context_id().to_string());
+                identity["context_uuid"] = json!(probe.context_uuid());
             }
-            self.probe = Some(RetainedPool { context, stream, pool, control: None });
+            self.probe = Some(probe);
             Ok(())
         }
 
@@ -238,17 +175,28 @@ mod hardware {
             sample: &Result<GpuMemorySample, GpuWitnessError>,
         ) {
             match sample {
-                Ok(sample) => self.v1_samples.push(json!({"stage": stage, "free_bytes": sample.free_bytes, "total_bytes": sample.total_bytes})),
-                Err(error) => self.record.errors.push(format!("v1 {stage}: {error}")),
+                Ok(sample) => self.witness_global_samples.push(json!({"stage": stage, "free_bytes": sample.free_bytes, "total_bytes": sample.total_bytes})),
+                Err(error) => self.record.errors.push(format!("witness {stage}: {error}")),
             }
             if !self.record.errors.is_empty() {
                 return;
             }
             if let Some(probe) = self.probe.as_mut() {
-                match probe.read() {
+                match PoolProbe::read(probe) {
                     Ok(sample) => self.record.samples.push((stage, sample)),
                     Err(error) => self.record.errors.push(format!("{stage}: {error}")),
                 }
+            }
+        }
+
+        pub(crate) fn retain_private_global_samples(
+            &mut self,
+            before: GpuMemorySample,
+            after: GpuMemorySample,
+        ) {
+            for (stage, sample) in [("before_load", before), ("after_checked_load", after)] {
+                self.witness_global_samples.push(json!({"stage":stage,
+                    "free_bytes":sample.free_bytes,"total_bytes":sample.total_bytes}));
             }
         }
 
@@ -257,7 +205,7 @@ mod hardware {
         }
 
         pub(crate) fn finish<V>(&mut self, verdict: V) -> V {
-            self.original_verdict_reached = true;
+            self.witness_verdict_reached = true;
             match self.probe.as_mut() {
                 Some(probe) => after_verdict(&mut self.record, probe, verdict),
                 None => verdict,
@@ -265,7 +213,7 @@ mod hardware {
         }
 
         pub(crate) fn emit(&self, verdict: &Result<GpuAllocationWitness, GpuWitnessError>) {
-            let v1 = match verdict {
+            let witness = match verdict {
                 Ok(witness) => {
                     json!({"outcome":"pass", "record_json": witness.to_canonical_json()})
                 }
@@ -278,17 +226,17 @@ mod hardware {
                 "global_free_bytes":sample.global.free_bytes,"global_total_bytes":sample.global.total_bytes,
             })).collect();
             let record = json!({
-                "schema":"fathomdb.tegra-gpu-pool-diagnostic/v1", "pid":std::process::id(),
-                "identity":self.identity,"sampling":"sequential non-atomic; original global then USED/RESERVED/global",
-                "v1":v1,"v1_samples":self.v1_samples,"samples":samples,"errors":self.record.errors,
-                "original_verdict_reached":self.original_verdict_reached,
+                "schema":"fathomdb.tegra-gpu-pool-diagnostic/v2", "pid":std::process::id(),
+                "identity":self.identity,"sampling":"sequential non-atomic; private primary reads USED/global; extra diagnostic controls read USED/RESERVED/global",
+                "witness":witness,"witness_global_samples":self.witness_global_samples,"samples":samples,"errors":self.record.errors,
+                "witness_verdict_reached":self.witness_verdict_reached,
                 "embedded_vector_dim":self.record.forward_dimension,
                 "control_request_bytes":CONTROL_BYTES,"control_valid":self.record.control_valid,
-                "diagnostic_valid":self.original_verdict_reached && self.identity.is_some() && self.record.control_valid && self.record.errors.is_empty(),
+                "diagnostic_valid":self.witness_verdict_reached && self.identity.is_some() && self.record.control_valid && self.record.errors.is_empty(),
                 "exclusivity":"external single-open driver attestation required; not enforced by runtime",
                 "acceptance":false,
             });
-            // A diagnostic sink failure must not replace the original v1 result.
+            // A diagnostic sink failure must not replace the original witness result.
             let _ = writeln!(std::io::stderr().lock(), "fathomdb-tegra-pool-diagnostic {record}");
         }
     }

@@ -279,59 +279,6 @@ test("openReport reports no GPU allocation witness on an ordinary open", async (
   }
 });
 
-// R80-13 — the record must stay re-derivable: raw samples, floor, and the
-// control numbers all survive the mapping, so a reader checks the verdict
-// rather than trusting it.
-test("openReport maps a present GPU allocation witness without losing a number", () => {
-  const witness = {
-    schema: "fathomdb.tegra-gpu-allocation-witness/v1",
-    soleGpuConsumerPrecondition: "the witness run must be the sole GPU consumer",
-    deviceOrdinalRequested: 0,
-    deviceOrdinalActual: 0,
-    deviceUuid: "GPU-11111111-2222-3333-4444-555555555555",
-    deviceName: "Orin",
-    computeCapability: "8.7",
-    freeBeforeBytes: 40_000_000_000,
-    freeAfterBytes: 39_856_635_904,
-    totalBytes: 65_000_000_000,
-    deltaBytes: 143_364_096,
-    deltaFloorBytes: 67_108_864,
-    controlAllocationRequestBytes: 1_073_741_824,
-    controlBlockCount: 8,
-    controlFreeBeforeBytes: 42_000_000_000,
-    controlFreeAfterBytes: 40_800_000_000,
-    controlDeltaBytes: 1_200_000_000,
-    embeddedVectorDim: 384,
-  };
-
-  const report = mapOpenReport({
-    schemaVersionBefore: 1,
-    schemaVersionAfter: 1,
-    migrationSteps: [],
-    embedderWarmupMs: 0,
-    queryBackend: "sqlite",
-    defaultEmbedder: { name: "test", revision: "test", dimension: 384 },
-    embedderDownloadMs: null,
-    embedderEvents: [],
-    embedderMeanCenteringRequired: false,
-    embedderMeanVecPinned: false,
-    embedderDeviceResolution: null,
-    rerankerDeviceResolution: null,
-    embedderGpuAllocationWitness: witness,
-  });
-
-  assert.deepEqual(report.embedderGpuAllocationWitness, witness);
-
-  const mapped = report.embedderGpuAllocationWitness;
-  assert.ok(mapped !== null);
-  assert.equal(mapped.freeBeforeBytes - mapped.freeAfterBytes, mapped.deltaBytes);
-  assert.ok(mapped.deltaBytes >= mapped.deltaFloorBytes);
-  assert.ok(
-    mapped.controlFreeBeforeBytes - mapped.controlFreeAfterBytes >=
-      mapped.controlAllocationRequestBytes,
-  );
-});
-
 test("Engine.open Promise signature unchanged — resolves to just Engine", async () => {
   const engine = await Engine.open(freshDbPath());
   try {

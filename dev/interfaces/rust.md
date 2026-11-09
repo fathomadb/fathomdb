@@ -428,44 +428,59 @@ See § "Projection registry" below.
 ### `OpenReport::embedder_gpu_allocation_witness` (0.8.23 Slice 80.6)
 
 `OpenReport::embedder_gpu_allocation_witness` is
-`Option<fathomdb_embedder::GpuAllocationWitness>`: the retained
-`fathomdb.tegra-gpu-allocation-witness/v1` record measured **in this process**
-during the open (`design/0.8.23-aarch64-tegra.md` D-80.6-6, AC80-6, R80-13). It
-exists so the installed artifact's own process carries the GPU evidence rather
-than a sibling process.
+`Option<fathomdb_embedder::GpuAllocationWitness>`. Slice 95 updates current
+records to `fathomdb.tegra-gpu-allocation-witness/v2`, measured in the installed
+artifact's own process. The contract is
+`ADR-0.8.28-attributable-cuda-allocation-witness.md`; historical v1 records remain
+historical and are refused by current verifiers.
 
-`None` means **no witness was taken**, never "a witness measured nothing". A
-zero, negative, or below-floor allocation delta is a typed failure inside the
-witness (R80-12) and fails the open, so a zero-valued record is unreachable
-through this field.
+`None` means no witness was taken. `FATHOMDB_GPU_ALLOCATION_WITNESS=1`
+(or `true`) requests it for a CUDA-selected default embedder. An unavailable or
+failed requested default-embedder witness fails `Engine::open` with `EngineOpenError::Embedder`
+and a named witness tag; it never degrades to `None`. Unrecognized opt-in values
+are errors on that default-embedder path. Normal opens do not perform this measurement. Witnessing
+loads a second model and performs the selected method's deliberate control.
 
-It is populated only when `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) is
-set, the artifact has CUDA compiled in, and the device policy actually selected
-CUDA for the default embedder. It is opt-in because producing it costs a second
-model load plus the multi-gigabyte deliberate control allocation D-80.5-3
-requires; that is evidence-run behavior, not the runtime contract. When the
-witness is requested and cannot be produced, `Engine::open` fails with
-`EngineOpenError::Embedder` naming the witness's own failure tag
-(`cpu_fallback`, `cuda_not_compiled`, `insufficient_delta`, …) — it never
-degrades to `None`. An unrecognized value of the variable is rejected at open
-time rather than read as "off".
+Common fields are `process_id`, `device_integrated`, requested/actual ordinals,
+UUID/name/compute capability, `free_before_bytes`, `free_after_bytes`,
+`total_bytes`, signed `delta_bytes`, `delta_floor_bytes`, `embedded_vector_dim`
+and `measurement`. The PID is the native process's own PID in its namespace.
+The common delta is always truthful global before-minus-after; it can be zero
+or negative on a successful private witness. Identity, process binding, a
+64 MiB minimum model floor and one actual 384-dimension forward remain required.
 
-The private evidence-only `FATHOMDB_GPU_POOL_DIAGNOSTIC=1` opt-in adds a
-separate `fathomdb.tegra-gpu-pool-diagnostic/v1` line on captured stderr during
-an already requested CUDA witness. It preserves the original v1 result and
-OpenReport surface, including failures; diagnostic errors invalidate only that
-diagnostic. All other values leave it off. The controlled driver, sequential
-counter reads and nonqualifying scope are documented in
+`GpuAllocationMeasurement` is a finite enum, also named by `fathomdb-sdk`:
+
+- `GlobalFree` is selected only for an actual discrete/non-private context.
+  Its nested canonical record has `kind="global_free"`, the bounded raw
+  `control_allocation_request_bytes`, `control_block_count`,
+  `control_free_before_bytes`, `control_free_after_bytes`,
+  `control_delta_bytes` and `sole_gpu_consumer_precondition`. Model acceptance
+  uses the common global decrement. The selected device must have no competing
+  GPU consumer during the observation; external PID/UUID evidence remains required.
+- `PrivatePoolUsed` is selected only for an actual integrated/private context.
+  Its nested record has `kind="private_pool_used"`, lossless decimal-string
+  `context_id`, opaque-string `pool_identity`, `used_before_bytes`,
+  `used_after_bytes`, signed `delta_bytes`, `control_request_bytes`,
+  `control_before_bytes`, `control_live_bytes`, `control_released_bytes` and
+  `pool_exclusivity_precondition`. Acceptance uses USED after-minus-before.
+  Checked completion precedes the initial baseline and post-load sample. The
+  model remains live through the forward and one touched 64 MiB same-pool
+  control; release must restore the exact post-forward USED baseline. No competing
+  allocation/free may occur in that pool during model/control observation.
+
+Selection precedes samples and never depends on their results. Integrated
+non-private and unexpected discrete/private contexts return the named
+`unsupported_allocation_method` refusal. Neither allocator policy nor ordinary
+model loading changes. Variants have exact keys, without irrelevant null/fake
+fields; RESERVED/high-water/global diagnostics cannot replace private USED proof.
+
+The private `FATHOMDB_GPU_POOL_DIAGNOSTIC=1` opt-in adds a separate
+`fathomdb.tegra-gpu-pool-diagnostic/v2` stderr record during an already requested
+witness, preserving its original result including errors. Other values leave
+this developer diagnostic off. Its current partial-observation scope and pinned
+historical reproduction are documented in
 [`dev/experiments/tegra-pool-diagnostic/README.md`](../experiments/tegra-pool-diagnostic/README.md).
-
-The record carries `device_ordinal_requested`, `device_ordinal_actual`,
-`device_uuid`, `device_name`, `compute_capability`, `free_before_bytes`,
-`free_after_bytes`, `total_bytes`, `delta_bytes`, `delta_floor_bytes`,
-`control_allocation_request_bytes`, `control_block_count`,
-`control_free_before_bytes`, `control_free_after_bytes`,
-`control_delta_bytes`, and `embedded_vector_dim`, so the verdict is
-re-derivable from the record alone (R80-13). Device identity is not part of
-`EmbedderIdentity` and this field makes no claim about it.
 
 ### `OpenReport::embedder_device_resolution` (0.8.23 Slice 70)
 

@@ -11,8 +11,7 @@ pub(crate) use fathomdb_embedder::{
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
     GpuAllocationWitness as RustGpuAllocationWitness,
     RerankerDevicePolicy as RustRerankerDevicePolicy,
-    RerankerDeviceResolution as RustRerankerDeviceResolution, SOLE_GPU_CONSUMER_PRECONDITION,
-    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
+    RerankerDeviceResolution as RustRerankerDeviceResolution, TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
 };
 pub(crate) use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 pub(crate) use fathomdb_engine::{

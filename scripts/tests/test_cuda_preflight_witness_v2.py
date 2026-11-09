@@ -182,6 +182,68 @@ with patch.object(Path, 'read_text', read), patch.object(Path, 'write_text', wri
             assert events.count("state") <= 1, f"no state retries for {label}: {events}"
 
 
+def check_consumer_witness_adapters() -> None:
+    """Run actual pure consumer adapters without opening an Engine."""
+    import ast
+    import textwrap
+    from types import SimpleNamespace
+
+    python_sources = (
+        REPO / "scripts/release/cuda-preflight.sh",
+        REPO / "scripts/release/smoke/smoke-tegra-pages-wheel.sh",
+        REPO / ".github/workflows/jetson-tegra-cuda-evidence.yml",
+    )
+    for path in python_sources:
+        source = path.read_text()
+        start = source.index("def _witness_for_process(")
+        indent = len(source[:start].rsplit("\n", 1)[-1])
+        lines = source[start:].splitlines()
+        body = [lines[0]]
+        for line in lines[1:]:
+            if line.strip() and len(line) - len(line.lstrip()) <= indent:
+                break
+            body.append(line[indent:])
+        namespace = {"os": os}
+        exec(compile(ast.parse(textwrap.dedent("\n".join(body))), str(path), "exec"), namespace)
+        adapter = namespace["_witness_for_process"]
+        witness = SimpleNamespace(process_id=os.getpid())
+        assert adapter(witness) is witness
+        assert adapter(None) is None
+        for pid in (os.getpid() + 1, 0, True, float(os.getpid())):
+            try:
+                adapter(SimpleNamespace(process_id=pid))
+            except (ValueError, RuntimeError):
+                pass
+            else:
+                raise AssertionError(f"{path}: accepted foreign or malformed PID {pid!r}")
+
+    def js_function(path: Path, name: str) -> str:
+        source = path.read_text()
+        start = source.index(f"function {name}(")
+        return source[start:source.index("\n}", start) + 2]
+
+    fixture = json.loads((REPO / "scripts/tests/fixtures/tegra-gpu-witness/v2/global-free.json").read_bytes())
+    # Explicit SDK names are independent of the producer's snake_case mapping.
+    keys = dict(zip(
+        ("schema", "process_id", "device_integrated", "device_ordinal_requested", "device_ordinal_actual", "device_uuid", "device_name", "compute_capability", "free_before_bytes", "free_after_bytes", "total_bytes", "delta_bytes", "delta_floor_bytes", "embedded_vector_dim"),
+        ("schema", "processId", "deviceIntegrated", "deviceOrdinalRequested", "deviceOrdinalActual", "deviceUuid", "deviceName", "computeCapability", "freeBeforeBytes", "freeAfterBytes", "totalBytes", "deltaBytes", "deltaFloorBytes", "embeddedVectorDim"), strict=True))
+    measurement_keys = dict(zip(
+        ("kind", "sole_gpu_consumer_precondition", "control_allocation_request_bytes", "control_block_count", "control_free_before_bytes", "control_free_after_bytes", "control_delta_bytes"),
+        ("kind", "soleGpuConsumerPrecondition", "controlAllocationRequestBytes", "controlBlockCount", "controlFreeBeforeBytes", "controlFreeAfterBytes", "controlDeltaBytes"), strict=True))
+    raw = {keys[key]: value for key, value in fixture.items() if key != "measurement"}
+    raw["measurement"] = {measurement_keys[key]: value for key, value in fixture["measurement"].items()}
+    program = "const assert = require('node:assert/strict');\n"
+    program += js_function(REPO / "scripts/release/cuda-preflight.sh", "allocationWitnessRecord")
+    program += f"\nconst raw = {json.dumps(raw)}; const expected = {json.dumps(fixture)};\n"
+    program += "raw.processId = process.pid; expected.process_id = process.pid;\n"
+    program += "assert.deepEqual(allocationWitnessRecord(raw), expected);\n"
+    program += "for (const change of [{processId: process.pid + 1}, {processId: true}, {deviceIntegrated: true}, {measurement: {...raw.measurement, kind: 'private_pool_used'}}]) assert.throws(() => allocationWitnessRecord({...raw, ...change}));\n"
+    program += js_function(REPO / "scripts/release/smoke/tegra_node_package_row.mjs", "witnessForProcess")
+    program += "\nassert.equal(witnessForProcess(raw), raw); assert.equal(witnessForProcess(null), null); for (const pid of [process.pid + 1, 0, true, process.pid + 0.5]) assert.throws(() => witnessForProcess({...raw, processId: pid}));\n"
+    result = subprocess.run(["node", "--input-type=commonjs", "-e", program], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
 def main() -> None:
     assert (REPO / "scripts/release/cuda-rerank-preflight-witness.schema.json").is_file()
     with tempfile.TemporaryDirectory() as directory:
@@ -483,6 +545,7 @@ def main() -> None:
             assert result.returncode != 0, f"accepted resealed arbitrary incompatible {consumer} message"
 
         check_pid_namespace_producer(tmp / "producer")
+        check_consumer_witness_adapters()
     print("CUDA preflight witness v2 behavioral tests passed")
 
 

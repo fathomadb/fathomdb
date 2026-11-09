@@ -362,49 +362,52 @@ expect_verdict_failure 'a context without a candidate SHA fails' 'context: candi
 SOURCE=pages expect_verdict_failure 'pages evidence needs its forced-CUDA embed row' 'embed-cuda0: row is missing' \
   '(rows / "embed-cuda0.json").unlink()'
 
-# The witness extractor writes the verifier's canonical snake_case record.
+# Exercise the real extractor against independently reviewed v2 variant literals.
 mkdir -p "$WORK/witness/rows"
-python3 - "$WORK/witness/rows/embed-cuda0.json" <<'PY'
+if python3 - "$REPO_ROOT" "$VERDICT" "$WORK/witness" <<'PYTEST'
 import json
+import subprocess
 import sys
+from pathlib import Path
 
-witness = {
-    "schema": "fathomdb.tegra-gpu-allocation-witness/v1",
-    "soleGpuConsumerPrecondition": "p",
-    "deviceOrdinalRequested": 0,
-    "deviceOrdinalActual": 0,
-    "deviceUuid": "bbbe9f37-7028-556a-930b-54e5f3b67a82",
-    "deviceName": "Orin (nvgpu)",
-    "computeCapability": "8.7",
-    "freeBeforeBytes": 10,
-    "freeAfterBytes": 5,
-    "totalBytes": 20,
-    "deltaBytes": 5,
-    "deltaFloorBytes": 1,
-    "controlAllocationRequestBytes": 1,
-    "controlBlockCount": 1,
-    "controlFreeBeforeBytes": 4,
-    "controlFreeAfterBytes": 3,
-    "controlDeltaBytes": 1,
-    "embeddedVectorDim": 384,
+repo, verdict, root = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+keys = {
+    "process_id": "processId", "device_integrated": "deviceIntegrated",
+    "device_ordinal_requested": "deviceOrdinalRequested", "device_ordinal_actual": "deviceOrdinalActual",
+    "device_uuid": "deviceUuid", "device_name": "deviceName", "compute_capability": "computeCapability",
+    "free_before_bytes": "freeBeforeBytes", "free_after_bytes": "freeAfterBytes", "total_bytes": "totalBytes",
+    "delta_bytes": "deltaBytes", "delta_floor_bytes": "deltaFloorBytes", "embedded_vector_dim": "embeddedVectorDim",
+    "context_id": "contextId", "pool_identity": "poolIdentity", "used_before_bytes": "usedBeforeBytes",
+    "used_after_bytes": "usedAfterBytes", "control_request_bytes": "controlRequestBytes",
+    "control_before_bytes": "controlBeforeBytes", "control_live_bytes": "controlLiveBytes",
+    "control_released_bytes": "controlReleasedBytes", "pool_exclusivity_precondition": "poolExclusivityPrecondition",
+    "sole_gpu_consumer_precondition": "soleGpuConsumerPrecondition",
+    "control_allocation_request_bytes": "controlAllocationRequestBytes", "control_block_count": "controlBlockCount",
+    "control_free_before_bytes": "controlFreeBeforeBytes", "control_free_after_bytes": "controlFreeAfterBytes",
+    "control_delta_bytes": "controlDeltaBytes",
 }
-open(sys.argv[1], "w").write(json.dumps({"witness": witness}) + "\n")
-PY
-if python3 "$VERDICT" witness --evidence-dir "$WORK/witness" --out "$WORK/witness/w.json" \
-  && python3 - "$WORK/witness/w.json" <<'PY'
-import json
-import sys
-
-raw = open(sys.argv[1], "rb").read()
-value = json.loads(raw)
-assert raw == json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode() + b"\n"
-assert value["sole_gpu_consumer_precondition"] == "p"
-assert value["control_delta_bytes"] == 1 and "controlDeltaBytes" not in value
-PY
+row = root / "rows/embed-cuda0.json"
+for variant, context in (("global-free", None), ("private-pool-used", "0"), ("private-pool-used", "18446744073709551615")):
+    expected = json.loads((repo / f"scripts/tests/fixtures/tegra-gpu-witness/v2/{variant}.json").read_bytes())
+    if context is not None:
+        expected["measurement"]["context_id"] = context
+    raw = {keys.get(key, key): value for key, value in expected.items() if key != "measurement"}
+    raw["measurement"] = {keys.get(key, key): value for key, value in expected["measurement"].items()}
+    row.write_text(json.dumps({"process_id": 4242, "witness": raw}))
+    out = root / f"{variant}-{context}.json"
+    result = subprocess.run([sys.executable, str(verdict), "witness", "--evidence-dir", str(root), "--out", str(out)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert out.read_bytes() == json.dumps(expected, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode() + b"\n"
+    for pid in (4243, True, 4242.0, None):
+        row.write_text(json.dumps({"process_id": pid, "witness": raw}))
+        bad = root / "bad.json"
+        result = subprocess.run([sys.executable, str(verdict), "witness", "--evidence-dir", str(root), "--out", str(bad)], capture_output=True, text=True)
+        assert result.returncode != 0 and not bad.exists(), f"accepted row PID {pid!r}"
+PYTEST
 then
-  pass 'witness extractor writes canonical snake_case JSON for the verifier'
+  pass 'witness extractor preserves exact nested v2 variants and binds row PID'
 else
-  fail 'witness extractor must write canonical snake_case JSON'
+  fail 'witness extractor must preserve nested v2 variants and bind row PID'
 fi
 rm -f "$WORK/witness/rows/embed-cuda0.json"
 printf '{"witness": null}\n' >"$WORK/witness/rows/embed-cuda0.json"

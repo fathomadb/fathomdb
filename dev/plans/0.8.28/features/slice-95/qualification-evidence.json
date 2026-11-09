@@ -439,5 +439,37 @@
       "recovery": "Byte-identical rebuild after normal cache pathname reuse; no workload or profile rerun",
       "preserved_path": "target/slice95-ac011-evidence/cpu-profile/retained-original-perf-gates"
     }
+  },
+  "qualification_candidate": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
+  "ci17_harness": {
+    "source": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
+    "red": "cb52bb9cdeb6bda1ad3b38d5b516e766e6d1d43a",
+    "review": "Astra design/exact CODE APPROVE; separate focused verification PASS",
+    "checks": {
+      "cli_path_cases": 20,
+      "policy_assertions": 17,
+      "loader_triples": 10,
+      "release_targets": 5,
+      "published_targets": 5,
+      "native_types_missing_export": "PASS Node25.9",
+      "registered_fast": 199,
+      "registered_heavy": 7
+    },
+    "unchanged": "Engine/Cargo inputs, deploymentfloors/budgets and canonicalAC011 helper/tests",
+    "actual_strict_security": "PENDING after resolver fix; earlier0violations2missingbinaryblockers0downgrades",
+    "first_local_attempt": "022 lint missingtestmetadata beforebroadtests",
+    "second_local_attempt": "8798 lint/typecheckpassed thensecuritymissingbinary blockers; no broadtests",
+    "hosted_run": {
+      "id": 42542957407,
+      "source": "8798ba0385b86d9de93118abfd4524abfc13bef1",
+      "result": "CANCELLED_NOT_QUALIFIED",
+      "successful_jobs": 22,
+      "cancelled_jobs": 11,
+      "skipped_jobs": 1,
+      "trigger": "BothmacOSARMconfiguration cellsunsupported beforesteps; owner-task cancellation preventsremainingwaste",
+      "annotation": "configuration macos-14-arm64-us-default is not supported"
+    },
+    "logs": "target/slice95-final-format37/harness-repair/",
+    "pending": "actualstrictsecurity,firstfullbroadtests andcorrectedexactcandidateCI"
   }
 }

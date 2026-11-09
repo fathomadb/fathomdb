@@ -524,3 +524,23 @@ prerequisites remain honestly pending; no release preparation or publication
 permission is inferred. Keep the architectural decision and as-built owner docs
 current, including its alternatives, writer-lock admission, fresh bootstrap,
 external SQL, rollback and test-private boundaries.
+
+### CI17 qualification findings and bounded correction
+
+Changes since the reviewed runtime plan: first local attempt stopped at missing
+new-test module metadata; the four-line reviewed policy correction is `8798ba038`.
+The next attempt passed lint/typecheck but stopped at two missing-executable
+security blockers caused by hardcoded target paths; no broad test suites ran.
+Hosted run42542957407 then rejected both ARM image cells before steps. The run
+was stopped to avoid continuing a qualification that could not complete: final
+22 successful, 11 cancelled and one skipped job; it is not qualified.
+
+Existing S95-1/2/6/7/9 acceptance allocates only the required harness corrections:
+resolve actual default/relative/absolute/spaced Cargo target paths while preserving
+strict security behavior, and use supported macOS ARM images without changing
+any delivery target, deployment floor or budget. The [CI17 design](design.md#ci17-owned-target-paths-and-supported-macos-arm-runners)
+records alternatives and boundaries. Observed RED `cb52bb9cd`, frozen GREEN
+`c02990583` and Astra/independent checks precede integration. The existing fast
+registration now totals206 labels (199 fast, seven heavy); these are registrations,
+not completed broad results. Real strict security, broad tests and corrected
+exact-candidate CI remain required. Passing AC011 is unchanged and is not retried.

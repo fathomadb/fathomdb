@@ -55,6 +55,25 @@ Raw implementation and separate-verification logs are copied into canonical
 by hash beside its qualifier logs. Full local and hosted qualification has not
 yet run for this new format-37 runtime.
 
+## Harness qualification follow-up
+
+Initial local attempt at `022341dbc` stopped before workspace Clippy/typecheck/tests on missing
+module classifications. Reviewed metadata-only `8798ba038` passes its exact
+boundary gate: 118 modules, 18 governed and 104 configurations. The resumed
+attempt passed lint/typecheck, then strict security reported 0 violations,
+2 blockers and 0 downgrades: the wrappers searched the hardcoded cache path rather
+than the owned Cargo target. Live namespace catch itself passed; application
+security is not claimed from that incomplete battery. No broad suites ran.
+
+CI run42542957407 on `8798ba038` rejected both macOS ARM image cells before steps.
+It was cancelled after preserving the failure annotations and actual results:
+22 successful, 11 cancelled and one skipped job. No overall CI pass is claimed.
+Reviewed harness repair `c02990583` resolves Cargo target paths and uses supported
+ARM runner images while keeping delivery/deployment/budget contracts unchanged.
+Its 20 path cases, policy/platform/native fixtures and permanent registration
+pass independently; real strict security and full qualification remain pending.
+See the [bounded design](design.md#ci17-owned-target-paths-and-supported-macos-arm-runners).
+
 ## Final qualification still required
 
 | Obligation | Current disposition |
@@ -64,7 +83,7 @@ yet run for this new format-37 runtime.
 | Native platforms and consumers | Refresh the five supported CPU wheel/addon receipts, collector, separate Windows WAL proof and external Rust source-archive consumer against this candidate. No registry-resolved .28 claim. |
 | Accepted fidelity | Rebuild candidate CUDA wheel/CLI/private benchmark and run the unchanged TC5 bridge on a fresh format-37 database. Frozen corpus/model inputs remain. Earlier source `5f668f330` measured recall .958, CI [.938,.974]; it is historical private vector-stage evidence, with the recorded post-run database-hash caveat. |
 | Hosted CI | Fresh exact-candidate dispatch pending. Prior run 42005653176 on `3a05a45cb` failed only fast classification lint before its 198 suites; all five native/collector, heavy 7/7, race/security/default-provider and Windows WAL jobs passed on that older source. Classification correction `af7e570ff` and local fast 198/198 passed; no current overall CI-green claim. |
-| Documentation and evidence | Slice 92 baseline consumed; format-37 design/interface/public-document deltas have scoped checks. Current decision/rationale and full measurement history are being finalized with review. Source and retained generated-evidence scans remain distinct. |
+| Documentation and evidence | Slice 92 baseline consumed; format-37 design/interface/public-document deltas have scoped checks. Current decision/rationale and full measurement history are committed and reviewed. Source and retained generated-evidence scans remain distinct. |
 | .29 handover and cleanup | Prior repairs/tools are forwarded through `c25d045cf`. Forward this reviewed runtime and final records, run scoped consumer checks, then remove the clean merged task worktree/branch after preserving logs. |
 | Nonpublishing rehearsal | Separate S95-11 disposition: aligned .28 version/Axis E and trusted-workflow preparation remain pending. Do not substitute an old-version rehearsal or claim pre-tag readiness. No version cut, main merge, tag, registry/Pages publication or release dispatch occurred. |
 

@@ -597,3 +597,33 @@ step37 adds the coalescing column before replacing all57 visibility triggers, so
 earlier steps cannot reference an absent flag. Retain the read-only native
 SQLITE_DBCONFIG_ENABLE_TRIGGER admission check and established error/poison behavior
 for pre-disabled connections; remove the setters/toggling, not that check.
+
+## CI17: owned target paths and supported macOS ARM runners
+
+Final qualification found two harness defects, not product throughput failures.
+With the preserved cold-cache symlink and a fresh checkout-owned
+`CARGO_TARGET_DIR`, both security wrappers built `security_cycle` into the owned
+target but searched the old hardcoded `target/debug` path. Resolve the default,
+absolute or repository-relative Cargo target directory consistently and quote
+paths with spaces. Preserve syscall tracing, live namespace execution, missing
+binary failures, ptrace classification and strict exit policy. Do not copy an
+old executable into the expected path or change the preserved cold cache.
+
+The 20-case fake-CLI fixture executes the actual wrappers and proves executable
+selection/build behavior only. It is permanently registered in the
+existing fast tier; real strict AC036/037 checks remain required. No mocked
+application/database or fake security pass is introduced.
+
+GitHub rejected two ARM jobs before any step with configuration
+`macos-14-arm64-us-default` unsupported. Its [current hosted-runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+identifies `macos-15` as ARM64 and `macos-15-intel` separately as Intel. Replace
+only the six maintained ARM image labels and their current manifest/fixture
+expectations. Keep all five delivery targets, deployment floors, size budgets,
+architecture triples and published-package contracts unchanged. Retain the
+cancelled run's actual disposition; no cancelled job is a pass.
+
+Astra approved design and exact repair `c02990583a3c2106afc27205f78d0a966ae8c6bd`
+after RED `cb52bb9cd`. Separate focused verification confirms the 20 path cases,
+17 policy assertions, platform and native/type-export controls. Runtime/Cargo
+inputs and AC011 remain unchanged. Resume final local security/tests and fresh
+exact-candidate CI; do not collect another profile or repeat passing throughput.

@@ -182,7 +182,8 @@ prepublication preparation are complete. The qualified implementation
 `3741dfb8a3d85bced4bfac6047083cc7e30da314` is integrated on `origin/main`.
 [Slice95 status](0.8.28/features/slice-95/status.md) records the assembled
 full/scoped qualification and trusted nonpublishing rehearsal. Publication is
-held; the remaining Slice95 pointer is publication authorization. The .29 code
+authorized at seq-366; Slice95 continues with exact-tag protected routing,
+actual publication and registry-installed verification. The .29 code
 handover preserves its MCP/filtered-body-FTS requirements and existing behavior.
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
@@ -392,7 +393,7 @@ requirements say otherwise.
   Audit documentation and applicable final candidate evidence. Physical erasure stays
   closed except for defects. [Plan](0.8.28/features/slice-95/plan.md) and
   [completion status](0.8.28/features/slice-95/status.md). Prepublication work is
-  complete through reviewed scoped corrections and trusted rehearsal; publication remains held.
+  complete through reviewed scoped corrections and trusted rehearsal; publication is authorized at seq-366 and awaits the protected-tag routing preflight.
 
 ## Slice ladder
 

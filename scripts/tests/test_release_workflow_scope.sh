@@ -288,6 +288,57 @@ else
   fail "all 13 release uploads and the single Jetson package upload must use bounded retries"
 fi
 
+# Runner connectivity must be delivered by GitHub without touching build inputs.
+if python3 - "$REPO_ROOT/.github/workflows/runner-readiness.yml" <<'PYREADINESS'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+assert path.is_file(), "manual-only runner readiness workflow is missing"
+text = path.read_text()
+assert sorted(re.findall(r"^([a-z-]+):", text, re.M)) == sorted(["name", "on", "permissions", "jobs"])
+assert text.split("on:\n", 1)[1].split("\npermissions:", 1)[0].strip() == "workflow_dispatch:"
+assert "\npermissions: {}\n" in text
+jobs_text = text.split("\njobs:\n", 1)[1]
+jobs = dict(re.findall(r"^  ([a-z-]+):\n(.*?)(?=^  [a-z-]+:\n|\Z)", jobs_text, re.M | re.S))
+assert len(re.findall(r"^  [a-z-]+:", jobs_text, re.M)) == len(jobs) == 3
+expected = {
+    "linux-gpu": ("[self-hosted, Linux, X64, gpu, cuda-12]", "bash"),
+    "windows": ("[self-hosted, Windows, X64, windchill3-windows-11]", "pwsh"),
+    "jetson": ("[self-hosted, Linux, ARM64, jetson, aarch64]", "bash"),
+}
+assert set(jobs) == set(expected)
+for name, (labels, shell) in expected.items():
+    body = jobs[name]
+    assert sorted(re.findall(r"^    ([a-z-]+):", body, re.M)) == sorted(["if", "runs-on", "timeout-minutes", "steps"])
+    assert "    if: github.ref == 'refs/heads/main'\n" in body
+    assert f"    runs-on: {labels}\n" in body
+    assert "    timeout-minutes: 3\n" in body
+    assert body.count("      - ") == 1
+    before, script = body.split("        run: |\n", 1)
+    assert before.endswith(f"    steps:\n      - shell: {shell}\n")
+    commands = [line.removeprefix("          ") for line in script.splitlines() if line.strip()]
+    if shell == "bash":
+        assert commands == [
+            "set -euo pipefail",
+            "printf 'runner_name=%s\\nrunner_os=%s\\nrunner_arch=%s\\n' \"$RUNNER_NAME\" \"$RUNNER_OS\" \"$RUNNER_ARCH\"",
+            "hostname",
+        ]
+    else:
+        assert commands == [
+            'Write-Output "runner_name=$env:RUNNER_NAME"',
+            'Write-Output "runner_os=$env:RUNNER_OS"',
+            'Write-Output "runner_arch=$env:RUNNER_ARCH"',
+            "hostname",
+        ]
+PYREADINESS
+then
+  pass "manual main-only readiness jobs print only runner identity and hostname"
+else
+  fail "runner readiness must be three bounded manual main-only identity jobs"
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

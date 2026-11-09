@@ -136,6 +136,10 @@ from pathlib import Path
 from fathomdb import Engine
 
 def _witness_for_process(witness):
+    if witness is not None:
+        pid = witness.process_id
+        if not isinstance(pid, int) or isinstance(pid, bool) or pid != os.getpid():
+            raise RuntimeError("allocation witness does not belong to the consumer process")
     return witness
 
 if version("fathomdb") != os.environ["VERSION"]:

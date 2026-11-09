@@ -467,11 +467,16 @@ fi
 cat > "$WORK_DIR/gpu-python-smoke.py" <<'PY'
 from dataclasses import asdict
 import json
+import os
 import pathlib
 import time
 from fathomdb import Engine
 
 def _witness_for_process(witness):
+    if witness is not None:
+        pid = witness.process_id
+        if not isinstance(pid, int) or isinstance(pid, bool) or pid != os.getpid():
+            raise RuntimeError("allocation witness does not belong to the consumer process")
     return witness
 engine = Engine.open("/fathomdb-tmp/cuda-python.fdb", use_default_embedder=True)
 report = engine.open_report()
@@ -496,9 +501,17 @@ cat > "$WORK_DIR/gpu-napi-smoke.mjs" <<'JS'
 import fs from "node:fs";
 import { Engine } from "fathomdb";
 function allocationWitnessRecord(allocationWitness) {
+  if (!Number.isInteger(allocationWitness.processId) || allocationWitness.processId !== process.pid) {
+    throw new Error("allocation witness does not belong to the consumer process");
+  }
+  if (allocationWitness.deviceIntegrated !== false || allocationWitness.measurement?.kind !== "global_free") {
+    throw new Error("discrete CUDA preflight requires the global_free witness method");
+  }
+  const measurement = allocationWitness.measurement;
   return {
     schema: allocationWitness.schema,
-    sole_gpu_consumer_precondition: allocationWitness.soleGpuConsumerPrecondition,
+    process_id: allocationWitness.processId,
+    device_integrated: allocationWitness.deviceIntegrated,
     device_ordinal_requested: allocationWitness.deviceOrdinalRequested,
     device_ordinal_actual: allocationWitness.deviceOrdinalActual,
     device_uuid: allocationWitness.deviceUuid,
@@ -509,12 +522,16 @@ function allocationWitnessRecord(allocationWitness) {
     total_bytes: allocationWitness.totalBytes,
     delta_bytes: allocationWitness.deltaBytes,
     delta_floor_bytes: allocationWitness.deltaFloorBytes,
-    control_allocation_request_bytes: allocationWitness.controlAllocationRequestBytes,
-    control_block_count: allocationWitness.controlBlockCount,
-    control_free_before_bytes: allocationWitness.controlFreeBeforeBytes,
-    control_free_after_bytes: allocationWitness.controlFreeAfterBytes,
-    control_delta_bytes: allocationWitness.controlDeltaBytes,
     embedded_vector_dim: allocationWitness.embeddedVectorDim,
+    measurement: {
+      kind: measurement.kind,
+      sole_gpu_consumer_precondition: measurement.soleGpuConsumerPrecondition,
+      control_allocation_request_bytes: measurement.controlAllocationRequestBytes,
+      control_block_count: measurement.controlBlockCount,
+      control_free_before_bytes: measurement.controlFreeBeforeBytes,
+      control_free_after_bytes: measurement.controlFreeAfterBytes,
+      control_delta_bytes: measurement.controlDeltaBytes,
+    },
   };
 }
 const engine = await Engine.open("/fathomdb-tmp/cuda-napi.fdb", { useDefaultEmbedder: true });

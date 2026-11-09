@@ -21,6 +21,7 @@ const out = {
   component,
   policy: policyArg === "-" ? null : policyArg,
   node: process.version,
+  process_id: process.pid,
   outcome: "error",
   step: "import",
   error: null,
@@ -55,6 +56,9 @@ function resolution(value) {
 }
 
 function witnessForProcess(witness) {
+  if (witness !== null && (!Number.isInteger(witness.processId) || witness.processId !== process.pid)) {
+    throw new Error("allocation witness does not belong to the consumer process");
+  }
   return witness;
 }
 

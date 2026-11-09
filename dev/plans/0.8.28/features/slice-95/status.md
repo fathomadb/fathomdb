@@ -81,17 +81,19 @@ suppression or integrity artifact changed.
   holds and existing environment/ancestry controls. Local helper passes do not
   supply trusted-workflow provenance. No hosted run was dispatched under the
   conditional approval.
-- Finish scoped records checks, final .29 forwarding and
-  resource cleanup. Close status/state only after all required qualification.
+- Finish task-resource cleanup after the remaining execution gates. The local
+  baseline records passed scoped checks and were forwarded to .29. Close
+  status/state only after all required qualification.
 
 ## Retained limits and resources
 
 The original task worktree/branch is clean, fully merged and removed; 73 evidence
 files were copied byte-for-byte. Canonical dev/release checkouts remain. The
 standing Windows VM is gracefully off; original runner hashes, Auto/Stopped
-service, policies and model cache are verified unchanged. Its owned64GiB task
-disk remains configured for possible exact-CI reuse; original XML restoration
-and task-disk cleanup remain. No task runner
+service, policies and model cache are verified unchanged. Its original domain
+definition is restored exactly; the owned64GiB task disk is detached and retained.
+Automatic approval review rejected irreversible task-disk deletion without
+explicit owner approval for that exact volume; the deletion question is pending. No task runner
 registration/token/listener was created yet. A local Linux X64 GPU runner is
 also not registered; do not start or modify the standing Fathom/Coral services.
 Tegra's existing dirty checkout is untouched. Isolated task exports/environments

@@ -547,21 +547,52 @@ seal_gpu_observation() {
         printf 'cuda-preflight: observed GPU UUID differs from the requested host UUID\n' >&2
         exit 1
       }
-      python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" "$container" <<'PY'
+      if ! python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" "$container" <<'PY'
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 source, target, host_uuid, host_pid, process_name, container = sys.argv[1:]
 value = json.loads(Path(source).read_text())
+host_pid = int(host_pid)
+witness = value.get("allocation_witness")
+inner_pid = witness.get("process_id") if isinstance(witness, dict) else None
+if host_pid < 1 or not isinstance(inner_pid, int) or isinstance(inner_pid, bool) or inner_pid != 1:
+    raise SystemExit("cuda-preflight: consumer must retain its own namespace PID1")
+status = Path(f"/proc/{host_pid}/status").read_text(encoding="ascii")
+lines = [line for line in status.splitlines() if line.startswith("NSpid:")]
+if len(lines) != 1:
+    raise SystemExit("cuda-preflight: expected exactly one kernel NSpid line")
+tokens = lines[0].removeprefix("NSpid:").split()
+if len(tokens) < 2 or any(re.fullmatch(r"[1-9][0-9]*", token) is None for token in tokens):
+    raise SystemExit("cuda-preflight: kernel NSpid must contain positive host-to-inner PIDs")
+pids = [int(token) for token in tokens]
+if pids[0] != host_pid or pids[-1] != inner_pid:
+    raise SystemExit("cuda-preflight: kernel PID namespace does not bind this consumer")
+# Recheck the same live container after the kernel read and before any output.
+inspection = subprocess.run(
+    ["docker", "inspect", "--format", "{{json .State}}", container],
+    capture_output=True, text=True, check=True,
+)
+state = json.loads(inspection.stdout)
+if (not isinstance(state, dict) or state.get("Running") is not True
+        or not isinstance(state.get("Pid"), int) or isinstance(state.get("Pid"), bool)
+        or state["Pid"] != host_pid):
+    raise SystemExit("cuda-preflight: consumer stopped or changed host PID before sealing")
 value.update({
     "schema_version": "fathomdb.cuda-device-observation/v1",
     "nvidia_smi_uuid": host_uuid,
-    "process_id": int(host_pid),
-    "nvidia_smi_compute_process_id": int(host_pid),
+    "process_id": host_pid,
+    "nvidia_smi_compute_process_id": host_pid,
     "process_name": process_name,
+    "pid_namespace": {"source": "host_proc_status", "nspid": pids},
 })
 Path(target).write_text(json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
+      then
+        return 1
+      fi
       exit_code="$(docker wait "$container")"
       docker logs "$container" >"$smoke" 2>&1
       docker rm "$container" >/dev/null

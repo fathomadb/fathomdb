@@ -547,11 +547,11 @@ seal_gpu_observation() {
         printf 'cuda-preflight: observed GPU UUID differs from the requested host UUID\n' >&2
         exit 1
       }
-      python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" <<'PY'
+      python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" "$container" <<'PY'
 import json
 import sys
 from pathlib import Path
-source, target, host_uuid, host_pid, process_name = sys.argv[1:]
+source, target, host_uuid, host_pid, process_name, container = sys.argv[1:]
 value = json.loads(Path(source).read_text())
 value.update({
     "schema_version": "fathomdb.cuda-device-observation/v1",

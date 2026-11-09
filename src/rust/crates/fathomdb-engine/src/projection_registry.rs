@@ -1915,6 +1915,8 @@ fn registry_governs_an_inert_dense_arm(conn: &Connection) -> rusqlite::Result<bo
 pub(crate) fn reconcile_inert_vector_enrolments_on_boot(
     conn: &Connection,
 ) -> rusqlite::Result<bool> {
+    let tx = crate::frozen_read::begin_visibility_writer(conn)?;
+    let conn = &tx;
     if !registry_governs_an_inert_dense_arm(conn)? {
         return Ok(false);
     }
@@ -1929,6 +1931,7 @@ pub(crate) fn reconcile_inert_vector_enrolments_on_boot(
         return Ok(false);
     }
     unenrol_registry_vector_node_kinds(conn)?;
+    tx.commit()?;
     Ok(true)
 }
 

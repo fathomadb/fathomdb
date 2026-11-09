@@ -100,8 +100,9 @@ legitimately run inside an armed transaction.
 | `withdraw_queued_erasure`, maintenance handle queue/reattach/complete | Direct primary admissions and owned queue transaction, before durable/file effects; existing service/queue fences remain |
 | `begin_erasure_maintenance` | After cooperative drain, before returning ownership; refusal unwinds process admission/freeze |
 | `enable_telemetry` | Before sink creation and sink registration SQL; callback-only logging/atomic configuration acquires no new database lock |
-| `boot_graft_declared_vector_backfill`, `reenqueue_stranded_vector_rows` | Their standalone transaction admission; fresh initialization occurs only after step37 |
+| `boot_graft_declared_vector_backfill`, `reconcile_edge_history_on_boot` | Their standalone transaction admission; `reenqueue_stranded_vector_rows` remains an owned lower helper |
 | Frozen `binding_for_snapshot`, `validate_on_open` | Clean state before binding/validation; historical private migration fixtures below37 retain historical manifests |
+| Boot profile/vec0 setup, inert enrolment, attribute reconcile, fresh sanitation and probe publication | Owned IMMEDIATE and clean admission around actual initialization/repair writes; lower helpers remain usable in owned transactions; probe marker failures stay best effort |
 | Offline recovery admission | Existing exact-version preflight plus current visibility-state/manifest validation before maintenance mutation |
 
 Pure reads, subscriber bookkeeping and shutdown are not new SQL mutation

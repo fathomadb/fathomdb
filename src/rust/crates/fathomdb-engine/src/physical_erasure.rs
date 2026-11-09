@@ -95,11 +95,18 @@ fn state(c: &Connection) -> Result<Sanitation, EngineError> {
 }
 
 pub(crate) fn initialize_fresh(c: &Connection) -> Result<(), EngineError> {
-    store(
-        c,
-        FTS_KEY,
-        &Sanitation { version: 1, phase: "clean".into(), family: families().len(), started: false },
-    )
+    transaction(c, || {
+        store(
+            c,
+            FTS_KEY,
+            &Sanitation {
+                version: 1,
+                phase: "clean".into(),
+                family: families().len(),
+                started: false,
+            },
+        )
+    })
 }
 
 pub(crate) fn mark_dirty(c: &Connection) -> rusqlite::Result<()> {

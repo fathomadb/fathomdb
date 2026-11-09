@@ -357,6 +357,15 @@ fn load_visibility_nonce(connection: &Connection) -> Result<String, EngineError>
         .map_err(|_| EngineError::Storage)
 }
 
+pub(crate) fn begin_visibility_writer(
+    connection: &Connection,
+) -> rusqlite::Result<rusqlite::Transaction<'_>> {
+    let tx =
+        rusqlite::Transaction::new_unchecked(connection, rusqlite::TransactionBehavior::Immediate)?;
+    require_clean_visibility(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    Ok(tx)
+}
+
 pub(crate) fn require_clean_visibility(connection: &Connection) -> Result<(), EngineError> {
     let flag = connection
         .prepare_cached("SELECT coalescing FROM _fathomdb_read_visibility_state WHERE singleton=1")

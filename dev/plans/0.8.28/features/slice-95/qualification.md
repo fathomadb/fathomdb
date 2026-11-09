@@ -58,7 +58,7 @@ merely because they ran. Queued/cancelled/skipped/zero-test rows are not passes.
 | Packages/consumer boundaries | CI five-target native matrix and distinct WAL; independent Linux installed consumer/missing-export control and external Rust source archive | Preserve dependency/native/package hashes, actual resolved paths/lockfiles/runtime flags. Earlier S92 examples reusable only after explicit relevant-input comparison; CPU dev proof is not optimized/registry/CUDA proof. |
 | Documentation/contracts | Slice92 baseline plus affected docs/index/lifecycle/authority/generator/parity/surface checks, strict local MkDocs | No new full audit or structural framework. Pending .28 docs/published .27 receipts/manifests stay distinct. |
 | Evidence safety | Pinned gitleaks-current.sh and separate retained generated-evidence directory scan | Record separate outcomes. Redact generated secrets before retention; advisory policy unchanged, no new broad suppression. |
-| Local/release rehearsal | local-dry-run.sh; separate release.yml dry_run=true,release_version,candidate_commit | Local Axis W is aligned to .28 and Axis E guard passes at 0.8.0, with registry/compiled verification deferred to publish time as reported by that guard. Local rehearsal remains pending; hosted trusted workflow requires main ancestry although the lower nonpublishing gate exempts it. Main can automatically deploy Pages, so that prerequisite remains held. No old-version substitution or pre-tag-ready claim. |
+| Local/release rehearsal | local-dry-run.sh; separate release.yml dry_run=true,release_version,candidate_commit | Full local rehearsal passes at e090: workspace build, three leaf packages and three nonpublishing dry-runs. Axis E0.8.0 retains its unpublished-version/publish-time compiled-check limitation. Separate workflow rehearsal remains pending execution-location clarification and actual qualified main ancestry; the reviewed skip-marked route prevents push-triggered Pages. No old-version substitution or pre-tag-ready claim. |
 
 D28-09/10/11 and populated-open deferrals remain. Do not repeat frozen layout
 sweeps or reopen erasure optimization. CUDA driver/toolkit stay unchanged.
@@ -103,6 +103,7 @@ instrumented timing/trace/profile rates are excluded from this table.
 | Lazy edge-endpoint preparation | `13c6470b5b5700c61c68ce8d10257551fbd2c9ca` | 827.267649 — FAIL | Not reached | 101 |
 | Compiled metadata-query reuse with fresh reads | `10ca015034f6c55c5c2193a75e1eb4056d5bb948` | 932.474344 — FAIL | Not reached | 101 |
 | Transaction-owned visibility coalescing, format 37 | `6d580ec57692241c28a5113e374102cddc42e559` | 1,315.423 — PASS | 305.975 — PASS | 0 |
+| Final versioned0.8.28 qualification, including quiet idle admission | `e090418becabd9610cea3b372f249e9f8bd3ccf9` | 1,215.559 — PASS | 291.286 — PASS | 0 |
 
 The original1 KB sample completed 59,986 commits in 60.006908962 seconds. The
 next two samples completed 49,639 in 60.003555154 seconds and 55,950 in 60.001650826
@@ -128,3 +129,34 @@ canonical repair logs are under the same evidence root's top level and
 [qualification-evidence.json](qualification-evidence.json). This throughput pass
 does not substitute for final local/feature/security, native-platform/consumer,
 other performance/reliability, fidelity or hosted CI qualification on format 37.
+
+## Final local qualification at e090
+
+The final versioned pair reports72,934 commits/60,000ms and17,481/60,013ms.
+As with earlier passing rows, milliseconds are truncated and rates rounded to
+three decimals; do not infer nanosecond precision or a causal percentage gain.
+Sealed executable SHA256 is
+`66d4cd83cd4905aa4e3d1fbe0d1a2dba60f17211e249e0e956d142ec2d0e7948`;
+source-input bundle is
+`af41948c155d4cd065905f1283abe98f353782886efa682ea1e6f08ad10e2928`.
+The helper source and `perf_gates.rs` remain byte-identical to their
+`b0d8897b7` baseline; the versioned executable has the separate SHA256 above.
+Before/after/enclosing applicability passes;142 machine-wide swap-in pages are
+retained as diagnostic data. No all-host-idle or causal comparison is claimed.
+
+Current [status](status.md) enumerates the fresh feature, package, fidelity,
+latency, absolute-read, long-correctness, legacy-stress and local-rehearsal proof.
+AC012/013 retain their existing numerical gate scope; immediate end/enclosing
+readiness was not captured and is not claimed. AC081 separately preserves the
+initial90.375C environment-invalid observation, then the reviewed fresh seven
+applicable observations, unchanged hard limits and all sequential soft warnings.
+Legacy EU7's overall101 is retained separately from its accepted stress result;
+TC5 supplies accepted fidelity. The new raw run data stays in ignored local
+evidence, not a regenerated golden or experimental registry record.
+
+The later local-only approval condition applies before any remaining dispatch.
+The five-platform/native evidence requirement is retained pending clarification;
+local Linux/Tegra/Windows execution is not implicit macOS qualification. If the
+reviewed skip-marked manual-CI/main-forward route is used, record actual manual
+jobs and intentionally skipped publishers separately, preserving existing
+GitHub environment approval and trusted-workflow checks.

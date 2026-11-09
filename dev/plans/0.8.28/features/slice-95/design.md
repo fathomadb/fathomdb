@@ -677,3 +677,26 @@ Astra approved this bounded special case rather than a new version-policy layer.
 Observe .28/37 positive and .28/34 negative REDs before GREEN; retain independent
 native-receipt, wheel-harness and unchanged Slice65 controls. Final installed .28
 wheel execution is required separately from the existing-native diagnostic RED.
+
+## Qualified local execution and nonpublishing completion
+
+Astra reviewed the bounded AC081 continuation: preserve the thermal-invalid
+numeric pass, cool naturally, require collector-only readiness before each of
+one fresh seven-observation campaign, and retain actual start/end validation.
+Stop on a numerical failure or another invalid observation; never select best
+runs or change90C/the hard read limits. All seven subsequently qualify, retaining
+soft warnings. The separate latency gates have no AC081 per-cell90C contract;
+keep their numerical passes and disclose missing end/enclosing readiness.
+
+The approved completion route uses GitHub's existing `[skip ci]` push/PR marker
+on the exact candidate, full manual CI, then a verified non-force remote-main
+fast-forward and explicit main-owned release dry-run. This prevents automatic
+Pages deployment and duplicate push CI without editing workflow guards or
+repository settings. Existing environment approvals and trusted main ancestry
+remain enforced; no tag, promotion, registry or Pages publication occurs.
+
+The owner's later local-only condition takes precedence over any assumed hosted
+execution in that route. Environment approval is granted only when execution
+uses the authorized local machines. The extent of the condition over hosted CPU
+jobs is pending clarification; no hosted dispatch or implicit Mac waiver is
+part of current execution. Keep the exact remaining proof obligations visible.

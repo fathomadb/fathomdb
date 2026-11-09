@@ -56,7 +56,7 @@ then 41; the approved root method inventory was unchanged.
 0.8.28 Slice 85 adds persisted physical policy, published explicit-debt state, and
 maintenance admission ownership. These three named fields bring root storage to
 46 fields; their semantic consumers remain outside root. The current-format
-lock-admission test expects format 36. The blob above includes these changes.
+lock-admission test expects current format 37. The blob above includes these changes.
 
 ## Remaining root declarations
 

@@ -93,6 +93,8 @@ pub use cuda_driver_init::{
 mod gpu_pool_diagnostic;
 mod gpu_witness;
 mod gpu_witness_measurement;
+#[cfg(any(feature = "embed-cuda", test))]
+mod gpu_witness_private;
 pub use gpu_witness::{
     evaluate_allocation_witness, normalize_cuda_uuid, observe_control_allocation,
     AllocationWitnessInputs, ControlAllocationObservation, GpuAllocationWitness,

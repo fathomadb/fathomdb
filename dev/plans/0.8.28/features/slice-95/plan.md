@@ -689,3 +689,43 @@ Astra reviews design/code and a separate verifier checks ordering, errors,
 retention and real GPU/package results. Use focused qualification for these
 findings; unchanged CPU gates remain bound to their actual CI SHA and explicit
 relevant-input comparisons. Do not relabel a later source as the prior CI run.
+
+### CI21: truthful collect-all elapsed times
+
+Independent audit of successful CPU CI42621641800 found12 negative per-suite
+elapsed values (-105 to-653ms). Its34 jobs/206 passing suites remain valid;
+those duration observations do not support timing claims. The collect-all
+wrapper subtracts adjustable wall-clock reads. The cause of the observed clock
+movement is unproven, but that is the wrong clock for elapsed duration.
+
+Use integer Python `time.monotonic_ns()` milliseconds only for `run_suite`'s
+start/end reads. Full-verifier preflight requires Python; standalone heavy
+tests retain optional-language behavior. Unavailable or failed clock readings
+must produce an explicit unavailable duration while still executing the command.
+Preserve `run_capped`, exact return codes, states, counts, ordering,
+skips and spill behavior. Extend the existing collect-all fixture: drive the
+real wrappers with a backwards fake date, deliberate nonzero work, one pass
+and one failure; RED must prove positive elapsed time and unchanged verdicts.
+No clamping, timing upper bound, new gate or clock framework. Astra reviewed
+this design; separate verification precedes the batched final exact-SHA CI.
+
+### CI22: diagnose the remaining Tegra allocation measurement
+
+CI20's checked completion repair is insufficient for qualification: one fresh
+Node process passes (140574720 bytes), the next fails (9539584 <67108864).
+The preregistered campaign stopped; Node03/Python were not run. Preserve both
+results and all raw rows. No retry, threshold change or environmental waiver.
+
+Add one opt-in diagnostic to the real installed Node witness path, with TDD,
+Astra design/code review and separate verification. Retain the unchanged v1
+verdict and floor. Capture actual retained context/allocator/pool identity and
+checked current USED/RESERVED/global samples around the existing load bracket,
+including failures. The diagnostic uses its own schema and never qualifies as
+a v1 witness. After all original samples, forward and verdict, one touched64MiB
+same-pool control must show USED rise>=request and completed release back to
+its precontrol USED baseline. Run one preregistered
+local diagnostic process, with no competing same-process pool operations.
+Missing/private-mismatched identity, counter/synchronization errors or failed
+control accounting stop the proposal. Only a verified same-pool model USED delta
+at least64MiB plus live/released control justifies designing a successor witness;
+it is not itself qualification or proof of the earlier failure's cause.

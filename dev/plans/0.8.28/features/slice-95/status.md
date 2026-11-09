@@ -5,13 +5,21 @@ status: IN_PROGRESS
 
 # Slice 95 status
 
-**IN_PROGRESS. Publication held.** Local core qualification is complete as an
-assembled result at `e090418becabd9610cea3b372f249e9f8bd3ccf9`. The final versioned
-AC011 pair passes at **1,215.559 commits/s for 1 KB** and **291.286 commits/s for
-100 KB**, with unchanged floors of 1,000 and 100. Local Linux x64/ARM64 and
-Windows x64 package consumers, Windows WAL and Tegra/CUDA package controls pass.
-The missing platform/executor rows, exact CI/workflow rehearsal, final records
-handover and resource cleanup remain. There is no published-release or overall CI-green claim.
+**IN_PROGRESS. Publication held.** Full manual CPU CI42621641800 passes at
+`3f80b1c96f0ffc75bb37119664d6c761dedda75a`:34 jobs (33 success, one intentional
+Markdown skip),206/206 suites and all five native platform rows/collector.
+The separate Tegra workflow failed its allocation witness. CI20 repairs checked
+CUDA completion and failure-evidence retention; independent compilation and
+focused tests pass, but fresh hardware qualification still fails on its second
+process (9539584 <67108864 bytes). The campaign stopped without retry. CI22
+investigates same-context private-pool accounting before any witness replacement.
+CI21 repairs12 negative elapsed-time reports without changing test verdicts.
+
+Local engine/performance qualification remains bound to its recorded sources,
+including final AC0111215.559/s and291.286/s against unchanged1000/100 floors.
+The final repaired exact-source CI, Tegra proof, nonpublishing release rehearsal,
+records handover and task-resource cleanup remain. Hosted CPU/macOS is approved;
+all GPU work stays local. The exact old task disk has been deleted and verified.
 
 ## Implemented and reviewed
 

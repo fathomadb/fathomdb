@@ -734,3 +734,53 @@ exact input comparisons, run the affected tests/GPU/package lane on the new
 source, and retain both sources explicitly. If that comparison cannot support
 reuse, the affected qualification is refreshed; no new-head CI-green claim is
 inferred from the old run. Publication remains held.
+
+## CI21: monotonic per-suite elapsed reporting
+
+CPU CI42621641800 passes all206 suites, but12 collect-all duration values are
+negative. Preserve that historical data and its valid exit/count verdicts;
+make no timing accuracy or clock-cause claim. `run_suite` currently subtracts
+`date`/`time.time` wall readings. Replace only those two reads with integer
+`time.monotonic_ns() // 1_000_000` readings. Python is already a valid test-runner
+prerequisite for full verification. Direct heavy-tier tests still allow Python
+to be absent, so the private clock reader reports an explicit unavailable
+duration on missing, failed or nonnumeric readings without suppressing command
+execution, rc, state or counts. No new interpreter dependency or wall-clock
+fallback is introduced.
+
+Leave `run_capped` and its fail-fast contract unchanged. The existing
+collect-all executable fixture exercises both actual wrappers under a backwards
+fake wall clock, with deliberate work in passing/failing suites. Require
+positive elapsed results, exact original state/rc/counts and retained failure
+behavior; an additional true missing-Python case preserves execution and skips
+while reporting unavailable duration. A zero clamp is not a repair. No timing upper budget, new registration
+or production/database change is needed. Batch this reviewed correction with
+CI20 before final exact-candidate CI rather than spending a separate run.
+
+## CI22: attributable counter investigation before any witness replacement
+
+The synchronized CI20 campaign passed Node01 then failed Node02 at9539584 bytes;
+it stopped before Node03/Python. Shared UMA free-memory deltas remain unproven
+as an attributable measurement. Keep those failures and v1's existing decision.
+
+Investigate the actual witnessed context's held private pool, not the global
+policy decision's first context. The pinned driver exposes current USED bytes
+(application allocations) and RESERVED bytes (backing reservation); only USED
+is a candidate model-allocation measure. The existing raw cuMemAlloc control
+is outside that pool and cannot validate its counter. An additive opt-in
+failure-retained diagnostic has its own schema, never accepted as a v1 witness.
+It records context/ordinal/UUID/allocator/pool binding and checked samples.
+Only after all original v1 samples, forward and verdict are captured, allocate
+one touched64MiB control in the same pool. Require USED rise>=request and
+post-release USED equal to the completed precontrol baseline.
+Do not move the existing GiB control into the capped pool. No retry, row reorder,
+sleep, pool-setting change, v1 field relabeling or fallback selection by result.
+
+One fresh installed Node row process awaits its sole Engine.open, starting no
+workers or other SDK calls. Retain its source hash, command and PID to attest
+that controlled window; claim no general runtime concurrency guarantee. If exact binding, checked reads/completion, model USED
+increase>=64MiB and control rise/release all hold, review a successor ADR and
+schema/interface design before adopting that method. Otherwise stop that
+proposal. RESERVED/high-water/global counters remain diagnostic and cannot
+substitute for live application allocations. The private-pool ADR's wording
+about a memory-release signal does not waive release qualification.

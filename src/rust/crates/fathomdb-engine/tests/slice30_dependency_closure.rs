@@ -767,9 +767,14 @@ fn projection_worker_before_admission_cannot_publish_dependency_residue() {
         Arc::new(FixedEmbedder),
     )
     .unwrap();
+    // Seed registration needs its own writer transaction; do not let the worker
+    // hold the paused WAL lock until the fixture's dependency is committed.
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    opened.engine.drain(5_000).unwrap();
     opened.engine.configure_vector_kind_for_test("doc").unwrap();
-    let mut pause = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
     seed_projection_race(&opened.engine);
+    let mut pause = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+    opened.engine.set_projection_scheduler_frozen_for_test(false);
     pause
         .wait_ready(Duration::from_secs(30))
         .expect("projection worker reaches its WAL transaction under loaded CI");

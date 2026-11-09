@@ -1440,6 +1440,438 @@
         "kind": "python-value",
         "signature": "WithdrawResult = Literal['withdrawn_before_removal', 'already_activated', 'unknown']"
       }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.GpuAllocationMeasurement",
+        "signature": "GpuAllocationMeasurement = GpuGlobalFreeMeasurement | GpuPrivatePoolUsedMeasurement"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.GpuGlobalFreeMeasurement",
+        "signature": "@dataclass(frozen=True) class GpuGlobalFreeMeasurement"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuGlobalFreeMeasurement.kind",
+        "signature": "kind: Literal['global_free']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuGlobalFreeMeasurement.control_allocation_request_bytes",
+        "signature": "control_allocation_request_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuGlobalFreeMeasurement.control_block_count",
+        "signature": "control_block_count: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuGlobalFreeMeasurement.control_free_before_bytes",
+        "signature": "control_free_before_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuGlobalFreeMeasurement.control_free_after_bytes",
+        "signature": "control_free_after_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuGlobalFreeMeasurement.control_delta_bytes",
+        "signature": "control_delta_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuGlobalFreeMeasurement.sole_gpu_consumer_precondition",
+        "signature": "sole_gpu_consumer_precondition: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement",
+        "signature": "@dataclass(frozen=True) class GpuPrivatePoolUsedMeasurement"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.kind",
+        "signature": "kind: Literal['private_pool_used']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.context_id",
+        "signature": "context_id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.pool_identity",
+        "signature": "pool_identity: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.used_before_bytes",
+        "signature": "used_before_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.used_after_bytes",
+        "signature": "used_after_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.delta_bytes",
+        "signature": "delta_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.control_request_bytes",
+        "signature": "control_request_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.control_before_bytes",
+        "signature": "control_before_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.control_live_bytes",
+        "signature": "control_live_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.control_released_bytes",
+        "signature": "control_released_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuPrivatePoolUsedMeasurement.pool_exclusivity_precondition",
+        "signature": "pool_exclusivity_precondition: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuAllocationWitness.process_id",
+        "signature": "process_id: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuAllocationWitness.device_integrated",
+        "signature": "device_integrated: bool"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GpuAllocationWitness.measurement",
+        "signature": "measurement: GpuAllocationMeasurement"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.types.GpuAllocationMeasurement",
+        "signature": "GpuAllocationMeasurement = GpuGlobalFreeMeasurement | GpuPrivatePoolUsedMeasurement"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement",
+        "signature": "@dataclass(frozen=True) class GpuGlobalFreeMeasurement"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement.kind",
+        "signature": "kind: Literal['global_free']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement.control_allocation_request_bytes",
+        "signature": "control_allocation_request_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement.control_block_count",
+        "signature": "control_block_count: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement.control_free_before_bytes",
+        "signature": "control_free_before_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement.control_free_after_bytes",
+        "signature": "control_free_after_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement.control_delta_bytes",
+        "signature": "control_delta_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuGlobalFreeMeasurement.sole_gpu_consumer_precondition",
+        "signature": "sole_gpu_consumer_precondition: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement",
+        "signature": "@dataclass(frozen=True) class GpuPrivatePoolUsedMeasurement"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.kind",
+        "signature": "kind: Literal['private_pool_used']"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.context_id",
+        "signature": "context_id: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.pool_identity",
+        "signature": "pool_identity: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.used_before_bytes",
+        "signature": "used_before_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.used_after_bytes",
+        "signature": "used_after_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.delta_bytes",
+        "signature": "delta_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.control_request_bytes",
+        "signature": "control_request_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.control_before_bytes",
+        "signature": "control_before_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.control_live_bytes",
+        "signature": "control_live_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.control_released_bytes",
+        "signature": "control_released_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuPrivatePoolUsedMeasurement.pool_exclusivity_precondition",
+        "signature": "pool_exclusivity_precondition: str"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuAllocationWitness.process_id",
+        "signature": "process_id: int"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuAllocationWitness.device_integrated",
+        "signature": "device_integrated: bool"
+      }
+    },
+    {
+      "release": "0.8.28",
+      "slice": 95,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GpuAllocationWitness.measurement",
+        "signature": "measurement: GpuAllocationMeasurement"
+      }
     }
   ],
   "native_stub_sha256": "8207f193cd1781c4c866188f29ac6854f6f34e29c183ca842d4a7273f9f442b7",

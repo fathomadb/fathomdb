@@ -496,56 +496,156 @@ mod tests {
     /// consumer can re-derive the verdict instead of trusting it.
     #[test]
     fn gpu_allocation_witness_crosses_the_pyo3_boundary_intact() {
-        let witness = RustGpuAllocationWitness {
-            device_ordinal_requested: 0,
-            device_ordinal_actual: 0,
-            device_uuid: "GPU-11111111-2222-3333-4444-555555555555".to_string(),
-            device_name: "Orin".to_string(),
-            compute_capability: "8.7".to_string(),
-            free_before_bytes: 40_000_000_000,
-            free_after_bytes: 39_856_635_904,
-            total_bytes: 65_000_000_000,
-            delta_bytes: 143_364_096,
-            delta_floor_bytes: 67_108_864,
-            control_allocation_request_bytes: 1_073_741_824,
-            control_block_count: 8,
-            control_free_before_bytes: 42_000_000_000,
-            control_free_after_bytes: 40_800_000_000,
-            control_delta_bytes: 1_200_000_000,
-            embedded_vector_dim: 384,
-        };
+        Python::initialize();
+        for context_id in [None, Some("0"), Some("18446744073709551615")] {
+            let integrated = context_id.is_some();
+            let measurement = match context_id {
+                None => fathomdb_embedder::GpuAllocationMeasurement::GlobalFree {
+                    control_allocation_request_bytes: 1_073_741_824,
+                    control_block_count: 8,
+                    control_free_before_bytes: 42_000_000_000,
+                    control_free_after_bytes: 40_800_000_000,
+                    control_delta_bytes: 1_200_000_000,
+                    sole_gpu_consumer_precondition: "the witness process must be the sole GPU consumer of the selected discrete device".into(),
+                },
+                Some(context_id) => fathomdb_embedder::GpuAllocationMeasurement::PrivatePoolUsed {
+                    context_id: context_id.into(), pool_identity: "0x1234".into(),
+                    used_before_bytes: 0, used_after_bytes: 132_848_640, delta_bytes: 132_848_640,
+                    control_request_bytes: 67_108_864, control_before_bytes: 132_848_640,
+                    control_live_bytes: 199_957_504, control_released_bytes: 132_848_640,
+                    pool_exclusivity_precondition: "no competing allocations or frees may occur in the witnessed private pool during model and control observation".into(),
+                },
+            };
+            let witness = RustGpuAllocationWitness {
+                process_id: 4242,
+                device_integrated: integrated,
+                device_ordinal_requested: 0,
+                device_ordinal_actual: 0,
+                device_uuid: "GPU-11111111-2222-3333-4444-555555555555".into(),
+                device_name: "Orin".into(),
+                compute_capability: "8.7".into(),
+                free_before_bytes: 40_000_000_000,
+                free_after_bytes: if integrated { 40_374_050_816 } else { 39_856_635_904 },
+                total_bytes: 65_000_000_000,
+                delta_bytes: if integrated { -374_050_816 } else { 143_364_096 },
+                delta_floor_bytes: 67_108_864,
+                embedded_vector_dim: 384,
+                measurement,
+            };
 
-        let mapped = PyGpuAllocationWitness::from_rust(&witness);
-
-        assert_eq!(mapped.schema, "fathomdb.tegra-gpu-allocation-witness/v1");
-        assert!(mapped.sole_gpu_consumer_precondition.contains("sole GPU consumer"));
-        assert_eq!(mapped.device_ordinal_requested, 0);
-        assert_eq!(mapped.device_ordinal_actual, 0);
-        assert_eq!(mapped.device_uuid, "GPU-11111111-2222-3333-4444-555555555555");
-        assert_eq!(mapped.device_name, "Orin");
-        assert_eq!(mapped.compute_capability, "8.7");
-        assert_eq!(mapped.free_before_bytes, 40_000_000_000);
-        assert_eq!(mapped.free_after_bytes, 39_856_635_904);
-        assert_eq!(mapped.total_bytes, 65_000_000_000);
-        assert_eq!(mapped.delta_bytes, 143_364_096);
-        assert_eq!(mapped.delta_floor_bytes, 67_108_864);
-        assert_eq!(mapped.control_allocation_request_bytes, 1_073_741_824);
-        assert_eq!(mapped.control_block_count, 8);
-        assert_eq!(mapped.control_free_before_bytes, 42_000_000_000);
-        assert_eq!(mapped.control_free_after_bytes, 40_800_000_000);
-        assert_eq!(mapped.control_delta_bytes, 1_200_000_000);
-        assert_eq!(mapped.embedded_vector_dim, 384);
-        // The verdict is re-derivable from the mapped record alone (R80-13).
-        assert_eq!(
-            i128::from(mapped.free_before_bytes) - i128::from(mapped.free_after_bytes),
-            mapped.delta_bytes
-        );
-        assert!(mapped.delta_bytes >= i128::from(mapped.delta_floor_bytes));
-        assert!(
-            i128::from(mapped.control_free_before_bytes)
-                - i128::from(mapped.control_free_after_bytes)
-                >= i128::from(mapped.control_allocation_request_bytes)
-        );
+            Python::attach(|py| {
+                let mapped = Py::new(py, PyGpuAllocationWitness::from_rust(&witness)).unwrap();
+                let value = mapped.bind(py);
+                assert_eq!(
+                    value.getattr("schema").unwrap().extract::<String>().unwrap(),
+                    "fathomdb.tegra-gpu-allocation-witness/v2"
+                );
+                assert_eq!(value.getattr("process_id").unwrap().extract::<u32>().unwrap(), 4242);
+                assert_eq!(
+                    value.getattr("device_integrated").unwrap().extract::<bool>().unwrap(),
+                    integrated
+                );
+                assert_eq!(
+                    value.getattr("device_ordinal_requested").unwrap().extract::<usize>().unwrap(),
+                    0
+                );
+                assert_eq!(
+                    value.getattr("device_ordinal_actual").unwrap().extract::<usize>().unwrap(),
+                    0
+                );
+                assert_eq!(
+                    value.getattr("device_uuid").unwrap().extract::<String>().unwrap(),
+                    "GPU-11111111-2222-3333-4444-555555555555"
+                );
+                assert_eq!(
+                    value.getattr("device_name").unwrap().extract::<String>().unwrap(),
+                    "Orin"
+                );
+                assert_eq!(
+                    value.getattr("compute_capability").unwrap().extract::<String>().unwrap(),
+                    "8.7"
+                );
+                assert_eq!(
+                    value.getattr("free_before_bytes").unwrap().extract::<u64>().unwrap(),
+                    40_000_000_000
+                );
+                assert_eq!(
+                    value.getattr("free_after_bytes").unwrap().extract::<u64>().unwrap(),
+                    if integrated { 40_374_050_816 } else { 39_856_635_904 }
+                );
+                assert_eq!(
+                    value.getattr("total_bytes").unwrap().extract::<u64>().unwrap(),
+                    65_000_000_000
+                );
+                assert_eq!(
+                    value.getattr("delta_bytes").unwrap().extract::<i128>().unwrap(),
+                    if integrated { -374_050_816 } else { 143_364_096 }
+                );
+                assert_eq!(
+                    value.getattr("delta_floor_bytes").unwrap().extract::<u64>().unwrap(),
+                    67_108_864
+                );
+                assert_eq!(
+                    value.getattr("embedded_vector_dim").unwrap().extract::<usize>().unwrap(),
+                    384
+                );
+                let proof = value.getattr("measurement").unwrap();
+                assert_eq!(
+                    proof.getattr("kind").unwrap().extract::<String>().unwrap(),
+                    if integrated { "private_pool_used" } else { "global_free" }
+                );
+                if let Some(context_id) = context_id {
+                    assert!(!proof.hasattr("control_block_count").unwrap());
+                    assert_eq!(
+                        proof.getattr("context_id").unwrap().extract::<String>().unwrap(),
+                        context_id
+                    );
+                    assert_eq!(
+                        proof.getattr("pool_identity").unwrap().extract::<String>().unwrap(),
+                        "0x1234"
+                    );
+                    for (field, expected) in [
+                        ("used_before_bytes", 0_u64),
+                        ("used_after_bytes", 132_848_640),
+                        ("control_request_bytes", 67_108_864),
+                        ("control_before_bytes", 132_848_640),
+                        ("control_live_bytes", 199_957_504),
+                        ("control_released_bytes", 132_848_640),
+                    ] {
+                        assert_eq!(
+                            proof.getattr(field).unwrap().extract::<u64>().unwrap(),
+                            expected
+                        );
+                    }
+                    assert_eq!(
+                        proof.getattr("delta_bytes").unwrap().extract::<i128>().unwrap(),
+                        132_848_640
+                    );
+                    assert_eq!(proof.getattr("pool_exclusivity_precondition").unwrap().extract::<String>().unwrap(), "no competing allocations or frees may occur in the witnessed private pool during model and control observation");
+                } else {
+                    assert!(!proof.hasattr("context_id").unwrap());
+                    for (field, expected) in [
+                        ("control_allocation_request_bytes", 1_073_741_824_u64),
+                        ("control_free_before_bytes", 42_000_000_000),
+                        ("control_free_after_bytes", 40_800_000_000),
+                    ] {
+                        assert_eq!(
+                            proof.getattr(field).unwrap().extract::<u64>().unwrap(),
+                            expected
+                        );
+                    }
+                    assert_eq!(
+                        proof.getattr("control_block_count").unwrap().extract::<usize>().unwrap(),
+                        8
+                    );
+                    assert_eq!(
+                        proof.getattr("control_delta_bytes").unwrap().extract::<i128>().unwrap(),
+                        1_200_000_000
+                    );
+                    assert_eq!(proof.getattr("sole_gpu_consumer_precondition").unwrap().extract::<String>().unwrap(), "the witness process must be the sole GPU consumer of the selected discrete device");
+                }
+            });
+        }
     }
 
     // fix-1 finding 2: the CLS-embedder singleton must NOT cache a failed load.

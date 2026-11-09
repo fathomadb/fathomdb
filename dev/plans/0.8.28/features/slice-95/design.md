@@ -700,3 +700,131 @@ execution in that route. Environment approval is granted only when execution
 uses the authorized local machines. The extent of the condition over hosted CPU
 jobs is pending clarification; no hosted dispatch or implicit Mac waiver is
 part of current execution. Keep the exact remaining proof obligations visible.
+
+## CI20: complete device work before sampling and preserve failed rows
+
+The2026-11-09 hosted CPU/macOS approval resolves the earlier execution-location
+question; GPU work remains local. Tegra42621714744 failed closed at source3f80
+with allocation delta-371355648. It completed the real forward; no CPU fallback
+or environmental waiver follows. Detailed failed rows were lost when the runner
+cleaned `_temp` after the job. The negative delta's cause remains unproven.
+
+Two bounded corrections are required. Before the existing post-load memory
+sample, require successful completion on the same witnessed CUDA context.
+Map completion failure through the existing typed driver-error path and do not
+sample afterwards. Keep the control allocations resident through this bracket;
+the ordinal/UUID,64MiB floor, real forward and existing counter verdict remain.
+Use a private seam with deterministic queued-allocation and completion-error
+RED/GREEN cases; expose no new public API or telemetry schema. Synchronization
+repairs an ordering guarantee, not the shared-counter limitation documented by
+the private-pool ADR. A failed attributable witness stays a failure.
+
+Allocate the workflow's invocation-owned evidence directory in the parent of
+`RUNNER_TEMP`, outside the runner's automatic temp cleanup and outside the Git
+checkout. Refuse stale paths. Keep build virtual environments temporary. An
+executable fixture runs the real allocation step, simulates `_temp` cleanup and
+checks that failed-row evidence survives. Preserve the single allowlisted
+cross-job payload; add no diagnostic upload, package bypass, extra collector,
+retry or broadened path permission. Retained local evidence is cleaned only
+after its artifacts and diagnostics are preserved and verified.
+
+The current full CPU CI run is not cancelled or repeated merely for diagnosis.
+After the repair, prove unaffected CPU behavior from conditional compilation and
+exact input comparisons, run the affected tests/GPU/package lane on the new
+source, and retain both sources explicitly. If that comparison cannot support
+reuse, the affected qualification is refreshed; no new-head CI-green claim is
+inferred from the old run. Publication remains held.
+
+## CI21: monotonic per-suite elapsed reporting
+
+CPU CI42621641800 passes all206 suites, but12 collect-all duration values are
+negative. Preserve that historical data and its valid exit/count verdicts;
+make no timing accuracy or clock-cause claim. `run_suite` currently subtracts
+`date`/`time.time` wall readings. Replace only those two reads with integer
+`time.monotonic_ns() // 1_000_000` readings. Python is already a valid test-runner
+prerequisite for full verification. Direct heavy-tier tests still allow Python
+to be absent, so the private clock reader reports an explicit unavailable
+duration on missing, failed or nonnumeric readings without suppressing command
+execution, rc, state or counts. No new interpreter dependency or wall-clock
+fallback is introduced.
+
+Leave `run_capped` and its fail-fast contract unchanged. The existing
+collect-all executable fixture exercises both actual wrappers under a backwards
+fake wall clock, with deliberate work in passing/failing suites. Require
+positive elapsed results, exact original state/rc/counts and retained failure
+behavior; an additional true missing-Python case preserves execution and skips
+while reporting unavailable duration. A zero clamp is not a repair. No timing upper budget, new registration
+or production/database change is needed. Batch this reviewed correction with
+CI20 before final exact-candidate CI rather than spending a separate run.
+
+## CI22: attributable counter investigation before any witness replacement
+
+The synchronized CI20 campaign passed Node01 then failed Node02 at9539584 bytes;
+it stopped before Node03/Python. Shared UMA free-memory deltas remain unproven
+as an attributable measurement. Keep those failures and v1's existing decision.
+
+Investigate the actual witnessed context's held private pool, not the global
+policy decision's first context. The pinned driver exposes current USED bytes
+(application allocations) and RESERVED bytes (backing reservation); only USED
+is a candidate model-allocation measure. The existing raw cuMemAlloc control
+is outside that pool and cannot validate its counter. An additive opt-in
+failure-retained diagnostic has its own schema, never accepted as a v1 witness.
+It records context/ordinal/UUID/allocator/pool binding and checked samples.
+Only after all original v1 samples, forward and verdict are captured, allocate
+one touched64MiB control in the same pool. Require USED rise>=request and
+post-release USED equal to the completed precontrol baseline.
+Do not move the existing GiB control into the capped pool. No retry, row reorder,
+sleep, pool-setting change, v1 field relabeling or fallback selection by result.
+
+One fresh installed Node row process awaits its sole Engine.open without
+launching concurrent SDK/GPU work; native runtime worker threads still exist. Retain its source hash, command and PID to attest
+that controlled window; claim no general runtime concurrency guarantee. If exact binding, checked reads/completion, model USED
+increase>=64MiB and control rise/release all hold, review a successor ADR and
+schema/interface design before adopting that method. Otherwise stop that
+proposal. RESERVED/high-water/global counters remain diagnostic and cannot
+substitute for live application allocations. The private-pool ADR's wording
+about a memory-release signal does not waive release qualification.
+
+## CI23: current method-specific allocation proof
+
+The verified CI22 paired observation satisfies its predeclared feasibility rule.
+The [v2 technical successor](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md)
+is the concrete contract and ordering design. It replaces only the opt-in GPU
+proof mechanism/record and its adapters/validators. Select from the actual held
+context's hardware attribute and allocator before collecting values. Refuse an
+unexpected discrete+Private combination. Complete the held context before the
+initial private baseline; completion failure prevents sampling/loading. Private
+USED growth and a touched64MiB same-pool live/released control replace the old
+outside-pool GiB depletion control on integrated devices. Negative global free
+movement remains truthful diagnostic data, not a private failure or a fabricated
+counter. Unusable integrated allocation modes refuse the witness explicitly.
+
+Use one typed tagged measurement union across Rust/Python/TypeScript, including
+lossless context/pool identity and process binding. Keep strict variant parsing,
+source-bound installed artifacts and real forward controls. Update top-level-only
+Node extraction deliberately. Original v1 results remain v1 results. Current
+acceptance is derived from raw model/control observations and preconditions,
+not from the diagnostic's integrity flag. No global locking/pool-policy redesign.
+
+TDD covers both selection paths/refusal, signed arithmetic/floors/release,
+identity/forward/completion failures, production ordering/lifetime and both SDK
+mapping variants. Contract fixture changes are reviewed before RED/freeze;
+existing unrelated tests and historical evidence stay intact. Astra reviews the
+exact implementation, and a separate verifier owns affected execution. Existing
+mandatory package/policy/heap/workflow GPU rows provide qualification; do not add
+another three-process campaign. Final exact-candidate full CI is batched after
+these local proofs; publication remains held throughout.
+
+### CI23 producer PID namespace reconciliation
+
+Reading the actual GPU Docker entrypoints exposed an integration mismatch:
+current witness process_id is namespace-local1; existing Docker/NVIDIA-SMI
+identity is the host PID. Astra approved preserving PID isolation and adding
+one required kernel-derived pid_namespace object to each existing sealed GPU
+observation. The [ADR](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md#container-process-binding)
+defines exact fields, live-state recheck and first/last PID relationships.
+Keep outer v2/v3 and artifact allowlists; never rewrite the in-process witness,
+trust a PID environment claim or add host-PID namespace access. TDD covers
+missing/malformed/duplicate NSpid, invalid entries, wrong host/inner PIDs and a
+changed/stopped container before sealing. Real existing local GPU preflight
+and package rehearsal provide final producer proof after code review.

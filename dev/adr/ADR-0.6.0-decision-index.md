@@ -198,6 +198,12 @@ Astra-medium implementation review gates landing; publication is not authorized.
 | - | -------- | ------------------ | ------------ | -------- |
 | 70 | architecture | Transaction-owned visibility coalescing, constrained format37 marker and unchanged external invalidation/mapping cleanup | Accepted technical successor under committed Slice95 requirements; Astra design/code approval and independent verification at6d580ec57; no new HITL ruling declared | [ADR-0.8.28-transactional-visibility-coalescing.md](ADR-0.8.28-transactional-visibility-coalescing.md) |
 
+## Phase 0.8.28 attributable CUDA proof
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 71 | interface | Method-selected v2 GPU allocation proof using live private-pool USED on integrated devices, unchanged64MiB floor and checked control release | Accepted technical design under Slice95 repair scope; Astra approval; implementation/qualification pending; no new HITL ruling declared | [ADR-0.8.28-attributable-cuda-allocation-witness.md](ADR-0.8.28-attributable-cuda-allocation-witness.md) |
+
 ## Categories
 
 acceptance | architecture | design | interface.

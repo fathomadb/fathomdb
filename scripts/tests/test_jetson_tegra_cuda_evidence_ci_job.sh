@@ -229,6 +229,63 @@ if [ "${JETSON_TEGRA_CI_FIXTURE:-0}" != "1" ]; then
   }
   trap cleanup EXIT
 
+  if python3 - "$WORKFLOW" "$TMPROOT" <<'PYRETENTION'
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+lines = Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+start = lines.index("      - name: Allocate retained evidence directory")
+start = lines.index("        run: |", start) + 1
+body = []
+for line in lines[start:]:
+    if line and not line.startswith("          "):
+        break
+    body.append(line[10:])
+command = "\n".join(body)
+runner = Path(sys.argv[2]) / "runner with spaces"
+temporary = runner / "_temp"
+checkout = runner / "checkout"
+temporary.mkdir(parents=True)
+checkout.mkdir()
+environment_file = temporary / "github-env"
+environment = dict(os.environ, RUNNER_TEMP=str(temporary),
+                   GITHUB_WORKSPACE=str(checkout), GITHUB_ENV=str(environment_file),
+                   GITHUB_RUN_ID="42621714744", GITHUB_RUN_ATTEMPT="1")
+first = subprocess.run(["bash", "-c", command], cwd=checkout, env=environment,
+                       text=True, capture_output=True, check=False)
+assert first.returncode == 0, first.stderr
+values = dict(line.split("=", 1) for line in environment_file.read_text().splitlines())
+evidence = Path(values["EVIDENCE_DIR"]).resolve()
+build = Path(values["BUILD_VENV"]).resolve()
+marker = evidence / "failed-row.json"
+marker.write_text('{"outcome":"failed"}\n', encoding="utf-8")
+failures = []
+if evidence == temporary or temporary in evidence.parents:
+    failures.append("retained evidence is inside runner temp")
+if evidence == checkout or checkout in evidence.parents:
+    failures.append("retained evidence is inside Git checkout")
+if temporary not in build.parents:
+    failures.append("build venv must remain temporary")
+shutil.rmtree(temporary)
+if not marker.is_file():
+    failures.append("failed-row evidence did not survive runner cleanup")
+temporary.mkdir()
+evidence.mkdir(exist_ok=True)
+second = subprocess.run(["bash", "-c", command], cwd=checkout, env=environment,
+                        text=True, capture_output=True, check=False)
+if second.returncode == 0:
+    failures.append("stale evidence directory was accepted")
+assert not failures, "; ".join(failures)
+PYRETENTION
+  then
+    pass "real evidence allocation survives runner cleanup and rejects stale invocation"
+  else
+    fail "real evidence allocation must survive runner cleanup and reject stale invocation"
+  fi
+
   MUTATED="$TMPROOT/jetson-tegra-cuda-evidence.yml"
   sed 's/cancel-in-progress: false/cancel-in-progress: true/' "$WORKFLOW" >"$MUTATED"
   set +e

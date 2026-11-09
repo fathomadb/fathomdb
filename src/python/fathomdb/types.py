@@ -1470,25 +1470,51 @@ class DeviceResolution:
 
 
 @dataclass(frozen=True)
+class GpuGlobalFreeMeasurement:
+    """Discrete global-free model proof with its raw control."""
+
+    kind: Literal["global_free"]
+    control_allocation_request_bytes: int
+    control_block_count: int
+    control_free_before_bytes: int
+    control_free_after_bytes: int
+    control_delta_bytes: int
+    sole_gpu_consumer_precondition: str
+
+
+@dataclass(frozen=True)
+class GpuPrivatePoolUsedMeasurement:
+    """Integrated private USED proof; context identity stays lossless text."""
+
+    kind: Literal["private_pool_used"]
+    context_id: str
+    pool_identity: str
+    used_before_bytes: int
+    used_after_bytes: int
+    delta_bytes: int
+    control_request_bytes: int
+    control_before_bytes: int
+    control_live_bytes: int
+    control_released_bytes: int
+    pool_exclusivity_precondition: str
+
+
+#: Exactly one current method-specific observation shape.
+GpuAllocationMeasurement = GpuGlobalFreeMeasurement | GpuPrivatePoolUsedMeasurement
+
+
+@dataclass(frozen=True)
 class GpuAllocationWitness:
-    """0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
-    ``fathomdb.tegra-gpu-allocation-witness/v1`` record, measured in this
-    process by the artifact under test.
+    """Current in-process v2 proof with exactly one typed measurement.
 
-    Every number the verdict used is carried, so a reader **re-derives** the
-    verdict instead of trusting it:
-
-    * ``free_before_bytes - free_after_bytes == delta_bytes``,
-    * ``delta_bytes >= delta_floor_bytes``, and
-    * the deliberate control allocation moved the shared counter by at least
-      ``control_allocation_request_bytes``, which is what shows the counter was
-      live and attributable at the time rather than merely nonzero.
-
-    Byte counts are exact Python ints.
+    Root global memory readings remain truthful diagnostics on private pools;
+    only that variant's USED model/control accounting determines its proof.
+    Byte counts are exact Python ints and context/pool identities stay strings.
     """
 
     schema: str
-    sole_gpu_consumer_precondition: str
+    process_id: int
+    device_integrated: bool
     device_ordinal_requested: int
     device_ordinal_actual: int
     device_uuid: str
@@ -1499,12 +1525,8 @@ class GpuAllocationWitness:
     total_bytes: int
     delta_bytes: int
     delta_floor_bytes: int
-    control_allocation_request_bytes: int
-    control_block_count: int
-    control_free_before_bytes: int
-    control_free_after_bytes: int
-    control_delta_bytes: int
     embedded_vector_dim: int
+    measurement: GpuAllocationMeasurement
 
 
 @dataclass(frozen=True)
@@ -1654,6 +1676,9 @@ __all__ = [
     "ExpandedNode",
     "Explanation",
     "GpuAllocationWitness",
+    "GpuAllocationMeasurement",
+    "GpuGlobalFreeMeasurement",
+    "GpuPrivatePoolUsedMeasurement",
     "MeanVecPinnedEvent",
     "MigrationStepReport",
     "NodeRecord",

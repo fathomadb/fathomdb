@@ -48,8 +48,7 @@ use fathomdb_embedder::{
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
     GpuAllocationWitness as RustGpuAllocationWitness,
     RerankerDevicePolicy as RustRerankerDevicePolicy,
-    RerankerDeviceResolution as RustRerankerDeviceResolution, SOLE_GPU_CONSUMER_PRECONDITION,
-    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
+    RerankerDeviceResolution as RustRerankerDeviceResolution, TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
@@ -255,6 +254,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCudaVisibleDevice>()?;
     m.add_class::<PyEffectiveEmbedDevice>()?;
     m.add_class::<PyDeviceResolution>()?;
+    m.add_class::<PyGpuGlobalFreeMeasurement>()?;
+    m.add_class::<PyGpuPrivatePoolUsedMeasurement>()?;
     m.add_class::<PyGpuAllocationWitness>()?;
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;

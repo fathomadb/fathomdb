@@ -5,13 +5,27 @@ status: IN_PROGRESS
 
 # Slice 95 status
 
-**IN_PROGRESS. Publication held.** Local core qualification is complete as an
-assembled result at `e090418becabd9610cea3b372f249e9f8bd3ccf9`. The final versioned
-AC011 pair passes at **1,215.559 commits/s for 1 KB** and **291.286 commits/s for
-100 KB**, with unchanged floors of 1,000 and 100. Local Linux x64/ARM64 and
-Windows x64 package consumers, Windows WAL and Tegra/CUDA package controls pass.
-The missing platform/executor rows, exact CI/workflow rehearsal, final records
-handover and resource cleanup remain. There is no published-release or overall CI-green claim.
+**IN_PROGRESS. Publication held.** Full manual CPU CI42621641800 passes at
+`3f80b1c96f0ffc75bb37119664d6c761dedda75a`:34 jobs (33 success, one intentional
+Markdown skip),206/206 suites and all five native platform rows/collector.
+The separate Tegra workflow failed its allocation witness. CI20 repairs checked
+CUDA completion and failure-evidence retention; independent compilation and
+focused tests pass, but fresh hardware qualification still fails on its second
+process (9539584 <67108864 bytes). The campaign stopped without retry. CI22
+verified same-context private-pool counter feasibility in one process: model
+USED132848640 bytes, forward384, touched64MiB control and exact release, while
+the original global witness still failed. Historical research found the same
+class of failure and no missing witness repair. Astra approved the CI23 v2
+technical design. Core, SDK and namespace sealing changes now have Astra code
+approval and separate focused verification; final consumer integration and
+current-artifact qualification remain.
+CI21 repairs12 negative elapsed-time reports without changing test verdicts.
+
+Local engine/performance qualification remains bound to its recorded sources,
+including final AC0111215.559/s and291.286/s against unchanged1000/100 floors.
+The final repaired exact-source CI, Tegra proof, nonpublishing release rehearsal,
+records handover and task-resource cleanup remain. Hosted CPU/macOS is approved;
+all GPU work stays local. The exact old task disk has been deleted and verified.
 
 ## Implemented and reviewed
 
@@ -69,21 +83,18 @@ suppression or integrity artifact changed.
 
 ## Remaining work
 
-- Complete both Mac CPU wheel/addon runtime rows and the five-target collector,
-  plus the genuine non-Tegra ARM driverless Tegra-addon control. Existing local
-  machines cannot satisfy those host requirements; no platform waiver is inferred.
-- Resolve whether the owner's local-only condition covers GPU execution only or
-  all execution, before any hosted CPU/macOS dispatch. The owner already approved
-  environment review for local execution including Windows and Tegra; do not ask
-  for that same approval again within its confirmed condition.
-- Complete exact-candidate CI and the separate nonpublishing release-workflow
-  rehearsal. The reviewed skip-marked/manual route preserves Pages/publication
-  holds and existing environment/ancestry controls. Local helper passes do not
-  supply trusted-workflow provenance. No hosted run was dispatched under the
-  conditional approval.
-- Finish task-resource cleanup after the remaining execution gates. The local
-  baseline records passed scoped checks and were forwarded to .29. Close
-  status/state only after all required qualification.
+- Finish and review the v2 producer/consumer integration, then verify its focused
+  RED/GREEN controls independently. Core, SDK and namespace sealing checks pass.
+- Qualify the repaired exact-source installed Tegra Python/Node packages and
+  genuine non-Tegra ARM driverless control. Preserve all earlier witness failures.
+- Run one batched final exact-source CPU CI, followed by the trusted main-route
+  nonpublishing release rehearsal with actual local x64 GPU package proofs.
+  Earlier CPU CI already passed all five targets; it is a source-bound baseline.
+- Forward the final changes and records to .29, close status/state, and clean up
+  task-owned runners, selector override and scratch resources after preservation.
+
+Hosted CPU/macOS is approved. GPU execution remains local, including the Windows
+VM and Tegra. Publication, tags, registries and Pages remain held.
 
 ## Retained limits and resources
 

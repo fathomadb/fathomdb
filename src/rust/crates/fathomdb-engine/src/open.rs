@@ -1901,30 +1901,20 @@ pub struct OpenReport {
     /// never inferred from embedding-device state and makes no claim about
     /// database candidate retrieval or scoring.
     pub reranker_device_resolution: Option<RerankerDeviceResolution>,
-    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6, R80-13) — the in-process GPU
-    /// allocation witness, when one was measured during this open.
+    /// Retained in-process allocation witness v2 from an opted-in built-in
+    /// default-embedder open. `None` means no witness was taken, including
+    /// caller/no-provider paths; a requested default-embedder witness failure
+    /// refuses the open rather than degrading to `None`.
     ///
-    /// This carries the *retained record* of `fathomdb-embedder`'s
-    /// `fathomdb.tegra-gpu-allocation-witness/v1`: the ordinal Candle actually
-    /// retained, the driver-API UUID, and every raw number the verdict used
-    /// (`free_before_bytes`, `free_after_bytes`, `total_bytes`, `delta_bytes`,
-    /// `delta_floor_bytes`, plus the deliberate control allocation), so a
-    /// reader re-derives the verdict rather than trusting it (R80-13). Its
-    /// point is that the *installed artifact's own process* holds the
-    /// evidence, rather than a sibling Rust process — which is what makes
-    /// AC80-6's "in-process" clause as strong on Tegra as on x86_64.
+    /// Common device/process identity and global samples remain truthful.
+    /// Private success uses the tagged live USED proof, so its common global
+    /// delta may be zero or negative. Both methods retain the model floor and
+    /// a real forward. The actual integrated/private method uses one touched
+    /// 64 MiB same-pool control with exact release; discrete/global retains its
+    /// bounded raw control. See `ADR-0.8.28-attributable-cuda-allocation-witness.md`.
     ///
-    /// `None` is the normal case and means **no witness was measured** — never
-    /// "a witness measured nothing". A zero, negative, or below-floor delta is
-    /// a typed failure inside the witness (R80-12) and fails the open, so a
-    /// zero-valued record is not reachable through this field.
-    ///
-    /// Populated only by an opted-in default-embedder open
-    /// ([`ENV_GPU_ALLOCATION_WITNESS`]) on a CUDA-capable artifact whose
-    /// device policy actually selected CUDA. It is deliberately opt-in: the
-    /// witness holds a multi-gigabyte deliberate control allocation and loads
-    /// the model a second time, which is evidence-run behavior and must not be
-    /// imposed on ordinary opens (§ 12 non-goals).
+    /// This opt-in costs a second model load and deliberate control work;
+    /// ordinary opens do not perform it ([`ENV_GPU_ALLOCATION_WITNESS`]).
     pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
     /// SHA-256 (lowercase hex) of the effective query stop words this engine
     /// compiles with ([`DEFAULT_STOP_WORDS_SHA256`](crate::DEFAULT_STOP_WORDS_SHA256)
@@ -1960,17 +1950,15 @@ pub(crate) struct LoaderInfo {
 /// 0.8.23 Slice 80.6 (D-80.6-6) — opt-in switch for the in-process GPU
 /// allocation witness carried on [`OpenReport::embedder_gpu_allocation_witness`].
 ///
-/// Opt-in rather than automatic, and deliberately so. Producing the witness
-/// costs a second load of the pinned model plus the multi-gigabyte deliberate
-/// control allocation D-80.5-3 requires in order to prove the shared iGPU
-/// memory counter is live and attributable. That is evidence-run behavior;
-/// imposing it on every CUDA open would be exactly the runtime-contract change
-/// § 12 of `dev/design/0.8.23-aarch64-tegra.md` rules out.
+/// Built-in default-embedder opens parse this switch. Witnessing loads the
+/// pinned model a second time and performs the selected method's control:
+/// integrated/private uses touched 64 MiB live USED accounting, while
+/// discrete/non-private retains its bounded raw/global control. This work is
+/// not imposed on ordinary opens. Current records use the v2 tagged schema.
 ///
-/// `1`/`true` enable it; unset, empty, `0`/`false` disable it. Any other value
-/// is **rejected at open time** rather than read as "off", so a typo cannot
-/// silently turn the evidence off — the same fail-closed posture R80-12 puts
-/// on the witness itself.
+/// On that path `1`/`true` enable it; unset, empty, `0`/`false` disable it.
+/// Other values are rejected rather than read as off. A requested witness
+/// failure refuses that default-embedder open with a named error.
 pub const ENV_GPU_ALLOCATION_WITNESS: &str = "FATHOMDB_GPU_ALLOCATION_WITNESS";
 
 /// Parse [`ENV_GPU_ALLOCATION_WITNESS`]. Pure, so every arm is testable on a

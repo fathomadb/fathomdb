@@ -1,21 +1,8 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for the retained Tegra GPU allocation witness.
+"""Fail-closed current v2 Tegra private-pool allocation verifier.
 
-0.8.23 Slice 80.5 (D-80.5-5, AC80-18). This verifies
-`fathomdb.tegra-gpu-allocation-witness/v1`, the record the in-process witness
-in `fathomdb-embedder`'s `gpu_witness` module emits on a Tegra/iGPU host where
-`nvidia-smi --query-compute-apps` reports nothing and the x86_64 PID witness
-therefore cannot port.
-
-It is deliberately a SEPARATE verifier from
-`scripts/release/verify-cuda-preflight-witness.py`, which stays untouched in
-80.5 (AC80-19). It reuses that file's idioms — exact-key checking, a canonical
-JSON round-trip, `fail()` to exit 1 — and shares no code with it.
-
-Everything the witness used to reach its verdict is re-derived here rather than
-trusted (R80-13): the delta must follow from the retained free-memory samples,
-the control delta must follow from its own samples, and the floor must be at
-least the declared model floor.
+Re-derive live USED/model/control arithmetic from the exact tagged record;
+shared global readings remain truthful diagnostics. Historical v1 is refused.
 """
 
 from __future__ import annotations
@@ -28,18 +15,15 @@ import sys
 from pathlib import Path
 from typing import Any, NoReturn
 
-SCHEMA = "fathomdb.tegra-gpu-allocation-witness/v1"
+SCHEMA = "fathomdb.tegra-gpu-allocation-witness/v2"
 # Mirrors `gpu_witness::DEFAULT_DELTA_FLOOR_BYTES`: a witness may declare a
 # stricter floor, never a weaker one.
 MODEL_FLOOR_BYTES = 67_108_864
-# Mirrors `gpu_witness::MAX_CONTROL_BLOCKS`.
-MAX_CONTROL_BLOCKS = 16
 # Mirrors `gpu_witness::WITNESS_VECTOR_DIM` (bge-small-en-v1.5).
 VECTOR_DIM = 384
-# Mirrors `gpu_witness::SOLE_GPU_CONSUMER_PRECONDITION` (D-80.5-3).
 PRECONDITION = (
-    "the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, "
-    "system-wide counter on an integrated GPU"
+    "no competing allocations or frees may occur in the witnessed private pool "
+    "during model and control observation"
 )
 COMPUTE_CAPABILITY = re.compile(r"[0-9]+\.[0-9]+\Z")
 # § 2.7: x86_64 reports `GPU-<uuid>`, Tegra reports the bare `<uuid>`. The
@@ -47,24 +31,15 @@ COMPUTE_CAPABILITY = re.compile(r"[0-9]+\.[0-9]+\Z")
 # comparison rather than being required or forbidden.
 CUDA_UUID = re.compile(r"(GPU-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z", re.IGNORECASE)
 REQUIRED_KEYS = frozenset({
-    "compute_capability",
-    "control_allocation_request_bytes",
-    "control_block_count",
-    "control_delta_bytes",
-    "control_free_after_bytes",
-    "control_free_before_bytes",
-    "delta_bytes",
-    "delta_floor_bytes",
-    "device_name",
-    "device_ordinal_actual",
-    "device_ordinal_requested",
-    "device_uuid",
-    "embedded_vector_dim",
-    "free_after_bytes",
-    "free_before_bytes",
-    "schema",
-    "sole_gpu_consumer_precondition",
-    "total_bytes",
+    "compute_capability", "delta_bytes", "delta_floor_bytes", "device_integrated",
+    "device_name", "device_ordinal_actual", "device_ordinal_requested", "device_uuid",
+    "embedded_vector_dim", "free_after_bytes", "free_before_bytes", "measurement",
+    "process_id", "schema", "total_bytes",
+})
+PRIVATE_KEYS = frozenset({
+    "kind", "context_id", "pool_identity", "used_before_bytes", "used_after_bytes",
+    "delta_bytes", "control_request_bytes", "control_before_bytes", "control_live_bytes",
+    "control_released_bytes", "pool_exclusivity_precondition",
 })
 
 
@@ -83,13 +58,15 @@ def normalize_uuid(value: str) -> str:
     return lowered[4:] if lowered.startswith("gpu-") else lowered
 
 
-def require_exact_keys(value: dict[str, Any]) -> None:
-    missing = sorted(REQUIRED_KEYS - set(value))
+def require_exact_keys(
+    value: dict[str, Any], keys: frozenset[str] = REQUIRED_KEYS, label: str = "witness",
+) -> None:
+    missing = sorted(keys - set(value))
     if missing:
-        fail(f"witness is missing required field(s): {', '.join(missing)}")
-    unknown = sorted(set(value) - REQUIRED_KEYS)
+        fail(f"{label} is missing required field(s): {', '.join(missing)}")
+    unknown = sorted(set(value) - keys)
     if unknown:
-        fail(f"witness carries unknown field(s): {', '.join(unknown)}")
+        fail(f"{label} carries unknown field(s): {', '.join(unknown)}")
 
 
 def require_int(value: dict[str, Any], key: str) -> int:
@@ -137,10 +114,13 @@ def validate_identity(witness: dict[str, Any]) -> None:
     capability = require_string(witness, "compute_capability")
     if COMPUTE_CAPABILITY.fullmatch(capability) is None:
         fail("compute capability is invalid")
-    if witness["sole_gpu_consumer_precondition"] != PRECONDITION:
-        fail("witness does not carry the verbatim sole-GPU-consumer precondition")
-    if require_int(witness, "embedded_vector_dim") != VECTOR_DIM:
-        fail(f"witness must record one real forward pass of {VECTOR_DIM} dimensions")
+    if require_int(witness, "process_id") < 1:
+        fail("process_id must be positive")
+    if witness["device_integrated"] is not True:
+        fail("Tegra proof requires device_integrated=true")
+    dimension = require_int(witness, "embedded_vector_dim")
+    if dimension != VECTOR_DIM:
+        fail(f"witness forward dimension {dimension} differs from {VECTOR_DIM}")
 
 
 def validate_load_delta(witness: dict[str, Any]) -> None:
@@ -151,36 +131,53 @@ def validate_load_delta(witness: dict[str, Any]) -> None:
     floor = require_int(witness, "delta_floor_bytes")
     if total <= 0:
         fail("total device memory must be positive")
-    if not 0 < before <= total or not 0 < after <= total:
-        fail("free memory samples must be positive and within the device total")
+    if not 0 <= before <= total or not 0 <= after <= total:
+        fail("global diagnostic samples must be nonnegative and within the device total")
     if delta != before - after:
         fail("delta does not follow from the retained free-memory samples")
-    if delta == 0:
-        fail("allocation delta is zero: no device memory was claimed across the load")
-    if delta < 0:
-        fail(f"allocation delta is negative ({delta}): memory was released, not claimed")
     if floor < MODEL_FLOOR_BYTES:
         fail(f"declared floor {floor} is weaker than the model floor {MODEL_FLOOR_BYTES}")
-    if delta < floor:
-        fail(f"allocation delta {delta} is below the declared floor {floor}")
+    proof = witness["measurement"]
+    before_used = require_int(proof, "used_before_bytes")
+    after_used = require_int(proof, "used_after_bytes")
+    used_delta = require_int(proof, "delta_bytes")
+    if not 0 <= before_used <= (1 << 64) - 1 or not 0 <= after_used <= (1 << 64) - 1:
+        fail("private USED samples must be uint64 byte counts")
+    if used_delta != after_used - before_used:
+        fail("private delta does not follow from retained USED samples")
+    if used_delta == 0:
+        fail("private allocation delta is zero")
+    if used_delta < 0:
+        fail(f"private allocation delta is negative ({used_delta})")
+    if used_delta < floor:
+        fail(f"private allocation delta {used_delta} is below declared floor {floor}")
 
 
 def validate_control(witness: dict[str, Any]) -> None:
-    requested = require_int(witness, "control_allocation_request_bytes")
-    blocks = require_int(witness, "control_block_count")
-    before = require_int(witness, "control_free_before_bytes")
-    after = require_int(witness, "control_free_after_bytes")
-    delta = require_int(witness, "control_delta_bytes")
-    if requested <= 0:
-        fail("control allocation request must be positive")
-    if not 1 <= blocks <= MAX_CONTROL_BLOCKS:
-        fail(f"control block count must be between 1 and {MAX_CONTROL_BLOCKS}")
-    if before <= 0 or after <= 0:
-        fail("control free-memory samples must be positive")
-    if delta != before - after:
-        fail("control delta does not follow from the retained control samples")
-    if delta < requested:
-        fail(f"control allocation of {requested} bytes moved the counter by only {delta}")
+    proof = witness["measurement"]
+    if not isinstance(proof, dict):
+        fail("measurement must be an object")
+    require_exact_keys(proof, PRIVATE_KEYS, "measurement")
+    if proof["kind"] != "private_pool_used":
+        fail(f"Tegra measurement kind must be private_pool_used, saw {proof['kind']!r}")
+    context_id = require_string(proof, "context_id")
+    if re.fullmatch(r"0|[1-9][0-9]*", context_id) is None or int(context_id) > (1 << 64) - 1:
+        fail("context_id must be a canonical uint64 decimal string")
+    require_string(proof, "pool_identity")
+    if proof["pool_exclusivity_precondition"] != PRECONDITION:
+        fail("measurement does not carry the verbatim private-pool exclusivity precondition")
+    requested = require_int(proof, "control_request_bytes")
+    if requested != MODEL_FLOOR_BYTES:
+        fail(f"private control request {requested} must be exactly {MODEL_FLOOR_BYTES}")
+    before = require_int(proof, "control_before_bytes")
+    live = require_int(proof, "control_live_bytes")
+    released = require_int(proof, "control_released_bytes")
+    if any(not 0 <= value <= (1 << 64) - 1 for value in (before, live, released)):
+        fail("private control samples must be uint64 byte counts")
+    if live - before < requested:
+        fail(f"private live control rose by {live - before}, below request {requested}")
+    if released != before:
+        fail("private control release did not restore exact USED baseline")
 
 
 def validate_uuid_correlation(witness: dict[str, Any], expected: str) -> None:

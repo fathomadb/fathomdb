@@ -89,7 +89,12 @@ pub use cuda_driver_init::{
 // comparison, the UUID normalization and the serialization stay testable on a
 // host with no GPU (AC80-18, AC80-20). This is not a public SDK surface; the
 // consumer is the release evidence lane.
+#[cfg(any(feature = "embed-cuda", test))]
+mod gpu_pool_diagnostic;
 mod gpu_witness;
+mod gpu_witness_measurement;
+#[cfg(any(feature = "embed-cuda", test))]
+mod gpu_witness_private;
 pub use gpu_witness::{
     evaluate_allocation_witness, normalize_cuda_uuid, observe_control_allocation,
     AllocationWitnessInputs, ControlAllocationObservation, GpuAllocationWitness,
@@ -102,6 +107,9 @@ pub use gpu_witness::{
 pub use gpu_witness::{
     run_default_embedder_allocation_witness, sample_with_driver_initialized_only,
     AllocationWitnessConfig, CudaDriverControlAllocator, CudaDriverMemorySampler,
+};
+pub use gpu_witness_measurement::{
+    GpuAllocationMeasurement, PRIVATE_POOL_EXCLUSIVITY_PRECONDITION,
 };
 
 #[cfg(feature = "default-embedder")]

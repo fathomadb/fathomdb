@@ -657,3 +657,138 @@ exit1; no helper guard changed. Export-only Cargo jobs2 bounds compilation.
 The five-platform requirement is unchanged: both Mac rows/collector and genuine
 non-Tegra ARM driverless control remain. Await executor-scope clarification
 before hosted dispatch; local helper proof is not trusted-workflow provenance.
+
+### CI20: witnessed completion and retained Tegra failure evidence
+
+Changes since the local baseline: the owner approved hosted CPU/macOS on
+2026-11-09, with every GPU workload local and publication held. Full manual
+CI42621641800 qualifies reviewed3f80; Tegra42621714744 failed its forced Node
+allocation witness with delta-371355648 against unchanged67108864 floor.
+The real forward and preceding control completed; this is not proof of CPU
+fallback, a broken allocator, or an invalid environment. Preserve that failure.
+Runner diagnostics prove `_temp` was cleaned two seconds after the verdict;
+success-only payload staging/upload retained none of its detailed rows.
+
+The as-built pinned backend issues asynchronous uploads, but the witness takes
+its post-load sample without a completion barrier. Repair that ordering seam
+with deterministic RED/GREEN completion/error cases, then qualify the affected
+GPU artifacts. A barrier does not explain the original negative delta or make
+shared Tegra memory attributable; the accepted private-pool ADR's limitation
+remains. Keep the64MiB floor, touched resident control, identity checks, real
+forward and fail-closed errors. Do not reorder rows, sleep, clamp or retry to
+manufacture a pass.
+
+Keep detailed evidence in an invocation-owned directory beside `_temp`, so
+normal runner cleanup cannot erase a failure. Retain the existing single
+allowlisted distribution upload and publication controls; do not upload raw
+consumer databases, caches or extra diagnostics. Add an executable allocation
+step fixture that simulates runner temp cleanup and requires evidence survival.
+Only new task-owned evidence paths may be cleaned at final closure.
+
+Astra reviews design/code and a separate verifier checks ordering, errors,
+retention and real GPU/package results. Use focused qualification for these
+findings; unchanged CPU gates remain bound to their actual CI SHA and explicit
+relevant-input comparisons. Do not relabel a later source as the prior CI run.
+
+### CI21: truthful collect-all elapsed times
+
+Independent audit of successful CPU CI42621641800 found12 negative per-suite
+elapsed values (-105 to-653ms). Its34 jobs/206 passing suites remain valid;
+those duration observations do not support timing claims. The collect-all
+wrapper subtracts adjustable wall-clock reads. The cause of the observed clock
+movement is unproven, but that is the wrong clock for elapsed duration.
+
+Use integer Python `time.monotonic_ns()` milliseconds only for `run_suite`'s
+start/end reads. Full-verifier preflight requires Python; standalone heavy
+tests retain optional-language behavior. Unavailable or failed clock readings
+must produce an explicit unavailable duration while still executing the command.
+Preserve `run_capped`, exact return codes, states, counts, ordering,
+skips and spill behavior. Extend the existing collect-all fixture: drive the
+real wrappers with a backwards fake date, deliberate nonzero work, one pass
+and one failure; RED must prove positive elapsed time and unchanged verdicts.
+No clamping, timing upper bound, new gate or clock framework. Astra reviewed
+this design; separate verification precedes the batched final exact-SHA CI.
+
+### CI22: diagnose the remaining Tegra allocation measurement
+
+CI20's checked completion repair is insufficient for qualification: one fresh
+Node process passes (140574720 bytes), the next fails (9539584 <67108864).
+The preregistered campaign stopped; Node03/Python were not run. Preserve both
+results and all raw rows. No retry, threshold change or environmental waiver.
+
+Add one opt-in diagnostic to the real installed Node witness path, with TDD,
+Astra design/code review and separate verification. Retain the unchanged v1
+verdict and floor. Capture actual retained context/allocator/pool identity and
+checked current USED/RESERVED/global samples around the existing load bracket,
+including failures. The diagnostic uses its own schema and never qualifies as
+a v1 witness. After all original samples, forward and verdict, one touched64MiB
+same-pool control must show USED rise>=request and completed release back to
+its precontrol USED baseline. Run one preregistered
+local diagnostic process, with no competing same-process pool operations.
+Missing/private-mismatched identity, counter/synchronization errors or failed
+control accounting stop the proposal. Only a verified same-pool model USED delta
+at least64MiB plus live/released control justifies designing a successor witness;
+it is not itself qualification or proof of the earlier failure's cause.
+
+### CI23: replace the un-attributable integrated-GPU measurement
+
+Changes since CI22 planning: its single preregistered installed Node process
+preserved original v1 exit1/global delta-374050816, while actual held Private
+pool USED rose0→132848640, forward384 and its touched64MiB control rose/released
+exactly. All identity/counter/completion/source/artifact/model checks pass,
+with all75 files mirrored unchanged. This meets the declared feasibility rule;
+it is not qualification or a retrospective explanation/waiver of v1 failures.
+
+Adjust S95-6/7/10/11 acceptance through the
+[technical successor](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md):
+current v2 has an explicit tagged measurement, truthful global diagnostics and
+raw method-specific proof. Integrated/private selection precedes measurements;
+integrated non-private is a named witness refusal. Private acceptance retains
+64MiB model growth, actual device/process/context/pool identity, checked
+completion, forward384 and one touched same-pool64MiB control with exact release.
+Discrete GPU proof retains its original global control and PID obligations.
+Normal device/allocation policy, model pins, format37 and performance floors stay.
+
+Acceptance requires coherent Rust/Python/N-API/TypeScript contracts, explicit
+nested Node conversion and both strict verifiers rejecting missing/mismatched
+variants, weak floors/control, wrong identity/dimension and invalid arithmetic.
+Historical v1 records/negatives remain unchanged. Existing diagnostic reproduction
+at395 remains available; current terminology follows the actual primary schema.
+
+Astra reviews the concrete ADR/design before implementation and exact code after
+TDD. First review necessary contract-fixture amendments, then observe failing
+behavioral tests; implement GREEN with assertions frozen. Independently test
+selection, arithmetic/error/order/lifetime, SDK mappings and validators. Reuse
+existing mandatory installed Node/Python and workflow/driverless/x64 GPU rows;
+no extra campaign or broad regression for this bounded opt-in witness change.
+Final full exact-source manual CPU CI remains batched, followed by the trusted
+nonpublishing release rehearsal and final .29 handover/status/resource cleanup.
+
+The owner additionally requests read-only research on Tegra's original
+`/home/coreyt/projects/fathomdb/` checkout, local branches/unpushed work and
+pool-related agent transcripts. Inspect that history for existing fixes or
+contradictory evidence before CI23 implementation. Preserve the checkout,
+transcripts and sealed evidence. Reconcile concrete findings into this design;
+no speculative cause or duplicate replacement work follows merely from a plan.
+
+Research reconciliation: the inspected Tegra branches, worktrees, reflogs and
+project transcripts revealed no missing witness fix. Historical d861ead76 and
+8d53418d pool fixes are ancestors of current395; reflog-only close fixes match
+known patches. Remaining local-only-versus-tracking commits concern older
+packaging/diagnostics; tracking refs were stale and no fetch occurred. The study
+already retained a healthy-load negative global counter (-125792256), with
+133035264 USED_HIGH peak rather than a current live-model measurement. Reclaim
+was inferred there, not established for Slice95. Study ruling16 scopes study
+reporting. Current CI22 live USED/control data remain verified. Astra reviewed
+this reconciliation and approved the concrete CI23 technical design; proceed
+with TDD, exact code review and independent qualification.
+
+Producer reconciliation during CI23: Docker's namespace PID and existing host
+SMI PID differ. Acceptance now requires a kernel-derived pid_namespace object
+in each existing sealed x64 GPU observation, with a live unchanged Docker PID
+recheck and exact host/inner binding. Astra approved the bounded
+[container process design](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md#container-process-binding).
+Preserve isolation, current outer v2/v3, bundle allowlists and all artifact/UUID
+checks; no namespace weakening or claimed PID substitution. Observe focused
+parser/mapping/state-race REDs before GREEN and require the real mandatory GPU
+workflow observations. Rust/SDK in-process PID semantics remain unchanged.

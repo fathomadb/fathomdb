@@ -12,9 +12,10 @@
 use fathomdb_embedder::{
     evaluate_allocation_witness, normalize_cuda_uuid, observe_control_allocation,
     AllocationWitnessInputs, ControlAllocationObservation, CudaDeviceInfo, DeviceResolutionReason,
-    EffectiveEmbedDevice, GpuControlAllocator, GpuMemorySample, GpuMemorySampler, GpuWitnessError,
-    GpuWitnessSkip, WitnessStage, CUDA_ERROR_INVALID_CONTEXT, DEFAULT_CONTROL_ALLOCATION_BYTES,
-    DEFAULT_DELTA_FLOOR_BYTES, MAX_CONTROL_BLOCKS, SOLE_GPU_CONSUMER_PRECONDITION,
+    EffectiveEmbedDevice, GpuAllocationMeasurement, GpuControlAllocator, GpuMemorySample,
+    GpuMemorySampler, GpuWitnessError, GpuWitnessSkip, WitnessStage, CUDA_ERROR_INVALID_CONTEXT,
+    DEFAULT_CONTROL_ALLOCATION_BYTES, DEFAULT_DELTA_FLOOR_BYTES, MAX_CONTROL_BLOCKS,
+    PRIVATE_POOL_EXCLUSIVITY_PRECONDITION, SOLE_GPU_CONSUMER_PRECONDITION,
     TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
 };
 
@@ -36,11 +37,12 @@ fn cuda_device_info() -> CudaDeviceInfo {
     )
 }
 
-/// The numbers of an actual witnessed run on this Orin (2026-08-18): the
-/// kernel page pool absorbed eight 1 GiB control blocks and charged for the
-/// ninth, and the model load that followed charged 143_622_144 bytes.
+/// Historical global-counter numbers reused as a synthetic discrete-method
+/// fixture; integrated hardware now requires the separate private method.
 fn valid_inputs() -> AllocationWitnessInputs {
     AllocationWitnessInputs {
+        process_id: 4242,
+        device_integrated: false,
         requested_ordinal: 0,
         effective_device: EffectiveEmbedDevice::Cuda(cuda_device_info()),
         cpu_reason: None,
@@ -48,12 +50,14 @@ fn valid_inputs() -> AllocationWitnessInputs {
         retained_device_uuid: DEVICE_UUID.to_owned(),
         before: Some(GpuMemorySample { free_bytes: 50_213_253_120, total_bytes: TOTAL_BYTES }),
         after: Some(GpuMemorySample { free_bytes: 50_069_630_976, total_bytes: TOTAL_BYTES }),
-        control: Some(ControlAllocationObservation {
-            requested_bytes: DEFAULT_CONTROL_ALLOCATION_BYTES,
-            block_count: 9,
-            free_before_bytes: 51_290_562_560,
-            free_after_bytes: 50_213_253_120,
-        }),
+        measurement: Some(GpuAllocationMeasurement::from_global_control(
+            ControlAllocationObservation {
+                requested_bytes: DEFAULT_CONTROL_ALLOCATION_BYTES,
+                block_count: 9,
+                free_before_bytes: 51_290_562_560,
+                free_after_bytes: 50_213_253_120,
+            },
+        )),
         delta_floor_bytes: DEFAULT_DELTA_FLOOR_BYTES,
         embedded_vector_dim: Some(384),
     }
@@ -76,7 +80,7 @@ fn declared_floor_sits_above_measured_idle_jitter_and_below_the_model() {
 #[test]
 fn schema_is_the_new_tegra_record_not_the_shared_observation() {
     // D-80.5-5: a separate record, never a bump of cuda-device-observation/v1.
-    assert_eq!(TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA, "fathomdb.tegra-gpu-allocation-witness/v1");
+    assert_eq!(TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA, "fathomdb.tegra-gpu-allocation-witness/v2");
 }
 
 #[test]
@@ -97,8 +101,17 @@ fn valid_samples_yield_a_re_derivable_witness() {
     );
     assert_eq!(witness.delta_floor_bytes, DEFAULT_DELTA_FLOOR_BYTES);
     assert!(witness.delta_bytes >= i128::from(witness.delta_floor_bytes));
-    assert_eq!(witness.control_delta_bytes, 1_077_309_440);
-    assert_eq!(witness.control_block_count, 9);
+    assert_eq!(witness.process_id, 4242);
+    assert!(!witness.device_integrated);
+    match witness.measurement {
+        GpuAllocationMeasurement::GlobalFree {
+            control_delta_bytes, control_block_count, ..
+        } => {
+            assert_eq!(control_delta_bytes, 1_077_309_440);
+            assert_eq!(control_block_count, 9);
+        }
+        other => panic!("expected discrete global evidence, got {other:?}"),
+    }
     assert_eq!(witness.embedded_vector_dim, 384);
 }
 
@@ -177,7 +190,7 @@ fn a_missing_sample_is_never_treated_as_zero() {
         (AllocationWitnessInputs { before: None, ..valid_inputs() }, WitnessStage::LoadBefore),
         (AllocationWitnessInputs { after: None, ..valid_inputs() }, WitnessStage::LoadAfter),
         (
-            AllocationWitnessInputs { control: None, ..valid_inputs() },
+            AllocationWitnessInputs { measurement: None, ..valid_inputs() },
             WitnessStage::ControlAllocation,
         ),
         (
@@ -222,12 +235,14 @@ fn a_control_allocation_the_counter_never_saw_is_unattributable() {
     // D-80.5-3: the control proves the counter is live and attributable on
     // this host at witness time; an unattributable delta is a named failure.
     let inputs = AllocationWitnessInputs {
-        control: Some(ControlAllocationObservation {
-            requested_bytes: DEFAULT_CONTROL_ALLOCATION_BYTES,
-            block_count: 1,
-            free_before_bytes: 51_290_562_560,
-            free_after_bytes: 51_289_562_560,
-        }),
+        measurement: Some(GpuAllocationMeasurement::from_global_control(
+            ControlAllocationObservation {
+                requested_bytes: DEFAULT_CONTROL_ALLOCATION_BYTES,
+                block_count: 1,
+                free_before_bytes: 51_290_562_560,
+                free_after_bytes: 51_289_562_560,
+            },
+        )),
         ..valid_inputs()
     };
     match evaluate_allocation_witness(inputs) {
@@ -324,13 +339,9 @@ fn witness_serializes_as_canonical_json_with_a_trailing_newline() {
     let expected = concat!(
         "{",
         r#""compute_capability":"8.7","#,
-        r#""control_allocation_request_bytes":1073741824,"#,
-        r#""control_block_count":9,"#,
-        r#""control_delta_bytes":1077309440,"#,
-        r#""control_free_after_bytes":50213253120,"#,
-        r#""control_free_before_bytes":51290562560,"#,
         r#""delta_bytes":143622144,"#,
         r#""delta_floor_bytes":67108864,"#,
+        r#""device_integrated":false,"#,
         r#""device_name":"Orin","#,
         r#""device_ordinal_actual":0,"#,
         r#""device_ordinal_requested":0,"#,
@@ -338,16 +349,23 @@ fn witness_serializes_as_canonical_json_with_a_trailing_newline() {
         r#""embedded_vector_dim":384,"#,
         r#""free_after_bytes":50069630976,"#,
         r#""free_before_bytes":50213253120,"#,
-        r#""schema":"fathomdb.tegra-gpu-allocation-witness/v1","#,
+        r#""measurement":{"control_allocation_request_bytes":1073741824,"#,
+        r#""control_block_count":9,"#,
+        r#""control_delta_bytes":1077309440,"#,
+        r#""control_free_after_bytes":50213253120,"#,
+        r#""control_free_before_bytes":51290562560,"#,
+        r#""kind":"global_free","#,
         r#""sole_gpu_consumer_precondition":"#,
-        r#""the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, system-wide counter on an integrated GPU","#,
+        r#""the witness process must be the sole GPU consumer of the selected discrete device"},"#,
+        r#""process_id":4242,"#,
+        r#""schema":"fathomdb.tegra-gpu-allocation-witness/v2","#,
         r#""total_bytes":65879896064"#,
         "}\n",
     );
     assert_eq!(witness.to_canonical_json(), expected);
     assert_eq!(
         SOLE_GPU_CONSUMER_PRECONDITION,
-        "the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, system-wide counter on an integrated GPU"
+        "the witness process must be the sole GPU consumer of the selected discrete device"
     );
 }
 
@@ -485,4 +503,103 @@ fn a_sampler_error_during_the_control_step_is_never_swallowed() {
     .expect_err("sampler failure is a witness failure");
     assert!(matches!(error, GpuWitnessError::NoCudaContext { .. }), "got {error:?}");
     assert!(allocator.allocated.is_empty());
+}
+
+fn private_inputs() -> AllocationWitnessInputs {
+    AllocationWitnessInputs {
+        device_integrated: true,
+        after: Some(GpuMemorySample { free_bytes: 50_587_303_936, total_bytes: TOTAL_BYTES }),
+        measurement: Some(GpuAllocationMeasurement::PrivatePoolUsed {
+            context_id: "18446744073709551615".into(),
+            pool_identity: "0x1234".into(),
+            used_before_bytes: 0,
+            used_after_bytes: 132_848_640,
+            delta_bytes: 132_848_640,
+            control_request_bytes: 67_108_864,
+            control_before_bytes: 132_848_640,
+            control_live_bytes: 199_957_504,
+            control_released_bytes: 132_848_640,
+            pool_exclusivity_precondition: PRIVATE_POOL_EXCLUSIVITY_PRECONDITION.into(),
+        }),
+        ..valid_inputs()
+    }
+}
+
+#[test]
+fn private_used_proof_succeeds_with_truthful_negative_global_diagnostics() {
+    let witness =
+        evaluate_allocation_witness(private_inputs()).expect("attributable private proof");
+    assert_eq!(witness.delta_bytes, -374_050_816);
+    assert!(witness.device_integrated);
+    assert_eq!(witness.process_id, 4242);
+    assert_eq!(witness.measurement, private_inputs().measurement.unwrap());
+    assert!(witness.to_canonical_json().contains(r#""context_id":"18446744073709551615""#));
+}
+
+#[test]
+fn private_proof_rejects_bad_model_control_identity_and_method() {
+    for failure in 0..13 {
+        let mut inputs = private_inputs();
+        let Some(GpuAllocationMeasurement::PrivatePoolUsed {
+            context_id,
+            pool_identity,
+            used_before_bytes,
+            used_after_bytes,
+            delta_bytes,
+            control_request_bytes,
+            control_live_bytes,
+            control_released_bytes,
+            pool_exclusivity_precondition,
+            ..
+        }) = inputs.measurement.as_mut()
+        else {
+            unreachable!()
+        };
+        match failure {
+            0 => {
+                *used_after_bytes = 0;
+                *delta_bytes = 0;
+            }
+            1 => {
+                *used_before_bytes = 4096;
+                *used_after_bytes = 0;
+                *delta_bytes = -4096;
+            }
+            2 => {
+                *used_after_bytes = 1024;
+                *delta_bytes = 1024;
+            }
+            3 => *delta_bytes += 1,
+            4 => *control_request_bytes = 134_217_728,
+            5 => *control_live_bytes -= 1,
+            6 => *control_released_bytes += 1,
+            7 => *context_id = "18446744073709551616".into(),
+            8 => *pool_identity = String::new(),
+            9 => *pool_exclusivity_precondition = "fine".into(),
+            10 => inputs.device_integrated = false,
+            11 => inputs.process_id = 0,
+            12 => inputs.embedded_vector_dim = Some(383),
+            _ => unreachable!(),
+        }
+        assert!(evaluate_allocation_witness(inputs).is_err(), "accepted private failure {failure}");
+    }
+    for mut inputs in [valid_inputs(), private_inputs()] {
+        inputs.delta_floor_bytes = 1024;
+        assert!(evaluate_allocation_witness(inputs).is_err(), "accepted weakened model floor");
+    }
+    let mut inputs = valid_inputs();
+    inputs.device_integrated = true;
+    assert!(evaluate_allocation_witness(inputs).is_err(), "integrated global proof must refuse");
+}
+
+#[test]
+fn zero_context_id_is_valid_and_preserved_losslessly() {
+    let mut inputs = private_inputs();
+    if let Some(GpuAllocationMeasurement::PrivatePoolUsed { context_id, .. }) =
+        inputs.measurement.as_mut()
+    {
+        *context_id = "0".into();
+    }
+    let witness = evaluate_allocation_witness(inputs).expect("checked context ID zero is valid");
+    assert!(witness.to_canonical_json().contains(r#""context_id":"0""#));
 }

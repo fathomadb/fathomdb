@@ -467,13 +467,21 @@ fi
 cat > "$WORK_DIR/gpu-python-smoke.py" <<'PY'
 from dataclasses import asdict
 import json
+import os
 import pathlib
 import time
 from fathomdb import Engine
+
+def _witness_for_process(witness):
+    if witness is not None:
+        pid = witness.process_id
+        if not isinstance(pid, int) or isinstance(pid, bool) or pid != os.getpid():
+            raise RuntimeError("allocation witness does not belong to the consumer process")
+    return witness
 engine = Engine.open("/fathomdb-tmp/cuda-python.fdb", use_default_embedder=True)
 report = engine.open_report()
 resolution = report.embedder_device_resolution
-allocation_witness = report.embedder_gpu_allocation_witness
+allocation_witness = _witness_for_process(report.embedder_gpu_allocation_witness)
 if allocation_witness is None:
     raise RuntimeError("installed Python CUDA artifact did not retain an allocation witness")
 pathlib.Path("/evidence/gpu-python-open-report.json").write_text(json.dumps({
@@ -492,19 +500,18 @@ PY
 cat > "$WORK_DIR/gpu-napi-smoke.mjs" <<'JS'
 import fs from "node:fs";
 import { Engine } from "fathomdb";
-const engine = await Engine.open("/fathomdb-tmp/cuda-napi.fdb", { useDefaultEmbedder: true });
-const report = engine.openReport();
-const resolution = report.embedderDeviceResolution;
-const allocationWitness = report.embedderGpuAllocationWitness;
-if (allocationWitness === null) throw new Error("installed N-API CUDA artifact did not retain an allocation witness");
-fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
-  consumer: "napi", requested_policy: resolution.requestedPolicy,
-  status: "selected_cuda", effective_device: "cuda:0",
-  visible_devices: resolution.visibleCudaDevices.map((d) => ({ visible_ordinal: d.visibleOrdinal, uuid: d.uuid, name: d.name, compute_capability: d.computeCapability })),
-  selected_uuid: resolution.selectedCudaUuid,
-  allocation_witness: {
+function allocationWitnessRecord(allocationWitness) {
+  if (!Number.isInteger(allocationWitness.processId) || allocationWitness.processId !== process.pid) {
+    throw new Error("allocation witness does not belong to the consumer process");
+  }
+  if (allocationWitness.deviceIntegrated !== false || allocationWitness.measurement?.kind !== "global_free") {
+    throw new Error("discrete CUDA preflight requires the global_free witness method");
+  }
+  const measurement = allocationWitness.measurement;
+  return {
     schema: allocationWitness.schema,
-    sole_gpu_consumer_precondition: allocationWitness.soleGpuConsumerPrecondition,
+    process_id: allocationWitness.processId,
+    device_integrated: allocationWitness.deviceIntegrated,
     device_ordinal_requested: allocationWitness.deviceOrdinalRequested,
     device_ordinal_actual: allocationWitness.deviceOrdinalActual,
     device_uuid: allocationWitness.deviceUuid,
@@ -515,13 +522,29 @@ fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
     total_bytes: allocationWitness.totalBytes,
     delta_bytes: allocationWitness.deltaBytes,
     delta_floor_bytes: allocationWitness.deltaFloorBytes,
-    control_allocation_request_bytes: allocationWitness.controlAllocationRequestBytes,
-    control_block_count: allocationWitness.controlBlockCount,
-    control_free_before_bytes: allocationWitness.controlFreeBeforeBytes,
-    control_free_after_bytes: allocationWitness.controlFreeAfterBytes,
-    control_delta_bytes: allocationWitness.controlDeltaBytes,
     embedded_vector_dim: allocationWitness.embeddedVectorDim,
-  },
+    measurement: {
+      kind: measurement.kind,
+      sole_gpu_consumer_precondition: measurement.soleGpuConsumerPrecondition,
+      control_allocation_request_bytes: measurement.controlAllocationRequestBytes,
+      control_block_count: measurement.controlBlockCount,
+      control_free_before_bytes: measurement.controlFreeBeforeBytes,
+      control_free_after_bytes: measurement.controlFreeAfterBytes,
+      control_delta_bytes: measurement.controlDeltaBytes,
+    },
+  };
+}
+const engine = await Engine.open("/fathomdb-tmp/cuda-napi.fdb", { useDefaultEmbedder: true });
+const report = engine.openReport();
+const resolution = report.embedderDeviceResolution;
+const allocationWitness = report.embedderGpuAllocationWitness;
+if (allocationWitness === null) throw new Error("installed N-API CUDA artifact did not retain an allocation witness");
+fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
+  consumer: "napi", requested_policy: resolution.requestedPolicy,
+  status: "selected_cuda", effective_device: "cuda:0",
+  visible_devices: resolution.visibleCudaDevices.map((d) => ({ visible_ordinal: d.visibleOrdinal, uuid: d.uuid, name: d.name, compute_capability: d.computeCapability })),
+  selected_uuid: resolution.selectedCudaUuid,
+  allocation_witness: allocationWitnessRecord(allocationWitness),
 }) + "\n");
 if ((await engine.embed("installed N-API CUDA artifact GPU proof")).length !== 384) throw new Error("expected 384-vector");
 console.log("installed N-API CUDA artifact GPU smoke: ok");
@@ -547,21 +570,52 @@ seal_gpu_observation() {
         printf 'cuda-preflight: observed GPU UUID differs from the requested host UUID\n' >&2
         exit 1
       }
-      python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" <<'PY'
+      if ! python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" "$container" <<'PY'
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
-source, target, host_uuid, host_pid, process_name = sys.argv[1:]
+source, target, host_uuid, host_pid, process_name, container = sys.argv[1:]
 value = json.loads(Path(source).read_text())
+host_pid = int(host_pid)
+witness = value.get("allocation_witness")
+inner_pid = witness.get("process_id") if isinstance(witness, dict) else None
+if host_pid < 1 or not isinstance(inner_pid, int) or isinstance(inner_pid, bool) or inner_pid != 1:
+    raise SystemExit("cuda-preflight: consumer must retain its own namespace PID1")
+status = Path(f"/proc/{host_pid}/status").read_text(encoding="ascii")
+lines = [line for line in status.splitlines() if line.startswith("NSpid:")]
+if len(lines) != 1:
+    raise SystemExit("cuda-preflight: expected exactly one kernel NSpid line")
+tokens = lines[0].removeprefix("NSpid:").split()
+if len(tokens) < 2 or any(re.fullmatch(r"[1-9][0-9]*", token) is None for token in tokens):
+    raise SystemExit("cuda-preflight: kernel NSpid must contain positive host-to-inner PIDs")
+pids = [int(token) for token in tokens]
+if pids[0] != host_pid or pids[-1] != inner_pid:
+    raise SystemExit("cuda-preflight: kernel PID namespace does not bind this consumer")
+# Recheck the same live container after the kernel read and before any output.
+inspection = subprocess.run(
+    ["docker", "inspect", "--format", "{{json .State}}", container],
+    capture_output=True, text=True, check=True,
+)
+state = json.loads(inspection.stdout)
+if (not isinstance(state, dict) or state.get("Running") is not True
+        or not isinstance(state.get("Pid"), int) or isinstance(state.get("Pid"), bool)
+        or state["Pid"] != host_pid):
+    raise SystemExit("cuda-preflight: consumer stopped or changed host PID before sealing")
 value.update({
     "schema_version": "fathomdb.cuda-device-observation/v1",
     "nvidia_smi_uuid": host_uuid,
-    "process_id": int(host_pid),
-    "nvidia_smi_compute_process_id": int(host_pid),
+    "process_id": host_pid,
+    "nvidia_smi_compute_process_id": host_pid,
     "process_name": process_name,
+    "pid_namespace": {"source": "host_proc_status", "nspid": pids},
 })
 Path(target).write_text(json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
+      then
+        return 1
+      fi
       exit_code="$(docker wait "$container")"
       docker logs "$container" >"$smoke" 2>&1
       docker rm "$container" >/dev/null

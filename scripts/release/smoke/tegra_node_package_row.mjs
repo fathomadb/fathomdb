@@ -21,6 +21,7 @@ const out = {
   component,
   policy: policyArg === "-" ? null : policyArg,
   node: process.version,
+  process_id: process.pid,
   outcome: "error",
   step: "import",
   error: null,
@@ -54,6 +55,13 @@ function resolution(value) {
   };
 }
 
+function witnessForProcess(witness) {
+  if (witness !== null && (!Number.isInteger(witness.processId) || witness.processId !== process.pid)) {
+    throw new Error("allocation witness does not belong to the consumer process");
+  }
+  return witness;
+}
+
 let engine = null;
 try {
   const fathomdb = await import("fathomdb");
@@ -68,7 +76,7 @@ try {
     const report = engine.openReport();
     out.resolution = resolution(report.embedderDeviceResolution);
     out.embedder_events = report.embedderEvents.map((event) => event.kind);
-    out.witness = report.embedderGpuAllocationWitness;
+    out.witness = witnessForProcess(report.embedderGpuAllocationWitness);
     out.witness_present = report.embedderGpuAllocationWitness !== null;
     out.step = "embed";
     const vector = await engine.embed("FathomDB installed Jetson Tegra package smoke");

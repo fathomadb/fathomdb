@@ -99,6 +99,28 @@ It reports completion only after both pass. `--skip-pages-smoke` records an
 INCOMPLETE publication check with a nonzero exit. A failed smoke also reports
 INCOMPLETE.
 
+## Pending 0.8.28 witness contract
+
+The pending 0.8.28 candidate uses
+`fathomdb.tegra-gpu-allocation-witness/v2`. Its tagged `measurement` identifies
+which counter proves model allocation. On Tegra, `private_pool_used` requires
+an actual private pool, checked completion, at least 64 MiB of live model
+allocations and a touched 64 MiB same-pool control that returns exactly to its
+baseline after release. Device/process/context identity and a real forward producing 384 dimensions remain required. An unavailable private pool refuses the requested
+witness; ordinary device and allocation policy retain their existing behavior.
+
+Common global free-memory samples and `delta_bytes` retain their actual values.
+On a private-pool witness they are diagnostic: a negative global delta can
+coexist with valid private USED growth. Read the tagged measurement's own
+allocation/control observations and use the matching strict verifier. The
+discrete-GPU route uses `global_free` with its existing counter/control and PID
+proof. Container evidence includes `pid_namespace` to bind the process's local
+PID to the host PID reported by NVIDIA-SMI. Historical v1 records retain their
+original interpretation.
+
+These candidate checks prepare 0.8.28; the published 0.8.27 artifact URLs above
+remain the publication baseline until release authorization.
+
 ## Troubleshoot
 
 - If the wrapper rejects the host, use a classic Jetson Orin with JetPack 6 /

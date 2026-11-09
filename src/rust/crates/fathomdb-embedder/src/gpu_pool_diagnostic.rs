@@ -25,16 +25,302 @@ struct Diagnostic {
 }
 
 pub(super) fn run_optional<D, V>(
-    _diagnostic: Option<D>,
+    mut diagnostic: Option<D>,
     work: impl FnOnce(Option<&mut D>) -> V,
-    _emit: impl FnOnce(&D, &V),
+    emit: impl FnOnce(&D, &V),
 ) -> V {
-    work(None)
-}
-
-fn after_verdict<T>(_diagnostic: &mut Diagnostic, _probe: &mut dyn PoolProbe, verdict: T) -> T {
+    let verdict = work(diagnostic.as_mut());
+    if let Some(diagnostic) = diagnostic.as_ref() {
+        emit(diagnostic, &verdict);
+    }
     verdict
 }
+
+fn after_verdict<T>(diagnostic: &mut Diagnostic, probe: &mut dyn PoolProbe, verdict: T) -> T {
+    if !diagnostic.errors.is_empty() {
+        return verdict;
+    }
+    let baseline = match probe.complete().and_then(|()| probe.read()) {
+        Ok(sample) => sample,
+        Err(error) => {
+            diagnostic.errors.push(format!("control_baseline: {error}"));
+            return verdict;
+        }
+    };
+    diagnostic.samples.push(("control_baseline", baseline));
+    let live = (|| {
+        probe.allocate(CONTROL_BYTES)?;
+        probe.touch(0xa5)?;
+        probe.complete()?;
+        probe.read()
+    })();
+    match &live {
+        Ok(sample) => diagnostic.samples.push(("control_live", *sample)),
+        Err(error) => diagnostic.errors.push(format!("control_live: {error}")),
+    }
+    // Cleanup is required even when allocation, touch, completion or reading failed.
+    let released = probe.release().and_then(|()| probe.complete()).and_then(|()| probe.read());
+    match &released {
+        Ok(sample) => diagnostic.samples.push(("control_released", *sample)),
+        Err(error) => diagnostic.errors.push(format!("control_released: {error}")),
+    }
+    if let (Ok(live), Ok(released)) = (live, released) {
+        if live.used.checked_sub(baseline.used).is_none_or(|rise| rise < CONTROL_BYTES) {
+            diagnostic.errors.push("control USED rise is smaller than request".into());
+        }
+        if released.used != baseline.used {
+            diagnostic.errors.push("control release did not restore exact USED baseline".into());
+        }
+    }
+    diagnostic.control_valid = diagnostic.errors.is_empty();
+    verdict
+}
+
+#[cfg(feature = "embed-cuda")]
+mod hardware {
+    use super::*;
+    use crate::gpu_witness::{
+        normalize_cuda_uuid, GpuAllocationWitness, GpuMemorySampler, GpuWitnessError,
+    };
+    use candle_core::cuda::cudarc::driver::{
+        result, sys, AllocMode, CudaContext, CudaMemPool, CudaSlice, CudaStream, DevicePtrMut,
+    };
+    use serde_json::{json, Value};
+    use std::io::Write;
+    use std::sync::Arc;
+
+    struct RetainedPool {
+        context: Arc<CudaContext>,
+        stream: Arc<CudaStream>,
+        pool: Arc<CudaMemPool>,
+        control: Option<CudaSlice<u8>>,
+    }
+
+    impl PoolProbe for RetainedPool {
+        fn complete(&mut self) -> Result<(), String> {
+            self.context.synchronize().map_err(|error| format!("context completion: {error}"))
+        }
+        fn read(&mut self) -> Result<Sample, String> {
+            self.context.bind_to_thread().map_err(|error| format!("bind: {error}"))?;
+            let used = self.pool.used_current().map_err(|error| format!("USED: {error}"))?;
+            let reserved =
+                self.pool.reserved_current().map_err(|error| format!("RESERVED: {error}"))?;
+            let (free, total) =
+                self.context.mem_get_info().map_err(|error| format!("global: {error}"))?;
+            Ok(Sample {
+                used,
+                reserved,
+                global: GpuMemorySample { free_bytes: free as u64, total_bytes: total as u64 },
+            })
+        }
+        fn allocate(&mut self, bytes: u64) -> Result<(), String> {
+            let bytes = usize::try_from(bytes).map_err(|error| error.to_string())?;
+            // The retained stream's context owns this exact private pool.
+            self.control =
+                Some(unsafe { self.stream.alloc::<u8>(bytes) }.map_err(|error| error.to_string())?);
+            Ok(())
+        }
+        fn touch(&mut self, pattern: u8) -> Result<(), String> {
+            let control = self.control.as_mut().ok_or("control allocation absent")?;
+            let (pointer, _record) = control.device_ptr_mut(&self.stream);
+            // The owned buffer remains live until checked completion and release.
+            unsafe {
+                result::memset_d8_async(
+                    pointer,
+                    pattern,
+                    CONTROL_BYTES as usize,
+                    self.stream.cu_stream(),
+                )
+            }
+            .map_err(|error| error.to_string())
+        }
+        fn release(&mut self) -> Result<(), String> {
+            drop(self.control.take());
+            self.context.check_err().map_err(|error| format!("control drop: {error}"))
+        }
+    }
+
+    pub(crate) struct Session {
+        record: Diagnostic,
+        identity: Option<Value>,
+        probe: Option<RetainedPool>,
+        v1_samples: Vec<Value>,
+        original_verdict_reached: bool,
+    }
+
+    impl Session {
+        pub(crate) fn enabled() -> Option<Self> {
+            (std::env::var("FATHOMDB_GPU_POOL_DIAGNOSTIC").as_deref() == Ok("1")).then(|| Self {
+                record: Diagnostic::default(),
+                identity: None,
+                probe: None,
+                v1_samples: Vec::new(),
+                original_verdict_reached: false,
+            })
+        }
+
+        pub(crate) fn attach(
+            &mut self,
+            device: &candle_core::Device,
+            requested: usize,
+            retained_uuid: &str,
+        ) {
+            if let Err(error) = self.attach_checked(device, requested, retained_uuid) {
+                self.record.errors.push(error);
+            }
+        }
+
+        fn attach_checked(
+            &mut self,
+            device: &candle_core::Device,
+            requested: usize,
+            retained_uuid: &str,
+        ) -> Result<(), String> {
+            let stream = device.as_cuda_device().map_err(|error| error.to_string())?.cuda_stream();
+            let context = stream.context().clone();
+            let pool = context.mem_pool().cloned();
+            self.identity = Some(json!({
+                "pid": std::process::id(), "requested_ordinal": requested,
+                "retained_ordinal": context.ordinal(), "attested_uuid": retained_uuid,
+                "context_handle": format!("{:p}", context.cu_ctx()),
+                "stream_handle": format!("{:p}", stream.cu_stream()),
+                "pool_handle": pool.as_ref().map(|pool| format!("{:p}", pool.raw())),
+                "allocation_mode": format!("{:?}", context.alloc_mode()),
+            }));
+            if context.alloc_mode() != AllocMode::Private {
+                return Err("unsupported: witnessed context does not use a private pool".into());
+            }
+            let pool = pool.ok_or("unsupported: retained private pool absent")?;
+            if context.ordinal() != requested || !Arc::ptr_eq(stream.context(), &context) {
+                return Err("retained stream/context ordinal mismatch".into());
+            }
+            context.bind_to_thread().map_err(|error| format!("identity bind: {error}"))?;
+            let mut context_id = 0;
+            // The context is retained by this session; the checked call only reads its ID.
+            unsafe { sys::cuCtxGetId(context.cu_ctx(), &mut context_id) }
+                .result()
+                .map_err(|error| format!("context ID: {error}"))?;
+            let uuid = context
+                .uuid()
+                .map_err(|error| format!("UUID: {error}"))?
+                .bytes
+                .map(|byte| byte.to_ne_bytes()[0]);
+            let hex: String = uuid.iter().map(|byte| format!("{byte:02x}")).collect();
+            let uuid = format!(
+                "GPU-{}-{}-{}-{}-{}",
+                &hex[..8],
+                &hex[8..12],
+                &hex[12..16],
+                &hex[16..20],
+                &hex[20..]
+            );
+            if normalize_cuda_uuid(&uuid) != normalize_cuda_uuid(retained_uuid) {
+                return Err("retained context UUID mismatch".into());
+            }
+            if let Some(identity) = self.identity.as_mut() {
+                identity["context_id"] = json!(context_id);
+                identity["context_uuid"] = json!(uuid);
+            }
+            self.probe = Some(RetainedPool { context, stream, pool, control: None });
+            Ok(())
+        }
+
+        fn observe(
+            &mut self,
+            stage: &'static str,
+            sample: &Result<GpuMemorySample, GpuWitnessError>,
+        ) {
+            match sample {
+                Ok(sample) => self.v1_samples.push(json!({"stage": stage, "free_bytes": sample.free_bytes, "total_bytes": sample.total_bytes})),
+                Err(error) => self.record.errors.push(format!("v1 {stage}: {error}")),
+            }
+            if !self.record.errors.is_empty() {
+                return;
+            }
+            if let Some(probe) = self.probe.as_mut() {
+                match probe.read() {
+                    Ok(sample) => self.record.samples.push((stage, sample)),
+                    Err(error) => self.record.errors.push(format!("{stage}: {error}")),
+                }
+            }
+        }
+
+        pub(crate) fn finish<V>(&mut self, verdict: V) -> V {
+            self.original_verdict_reached = true;
+            match self.probe.as_mut() {
+                Some(probe) => after_verdict(&mut self.record, probe, verdict),
+                None => verdict,
+            }
+        }
+
+        pub(crate) fn emit(&self, verdict: &Result<GpuAllocationWitness, GpuWitnessError>) {
+            let v1 = match verdict {
+                Ok(witness) => {
+                    json!({"outcome":"pass", "record_json": witness.to_canonical_json()})
+                }
+                Err(error) => {
+                    json!({"outcome":"error", "kind":error.as_str(), "message":error.to_string()})
+                }
+            };
+            let samples: Vec<Value> = self.record.samples.iter().map(|(stage, sample)| json!({
+                "stage":stage,"used_bytes":sample.used,"reserved_bytes":sample.reserved,
+                "global_free_bytes":sample.global.free_bytes,"global_total_bytes":sample.global.total_bytes,
+            })).collect();
+            let record = json!({
+                "schema":"fathomdb.tegra-gpu-pool-diagnostic/v1", "pid":std::process::id(),
+                "identity":self.identity,"sampling":"sequential non-atomic; original global then USED/RESERVED/global",
+                "v1":v1,"v1_samples":self.v1_samples,"samples":samples,"errors":self.record.errors,
+                "original_verdict_reached":self.original_verdict_reached,
+                "control_request_bytes":CONTROL_BYTES,"control_valid":self.record.control_valid,
+                "diagnostic_valid":self.original_verdict_reached && self.identity.is_some() && self.record.control_valid && self.record.errors.is_empty(),
+                "exclusivity":"external single-open driver attestation required; not enforced by runtime",
+                "acceptance":false,
+            });
+            // A diagnostic sink failure must not replace the original v1 result.
+            let _ = writeln!(std::io::stderr().lock(), "fathomdb-tegra-pool-diagnostic {record}");
+        }
+    }
+
+    pub(crate) struct ObservedSampler<'a> {
+        sampler: &'a mut dyn GpuMemorySampler,
+        diagnostic: Option<&'a mut Session>,
+        load_phase: bool,
+        sample_index: usize,
+    }
+
+    impl<'a> ObservedSampler<'a> {
+        pub(crate) fn new(
+            sampler: &'a mut dyn GpuMemorySampler,
+            diagnostic: Option<&'a mut Session>,
+            load_phase: bool,
+        ) -> Self {
+            Self { sampler, diagnostic, load_phase, sample_index: 0 }
+        }
+    }
+
+    impl GpuMemorySampler for ObservedSampler<'_> {
+        fn sample(&mut self) -> Result<GpuMemorySample, GpuWitnessError> {
+            let sample = self.sampler.sample();
+            if let Some(diagnostic) = self.diagnostic.as_deref_mut() {
+                let stage = if self.load_phase {
+                    if self.sample_index == 0 {
+                        "before_load"
+                    } else {
+                        "after_checked_load"
+                    }
+                } else {
+                    "original_raw_control"
+                };
+                diagnostic.observe(stage, &sample);
+            }
+            self.sample_index += 1;
+            sample
+        }
+    }
+}
+
+#[cfg(feature = "embed-cuda")]
+pub(super) use hardware::{ObservedSampler, Session};
 
 #[cfg(test)]
 mod tests {

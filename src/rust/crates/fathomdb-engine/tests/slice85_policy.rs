@@ -1,11 +1,11 @@
 use fathomdb_engine::Engine;
 
 #[test]
-fn fresh_store_uses_format36_before_policy_can_be_ignored_by_old_binary() {
+fn fresh_store_uses_format37_before_policy_can_be_ignored_by_old_binary() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("fresh.sqlite");
     let engine = Engine::open(&path).unwrap().engine;
-    assert_eq!(engine.query_i64_col_for_test("PRAGMA user_version").unwrap(), vec![36]);
+    assert_eq!(engine.query_i64_col_for_test("PRAGMA user_version").unwrap(), vec![37]);
     engine.close().unwrap();
 }
 
@@ -43,7 +43,7 @@ fn explicit_policy_is_persisted_honored_and_mismatch_refused_without_mutation() 
 }
 
 #[test]
-fn format36_policy_is_mandatory_and_unknown_policy_refuses() {
+fn format37_policy_is_mandatory_and_unknown_policy_refuses() {
     for replacement in [None, Some("unknown")] {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("bad.sqlite");

@@ -225,6 +225,49 @@ mod tests {
     }
 
     #[test]
+    fn contended_idle_admission_probe_does_not_dispatch_profiles() {
+        #[derive(Default)]
+        struct Profiles(AtomicUsize);
+        impl lifecycle::Subscriber for Profiles {
+            fn on_event(&self, _: &lifecycle::Event) {}
+            fn on_profile(&self, _: &lifecycle::ProfileRecord) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let engine =
+            Engine::open(directory.path().join("contended-idle-profiles.sqlite")).unwrap().engine;
+        engine.set_profiling(true).unwrap();
+        let profiles = Arc::new(Profiles::default());
+        let subscription = engine.subscribe(profiles.clone());
+        let primary = engine.connection.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !engine.physical_maintenance.shared.priority.load(Ordering::Acquire)
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let reserved = engine.physical_maintenance.shared.priority.load(Ordering::Acquire);
+        drop(primary);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while engine.physical_maintenance.shared.priority.load(Ordering::Acquire)
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let released = !engine.physical_maintenance.shared.priority.load(Ordering::Acquire);
+        let idle = profiles.0.load(Ordering::SeqCst);
+        engine.read_get("absent", &Default::default()).unwrap();
+        let foreground = profiles.0.load(Ordering::SeqCst);
+        drop(subscription);
+        engine.close().unwrap();
+        assert!(reserved, "the held primary must force the speculative admission path");
+        assert!(released, "the debt-free admission must release maintenance priority");
+        assert_eq!(idle, 0, "contended idle admission must not dispatch subscriber profiles");
+        assert!(foreground > idle, "foreground profiling must remain observable");
+    }
+
+    #[test]
     fn nested_probe_error_restores_subscriber_profiling() {
         #[derive(Default)]
         struct Profiles(AtomicUsize);

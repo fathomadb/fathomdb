@@ -327,7 +327,7 @@ mod tests {
             };
             assert!(error.is_instance_of::<IncompatibleSchemaVersionError>(py));
             assert!(error.to_string().contains("schema version 33"));
-            assert!(error.to_string().contains("supported version 36"));
+            assert!(error.to_string().contains("supported version 37"));
         });
     }
 

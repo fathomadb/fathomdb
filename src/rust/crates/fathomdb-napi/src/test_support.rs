@@ -513,52 +513,87 @@ mod tests {
     /// consumer can re-derive the verdict instead of trusting it.
     #[test]
     fn gpu_allocation_witness_crosses_the_napi_boundary_intact() {
-        let witness = RustGpuAllocationWitness {
-            device_ordinal_requested: 0,
-            device_ordinal_actual: 0,
-            device_uuid: "GPU-11111111-2222-3333-4444-555555555555".to_string(),
-            device_name: "Orin".to_string(),
-            compute_capability: "8.7".to_string(),
-            free_before_bytes: 40_000_000_000,
-            free_after_bytes: 39_856_635_904,
-            total_bytes: 65_000_000_000,
-            delta_bytes: 143_364_096,
-            delta_floor_bytes: 67_108_864,
-            control_allocation_request_bytes: 1_073_741_824,
-            control_block_count: 8,
-            control_free_before_bytes: 42_000_000_000,
-            control_free_after_bytes: 40_800_000_000,
-            control_delta_bytes: 1_200_000_000,
-            embedded_vector_dim: 384,
-        };
+        for context_id in [None, Some("0"), Some("18446744073709551615")] {
+            let integrated = context_id.is_some();
+            let measurement = match context_id {
+                None => fathomdb_embedder::GpuAllocationMeasurement::GlobalFree {
+                    control_allocation_request_bytes: 1_073_741_824,
+                    control_block_count: 8,
+                    control_free_before_bytes: 42_000_000_000,
+                    control_free_after_bytes: 40_800_000_000,
+                    control_delta_bytes: 1_200_000_000,
+                    sole_gpu_consumer_precondition: "the witness process must be the sole GPU consumer of the selected discrete device".into(),
+                },
+                Some(context_id) => fathomdb_embedder::GpuAllocationMeasurement::PrivatePoolUsed {
+                    context_id: context_id.into(), pool_identity: "0x1234".into(),
+                    used_before_bytes: 0, used_after_bytes: 132_848_640, delta_bytes: 132_848_640,
+                    control_request_bytes: 67_108_864, control_before_bytes: 132_848_640,
+                    control_live_bytes: 199_957_504, control_released_bytes: 132_848_640,
+                    pool_exclusivity_precondition: "no competing allocations or frees may occur in the witnessed private pool during model and control observation".into(),
+                },
+            };
+            let witness = RustGpuAllocationWitness {
+                process_id: 4242,
+                device_integrated: integrated,
+                device_ordinal_requested: 0,
+                device_ordinal_actual: 0,
+                device_uuid: "GPU-11111111-2222-3333-4444-555555555555".into(),
+                device_name: "Orin".into(),
+                compute_capability: "8.7".into(),
+                free_before_bytes: 40_000_000_000,
+                free_after_bytes: if integrated { 40_374_050_816 } else { 39_856_635_904 },
+                total_bytes: 65_000_000_000,
+                delta_bytes: if integrated { -374_050_816 } else { 143_364_096 },
+                delta_floor_bytes: 67_108_864,
+                embedded_vector_dim: 384,
+                measurement,
+            };
 
-        let mapped = GpuAllocationWitness::from_rust(&witness);
-
-        assert_eq!(mapped.schema, "fathomdb.tegra-gpu-allocation-witness/v1");
-        assert!(mapped.sole_gpu_consumer_precondition.contains("sole GPU consumer"));
-        assert_eq!(mapped.device_ordinal_requested, 0);
-        assert_eq!(mapped.device_ordinal_actual, 0);
-        assert_eq!(mapped.device_uuid, "GPU-11111111-2222-3333-4444-555555555555");
-        assert_eq!(mapped.device_name, "Orin");
-        assert_eq!(mapped.compute_capability, "8.7");
-        assert_eq!(mapped.free_before_bytes, 40_000_000_000);
-        assert_eq!(mapped.free_after_bytes, 39_856_635_904);
-        assert_eq!(mapped.total_bytes, 65_000_000_000);
-        assert_eq!(mapped.delta_bytes, 143_364_096);
-        assert_eq!(mapped.delta_floor_bytes, 67_108_864);
-        assert_eq!(mapped.control_allocation_request_bytes, 1_073_741_824);
-        assert_eq!(mapped.control_block_count, 8);
-        assert_eq!(mapped.control_free_before_bytes, 42_000_000_000);
-        assert_eq!(mapped.control_free_after_bytes, 40_800_000_000);
-        assert_eq!(mapped.control_delta_bytes, 1_200_000_000);
-        assert_eq!(mapped.embedded_vector_dim, 384);
-        // The verdict is re-derivable from the mapped record alone (R80-13).
-        assert_eq!(mapped.free_before_bytes - mapped.free_after_bytes, mapped.delta_bytes);
-        assert!(mapped.delta_bytes >= mapped.delta_floor_bytes);
-        assert!(
-            mapped.control_free_before_bytes - mapped.control_free_after_bytes
-                >= mapped.control_allocation_request_bytes
-        );
+            let mapped = GpuAllocationWitness::from_rust(&witness);
+            assert_eq!(mapped.schema, "fathomdb.tegra-gpu-allocation-witness/v2");
+            assert_eq!(mapped.process_id, 4242);
+            assert_eq!(mapped.device_integrated, integrated);
+            assert_eq!(mapped.device_ordinal_requested, 0);
+            assert_eq!(mapped.device_ordinal_actual, 0);
+            assert_eq!(mapped.device_uuid, "GPU-11111111-2222-3333-4444-555555555555");
+            assert_eq!(mapped.device_name, "Orin");
+            assert_eq!(mapped.compute_capability, "8.7");
+            assert_eq!(mapped.free_before_bytes, 40_000_000_000);
+            assert_eq!(
+                mapped.free_after_bytes,
+                if integrated { 40_374_050_816 } else { 39_856_635_904 }
+            );
+            assert_eq!(mapped.total_bytes, 65_000_000_000);
+            assert_eq!(mapped.delta_bytes, if integrated { -374_050_816 } else { 143_364_096 });
+            assert_eq!(mapped.delta_floor_bytes, 67_108_864);
+            assert_eq!(mapped.embedded_vector_dim, 384);
+            match mapped.measurement {
+                napi::bindgen_prelude::Either::A(proof) => {
+                    assert!(!integrated);
+                    assert_eq!(proof.kind, "global_free");
+                    assert_eq!(proof.control_allocation_request_bytes, 1_073_741_824);
+                    assert_eq!(proof.control_block_count, 8);
+                    assert_eq!(proof.control_free_before_bytes, 42_000_000_000);
+                    assert_eq!(proof.control_free_after_bytes, 40_800_000_000);
+                    assert_eq!(proof.control_delta_bytes, 1_200_000_000);
+                    assert_eq!(proof.sole_gpu_consumer_precondition, "the witness process must be the sole GPU consumer of the selected discrete device");
+                }
+                napi::bindgen_prelude::Either::B(proof) => {
+                    assert!(integrated);
+                    assert_eq!(proof.kind, "private_pool_used");
+                    assert_eq!(proof.context_id, context_id.unwrap());
+                    assert_eq!(proof.pool_identity, "0x1234");
+                    assert_eq!(proof.used_before_bytes, 0);
+                    assert_eq!(proof.used_after_bytes, 132_848_640);
+                    assert_eq!(proof.delta_bytes, 132_848_640);
+                    assert_eq!(proof.control_request_bytes, 67_108_864);
+                    assert_eq!(proof.control_before_bytes, 132_848_640);
+                    assert_eq!(proof.control_live_bytes, 199_957_504);
+                    assert_eq!(proof.control_released_bytes, 132_848_640);
+                    assert_eq!(proof.pool_exclusivity_precondition, "no competing allocations or frees may occur in the witnessed private pool during model and control observation");
+                }
+            }
+        }
     }
 
     // ----- 0.8.28 Slice 30 (R30-04): the three CUDA pool kinds ---------------

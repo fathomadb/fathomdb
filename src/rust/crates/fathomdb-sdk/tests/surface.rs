@@ -20,9 +20,9 @@ use fathomdb_sdk::{
     DeviceResolution, EmbedderEvent, EmbedderIdentity, EmbeddingReadiness, Engine, EngineConfig,
     EngineError, EngineOpenError, EraseReport, Error, ErrorKind, EvidenceResolveRequestV1,
     EvidenceSearchRequestV1, EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm,
-    FrozenReadContextV1, FrozenSearchOptions, GpuAllocationWitness, GraphEvidenceResolveRequestV1,
-    GraphExpandRequestV1, GraphExpandResultV1, IdSpace, IdSpaceKind, IngestWithExtractorReceipt,
-    LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
+    FrozenReadContextV1, FrozenSearchOptions, GpuAllocationMeasurement, GpuAllocationWitness,
+    GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpandResultV1, IdSpace, IdSpaceKind,
+    IngestWithExtractorReceipt, LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
     OpStoreRow, OpenOptions, OpenReport, OperationalStateRecordV1, PageRequestV1, PageV1,
     Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
@@ -316,6 +316,7 @@ fn shared_types_are_nameable() {
     named::<DeviceResolution>();
     named::<RerankerDeviceResolution>();
     named::<GpuAllocationWitness>();
+    named::<GpuAllocationMeasurement>();
     named::<CudaDeviceInfo>();
     named::<CudaAllocatorReport>();
     named::<CudaAllocatorPath>();

@@ -4006,3 +4006,6 @@ mod tests {
 
 #[cfg(test)]
 mod visibility_coalescing_tests;
+
+#[cfg(test)]
+mod visibility_admission_tests;

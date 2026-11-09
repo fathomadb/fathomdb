@@ -9,6 +9,7 @@ import {
   type NativeEmbedderDeviceResolution,
   type NativeEmbedderEvent,
   type NativeGpuAllocationWitness,
+  type NativeGpuAllocationMeasurement,
   type NativeOpenReport,
 } from "./binding.js";
 
@@ -195,23 +196,41 @@ export interface OpenReport {
   readonly stopWordsSha256: string;
 }
 
-/**
- * 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
- * `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in the
- * artifact's own process.
- *
- * Every number the verdict used is present, so a reader re-derives the verdict
- * instead of trusting it: `freeBeforeBytes - freeAfterBytes` is `deltaBytes`,
- * which must be at least `deltaFloorBytes`, and the deliberate control
- * allocation shows the shared iGPU memory counter was live and attributable at
- * the time. Byte counts are JavaScript numbers, which are exact for every
- * physically reachable device-memory value.
- */
-export interface GpuAllocationWitness {
-  /** Schema string of the retained record. */
-  readonly schema: string;
-  /** The precondition the witness run states rather than assumes. */
+/** Discrete-device raw control for the global-free witness. */
+export interface GpuGlobalFreeMeasurement {
+  readonly kind: "global_free";
+  readonly controlAllocationRequestBytes: number;
+  readonly controlBlockCount: number;
+  readonly controlFreeBeforeBytes: number;
+  readonly controlFreeAfterBytes: number;
+  readonly controlDeltaBytes: number;
   readonly soleGpuConsumerPrecondition: string;
+}
+
+/** Integrated-device live USED proof from its actual private pool. */
+export interface GpuPrivatePoolUsedMeasurement {
+  readonly kind: "private_pool_used";
+  /** Checked uint64 context identity, kept as lossless decimal text. */
+  readonly contextId: string;
+  readonly poolIdentity: string;
+  readonly usedBeforeBytes: number;
+  readonly usedAfterBytes: number;
+  readonly deltaBytes: number;
+  readonly controlRequestBytes: number;
+  readonly controlBeforeBytes: number;
+  readonly controlLiveBytes: number;
+  readonly controlReleasedBytes: number;
+  readonly poolExclusivityPrecondition: string;
+}
+
+/** Exactly one current method-specific allocation proof. */
+export type GpuAllocationMeasurement = GpuGlobalFreeMeasurement | GpuPrivatePoolUsedMeasurement;
+
+/** Current in-process witness; global values remain diagnostic on private pools. */
+export interface GpuAllocationWitness {
+  readonly schema: string;
+  readonly processId: number;
+  readonly deviceIntegrated: boolean;
   readonly deviceOrdinalRequested: number;
   readonly deviceOrdinalActual: number;
   readonly deviceUuid: string;
@@ -222,12 +241,8 @@ export interface GpuAllocationWitness {
   readonly totalBytes: number;
   readonly deltaBytes: number;
   readonly deltaFloorBytes: number;
-  readonly controlAllocationRequestBytes: number;
-  readonly controlBlockCount: number;
-  readonly controlFreeBeforeBytes: number;
-  readonly controlFreeAfterBytes: number;
-  readonly controlDeltaBytes: number;
   readonly embeddedVectorDim: number;
+  readonly measurement: GpuAllocationMeasurement;
 }
 
 /** Where a GPU pool setting in force came from. */
@@ -391,12 +406,42 @@ export function mapDeviceResolution(resolution: NativeEmbedderDeviceResolution):
   };
 }
 
+function mapGpuAllocationMeasurement(measurement: NativeGpuAllocationMeasurement): GpuAllocationMeasurement {
+  switch (measurement.kind) {
+    case "global_free":
+      return {
+        kind: "global_free",
+        controlAllocationRequestBytes: measurement.controlAllocationRequestBytes,
+        controlBlockCount: measurement.controlBlockCount,
+        controlFreeBeforeBytes: measurement.controlFreeBeforeBytes,
+        controlFreeAfterBytes: measurement.controlFreeAfterBytes,
+        controlDeltaBytes: measurement.controlDeltaBytes,
+        soleGpuConsumerPrecondition: measurement.soleGpuConsumerPrecondition,
+      };
+    case "private_pool_used":
+      return {
+        kind: "private_pool_used",
+        contextId: measurement.contextId,
+        poolIdentity: measurement.poolIdentity,
+        usedBeforeBytes: measurement.usedBeforeBytes,
+        usedAfterBytes: measurement.usedAfterBytes,
+        deltaBytes: measurement.deltaBytes,
+        controlRequestBytes: measurement.controlRequestBytes,
+        controlBeforeBytes: measurement.controlBeforeBytes,
+        controlLiveBytes: measurement.controlLiveBytes,
+        controlReleasedBytes: measurement.controlReleasedBytes,
+        poolExclusivityPrecondition: measurement.poolExclusivityPrecondition,
+      };
+  }
+  throw new Error("invalid native GPU allocation measurement kind");
+}
+
+/** Map the current witness without losing its tagged observations or identity. */
 export function mapGpuAllocationWitness(witness: NativeGpuAllocationWitness): GpuAllocationWitness {
-  // Field-for-field, deliberately: R80-13 requires the record stay
-  // re-derivable, so nothing here summarizes or drops a number.
   return {
     schema: witness.schema,
-    soleGpuConsumerPrecondition: witness.soleGpuConsumerPrecondition,
+    processId: witness.processId,
+    deviceIntegrated: witness.deviceIntegrated,
     deviceOrdinalRequested: witness.deviceOrdinalRequested,
     deviceOrdinalActual: witness.deviceOrdinalActual,
     deviceUuid: witness.deviceUuid,
@@ -407,12 +452,8 @@ export function mapGpuAllocationWitness(witness: NativeGpuAllocationWitness): Gp
     totalBytes: witness.totalBytes,
     deltaBytes: witness.deltaBytes,
     deltaFloorBytes: witness.deltaFloorBytes,
-    controlAllocationRequestBytes: witness.controlAllocationRequestBytes,
-    controlBlockCount: witness.controlBlockCount,
-    controlFreeBeforeBytes: witness.controlFreeBeforeBytes,
-    controlFreeAfterBytes: witness.controlFreeAfterBytes,
-    controlDeltaBytes: witness.controlDeltaBytes,
     embeddedVectorDim: witness.embeddedVectorDim,
+    measurement: mapGpuAllocationMeasurement(witness.measurement),
   };
 }
 

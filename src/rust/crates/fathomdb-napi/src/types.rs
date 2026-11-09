@@ -464,9 +464,30 @@ impl GpuAllocationWitness {
                 control_delta_bytes: clamp_witness_bytes(*control_delta_bytes),
                 sole_gpu_consumer_precondition: sole_gpu_consumer_precondition.clone(),
             }),
-            fathomdb_embedder::GpuAllocationMeasurement::PrivatePoolUsed { .. } => {
-                unimplemented!("private native witness conversion")
-            }
+            fathomdb_embedder::GpuAllocationMeasurement::PrivatePoolUsed {
+                context_id,
+                pool_identity,
+                used_before_bytes,
+                used_after_bytes,
+                delta_bytes,
+                control_request_bytes,
+                control_before_bytes,
+                control_live_bytes,
+                control_released_bytes,
+                pool_exclusivity_precondition,
+            } => napi::bindgen_prelude::Either::B(GpuPrivatePoolUsedMeasurement {
+                kind: "private_pool_used".into(),
+                context_id: context_id.clone(),
+                pool_identity: pool_identity.clone(),
+                used_before_bytes: clamp_witness_bytes(i128::from(*used_before_bytes)),
+                used_after_bytes: clamp_witness_bytes(i128::from(*used_after_bytes)),
+                delta_bytes: clamp_witness_bytes(*delta_bytes),
+                control_request_bytes: clamp_witness_bytes(i128::from(*control_request_bytes)),
+                control_before_bytes: clamp_witness_bytes(i128::from(*control_before_bytes)),
+                control_live_bytes: clamp_witness_bytes(i128::from(*control_live_bytes)),
+                control_released_bytes: clamp_witness_bytes(i128::from(*control_released_bytes)),
+                pool_exclusivity_precondition: pool_exclusivity_precondition.clone(),
+            }),
         };
         Self {
             schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_owned(),

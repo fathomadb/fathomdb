@@ -77,10 +77,15 @@ for gate in check-no-listen check-netns-deny-egress; do
             set -e
             expected_builds=0
             if [ "$mode" = build ]; then expected_builds=1; fi
-            if [ "$status" -ne 0 ] || [ "$(cat "$SELECTED_LOG" 2>/dev/null || true)" != "$EXPECTED_BINARY" ] || [ "$(wc -l <"$BUILD_LOG")" -ne "$expected_builds" ]; then
+            actual_builds="$(wc -l <"$BUILD_LOG")"
+            target_link=''
+            if [ "$location" != default ] && [ -L "$fixture/target" ]; then
+                target_link="$(readlink "$fixture/target")"
+            fi
+            if [ "$status" -ne 0 ] || [ "$(cat "$SELECTED_LOG" 2>/dev/null || true)" != "$EXPECTED_BINARY" ] || [ "$actual_builds" -ne "$expected_builds" ]; then
                 printf 'FAIL %s %s %s: exit=%s; %s\n' "$gate" "$mode" "$location" "$status" "$output" >&2
                 failures=$((failures + 1))
-            elif [ "$location" != default ] && { [ ! -L "$fixture/target" ] || [ "$(readlink "$fixture/target")" != "$fixture/unavailable-cold-cache" ]; }; then
+            elif [ "$location" != default ] && { [ ! -L "$fixture/target" ] || [ "$target_link" != "$fixture/unavailable-cold-cache" ]; }; then
                 printf 'FAIL %s changed the unrelated target symlink\n' "$gate" >&2
                 failures=$((failures + 1))
             else

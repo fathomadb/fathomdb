@@ -218,7 +218,7 @@ rows="$(awk '
   /^            label: / { label = $2; print runner "|" target "|" label; runner = ""; target = ""; label = "" }
 ' <<<"$block" | sort)"
 expected="$(cat <<'EOF' | sort
-macos-14|aarch64-apple-darwin|darwin-arm64
+macos-15|aarch64-apple-darwin|darwin-arm64
 macos-15-intel|x86_64-apple-darwin|darwin-x64
 ubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64-gnu
 ubuntu-latest|x86_64-unknown-linux-gnu|linux-x64-gnu

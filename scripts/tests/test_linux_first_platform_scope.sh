@@ -76,9 +76,9 @@ assert_matrix_runner_route() {
   fi
 }
 
-release_python_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu\nmacos-15-intel|x86_64-apple-darwin\nmacos-14|aarch64-apple-darwin\nwindows-latest|x86_64-pc-windows-msvc'
-ci_wheel_rows=$'ubuntu-latest|x86_64-unknown-linux-gnu|linux-x64\nubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-14|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64'
-release_napi_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64-gnu\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-14|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64-msvc'
+release_python_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu\nmacos-15-intel|x86_64-apple-darwin\nmacos-15|aarch64-apple-darwin\nwindows-latest|x86_64-pc-windows-msvc'
+ci_wheel_rows=$'ubuntu-latest|x86_64-unknown-linux-gnu|linux-x64\nubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-15|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64'
+release_napi_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64-gnu\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-15|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64-msvc'
 
 ci_wheel_block="$(job_block "$CI" wheel-size-gate)"
 release_python_block="$(job_block "$RELEASE" build-python)"
@@ -104,12 +104,12 @@ for mapping in \
   'publish-npm-platform-linux-x64-gnu:ubuntu-latest' \
   'publish-npm-platform-linux-arm64-gnu:ubuntu-24.04-arm' \
   'publish-npm-platform-darwin-x64:macos-15-intel' \
-  'publish-npm-platform-darwin-arm64:macos-14' \
+  'publish-npm-platform-darwin-arm64:macos-15' \
   'publish-npm-platform-win32-x64-msvc:windows-latest' \
   'post-publish-smoke:ubuntu-latest' \
   'post-publish-smoke-aarch64:ubuntu-24.04-arm' \
   'post-publish-smoke-darwin-x64:macos-15-intel' \
-  'post-publish-smoke-darwin-arm64:macos-14' \
+  'post-publish-smoke-darwin-arm64:macos-15' \
   'post-publish-smoke-win32-x64:windows-latest'; do
   job="${mapping%%:*}"
   runner="${mapping#*:}"

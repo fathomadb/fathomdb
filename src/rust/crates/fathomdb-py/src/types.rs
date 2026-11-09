@@ -465,6 +465,86 @@ impl PyDeviceResolution {
 /// control allocation that proves the shared iGPU counter was live and
 /// attributable at the time. Byte counts are exact Python ints — the deltas
 /// are `i128` in the core and are not narrowed here.
+/// Discrete-device global counter and raw control.
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "GpuGlobalFreeMeasurement",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyGpuGlobalFreeMeasurement {
+    /// Exact global_free discriminant.
+    pub(super) kind: String,
+    /// Requested raw bytes per control block.
+    pub(super) control_allocation_request_bytes: u64,
+    /// Number of resident raw blocks.
+    pub(super) control_block_count: usize,
+    /// Free bytes before the decisive block.
+    pub(super) control_free_before_bytes: u64,
+    /// Free bytes while that block is live.
+    pub(super) control_free_after_bytes: u64,
+    /// Signed raw-control before-minus-after delta.
+    pub(super) control_delta_bytes: i128,
+    /// Canonical selected-device consumer precondition.
+    pub(super) sole_gpu_consumer_precondition: String,
+}
+
+/// Integrated-device private USED model and control proof.
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "GpuPrivatePoolUsedMeasurement",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyGpuPrivatePoolUsedMeasurement {
+    /// Exact private_pool_used discriminant.
+    pub(super) kind: String,
+    /// Checked uint64 context ID as lossless decimal text.
+    pub(super) context_id: String,
+    /// Opaque retained private-pool identity.
+    pub(super) pool_identity: String,
+    /// Current USED before model load.
+    pub(super) used_before_bytes: u64,
+    /// Current USED after checked model load.
+    pub(super) used_after_bytes: u64,
+    /// Signed USED after-minus-before model delta.
+    pub(super) delta_bytes: i128,
+    /// Exact same-pool control request.
+    pub(super) control_request_bytes: u64,
+    /// Post-forward USED control baseline.
+    pub(super) control_before_bytes: u64,
+    /// USED while the completed control is live.
+    pub(super) control_live_bytes: u64,
+    /// USED after checked control release.
+    pub(super) control_released_bytes: u64,
+    /// Canonical same-pool exclusivity precondition.
+    pub(super) pool_exclusivity_precondition: String,
+}
+
+#[derive(Clone)]
+pub(super) enum PyGpuAllocationMeasurement {
+    GlobalFree(PyGpuGlobalFreeMeasurement),
+    PrivatePoolUsed(PyGpuPrivatePoolUsedMeasurement),
+}
+
+impl<'py> IntoPyObject<'py> for PyGpuAllocationMeasurement {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            Self::GlobalFree(value) => Py::new(py, value)?.into_bound(py).into_any(),
+            Self::PrivatePoolUsed(value) => Py::new(py, value)?.into_bound(py).into_any(),
+        })
+    }
+}
+
+/// Current witness with exactly one frozen method-specific Python object.
 #[pyclass(
     module = "fathomdb._fathomdb",
     name = "GpuAllocationWitness",
@@ -474,33 +554,65 @@ impl PyDeviceResolution {
 )]
 #[derive(Clone)]
 pub(super) struct PyGpuAllocationWitness {
-    /// Schema string of the retained record.
+    /// Current v2 schema.
     pub(super) schema: String,
-    /// The precondition the witness run states rather than assumes.
-    pub(super) sole_gpu_consumer_precondition: String,
+    /// PID of the witness process.
+    pub(super) process_id: u32,
+    /// Checked actual INTEGRATED attribute.
+    pub(super) device_integrated: bool,
+    /// Ordinal requested by policy.
     pub(super) device_ordinal_requested: usize,
+    /// Ordinal retained by the model device.
     pub(super) device_ordinal_actual: usize,
+    /// Driver UUID of the witnessed device.
     pub(super) device_uuid: String,
+    /// Driver device name.
     pub(super) device_name: String,
+    /// Driver compute capability.
     pub(super) compute_capability: String,
+    /// Actual global diagnostic free bytes before load.
     pub(super) free_before_bytes: u64,
+    /// Actual global diagnostic free bytes after load.
     pub(super) free_after_bytes: u64,
+    /// Actual global total bytes.
     pub(super) total_bytes: u64,
+    /// Signed global before-minus-after diagnostic delta.
     pub(super) delta_bytes: i128,
+    /// Declared method-specific model floor.
     pub(super) delta_floor_bytes: u64,
-    pub(super) control_allocation_request_bytes: u64,
-    pub(super) control_block_count: usize,
-    pub(super) control_free_before_bytes: u64,
-    pub(super) control_free_after_bytes: u64,
-    pub(super) control_delta_bytes: i128,
+    /// Dimension of the actual model forward.
     pub(super) embedded_vector_dim: usize,
+    /// Exact tagged measurement; no irrelevant optional fields.
+    pub(super) measurement: PyGpuAllocationMeasurement,
 }
 
 impl PyGpuAllocationWitness {
     pub(super) fn from_rust(witness: &RustGpuAllocationWitness) -> Self {
+        let measurement = match &witness.measurement {
+            fathomdb_embedder::GpuAllocationMeasurement::GlobalFree {
+                control_allocation_request_bytes,
+                control_block_count,
+                control_free_before_bytes,
+                control_free_after_bytes,
+                control_delta_bytes,
+                sole_gpu_consumer_precondition,
+            } => PyGpuAllocationMeasurement::GlobalFree(PyGpuGlobalFreeMeasurement {
+                kind: "global_free".into(),
+                control_allocation_request_bytes: *control_allocation_request_bytes,
+                control_block_count: *control_block_count,
+                control_free_before_bytes: *control_free_before_bytes,
+                control_free_after_bytes: *control_free_after_bytes,
+                control_delta_bytes: *control_delta_bytes,
+                sole_gpu_consumer_precondition: sole_gpu_consumer_precondition.clone(),
+            }),
+            fathomdb_embedder::GpuAllocationMeasurement::PrivatePoolUsed { .. } => {
+                unimplemented!("private native witness conversion")
+            }
+        };
         Self {
-            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_string(),
-            sole_gpu_consumer_precondition: SOLE_GPU_CONSUMER_PRECONDITION.to_string(),
+            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_owned(),
+            process_id: witness.process_id,
+            device_integrated: witness.device_integrated,
             device_ordinal_requested: witness.device_ordinal_requested,
             device_ordinal_actual: witness.device_ordinal_actual,
             device_uuid: witness.device_uuid.clone(),
@@ -511,12 +623,8 @@ impl PyGpuAllocationWitness {
             total_bytes: witness.total_bytes,
             delta_bytes: witness.delta_bytes,
             delta_floor_bytes: witness.delta_floor_bytes,
-            control_allocation_request_bytes: witness.control_allocation_request_bytes,
-            control_block_count: witness.control_block_count,
-            control_free_before_bytes: witness.control_free_before_bytes,
-            control_free_after_bytes: witness.control_free_after_bytes,
-            control_delta_bytes: witness.control_delta_bytes,
             embedded_vector_dim: witness.embedded_vector_dim,
+            measurement,
         }
     }
 }

@@ -357,35 +357,121 @@ impl EmbedderDeviceResolution {
 /// deliberate control allocation that proves the shared iGPU counter was live
 /// and attributable at the time. Dropping any of them would leave a consumer
 /// able to report a pass it cannot check.
+/// Discrete-device global counter and raw control.
+#[napi(object)]
+pub struct GpuGlobalFreeMeasurement {
+    /// Exact global_free discriminant.
+    pub kind: String,
+    /// Requested raw bytes per control block.
+    pub control_allocation_request_bytes: i64,
+    /// Number of resident raw blocks.
+    pub control_block_count: u32,
+    /// Free bytes before the decisive block.
+    pub control_free_before_bytes: i64,
+    /// Free bytes while that block is live.
+    pub control_free_after_bytes: i64,
+    /// Signed raw-control before-minus-after delta.
+    pub control_delta_bytes: i64,
+    /// Canonical selected-device consumer precondition.
+    pub sole_gpu_consumer_precondition: String,
+}
+
+/// Integrated-device private USED model and control proof.
+#[napi(object)]
+pub struct GpuPrivatePoolUsedMeasurement {
+    /// Exact private_pool_used discriminant.
+    pub kind: String,
+    /// Checked uint64 context ID as lossless decimal text.
+    pub context_id: String,
+    /// Opaque retained private-pool identity.
+    pub pool_identity: String,
+    /// Current USED before model load.
+    pub used_before_bytes: i64,
+    /// Current USED after checked model load.
+    pub used_after_bytes: i64,
+    /// Signed USED after-minus-before model delta.
+    pub delta_bytes: i64,
+    /// Exact same-pool control request.
+    pub control_request_bytes: i64,
+    /// Post-forward USED control baseline.
+    pub control_before_bytes: i64,
+    /// USED while the completed control is live.
+    pub control_live_bytes: i64,
+    /// USED after checked control release.
+    pub control_released_bytes: i64,
+    /// Canonical same-pool exclusivity precondition.
+    pub pool_exclusivity_precondition: String,
+}
+
+/// Current witness with exactly one method-specific native output object.
 #[napi(object)]
 pub struct GpuAllocationWitness {
-    /// Schema string of the retained record.
+    /// Current v2 schema.
     pub schema: String,
-    /// The precondition the witness run states rather than assumes.
-    pub sole_gpu_consumer_precondition: String,
+    /// PID of the witness process.
+    pub process_id: u32,
+    /// Checked actual INTEGRATED attribute.
+    pub device_integrated: bool,
+    /// Ordinal requested by policy.
     pub device_ordinal_requested: u32,
+    /// Ordinal retained by the model device.
     pub device_ordinal_actual: u32,
+    /// Driver UUID of the witnessed device.
     pub device_uuid: String,
+    /// Driver device name.
     pub device_name: String,
+    /// Driver compute capability.
     pub compute_capability: String,
+    /// Actual global diagnostic free bytes before load.
     pub free_before_bytes: i64,
+    /// Actual global diagnostic free bytes after load.
     pub free_after_bytes: i64,
+    /// Actual global total bytes.
     pub total_bytes: i64,
+    /// Signed global before-minus-after diagnostic delta.
     pub delta_bytes: i64,
+    /// Declared method-specific model floor.
     pub delta_floor_bytes: i64,
-    pub control_allocation_request_bytes: i64,
-    pub control_block_count: u32,
-    pub control_free_before_bytes: i64,
-    pub control_free_after_bytes: i64,
-    pub control_delta_bytes: i64,
+    /// Dimension of the actual model forward.
     pub embedded_vector_dim: u32,
+    /// Exact tagged measurement; no irrelevant optional fields.
+    pub measurement:
+        napi::bindgen_prelude::Either<GpuGlobalFreeMeasurement, GpuPrivatePoolUsedMeasurement>,
 }
 
 impl GpuAllocationWitness {
     pub(crate) fn from_rust(witness: &RustGpuAllocationWitness) -> Self {
+        let measurement = match &witness.measurement {
+            fathomdb_embedder::GpuAllocationMeasurement::GlobalFree {
+                control_allocation_request_bytes,
+                control_block_count,
+                control_free_before_bytes,
+                control_free_after_bytes,
+                control_delta_bytes,
+                sole_gpu_consumer_precondition,
+            } => napi::bindgen_prelude::Either::A(GpuGlobalFreeMeasurement {
+                kind: "global_free".into(),
+                control_allocation_request_bytes: clamp_witness_bytes(i128::from(
+                    *control_allocation_request_bytes,
+                )),
+                control_block_count: *control_block_count as u32,
+                control_free_before_bytes: clamp_witness_bytes(i128::from(
+                    *control_free_before_bytes,
+                )),
+                control_free_after_bytes: clamp_witness_bytes(i128::from(
+                    *control_free_after_bytes,
+                )),
+                control_delta_bytes: clamp_witness_bytes(*control_delta_bytes),
+                sole_gpu_consumer_precondition: sole_gpu_consumer_precondition.clone(),
+            }),
+            fathomdb_embedder::GpuAllocationMeasurement::PrivatePoolUsed { .. } => {
+                unimplemented!("private native witness conversion")
+            }
+        };
         Self {
-            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_string(),
-            sole_gpu_consumer_precondition: SOLE_GPU_CONSUMER_PRECONDITION.to_string(),
+            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_owned(),
+            process_id: witness.process_id,
+            device_integrated: witness.device_integrated,
             device_ordinal_requested: witness.device_ordinal_requested as u32,
             device_ordinal_actual: witness.device_ordinal_actual as u32,
             device_uuid: witness.device_uuid.clone(),
@@ -396,27 +482,15 @@ impl GpuAllocationWitness {
             total_bytes: clamp_witness_bytes(i128::from(witness.total_bytes)),
             delta_bytes: clamp_witness_bytes(witness.delta_bytes),
             delta_floor_bytes: clamp_witness_bytes(i128::from(witness.delta_floor_bytes)),
-            control_allocation_request_bytes: clamp_witness_bytes(i128::from(
-                witness.control_allocation_request_bytes,
-            )),
-            control_block_count: witness.control_block_count as u32,
-            control_free_before_bytes: clamp_witness_bytes(i128::from(
-                witness.control_free_before_bytes,
-            )),
-            control_free_after_bytes: clamp_witness_bytes(i128::from(
-                witness.control_free_after_bytes,
-            )),
-            control_delta_bytes: clamp_witness_bytes(witness.control_delta_bytes),
             embedded_vector_dim: witness.embedded_vector_dim as u32,
+            measurement,
         }
     }
 }
 
-/// JavaScript carries these as numbers, so the widest exact type available is
-/// `i64`. Every witness quantity is a device-memory byte count bounded by
-/// installed RAM, so the saturation below is unreachable in practice; it exists
-/// so an impossible value clamps to an obviously-wrong extreme rather than
-/// wrapping into a plausible-looking one.
+/// Keep the existing saturating byte conversion instead of wrapping at i64.
+/// Qualified device-memory counts fit JavaScript Number's exact 53-bit integer
+/// range. Opaque context/pool identity strings never pass through this helper.
 pub(crate) fn clamp_witness_bytes(value: i128) -> i64 {
     i64::try_from(value).unwrap_or(if value.is_negative() { i64::MIN } else { i64::MAX })
 }

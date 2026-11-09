@@ -724,6 +724,18 @@ pub fn evaluate_allocation_witness(
     })
 }
 
+#[cfg(any(feature = "embed-cuda", test))]
+fn observe_model_load<Model>(
+    sampler: &mut dyn GpuMemorySampler,
+    load: impl FnOnce() -> Result<Model, GpuWitnessError>,
+    _complete: impl FnOnce() -> Result<(), GpuWitnessError>,
+) -> Result<(GpuMemorySample, Model, GpuMemorySample), GpuWitnessError> {
+    let before = sampler.sample()?;
+    let model = load()?;
+    let after = sampler.sample()?;
+    Ok((before, model, after))
+}
+
 // ---------------------------------------------------------------------------
 // The driver boundary. Only this section needs a GPU, mirroring how
 // `CandleCudaProvider` is the sole CUDA-touching impl of `CudaProvider`.
@@ -921,13 +933,14 @@ pub fn run_default_embedder_allocation_witness(
         config.max_control_blocks,
     )?;
 
-    // 3. before
-    let before = sampler.sample()?;
-    // 4. load the model onto the witnessed device
-    let embedder = CandleBgeEmbedder::new_from_weights_on_device(weights, device.clone())
-        .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
-    // 5. after
-    let after = sampler.sample()?;
+    let (before, embedder, after) = observe_model_load(
+        &mut sampler,
+        || {
+            CandleBgeEmbedder::new_from_weights_on_device(weights, device.clone())
+                .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })
+        },
+        || Ok(()),
+    )?;
     // The control memory has done its work; hold it no longer than the bracket
     // it protects.
     allocator.release();
@@ -949,4 +962,96 @@ pub fn run_default_embedder_allocation_witness(
         delta_floor_bytes: config.delta_floor_bytes,
         embedded_vector_dim: Some(dimension),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::{Cell, RefCell};
+
+    struct QueuedAllocation {
+        visible: Cell<bool>,
+        model_live: Cell<bool>,
+        events: RefCell<Vec<&'static str>>,
+    }
+
+    struct Model<'a>(&'a QueuedAllocation);
+
+    impl Drop for Model<'_> {
+        fn drop(&mut self) {
+            self.0.model_live.set(false);
+        }
+    }
+
+    struct Sampler<'a>(&'a QueuedAllocation);
+
+    impl GpuMemorySampler for Sampler<'_> {
+        fn sample(&mut self) -> Result<GpuMemorySample, GpuWitnessError> {
+            let after = !self.0.events.borrow().is_empty();
+            self.0.events.borrow_mut().push(if after { "after" } else { "before" });
+            if after {
+                assert!(self.0.model_live.get(), "model must remain live through sampling");
+            }
+            Ok(GpuMemorySample {
+                free_bytes: 4 * DEFAULT_DELTA_FLOOR_BYTES
+                    - u64::from(self.0.visible.get()) * DEFAULT_DELTA_FLOOR_BYTES,
+                total_bytes: 8 * DEFAULT_DELTA_FLOOR_BYTES,
+            })
+        }
+    }
+
+    impl QueuedAllocation {
+        fn new() -> Self {
+            Self {
+                visible: Cell::new(false),
+                model_live: Cell::new(false),
+                events: RefCell::new(Vec::new()),
+            }
+        }
+
+        fn load(&self) -> Result<Model<'_>, GpuWitnessError> {
+            self.events.borrow_mut().push("load");
+            self.model_live.set(true);
+            Ok(Model(self))
+        }
+
+        fn complete(&self) -> Result<(), GpuWitnessError> {
+            assert!(self.model_live.get());
+            self.events.borrow_mut().push("complete");
+            self.visible.set(true);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn model_load_bracket_observes_completed_queued_allocation() {
+        let queued = QueuedAllocation::new();
+        let (before, model, after) =
+            observe_model_load(&mut Sampler(&queued), || queued.load(), || queued.complete())
+                .expect("completed load");
+        assert_eq!(before.free_bytes - after.free_bytes, DEFAULT_DELTA_FLOOR_BYTES);
+        assert_eq!(*queued.events.borrow(), ["before", "load", "complete", "after"]);
+        assert!(queued.model_live.get());
+        drop(model);
+        assert!(!queued.model_live.get());
+    }
+
+    #[test]
+    fn model_load_bracket_stops_before_sampling_on_completion_failure() {
+        let queued = QueuedAllocation::new();
+        let result = observe_model_load(
+            &mut Sampler(&queued),
+            || queued.load(),
+            || {
+                queued.events.borrow_mut().push("complete");
+                Err(GpuWitnessError::from_driver_status(
+                    CUDA_ERROR_INVALID_CONTEXT,
+                    "completion failed",
+                ))
+            },
+        );
+        assert!(matches!(result, Err(GpuWitnessError::NoCudaContext { .. })));
+        assert_eq!(*queued.events.borrow(), ["before", "load", "complete"]);
+        assert!(!queued.model_live.get(), "failed load must release its model");
+    }
 }

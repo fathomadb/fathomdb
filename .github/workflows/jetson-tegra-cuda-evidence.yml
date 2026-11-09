@@ -93,9 +93,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          EVIDENCE_DIR="$RUNNER_TEMP/fathomdb-jetson-tegra-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          EVIDENCE_PARENT="$(dirname -- "$RUNNER_TEMP")"
+          EVIDENCE_DIR="$EVIDENCE_PARENT/fathomdb-jetson-tegra-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           BUILD_VENV="$RUNNER_TEMP/fathomdb-jetson-build-venv-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          mkdir -p "$EVIDENCE_DIR"
+          mkdir "$EVIDENCE_DIR"
           printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR" >> "$GITHUB_ENV"
           printf 'BUILD_VENV=%s\n' "$BUILD_VENV" >> "$GITHUB_ENV"
 

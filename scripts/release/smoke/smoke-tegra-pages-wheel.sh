@@ -135,6 +135,9 @@ from pathlib import Path
 
 from fathomdb import Engine
 
+def _witness_for_process(witness):
+    return witness
+
 if version("fathomdb") != os.environ["VERSION"]:
     raise SystemExit("installed distribution version differs from requested Tegra version")
 
@@ -143,7 +146,7 @@ engine = Engine.open(sys.argv[1], use_default_embedder=True)
 try:
     report = engine.open_report()
     resolution = report.embedder_device_resolution
-    witness = report.embedder_gpu_allocation_witness
+    witness = _witness_for_process(report.embedder_gpu_allocation_witness)
     if resolution is None or resolution.effective_device.kind != "cuda" or witness is None:
         raise SystemExit("forced CUDA did not produce an effective CUDA device and allocation witness")
     engine.write([{"kind": "doc", "body": "{}", "source_id": "smoke:tegra-pages-wheel"}])

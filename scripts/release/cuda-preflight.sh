@@ -470,10 +470,13 @@ import json
 import pathlib
 import time
 from fathomdb import Engine
+
+def _witness_for_process(witness):
+    return witness
 engine = Engine.open("/fathomdb-tmp/cuda-python.fdb", use_default_embedder=True)
 report = engine.open_report()
 resolution = report.embedder_device_resolution
-allocation_witness = report.embedder_gpu_allocation_witness
+allocation_witness = _witness_for_process(report.embedder_gpu_allocation_witness)
 if allocation_witness is None:
     raise RuntimeError("installed Python CUDA artifact did not retain an allocation witness")
 pathlib.Path("/evidence/gpu-python-open-report.json").write_text(json.dumps({
@@ -492,17 +495,8 @@ PY
 cat > "$WORK_DIR/gpu-napi-smoke.mjs" <<'JS'
 import fs from "node:fs";
 import { Engine } from "fathomdb";
-const engine = await Engine.open("/fathomdb-tmp/cuda-napi.fdb", { useDefaultEmbedder: true });
-const report = engine.openReport();
-const resolution = report.embedderDeviceResolution;
-const allocationWitness = report.embedderGpuAllocationWitness;
-if (allocationWitness === null) throw new Error("installed N-API CUDA artifact did not retain an allocation witness");
-fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
-  consumer: "napi", requested_policy: resolution.requestedPolicy,
-  status: "selected_cuda", effective_device: "cuda:0",
-  visible_devices: resolution.visibleCudaDevices.map((d) => ({ visible_ordinal: d.visibleOrdinal, uuid: d.uuid, name: d.name, compute_capability: d.computeCapability })),
-  selected_uuid: resolution.selectedCudaUuid,
-  allocation_witness: {
+function allocationWitnessRecord(allocationWitness) {
+  return {
     schema: allocationWitness.schema,
     sole_gpu_consumer_precondition: allocationWitness.soleGpuConsumerPrecondition,
     device_ordinal_requested: allocationWitness.deviceOrdinalRequested,
@@ -521,7 +515,19 @@ fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
     control_free_after_bytes: allocationWitness.controlFreeAfterBytes,
     control_delta_bytes: allocationWitness.controlDeltaBytes,
     embedded_vector_dim: allocationWitness.embeddedVectorDim,
-  },
+  };
+}
+const engine = await Engine.open("/fathomdb-tmp/cuda-napi.fdb", { useDefaultEmbedder: true });
+const report = engine.openReport();
+const resolution = report.embedderDeviceResolution;
+const allocationWitness = report.embedderGpuAllocationWitness;
+if (allocationWitness === null) throw new Error("installed N-API CUDA artifact did not retain an allocation witness");
+fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
+  consumer: "napi", requested_policy: resolution.requestedPolicy,
+  status: "selected_cuda", effective_device: "cuda:0",
+  visible_devices: resolution.visibleCudaDevices.map((d) => ({ visible_ordinal: d.visibleOrdinal, uuid: d.uuid, name: d.name, compute_capability: d.computeCapability })),
+  selected_uuid: resolution.selectedCudaUuid,
+  allocation_witness: allocationWitnessRecord(allocationWitness),
 }) + "\n");
 if ((await engine.embed("installed N-API CUDA artifact GPU proof")).length !== 384) throw new Error("expected 384-vector");
 console.log("installed N-API CUDA artifact GPU smoke: ok");

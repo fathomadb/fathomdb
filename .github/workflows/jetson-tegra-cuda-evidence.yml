@@ -224,6 +224,9 @@ jobs:
 
           from fathomdb import Engine
 
+          def _witness_for_process(witness):
+              return witness
+
           mode = sys.argv[1]
           evidence = Path(os.environ["EVIDENCE_DIR"])
           engine = Engine.open(str(evidence / f"{mode}.sqlite"), use_default_embedder=True)
@@ -246,7 +249,7 @@ jobs:
                   if resolution.effective_device.kind != "cuda" or report.embedder_gpu_allocation_witness is not None:
                       raise SystemExit(f"auto policy did not select CUDA without a witness request: {observed}")
               elif mode == "cuda":
-                  witness = report.embedder_gpu_allocation_witness
+                  witness = _witness_for_process(report.embedder_gpu_allocation_witness)
                   if resolution.effective_device.kind != "cuda" or witness is None:
                       raise SystemExit(f"forced CUDA policy did not produce an in-process witness: {observed}")
                   (evidence / "tegra-gpu-allocation-witness.json").write_text(

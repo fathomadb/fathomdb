@@ -188,6 +188,8 @@ pub(crate) fn reproject_search_index_after_tokenizer_upgrade(
     let rows = canonical_node_rows(connection)?;
     connection.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
+        crate::frozen_read::require_clean_visibility(connection)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven: re-tokenize EVERY
         // node-FTS projection, not just `search_index`. `search_index_v2` uses
         // the SAME tokenizer (`porter unicode61 remove_diacritics 2`), so it is

@@ -1619,6 +1619,8 @@ fn edge_vector_prune_complete(connection: &Connection) -> rusqlite::Result<bool>
 fn prune_orphaned_edge_vectors(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
+        crate::frozen_read::require_clean_visibility(connection)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
         let sidecar: std::collections::HashSet<i64> = {
             let mut statement = connection.prepare("SELECT rowid FROM _fathomdb_vector_rows")?;
             let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;

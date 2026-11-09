@@ -333,7 +333,7 @@ pub(crate) fn transaction<T>(
     operation: impl FnOnce() -> Result<T, EngineError>,
 ) -> Result<T, EngineError> {
     c.execute_batch("BEGIN IMMEDIATE").map_err(|_| EngineError::Storage)?;
-    match operation() {
+    match crate::frozen_read::require_clean_visibility(c).and_then(|()| operation()) {
         Ok(value) => {
             if c.execute_batch("COMMIT").is_err() {
                 let _ = c.execute_batch("ROLLBACK");

@@ -235,6 +235,18 @@ impl Engine {
             self.maintenance_admission.release(token);
             return Err(EngineError::Maintenance(MaintenanceError::MaintenanceBusy));
         }
+        let admission =
+            self.connection.lock().map_err(|_| EngineError::Storage).and_then(|guard| {
+                crate::frozen_read::require_clean_visibility(
+                    guard.as_ref().ok_or(EngineError::Closing)?,
+                )
+            });
+        if let Err(error) = admission {
+            self.projection_runtime.set_frozen(false);
+            self.projection_runtime.notify_new_work();
+            self.maintenance_admission.release(token);
+            return Err(error);
+        }
         Ok(ErasureMaintenance {
             engine: Arc::clone(self),
             token,

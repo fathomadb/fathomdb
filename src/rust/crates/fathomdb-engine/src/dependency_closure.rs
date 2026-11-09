@@ -688,6 +688,7 @@ pub(crate) fn mark_physical_incomplete(
     }
     connection.execute_batch("BEGIN IMMEDIATE").map_err(|_| EngineError::Storage)?;
     let result = (|| {
+        crate::frozen_read::require_clean_visibility(connection)?;
         for id in ids {
             let changed = connection
                 .execute(
@@ -828,6 +829,7 @@ pub(crate) fn pending_physical_retry(
 }
 
 pub(crate) fn maintain_before_writer(connection: &Connection) -> Result<(), EngineError> {
+    crate::frozen_read::require_clean_visibility(connection)?;
     guard_no_pending_physical(connection)?;
     let ids = {
         let mut statement = connection
@@ -850,6 +852,7 @@ pub(crate) fn maintain_before_writer(connection: &Connection) -> Result<(), Engi
     }
     connection.execute_batch("BEGIN IMMEDIATE").map_err(|_| EngineError::Storage)?;
     let outcome = (|| {
+        crate::frozen_read::require_clean_visibility(connection)?;
         guard_no_pending_physical(connection)?;
         for id in ids {
             if !valid_closure_id(&id) {

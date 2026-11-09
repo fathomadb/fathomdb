@@ -176,6 +176,12 @@ impl Engine {
         if self.physical_policy == PhysicalErasurePolicy::ExplicitMaintenance {
             crate::dependency_closure::guard_no_pending_physical(connection)?;
         }
+        let tx = rusqlite::Transaction::new_unchecked(
+            connection,
+            rusqlite::TransactionBehavior::Immediate,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         // Touch the sink (create + validate writable) before arming capture, so a
         // bad path fails loudly here rather than silently dropping events.
         let mut options = std::fs::OpenOptions::new();
@@ -190,6 +196,7 @@ impl Engine {
                 [format!("{SINK_PREFIX}{fingerprint}")],
             )
             .map_err(|_| EngineError::Storage)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
         *guard = Some(TelemetrySink {
             path,
             base: Instant::now(),

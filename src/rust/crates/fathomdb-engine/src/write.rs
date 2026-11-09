@@ -210,6 +210,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         dependency_closure::guard_no_pending_physical(&tx)?;
         tx.execute(
             "UPDATE canonical_nodes SET importance = ?1 WHERE write_cursor = ?2",
@@ -440,6 +441,7 @@ impl Engine {
         drop(writer_wait);
         let _writer_hold = physical_metrics::stage("foreground_writer_hold");
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        crate::frozen_read::require_clean_visibility(connection)?;
         #[cfg(feature = "test-hooks")]
         let abort_next_commit_for_test =
             crate::write_commit::take_write_commit_abort_marker_for_test(connection)

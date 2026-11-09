@@ -155,6 +155,7 @@ pub(crate) fn commit_projection_outcomes(
     // holds its own immediate transaction, which SQLite rejects without
     // invoking the busy handler and forces the worker to recompute the batch.
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    crate::frozen_read::require_clean_visibility(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?;
     if dependency_closure::guard_no_pending_physical(&tx).is_err() {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),

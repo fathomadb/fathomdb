@@ -86,6 +86,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        crate::frozen_read::require_clean_visibility(&tx)?;
         dependency_closure::guard_no_pending_physical(&tx)?;
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven invalidation. A full
         // rebuild truncates EVERY row-owned projection (the previous hand-rolled

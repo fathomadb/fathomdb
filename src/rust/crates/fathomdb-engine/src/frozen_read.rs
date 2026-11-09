@@ -357,9 +357,30 @@ fn load_visibility_nonce(connection: &Connection) -> Result<String, EngineError>
         .map_err(|_| EngineError::Storage)
 }
 
+pub(crate) fn require_clean_visibility(connection: &Connection) -> Result<(), EngineError> {
+    let flag = connection
+        .prepare_cached("SELECT coalescing FROM _fathomdb_read_visibility_state WHERE singleton=1")
+        .and_then(|mut statement| statement.query_row([], |row| row.get::<_, i64>(0)))
+        .map_err(|_| EngineError::Storage)?;
+    if flag != 0 {
+        return Err(EngineError::Storage);
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> Result<(), String> {
     if schema_version < 31 {
         return Ok(());
+    }
+    if schema_version >= 37 {
+        require_clean_visibility(connection).map_err(|error| error.to_string())?;
+        let layout: String = connection.query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='_fathomdb_read_visibility_state'",
+            [], |row| row.get(0),
+        ).map_err(|error| error.to_string())?;
+        if !normalize_sql(&layout).contains("coalescing INTEGER NOT NULL DEFAULT 0 CHECK(typeof(coalescing)='integer' AND coalescing IN(0,1))") {
+            return Err("invalid read visibility coalescing layout".to_string());
+        }
     }
     let database_id =
         read_open_state(connection, DATABASE_ID_KEY).map_err(|error| error.to_string())?;
@@ -397,8 +418,18 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
                 .ok_or_else(|| format!("missing frozen-read visibility trigger {name}"))?;
             let branch_state =
                 if schema_version >= 33 { ",state_nonce=lower(hex(randomblob(32)))" } else { "" };
+            let gate = if schema_version >= 37 {
+                " WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1)"
+            } else {
+                ""
+            };
+            let admission = if schema_version >= 37 {
+                "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM _fathomdb_read_visibility_state WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0) THEN RAISE(ABORT,'read visibility coalescing state unavailable') END; "
+            } else {
+                ""
+            };
             let expected = format!(
-                "CREATE TRIGGER {name} AFTER {operation} ON {table} BEGIN UPDATE \
+                "CREATE TRIGGER {name} AFTER {operation} ON {table}{gate} BEGIN {admission}UPDATE \
                  _fathomdb_read_visibility_state SET generation=CASE WHEN \
                  generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation \
                  exhausted') ELSE generation+1 END{branch_state} WHERE singleton=1; END"
@@ -481,6 +512,7 @@ fn binding_for_snapshot(
     effective_valid_at: i64,
     context_digest: [u8; 32],
 ) -> Result<FrozenReadBinding, EngineError> {
+    require_clean_visibility(connection)?;
     Ok(FrozenReadBinding {
         database_id: read_open_state(connection, DATABASE_ID_KEY)?,
         effective_valid_at,

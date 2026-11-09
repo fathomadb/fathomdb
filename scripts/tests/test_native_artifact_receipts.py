@@ -211,6 +211,8 @@ def main() -> None:
                             "intrinsic_evidence": ["target-r1", "edge-r1"],
                         }
                     )
+        workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+        supported_schema = 37 if workspace["workspace"]["package"]["version"] == "0.8.28" else 34
         snapshot = [{"name": "schema-33.sqlite", "size": 1, "sha256": "a" * 64}]
         graph.write_text(
             json.dumps(
@@ -220,7 +222,7 @@ def main() -> None:
                     "schema_33_refusal": {
                         "database": "schema-33.sqlite",
                         "expected_schema": 33,
-                        "supported_schema": 34,
+                        "supported_schema": supported_schema,
                         "outcome": "typed_refusal",
                         "before": snapshot,
                         "after": snapshot,
@@ -268,7 +270,6 @@ def main() -> None:
         assert validated.returncode == 0, validated.stderr
         candidate = json.loads(manifest.read_text(encoding="utf-8"))
         assert candidate["schema_version"] == "fathomdb.slice50-candidate/v1"
-        workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
         embedder_api = tomllib.loads(
             (ROOT / "src/rust/crates/fathomdb-embedder-api/Cargo.toml").read_text(encoding="utf-8")
         )
@@ -281,6 +282,30 @@ def main() -> None:
         assert candidate["external"]["windows_wal"]["state"] == "passed"
         assert len(candidate["external"]["native_matrix"]["receipt"]["platforms"]) == 5
         assert len(candidate["profiles"]["graph_evidence"]["payload"]["rows"]) == 12
+
+        axis_failures = []
+        for axis, supported, accepted in (
+            ("0.8.26", 34, True),
+            ("0.8.26", 37, False),
+            ("0.8.28", 37, True),
+            ("0.8.28", 34, False),
+        ):
+            record = json.loads(json.dumps(candidate))
+            record["axes"]["workspace"] = axis
+            profile = record["profiles"]["graph_evidence"]
+            profile["payload"]["schema_33_refusal"]["supported_schema"] = supported
+            canonical = json.dumps(
+                profile["payload"], sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+            profile["payload_sha256"] = hashlib.sha256(canonical).hexdigest()
+            manifest.write_text(json.dumps(record), encoding="utf-8")
+            result = run_manifest("validate", "--manifest", str(manifest))
+            if accepted:
+                if result.returncode != 0:
+                    axis_failures.append(f"{axis}/{supported} rejected: {result.stderr}")
+            elif result.returncode != 1 or "invalid schema-33 refusal evidence" not in result.stderr:
+                axis_failures.append(f"{axis}/{supported} was not refused: {result.stderr}")
+        assert not axis_failures, "\n".join(axis_failures)
 
         matrix_source = matrix.read_text(encoding="utf-8")
         forged_matrix = {

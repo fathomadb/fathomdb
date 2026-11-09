@@ -136,6 +136,7 @@ def main() -> None:
             ("missing control", lambda w: w["measurement"].pop("control_delta_bytes")),
             ("unobserved control", lambda w: w["measurement"].update(control_free_after_bytes=41_999_999_999, control_delta_bytes=1)),
             ("false control delta", lambda w: w["measurement"].update(control_delta_bytes=1)),
+            ("floating control delta", lambda w: w["measurement"].update(control_delta_bytes=300_000_000.0)),
             ("zero blocks", lambda w: w["measurement"].update(control_block_count=0)),
             ("too many blocks", lambda w: w["measurement"].update(control_block_count=17)),
             ("zero request", lambda w: w["measurement"].update(control_allocation_request_bytes=0)),

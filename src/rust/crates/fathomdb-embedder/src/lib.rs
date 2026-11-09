@@ -92,6 +92,7 @@ pub use cuda_driver_init::{
 #[cfg(any(feature = "embed-cuda", test))]
 mod gpu_pool_diagnostic;
 mod gpu_witness;
+mod gpu_witness_measurement;
 pub use gpu_witness::{
     evaluate_allocation_witness, normalize_cuda_uuid, observe_control_allocation,
     AllocationWitnessInputs, ControlAllocationObservation, GpuAllocationWitness,
@@ -104,6 +105,9 @@ pub use gpu_witness::{
 pub use gpu_witness::{
     run_default_embedder_allocation_witness, sample_with_driver_initialized_only,
     AllocationWitnessConfig, CudaDriverControlAllocator, CudaDriverMemorySampler,
+};
+pub use gpu_witness_measurement::{
+    GpuAllocationMeasurement, PRIVATE_POOL_EXCLUSIVITY_PRECONDITION,
 };
 
 #[cfg(feature = "default-embedder")]

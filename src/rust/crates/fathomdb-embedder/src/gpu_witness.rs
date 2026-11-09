@@ -44,6 +44,7 @@
 use std::fmt;
 
 use crate::device_policy::{DeviceResolutionReason, EffectiveEmbedDevice};
+use crate::gpu_witness_measurement::GpuAllocationMeasurement;
 
 /// Schema string of the retained witness record.
 ///
@@ -370,6 +371,10 @@ impl fmt::Display for GpuWitnessSkip {
 /// Everything the pure verdict needs, collected in the D-80.5-1 order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AllocationWitnessInputs {
+    /// Process that collected these observations.
+    pub process_id: u32,
+    /// Checked INTEGRATED attribute of the actual held device.
+    pub device_integrated: bool,
     /// The CUDA ordinal the caller asked for.
     pub requested_ordinal: usize,
     /// The typed device resolution outcome.
@@ -384,8 +389,8 @@ pub struct AllocationWitnessInputs {
     pub before: Option<GpuMemorySample>,
     /// Step 5 — sampled immediately after the load.
     pub after: Option<GpuMemorySample>,
-    /// The bracketed control allocation (D-80.5-3).
-    pub control: Option<ControlAllocationObservation>,
+    /// One method-specific observation set; missing observations never become zero.
+    pub measurement: Option<GpuAllocationMeasurement>,
     /// The declared floor this run is judged against (D-80.5-2).
     pub delta_floor_bytes: u64,
     /// Step 6 — the dimension of one real forward pass.
@@ -396,6 +401,10 @@ pub struct AllocationWitnessInputs {
 /// reader re-derives the verdict rather than trusting it (R80-13, AC80-15).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GpuAllocationWitness {
+    /// PID of this witness process.
+    pub process_id: u32,
+    /// Checked INTEGRATED attribute of the witnessed device.
+    pub device_integrated: bool,
     /// The CUDA ordinal requested by policy.
     pub device_ordinal_requested: usize,
     /// The CUDA ordinal Candle actually retained.
@@ -416,16 +425,8 @@ pub struct GpuAllocationWitness {
     pub delta_bytes: i128,
     /// The declared floor the delta was judged against.
     pub delta_floor_bytes: u64,
-    /// Bytes deliberately requested per control block.
-    pub control_allocation_request_bytes: u64,
-    /// How many control blocks it took before one was charged in full.
-    pub control_block_count: usize,
-    /// Free bytes before the control allocation.
-    pub control_free_before_bytes: u64,
-    /// Free bytes while the control allocation was resident.
-    pub control_free_after_bytes: u64,
-    /// How far the counter moved for the control allocation.
-    pub control_delta_bytes: i128,
+    /// Exactly one raw method-specific proof, never a bag of optional fields.
+    pub measurement: GpuAllocationMeasurement,
     /// Dimension produced by one real forward pass on the device.
     pub embedded_vector_dim: usize,
 }
@@ -440,21 +441,31 @@ impl GpuAllocationWitness {
         let mut out = String::with_capacity(768);
         out.push('{');
         push_string_field(&mut out, "compute_capability", &self.compute_capability, true);
-        push_u64_field(
-            &mut out,
-            "control_allocation_request_bytes",
-            self.control_allocation_request_bytes,
-            false,
-        );
-        push_usize_field(&mut out, "control_block_count", self.control_block_count, false);
-        push_i128_field(&mut out, "control_delta_bytes", self.control_delta_bytes, false);
-        push_u64_field(&mut out, "control_free_after_bytes", self.control_free_after_bytes, false);
-        push_u64_field(
-            &mut out,
-            "control_free_before_bytes",
-            self.control_free_before_bytes,
-            false,
-        );
+        if let GpuAllocationMeasurement::GlobalFree {
+            control_allocation_request_bytes,
+            control_block_count,
+            control_delta_bytes,
+            control_free_before_bytes,
+            control_free_after_bytes,
+            ..
+        } = &self.measurement
+        {
+            push_u64_field(
+                &mut out,
+                "control_allocation_request_bytes",
+                *control_allocation_request_bytes,
+                false,
+            );
+            push_usize_field(&mut out, "control_block_count", *control_block_count, false);
+            push_i128_field(&mut out, "control_delta_bytes", *control_delta_bytes, false);
+            push_u64_field(&mut out, "control_free_after_bytes", *control_free_after_bytes, false);
+            push_u64_field(
+                &mut out,
+                "control_free_before_bytes",
+                *control_free_before_bytes,
+                false,
+            );
+        }
         push_i128_field(&mut out, "delta_bytes", self.delta_bytes, false);
         push_u64_field(&mut out, "delta_floor_bytes", self.delta_floor_bytes, false);
         push_string_field(&mut out, "device_name", &self.device_name, false);
@@ -665,9 +676,21 @@ pub fn evaluate_allocation_witness(
         inputs.before.ok_or(GpuWitnessError::MissingSample { stage: WitnessStage::LoadBefore })?;
     let after =
         inputs.after.ok_or(GpuWitnessError::MissingSample { stage: WitnessStage::LoadAfter })?;
-    let control = inputs
-        .control
+    let measurement = inputs
+        .measurement
         .ok_or(GpuWitnessError::MissingSample { stage: WitnessStage::ControlAllocation })?;
+    let (control_request, control_delta) = match &measurement {
+        GpuAllocationMeasurement::GlobalFree {
+            control_allocation_request_bytes,
+            control_delta_bytes,
+            ..
+        } => (*control_allocation_request_bytes, *control_delta_bytes),
+        GpuAllocationMeasurement::PrivatePoolUsed { .. } => {
+            return Err(GpuWitnessError::ProbeFailed {
+                message: "private-pool observations have no global control".into(),
+            });
+        }
+    };
     let dimension = inputs
         .embedded_vector_dim
         .ok_or(GpuWitnessError::MissingSample { stage: WitnessStage::ForwardPass })?;
@@ -688,10 +711,9 @@ pub fn evaluate_allocation_witness(
         });
     }
 
-    let control_delta = control.delta_bytes();
-    if control_delta < i128::from(control.requested_bytes) {
+    if control_delta < i128::from(control_request) {
         return Err(GpuWitnessError::ControlAllocationNotObserved {
-            requested_bytes: control.requested_bytes,
+            requested_bytes: control_request,
             delta_bytes: control_delta,
         });
     }
@@ -705,6 +727,8 @@ pub fn evaluate_allocation_witness(
     }
 
     Ok(GpuAllocationWitness {
+        process_id: inputs.process_id,
+        device_integrated: inputs.device_integrated,
         device_ordinal_requested: inputs.requested_ordinal,
         device_ordinal_actual: inputs.retained_ordinal,
         device_uuid: probed_uuid,
@@ -715,11 +739,7 @@ pub fn evaluate_allocation_witness(
         total_bytes: before.total_bytes,
         delta_bytes: delta,
         delta_floor_bytes: inputs.delta_floor_bytes,
-        control_allocation_request_bytes: control.requested_bytes,
-        control_block_count: control.block_count,
-        control_free_before_bytes: control.free_before_bytes,
-        control_free_after_bytes: control.free_after_bytes,
-        control_delta_bytes: control_delta,
+        measurement,
         embedded_vector_dim: dimension,
     })
 }

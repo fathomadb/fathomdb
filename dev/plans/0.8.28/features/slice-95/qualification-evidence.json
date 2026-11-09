@@ -206,7 +206,7 @@
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
     "remaining_task_worktrees": [],
-    "windows": "Localqualification complete; VMgracefullyoff, originalrunner/serviceAutoStopped/policies/modelcache unchanged, processes0. Owned64GiBtaskdiskstillCONFIGattached for possibleexactCIreuse; originalXML/taskdisk cleanup remains. No taskregistration/token/listener.",
+    "windows": "Qualification complete, VMoff. Originaldomain XML restored exactly after proving taskdisk was only difference; owned64GiB disk detached with no domainreferences, retained untouched. Exactdiskdeletion autoreview rejected absentexplicitownerpermission; questionpending. Originalrunner/serviceAutoStopped/policies/modelcache verifiedunchanged; no taskregistration/token/listener.",
     "staged_inputs": "All13ownedstagedrawcopies removed after staged/original sizes+hashes verified. Originalsourcecorpus and restoredTC5pack/qualificationraw evidence retained.",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
     "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained.",
@@ -685,7 +685,7 @@
     "build_configuration_delta": "Isolated x64CUDA export .cargo/config.toml build.jobs=2; trackedsource unchanged. No host driver/toolkit/global configuration change",
     "retained_failed_attempt": "embed-package-smoke exit1: my extra embed CLI archive basename rejected by unchanged validator. Exact same archive bytes under required filename pass fresh qualified scope; failure retained",
     "forward_029": "0a47524caec89d13e8feaa49c84baa20acabd7e6; Astra approval and independent six focused checks0; runtime/Cargo match prior42-test baseline; .28/.29 currentformat37 explicitmapping RED/GREEN",
-    "cleanup": "WorkerWT/branch removed. All13 stagedrawcopies deleted afteroriginal/copyhashverification, originals preserved. Windows original runner/service/policies/models unchanged and VMoff; taskdiskstillconfigured. Tegra taskexports retained for finalaudit/cleanup. No taskcontainers remain after completed smokes",
+    "cleanup": "WorkerWT/branch removed;13stagedrawcopieshashverifiedremoved/originalspreserved. WindowsVMoff/originaldomainrestored, originalrunner/service/policies/modelsunchanged; owned64GiBtaskdiskdetached+retained pendingexplicitdeletionapproval afterautoReviewrejection. Tegra taskexports retained for exactCIreuse/finalcleanup; no taskcontainers active.",
     "execution_condition": "Owner local GPU environment approval already granted; hostedCPU/Macscope question pending. No hosted dispatch or implicit platform waiver",
     "remaining": [
       "Mac2runtime rows and nativecollector",
@@ -694,6 +694,7 @@
       "finalsafety/records/forwarding/resourcecleanup"
     ],
     "publication": "HELD",
-    "evidence_safety": "Trackedsource pinnedGitleaks0/no leaks. Initial generated directory+unfilteredstdin scans both1 with same38generic-api-key integrity findings; incremental17files/39534bytes scan1 finds two repeated accepted Node/rustup image SHA256 labels. All40 occurrences corroborated against actual artifact/model/toolchain hashes,0credential findings. Existingadvisorypolicy unchanged; no suppression/redaction of integrity metadata. final-evidence-safety/{classification,incremental-classification}.json."
+    "evidence_safety": "Trackedsource pinnedGitleaks0/no leaks. Initial generated directory+unfilteredstdin scans both1 with same38generic-api-key integrity findings; incremental17files/39534bytes scan1 finds two repeated accepted Node/rustup image SHA256 labels. All40 occurrences corroborated against actual artifact/model/toolchain hashes,0credential findings. Existingadvisorypolicy unchanged; no suppression/redaction of integrity metadata. final-evidence-safety/{classification,incremental-classification}.json.",
+    "record_handover": "Localbaseline5fde8e090c10f653081e97b62b43f12f42877171 on remote dev/release.28; .29handover2df955180a799ef853183d7493694fdb91cd5245 recordsidentical andruntimeunchanged. Currentcleanup-onlyrecords follow same reviewed forwarding route."
   }
 }

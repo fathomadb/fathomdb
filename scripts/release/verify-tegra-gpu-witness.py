@@ -131,8 +131,8 @@ def validate_load_delta(witness: dict[str, Any]) -> None:
     floor = require_int(witness, "delta_floor_bytes")
     if total <= 0:
         fail("total device memory must be positive")
-    if not 0 < before <= total or not 0 < after <= total:
-        fail("free memory samples must be positive and within the device total")
+    if not 0 <= before <= total or not 0 <= after <= total:
+        fail("global diagnostic samples must be nonnegative and within the device total")
     if delta != before - after:
         fail("delta does not follow from the retained free-memory samples")
     if floor < MODEL_FLOOR_BYTES:

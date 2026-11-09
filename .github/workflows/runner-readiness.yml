@@ -1,0 +1,41 @@
+name: Self-hosted runner readiness
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  linux-gpu:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    timeout-minutes: 3
+    steps:
+      - shell: bash
+        run: |
+          set -euo pipefail
+          printf 'runner_name=%s\nrunner_os=%s\nrunner_arch=%s\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
+          hostname
+
+  windows:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Windows, X64, windchill3-windows-11]
+    timeout-minutes: 3
+    steps:
+      - shell: pwsh
+        run: |
+          Write-Output "runner_name=$env:RUNNER_NAME"
+          Write-Output "runner_os=$env:RUNNER_OS"
+          Write-Output "runner_arch=$env:RUNNER_ARCH"
+          hostname
+
+  jetson:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
+    timeout-minutes: 3
+    steps:
+      - shell: bash
+        run: |
+          set -euo pipefail
+          printf 'runner_name=%s\nrunner_os=%s\nrunner_arch=%s\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
+          hostname

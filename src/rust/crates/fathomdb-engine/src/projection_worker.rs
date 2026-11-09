@@ -1271,12 +1271,30 @@ fn dispatcher_cursor_repair_refuses_committed_armed_visibility() {
     connection
         .execute_batch(
             "INSERT INTO canonical_nodes(write_cursor,kind,body,source_id)
-         VALUES(1,'doc','pending','test:s95-dispatcher');
-         INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind) VALUES('doc');",
+         VALUES(1,'doc','pending','test:s95-dispatcher');",
         )
         .unwrap();
+    crate::projection_registry::register_vector_kind(connection, "doc").unwrap();
+    store_projection_cursor(connection, 5).unwrap();
+    assert_eq!(
+        lowest_pending_projection_member_at_or_below(connection, 5, current_epoch_seconds())
+            .unwrap(),
+        Some(1)
+    );
+    let clean = next_pending_projection_jobs(
+        connection,
+        &BTreeSet::new(),
+        1,
+        true,
+        &opened.engine.projection_runtime.shared.wal_attribution,
+        0,
+    )
+    .unwrap();
+    assert_eq!(clean.iter().map(|job| job.cursor).collect::<Vec<_>>(), vec![1]);
+    assert_eq!(load_projection_cursor(connection).unwrap(), 0);
     store_projection_cursor(connection, 5).unwrap();
     connection.execute("UPDATE _fathomdb_read_visibility_state SET coalescing=1", []).unwrap();
+    let changes = connection.total_changes();
     let result = next_pending_projection_jobs(
         connection,
         &BTreeSet::new(),
@@ -1287,4 +1305,5 @@ fn dispatcher_cursor_repair_refuses_committed_armed_visibility() {
     );
     assert!(result.is_err(), "dispatcher admitted a durable cursor repair while armed");
     assert_eq!(load_projection_cursor(connection).unwrap(), 5);
+    assert_eq!(connection.total_changes(), changes);
 }

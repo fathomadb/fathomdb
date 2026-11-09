@@ -26,7 +26,7 @@
 //! 1. construct the Candle CUDA device (this creates the context),
 //! 2. assert the ordinal Candle actually retained matches the requested one,
 //! 3. sample free/total — the **before**,
-//! 4. load the model,
+//! 4. load the model and complete its queued device work,
 //! 5. sample free/total — the **after**,
 //! 6. run one real forward pass and record its vector dimension.
 //!
@@ -728,10 +728,11 @@ pub fn evaluate_allocation_witness(
 fn observe_model_load<Model>(
     sampler: &mut dyn GpuMemorySampler,
     load: impl FnOnce() -> Result<Model, GpuWitnessError>,
-    _complete: impl FnOnce() -> Result<(), GpuWitnessError>,
+    complete: impl FnOnce() -> Result<(), GpuWitnessError>,
 ) -> Result<(GpuMemorySample, Model, GpuMemorySample), GpuWitnessError> {
     let before = sampler.sample()?;
     let model = load()?;
+    complete()?;
     let after = sampler.sample()?;
     Ok((before, model, after))
 }
@@ -939,7 +940,15 @@ pub fn run_default_embedder_allocation_witness(
             CandleBgeEmbedder::new_from_weights_on_device(weights, device.clone())
                 .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })
         },
-        || Ok(()),
+        || {
+            let cuda = device
+                .as_cuda_device()
+                .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
+            // Bind and complete the context that owns this model's uploads.
+            cuda.cuda_stream().context().synchronize().map_err(|error| {
+                GpuWitnessError::from_driver_status(error.0 as u32, &error.to_string())
+            })
+        },
     )?;
     // The control memory has done its work; hold it no longer than the bracket
     // it protects.

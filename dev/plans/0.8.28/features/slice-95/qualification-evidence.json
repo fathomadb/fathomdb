@@ -164,14 +164,26 @@
     "registration": "Immutable safe record retained; retrospective data-plane plan/sidecar+two exacthashbound existingamendments at af7e570ff, Astra design/codeAPPROVE and independent portablevalidator PASS.38testsPASS,8metrics30exclusions,immutable record/config/metrics/index unchanged."
   },
   "ci": {
-    "latest_task_run": 42542957407,
-    "source": "8798ba0385b86d9de93118abfd4524abfc13bef1",
-    "overall": "CANCELLED_NOT_QUALIFIED",
-    "successful_jobs": 22,
-    "cancelled_jobs": 11,
-    "skipped_jobs": 1,
-    "reason": "Unsupported macOS ARM configuration; preserve annotations and cancellation, not a pass",
-    "fresh_dispatch": "NOT_STARTED; owner local-only scope clarification pending; no implicit platform waiver"
+    "latest_task_run": 42621641800,
+    "source": "3f80b1c96f0ffc75bb37119664d6c761dedda75a",
+    "overall": "SUCCESS_BASELINE_ONLY",
+    "jobs": {
+      "success": 33,
+      "intentional_markdown_skip": 1
+    },
+    "suites": {
+      "registered": 206,
+      "ran": 206,
+      "passed": 206,
+      "failed": 0,
+      "skipped": 0,
+      "excluded": 0
+    },
+    "native": "All five exact-source platform receipts and same-run collector independently pass, including both Macs and Windows186/186; distinct Windows WAL passes",
+    "strict_security": "0 violations / 0 blockers / 0 downgrades; actual namespace controls",
+    "timing_limit": "12 negative fast-suite durations retained; counts/exits valid; CI21 reviewed repair808ddb0d8449a095ed5e8978ce6a626483b3731d independently passes74 controls",
+    "receipt": "target/slice95-final-format37/approved-ci/independent-ci-verifier/verification.json",
+    "final_candidate": "PENDING batched repaired exact-source full manual CI; baseline is not a new-HEAD pass"
   },
   "forward_29": {
     "broad_source": "6674cf79daa9040b4967ecc8fbe4a44eb8ea4e15",
@@ -188,7 +200,7 @@
   "rehearsal": {
     "ordinary_ci": "separate qualification",
     "local_preflight": "PASS versionedgates at48345; complete localrehearsal e090 exit0,leaf3/3",
-    "immutable_release_dry_run": "PENDINGexecutionlocation clarification/localrunner setup; existingGPUenvironmentapproval conditionalLOCALalreadygiven, no repeatrequestwithinconfirmedcondition",
+    "immutable_release_dry_run": "PENDING final repaired qualification; localGPU runner29 registered offline, no listener/service started; exact main ancestry/trusted route preserved",
     "main_ancestry": "Lower immutable dry-run gate exempts main ancestry; trusted main-owned workflow retains candidate ancestry. Reviewed qualified skip-marked FF route resolves preparation coupling without bypass; latest execution-location condition still applies.",
     "version_cut": false,
     "main_merge": false,
@@ -196,17 +208,19 @@
     "historical_local_preflight": "actual non-pass .28 target vs unbumped .27 manifests"
   },
   "open_requirements": {
-    "S95-6": "Localcore and Linuxx64/ARM64/Windowsx64 consumers, distinctWindowsWAL, TegraPython/Node and x64CUDAembed/rerank package scopes independently pass at e090. Mac2/nativecollector/genuine nonTegraARMdriverless/exactCI/trustedworkflow remain; no overallrelease qualification.",
-    "S95-7": "Fresh exactcandidate CI pending ownerlocal-onlycondition clarification. No newActionsdispatch; cancelled42542957407 notqualified.",
+    "S95-6": "Baseline full CPU CI/five native rows+collector/Windows WAL pass at3f80. Corrected Tegra witness remains failed; final repaired-source GPU/driverless proof and trusted workflow remain.",
+    "S95-7": "Owner approves hosted CPU/macOS, all GPU local. Baseline full CI3f80 SUCCESS; one final batched exact-source manual CI remains after reviewed repairs.",
     "S95-8": "Package/earlierrecords forward0a47524caec89d13e8feaa49c84baa20acabd7e6 Astraapproved and sixindependentfocusedchecks pass; runtimeunchangedfrom prior42-test577 baseline. Current localrecord batch follows the same reviewed forwarding route; verify actual handover from Git ancestry.",
-    "S95-11": "FullLOCALnonpublishingrehearsal0. Reviewedskipci/manualCI/nonforcequalifiedSHA:main/dryrunroute preservesPageshold andexistingguards. OwnerALREADYconditionallyapprovesGPUenvironmentreviewiflocal; allhostedCPU/macscopeclarificationpending, noimplicitplatformwaiver.",
+    "S95-11": "Full local nonpublishing rehearsal passes at e090. Exact final candidate main-route dry-run remains. Hosted CPU approved; GPU environment approval already granted for verified local execution. Publication/tag/registries/Pages held.",
     "session_durability_contract": "Literal originalADR verified byfile/gitblame; no durability policy choice is needed for CPUdiagnosis. Earlier promptpremature; WAL+NORMAL unchanged, no successor contract/waiver selected.",
     "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
   },
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
-    "remaining_task_worktrees": [],
-    "windows": "Qualification complete, VMoff. Originaldomain XML restored exactly after proving taskdisk was only difference; owned64GiB disk detached with no domainreferences, retained untouched. Exactdiskdeletion autoreview rejected absentexplicitownerpermission; questionpending. Originalrunner/serviceAutoStopped/policies/modelcache verifiedunchanged; no taskregistration/token/listener.",
+    "remaining_task_worktrees": [
+      "/mnt/data/tmp2/fathomdb-s95-ci20-wt (exclusive implementer; CI20/21 merged, CI22 active)"
+    ],
+    "windows": "Exact old task volume s95-format37-ci-20261108.qcow2 deletion explicitly approved, completed and verified; original disk/XML unchanged, VM off. New task-owned C: runner used3f80CI and auto-removed registration/credentials; task C: cache retained for finalCI reuse/cleanup. Standing service/policies unchanged.",
     "staged_inputs": "All13ownedstagedrawcopies removed after staged/original sizes+hashes verified. Originalsourcecorpus and restoredTC5pack/qualificationraw evidence retained.",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
     "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained.",
@@ -696,5 +710,39 @@
     "publication": "HELD",
     "evidence_safety": "Trackedsource pinnedGitleaks0/no leaks. Initial generated directory+unfilteredstdin scans both1 with same38generic-api-key integrity findings; incremental17files/39534bytes scan1 finds two repeated accepted Node/rustup image SHA256 labels. All40 occurrences corroborated against actual artifact/model/toolchain hashes,0credential findings. Existingadvisorypolicy unchanged; no suppression/redaction of integrity metadata. final-evidence-safety/{classification,incremental-classification}.json.",
     "record_handover": "Localbaseline5fde8e090c10f653081e97b62b43f12f42877171 on remote dev/release.28; .29handover2df955180a799ef853183d7493694fdb91cd5245 recordsidentical andruntimeunchanged. Currentcleanup-onlyrecords follow same reviewed forwarding route."
+  },
+  "historical_ci_before_hosted_approval": {
+    "latest_task_run": 42542957407,
+    "source": "8798ba0385b86d9de93118abfd4524abfc13bef1",
+    "overall": "CANCELLED_NOT_QUALIFIED",
+    "successful_jobs": 22,
+    "cancelled_jobs": 11,
+    "skipped_jobs": 1,
+    "reason": "Unsupported macOS ARM configuration; preserve annotations and cancellation, not a pass",
+    "fresh_dispatch": "NOT_STARTED; owner local-only scope clarification pending; no implicit platform waiver"
+  },
+  "tegra_ci20": {
+    "original_workflow": 42621714744,
+    "original_source": "3f80b1c96f0ffc75bb37119664d6c761dedda75a",
+    "original_outcome": "FAIL insufficient allocation delta -371355648; detailed rows lost to runner temp cleanup",
+    "repair_source": "36cdcaac2c01f83d9439bc5656bf0c3928cf5791",
+    "repair": "Checked same-context completion and invocation-owned failure retention; Astra design/code approved, independent CUDA compile and focused controls pass",
+    "hardware": {
+      "node01": {
+        "exit": 0,
+        "delta_bytes": 140574720
+      },
+      "node02": {
+        "exit": 1,
+        "delta_bytes": 9539584,
+        "floor_bytes": 67108864
+      },
+      "node03": "NOT_RUN",
+      "python": "NOT_RUN",
+      "outcome": "FAIL_STOPPED, no retry or waiver",
+      "preservation": "620 raw files mirrored SHA256-equal; sealed artifacts/source/models unchanged"
+    },
+    "receipt": "target/slice95-final-format37/approved-ci/ci20-hardware/verification.json",
+    "next": "CI22 one opt-in same-context pool accounting diagnostic, unchanged v1 verdict; no successor qualification yet"
   }
 }

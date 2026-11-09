@@ -8,9 +8,10 @@ status: IN_PROGRESS
 **IN_PROGRESS. Publication held.** Local core qualification is complete as an
 assembled result at `e090418becabd9610cea3b372f249e9f8bd3ccf9`. The final versioned
 AC011 pair passes at **1,215.559 commits/s for 1 KB** and **291.286 commits/s for
-100 KB**, with unchanged floors of 1,000 and 100. Native platform/package and CI
-qualification, execution-location clarification, final handover and resource
-cleanup remain. There is no published-release or overall CI-green claim.
+100 KB**, with unchanged floors of 1,000 and 100. Local Linux x64/ARM64 and
+Windows x64 package consumers, Windows WAL and Tegra/CUDA package controls pass.
+The missing platform/executor rows, exact CI/workflow rehearsal, final records
+handover and resource cleanup remain. There is no published-release or overall CI-green claim.
 
 ## Implemented and reviewed
 
@@ -47,6 +48,10 @@ Raw current evidence is under canonical `target/slice95-final-format37/`.
 | Broad local collection | Clean `ff253a0a0`: all 206 ran, 202 initially passed, four failed. Lint/typecheck and real strict security passed,0 violations / 0 blockers / 0 downgrades. Root inventory8/8, Pages20/20 and retention45/45, corpus graph1/1 and the affected Rust cases pass focused resumptions after reviewed corrections. This is assembled coverage, not an uninterrupted final full-gate pass. |
 | Feature coverage | Source 2e2189429: 23 runs, 180 planned, 165 passed, 15 exact allowlisted ignored,zero failures/skip markers/missing results. Independent audit confirms live prerequisites and retained GPU receipts. Ignored tests remain exemptions, not passes. Relevant inputs are identical at e090. |
 | Fresh artifacts and installed Python | Final 0.8.28 CUDA wheel/CLI/private executor built from 2e2189429; 637 relevant artifact inputs identical at e090. Binaries preserved separately from mutable Cargo caches. Isolated noneditable wheel: 19 Python files/native bytes match; 24 graph rows/reopen pass, schema 33 refuses supported 37 with unchanged DB/lock bytes. No private test hooks/reranker in this wheel. CPU execution of a CUDA-capable local wheel is not the five-platform CPU delivery matrix. |
+| CPU installed platform rows | Source e090: Linux x64, Linux ARM64 and Windows x64 production wheel/addon consumers pass independent audits, with actual isolated public TypeScript and real database controls. Linux wheels and ARM Node meet glibc2.28; the host-built x64 Node requires2.39, with its failed2.28 probe retained. Windows runs 186/186 tests across13 modules, zero skipped. This is three local runtime rows, not the five-platform matrix or collector pass; both Mac rows remain. |
+| Windows WAL | All ten exact engine controls plus the external-reader parent/child pass; installed current serial/binding/retained controls pass, including five owned-reader busy cases. Released0.8.22 comparison returns the existing accepted exit66/clean completion/zero frames. All11 enclosing qualification/receipt phases exit0. Production artifacts and disposable hook wheel stay separate. |
+| Local x64 CUDA packages | Both existing preflight variants and installed-package rehearsals pass. Actual Python/Node GPU records bind the second RTX3090 UUID and process; reranker package smoke executes one embedding and one reranker forward per consumer. CLI doctor/driverless controls pass; no CLI GPU inference or trusted-workflow claim. Export-only Cargo jobs2 is a recorded build configuration delta. Initial package-smoke exit1 from an incorrect CLI archive basename is retained; identical archive bytes under the required filename pass the corrected scoped attempt. |
+| Tegra packages | Python0.8.28+tegra and separately named Node0.8.28 build/install and glibc2.35/linkage checks pass. Independent Python/Node audits confirm installed bytes, six model pins, CPU/auto/forced-CUDA policies, embedding allocation witness, actual Node reranker results, loader decoy precedence and heap3/3. The generic ARM CPU row is separate. The maintained driverless Tegra-addon helper explicitly refuses a Tegra host; its genuine non-Tegra ARM control remains pending. |
 | External Rust consumer | Exact 2e source archive: 616 exported objects match Git. Offline isolated build and real write/read/erase/control-survival/close/reopen/exit pass. Six Fathom dependencies resolve inside the archive; no test hooks or added patches. Relevant Rust/Cargo inputs unchanged at e090. |
 | Accepted TC5 fidelity | Fresh database, 7667 real documents, 100 queries, 1000 bootstrap resamples, zero synthetic: recall 0.958, 95% CI [0.938, 0.974]; accepted CI-high >=0.90 passes. Raw executor0 and independent query/hash/bootstrap audit pass. CUDA embeddings used the explicitly pinned second RTX 3090; CPU sqlite-vec candidates/exact-f32 rerank. Private-stage fidelity only, no latency/public-search/whole-hybrid claim. Post-run DB hash differs from the pre-query hash; retained without an immutability claim. Raw ID overlap remains executor-attested. |
 | AC011 final version | Unchanged canonical helper 0, 1215.559/s and 291.286/s; compiler-selected default/test-hooks optimized binary matches its sealed copy. Before/after/enclosing readiness applicable. Machine-wide swap-in 142 pages is retained diagnostic data, not a zero-swap claim. |
@@ -55,43 +60,47 @@ Raw current evidence is under canonical `target/slice95-final-format37/`.
 | Long correctness | Independent AC021: 60s, 60 DDL cycles, 60 rebuilds, zero SQLITE_SCHEMA warnings. Cursor: 1000 searches, 199 successful writes/198 during reads, 999 advancing hits, zero cursor/hit violations. Both actual exits0. |
 | Legacy corpus stress | Actual overall exit 101 from superseded recall 0.775/CI [0.746, 0.801]; never an overall pass. Separate accepted AC073 stress passes 46ms <301ms with 8x250 requests, N=7667, no padding. Real setup 18472 documents, 100 queries/1000 bootstrap/1000 latency samples. 13 staged actual-hash inputs retain the MuSiQue acquisition mismatch and absent Hotpot limitation; MuSiQue contributes no accepted rows in this route. |
 | Local release rehearsal | Existing full local dry-run once: workspace optimized build 0, three leaf packages and three publish dry-runs pass with all uploads aborted. API 0.8.0 / schema 0.8.28 / query 0.8.28 archives retained. Axis-E guard passes its unpublished-version branch, not a compiled published-API comparison. |
-| .29 runtime handover | Clean 577d243a3: Astra-approved conflict resolution and 42 independent scoped MCP/visibility tests pass; version/inventory/module/Markdown checks pass. Final package/record handover remains. No .29 full-gate or .28 platform claim from these tests. |
+| .29 handover | Clean0a47524ca forwards the final package correction/earlier records; Astra approves the preserved root inventory and explicit .28/.29 format37 candidate mapping. Added acceptance/refusal cases fail before the bounded correction and pass after it. Six independent focused package/version/inventory checks pass; runtime inputs remain identical to the prior577d243a3 baseline with42 MCP/visibility passes. Axis W remains the .28 preparation baseline. Current local records will be forwarded too; no .29 full-gate or .28 platform claim. |
+
+Generated-evidence safety scans retain actual advisory exit1: the initial38
+findings and two final-metadata findings are corroborated model/toolchain/artifact
+SHA256 values, with zero credential findings. Tracked-source scan0 found no leaks. No scanner policy,
+suppression or integrity artifact changed.
 
 ## Remaining work
 
-- Finish the five supported CPU wheel/addon installed-consumer rows and collector,
-  separate Windows WAL proof, and applicable local Tegra package/runtime checks.
-  Current source is not registry-qualified or macOS-qualified by local Linux proof.
-- Resolve the scope of the owner's local-only condition before any hosted
-  dispatch. No Mac/platform waiver is inferred. Preserve all required evidence
-  in the plan rather than silently narrowing the platform matrix.
+- Complete both Mac CPU wheel/addon runtime rows and the five-target collector,
+  plus the genuine non-Tegra ARM driverless Tegra-addon control. Existing local
+  machines cannot satisfy those host requirements; no platform waiver is inferred.
+- Resolve whether the owner's local-only condition covers GPU execution only or
+  all execution, before any hosted CPU/macOS dispatch. The owner already approved
+  environment review for local execution including Windows and Tegra; do not ask
+  for that same approval again within its confirmed condition.
 - Complete exact-candidate CI and the separate nonpublishing release-workflow
-  rehearsal subject to that execution condition. The reviewed skip-marked
-  candidate route can keep push-triggered Pages/duplicate CI dormant while
-  manual dispatch remains available. Existing environment controls remain.
-- Run final source and retained-evidence safety scans, finish scoped documentation
-  checks and .29 forwarding, then close the status/state only after all required
-  qualification and cleanup are proven.
-
-The owner confirmed coreyt and approved environment review **only for local
-execution**, explicitly including the Windows VM and Tegra 10.83.10.13. Do not
-request that same approval again once its condition is confirmed. The pending
-question concerns whether remaining hosted CPU/macOS jobs are permitted; no
-hosted run has been dispatched under this conditional approval.
+  rehearsal. The reviewed skip-marked/manual route preserves Pages/publication
+  holds and existing environment/ancestry controls. Local helper passes do not
+  supply trusted-workflow provenance. No hosted run was dispatched under the
+  conditional approval.
+- Finish scoped records checks, final .29 forwarding and
+  resource cleanup. Close status/state only after all required qualification.
 
 ## Retained limits and resources
 
 The original task worktree/branch is clean, fully merged and removed; 73 evidence
 files were copied byte-for-byte. Canonical dev/release checkouts remain. The
-standing Windows VM's owned 64GiB task disk is still configured; original XML,
-runner hashes/service/policies must be restored at cleanup. No task runner
+standing Windows VM is gracefully off; original runner hashes, Auto/Stopped
+service, policies and model cache are verified unchanged. Its owned64GiB task
+disk remains configured for possible exact-CI reuse; original XML restoration
+and task-disk cleanup remain. No task runner
 registration/token/listener was created yet. A local Linux X64 GPU runner is
 also not registered; do not start or modify the standing Fathom/Coral services.
-Tegra's existing dirty checkout was inspected read-only and must remain untouched.
+Tegra's existing dirty checkout is untouched. Isolated task exports/environments
+and targets remain until final audit/cleanup; all task test containers have exited.
 
 The original target/debug symlink still points at absent cold storage; preserve
-it. Current qualification uses owned targets and sealed artifacts. Staged raw
-corpus copies remain until dependent work finishes. The restored TC5 input pack
+it. Current qualification uses owned targets and sealed artifacts. All13 task-staged raw corpus copies
+were removed after both original/copy hashes and sizes were checked; original
+inputs are preserved. The restored TC5 input pack
 and qualified evidence remain retained for replay. Older /tmp 86fb evidence paths
 are absent; their tracked historical transcriptions are not present raw logs.
 

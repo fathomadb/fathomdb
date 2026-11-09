@@ -49,15 +49,15 @@ merely because they ran. Queued/cancelled/skipped/zero-test rows are not passes.
 | Feature coverage | check-test-target-coverage.py; test-feature-complete.sh --scratch with live cached BGE/reranker/nomic/ONNX and two RTX3090s | Inventory at baseline:356 targets,36 feature-complete-only. Recompute current accounting through existing runner, no fixed-count oracle. Separate named cold-storage target avoids root disk pressure. |
 | Python subscriber admission | CI12 deterministic native contention RED/GREEN; unchanged installed-wheel subscriber lifecycle/reentry/replacement suite | Preserve accepted below-capacity delivery,4096 bound/full-only loss and prompt disable; refresh affected Python artifacts/features and final exact-candidate CI. |
 | Strict security | STRICT=1 scripts/agent-security.sh | Host supports namespaces/ptrace unconfined. Record both actual AC037 live pass lines and 0/0/0; no artificial host-security grant/revert. |
-| AC011 writes | CARGO_NET_OFFLINE=true scripts/run-ac011-write-throughput.sh; canonical windchill3/NVMe TMPDIR | Reviewed6d580ec57:1 KB1315.423/s PASS;100 KB305.975/s PASS, helper0; before/after/enclosing readiness applicable. Preserve all earlier non-passes in the history below. Thresholds and5s/60s protocol unchanged; diagnostic tracing never qualifies. |
+| AC011 writes | CARGO_NET_OFFLINE=true scripts/run-ac011-write-throughput.sh; canonical windchill3/NVMe TMPDIR | Final version e090:1 KB1215.559/s PASS;100 KB291.286/s PASS, helper0; before/after/enclosing readiness applicable. Preserve all earlier non-passes in the history below. Thresholds and5s/60s protocol unchanged; diagnostic tracing never qualifies. |
 | AC012/013 latency | Release perf_gates exact selectors with AGENT_LONG=1; AC012_CORPUS_N=10000; AC013_CORPUS_N=10000 and AC013_VECTOR_DIM=768 | Existing text p50/p99 <=20/150ms; vector <=80/300ms,1000 samples. Synthetic recall/stress remain report-only. |
 | AC081 absolute reads | Release perf_gates::ac_081_absolute_read_performance; seven fresh processes of one hashed executable | Existing <=500ms sequential/<=100ms concurrent; retired AC020 ratios stay retired. |
 | Long reliability | AGENT_LONG=1 exact lifecycle_reliability::ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl and cursor_read_after_write::projection_cursor_bounds_observed_row_count | Actual60s/60DDL/60rebuilds/schema0 PASS. Original1000-search cursor path passed but lacked positive-write proof; CI14 strengthens that existing fixture. Reuse unaffected AC017/018/081c. |
 | AC073 stress / legacy EU7 | Release ignored eu7_real_corpus_ac_validation; CUDA, N7667,100 queries,1000 bootstrap/latency samples,250/thread | Retain actual exit and independently evaluate stress. Superseded recall assertion can produce exit101; never label the overall run PASS. Corpus staging receipt binds13 top-level JSONLs/96,704,727 bytes. |
 | AC075 fidelity | Existing experiments.tc5_gpu_v2 dry-run/run, candidate-bound bridge7667 real docs/100 queries/K192/top10/exact f32 truth | CI-high >=0.90. Reuse frozen input/model pins; renew candidate SHA, CUDA wheel/runtime/CLI/private benchmark hashes. For release .28, accept historical package .27 or final .28 only; final qualification uses .28. Exact artifact/distribution/runtime checks remain unchanged. No 2M sweep. |
-| Packages/consumer boundaries | CI five-target native matrix and distinct WAL; independent Linux installed consumer/missing-export control and external Rust source archive | Preserve dependency/native/package hashes, actual resolved paths/lockfiles/runtime flags. Earlier S92 examples reusable only after explicit relevant-input comparison; CPU dev proof is not optimized/registry/CUDA proof. |
+| Packages/consumer boundaries | CI five-target native matrix and distinct WAL; independent Linux installed consumer/missing-export control and external Rust source archive | Local e090 Linux x64/ARM64 and Windows x64 optimized production consumers pass; Windows186/186, distinct WAL controls pass. Both Mac rows/collector and genuine non-Tegra ARM driverless control remain. Independent Tegra Python/Node and x64 embed/rerank package audits pass. Keep actual hashes, paths and build configuration; local proof does not supply exact trusted-workflow or registry qualification. |
 | Documentation/contracts | Slice92 baseline plus affected docs/index/lifecycle/authority/generator/parity/surface checks, strict local MkDocs | No new full audit or structural framework. Pending .28 docs/published .27 receipts/manifests stay distinct. |
-| Evidence safety | Pinned gitleaks-current.sh and separate retained generated-evidence directory scan | Record separate outcomes. Redact generated secrets before retention; advisory policy unchanged, no new broad suppression. |
+| Evidence safety | Pinned gitleaks-current.sh and separate generated directory/unfiltered stdin scans | Source0/no leaks. Initial directory/stdin scans1: same38 integrity-hash matches; incremental scan1: two repeated Node/rustup integrity pins. All corroborated, zero credential findings. Existing advisory policy unchanged; no new suppression or integrity-metadata redaction. |
 | Local/release rehearsal | local-dry-run.sh; separate release.yml dry_run=true,release_version,candidate_commit | Full local rehearsal passes at e090: workspace build, three leaf packages and three nonpublishing dry-runs. Axis E0.8.0 retains its unpublished-version/publish-time compiled-check limitation. Separate workflow rehearsal remains pending execution-location clarification and actual qualified main ancestry; the reviewed skip-marked route prevents push-triggered Pages. No old-version substitution or pre-tag-ready claim. |
 
 D28-09/10/11 and populated-open deferrals remain. Do not repeat frozen layout
@@ -160,3 +160,27 @@ local Linux/Tegra/Windows execution is not implicit macOS qualification. If the
 reviewed skip-marked manual-CI/main-forward route is used, record actual manual
 jobs and intentionally skipped publishers separately, preserving existing
 GitHub environment approval and trusted-workflow checks.
+
+## Local platform/package follow-up
+
+The local source remains `e090418becabd9610cea3b372f249e9f8bd3ccf9`; records at
+`2802b4eb1` do not change relevant runtime inputs. Three CPU platform rows and
+Windows WAL pass. Independent receipts are under `native-linux/`,
+`windows/qualification/`, and `tegra-local/generic-arm/`. Linux wheels and the
+generic ARM Node meet glibc2.28. The host-built x64 CPU Node requires2.39; retain
+its failed2.28 probe without a portability claim.
+
+Separate Tegra Python/Node artifacts meet their declared2.35 floor. Their
+installed policy/witness/loader/heap checks pass with independent audits. Both
+x64 CUDA preflight variants and installed package smokes pass; actual reranker
+smoke performs embedding and reranking in Python and Node. The fresh optimized
+reranker CLI is compiler-selected and sealed. Initial embed package smoke
+rejected my nonstandard CLI archive basename; original exit1 is retained and the
+same archive bytes pass under the required filename. Export-only Cargo jobs2
+is a declared build-input delta, not identical build configuration.
+
+Local helper success does not qualify a trusted GitHub workflow. Missing Mac
+rows and the maintained driverless helper's explicit non-Tegra ARM host
+requirement remain. The owner's local GPU environment approval is already
+recorded; the hosted CPU/macOS scope question remains pending. No hosted
+dispatch, main push, tag, registry or Pages publication occurred.

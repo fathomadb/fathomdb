@@ -196,9 +196,9 @@
     "historical_local_preflight": "actual non-pass .28 target vs unbumped .27 manifests"
   },
   "open_requirements": {
-    "S95-6": "Alllocalcore proof at e090 now recorded local_final_e090. Nativeplatform/deliveryrows and applicablelocalTegra/Windows evidence stillneeded; do notclaim overallrelease qualification.",
+    "S95-6": "Localcore and Linuxx64/ARM64/Windowsx64 consumers, distinctWindowsWAL, TegraPython/Node and x64CUDAembed/rerank package scopes independently pass at e090. Mac2/nativecollector/genuine nonTegraARMdriverless/exactCI/trustedworkflow remain; no overallrelease qualification.",
     "S95-7": "Fresh exactcandidate CI pending ownerlocal-onlycondition clarification. No newActionsdispatch; cancelled42542957407 notqualified.",
-    "S95-8": "Runtimeforward577d243a3b34f54d85ce809c0b60f3edc5c1f942, Astrareviewed+42independent MCP/visibilitypasses; finalpackage/recordsforwardpending.",
+    "S95-8": "Package/earlierrecords forward0a47524caec89d13e8feaa49c84baa20acabd7e6 Astraapproved and sixindependentfocusedchecks pass; runtimeunchangedfrom prior42-test577 baseline. Current localrecord batch follows the same reviewed forwarding route; verify actual handover from Git ancestry.",
     "S95-11": "FullLOCALnonpublishingrehearsal0. Reviewedskipci/manualCI/nonforcequalifiedSHA:main/dryrunroute preservesPageshold andexistingguards. OwnerALREADYconditionallyapprovesGPUenvironmentreviewiflocal; allhostedCPU/macscopeclarificationpending, noimplicitplatformwaiver.",
     "session_durability_contract": "Literal originalADR verified byfile/gitblame; no durability policy choice is needed for CPUdiagnosis. Earlier promptpremature; WAL+NORMAL unchanged, no successor contract/waiver selected.",
     "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
@@ -206,8 +206,8 @@
   "resources": {
     "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
     "remaining_task_worktrees": [],
-    "windows": "Currenttask64GiBdisk stillCONFIGattached/Rprepped; originalXML+runnerstate retained, no registration/token/listener created; VMlastobservedoff. Cleanup still required.",
-    "staged_inputs": "13ownedverifiedcorpus copies stillstaged pendingdependentwork, sourcecorpus unchanged. RestoredTC5pack andqualifierraw evidence retained.",
+    "windows": "Localqualification complete; VMgracefullyoff, originalrunner/serviceAutoStopped/policies/modelcache unchanged, processes0. Owned64GiBtaskdiskstillCONFIGattached for possibleexactCIreuse; originalXML/taskdisk cleanup remains. No taskregistration/token/listener.",
+    "staged_inputs": "All13ownedstagedrawcopies removed after staged/original sizes+hashes verified. Originalsourcecorpus and restoredTC5pack/qualificationraw evidence retained.",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
     "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained.",
     "current_worker_cleanup": "Cleanfullymerged8c workerWT/branch removed after73evidencefilescopiedbyte-identical; runtime-worker-cleanup.json"
@@ -661,5 +661,39 @@
   },
   "historical_artifact_locator_limit": "Older /tmp/fathomdb-s95-* directories are absent; preservedtracked transcriptions/hashrefs are historical, not currenton-diskrawproof. Currentlocal evidence lives under canonical target/slice95-final-format37.",
   "historical_harness_qualification_candidate": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
-  "qualification_candidate_scope": "Localruntimequalification only; final platform/CI/rehearsal readiness not complete"
+  "qualification_candidate_scope": "Localruntimequalification only; final platform/CI/rehearsal readiness not complete",
+  "local_platform_followup": {
+    "source": "e090418becabd9610cea3b372f249e9f8bd3ccf9",
+    "outcome": "PASS_LOCAL_SCOPES_ONLY",
+    "cpu_platforms_pass": [
+      "linux-x64-gnu",
+      "linux-arm64-gnu",
+      "win32-x64-msvc"
+    ],
+    "missing_cpu_platforms": [
+      "darwin-x64",
+      "darwin-arm64"
+    ],
+    "five_target_collector": "PENDING, not a matrix pass",
+    "linux_x64": "native-linux/independent-verifier/verification.json; wheel GLIBC2.28, host Node2.39; failed2.28 probe retained",
+    "linux_arm64": "tegra-local/generic-arm/independent-verifier/verification.json PASS_SCOPED_GENERIC_ARM_CPU; fouractualexits0, all13697sourceobjects match, sevenactualCPUonlyCargo fingerprints, both ELFfloors2.28, productionconsumer/publictypes pass. Registry-enabled localbuild; offlineinstalledconsumer.",
+    "windows": "windows/qualification/verification.json; all11 enclosing phases0; installed186/186,13modules,0skipped; ten WAL lib controls plus external parent/child; currentserial/binding/retained pass; released0.8.22 acceptedbaseline66clean frames0",
+    "tegra": "tegra-local/independent-python-verifier/verification.json and independent-node-verifier/verification.json; installedbytes/cache6pins, hostbound GLIBC2.35, actual policy/witness/loader/heap3of3",
+    "driverless_tegra_addon": "PENDING genuine non-Tegra ARM host. Maintained helper rejects Tegra before Docker; no identity masking/substitution",
+    "x64_cuda_embed": "cuda-local/independent-embed-verifier/verification.json; strict preflight/package/CLI proof; actual embedding forwards1,rerank0 each Python/Node",
+    "x64_cuda_rerank": "cuda-local/independent-rerank-verifier/verification.json; actual preflight/CLI build/package smoke0; embedding1/rerank1 perPython/Node and GPU1UUID/PID. CLI GPU/reranker doctor driverless only; no CLI GPU inference claim. CE presence is runtime-asserted, numericalGPUCEvalues not retained",
+    "build_configuration_delta": "Isolated x64CUDA export .cargo/config.toml build.jobs=2; trackedsource unchanged. No host driver/toolkit/global configuration change",
+    "retained_failed_attempt": "embed-package-smoke exit1: my extra embed CLI archive basename rejected by unchanged validator. Exact same archive bytes under required filename pass fresh qualified scope; failure retained",
+    "forward_029": "0a47524caec89d13e8feaa49c84baa20acabd7e6; Astra approval and independent six focused checks0; runtime/Cargo match prior42-test baseline; .28/.29 currentformat37 explicitmapping RED/GREEN",
+    "cleanup": "WorkerWT/branch removed. All13 stagedrawcopies deleted afteroriginal/copyhashverification, originals preserved. Windows original runner/service/policies/models unchanged and VMoff; taskdiskstillconfigured. Tegra taskexports retained for finalaudit/cleanup. No taskcontainers remain after completed smokes",
+    "execution_condition": "Owner local GPU environment approval already granted; hostedCPU/Macscope question pending. No hosted dispatch or implicit platform waiver",
+    "remaining": [
+      "Mac2runtime rows and nativecollector",
+      "genuine nonTegraARMdriverlesscontrol",
+      "exactcandidateCI and trustedreleaseworkflowdryrun",
+      "finalsafety/records/forwarding/resourcecleanup"
+    ],
+    "publication": "HELD",
+    "evidence_safety": "Trackedsource pinnedGitleaks0/no leaks. Initial generated directory+unfilteredstdin scans both1 with same38generic-api-key integrity findings; incremental17files/39534bytes scan1 finds two repeated accepted Node/rustup image SHA256 labels. All40 occurrences corroborated against actual artifact/model/toolchain hashes,0credential findings. Existingadvisorypolicy unchanged; no suppression/redaction of integrity metadata. final-evidence-safety/{classification,incremental-classification}.json."
+  }
 }

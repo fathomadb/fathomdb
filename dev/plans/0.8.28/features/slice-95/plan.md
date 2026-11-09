@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 Slice 95 — CI completeness and final release readiness
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.28
 planning_baseline: 8aa724ba0a1f6c7030fd43e85d936d8ddb1f2272
 reconciliation_baseline: 48b23c479826c647affde9e9a1b6c69ee8f37f4c

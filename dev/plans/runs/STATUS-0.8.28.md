@@ -12,14 +12,16 @@ file and regenerate; keep evidence and qualification prose here. Started
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 95 (CI-RELEASE-READINESS), IN_PROGRESS.** Completed on local `release/0.8.28` per release state: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) · 60 (`e240efd4b91b8e3ba4ea53dc3edea73639f44747`) · 70 (`398d5c1edaf58d0d2dd68ac13136f3939130059a`) · 80 (`d641f43f73d0576fc24af28c80d5be199fc5332f`) · 81 (`7ca1d182bef03c69199f538904ce8332842d80a2`) · 82 (`ab046b2167c64b5edc3109c0d9cd087ec4ef8487`) · 83 (`af84f12f82d092a00a8d14f3fe657eff79bf0b4f`) · 84 (`426d2278258076bfb98df47c51c214338e0559f2`) · 85 (`a2fb4a6475500b70676f9f54aff251df60f3e07c`) · 90 (`14d710093f1b3e061d4625c0a62665a6ff899372`) · 92 (`7b24e4c0913ec6585781b1148b81da0853f9dd67`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.28:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.28:status-current-state -->**Next is Slice 95 (CI-RELEASE-READINESS), PREP_COMPLETE_PUBLISH_HELD.** Landed on `origin/main`: 30 (`8d53418d1493090502501180d9223172ae95eaba`) · 31 (`1ceefddd894c041b0a8622856dc2677be3e49c88`) · 40 (`869d6a9e100d40841efc5cb56688040f4b645e42`) · 41 (`0ec01bc22197c641566830ef7b5ee6f446994f21`) · 42 (`fdbb74e109f02cbda7b8b8ff575be90e011b2803`) · 50 (`ecea4a1e79afe4cf7f5583914d405806767474ff`) · 60 (`e240efd4b91b8e3ba4ea53dc3edea73639f44747`) · 70 (`398d5c1edaf58d0d2dd68ac13136f3939130059a`) · 80 (`d641f43f73d0576fc24af28c80d5be199fc5332f`) · 81 (`7ca1d182bef03c69199f538904ce8332842d80a2`) · 82 (`ab046b2167c64b5edc3109c0d9cd087ec4ef8487`) · 83 (`af84f12f82d092a00a8d14f3fe657eff79bf0b4f`) · 84 (`426d2278258076bfb98df47c51c214338e0559f2`) · 85 (`a2fb4a6475500b70676f9f54aff251df60f3e07c`) · 90 (`14d710093f1b3e061d4625c0a62665a6ff899372`) · 92 (`7b24e4c0913ec6585781b1148b81da0853f9dd67`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.28:status-current-state -->
 
-Product implementation is complete through Slice 90. The completed documentation
-baseline is recorded by [Slice 92](../0.8.28/features/slice-92/status.md);
-[Slice 95](../0.8.28/features/slice-95/plan.md) owns CI repairs and final
-qualification, strengthened by the 0.8.26/0.8.27 review. No final Slice 95
-qualification or publication is claimed; physical erasure is done except for
-defects.
+Prepublication implementation, documentation and Slice95 qualification are
+complete at `3741dfb8a3d85bced4bfac6047083cc7e30da314`, integrated on
+`origin/main`. [Slice95 completion](../0.8.28/features/slice-95/status.md) records
+assembled full/scoped provenance, independent verification and the successful
+trusted dry-run42670315377. Publication remains held; the remaining Slice95
+pointer is the publication authorization gate. Physical erasure remains complete
+except for concrete defects. The code baseline is forwarded to .29 with its
+existing MCP and filtered-body-FTS scope preserved.
 
 Slice 30 (Tegra private CUDA memory pool) is complete on `release/0.8.28`.
 Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
@@ -40,8 +42,8 @@ Slice 31 (cudarc and Candle forks) is complete on `release/0.8.28`
 - W6 on windchill3 is done on `slice/0.8.28-31-cudarc-fork` at `48c2aa9bf`:
   FathomDB pins the registry fork crates (pin commit `aa898677f`), the
   vendored cudarc is deleted, and the feature-complete gate and the RTX 3090
-  CUDA cells pass. The lock-set guard waits on the cudarc fork's records-only
-  run.
+  CUDA cells pass. The final Slice95 audit authenticates the compiled published lock-set;
+  no fork runtime or dependency-pin update was needed.
 
 Slice 60 is complete at qualified candidate
 `e240efd4b91b8e3ba4ea53dc3edea73639f44747`; see its
@@ -52,7 +54,7 @@ Astra reviews, independent checks, scale and GPU recall qualification.
 
 | Step | Action |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Continue Slice 95 (CI-RELEASE-READINESS)** — CI completeness and quality, runner repairs, documentation/package convergence and final release qualification. **Remaining ladder:** 95.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.28:status-next-action -->**Await explicit publication authorization for Slice 95 (CI-RELEASE-READINESS)** — CI completeness and quality, runner repairs, documentation/package convergence and final release qualification. **Remaining ladder:** 95.<!-- END GENERATED release-state:0.8.28:status-next-action --> |
 
 Slice 31's qualification is complete: the Orin windows P, A, B and C, the
 RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
@@ -112,7 +114,7 @@ The owner approved both Slice 31 GCP sessions (S-13 and S-C3) at seq-332.
 | 85 | Explicit physical-erasure maintenance | Complete on canonical `release/0.8.28` at `a2fb4a6475500b70676f9f54aff251df60f3e07c`; Astra final approval, independent S85-1–8, assembled gate and first bounded screen pass. Hosted CI setup/disk/legacy-smoke limitations remain follow-up. [Status](../0.8.28/features/slice-85/status.md). |
 | 90 | D28-14 filtered direct body FTS | Complete at `14d710093f1b3e061d4625c0a62665a6ff899372`; Astra design/code approval, independent verification and fresh binding tests. [Status](../0.8.28/features/slice-90/status.md). |
 | 92 | Documentation audit and convergence | Complete at `7b24e4c0913ec6585781b1148b81da0853f9dd67`; S92-1–8, Astra design/code and separate consumer verification; assembled full/scoped gate results recorded. [Plan](../0.8.28/features/slice-92/plan.md); [status](../0.8.28/features/slice-92/status.md). |
-| 95 | CI completeness and final release readiness | IN_PROGRESS after 92; S95-CI1–CI10 repairs and S95-1–12 acceptance incorporate historical CI/platform/feature/rehearsal robustness. [Plan](../0.8.28/features/slice-95/plan.md); [status](../0.8.28/features/slice-95/status.md). |
+| 95 | CI completeness and final release readiness | PREP_COMPLETE_PUBLISH_HELD at `3741dfb8a3d85bced4bfac6047083cc7e30da314`; Astra reviews, independent assembled qualification and trusted nonpublishing rehearsal complete. [Status](../0.8.28/features/slice-95/status.md). |
 
 Implementation ladder complete. Slice 84/84b closed with negative qualification. Slices 41 and 42 were added by owner rulings on
 2026-10-16, Slices 50 to 90 on 2026-10-31, and the explicit Slice 81 POC

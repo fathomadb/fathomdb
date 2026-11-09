@@ -1,21 +1,37 @@
 {
   "schema": "fathomdb.slice95.qualification-summary/v1",
-  "status": "IN_PROGRESS",
+  "status": "PREP_COMPLETE_PUBLISH_HELD",
   "publication": "HELD",
-  "code_candidate": "6d580ec57692241c28a5113e374102cddc42e559",
+  "code_candidate": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
   "canonical_local_28": {
-    "source": "16234813cf9e4aeaa09f99b5f5f98459bd415af3",
-    "registered": 205,
-    "ran": 205,
-    "passed": 205,
-    "failed": 0,
+    "mode": "ASSEMBLED",
+    "initial_source": "4e676074483327f9cb4472470f6aec493bc60cb6",
+    "registered": 206,
+    "ran": 206,
+    "passed": 204,
+    "failed": 2,
     "skipped": 0,
     "excluded": 0,
-    "actual_child_exit": 0,
-    "outer_session_exit": 143,
-    "outer_exit_cause": "unknown; separate from captured child0",
-    "duration_seconds": 2659.2135841846466,
-    "later_changes": "Astra-reviewed fixes followed by focused verification and exact-source hosted CI; no uninterrupted full-local pass claimed on final source"
+    "actual_exit": 1,
+    "initial_failures_preserved": "target/slice95-final-format37/approved-ci/ci23-local-full-spills/manifest.json",
+    "resolved_rust_target": {
+      "test": "corpus_graph",
+      "source": "4e676074483327f9cb4472470f6aec493bc60cb6",
+      "cause": "13 verified task input copies had been cleaned before final gate; original inputs preserved",
+      "resumed_passed": 1,
+      "actual_exit": 0,
+      "receipt": "target/slice95-final-format37/approved-ci/ci25-corpus-verifier/verification.json"
+    },
+    "resolved_python_target": {
+      "source": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
+      "module": "test_slice130_package_boundary.py",
+      "passed": 3,
+      "skipped": 0,
+      "deselected": 0,
+      "actual_exit": 0,
+      "receipt": "target/slice95-final-format37/approved-ci/ci25-boundary-verifier/verification.json"
+    },
+    "limits": "Original full run remains exit1. Other registered suite inputs unchanged; no uninterrupted exact-final-SHA full-gate green claim."
   },
   "features": {
     "planned": 180,
@@ -164,67 +180,123 @@
     "registration": "Immutable safe record retained; retrospective data-plane plan/sidecar+two exacthashbound existingamendments at af7e570ff, Astra design/codeAPPROVE and independent portablevalidator PASS.38testsPASS,8metrics30exclusions,immutable record/config/metrics/index unchanged."
   },
   "ci": {
-    "latest_task_run": 42621641800,
-    "source": "3f80b1c96f0ffc75bb37119664d6c761dedda75a",
-    "overall": "SUCCESS_BASELINE_ONLY",
+    "latest_task_run": 42663174134,
+    "source": "4e676074483327f9cb4472470f6aec493bc60cb6",
+    "overall": "FAIL_RESOLVED_BY_REVIEWED_SCOPED_FIXES",
     "jobs": {
-      "success": 33,
-      "intentional_markdown_skip": 1
+      "success": 32,
+      "heavy_failure": 1,
+      "conditional_markdown_skip": 1
     },
-    "suites": {
-      "registered": 206,
-      "ran": 206,
-      "passed": 206,
-      "failed": 0,
+    "fast": {
+      "registered": 199,
+      "passed": 199,
+      "exit": 0,
+      "negative_duration_rows": 0
+    },
+    "heavy": {
+      "registered": 7,
+      "passed": 6,
+      "failed": 1,
       "skipped": 0,
-      "excluded": 0
+      "excluded": 0,
+      "python": {
+        "passed": 1709,
+        "failed": 2,
+        "skipped": 39
+      }
     },
-    "native": "All five exact-source platform receipts and same-run collector independently pass, including both Macs and Windows186/186; distinct Windows WAL passes",
-    "strict_security": "0 violations / 0 blockers / 0 downgrades; actual namespace controls",
-    "timing_limit": "12 negative fast-suite durations retained; counts/exits valid; CI21 reviewed repair808ddb0d8449a095ed5e8978ce6a626483b3731d independently passes74 controls",
-    "receipt": "target/slice95-final-format37/approved-ci/independent-ci-verifier/verification.json",
-    "final_candidate": "PENDING batched repaired exact-source full manual CI; baseline is not a new-HEAD pass"
+    "parallel_report": {
+      "actual_cargo_exit": 101,
+      "passed": 2390,
+      "failed": 1,
+      "ignored": 65,
+      "filtered": 38,
+      "summaries": 370,
+      "failure": "projection_worker_before_admission_cannot_publish_dependency_residue seed registration",
+      "resolved_fixture_source": "f9cddd3c3116adf909519c3dccbe88af6390798e",
+      "independent_affected_target_passed": 28,
+      "independent_affected_target_exit": 0,
+      "receipt": "target/slice95-final-format37/approved-ci/ci24-fixture-verifier/verification.json"
+    },
+    "native": "All five candidate-source4e installed platform rows and same-run collector pass; Windows186/186; actual artifact hashes verified. Fresh M CPU builds also pass in the distinct release rehearsal. Original binary identities are retained.",
+    "size": "All five pass growth above7,400,000B <=20MiB; largest delta786429B. Not a7.4MB absolute cap.",
+    "strict_security": "0 violations /0 blockers /0 downgrades with actual live namespace/catch controls",
+    "wal": "Both Windows jobs pass; actual historical.22 exit65 retained as its expected control",
+    "receipt": "target/slice95-final-format37/approved-ci/ci23-final-cpu-verifier/verification.json",
+    "resolved_python_contract_source": "737dacad9e98bb194e8e25282a5d964ae73813cd",
+    "final_boundary_receipt": "target/slice95-final-format37/approved-ci/ci25-boundary-verifier/verification.json",
+    "qualification": "SourceM production/Cargo inputs byte-identical to4e. Only reviewed fixture/contract tests and plan/design change. Keep original mandatory failure and advisory actual101; scoped fixes close findings without a second full matrix."
   },
   "forward_29": {
-    "broad_source": "6674cf79daa9040b4967ecc8fbe4a44eb8ea4e15",
-    "broad_passed": 205,
-    "broad_skipped": 0,
-    "broad_excluded": 0,
-    "broad_actual_exit": 0,
-    "final_forward_source": "2803eb7f1b8a6025c8e411287a5d63bb7c3eca72",
-    "focused": "10close/provider controls, strong1000cursor,10logging tests and source-bound native receipt PASS",
-    "full_later_source_claim": false,
-    "push": "Explicit dev/release branch refs; main/tag/publication remain held",
-    "final_metadata_forward_source": "d68de5db53dff6ff4174c8807c5dcfdbe048e770"
+    "code_handover_source": "600beb06e070962407a149776037fdfc42f35878",
+    "parents": "6351ef00a6a8d393317c058fa3ddafd5fa9b1795 + 3741dfb8a3d85bced4bfac6047083cc7e30da314",
+    "review": "Astra APPROVE pinned600beb06; exact comparator resolution40bf136a90d94db82427b0b87d986cca1367667177f2500360efabae71c978e0",
+    "focused": "39MCP +1SDK filtered-body-FTS +6package/version/inventory commands at6351;3canonical .29 boundary cases on exact resolved merge all pass; no skips/deselections",
+    "reuse": "Production/MCP/Cargo unchanged by final fixture merge; no repeated runtime tests or .29 full-gate claim",
+    "receipt": "target/slice95-final-format37/approved-ci/ci25-handoff-composition-verifier/verification.json",
+    "earlier_receipt": "target/slice95-final-format37/approved-ci/ci23-handoff-verifier/verification.json",
+    "mcp_scope": "Existing0.8.29 Slice60 requirements/acceptance retain exposure of Slice90 filtered direct body FTS with SearchFilter before engine candidate caps.",
+    "version": "AxisW0.8.28 /AxisE0.8.0 /format37 preserved",
+    "completion_records": "Forward this records-only completion commit to dev/0.8.29 and verify ancestry/content before final handoff."
   },
   "rehearsal": {
-    "ordinary_ci": "separate qualification",
-    "local_preflight": "PASS versionedgates at48345; complete localrehearsal e090 exit0,leaf3/3",
-    "immutable_release_dry_run": "PENDING final repaired qualification; localGPU runner29 registered offline, no listener/service started; exact main ancestry/trusted route preserved",
-    "main_ancestry": "Lower immutable dry-run gate exempts main ancestry; trusted main-owned workflow retains candidate ancestry. Reviewed qualified skip-marked FF route resolves preparation coupling without bypass; latest execution-location condition still applies.",
+    "ordinary_ci": "Separate full4e workflow and source-bound scoped repairs above",
+    "local_preflight": "Existing e090 local rehearsal exit0: workspace optimized build,3leaf packages and3publish dry-runs with uploads aborted. All3leaf sources/Cargo/config/local-dryrun guards unchanged throughM.",
+    "immutable_release_dry_run": {
+      "run": 42670315377,
+      "source": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
+      "workflow_ref": "refs/heads/main",
+      "dry_run": true,
+      "release_version": "0.8.28",
+      "confirm_release_version": "",
+      "recovery_skip_npm": false,
+      "overall": "SUCCESS",
+      "jobs": {
+        "success": 15,
+        "non_gating_history_advisory_failure": 1,
+        "skipped": 25
+      },
+      "trusted_main_route": "same-run v2 route receipt verified before local candidate execution",
+      "gpu_preflight": "4/4 actual Python/Node embedding and reranker-build observations: global_free, GPU1abda, host_proc_status mapping hostPID to intact innerPID1;128MiB model delta,1GiB/two-block control,384forward",
+      "embedding_v2": "PASS source-bound package/native/CLI bytes,8smokes and same-run preflight seals; Python+Node actual GPU forward",
+      "reranker_v3": "PASS independently of all-builds aggregation;4package bytes/10smokes, actual Python+Node embed+rerank forwards on GPU1",
+      "all23_publication_related_jobs": "ACTUALLY SKIPPED with empty steps; not publisher-body dry-run proof",
+      "receipt": "target/slice95-final-format37/approved-ci/ci25-release-dryrun-verifier/verification.json"
+    },
+    "main_merge": true,
+    "main_candidate": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
+    "version_prepared": true,
     "version_cut": false,
-    "main_merge": false,
     "tag_or_registry_or_pages_publication": false,
-    "historical_local_preflight": "actual non-pass .28 target vs unbumped .27 manifests"
-  },
-  "open_requirements": {
-    "S95-6": "Baseline full CPU CI/five native rows+collector/Windows WAL pass at3f80. Corrected Tegra witness remains failed; final repaired-source GPU/driverless proof and trusted workflow remain.",
-    "S95-7": "Owner approves hosted CPU/macOS, all GPU local. Baseline full CI3f80 SUCCESS; one final batched exact-source manual CI remains after reviewed repairs.",
-    "S95-8": "Package/earlierrecords forward0a47524caec89d13e8feaa49c84baa20acabd7e6 Astraapproved and sixindependentfocusedchecks pass; runtimeunchangedfrom prior42-test577 baseline. Current localrecord batch follows the same reviewed forwarding route; verify actual handover from Git ancestry.",
-    "S95-11": "Full local nonpublishing rehearsal passes at e090. Exact final candidate main-route dry-run remains. Hosted CPU approved; GPU environment approval already granted for verified local execution. Publication/tag/registries/Pages held.",
-    "session_durability_contract": "Literal originalADR verified byfile/gitblame; no durability policy choice is needed for CPUdiagnosis. Earlier promptpremature; WAL+NORMAL unchanged, no successor contract/waiver selected.",
-    "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
-  },
-  "resources": {
-    "completed_task_worktrees": "All CI1\u201315 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
-    "remaining_task_worktrees": [
-      "/mnt/data/tmp2/fathomdb-s95-ci20-wt (exclusive implementer; CI20/21 merged, CI22 active)"
+    "pending_external_v2": [
+      "compatible_gpu_cli",
+      "incompatible_classifier_observation"
     ],
-    "windows": "Exact old task volume s95-format37-ci-20261108.qcow2 deletion explicitly approved, completed and verified; original disk/XML unchanged, VM off. New task-owned C: runner used3f80CI and auto-removed registration/credentials; task C: cache retained for finalCI reuse/cleanup. Standing service/policies unchanged.",
-    "staged_inputs": "All13ownedstagedrawcopies removed after staged/original sizes+hashes verified. Originalsourcecorpus and restoredTC5pack/qualificationraw evidence retained.",
+    "pending_external_v3": [
+      "compatible_gpu_reranker_cli",
+      "incompatible_reranker_classifier_observation"
+    ],
+    "limits": "Maintained validators require these residual lists. Installed Python/Node and retained CLI doctor CPU/forced-unavailable controls executed; those external CLI cases and registry consumption did not. Canonical publish build, publishers and postpublish jobs remain held."
+  },
+  "open_requirements": {},
+  "resources": {
+    "completed_task_worktrees": "All task-only worktrees/branches merged and removed; canonical dev/release and .29 checkouts retained",
+    "remaining_task_worktrees": [],
+    "worker_cleanup": "target/slice95-final-format37/approved-ci/ci25-owned-source-cleanup.json",
+    "preserved_worker_files": 129,
+    "gpu_cleanup": "target/slice95-final-format37/approved-ci/ci25-gpu-scratch-cleanup.json",
+    "gpu_executor": "Temporaryrunner29 stopped/deregistered; private tmp2 root removed after no active processes/container mounts; original selectorGPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b restored. Standingservices/driver/toolkit unchanged.",
+    "windows": "Exact oldqcow2 deleted per owner approval; original disk/XML691a… unchanged,VMoff,serviceAutoStopped/policies/publichashes unchanged. Runner30 auto-removed. TaskCcache retained pending explicit deletion approval.",
+    "staged_inputs": "13restaged96,704,727B copies removed after resumed real graph pass and independent original/copy hashes. Originalcorpus/restoredTC5pack preserved.",
     "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
-    "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained.",
-    "current_worker_cleanup": "Cleanfullymerged8c workerWT/branch removed after73evidencefilescopiedbyte-identical; runtime-worker-cleanup.json"
+    "retained": "Canonical qualification evidence, original profile/recoveredELF and sealed Tegra diagnostic exports retained as evidence backups. Original Tegra project/branches/model caches untouched.",
+    "receipts": [
+      "target/slice95-final-format37/approved-ci/ci23-windows/final-verification.json",
+      "target/slice95-final-format37/approved-ci/ci25-gpu-executor-restored.json",
+      "target/slice95-final-format37/approved-ci/ci25-gpu-scratch-cleanup.json",
+      "target/slice95-final-format37/approved-ci/ci25-owned-source-cleanup.json"
+    ]
   },
   "receipts": {
     "canonical_28": {
@@ -365,25 +437,68 @@
     }
   },
   "evidence_safety": {
-    "tracked_source": "PinnedGitleaks6479399 zero leaks PASS;237522556 scannedbytes. Generated actualnonzero falsepositive remains separate.",
-    "generated": {
-      "files": 1466,
-      "bytes": 224572218,
-      "scanner_exit": 1,
-      "finding_count": 1,
-      "scan_errors": 0,
-      "input_drift": 0,
-      "disposition": "Single generic-api-key match independently verified as source-fileSHA256 in ci-bef-audit.json:863. Actualnonzero retained,no new suppression orzerofindingsclaim. Snapshotonly."
+    "historical_snapshots": {
+      "tracked_source": "PinnedGitleaks6479399 zero leaks PASS;237522556 scannedbytes. Generated actualnonzero falsepositive remains separate.",
+      "generated": {
+        "files": 1466,
+        "bytes": 224572218,
+        "scanner_exit": 1,
+        "finding_count": 1,
+        "scan_errors": 0,
+        "input_drift": 0,
+        "disposition": "Single generic-api-key match independently verified as source-fileSHA256 in ci-bef-audit.json:863. Actualnonzero retained,no new suppression orzerofindingsclaim. Snapshotonly."
+      },
+      "supplement": {
+        "files": 56,
+        "bytes": 3765195,
+        "actual_scanner_exit": 0,
+        "findings": 0,
+        "errors": 0,
+        "drift": 0,
+        "scope": "Added/changed retained evidence snapshot; original nonzero result remains unchanged;1460unchanged present files including full trace reused"
+      }
     },
-    "supplement": {
-      "files": 56,
-      "bytes": 3765195,
-      "actual_scanner_exit": 0,
-      "findings": 0,
-      "errors": 0,
+    "current_source": {
+      "source": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
+      "actual_exit": 0,
+      "tool": "Pinned Gitleaks8.30.1; normal staged hook covers final metadata diff"
+    },
+    "retained_generated": {
+      "files": 1328,
+      "normalized_bytes": 14077702,
+      "initial_files": 1325,
+      "initial_exit": 1,
+      "completion_files": 3,
+      "completion_exit": 0,
+      "findings": 100,
+      "corroborated_cached_tokenizer_hashes": 44,
+      "corroborated_retained_artifact_or_source_hashes": 42,
+      "literal_sqlite_identifiers": 14,
+      "credential_or_unresolved_findings": 0,
+      "original_inventory_files": 2023,
       "drift": 0,
-      "scope": "Added/changed retained evidence snapshot; original nonzero result remains unchanged;1460unchanged present files including full trace reused"
-    }
+      "excluded_binary_archive_cache_source_or_rawdb_files": 695,
+      "receipt": "target/slice95-final-format37/approved-ci/ci25-final-evidence-safety/verification.json"
+    },
+    "history_advisory": {
+      "actual_exit": 1,
+      "expected": 100,
+      "observed": 171,
+      "unknown": 71,
+      "missing": 0,
+      "bounded_scan_records": 100,
+      "bounded_known": 29,
+      "bounded_unknown": 71,
+      "bounded_classification": {
+        "cached_tokenizer_hashes": 49,
+        "committed_evidence_file_hashes": 8,
+        "sqlite_c_expressions": 14,
+        "credential_or_unresolved_findings": 0
+      },
+      "limits": "CI deletes safe tuples and scans all fetched heads/tags; bounded main-ancestry scan count reconciles71 but direct cross-run tuple-set equality cannot be proven. No whole-history clean claim.",
+      "receipt": "target/slice95-final-format37/approved-ci/ci25-release-dryrun-verifier/history-unknown-triage/verification.json"
+    },
+    "policy": "Actual nonzero scans and original findings preserved; no new suppression/allowlist/manifest change or integrity-data redaction."
   },
   "local_fast_g": {
     "source": "6479399fe09b42dac28763cc19467405e96d553c",
@@ -441,7 +556,7 @@
       "preserved_path": "target/slice95-ac011-evidence/cpu-profile/retained-original-perf-gates"
     }
   },
-  "qualification_candidate": "e090418becabd9610cea3b372f249e9f8bd3ccf9",
+  "qualification_candidate": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
   "ci17_harness": {
     "source": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
     "red": "cb52bb9cdeb6bda1ad3b38d5b516e766e6d1d43a",
@@ -675,7 +790,7 @@
   },
   "historical_artifact_locator_limit": "Older /tmp/fathomdb-s95-* directories are absent; preservedtracked transcriptions/hashrefs are historical, not currenton-diskrawproof. Currentlocal evidence lives under canonical target/slice95-final-format37.",
   "historical_harness_qualification_candidate": "c02990583a3c2106afc27205f78d0a966ae8c6bd",
-  "qualification_candidate_scope": "Localruntimequalification only; final platform/CI/rehearsal readiness not complete",
+  "qualification_candidate_scope": "Prepublication preparation complete through assembled source-bound verification; publication and registry-installed postpublish smoke held.",
   "local_platform_followup": {
     "source": "e090418becabd9610cea3b372f249e9f8bd3ccf9",
     "outcome": "PASS_LOCAL_SCOPES_ONLY",
@@ -770,5 +885,136 @@
       "target/slice95-final-format37/approved-ci/tegra-prior-pool-research/research.json",
       "target/slice95-final-format37/approved-ci/tegra-patched-dependencies-research/research.json"
     ]
+  },
+  "historical_primary_snapshot_before_final_closure": {
+    "status": "IN_PROGRESS",
+    "code_candidate": "6d580ec57692241c28a5113e374102cddc42e559",
+    "canonical_local_28": {
+      "source": "16234813cf9e4aeaa09f99b5f5f98459bd415af3",
+      "registered": 205,
+      "ran": 205,
+      "passed": 205,
+      "failed": 0,
+      "skipped": 0,
+      "excluded": 0,
+      "actual_child_exit": 0,
+      "outer_session_exit": 143,
+      "outer_exit_cause": "unknown; separate from captured child0",
+      "duration_seconds": 2659.2135841846466,
+      "later_changes": "Astra-reviewed fixes followed by focused verification and exact-source hosted CI; no uninterrupted full-local pass claimed on final source"
+    },
+    "ci": {
+      "latest_task_run": 42621641800,
+      "source": "3f80b1c96f0ffc75bb37119664d6c761dedda75a",
+      "overall": "SUCCESS_BASELINE_ONLY",
+      "jobs": {
+        "success": 33,
+        "intentional_markdown_skip": 1
+      },
+      "suites": {
+        "registered": 206,
+        "ran": 206,
+        "passed": 206,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      },
+      "native": "All five exact-source platform receipts and same-run collector independently pass, including both Macs and Windows186/186; distinct Windows WAL passes",
+      "strict_security": "0 violations / 0 blockers / 0 downgrades; actual namespace controls",
+      "timing_limit": "12 negative fast-suite durations retained; counts/exits valid; CI21 reviewed repair808ddb0d8449a095ed5e8978ce6a626483b3731d independently passes74 controls",
+      "receipt": "target/slice95-final-format37/approved-ci/independent-ci-verifier/verification.json",
+      "final_candidate": "PENDING batched repaired exact-source full manual CI; baseline is not a new-HEAD pass"
+    },
+    "forward_29": {
+      "broad_source": "6674cf79daa9040b4967ecc8fbe4a44eb8ea4e15",
+      "broad_passed": 205,
+      "broad_skipped": 0,
+      "broad_excluded": 0,
+      "broad_actual_exit": 0,
+      "final_forward_source": "2803eb7f1b8a6025c8e411287a5d63bb7c3eca72",
+      "focused": "10close/provider controls, strong1000cursor,10logging tests and source-bound native receipt PASS",
+      "full_later_source_claim": false,
+      "push": "Explicit dev/release branch refs; main/tag/publication remain held",
+      "final_metadata_forward_source": "d68de5db53dff6ff4174c8807c5dcfdbe048e770"
+    },
+    "rehearsal": {
+      "ordinary_ci": "separate qualification",
+      "local_preflight": "PASS versionedgates at48345; complete localrehearsal e090 exit0,leaf3/3",
+      "immutable_release_dry_run": "PENDING final repaired qualification; localGPU runner29 registered offline, no listener/service started; exact main ancestry/trusted route preserved",
+      "main_ancestry": "Lower immutable dry-run gate exempts main ancestry; trusted main-owned workflow retains candidate ancestry. Reviewed qualified skip-marked FF route resolves preparation coupling without bypass; latest execution-location condition still applies.",
+      "version_cut": false,
+      "main_merge": false,
+      "tag_or_registry_or_pages_publication": false,
+      "historical_local_preflight": "actual non-pass .28 target vs unbumped .27 manifests"
+    },
+    "open_requirements": {
+      "S95-6": "Baseline full CPU CI/five native rows+collector/Windows WAL pass at3f80. Corrected Tegra witness remains failed; final repaired-source GPU/driverless proof and trusted workflow remain.",
+      "S95-7": "Owner approves hosted CPU/macOS, all GPU local. Baseline full CI3f80 SUCCESS; one final batched exact-source manual CI remains after reviewed repairs.",
+      "S95-8": "Package/earlierrecords forward0a47524caec89d13e8feaa49c84baa20acabd7e6 Astraapproved and sixindependentfocusedchecks pass; runtimeunchangedfrom prior42-test577 baseline. Current localrecord batch follows the same reviewed forwarding route; verify actual handover from Git ancestry.",
+      "S95-11": "Full local nonpublishing rehearsal passes at e090. Exact final candidate main-route dry-run remains. Hosted CPU approved; GPU environment approval already granted for verified local execution. Publication/tag/registries/Pages held.",
+      "session_durability_contract": "Literal originalADR verified byfile/gitblame; no durability policy choice is needed for CPUdiagnosis. Earlier promptpremature; WAL+NORMAL unchanged, no successor contract/waiver selected.",
+      "cpu_profile_access": "Resolved: owner2026-11-08 authorized elevatedprofile; desktop authentication succeeded. Solecapture completed, offline recovery independently verified. No furthercollection."
+    },
+    "resources": {
+      "completed_task_worktrees": "All CI1–15 repair/integration worktrees and branches removed after clean/merged/reviewed checks; canonical dev/release checkouts retained",
+      "remaining_task_worktrees": [
+        "/mnt/data/tmp2/fathomdb-s95-ci20-wt (exclusive implementer; CI20/21 merged, CI22 active)"
+      ],
+      "windows": "Exact old task volume s95-format37-ci-20261108.qcow2 deletion explicitly approved, completed and verified; original disk/XML unchanged, VM off. New task-owned C: runner used3f80CI and auto-removed registration/credentials; task C: cache retained for finalCI reuse/cleanup. Standing service/policies unchanged.",
+      "staged_inputs": "All13ownedstagedrawcopies removed after staged/original sizes+hashes verified. Originalsourcecorpus and restoredTC5pack/qualificationraw evidence retained.",
+      "debug_cache": "Prior phase relocated and verified the cache; on2026-11-07 the external volume is unmounted and target/debug symlink unresolved. No data discarded/mount change. Use fresh checkout-owned Cargo verification target.",
+      "continuation": "Both continuation task worktrees/branches cleaned after clean merged .28/.29 checks and separate verification; raw evidence retained in canonical .28 target/slice95-ac011-evidence. Canonical dev/release checkouts retained.",
+      "current_worker_cleanup": "Cleanfullymerged8c workerWT/branch removed after73evidencefilescopiedbyte-identical; runtime-worker-cleanup.json"
+    },
+    "evidence_safety": {
+      "tracked_source": "PinnedGitleaks6479399 zero leaks PASS;237522556 scannedbytes. Generated actualnonzero falsepositive remains separate.",
+      "generated": {
+        "files": 1466,
+        "bytes": 224572218,
+        "scanner_exit": 1,
+        "finding_count": 1,
+        "scan_errors": 0,
+        "input_drift": 0,
+        "disposition": "Single generic-api-key match independently verified as source-fileSHA256 in ci-bef-audit.json:863. Actualnonzero retained,no new suppression orzerofindingsclaim. Snapshotonly."
+      },
+      "supplement": {
+        "files": 56,
+        "bytes": 3765195,
+        "actual_scanner_exit": 0,
+        "findings": 0,
+        "errors": 0,
+        "drift": 0,
+        "scope": "Added/changed retained evidence snapshot; original nonzero result remains unchanged;1460unchanged present files including full trace reused"
+      }
+    }
+  },
+  "resolved_requirements": {
+    "S95-1": "Coverage and actual outcomes accounted; diagnostic/advisory outcomes retained",
+    "S95-2": "Pinned cold/restored setup and tool negative controls pass",
+    "S95-3": "Bounded report retained actual101 and resource facts; fixture lock-cycle correction independently28/28; unchanged passing target inputs reused",
+    "S95-4": "FiveCPU native rows, WindowsWAL, Tegra and x64 installed package proofs plus external Rust archive consumer pass within declared source/registry limits",
+    "S95-5": "Docs/contracts/generated owners and approved v2 Python surface delta converge; final scoped metadata validators required with completion commit",
+    "S95-6": "Accepted engine/feature/performance/reliability evidence reused with explicit input comparison; affected witness and fixture scopes independently qualified",
+    "S95-7": "FullCI actual failure retained and resolved by reviewed scoped targets; distinct trusted dry-run success",
+    "S95-8": "Astra reviews/separate verification complete; main integration and code handover done; final records forwarded and refs verified at closure",
+    "S95-9": "Routing/tier/spill/clock/PID controls pass; no retry/quarantine/threshold change",
+    "S95-10": "Current sourceM scan0; retained generated actual1/100corroborated metadata/Cexpressions,0credentials; history advisory1 retained with bounded71triage",
+    "S95-11": "Local/ordinaryCI/trusted-main dry-run scopes separated; publication and registry postpublish consumption held"
+  },
+  "post_preparation_holds": {
+    "publication": "Explicit owner authorization still required for tag, registries and Pages; postpublish registry-installed smoke follows actual publication.",
+    "external_observations": "Exact maintained pending_external lists above remain unexecuted scope, not passed or waived.",
+    "windows_task_directory": "C:\\fathomdb-s95-ci-20261109 retained4,527,596,302 logical bytes; automatic approval review rejected deletion because approval named only qcow2. Exact owner question pending; no deletion or workaround. VMoff/no task credentials/listener."
+  },
+  "prepublication_final": {
+    "candidate": "3741dfb8a3d85bced4bfac6047083cc7e30da314",
+    "qualification_mode": "ASSEMBLED_SOURCE_BOUND",
+    "review": "Astra design/code reviews through CI25 and pinned .29 merge APPROVE; final readiness review approves PREP_COMPLETE_PUBLISH_HELD after scan/records/views",
+    "independent_verification": "Affected implementation, installed artifacts,CI dispositions, scoped corrections,handover and retained-evidence scans independently verified",
+    "schema": 37,
+    "axis_w": "0.8.28",
+    "axis_e": "0.8.0",
+    "engine_baseline": "Original e090 accepted measurements and2e feature evidence with original limits; relevant production/performance inputs compared unchanged outside opt-in witness.",
+    "publication": "HELD"
   }
 }

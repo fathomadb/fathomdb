@@ -195,6 +195,15 @@ pub enum GpuWitnessError {
         /// Bytes the counter actually moved.
         delta_bytes: i128,
     },
+    /// Actual hardware/allocator ownership does not support a witness method.
+    UnsupportedAllocationMethod {
+        /// Checked actual INTEGRATED attribute.
+        device_integrated: bool,
+        /// Whether the actual retained allocator is Private.
+        allocator_private: bool,
+        /// Whether that context owns a private pool.
+        pool_present: bool,
+    },
     /// The driver, the device probe, or the forward pass failed.
     ProbeFailed {
         /// Diagnostic detail.
@@ -214,6 +223,7 @@ impl GpuWitnessError {
             Self::MissingSample { .. } => "missing_sample",
             Self::InsufficientDelta { .. } => "insufficient_delta",
             Self::ControlAllocationNotObserved { .. } => "control_allocation_not_observed",
+            Self::UnsupportedAllocationMethod { .. } => "unsupported_allocation_method",
             Self::ProbeFailed { .. } => "probe_failed",
         }
     }
@@ -261,6 +271,13 @@ impl fmt::Display for GpuWitnessError {
                 "control allocation of {requested_bytes} bytes moved the counter by only \
                  {delta_bytes}; the load delta is unattributable"
             ),
+            Self::UnsupportedAllocationMethod {
+                device_integrated,
+                allocator_private,
+                pool_present,
+            } => {
+                write!(formatter, "unsupported witness allocation method: integrated={device_integrated}, private={allocator_private}, owned_pool={pool_present}")
+            }
             Self::ProbeFailed { message } => {
                 write!(formatter, "gpu witness probe failed: {message}")
             }
@@ -968,6 +985,9 @@ fn run_default_embedder_allocation_witness_inner(
 ) -> Result<GpuAllocationWitness, GpuWitnessError> {
     use crate::candle_bge::{attest_retained_cuda_device, CandleBgeEmbedder};
     use crate::gpu_pool_diagnostic::ObservedSampler;
+    use crate::gpu_witness_private::{
+        method_for_device, observe_private_model, HeldPrivatePool, WitnessMethod,
+    };
     use crate::loader::load_pinned_default_embedder;
     use fathomdb_embedder_api::Embedder;
 
@@ -990,6 +1010,8 @@ fn run_default_embedder_allocation_witness_inner(
     let (device, retained_ordinal, retained_uuid) = attest_retained_cuda_device(config.ordinal)
         .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
 
+    let (method, device_integrated) = method_for_device(&device)?;
+
     if let Some(diagnostic) = diagnostic.as_deref_mut() {
         diagnostic.attach(&device, config.ordinal, &retained_uuid);
     }
@@ -999,51 +1021,94 @@ fn run_default_embedder_allocation_witness_inner(
     let weights = load_pinned_default_embedder()
         .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
 
-    let mut sampler = CudaDriverMemorySampler;
-
-    // D-80.5-3, before the load: prove the counter charges for a deliberate
-    // allocation right now, and — because it is proven by a block the counter
-    // charged in FULL — leave the driver with no spare pre-reserved arena that
-    // could absorb the model load and hide its delta. The blocks stay resident
-    // until after the post-load sample.
-    let mut allocator = CudaDriverControlAllocator::default();
-    let control = observe_control_allocation(
-        &mut ObservedSampler::new(&mut sampler, diagnostic.as_deref_mut(), false),
-        &mut allocator,
-        config.control_allocation_bytes,
-        config.max_control_blocks,
-    )?;
-
-    let (before, embedder, after) = observe_model_load(
-        &mut ObservedSampler::new(&mut sampler, diagnostic.as_deref_mut(), true),
-        || {
-            CandleBgeEmbedder::new_from_weights_on_device(weights, device.clone())
-                .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })
-        },
-        || {
-            let cuda = device
-                .as_cuda_device()
-                .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
-            // Bind and complete the context that owns this model's uploads.
-            cuda.cuda_stream().context().synchronize().map_err(|error| {
-                GpuWitnessError::from_driver_status(error.0 as u32, &error.to_string())
-            })
-        },
-    )?;
-    // The control memory has done its work; hold it no longer than the bracket
-    // it protects.
-    allocator.release();
-    // 6. one real forward pass on the device
-    let dimension = embedder
-        .embed("fathomdb tegra gpu allocation witness")
-        .map(|vector| vector.len())
-        .map_err(|error| GpuWitnessError::ProbeFailed { message: format!("{error:?}") })?;
+    let load_model = || {
+        CandleBgeEmbedder::new_from_weights_on_device(weights, device.clone())
+            .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })
+    };
+    let forward_model = |embedder: &CandleBgeEmbedder| {
+        embedder
+            .embed("fathomdb tegra gpu allocation witness")
+            .map(|vector| vector.len())
+            .map_err(|error| GpuWitnessError::ProbeFailed { message: format!("{error:?}") })
+    };
+    let (before, embedder, after, dimension, measurement) = match method {
+        WitnessMethod::GlobalFree => {
+            let mut sampler = CudaDriverMemorySampler;
+            let mut allocator = CudaDriverControlAllocator::default();
+            let control = observe_control_allocation(
+                &mut ObservedSampler::new(&mut sampler, diagnostic.as_deref_mut(), false),
+                &mut allocator,
+                config.control_allocation_bytes,
+                config.max_control_blocks,
+            )?;
+            let (before, embedder, after) = observe_model_load(
+                &mut ObservedSampler::new(&mut sampler, diagnostic.as_deref_mut(), true),
+                load_model,
+                || {
+                    let cuda = device.as_cuda_device().map_err(|error| {
+                        GpuWitnessError::ProbeFailed { message: error.to_string() }
+                    })?;
+                    cuda.cuda_stream().context().synchronize().map_err(|error| {
+                        GpuWitnessError::from_driver_status(error.0 as u32, &error.to_string())
+                    })
+                },
+            )?;
+            allocator.release();
+            let dimension = forward_model(&embedder)?;
+            (
+                before,
+                embedder,
+                after,
+                dimension,
+                GpuAllocationMeasurement::from_global_control(control),
+            )
+        }
+        WitnessMethod::PrivatePoolUsed => {
+            let mut probe = HeldPrivatePool::new(&device, config.ordinal, &retained_uuid)?;
+            let (embedder, observations) =
+                observe_private_model(&mut probe, load_model, |embedder| {
+                    let dimension = forward_model(embedder)?;
+                    if let Some(diagnostic) = diagnostic.as_deref_mut() {
+                        diagnostic.forward_completed(dimension);
+                    }
+                    Ok(dimension)
+                })?;
+            if let Some(diagnostic) = diagnostic.as_deref_mut() {
+                diagnostic.retain_private_global_samples(
+                    observations.before.global,
+                    observations.after.global,
+                );
+            }
+            let measurement = GpuAllocationMeasurement::PrivatePoolUsed {
+                context_id: probe.context_id().to_string(),
+                pool_identity: probe.pool_identity(),
+                used_before_bytes: observations.before.used,
+                used_after_bytes: observations.after.used,
+                delta_bytes: i128::from(observations.after.used)
+                    - i128::from(observations.before.used),
+                control_request_bytes: crate::gpu_witness_private::CONTROL_BYTES,
+                control_before_bytes: observations.control_before_bytes,
+                control_live_bytes: observations.control_live_bytes,
+                control_released_bytes: observations.control_released_bytes,
+                pool_exclusivity_precondition: PRIVATE_POOL_EXCLUSIVITY_PRECONDITION.into(),
+            };
+            (
+                observations.before.global,
+                embedder,
+                observations.after.global,
+                observations.dimension,
+                measurement,
+            )
+        }
+    };
 
     if let Some(diagnostic) = diagnostic.as_deref_mut() {
         diagnostic.forward_completed(dimension);
     }
 
     let verdict = evaluate_allocation_witness(AllocationWitnessInputs {
+        process_id: std::process::id(),
+        device_integrated,
         requested_ordinal: config.ordinal,
         effective_device: EffectiveEmbedDevice::Cuda(info),
         cpu_reason: resolution.reason,
@@ -1051,7 +1116,7 @@ fn run_default_embedder_allocation_witness_inner(
         retained_device_uuid: retained_uuid,
         before: Some(before),
         after: Some(after),
-        control: Some(control),
+        measurement: Some(measurement),
         delta_floor_bytes: config.delta_floor_bytes,
         embedded_vector_dim: Some(dimension),
     });

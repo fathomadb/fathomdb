@@ -9,11 +9,19 @@ pub(crate) enum WitnessMethod {
 }
 
 pub(crate) fn select_method(
-    _integrated: bool,
-    _private: bool,
-    _pool_present: bool,
+    integrated: bool,
+    private: bool,
+    pool_present: bool,
 ) -> Result<WitnessMethod, GpuWitnessError> {
-    Ok(WitnessMethod::GlobalFree)
+    match (integrated, private, pool_present) {
+        (false, false, false) => Ok(WitnessMethod::GlobalFree),
+        (true, true, true) => Ok(WitnessMethod::PrivatePoolUsed),
+        _ => Err(GpuWitnessError::UnsupportedAllocationMethod {
+            device_integrated: integrated,
+            allocator_private: private,
+            pool_present,
+        }),
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,14 +53,221 @@ pub(crate) fn observe_private_model<M>(
     load: impl FnOnce() -> Result<M, GpuWitnessError>,
     forward: impl FnOnce(&M) -> Result<usize, GpuWitnessError>,
 ) -> Result<(M, PrivateObservations), GpuWitnessError> {
-    // Compiling observation scaffold retains the old load bracket until RED.
-    let _before = probe.read()?;
+    probe.complete()?;
+    let before = probe.read()?;
     let model = load()?;
     probe.complete()?;
-    let _after = probe.read()?;
-    let _dimension = forward(&model)?;
-    Err(GpuWitnessError::ProbeFailed { message: "same-pool control not observed".into() })
+    let after = probe.read()?;
+    let dimension = forward(&model)?;
+    if dimension != crate::gpu_witness::WITNESS_VECTOR_DIM {
+        return Err(GpuWitnessError::ProbeFailed {
+            message: format!("private witness forward produced {dimension} dimensions"),
+        });
+    }
+    probe.complete()?;
+    let baseline = probe.read()?;
+    let live = (|| {
+        probe.allocate(CONTROL_BYTES)?;
+        probe.touch(0xa5)?;
+        probe.complete()?;
+        probe.read()
+    })();
+    // Always attempt checked cleanup completion, even if release reports an
+    // error. Finish cleanup while the model lives and preserve the first error.
+    let release = probe.release();
+    let completion = probe.complete();
+    let released = match (release, completion) {
+        (Ok(()), Ok(())) => probe.read(),
+        (Err(error), _) | (_, Err(error)) => Err(error),
+    };
+    let live = live?;
+    let released = released?;
+    Ok((
+        model,
+        PrivateObservations {
+            before,
+            after,
+            dimension,
+            control_before_bytes: baseline.used,
+            control_live_bytes: live.used,
+            control_released_bytes: released.used,
+        },
+    ))
 }
+
+#[cfg(feature = "embed-cuda")]
+mod hardware {
+    use super::*;
+    use crate::gpu_witness::normalize_cuda_uuid;
+    use candle_core::cuda::cudarc::driver::{
+        result, sys, AllocMode, CudaContext, CudaMemPool, CudaSlice, CudaStream, DevicePtrMut,
+    };
+    use std::sync::Arc;
+
+    fn driver(error: result::DriverError) -> GpuWitnessError {
+        GpuWitnessError::from_driver_status(error.0 as u32, &error.to_string())
+    }
+
+    pub(crate) fn method_for_device(
+        device: &candle_core::Device,
+    ) -> Result<(WitnessMethod, bool), GpuWitnessError> {
+        let cuda = device
+            .as_cuda_device()
+            .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
+        let stream = cuda.cuda_stream();
+        let context = stream.context();
+        let integrated = match context
+            .attribute(sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_INTEGRATED)
+            .map_err(driver)?
+        {
+            0 => false,
+            1 => true,
+            value => {
+                return Err(GpuWitnessError::ProbeFailed {
+                    message: format!("invalid actual INTEGRATED attribute {value}"),
+                })
+            }
+        };
+        let method = select_method(
+            integrated,
+            context.alloc_mode() == AllocMode::Private,
+            context.mem_pool().is_some(),
+        )?;
+        Ok((method, integrated))
+    }
+
+    pub(crate) struct HeldPrivatePool {
+        context: Arc<CudaContext>,
+        stream: Arc<CudaStream>,
+        pool: Arc<CudaMemPool>,
+        control: Option<CudaSlice<u8>>,
+        context_id: u64,
+        context_uuid: String,
+    }
+
+    impl HeldPrivatePool {
+        pub(crate) fn new(
+            device: &candle_core::Device,
+            requested: usize,
+            retained_uuid: &str,
+        ) -> Result<Self, GpuWitnessError> {
+            let (method, integrated) = method_for_device(device)?;
+            let stream = device
+                .as_cuda_device()
+                .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?
+                .cuda_stream();
+            let context = stream.context().clone();
+            if method != WitnessMethod::PrivatePoolUsed {
+                return Err(GpuWitnessError::UnsupportedAllocationMethod {
+                    device_integrated: integrated,
+                    allocator_private: context.alloc_mode() == AllocMode::Private,
+                    pool_present: context.mem_pool().is_some(),
+                });
+            }
+            let pool = context.mem_pool().cloned().ok_or_else(|| GpuWitnessError::ProbeFailed {
+                message: "actual private pool disappeared".into(),
+            })?;
+            if context.ordinal() != requested {
+                return Err(GpuWitnessError::OrdinalMismatch {
+                    requested,
+                    retained: context.ordinal(),
+                });
+            }
+            context.bind_to_thread().map_err(driver)?;
+            let mut context_id = 0;
+            // Read identity from the retained context; never construct or swap one.
+            unsafe { sys::cuCtxGetId(context.cu_ctx(), &mut context_id) }
+                .result()
+                .map_err(driver)?;
+            let uuid = context.uuid().map_err(driver)?.bytes.map(|byte| byte.to_ne_bytes()[0]);
+            let hex: String = uuid.iter().map(|byte| format!("{byte:02x}")).collect();
+            let context_uuid = format!(
+                "GPU-{}-{}-{}-{}-{}",
+                &hex[..8],
+                &hex[8..12],
+                &hex[12..16],
+                &hex[16..20],
+                &hex[20..]
+            );
+            if normalize_cuda_uuid(&context_uuid) != normalize_cuda_uuid(retained_uuid) {
+                return Err(GpuWitnessError::UuidMismatch {
+                    probed: context_uuid,
+                    retained: retained_uuid.to_owned(),
+                });
+            }
+            Ok(Self { context, stream, pool, control: None, context_id, context_uuid })
+        }
+
+        pub(crate) fn context_id(&self) -> u64 {
+            self.context_id
+        }
+        pub(crate) fn context_uuid(&self) -> &str {
+            &self.context_uuid
+        }
+        pub(crate) fn pool_identity(&self) -> String {
+            format!("{:p}", self.pool.raw())
+        }
+
+        pub(crate) fn read_used(&self) -> Result<u64, GpuWitnessError> {
+            self.context.bind_to_thread().map_err(driver)?;
+            self.pool.used_current().map_err(driver)
+        }
+
+        pub(crate) fn read_reserved(&self) -> Result<u64, GpuWitnessError> {
+            self.context.bind_to_thread().map_err(driver)?;
+            self.pool.reserved_current().map_err(driver)
+        }
+
+        pub(crate) fn read_global(&self) -> Result<GpuMemorySample, GpuWitnessError> {
+            let (free, total) = self.context.mem_get_info().map_err(driver)?;
+            Ok(GpuMemorySample { free_bytes: free as u64, total_bytes: total as u64 })
+        }
+    }
+
+    impl PrivateWitnessProbe for HeldPrivatePool {
+        fn complete(&mut self) -> Result<(), GpuWitnessError> {
+            self.context.synchronize().map_err(driver)
+        }
+        fn read(&mut self) -> Result<PrivateSample, GpuWitnessError> {
+            Ok(PrivateSample { used: self.read_used()?, global: self.read_global()? })
+        }
+        fn allocate(&mut self, bytes: u64) -> Result<(), GpuWitnessError> {
+            if bytes != CONTROL_BYTES || self.control.is_some() {
+                return Err(GpuWitnessError::ProbeFailed {
+                    message: "private control must be one exact 64 MiB allocation".into(),
+                });
+            }
+            let bytes = usize::try_from(bytes)
+                .map_err(|error| GpuWitnessError::ProbeFailed { message: error.to_string() })?;
+            // The held stream allocates through its context's actual private pool.
+            self.control = Some(unsafe { self.stream.alloc::<u8>(bytes) }.map_err(driver)?);
+            Ok(())
+        }
+        fn touch(&mut self, pattern: u8) -> Result<(), GpuWitnessError> {
+            let control = self.control.as_mut().ok_or_else(|| GpuWitnessError::ProbeFailed {
+                message: "private control absent".into(),
+            })?;
+            let (pointer, _record) = control.device_ptr_mut(&self.stream);
+            // The buffer is retained through checked completion and the live read.
+            unsafe {
+                result::memset_d8_async(
+                    pointer,
+                    pattern,
+                    CONTROL_BYTES as usize,
+                    self.stream.cu_stream(),
+                )
+            }
+            .map_err(driver)
+        }
+        fn release(&mut self) -> Result<(), GpuWitnessError> {
+            drop(self.control.take());
+            self.context.check_err().map_err(driver)
+        }
+    }
+}
+
+#[cfg(feature = "embed-cuda")]
+pub(crate) use hardware::{method_for_device, HeldPrivatePool};
 
 #[cfg(test)]
 mod tests {

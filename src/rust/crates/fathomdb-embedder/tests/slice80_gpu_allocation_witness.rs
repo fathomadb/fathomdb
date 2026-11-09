@@ -44,8 +44,8 @@ fn tegra_gpu_allocation_witness_on_real_hardware() {
     use fathomdb_embedder::{
         diagnose_default_embedder_gpu_from_env, normalize_cuda_uuid,
         run_default_embedder_allocation_witness, sample_with_driver_initialized_only,
-        AllocationWitnessConfig, GpuWitnessError, GpuWitnessSkip, DEFAULT_CONTROL_ALLOCATION_BYTES,
-        DEFAULT_DELTA_FLOOR_BYTES, WITNESS_VECTOR_DIM,
+        AllocationWitnessConfig, GpuAllocationMeasurement, GpuWitnessError, GpuWitnessSkip,
+        DEFAULT_DELTA_FLOOR_BYTES, PRIVATE_POOL_EXCLUSIVITY_PRECONDITION, WITNESS_VECTOR_DIM,
     };
 
     // The arms below share one process-global environment variable and one
@@ -101,18 +101,41 @@ fn tegra_gpu_allocation_witness_on_real_hardware() {
         normalize_cuda_uuid(diagnostic.selected_uuid().expect("a selected CUDA UUID")),
     );
     assert_eq!(witness.delta_floor_bytes, DEFAULT_DELTA_FLOOR_BYTES);
-    assert!(
-        witness.delta_bytes >= i128::from(witness.delta_floor_bytes),
-        "delta {} is below the declared floor {}",
-        witness.delta_bytes,
-        witness.delta_floor_bytes
-    );
+    assert_eq!(witness.process_id, std::process::id());
+    assert!(witness.device_integrated, "Tegra qualification requires an integrated device");
     assert_eq!(
         witness.delta_bytes,
         i128::from(witness.free_before_bytes) - i128::from(witness.free_after_bytes)
     );
-    assert_eq!(witness.control_allocation_request_bytes, DEFAULT_CONTROL_ALLOCATION_BYTES);
-    assert!(witness.control_delta_bytes >= i128::from(DEFAULT_CONTROL_ALLOCATION_BYTES));
+    match &witness.measurement {
+        GpuAllocationMeasurement::PrivatePoolUsed {
+            context_id,
+            pool_identity,
+            used_before_bytes,
+            used_after_bytes,
+            delta_bytes,
+            control_request_bytes,
+            control_before_bytes,
+            control_live_bytes,
+            control_released_bytes,
+            pool_exclusivity_precondition,
+        } => {
+            assert_eq!(context_id.parse::<u64>().unwrap().to_string(), *context_id);
+            assert!(!pool_identity.is_empty());
+            assert_eq!(
+                *delta_bytes,
+                i128::from(*used_after_bytes) - i128::from(*used_before_bytes)
+            );
+            assert!(*delta_bytes >= i128::from(witness.delta_floor_bytes));
+            assert_eq!(*control_request_bytes, 67_108_864);
+            assert!(
+                i128::from(*control_live_bytes) - i128::from(*control_before_bytes) >= 67_108_864
+            );
+            assert_eq!(control_released_bytes, control_before_bytes);
+            assert_eq!(pool_exclusivity_precondition, PRIVATE_POOL_EXCLUSIVITY_PRECONDITION);
+        }
+        other => panic!("Tegra requires actual private-pool USED proof, got {other:?}"),
+    }
     assert_eq!(witness.embedded_vector_dim, WITNESS_VECTOR_DIM);
 
     let record = witness.to_canonical_json();

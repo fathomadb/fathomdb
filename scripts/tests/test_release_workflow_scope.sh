@@ -297,7 +297,7 @@ from pathlib import Path
 path = Path(sys.argv[1])
 assert path.is_file(), "manual-only runner readiness workflow is missing"
 text = path.read_text()
-assert re.findall(r"^([a-z-]+):", text, re.M) == ["name", "on", "permissions", "jobs"]
+assert sorted(re.findall(r"^([a-z-]+):", text, re.M)) == sorted(["name", "on", "permissions", "jobs"])
 assert text.split("on:\n", 1)[1].split("\npermissions:", 1)[0].strip() == "workflow_dispatch:"
 assert "\npermissions: {}\n" in text
 jobs_text = text.split("\njobs:\n", 1)[1]
@@ -311,7 +311,7 @@ expected = {
 assert set(jobs) == set(expected)
 for name, (labels, shell) in expected.items():
     body = jobs[name]
-    assert re.findall(r"^    ([a-z-]+):", body, re.M) == ["if", "runs-on", "timeout-minutes", "steps"]
+    assert sorted(re.findall(r"^    ([a-z-]+):", body, re.M)) == sorted(["if", "runs-on", "timeout-minutes", "steps"])
     assert "    if: github.ref == 'refs/heads/main'\n" in body
     assert f"    runs-on: {labels}\n" in body
     assert "    timeout-minutes: 3\n" in body

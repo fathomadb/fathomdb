@@ -709,14 +709,27 @@ mod tests {
     #[test]
     fn failed_commit_rolls_back_and_leaves_writer_retryable() {
         crate::configure_runtime(crate::RuntimeSqliteMode::Performance).unwrap();
+        crate::register_sqlite_vec_extension();
         let c = Connection::open_in_memory().unwrap();
+        fathomdb_schema::migrate(&c).unwrap();
         c.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE parent(id INTEGER PRIMARY KEY); CREATE TABLE child(id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED);").unwrap();
+        let callback_entered = std::cell::Cell::new(false);
         assert!(transaction(&c, || {
+            callback_entered.set(true);
             c.execute("INSERT INTO child VALUES(1)", []).map_err(|_| EngineError::Storage)?;
+            assert_eq!(
+                c.query_row("SELECT COUNT(*) FROM child", [], |row| row.get::<_, i64>(0)).unwrap(),
+                1
+            );
             Ok(())
         })
         .is_err());
+        assert!(callback_entered.get(), "the owned transaction must reach its deferred insert");
         assert!(c.is_autocommit(), "failed COMMIT must roll back its deferred transaction");
+        assert_eq!(
+            c.query_row("SELECT COUNT(*) FROM child", [], |row| row.get::<_, i64>(0)).unwrap(),
+            0
+        );
         transaction(&c, || Ok(())).unwrap();
     }
 

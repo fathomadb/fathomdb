@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 87c94fbb150c23e25ccc7407657d24b4cc0a1ed1
+lib_rs_blob: 65a34b56a1fa99e297bb6dc4a4ce377bcd411ed5
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -89,7 +89,8 @@ remaining `#[cfg(test)]` modules are `gpu_allocation_witness_opt_in_tests`,
 `provider_admission_tests`,
 `slice20_fix1_tests`, `slice90_close_tests`,
 `slice90_concurrent_close_tests`, `slice90_close_review_tests`,
-`slice90_post_probe_real_error_tests`, and `tests`. They are test containers,
+`slice90_post_probe_real_error_tests`, `visibility_admission_tests`,
+`visibility_coalescing_tests`, and `tests`. They are test containers,
 not production owner methods. The public `D27Observation`,
 `MEAN_VEC_PIN_THRESHOLD`, `RowKind`, mean test internals, and the other moved
 public types/functions retain their root re-export paths. The three D27
@@ -130,3 +131,9 @@ tracks this composition-only update.
 guard, represented by the two physical-cleanup fields above. It retains the root
 facade methods and exact storage inventory; the current blob includes those
 changes and the new private cleanup modules.
+
+0.8.28 Slice 95 replaces the private native trigger guard import with the
+transaction-owned visibility guard, adds the two private visibility test
+containers above, and advances the current-format composition fixture to 37.
+The whole-file blob above tracks that composition; the 46 storage fields,
+root item closure and production ownership assertions remain unchanged.

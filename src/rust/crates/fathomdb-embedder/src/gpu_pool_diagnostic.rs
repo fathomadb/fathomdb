@@ -26,7 +26,9 @@ struct Diagnostic {
 }
 
 impl Diagnostic {
-    fn forward_completed(&mut self, _dimension: usize) {}
+    fn forward_completed(&mut self, dimension: usize) {
+        self.forward_dimension = Some(dimension);
+    }
 }
 
 pub(super) fn run_optional<D, V>(
@@ -250,6 +252,10 @@ mod hardware {
             }
         }
 
+        pub(crate) fn forward_completed(&mut self, dimension: usize) {
+            self.record.forward_completed(dimension);
+        }
+
         pub(crate) fn finish<V>(&mut self, verdict: V) -> V {
             self.original_verdict_reached = true;
             match self.probe.as_mut() {
@@ -276,6 +282,7 @@ mod hardware {
                 "identity":self.identity,"sampling":"sequential non-atomic; original global then USED/RESERVED/global",
                 "v1":v1,"v1_samples":self.v1_samples,"samples":samples,"errors":self.record.errors,
                 "original_verdict_reached":self.original_verdict_reached,
+                "embedded_vector_dim":self.record.forward_dimension,
                 "control_request_bytes":CONTROL_BYTES,"control_valid":self.record.control_valid,
                 "diagnostic_valid":self.original_verdict_reached && self.identity.is_some() && self.record.control_valid && self.record.errors.is_empty(),
                 "exclusivity":"external single-open driver attestation required; not enforced by runtime",

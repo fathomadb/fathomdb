@@ -15,6 +15,7 @@ bash dev/experiments/tegra-pool-diagnostic/run.sh "$CONSUMER" "$NEW_EVIDENCE_DIR
 Use the pinned Node 25.9.0 environment. The runner preserves the child PID, exact
 command, row source hash, stdout/stderr, row JSON and original exit status. A v1
 failure can therefore leave a useful diagnostic while the runner still exits 1.
+INT/TERM forwards to and waits for only the owned consumer, retaining partial logs.
 Do not retry it to obtain a pass.
 
 The controlled window is the single awaited `Engine.open`. The driver launches no
@@ -27,7 +28,8 @@ The private `FATHOMDB_GPU_POOL_DIAGNOSTIC=1` switch is effective only inside an
 already requested CUDA allocation witness. Other values leave it off. It emits one
 `fathomdb-tegra-pool-diagnostic` stderr line with the distinct
 `fathomdb.tegra-gpu-pool-diagnostic/v1` JSON schema, including original v1 outcomes
-and partial failure observations. It adds no OpenReport or SDK field. Opt-out
+and partial failure observations. A successful forward dimension is retained even
+when the original v1 delta verdict fails. It adds no OpenReport or SDK field. Opt-out
 performs no extra probe, control or diagnostic output.
 
 The session holds the actual witnessed stream, context and private pool once. Its
@@ -49,3 +51,9 @@ the counter proposal. Only a verified same-pool model USED increase of at least 
 plus the live/released control and external exclusivity attestation can support
 reviewing a successor design. RESERVED/high-water/global values cannot substitute
 for USED; this tool does not adopt a successor method or make an acceptance claim.
+
+Focused process checks use a fake Node executable and never import a GPU package:
+
+```sh
+python3 dev/experiments/tegra-pool-diagnostic/test_runner.py
+```

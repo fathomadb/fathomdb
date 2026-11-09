@@ -23,9 +23,22 @@ set +e
   node "$row" diagnostic embed cuda:0 "$evidence/row.json" "$evidence/db") \
   > "$evidence/stdout.log" 2> "$evidence/stderr.log" &
 pid=$!
+interrupt_signal=
+finish_owned_child() {
+  if [ -n "$interrupt_signal" ]; then
+    trap '' INT TERM
+  fi
+  if [ -n "$interrupt_signal" ] && kill -0 "$pid" 2>/dev/null; then
+    if ! kill -s "$interrupt_signal" "$pid" 2>/dev/null; then
+      printf 'owned consumer exited before signal delivery\n' >&2
+    fi
+  fi
+  wait "$pid"
+  local status=$?
+  printf '%s\n' "$status" > "$evidence/exit.txt"
+  exit "$status"
+}
+trap 'interrupt_signal=INT; finish_owned_child' INT
+trap 'interrupt_signal=TERM; finish_owned_child' TERM
 printf '%s\n' "$pid" > "$evidence/pid.txt"
-wait "$pid"
-status=$?
-set -e
-printf '%s\n' "$status" > "$evidence/exit.txt"
-exit "$status"
+finish_owned_child

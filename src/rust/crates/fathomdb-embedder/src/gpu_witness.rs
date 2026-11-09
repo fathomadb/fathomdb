@@ -975,6 +975,10 @@ fn run_default_embedder_allocation_witness_inner(
         .map(|vector| vector.len())
         .map_err(|error| GpuWitnessError::ProbeFailed { message: format!("{error:?}") })?;
 
+    if let Some(diagnostic) = diagnostic.as_deref_mut() {
+        diagnostic.forward_completed(dimension);
+    }
+
     let verdict = evaluate_allocation_witness(AllocationWitnessInputs {
         requested_ordinal: config.ordinal,
         effective_device: EffectiveEmbedDevice::Cuda(info),

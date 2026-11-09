@@ -646,3 +646,14 @@ no repeat permission request is needed once satisfied. Clarification of whether
 hosted CPU/macOS qualification is also forbidden is pending. Until then dispatch
 no hosted work, and infer no platform waiver. Complete independent local work
 and keep the remaining platform/CI/rehearsal requirement explicitly open.
+
+### Local platform execution follow-up
+
+The existing native consumer route now passes locally for Linux x64, Linux
+ARM64 and Windows x64; Windows WAL and Tegra Python/Node controls pass too.
+Separate x64 embed/rerank package rehearsals pass, including actual CUDA
+reranker forwards. Retain the corrected CLI coordinate attempt and original
+exit1; no helper guard changed. Export-only Cargo jobs2 bounds compilation.
+The five-platform requirement is unchanged: both Mac rows/collector and genuine
+non-Tegra ARM driverless control remain. Await executor-scope clarification
+before hosted dispatch; local helper proof is not trusted-workflow provenance.

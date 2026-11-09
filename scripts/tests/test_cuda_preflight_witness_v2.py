@@ -83,15 +83,34 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as directory:
         tmp = Path(directory)
         valid = tmp / "valid"
-        shutil.copytree(FIXTURES / "valid", valid)
-        regenerated = tmp / "regenerated"
-        make_valid(regenerated, REPO)
-        assert {
-            path.relative_to(valid): path.read_bytes() for path in sorted(valid.rglob("*")) if path.is_file()
-        } == {
-            path.relative_to(regenerated): path.read_bytes()
-            for path in sorted(regenerated.rglob("*")) if path.is_file()
-        }, "committed valid fixture is not deterministic"
+        # Frozen v1 envelope bytes remain historical inputs and must now refuse.
+        historical_result = run(FIXTURES / "valid")
+        assert historical_result.returncode != 0, "accepted a historical v1 allocation witness"
+        make_valid(valid, REPO)
+        current = json.loads(
+            (REPO / "scripts/tests/fixtures/tegra-gpu-witness/v2/global-free.json").read_bytes()
+        )
+        assert set(current) == {
+            "schema", "process_id", "device_integrated", "device_ordinal_requested",
+            "device_ordinal_actual", "device_uuid", "device_name", "compute_capability",
+            "free_before_bytes", "free_after_bytes", "total_bytes", "delta_bytes",
+            "delta_floor_bytes", "embedded_vector_dim", "measurement",
+        }
+        measurement = current["measurement"]
+        assert set(measurement) == {
+            "kind", "control_allocation_request_bytes", "control_block_count",
+            "control_free_before_bytes", "control_free_after_bytes", "control_delta_bytes",
+            "sole_gpu_consumer_precondition",
+        }
+        assert current["schema"] == "fathomdb.tegra-gpu-allocation-witness/v2"
+        assert current["device_integrated"] is False and current["process_id"] == 4242
+        assert current["delta_bytes"] == current["free_before_bytes"] - current["free_after_bytes"] == 200_000_000
+        assert measurement["control_delta_bytes"] == measurement["control_free_before_bytes"] - measurement["control_free_after_bytes"] == 300_000_000
+        assert measurement["kind"] == "global_free" and measurement["control_block_count"] == 1
+        assert measurement["control_allocation_request_bytes"] == 268_435_456
+        for consumer in ("python", "napi"):
+            observed = json.loads((valid / f"gpu-{consumer}-cuda-witness.json").read_bytes())
+            assert observed["allocation_witness"] == current
 
         legacy = tmp / "legacy-no-allocation-witness"
         shutil.copytree(valid, legacy)
@@ -107,6 +126,34 @@ def main() -> None:
 
         result = run(valid)
         assert result.returncode == 0, result.stderr
+
+        mutations = (
+            ("zero model delta", lambda w: w.update(free_after_bytes=w["free_before_bytes"], delta_bytes=0)),
+            ("negative model delta", lambda w: w.update(free_after_bytes=w["free_before_bytes"] + 1, delta_bytes=-1)),
+            ("below floor", lambda w: w.update(free_after_bytes=w["free_before_bytes"] - 1024, delta_bytes=1024)),
+            ("weak floor", lambda w: w.update(delta_floor_bytes=1024)),
+            ("global arithmetic", lambda w: w.update(delta_bytes=w["delta_bytes"] + 1)),
+            ("missing control", lambda w: w["measurement"].pop("control_delta_bytes")),
+            ("unobserved control", lambda w: w["measurement"].update(control_free_after_bytes=41_999_999_999, control_delta_bytes=1)),
+            ("false control delta", lambda w: w["measurement"].update(control_delta_bytes=1)),
+            ("zero blocks", lambda w: w["measurement"].update(control_block_count=0)),
+            ("too many blocks", lambda w: w["measurement"].update(control_block_count=17)),
+            ("zero request", lambda w: w["measurement"].update(control_allocation_request_bytes=0)),
+            ("wrong precondition", lambda w: w["measurement"].update(sole_gpu_consumer_precondition="fine")),
+            ("wrong PID", lambda w: w.update(process_id=4243)),
+            ("wrong forward", lambda w: w.update(embedded_vector_dim=383)),
+            ("wrong hardware", lambda w: w.update(device_integrated=True)),
+            ("mixed fields", lambda w: w["measurement"].update(used_before_bytes=0)),
+            ("wrong method", lambda w: w["measurement"].update(kind="private_pool_used")),
+        )
+        for consumer in ("python", "napi"):
+            for index, (label, mutation) in enumerate(mutations):
+                broken = tmp / f"allocation-{consumer}-{index}"
+                shutil.copytree(valid, broken)
+                record_name = f"gpu-{consumer}-cuda-witness.json"
+                rewrite(broken / record_name, lambda observation: mutation(observation["allocation_witness"]))
+                reseal(broken, record_name)
+                reject(broken, f"{consumer} {label}")
 
         # Tegra's NVIDIA-SMI omits `GPU-`, though it identifies the same
         # driver UUID as the in-process and selected-device records.

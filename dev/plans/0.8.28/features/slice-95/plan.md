@@ -657,3 +657,35 @@ exit1; no helper guard changed. Export-only Cargo jobs2 bounds compilation.
 The five-platform requirement is unchanged: both Mac rows/collector and genuine
 non-Tegra ARM driverless control remain. Await executor-scope clarification
 before hosted dispatch; local helper proof is not trusted-workflow provenance.
+
+### CI20: witnessed completion and retained Tegra failure evidence
+
+Changes since the local baseline: the owner approved hosted CPU/macOS on
+2026-11-09, with every GPU workload local and publication held. Full manual
+CI42621641800 qualifies reviewed3f80; Tegra42621714744 failed its forced Node
+allocation witness with delta-371355648 against unchanged67108864 floor.
+The real forward and preceding control completed; this is not proof of CPU
+fallback, a broken allocator, or an invalid environment. Preserve that failure.
+Runner diagnostics prove `_temp` was cleaned two seconds after the verdict;
+success-only payload staging/upload retained none of its detailed rows.
+
+The as-built pinned backend issues asynchronous uploads, but the witness takes
+its post-load sample without a completion barrier. Repair that ordering seam
+with deterministic RED/GREEN completion/error cases, then qualify the affected
+GPU artifacts. A barrier does not explain the original negative delta or make
+shared Tegra memory attributable; the accepted private-pool ADR's limitation
+remains. Keep the64MiB floor, touched resident control, identity checks, real
+forward and fail-closed errors. Do not reorder rows, sleep, clamp or retry to
+manufacture a pass.
+
+Keep detailed evidence in an invocation-owned directory beside `_temp`, so
+normal runner cleanup cannot erase a failure. Retain the existing single
+allowlisted distribution upload and publication controls; do not upload raw
+consumer databases, caches or extra diagnostics. Add an executable allocation
+step fixture that simulates runner temp cleanup and requires evidence survival.
+Only new task-owned evidence paths may be cleaned at final closure.
+
+Astra reviews design/code and a separate verifier checks ordering, errors,
+retention and real GPU/package results. Use focused qualification for these
+findings; unchanged CPU gates remain bound to their actual CI SHA and explicit
+relevant-input comparisons. Do not relabel a later source as the prior CI run.

@@ -700,3 +700,37 @@ execution in that route. Environment approval is granted only when execution
 uses the authorized local machines. The extent of the condition over hosted CPU
 jobs is pending clarification; no hosted dispatch or implicit Mac waiver is
 part of current execution. Keep the exact remaining proof obligations visible.
+
+## CI20: complete device work before sampling and preserve failed rows
+
+The2026-11-09 hosted CPU/macOS approval resolves the earlier execution-location
+question; GPU work remains local. Tegra42621714744 failed closed at source3f80
+with allocation delta-371355648. It completed the real forward; no CPU fallback
+or environmental waiver follows. Detailed failed rows were lost when the runner
+cleaned `_temp` after the job. The negative delta's cause remains unproven.
+
+Two bounded corrections are required. Before the existing post-load memory
+sample, require successful completion on the same witnessed CUDA context.
+Map completion failure through the existing typed driver-error path and do not
+sample afterwards. Keep the control allocations resident through this bracket;
+the ordinal/UUID,64MiB floor, real forward and existing counter verdict remain.
+Use a private seam with deterministic queued-allocation and completion-error
+RED/GREEN cases; expose no new public API or telemetry schema. Synchronization
+repairs an ordering guarantee, not the shared-counter limitation documented by
+the private-pool ADR. A failed attributable witness stays a failure.
+
+Allocate the workflow's invocation-owned evidence directory in the parent of
+`RUNNER_TEMP`, outside the runner's automatic temp cleanup and outside the Git
+checkout. Refuse stale paths. Keep build virtual environments temporary. An
+executable fixture runs the real allocation step, simulates `_temp` cleanup and
+checks that failed-row evidence survives. Preserve the single allowlisted
+cross-job payload; add no diagnostic upload, package bypass, extra collector,
+retry or broadened path permission. Retained local evidence is cleaned only
+after its artifacts and diagnostics are preserved and verified.
+
+The current full CPU CI run is not cancelled or repeated merely for diagnosis.
+After the repair, prove unaffected CPU behavior from conditional compilation and
+exact input comparisons, run the affected tests/GPU/package lane on the new
+source, and retain both sources explicitly. If that comparison cannot support
+reuse, the affected qualification is refreshed; no new-head CI-green claim is
+inferred from the old run. Publication remains held.

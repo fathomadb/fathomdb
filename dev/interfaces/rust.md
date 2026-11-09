@@ -434,11 +434,11 @@ artifact's own process. The contract is
 `ADR-0.8.28-attributable-cuda-allocation-witness.md`; historical v1 records remain
 historical and are refused by current verifiers.
 
-`None` means no witness was requested. `FATHOMDB_GPU_ALLOCATION_WITNESS=1`
+`None` means no witness was taken. `FATHOMDB_GPU_ALLOCATION_WITNESS=1`
 (or `true`) requests it for a CUDA-selected default embedder. An unavailable or
-failed requested witness fails `Engine::open` with `EngineOpenError::Embedder`
+failed requested default-embedder witness fails `Engine::open` with `EngineOpenError::Embedder`
 and a named witness tag; it never degrades to `None`. Unrecognized opt-in values
-remain open errors. Normal opens do not perform this measurement. Witnessing
+are errors on that default-embedder path. Normal opens do not perform this measurement. Witnessing
 loads a second model and performs the selected method's deliberate control.
 
 Common fields are `process_id`, `device_integrated`, requested/actual ordinals,

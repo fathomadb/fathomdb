@@ -455,16 +455,6 @@ impl PyDeviceResolution {
     }
 }
 
-/// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
-/// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in this
-/// process by the artifact under test.
-///
-/// Every number the verdict used is carried, so a reader re-derives the
-/// verdict instead of trusting it: the raw free-memory samples bracketing the
-/// model load, the declared floor they were judged against, and the deliberate
-/// control allocation that proves the shared iGPU counter was live and
-/// attributable at the time. Byte counts are exact Python ints — the deltas
-/// are `i128` in the core and are not narrowed here.
 /// Discrete-device global counter and raw control.
 #[pyclass(
     module = "fathomdb._fathomdb",

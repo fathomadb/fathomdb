@@ -225,9 +225,9 @@ delivery at call entry. No binding heartbeat timer or operation ID is emitted.
 `ADR-0.8.28-attributable-cuda-allocation-witness.md`; current verifiers reject
 historical v1 records without rewriting them.
 
-`null` means no witness was requested. The existing
+`null` means no witness was taken. The existing
 `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) opts a CUDA-selected default
-embedder into an in-process witness. A requested witness failure fails the open
+embedder into an in-process witness. A requested default-embedder witness failure fails the open
 with its named failure, including `unsupported_allocation_method`; it never
 becomes `null`. Ordinary opens do not incur its second model load/control.
 

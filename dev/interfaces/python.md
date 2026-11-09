@@ -228,9 +228,9 @@ helper; see `ADR-0.8.27-python-subscriber-delivery`.
 `ADR-0.8.28-attributable-cuda-allocation-witness.md`; current verifiers reject
 historical v1 records without rewriting them.
 
-`None` means no witness was requested. The existing
+`None` means no witness was taken. The existing
 `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) opts a CUDA-selected default
-embedder into an in-process witness. A requested witness failure fails the open
+embedder into an in-process witness. A requested default-embedder witness failure fails the open
 with its named failure, including `unsupported_allocation_method`; it never
 becomes `None`. Ordinary opens do not incur its second model load/control.
 

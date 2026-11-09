@@ -347,16 +347,6 @@ impl EmbedderDeviceResolution {
     }
 }
 
-/// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
-/// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in the
-/// artifact's own process.
-///
-/// Every number the verdict used is carried, so a reader re-derives the
-/// verdict instead of trusting it: the raw free-memory samples that bracket
-/// the model load, the declared floor they were judged against, and the
-/// deliberate control allocation that proves the shared iGPU counter was live
-/// and attributable at the time. Dropping any of them would leave a consumer
-/// able to report a pass it cannot check.
 /// Discrete-device global counter and raw control.
 #[napi(object)]
 pub struct GpuGlobalFreeMeasurement {

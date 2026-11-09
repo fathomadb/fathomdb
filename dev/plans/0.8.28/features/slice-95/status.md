@@ -131,7 +131,15 @@ counts. Corpus_graph now passes its unchanged 1/1 rerun after verified input sta
 stale generated contributor-map hash and now pass their affected reruns. Verified
 corpus copies are staged for the existing local corpus route, with acquisition
 limitations unchanged. TC5 inputs are independently verified; parser final-version
-support has Astra approval and 22/22 independent passes but is not yet integrated.
+support has Astra approval and 22/22 independent passes and is integrated at `48345c193`; its canonical recheck also passes 22/22.
 Mechanical local Axis W is now 0.8.28; lockstep checks and the unchanged Axis-E
 0.8.0 guard pass. No artifact or release-workflow pass follows from that metadata.
 No new Actions run has been dispatched while local qualification is incomplete.
+
+Astra approved focused CI18–19 corrections: real current-schema rollback fixture,
+format37 refusal expectations and quiet idle-probe admission. The latter has an
+observed contention RED and reviewed GREEN; remaining targeted verification is
+pending. Current wheel evidence also has a reproduced stale supported34 assertion;
+its bounded format37 producer/verifier and .28-aware manifest correction is planned
+without changing historical .26 receipts. Local versioned release preflight at
+`48345c193` passes; full local rehearsal and final artifact qualification remain.

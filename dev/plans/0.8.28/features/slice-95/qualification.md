@@ -75,7 +75,7 @@ and symlink verified before reclaiming its original duplicate. Its logical path
 remains unchanged through a symlink; relocation receipt records identities.
 No shared cache was deleted. That cold volume is now absent; preserve the
 original target/debug symlink and use checkout-owned target/s95-canonical-target
-on NVMe for current qualification. The current checkout owns Python3.13 tools
+on NVMe for current qualification. The current checkout owns Python3.12.3 tools
 and Node25.9. Never run timing concurrently with builds.
 
 The standing Windows VM's old registration expired. Its original persistent

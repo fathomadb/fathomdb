@@ -577,3 +577,35 @@ fixture is explicitly replaced before RED freeze; retain historical success,
 reject 0.8.26/0.8.29 and malformed non-string values. Observed RED `b04c8268b`
 preceded frozen GREEN `1bfabf2b2`; Astra approved code and a separate verifier
 passed all 22 parser tests. This is parser readiness, not final fidelity proof.
+
+### CI18–19: focused final qualification corrections
+
+Astra reviewed the seven original Rust-target failures. Restoring verified raw
+inputs resolves corpus_graph without a source change. Current-format oracles
+must explicitly align to the accepted 37 boundary: retain old 32/34/36, future38
+and negative signed CLI refusals; preserve the binding seen33/error/immutability
+checks while updating supported37; retain policy and root-owner assertions.
+The physical transaction fixture must bootstrap a real current database, enter
+its callback and insert a deferred-invalid child before testing actual failed
+COMMIT, rollback to zero rows, autocommit and successful retry. Never weaken the
+production visibility admission to accommodate a bare test fixture.
+
+The remaining profiling defect is an idle maintenance admission query exposed
+outside the existing internal-probe suppression. Require deterministic observed
+RED under primary contention and a foreground-positive control; GREEN wraps only
+the initial writer acquisition in that existing suppression. Preserve later
+cleanup telemetry, guards and error behavior, and the original configuration
+exact-count test. Astra reviews code; independent verification reruns affected
+targets and worker controls, without restarting the full206 collection.
+
+Installed-package preflight also finds maintained scripts expecting supported
+format34. The existing real format37 native runtime reproduces the old producer
+assertion failure; this is diagnostic evidence, not final installed-artifact
+qualification. Align only the current wheel producer/verifier to37. The downstream
+candidate-manifest validator must require37 for Axis W0.8.28 while preserving its
+historical34 behavior and frozen .26/Slice65 receipts. First observe downstream
+.28/37 acceptance RED and .28/34 rejection RED, then GREEN with frozen tests.
+Keep seen33 refusal, file immutability, evidence rows, hashes and public retrieval
+assertions unchanged. Scope is the three maintained scripts and two existing
+fixtures, followed by their targeted checks and final real .28 artifact profile.
+No TS/workflow, engine policy or historical receipt rewrite is allocated.

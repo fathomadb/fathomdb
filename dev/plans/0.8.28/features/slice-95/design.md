@@ -651,3 +651,29 @@ release rehearsal. The latter still requires main ancestry even though the
 lower nonpublishing gate exempts it. Main pushes can automatically deploy Pages;
 no main push, tag or registry/Pages publication is part of this preparation.
 Do not dispatch an expensive rehearsal that cannot satisfy its prerequisites.
+
+## CI18–19: final qualification corrections
+
+Astra approved two bounded corrections after the full collection. The physical
+transaction fixture lacked the newly required visibility state and never reached
+its first callback. Bootstrap the real current schema and prove callback entry,
+one inserted child, failed deferred COMMIT, zero retained children, autocommit
+and retry. Keep the production guard unchanged. Approved format37 test/inventory
+amendments preserve old/future/signed refusals and the fixed root-owner inventory.
+
+The idle worker can find the primary connection contended, then acquire it through
+`physical_metrics::writer`; its new admission SELECT dispatches a profile before
+the existing quiet debt check. Put only this initial writer acquisition inside
+`internal_debt_probe`. A deterministic contention/priority transition regression
+must first observe the extra profile and then pass unchanged with zero idle
+profiles and positive foreground dispatch. Finalizing acquisition, actual cleanup,
+errors, nested suppression and existing exact-profile controls stay intact.
+
+Package-evidence format expectations are separate from DB compatibility. Current
+wheel scripts must assert supported37 when refusing seen33. Candidate-manifest
+validation takes its existing assembly Axis W: .28 requires37; other historical
+axes retain the existing34 expectation. Frozen .26/Slice65 records stay unchanged.
+Astra approved this bounded special case rather than a new version-policy layer.
+Observe .28/37 positive and .28/34 negative REDs before GREEN; retain independent
+native-receipt, wheel-harness and unchanged Slice65 controls. Final installed .28
+wheel execution is required separately from the existing-native diagnostic RED.

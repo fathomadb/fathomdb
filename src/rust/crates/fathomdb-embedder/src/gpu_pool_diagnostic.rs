@@ -22,6 +22,11 @@ struct Diagnostic {
     samples: Vec<(&'static str, Sample)>,
     errors: Vec<String>,
     control_valid: bool,
+    forward_dimension: Option<usize>,
+}
+
+impl Diagnostic {
+    fn forward_completed(&mut self, _dimension: usize) {}
 }
 
 pub(super) fn run_optional<D, V>(
@@ -389,6 +394,18 @@ mod tests {
                 if self.fail == "release" { self.release_bytes + 1 } else { self.release_bytes };
             Ok(())
         }
+    }
+
+    #[test]
+    fn successful_forward_dimension_survives_original_v1_failure() {
+        let mut diagnostic = Diagnostic::default();
+        assert_eq!(diagnostic.forward_dimension, None);
+        diagnostic.forward_completed(384);
+        let mut pool = QueuedPool::new("");
+        let verdict: Result<(), &str> =
+            after_verdict(&mut diagnostic, &mut pool, Err("insufficient_delta"));
+        assert_eq!(verdict, Err("insufficient_delta"));
+        assert_eq!(diagnostic.forward_dimension, Some(384));
     }
 
     #[test]

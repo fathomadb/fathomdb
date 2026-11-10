@@ -63,9 +63,8 @@ direct mandate is not a blanket approval for those actions.
 
 ## Current work
 
-Slice0 proposal outputs completed with Astra-medium plan and final-output PASS;
-the [local review](prework/slice-0/review-log.md) records evidence and tooling
-limits. Fresh Sol-high owners `slice_1_direct` and `slice_2_direct` are reconciling
-independent proposal scopes against that predecessor output. Phase results live
-with their slices; valid release-state/board ownership begins in10 as already
-planned. This method file is not a second release ladder.
+Slices0,1,2 proposal outputs completed with independent Astra-medium plan and
+fresh final-output PASS; their local review logs retain evidence and tooling
+limits. Slice6 is in fresh final-output review; Slice7 is reconciling delivery
+controls. Successor owners must read these actual outputs. Valid release-state/
+board ownership begins in10 as planned. This method file is not a second ladder.

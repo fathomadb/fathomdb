@@ -1,115 +1,148 @@
 ---
 title: 0.8.29 Slice 2 — repository cruft disposition proposals
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.29
 slice: 2
 ---
 
 # Slice 2 — repository cruft disposition proposals
 
-## Goal, maturity and boundary
+## Completion
 
-Produce an evidence-backed keep/deprecate-in-place/archive/delete register for Slice 9.
-This is proposal work: no cleanup, Git mutation, contract changes, source/test fixes or ledger writes.
-Baseline inspected: `6edc1155f039f87cd0a37660cb27ae4373bbce71`, branch `llm/0.8.29-chat`, schema constant 37.
-Repository paths and representative content were inspected; a complete file-by-file census remains slice work.
-The [brief](../../planning-brief.md), [reconciliation proposal](../../reconciliation-plan.md) and
-[release plan](../../../plan-0.8.29.md) control scope; existing parent edits are not cleanup candidates.
-Preserve implemented MCP, queue, Block 1, B2-2/3 and partial B2-6 signals regardless of branch ancestry.
+Proposal complete after independent Astra-medium design and final-output PASS.
+See [review log](review-log.md) for terminal responses and validation limits.
+The phase records below retain their inspection-time evidence; they do not
+claim cleanup or product/environment qualification.
 
-## Current checkpoint disposition
+## Goal, authority and phase history
 
-November 10 owner ruling: **keep the query scaffold for now**. This supersedes
-the conditional deletion candidate in the original draft below. No query-test
-retirement or associated instruction cleanup is selected for Slice10.
+Produce a bounded, content-backed inventory and keep/deprecate-in-place/archive/
+delete proposal for release planning. Slice2 executes no cleanup. Current
+recommendation: retain all surveyed paths; selected current-authority corrections
+belong to10, and optional historical annotations remain proposals. There is no
+current deletion or relocation candidate. The query scaffold is kept by the
+November10 Batch2 owner ruling; its earlier deletion recommendation is superseded.
 
-## Sources and slice preparation
+The [master](../../../plan-0.8.29.md) and
+[direct mandate](../../direct-execution.md) control this run. One direct owner
+updates its scope/design first; parent-controlled independent Astra-medium design
+PASS precedes finishing the proposal, then a fresh independent final-output review
+precedes import. No Steward/Orchestrator role, nested agent, generic renewed scope
+confirmation, source/test implementation or environment work belongs here.
+These are finalized proposal outputs after the parent-reported independent
+Astra-medium design PASS with no actionable findings. Fresh final-output review
+and parent import validation remain pending; this is not a completed slice or
+product qualification claim.
 
-Read [agent rules](../../../../../AGENTS.md), [engineering index](../../../../README.md),
-[documentation map](../../../../DOC-INDEX.md), [design lifecycle](../../../../design/document-lifecycle.json),
-[ADR index](../../../../adr/ADR-0.6.0-decision-index.md) and [archive precedent](../../../../archive/README.md).
-Inspect [needs](../../../../needs.md), [requirements](../../../../requirements.md),
-[acceptance](../../../../acceptance.md), [traceability](../../../../traceability.md), maintained interfaces,
-[architecture v2](../../../../design/fathomdb-data-plane-architecture-v2.md), code/tests and public navigation.
-Memory read: `agent-harness-extracted-to-agent-aware.md`, `keep-measurement-tools-in-repo.md`,
-`competitor-benchmark-untracked-register.md`, `acceptance-md-locked-no-feature-acs.md`,
-`verify-design-against-code-not-just-architecture.md`, `disk-cleanup-check-live-scratch.md`.
-These entries exist in the supplied external memory store; verify present facts rather than replay old status.
-Draft `needs.md`: N29-S2-01 find current authority; N29-S2-02 preserve reproducible evidence and consumer contracts.
-Draft `requirements.md`: R29-S2-01 classify every inventoried cohort; R29-S2-02 bind proposals to exact paths/evidence;
-R29-S2-03 record consumers, authority, risk, owner, successor/recovery, execution slice and reversibility.
-Draft `acceptance.md`: A29-S2-01 complete category coverage; A29-S2-02 auditable high-risk dispositions;
-A29-S2-03 no unauthorized mutations. These are release-local proposal IDs, never new canonical AC numbers.
-Draft `design.md`: classify artifact → inspect content/consumers → retain provenance → propose disposition → Slice 9 ruling.
-Architecture reading must distinguish historical snapshots, maintained authority, executable dependencies and publication inputs.
-Hard aspects: historical imperatives resembling current instructions, generated pages, tracked fixtures and ignored evidence.
-Primary-source research is local: Git tracked/ignored inventories, read-vs-write consumers, manifests, lifecycle catalog and nav.
-No external freshness claims or network research are required for this inventory.
+Initial read-only planning baseline was
+`40d82c2e75d1d70fea61f327bf5b2ffcb8a1f479`; final root recheck is
+`850f2c15df1ebf3262f0346e340721f9ff2422ad` after the parent Slice0 import.
+Product baseline is `6edc1155f039f87cd0a37660cb27ae4373bbce71`. The initial tracked delta
+was104 files/97 net new paths; final delta is105 files/98 net new paths,
+including the parent Slice0 review log. These are planning changes, not newly
+audited product files.
+The [inventory](inventory.md) replaces the old pre-planning census. Parent-owned
+Slice0 candidates were first read as proposals; the committed
+[review log](../slice-0/review-log.md) now records both Astra-medium gates PASS
+and completed proposal outputs at850f2c15d. This is proposal closure only: owned
+Markdown tooling remains missing and no environment/source readiness follows.
+No Slice2 checkout write occurred.
 
-## Initial concrete candidate register
+## Settled boundaries and release fit
 
-Each row is a proposal seed; expand it into exact-file entries with evidence and confidence before Slice 9.
-Keep means maintained or retained as identified; deprecate-in-place means qualify authority without relocation.
-Archive means preserve bytes/provenance with an explicit historical classification; moves require a reviewed destination map.
-Delete requires affirmative nonfunctional/redundant evidence and approval, not age, naming or missing merge ancestry.
+[Actual rulings](../slice-9/decision-log.md) already select bounded environment,
+state, contained Rustls/DOMPurify, applicability/package docs, survey and narrow
+route work, plus gated20–90 scope. Keep compact default/B2-8 and built MCP/queue/
+Block1/hints/span signals. Owner seq-368 requires no .29 database migration:
+current substrate is format37; format36 applicability prose is a selected10
+correction, not an upgrade campaign. Owner seq-367 keeps only necessary fork
+repairs and repair-release versioning in140; broader Candle rebase/marker/multiarch
+work is .30 and cannot become a cruft prerequisite. Actual policy, venue, priced
+run, optional experiment and publication decisions retain their own gates.
 
-| ID / area | Observed evidence | Proposed disposition / allocation |
-| --- | --- | --- |
-| C29-02-01 program/docs | `dev/DOC-INDEX.md` still calls .28 plan/state/board active with work remaining; .28 is published in the brief. | Deprecate stale status prose in place; Slice 6 verifies wording, selected correction in 10. Preserve .28 records. |
-| C29-02-02 product needs/requirements/AC | `dev/{needs,requirements}.md` retain locked IDs and .28 format36 applicability; source schema is 37; `dev/acceptance.md` is locked. | Keep traceability and thresholds; send applicability delta to Slice 3. No deletion or canonical edits here. |
-| C29-02-03 architecture | `dev/architecture.md` and architecture v1 already say SUPERSEDED with a v2 successor. | Keep in place as reviewed history; no repeat supersession work or path churn. |
-| C29-02-04 design | `dev/design/document-lifecycle.json` already distinguishes maintained, proposal and historical documents; agent-access work list still describes original defects. | Keep catalog and accepted decisions; propose bounded as-built annotations through Slices 4/6, retain original design/evaluation evidence. |
-| C29-02-05 root recovery plans | `plan-slice-85-recovery.md` says IN_PROGRESS/qualification blocked; review plan says COMPLETE; .27 plan and recovery receipt cite the root plan. | Deprecate execution-state claims in place against .27 final status; keep owner authorization, SHAs and paths. |
-| C29-02-06 root release note | `0.8.23-release-todo.md` is already historical but its banner points to .25 as active. | Keep historical content; qualify only the active-authority pointer through Slice 6/10. |
-| C29-02-07 root question note | `CORPUS-01-supersession-questions.txt` asks for confirmation; committed 2026-08-23 human-review result records both cases insufficient. | Archive candidate with explicit closed-question status and link to retained result; retain unique context, no renewed adjudication. |
-| C29-02-08 notes | `dev/notes/perf-canonical-runner-2026-MM.md` contains real May measurements and .6.1 consumers; `phase9-handoff.md` is dated .6.0 guidance. | Archive-in-place/classify historical; keep measurements and old paths. A placeholder-looking filename does not prove empty content. |
-| C29-02-09 query test | `fathomdb-query/tests/property_template.rs` only asserts `s.clone() == s`; `src/lib.rs` has real token/literal properties. | Delete candidate for 10 if approved: demonstrate retained named properties, check target references and update applicable instruction citations. |
-| C29-02-10 other tests | Engine/schema/Python `property_template` files contain durability/registry invariants; Python `test_scaffold.py` checks cursor advancement. | Keep; do not generalize the query finding by filename. Slice 5 evaluates adequacy, not this inventory. |
-| C29-02-11 source warning scan | MCP hints fields are accepted uniformly; `ToolResult` is used for output schema, with explicit dead-code rationale. | Keep public/schema surface; send any actual warning residual to Slice 20. No source removal by warning grep. |
-| C29-02-12 developer test directories | `test/` and four child READMEs describe shared assets; executable suites also live under `tests/` and package roots. | Keep pending consumer/owner census; propose one accurate routing explanation, not merging/deleting test trees. |
-| C29-02-13 library-consumer docs | Query README says all sub-three-character queries fall back although code retains short content tokens; Python README says no network call while optional weights may download. | Deprecate inaccurate sentences in place via Slice 6 and approved docs preparation; retain package README publication inputs. |
-| C29-02-14 public/contributor docs | MkDocs links worktree consolidation as Operations; page describes a real preservation-first operator tool; generated contributor map names its generator. | Keep tool/page; propose contributor-navigation fit review in 6. Keep generated pages, regenerate from source only in approved phase. |
-| C29-02-15 experiments/program evidence | `dev/performance-benchmarking/README.md` now indexes committed results; historical memory called this untracked. Measurements/tools remain evidence. | Keep register, tools, minimized regressions, failed/rejected receipts and available ignored payloads; inventory availability separately. No bulk prune. |
-| C29-02-16 refs/workspaces | `exp/agent-access*`, `feat/aa-b1-*`, scale experiments, `dev/0.8.30`, backup/recovery refs and many linked worktrees exist. | Keep/preserve; record owners and integration disposition only. No ref/worktree deletion, checkout, or automatic merge. |
+[Needs](needs.md), [requirements](requirements.md) and [acceptance](acceptance.md)
+map this proposal to N29-D/R29-REL-D and canonical release quality/governed-surface
+obligations. No global AC is minted or edited. The source canonical acceptance
+already reaches AC-082d; old memory's AC-073 ceiling is historical. Retain IDs,
+thresholds, supersession pointers and published facts. Slice3 owns semantic CRUD,
+4 source/architecture fit,5 adequacy,6 wording and7 delivery tooling;2 owns
+classification and preservation evidence only.
 
-The [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md) supports retaining meaningful
-boundary/reopen properties and minimized seeds, and consolidating reusable tools; defer broad harness consolidation.
-New evidence revises the old scaffold diagnosis: three templates now hold real properties; only the query template is tautological.
-The [CUDA review contract](../../../../design/cuda-version-support-review.md) is maintained policy, not cruft;
-leave fresh usage collection and policy/artifact proposals with their owning slices.
+## Existing authority and proposed delta
 
-## Work breakdown and deliverables
+[Engineering map](../../../../README.md), [thin map](../../../../DOC-INDEX.md),
+[archive precedent](../../../../archive/README.md),
+[design catalog](../../../../design/document-lifecycle.json),
+[ADR index](../../../../adr/ADR-0.6.0-decision-index.md), canonical needs/
+requirements/acceptance/test-plan/traceability, active architecture v2 and
+maintained interfaces are retained. Superseded architecture snapshots already
+point to v2; frozen `dev/progress/` remains untouched. Generated docs/state views
+stay owned by their generators. Old output filenames can be executable read-inputs.
 
-1. Capture tracked, untracked and ignored path cohorts without reading secrets or copying datasets into planning docs.
-2. Expand the register across program/product/dev/design/notes/source/tests/consumer/developer/public audiences; state excluded cohorts.
-3. For each changed/disposable candidate, inspect inbound links, literal paths, test discovery, generators, manifests and runtime reads.
-4. Separate completed history, obsolete authority, actual unused behavior and unavailable evidence; name competing owners explicitly.
-5. Write `inventory.md`, `dispositions.md`, `needs.md`, `requirements.md`, `acceptance.md`, `design.md`, `research.md`, `test-mapping.md`.
-6. Send scored proposals and newly discovered prerequisites to 9; send semantic truth findings to 3–6 and tooling findings to 7.
-7. Review fit against as-built .29; record proposed revisions and unresolved evidence, without claiming reviewer/HITL acceptance.
+The [disposition register](dispositions.md) records exact surfaces, content,
+consumers, confidence, risk, preservation and receiving owner. It corrects three
+inherited errors: query deletion is no longer a live option; .27 recovery is no
+longer an unresolved final-evidence question; historical benchmark memory does
+not override147 currently tracked benchmark paths. Later .27 Slice90 evidence
+qualifies the recovery comparison while preserving the older85 authority binding.
+Earlier failures and absent raw payloads remain explicit in [research](research.md).
 
-## Dependencies, conflicts and new prerequisites
+## Bounded work and design challenges
 
-Hard: supplied baseline/brief and accessible source; Slice 9 consumes this proposal; execution requires recorded Slice 9 approval then 10.
-No hard implementation dependency on 0/1 or 20–150; exchange findings with 3–7 while prework research proceeds in parallel.
-Preferred: classify first, let 3/4 settle authority and 5 assess tests, then let 6 own audience-specific wording before scoring in 9.
-Single-writer conflicts: DOC-INDEX/detail maps, design lifecycle catalog, interfaces, MkDocs nav and generated public pages.
-New prerequisite NP-S2-01: a consumer/read-input proof per proposed deletion or move; archive precedent records two pruned JSON inputs later restored.
-New prerequisite NP-S2-02: reconcile the .27 root recovery records to final evidence before changing their current-status qualification.
-New prerequisite NP-S2-03: verify query test discovery, retained property names and AGENTS citations before approving its deletion.
-Conditional: any later ref retirement needs separately authorized preservation/owner-map evidence; this slice creates no retirement manifest.
-Do not touch shared caches, symlinks, live scratch or worktrees; environments and installations belong to approved Slice 10 preparation.
+1. Reconcile the current tracked census and sampled cohorts across program,
+   product/contracts, development, architecture/design, code, tests, notes,
+   experiments, public/library-consumer and contributor documentation.
+2. Inspect concrete content and inbound consumers: path links, package readme
+   manifests, Cargo/pytest discovery, runtime schema use, generator reads,
+   navigation, lifecycle and release-state ownership. Search absence alone never
+   proves non-use, especially outside the local checkout.
+3. Separate obsolete authority from completed/negative historical evidence,
+   meaningful tests from names, published delivery from current readiness, and
+   generated inputs from disposable output. Preserve uncertain consumers.
+4. Reconcile selected10 rows with3–7 and record optional historical annotations
+   separately. No duplicate code fixes, broad cleanup, new authority or disk
+   reclamation promise follows this inventory.
+5. After design PASS, finish/validate the nine full documents, obtain fresh
+   output review and give the parent exact files and scoped-check obligations.
 
-## Validation, independent review and completion signals
+[Design](design.md) specifies classification and consumer proof;
+[test mapping](test-mapping.md) specifies falsifiable proposal checks.
+Read verified external memory: `verify-design-against-code-not-just-architecture.md`,
+`acceptance-md-locked-no-feature-acs.md`, `keep-measurement-tools-in-repo.md`,
+`agent-harness-extracted-to-agent-aware.md`,
+`competitor-benchmark-untracked-register.md`, `disk-cleanup-check-live-scratch.md`,
+`physical-erasure-done-defects-only.md` and
+`dont-price-a-confirming-run-for-a-settled-decision.md` in the canonical memory
+store indexed by `/home/coreyt/.claude/projects/-home-coreyt-projects-fathomdb/memory/MEMORY.md`.
+Current files qualify historical memory observations; no new ledger work occurs.
 
-A29-S2-01 passes only if every requested audience/category has a named cohort, sampled evidence, proposed owner and explicit coverage limit.
-A29-S2-02 passes only if every delete/move candidate has exact paths, consumers, retention/recovery, risks and a decision dependency;
-any unresolved consumer forces keep/pending, with a concrete investigation rather than a guessed safe deletion.
-A29-S2-03 passes only if checkout/Git/environment/ledger mutations attributable to this draft are absent; the isolated draft is the only write.
-Independently review the register adversarially for lost evidence, generated inputs, public contracts and already-completed cleanup.
-Proposal completion requires local N→R→A→artifact/review mapping, no unresolved high-risk disposition presented as approved, and Slice 9 intake.
-After parent import, run scoped Markdown validation and link checks; no product test execution or workspace-green claim is required here.
-Later approved behavior/script changes require visible failing tests before fixes and the full source gate; docs use scoped validators.
-For the no-op test deletion, preserve substantive property assertions and demonstrate retained discovery; do not invent a failing product test.
-Stop for owner decisions on destructive scope, canonical authority changes, evidence loss or unresolved semantics; record options for Slice 9.
-Open: whether the query deletion, root-note archival and contributor-nav change justify maintenance cost; no ruling is presumed.
+The [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
+supports preserving meaningful boundary/reopen properties, failed controls and
+reproducible tools; broad harness consolidation/fuzzing is deferred. The
+[CUDA procedure](../../../../design/cuda-version-support-review.md) and accepted
+policy remain maintained inputs for120;2 does not repeat usage research or claim
+current support/performance/security from old prose. Physical erasure stays done
+except concrete defects; this inventory does not reopen its effort.
+
+## Prerequisites, checks and handoff
+
+Hard inputs: current source, authority/rulings and reviewed proposal.0/1 are not
+completion prerequisites for2 research.9 consumes bounded proposals and disposes
+true unknowns;10 performs already-selected corrections through its review gates.
+No generic old final-acceptance wait overrides the direct mandate. Fresh
+state/dependent preflight and owned tools belong to10/source phases, not2.
+
+NP-S2-01: any future move/delete needs separate authorization, exact destination,
+consumer/read-input proof, provenance and recovery; unknown means keep/pending.
+No such action is selected. NP-S2-02 is resolved for this proposal by .27 Slice90
+final evidence; optional history wording can cite it without rebinding85 or
+rerunning qualification. Former NP-S2-03 query-retirement proof is withdrawn
+because the owner kept that file. No downstream slice depends on retiring it.
+
+Proposal checks cover cohort/consumer evidence, N→R→A mapping, fixed rulings and
+no Slice2 mutation. Documentation-only work needs no fabricated RED/GREEN test.
+Parent runs `scripts/agent-lint-md.sh` after reviewed import with owned tooling;
+`agent-lint-docs.sh`/generator checks apply only if later public docs change.
+No full product gate or install runs for2. Later behavior/script changes retain
+TDD and required source-phase verification in their owning slice. Independent
+reviews and actual check exits remain prerequisites to claiming proposal completion.

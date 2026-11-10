@@ -48,3 +48,36 @@ prefix = "scripts/sbom-survey/"
 action = "tier"
 tier   = "dev-tooling"
 note   = "this tool surveys itself"
+
+[[rule]]
+prefix = "dev/experiments/"
+action = "tier"
+tier = "eval-only"
+
+[[rule]]
+prefix = "experiments/comp_drivers/"
+action = "tier"
+tier = "eval-only"
+
+[[rule]]
+prefix = "experiments/sdk_drivers/"
+action = "tier"
+tier = "eval-only"
+
+[[rule]]
+prefix = "src/rust/crates/fathomdb-tc5-benchmark/Cargo.toml"
+action = "tier"
+tier = "eval-only"
+note = "measurement executable, not a shipped product dependency manifest"
+
+[[rule]]
+prefix = "scripts/tests/fixtures/"
+action = "exclude"
+reason = "fixture"
+note = "intentional guard inputs, including malformed and fake dependency graphs"
+
+[[rule]]
+prefix = "dev/plans/0.8.27/features/slice-135/results/"
+action = "exclude"
+reason = "historical-evidence"
+note = "immutable build provenance, including failed attempts; not the current graph"

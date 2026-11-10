@@ -84,9 +84,11 @@ Engine recovery42737348645 fixes the versioned self dev-dependency with a
 path-only test dependency; real package RED101 became normal package GREEN0,
 with default test-hooks consumer1/1. SDK recovery42738291355 uses the existing
 API token after OIDC403. Both publish source `4b9e9fef89089bef9e03cd788ba4c136a09fcee0`;
-runtime source is unchanged. Native builds were reused. The SDK trusted-publisher
-configuration needs an operator check before the next release; no speculative
-authentication change was made. Astra approved the focused recoveries.
+runtime source is unchanged. Native builds were reused. The absent SDK trusted
+publisher was subsequently configured for `fathomadb/fathomdb` / `release.yml`,
+owner ID315419477, without an environment requirement. Live OIDC-only
+run42750034084 passed with matching identity and35 build/publication jobs skipped;
+the temporary check mode was removed. Astra approved the focused recoveries.
 
 Independent fresh registry Python, Node and Rust SDK consumers pass persisted
 write/read, missing-record controls, separate-process reopen, close and exit.

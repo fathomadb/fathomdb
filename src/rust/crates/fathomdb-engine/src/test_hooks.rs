@@ -699,7 +699,10 @@ pub(crate) mod evidence_linearization_hooks {
 /// Arm the Slice-50 post-ranking, pre-sidecar rendezvous for one evidence search.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
-pub fn arm_evidence_before_sidecar_hook_for_test(hook: Box<dyn Fn() + Send>) {
+pub fn arm_evidence_before_sidecar_hook_for_test(
+    _engine: &crate::Engine,
+    hook: Box<dyn Fn() + Send>,
+) {
     evidence_linearization_hooks::arm_before_sidecar(hook);
 }
 

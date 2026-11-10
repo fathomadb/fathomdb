@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 use std::fs;
-use std::sync::{Arc, Barrier};
+use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 use std::time::Duration;
 
@@ -179,6 +179,120 @@ fn freeze_stable(engine: &Engine, context: &ReadContextV1) -> fathomdb_engine::F
     let mut deterministic = context.clone();
     deterministic.view.valid_as_of.get_or_insert(1_800_000_000);
     engine.freeze_read_context(&deterministic).unwrap()
+}
+
+struct EvidenceHookPause {
+    reached: mpsc::Receiver<()>,
+    release: mpsc::Sender<()>,
+}
+
+fn evidence_hook_pause() -> (EvidenceHookPause, Box<dyn Fn() + Send>) {
+    let (reached_tx, reached) = mpsc::channel();
+    let (release, release_rx) = mpsc::channel();
+    let hook = Box::new(move || {
+        reached_tx.send(()).expect("report evidence hook reached");
+        release_rx
+            .recv_timeout(Duration::from_secs(15))
+            .expect("evidence hook must be released within its bound");
+    });
+    (EvidenceHookPause { reached, release }, hook)
+}
+
+impl EvidenceHookPause {
+    fn wait_ready(&self) {
+        self.reached.recv_timeout(Duration::from_secs(15)).expect("evidence hook reached");
+    }
+
+    fn release(&self) {
+        let _ = self.release.send(());
+    }
+}
+
+impl Drop for EvidenceHookPause {
+    fn drop(&mut self) {
+        self.release();
+    }
+}
+
+struct EvidenceHookWorker<T> {
+    handle: Option<thread::JoinHandle<T>>,
+    release: mpsc::Sender<()>,
+}
+
+impl<T: Send + 'static> EvidenceHookWorker<T> {
+    fn spawn(pause: &EvidenceHookPause, operation: impl FnOnce() -> T + Send + 'static) -> Self {
+        Self { handle: Some(thread::spawn(operation)), release: pause.release.clone() }
+    }
+
+    fn is_finished(&self) -> bool {
+        self.handle.as_ref().unwrap().is_finished()
+    }
+
+    fn join(mut self) -> T {
+        let _ = self.release.send(());
+        self.handle.take().unwrap().join().expect("evidence worker")
+    }
+}
+
+impl<T> Drop for EvidenceHookWorker<T> {
+    fn drop(&mut self) {
+        let _ = self.release.send(());
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+fn evidence_hook_engine(directory: &TempDir, logical: &str, revision: &str) -> Arc<Engine> {
+    let engine =
+        Engine::open(directory.path().join(format!("{logical}{SQLITE_SUFFIX}"))).unwrap().engine;
+    engine.write(&[canonical_named(logical, revision, "hook-v1", logical, "hookneedle")]).unwrap();
+    Arc::new(engine)
+}
+
+#[test]
+fn evidence_sidecar_hook_belongs_to_its_engine() {
+    let first_dir = TempDir::new().unwrap();
+    let second_dir = TempDir::new().unwrap();
+    let first = evidence_hook_engine(&first_dir, "hook-a", "hook-a-r1");
+    let second = evidence_hook_engine(&second_dir, "hook-b", "hook-b-r1");
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let first_request = request("hookneedle", freeze_stable(&first, &context));
+    let second_request = request("hookneedle", freeze_stable(&second, &context));
+    let (fired_tx, fired) = mpsc::channel();
+    arm_evidence_before_sidecar_hook_for_test(
+        &first,
+        Box::new(move || {
+            fired_tx.send(()).unwrap();
+        }),
+    );
+    let unrelated = second.search_with_evidence(&second_request).unwrap();
+    let stolen = fired.try_recv().is_ok();
+    let owned = first.search_with_evidence(&first_request).unwrap();
+    let owner_fired = fired.recv_timeout(Duration::from_millis(100)).is_ok();
+    assert_eq!(unrelated.evidence[0].artifact_revision_id, "hook-b-r1");
+    assert_eq!(owned.evidence[0].artifact_revision_id, "hook-a-r1");
+    assert!(!stolen, "an unrelated engine consumed the owner's sidecar hook");
+    assert!(owner_fired, "the armed engine must reach its own sidecar hook");
+    first.search_with_evidence(&first_request).unwrap();
+    assert!(fired.try_recv().is_err(), "the sidecar hook fires only once");
+
+    let (first_pause, first_hook) = evidence_hook_pause();
+    let (second_pause, second_hook) = evidence_hook_pause();
+    arm_evidence_before_sidecar_hook_for_test(&first, first_hook);
+    arm_evidence_before_sidecar_hook_for_test(&second, second_hook);
+    let first_worker =
+        EvidenceHookWorker::spawn(&first_pause, move || first.search_with_evidence(&first_request));
+    let second_worker = EvidenceHookWorker::spawn(&second_pause, move || {
+        second.search_with_evidence(&second_request)
+    });
+    first_pause.wait_ready();
+    second_pause.wait_ready();
+    first_pause.release();
+    assert_eq!(first_worker.join().unwrap().evidence[0].artifact_revision_id, "hook-a-r1");
+    assert!(!second_worker.is_finished(), "the other engine's pause is still owned");
+    second_pause.release();
+    assert_eq!(second_worker.join().unwrap().evidence[0].artifact_revision_id, "hook-b-r1");
 }
 
 fn assert_unavailable(error: EngineError) {
@@ -1662,19 +1776,15 @@ fn evidence_linearizes_at_sidecar_and_resolver_return_seams() {
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
 
     let frozen = freeze_stable(&engine, &context);
-    let ready = Arc::new(Barrier::new(2));
-    let release = Arc::new(Barrier::new(2));
-    let hook_ready = Arc::clone(&ready);
-    let hook_release = Arc::clone(&release);
-    arm_evidence_before_sidecar_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    let (sidecar_pause, sidecar_hook) = evidence_hook_pause();
+    arm_evidence_before_sidecar_hook_for_test(&engine, sidecar_hook);
     let search_worker = {
         let engine = Arc::clone(&engine);
-        thread::spawn(move || engine.search_with_evidence(&request("linearizationneedle", frozen)))
+        EvidenceHookWorker::spawn(&sidecar_pause, move || {
+            engine.search_with_evidence(&request("linearizationneedle", frozen))
+        })
     };
-    ready.wait();
+    sidecar_pause.wait_ready();
     engine
         .write(&[canonical_named(
             "linear-unrelated",
@@ -1684,8 +1794,8 @@ fn evidence_linearizes_at_sidecar_and_resolver_return_seams() {
             "committed after ranked results",
         )])
         .unwrap();
-    release.wait();
-    let search = search_worker.join().unwrap().unwrap();
+    sidecar_pause.release();
+    let search = search_worker.join().unwrap();
     assert_eq!(search.search_result.results.len(), search.evidence.len());
     assert_eq!(search.evidence[0].artifact_revision_id, "linear-claim-r1");
 

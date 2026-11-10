@@ -27,7 +27,7 @@ trap cleanup EXIT
 if [ ! -x "$HELPER" ]; then
   fail "heavy-only bootstrap exists and is executable"
 else
-  if grep -Fq 'create_venv_with_selected_python .venv' "$HELPER"; then
+  if grep -Fq 'create_venv_with_selected_python .venv' "$REPO_ROOT/scripts/setup-python-owned.sh"; then
     pass "heavy bootstrap uses the canonical checkout-venv selector"
   else
     fail "heavy bootstrap uses the canonical checkout-venv selector"

@@ -5,11 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 mode="${1:---build}"
-case "$mode" in --provision|--build) ;; *) echo 'setup-python-owned: use --provision or --build' >&2; exit 2 ;; esac
+case "$mode" in --check-ownership|--provision|--build) ;; *) echo 'setup-python-owned: use --check-ownership, --provision or --build' >&2; exit 2 ;; esac
 if [ -L .venv ]; then echo 'setup-python-owned: .venv must be owned by this checkout, not a symlink' >&2; exit 1; fi
 if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$repo_root/.venv" ]; then
   echo 'setup-python-owned: foreign VIRTUAL_ENV; use this checkout environment' >&2; exit 1
 fi
+if [ "$mode" = --check-ownership ]; then exit 0; fi
 if [ "$mode" = --provision ] && [ ! -x .venv/bin/python ]; then
   # shellcheck source=lib/agent-python-env.sh
   . "$SCRIPT_DIR/lib/agent-python-env.sh"

@@ -6,8 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_toplevel="$(git rev-parse --show-toplevel)" || exit 1
 cd "$repo_toplevel" || exit 1
 
-# shellcheck source=lib/agent-python-env.sh
-. "$SCRIPT_DIR/lib/agent-python-env.sh"
+bash "$SCRIPT_DIR/setup-python-owned.sh" --check-ownership
 
 if [ ! -f src/python/pyproject.toml ]; then
   echo "bootstrap-heavy: missing src/python/pyproject.toml" >&2
@@ -25,7 +24,6 @@ echo "Installing locked root developer dependencies..."
 npm ci
 
 echo "Installing Python heavy-test and pinned preflight dependencies into .venv..."
-create_venv_with_selected_python .venv
 bash "$SCRIPT_DIR/setup-python-owned.sh" --provision
 .venv/bin/python -c 'import pytest, hypothesis'
 

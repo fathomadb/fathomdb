@@ -41,6 +41,10 @@ set -euo pipefail
 [ "$1 $2" = '-m venv' ] || exit 91
 mkdir -p "$3/bin"; cp "$S10_FAKE_PYTHON" "$3/bin/python"
 PY
+cat > "$work/bin/cargo" <<'SH'
+#!/usr/bin/env bash
+printf 'cargo|%s\n' "$*" >> "$S10_CALLS"
+SH
 cat > "$work/bin/npm" <<'SH'
 #!/usr/bin/env bash
 printf 'npm|%s|%s\n' "$PWD" "$*" >> "$S10_CALLS"
@@ -58,5 +62,12 @@ case "${1:-bootstrap}" in
   test -s "$fixture/.cache/agent/python-native.json"
   echo 'PASS bootstrap installs an owned noneditable wheel'
   ;;
- *) echo 'unknown setup fixture case' >&2; exit 2 ;;
+ stale)
+  mkdir -p "$fixture/.cache/agent"
+  touch "$fixture/.cache/agent/python-installed"
+  (cd "$fixture"; bash "$root/scripts/agent-build.sh")
+  grep -Fq 'python|-m|maturin|build|' "$S10_CALLS" || { echo 'FAIL stale timestamp incorrectly skipped candidate wheel build' >&2; exit 1; }
+  echo 'PASS stale timestamp cannot authorize native reuse'
+  ;;
+ *) echo 'unknown setup fixture case'  >&2; exit 2 ;;
 esac

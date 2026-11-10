@@ -696,8 +696,7 @@ python_receipt_skip_reason="candidate receipt requires a checkout-owned .venv"
 python_receipt_path="$PWD/.cache/0.8.27-python-test-hooks-receipt.json"
 python_receipt_nonce="agent-test-$BASHPID"
 if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [ -d src/python/tests ]; then
-  # TC-27 (0.8.20 Slice 5 fix-6): the editable binding built by the documented
-  # `pip install -e 'src/python[dev]'` has no `test-hooks` surface, so
+  # The installed production binding has no `test-hooks` surface, so
   # `tests/conftest.py` may build a non-editable candidate wheel in disposable
   # scratch and install its extension into this checkout's ignored source path.
   # The repo's sanctioned gate authorizes that operation only when the selected
@@ -705,11 +704,13 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [
   # `python3` — or to any environment that is not ours — we stay
   # silent and conftest degrades to visibly SKIPPING the hook-dependent tests
   # rather than mutating a shared checkout. conftest re-checks venv ownership
-  # and atomically writes a nonce-bound candidate/module/SHA receipt. The generic
-  # loop also skips network-hitting Python model fixtures; the cache-owning
+  # and atomically writes a nonce-bound candidate/module/SHA receipt. Scope the
+  # source path to pytest and its children so all import that same candidate,
+  # rather than the separate installed production wheel. The generic loop also
+  # skips network-hitting Python model fixtures; the cache-owning
   # default-embedder CI job runs those after warming the model cache.
   if [ "$python_bin" = ".venv/bin/python" ]; then
-    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 FATHOMDB_TESTS_RECEIPT="$python_receipt_path" FATHOMDB_TESTS_RECEIPT_NONCE="$python_receipt_nonce" "$python_bin" -m pytest -q src/python/tests)
+    python_suite_command=(env PYTHONPATH="$PWD/src/python" FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 FATHOMDB_TESTS_RECEIPT="$python_receipt_path" FATHOMDB_TESTS_RECEIPT_NONCE="$python_receipt_nonce" "$python_bin" -m pytest -q src/python/tests)
     python_receipt_skip_reason=""
   else
     python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 "$python_bin" -m pytest -q src/python/tests)

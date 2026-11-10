@@ -30,6 +30,8 @@ if sys.version_info < (3,11):
 for path in (venv,root/'node_modules',root/'src/ts/node_modules'):
     if path.exists() and not path.resolve().is_relative_to(root):
         raise SystemExit(f'setup-python-owned: foreign owned path {path}')
+if pathlib.Path(sys.prefix).resolve()!=venv:
+    raise SystemExit('setup-python-owned: interpreter prefix is foreign; refusing package installation')
 config=tomllib.loads((root/'src/python/pyproject.toml').read_text())
 run([python,'-m','pip','--version'])
 if sys.argv[1]=='--provision':

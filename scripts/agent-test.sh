@@ -560,6 +560,7 @@ run_tier_suite fast test-owned-python-bootstrap bash scripts/tests/test_setup_py
 run_tier_suite fast test-owned-python-stale bash scripts/tests/test_setup_python_owned.sh stale
 run_tier_suite fast test-owned-python-missing bash scripts/tests/test_setup_python_owned.sh missing
 run_tier_suite fast test-owned-python-banner bash scripts/tests/test_setup_python_owned.sh banner
+run_tier_suite fast test-owned-python-foreign bash scripts/tests/test_setup_python_owned.sh foreign
 
 # Go-installed actionlint prefixes its exact version with `v`; bootstrap and
 # agent-lint must normalize that conventional form without accepting drift.

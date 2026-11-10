@@ -156,3 +156,57 @@ dependency restriction, threshold, test or parser rule is weakened. Regeneration
 and failed/affected checks precede the new clean freeze; the unexecuted gate
 phases continue afterward, with completed shell lint retained as earlier evidence.
 The first attempt is never reported as a full pass or silently discarded.
+
+## Completed collector and reviewed affected corrections
+
+The clean6eee2e9a66943f94397fac5b9bdc1c7cc330f5d9 continuation completed
+all214 registered suites:212passed,2failed,0suite-skipped,0excluded. Lint, all
+typecheck variants and STRICT security passed; security had0violations,0blockers
+and0downgrades. The two failed suites are retained, never relabeled green:
+
+- test-slice90-root-reconciliation: exact current root inventory expected46 but
+  found48 after the two reviewed cfg test-hook fields. Parent conveyed independent
+  final-reviewer design approval for exactly these two named inventory entries,
+  current48 total, current lib.rs blob2303100aa5363f09f57629864b61a4ffd1553d66,
+  literal structural count46to48 and a dated .29 note. Historical counts, exact
+  field multiset/blob equality and every other assertion/mutant stay unchanged.
+  Only this reviewed amendment is applied after collector completion.
+- test-rust: Cargo exit101 because the exact fathomdb-py --lib executable exited127
+  before tests with missing libpython3.13.so.1.0; all other Rust targets continued.
+  Readelf NEEDED/SONAME and own venv/sysconfig/base-runtime path+hash identities
+  match immutable UV3.13.13. The identical executable45419a05ed279a81bae8e5aa418d43a7d3d3b0b76f02691699e5afe9faf70a99
+  reran with only command-local verified LIBDIR:39passed,0failed,0ignored,exit0.
+  No global loader/config/symlink, borrowed runtime or product change. Its retained
+  stderr includes Could not find platform dependent libraries <exec_prefix>; no
+  suppression or additional environment alteration hides that diagnostic.
+
+Actual collector logs/receipt: task logs/final-gate-continuation.log and
+receipts/final-gate-continuation.json. Retention index final-native-spill-index.json
+links complete Rust65288B, Python5422B and TS57970B logs plus NAPI execution output;
+collector_errors is empty. Original Rust2390-line failure and all suite exits
+remain intact. Loader facts/raw readelf and rerun live in
+receipts/failed-python-rust-loader-identity.json and
+{logs,receipts}/failed-pyo3-exact-rerun.
+
+Inner-suite limits are distinct from registry-level0skips: Python1746passed and
+36skipped with exact reasons; TS625TAPpassed and6TAPskipped, plus15 in-body skip
+markers in the full retained log. They do not prove live-model/network/release-
+surface behavior. Rust original ignore reasons/counts remain in raw output; the
+source-only rust-source-ignore-annotations.json supplement makes no runtime
+selection claim. AGENT_LONG was unset. Tegra-only lint and unconfigured ESLint
+were explicit lint skips; no platform/GPU/publication qualification follows.
+
+Collector resource minima in bytes: root95397928960,taskfs856798765056,
+MemAvailable36065853440; owned task+checkout peak62031249351. No resource stop,
+start/end SHA and empty delta match. One native phase and canonical serial
+Rust jobs1 were preserved.
+
+Only failed/affected checks follow the reviewed inventory correction; the full
+verifier is not broadly repeated. This metadata freeze precedes the final
+source-bound native identity/lifecycle refresh; external receipts identify its
+actual SHA and outcomes without editing during qualification. A3/A5 remain
+unanswered and A6 unqualified. Capacity FIX3 design and core artifact
+0e48dca33c9bbb5c27b7d01f137c7a852f73abec934c62c304d66d20572396db
+received independent static PASS only; bootstrap/compiler/binary/transfer/controls/
+PowerShell and all Windows runtime remain NOT_RUN. Capacity-only owner choice
+is still unanswered; no storage/ACL/guest/compiler action occurred.

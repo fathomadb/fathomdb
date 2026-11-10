@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 4976eb91414296a36ff764a99532e8e961a20fc7
+lib_rs_blob: 2303100aa5363f09f57629864b61a4ffd1553d66
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -67,11 +67,18 @@ The final .28 forward handoff retains its 46-field current inventory and these
 .29 module/type exports, producing the blob above. Root method ownership is
 unchanged.
 
+2026-11-10: 0.8.29 Slice20 moves the evidence sidecar and resolver-return hooks from global
+slots into two engine-owned fields, each gated by
+`any(test, feature = "test-hooks")`. The current textual root inventory therefore
+has 48 fields; ordinary production builds omit these two test controls. Root method
+ownership and production queue semantics are unchanged. The source blob above
+tracks this reviewed ownership repair, not a behavior golden or qualification.
+
 ## Remaining root declarations
 
 | Declaration | Disposition |
 | --- | --- |
-| `Engine` and its 46 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
+| `Engine` and its 48 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
@@ -80,7 +87,7 @@ unchanged.
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
-The exact 46 storage fields are grouped here to prevent a generic
+The exact 48 storage fields are grouped here to prevent a generic
 "remaining state" exemption:
 
 | Storage role | Root field names |
@@ -91,7 +98,7 @@ The exact 46 storage fields are grouped here to prevent a generic
 | Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
 | Embed dispatch state | `runtime_embedder`, `embed_dispatch` |
 | Events and telemetry | `counters`, `subscribers`, `profiling_enabled`, `slow_threshold_ms`, `telemetry`, `telemetry_enabled` |
-| Test controls | `graph_expand_rss_baseline_bytes`, `graph_expand_rss_delta_bytes`, `graph_evidence_before_resolve_return_hook`, `erasure_before_primary_lock_hook`, `force_next_commit_failure`, `actuation_after_initial_lookup_delay_ms`, `actuation_failure_after_operation` |
+| Test controls | `evidence_before_sidecar_hook`, `evidence_before_resolve_return_hook`, `graph_expand_rss_baseline_bytes`, `graph_expand_rss_delta_bytes`, `graph_evidence_before_resolve_return_hook`, `erasure_before_primary_lock_hook`, `force_next_commit_failure`, `actuation_after_initial_lookup_delay_ms`, `actuation_failure_after_operation` |
 
 Root also composes module declarations, imports, and public re-exports. The
 remaining `#[cfg(test)]` modules are `gpu_allocation_witness_opt_in_tests`,

@@ -37,3 +37,12 @@ Paths resolve at the inspected baseline. Bounded
 comments/diagnostics change with their source contract, not an unrelated cleanup.
 Canonical AC052 reconciliation is explicitly allocated by9 to160;10 preserves E and
 records any unresolved canonical mismatch rather than editing locked acceptance.
+
+## Actual implementation receipts
+
+[Execution](execution.md) maps this unchanged task/acceptance scope to actual
+18 RED/GREEN pairs, owned setup/native/resource facts and raw qualification.
+The independent gate addendum binds stale validators to accepted af37/cdd
+authority; it changes no product oracle or protected route. T10-9 remains
+parent-owned final review/integration/closure, with readiness NOT_READY and
+publication HELD. Source preparation does not clear future fault/artifact gates.

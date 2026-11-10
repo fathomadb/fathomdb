@@ -3,7 +3,9 @@
 Stable task IDs match9's receiving scope; execute bootstrap before dependent
 source isolation, then owned setup. Same10 owner implements source in its fresh
 worktree; parent imports metadata serially and creates that isolated worktree,
-then never edits its source. PhaseA executes none of this.
+then never edits its source. PhaseA executed none of this. Actual implementation
+and qualification are in [execution evidence](execution.md); T10-9 parent review,
+integration and closure remain open.
 [Register](preparation-register.md) fixes scope/stops; [tests](test-mapping.md)
 fix meaningful RED signals and selectors.
 

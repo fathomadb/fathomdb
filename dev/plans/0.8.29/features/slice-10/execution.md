@@ -30,6 +30,11 @@ intentionally superseded in the reviewed initial RED, before source changes.
 | Plain marker compatibility |6c2336936 |671d43304 | Valid PEP508 marker string containing --hash incorrectly refused. |
 | Exact protected.29 route |45b1e89a7 |13637c6f4 | Authorized absent.29 tag refused after.28 controls passed. |
 | DOMPurify XHTML hardening |7dda4e6ba |c484a461e | Sanitized output retained SMIL href rewrite attribute. |
+| TC37 repair guidance |e3695902a |14582439e | Existing diagnostic lost required supported bootstrap pointer. |
+| Pytest child candidate |97b5a3385 |e5e43ae17 | Existing child cancellation test imported production native without private rendezvous. |
+| Accepted runner inventory validator |a7d4cf2d6 |3cd44e6d4 | Accepted5 rejected; missing Windows falsely accepted by old4 literal. |
+| Bootstrap venv ordering |92ff7247c |f802bd584 | Both callers mutated foreign venv and invoked installers before refusal. |
+| Bootstrap module ordering |2082030ce |85b5e0b0c | Both callers invoked mutators before module refusal; heavy npm wrote foreign root modules. |
 
 Parent independently reproduced five immutable REDs (bootstrap, timestamp,
 missing env, Pyright notice, exact tag) in separate clean detached proof
@@ -68,8 +73,8 @@ Initial manual maturin invocation from repository root selected wrong package
 metadata (PyInit_fathomdb_py warning); that artifact was not installed or
 qualified. Correct helper invokes maturin from src/python, installs the exact
 wheel noneditable and validates site-packages native origin/digest. The first
-valid receipt is a baseline W0.8.28 setup witness; finalW0.8.29/pin/tree receipts
-must replace it before final qualification. Test-hooks gate remains unchanged:
+valid receipt was a baseline W0.8.28 setup witness; the finalW0.8.29/pin/tree
+receipts below replace it. Test-hooks gate remains unchanged:
 its explicit candidate wheel, checkout ownership, nonce and source/native digest
 controls own any ignored source-package native replacement.
 
@@ -232,3 +237,120 @@ the sanctioned source candidate db577917..., matching the passed parent receipt
 absolute own-checkout PYTHONPATH only to pytest/children. It changes no test,
 conftest, wheel/nonce/digest guard or installed production module; final identity
 proof must compare child path/digest/nonce to the newly qualified parent receipt.
+
+## Final source/component qualification
+
+Code1cc5701697eb93ab91e80fe297484cccd482b596 passed the initial affected
+qualification; independent review then found P1 ownership ordering. Focused fixes
+end at85b5e0b0c2cc29c30ab339a0e662c58851188afe and retain original failures. There was one full
+agent-verify invocation (98fc exit1), followed by scoped resumption; no
+uninterrupted full-green or new all-suite214 collector is claimed. Original
+211-suite collector exited1 with four named failures, all subsequently repaired
+and qualified below; three new validator/ownership registrations ran separately. Final
+registration is214 total/207fast/7heavy, with exact partition/mutation checks.
+
+| Component / source | Actual exit and receipt |
+| --- | --- |
+| Full original wrapper98fc |1; task logs/full-agent-verify.log, receipts/full-agent-verify.json. |
+| Resumed lint/typecheck/strict security8d20 |0 each before serial shell entered tests; logs/resumed-source-gate.log. Security0 violations/blockers/downgrades, actual ptrace/live-netns controls pass. Interrupted test attempt remains incomplete. |
+| Original collector b3df |1; registered211/ran211/passed207/failed4/skipped0/excluded0; logs/final-test-suite.log and receipt. |
+| Full Rust workspace b3df |0,1468814ms; complete retained-test-spills/fathomdb-agent-test-rust-182330.log. |
+| TS and executable N-API b3df |0 each; TS reports625pass/6skip/0fail of631 under canonical network gating,75.767s suite; hermetic executable gate27.078s. Complete raw retained spills. |
+| Python repaired caller e5e | Unchanged failed case1pass, canonical1746pass/36skip/0fail, each exit0. logs/python-child-targeted.log and canonical-python.log, matching monitored receipts. |
+| TC37 code1458 |0 unchanged fixture; /tmp Slice10 green-tc37.log. |
+| Jetson validator3cd4 |0 original93 controls and new meta-fixture with all5 missing-label negatives; green-jetson-validator.log and green-label-oracle.log. RED/raw at a7d4/red-label-oracle.log. |
+| Tegra metadata1cc5 |0 complete existing operator fixture; green-tegra-operator.log. Only current-runbook.27→published.28 assertion changed; all historical.27 mock controls unchanged. |
+| Final canonical lint/affected checks1cc5 |0; logs/final-affected-checks.log and receipt. Includes all current lint legs, actions, registration/caller/target controls, generated map, W/E,13 state views, discovery and strict dependency9 preflight. |
+
+Final preflight passes with the sole expected warning that this source branch
+has advanced past bootstrap release/ad102 with its own commits. Entry preflight
+at ad102 had zero warnings. No ref/ancestry/guard was weakened or force-updated.
+AGENT_LONG was actually unset; existing long/measurement/CUDA/platform/network
+qualification is not inferred from ordinary tests. Canonical Python reports36
+skips; TS reports6 plus explicit network-return notices. Full ignored Rust
+reasons/raw output are retained. Lint explicitly skips AArch64 CUDA tegra-pool
+and unconfigured ESLint. No owned-venv/native-receipt suite was skipped.
+
+### Candidate versus production identity
+
+Both targeted and canonical Python reruns use the unchanged fresh-wheel/clean
+source/owned-venv gate. Child proofs in task receipts/
+python-child-targeted-identity.json and python-child-canonical-identity.json
+compare exact source module path, SHA256, nonce and candidatee5e43ae17 with the
+passed parent receipt. Candidate native db577917860d7c81670976bbbf428cdd8cc2b53232ba200d4e8c8e98afea77b7
+is this checkout's src/python/fathomdb/_fathomdb.abi3.so; canonical nonce is
+s10-canonical-842718-1794343115355312645. No has-hook-only identity claim,
+conftest edit, installed-production rebind, editable install or manual native copy.
+
+Separate default installed-production write/search/close/reopen/search/close/exit
+smoke passed after the caller fix (receipts/python-production-after-child-fix.json):
+W0.8.29 module remains this .venv's site-packages, SHA256
+5e80e3eece0e643d384326be7ecbcd88b576d75cfb4dfef41ba3c447acda9e9f.
+TS production src/ts/fathomdb.linux-x64-gnu.node remains SHA256
+93fa5c015aa7833c526394ce197020b154f393975f2944de4af6879d8630a08e,
+matching the earlier production build/lifecycle receipt. Final tool/native facts
+confirm both; no artifact rebuild was needed. Git diff of Cargo.toml/Cargo.lock
+and all src/rust/src/python/src/ts inputs from1cad to final code exits0.
+These are local Linux developer artifacts, not release-matrix/registry proof.
+
+### Final resource and ownership facts
+
+Task receipts/final-tool-native-facts.json records real nonsymlink checkout .venv, distinct
+root/TS/Mermaid modules, separate survey venv and mode700 task root, all uid1000.
+Immutable Node25.9.0 is /home/coreyt/.nvm/versions/node/v25.9.0/bin/node;
+npm11.12.1 is task tools/npm/node_modules/.bin/npm. Python3.12.3/pip24.0,
+Ruff0.15.17/Pyright1.1.410 and root cli2.23.3 remain owned and exact; Rust/cargo
+1.95, actionlint1.7.12, shellcheck0.11, lychee0.24.2 and strace6.8 are verified.
+Primary CUDA readlink remains /usr/local/cuda-12.6; no GPU/driver/ACL action.
+
+Original completed collector:96 samples, sampled minimum free root108153647104B,
+taskfs922751963136B, MemAvailable37800558592B; sampled task peak57674990155B,
+growth49686653532B. No resource stop. Every completed phase stayed below total
+200GiB task storage; final supervisor enforces the cumulative own-root cap.
+Earlier du/temporary-directory race and incomplete attempt remain recorded,
+not silently converted into a passed measurement. No other session path cleanup.
+
+### Scope and remaining boundary
+
+T10-1/2: actual owned resources, parent bootstrap/ad102 and strict9 ancestry.
+T10-3: common noneditable helper, caller RED/GREEN and exact native identities.
+T10-4: contained Rustls/webpki/DOMPurify nodes and affected qualification above.
+T10-5: installed survey37pass, complete120 path disposition and exact28 pins.
+T10-6/7/8: bounded current docs/validator maintenance, protected exact.29 route
+with all negatives/HELD, W0.8.29/E0.8.0/format37 and query scaffold preserved.
+T10-9: assembled receipts ready for fresh independent final review, parent
+integration and actual closure; state10 remains IN_PROGRESS/acceptance NOT_RUN.
+Readiness NOT_READY/publication HELD and genuine110/120/optional150 future gates
+remain; those future choices did not block this approved preparation.
+
+Final metadata-only scoped checks and exact final branch SHA are supplied in
+task receipts/final-metadata-checks.json and the final /tmp review registers.
+No authoritative final implementation verdict or parent closure is asserted here.
+
+## Independent P1 ownership correction and recheck
+
+Fresh Astra-medium review of1cc5 found P1: caller-side venv creation and heavy
+npmci preceded ownership guards. Independent actual-caller spy proof remains
+/tmp/s10-astra-final-review/bootstrap-ownership-result.json. Bounded correction
+design/selector-assertion placement PASS is retained at
+/tmp/fathomdb-0829-direct/slice-10/ownership-correction-astra-review.md.
+
+Own venv RED92ff7247c observes both full/heavy foreign marker writes and prior
+installer calls. GREENf802bd584 adds nonmutating --check-ownership before all
+installers/hooks/npm; creation is solely common --provision. The existing
+selector assertion moves only to the real common-helper call, preserving its
+human intent and all cold/restored and other behavioral controls. Separate
+module RED2082030ce after the venv-only fix observes both callers' premature
+mutators and heavy npm's foreign marker. GREEN85b5e0b0c adds early module
+symlink/escape checks. Both venv cases and all4 caller/root/TS module cases pass
+without mutator calls or external writes; preserved heavy14/setup5 controls pass.
+Raw red/green-bootstrap-order, heavy-final and setup-final logs are under the
+Slice10 /tmp evidence root. Real owned-checkout --check-ownership also exits0.
+
+The independent reviewer reproduced both exact immutable REDs and both final
+PASS cases without environment borrowing; P1 is resolved. Exact audit results:
+/tmp/s10-astra-final-review/correction-audit/results.json. This finding recheck
+is not the overall final implementation verdict, which remains parent-gated.
+Only affected shell/setup/registration/metadata checks rerun; no Rust/Python/TS
+source, lock, native artifact, conftest or nonce gate changed, so completed native
+qualification is retained without blanket repetition.

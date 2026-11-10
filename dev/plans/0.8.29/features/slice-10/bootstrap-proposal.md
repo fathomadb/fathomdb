@@ -1,8 +1,10 @@
 # Slice 10 minimal release bootstrap proposal
 
-This is a reviewable procedure only. No ref, index, source, state or board was
-changed. Parent performs serial metadata import after actual9 completion and
-10 plan PASS; source implementation stays in the fresh10 owner's worktree.
+This reviewed PhaseA procedure was executed serially by parent at bootstrap
+ad102de7630141762aee28123fac57cbef9f61d5 after real9 closure and design PASS.
+Parent created the isolated source checkout; [execution](execution.md) records
+its entry checks and subsequent owner implementation. The procedure below is
+retained for ancestry and ordering, not an instruction to reactivate state.
 
 ## Candidate files and exact facts
 
@@ -43,7 +45,9 @@ Verify these commit objects/actual files/reviews from Git again;9 at e76031ae422
 now has actual dual review and parent closure. Exact state/board/master candidates
 are supplied beside the eight Slice10 documents at their repository-relative
 paths. Their closure witnesses/three declared views were statically checked;
-no candidate was staged, activated or certified by strict preflight.
+In PhaseA no candidate was staged, activated or certified by strict preflight.
+Subsequent actual parent bootstrap and source-entry checks are recorded in
+execution evidence;10 still has no closure SHA.
 
 ## Proposed command order, with real exits
 

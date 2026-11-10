@@ -98,3 +98,20 @@ This repairs stale validators against previously accepted human specifications; 
 Wait for the frozen collector to finish. Commit observed RED before separate GREEN, regenerate owned derived content, and rerun failed/incomplete and affected checks. Preserve original failures and assembled-verification limits. Fresh independent final implementation review remains required.
 
 Read-only review; no fixtures, builds, installs or mutations performed.
+
+## P1 ownership correction design and finding recheck
+
+Fresh reviewer GPT-6 Astra medium /root/slice_10_astra_final found P1 at1cc5.
+Own separate RED/GREEN and independent immutable reproduction resolved P1;
+/tmp/s10-astra-final-review/correction-audit/results.json retains actual results.
+Overall final implementation verdict remains open pending frozen evidence SHA.
+
+### Correction design terminal response (verbatim)
+
+PASS — bounded correction design and oracle-placement adjustment approved.
+
+Both callers must run nonmutating ownership checks before installers/hooks/npm, with `.venv` creation owned solely by `--provision`. Separate observed RED→GREEN pairs for caller ordering and module-path ordering preserve per-behavior TDD.
+
+Moving the selector assertion from `bootstrap-heavy.sh` to the shared helper preserves its existing intent: canonical interpreter selection. Keep the cold/restored execution checks and all other assertions unchanged; retain no redundant creation or decoy text.
+
+This approves the correction proposal only. Implementation, actual RED/GREEN evidence, affected checks, and frozen final-SHA review remain required.

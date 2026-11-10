@@ -9,8 +9,9 @@ closure or a lone untracked JSON. Use [bootstrap proposal](bootstrap-proposal.md
 without changing these guards. Parent owns only serial metadata import; same10
 owner writes source only in a fresh worktree cut from that verified commit.
 
-Current bootstrap/bootstrap-heavy/agent-build use editable installs; build also
-falls back to system Python and trusts `.cache/agent/python-installed` time.
+At the reviewed baseline, bootstrap/bootstrap-heavy/agent-build used editable
+installs; build also fell back to system Python and trusted the old timestamp.
+The implementation and actual regression evidence are in [execution](execution.md).
 Introduce one `scripts/setup-python-owned.sh` entry point, used by both bootstrap
 variants and agent-build. Modes `--provision` and `--build` separate installing
 owned developer tools from building an artifact. Provision creates/reuses only
@@ -33,6 +34,9 @@ be selected by absolute path. New helper must support paths with spaces and
 fail with a named actionable error. Resource preflight is executed before it,
 not replaced by “build succeeded.”
 
+Bootstrap callers invoke nonmutating --check-ownership before all installers,
+hooks and npm; only common --provision creates the venv. Separate caller and
+module-path RED/GREEN regressions verify refusal before any mutating invocation.
 Bootstrap callers invoke the common helper instead of `pip -e`; agent-build
 validates the owned prerequisites before its Rust workload and delegates Python
 build, without sentinel/system fallback. Preserve full/heavy CI division and
@@ -50,6 +54,10 @@ sanctioned gate unchanged; do not manually copy a native library or invoke
 maturin develop. Its source-package import path is distinct from installed-wheel
 smoke's site-packages path. Full agent-test authorizes the existing fresh gate;
 manual scoped unit tests may use its pure helper tests without loading bindings.
+The owned pytest caller scopes this checkout's source path to pytest/children,
+so subprocesses import the same nonce-qualified native candidate. The installed
+production module remains separate; path/digest/nonce and lifecycle receipts
+verify both identities without changing the sanctioned gate.
 TS release and test builds retain separate production/test-hook surfaces and the
 hermetic native wrapper; both operate only on the owned checkout and Cargo target.
 

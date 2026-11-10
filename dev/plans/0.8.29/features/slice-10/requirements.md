@@ -4,7 +4,9 @@ Authority: actual [Slice9 decision log](../../prework/slice-9/decision-log.md),
 [direct mandate](../../direct-execution.md), reviewed0–8 proposals and
 [master release](../../../plan-0.8.29.md). Earlier generic “final acceptance”
 waiting language is superseded. These are local preparation criteria, not new
-canonical ACs. PhaseA has not executed them.
+canonical ACs. [Execution evidence](execution.md) maps actual implementation and
+assembled qualification; fresh independent review and parent acceptance remain
+pending. PhaseA executed no setup or tests.
 
 | Need / local requirement | Binding acceptance and source mapping |
 | --- | --- |

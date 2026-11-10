@@ -1,15 +1,18 @@
 # Slice 10 test and verification mapping
 
-No test/setup ran in PhaseA. Future source/behavior changes need observed intended
-assertion RED, committed before GREEN with raw command/exit/log in commit body;
-fixed tests then remain read-only. Never call missing tools/dependencies/imports
-behavior RED. Mechanical versions/docs/metadata have no invented failing tests.
-New names below are proposed tests, not an existing coverage claim.
+No test/setup ran in PhaseA. The table preserves reviewed design intent;
+[execution](execution.md) records actual18 RED/GREEN pairs, commands, outputs
+and limits. Existing product oracles remain unchanged. Independently reviewed
+validator maintenance follows accepted af37/cdd human authority, with its own
+validator RED; it is not a test-policy waiver or new product oracle. Mechanical
+versions/docs/metadata have no invented RED. Missing tools/imports are not RED.
 
 | Criterion / behavior | Proposed RED oracle and placement | GREEN and preserved controls |
 | --- | --- | --- |
 | A2 common owned setup | New scripts/tests/test_setup_python_owned.sh drives helper/callers in temporary real Git checkouts with command spies (no mocked database). Bootstrap-heavy's obsolete editable expectation is deliberately replaced first by the reviewed noneditable contract. Baseline helper absent is initial structural failure only; demonstrate each existing caller's editable/fallback/sentinel wrong behavior as its attributable RED. | Foreign activated env/escaping .venv or module symlink/missing pip/wrong pins fail before native/later Cargo work; installer/build/install error propagates, writes no success receipt. Correct env path with spaces uses own Python/maturin and exact noneditable wheel. |
 | A2 stale native reuse | Entry-point fixture seeds old timestamp sentinel plus a changed source/features/native digest; expects fresh candidate build/install and updated full receipt despite sentinel. Baseline agent-build incorrectly skips Python: actual failed call-count/identity assertion is required. | Always build on request, ignore old sentinel/receipt. Require resolved installed module and digest/source/features/interpreter match. No cache-reuse protocol added. |
+| A2 pytest child identity | Existing unchanged cancellation test fails at b3df because child imports installed production instead of the sanctioned source candidate; RED97b5a3385. | Scoped absolute own PYTHONPATH only for pytest/children; unchanged fresh-wheel gate. Exact child path/digest/nonce/candidate SHA matches parent receipt; separate production lifecycle remains unchanged. |
+| A6 validator maintenance | Independent addendum review binds af37 accepted five-label config/cdd published.28. New registered label meta-fixture observes rejection of valid5 and false acceptance without Windows before source literal GREEN. | Original93 workflow controls plus all5 missing-label negatives pass. Only current-runbook version literal aligns to.28; historical.27 mocks stay unchanged. TC37 source repair preserves the existing oracle. |
 | A2 setup regressions | Existing test_bootstrap_heavy.sh retains two locked npm installs, dev imports, no unrelated tool/upgrade work, cold/restored setup and installer-stop assertion. test_select_python_for_venv.sh and test_create_venv_with_selected_python.sh remain unchanged. | test_dev_environment_tools.sh; test_agent_verify_markdown_scope.sh; test_ci_verify_observability.sh; test_python_artifact_gate_contract.py; test_napi_build_hermetic.py; Python pure test_test_hooks_gate.py and existing receipt controls. Existing scoped tests are regression evidence, not necessarily RED. |
 | A5 exporter discovery | tests/test_discovery.py explicit tracked exact dev/tools/onnx/export-requirements.txt expected as pypi/manifest; same untracked disk file/unrelatedtxt absent. Baseline omits it. Test both injected discovery and boundary tracked input. | Mirrored conftest/design table updated with exact basename; git-ls-files only; existing isolation tests unchanged. |
 | A5 inline valid hashes | Proposed tests/test_requirements.py explicit certifi2026.7.22+known64hex; two valid hashes produce one exact declaration/pin. Baseline silently drops hash-bearing requirement. No implementation-generated oracle. | Plain pins/ranges/markers/comments remain, standalone extra-index line absent from components; hashes unchanged/not a lock graph or download authentication claim. |

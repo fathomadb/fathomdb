@@ -9,11 +9,13 @@ slice: 10
 
 ## Approved design and current phase
 
-Independent Astra-medium design review passed after FIX1 corrected worktree
-creation ownership. See [review log](review-log.md). Parent bootstraps reviewed
-metadata before creating the isolated source worktree; the same Sol-high owner
-implements there after strict preflight. Preparation remains open. Dated PhaseA
-statements below are inspection history, not current setup/qualification claims.
+Independent Astra-medium design review passed FIX1/FIX2 and the bounded gate
+addendum. The same Sol-high owner implemented in the parent-created isolated
+worktree after strict preflight. [Execution evidence](execution.md) records
+completed implementation and assembled source/component qualification. Fresh
+independent final review, parent integration and10 closure remain pending.
+S10 acceptance is preparation only; readiness NOT_READY/publication HELD remain.
+Dated PhaseA and checkpoint statements below are inspection history.
 
 ## Mandate and phase history
 
@@ -23,7 +25,8 @@ PASS, same Sol-high owner's isolated implementation with observed RED→GREEN,
 then fresh Astra-medium implementation review. No generic final-permission wait
 is added. Specific outstanding artifact/fault/venue/spend/publication choices
 remain attached to their owning items; they do not block this preparation.
-This candidate is PhaseA design only: no setup, source changes or activation ran.
+PhaseA produced design only; parent then committed bootstrap ad102de763 and
+created the isolated source checkout. Actual implementation followed there.
 
 [Requirements](requirements.md), [design](design.md),
 [tasks](preparation-tasks.md), [test mapping](test-mapping.md),
@@ -95,11 +98,12 @@ no new release AC or numerical performance target is created. The
 [usage review](../../research/cuda-version-adoption.md) remain unchanged;120 owns
 unresolved artifact/exposure/policy decisions.10's route test needs no GPU fault.
 
-PhaseA checks are destination links, mapping completeness, whitespace and available
-supplemental Markdown diagnostics. Owned authoritative Markdown gate currently
-fails for absent CLI; do not install it in PhaseA or report supplemental.23.0 as
-declared.23.3. Later metadata uses state/version checks, docs use Markdown/public
-checks, source/scripts/tests use full verification. Never shorten compiler output.
+PhaseA checks were destination links, mapping completeness, whitespace and
+supplemental Markdown diagnostics; its authoritative gate failed for absent CLI.
+Implementation installed owned declared.23.3 and qualified actual Markdown.
+Metadata uses state/version checks, docs use Markdown/public checks, and source
+uses the recorded full invocation plus affected-suite resumption. Original
+failures and complete retained diagnostics remain visible in execution evidence.
 Stop affected work on ownership/native identity mismatch, insufficient budgets,
 failed strict guard, missing actual authority, source/contract expansion or failed
 checks. Two same-issue failures require rereading tests/ADRs/memory before retry.

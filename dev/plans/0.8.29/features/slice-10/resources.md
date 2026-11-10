@@ -1,9 +1,14 @@
 # Slice 10 owned resources and setup recipe
 
-## Fresh read-only observations
+Current actual setup, native identities and sampled resource receipts are in
+[execution evidence](execution.md). The reviewed limits below governed the owned
+work; they do not reserve capacity for a later task.
+
+## PhaseA read-only observations (historical)
 
 2026-11-10T18:21:20Z, planning checkout at2d5041795f0cbbe49d55d81a2710f09e2043b8a9.
-These replace inherited13:35UTC capacity observations, and expire before setup.
+These replaced inherited13:35UTC observations and expired before setup. Actual
+18:49UTC refresh and workload samples are retained in execution evidence.
 `df -B1`: root/tmp available118356549632 bytes; /mnt/data980659458048 bytes.
 `free -b`: MemAvailable38728978432 bytes; swap free9560064 bytes. High occupied
 swap alone is not proof of thrashing. /mnt/data and /mnt/data/tmp2 owned by
@@ -19,7 +24,7 @@ capability must be checked before use. Checkout has no authoritative .venv or
 root/TS modules. Release.29 local ref absent at this inspection. Later4/5 closure
 52a85c38cb50af220b418a4d05bc4c6e31f23fe2 changes planning documents only.
 
-## Proposed reservation and hard stops
+## Reviewed ownership and hard stops
 
 Task root `/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s10` is created only after
 fresh noncollision/owner/access checks, using mode700. Source worktree and real
@@ -29,8 +34,9 @@ caches and logs live under that task root. Preserve
 `/mnt/data/tmp2/fathomdb-s95-publish-gpu-20261109` and every other session's paths.
 No cleanup/global installer/driver/toolkit change is authorized.
 
-These are proposed conservative numeric operating limits, not measured build
-peaks or a ready reservation: one native build/full gate at once; Cargo jobs2
+These reviewed operating limits govern actual execution; sampled peaks are
+reported separately, without a future ready-reservation claim: one native
+build/full gate at once; Cargo jobs2
 and CMake parallel2, no CUDA build in10. Before each heavy phase require root/tmp
 free>=32GiB, task filesystem free>=250GiB and MemAvailable>=16GiB. Budget at most
 200GiB new task storage; stop launching work and terminate only owned active
@@ -43,7 +49,7 @@ measurement is not clearance; pause affected work before resource exhaustion.
 No deletion follows a stop. Reassess budget from actual restore/build/test/
 package/cache-post peak receipts before expansion; no cache upload is scheduled.
 
-## Owned setup commands to execute only after review/bootstrap
+## Reviewed owned setup recipe (executed after bootstrap)
 
 Use explicit checkout cwd and command-local PATH; never change HOME or global
 nvm/npm/rustup state. Existing exact immutable Node may be used read-only. Use

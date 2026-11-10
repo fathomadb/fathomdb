@@ -20,6 +20,10 @@ on:
       confirm_release_version:
         description: "Required when dry_run is unchecked: type the exact Axis-W version to confirm a real publish."
         type: string
+      sdk_trust_maintenance:
+        description: "Temporary main-only dry-run OIDC check; skips every release build and publisher."
+        type: boolean
+        default: false
       recovery_skip_npm:
         description: "v0.8.20 recovery only: publish crates.io + PyPI from the immutable tag, but skip npm and leave the release partial."
         type: boolean
@@ -48,6 +52,22 @@ env:
   NPM_DIST_TAG: "next"
 
 jobs:
+  sdk-trust-maintenance:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.dry_run == true && inputs.sdk_trust_maintenance == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Print public trusted publisher identity
+        shell: bash
+        run: |
+          printf 'repository_owner_id=%s\nrepository=%s\nworkflow_ref=%s\nworkflow_sha=%s\n' \
+            "$GITHUB_REPOSITORY_OWNER_ID" "$GITHUB_REPOSITORY" "$GITHUB_WORKFLOW_REF" "$GITHUB_WORKFLOW_SHA"
+      - name: Verify a fresh crates.io OIDC exchange
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+
   # Advisory full-history secret scan from the selected release candidate's
   # checkout (the history script mirrors and scans every fetched ref).
   # Independent by design: no `needs`, and no build, publisher, smoke,
@@ -58,6 +78,7 @@ jobs:
   # Per-push CI scans only the current tree; the same scan is also available
   # on demand via .github/workflows/gitleaks-history.yml.
   gitleaks-history-advisory:
+    if: ${{ inputs.sdk_trust_maintenance != true }}
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 20
@@ -156,6 +177,7 @@ jobs:
   # candidate script. It is intentionally hosted; the self-hosted preflight
   # below may start only after this default-branch-owned check passes.
   verify-cuda-trusted-route:
+    if: ${{ inputs.sdk_trust_maintenance != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

@@ -556,6 +556,10 @@ run_tier_suite fast test-ci-proportional-routing python3 scripts/tests/test_ci_p
 run_tier_suite fast test-ci-skip-message-warning bash scripts/tests/test_ci_skip_message_warning.sh
 run_tier_suite fast test-ci-long-job-efficiency bash scripts/tests/test_ci_long_job_efficiency.sh
 run_tier_suite fast test-bootstrap-heavy bash scripts/tests/test_bootstrap_heavy.sh
+run_tier_suite fast test-owned-python-bootstrap bash scripts/tests/test_setup_python_owned.sh bootstrap
+run_tier_suite fast test-owned-python-stale bash scripts/tests/test_setup_python_owned.sh stale
+run_tier_suite fast test-owned-python-missing bash scripts/tests/test_setup_python_owned.sh missing
+run_tier_suite fast test-owned-python-banner bash scripts/tests/test_setup_python_owned.sh banner
 
 # Go-installed actionlint prefixes its exact version with `v`; bootstrap and
 # agent-lint must normalize that conventional form without accepting drift.

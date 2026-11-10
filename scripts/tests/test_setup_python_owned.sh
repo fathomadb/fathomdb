@@ -36,6 +36,10 @@ fi
 PY
 chmod +x "$work/python"
 cp "$work/python" "$fixture/.venv/bin/python"
+for pair in 'ruff|ruff 0.15.17' 'pyright|pyright 1.1.410'; do
+  printf '#!/usr/bin/env bash\nprintf "%s\\n"\n' "${pair#*|}" > "$fixture/.venv/bin/${pair%%|*}"
+  chmod +x "$fixture/.venv/bin/${pair%%|*}"
+done
 cat > "$work/bin/python3.13" <<'PY'
 #!/usr/bin/env bash
 set -euo pipefail

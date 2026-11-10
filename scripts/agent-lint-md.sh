@@ -22,9 +22,8 @@ else
   {
     echo "FAIL lint-md-structure: markdownlint-cli2 not found at node_modules/.bin/markdownlint-cli2."
     echo "  A missing structural markdown linter must never report a silent pass (TC-37)."
-    echo "  Fix: run scripts/bootstrap.sh to install it, OR (inside a linked worktree)"
-    echo "  symlink the primary checkout's node_modules:"
-    echo "    ln -s /home/coreyt/projects/fathomdb/node_modules node_modules"
+    echo "  Fix: select the declared Node/npm pins and run npm ci in this checkout."
+    echo "  Linked worktrees require their own node_modules; do not share a mutable install."
   } >&2
   exit 1
 fi

@@ -95,7 +95,7 @@ if [ "${#missing[@]}" -gt 0 ]; then
     printf '  - %s\n' "$m" >&2
   done
   printf '  Run scripts/bootstrap.sh (shellcheck/gitleaks/actionlint auto-install; ruff/pyright\n' >&2
-  printf '  via pip install -e src/python[dev] from a non-worktree checkout; js-yaml via\n' >&2
+  printf '  via scripts/setup-python-owned.sh --provision in this checkout; js-yaml via\n' >&2
   printf '  npm ci at repo root).\n' >&2
   exit 1
 fi

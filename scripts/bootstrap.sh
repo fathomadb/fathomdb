@@ -39,7 +39,6 @@ if [ -f src/python/pyproject.toml ]; then
   # (pip resolution, an unguarded import that fails pyright) must be VISIBLE in
   # the CI log, not swallowed. Dropping `--quiet`/`>/dev/null` is what surfaced
   # the httpx import-not-found error that was silently failing bootstrap on main.
-  .venv/bin/python -m pip install --upgrade pip
   bash "$SCRIPT_DIR/setup-python-owned.sh" --provision
   .venv/bin/python -c 'import pytest, hypothesis'
   .venv/bin/pyright -p src/python
@@ -48,13 +47,13 @@ fi
 # TypeScript dev tooling.
 if [ -f src/ts/package.json ] && [ ! -d src/ts/node_modules ]; then
   echo "Installing TypeScript dev tooling..."
-  (cd src/ts && npm install --silent)
+  (cd src/ts && npm ci)
 fi
 
 # Repo-wide Markdown tooling.
 if [ -f package.json ] && [ ! -d node_modules ]; then
   echo "Installing Markdown dev tooling (markdownlint-cli2)..."
-  npm install --silent
+  npm ci
 fi
 
 # Lychee link checker (Rust binary).

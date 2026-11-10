@@ -69,7 +69,7 @@ The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop 
 ### One-time setup
 
 - Rust toolchain: stable per `rust-version` in `Cargo.toml`. clippy + rustfmt come with rustup defaults.
-- Python dev tooling: `pip install -e 'src/python[dev]'` — installs `pytest`, `hypothesis`, `ruff`, `pyright`. Without the selected Ruff 0.15.17, Python lint fails loudly; Python typecheck/test steps still emit a skip notice and pass without exercising.
+- Python dev tooling: `bash scripts/setup-python-owned.sh --provision` — installs `pytest`, `hypothesis`, `ruff`, `pyright`. Without the selected Ruff 0.15.17, Python lint fails loudly; Python typecheck/test steps still emit a skip notice and pass without exercising.
 - TypeScript: `cd src/ts && npm install` if you intend to touch TS. Without this, TS verbs skip.
 - Markdown tooling: `npm install` at repo root — installs `markdownlint-cli2`, and `prettier` which is retained as a devDep for non-markdown use only (§ 3 bans it on `.md`). `cargo install --locked lychee` for link checking (one-time). All wired up by `./scripts/bootstrap.sh`.
 - **AArch64 / Jetson (Ubuntu 22.04, L4T R36):** the OS-shipped `python3` is 3.10,
@@ -97,7 +97,7 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 
 - **Failing test first.** Write the failing test, commit it (or stage it visible to the reviewer), then implement.
 - **Test files are read-only during fix-to-spec.** Do not edit a test to make a failing build pass; fix the code.
-- **Property-based tests required** for codec / projection / recovery / round-trip layers. Rust: `proptest` (dev-dep on `fathomdb-schema`, `fathomdb-engine`, `fathomdb-query`). Python: `hypothesis` (in `[dev]` and `[test]` optional deps; install via `pip install -e 'src/python[dev]'`). Scaffolds: `src/rust/crates/<crate>/tests/property_template.rs` and `src/python/tests/test_property_template.py` — replace the trivial property with real round-trip / invariant assertions when domain types land.
+- **Property-based tests required** for codec / projection / recovery / round-trip layers. Rust: `proptest` (dev-dep on `fathomdb-schema`, `fathomdb-engine`, `fathomdb-query`). Python: `hypothesis` (in `[dev]` and `[test]` optional deps; install via `scripts/setup-python-owned.sh --provision`). Scaffolds: `src/rust/crates/<crate>/tests/property_template.rs` and `src/python/tests/test_property_template.py` — replace the trivial property with real round-trip / invariant assertions when domain types land.
 - **No agent-generated oracles.** Tests must encode human intent; do not regenerate snapshot or golden tests autonomously.
 - **Retry budget.** If you hit the same failure mode twice, stop. Re-read the failing test, the relevant ADR, and the relevant memory entry (§ 1). Do not loop a third time without re-thinking; if necessary, `/clear` and reset.
 
@@ -158,7 +158,7 @@ Hard-won from prior incidents. Violations are correctness bugs, not style prefer
 - **No backwards-compatibility shims** in pre-1.0 rewrites.
 - **No data migrations** in managed-vec projection releases — schema additions are additive ALTERs, never `INSERT…SELECT` across legacy tables. Enforced by `scripts/agent-lint-migrations.sh` in the lint verb; applied form: `dev/design/slice-G0-design.md`.
 - **No `c_char` hardcoded as `i8` or `u8`** at C interop boundaries — always `std::os::raw::c_char`. It is `i8` on x86_64/Darwin and `u8` on aarch64 Linux; hardcoding breaks one target, and only the cross-platform CI matrix catches it.
-- **No `pip install` + manual `cargo build` + `cp`** for Python native modules — use `pip install -e src/python/`. Packaging contract: `dev/design/bindings.md`. (Also never `pip install -e` or `maturin develop` from a worktree — memory `agent-worktree-stale-base-trap.md`.)
+- **No `pip install` + manual `cargo build` + `cp`** for Python native modules — use `scripts/setup-python-owned.sh --provision` for an owned noneditable wheel. Packaging contract: `dev/design/bindings.md`. (Also never `pip install -e` or `maturin develop` from a worktree — memory `agent-worktree-stale-base-trap.md`.)
 - **No `yaml.safe_load` as workflow validator** — use `actionlint`; it is wired as the canonical validator in `scripts/agent-lint.sh` and `.github/workflows/release.yml`. `yaml.safe_load` passes schema-invalid syntax GitHub silently rejects.
 - **No "fix in 0.7"** for reliability bugs. Net-negative LoC on reliability releases. (`dev/learnings.md`)
 - **No "green CI = done"** for releases — install the published wheel from the registry and run end-to-end open/close/exit before declaring done. `dev/design/release.md` § "Post-publish smoke"; memory `release-publish-gotchas.md` (pushing a `v*` tag auto-fires the real multi-registry publish) and `release-dod-requires-full-workspace-gate.md` (full-workspace clippy + check before any green claim).

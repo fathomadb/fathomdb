@@ -24,7 +24,10 @@ inputs:
 > not fix tool names, arguments, schemas or envelopes; those belong to a design
 > and a `dev/interfaces/mcp.md` written after acceptance. "MR-###" refers to
 > `requirements.md`, "AN-###" to `agent-needs.md`. SDK facts are as of the
-> 0.8.27 tree.
+> 0.8.27 evaluation tree. Current integration includes the queue and hints, plus
+> engine/SDK filter and view-flag support. Remaining MCP output/flag/filter work
+> belongs to0.8.29 Slice60; residual hint/reporting contracts belong to80/90.
+> This applicability note does not change the original evaluation evidence.
 
 ## 1. Principles this architecture holds to
 

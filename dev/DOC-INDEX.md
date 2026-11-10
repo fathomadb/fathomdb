@@ -65,11 +65,13 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/release-state-0.8.26.json` · `dev/plans/runs/STATUS-0.8.26.md` | Published release state and completed board through Slice 65 | 0.8.26 history | 2026-09-21 |
 | `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through Slice 65 | 0.8.26 Slice 65 | 2026-09-21 |
-| `dev/plans/plan-0.8.29.md` | Proposed .29 prework, feature slices and dependency allocation | 0.8.29 planning | 2026-11-09 |
+| `dev/plans/plan-0.8.29.md` | Active .29 release plan with reviewed preparation and gated feature allocation | 0.8.29 planning | 2026-11-10 |
+| `dev/plans/release-state-0.8.29.json` · `dev/plans/runs/STATUS-0.8.29.md` | Active .29 state authority and generated live board | 0.8.29 Slice10 | 2026-11-10 |
+| `dev/plans/0.8.29/features/slice-10/` | Reviewed owned-setup, survey, dependency, route and preparation evidence | 0.8.29 Slice10 | 2026-11-10 |
 | `dev/plans/0.8.29/README.md` | Index of .29 slice drafts, proposal decisions and planning evidence | 0.8.29 planning | 2026-11-09 |
-| `dev/plans/plan-0.8.28.md` | Active release plan through documentation convergence and final CI qualification | 0.8.28 Slices 92/95 | 2026-11-04 |
-| `dev/plans/release-state-0.8.28.json` | Active release state with Slice 92 before Slice 95 | 0.8.28 Slices 92/95 | 2026-11-04 |
-| `dev/plans/runs/STATUS-0.8.28.md` | Active release board with documentation and CI qualification work remaining | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/plans/plan-0.8.28.md` | Published .28 release plan and retained qualification history | 0.8.28 Slices 92/95 | 2026-11-10 |
+| `dev/plans/release-state-0.8.28.json` | Published .28 state and immutable publication receipt | 0.8.28 Slices 92/95 | 2026-11-10 |
+| `dev/plans/runs/STATUS-0.8.28.md` | Completed .28 release board and qualification history | 0.8.28 Slice 92 | 2026-11-10 |
 | `dev/plans/0.8.28/features/slice-92/plan.md` | Documentation audit/convergence scope, requirements and execution plan | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-92/status.md` | Documentation convergence status and verification outcomes | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.28/features/slice-95/plan.md` | CI repairs and final qualification plan consuming Slice 92 documentation | 0.8.28 Slices 92/95 | 2026-11-04 |
@@ -360,7 +362,7 @@ refresh in the closing commit when you touch a doc).
 | `src/ts/npm/linux-x64-gnu/README.md` | Platform-native package usage and canonical repository link | 0.8.28 Slice 92 | 2026-11-04 |
 | `CHANGELOG.md` | Changelog — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/operations/integrity-inspection.md` | Immutable integrity inspection — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
-| `docs/release-notes/0.8.28.md` | Pending .28 retrieval, provider, format36, maintenance and dependency changes | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/release-notes/0.8.28.md` | Published .28 retrieval, provider, format37, maintenance and dependency notes | 0.8.28 Slice 92 | 2026-11-10 |
 | `src/python/README.md` | FathomDB — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `src/rust/crates/fathomdb-cli/README.md` | fathomdb-cli — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `src/rust/crates/fathomdb-embedder-api/README.md` | Embedder trait, head coverage and standalone-use admission boundary | 0.8.28 Slice 92 | 2026-11-04 |

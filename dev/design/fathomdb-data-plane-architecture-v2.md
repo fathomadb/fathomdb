@@ -2,14 +2,14 @@
 title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
-implementation_status: active authority; self-contained current 0.8.28 profile
-target_release: 0.8.28
+implementation_status: active authority; current integrated profile; published artifacts remain 0.8.28
+target_release: 0.8.29
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-11-09 for the 0.8.28 release
+last_reconciled: 2026-11-10 workspace/profile correction during 0.8.29 preparation
 ---
 
 # FathomDB data-plane architecture v2
@@ -36,16 +36,16 @@ The boundary is complete when a semantic component can implement its policy
 through governed FathomDB APIs without raw SQL, private shadow indexes,
 duplicated liveness rules, or manual projection cleanup.
 
-## Current 0.8.28 profile
+## Current integrated workspace profile
 
 ### Workspace and application SDK ownership
 
-The current Rust workspace has **eleven** members: `fathomdb`, `fathomdb-sdk`,
+The current Rust workspace has **twelve** members: `fathomdb`, `fathomdb-sdk`,
 `fathomdb-engine`, `fathomdb-cli`, `fathomdb-query`, `fathomdb-schema`,
-`fathomdb-embedder-api`, `fathomdb-embedder`, `fathomdb-py`, `fathomdb-napi`
-and the internal `fathomdb-tc5-benchmark`. The dedicated
+`fathomdb-embedder-api`, `fathomdb-embedder`, `fathomdb-py`, `fathomdb-napi`,
+the private `fathomdb-mcp` binary and the internal `fathomdb-tc5-benchmark`. The dedicated
 Rust application SDK is a peer of the Python and TypeScript SDKs, with the
-44 governed operations across `Engine`, `read`, `graph`, `admin` and
+53 live governed operation endpoints across `Engine`, `read`, `graph`, `admin` and
 root-level `rerank`. The standalone `embed_batch_cls` operation remains
 outside that signed map. Arguments and defaults follow the accepted
 [Rust SDK translations](../adr/ADR-0.8.27-rust-sdk-parity.md), including the

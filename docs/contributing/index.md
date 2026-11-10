@@ -21,7 +21,11 @@ Public API changes need the matching interface or ADR update.
 
 ## Verify the change
 
-After the documented repository setup:
+Select the repository's declared Node/npm and Rust toolchains. Each checkout owns its root/TS
+`node_modules` from `npm ci` and its Python `.venv`. Run
+`bash scripts/setup-python-owned.sh --provision` from that checkout to install developer tools
+and its noneditable, source-bound Python wheel. Never share mutable environments or editable
+bindings between worktrees. After this setup:
 
 - Documentation and plan changes: `./scripts/agent-lint-md.sh`.
 - Public documentation: also `./scripts/agent-lint-docs.sh`.

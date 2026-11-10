@@ -45,8 +45,9 @@ verify Axis E sits at its independently declared version.
 ## First-tag CUDA route bootstrap
 
 GitHub cannot add a selected-workflow tag ref before that tag exists. For the
-first `v0.8.28` push only, explicitly set
-`FATHOMDB_RELEASE_TAG_BOOTSTRAP=v0.8.28` on the normal `git push` command.
+authorized first `v0.8.28` or `v0.8.29` push only, explicitly set
+`FATHOMDB_RELEASE_TAG_BOOTSTRAP` to that exact tag on the normal `git push`
+command. This route does not authorize publication; that remains separately gated.
 The unchanged pre-push hook runs the guard: bootstrap requires a confirmed
 remote HTTP404 for that exact tag, the restricted selected GPU group allowing
 `release.yml@refs/heads/main`, the exact environment tag policy and nonempty

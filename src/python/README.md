@@ -3,9 +3,9 @@
 Python SDK for **FathomDB** — a local-first, embedded retrieval engine for application and agent
 workloads, built on SQLite.
 
-A FathomDB database is a single file on your disk. There is no server, no daemon and no network
-call: you open a path and you have hybrid full-text + vector search over your own data, in your own
-process.
+A FathomDB database is a single file on your disk and runs in your process without a server.
+Plain open uses no model network access. Explicitly enabling the pinned default embedder may
+fetch verified weights on a cold cache, as described below.
 
 ## Status: pre-1.0, beta
 
@@ -102,11 +102,16 @@ separate lower-level engine facade.
 
 ## Building from source
 
-From a checkout of the repository:
+From an owned checkout, select its declared developer tools and create its own `.venv`:
 
 ```bash
-pip install -e src/python/
+bash scripts/setup-python-owned.sh --provision
 ```
+
+The helper installs a locked, noneditable wheel built from this source tree, with the declared
+production features and owned interpreter. Its receipt records source, wheel and native-module
+identity. Linked worktrees need separate environments; never borrow or repoint another checkout's
+binding. The explicit test-hooks gate separately builds its candidate wheel for tests.
 
 ## License
 

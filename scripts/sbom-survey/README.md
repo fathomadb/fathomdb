@@ -1,7 +1,7 @@
 # `sbom-survey` — dependency survey tool (Library Sweep #3)
 
 An **isolated Python mini-project** that produces a **CycloneDX 1.6 JSON** SBOM over every
-dependency manifest **tracked on `main`**, enumerates the **library↔library** dependency graph, and
+dependency manifest **tracked in the invoking checkout**, enumerates the **library↔library** dependency graph, and
 diffs **used (locked) versus published (registry latest)** versions.
 
 It mechanizes the manual triage loop in `dev/plans/prompts/LIBRARY-BUMP-STEWARD.md` §1–2 — is the
@@ -12,6 +12,18 @@ candidate.
 **Spec of record:** `dev/design/0.8.20-slice-31-sbom-survey-tool.md` — requirements, the 24
 acceptance criteria, the design, and the answers to every resolved design question. Read that first;
 this file is only the operating note.
+
+## Current preparation correction
+
+0.8.29 preparation recognizes the exact `export-requirements.txt` basename,
+dispatches it as requirements and preserves inline SHA256-pinned declarations.
+One or more `--hash=sha256:<64hex>` tokens are supported; malformed/unsupported
+hash syntax and continuations fail with a named parse error (CLI3). Options are
+never executed. The current exporter index line is not a dependency.
+Explicit purpose tiers and fixture/historical exclusions cover the tracked input
+set; unknown paths still fail loudly. Discovery is never a filesystem walk.
+This remains informational and outside CI/agent-test. Historical24-test results
+below are dated evidence, not a new sweep or current suite count.
 
 ## Layout
 
@@ -28,7 +40,7 @@ this file is only the operating note.
 | `sbom_survey/report.py` | `sbom.cdx.json` · `staleness.json` · `staleness.md` (§5.6, §5.8) |
 | `sbom_survey/cli.py` | the `argparse` entry point and its exit codes (§5.9) |
 
-## Status
+## Historical Slice31–33 status
 
 | Slice | Deliverable | State |
 |---|---|---|

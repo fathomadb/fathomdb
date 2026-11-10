@@ -16,15 +16,16 @@ The exported `.onnx` is a GENERATED EVAL ASSET and is NOT committed (it is
 ~130 MB); this script + its README are the committed, reproducible tooling.
 
 Toolchain (documented in README.md):
-  - An interpreter with `torch` (>=2) + `transformers` (>=4.30). The base
-    `python3` and the fathomdb `.venv` LACK these; a read-only interpreter that
-    HAS them is at `/home/coreyt/projects/memex/.venv/bin/python`
-    (torch 2.11.0 + transformers 5.4.0). This script does NOT install anything.
+  - A dedicated owned exporter environment with the exact
+    `dev/tools/onnx/export-requirements.txt` pins. Do not borrow another
+    checkout's interpreter. Verify exact model serialization/trust and the
+    documented PyTorch advisory prerequisite before any export. This script
+    does NOT install anything.
   - The `onnx` / `optimum` packages are NOT required: `torch.onnx.export`
     (TorchScript path) writes the `.onnx` without them.
 
 Usage:
-  /home/coreyt/projects/memex/.venv/bin/python \
+  <owned-exporter-venv>/bin/python \
       dev/tools/onnx/export_bge_small_onnx.py \
       [--out ~/.cache/fathomdb/embedders/onnx/bge-small-en-v1.5/model.onnx] \
       [--opset 14] [--verify]

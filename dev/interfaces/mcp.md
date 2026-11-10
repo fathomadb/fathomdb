@@ -10,7 +10,9 @@ status: proposed
 # MCP Server Interface (`fathomdb-mcp`)
 
 Contract for the first, adapter-only release of the FathomDB MCP server. It
-uses `fathomdb-sdk` 0.8.27 as is; nothing here needs an engine change. Semantics
+records the original `fathomdb-sdk` 0.8.27 evaluation baseline. Current integration
+includes queue/hints and engine/SDK filter/view options; adapter residuals remain
+with0.8.29 Slices60/80/90. Semantics
 are owned by `dev/design/mcp-adapter/requirements.md` (MR-###); this file owns
 names, shapes, defaults and codes. The server is read-only and unscoped in this
 release.
@@ -187,13 +189,13 @@ accepted by [seq-359](../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
 | `highlights` | bool | false | Add per-hit `highlights`: `[start, end)` byte ranges into `snippet` of the matched words. Presentation only: not part of the canonical arguments, so references, `response_id` and continuations are unchanged. |
 | `continuation` | string | none | From a prior result. Only `store`, `max_tokens`, `hints` and `highlights` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
 
-`include_superseded` and `include_inactive` are not search arguments: the
-engine rejects them on every search path (`reject_existence_relaxation_on_search`)
-because projection indexes are not version-complete. History is a `fetch`
-concern. Unknown arguments are `invalid_request/bad_argument`.
+`include_superseded` and `include_inactive` are not accepted search arguments
+in the current adapter. The engine and SDK support these view flags; Slice60
+owns their adapter support. Unknown adapter arguments remain
+`invalid_request/bad_argument`.
 
 **Planned for 0.8.29 Slice 60:** the current text-mode filter refusal and
-hybrid-only filter descriptions above are replaced by Slice 90's filtered
+hybrid-only filter descriptions above are replaced by0.8.28 Slice90's filtered
 body-FTS contract. All five existing filter fields will be accepted in text
 mode, before engine candidate caps and ranking, composing with the planned view
 flags. Status/time keep existing projected-metadata availability rules; text

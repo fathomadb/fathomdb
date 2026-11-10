@@ -38,9 +38,8 @@ Two properties are the point:
 - **OR, not AND.** Requiring every token to be present near-zeroes recall on natural-language
   questions. OR-ing the content tokens lets `bm25()` rank by overlap instead.
 
-A query with no content tokens at all (all stopwords, all symbols, or all sub-three-character) falls
-back to an OR over the raw whitespace tokens as quoted phrases, so it still searches rather than
-matching nothing.
+A query with no content tokens (all stopwords or symbols) falls back to an OR over raw
+whitespace tokens as quoted phrases. Short content tokens such as C and D3 remain content.
 
 ## Custom stop words
 

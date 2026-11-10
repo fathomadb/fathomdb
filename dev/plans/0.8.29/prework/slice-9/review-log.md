@@ -9,7 +9,7 @@ sampled source. No product execution or final owner acceptance follows review.
 
 CONCERN — one factual correction; no blocking authority or dependency issue found.
 
-- **[P3] Correct the untiered-manifest breakdown** in [Slice 1 design](/home/coreyt/.codex/worktrees/fathomdb-0829-work/dev-0.8.29/dev/plans/0.8.29/prework/slice-1/design.md:10). Independent discovery/tiering yields **33 historical .27 locks and 36 script fixtures**, rather than 34/35. `scripts/tests/fixtures/test-targets/crate/Cargo.toml` belongs to the latter group. The totals—119 recognized and 79 untiered—and omitted exporter-manifest claim are correct. Update those two counts before checkpoint acceptance.
+- **[P3] Correct the untiered-manifest breakdown** in [Slice 1 design](../slice-1/design.md). Independent discovery/tiering yields **33 historical .27 locks and 36 script fixtures**, rather than 34/35. `scripts/tests/fixtures/test-targets/crate/Cargo.toml` belongs to the latter group. The totals—119 recognized and 79 untiered—and omitted exporter-manifest claim are correct. Update those two counts before checkpoint acceptance.
 
 Checked all requested non-plan outputs for Slices 0–7, Slice 8’s reservation, Slice 9’s three records, and relevant master/reconciliation dependencies. Sampled actual fusion/explanation/graph code, maintained direct-text contract, truncation API/span storage, queue hook placement, provider remediation/fallback, CUDA reset test, survey discovery/tiering and tag guard.
 
@@ -28,8 +28,8 @@ time. Recorded actual owner batches1/2 and kept execution acceptance pending.
 
 CONCERN — original count finding fixed; approval boundaries are sound, but two summaries need reconciliation.
 
-- [Slice 9 intake](/home/coreyt/.codex/worktrees/fathomdb-0829-work/dev-0.8.29/dev/plans/0.8.29/prework/slice-9/intake.md:12) still presents query-scaffold deletion as pending checks. Record **retained by Batch 2 owner ruling**, and mark the earlier Slice 2 retirement proposal superseded.
-- [Proposal register](/home/coreyt/.codex/worktrees/fathomdb-0829-work/dev-0.8.29/dev/plans/0.8.29/proposal-register.md) still concludes “No Slice9 approval … is recorded.” Change this to **no final preparation acceptance or implementation go-ahead**, preserving the bounded scope approvals now recorded.
+- [Slice 9 intake](intake.md) still presents query-scaffold deletion as pending checks. Record **retained by Batch 2 owner ruling**, and mark the earlier Slice 2 retirement proposal superseded.
+- [Proposal register](../../proposal-register.md) still concludes “No Slice9 approval … is recorded.” Change this to **no final preparation acceptance or implementation go-ahead**, preserving the bounded scope approvals now recorded.
 
 Verified the corrected 33/36 breakdown and reviewed updated decisions, preparation scope, proposal register, intake and transcript-date wording. No approval overreach found: feature semantics, GPU faults/venues, publication and final execution acceptance remain separate.
 
@@ -203,3 +203,9 @@ to missing owned cli2, assigned to10; external0.23.0 versus declared0.23.3 is
 supplemental only. Documentation-only TDD is N/A. No setup/product qualification.
 The containing Git commit supplies the real9 closure SHA for10 state bootstrap;
 it is not a product-green witness or permission for pending feature actions.
+
+## Portable review citations
+
+Slice10 normalized three historical review hyperlink targets from absolute
+checkout paths to their existing relative documents. Labels, review wording,
+findings and verdicts are unchanged; line suffixes are historical labels only.

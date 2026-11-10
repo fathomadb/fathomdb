@@ -809,7 +809,7 @@ required-features = ["test-hooks"]
 
 [dev-dependencies]
 # Default integration tests need injected providers; normal builds exclude this dependency.
-fathomdb-engine = { workspace = true, features = ["test-hooks"] }
+fathomdb-engine = { path = ".", features = ["test-hooks"] }
 # `dirs::cache_dir()` is the root the embedder loader uses for pinned weights
 # (`<cache>/fathomdb/embedders/`); `nomic_smoke` locates its weights there.
 dirs = "5"

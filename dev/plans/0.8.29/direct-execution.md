@@ -63,7 +63,9 @@ direct mandate is not a blanket approval for those actions.
 
 ## Current work
 
-Slice0 owner `slice_0_direct` is performing PhaseA reconciliation in its isolated
-scratch tree. No slice execution completion or Astra review PASS is claimed yet.
-Phase results live with their slice outputs; valid release-state/board ownership
-begins in10 as already planned. This method file is not a second release ladder.
+Slice0 proposal outputs completed with Astra-medium plan and final-output PASS;
+the [local review](prework/slice-0/review-log.md) records evidence and tooling
+limits. Fresh Sol-high owners `slice_1_direct` and `slice_2_direct` are reconciling
+independent proposal scopes against that predecessor output. Phase results live
+with their slices; valid release-state/board ownership begins in10 as already
+planned. This method file is not a second release ladder.

@@ -24,7 +24,7 @@ was added or rewritten. Integration remains `dev/0.8.29` in its own checkout.
 
 | Slice | Reviewable output | Maturity and gap |
 | --- | --- | --- |
-|0 | [Environment](prework/slice-0/environment-register.md), [platforms](prework/slice-0/platform-resource-register.md), [preparation](prework/slice-0/preparation-proposal.md) | Current bounded probes; no owned tools;16 GiB root; remote/data/GPU readiness unknown. |
+|0 | [Environment](prework/slice-0/environment-register.md), [platforms](prework/slice-0/platform-resource-register.md), [preparation](prework/slice-0/preparation-proposal.md) | Proposal complete after direct Sol-high work and two Astra-medium PASS gates; no environment preparation or live readiness claimed. See Slice0 review. |
 |1 | [Candidates](prework/slice-1/candidate-register.md), [discovery/pins](prework/slice-1/design.md), [checks](prework/slice-1/test-mapping.md) | All nine local refs and pin groups reviewed; full sweep incomplete:79 untiered manifests and omitted exporter set; selected advisories only. |
 |2 | [Inventory](prework/slice-2/inventory.md), [dispositions](prework/slice-2/dispositions.md) | Bounded content/consumer sample; no external consumer census or retirement authorization. |
 |3 | [CRUD/allocation](prework/slice-3/crud-register.md), [authority issues](prework/slice-3/architecture.md) | All master themes mapped locally; identity/coverage/field/error decisions pending. |

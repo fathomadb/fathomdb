@@ -15,8 +15,8 @@ command -v gh >/dev/null || {
 bootstrap="${FATHOMDB_RELEASE_TAG_BOOTSTRAP:-}"
 workflow_ref="fathomadb/fathomdb/.github/workflows/release.yml@refs/tags/$tag"
 if [ -n "$bootstrap" ]; then
-  if [ "$bootstrap" != v0.8.28 ] || [ "$bootstrap" != "$tag" ]; then
-    printf 'check-tag-cuda-route: bootstrap marker must match the authorized v0.8.28 tag\n' >&2
+  if { [ "$bootstrap" != v0.8.28 ] && [ "$bootstrap" != v0.8.29 ]; } || [ "$bootstrap" != "$tag" ]; then
+    printf 'check-tag-cuda-route: bootstrap marker must match the authorized exact v0.8.28 or v0.8.29 tag\n' >&2
     exit 1
   fi
   if ref_response="$(gh api "repos/fathomadb/fathomdb/git/ref/tags/$tag" --include)"; then

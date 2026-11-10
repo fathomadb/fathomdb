@@ -10,6 +10,19 @@ if [ -L .venv ]; then echo 'setup-python-owned: .venv must be owned by this chec
 if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$repo_root/.venv" ]; then
   echo 'setup-python-owned: foreign VIRTUAL_ENV; use this checkout environment' >&2; exit 1
 fi
+for owned_dir in node_modules src/ts/node_modules; do
+  if [ -L "$owned_dir" ]; then
+    echo "setup-python-owned: $owned_dir must be owned by this checkout, not a symlink" >&2
+    exit 1
+  fi
+  if [ -e "$owned_dir" ]; then
+    owned_real="$(cd -P "$owned_dir" && pwd -P)" || exit 1
+    case "$owned_real" in
+      "$repo_root"/*) ;;
+      *) echo "setup-python-owned: foreign owned path $owned_dir" >&2; exit 1 ;;
+    esac
+  fi
+done
 if [ "$mode" = --check-ownership ]; then exit 0; fi
 if [ "$mode" = --provision ] && [ ! -x .venv/bin/python ]; then
   # shellcheck source=lib/agent-python-env.sh

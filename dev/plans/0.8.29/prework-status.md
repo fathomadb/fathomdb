@@ -37,8 +37,10 @@ was added or rewritten. Integration remains `dev/0.8.29` in its own checkout.
 Each slice also has local requirements/design/acceptance mapping. Independent
 package review and scoped validation are separate from these research findings.
 Their current results are recorded in [Slice9 intake](prework/slice-9/intake.md).
-Slice9 must explicitly accept/defer unavailable or incomplete evidence before
-finalizing10; there is no claim that every original completion criterion passed.
+Slice9 completed its reviewed decision-to-preparation checkpoint, explicitly
+retaining evidence limits and unanswered feature gates. Approved10 advances
+through its own review and execution checks; not every initial research request
+became measured evidence or an approved runtime claim.
 
 Owner fork-placement ruling: steward **seq-367** selects A for .29 and moves
 B/C to [the .30 receiving plan](../0.8.30/fork-maintenance-plan.md). Required

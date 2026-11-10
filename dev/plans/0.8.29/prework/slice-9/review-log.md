@@ -89,3 +89,117 @@ Final local target scan covered86 planning files with0 missing links before
 this terminal text append; subsequent changes only reconcile status/text.
 The authoritative Markdown setup failure remains unresolved until owned tools
 are prepared. No source/executable/product test or package publication occurred.
+
+## Direct Slice9 PhaseA — current proposal, not a new verdict
+
+Owner: GPT-6.1 Sol high (`slice_9_direct`), November10. The historical review
+above retains its exact scope and outcome; it did not review the new direct-run
+predecessor outputs or this revision. Actual reviewed/committed4/5 outputs and both independent review logs were
+reread at52a85c38c and incorporated. No disagreement remains. Parent will
+commission independent Astra-medium plan review, then same-owner finalization
+and fresh independent final-output review. No terminal verdict is invented.
+
+Scope: eight9 records plus the proposed shared proposal-register candidate;
+receiving10/source files are not edited. Current direct-mandate corrections
+remove generic permission waits while preserving actual policy/fault/spend/
+optional/publication gates. Bounded checks and exact exits will be recorded
+below. Product TDD/gates are inapplicable to this documentary proposal; owned
+Markdown tooling remains missing.
+
+## PhaseA checks and readiness
+
+Nine files: eight owned9 records plus the shared proposal-register candidate.
+All0–8 inputs/reservation are accounted for;4/5's actual committed outputs and
+review logs were reread at52a85c38c. Source/scripts/workflows are unchanged from
+6edc1155f, root clean at that witness.14 receiving corrections include exact10
+scope and state-ref ancestry,110 bounded reset,160 canonical W/E/finalizer work.
+Q9-RESET/Q9-ARTIFACT are actual pending parent questions, not inferred rulings.
+Their affected feature holds do not prevent reviewed approved10 preparation.
+
+Initial link checker needed an adjustment for inherited absolute file links with
+line suffixes; corrected check passed. Initial supplemental lint found three
+extra blank lines; manual formatting correction and rerun passed with zero
+errors. Final exact scope/criteria/link/whitespace checks are recorded with the
+final invocation. Authoritative agent-lint-md exited1 at missing owned cli2;
+external0.23.0 versus declared0.23.3 is supplemental only. No product/source test,
+setup, network dispatch, repository/Git/ledger write or publication occurred.
+Parent independent plan review remains next; no own PASS or final closure.
+
+Final PhaseA completeness check exited0:9 exact files,32 intended-destination
+links,28 proposal rows,9 task mappings,5 local criteria,9 predecessor
+dispositions and14 contiguous receiving-correction rows; whitespace/newlines
+clear. Supplemental explicit-nine-file cli2.23.0 final lint exited0, zero errors.
+PLAN_READY requests the parent-controlled independent plan/design review only;
+necessary unanswered feature choices remain pending.
+
+## Direct Slice9 PhaseB finalization
+
+Parent reports independent Astra-medium plan/design PASS with no actionable
+findings. Reviewer confirmed9 files/32 links/28 proposals/9 tasks/5 criteria/
+9 predecessor dispositions/14 receiving corrections, actual completed inputs,
+unchanged source and retained Block1/fork/W-E/finalizer boundaries. Approved
+preparation remains independent while110/120 specific answers are pending.
+This is the reported independent design verdict, not an owner output verdict.
+
+This same owner reread actual root decision records and clean52a85c38c. No new
+ruling has been supplied; Q9-RESET/Q9-ARTIFACT remain pending. All existing
+approvals/constraints and the exact reviewed scope remain unchanged. PhaseB
+changes only plan/review phase/check metadata; the other seven files are
+byte-identical to reviewed PhaseA. Parent owns repository/ledger writes.
+Fresh independent final-output review/import/closure remains required.
+
+Documentation-only TDD is N/A. No source/test/environment/Git/ledger mutation,
+network dispatch, product/full gate, actual fault, policy/spend approval or
+publication occurs here. Final bounded checks below establish proposal structure
+only; missing owned Markdown tooling remains an authoritative failure.
+
+PhaseB bounded checks exited0:9 exact files,32 intended-destination links,
+28 proposal rows,9 task mappings,5 criteria,9 predecessor dispositions and
+14 contiguous receiving-correction rows; whitespace/newlines clear. Only
+plan/review metadata differs from PhaseA; seven files remain byte-identical.
+Product/src/scripts/workflows remain unchanged from6edc1155f; root clean at
+52a85c38c. Authoritative agent-lint-md again exited1 for missing owned cli2.
+Supplemental final explicit-nine-file CLI0.23.0 lint exited0 with zero errors;
+declared0.23.3 remains absent. OUTPUT_READY requests fresh independent final
+review; no own PASS, closure or unanswered owner ruling is claimed.
+
+## Direct plan/design terminal response (verbatim)
+
+Reviewer: GPT-6 Astra medium (`slice_9_astra_design`), independent of the
+GPT-6.1 Sol high owner (`slice_9_direct`). November10,2026.
+
+PASS — Slice 9 plan/design proposal. No actionable findings.
+
+Confirmed nine candidate files, 32 resolving destination links, all 28 proposal dispositions, nine preparation tasks, five local criteria, nine predecessor inputs and 14 receiving corrections. Actual predecessor review logs support the intake; product paths remain unchanged from `6edc1155f`.
+
+Pending reset/artifact answers remain pending. Approved preparation advances independently; Block 1 exit, conditional fork-first qualification, canonical W/E reconciliation and finalizer evidence retain their proper owners and gates.
+
+Limits: read-only document/authority review with targeted source checks; no product tests, setup, remote validation or exhaustive source audit. Owned Markdown tooling remains unavailable; supplemental lint is not the authoritative gate.
+
+This PASS permits proposal finalization only. Fresh final-output review remains required; no fault, spending, policy change or publication approval follows.
+
+## Direct final-output terminal response (verbatim)
+
+Fresh reviewer: GPT-6 Astra medium (`slice_9_astra_final`), November10,2026.
+
+PASS — Slice 9 final proposal checkpoint only. No actionable findings.
+
+Confirmed nine imports match Phase B; seven files are unchanged from Phase A. Verified 28 dispositions, nine predecessor inputs, nine preparation-task mappings, five criteria, 14 receiving corrections, 32 resolving links and clean whitespace. Product paths remain unchanged from `6edc1155f`.
+
+Pending reset/artifact answers remain genuine feature gates; approved preparation can advance independently. Block 1 exit, conditional fork qualification, W/E reconciliation and finalizer-proof obligations remain intact.
+
+Limits: read-only document and targeted source/contract review; no product tests, environment setup or qualification. Owned Markdown tooling remains unavailable; supplemental lint is not its replacement. PASS grants no fault, spending, policy or publication approval.
+
+## Parent checkpoint closure
+
+Actual0–8 proposal outputs/reservation and both reviews are accounted for.
+The checkpoint's local documentary criteria and approved-preparation mapping are
+complete; unresolved feature choices retain their explicit pending status and
+owning gates. No answer, silence or recommendation became an owner ruling.
+Parent imported all nine PhaseB files byte-for-byte before status/review metadata.
+Whitespace, supplemental explicit-file Markdown, release-state views, planning
+status and anchor checks exited0. Authoritative agent-lint-md remains exit1 due
+to missing owned cli2, assigned to10; external0.23.0 versus declared0.23.3 is
+supplemental only. Documentation-only TDD is N/A. No setup/product qualification.
+The containing Git commit supplies the real9 closure SHA for10 state bootstrap;
+it is not a product-green witness or permission for pending feature actions.

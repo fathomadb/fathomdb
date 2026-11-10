@@ -11,10 +11,10 @@ attached replacement with recovered drafts and original branch. The app refused
 literal cross-chat attachment transfer. No environment setup or implementation
 approval is inferred. Previous compact default/B2-8 rulings remain settled.
 
-## Pending checkpoint batches
+## Recorded checkpoint batches
 
-Initial intake recorded no P02–P28 decisions. Batches below now govern; final
-Slice10 acceptance remains pending. Capture
+Initial intake recorded no P02–P28 decisions. Batches below now govern; the
+current direct mandate supersedes their original generic final-wait language. Capture
 proposal IDs, actual ruling/conditions, evidence and receiving task when answers
 arrive. Silence, elapsed time and reviewer approval are never owner approval.
 Canonical ledger events use fresh full-tail ledgerwatch/ledgerwrite and stable
@@ -25,7 +25,7 @@ identities. The P20 placement ruling below is recorded at steward seq-367.
 Owner answered **“Approve this preparation scope”** to task-owned /mnt/data
 build/scratch, pinned Node25.9.0/npm11.12.1, owned Python/native environments and
 contained Rustls/DOMPurify updates. IDs P02/P03 and the two named P05 update
-groups are scope-approved. Execution waits for final reviewed acceptance.
+groups are scope-approved. Execution follows the current direct mandate and required independent reviews.
 Keep exact source-feature/native identity and compatibility checks; no global
 tool/driver replacement or cleanup/publication is included.
 
@@ -35,7 +35,7 @@ Owner answered **“Approve these bounded preparation changes”** to .29 state/
 board activation, identified stale applicability/workspace/package documentation,
 dependency-survey discovery/tiering and narrow .29 first-tag CUDA routing while
 preserving existing protections. P04 and bounded P06/P07/P08/P27 scope is approved
-for10, subject to final reviewed acceptance. External permission changes and
+for10 through the current required independent-review pipeline. External permission changes and
 actual publication remain separate.
 
 For the query clone-equality property scaffold, owner answered **“Keep it for
@@ -65,11 +65,12 @@ default/B2-8 rulings remain settled, not newly reopened.
 
 ## Remaining checkpoint decisions
 
-Fault model/venue boundaries and CUDA120/130 choices remain to be clarified.
-Fork P20 release scope is ruled at steward seq-367 below. Conditional150 experiments,
-combined160 qualification/close, incomplete-evidence dispositions, coordinated
-W version bump and final reviewed10 acceptance remain unruled. Actual fault
-venues, priced runs, policy amendments and publication are separate gates.
+100/110 bounded work and160 combined qualification are included in authorized
+release execution. W0.8.29 coordination is implied by that release; retain
+independent E0.8.0. Generic final10 acknowledgment is superseded by the direct
+mandate and required plan/final reviews. Specific fault model/venue, CUDA artifact
+selection/policy, priced sessions and optional150 choices remain distinct;
+actual publication is separately authorized. Fork P20 is ruled below.
 
 ## Fresh CUDA review input awaiting disposition
 
@@ -114,3 +115,24 @@ and allocate no migration or data-conversion work. Reuse existing B2 span storag
 for reporting. Package/release-state metadata changes are separate. No database
 format change is inferred; an unexpected storage-change need returns for scope
 review. Carry this ruled boundary into .29 state at approved10 activation.
+
+## Current direct execution authority
+
+The owner now requires direct Sol-high slice owners, independent Astra-medium
+plan review, same-owner implementation/finalization and fresh independent final
+review. Approved work proceeds through those gates without renewed generic role
+or final-package acknowledgment. Prior final-wait language is historical and
+superseded, not a withdrawal of the specific gates retained above.
+
+Batches1–4,100/110 inclusion, selected160 qualification, W0.8.29 coordination,
+compact default/B2-8/omission, query retention and seq-367/368 remain effective.
+No fresh ruling is invented by this correction. Parent owns exact new answers,
+canonical ledger events and repository import; this candidate does not append
+rulings. [Design](design.md) contains remaining question drafts, not decisions.
+
+Prior.28 Q13 already directs CUDA13Tegra to vetted CloudJetson (no local reflash)
+and carries AWSg5g cells to.29. Q15's GCP CUDA13.0 sessions require owner approval
+per session,<=2h, Spot test/verification only. Actual current host/quote/caps,
+artifact identities/selection and specific fault permission are still distinct.
+The bounded CUDA review retains unknown shares/unknown FathomDB compiler exposure;
+no toolkit/support-floor change or automatic13.2 build follows.

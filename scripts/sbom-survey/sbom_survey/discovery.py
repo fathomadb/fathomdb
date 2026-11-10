@@ -39,6 +39,7 @@ MANIFEST_TABLE: dict[str, tuple[str, str]] = {
     "pyproject.toml": ("pypi", "manifest"),
     "uv.lock": ("pypi", "lockfile"),
     "setup.py": ("pypi", "manifest"),
+    "export-requirements.txt": ("pypi", "manifest"),
     # --- recognized, forward-looking: nothing tracked matches these today ---
     "yarn.lock": ("npm", "lockfile"),
     "pnpm-lock.yaml": ("npm", "lockfile"),

@@ -56,6 +56,7 @@ MANIFEST_BASENAMES = (
     "pyproject.toml",
     "uv.lock",
     "setup.py",
+    "export-requirements.txt",
     # recognized, forward-looking: nothing tracked matches these today
     "yarn.lock",
     "pnpm-lock.yaml",

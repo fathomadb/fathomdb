@@ -197,3 +197,38 @@ FAIL lint-md-structure: markdownlint-cli2 not found at node_modules/.bin/markdow
 exit=1
 FAIL  hard-fail message does not tell the operator how to fix it (scripts/bootstrap.sh)
 ```
+
+## Pytest child candidate observed RED
+
+Unchanged test_slice85_maintenance.py::test_cancelled_caller_keeps_native_ownership_until_durable_completion
+failed at b3df with its actual child return-code assertion, not missing tooling.
+Full raw Python output remains task logs/retained-test-spills/
+fathomdb-agent-test-python-182330.log and the original PID182330 spill.
+Existing test stays unchanged; this record precedes separate caller GREEN.
+Full observed child traceback:
+
+```text
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 35, in <module>
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+E             return runner.run(main)
+E                    ^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+E             return self._loop.run_until_complete(task)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+E             return future.result()
+E                    ^^^^^^^^^^^^^^^
+E           File "<string>", line 11, in main
+E         AttributeError: 'builtins.ErasureMaintenance' object has no attribute '_arm_erasure_pause_for_test'
+E         
+```
+
+Read-only python-child-import-proof.json under the Slice10 /tmp evidence root
+confirms default subprocess import resolves to this venv's installed production
+module5e80e3ee..., which has no private hook. Scoped own src/python resolves to
+the sanctioned source candidate db577917..., matching the passed parent receipt
+(candidate_sha=b3df, nonce=agent-test-182330). Proposed caller correction scopes
+absolute own-checkout PYTHONPATH only to pytest/children. It changes no test,
+conftest, wheel/nonce/digest guard or installed production module; final identity
+proof must compare child path/digest/nonce to the newly qualified parent receipt.

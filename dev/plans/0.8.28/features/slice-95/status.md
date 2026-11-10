@@ -1,11 +1,11 @@
 ---
-title: FathomDB 0.8.28 Slice 95 — preparation completion
+title: FathomDB 0.8.28 Slice 95 — completion
 status: COMPLETE
 ---
 
 # Slice 95 status
 
-**PREPUBLICATION COMPLETE. Publication authorized; documentation updated.**
+**COMPLETE. FathomDB 0.8.28 is published and its installed consumers are verified.**
 Reviewed implementation
 `3741dfb8a3d85bced4bfac6047083cc7e30da314` is integrated into `origin/main`,
 `dev/0.8.28` and `release/0.8.28`. Astra design/code reviews and separate
@@ -73,17 +73,35 @@ or dependency update was identified in the bounded branch/transcript audit.
 
 ## Publication authorization, retained limits and cleanup
 
-The owner authorized publication and the two exact protected-tag entries.
-Those entries are installed, existing reviewers/restrictions are preserved,
-and the normal tag routing guard passes. The first release attempt was stopped
-before package uploads for the owner's final documentation update. Maintained
-user, package, contributor and architecture documentation now targets 0.8.28;
-Markdown lint passes. Resume the unfinished publication jobs after landing
-this documentation-only checkpoint, reusing completed native builds.
+Published tag `v0.8.28` remains `cdd41e2630a0084a5782128aa68d4de913aca90b`.
+Production run42729768792 passes all required publishers, eight registry-smoke
+jobs and co-tagging. Its overall cancellation retains the stopped non-gating
+history advisory; the legacy npm promotion failed401. OIDC recovery42739775249
+is SUCCESS: npm `latest` is0.8.28 and the public GitHub Release has five wheels.
+Tegra Pages42735747672 is SUCCESS, including live Python/Node CUDA consumers.
 
-Publisher jobs being skipped does not show their
-publish/dry-run bodies executed. The original three local leaf dry-runs retain
-their unchanged-input scope. Registry-installed end-to-end smoke follows actual
+Engine recovery42737348645 fixes the versioned self dev-dependency with a
+path-only test dependency; real package RED101 became normal package GREEN0,
+with default test-hooks consumer1/1. SDK recovery42738291355 uses the existing
+API token after OIDC403. Both publish source `4b9e9fef89089bef9e03cd788ba4c136a09fcee0`;
+runtime source is unchanged. Native builds were reused. The SDK trusted-publisher
+configuration needs an operator check before the next release; no speculative
+authentication change was made. Astra approved the focused recoveries.
+
+Independent fresh registry Python, Node and Rust SDK consumers pass persisted
+write/read, missing-record controls, separate-process reopen, close and exit.
+Published CLI installation/version/row counts pass. Its conservative retained-term
+certificate warning returns65; on a disposable copy, documented completion64
+then doctor0 passes and the original record survives. The original remains unchanged.
+
+Maintained documentation is current and Markdown-linted. All five published
+Tegra artifacts are retained by digest. Temporary recovery code and task
+worktrees/branches are removed; standing GPU/Windows/Tegra runners remain active
+and the original GPU selector is restored.
+
+Skipped original rehearsal publisher jobs do not show their publish/dry-run
+bodies executed. The original three local leaf dry-runs retain
+their unchanged-input scope. Registry-installed end-to-end smokes subsequently passed after actual
 publication. Required rehearsal `pending_external` CLI observations remain
 unexecuted scope, not passed or waived. D28-09/10/11 and populated-open deferrals
 retain their existing dispositions. The literal durability ADR/evidence
@@ -181,9 +199,8 @@ Independent verification confirms the entire original group policy is
 restored exactly. All three runners remain running. This proves identity and
 job delivery; no inference, package build or publication is claimed.
 
-Local pre-tag metadata/Axis-W/main-ancestry checks exit0. The unchanged
-protected tag route exits1 for the missing exact group entry. Primary PyPI,
-npm and crates.io version endpoints and GitHub Release return404 for0.8.28.
-Publication remains unstarted pending the explicit two-entry policy approval.
+At the pre-tag checkpoint, metadata/Axis-W/main-ancestry checks passed; the
+protected route refused the then-missing entry and package endpoints returned404.
+The owner subsequently approved the exact entries; publication is complete above.
 Evidence and independent verification:
 `target/slice95-final-format37/approved-ci/ci28-gpu-restoration/`.

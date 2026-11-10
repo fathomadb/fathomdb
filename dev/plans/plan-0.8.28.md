@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.28 — Tegra CUDA pool, forked cudarc, and the vector read-path fix
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.28
 execution_model: direct; no Steward or Orchestrator; Slices 42 to 90 run serially before 0.8.29 starts; 0.8.29 starts when 0.8.28 enters final verification (owner 2026-10-31)
 ---
@@ -172,19 +172,12 @@ before Slice 95. These explicit placements do not change this policy for other g
 
 ## Immediate next slice
 
-<!-- BEGIN GENERATED release-state:0.8.28:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 95** (`CI-RELEASE-READINESS`) — CI completeness and quality, runner repairs, documentation/package convergence and final release qualification
+**Release complete.** Slice95 is closed; continue the existing 0.8.29 plan.
 
-**Remaining ladder:** 95.<!-- END GENERATED release-state:0.8.28:plan-immediate-next -->
-
-Product implementation through Slice90, Slice92 documentation and Slice95
-prepublication preparation are complete. The qualified implementation
-`3741dfb8a3d85bced4bfac6047083cc7e30da314` is integrated on `origin/main`.
-[Slice95 status](0.8.28/features/slice-95/status.md) records the assembled
-full/scoped qualification and trusted nonpublishing rehearsal. Publication is
-authorized at seq-366; Slice95 continues with exact-tag protected routing,
-actual publication and registry-installed verification. The .29 code
-handover preserves its MCP/filtered-body-FTS requirements and existing behavior.
+Implementation, documentation, Slice95 qualification and owner-authorized
+publication are complete. [Slice95 status](0.8.28/features/slice-95/status.md)
+records actual registry/Pages publication and independent installed consumers.
+The .29 handover preserves its MCP/filtered-body-FTS scope.
 
 Slices 40 and 41 merged into `release/0.8.28` at `869d6a9e1` and
 `0ec01bc22`; Slice 42 landed on `dev/0.8.28` (code head `fdbb74e10`).
@@ -196,11 +189,10 @@ Slice 85 completed the approved explicit-maintenance API and format 36 at
 timings. [Status](0.8.28/features/slice-85/status.md) records assembled checks and
 hosted CI infrastructure limits. Slice 90 completed filtered direct body FTS;
 its [status](0.8.28/features/slice-90/status.md) records reviewed semantics and
-verification. [Slice 95](0.8.28/features/slice-95/plan.md) now owns the CI
+verification. [Slice 95](0.8.28/features/slice-95/plan.md) completed the CI
 setup/disk/consumer-smoke repairs, evidence audit and final release qualification
 (the applicable `AGENT_LONG` perf gates, eu7, feature-complete gate and
-installed-artifact smoke tests), followed by the separate owner publication
-decision (Slice 31 plan W8 and R-CODE-4).
+installed-artifact smoke tests), followed by owner-authorized publication.
 
 ## Erasure sequence disposition and approved contract
 

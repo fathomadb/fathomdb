@@ -1,0 +1,309 @@
+GPU - vLLM (https://docs.vllm.ai/en/latest/getting_started/installation/gpu.html ; rewritten summary of https://docs.vllm.ai/en/latest/getting_started/installation/gpu/)
+citeturn12view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn11view0","pattern":"CUDA 13"}); Redirected to URL: https://docs.vllm.ai/en/latest/getting_started/installation/gpu/; Total lines: 1511
+L1200: For CUDA 13 images, the minimum host kernel is Linux 4.15 when running normally because CUDA 13 requires an R580 or newer driver. Compatibility mode supports R535 and R570 host drivers; R535 lowers the minimum host kernel to Linux 3.10, while R570 still requires Linux 4.15. Upgrading the container userland to Ubuntu 24.04 does not raise these driver-defined kernel requirements.
+L1335: For (G)B300, we recommend using CUDA 13, as shown in the following command.
+L1336: Command
+L1337: 
+L1338:     `DOCKER_BUILDKIT=1 docker build \
+L1339:     --build-arg CUDA_VERSION=13.2.1 \
+L1340:     --build-arg BUILD_BASE_IMAGE=pytorch/manylinuxaarch64-builder:cuda13.2-9f3983c9d680f3cc243dfa0524efcb881be7869e \
+L1341:     --build-arg max_jobs=256 \
+L1342:     --build-arg nvcc_threads=2 \
+L1343:     --build-arg torch_cuda_arch_list='9.0 10.0+PTX' \
+L1344:     --platform "linux/arm64" \
+L1345:     --tag vllm/vllm-gb300-openai:latest \
+L1346:     --target vllm-openai \
+L1347:     -f docker/Dockerfile \
+L1348:     .
+L1349:     `
+L1350: 
+L1351: Note
+L1352: If you are building the `linux/arm64` image on a non-ARM host (e.g., an x86_64 machine), you need to ensure your system is set up for cross-compilation using QEMU. This allows your host machine to emulate ARM64 execution.
+L1353: 
+L1354: Run the following command on your host machine to register QEMU user static handlers:
+L1355: 
+L1356:     `docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+L1357:     `
+L1358: 
+L1359: After setting up QEMU, you can use the `--platform "linux/arm64"` flag in your `docker build` command.
+L1360: #### [Preview] Building vLLM's Docker Image from Source for NVIDIA Rubin GPU Architecture【436†¶】
+L1361: 
+L1362: Set `INSTALL_RUBIN_PRERELEASE=true` to enable the Rubin build path.
+L1363: Triton must currently be installed from source for Rubin compatibility. Specify its repository with `TRITON_INSTALL_FROM_SOURCE_REPO`; an empty `TRITON_INSTALL_FROM_SOURCE_REVISION` selects the repository's latest `main`, while a commit, branch, or tag selects that revision. The tested revision lowers SM107 through LLVM's SM100 target and uses the final CUDA image's version-matched `ptxas` for SM107 assembly. This enables vLLM's default compiled mode on VR200 and R100.
+L1364: BuildKit does not automatically invalidate cached layers when a mutable Git ref changes. Use `--no-cache-filter extensions-build` to refresh an empty, branch, or tag revision.
+L1365: 
+L1366: For `FINAL_BASE_IMAGE`, use the public, multi-arch `nvidia/cuda:13.4.1-base-ubuntu24.04` image. Set `NCCL_VERSION` to 2.32.3 or newer, the first NCCL release with Rubin (SM107) support. For `BUILD_BASE_IMAGE`, use:
+L1367:   * `pytorch/manylinux2_28-builder:cuda13.4` for x86_64 CPUs.
+L1368:   * `pytorch/manylinuxaarch64-builder:cuda13.4` for ARM64/AArch64 CPUs.
+L1369: ARM64/AArch64 build command
+L1370: 
+L1371:     `docker buildx build --progress=plain --load \
+L1372:       --file docker/Dockerfile \
+L1373:       --target vllm-openai \
+L1374:       --platform "linux/arm64" \
+L1375:       --tag "vllm/vllm-rubin-openai:prerelease-cu134-public-arm64" \
+L1376:       --build-arg max_jobs="$(nproc)" \
+L1377:       --build-arg nvcc_threads=2 \
+L1378:       --build-arg RUN_WHEEL_CHECK=false \
+L1379:       --build-arg INSTALL_RUBIN_PRERELEASE=true \
+L1380:       --build-arg TRITON_INSTALL_FROM_SOURCE_REPO=https://github.com/triton-lang/triton.git \
+L1381:       --build-arg TRITON_INSTALL_FROM_SOURCE_REVISION=3f6e41132b5edf639bfb872ad73d4688765e08b8 \
+L1382:       --build-arg CUDA_VERSION=13.4 \
+L1383:       --build-arg BUILD_BASE_IMAGE="pytorch/manylinuxaarch64-builder:cuda13.4" \
+L1384:       --build-arg FINAL_BASE_IMAGE="nvidia/cuda:13.4.1-base-ubuntu24.04" \
+L1385:       --build-arg NCCL_VERSION=2.32.3 \
+L1386:       .
+L1387:     `
+L1388: x86_64 build command
+L1389: 
+L1390:     `docker buildx build --progress=plain --load \
+L1391:       --file docker/Dockerfile \
+L1392:       --target vllm-openai \
+L1393:       --platform "linux/amd64" \
+L1394:       --tag "vllm/vllm-rubin-openai:prerelease-cu134-public-amd64" \
+L1395:       --build-arg max_jobs="$(nproc)" \
+L1396:       --build-arg nvcc_threads=2 \
+L1397:       --build-arg RUN_WHEEL_CHECK=false \
+L1398:       --build-arg INSTALL_RUBIN_PRERELEASE=true \
+L1399:       --build-arg TRITON_INSTALL_FROM_SOURCE_REPO=https://github.com/triton-lang/triton.git \
+L1400:       --build-arg TRITON_INSTALL_FROM_SOURCE_REVISION=3f6e41132b5edf639bfb872ad73d4688765e08b8 \
+L1401:       --build-arg CUDA_VERSION=13.4 \
+L1402:       --build-arg BUILD_BASE_IMAGE="pytorch/manylinux2_28-builder:cuda13.4" \
+L1403:       --build-arg FINAL_BASE_IMAGE="nvidia/cuda:13.4.1-base-ubuntu24.04" \
+L1404:       --build-arg NCCL_VERSION=2.32.3 \
+L1405:       .
+L1406:     `
+L1407: Note
+L1408: 
+L1409: Keep the default explicit `torch_cuda_arch_list`. GPU-less BuildKit builds cannot inspect the host GPU. R100 and VR200 report compute capability 10.7, for which the generic `10.0` target provides family-compatible kernels.
+L1410: 
+L1411: `RUN_WHEEL_CHECK=false` disables only the PyPI publication-size guard for this private staging image.
+L1412: #### Use the custom-built vLLM Docker image**【437†¶】
+L1413: 
+L1414: To run vLLM with the custom-built Docker image:
+L1415: 
+L1416:     `docker run --runtime nvidia --gpus all \
+L1417:         -v ~/.cache/huggingface:/root/.cache/huggingface \
+L1418:         -p 8000:8000 \
+L1419:         --env "HF_TOKEN=<secret>" \
+L1420:         vllm/vllm-openai <args...>
+L1421:     `
+L1422: 
+L1423: The argument `vllm/vllm-openai` specifies the image to run, and should be replaced with the name of the custom-built image (the `-t` tag from the build command).
+L1424: 
+L1425: Note
+L1426: For version 0.4.1 and 0.4.2 only - the vLLM docker images under these versions are supposed to be run under the root user since a library under the root user's home directory, i.e. `/root/.config/vllm/nccl/cu12/libnccl.so.2.18.1` is required to be loaded during runtime.
+--------------------------------------------------------------------------------
+NVIDIA - CUDA | onnxruntime (https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)
+citeturn12view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn11view1","pattern":"13.0"}); Total lines: 802
+L216: ## Requirements
+L217: 
+L218: Please reference table below for official GPU packages dependencies for the ONNX Runtime inferencing package. Note that ONNX Runtime Training is aligned with PyTorch CUDA versions; refer to the Optimize Training tab on 【199†onnxruntime.ai】 for supported versions.
+L219: Because of 【200†Nvidia CUDA Minor Version Compatibility†docs.nvidia.com】, ONNX Runtime built with CUDA 11.8 are compatible with any CUDA 11.x version; ONNX Runtime built with CUDA 12.8 require CUDA 12.8 or newer; ONNX Runtime built with CUDA 13.0 require CUDA 13.0 or newer.
+L220: ONNX Runtime built with cuDNN 8.x is not compatible with cuDNN 9.x, and vice versa. You can choose the package based on CUDA and cuDNN major versions that match your runtime environment (e.g., PyTorch 2.3 uses cuDNN 8.x, while PyTorch 2.4 or later uses cuDNN 9.x).
+L221: Note: Starting with version 1.27, GPU packages published to 【201†PyPI (`onnxruntime-gpu`)†pypi.org】 and 【202†NuGet (`Microsoft.ML.OnnxRuntime.Gpu`)†www.nuget.org】 are built with CUDA 13.0 by default. Separate CUDA 12.x GPU packages for these versions are built with CUDA 12.8 and require CUDA 12.8 or newer. Older GPU package versions are built with CUDA 12.8 by default.
+L222: To reduce the need for manual installations of CUDA and cuDNN, and ensure seamless integration between ONNX Runtime and PyTorch, the `onnxruntime-gpu` Python package offers API to load CUDA and cuDNN dynamic link libraries (DLLs) appropriately. For more details, refer to the 【169†Compatibility with PyTorch】 and 【170†Preload DLLs】 sections.
+L223: ### CUDA 13.x
+L224: 
+L225: ONNX Runtime  | CUDA  | cuDNN  | Notes
+L226: --- | --- | --- | ---
+L227: 1.30.x  | 13.0  | 9.x  | Available in PyPI and NuGet. Compatible with PyTorch for CUDA 13.x.
+L228: 1.29.x  | 13.0  | 9.x  | Available in PyPI and NuGet. Compatible with PyTorch for CUDA 13.x.
+L229: 1.28.x  | 13.0  | 9.x  | Available in PyPI and NuGet. Compatible with PyTorch for CUDA 13.x.
+L230: 1.27.x  | 13.0  | 9.x  | Available in PyPI and NuGet. Compatible with PyTorch for CUDA 13.x.
+L231: ### CUDA 12.x
+L232: ONNX Runtime  | CUDA  | cuDNN  | Notes
+L233: --- | --- | --- | ---
+L234: 1.30.x-1.27.x  | 12.8  | 9.x  | CUDA 12.x GPU packages. Requires CUDA 12.8 or newer.
+L235: 1.26.x-1.21.x  | 12.8  | 9.x  | Available in PyPI and NuGet. Default GPU package build before 1.27.
+L236: 1.20.x  | 12.x  | 9.x  | Avaiable in PyPI. Compatible with PyTorch >= 2.4.0 for CUDA 12.x.
+L237: 1.19.x  | 12.x  | 9.x  | Avaiable in PyPI. Compatible with PyTorch >= 2.4.0 for CUDA 12.x.
+L238: 1.18.1  | 12.x  | 9.x  | cuDNN 9 is required. No Java package.
+L239: 1.18.0  | 12.x  | 8.x  | Java package is added.
+L240: 1.17.x  | 12.x  | 8.x  | Only C++/C# Nuget and Python packages are released. No Java package.
+L241: ### CUDA 11.x
+L242: ONNX Runtime  | CUDA  | cuDNN  | Notes
+L243: --- | --- | --- | ---
+L244: 1.20.x  | 11.8  | 8.x  | Not available in PyPI. See 【197†Install ORT】 for details. Compatible with PyTorch <= 2.3.1 for CUDA 11.8.
+L245: 1.19.x  | 11.8  | 8.x  | Not available in PyPI. See 【197†Install ORT】 for details. Compatible with PyTorch <= 2.3.1 for CUDA 11.8.
+L246: 1.18.x  | 11.8  | 8.x  | Available in PyPI.
+L247: 1.17
+L248: 1.16
+L249: 1.15  | 11.8  | 8.2.4 (Linux)
+L250: 8.5.0.96 (Windows)  | Tested with CUDA versions from 11.6 up to 11.8, and cuDNN from 8.2 up to 8.9
+L251: 1.14
+--------------------------------------------------------------------------------
+Release v0.9.0 · ggml-org/llama.cpp · GitHub (https://github.com/ggml-org/llama.cpp/releases/latest ; rewritten summary of https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0)
+citeturn12view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn11view2","pattern":"cuda"}); Redirected to URL: https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0; Total lines: 384
+L147: This release adds OCP FP8 E4M3 quantization support, a new `flash_attn_ext_rows` op that makes the unified KV cache efficient for multi-sequence inference, and a generic batched tensor copy API. Four new architectures are supported (Clover, Limite, Metis-1.6 and Mistral Large 4), audio generation and transcription expand with Chatterbox TTS, Nemotron 3.5 Transcribe and predefined Pocket TTS voices, and the Gemma 4 E2B/E4B models get major prefill optimizations.
+L148: `ggml` is updated to v0.29.0, bringing FP8 E4M3, flash attention rows, NCCL-based multi-node tensor parallelism and performance work across the CPU, CUDA, SYCL, Metal, Vulkan, OpenCL and Hexagon backends. The server and UI receive a round of fixes and refinements.
+L149: ### Highlights
+L150: 
+L151:   * Quant: OCP FP8 E4M3 tensor type (saturating mode) with conversion helpers and a new ftype (【64†#27512】)
+L152: 
+L153:   * llama: `flash_attn_ext_rows` - more efficient unified KV for multi-seq, restoring non-unified KV prefill performance (【65†#29510】)
+L154: 
+L155:   * ggml: batched tensor copy API (`ggml_backend_tensor_copy_n`/`set_n`/`get_n`) superseding the `_2d` API, implemented for Metal and CUDA (【66†#30881】)
+L156:   * For a 3rd year in a row, `llama.cpp` is a featured repo in the 【67†Github Octoverse report†github.blog】:
+L157: ### API changes
+L158:   * llama.h: add `LLAMA_FTYPE_MOSTLY_F8_E4M3` (【64†#27512】)
+L159:   * mtmd.h: add `MTMD_GEN_AUDIO_TYPE_CHATTERBOX` and `n_voices` to `mtmd_gen_audio_info` (【68†#30993】)
+L160:   * mtmd.h: add predefined-voice APIs: `mtmd_gen_audio_voice_name()`, `mtmd_gen_audio_get_voice()`, `mtmd_gen_state_set_ref()` (【68†#30993】)
+L161:   * mtmd.h: add `mtmd_bitmap_is_voice()` and `mtmd_gen_audio_read_tensor()` (【68†#30993】)
+L162:   * mtmd.h: add `MTMD_VIDEO_TEMPLATE_QWEN3VL` video prompt template (【69†#31619】)
+L204: Performance work spans all major backends: new SVE kernels in the CPU backend, DPAS flash attention for quantized KV in SYCL, fused MoE MMQ in CUDA, faster MXFP4 mat-vec in Metal, split-K tuning in Vulkan, and a large expansion of quantized GEMM/GEMV coverage in OpenCL. The Hexagon backend gains support for several new ops, including the lightning indexer, top-k mask, conv2d and upscale.
+L227: 【145†`7071ba3`】 hexagon: add TOP_K_MASK op (【146†#31552】)
+L228: 【147†`6cb3e67`】 gemma4: graph optimizations (massive gains on pp for E2B and E4B) (【75†#31356】)
+L233: 【154†`a464960`】 ggml-zdnn: fix fattn test failure (【155†#31583】)
+L234: 【156†`9309bf1`】 model : Add support for Metis-1.6 models (【73†#31134】)
+L235: 【157†`d1044bc`】 model : enable NVFP4 LFM3 ggufs (【77†#31608】)
+L236: 【158†`28b812d`】 mtmd : add Nemotron 3.5 Transcribe support (【102†#31471】)
+L237: 【159†`749db7f`】 qwen4exp: write the conv state tail without an intermediate cont (【83†#31443】)
+L238: 【160†`0943ca5`】 ui: add Playwright harness for recording demo videos (【118†#31318】)
+L239: 【161†`f9448cd`】 model : record layer inputs in LFM3 for spec dec (【81†#31598】)
+L240: 【162†`0978a6e`】 ggml: avoid signed overflow in ggml_roll bounds check (【163†#30375】)
+L241: 【164†`0ef2730`】 conversion : use original model tensor names in _flush_nvfp4_experts (【165†#31427】)
+L242: 【166†`8fc0376`】 cuda: potential fix for Q8_1 correction sum (【167†#31247】)
+L243: 【168†`740251a`】 cuda : gather batched tensor reads into mapped host memory (PR to master) (【169†#31391】)
+L244: 【170†`71efc55`】 Add nccl support for multi-node tensor parallelism (【171†#28967】)
+L245: 【172†`19e8a86`】 tools : reject mismatched shards in GGUF split merge (【96†#31579】)
+L246: 【173†`259d917`】 meta: support GLM-5.3 next sm tensor (【174†#30499】)
+L247: 【175†`36ee3ca`】 metal : fix cpy kernel for dst non-contiguous in dim 0 (【176†#31581】)
+L248: 【177†`fac3a89`】 vulkan: skip maxStorageBufferRange pre-check for non-compute tensors (【178†#31114】)
+L249: 【179†`b74298c`】 delta_net_base: refactor conv state (【180†#30878】)
+L250: 【181†`37b0f9c`】 vulkan: fix out-of-bounds NVFP4 UE4M3 scale lookup (【182†#31079】)
+L251: 【183†`ca8daad`】 llama : drop the redundant cnv from llm_attn_mask (【184†#31558】)
+L252: 【185†`0f663d2`】 dsv4.1: fix llama-context tests with partial offload (【186†#31292】)
+L253: 【187†`00f113e`】 cuda : prevent premature eviction of graphs about to be used (【188†#30662】)
+L254: 【189†`e6192de`】 opencl: add initial iq4_xs support (【190†#31339】)
+L255: 【191†`4402e65`】 chat : allow constraint type after gpt-oss final channel (【93†#31556】)
+L256: 【192†`74101b3`】 ci : update the HIP VGPR spill ignore list for the kv_rows FA kernel argument (【193†#31550】)
+L257: 【194†`713319e`】 webgpu: add ARANGE support (【195†#31455】)
+L258: 【196†`ee17f29`】 kv-cache : never return 0 kv_rows for sequences without cells (【87†#31570】)
+L259: 【197†`51fe42c`】 hexagon: tiled hvx permute (【198†#31446】)
+L260: 【199†`2cbca38`】 dflash: copy hidden features via device copies (【82†#31506】)
+L261: 【200†`29c720e`】 docs: update s390x build docs (【201†#31546】)
+L333: 【310†`3dd0f60`】 doc: update ops for opencl (【311†#31347】)
+L334: 【312†`78febba`】 HIP/CUDA: enable sparse attn on CDNA (【313†#31259】)
+L335: 【314†`abb76ab`】 model : Support Limite 1B - Violetto (【72†#29433】)
+L336: 【315†`41be0bd`】 common: select A100 cores for SpaceMiT default threads (【316†#30284】)
+L337: 【317†`22183e5`】 opencl: initial support for iq2 (【318†#31267】)
+L338: 【319†`6d19453`】 metal : faster MXFP4 mat-vec, full threadgroups for unary/binary/GLU (【320†#31075】)
+L339: 【321†`fade717`】 tests : remove duplicate FA test cases added in 【322†#31125】 (【323†#31357】)
+L340: 【324†`c9daee1`】 ggml-metal : fix unary kernels compile on older Metal toolchains (【325†#31360】)
+L341: 【326†`8a199ad`】 hexagon: support for UPSCALE op (【327†#31331】)
+L342: 【328†`da6c30a`】 hexagon: improve DDR bw utilization in transposed CONCAT (【329†#31277】)
+L343: 【330†`f7c01c5`】 [SYCL] add DPAS flash attention kernel for quantized KV cache (【322†#31125】)
+L344: 【331†`bf48103`】 sycl : vectorize reordered-layout dequantization stores (Q4_0, K-quants, IQ3, MXFP4) (【332†#30976】)
+L345: 【333†`6d5ac3c`】 tests : fix comp_padding CUDA graph reservation (【334†#31344】)
+L346: 【335†`7ac5727`】 ggml-openvino: slice view inputs of SCALE (【336†#31334】)
+L347: 【337†`2e0d86b`】 Hexagon: IM2COL improvement - block based HVX parallelization (【338†#31050】)
+L348: 【339†`e09a78a`】 tests: fix CI flakes in server cancel and sleep tests (【340†#31330】)
+L349: 【341†`369dcf3`】 ggml-cpu: add SVE implementation of ggml_gemv_q8_0_4x8_q8_0 (【342†#30585】)
+L350: 【343†`d0ff631`】 docs : fix DSpark confidence threshold flag name (--spec-draft-p-min) (【344†#31178】)
+L351: 【345†`cf24317`】 common, mtmd: bound control vector layer indices and M-RoPE position loops (【95†#31336】)
+L352: 【346†`74a4fb0`】 opencl: add tiled q4_k GEMM for adreno (【347†#30412】)
+L353: 【348†`5220213`】 hexagon: add conv2d support (【349†#30995】)
+L354: 【350†`c3df4b7`】 Speed up IQ4 quant creation with pre-computed halfway points (【351†#31201】)
+L355: 【352†`ac8e169`】 ggml-cpu: SVE 256 bit implementation of gemm_q6_K_8x8_q8_K kernel (【353†#27472】)
+L356: 【354†`c02b5c6`】 ggml-cpu: SVE 256-bit Implementation of mxfp4 gemv kernel (【355†#28141】)
+L357: 【356†`ff0d396`】 ci(s390x): switch to Ubuntu 26.04 runners (【357†#31317】)
+L358: 【358†`838093f`】 llama : remove simple batch splitting for DSV4 (【90†#31300】)
+L359: 【359†`604cc43`】 codeowners : refresh teams and maintainer PRs link (【360†#31316】)
+L360: 【361†`39febd2`】 sycl: work-group argmax for short TOP_K rows (【362†#31110】)
+L361: 【363†`f5222f2`】 cuda: fuse MoE (MUL_MAT_ID) gate/up and GLU in MMQ (【364†#31188】)
+L362: 【365†`28cb47c`】 gguf-py: fix np_roundf dropping the sign (【98†#31310】)
+L363: Assets 3
+L364: 
+L365: Loading
+L366: ### Uh oh!
+L367: 
+L368: There was an error while loading. Please reload this page.
+L369: 
+L370: [Input][Input] [Input]
+L371: 0belius, scrowten, newsletternewsletter, jreng02, chris282, smkhastar2, Danik-droid, mirek190, Aqel, aw4yout, and 9 more reacted with thumbs up emoji Dr4gonfun, carlosjln, and ngxson reacted with laugh emoji ChosenOne2241, vbooka1, jreng02, Aditya30301, smkhastar2, JonPC4, i0tool5, Dr4gonfun, carlosjln, Rivmun, and 2 more reacted with hooray emoji i0tool5, Dr4gonfun, carlosjln, Gurrumio, and ngxson reacted with heart emoji i0tool5, Dr4gonfun, and ngxson reacted with rocket emoji Dr4gonfun, Gurrumio, ngxson, and Farislahham reacted with eyes emoji
+L372: All reactions
+L373: 
+L374:   * 19 reactions
+L375:   * 3 reactions
+L376:   * 12 reactions
+L377:   * 5 reactions
+L378:   * 3 reactions
+L379:   * 4 reactions
+L380: 
+L381: 25 people reacted
+L382: 
+L383: You can’t perform that action at this time.
+--------------------------------------------------------------------------------
+Release v0.9.0 · ggml-org/llama.cpp · GitHub (https://github.com/ggml-org/llama.cpp/releases/latest ; rewritten summary of https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0)
+citeturn12view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn11view2","pattern":"Assets"}); Redirected to URL: https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0; Total lines: 384
+L354: 【350†`c3df4b7`】 Speed up IQ4 quant creation with pre-computed halfway points (【351†#31201】)
+L355: 【352†`ac8e169`】 ggml-cpu: SVE 256 bit implementation of gemm_q6_K_8x8_q8_K kernel (【353†#27472】)
+L356: 【354†`c02b5c6`】 ggml-cpu: SVE 256-bit Implementation of mxfp4 gemv kernel (【355†#28141】)
+L357: 【356†`ff0d396`】 ci(s390x): switch to Ubuntu 26.04 runners (【357†#31317】)
+L358: 【358†`838093f`】 llama : remove simple batch splitting for DSV4 (【90†#31300】)
+L359: 【359†`604cc43`】 codeowners : refresh teams and maintainer PRs link (【360†#31316】)
+L360: 【361†`39febd2`】 sycl: work-group argmax for short TOP_K rows (【362†#31110】)
+L361: 【363†`f5222f2`】 cuda: fuse MoE (MUL_MAT_ID) gate/up and GLU in MMQ (【364†#31188】)
+L362: 【365†`28cb47c`】 gguf-py: fix np_roundf dropping the sign (【98†#31310】)
+L363: Assets 3
+L364: 
+L365: Loading
+L366: ### Uh oh!
+L367: 
+L368: There was an error while loading. Please reload this page.
+L369: 
+L370: [Input][Input] [Input]
+L371: 0belius, scrowten, newsletternewsletter, jreng02, chris282, smkhastar2, Danik-droid, mirek190, Aqel, aw4yout, and 9 more reacted with thumbs up emoji Dr4gonfun, carlosjln, and ngxson reacted with laugh emoji ChosenOne2241, vbooka1, jreng02, Aditya30301, smkhastar2, JonPC4, i0tool5, Dr4gonfun, carlosjln, Rivmun, and 2 more reacted with hooray emoji i0tool5, Dr4gonfun, carlosjln, Gurrumio, and ngxson reacted with heart emoji i0tool5, Dr4gonfun, and ngxson reacted with rocket emoji Dr4gonfun, Gurrumio, ngxson, and Farislahham reacted with eyes emoji
+L372: All reactions
+L373: 
+L374:   * 19 reactions
+L375:   * 3 reactions
+L376:   * 12 reactions
+L377:   * 5 reactions
+L378:   * 3 reactions
+L379:   * 4 reactions
+L380: 
+L381: 25 people reacted
+L382: 
+L383: You can’t perform that action at this time.
+--------------------------------------------------------------------------------
+Release v0.40.16 · ollama/ollama · GitHub (https://github.com/ollama/ollama/releases/latest ; rewritten summary of https://github.com/ollama/ollama/releases/tag/v0.40.16)
+citeturn12view4 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn11view3","pattern":"jetpack"}); Redirected to URL: https://github.com/ollama/ollama/releases/tag/v0.40.16; Total lines: 183
+No matching text found for "jetpack"--------------------------------------------------------------------------------
+Release v0.40.16 · ollama/ollama · GitHub (https://github.com/ollama/ollama/releases/latest ; rewritten summary of https://github.com/ollama/ollama/releases/tag/v0.40.16)
+citeturn12view5 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn11view3","pattern":"Assets"}); Redirected to URL: https://github.com/ollama/ollama/releases/tag/v0.40.16; Total lines: 183
+L150: ## What's Changed
+L151: 
+L152:   * Qwen3.8 Flash Next uses about 27 GiB less memory on Apple silicon
+L153:   * `ollama launch claude` always routes Claude Code to the selected model
+L154:   * `ollama launch` explains when a cloud model has been retired
+L155:   * `/v1/responses` respects `truncation` and no longer silently truncates by default
+L156:   * `/v1/models` returns an empty list instead of `null` when no models are installed
+L157:   * CUDA 13.5 support for Windows on ARM
+L158:   * Updated llama.cpp
+L159: 
+L160: Full Changelog: 【63†`v0.40.15...v0.40.16`】
+L161: Assets 19
+L162: 
+L163: Loading
+L164: ### Uh oh!
+L165: 
+L166: There was an error while loading. Please reload this page.
+L167: 
+L168: [Input][Input] [Input]
+L169: 
+L170: dec, oteissonniere, i0tool5, donatas-xyz, GustavoTsu777, goodecodee, radian896, wu858430049, and Harvester62 reacted with thumbs up emoji dec reacted with laugh emoji dec, i0tool5, realgooseman, and thinh9e reacted with hooray emoji dec and goodecodee reacted with heart emoji dec, i0tool5, and mmahmoudian reacted with rocket emoji dec reacted with eyes emoji
+L171: 
+L172: All reactions
+L173:   * 9 reactions
+L174:   * 1 reaction
+L175:   * 4 reactions
+L176:   * 2 reactions
+L177:   * 3 reactions
+L178:   * 1 reaction
+L179: 
+L180: 12 people reacted
+L181: 
+L182: You can’t perform that action at this time.
+

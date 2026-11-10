@@ -1,0 +1,197 @@
+PyPI Download Stats (https://pypistats.org/packages/nvidia-cuda-runtime)
+citeturn6search0 [wordlim: 200] Crawled: today; # nvidia-cuda-runtime ... Downloads last day: 937,748
+
+# nvidia-cuda-runtime
+
+* * *
+
+PyPI page
+Home page
+Author: Nvidia CUDA Installer Team
+Summary: CUDA Runtime native Libraries
+Latest version: 13.5.37
+Downloads last day: 937,748
+Downloads last week: 6,146,001
+Downloads last month: 22,719,882--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/cuda-toolkit)
+citeturn6search1 [wordlim: 200] Crawled: today; Optional dependencies: nvidia-cublas | nvidia-cuda-cccl | nvidia-cuda-crt | nvidia-cuda-culibos | nvidia-cuda-cuobjdump | nvidia-cuda-cupti | nvidia-cuda-cuxxfilt | nvidia-cuda-nvcc | nvidia-cuda-nvdisasm | nvidia-cuda-nvrtc | nvidia-cuda-opencl | nvidia-cuda-profiler-api | nvidia-cuda-runtime | nvidia-cuda-sanitizer-api | nvidia-cuda-tileiras | nvidia-cudla | nvidia-cufft | nvidia-cufile | nvidia-curand | nvidia-cusolver | nvidia-cusparse | nvidia-npp | nvidia-nvfatbin | nvidia-nvjitlink | nvidia-nvjpeg | nvidia-nvml-dev | nvidia-nvptxcompiler | nvidia-nvtx | nvidia-nvvm
+Downloads last day: 980,469
+# PyPI Stats
+
+# cuda-toolkit
+
+* * *
+
+PyPI page
+Author: NVIDIA Kitmaker Team
+Summary: CUDA Toolkit meta-package
+Latest version: 13.5.0
+Optional dependencies: nvidia-cublas | nvidia-cuda-cccl | nvidia-cuda-crt | nvidia-cuda-culibos | nvidia-cuda-cuobjdump | nvidia-cuda-cupti | nvidia-cuda-cuxxfilt | nvidia-cuda-nvcc | nvidia-cuda-nvdisasm | nvidia-cuda-nvrtc | nvidia-cuda-opencl | nvidia-cuda-profiler-api | nvidia-cuda-runtime | nvidia-cuda-sanitizer-api | nvidia-cuda-tileiras | nvidia-cudla | nvidia-cufft | nvidia-cufile | nvidia-curand | nvidia-cusolver | nvidia-cusparse | nvidia-npp | nvidia-nvfatbin | nvidia-nvjitlink | nvidia-nvjpeg | nvidia-nvml-dev | nvidia-nvptxcompiler | nvidia-nvtx | nvidia-nvvm
+Downloads last day: 980,469
+Downloads last week: 6,380,396
+Downloads last month: 24,182,397--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/nvidia-cuda-runtime-cu13)
+citeturn6search2 [wordlim: 200] Crawled: today; # nvidia-cuda-runtime-cu13 ... Downloads last day: 313
+
+# nvidia-cuda-runtime-cu13
+
+* * *
+
+PyPI page
+Author: NVIDIA Kitmaker Team
+Summary: DEPRECATED: Use nvidia-cuda-runtime instead
+Latest version: 0.0.1
+Downloads last day: 313
+Downloads last week: 2,907
+Downloads last month: 14,597--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/jax-cuda12-plugin)
+citeturn6search3 [wordlim: 200] Crawled: today; Optional dependencies: nvidia-cublas-cu12 | nvidia-cuda-cupti-cu12 | nvidia-cuda-nvcc-cu12 | nvidia-cuda-nvrtc-cu12 | nvidia-cuda-runtime-cu12 | nvidia-cudnn-cu12 | nvidia-cufft-cu12 | nvidia-cusolver-cu12 | nvidia-cusparse-cu12 | nvidia-nccl-cu12 | nvidia-nvjitlink-cu12 | nvidia-nvshmem-cu12
+Downloads last day: 17,707
+
+# jax-cuda12-plugin
+
+PyPI page
+Home page
+Author: JAX team
+License: Apache-2.0
+Summary: JAX Plugin for NVIDIA GPUs
+Latest version: 0.12.0.1
+Required dependencies: jax-cuda12-pjrt
+Optional dependencies: nvidia-cublas-cu12 | nvidia-cuda-cupti-cu12 | nvidia-cuda-nvcc-cu12 | nvidia-cuda-nvrtc-cu12 | nvidia-cuda-runtime-cu12 | nvidia-cudnn-cu12 | nvidia-cufft-cu12 | nvidia-cusolver-cu12 | nvidia-cusparse-cu12 | nvidia-nccl-cu12 | nvidia-nvjitlink-cu12 | nvidia-nvshmem-cu12
+Downloads last day: 17,707
+Downloads last week: 116,881
+Downloads last month: 595,058--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/nvmath-python)
+citeturn6search4 [wordlim: 200] Crawled: last week; Optional dependencies: cffi | cuda-bindings | cuda-core | cuda-toolkit | cutensor-cu12 | cutensor-cu13 | llvmlite | mkl | nccl4py | numba | numba-cuda | numba-cuda-mlir | nvidia-cublas-cu12 | nvidia-cublasmp-cu12 | nvidia-cublasmp-cu13 | nvidia-cuda-cccl-cu12 | nvidia-cuda-nvrtc-cu12 | nvidia-cuda-runtime-cu12 | nvidia-cudss-cu12 | nvidia-cudss-cu13 | nvidia-cufft-cu12 | nvidia-cufftmp-cu12 | nvidia-cufftmp-cu13 | nvidia-curand-cu12 | nvidia-cusolver-cu12 | nvidia-cusolvermp-cu12 | nvidia-cusolvermp-cu13 | nvidia-cusparse-cu12 | nvidia-libmathdx-cu12 | nvidia-libmathdx-cu13 | nvidia-nccl-cu12 | nvidia-nccl-cu13 | nvidia-nvshmem-cu12 | nvidia-nvshmem-cu13 | nvmath-python | nvpl-blas | nvpl-fft
+Downloads last day: 5,351
+
+# nvmath-python
+
+PyPI page
+Author: NVIDIA Corporation
+Summary: NVIDIA Math Python libraries
+Latest version: 1.0.0
+Required dependencies: cuda-bindings | cuda-core | cuda-pathfinder | numpy | pywin32
+Optional dependencies: cffi | cuda-bindings | cuda-core | cuda-toolkit | cutensor-cu12 | cutensor-cu13 | llvmlite | mkl | nccl4py | numba | numba-cuda | numba-cuda-mlir | nvidia-cublas-cu12 | nvidia-cublasmp-cu12 | nvidia-cublasmp-cu13 | nvidia-cuda-cccl-cu12 | nvidia-cuda-nvrtc-cu12 | nvidia-cuda-runtime-cu12 | nvidia-cudss-cu12 | nvidia-cudss-cu13 | nvidia-cufft-cu12 | nvidia-cufftmp-cu12 | nvidia-cufftmp-cu13 | nvidia-curand-cu12 | nvidia-cusolver-cu12 | nvidia-cusolvermp-cu12 | nvidia-cusolvermp-cu13 | nvidia-cusparse-cu12 | nvidia-libmathdx-cu12 | nvidia-libmathdx-cu13 | nvidia-nccl-cu12 | nvidia-nccl-cu13 | nvidia-nvshmem-cu12 | nvidia-nvshmem-cu13 | nvmath-python | nvpl-blas | nvpl-fft
+Downloads last day: 5,351
+Downloads last week: 16,606
+Downloads last month: 20,320--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/nvidia-cusparse)
+citeturn6search5 [wordlim: 200] Crawled: today; Author: Nvidia CUDA Installer Team
+Summary: CUSPARSE native runtime libraries ... Downloads last day: 685,852
+
+# nvidia-cusparse
+
+* * *
+
+PyPI page
+Home page
+Author: Nvidia CUDA Installer Team
+Summary: CUSPARSE native runtime libraries
+Latest version: 12.9.4.2
+Required dependencies: nvidia-nvjitlink
+Downloads last day: 685,852
+Downloads last week: 6,486,411
+Downloads last month: 22,724,412--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/onnxruntime-gpu)
+citeturn6search6 [wordlim: 200] Crawled: today; Optional dependencies: ml-dtypes | nvidia-cuda-nvrtc | nvidia-cuda-runtime | nvidia-cudnn-cu13 | nvidia-cufft | nvidia-curand | sympy
+Downloads last day: 64,525
+
+# onnxruntime-gpu
+
+PyPI page
+Home page
+Author: Microsoft Corporation
+License: MIT License
+Summary: ONNX Runtime is a runtime accelerator for Machine Learning models
+Latest version: 1.31.1
+Required dependencies: flatbuffers | numpy | packaging | protobuf
+Optional dependencies: ml-dtypes | nvidia-cuda-nvrtc | nvidia-cuda-runtime | nvidia-cudnn-cu13 | nvidia-cufft | nvidia-curand | sympy
+Downloads last day: 64,525
+Downloads last week: 592,349
+Downloads last month: 2,021,668--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/jax-cuda13-plugin)
+citeturn6search7 [wordlim: 200] Crawled: today; Optional dependencies: nvidia-cublas | nvidia-cuda-cupti | nvidia-cuda-nvcc | nvidia-cuda-nvrtc | nvidia-cuda-runtime | nvidia-cudnn-cu13 | nvidia-cufft | nvidia-cusolver | nvidia-cusparse | nvidia-nccl-cu13 | nvidia-nvjitlink | nvidia-nvshmem-cu13 | nvidia-nvvm
+Downloads last day: 7,195
+
+# jax-cuda13-plugin
+
+* * *
+
+PyPI page
+Home page
+Author: JAX team
+License: Apache-2.0
+Summary: JAX Plugin for NVIDIA GPUs
+Latest version: 0.12.0.1
+Required dependencies: jax-cuda13-pjrt
+Optional dependencies: nvidia-cublas | nvidia-cuda-cupti | nvidia-cuda-nvcc | nvidia-cuda-nvrtc | nvidia-cuda-runtime | nvidia-cudnn-cu13 | nvidia-cufft | nvidia-cusolver | nvidia-cusparse | nvidia-nccl-cu13 | nvidia-nvjitlink | nvidia-nvshmem-cu13 | nvidia-nvvm
+Downloads last day: 7,195
+Downloads last week: 41,641
+Downloads last month: 281,048--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/cuda-core)
+citeturn6search8 [wordlim: 200] Crawled: 5 days ago; Author: NVIDIA Corporation
+Summary: cuda.core: pythonic CUDA module ... Downloads last day: 186,968
+
+# cuda-core
+
+* * *
+
+PyPI page
+Author: NVIDIA Corporation
+Summary: cuda.core: pythonic CUDA module
+Latest version: 1.2.2
+Required dependencies: backports-strenum | cuda-pathfinder | numpy
+Optional dependencies: cuda-bindings | cuda-toolkit
+Downloads last day: 186,968
+Downloads last week: 1,261,902
+Downloads last month: 4,050,870--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/tensorflow-macos)
+citeturn6search9 [wordlim: 200] Crawled: last week; Optional dependencies: nvidia-cublas-cu12 | nvidia-cuda-cupti-cu12 | nvidia-cuda-nvcc-cu12 | nvidia-cuda-nvrtc-cu12 | nvidia-cuda-runtime-cu12 | nvidia-cudnn-cu12 | nvidia-cufft-cu12 | nvidia-curand-cu12 | nvidia-cusolver-cu12 | nvidia-cusparse-cu12 | nvidia-nccl-cu12 | nvidia-nvjitlink-cu12
+Downloads last day: 382
+
+# tensorflow-macos
+Author: Google Inc.
+License: Apache 2.0
+Summary: TensorFlow is an open source machine learning framework for everyone.
+Latest version: 2.16.2
+Required dependencies: tensorflow | tensorflow-intel
+Optional dependencies: nvidia-cublas-cu12 | nvidia-cuda-cupti-cu12 | nvidia-cuda-nvcc-cu12 | nvidia-cuda-nvrtc-cu12 | nvidia-cuda-runtime-cu12 | nvidia-cudnn-cu12 | nvidia-cufft-cu12 | nvidia-curand-cu12 | nvidia-cusolver-cu12 | nvidia-cusparse-cu12 | nvidia-nccl-cu12 | nvidia-nvjitlink-cu12
+Downloads last day: 382
+Downloads last week: 2,892
+Downloads last month: 13,351--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/nvidia-cudss-cu12)
+citeturn6search10 [wordlim: 200] Crawled: 3 days ago; Author: Nvidia CUDA Installer Team
+Summary: cuDSS - runtime libraries ... Downloads last day: 639
+
+# nvidia-cudss-cu12
+
+PyPI page
+Home page
+Author: Nvidia CUDA Installer Team
+Summary: cuDSS - runtime libraries
+Latest version: 1.0.0.35
+Required dependencies: cuda-toolkit | nvidia-cublas-cu12 | nvidia-cuda-nvrtc-cu12
+Optional dependencies: nvidia-nccl-cu12
+Downloads last day: 639
+Downloads last week: 4,331
+Downloads last month: 12,158--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/decord2)
+citeturn6search11 [wordlim: 200] Crawled: 2 weeks ago; Optional dependencies: nvidia-cublas | nvidia-cuda-nvrtc | nvidia-cuda-runtime
+Downloads last day: 20,132
+
+# decord2
+
+* * *
+
+PyPI page
+Home page
+Author: Johnny Núñez
+License: Apache-2.0
+Summary: Decord2 is a high-performance, efficient video decoding and loading library for deep learning research, featuring smart shuffling, random frame access, GPU acceleration, and seamless integration with popular frameworks.
+Latest version: 3.4.0
+Required dependencies: numpy
+Optional dependencies: nvidia-cublas | nvidia-cuda-nvrtc | nvidia-cuda-runtime
+Downloads last day: 20,132
+Downloads last week: 120,333
+Downloads last month: 499,900

@@ -1,0 +1,216 @@
+ (https://pypi.org/pypi/torch/json)
+citeturn5view0 [wordlim: 200] Crawled: today; Content type: application/json; Source: open({"ref_id":"https://pypi.org/pypi/torch/json","lineno":28}); Total lines: 35
+L26: Click on the job to see the logs:\n\n<img width=\"1187\" height=\"668\" alt=\"Monosnap Update installation instructions for doc build · pytorch:pytorch@7380336 2025-12-18 18-24-15\" src=\"https://github.com/user-attachments/assets/117df543-8356-4323-8e1c-ef02a95554ba\" />\n\nAnd we can be sure that this job does not involve docs.\n\nLooking at this build, we can see these jobs are relevant to our docs - and they didn't have any errors:\n\n<img width=\"777\" height=\"395\" alt=\"Check the docs jobs\" src=\"https://github.com/user-attachments/assets/5d7c196b-2d40-49ad-87e3-f57de6e14a5b\" />\n\nYou might also see a comment on the PR like this:\n\n<img width=\"651\" height=\"246\" alt=\"PR Comment\" src=\"https://github.com/user-attachments/assets/27e0120a-ba33-4b1c-b4a5-bf3064520586\" />\n\nWe can see that some of these issues are relevant to our docs.\n\nOpen the logs by clicking on the `gh` link:\n\n<img width=\"873\" height=\"360\" alt=\"View Logs\" src=\"https://github.com/user-attachments/assets/ab5b862f-8026-489c-b95e-a6cd4257e4b7\" />\n\nAnd here we can see there is a doc-related error:\n\n<img width=\"1117\" height=\"433\" alt=\"Doc Error\" src=\"https://github.com/user-attachments/assets/0a275921-736d-43a7-ab0f-3e8854d43280\" />\n\nYou can always find the relevant doc builds by going to the `Checks` tab on your PR, and scrolling down to `pull`.\n\n<img width=\"481\" height=\"561\" alt=\"checks\" src=\"https://github.com/user-attachments/assets/eef18f2b-7134-4e2e-bd90-bcdc12800132\" />\n\nYou can either click through or toggle the accordion to see all of the jobs here, where you can see the docs jobs highlighted:\n\n<img width=\"570\" height=\"611\" alt=\"jobs\" src=\"https://github.com/user-attachments/assets/f62812ca-caee-421b-863c-54f38fd28d46\" />\n\nIf you click through, you'll see the doc jobs at the bottom, like this:\n\n<img width=\"354\" height=\"312\" alt=\"View Docs jobs\" src=\"https://github.com/user-attachments/assets/8fadb935-5314-4c4b-a1b5-133781754f03\" />\n\n\n#### Building a PDF\n\nTo compile a PDF of all PyTorch documentation, ensure you have\n`texlive` and LaTeX installed.
+L27: On macOS, you can install them using:\n\n```\nbrew install --cask mactex\n```\n\nTo create the PDF:\n\n1. Run:\n\n   ```\n   make latexpdf\n   ```\n\n   This will generate the necessary files in the `build/latex` directory.\n\n2. Navigate to this directory and execute:\n\n   ```\n   make LATEXOPTS=\"-interaction=nonstopmode\"\n   ```\n\n   This will produce a `pytorch.pdf` with the desired content.
+L28: Run this\n   command one more time so that it generates the correct table\n   of contents and index.\n\n> [!NOTE]\n> To view the Table of Contents, switch to the **Table of Contents**\n> view in your PDF viewer.\n\n\n### Previous Versions\n\nInstallation instructions and binaries for previous PyTorch versions may be found\non [our website](https://pytorch.org/get-started/previous-versions).\n\n\n## Getting Started\n\nPointers to get you started:\n- [Tutorials: get you started with understanding and using PyTorch](https://pytorch.org/tutorials/)\n- [Examples: easy to understand PyTorch code across all domains](https://github.com/pytorch/examples)\n- [The API Reference](https://pytorch.org/docs/)\n- [Glossary](https://github.com/pytorch/pytorch/blob/main/GLOSSARY.md)\n\n## Resources\n\n* [PyTorch.org](https://pytorch.org/)\n* [PyTorch Tutorials](https://pytorch.org/tutorials/)\n* [PyTorch Examples](https://github.com/pytorch/examples)\n* [PyTorch Models](https://pytorch.org/hub/)\n* [Intro to Deep Learning with PyTorch from Udacity](https://www.udacity.com/course/deep-learning-pytorch--ud188)\n* [Intro to Machine Learning with PyTorch from Udacity](https://www.udacity.com/course/intro-to-machine-learning-nanodegree--nd229)\n* [Deep Neural Networks with PyTorch from Coursera](https://www.coursera.org/learn/deep-neural-networks-with-pytorch)\n* [PyTorch Twitter](https://twitter.com/PyTorch)\n* [PyTorch Blog](https://pytorch.org/blog/)\n* [PyTorch YouTube](https://www.youtube.com/channel/UCWXI5YeOsh03QvJ59PMaXFw)\n\n## Communication\n* Forums: Discuss implementations, research, etc.
+L29: https://discuss.pytorch.org\n* GitHub Issues: Bug reports, feature requests, install issues, RFCs, thoughts, etc. See the [issue lifecycle](CONTRIBUTING.md#issue-lifecycle) for how they are handled.\n* Slack: The [PyTorch Slack](https://pytorch.slack.com/) hosts a primary audience of moderate to experienced PyTorch users and developers for general chat, online discussions, collaboration, etc.\n* Facebook Page: Important announcements about PyTorch.
+L30: https://www.facebook.com/pytorch\n* For brand guidelines, please visit our website at [pytorch.org](https://pytorch.org/)\n\n## Releases and Contributing\n\nTypically, PyTorch has three minor releases a year. Please let us know if you encounter a bug by [filing an issue](https://github.com/pytorch/pytorch/issues).\n\nWe appreciate all contributions.
+L31: Whether you plan to contribute a bug-fix or a new feature, please first open an issue (or find an existing one) and discuss it with us.\nOnce a maintainer marks the issue \"actionable\", you can send a PR for it.\nSending a PR without an actionable issue will result in the PR being automatically closed.\nSee the [Issue and PR Workflow](CONTRIBUTING.md#issue-and-pr-workflow) for details.\n\nTo learn more about making a contribution to PyTorch, please see our [Contribution page](CONTRIBUTING.md).
+L32: For more information about PyTorch releases, see [Release page](RELEASE.md).\n\n## The Team\n\nPyTorch is a community-driven project with several skillful engineers and researchers contributing to it.\n\nPyTorch is currently maintained by [Soumith Chintala](https://soumith.ch), [Gregory Chanan](https://github.com/gchanan), [Dmytro Dzhulgakov](https://github.com/dzhulgakov), [Edward Yang](https://github.com/ezyang), [Alban Desmaison](https://github.com/albanD), [Piotr Bialecki](https://github.com/ptrblck) and [Nikita Shulga](https://github.com/malfet) with major contributions coming from hundreds of talented individuals in various forms and means.\nA non-exhaustive but growing list needs to mention: [Trevor Killeen](https://github.com/killeent), [Sasank Chilamkurthy](https://github.com/chsasank), [Sergey Zagoruyko](https://github.com/szagoruyko), [Adam Lerer](https://github.com/adamlerer), [Francisco Massa](https://github.com/fmassa), [Alykhan Tejani](https://github.com/alykhantejani), [Luca Antiga](https://github.com/lantiga), [Alban Desmaison](https://github.com/albanD), [Andreas Koepf](https://github.com/andreaskoepf), [James Bradbury](https://github.com/jekbradbury), [Zeming Lin](https://github.com/ebetica), [Yuandong Tian](https://github.com/yuandong-tian), [Guillaume Lample](https://github.com/glample), [Marat Dukhan](https://github.com/Maratyszcza), [Natalia Gimelshein](https://github.com/ngimel), [Christian Sarofeen](https://github.com/csarofeen), [Martin Raison](https://github.com/martinraison), [Edward Yang](https://github.com/ezyang), [Zachary Devito](https://github.com/zdevito).
+L33: <!-- codespell:ignore -->\n\nNote: This project is unrelated to [hughperkins/pytorch](https://github.com/hughperkins/pytorch) with the same name.
+--------------------------------------------------------------------------------
+Minor Version Compatibility — CUDA Compatibility (https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)
+citeturn5view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html","lineno":16}); Total lines: 101
+L0: 【0†Image: country_code†www.nvidia.com】
+L1: 
+L2: Back to top
+L3: 
+L4: [Input: Search the docs ...] `Ctrl`+`K`
+L5: 
+L6: Table of Contents
+L7: 
+L8:   * 【1†Why CUDA Compatibility】
+L9:   * 【2†Minor Version Compatibility】
+L10:   * 【3†Forward Compatibility】
+L11:   * 【4†Conclusion】
+L12:   * 【5†Frequently Asked Questions】
+L13:   * 【6†Notices】
+L14: 
+L15: # Minor Version Compatibility【7†#】
+L16: ## CUDA 11 and Later Defaults to Minor Version Compatibility【8†#】
+L17: 
+L18: From CUDA 11 onwards, applications compiled with a CUDA Toolkit release from within a CUDA major release family can run, with limited feature-set, on systems having at least the minimum required driver version as indicated below. This minimum required driver can be different from the driver packaged with the CUDA Toolkit but should belong to the same major release.
+L19: 
+L20: Refer to the CUDA Toolkit Release Notes for the complete table.
+L21: Table 1 CUDA Toolkit 11.x, 12.x, and 13.x Driver Version Ranges*【9†#】
+L22: CUDA Toolkit  | Minimum Driver Version  | Upper Range for Minor Version Compatibility
+L23: --- | --- | ---
+L24: CUDA 13.x  | >= 580  | N/A (backward compatibility applies for newer drivers)
+L25: CUDA 12.x  | >= 525  | < 580 (newer drivers still supported through backward compatibility)
+L26: CUDA 11.x  | >= 450  | < 525 (newer drivers still supported through backward compatibility)
+L27: 
+L28: * Refer to the 【10†CUDA Toolkit Release Notes】 for the complete table.
+L29: Note
+L30: 
+L31: CUDA 11.0 was released with an earlier driver version, but by upgrading to Tesla Recommended Drivers 450.80.02 (Linux) / 452.39 (Windows) as indicated, minor version compatibility is possible across the CUDA 11.x family of toolkits.
+L32: While applications built against any of the older CUDA Toolkits always continued to function on newer drivers due to binary backward compatibility, before CUDA 11, applications built against newer CUDA Toolkit releases were not supported on older drivers without forward compatibility package.
+L33: If you are using a new CUDA 10.x minor release, then the minimum required driver version is the same as the driver that’s packaged as part of that toolkit release. Consequently, the minimum required driver version changed for every new CUDA Toolkit minor release until CUDA 11.1. Therefore, system administrators always have to upgrade drivers in order to support applications built against CUDA Toolkits from 10.x releases.
+L34: Table 2 CUDA Toolkit 10.x Minimum Required Driver Versions【11†#】
+L35: CUDA Toolkit  | Linux x86_64 Minimum Required Driver Version  | Windows Minimum Required Driver Version
+L36: --- | --- | ---
+L37: CUDA 10.2  | >= 440.33  | >=441.22
+L38: CUDA 10.1  | >= 418.39  | >=418.96
+L39: CUDA 10.0  | >= 410.48  | >=411.31
+L40: With minor version compatibility, upgrading to CUDA 13.4 is now possible on older drivers from within the same major release family such as 580.65.06 that was released with CUDA 13.0, as shown below:
+L41: 
+L42:     $ nvidia-smi
+L43:     +-----------------------------------------------------------------------------+
+L44:     | NVIDIA-SMI 580.65.06    Driver Version: 580.65.06    CUDA Version: 13.0     |
+L45:     |-------------------------------+----------------------+----------------------+
+L46:     [...]
+L47:     $ ./deviceQuery
+L48:     ./deviceQuery Starting...
+L49: 
+L50:     CUDA Device Query (Runtime API) version (CUDART static linking)
+L51: 
+L52:     Detected 1 CUDA Capable device(s)
+L53: 
+L54:     Device 0: "Tesla T4"
+L55:       CUDA Driver Version / Runtime Version          13.0 / 13.4
+L56:       CUDA Capability Major/Minor version number:    7.5
+L57:     [...]
+L58: 
+L59:     deviceQuery, CUDA Driver = CUDART, CUDA Driver Version = 13.0, CUDA Runtime Version = 13.4, NumDevs = 1
+L60:     Result = PASS
+L61: Minimum required driver version guidance can be found in the 【12†CUDA Toolkit Release Notes】. Note that if the minimum required driver version is not installed in the system, applications will return an error as shown below.
+L62: 
+L63:     $ ./deviceQuery
+L64:     ./deviceQuery Starting...
+L65: 
+L66:     CUDA Device Query (Runtime API) version (CUDART static linking)
+L67: 
+L68:     cudaGetDeviceCount returned 3
+L69:     -> initialization error
+L70:     Result = FAIL
+L71: ## Application Considerations for Minor Version Compatibility【13†#】
+L72: 
+L73: Developers and system administrators should note three important caveats when relying on minor version compatibility. If either of these caveats are limiting, then a new CUDA driver from the same minor version of the toolkit that the application was built with or later is required.
+L74: 
+L75:   * Limited feature set
+L76: Sometimes features introduced in a CUDA Toolkit version may actually span both the toolkit and the driver. In such cases an application that relies on features introduced in a newer version of the toolkit and driver may return the following error on older drivers: `cudaErrorCallRequiresNewerDriver`.
+L77: As mentioned earlier, administrators should then also upgrade the installed driver. Alternatively, application developers can avoid running into this problem by having the application explicitly check for the availability of features.
+L78: 
+L79:   * Applications using PTX will see runtime issues
+L80: 
+L81: Applications that compile device code to PTX will not work on older drivers.
+--------------------------------------------------------------------------------
+JetPack Archive | NVIDIA Developer (https://developer.nvidia.com/embedded/jetpack-archive)
+citeturn5view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://developer.nvidia.com/embedded/jetpack-archive","lineno":3}); Total lines: 119
+L0: # JetPack Archive
+L1: 
+L2: This page includes access to previously released versions of JetPack. The latest version of JetPack is always available under the main 【0†NVIDIA JetPack product page】.
+L3:   * 【1†JetPack 7.2.1】
+L4:     * Jetson AGX Thor Developer Kit, Jetson T5000, Jetson T4000, Jetson Orin Family [【1†L4T 39.2.1】]
+L5:   * 【2†JetPack 7.2】
+L6:     * Jetson AGX Thor Developer Kit, Jetson T5000, Jetson T4000, Jetson Orin Family [【2†L4T 39.2】]
+L7:   * 【3†JetPack 7.1】
+L8:     * Jetson AGX Thor Developer Kit, Jetson T5000, Jetson T4000 [【3†L4T 38.4】]
+L9:   * 【4†JetPack 7.0】
+L10:     * Jetson AGX Thor Developer Kit, Jetson T5000 [【4†L4T 38.2/38.2.1】]
+L11:   * 【5†JetPack 6.2.3】
+L12:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series [【6†L4T 36.5.2】]
+L13:   * 【7†JetPack 6.2.2】
+L14:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series [【8†L4T 36.5.0】]
+L15:   * 【9†JetPack 6.2.1】
+L16:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series [【10†L4T 36.4.4】]
+L17:   * 【11†JetPack 6.2】
+L18:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series [【12†L4T 36.4.3】]
+L19:   * 【13†JetPack 6.1】
+L20:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series [【14†L4T 36.4】]
+L21:   * 【15†JetPack 6.0】
+L22:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series [【16†L4T 36.3】]
+L23:   * 【17†JetPack 6.0 DP】
+L24:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series [【18†L4T 36.2】]
+L25:   * 【19†JetPack 5.1.8】
+L26:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【20†L4T 35.7.0】]
+L27:   * 【21†JetPack 5.1.7】
+L28:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【22†L4T 35.6.5】]
+L29:   * 【23†JetPack 5.1.6】
+L30:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【24†L4T 35.6.4】]
+L31:   * 【25†JetPack 5.1.5】
+L32:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【26†L4T 35.6.1】, 【27†L4T 35.6.2】]
+L33:   * 【28†JetPack 5.1.4】
+L34:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【29†L4T 35.6.0】]
+L35:   * 【30†JetPack 5.1.3】
+L36:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【31†L4T 35.5.0】]
+L37:   * 【32†JetPack 5.1.2】
+L38:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【33†L4T 35.4.1】]
+L39:   * 【34†JetPack 5.1.1】
+L40:     * Jetson AGX Orin Series, Jetson Orin NX Series, Jetson Orin Nano Series, Jetson Xavier NX series, Jetson AGX Xavier Series, [【35†L4T 35.3.1】]
+L41:   * 【36†JetPack 5.1】
+L42:     * Jetson AGX Orin Developer Kit, Jetson AGX Orin 32GB, Jetson Orin NX 16GB, Jetson Xavier NX series, Jetson AGX Xavier Series, [【37†L4T 35.2.1】]
+L43:   * 【38†JetPack 5.0.2】
+L44:     * Jetson AGX Orin Developer Kit, Jetson Xavier NX series, Jetson AGX Xavier Series, [【39†L4T 35.1】]
+L45:   * 【40†JetPack 5.0.1 Developer Preview】
+L46:     * Jetson AGX Orin Developer Kit, Jetson Xavier NX series, Jetson AGX Xavier Series, [【41†L4T 34.1.1】]
+L47:   * 【42†JetPack 5.0 Developer Preview】
+L48:     * Jetson AGX Orin Developer Kit, Jetson Xavier NX series, Jetson AGX Xavier Series, [【43†L4T 34.1】]
+L49:   * 【44†JetPack 4.6.6】
+L50:     * Jetson Xavier NX Series, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1, [【45†L4T 32.7.6】]
+L51:   * 【46†JetPack 4.6.5】
+L52:     * Jetson Xavier NX Series, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【47†L4T 32.7.5】]
+L53:   * 【48†JetPack 4.6.4】
+L54:     * Jetson Xavier NX Series, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【49†L4T 32.7.4】]
+L55:   * 【50†JetPack 4.6.3】
+L56:     * Jetson Xavier NX Series, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【51†L4T 32.7.3】]
+L57:   * 【52†JetPack 4.6.2】
+L58:     * Jetson Xavier NX Series, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【53†L4T 32.7.2】]
+L59:   * 【54†JetPack 4.6.1】
+L60:     * Jetson Xavier NX Series, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【55†L4T 32.7.1】]
+L61:   * 【56†JetPack 4.6】
+L62:     * Jetson Xavier NX, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【57†L4T 32.6.1】]
+L63:   * 【58†JetPack 4.5.1】
+L64:     * Jetson Xavier NX, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【59†L4T 32.5.1】]
+L65:   * 【60†JetPack 4.5】
+L66:     * Jetson Xavier NX, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【61†L4T 32.5】]
+L67:   * 【62†JetPack 4.4.1】
+L68:     * Jetson Xavier NX, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【63†L4T 32.4.4】]
+L69:   * 【64†JetPack 4.4】
+L70:     * Jetson Xavier NX, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【65†L4T 32.4.3】]
+L71:   * 【66†JetPack 4.4 Developer Preview】
+L72:     * Jetson Xavier NX, Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【67†L4T 32.4.2】]
+L73:   * 【68†JetPack 4.3】
+L74:     * Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【69†L4T 32.3.1】]
+L75:   * 【70†JetPack 4.2.3】
+L76:     * Jetson TX2 Series, Jetson AGX Xavier Series, Jetson Nano, Jetson TX1 [【71†L4T 32.2.1】]
+--------------------------------------------------------------------------------
+Supported Drivers and CUDA Toolkit Versions — NVIDIA Data Center Drivers (https://docs.nvidia.com/datacenter/tesla/drivers/supported-drivers-and-cuda-toolkit-versions.html)
+citeturn5view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.nvidia.com/datacenter/tesla/drivers/supported-drivers-and-cuda-toolkit-versions.html","lineno":16}); Total lines: 37
+L0: 【0†Image: country_code†www.nvidia.com】
+L1: 
+L2: Back to top
+L3: 
+L4: [Input: Search the docs ...] `Ctrl`+`K`
+L5: 
+L6: Table of Contents
+L7: 
+L8:   * 【1†Introduction】
+L9:   * 【2†Driver Lifecycle】
+L10:   * 【3†Supported Drivers and CUDA Toolkit Versions】
+L11:   * 【4†Software Deployment Workflow】
+L12:   * 【5†CUDA Toolkit, Driver, and Architecture Matrix】
+L13:   * 【6†Notices】
+L14: # Supported Drivers and CUDA Toolkit Versions【7†#】
+L15: 
+L16: NVIDIA releases CUDA Toolkit and GPU drivers at different cadences. The NVIDIA data center GPU driver software lifecycle and terminology are available in the lifecycle section of this documentation.
+L17: 
+L18: The release information can be scraped by automation tools (for example `jq`) by parsing the release information: 【8†releases.json】.
+L19: 
+L20: The following table lists the current support matrix for CUDA Toolkit and NVIDIA data center drivers.
+L21: Table 2 CUDA and Drivers【9†#】
+L22:  | R580  | R595  | R620
+L23: --- | --- | --- | ---
+L24: Branch Designation  | 【10†Long Term Support Branch】  | 【11†Production Branch】  | 【10†Long Term Support Branch】
+L25: End of Life  | June 2028  | March 2027  | September 2029
+L26: Maximum CUDA Major Version Supported Without Forward Compatibility Package 【12†[1]】  | CUDA 13  | CUDA 13  | CUDA 13
+L27: Only Long Term Support and Production branches are listed. New Feature Branches are short-lived and do not have an end-of-life date. For details, refer to 【13†New Feature Branch】.
+L28: 
+L29: [【14†1】]
+L30: 
+L31: See 【15†https://docs.nvidia.com/deploy/cuda-compatibility/forward-compatibility.html】
+L32: 【16†Privacy Policy†www.nvidia.com】 | 【17†Your Privacy Choices†www.nvidia.com】 | 【18†Terms of Service†www.nvidia.com】 | 【19†Accessibility†www.nvidia.com】 | 【20†Corporate Policies†www.nvidia.com】 | 【21†Product Security†www.nvidia.com】 | 【22†Contact†www.nvidia.com】
+L33: 
+L34: Copyright © 2020-2026, NVIDIA Corporation & affiliates. All rights reserved.
+L35: 
+L36: Last updated on Nov 04, 2026.
+

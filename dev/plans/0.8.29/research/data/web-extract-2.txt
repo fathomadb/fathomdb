@@ -1,0 +1,56 @@
+CUDA Toolkit 13.5 - Release Notes — Release Notes 13.5 documentation (https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)
+citeturn4view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html","lineno":null}); Total lines: 1309
+L0: [Input: Search docs] [Input] [Input]
+L1: 
+L2: 【0†Release Notes】
+L3: 
+L4: CUDA Toolkit 13.5 - Release Notes
+--------------------------------------------------------------------------------
+Minor Version Compatibility — CUDA Compatibility (https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)
+citeturn4view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html","lineno":null}); Total lines: 101
+L0: 【0†Image: country_code†www.nvidia.com】
+L1: 
+L2: Back to top
+L3: 
+L4: [Input: Search the docs ...] `Ctrl`+`K`
+L5: 
+L6: Table of Contents
+L7: 
+L8:   * 【1†Why CUDA Compatibility】
+L9:   * 【2†Minor Version Compatibility】
+L10:   * 【3†Forward Compatibility】
+L11:   * 【4†Conclusion】
+L12:   * 【5†Frequently Asked Questions】
+L13:   * 【6†Notices】
+L14: 
+L15: # Minor Version Compatibility【7†#】
+--------------------------------------------------------------------------------
+JetPack Archive | NVIDIA Developer (https://developer.nvidia.com/embedded/jetpack-archive)
+citeturn4view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://developer.nvidia.com/embedded/jetpack-archive","lineno":null}); Total lines: 119
+L0: # JetPack Archive
+L1: 
+L2: This page includes access to previously released versions of JetPack. The latest version of JetPack is always available under the main 【0†NVIDIA JetPack product page】.
+--------------------------------------------------------------------------------
+Supported Drivers and CUDA Toolkit Versions — NVIDIA Data Center Drivers (https://docs.nvidia.com/datacenter/tesla/drivers/supported-drivers-and-cuda-toolkit-versions.html)
+citeturn4view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.nvidia.com/datacenter/tesla/drivers/supported-drivers-and-cuda-toolkit-versions.html","lineno":null}); Total lines: 37
+L0: 【0†Image: country_code†www.nvidia.com】
+L1: 
+L2: Back to top
+L3: 
+L4: [Input: Search the docs ...] `Ctrl`+`K`
+L5: 
+L6: Table of Contents
+L7: 
+L8:   * 【1†Introduction】
+L9:   * 【2†Driver Lifecycle】
+L10:   * 【3†Supported Drivers and CUDA Toolkit Versions】
+L11:   * 【4†Software Deployment Workflow】
+L12:   * 【5†CUDA Toolkit, Driver, and Architecture Matrix】
+L13:   * 【6†Notices】
+--------------------------------------------------------------------------------
+ (https://pypi.org/pypi/torch/json)
+citeturn4view4 [wordlim: 200] Crawled: today; Content type: application/json; Source: find({"ref_id":"https://pypi.org/pypi/torch/json","pattern":"\"requires_dist\""}); Total lines: 35
+--------------------------------------------------------------------------------
+ (https://pypi.org/pypi/torch/json)
+citeturn4view5 [wordlim: 200] Crawled: today; Content type: application/json; Source: find({"ref_id":"https://pypi.org/pypi/torch/json","pattern":"\"version\""}); Total lines: 35
+

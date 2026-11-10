@@ -1,0 +1,348 @@
+JetPack SDK Downloads and Notes Archive | NVIDIA Developer (https://developer.nvidia.com/embedded/jetpack/downloads/archive-7.2.1)
+citeturn10view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: click({"ref_id":"turn5view2","id":1}); Total lines: 119
+L0: # NVIDIA JetPack SDK Downloads and Notes
+L1: ## JetPack 7.2.1 with Jetson Linux 39.2.1
+L2: 
+L3: Access release notes, packages, and resources for NVIDIA JetPack 7.2.1 with Jetson Linux 39.2.1, CUDA 13.2.2, TensorRT 10.16.2, and Jetson Agentic AI resources, including Jetson agent skills and agentic workflow tools.
+L4: 
+L5: Download the JetPack ISO and Yocto Images for developer kits here. By downloading and using the software, you agree to fully comply with the terms and conditions of the 【0†NVIDIA Software License Agreement†developer.download.nvidia.com】.
+L6: 【1†Download JetPack ISO Image】【2†Download SDK Manager】
+L7: 
+L8: 【3†Yocto for Jetson AGX Thor】
+L9: 【4†Yocto for Jetson AGX Orin】
+L10: 【5†Yocto for Jetson Orin Nano】
+L11: 
+L12: NOTE: See the 【6†Jetson AGX Thor Developer Kit Quick Start Guide†docs.nvidia.com】 for flashing steps and the 【7†Jetson Linux Developer Guide†docs.nvidia.com】 (Flashing Support section) for all flashing methods for developer kits and production modules. See the 【8†Quick Start Guide with Yocto†www.jetson-ai-lab.com】 for flashing steps on the dev-kits.
+L13: ## Release Information
+L14: 
+L15: NVIDIA JetPack 7.2.1 with Jetson Linux 39.2.1. This section includes highlights of what's new, supported Jetson hardware platforms, and a complete list of included library and SDK versions.
+L16: ### What's New
+L17: 
+L18: NOTE: For full details, refer to 【9†Jetson Linux release notes†docs.nvidia.com】.
+L19: 
+L20: Jetson Linux 39.2.1 is the latest Jetson Linux release that supports NVIDIA JetPack 7.2.1. The following are the highlights for this release:
+L21: 
+L22:   1. Support for Jetson T3000 emulation
+L23: 
+L24:   2. Agent skills for video pipelines
+L25: 
+L26:   3. ISO now flashes the Jetson Orin Nano Developer Kit with Super Mode flashing configuration by default.
+L27: 
+L28:   4. Support for PCN211461 and PCN211462.
+L29:   5. Fixes for known issues and security vulnerabilities.
+L30: 
+L31: BLOG POST: Learn more about the key features in this release in the supporting blog post 【10†here】.
+L32: 
+L33: NOTES:
+L34:   * With JetPack 7 series, Jetson software aligns with the Server Base System Architecture (SBSA), positioning Jetson Thor alongside industry-standard ARM server design. SBSA standardizes critical hardware and firmware interfaces, delivering stronger OS support, simpler software portability, and smoother enterprise integration.
+L35: Building on this foundation, Jetson Thor now supports a unified NVIDIA® CUDA® 13.2.2 installation across all Arm targets, streamlining development, reducing fragmentation, and ensuring consistency from server-class systems to Jetson Thor.
+L36:   * The manual flashing instructions have slightly changed because of Thor using SBSA architecture. Please follow the 【11†manual flashing instructions†docs.nvidia.com】 carefully.
+L37: 
+L38:   * There is no more SD Card image for Jetson Orin Nano Developer Kit. Use the unified ISO image to flash the developer kit using a USB stick. Follow the instructions on 【6†Getting Started Guide†docs.nvidia.com】.
+L39:   * If you’re re-installing JetPack 7.2.1 using ISO on an already installed system, please carefully follow the instructions in the 【6†Getting Started Guide†docs.nvidia.com】.
+L40: 
+L41:   * The ISO image-based flashing now uses Super flashing configuration on Jetson Orin Nano Developer Kit by default.
+L42: ### Supported Hardware
+L43: 
+L44: Jetson AGX Thor Developer Kit
+L45: Jetson T5000
+L46: Jetson T4000
+L47: Jetson Orin Family
+L48: ### Supported Libraries and SDK versions
+L49: Operating System  | Jetson Linux  | 39.2.1
+L50: Kernel  | k6.8
+L51: Distro  | L4T Ubuntu 24.04
+L52: Other Supported Linux Distros  | Canonical Ubuntu 24.04 for Jetson
+L53: AI Compute  | NVIDIA CUDA®  | 13.2.2
+L54: NVIDIA CuDNN  | 9.20.0
+L55: NVIDIA TensorRT™  | 10.16.2
+L56: Graphics  | Vulkan  | 1.4
+L57: Vulkan SC  | 1.0
+L58: OpenWF DIsplay  | Not supported
+L59: OpenGL  | 4.6
+L60: OpenGLES  | 3.2
+L61: GLX  | 1.4
+L62: EGL  | 1.5
+L63: Multimedia  | V4L2  | 1.22.1
+L64: Computer Vision  | VPI  | 4.1.3
+L65: PVA  | 2.9.1
+L66: NVIDIA Nsight™ Developer Tools  | Nsight Systems  | 2026.3
+L67: Nsight Graphics  | 2025.3
+L68: Nsight Deep Learning Designer  | 2025.2
+L69: Nsight Perf SDK  | 2025.4
+L70: Supported SDKs and Tools  | Jetson Platform Services  | N/A
+L71: NVIDIA DeepStream SDK  | 9.1
+L72: NVIDIA Isaac™ ROS  | Coming soon
+L73: NVIDIA Holoscan SDK  | 3.9.0
+L74: NVIDIA Triton™ Inference Server  | 【12†Triton Container†catalog.ngc.nvidia.com】
+L75: Power Estimator  | 2.7
+L76: NVIDIA Container Toolkit  | 1.19 (w/ ISO image)
+L77: ### Jetson Linux Downloads and Documents
+L78: 
+L79: NVIDIA Jetson Linux Driver Package is the board support package for Jetson. It includes Linux Kernel, UEFI bootloader, NVIDIA drivers, flashing utilities, sample filesystem based on Ubuntu, and more for the Jetson platform.
+L80: #### Jetson Linux 39.2.1 (8/11/2026)
+L81: ---
+L82: Drivers  | 【13†Driver Package (BSP)】
+L83: 【14†Camera SIPL】
+L84: 【15†Sample Root Filesystem】
+L85: 【16†Jetson Linux API Reference】
+L86: Sources  | 【17†Driver Package (BSP) Sources】
+L87: 【18†Sample Root Filesystem Sources】
+L88: Yocto Recipes  | 【19†OE4T for Jetson†github.com】
+L89: 【20†Jetson AGX Thor Dev-Kit Image SBOM】
+L90: 【21†Jetson AGX Orin Dev-Kit Image SBOM】
+L91: 【22†Jetson Orin Nano Dev-Kit Image SBOM】
+L92: Tools  | 【23†WebRTC】
+L93: 【24†Crosstool-NG Toolchain gcc】
+L94: 【25†Crosstool-NG Toolchain Sources】
+L95: 【26†CUDA Tools】
+L96: 【27†Bringup Frameworks Packages】
+L97: 【28†NVIDIA Nsight Systems】
+L98: 【29†NVIDIA Nsight Graphics】
+L99: 【30†FSKP Tools】
+L100: 【31†OTA Tools】
+L101: Agentic Links  | 【32†NemoClaw†www.nvidia.com】
+L102: 【33†Jetson Device-side Skills†github.com】
+L103: 【34†Jetson BSP Skills†github.com】
+L104: Documents  | 【9†Jetson Linux Release Notes†docs.nvidia.com】
+L105: 【7†Jetson Linux Developer Guide†docs.nvidia.com】
+L106: 【35†Jetson Linux API Reference†docs.nvidia.com】
+L107: 【6†Jetson AGX Thor Developer Kit User Guide†docs.nvidia.com】
+L108: 【36†Camera Development Guide†docs.nvidia.com】
+L109: 【37†Debian Source Package SHA Hashes】
+L110: 【38†Debian Binary Package SHA Hashes】
+L111: 【39†Software License Agreement】
+L112: ### Additional Files
+L113: 
+L114: File  | Supported Software  | Description
+L115: --- | --- | ---
+L116: 【40†Jetpack Customer IQ Migration Tools】  | JetPack 7.2.1/Jetson Linux 39.2.1  | Jetpack Customer IQ Migration Tools for Jetpack 7.2.1 with the hotfix for camera
+L117: 
+L118: For older versions of JetPack or Jetson Linux, please visit the 【41†JetPack Archive】 or 【42†Jetson Linux Archive】.
+--------------------------------------------------------------------------------
+JetPack SDK | NVIDIA Developer (https://developer.nvidia.com/embedded/jetpack-sdk-623)
+citeturn10view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: click({"ref_id":"turn5view2","id":5}); Total lines: 179
+L0: # JetPack SDK
+L1: 
+L2: NVIDIA JetPack SDK powering the Jetson modules is the most comprehensive solution for building end-to-end accelerated AI applications, significantly reducing time to market.
+L3: 
+L4: NVIDIA JetPack includes 3 components:
+L5: 
+L6: Jetson Linux: A Board Support Package (BSP) with bootloader, Linux kernel, Ubuntu desktop environment, NVIDIA drivers, toolchain and more. It also includes security and Over-The-Air (OTA) features.
+L7: Jetson AI Stack: CUDA Accelerated AI stack which includes a complete set of libraries for acceleration of GPU computing, multimedia, graphics, and computer vision.
+L8: It supports application frameworks such as 【0†Metropolis†www.nvidia.com】 to build, deploy and scale Vision AI application, 【1†Isaac】 for building high performance robotic applications and 【2†Holoscan†www.nvidia.com】 for building high performance computing applications (HPC) with real time insights and sensor processing capabilities from edge to cloud.
+L9: Jetson Platform Services: A collection of ready to use services to accelerate AI application development on Jetson.
+L10: ### JetPack 6
+L11: 
+L12: JetPack 6 is the biggest upgrade ever. It not only brings an updated Kernel and updated Ubuntu root file system but also includes novel features never before available on Jetson. JetPack 6 brings the flexibility to run any Linux Kernel and offers wider options of Linux based distros from Jetson ecosystem partners. It also includes the flexibility to update Jetson AI Stack without updating Jetson Linux BSP.
+L13: ### JetPack 6.2.3
+L14: 
+L15: JetPack 6.2.3 is the latest production release of JetPack 6. This release includes Jetson Linux 36.5.2, featuring the Linux Kernel 5.15 and an Ubuntu 22.04-based root file system. The Jetson AI stack packaged with JetPack 6.2.2 includes CUDA 12.6, TensorRT 10.3, cuDNN 9.3, VPI 3.2, DLA 3.1, and DLFW 24.0. JetPack 6.2.1 is a minor upgrade over JetPack 6.2.
+L16: Note: To use the compute stack of JetPack 6.2.3 on Jetson Linux 36.3, please refer to the 【3†NVIDIA JetPack SDK documentation†docs.nvidia.com】.
+L17: ### Installing JetPack
+L18: 
+L19: ##### SD Card Image Method for Jetson Orin Nano Developer Kit
+L20: 
+L21: NOTE: Use the SD Card image of JetPack 6.2.1/Jetson Linux 36.4.4 and APT upgrade to JetPack 6.2.3/Jetson Linux 36.5.2
+L22: 
+L23: Refer to the instructions in the developer guide for upgrade steps 【4†here†docs.nvidia.com】.
+L24: 
+L25: SD Card image for JetPack 6.2.1 can be found below.
+L26: ##### 【5†For Jetson Orin Nano Developer Kit currently running JetPack 6.x】
+L27: 
+L28: 【6†Download JetPack 6.2.1 SD card image for Jetson Orin Nano Developer Kit】
+L29: 
+L30: Follow the instructions provided in 【7†Getting Started Guide】
+L31: ##### 【8†For other Jetson Orin Nano Developer Kit (fresh unboxed unit or existing unit currently running JetPack 5.x)】
+L32: 
+L33: The factory-installed firmware on the Jetson Orin Developer Kit supports JetPack 5.x and requires an update to ensure compatibility with JetPack 6.x.
+L34: Update the firmware by following the instructions in the 【9†Initial Setup Guide for Jetson Orin Nano Developer Kit†www.jetson-ai-lab.com】 before installing JetPack 6.2.
+L35: 
+L36: ##### NVIDIA SDK Manager Method
+L37: ##### 【10†For any Jetson Orin Developer Kit】
+L38: 
+L39: 【11†Download NVIDIA SDK Manager】
+L40: 
+L41: Follow the steps at 【12†Install Jetson Software with SDK Manager†docs.nvidia.com】.
+L42: 
+L43: Note: Select JetPack 6.1 (rev. 1) or higher versions during installation to get the boosted performance. Once JetPack is installed, select MAXN mode for the upgraded performance.
+L44: ##### Debian Package Method
+L45: 
+L46: JetPack can be installed or upgraded using a Debian package management tool running on Jetson. NVIDIA also hosts runtime and development debian meta packages for all JetPack components. The runtime packages do not include samples and documentations while the development packages include these and are intended for development. Users can install full JetPack or only runtime JetPack components over Jetson Linux.
+L47: Please refer to 【13†JetPack documentation for instructions†docs.nvidia.com】 on the list of debian packages we host. To install Jetpack on top of Jetson Linux 36.4.x, all you need to do is “apt install nvidia-jetpack
+L48: #### More Resources
+L49: 
+L50:   * 【14†Jetson Software Documentation†docs.nvidia.com】
+L51:   * 【15†Jetson Linux 36.5.2 Release Notes†docs.nvidia.com】
+L52:   * 【16†Jetson Linux Developer Guide†docs.nvidia.com】
+L53:   * 【17†Jetson AGX Orin Developer Kit User Guide】
+L54:   * 【18†Jetson Orin Nano Developer Kit User Guide】
+L55: 
+L56: ### Key Features in JetPack 6.2.3
+L57: ### Jetson Linux
+L58: 
+L59:  | NVIDIA 【19†Jetson Linux 36.5.2】 provides the Linux Kernel 5.15, UEFI based bootloader, Ubuntu 22.04 based root file system, NVIDIA drivers, necessary firmwares, toolchain and more. JetPack 6.2.3 includes Jetson Linux 36.5.2 with following highlights:
+L60: (Please refer to 【15†release notes†docs.nvidia.com】 for additional details)
+L61: 
+L62:   * Fixes for known issues and security vulnerabilities.
+L63: ### Jetson Platform Services
+L64: 
+L65:  | 【20†Jetson Platform Services】 is a collection of pre-built and cloud-native software services and reference workflows to accelerate AI applications on Jetson. These services are modular, API-driven and can be quickly configured to build Generative AI and other edge applications. There are 15+ services from AI services to system services. The services include:
+L66:   * AI Perception Service using DeepStream
+L67:   * AI Inference Service for Visual Language Model (VLM)
+L68:   * AI Analytics - to process metadata to time-series insights
+L69:   * Sensor Management and Storage with VST
+L70:   * Redis Message Bus
+L71:   * API and IoT Gateway
+L72: To demonstrate the capabilities of these services, following reference workflows are included:
+L73:   * AI-NVR - complete workflow for AI-based Network video recorder
+L74:   * Generative AI workflow for alerting and visual chat
+L75:   * Generative AI workflow for zero-shot detection.
+L76: JetPack 6.2.3 supports 【21†Jetson Platform Services 2.0†docs.nvidia.com】.
+L77: ### Linux Distros on Jetson
+L78:  | JetPack includes Jetson Linux out of the box, but Jetson ecosystem partners offer various Linux based Distros on Jetson. They include: 【22†Canonical Ubuntu†ubuntu.com】: Ubuntu 22.04 offered by Canonical. Please refer to this 【23†webinar†info.nvidia.com】 to learn more about Canonical offering on Jetson. 【24†Red Hat†developers.redhat.com】 : Red Hat Enterprise Linux 9.4 offered by Red Hat 【25†Windriver Linux†www.windriver.com】: Commercial embedded Linux OS from Windriver.
+L79: 【26†SUSE†www.suse.com】: SUSE Linux Enterprise Server (SLES) offered by SUSE. 【27†RedHawk†concurrent-rt.com】: Real Time Linux OS from Concurrent Real-Time for mission critical hard real time applications. Yocto based distros: Various Yocto based distros and services leveraging 【28†meta-tegra†github.com】 are offered by ecosystem partners like 【29†Balena†www.balena.io】, 【30†Foundries.io†foundries.io】 & 【31†TimeSys†www.timesys.com】.
+L80: ### TensorRT
+L81: 
+L82:  | 【32†TensorRT】 is a high performance deep learning inference runtime for image classification, segmentation, and object detection neural networks. TensorRT is built on CUDA, NVIDIA’s parallel programming model, and enables you to optimize inference for all deep learning frameworks. It includes a deep learning inference optimizer and runtime that delivers low latency and high-throughput for deep learning inference applications. JetPack 6.2.3 includes 【33†TensorRT 10.3.0†docs.nvidia.com】
+L83: ### DLA
+L84:  | 【34†NVIDIA DLA】 hardware is a fixed-function accelerator engine targeted for deep learning operations. It’s designed to do full hardware acceleration of convolutional neural networks, supporting various layers such as convolution, deconvolution, fully connected, activation, pooling, batch normalization, and others DLA software consists of the DLA compiler and the DLA runtime stack.
+L85: The offline compiler translates the neural network graph into a DLA loadable binary and can be invoked using NVIDIA TensorRT™. The runtime stack consists of the DLA firmware, kernel mode driver, and user mode driver. JetPack 6.2.3 includes DLA 3.14
+L86: ### cuDNN
+L87: 
+L88:  | 【35†CUDA Deep Neural Network】 library provides high-performance primitives for deep learning frameworks. It provides highly tuned implementations for standard routines such as forward and backward convolution, pooling, normalization, and activation layers. JetPack 6.2.3 includes 【36†cuDNN 9.3.0†docs.nvidia.com】
+L89: ### CUDA
+L90: 
+L91:  | CUDA Toolkit provides a comprehensive development environment for C and C++ developers building GPU-accelerated applications. The toolkit includes a compiler for NVIDIA GPUs, math libraries, and tools for debugging and optimizing the performance of your applications. JetPack 6.2.3 includes 【37†CUDA 12.6.10†docs.nvidia.com】
+L92: ### Multimedia API
+L93:  | The 【38†Jetson Multimedia API†docs.nvidia.com】 package provides low level APIs for flexible application development. Camera application API: libargus offers a low-level frame-synchronous API for camera applications, with per frame camera parameter control, multiple (including synchronized) camera support, and EGL stream outputs. RAW output CSI cameras needing ISP can be used with either libargus or GStreamer plugin. In either case, the V4L2 media-controller sensor driver API is used.
+L94: Sensor driver API: V4L2 API enables video decode, encode, format conversion and scaling functionality. V4L2 for encode opens up many features like bit rate control, quality presets, low latency encode, temporal tradeoff, motion vector maps, and more.
+L95: ### Computer Vision
+L96: 
+L97:  | 【39†VPI (Vision Programing Interface)】 is a software library that provides Computer Vision / Image Processing algorithms implemented on multiple hardware accelerators found on Jetson such as PVA (Programmable Vision Accelerator), GPU, NVDEC(NVIDIA Decoder), NVENC (NVIDIA Encoder), VIC (Video Image Compositor) and so on. JetPack 6.2.3 includes 【40†VPI 3.2†docs.nvidia.com】 with following highlights:
+L98:   * New Algorithms:
+L99:     * AprilTag Detector and Pose Estimator supporting PVA and CPU backends.
+L100:     * Dynamic Remap supporting CUDA backend for generic geometrical transformations.
+L101:     * Recursive Gaussian Filter supported on CPU and CUDA backend providing superioru performance compared to colvolution Gaussian Filter for large sigma
+L102:   * New PVA backend support for following algorithms :
+L103:     * Mix Channels
+L104:     * Crop Scaler
+L105:     * ORB feature detector (Descriptor Extractor only).
+L106:     * Pyramidal LK Optical Flow
+L107:   * Up-to 5X speed up of PVA backends
+L108: ### Graphics
+L109: 
+L110:  | JetPack 6.2.3 includes the following graphics libraries:
+L111:   * Vulkan® 1.3
+L112:     * 【41†Vulkan 1.3 Announcement†www.khronos.org】
+L113:   * 【42†Vulkan® SC 1.0†www.khronos.org】
+L114:     * Vulkan SC is a low-level, deterministic, robust API that is based on Vulkan 1.2. This API enables state-of-the-art GPU-accelerated graphics and computation that can be deployed in safety-critical systems and that are certified to meet industry functional safety standards. Refer to 【42†https://www.khronos.org/vulkansc/†www.khronos.org】 for more information.
+L115:     * Vulkan SC can also be invaluable for real-time non safety critical embedded applications. Vulkan SC increases determinism and reduces application size by shifting preparation of the run-time application environment either offline, or into application setup, as much as possible. This includes offline compilation of graphics pipelines that define how the GPU processes data, together with static memory allocation, that together enable detailed GPU control that can be rigorously specified and tested.
+L116:     * Vulkan SC 1.0 is evolved from Vulkan 1.2 and includes: the removal of runtime functionality that is not needed in safety-critical markets, an updated design to provide predictable execution times and results, and clarifications to remove potential ambiguity in its operation. For more details see 【43†https://www.khronos.org/blog/vulkan-sc-overview†www.khronos.org】
+L117:     * Note: Jetson support for Vulkan SC is not safety certified.
+L118:   * OpenWF™ Display 1.0
+L119:     * OpenWF Display is a Khronos API for low overhead interaction with the native display driver on Jetson and allows interaction with Vulkan SC to display images.
+L120:     * Note: Jetson support for OpenWF Display is not safety certified.
+L121:   * OpenGL 4.6
+L122:     * OpenGL (Open Graphics Library) is a cross-language, cross-platform application programming interface (API) for rendering 2D and 3D vector graphics. The API is typically used to interact with a graphics processing unit (GPU), to achieve hardware-accelerated rendering.
+L123:   * OpenGLES 3.2
+L124:     * OpenGLES is a cross-platform API for rendering advanced 2D and 3D graphics on embedded and mobile systems - including consoles, phones, appliances and vehicles. It consists of a well-defined subset of desktop OpenGL suitable for low-power devices, and provides a flexible and powerful interface between software and graphics acceleration hardware.
+L125:   * GLX 1.4
+L126:     * GLX (initialism for "OpenGL Extension to the X Window System") is an extension to the X Window System core protocol providing an interface between OpenGL and the X Window System as well as extensions to OpenGL itself. It enables programs wishing to use OpenGL to do so within a window provided by the X Window System.
+L127:   * EGL 1.5
+L128:     * Embedded Graphics Library (EGL) is an interface between the Khronos rendering APIs, such as OpenGL ES, and the underlying native platform window system. It handles graphics context management, surface/buffer binding, rendering synchronization, and enables high-performance, accelerated, mixed-mode 2D and 3D rendering by using other Khronos APIs.
+L129: ### Nsight Developer Tools
+L130:  | CUDA Toolkit provides a comprehensive development environment for C and C++ developers building high-performance GPU-accelerated applications with CUDA libraries.
+L131: The toolkit includes 【44†Nsight Visual Studio Code Edition】, 【45†Nsight Eclipse Plugins†docs.nvidia.com】, debugging and profiling tools including 【46†Nsight Compute】, and a toolchain for cross-compiling applications 【47†NVIDIA Nsight Systems】 is a low overhead system-wide profiling tool, providing the insights developers need to analyze and optimize software performance. 【48†NVIDIA Nsight Graphics】 is a standalone application for debugging and profiling graphics applications.
+L132: 【49†NVIDIA Nsight Deep Learning Designer】 is an integrated development environment that helps developers efficiently design and develop deep neural networks for in-app inference. 【50†Nvidia Nsight Perf SDK】 is a graphics profiling toolbox for Vulkan and OpenGL enabling the collection of GPU performance metrics directly from user application. Nsight System, Nsight Graphics, Nsight Compute, Nsight Perf SDK are all supported on Jetson Orin modules to assist development for autonomous machines.
+L133: JetPack 6.2.3 includes NVIDIA Nsight Systems v2024.5 JetPack 6.2.3 includes NVIDIA Nsight Graphics 2024.2 JetPack 6.2.3 includes NVIDIA Nsight Compute v2023.2 as part of the CUDA Toolkit 12.2
+L134: ### Supported SDKs and Tools
+L135: 
+L136:  | 【51†NVIDIA DeepStream SDK】 is a complete analytics toolkit for AI-based multi-sensor processing and video and audio understanding. JetPack 6.2.3 supports DeepStream 7.1
+L137: 
+L138: * * *
+L139: 
+L140: 【52†NVIDIA Isaac™ ROS】 is a collection of hardware-accelerated packages that make it easier for ROS developers to build high-performance solutions on NVIDIA hardware including NVIDIA Jetson. JetPack 6.2.3 will support Isaac ROS 3.2 in Jan '25
+L141: 
+L142: * * *
+L143: 【53†NVIDIA Holoscan】 is a sensor processing platform that streamlines the development and deployment of AI and high-performance computing (HPC) applications for real-time insights JetPack 6.2.3 will support 【54†Holoscan SDK 2.9†docs.nvidia.com】 NOTE: Holoscan SDK 2.9 will be available in Jan ‘25 on JetPack 6.2.
+L144: 
+L145: * * *
+L146: 【55†NVIDIA Triton™ Inference Server†github.com】 simplifies deployment of AI models at scale. Triton Inference Server is open source and supports deployment of trained AI models from NVIDIA TensorRT, TensorFlow and ONNX Runtime on Jetson. On Jetson, Triton Inference Server is provided as a shared library for direct integration with C API. 【56†PowerEstimator†jetson-tools.nvidia.com】 is a webapp that simplifies creation of custom power mode profiles and estimates Jetson module power consumption.
+L147: We have updated the Power Estimator tool with new power modes available with JetPack 6.2.
+L148: ### Cloud Native
+L149:  | Jetson brings 【57†Cloud-Native】 to the edge and enables technologies like containers and container orchestration. NVIDIA JetPack includes NVIDIA Container Runtime with Docker integration, enabling GPU accelerated containerized applications on Jetson platform. NVIDIA hosts several container images for Jetson on 【58†NVIDIA NGC†ngc.nvidia.com】.
+L150: Some are suitable for software development with samples and documentation and others are suitable for production software deployment, containing only runtime components. Find more information and a list of all container images at the 【57†Cloud-Native on Jetson page】.
+L151: ### Security
+L152: 
+L153:  | NVIDIA Jetson modules include various security features including Hardware Root of Trust, Secure Boot, Hardware Cryptographic Acceleration, Trusted Execution Environment, Disk and Memory Encryption, Physical Attack Protection and more. Learn about the security features by jumping to the security section of the 【59†Jetson Linux Developer guide†docs.nvidia.com】. JetPack 6.2.3 Security Highlights include:
+L154:   * Added support for using Hardware Security Module (HSM) to sign boot images. Refer to the 【60†security page†docs.nvidia.com】 for all security features.
+L155: ### JetPack Documentation and Webinars
+L156: 
+L157: #### Documentation
+L158: 
+L159:  |
+L160: 
+L161:   * For a list of samples and documentation, see the 【61†JetPack documentation†docs.nvidia.com】
+L162:   * See the 【62†Jetson Support Resources】 page for links to hardware as well as software documentation
+L163: 
+L164: #### Webinars
+L165: 
+L166:  |
+L167: 
+L168:   * 【63†JetPack 6 Webinar series†info.nvidia.com】
+L169:   * 【64†NVIDIA Jetson Software: Bringing NVIDIA Accelerated Technologies to the Edge†www.nvidia.com】
+L170: #### Support
+L171: 
+L172:  |
+L173: 
+L174: Visit the 【65†NVIDIA Jetson forum†forums.developer.nvidia.com】 for all your questions and issues. NVIDIA has a dedicated team of Jetson experts to support you.
+L175: 
+L176: * * *
+L177: 
+L178: For older versions of JetPack, please visit the 【66†JetPack Archive】.
+--------------------------------------------------------------------------------
+CUDA Toolkit, Driver, and Architecture Matrix — NVIDIA Data Center Drivers (https://docs.nvidia.com/datacenter/tesla/drivers/cuda-toolkit-driver-and-architecture-matrix.html)
+citeturn10view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: click({"ref_id":"turn5view3","id":5}); Total lines: 63
+L0: 【0†Image: country_code†www.nvidia.com】
+L1: 
+L2: Back to top
+L3: 
+L4: [Input: Search the docs ...] `Ctrl`+`K`
+L5: 
+L6: Table of Contents
+L7: 
+L8:   * 【1†Introduction】
+L9:   * 【2†Driver Lifecycle】
+L10:   * 【3†Supported Drivers and CUDA Toolkit Versions】
+L11:   * 【4†Software Deployment Workflow】
+L12:   * 【5†CUDA Toolkit, Driver, and Architecture Matrix】
+L13:   * 【6†Notices】
+L14: # CUDA Toolkit, Driver, and Architecture Matrix【7†#】
+L15: The CUDA driver provides an API that is backwards compatible. Thus, new NVIDIA drivers will always work with (applications compiled with) an older CUDA toolkit. This behavior of CUDA is documented 【8†here】. Each CUDA Toolkit however, requires a minimum version of the NVIDIA driver. Corollarily, when using tools such as `nvidia-smi`, the NVIDIA driver reports a maximum version of CUDA supported and thus is able to run applications built with CUDA Toolkits up to that version.
+L16: CUDA Toolkit and drivers may also deprecate and drop support for GPU architectures over the product life cycle of the CUDA Toolkit. See the `-arch` and `-gencode` options in the CUDA compiler (nvcc) 【9†toolchain documentation】.
+L17: Table 3 CUDA and Architecture Matrix【10†#】
+L18: Architecture  | CUDA Capability  | First CUDA Toolkit Support  | Last CUDA Toolkit Support  | Last Driver Support
+L19: --- | --- | --- | --- | ---
+L20: Blackwell  | 10.0 12.0  | CUDA 12.8 CUDA 12.8  | Ongoing Ongoing  | Ongoing Ongoing
+L21: Hopper  | 9.0  | CUDA 11.8 CUDA 12.0  | Ongoing Ongoing  | Ongoing Ongoing
+L22: Ada  | 8.9  | CUDA 11.8  | Ongoing  | Ongoing
+L23: NVIDIA Ampere architecture  | 8.0 8.6  | CUDA 11.0  | Ongoing Ongoing  | Ongoing Ongoing
+L24: Turing  | 7.5  | CUDA 10.0  | Ongoing  | Ongoing
+L25: Volta  | 7.0  | CUDA 9.0  | CUDA 12.x  | R580
+L26: Pascal  | 6.0 6.1  | CUDA 8.0  | CUDA 12.x CUDA 12.x  | R580 R580
+L27: Maxwell  | 5.0 5.2 5.3  | CUDA 6.5  | CUDA 12.x CUDA 12.x CUDA 12.x  | R580 R580 R580
+L28: Kepler  | 3.5 3.7  | CUDA 6.0  | CUDA 11.x CUDA 11.x  | R470 R470
+L29: Kepler  | 3.0 3.2  | CUDA 6.0  | CUDA 10.2 CUDA 10.2  | R470 R470
+L30: Fermi  | 2.0  | CUDA 3.0  | CUDA 8.0  | R390
+L31: # Notices【11†#】
+L32: ## Notice【12†#】
+L33: This document is provided for information purposes only and shall not be regarded as a warranty of a certain functionality, condition, or quality of a product. NVIDIA Corporation (“NVIDIA”) makes no representations or warranties, expressed or implied, as to the accuracy or completeness of the information contained in this document and assumes no responsibility for any errors contained herein.
+L34: NVIDIA shall have no liability for the consequences or use of such information or for any infringement of patents or other rights of third parties that may result from its use. This document is not a commitment to develop, release, or deliver any Material (defined below), code, or functionality.
+L35: NVIDIA reserves the right to make corrections, modifications, enhancements, improvements, and any other changes to this document, at any time without notice.
+L36: 
+L37: Customer should obtain the latest relevant information before placing orders and should verify that such information is current and complete.
+--------------------------------------------------------------------------------
+CUDA Toolkit 13.2 Update 2 - Release Notes — Release Notes 13.2 documentation (https://docs.nvidia.com/cuda/archive/13.2.2/cuda-toolkit-release-notes/index.html)
+citeturn10view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: click({"ref_id":"turn9view0","id":5}); Total lines: 920
+

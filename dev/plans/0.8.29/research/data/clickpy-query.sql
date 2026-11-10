@@ -1,0 +1,1 @@
+SELECT toStartOfMonth(date) AS month, project, version, sum(count) AS downloads FROM pypi.pypi_downloads_per_day_by_version WHERE project IN ('nvidia-cuda-runtime-cu11','nvidia-cuda-runtime-cu12','nvidia-cuda-runtime','nvidia-cuda-runtime-cu13') AND date >= '2026-09-01' AND date < '2026-11-01' GROUP BY month, project, version ORDER BY month, project, version FORMAT CSVWithNames

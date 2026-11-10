@@ -1,0 +1,121 @@
+
+        PyPI Download Stats
+     (https://pypistats.org/packages/nvidia-cuda-runtime-cu11)
+citeturn7view0 [wordlim: 200] Crawled: 4 months ago; Content type: text/html; Source: open({"ref_id":"https://pypistats.org/packages/nvidia-cuda-runtime-cu11","lineno":null}); Total lines: 28
+L0: # PyPI Stats
+L1: 
+L2: 【0†Search】
+L3: 
+L4: 【1†All packages】
+L5: 【2†Top packages】
+L6: 
+L7: 【3†Track packages】
+L8: 
+L9: # nvidia-cuda-runtime-cu11
+L10: 
+L11: * * *
+L12: 
+L13: 【4†PyPI page†pypi.org】
+L14: 【5†Home page†developer.nvidia.com】
+L15: Author: Nvidia CUDA Installer Team
+L16: License: NVIDIA Proprietary Software
+L17: Summary: CUDA Runtime native Libraries
+L18: Latest version: 11.8.89
+L19: 
+L20: Downloads last day: 79,375
+L21: Downloads last week: 497,834
+L22: Downloads last month: 2,149,732
+L23: 
+L24: 【6†API】
+L25: 【7†About】
+L26: 【8†FAQs】
+L27: Hosted by 【9†The PSF†python.org】
+--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/nvidia-cuda-runtime-cu12)
+citeturn7view1 [wordlim: 200] Crawled: last month; Content type: text/html; Source: open({"ref_id":"https://pypistats.org/packages/nvidia-cuda-runtime-cu12","lineno":null}); Total lines: 25
+L0: # PyPI Stats
+L1: 
+L2: 【0†Search】
+L3: 【1†All packages】
+L4: 【2†Top packages】
+L5: 【3†Track packages】
+L6: 
+L7: # nvidia-cuda-runtime-cu12
+L8: 
+L9: * * *
+L10: 
+L11: 【4†PyPI page†pypi.org】
+L12: 【5†Home page†developer.nvidia.com】
+L13: Author: Nvidia CUDA Installer Team
+L14: License: LicenseRef-NVIDIA-Proprietary
+L15: Summary: CUDA Runtime native Libraries
+L16: Latest version: 12.9.79
+L17: Downloads last day: 331,659
+L18: Downloads last week: 3,339,879
+L19: Downloads last month: 13,798,418
+L20: 
+L21: 【6†API】
+L22: 【7†About】
+L23: 【8†FAQs】
+L24: Hosted by 【9†The PSF†python.org】
+--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/nvidia-cuda-runtime)
+citeturn7view2 [wordlim: 200] Crawled: last month; Content type: text/html; Source: open({"ref_id":"https://pypistats.org/packages/nvidia-cuda-runtime","lineno":null}); Total lines: 24
+L0: # PyPI Stats
+L1: 
+L2: 【0†Search】
+L3: 【1†All packages】
+L4: 【2†Top packages】
+L5: 【3†Track packages】
+L6: 
+L7: # nvidia-cuda-runtime
+L8: 
+L9: * * *
+L10: 
+L11: 【4†PyPI page†pypi.org】
+L12: 【5†Home page†developer.nvidia.com】
+L13: Author: Nvidia CUDA Installer Team
+L14: Summary: CUDA Runtime native Libraries
+L15: Latest version: 13.4.92
+L16: Downloads last day: 817,166
+L17: Downloads last week: 5,258,272
+L18: Downloads last month: 27,704,836
+L19: 
+L20: 【6†API】
+L21: 【7†About】
+L22: 【8†FAQs】
+L23: Hosted by 【9†The PSF†python.org】
+--------------------------------------------------------------------------------
+PyPI Download Stats (https://pypistats.org/packages/nvidia-cuda-runtime-cu13)
+citeturn7view3 [wordlim: 200] Crawled: 2 weeks ago; Content type: text/html; Source: open({"ref_id":"https://pypistats.org/packages/nvidia-cuda-runtime-cu13","lineno":null}); Total lines: 24
+L0: # PyPI Stats
+L1: 
+L2: 【0†Search】
+L3: 【1†All packages】
+L4: 【2†Top packages】
+L5: 【3†Track packages】
+L6: 
+L7: # nvidia-cuda-runtime-cu13
+L8: 
+L9: * * *
+L10: 
+L11: 【4†PyPI page†pypi.org】
+L12: Author: NVIDIA Kitmaker Team
+L13: Summary: DEPRECATED: Use nvidia-cuda-runtime instead
+L14: Latest version: 0.0.1
+L15: Downloads last day: 383
+L16: Downloads last week: 2,672
+L17: Downloads last month: 14,597
+L18: [Input] 7-day smoothing
+L19: 
+L20: 【5†API】
+L21: 【6†About】
+L22: 【7†FAQs】
+L23: Hosted by 【8†The PSF†python.org】
+--------------------------------------------------------------------------------
+Internal Error ()
+citeturn7view4 [wordlim: 200] Source: open({"ref_id":"https://clickpy.clickhouse.com/dashboard/nvidia-cuda-runtime","lineno":null}); 
+Failed to fetch https://clickpy.clickhouse.com/dashboard/nvidia-cuda-runtime: (403) Forbidden--------------------------------------------------------------------------------
+Internal Error ()
+citeturn7view5 [wordlim: 200] Source: open({"ref_id":"https://pepy.tech/projects/nvidia-cuda-runtime","lineno":null}); 
+URL https://pepy.tech/projects/nvidia-cuda-runtime is not accessible via this tool.

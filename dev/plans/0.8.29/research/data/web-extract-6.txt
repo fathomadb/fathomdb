@@ -1,0 +1,601 @@
+cuda-toolkit · PyPI (https://pypi.org/project/cuda-toolkit/)
+citeturn8search0 [wordlim: 200] Published: last month; Crawled: last month; 13.2.0
+## Release history Release notifications | RSS feed
+
+This release
+
+Image
+
+13.4.2 This release
+
+Sep 16, 2026 1 file
+
+Image
+
+13.4.1
+
+Sep 9, 2026 1 file
+
+Image
+
+Pre-release
+
+13.4.0rc1
+
+Aug 5, 2026 1 file
+
+Image
+
+13.3.1
+
+Jun 29, 2026 1 file
+
+Image
+
+13.3.0
+
+May 27, 2026 1 file
+
+Image
+
+13.2.2
+
+Jul 16, 2026 1 file
+
+Image
+
+13.2.1
+
+Apr 14, 2026 1 file
+
+Image
+
+13.2.0
+
+Mar 10, 2026 1 file
+
+Image
+
+13.1.2
+
+Apr 8, 2026 1 file
+
+Image
+
+13.1.1
+
+Jan 14, 2026 1 file
+
+Image
+
+13.1.0
+
+Dec 19, 2025 1 file
+
+Image
+
+13.0.3
+
+Apr 8, 2026 1 file
+
+Image
+
+13.0.2
+
+Dec 19, 2025 1 file
+
+Image
+--------------------------------------------------------------------------------
+torch · PyPI (https://pypi.org/project/torch/)
+citeturn8search1 [wordlim: 200] Crawled: today; If you want to disable CUDA support, export the environment variable `USE_CUDA=0`. ... torch-2.15.0-cp313-cp313-manylinux_2_28_x86_64.whl 539.2 MB Oct 28, 2026 Without provenance  | CPython 3.13  | CPython 3.13  | Linux glibc 2.28+ x86-64  | Details for torch-2.15.0-cp313-cp313-manylinux_2_28_x86_64.whl ... Report project as malware ... While third-party security researchers and our staff do their best to detect and remove malicious packages, PyPI cannot guarantee the quality, security or suitability of any given package.
+You can also install the build tools from https://visualstudio.microsoft.com/visual-cpp-build-tools/. The build tools do not come with Visual Studio Code by default.
+
+##### NVIDIA CUDA Support
+
+If you want to compile with CUDA support, select a supported version of CUDA from our support matrix, then install the following:
+
+  * NVIDIA CUDA
+  * NVIDIA cuDNN v9.0 or above
+  * Compiler compatible with CUDA
+
+Note: You could refer to the cuDNN Support Matrix for cuDNN versions with the various supported CUDA, CUDA driver, and NVIDIA hardware.
+
+If you want to disable CUDA support, export the environment variable `USE_CUDA=0`. Other potentially useful environment variables are documented in `cmake/EnvVarForwarding.cmake`. If CUDA is installed in a non-standard location, set PATH so that the nvcc you want to use can be found (e.g., `export PATH=/usr/local/cuda-12.8/bin:$PATH`).
+
+## Key dates
+
+PyPI data
+
+Data sourced directly from PyPI's database.
+
+  * Released: Oct 28, 2026
+Latest release
+
+## Owner
+
+PyPI data
+
+Data sourced directly from PyPI's database.
+
+  * Meta Platforms
+
+## 4 maintainers
+
+PyPI data
+
+Data sourced directly from PyPI's database.
+
+atalman malfet seemethere +1 more soumith
+
+## Credits
+
+Author: PyTorch Team (packages@pytorch.org)
+
+## License expression
+
+Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib
+View SPDX License List
+
+## Requires
+
+Python >=3.11
+
+## Provides Extra
+
+`optree` `opt-einsum` `pyyaml`
+
+## Tags
+
+`pytorch` `machine learning`
+
+## Classifiers
+
+  * Development Status
+    * 5 - Production/Stable
+  * Intended Audience
+    * Developers
+    * Education
+    * Science/Research
+  * Programming Language
+    * C++
+    * Python :: 3 :: Only
+    * Python :: 3.11
+    * Python :: 3.12
+    * Python :: 3.13
+    * Python :: 3.14
+    * Python :: 3.15
+  * Topic
+    * Scientific/Engineering
+    * Scientific/Engineering :: Artificial Intelligence
+    * Scientific/Engineering :: Mathematics
+    * Software Development
+    * Software Development :: Libraries
+    * Software Development :: Libraries :: Python Modules
+
+## Release files for torch 2.15.0
+
+For a detailed explanation of source distributions (sdists) and built distributions (wheels), please see the package formats documentation.
+
+### Built distributions (wheels)
+
+Enable javascript to be able to filter the list of wheel files.
+
+Table of built distributions (wheels) for torch 2.15.0
+File  | Interpreter [Select]  | ABI [Select]  | Platform [Select]  | Actions
+--- | --- | --- | --- | ---
+torch-2.15.0-cp315-cp315t-win_amd64.whl 127.0 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15 free-threading  | Windows x86-64  | Details for torch-2.15.0-cp315-cp315t-win_amd64.whl
+torch-2.15.0-cp315-cp315t-manylinux_2_28_x86_64.whl 538.4 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15 free-threading  | Linux glibc 2.28+ x86-64  | Details for torch-2.15.0-cp315-cp315t-manylinux_2_28_x86_64.whl
+torch-2.15.0-cp315-cp315t-manylinux_2_28_aarch64.whl 482.9 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15 free-threading  | Linux glibc 2.28+ ARM64  | Details for torch-2.15.0-cp315-cp315t-manylinux_2_28_aarch64.whl
+torch-2.15.0-cp315-cp315t-macosx_14_0_arm64.whl 138.9 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15 free-threading  | macOS 14.0+ ARM64  | Details for torch-2.15.0-cp315-cp315t-macosx_14_0_arm64.whl
+torch-2.15.0-cp315-cp315-win_amd64.whl 126.7 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15  | Windows x86-64  | Details for torch-2.15.0-cp315-cp315-win_amd64.whl
+torch-2.15.0-cp315-cp315-manylinux_2_28_x86_64.whl 539.2 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15  | Linux glibc 2.28+ x86-64  | Details for torch-2.15.0-cp315-cp315-manylinux_2_28_x86_64.whl
+torch-2.15.0-cp315-cp315-manylinux_2_28_aarch64.whl 483.7 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15  | Linux glibc 2.28+ ARM64  | Details for torch-2.15.0-cp315-cp315-manylinux_2_28_aarch64.whl
+torch-2.15.0-cp315-cp315-macosx_14_0_arm64.whl 138.6 MB Oct 28, 2026 Without provenance  | CPython 3.15  | CPython 3.15  | macOS 14.0+ ARM64  | Details for torch-2.15.0-cp315-cp315-macosx_14_0_arm64.whl
+torch-2.15.0-cp314-cp314t-win_amd64.whl 127.0 MB Oct 28, 2026 Without provenance  | CPython 3.14  | CPython 3.14 free-threading  | Windows x86-64  | Details for torch-2.15.0-cp314-cp314t-win_amd64.whl
+torch-2.15.0-cp314-cp314t-manylinux_2_28_x86_64.whl 539.1 MB Oct 28, 2026 Without provenance  | CPython 3.14  | CPython 3.14 free-threading  | Linux glibc 2.28+ x86-64  | Details for torch-2.15.0-cp314-cp314t-manylinux_2_28_x86_64.whl
+torch-2.15.0-cp314-cp314-macosx_14_0_arm64.whl 138.6 MB Oct 28, 2026 Without provenance  | CPython 3.14  | CPython 3.14  | macOS 14.0+ ARM64  | Details for torch-2.15.0-cp314-cp314-macosx_14_0_arm64.whl
+torch-2.15.0-cp313-cp313-win_amd64.whl 126.7 MB Oct 28, 2026 Without provenance  | CPython 3.13  | CPython 3.13  | Windows x86-64  | Details for torch-2.15.0-cp313-cp313-win_amd64.whl
+torch-2.15.0-cp313-cp313-manylinux_2_28_x86_64.whl 539.2 MB Oct 28, 2026 Without provenance  | CPython 3.13  | CPython 3.13  | Linux glibc 2.28+ x86-64  | Details for torch-2.15.0-cp313-cp313-manylinux_2_28_x86_64.whl
+torch-2.15.0-cp313-cp313-manylinux_2_28_aarch64.whl 483.7 MB Oct 28, 2026 Without provenance  | CPython 3.13  | CPython 3.13  | Linux glibc 2.28+ ARM64  | Details for torch-2.15.0-cp313-cp313-manylinux_2_28_aarch64.whl
+torch-2.15.0-cp313-cp313-macosx_14_0_arm64.whl 138.6 MB Oct 28, 2026 Without provenance  | CPython 3.13  | CPython 3.13  | macOS 14.0+ ARM64  | Details for torch-2.15.0-cp313-cp313-macosx_14_0_arm64.whl
+torch-2.15.0-cp312-cp312-win_amd64.whl 126.7 MB Oct 28, 2026 Without provenance  | CPython 3.12  | CPython 3.12  | Windows x86-64  | Details for torch-2.15.0-cp312-cp312-win_amd64.whl
+torch-2.15.0-cp312-cp312-manylinux_2_28_x86_64.whl 539.2 MB Oct 28, 2026 Without provenance  | CPython 3.12  | CPython 3.12  | Linux glibc 2.28+ x86-64  | Details for torch-2.15.0-cp312-cp312-manylinux_2_28_x86_64.whl
+torch-2.15.0-cp312-cp312-manylinux_2_28_aarch64.whl 483.7 MB Oct 28, 2026 Without provenance  | CPython 3.12  | CPython 3.12  | Linux glibc 2.28+ ARM64  | Details for torch-2.15.0-cp312-cp312-manylinux_2_28_aarch64.whl
+torch-2.15.0-cp312-cp312-macosx_14_0_arm64.whl 138.6 MB Oct 28, 2026 Without provenance  | CPython 3.12  | CPython 3.12  | macOS 14.0+ ARM64  | Details for torch-2.15.0-cp312-cp312-macosx_14_0_arm64.whl
+torch-2.15.0-cp311-cp311-win_amd64.whl 126.7 MB Oct 28, 2026 Without provenance  | CPython 3.11  | CPython 3.11  | Windows x86-64  | Details for torch-2.15.0-cp311-cp311-win_amd64.whl
+
+## Security for torch 2.15.0
+
+Report project as malware
+
+### Provenance
+
+Provenance describes where a file came from. On PyPI, provenance is shared via attestations, which provide a verifiable record of the build or publishing details. View details, limitations and caveats.
+
+#### No provenance found
+
+None of the files in this release were uploaded with provenance metadata.
+
+### A note on package security
+
+PyPI is a repository for distributing packages, not a service for auditing them. While third-party security researchers and our staff do their best to detect and remove malicious packages, PyPI cannot guarantee the quality, security or suitability of any given package.
+
+To learn more about protecting yourself from malicious actors, visit our package security documentation.
+
+## Release history Release notifications | RSS feed
+
+This release
+
+Image
+
+### 2.15.0 This release
+
+Oct 28, 2026 28 release files No provenance
+
+### 2.14.1
+
+Sep 30, 2026 24 release files No provenance
+
+Image
+
+### 2.14.0
+
+Sep 2, 2026 24 release files No provenance
+
+Image
+
+### 2.13.0
+
+Jul 8, 2026 24 release files No provenance
+
+Image
+
+### 2.12.1
+
+Jun 17, 2026 24 release files No provenance
+
+Image
+
+### 2.12.0
+
+May 13, 2026 28 release files No provenance
+
+Image
+
+### 2.11.0
+
+Mar 23, 2026 28 release files No provenance
+
+Image
+
+### 2.10.0
+
+Jan 21, 2026 39 release files No provenance
+
+Image
+
+### 2.9.1
+
+Nov 12, 2025 28 release files No provenance--------------------------------------------------------------------------------
+torch · PyPI (https://pypi.org/project/torch/2.15.0/)
+citeturn8search2 [wordlim: 200] Published: last week; Crawled: last week; ## Release files / torch-2.15.0-cp312-cp312-manylinux_2_28_x86_64.whl ... ### 2.13.0
+
+## Release files / torch-2.15.0-cp312-cp312-win_amd64.whl
+
+Download URL  | torch-2.15.0-cp312-cp312-win_amd64.whl
+Size  | 126.7 MB
+Tags  | CPython 3.12 Windows x86-64
+SHA-256 checksum
+How to use checksums  | ` f2bd0a3709a7493a6ef2ac5a654111242a854439f7558f910b6b653b56f7504d Copy SHA-256 checksum `
+BLAKE2b-256 checksum
+How to use checksums  | ` 740ba57c0b58a64b7a197dc40fc464bb96c0de867f95a2b1cbb3ec9e54414fde Copy BLAKE2b-256 checksum `
+Upload date  | Oct 28, 2026
+Uploaded using Trusted Publishing?
+What is trusted publishing?  | No
+Uploaded via  | `twine/7.0.0 CPython/3.14.7`
+
+## Release files / torch-2.15.0-cp312-cp312-manylinux_2_28_x86_64.whl
+
+Download URL  | torch-2.15.0-cp312-cp312-manylinux_2_28_x86_64.whl
+Size  | 539.2 MB
+Tags  | CPython 3.12 Linux glibc 2.28+ x86-64
+SHA-256 checksum
+How to use checksums  | ` 6d8c86f4e33a9f12a58149bd9b0d64351632b8eb44479be8ff85e5389932dd79 Copy SHA-256 checksum `
+BLAKE2b-256 checksum
+How to use checksums  | ` 4243612036bf387d34afff1ec77d3aabe0d16776f1727b00b8bc4540fe5472b1 Copy BLAKE2b-256 checksum `
+Upload date  | Oct 28, 2026
+Uploaded using Trusted Publishing?
+What is trusted publishing?  | No
+Uploaded via  | `twine/7.0.0 CPython/3.14.7`
+
+## Release files / torch-2.15.0-cp312-cp312-manylinux_2_28_aarch64.whl
+
+Download URL  | torch-2.15.0-cp312-cp312-manylinux_2_28_aarch64.whl
+Size  | 483.7 MB
+Tags  | CPython 3.12 Linux glibc 2.28+ ARM64
+SHA-256 checksum
+How to use checksums  | ` 9e51cf9460c5441dcd2a4f31ece207e35ea7c3d2535be0f929cca4944e2eeb18 Copy SHA-256 checksum `
+BLAKE2b-256 checksum
+How to use checksums  | ` 56c9ac253c63f13212393483bfa6c180b684c8e5437960c06ec9292797e09357 Copy BLAKE2b-256 checksum `
+Upload date  | Oct 28, 2026
+Uploaded using Trusted Publishing?
+What is trusted publishing?  | No
+Uploaded via  | `twine/7.0.0 CPython/3.14.7`
+
+## Release files / torch-2.15.0-cp312-cp312-macosx_14_0_arm64.whl
+
+Download URL  | torch-2.15.0-cp312-cp312-macosx_14_0_arm64.whl
+Size  | 138.6 MB
+Tags  | CPython 3.12 macOS 14.0+ ARM64
+SHA-256 checksum
+How to use checksums  | ` 593e5fd0c204284890d1c3dff643be34e549e1d24523e13402510f960d4da438 Copy SHA-256 checksum `
+BLAKE2b-256 checksum
+How to use checksums  | ` 17247b9b755e8c4dd2395c6a94bab6a4ed8aded1735ff2538bc63cbba8abeddd Copy BLAKE2b-256 checksum `
+Upload date  | Oct 28, 2026
+Uploaded using Trusted Publishing?
+What is trusted publishing?  | No
+Uploaded via  | `twine/7.0.0 CPython/3.14.7`
+
+### 2.13.0
+
+Jul 8, 2026 24 release files No provenance
+
+### 2.12.1
+
+Jun 17, 2026 24 release files No provenance
+
+### 2.12.0
+
+May 13, 2026 28 release files No provenance
+
+### 2.11.0
+
+Mar 23, 2026 28 release files No provenance
+
+### 2.10.0
+
+Jan 21, 2026 39 release files No provenance
+
+### 2.9.1
+
+Nov 12, 2025 28 release files No provenance
+
+### 2.9.0
+
+Oct 15, 2025 28 release files No provenance
+
+### 2.8.0
+
+Aug 6, 2025 24 release files No provenance
+
+### 2.7.1
+
+Jun 4, 2025 24 release files No provenance
+
+### 2.7.0
+
+Apr 23, 2025 24 release files No provenance
+
+### 2.6.0
+
+Jan 29, 2025 20 release files No provenance
+
+### 2.5.1
+
+Oct 29, 2024 17 release files No provenance
+
+### 2.5.0
+
+Oct 17, 2024 17 release files No provenance
+
+### 2.4.1
+
+Sep 4, 2024 20 release files No provenance
+
+### 2.4.0
+
+Jul 24, 2024 20 release files No provenance
+
+### 2.3.1
+
+Jun 5, 2024 20 release files No provenance
+
+### 2.3.0
+
+Apr 24, 2024 20 release files No provenance
+
+### 2.2.2
+
+Mar 27, 2024 25 release files No provenance
+
+### 2.2.1
+
+Feb 22, 2024 25 release files No provenance
+
+### 2.2.0
+
+Jan 30, 2024 25 release files No provenance
+
+### 2.1.2
+
+Dec 14, 2023 20 release files No provenance
+
+### 2.1.1
+
+Nov 15, 2023 20 release files No provenance
+
+### 2.1.0
+
+Oct 4, 2023 20 release files No provenance
+
+### 2.0.1
+
+May 8, 2023 20 release files No provenance
+
+### 2.0.0
+
+Mar 15, 2023 24 release files No provenance
+
+### 1.13.1
+
+Dec 15, 2022 21 release files No provenance
+
+### 1.13.0
+
+Oct 28, 2022 21 release files No provenance
+
+### 1.12.1
+
+Aug 5, 2022 20 release files No provenance
+
+### 1.10.0
+
+Oct 21, 2021 18 release files No provenance
+
+### 1.9.1
+
+Sep 20, 2021 12 release files No provenance
+
+### 1.9.0
+
+Jun 15, 2021 18 release files No provenance
+
+### 1.8.1
+
+Mar 25, 2021 16 release files No provenance
+
+### 1.8.0
+
+Mar 4, 2021 17 release files No provenance
+
+### 1.7.1
+
+Dec 10, 2020 12 release files No provenance
+
+### 1.7.0
+
+Oct 27, 2020 9 release files No provenance
+
+### 1.6.0
+
+Jul 28, 2020 6 release files No provenance
+
+### 1.5.1
+
+Jun 18, 2020 8 release files No provenance
+
+### 1.5.0
+
+Apr 21, 2020 9 release files No provenance
+
+### 1.4.0
+
+Jan 15, 2020 11 release files No provenance
+
+### 1.3.1
+
+Nov 7, 2019 9 release files No provenance
+--------------------------------------------------------------------------------
+Removing CUDA 13.0 builds from PyTorch CI/CD, starting the week of Sept 28 - release/packaging - PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/t/removing-cuda-13-0-builds-from-pytorch-ci-cd-starting-the-week-of-sept-28/3447)
+citeturn8search3 [wordlim: 200] Published: last month; Crawled: last month; atalman September 23, 2026, 8:29pm 1
+
+TL;DR — Starting the week of Monday, Sept 28 2026, we are removing CUDA 13.0 from the PyTorch nightly build matrix and CI. ... Details: CUDA Toolkit 13.2.2 release notes.
+
+# Removing CUDA 13.0 builds from PyTorch CI/CD, starting the week of Sept 28
+
+release/packaging
+
+atalman September 23, 2026, 8:29pm 1
+
+TL;DR — Starting the week of Monday, Sept 28 2026, we are removing CUDA 13.0 from the PyTorch nightly build matrix and CI. Nightly CUDA builds will be 13.2 (stable / default) and 13.4 (prototype). No GPU architecture support is lost. PyTorch 2.14 and earlier are unaffected. If you pin `cu130`, move to `cu132`.
+
+This is tracked in pytorch/pytorch#190385.
+
+## Why we are removing it
+
+CUDA Toolkit 13.2.2 fixes a compiler bug that has been present since CUDA 12.8. Compiler-inserted thread reconvergence could fail and leave stale or corrupted values in registers, producing silently incorrect results — no crash, no error, just wrong numbers.
+
+The bug only triggers in kernels with two or more nested levels of thread divergence, where the compiler elided convergence instructions for one or more of those levels. Kernels with a single level of divergence are unaffected. --------------------------------------------------------------------------------
+Introducing CUDA 13.2 and Deprecating CUDA 12.8 (Release 2.12) - release/packaging - PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/t/introducing-cuda-13-2-and-deprecating-cuda-12-8-release-2-12/3337)
+citeturn8search4 [wordlim: 200] Published: 7 months ago; Crawled: 7 months ago; # Introducing CUDA 13.2 and Deprecating CUDA 12.8 (Release 2.12) ...   * CUDA 12.6 remains available as the legacy build via https://download.pytorch.org, preserving support for older GPU architectures (Maxwell, Pascal, Volta) that are not supported by CUDA 13.x.
+
+# Introducing CUDA 13.2 and Deprecating CUDA 12.8 (Release 2.12)
+
+atalman April 1, 2026, 2:58pm 1
+
+What’s changing
+
+Starting with the PyTorch 2.12 release, we are updating the CUDA support matrix:
+
+  * CUDA 13.2 is being introduced as an experimental build. Nightly builds are already available
+on download.pytorch.org and can be installed via:
+`pip install torch --index-url https://download.pytorch.org/whl/nightly/cu132`
+This enables early adopters to test against the latest CUDA toolkit and take advantage of new features, including expanded Blackwell architecture support.
+  * CUDA 12.8 is being deprecated and removed from CI/CD pipelines and binary build matrices. It will no longer be available as a prebuilt binary. Removal from CI/CD pipelines will be completed the week of April 6–10, 2026.
+  * CUDA 13.0 remains the stable variant published to PyPI (both x86_64 and aarch64).
+  * CUDA 12.6 remains available as the legacy build via https://download.pytorch.org, preserving support for older GPU architectures (Maxwell, Pascal, Volta) that are not supported by CUDA 13.x.
+--------------------------------------------------------------------------------
+cuda-toolkit · PyPI (https://pypi.org/project/cuda-toolkit/13.2.0/)
+citeturn8search5 [wordlim: 200] Published: 8 months ago; Crawled: today; # cuda-toolkit 13.2.0
+
+# cuda-toolkit 13.2.0
+
+### NVIDIA CUDA Toolkit
+
+> The NVIDIA CUDA Toolkit provides a development environment for creating high-performance, GPU-accelerated applications. With it, you can develop, optimize, and deploy your applications on GPU-accelerated embedded systems, desktop workstations, enterprise data centers, cloud-based platforms, and supercomputers. The toolkit includes GPU-accelerated libraries, debugging and optimization tools, a C/C++ compiler, and a runtime library.
+
+### `cuda-toolkit` package
+
+The `cuda-toolkit` package is a meta-package (a package that contains no software and only installs other packages) to install all or part of the NVIDIA CUDA Toolkit.
+
+For instructions on how to use the `cuda-toolkit` package, please refer to the NVIDIA CUDA Toolkit documentation and follow the installation guide for your platform. A summary of usage is also available below.
+
+### Using the `cuda-toolkit` package
+
+The `cuda-toolkit` package uses package extras to install all or part of the CUDA Toolkit. --------------------------------------------------------------------------------
+Notice: CUDA 12.6 wheels will no longer be published from PyTorch 2.15 (drops Maxwell / Pascal / Volta) - release/packaging - PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/t/notice-cuda-12-6-wheels-will-no-longer-be-published-from-pytorch-2-15-drops-maxwell-pascal-volta/3432)
+citeturn8search6 [wordlim: 200] Published: 2 months ago; Crawled: 2 months ago; Tracking RFC: [RFC] CUDA support matrix for Release 2.15 — deprecate CUDA 12.6 (drops Maxwell / Pascal / Volta) · Issue #190385 · pytorch/pytorch · GitHub ...     export TORCH_CUDA_ARCH_LIST="5.0;6.0;7.0"   # Maxwell / Pascal / Volta, adjust to your GPU ...   * 2.14 (released) — CUDA 12.6 shipped as a legacy published build; deprecation announced in the release notes.
+
+## What this means for GPU support
+
+CUDA 13.x does not support compute capabilities below Turing (sm_75), and CUDA 12.6 was the only remaining build covering them. Dropping the published binaries ends prebuilt support for:
+
+Architecture  | Compute capability  | Status after 2.15
+--- | --- | ---
+Maxwell  | sm_50  | Dropped
+Pascal  | sm_60  | Dropped
+Volta  | sm_70  | Dropped
+Turing  | sm_75  | Retained
+Ampere  | sm_80, sm_86  | Retained
+Hopper  | sm_90  | Retained
+Blackwell  | sm_100, sm_120  | Retained
+
+If you are on a Maxwell, Pascal, or Volta GPU, PyTorch 2.14 is the last release with a prebuilt wheel for you. From 2.15 onward you will need to either stay on 2.14 (or earlier), or compile PyTorch from source against a CUDA 12.x toolkit.
+
+Linux aarch64 loses nothing. The CUDA 12.6 aarch64 build covered Ampere and Hopper, both still covered by the CUDA 13.x builds, which additionally add Blackwell.
+
+## What remains
+
+CUDA 13.x builds continue and cover Turing (7.5) through Blackwell. The exact set of published CUDA versions changes from release to release, so check the getting-started page for the current list rather than pinning to what is written here: https://pytorch.org/get-started/locally/
+--------------------------------------------------------------------------------
+PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/top)
+citeturn8search7 [wordlim: 200] Crawled: today; Notice: CUDA 12.6 wheels will no longer be published from PyTorch 2.15 (drops Maxwell / Pascal / Volta) release/packaging  |  | 0  | 1012  | September 4, 2026 ... Transitioning PyPI CUDA wheels to CUDA 13.0 as the stable (Release 2.11) release/packaging  |  | 0  | 1248  | March 11, 2026
+--------------------------------------------------------------------------------
+torch · PyPI (https://pypi.org/project/torch/2.13.0/)
+citeturn8search8 [wordlim: 200] Published: 4 months ago; Crawled: today; ### 2.15.0 ... ### 2.13.0 This release
+--------------------------------------------------------------------------------
+Latest topics - PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/latest)
+citeturn8search9 [wordlim: 200] Crawled: today; Notice: Python 3.10 support is being removed from PyTorch 2.15 (2.14 is the last release with 3.10 wheels) release/packaging  |  | 0  | 468  | September 16, 2026 ... Notice: CUDA 12.6 wheels will no longer be published from PyTorch 2.15 (drops Maxwell / Pascal / Volta) release/packaging  |  | 0  | 1011  | September 4, 2026
+--------------------------------------------------------------------------------
+cuda-toolkit · PyPI (https://pypi.org/project/cuda-toolkit/13.1.1/)
+citeturn8search10 [wordlim: 200] Published: 10 months ago; Crawled: 2 weeks ago; 13.2.0
+--------------------------------------------------------------------------------
+PyTorch 2.15 RC1 produced for pytorch, torchvision & torchaudio - Release Announcements - PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/t/pytorch-2-15-rc1-produced-for-pytorch-torchvision-torchaudio/3464)
+citeturn8search11 [wordlim: 200] Published: last month; Crawled: last month; https://download.pytorch.org/libtorch/test/cpu/libtorch-macos-arm64-2.15.0.zip ... CUDA 13.2, 13.4 Linux: ... Windows CUDA 13.2, 13.4 (Release version): ... mateusz-kowalski October 10, 2026, 5:47pm 2
+--------------------------------------------------------------------------------
+Internal Error ()
+citeturn8view0 [wordlim: 200] Source: open({"ref_id":"https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=5","lineno":null}); 
+URL https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=5 is not accessible via this tool.--------------------------------------------------------------------------------
+Internal Error ()
+citeturn8view1 [wordlim: 200] Source: open({"ref_id":"https://api.github.com/repos/ollama/ollama/releases?per_page=5","lineno":null}); 
+URL https://api.github.com/repos/ollama/ollama/releases?per_page=5 is not accessible via this tool.

@@ -1,0 +1,409 @@
+GPU - vLLM (https://docs.vllm.ai/en/latest/getting_started/installation/gpu.html ; rewritten summary of https://docs.vllm.ai/en/latest/getting_started/installation/gpu/)
+citeturn11view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.vllm.ai/en/latest/getting_started/installation/gpu.html","lineno":null}); Redirected to URL: https://docs.vllm.ai/en/latest/getting_started/installation/gpu/; Total lines: 1511
+L0: [Input] [Input]
+L1: 
+L2: 【0†Skip to content】
+L3: 
+L4: vLLM
+L5: 
+L6: GPU
+L7: 
+L8: [Input] [Input] [Input]
+L9: 
+L10: [Input: Search]
+L11: 
+L12: Initializing search
+L13: 
+L14: 【1†GitHub†github.com】
+L15: 
+L16:   * 【2†Home】
+L17:   * 【3†User Guide】
+L18:   * 【4†Developer Guide】
+L19:   * 【5†Benchmarking】
+L20:   * 【6†API Reference】
+L21:   * 【7†CLI Reference】
+L22:   * 【8†Community】
+L23: 
+L24: vLLM
+L25: 
+L26: 【1†GitHub†github.com】
+L27: 
+L28:   * 【2†Home】
+L29:   * [Input]
+L30: 
+L31: 【3†User Guide】
+L32: 
+L33: User Guide
+L34:     * [Input] Getting Started Getting Started
+L35:       * 【9†Quickstart】
+L36:       * [Input]
+L37: 
+L38: 【10†Installation】
+L39: Installation
+L40:         * [Input] GPU 【11†GPU】 Table of contents
+L41:           * 【12†Prebuilt Wheels】
+L42:           * 【13†Requirements】
+L43:           * 【14†Set up using Python】
+L44:             * 【15†Create a new Python environment】
+L45:           * 【16†Set up using vLLM-Metal】
+L46:             * 【17†Using vLLM-Metal】
+L47:             * 【18†Pre-built wheels】
+L48:             * 【19†Build wheel from source】
+L49:           * 【20†Set up using Docker】
+L50:             * 【21†Pre-built images】
+L51:             * 【22†Build image from source】
+--------------------------------------------------------------------------------
+NVIDIA - CUDA | onnxruntime (https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html)
+citeturn11view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html","lineno":null}); Total lines: 802
+L0: 【0†Skip to main content】
+L1:   * 【1†ONNX Runtime】
+L2:   * 【2†Install ONNX Runtime】
+L3:   * 【3†Get Started】
+L4:     * 【4†Python】
+L5:     * 【5†C++】
+L6:     * 【6†C】
+L7:     * 【7†C#】
+L8:     * 【8†Java】
+L9:     * 【9†JavaScript】
+L10:       * 【10†Web】
+L11:       * 【11†Node.js binding】
+L12:       * 【12†React Native】
+L13:     * 【13†Objective-C】
+L14:     * 【14†Julia, Ruby and Rust APIs】
+L15:     * 【15†Windows】
+L16:     * 【16†Mobile】
+L17:     * 【17†On-Device Training】
+L18:     * 【18†Large Model Training】
+L19:   * 【19†Tutorials】
+L20:     * 【20†API Basics】
+L21:     * 【21†Accelerate PyTorch】
+L22:       * 【22†PyTorch Inference】
+L23:       * 【23†Inference on multiple targets】
+L24:       * 【24†Accelerate PyTorch Training】
+L25:     * 【25†Accelerate TensorFlow】
+L26:     * 【26†Accelerate Hugging Face】
+L27:     * 【27†Deploy on AzureML】
+L28:     * 【28†Deploy on mobile】
+L29:       * 【29†Object detection and pose estimation with YOLOv8】
+L30:       * 【30†Mobile image recognition on Android】
+L31:       * 【31†Improve image resolution on mobile】
+L32:       * 【32†Mobile objection detection on iOS】
+L33:       * 【33†ORT Mobile Model Export Helpers】
+L34:     * 【34†Web】
+--------------------------------------------------------------------------------
+Release v0.9.0 · ggml-org/llama.cpp · GitHub (https://github.com/ggml-org/llama.cpp/releases/latest ; rewritten summary of https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0)
+citeturn11view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://github.com/ggml-org/llama.cpp/releases/latest","lineno":null}); Redirected to URL: https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0; Total lines: 384
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHub Repository hosting, code review, and collaboration】
+L6:       * 【2†Copilot AI coding agent for tasks, projects, and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†Actions CI/CD and automation】
+L10:       * 【4†Code Quality Quality analysis, fixes, and enforcement】
+L11:       * 【5†Codespaces Cloud development environments】
+L12:     * Secure
+L13:       * 【6†Code Security Vulnerability detection and remediation】
+L14:       * 【7†Secret Protection Secret scanning and leak prevention】
+L15: 
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+--------------------------------------------------------------------------------
+Release v0.40.16 · ollama/ollama · GitHub (https://github.com/ollama/ollama/releases/latest ; rewritten summary of https://github.com/ollama/ollama/releases/tag/v0.40.16)
+citeturn11view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://github.com/ollama/ollama/releases/latest","lineno":null}); Redirected to URL: https://github.com/ollama/ollama/releases/tag/v0.40.16; Total lines: 183
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHub Repository hosting, code review, and collaboration】
+L6:       * 【2†Copilot AI coding agent for tasks, projects, and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†Actions CI/CD and automation】
+L10:       * 【4†Code Quality Quality analysis, fixes, and enforcement】
+L11:       * 【5†Codespaces Cloud development environments】
+L12:     * Secure
+L13:       * 【6†Code Security Vulnerability detection and remediation】
+L14:       * 【7†Secret Protection Secret scanning and leak prevention】
+L15: 
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+--------------------------------------------------------------------------------
+CUDA Toolkit 13.2 Update 2 - Release Notes — Release Notes 13.2 documentation (https://docs.nvidia.com/cuda/archive/13.2.2/cuda-toolkit-release-notes/index.html)
+citeturn11view4 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn10view3","pattern":"reconvergence"}); Total lines: 920
+L239: ### 2.4.1. CUDA Compiler【28†】
+L240: 
+L241:   * Fixed a compiler issue, present since CUDA 12.8, that could cause compiler-inserted thread reconvergence to fail and leave stale or corrupted values in registers, resulting in incorrect program execution. This issue could occur only in kernels that contain two or more nested levels of thread divergence where the compiler elided convergence instructions for one or more divergence levels. Kernels with only a single level of divergence are unaffected.[6111901]
+L242: Minimal illustrative example:
+L243: 
+L244:     __global__ void affected(const int* in, int* out) {
+L245:         int tid = threadIdx.x;
+L246: 
+L247:         if (tid < 16) {             // Level 1 divergence
+L248:             if (in[tid] > 0) {      // Level 2 divergence, nested
+L249:                 // If the compiler elides reconvergence for one of these
+L250:                 // divergence levels, a register written in this region
+L251:                 // can carry a stale value across the reconvergence point.
+L252:                 out[tid] = compute(in[tid]);
+L253:             }
+L254: 
+L255:             // Implicit reconvergence: failure can manifest here.
+L256:         }
+L257:     }
+L258: ## 2.5. Known Issues【29†】
+L259: ### 2.5.1. General CUDA【30†】
+L260: 
+L261:   * On SLES 16 systems used for NVLink 5 testing, NVIDIA Fabric Manager may fail to start when DOCA OFED is installed.
+L262: 
+L263: Symptom:
+L264: 
+L265: NVIDIA Fabric Manager fails to start on SLES 16 systems used for NVLink 5 testing when DOCA OFED is installed.
+L266: 
+L267: Problem Description:
+L268: 
+L269: This issue can occur because the `ib_core` module is provided by both the SLES 16 kernel and DOCA OFED, which can lead to a module conflict.
+L270: 
+L271: Workaround:
+L272: Unload the SLES 16 kernel-provided `ib_core` module and load the DOCA OFED-provided `ib_core` module instead. After loading the DOCA OFED-provided module, NVIDIA Fabric Manager starts and the system operates correctly.
+L273: 
+L274:   * CUDA initialization can fail on certain Linux kernels with KASLR enabled.
+L275: 
+L276: Symptom:
+--------------------------------------------------------------------------------
+CUDA Toolkit 13.2 Update 2 - Release Notes — Release Notes 13.2 documentation (https://docs.nvidia.com/cuda/archive/13.2.2/cuda-toolkit-release-notes/index.html)
+citeturn11view5 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn10view3","pattern":"convergence"}); Total lines: 920
+L239: ### 2.4.1. CUDA Compiler【28†】
+L240: 
+L241:   * Fixed a compiler issue, present since CUDA 12.8, that could cause compiler-inserted thread reconvergence to fail and leave stale or corrupted values in registers, resulting in incorrect program execution. This issue could occur only in kernels that contain two or more nested levels of thread divergence where the compiler elided convergence instructions for one or more divergence levels. Kernels with only a single level of divergence are unaffected.[6111901]
+L242: Minimal illustrative example:
+L243: 
+L244:     __global__ void affected(const int* in, int* out) {
+L245:         int tid = threadIdx.x;
+L246: 
+L247:         if (tid < 16) {             // Level 1 divergence
+L248:             if (in[tid] > 0) {      // Level 2 divergence, nested
+L249:                 // If the compiler elides reconvergence for one of these
+L250:                 // divergence levels, a register written in this region
+L251:                 // can carry a stale value across the reconvergence point.
+--------------------------------------------------------------------------------
+CUDA Toolkit 13.5 - Release Notes — Release Notes 13.5 documentation (https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)
+citeturn11view6 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn4view0","pattern":"R620"}); Total lines: 1309
+L75: Table 2 CUDA Toolkit and Corresponding Driver Branch【8†】
+L76: CUDA Toolkit  | Corresponding Driver Branch
+L77: --- | ---
+L78: CUDA 13.5  | R620
+L79: CUDA 13.4  | R615
+L80: CUDA 13.3  | R610
+L81: CUDA 13.2  | R595
+L82: CUDA 13.1  | R590
+L83: CUDA 13.0  | R580
+L84: 
+L85: Note
+L86: 
+L87: Existing CUDA 13.x applications run on drivers >=580 under CUDA minor version compatibility. CUDA 13.5 new features and newly enabled platforms require an R620 or later driver that supports them. The Windows driver for the RTX Spark device is 616.41 or later.
+L88: The CUDA driver is backward compatible: applications compiled against a particular CUDA Toolkit version continue to work on subsequent (later) driver releases. In addition, CUDA minor version compatibility allows applications to run on a driver older than the corresponding driver branch, within the ranges shown below. The installed driver must meet or exceed the minimum required version for the CUDA Toolkit. For details, see the 【9†CUDA Compatibility Guide】 and 【10†CUDA Compatibility and Upgrades】.
+L165:   * Added Confidential Computing (CC) support for NVENC on NVIDIA RTX PRO 6000 Blackwell Server Edition GPUs. Supported Linux confidential virtual machines can perform hardware-accelerated H.264, HEVC, and AV1 encoding through the existing CUDA-based NVENCODE APIs in the NVIDIA Video Codec SDK. This feature requires a qualified R620 driver and firmware configuration. The driver manages protected encoder buffers and encrypted, authenticated CPU-GPU transfers. [6324055]
+--------------------------------------------------------------------------------
+CUDA Toolkit 13.5 - Release Notes — Release Notes 13.5 documentation (https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)
+citeturn11view7 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn4view0","pattern":"13.5"}); Total lines: 1309
+L0: [Input: Search docs] [Input] [Input]
+L1: 
+L2: 【0†Release Notes】
+L3: 
+L4: CUDA Toolkit 13.5 - Release Notes
+L5: # 1. Overview【1†】
+L6: 
+L7: Welcome to the release notes for NVIDIA® CUDA® Toolkit 13.5. This release includes enhancements and fixes across the CUDA Toolkit and its libraries.
+L8: 
+L9: This documentation is organized into two main sections:
+L10: 
+L11:   * CUDA Platform
+L12: 
+L13: Focuses on the core CUDA infrastructure including component versions, driver compatibility, compiler/runtime features, issues, and deprecations.
+L14: 
+L15:   * CUDA Libraries
+L16: Covers the specialized computational libraries with their feature updates, performance improvements, API changes, and version history across CUDA 13.x releases.
+L17: # 2. CUDA Platform【2†】
+L18: ## 2.1. CUDA Toolkit Major Components【3†】
+L19: 
+L20: > For CUDA 13.5, the table below indicates the versions:
+L21: Table 1 CUDA 13.5 Component Versions【4†】
+L22: Component Name  | Version Information  | Supported Architectures  | Supported Platforms
+L23: --- | --- | --- | ---
+L24: CUDA C++ Core Compute Libraries  | Thrust  | 3.5.0  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L25: CUB  | 3.5.0
+L26: libcu++  | 3.5.0
+L27: Cooperative Groups  | 13.3.5.0.6
+L28: CUDA Compatibility Package (Orin)  | 13.5.47659993  | arm64-sbsa  | Linux
+L29: CUDA Application Compiler (crt)  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L30: CUDA Compilation Optimizer (ctadvisor)  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L31: CUDA Runtime (cudart)  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L32: CUDA culibos  | 13.5.25  | x86_64, arm64-sbsa  | Linux
+L33: CUDA cuobjdump  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L34: CUPTI  | 13.5.25  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L35: CUDA cuxxfilt (demangler)  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L36: CUDA Documentation  | 13.5.25  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L37: CUDA GDB  | 13.5.25  | x86_64, arm64-sbsa  | Linux
+L38: CUDA NVCC  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L39: CUDA nvdisasm  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L40: CUDA NVML Headers  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L41: CUDA nvprune  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L42: CUDA NVRTC  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L43: CUDA NVTX  | 13.5.25  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L44: CUDA OpenCL  | 13.5.25  | x86_64, arm64 (Windows)  | Linux, Windows
+L45: CUDA Profiler API  | 13.5.25  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L46: CUDA Sandbox dev  | 13.5.25  | x86_64, arm64-sbsa  | Linux
+L47: CUDA Compute Sanitizer API  | 13.5.25  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L48: CUDA TILE-IR AS  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L49: CUDA cuBLAS  | 13.10.0.20  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L50: CUDA cuDLA  | 13.5.25  | arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L51: CUDA cuFFT  | 12.5.0.14  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L52: CUDA cuFile  | 1.20.0.107  | x86_64, arm64-sbsa  | Linux
+L53: CUDA cuobjclient  | 1.4.0.107  | x86_64, arm64-sbsa  | Linux
+L54: CUDA cuRAND  | 10.4.5.25  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L55: CUDA cuSOLVER  | 12.4.1.2  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L56: CUDA cuSPARSE  | 12.9.4.2  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L57: CUDA NPP  | 13.2.0.93  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L58: CUDA nvFatbin  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L59: CUDA nvJitLink  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L60: CUDA nvJPEG  | 13.3.2.43  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L61: CUDA nvptxcompiler  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L62: CUDA nvvm  | 13.5.37  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L63: Nsight Compute  | 2026.4.0.10  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L64: Nsight Systems  | 2026.5.2.323  | x86_64, arm64-sbsa, arm64 (Windows)  | Linux, Windows
+L65: Nsight Visual Studio Edition (VSE)  | 2026.4.0.26265  | x86_64, arm64 (Windows)  | Windows
+L66: Visual Studio Integration  | 13.5.25  | x86_64, arm64 (Windows)  | Windows
+L67: ## 2.2. CUDA Driver【5†】
+L68: 
+L69: Note
+L70: 
+L71: The NVIDIA driver is no longer bundled with the CUDA Toolkit – on Windows starting with CUDA 13.1, and on Linux starting with CUDA 13.4. Download and install the appropriate driver from the official 【6†NVIDIA Driver Downloads†www.nvidia.com】 page.
+L72: Running a CUDA application requires a system with at least one CUDA-capable GPU and a driver that is compatible with the CUDA Toolkit. For more information about various GPU products that are CUDA-capable, visit 【7†https://developer.nvidia.com/cuda/gpus†developer.nvidia.com】.
+L73: 
+L74: The NVIDIA driver branch corresponding to each CUDA Toolkit release is shown below. Update releases within a CUDA minor version use the same driver branch.
+L75: Table 2 CUDA Toolkit and Corresponding Driver Branch【8†】
+L76: CUDA Toolkit  | Corresponding Driver Branch
+L77: --- | ---
+L78: CUDA 13.5  | R620
+L79: CUDA 13.4  | R615
+L80: CUDA 13.3  | R610
+L81: CUDA 13.2  | R595
+L82: CUDA 13.1  | R590
+L83: CUDA 13.0  | R580
+L84: 
+L85: Note
+L86: 
+L87: Existing CUDA 13.x applications run on drivers >=580 under CUDA minor version compatibility. CUDA 13.5 new features and newly enabled platforms require an R620 or later driver that supports them. The Windows driver for the RTX Spark device is 616.41 or later.
+L88: The CUDA driver is backward compatible: applications compiled against a particular CUDA Toolkit version continue to work on subsequent (later) driver releases. In addition, CUDA minor version compatibility allows applications to run on a driver older than the corresponding driver branch, within the ranges shown below. The installed driver must meet or exceed the minimum required version for the CUDA Toolkit. For details, see the 【9†CUDA Compatibility Guide】 and 【10†CUDA Compatibility and Upgrades】.
+L89: Table 3 CUDA Toolkit and Minimum Required Driver Version for CUDA Minor Version Compatibility【11†】
+L90: CTK Version  | Driver Range for Minor Version Compatibility
+L91: --- | ---
+L354: ### 2.6.2. Architectures【52†】
+L355: 
+L356:   * CUDA 14.0 will move to Armv8.2-A as the minimum supported architecture for ARM64-SBSA.
+L357: 
+L358: ### 2.6.3. Operating Systems【53†】
+L359: 
+L360:   * Debian 12 is deprecated as of CUDA 13.5. Support ends with this release; it will be dropped in the next CUDA release. Migrate to Debian 13.
+L361: 
+L362:   * openSUSE Leap 15.6 is deprecated as of CUDA 13.5. Support ends with this release; it will be dropped in the next CUDA release. Migrate to openSUSE Leap 16.
+L363: 
+L364: ### 2.6.4. CUDA Toolchains【54†】
+L365: 
+L366:   * None
+L367: ### 2.6.5. Host Compiler【55†】
+L368: 
+L369:   * Support for the Arm C/C++ compiler included in Arm Compiler for Linux (ACfL) 24.10 is deprecated in CUDA 13.5 and will be removed in a future CUDA release. Migrate to a supported host compiler listed in the CUDA Installation Guide for Linux.
+L370: 
+L371: # 3. CUDA Libraries【56†】
+L372: 
+L373: This section covers CUDA Libraries release notes for 13.x releases.
+L374: 
+L375: Note
+L376: 
+L377: Documentation will be updated to accurately reflect supported C++ standard libraries for CUDA Math Libraries.
+L379: ### 3.1.1. cuBLAS: Release 13.5【58†】
+L380: 
+L381:   * New Features
+L382: 
+L383:     * Improved performance for low-alignment BF16 matmuls on Hopper and newer GPUs. [6599136]
+L384: 
+L385:     * Enabled Ozaki-II support for `{D,Z}SYR{K,2K,KX}` and `ZHER{K,2K,KX}` on NVIDIA Ampere and newer GPUs. Peak performance is improved by up to 1.7x on Vera Rubin, 2.9x on RTX PRO 6000 Blackwell Server Edition, and 1.2x on GB200 GPUs. [CUB-10008]
+L391: Default heuristics do not return such algorithm configurations, so the issue is reachable only when you manually override the algorithm attributes with `cublasLtMatmulAlgoConfigSetAttribute()`. This issue was introduced in CUDA Toolkit 13.5 (cuBLAS 13.10.0). [CUB-10890]
+L468:     * Multiple cuBLASLt Grouped GEMM operations reusing the same workspace on Hopper GPUs may lead to hangs or unspecified launch failures. This issue was introduced in CUDA Toolkit 13.2 Update 1 (cuBLAS 13.4.0). [6456362]
+L469: 
+L470:     * Calling `cublasLtMatmulAlgoGetHeuristic()` while a non-default blocking stream is being captured returns `CUBLAS_STATUS_INTERNAL_ERROR`. This issue was introduced in CUDA Toolkit 13.3 (cuBLAS 13.5.1). [6288786]
+L471:     * GEMV-like operations (e.g., `cublas<t>gemv()`, or `cublasLtMatmul()` with M or N equal to 1) may return `CUBLAS_STATUS_NOT_SUPPORTED` for certain shapes and workspace configurations. This issue was introduced in CUDA Toolkit 13.3 (cuBLAS 13.5.1).
+--------------------------------------------------------------------------------
+CUDA Toolkit 13.2 Update 2 - Release Notes — Release Notes 13.2 documentation (https://docs.nvidia.com/cuda/archive/13.2.2/cuda-toolkit-release-notes/index.html)
+citeturn11view8 [wordlim: 200] Crawled: today; Content type: text/html; Source: find({"ref_id":"turn10view3","pattern":"12.8"}); Total lines: 920
+L10: CUDA Toolkit 13.2 Update 2 resolves two critical issues that could produce incorrect results: a cuBLAS bug, introduced in 13.2 Update 1, where `cublasLtMatmul()` could ignore tensor-wide scaling for NVFP4 matrix multiplications (see the 【2†cuBLAS resolved issue】); and a compiler bug, present since CUDA 12.8, where failed thread reconvergence could leave stale or corrupted register values in kernels with nested thread divergence (see the 【3†compiler resolved issue】).
+L121: CUDA 12.9 Update 1  | >=575.57.08  | >=576.57
+L122: CUDA 12.9 GA  | >=575.51.03  | >=576.02
+L123: CUDA 12.8 Update 1  | >=570.124.06  | >=572.61
+L124: CUDA 12.8 GA  | >=570.26  | >=570.65
+L125: CUDA 12.6 Update 3  | >=560.35.05  | >=561.17
+L126: CUDA 12.6 Update 2  | >=560.35.03  | >=560.94
+L127: CUDA 12.6 Update 1  | >=560.35.03  | >=560.94
+L128: CUDA 12.6 GA  | >=560.28.03  | >=560.76
+L129: CUDA 12.5 Update 1  | >=555.42.06  | >=555.85
+L130: CUDA 12.5 GA  | >=555.42.02  | >=555.85
+L131: CUDA 12.4 Update 1  | >=550.54.15  | >=551.78
+L132: CUDA 12.4 GA  | >=550.54.14  | >=551.61
+L133: CUDA 12.3 Update 1  | >=545.23.08  | >=546.12
+L134: CUDA 12.3 GA  | >=545.23.06  | >=545.84
+L135: CUDA 12.2 Update 2  | >=535.104.05  | >=537.13
+L136: CUDA 12.2 Update 1  | >=535.86.09  | >=536.67
+L137: CUDA 12.2 GA  | >=535.54.03  | >=536.25
+L138: CUDA 12.1 Update 1  | >=530.30.02  | >=531.14
+L139: CUDA 12.1 GA  | >=530.30.02  | >=531.14
+L140: CUDA 12.0 Update 1  | >=525.85.12  | >=528.33
+L141: CUDA 12.0 GA  | >=525.60.13  | >=527.41
+L142: CUDA 11.8 GA  | >=520.61.05  | >=520.06
+L239: ### 2.4.1. CUDA Compiler【28†】
+L240: 
+L241:   * Fixed a compiler issue, present since CUDA 12.8, that could cause compiler-inserted thread reconvergence to fail and leave stale or corrupted values in registers, resulting in incorrect program execution. This issue could occur only in kernels that contain two or more nested levels of thread divergence where the compiler elided convergence instructions for one or more divergence levels. Kernels with only a single level of divergence are unaffected.[6111901]
+L242: Minimal illustrative example:
+L243: 
+L244:     __global__ void affected(const int* in, int* out) {
+L245:         int tid = threadIdx.x;
+L246: 
+L247:         if (tid < 16) {             // Level 1 divergence
+L248:             if (in[tid] > 0) {      // Level 2 divergence, nested
+L249:                 // If the compiler elides reconvergence for one of these
+L250:                 // divergence levels, a register written in this region
+L251:                 // can carry a stale value across the reconvergence point.
+L469:     * Fixed an issue in `cublasLtMatmul` that could lead to incorrect results when it ran concurrently with another kernel that uses Tensor Memory. This issue only affected algorithms with `CUBLASLT_ALGO_CONFIG_ID` equal to 66 on GPUs with Compute Capability 10.x and 11.x, and existed since cuBLAS 12.8. [5807900]
+L470:     * Fixed an issue in `cublasLtMatmul` that could lead to incorrect results or invalid memory access errors for large leading dimensions, specifically when the product of the data type size and the leading dimension of a matrix exceeded the bounds of a signed 32 bit integer. This issue affected GPUs with Compute Capability 9.0, 10.x, or 11.0, existed since cuBLAS 12.6 Update 2, and only affected algorithms with `CUBLASLT_ALGO_CONFIG_ID` equal to 66. [CUB-9572]
+L582:     * The experimental feature for atomic synchronization along the rows (`CUBLASLT_MATMUL_DESC_ATOMIC_SYNC_NUM_CHUNKS_D_ROWS`) and columns (`CUBLASLT_MATMUL_DESC_ATOMIC_SYNC_NUM_CHUNKS_D_COLS`) of the output matrix which was deprecated in 12.8 has now been removed.
+L583: 
+L584:     * Starting with this release, cuBLAS will return `CUBLAS_STATUS_NOT_SUPPORTED` if any of the following descriptor attributes are set but the corresponding scale is not supported:
+L585: 
+L586:       * `CUBLASLT_MATMUL_DESC_A_SCALE_POINTER`
+

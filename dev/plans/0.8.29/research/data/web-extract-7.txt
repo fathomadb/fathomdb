@@ -1,0 +1,295 @@
+Removing CUDA 13.0 builds from PyTorch CI/CD, starting the week of Sept 28 - release/packaging - PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/t/removing-cuda-13-0-builds-from-pytorch-ci-cd-starting-the-week-of-sept-28/3447)
+citeturn9view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://dev-discuss.pytorch.org/t/removing-cuda-13-0-builds-from-pytorch-ci-cd-starting-the-week-of-sept-28/3447","lineno":null}); Total lines: 53
+L0: 【0†PyTorch Developer Mailing List】
+L1: # 【1†Removing CUDA 13.0 builds from PyTorch CI/CD, starting the week of Sept 28】
+L2: 
+L3: 【2†release/packaging】
+L4: 
+L5: 【3†atalman】 September 23, 2026, 8:29pm 1
+L6: 
+L7: TL;DR — Starting the week of Monday, Sept 28 2026, we are removing CUDA 13.0 from the PyTorch nightly build matrix and CI. Nightly CUDA builds will be 13.2 (stable / default) and 13.4 (prototype). No GPU architecture support is lost. PyTorch 2.14 and earlier are unaffected. If you pin `cu130`, move to `cu132`.
+L8: This is tracked in 【4†pytorch/pytorch#190385†github.com】.
+L9: 
+L10: * * *
+L11: ## Why we are removing it
+L12: 
+L13: CUDA Toolkit 13.2.2 fixes a compiler bug that has been present since CUDA 12.8. Compiler-inserted thread reconvergence could fail and leave stale or corrupted values in registers, producing silently incorrect results — no crash, no error, just wrong numbers.
+L14: The bug only triggers in kernels with two or more nested levels of thread divergence, where the compiler elided convergence instructions for one or more of those levels. Kernels with a single level of divergence are unaffected. From the illustrative example in the NVIDIA notes:
+L15: 
+L16:     `__global__ void affected(const int* in, int* out) {
+L17:         int tid = threadIdx.x;
+L18: 
+L19:         if (tid < 16) {             // Level 1 divergence
+L20:             if (in[tid] > 0) {      // Level 2 divergence, nested
+L21:                 // A register written here can carry a stale value
+L22:                 // across the reconvergence point.
+L23:                 out[tid] = compute(in[tid]);
+L24:             }
+L25:             // Implicit reconvergence: failure can manifest here.
+L26:         }
+L27:     }
+L28:     `
+L29: Details: 【5†CUDA Toolkit 13.2.2 release notes†docs.nvidia.com】.
+L30: 
+L31: CUDA 13.0 predates the fix. Since 13.2 already provides identical architecture coverage, continuing to build and ship a toolkit with a known silent-miscompilation class buys us nothing and exposes users to it. Thanks to 【6†@DEKHTIARJonathan】 for raising this on the RFC.
+L32: ## What you need to do
+L33: 
+L34: If you install the default nightly — nothing. You will start receiving a CUDA 13.2 build instead of 13.0.
+L35: 
+L36: If you pin cu130, update the index URL:
+L37: 
+L38:     `-pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu130
+L39:     +pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132
+L40:     `
+L41: If you maintain CI that references cu130 nightly artifacts — Docker tags, index URLs, build-matrix entries — please update to cu132 during the week of Sept 28. Builds stop being produced after the change lands; pinned references will go stale rather than fail loudly.
+L42: ## Feedback
+L43: 
+L44: If this breaks a workflow you depend on, please comment on 【4†pytorch/pytorch#190385†github.com】
+L45: 
+L46:   * 【0†Home】
+L47:   * 【7†Categories】
+L48:   * 【8†Guidelines】
+L49:   * 【9†Terms of Service】
+L50:   * 【10†Privacy Policy】
+L51: 
+L52: Powered by 【11†Discourse†www.discourse.org】, best viewed with JavaScript enabled
+--------------------------------------------------------------------------------
+CUDA Toolkit 13.5 - Release Notes — Release Notes 13.5 documentation (https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)
+citeturn9view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html","lineno":350}); Total lines: 1309
+L292: Memory accesses through multicast-backed views must use explicit multimem operations. These pointers must be created externally and passed to CUDA Tile IR kernels. For details, see the 【40†multi-GPU communication documentation】.
+L293: Compiler Flags
+L294: 
+L295:   * Added support for `--apply-controls=<file>` in `tileiras` to apply encrypted compiler controls to the NVVM and PTXAS backends during Tile IR compilation. This enables backend tuning without modifying the Tile IR program.
+L296: 
+L297: Tile Compiler Improvements
+L298:   * Introduced a new preview classification for compiler features. Preview features are unstable, not compatible across versions, and always explicitly opt-in. The debut preview category, `simt`, allows calling SIMT-implemented library functions and requires explicit enablement with `--preview=simt`. For details, see the 【41†preview features documentation】.
+L299: 
+L300:   * The `num_worker_warps_per_cta` optimization hint now accepts any power-of-two value from 1 to 32 (formerly only 4 and 8).
+L301:   * Added a new opt-in optimization remark indicating when the compiler cannot automatically narrow a tensor view index to `i32`.
+L302: 
+L303:   * Added a warning for unusually high estimated per-thread register usage to help identify excessive compilation times, with suggestions to reduce tile size or lower the occupancy hint.
+L304: 
+L305: Documentation Improvements
+L306: 
+L307:   * Clarified the `f4E2M1FN` memory access contract and explicitly detailed the view conventions required for access to be well-formed.
+L308:   * Clarified floating-point behavior in several places, including strict widening conversions for `cuda_tile.ftof`, sign-preserving flush-to-zero behavior, and the lack of bit-identical MMA results across programs, toolchains, or architectures.
+L309: 
+L310:   * Expanded token ordering documentation with examples of races caused by missing dependencies and legal reordering of independent weak memory accesses.
+L311: ## 2.4. Resolved Issues【42†】
+L312: 
+L313: ### 2.4.1. General CUDA【43†】
+L314: 
+L315:   * The CUDA Installation Guide for Linux (Host Compiler Support Policy) incorrectly stated that only libstdc++ is supported. It now documents libc++ support, available since CUDA 13.4 on Linux x86_64 and Arm64 sbsa with Clang 22 or later, libc++ 22 or later, and the `-stdlib=libc++` flag. libc++ is not supported on Windows. [6930543]
+L316: ### 2.4.2. CUDA Compiler【44†】
+L317: 
+L318:   * Fixed intermittent illegal memory accesses on Blackwell and newer GPUs caused by incompatible TMA out-of-bounds addressing modes. Recompile kernels that update tensor-map global addresses with `tensormap.replace` to obtain the corrected behavior. [5795304]
+L319:   * Fixed a segmentation fault in PTXAS for PTX programs containing `stmatrix` instructions compiled with the `-g` option. This occurred for a specific usage pattern of `stmatrix` instructions whose source registers are used across basic blocks. [6713855]
+L320: ### 2.4.3. CUDA Tools【45†】
+L321: 
+L322:   * None
+L323: 
+L324: ## 2.5. Known Issues【46†】
+L325: ### 2.5.1. CUDA Platform【47†】
+L326: 
+L327:   * When using CFT with MPS MLOPart enabled, importing unicast logical endpoints via `cuLogicalEndpointImport()` may fail with `CUDA_ERROR_NOT_SUPPORTED`, or `cuLogicalEndpointQuery()` may fail with `CUDA_ERROR_INVALID_VALUE`. This will be fixed in a future driver version.
+L328: 
+L329:   * NVENC Confidential Computing support has the following limitations:
+L330:     * Internal and external lookahead, weighted prediction, external motion-estimation hints, temporal SVC, motion-estimation-only mode, and sub-frame write are unsupported.
+L331: 
+L332:     * Ultra-high-quality tuning for H.264 and HEVC, output bitstream in video memory, and H.264/HEVC buffering-period SEI insertion are unsupported.
+L333: 
+L334:     * Encoding configurations with both width >= 7680 and height >= 4320 are unsupported.
+L335: 
+L336:     * OpenGL device interoperability is unsupported.
+L337:     * Registering CUDA-array input resources with ARGB, ABGR, ARGB10, ABGR10, AYUV, YV12, or IYUV formats is unsupported.
+L338: 
+L339: Gated requests return `NV_ENC_ERR_UNSUPPORTED_DEVICE` during encoder initialization or resource registration. Applications can use `nvEncGetLastErrorString` to obtain the failure reason. [6324055]
+L340: ### 2.5.2. CUDA Compiler【48†】
+L341: 
+L342:   * Fabric `try_atom` instructions may write to an incorrect destination when the logical endpoint offset is not aligned to a 16-byte boundary, potentially producing incorrect results. This will be fixed in the upcoming toolkit version. [6875657]
+L343: ### 2.5.3. CUDA Tile IR【49†】
+L344: 
+L345:   * A `cuda_tile.loop` or `cuda_tile.for` operation may fail compilation or produce incorrect results when a tile produced by a load is carried between iterations. The issue may occur when the next iteration’s tile is loaded before the carried tile’s final use. As a workaround, place the next load after the carried tile’s final use, or restructure the loop so the loaded tile is not carried between iterations.
+L346:   * Converting a `tf32` tile loaded from global memory to `f32` may produce incorrect values if the lower 13 mantissa bits of any loaded value are nonzero. These bits do not affect MMA operations on the loaded tile; the issue becomes observable only after conversion to `f32`. As a workaround, ensure that the lower 13 mantissa bits of every `tf32` value loaded from global memory are zero.
+L347:   * An indexing signedness issue can cause miscompilation to TMA for view-based memory operations when the underlying tensor has a large number of elements. Loading or storing to a view whose underlying `cuda_tile.tensor_view` has 2^31 elements or more along a single dimension can trigger the miscompilation. As a workaround, limit the size of tensors to 2^31-1 per dimension, or set the `allow_tma` optimization hint to `false` on affected loads and stores.
+L348:   * The specifications of `cuda_tile.scan` and `cuda_tile.reduce` implicitly allow several behaviors that are not yet fully supported. The body of a scan or reduce op capturing SSA values from an enclosing scope, using non-scalar intermediate tiles, or nesting region-bearing operations may cause miscompilation.
+L349:   * Floating-point atomic addition (`addf`) in `cuda_tile.atomic_rmw_tko` and `cuda_tile.atomic_red_view_tko` currently flushes subnormal values to zero. This behavior is not intended and is expected to change in a future compiler version; programs should not rely on it.
+L350: ## 2.6. Deprecated or Dropped Features【50†】
+L351: ### 2.6.1. CUDA Platform【51†】
+L352: 
+L353:   * Support for the `nvidia-peermem.ko` kernel module is deprecated and will be removed in the upcoming CUDA Toolkit release. Since GPU driver R515, GPUDirect RDMA is supported on NVIDIA Mellanox HCAs/NICs via the Linux kernel DMA-BUF mechanism provided by `nvidia.ko`, when using the open GPU kernel module and a Linux kernel 5.12 or newer. Customers using the proprietary GPU kernel modules should use a long-term support branch of the GPU driver. [6958218]
+L354: ### 2.6.2. Architectures【52†】
+L355: 
+L356:   * CUDA 14.0 will move to Armv8.2-A as the minimum supported architecture for ARM64-SBSA.
+L357: 
+L358: ### 2.6.3. Operating Systems【53†】
+L359: 
+L360:   * Debian 12 is deprecated as of CUDA 13.5. Support ends with this release; it will be dropped in the next CUDA release. Migrate to Debian 13.
+L361: 
+L362:   * openSUSE Leap 15.6 is deprecated as of CUDA 13.5. Support ends with this release; it will be dropped in the next CUDA release. Migrate to openSUSE Leap 16.
+L363: 
+L364: ### 2.6.4. CUDA Toolchains【54†】
+L365: 
+L366:   * None
+L367: ### 2.6.5. Host Compiler【55†】
+L368: 
+L369:   * Support for the Arm C/C++ compiler included in Arm Compiler for Linux (ACfL) 24.10 is deprecated in CUDA 13.5 and will be removed in a future CUDA release. Migrate to a supported host compiler listed in the CUDA Installation Guide for Linux.
+L370: 
+L371: # 3. CUDA Libraries【56†】
+L372: 
+L373: This section covers CUDA Libraries release notes for 13.x releases.
+L374: 
+L375: Note
+L376: 
+L377: Documentation will be updated to accurately reflect supported C++ standard libraries for CUDA Math Libraries.
+L378: ## 3.1. cuBLAS Library【57†】
+L379: ### 3.1.1. cuBLAS: Release 13.5【58†】
+L380: 
+L381:   * New Features
+L382: 
+L383:     * Improved performance for low-alignment BF16 matmuls on Hopper and newer GPUs. [6599136]
+L384: 
+L385:     * Enabled Ozaki-II support for `{D,Z}SYR{K,2K,KX}` and `ZHER{K,2K,KX}` on NVIDIA Ampere and newer GPUs. Peak performance is improved by up to 1.7x on Vera Rubin, 2.9x on RTX PRO 6000 Blackwell Server Edition, and 1.2x on GB200 GPUs. [CUB-10008]
+L386:     * Improved performance of `cublas<t>getrsBatched` on all NVIDIA GPUs, with end-to-end speedups of up to 1.14x for complex, large batch-count, small problems on Hopper and Blackwell data center GPUs. [5758350]
+L387: 
+L388:   * Known Issues
+L389:     * `cublasLtMatmul()` can launch kernels that result in `cudaErrorMisalignedAddress` for NVFP4 problems on GPUs with compute capability 10.x.
+L390: This issue affects only algorithms with `CUBLASLT_ALGO_CONFIG_ID` equal to 66, `CUBLASLT_ALGO_CONFIG_STAGES_ID` equal to `CUBLASLT_MATMUL_STAGES_128xAUTO`, and a combination of `CUBLASLT_ALGO_CONFIG_TILE_ID` and `CUBLASLT_ALGO_CONFIG_CLUSTER_SHAPE_ID` in which the tile M or N dimension is smaller than 128 and not a multiple of 16, and the cluster shape has 8 or more CTAs in the same axis.
+L391: Default heuristics do not return such algorithm configurations, so the issue is reachable only when you manually override the algorithm attributes with `cublasLtMatmulAlgoConfigSetAttribute()`. This issue was introduced in CUDA Toolkit 13.5 (cuBLAS 13.10.0). [CUB-10890]
+L392:     * Ozaki-II double-complex BLAS Level 3 routines can produce incorrect results in rare cases. This can happen for elements produced by dot products of nearly collinear vectors whose components are roughly the same magnitude. This impacts Ampere and newer GPUs and has been present since CUDA Toolkit 13.4. [CUB-10730]
+L393:     * Fixed-point emulation can produce incorrect results when the leading dimensions differ between the C and D matrices or when split-K is used. This impacts Ampere and newer GPUs and has been present since CUDA Toolkit 13.0 Update 2. [CUB-10744]
+L394: 
+L395:   * Resolved Issues
+L396:     * Fixed an issue where GEMM kernels could produce incorrect results on Hopper GPUs for FP16, BF16, and FP8 matrices when the process ran as an MPS client with `CUDA_MPS_ACTIVE_THREAD_PERCENTAGE` below 100. This affected only algorithms with `CUBLASLT_ALGO_CONFIG_ID` equal to 66 with cluster configurations using 4 or more CTAs. This issue was introduced in CUDA Toolkit 12.6 Update 2 (cuBLAS 12.6.3). [6862950]
+L397:     * Fixed an issue where fixed-point emulation could produce incorrect results when run with the experimental exponent span capacity (ESC) algorithm, which is enabled only with `CUBLAS_ENABLE_EXPERIMENTAL_ESC=1`. This could occur on Ampere and newer GPUs and was introduced in CUDA Toolkit 13.4. [6714114]
+L398:     * Fixed an issue where Ozaki-I fixed-point emulation kernels (FP64 and complex FP64) could produce incorrect results or data corruption on Blackwell GPUs when run concurrently with third-party kernels that also allocate tensor memory. [CUB-9633]
+L399:     * Fixed an issue where, under concurrent load on the GPU, GEMM kernels with beta not equal to zero could produce incorrect results on Blackwell, Blackwell Ultra, and Rubin GPUs with algorithm configurations in which `CUBLASLT_ALGO_CONFIG_ID` is equal to 66 and the cluster has 8 or more CTAs. This issue affected all cuBLAS versions starting with CUDA Toolkit 12.8 (cuBLAS 12.8.1).
+L400: In testing, the issue was reproducible only for configurations returned by heuristics for NVFP4, but problematic algorithm configurations can be constructed manually for all precisions. [6854729]
+L401:     * `cublas<t>getrsBatched` now returns `CUBLAS_STATUS_INVALID_VALUE` for a negative `batchSize`.
+L402: 
+L403:     * Fixed an issue where cuBLASLt Grouped GEMM with per-batch tensor-wide scales accessed input scales for groups with `m > 0`, `n > 0`, and `k = 0`, causing an invalid memory access. This issue was introduced in CUDA Toolkit 13.1 (cuBLAS 13.2.0). [CUB-10481]
+L404:     * Fixed an issue where cuBLASLt Grouped GEMM operations could produce incorrect results on Blackwell and Rubin GPUs. This issue was introduced in cuBLAS 13.7.0. [6798616]
+L405: ### 3.1.2. cuBLAS: Release 13.4 Update 1【59†】
+L406: 
+L407:   * New Features
+L408: 
+L409:     * Emulated FP64 matrix multiplications:
+L410: 
+L411:       * Improved ZGEMM peak performance by up to 25% on Rubin GPUs.
+L412: 
+L413:       * When the per-handle workspace is insufficient, fixed-point FP64 emulation now allocates its temporary workspace from a cuBLAS-managed, per-device CUDA memory pool that retains memory across stream synchronizations. This avoids repeated allocation overhead without requiring users to tune the default memory pool.
+L414:   * Known Issues
+L415:     * When running NVIDIA Compute Sanitizer (versions up to CUDA Toolkit 13.4) with cuBLAS-linked workloads, the tool may report false-positive errors regarding invalid global reads or out-of-bounds (OOB) memory accesses inside cuBLAS accelerated kernels.
+L416: This is a known issue caused by a limitation in Compute Sanitizer’s ability to accurately identify the PTX semantics of the asynchronous global-to-shared memory copy instruction `cp.async.cg.shared.global [dst], [src], cp-size, src-size` when `src-size < cp-size`.
+L417: In this specific scenario, where the number of bytes to copy exceeds the source buffer size, the hardware guarantees that the remaining bytes (`cp-size - src-size`) in the destination shared memory are automatically padded with zeros, ensuring that the memory access is neither invalid nor OOB. Hence, Compute Sanitizer reports for these specific cases can be safely ignored. [6196059]
+L418:     * cuBLASLt Grouped GEMM with per-batch tensor-wide scales causes an invalid memory access for groups where `m > 0`, `n > 0`, and `k = 0`. As a workaround, always pass valid scale pointers for each group. This issue was introduced in CUDA Toolkit 13.1 (cuBLAS 13.2.0). [CUB-10481]
+L419: 
+L420:     * cuBLASLt Grouped GEMM operations can lead to incorrect results on Blackwell and Rubin GPUs. This issue was introduced in CUDA Toolkit 13.4 (cuBLAS 13.7.0). [6798616]
+L421: 
+L422:   * Resolved Issues
+L423:     * Fixed an issue where cuBLASLt Grouped GEMM operations with `CUBLAS_POINTER_MODE_HOST` could lead to incorrect results on Hopper GPUs when the number of waves was larger than 2. This issue was introduced in CUDA Toolkit 13.2 Update 1 (cuBLAS 13.4.0). [6681084]
+L424:     * Fixed an issue where cuBLASLt Grouped GEMM operations could lead to incorrect results on B300 and Rubin GPUs when the input matrices used the NVFP4 data type, the number of waves was larger than 3, and the algorithm attribute `CUBLASLT_ALGO_CONFIG_STAGES_ID` was `CUBLASLT_MATMUL_STAGES_768xAUTO`. This issue was introduced in CUDA Toolkit 13.4 (cuBLAS 13.7.0). [6681084]
+L425:     * Fixed an issue where `cublasLtMatmul()` could return incorrect output when using split-K if the number of K splits (`SPLITK_NUM`) did not evenly divide the K dimension and the floor division of K / `SPLITK_NUM` was an exact multiple of the stage size. This affected only algorithms with `CUBLASLT_ALGO_CONFIG_ID` equal to 66 on GPUs with compute capability 9.0, 10.x, and 11.x. This issue was introduced in CUDA Toolkit 12.6 Update 2 (cuBLAS 12.6.3). [6580689]
+L426:     * Fixed an issue where `cublasLtMatmul()` could produce incorrect results on B300 and Rubin GPUs when the input matrices used the NVFP4 data type. This affected only algorithms with `CUBLASLT_ALGO_CONFIG_ID` equal to 66 and the algorithm attribute `CUBLASLT_ALGO_CONFIG_STAGES_ID` set to `CUBLASLT_MATMUL_STAGES_768xAUTO`. This issue was introduced in CUDA Toolkit 13.3 (cuBLAS 13.5.1). [CUB-10573]
+L427: ### 3.1.3. cuBLAS: Release 13.4【60†】
+L428: 
+L429:   * New Features
+L430: 
+L431:     * Emulated FP64 matrix multiplications:
+L432: 
+L433:       * Emulated FP64 matrix multiplications now leverage the Ozaki-II scheme when it provides a performance benefit over the Ozaki-I scheme; the Ozaki-II scheme is supported on NVIDIA Ampere and newer GPUs.
+L434:       * On B200 and RTX PRO 6000 Blackwell Server Edition GPUs, this enables up to 175 and 45 TFLOPS of emulated DGEMM performance, respectively, and up to 295 and 70 TFLOPS of emulated ZGEMM performance, respectively, by leveraging the 【61†2M algorithm†research.nvidia.com】.
+L435:       * Emulated FP64 matrix multiplications now support Rubin GPUs (compute capability 10.7), leveraging the Ozaki-I and Ozaki-II schemes and the new TI16 type via the `tcgen05.mma` instruction to achieve up to 212 TFLOPS of emulated DGEMM performance. Emulated ZGEMM can reach up to 301 TFLOPS, with further improvements to come.
+L436:     * cuBLASLt adds experimental support for an alternative scaling-factor layout for MXFP8 matmuls through the `CUBLASLT_MATMUL_MATRIX_SCALE_VEC32_MN_K4_UE8M0` and `CUBLASLT_MATMUL_MATRIX_SCALE_VEC128_MN_K4_UE8M0` scaling modes. For more information, see the 【62†cuBLAS documentation】.
+L437: 
+L438:     * Added support for the NVIDIA Rubin (compute capability 10.7) GPU architecture.
+L439:     * cuBLASLt Grouped GEMM performance is improved on Blackwell data center GPUs through dynamic scheduling of matrix computations. Improvements of up to 20% can be seen for Grouped GEMM calls with a large number of groups (for example, 32). [5913842] [5992105] [CUB-9925]
+L440: 
+L441:   * Known Issues
+L442:     * When running NVIDIA Compute Sanitizer (versions up to CUDA Toolkit 13.4) with cuBLAS-linked workloads, the tool may report false-positive errors regarding invalid global reads or out-of-bounds (OOB) memory accesses inside cuBLAS accelerated kernels.
+L443: This is a known issue caused by a limitation in Compute Sanitizer’s ability to accurately identify the PTX semantics of the asynchronous global-to-shared memory copy instruction `cp.async.cg.shared.global [dst], [src], cp-size, src-size` when `src-size < cp-size`.
+L444: In this specific scenario, where the number of bytes to copy exceeds the source buffer size, the hardware guarantees that the remaining bytes (`cp-size - src-size`) in the destination shared memory are automatically padded with zeros, ensuring that the memory access is neither invalid nor OOB. Hence, Compute Sanitizer reports for these specific cases can be safely ignored. [6196059]
+L445:     * cuBLASLt Grouped GEMM with per-batch tensor-wide scales causes an invalid memory access for groups where `m > 0`, `n > 0`, and `k = 0`. As a workaround, always pass valid scale pointers for each group. This issue was introduced in CUDA Toolkit 13.1 (cuBLAS 13.2.0). [CUB-10481]
+L446:     * `cublasLtMatmul()` can return incorrect output when using split-K if the number of K splits (`SPLITK_NUM`) does not evenly divide the K dimension and the floor division of K / `SPLITK_NUM` is an exact multiple of the stage size. This affects only algorithms with `CUBLASLT_ALGO_CONFIG_ID` equal to 66 on GPUs with compute capability 9.0, 10.x, and 11.x.
+--------------------------------------------------------------------------------
+Notice: CUDA 12.6 wheels will no longer be published from PyTorch 2.15 (drops Maxwell / Pascal / Volta) - release/packaging - PyTorch Developer Mailing List (https://dev-discuss.pytorch.org/t/notice-cuda-12-6-wheels-will-no-longer-be-published-from-pytorch-2-15-drops-maxwell-pascal-volta/3432)
+citeturn9view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://dev-discuss.pytorch.org/t/notice-cuda-12-6-wheels-will-no-longer-be-published-from-pytorch-2-15-drops-maxwell-pascal-volta/3432","lineno":null}); Total lines: 69
+L0: 【0†PyTorch Developer Mailing List】
+L1: # 【1†Notice: CUDA 12.6 wheels will no longer be published from PyTorch 2.15 (drops Maxwell / Pascal / Volta)】
+L2: 
+L3: 【2†release/packaging】
+L4: 
+L5: 【3†atalman】 September 4, 2026, 3:13pm 1
+L6: 
+L7: Heads-up that PyTorch will stop publishing CUDA 12.6 binaries in 2.15. Since CUDA 12.8 and 12.9 were already dropped, this means PyTorch 2.14 is the last release to ship any CUDA 12.x wheels. From 2.15, CUDA 12.6 is a build-from-source-only configuration.
+L8: CUDA 12.6 is removed from CD entirely — no 12.6 wheels or libtorch archives will be built or uploaded to PyPI or 【4†download.pytorch.org†download.pytorch.org】. We are keeping one CUDA 12.6 build in CI so that compilation against CUDA 12.x stays exercised and we notice if it breaks.
+L9: 
+L10: > This starts next week. CUDA 12.6 builds are being removed from nightly on Monday 7 September 2026.
+L11: Tracking RFC: 【5†[RFC] CUDA support matrix for Release 2.15 — deprecate CUDA 12.6 (drops Maxwell / Pascal / Volta) · Issue #190385 · pytorch/pytorch · GitHub†github.com】
+L12: ## What this means for GPU support
+L13: 
+L14: CUDA 13.x does not support compute capabilities below Turing (sm_75), and CUDA 12.6 was the only remaining build covering them. Dropping the published binaries ends prebuilt support for:
+L15: 
+L16: Architecture  | Compute capability  | Status after 2.15
+L17: --- | --- | ---
+L18: Maxwell  | sm_50  | Dropped
+L19: Pascal  | sm_60  | Dropped
+L20: Volta  | sm_70  | Dropped
+L21: Turing  | sm_75  | Retained
+L22: Ampere  | sm_80, sm_86  | Retained
+L23: Hopper  | sm_90  | Retained
+L24: Blackwell  | sm_100, sm_120  | Retained
+L25: If you are on a Maxwell, Pascal, or Volta GPU, PyTorch 2.14 is the last release with a prebuilt wheel for you. From 2.15 onward you will need to either stay on 2.14 (or earlier), or compile PyTorch from source against a CUDA 12.x toolkit.
+L26: 
+L27: Linux aarch64 loses nothing. The CUDA 12.6 aarch64 build covered Ampere and Hopper, both still covered by the CUDA 13.x builds, which additionally add Blackwell.
+L28: ## What remains
+L29: 
+L30: CUDA 13.x builds continue and cover Turing (7.5) through Blackwell. The exact set of published CUDA versions changes from release to release, so check the getting-started page for the current list rather than pinning to what is written here: 【6†https://pytorch.org/get-started/locally/†pytorch.org】
+L31: ## Installing 2.14 today
+L32: 
+L33: If you need CUDA 12.6, pin to 2.14 while it is current:
+L34: 
+L35:     `pip3 install torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cu126
+L36:     `
+L37: ## Building from source for CUDA 12.6
+L38: 
+L39: This is the supported path for pre-Turing GPUs from 2.15 onward. Install a CUDA 12.6 toolkit, then build with the architectures you need:
+L40: 
+L41:     `git clone --recursive https://github.com/pytorch/pytorch
+L42:     cd pytorch
+L43:     export TORCH_CUDA_ARCH_LIST="5.0;6.0;7.0"   # Maxwell / Pascal / Volta, adjust to your GPU
+L44:     python -m pip install -r requirements.txt
+L45:     python setup.py develop
+L46:     `
+L47: Full instructions: 【7†GitHub - pytorch/pytorch: Tensors and Dynamic neural networks in Python with strong GPU acceleration · GitHub†github.com】
+L48: 
+L49: Because one CUDA 12.6 build is retained in CI, breakages in the 12.x compile path should surface on our side rather than yours. If you do hit one, please file an issue — that build exists precisely so this configuration stays buildable.
+L50: ## Timeline
+L51: 
+L52:   * 2.14 (released) — CUDA 12.6 shipped as a legacy published build; deprecation announced in the release notes. These binaries remain available.
+L53:   * Mon 7 September 2026 — CUDA 12.6 removed from the nightly CD builds. No further 12.6 nightlies published.
+L54:   * 2.15 — CUDA 12.6 removed from CD entirely; no wheels or libtorch archives built or published. One CUDA 12.6 build stays in CI as a compile check.
+L55: ## Feedback
+L56: 
+L57: If this breaks a workflow you depend on, please comment on the RFC — 【5†[RFC] CUDA support matrix for Release 2.15 — deprecate CUDA 12.6 (drops Maxwell / Pascal / Volta) · Issue #190385 · pytorch/pytorch · GitHub†github.com】 — before the 2.15 branch cut. We are particularly interested in hearing from users still on Volta (V100), which is the most widely deployed of the three affected architectures.
+L58: cc 【8†@albanD】 【3†@atalman】 【9†@ngimel】 【10†@malfet】 【11†@tinglvv】 【12†@nWEIdia】 【13†@ptrblck】 【14†@eqy】
+L59: 
+L60: 1 Like
+L61: 
+L62:   * 【0†Home】
+L63:   * 【15†Categories】
+L64:   * 【16†Guidelines】
+L65:   * 【17†Terms of Service】
+L66:   * 【18†Privacy Policy】
+L67: 
+L68: Powered by 【19†Discourse†www.discourse.org】, best viewed with JavaScript enabled
+--------------------------------------------------------------------------------
+Internal Error ()
+citeturn9view3 [wordlim: 200] Unable to resolve click call due to invalid arguments
+--------------------------------------------------------------------------------
+Internal Error ()
+citeturn9view4 [wordlim: 200] Unable to resolve click call due to invalid arguments
+--------------------------------------------------------------------------------
+Internal Error ()
+citeturn9view5 [wordlim: 200] Unable to resolve click call due to invalid arguments
+

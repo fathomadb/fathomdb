@@ -24,16 +24,23 @@ A fresh session starts here. Verify each line from git before acting on it.
 
 - **Superseded as the ladder of record on 2026-10-31.** The 0.8.29 ladder
   is `dev/plans/plan-0.8.29.md`, which maps W1–W8 and Block 2 to slices.
-  This file keeps Phase 0's record and the W4 (AC-013) rulings.
+  This file keeps Phase 0's record and the W4 (AC-013) rulings. The
+  [November 9 reconciliation proposal](0.8.29/reconciliation-plan.md) audits
+  present maturity and dependencies after the completed .28 forward handoff.
 
-- **Plan of record.** This file on `dev/0.8.29`. The copy on
+- **Historical consolidation/W4 record.** This file on `dev/0.8.29`. The copy on
   `feat/agent-access-block1` stopped at `d5768dc07` and is not updated.
-- **Phase 0: done** on 2026-10-28; `dev/0.8.29` head `e336cfc09`. Step 4,
-  the 0.8.29 release state and board, waits until 0.8.28 publishes; see
-  Phase 0.
-- **Phase 1: W4 in progress.** The AC-013 regression investigation began on
-  2026-10-29; see W4. No other workstream has started.
-- **Phase 2: not started.** B2-8 (seq 296) still needs owner approval.
+- **Phase 0 consolidation: done** on 2026-10-28 at `e336cfc09`. Later .28
+  forward merges are included at `6edc1155f`. Step 4, release-state/board
+  activation, is now eligible because .28 published on November 9; the expanded
+  proposal schedules execution in Slice 10 after Slice 9 decisions.
+- **Phase 1 historical state:** W4 began on 2026-10-29; see W4. Its CS64 and
+  bounded-drain production fixes subsequently shipped in .28. Use the current
+  reconciliation proposal rather than this original workstream snapshot.
+- **Phase 2 reporting/build remains outstanding.** B2-8 was approved on
+  2026-10-31; its storage arrived through .28, and reporting belongs to .29.
+  Empty-result/degradation hints and part of default-store guidance already
+  exist; the reconciliation proposal separates them from the residual work.
 
 ## Owner rulings (2026-10-27)
 
@@ -45,7 +52,7 @@ A fresh session starts here. Verify each line from git before acting on it.
 - **Destination.** `dev/0.8.29`. Block 1 does not merge to `main` on its
   own; `main` gets it when 0.8.29 ships.
 
-B2-8 (seq 296) is asked in Phase 2, where it is needed.
+B2-8 was subsequently approved on 2026-10-31, as recorded in the release plan.
 
 ## Phase 0 — consolidate `dev/0.8.29` (done 2026-10-28)
 
@@ -224,8 +231,9 @@ its commit, and record the result in `dev/plans/agent-access-block1-plan.md`.
 
 Design can start during Phase 1. Code starts after the Phase 1 exit.
 
-1. **Owner approval of B2-8** (seq 296) as a Block 2 row: the long-record
-   guard, which reports the embedded extent in `orient` and the snippet.
+1. **B2-8 approval is satisfied** (owner, 2026-10-31): the long-record guard's
+   storage shipped in .28; `orient` coverage and scored snippet spans remain
+   allocated to .29 Slices 80/90.
 2. **Design** B2-1 to B2-8 in one document, building on the shapes Block 1
    defined (hints sidecar, queue). Check B2-7 against the built queue first;
    it may already be met. B2-1 must agree with compact text, which drops the
@@ -236,9 +244,11 @@ Design can start during Phase 1. Code starts after the Phase 1 exit.
 
 ## Other 0.8.29 work
 
-There is no other built 0.8.29 work on any branch, so none needs merging.
-These items are placed in 0.8.29 but not started, and are planned
-separately:
+The original consolidation snapshot predates the additional AC-013 prototype
+branches and completed .28 work. Use the
+[reconciliation proposal](0.8.29/reconciliation-plan.md) for their selective
+promotion and for CUDA carryovers missing from the numbered ladder. The
+following items retain their separate placement:
 
 - **CUDA context-reset survival** (seq 281). Design depends on the 0.8.28
   D28-08 instrumentation data (seq 285), which arrives with the 0.8.28

@@ -513,6 +513,8 @@ pub struct Engine {
     graph_expand_rss_baseline_bytes: AtomicU64,
     #[cfg(feature = "test-hooks")]
     graph_expand_rss_delta_bytes: AtomicU64,
+    #[cfg(any(test, feature = "test-hooks"))]
+    evidence_before_sidecar_hook: Arc<test_hooks::evidence_linearization_hooks::OwnedHook>,
     #[cfg(feature = "test-hooks")]
     graph_evidence_before_resolve_return_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     #[cfg(feature = "test-hooks")]

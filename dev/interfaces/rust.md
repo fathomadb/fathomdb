@@ -171,6 +171,14 @@ dependency with the feature. Production binding preflight
 operator diagnostics retain their production routes. This feature is absent
 from shipped SDK, addon, wheel, and CLI feature lists.
 
+The test-only `arm_evidence_before_sidecar_hook_for_test(&Engine, hook)` binds
+its one-shot rendezvous to that exact engine. Other engines cannot consume or
+overwrite it. It fires at post-ranking/pre-sidecar inside the evidence reader
+transaction, with no hook mutex held across the callback. Re-arming an already
+armed sidecar hook on the same engine panics; callbacks must provide their own
+bounded release/cleanup. An unfired callback is dropped with its engine. Ordinary
+search and shipped artifacts carry no hook state or new contract fields.
+
 ### Unstable binding-support items in `fathomdb-embedder`
 
 `fathomdb-embedder` exports five `#[doc(hidden)]` items for the Node addon's

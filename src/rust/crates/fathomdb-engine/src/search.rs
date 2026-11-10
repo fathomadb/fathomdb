@@ -2,13 +2,27 @@ pub(crate) struct EvidenceCapture {
     frozen: FrozenReadContextV1,
     include_explanation: bool,
     graph_origins: HashMap<u64, CapturedGraphOrigin>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    before_sidecar: Arc<evidence_linearization_hooks::OwnedHook>,
 }
 
 pub(crate) type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
 
 impl EvidenceCapture {
-    pub(crate) fn new(frozen: FrozenReadContextV1, include_explanation: bool) -> Self {
-        Self { frozen, include_explanation, graph_origins: HashMap::new() }
+    pub(crate) fn new(
+        frozen: FrozenReadContextV1,
+        include_explanation: bool,
+        #[cfg(any(test, feature = "test-hooks"))] before_sidecar: Arc<
+            evidence_linearization_hooks::OwnedHook,
+        >,
+    ) -> Self {
+        Self {
+            frozen,
+            include_explanation,
+            graph_origins: HashMap::new(),
+            #[cfg(any(test, feature = "test-hooks"))]
+            before_sidecar,
+        }
     }
 }
 
@@ -1261,7 +1275,7 @@ impl SearchOriginCapture for EvidenceCapture {
         _snippets: Option<Vec<SnippetV1>>,
     ) -> Result<Self::Output, SearchReaderError> {
         #[cfg(any(test, feature = "test-hooks"))]
-        evidence_linearization_hooks::fire_before_sidecar();
+        self.before_sidecar.fire();
         let search_result = SearchResult {
             projection_cursor: cursor,
             soft_fallback,

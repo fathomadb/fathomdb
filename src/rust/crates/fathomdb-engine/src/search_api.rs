@@ -213,6 +213,8 @@ impl Engine {
                 work,
                 request.context.clone(),
                 request.include_explanation,
+                #[cfg(any(test, feature = "test-hooks"))]
+                Arc::clone(&self.evidence_before_sidecar_hook),
                 response_tx,
             ))
             .map_err(|_| EngineError::Closing)?;

@@ -676,16 +676,27 @@ pub(crate) mod evidence_linearization_hooks {
         }
     }
 
-    static BEFORE_SIDECAR: OneShotHook = OneShotHook::new();
+    #[derive(Default)]
+    pub(crate) struct OwnedHook {
+        hook: Mutex<Option<Box<dyn Fn() + Send>>>,
+    }
+
+    impl OwnedHook {
+        pub(crate) fn arm(&self, hook: Box<dyn Fn() + Send>) {
+            let mut slot = self.hook.lock().expect("owned evidence hook mutex");
+            assert!(slot.is_none(), "an evidence hook is already armed on this engine");
+            *slot = Some(hook);
+        }
+
+        pub(crate) fn fire(&self) {
+            let hook = self.hook.lock().expect("owned evidence hook mutex").take();
+            if let Some(hook) = hook {
+                hook();
+            }
+        }
+    }
+
     static BEFORE_RESOLVE_RETURN: OneShotHook = OneShotHook::new();
-
-    pub(crate) fn arm_before_sidecar(hook: Box<dyn Fn() + Send>) {
-        BEFORE_SIDECAR.arm(hook);
-    }
-
-    pub(crate) fn fire_before_sidecar() {
-        BEFORE_SIDECAR.fire();
-    }
 
     pub(crate) fn arm_before_resolve_return(hook: Box<dyn Fn() + Send>) {
         BEFORE_RESOLVE_RETURN.arm(hook);
@@ -696,14 +707,22 @@ pub(crate) mod evidence_linearization_hooks {
     }
 }
 
-/// Arm the Slice-50 post-ranking, pre-sidecar rendezvous for one evidence search.
+/// Arm the post-ranking, pre-sidecar rendezvous on `engine` only.
+///
+/// The next evidence search on this engine invokes `hook` once in its reader
+/// transaction, without holding the hook mutex. Other engines cannot consume it.
+/// The callback is dropped if the engine is dropped before it is invoked.
+///
+/// # Panics
+///
+/// Panics if this engine already has an armed sidecar hook.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub fn arm_evidence_before_sidecar_hook_for_test(
-    _engine: &crate::Engine,
+    engine: &crate::Engine,
     hook: Box<dyn Fn() + Send>,
 ) {
-    evidence_linearization_hooks::arm_before_sidecar(hook);
+    engine.evidence_before_sidecar_hook.arm(hook);
 }
 
 /// Arm the Slice-50 post-resolution, pre-return rendezvous for one evidence read.

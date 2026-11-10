@@ -104,6 +104,8 @@ pub(crate) struct EvidenceSearchReaderRequest {
     work: SearchReaderWork,
     frozen: FrozenReadContextV1,
     include_explanation: bool,
+    #[cfg(any(test, feature = "test-hooks"))]
+    before_sidecar: Arc<crate::test_hooks::evidence_linearization_hooks::OwnedHook>,
     respond: SyncSender<EvidenceReaderResponse>,
 }
 
@@ -359,12 +361,17 @@ impl ReaderRequest {
         work: SearchReaderWork,
         frozen: FrozenReadContextV1,
         include_explanation: bool,
+        #[cfg(any(test, feature = "test-hooks"))] before_sidecar: Arc<
+            crate::test_hooks::evidence_linearization_hooks::OwnedHook,
+        >,
         respond: SyncSender<EvidenceReaderResponse>,
     ) -> Self {
         Self::SearchEvidence(Box::new(EvidenceSearchReaderRequest {
             work,
             frozen,
             include_explanation,
+            #[cfg(any(test, feature = "test-hooks"))]
+            before_sidecar,
             respond,
         }))
     }
@@ -672,12 +679,23 @@ fn reader_worker_loop(
                 let _ = respond.send(result);
             }
             ReaderRequest::SearchEvidence(request) => {
-                let EvidenceSearchReaderRequest { work, frozen, include_explanation, respond } =
-                    *request;
+                let EvidenceSearchReaderRequest {
+                    work,
+                    frozen,
+                    include_explanation,
+                    #[cfg(any(test, feature = "test-hooks"))]
+                    before_sidecar,
+                    respond,
+                } = *request;
                 let result = read_search_work_in_tx(
                     &mut connection,
                     work,
-                    EvidenceCapture::new(frozen, include_explanation),
+                    EvidenceCapture::new(
+                        frozen,
+                        include_explanation,
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        before_sidecar,
+                    ),
                     &stop_words,
                     &wal_attribution,
                     worker_idx,

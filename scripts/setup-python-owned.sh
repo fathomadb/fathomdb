@@ -37,7 +37,7 @@ if sys.argv[1]=='--provision':
 for name in ('ruff','pyright'):
     pin=next(x.split('==',1)[1] for x in config['project']['optional-dependencies']['dev'] if x.startswith(name+'=='))
     found=run([venv/'bin'/name,'--version'],capture_output=True,text=True).stdout.strip()
-    if found!=f'{name} {pin}':
+    if not found or found.splitlines()[0]!=f'{name} {pin}':
         raise SystemExit(f'setup-python-owned: {name} pin mismatch: {found!r}, want {pin}')
 features=','.join(config['tool']['maturin']['features'])
 output=pathlib.Path(tempfile.mkdtemp(prefix='fathomdb-owned-python-'))

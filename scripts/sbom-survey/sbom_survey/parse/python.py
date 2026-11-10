@@ -139,11 +139,19 @@ def parse_requirements(path: str, text: str) -> list[tuple[Declaration, str | No
     parsed: list[tuple[Declaration, str | None]] = []
     for raw in text.splitlines():
         line = raw.split("#", 1)[0].strip()
-        if not line or line.startswith("-"):
+        if not line:
             continue
-        line = re.sub(r"\s+--hash=sha256:[0-9a-fA-F]{64}(?=\s|$)", "", line)
+        has_hash = "--hash" in line
+        if has_hash:
+            line = re.sub(r"\s+--hash=sha256:[0-9a-fA-F]{64}(?=\s|$)", "", line)
+            if "--hash" in line:
+                raise ManifestParseError(path, ValueError("unsupported or malformed inline SHA256 hash"))
+        if line.startswith("-"):
+            continue
         declaration = _declaration(line, "normal", path)
         if declaration is None:
+            if has_hash:
+                raise ManifestParseError(path, ValueError("invalid hash-bearing requirement"))
             continue
         pinned: str | None = None
         try:

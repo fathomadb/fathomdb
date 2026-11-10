@@ -17,6 +17,7 @@ set -euo pipefail
 printf 'python' >> "$S10_CALLS"; printf '|%s' "$@" >> "$S10_CALLS"; printf '\n' >> "$S10_CALLS"
 if [ "${1:-}" = - ]; then exec /usr/bin/python3 "$@"; fi
 if [ "${1:-}" = -m ] && [ "${2:-}" = pip ]; then
+  [ "${3:-}" = install ] || exit 0
   [ "${S10_FAIL_INSTALL:-0}" = 0 ] || exit 71
   for pair in 'ruff|ruff 0.15.17' 'pyright|pyright 1.1.410'; do
     printf '#!/usr/bin/env bash\nprintf "%s\\n"\n' "${pair#*|}" > "$S10_FIXTURE/.venv/bin/${pair%%|*}"
@@ -75,5 +76,11 @@ case "${1:-bootstrap}" in
   if [ -e "$S10_CALLS" ] && grep -Fq 'cargo|' "$S10_CALLS"; then echo 'FAIL missing owned environment reached Cargo workload' >&2; exit 1; fi
   echo 'PASS missing owned environment stops before Cargo'
   ;;
- *) echo 'unknown setup fixture case'   >&2; exit 2 ;;
+ banner)
+  (cd "$fixture"; bash "$root/scripts/bootstrap-heavy.sh")
+  printf '#!/usr/bin/env bash\nprintf "pyright 1.1.410\\nWARNING: a newer version is available\\n"\n' > "$fixture/.venv/bin/pyright"
+  (cd "$fixture"; bash "$root/scripts/setup-python-owned.sh" --build)
+  echo 'PASS exact Pyright pin accepts its informational update banner'
+  ;;
+ *) echo 'unknown setup fixture case'    >&2; exit 2 ;;
 esac

@@ -413,11 +413,11 @@ rulings Q30 and Q36). It has no module-load hook; the decision accepts the
 `use_default_embedder`), `embed_batch_cls` or `rerank` first uses CUDA. Its
 allocator report says `module_load_init` `not_at_load` with `path` `private`
 and `reason` `private_pool`. `FATHOMDB_CUDA_EARLY_INIT` has no effect here.
-Two `fathomdb-embedder` constructors skip the probe and stay on the 0.8.27
-allocator path, which is safe: the TC5 benchmark's
-`CandleBgeEmbedder::new_from_local_asset_on_device_attested(.., ExplicitCandleDevice::Cuda(n))`
-and `CandleBgeEmbedder::new_from_weights_with_device_resolution` with a
-caller-built `DeviceResolution`. Neither is reachable from this crate.
+The lower-level `fathomdb-embedder` attested TC5 constructor and its
+`new_from_weights_with_device_resolution` constructor also build CUDA devices
+through the process allocator decision. They use the private pool only when
+that decision selects it for the requested ordinal; otherwise they use the
+default Candle allocator. These constructors are not exposed by this SDK.
 
 The pool settings are `EngineConfig::cuda_pool` (`CudaPoolMode`),
 `cuda_pool_max_size` (bytes, at least 32 MiB) and
@@ -478,11 +478,7 @@ connection keeps its own page cache of SQLite's default 2,000 KiB. That holds
 for the Python wheel, the npm addon, `cargo install fathomdb-cli` and every
 consumer of the published Rust crates; no build flag is needed. A consumer that
 links its own SQLite instead of the bundled one (for example through
-`LIBSQLITE3_SYS_USE_PKG_CONFIG`) gets that library's page-cache mode. The
-0.8.27 registry crates still resolve `libsqlite3-sys` 0.38 and share one page
-cache across connections; for them,
-`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives one
-page cache per connection.
+`LIBSQLITE3_SYS_USE_PKG_CONFIG`) gets that library's page-cache mode.
 
 ## Search behaviour in 0.8.28 (Slice 40)
 

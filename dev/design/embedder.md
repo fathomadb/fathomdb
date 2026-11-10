@@ -56,7 +56,7 @@ This file owns dispatch onto the engine-owned embedder pool, eager warmup,
 per-call timeout handling, and the runtime mechanics behind
 `EmbedderIdentityMismatch`.
 
-## Engine dispatch (0.8.27)
+## Current engine dispatch
 
 [`ADR-0.8.27-engine-owned-runtime-topology`](../adr/ADR-0.8.27-engine-owned-runtime-topology.md)
 supersedes the older CPU-count pool default and direct-call descriptions.

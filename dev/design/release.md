@@ -42,6 +42,19 @@ own `Cargo.toml`. Version-consistency checks (`set-version.sh
 --check-files`) verify Axis W lockstep across all Axis-W manifests and
 verify Axis E sits at its independently declared version.
 
+## First-tag CUDA route bootstrap
+
+GitHub cannot add a selected-workflow tag ref before that tag exists. For the
+first `v0.8.28` push only, explicitly set
+`FATHOMDB_RELEASE_TAG_BOOTSTRAP=v0.8.28` on the normal `git push` command.
+The unchanged pre-push hook runs the guard: bootstrap requires a confirmed
+remote HTTP404 for that exact tag, the restricted selected GPU group allowing
+`release.yml@refs/heads/main`, the exact environment tag policy and nonempty
+required reviewers. It reports bootstrap readiness with GPU approval held.
+After pushing, add the exact approved tag workflow to group3, verify the remote
+peeled commit, and pass the normal marker-free tag guard **before** approving
+the required GPU environment. Default routing and hook checks stay active.
+
 ## Tiered publish order
 
 The publish order is a strict topological sort of the workspace crate
@@ -55,7 +68,7 @@ sit between tiers (pattern from pre-0.6.0 `.github/workflows/release.yml`).
 | T3   | `fathomdb-query`                                             | Depends on `fathomdb-schema` (per ADR-0.6.0-crate-topology consequences) and `fathomdb-embedder-api` indirectly via retrieval glue.                                 |
 | T4   | `fathomdb-embedder`                                          | Depends on `fathomdb-embedder-api` (T1). Publishes **before** `fathomdb-engine` because engine has a normal dependency on it. (Order corrected 0.7.2 PR-4: engine→embedder edge was added in the 0.7.1 embedder-undefer work; the old T4-engine/T5-embedder order made engine's publish fail to resolve `fathomdb-embedder`.) |
 | T5   | `fathomdb-engine`                                            | Depends on T1+T2+T3+T4 (`fathomdb-embedder-api`, `fathomdb-schema`, `fathomdb-query`, `fathomdb-embedder`). Largest crate; publishes only after all its deps are resolvable on crates.io.                                                                      |
-| T6   | `fathomdb`, `fathomdb-sdk`                                   | Facade and Rust application SDK (0.8.27). Both depend on `fathomdb-engine` (T5) and publish in the T6 job, facade first. `fathomdb-sdk`'s first publish needs the one-time token bootstrap below. |
+| T6   | `fathomdb`, `fathomdb-sdk`                                   | Facade and Rust application SDK. Both depend on `fathomdb-engine` (T5) and publish in the T6 job, facade first, using their configured trusted publishers. |
 | T7   | `fathomdb-cli`                                               | Depends on `fathomdb` facade (T6) per ADR-0.6.0-crate-topology amendment 2026-05-11.                                                                                |
 | T8   | Python wheel (`src/python/`); TypeScript package (`src/ts/`) | Both wrap `fathomdb-engine` directly (PyO3 / napi-rs); they can publish in parallel after T5 (engine) resolves on crates.io. PyPI / npm publishing is independent of T6..T7. |
 
@@ -147,18 +160,12 @@ copied `tegra_fragmented_va_cuda` test. crates.io consumers get a dynamic
 artifacts, which patch `candle-kernels` to the Candle fork. It is not part
 of `scripts/agent-verify.sh`.
 
-### New-crate first publish (0.8.27 `fathomdb-sdk`)
+### Historical new-crate bootstrap
 
-crates.io trusted publishing (`crates-io-auth-action`) is configured per
-existing crate, so it cannot create a crate that does not exist yet. For
-`v0.8.27`, the `fathomdb-sdk` first publish must occur in T6, after its
-`fathomdb-engine@0.8.27` dependency has reached crates.io in T5. The SDK
-step alone uses the repository's `CARGO_REGISTRY_TOKEN` API-token secret for
-that first publish; the other Rust publishes continue using temporary OIDC
-tokens. The operator must verify the secret is present before tagging and
-register the SDK's trusted publisher after its first version appears. Later
-SDK versions use OIDC. Without the first-publish credential, T6 fails and T7
-`fathomdb-cli` and every later dependent stage are skipped.
+The application SDK's initial registry creation used a one-time API token.
+That bootstrap is complete; 0.8.28 uses its configured trusted publisher.
+A future new crate still needs registry creation before trusted publishing can
+issue its first token. It must publish after its dependencies are available.
 
 ### Dependent-crate dry-run limitation (WF-FIX-2, 2026-05-25)
 

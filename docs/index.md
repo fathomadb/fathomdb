@@ -1,8 +1,5 @@
 # FathomDB Public Docs
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.
@@ -49,7 +46,6 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
   embedder identity).
 - [0.8.28 release notes](release-notes/0.8.28.md).
 - [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/CHANGELOG.md) — 0.8.28 changes.
-  [0.8.27 release notes](release-notes/0.8.27.md) document the preceding release.
   Earlier detailed changes are recorded in the repo
   [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md).
 

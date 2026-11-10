@@ -1,8 +1,5 @@
 # fathomdb
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 Node.js SDK for **FathomDB** — a local-first, embedded retrieval engine for application and agent
 workloads, built on SQLite.
 
@@ -76,6 +73,16 @@ Every write field accepts both the camelCase and the snake_case spelling.
   searchable or rankable; the engine owns every derived index.
 - **Typed errors** — a leaf-class hierarchy under `FathomDbError`, so you can branch on
   `InvalidFilterError` or `IllegalTransitionError` instead of matching on message strings.
+
+## Physical erasure
+
+The default autonomous policy performs physical erasure through `eraseSource`
+and `purge`. A store configured with
+`physicalErasurePolicy: "explicit_maintenance"` requires an exclusive
+maintenance window; direct erase/purge outside it raises `MaintenanceError`.
+Queued intents leave records logically unchanged until maintenance. Use the
+completion result as proof of cleanup; incomplete cleanup retains durable
+fences. See the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/operations/erasure.md).
 
 ## Embeddings
 

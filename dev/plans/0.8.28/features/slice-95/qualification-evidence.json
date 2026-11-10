@@ -300,12 +300,13 @@
     ],
     "publication_gpu_preparation": {
       "path": "/mnt/data/tmp2/fathomdb-s95-publish-gpu-20261109",
-      "registration": "not performed",
-      "listener": "not started",
-      "receipt": "target/slice95-final-format37/approved-ci/ci26-gpu-preparation/preparation.json",
-      "standing_services_driver_toolkit": "unchanged"
+      "registration": "same organization/name/restricted group3; runner168",
+      "listener": "active via existing enabled user service",
+      "receipt": "target/slice95-final-format37/approved-ci/ci28-gpu-restoration/restoration.json",
+      "standing_services_driver_toolkit": "Authorized existing Fathom GPU unit installation paths/environment/Restart updated; Coral service, driver580 and primaryCUDA12.6 unchanged.",
+      "classification": "ACTIVE_STANDING_INSTALLATION_RETAIN; never clean as disposable publication scratch"
     },
-    "gpu_standing_readiness": "Original orgCUDA runner6/group3 registration deleted; userunit endlessrestart stopped, enabled unit bytes unchanged; admin/runneraccess403 prevents restoration. Coral/driver/toolkit unchanged; no repoGPU substitute."
+    "gpu_standing_readiness": "RESTORED original org/name/group3 as runner168; enabled/active user service, private installation retained; all3local CI jobsPASS42726255745. Original group policy exactly restored after temporary probe grant; old installation/Coral/driver/toolkit preserved."
   },
   "receipts": {
     "canonical_28": {
@@ -1011,7 +1012,7 @@
     "S95-11": "Local/ordinaryCI/trusted-main dry-run scopes separated; publication and registry postpublish consumption held"
   },
   "post_preparation_holds": {
-    "publication": "Owner authorization seq-366 recorded. Protected CUDA environment lacks v0.8.28 tag; auto-review rejected adding it without explicit protection-policy approval. CLI runner-group read denied403 (no admin:org scope). Preserve review rules; no bypass/tag/publish.",
+    "publication": "Owner publication approval seq366 retained; CLI organization access and all3runner CI reachability now verified. Only explicit v0.8.28 group-workflow/environment-tag allowlist changes remain unapproved; prior automatic-review rejection honored, no changes or tag/publication.",
     "external_observations": "Exact maintained pending_external lists above remain unexecuted scope, not passed or waived.",
     "windows_task_directory": "RESOLVED: seq-366 explicit approval; exact directory deleted and independently verified absent, original VM/service/policies/hashes preserved."
   },
@@ -1030,7 +1031,7 @@
     "source": "steward ledger seq-366",
     "date": "2026-11-09",
     "order": "delete only C:\\fathomdb-s95-ci-20261109; verify cleanup; then publish0.8.28",
-    "route_preflight": "PENDING explicit exact-tag policy approval and runner-group admin/read access",
+    "route_preflight": "Organization access and all3local CI job delivery verified. Only explicit approval for v0.8.28 group-workflow and environment-tag policy entries remains; required reviewers/restrictions retained.",
     "publication_started": false,
     "design_review": "Astra APPROVE publication sequence with exact-tag routing, no skip token, retained Pages artifacts and actual registry-installed verification"
   },
@@ -1091,5 +1092,46 @@
     },
     "owned_implementation_cleanup": "worktree /mnt/data/tmp2/fathomdb-s95-runner-readiness and branchllm/s95-runner-readiness removed;10logs hash-preserved",
     "evidence_root": "target/slice95-final-format37/approved-ci/ci27-runner-readiness"
+  },
+  "runner_restoration_ci28": {
+    "owner_direction": "Organization authorization complete; restore original restricted GPU group, prove real CI reachability, continue publication",
+    "runner": {
+      "id": 168,
+      "organization": "fathomadb",
+      "name": "windchill3-fathomdb-cuda",
+      "group": 3,
+      "installation": "/mnt/data/tmp2/fathomdb-s95-publish-gpu-20261109",
+      "classification": "ACTIVE_STANDING_INSTALLATION_RETAIN",
+      "service": "enabled/active; Restart=on-failure; private tool/cache environment; old installation preserved for rollback"
+    },
+    "review": "Astra APPROVE bounded restoration/restart policy and temporary exact probe workflow grant",
+    "ci": {
+      "run": 42726255745,
+      "source": "a3a364d99d83eba5f5d4f84ab3f4e70b4ab1fdaf",
+      "overall": "SUCCESS",
+      "actual_runner_ids": [
+        168,
+        31,
+        22
+      ],
+      "jobs": {
+        "gpu": 129532529641,
+        "windows": 129532529278,
+        "jetson": 129532529042
+      }
+    },
+    "group_policy": "Temporary exact runner-readiness.yml@main grant removed after terminal success; entire original groupJSON independently equals baseline",
+    "unchanged": "driver580.178.04 / primaryCUDA12.6 / Coral service/PID",
+    "scope": "identity and real job delivery only; no inference/build/publication",
+    "independent": "target/slice95-final-format37/approved-ci/ci28-gpu-restoration/independent-verification.json",
+    "publication_preflight": {
+      "metadata_exit": 0,
+      "tag_route_exit": 1,
+      "remaining": "Explicit approval for only release.yml@refs/tags/v0.8.28 group entry plus environment tagpolicy{name:v0.8.28,type:tag}; all existing restrictions/reviewers preserved",
+      "request": "target/slice95-final-format37/approved-ci/ci28-gpu-restoration/publication-route-proposal.json",
+      "policies_applied": false,
+      "checked_package_slots": "PyPI/npm/crates.io/GitHubRelease0.8.28 return404",
+      "tag_or_publication_started": false
+    }
   }
 }

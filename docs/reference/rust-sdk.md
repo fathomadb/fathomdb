@@ -1,6 +1,6 @@
 # Rust SDK
 
-Crate: `fathomdb-sdk` (import `fathomdb_sdk`), introduced in 0.8.27. It has the same surface as the Python and TypeScript SDKs:
+Crate: `fathomdb-sdk` 0.8.28 (import `fathomdb_sdk`). It has the same surface as the Python and TypeScript SDKs:
 
 - an `Engine` with the same operations;
 - the `read`, `graph`, and `admin` namespaces;

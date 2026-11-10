@@ -1,8 +1,5 @@
 # Install — TypeScript / Node.js
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The package selects a
 platform-tagged `.node` binary at load time.

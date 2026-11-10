@@ -1,8 +1,5 @@
 # fathomdb-sdk
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 The Rust application SDK for **FathomDB**, a local-first, embedded retrieval
 engine for application and agent workloads, built on SQLite.
 
@@ -63,7 +60,11 @@ fn main() -> fathomdb_sdk::Result<()> {
 ```
 
 `source_id` is mandatory provenance: `erase_source` removes records by that
-identity. See the [SDK reference](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/reference/rust-sdk.md)
+identity under the default autonomous policy. Stores using explicit-maintenance
+policy require the exclusive maintenance API; queued intents do not delete or
+hide rows, and only a Complete result certifies cleanup. See the
+[maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/operations/erasure.md)
+and the [SDK reference](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/reference/rust-sdk.md)
 for hybrid search, graph operations, and option defaults.
 
 ## How it maps to Python and TypeScript

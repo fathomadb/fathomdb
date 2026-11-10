@@ -3,7 +3,7 @@ title: Wire Format
 date: 2026-11-04
 target_release: 0.8.28
 desc: On-disk + IPC formats (if any) for 0.8.28; short OK
-blast_radius: architecture.md § 5; design/engine.md; design/migrations.md
+blast_radius: design/fathomdb-data-plane-architecture-v2.md; design/engine.md; design/migrations.md
 status: draft-0.8.28
 ---
 
@@ -22,12 +22,13 @@ The file set is:
 - `<db-name>.sqlite.lock`
 - optional `<db-name>.sqlite-journal`
 
-The authoritative layout owner remains `architecture.md` § 5.
+The current layout and admission owners are [engine](../design/engine.md) and
+[migrations](../design/migrations.md).
 
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.28 development line `fathomdb-schema::SCHEMA_VERSION` is **36**. Step 28
+0.8.28 line `fathomdb-schema::SCHEMA_VERSION` is **37**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -49,7 +50,7 @@ Slice 60 adds no migration: constrained graph expansion reuses the endpoint
 indexes introduced in step 12 and recreated in step 23. Step 33 instead adds
 Slice 45 page indexes and visibility state/triggers; it has no data migration
 or canonical/projection rewrite. Step 34 is content-free: it identifies a
-database bootstrapped for the breaking 0.8.26 contract and changes no rows.
+fresh database and changes no canonical rows.
 
 Ownership split:
 
@@ -65,7 +66,8 @@ vectors are committed and removed together; unknown coverage is NULL.
 
 Format 37 adds a constrained transaction-owned visibility coalescing marker.
 It retains the format-36 maintenance tables/policy and format-35 vector layout.
-All57 visibility triggers retain external-writer invalidation; vector mapping
+Its fresh-bootstrap step adds the column before replacing all 57 visibility
+triggers, without canonical or projection backfill. The triggers retain external-writer invalidation; vector mapping
 DELETE cleanup stays active. Earlier nonempty formats are refused, not migrated.
 
 ## Compatibility contract
@@ -176,7 +178,7 @@ entries and degradation codes exactly match the top-level result. The typed
 envelope code is `FDB_GRAPH_EXPANSION` with closed `reason` and exact RFC 6901
 `fieldPath`; frozen-context failures retain `FDB_FROZEN_READ`.
 
-## Exact graph artifact evidence wire (0.8.26 Slice 20)
+## Exact graph artifact evidence wire
 
 `GraphExpandRequestV1` accepts optional `includeEvidence`; omission and false
 are byte-equivalent. True requires a frozen context. The response then includes

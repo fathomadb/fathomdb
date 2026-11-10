@@ -1,16 +1,16 @@
 # Changelog
 
 Release notes for the FathomDB engine and the Python, TypeScript, and Rust SDKs.
-Cuts normally follow the version tagged on `0.6.0-rewrite`. A final release
+Releases use `vX.Y.Z` tags on main-integrated release commits. A final release
 heading may be prepared immediately before its tag so the release gate can
 verify it; it must state when registry publication remains pending. Each
 released section MUST list every removed public symbol under a `### Removed` heading;
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
-## 0.8.28 — unreleased
+## 0.8.28 — 2026-11-09
 
-**Publication status: pending.** This release has not been tagged or published.
+**Publication status: published.** Packages are available from crates.io, PyPI, npm and Tegra Pages; npm `latest` is 0.8.28.
 
 ### Added
 
@@ -42,9 +42,8 @@ AC-050c) gates merges against this invariant.
   `tegra-pool` Cargo feature (implied by `embed-cuda` and `rerank-cuda`
   since Slice 31). In `tegra-pool` builds every
   FathomDB CUDA context allocates from one pool capped at 3 GiB that returns
-  freed memory at once; other hosts and builds keep the 0.8.27 allocator.
-  The 0.8.28 Tegra Python wheel and governed Tegra Node addon build enable it;
-  the 0.8.27 Tegra Node artifact did not.
+  freed memory at once; other hosts and builds retain their existing allocation policy.
+  The 0.8.28 Tegra Python wheel and governed Tegra Node addon build enable it.
 - Settings `FATHOMDB_POOL_MODE`, `FATHOMDB_POOL_MAXSIZE` and
   `FATHOMDB_POOL_RELEASE_THRESHOLD`, read once at the first CUDA device build.
 - Error kinds `cuda_pool_exhausted`, `cuda_context_lost` and
@@ -246,7 +245,7 @@ AC-050c) gates merges against this invariant.
 
 ## 0.8.27 — 2026-10-10
 
-**Publication status: pending.** This release has not been tagged or published.
+**Publication status: published.** Release publication completed on 2026-10-11.
 
 ### Added
 
@@ -430,10 +429,9 @@ None.
 
 ## 0.8.24 — 2026-08-31
 
-**Publication status: prepared, not yet tagged or published to the canonical
-registries.** The separately scoped interim Pages index already serves the
-exact Tegra wheel described below; it does not make the 0.8.24 release itself
-tagged or canonically published.
+**Publication status: tagged; registry packages available.** The Python and npm
+packages are published, alongside the interim Tegra Pages wheel. No GitHub
+Release entry was created for this tag.
 
 ### Added
 
@@ -487,10 +485,8 @@ None.
 
 ## 0.8.22 — 2026-08-08
 
-**Publication status: pending.** This version is not yet tagged. Its package
-availability begins when the tagged release workflow performs its ordered
-publishes; the main npm package remains on `next` until every registry smoke
-succeeds, then is promoted to `latest`.
+**Publication status: published.** Python and npm packages are available; the
+GitHub Release was completed on 2026-08-10.
 
 Schema version **25 → 26**.
 

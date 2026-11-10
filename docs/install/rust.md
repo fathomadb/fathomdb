@@ -1,8 +1,5 @@
 # Install — Rust
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 Rust application code uses `fathomdb-sdk`, the peer of the Python and
 TypeScript SDKs. The lower-level facade and operator CLI remain separate
 consumption routes:
@@ -43,12 +40,9 @@ cargo install fathomdb-cli --version 0.8.28
 
 From 0.8.28, source crates use `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1
 (SQLite 3.54.1) without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so page caches are
-per connection without a caller flag. The preceding 0.8.27 source
-used 0.38; that historical difference does not require a .28 build workaround.
-
-Candidate examples must use the matching source archive/workspace and active
-patches while registry publication is pending. A path dependency that silently
-resolves older sibling registry crates is not proof of the .28 candidate.
+per connection without a caller flag. Pin the application SDK and CLI to the
+matching release; source consumers must also keep sibling crate versions and
+required repository patches aligned.
 
 For the immutable 0.8.28 data-plane inspection route, pin the exact version and
 verify the discovered binary:

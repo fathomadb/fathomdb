@@ -209,12 +209,27 @@ per-request allocation or performance guarantee. The vector index, bit-KNN,
 exact-f32 database rerank, FTS, RRF fusion, graph, and storage remain CPU-only
 regardless of where embedding or CE runs.
 
+### Opt-in GPU allocation evidence
+
+An explicit `FATHOMDB_EMBED_DEVICE=cuda:0` request together with
+`FATHOMDB_GPU_ALLOCATION_WITNESS=1` asks the built-in default embedder open path
+for a `fathomdb.tegra-gpu-allocation-witness/v2` record. Discrete devices use
+`global_free` with the device-wide model/control observations and sole-consumer
+precondition. Integrated Tegra devices require `private_pool_used`: checked
+completion on the held context, at least 64 MiB of live model USED growth, and
+a touched 64 MiB control in that same pool that returns exactly to its baseline.
+The record also retains device/process/context identity and a real 384-dimensional
+forward result. Global free-memory readings remain truthful diagnostics on the
+private method; a negative global delta does not replace its private-pool proof.
+An integrated device without the required private pool refuses the requested
+witness; this does not add a new ordinary-open pool policy or a fallback method.
+See the [Tegra publication contract](operations/tegra-pages-publication.md#current-allocation-witness-contract).
+
 ### Node.js on Jetson: load fathomdb first
 
 This applies to a Node.js addon built with CUDA (`embed-cuda` or
 `rerank-cuda`) on an NVIDIA Jetson running Linux AArch64. That includes the
-`fathomdb-linux-arm64-gnu-tegra` package for a confirmed classic Jetson Orin,
-introduced in 0.8.27. It is installed as an exact-version tarball from the
+`fathomdb-linux-arm64-gnu-tegra` package for a confirmed classic Jetson Orin. It is installed as an exact-version tarball from the
 Tegra Pages site, at the same version as `fathomdb`, after
 checking its published SHA-256; see
 [TypeScript install](install/typescript.md#classic-jetson-orin-with-cuda).
@@ -223,8 +238,7 @@ this. Python's Tegra wheel starts CUDA at import instead; see "Jetson: private
 CUDA memory pool" below.
 
 The 0.8.28 Tegra Node addon build includes `tegra-pool`, creating a private
-pool at first CUDA device use when its Tegra checks pass. The 0.8.27 Tegra
-addon did not include the private pool. The generic arm64 npm package remains
+pool at first CUDA device use when its Tegra checks pass. The generic arm64 npm package remains
 CPU-only.
 
 Starting CUDA at import is an AArch64-only exception: the Linux x86_64 npm
@@ -339,8 +353,8 @@ pool mode is `on` and they pass the remaining checks.
 - **`fork` breaks CUDA in children.** After `import fathomdb`, a
   `multiprocessing` child created with the `fork` start method cannot use
   CUDA. Use `spawn` or `forkserver` (the Linux default from Python 3.14), or
-  set `FATHOMDB_CUDA_EARLY_INIT=off`. This can break code that worked with
-  0.8.27.
+  set `FATHOMDB_CUDA_EARLY_INIT=off` before import if the application must
+  defer CUDA initialization; that disables this early-init path.
 - **Settings.** Each is an open setting in every SDK (Rust `EngineConfig`,
   Python `EngineConfig` or keyword, TypeScript `engineConfig`) and a flag
   on `fathomdb doctor gpu`, `reranker-gpu` and `cuda-allocator`. Its

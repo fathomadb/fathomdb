@@ -15,7 +15,7 @@ Cross-binding parity remains owned by `design/bindings.md`.
 The Rust peer of this SDK is `fathomdb-sdk`; its operation mapping and
 translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
-## Fresh-database open boundary (0.8.26 Slice 40)
+## Fresh-database open boundary
 
 `Engine.open` bootstraps a missing or zero-length path at schema 37. A
 non-empty database is admitted only when its effective committed
@@ -127,7 +127,7 @@ Engine-attached instrumentation / control below).
 `rerank(query, passages, rerank_depth, alpha=None, pool_n=None)` is the signed
 package-level operation paired with TypeScript's `rerank`. Its passage/result
 shape, identity path, defaults, and validation behavior are defined by the
-public stub and are unchanged by the 0.8.26 parity repair; Slice 55 adds the
+public stub; the current interface adds the
 missing TypeScript peer and exact two-binding conformance enforcement.
 The optional `alpha` must be finite, including when depth is zero or the
 passage list is empty.
@@ -323,7 +323,7 @@ This is open-time evidence only: it does not add a Python device-setting API.
 
 Among the published wheels only the Tegra CUDA wheel (`+tegra`, built with
 `CUDA_PYTHON_FEATURES_TEGRA`) carries the private pool; every other
-published wheel is x86_64 or CPU-only and keeps the 0.8.27 allocator. Since
+published wheel is x86_64 or CPU-only and uses its ordinary allocator. Since
 0.8.28 Slice 31 `embed-cuda` and `rerank-cuda` imply the `tegra-pool` Cargo
 feature, so any source build with CUDA on aarch64 Linux carries it too. The
 rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
@@ -334,7 +334,7 @@ rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
   every CUDA-capable policy is exactly `cpu`, and skipped by
   `FATHOMDB_CUDA_EARLY_INIT=off` (that exact value). Import never fails
   because of it. The pool is created only if this ran; otherwise the process
-  takes the 0.8.27 path.
+  uses the default Candle allocator rather than a private pool.
 - **Non-Jetson aarch64 hosts (as-is, owner ruling Q38).** In an aarch64
   Linux CUDA build on a host that is not a Jetson (Grace, Graviton, SBSA), a
   source-built Python extension also runs `cuInit` at import, so the fork
@@ -1313,7 +1313,7 @@ coherence. Refusals use `GraphExpansionError` with code
 `FDB_GRAPH_EXPANSION`, `reason`, and `field_path`; frozen authentication and
 state failures remain `FrozenReadError`.
 
-## Exact graph artifact evidence (0.8.26 Slice 20)
+## Exact graph artifact evidence
 
 Set `GraphExpandRequestV1.include_evidence=True` only with a
 `FrozenGraphReadContextV1`. A successful `GraphExpandResultV1.evidence` contains

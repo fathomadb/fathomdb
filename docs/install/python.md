@@ -1,8 +1,5 @@
 # Install — Python
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).

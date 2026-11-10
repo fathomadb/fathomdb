@@ -80,7 +80,7 @@ comparison. The invariant has three permanent clauses:
 - **Typed / no-raw-SQL boundary** — reads take typed args + a small fixed filter
   grammar (equality + range over body-JSON), never raw SQL or a query DSL.
 
-Rust application code uses the dedicated `fathomdb-sdk` crate (0.8.27,
+Rust application code uses the dedicated `fathomdb-sdk` crate (0.8.28,
 `ADR-0.8.27-rust-sdk-parity.md`), a third governed binding checked against the
 same operation map as Python and TypeScript; see `interfaces/rust-sdk.md`.
 The `fathomdb` crate below remains the lower-level facade.
@@ -250,11 +250,9 @@ call entry before scheduling engine shutdown, preserving the public
 No binding heartbeat timer is installed: the current engine provides no
 operation-scoped progress signal for one to report truthfully.
 
-The engine subscriber seam predates 0.8.27, and Python already exposed
-`attach_logging_subscriber`; its native implementation silently discarded the
-logger and interval. Slice 100 makes Python delivery functional. It does not
-add a database mutation hook, a user-defined SQLite function, or a general
-callback framework. Rust `Subscriber` remains the engine-owned collection
+Python `attach_logging_subscriber` delivers diagnostics through its bounded
+native transport and dedicated consumer. It does not add a database mutation
+hook, a user-defined SQLite function, or a general callback framework. Rust `Subscriber` remains the engine-owned collection
 interface; the Python logger is only a diagnostic consumer.
 
 On a profiled statement, the call path is `rusqlite` connection execution →

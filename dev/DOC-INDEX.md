@@ -76,8 +76,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.28/features/slice-95/status.md` | CI repair and release-readiness execution status after Slice 92 | 0.8.28 Slices 92/95 | 2026-11-04 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |
-| `dev/plans/release-state-0.8.27.json` | Single-writer 0.8.27 ladder, decisions, live next-slice pointer, and publication state | 0.8.27 Slice 140 | 2026-10-10 |
-| `dev/plans/runs/STATUS-0.8.27.md` | Active board; current slice and completion set derive from release state | 0.8.27 Slice 140 | 2026-10-10 |
+| `dev/plans/release-state-0.8.27.json` | Historical 0.8.27 ladder, decisions and publication state | 0.8.27 Slice 140 | 2026-10-10 |
+| `dev/plans/runs/STATUS-0.8.27.md` | Historical completed release board | 0.8.27 Slice 140 | 2026-10-10 |
 | `dev/plans/0.8.27/features/slice-10/` | Completed bounded-preparation plan, design, reviews, verification, and status | 0.8.27 Slice 10 | 2026-09-21 |
 | `dev/plans/0.8.27/features/slice-20/` | Completed correction-safe erasure plan, design, TDD, consumer oracle, reviews, verification, and status | 0.8.27 Slice 20 | 2026-09-21 |
 | `dev/plans/0.8.27/features/slice-30/` | Completed real-surface comparator plan, reviewed design, baseline, inventory, TDD, reviews, verification, and status | 0.8.27 Slice 30 | 2026-09-22 |
@@ -376,7 +376,7 @@ refresh in the closing commit when you touch a doc).
 | `docs/generated/sdk-operation-map.md` | Source-generated index of 44 Python, TypeScript and Rust governed operations | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/generated/contributor-map.md` | Source-generated Rust, Python, TypeScript and typed developer entry-point map | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/contributing/index.md` | Contributor setup, TDD, scoped/full verification and release-state workflow | 0.8.27 Slice 140 | 2026-10-10 |
-| `docs/release-notes/0.8.27.md` | 0.8.27 changes, three SDKs, Jetson delivery and release qualification limits | 0.8.27 Slice 140 | 2026-10-10 |
+| `dev/archive/release-notes/0.8.27.md` | Historical 0.8.27 changes and release qualification limits | 0.8.27 Slice 140 | 2026-10-10 |
 | `docs/reference/index.md` | API-reference overview for the 0.8.28 surface | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/reference/python-api.md` | Python 0.8.28 API reference, including embedder and search-view options | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/reference/typescript-api.md` | TypeScript 0.8.28 API reference and default-embedder open options | 0.8.28 Slice 92 | 2026-11-04 |
@@ -399,11 +399,11 @@ refresh in the closing commit when you touch a doc).
 | `docs/positions/sdk-parity.md` | Three-SDK operation, option and language-specific error parity | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/positions/recovery-surface.md` | Position: recovery surface (denylist, CLI-only) | preserved by 25/30 | 2026-05-01 |
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
-| `docs/release-notes/0.8.26.md` | Historical 0.8.26 highlights, schema boundary, published artifacts and install routes | 0.8.27 Slice 10 | 2026-09-21 |
+| `dev/archive/release-notes/0.8.26.md` | Historical 0.8.26 highlights, schema boundary, published artifacts and install routes | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/positions/embedder-identity.md` | Position: embedder identity | — | 2026-05-01 |
-| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
-| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
-| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/archive/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/archive/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/archive/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.28 | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/releases/0.8.0.md` | 0.8.0 internal release record | 40/GA-2 | 2026-06-08 |
 
 ## Corpus / eval expansion (out-of-band, owner-managed — integrated at Slice-5 push 2026-06-02)

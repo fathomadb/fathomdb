@@ -15,7 +15,7 @@ binding parity remains owned by `design/bindings.md`.
 The Rust peer of this SDK is `fathomdb-sdk`; its operation mapping and
 translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
-## Fresh-database open boundary (0.8.26 Slice 40)
+## Fresh-database open boundary
 
 `Engine.open` bootstraps a missing or zero-length path at schema 37. A
 non-empty database is admitted only when its effective committed
@@ -115,7 +115,7 @@ Every registered original telemetry sink path must be reattached for exact retry
 when owed; another path cannot discharge it. Unbound legacy sink obligations
 refuse. This adds no cleanup API or deadline guarantee.
 
-### Standalone passage reranking (0.8.26 Slice 55 parity repair)
+### Standalone passage reranking
 
 `rerank(query: string, passages: readonly RerankPassage[], rerankDepth: number,
 options?: RerankOptions): Promise<RerankResult[]>` is the TypeScript peer of
@@ -848,7 +848,7 @@ TypeScript process. That creates independent model instances, not a GPU
 reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
 graph work used the GPU.
 
-### Early CUDA initialisation on aarch64 Linux (0.8.27 Slice 110)
+### Early CUDA initialisation on aarch64 Linux
 
 A native addon built for aarch64 Linux with `embed-cuda` or `rerank-cuda`
 calls `cuInit(0)` while Node registers the module, from the addon's
@@ -894,8 +894,8 @@ fathomdb first".
 
 The governed 0.8.28 Tegra addon build uses `CUDA_TEGRA_NAPI_FEATURES` with
 `tegra-pool`, giving FathomDB a private CUDA memory pool on the Jetson AGX
-Orin 64 GB. The 0.8.27 Tegra addon lacked this feature; the generic arm64
-package is CPU-only and x86_64 packages compile none of it. Since 0.8.28
+Orin 64 GB. The generic arm64 package is CPU-only and x86_64 packages compile
+none of it. Since 0.8.28
 Slice 31 `embed-cuda` and `rerank-cuda` imply `tegra-pool`, so any addon
 built with CUDA on aarch64 Linux carries the pool. On an aarch64 Linux host
 that is not a Jetson, such an addon runs the registration-time `cuInit` as
@@ -904,7 +904,7 @@ above; Python source builds now do the same (owner ruling Q38). The rule is
 
 - The registration-time `cuInit` above is recorded; the pool is created at
   the first CUDA device build only if it ran. If it was opted out, skipped or
-  failed, the addon takes the 0.8.27 path.
+  failed, the addon uses the default Candle allocator rather than a private pool.
 - **Settings.** `engineConfig.cudaPool` (`"auto"`, `"on"`, `"off"`),
   `cudaPoolMaxSize` (bytes) and `cudaPoolReleaseThreshold` (`"0"`, `"max"`),
   read back through `engine.config`. An unknown string rejects with
@@ -1360,7 +1360,7 @@ cross-field coherence. Refusals use `GraphExpansionError` with code
 `FDB_GRAPH_EXPANSION`, `reason`, and `fieldPath`; frozen authentication and
 state failures remain `FrozenReadError`.
 
-## Exact graph artifact evidence (0.8.26 Slice 20)
+## Exact graph artifact evidence
 
 Set `GraphExpandRequestV1.includeEvidence: true` only with a frozen graph
 context. `GraphExpandResultV1.evidence` then contains one positional

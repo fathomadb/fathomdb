@@ -9,6 +9,7 @@ being mis-parsed.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from typing import Any, Mapping
 
@@ -140,6 +141,7 @@ def parse_requirements(path: str, text: str) -> list[tuple[Declaration, str | No
         line = raw.split("#", 1)[0].strip()
         if not line or line.startswith("-"):
             continue
+        line = re.sub(r"\s+--hash=sha256:[0-9a-fA-F]{64}(?=\s|$)", "", line)
         declaration = _declaration(line, "normal", path)
         if declaration is None:
             continue

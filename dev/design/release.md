@@ -42,6 +42,19 @@ own `Cargo.toml`. Version-consistency checks (`set-version.sh
 --check-files`) verify Axis W lockstep across all Axis-W manifests and
 verify Axis E sits at its independently declared version.
 
+## First-tag CUDA route bootstrap
+
+GitHub cannot add a selected-workflow tag ref before that tag exists. For the
+first `v0.8.28` push only, explicitly set
+`FATHOMDB_RELEASE_TAG_BOOTSTRAP=v0.8.28` on the normal `git push` command.
+The unchanged pre-push hook runs the guard: bootstrap requires a confirmed
+remote HTTP404 for that exact tag, the restricted selected GPU group allowing
+`release.yml@refs/heads/main`, the exact environment tag policy and nonempty
+required reviewers. It reports bootstrap readiness with GPU approval held.
+After pushing, add the exact approved tag workflow to group3, verify the remote
+peeled commit, and pass the normal marker-free tag guard **before** approving
+the required GPU environment. Default routing and hook checks stay active.
+
 ## Tiered publish order
 
 The publish order is a strict topological sort of the workspace crate

@@ -43,7 +43,7 @@ cat >"$fixture/env-missing.json" <<'JSON'
 JSON
 
 run_guard() {
-  FATHOMDB_RELEASE_TAG_BOOTSTRAP= PATH="$fixture:$PATH" ROUTE_GROUP_JSON="$1" ROUTE_ENV_JSON="$2" \
+  FATHOMDB_RELEASE_TAG_BOOTSTRAP='' PATH="$fixture:$PATH" ROUTE_GROUP_JSON="$1" ROUTE_ENV_JSON="$2" \
     bash "$guard" v0.8.27
 }
 

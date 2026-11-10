@@ -153,6 +153,8 @@ field embed_dispatch embed_dispatch
 field erasure_before_primary_lock_hook root
 field explanation_open_nonce telemetry
 field explanation_sequence telemetry
+field evidence_before_resolve_return_hook root
+field evidence_before_sidecar_hook root
 field explicit_debt erasure_queue
 field force_next_commit_failure root
 field graph_evidence_before_resolve_return_hook root

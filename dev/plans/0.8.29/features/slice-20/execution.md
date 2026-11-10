@@ -142,3 +142,17 @@ here. Fresh final independent implementation review and actual criterion/disposa
 proof still gate any later integration/closure. Return REPAIR_SUBSET_READY only
 when actual qualification supports it; never20 COMPLETE,30 dependency clear,
 Block1 exit, platform matrix or publication from this partial scope.
+
+## First full-gate attempt and field-map correction
+
+At clean23cacac6037f5814f5344eefe09e5d99f354f492 the required full gate
+passed owned-tool preflight and shell lint, then stopped at module-boundary:
+Engine field map missing evidence_before_resolve_return_hook and
+evidence_before_sidecar_hook. Actual exit1, no resource stop,63s; native suites
+had not run. Raw task logs/final-full-gate.log and retained module-boundary spill
+remain intact. The correction adds only these two private fields to the existing
+root-owner map, matching the existing engine-owned graph evidence hook. No
+dependency restriction, threshold, test or parser rule is weakened. Regeneration
+and failed/affected checks precede the new clean freeze; the unexecuted gate
+phases continue afterward, with completed shell lint retained as earlier evidence.
+The first attempt is never reported as a full pass or silently discarded.

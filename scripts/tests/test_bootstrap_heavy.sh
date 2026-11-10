@@ -43,6 +43,7 @@ else
   cp "$REPO_ROOT/scripts/lib/"{shellcheck,gitleaks,actionlint}-version.sh "$FIXTURE/scripts/lib/"
   : >"$FIXTURE/src/ts/package.json"
   git -C "$FIXTURE" init --quiet
+  git -C "$FIXTURE" -c user.name=Fixture -c user.email=fixture@example.invalid commit --allow-empty -qm fixture
 
   cat >"$FAKE_BIN/python3.13" <<'PYTHON'
 #!/usr/bin/env bash
@@ -54,10 +55,25 @@ cat >"$3/bin/python" <<'VENV'
 printf 'python' >> "$FAKE_CALL_LOG"
 printf '|%s' "$@" >> "$FAKE_CALL_LOG"
 printf '\n' >> "$FAKE_CALL_LOG"
-if [ "$*" = '-m pip install -e src/python[dev]' ]; then
+if [ "${1:-} ${2:-} ${3:-}" = '-m pip install' ]; then
   printf '#!/usr/bin/env bash\nprintf "ruff 0.15.17\\n"\n' > .venv/bin/ruff
   printf '#!/usr/bin/env bash\nprintf "pyright 1.1.410\\n"\n' > .venv/bin/pyright
   chmod +x .venv/bin/ruff .venv/bin/pyright
+fi
+if [ "${1:-}" = - ]; then exec /usr/bin/python3 "$@"; fi
+if [ "${1:-} ${2:-}" = '-m maturin' ]; then
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = --out ]; then mkdir -p "$2"; printf fixture > "$2/fathomdb-fixture.whl"; break; fi
+    shift
+  done
+fi
+if [ "${1:-}" = -c ] && [[ "${2:-}" == *S10_NATIVE_PROBE* ]]; then
+  /usr/bin/python3 - <<'PROBE'
+import hashlib,json,os
+from pathlib import Path
+v=Path(os.environ['FAKE_REPO'])/'.venv';p=v/'lib/native.so';p.parent.mkdir(exist_ok=True);p.write_bytes(b'native-fixture')
+print(json.dumps({'prefix':str(v),'module':str(p),'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'python':'fixture','abi':'fixture'}))
+PROBE
 fi
 VENV
 chmod +x "$3/bin/python"
@@ -101,10 +117,10 @@ PYTHON
   else
     fail "heavy bootstrap creates a checkout-owned virtualenv"
   fi
-  if grep -Fxq 'python|-m|pip|install|-e|src/python[dev]' "$CALLS"; then
-    pass "heavy bootstrap installs the pinned Python developer extra needed by preflight"
+  if grep -Fq 'python|-m|maturin|build|' "$CALLS" && ! grep -Fq '|install|-e|' "$CALLS"; then
+    pass "heavy bootstrap builds noneditable Python with pinned developer dependencies"
   else
-    fail "heavy bootstrap installs the pinned Python developer extra needed by preflight"
+    fail "heavy bootstrap builds noneditable Python with pinned developer dependencies"
   fi
   if grep -Fxq 'python|-c|import pytest, hypothesis' "$CALLS"; then
     pass "heavy bootstrap verifies pytest and Hypothesis imports"

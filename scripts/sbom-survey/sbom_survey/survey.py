@@ -549,7 +549,7 @@ def run_survey(
             declarations.extend(npm_parse.parse_manifest(ref.path, text))
         elif name == "pyproject.toml":
             declarations.extend(python_parse.parse_pyproject(ref.path, text))
-        elif name.startswith("requirements") and name.endswith(".txt"):
+        elif name == "export-requirements.txt" or (name.startswith("requirements") and name.endswith(".txt")):
             for declaration, pin in python_parse.parse_requirements(ref.path, text):
                 declarations.append(declaration)
                 if pin is not None:

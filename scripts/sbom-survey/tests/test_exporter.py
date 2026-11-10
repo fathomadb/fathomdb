@@ -56,3 +56,32 @@ typing-extensions==4.16.0
 urllib3==2.8.0'''.splitlines())
     assert {canonicalize_name(c.name): c.version for c in result.components} == expected
     assert all(c.tier == 'dev-tooling' and c.depth == 'direct' and [o.path for o in c.origins] == [path] for c in result.components)
+
+
+def test_preparation_tiers_and_exclusions_are_explicit(tmp_path: Path, monkeypatch):
+    from conftest import PROJECT_ROOT
+    tiers = require('sbom_survey.tiers', 'preparation-tiers', 'explicit purpose tiers')
+    rules = tiers.load_tier_map(PROJECT_ROOT / 'tiers.toml')
+    expected = {
+        'dev/experiments/current-history-search/Cargo.toml': ('tier', 'eval-only'),
+        'experiments/sdk_drivers/rust/Cargo.toml': ('tier', 'eval-only'),
+        'experiments/comp_drivers/surrealdb/Cargo.toml': ('tier', 'eval-only'),
+        'src/rust/crates/fathomdb-tc5-benchmark/Cargo.toml': ('tier', 'eval-only'),
+        'src/rust/crates/fathomdb-mcp/Cargo.toml': ('tier', 'shipped'),
+    }
+    for path, wanted in expected.items():
+        result = rules.classify(path)
+        assert (result.action, result.tier) == wanted
+    survey = require('sbom_survey.survey', 'preparation-tiers', 'exclusion before parse and lookup')
+    discovery = require('sbom_survey.discovery', 'preparation-tiers', 'manifest references')
+    paths = [('scripts/tests/fixtures/example/Cargo.toml', 'fixture'), ('dev/plans/0.8.27/features/slice-135/results/example/Cargo.lock', 'historical-evidence')]
+    refs = [discovery.ManifestRef(path, 'cargo', 'lockfile' if path.endswith('.lock') else 'manifest') for path, _ in paths]
+    monkeypatch.setattr(survey, 'discover_manifests', lambda _: refs)
+    def forbidden(*args):
+        raise AssertionError('excluded input reached parser or registry')
+    monkeypatch.setattr(survey, '_read', forbidden)
+    class NoLookup:
+        latest = forbidden
+    result = survey.run_survey(tmp_path, published=NoLookup(), tier_map=rules)
+    assert [(e.path, e.reason) for e in result.excluded] == sorted(paths)
+    assert result.components == []

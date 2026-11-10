@@ -26,7 +26,7 @@ npm ci
 
 echo "Installing Python heavy-test and pinned preflight dependencies into .venv..."
 create_venv_with_selected_python .venv
-.venv/bin/python -m pip install -e 'src/python[dev]'
+bash "$SCRIPT_DIR/setup-python-owned.sh" --provision
 .venv/bin/python -c 'import pytest, hypothesis'
 
 echo "Installing locked TypeScript test dependencies..."

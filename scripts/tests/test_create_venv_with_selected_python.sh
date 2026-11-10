@@ -53,8 +53,13 @@ pass "arm B: fails closed with no partial venv when no interpreter qualifies"
 # function, not a bare `python3 -m venv` that would reintroduce the too-old
 # system-Python defect this sub-slice exists to fix.
 BOOTSTRAP="$REPO_ROOT/scripts/bootstrap.sh"
-grep -Fq 'create_venv_with_selected_python' "$BOOTSTRAP" \
-  || fail "arm C: bootstrap.sh no longer calls create_venv_with_selected_python"
+OWNED_SETUP="$REPO_ROOT/scripts/setup-python-owned.sh"
+# Match the shell source literally, not this fixture's SCRIPT_DIR.
+# shellcheck disable=SC2016
+grep -Fq 'bash "$SCRIPT_DIR/setup-python-owned.sh" --provision' "$BOOTSTRAP" \
+  || fail "arm C: bootstrap.sh no longer delegates to owned setup"
+grep -Fq 'create_venv_with_selected_python .venv' "$OWNED_SETUP" \
+  || fail "arm C: owned setup no longer calls the canonical selector"
 if grep -Eq '^\s*python3\s+-m\s+venv\b' "$BOOTSTRAP"; then
   fail "arm C: bootstrap.sh has a bare 'python3 -m venv' call again — this reintroduces the too-old-interpreter defect"
 fi

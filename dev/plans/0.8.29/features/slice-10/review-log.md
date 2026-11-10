@@ -115,3 +115,17 @@ Both callers must run nonmutating ownership checks before installers/hooks/npm, 
 Moving the selector assertion from `bootstrap-heavy.sh` to the shared helper preserves its existing intent: canonical interpreter selection. Keep the cold/restored execution checks and all other assertions unchanged; retain no redundant creation or decoy text.
 
 This approves the correction proposal only. Implementation, actual RED/GREEN evidence, affected checks, and frozen final-SHA review remain required.
+
+## Remaining selector-placement design recheck
+
+Same independent Astra reviewer approved the remaining creation armC placement
+correction after actual scoped failure and full selector inventory. Interpreter
+and cleanup invariants remain; overall final implementation verdict is pending.
+
+### Selector placement terminal response (verbatim)
+
+PASS — the narrow arm C adjustment preserves the existing oracle.
+
+Require both the actual `bootstrap.sh` → `setup-python-owned.sh --provision` delegation and the shared helper’s canonical selector call. Keep the bare-`python3` rejection and arms A/B/D unchanged.
+
+This updates structural placement after the approved refactor; it does not relax interpreter-selection or failure-cleanup requirements. Retain the failed receipt and rerun affected checks. Final implementation approval remains pending.

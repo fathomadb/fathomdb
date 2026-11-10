@@ -354,3 +354,23 @@ is not the overall final implementation verdict, which remains parent-gated.
 Only affected shell/setup/registration/metadata checks rerun; no Rust/Python/TS
 source, lock, native artifact, conftest or nonce gate changed, so completed native
 qualification is retained without blanket repetition.
+
+## Selector-placement scoped follow-up
+
+First final scoped attempt at eb8f0bc6944dbf5b1cf9114bd901d288a1812f32
+exited1 on an additional obsolete direct-call assertion in creation armC.
+Successful preceding shell/setup checks remain valid; exact failed log/receipt:
+task logs/first-final-metadata-checks.log and receipts/first-final-metadata-checks.json.
+This was not a new interpreter/production defect. Retry discipline reread A2,
+full fixture and real memory entries, then inventoried all selector references
+under scripts/.github/src. Only heavy (already corrected) and creation armC
+were placement assertions; the6 selector cases are behavior-only. Exact
+selector-placement-inventory.txt remains under the /tmp evidence root.
+
+Independent Astra approved requiring BOTH actual bootstrap→common --provision
+delegation and canonical selection inside that helper. A/B/D and bare-python3
+rejection stay unchanged; the complete4-arm creation fixture passes. A local
+ShellCheck directive marks the intentionally literal source-text match; no
+ratchet or policy changed. No synthetic RED, extra behavior pair or native rerun.
+Exact design report: /tmp/fathomdb-0829-direct/slice-10/selector-placement-astra-review.md.
+Resume only failed/remaining affected checks, preserving original exits.

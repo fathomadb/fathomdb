@@ -60,7 +60,10 @@ if [ "${1:-} ${2:-} ${3:-}" = '-m pip install' ]; then
   printf '#!/usr/bin/env bash\nprintf "pyright 1.1.410\\n"\n' > .venv/bin/pyright
   chmod +x .venv/bin/ruff .venv/bin/pyright
 fi
-if [ "${1:-}" = - ]; then exec /usr/bin/python3 "$@"; fi
+if [ "${1:-}" = - ]; then
+  shift
+  exec /usr/bin/python3 -c 'import os,sys; sys.prefix=os.environ["FAKE_REPO"]+"/.venv"; exec(sys.stdin.read())' "$@"
+fi
 if [ "${1:-} ${2:-}" = '-m maturin' ]; then
   while [ "$#" -gt 0 ]; do
     if [ "$1" = --out ]; then mkdir -p "$2"; printf fixture > "$2/fathomdb-fixture.whl"; break; fi

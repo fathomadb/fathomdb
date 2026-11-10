@@ -15,7 +15,10 @@ cat > "$work/python" <<'PY'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'python' >> "$S10_CALLS"; printf '|%s' "$@" >> "$S10_CALLS"; printf '\n' >> "$S10_CALLS"
-if [ "${1:-}" = - ]; then exec /usr/bin/python3 "$@"; fi
+if [ "${1:-}" = - ]; then
+  shift
+  exec /usr/bin/python3 -c 'import os,sys; sys.prefix=os.environ.get("S10_CONTROLLER_PREFIX",os.environ["S10_FIXTURE"]+"/.venv"); exec(sys.stdin.read())' "$@"
+fi
 if [ "${1:-}" = -m ] && [ "${2:-}" = pip ]; then
   [ "${3:-}" = install ] || exit 0
   [ "${S10_FAIL_INSTALL:-0}" = 0 ] || exit 71
@@ -86,5 +89,10 @@ case "${1:-bootstrap}" in
   (cd "$fixture"; bash "$root/scripts/setup-python-owned.sh" --build)
   echo 'PASS exact Pyright pin accepts its informational update banner'
   ;;
- *) echo 'unknown setup fixture case'    >&2; exit 2 ;;
+ foreign)
+  if (cd "$fixture"; S10_CONTROLLER_PREFIX=/foreign bash "$root/scripts/setup-python-owned.sh" --provision); then echo 'FAIL foreign interpreter prefix accepted' >&2; exit 1; fi
+  if [ -e "$S10_CALLS" ] && grep -Fq '|pip|install|' "$S10_CALLS"; then echo 'FAIL foreign interpreter reached package installation' >&2; exit 1; fi
+  echo 'PASS foreign interpreter prefix stops before installation'
+  ;;
+ *) echo 'unknown setup fixture case'     >&2; exit 2 ;;
 esac

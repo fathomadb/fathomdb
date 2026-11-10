@@ -170,10 +170,18 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-20/plan.md"
-      ]
+        "dev/plans/0.8.29/features/slice-20/acceptance.md",
+        "dev/plans/0.8.29/features/slice-20/design.md",
+        "dev/plans/0.8.29/features/slice-20/evidence-register.md",
+        "dev/plans/0.8.29/features/slice-20/plan.md",
+        "dev/plans/0.8.29/features/slice-20/requirements.md",
+        "dev/plans/0.8.29/features/slice-20/test-map.md",
+        "dev/plans/0.8.29/features/slice-20/review-log.md"
+      ],
+      "phase": "DESIGN_REVIEWED_SOURCE_NOT_STARTED",
+      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-20/review-log.md. No implementation or source qualification follows this planning status. Genuine-defect repair design only; A3/A5 remain held for the unanswered already-correct coverage-policy question."
     },
     {
       "slice": 30,
@@ -220,10 +228,17 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-60/plan.md"
-      ]
+        "dev/plans/0.8.29/features/slice-60/design.md",
+        "dev/plans/0.8.29/features/slice-60/plan.md",
+        "dev/plans/0.8.29/features/slice-60/requirements.md",
+        "dev/plans/0.8.29/features/slice-60/status.md",
+        "dev/plans/0.8.29/features/slice-60/test-plan.md",
+        "dev/plans/0.8.29/features/slice-60/review-log.md"
+      ],
+      "phase": "DESIGN_REVIEWED_SOURCE_NOT_STARTED",
+      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-60/review-log.md. No implementation or source qualification follows this planning status."
     },
     {
       "slice": 70,
@@ -312,11 +327,20 @@
         110,
         120
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-130/plan.md"
+        "dev/plans/0.8.29/features/slice-130/acceptance.md",
+        "dev/plans/0.8.29/features/slice-130/campaign-protocol.md",
+        "dev/plans/0.8.29/features/slice-130/design.md",
+        "dev/plans/0.8.29/features/slice-130/plan.md",
+        "dev/plans/0.8.29/features/slice-130/requirements.md",
+        "dev/plans/0.8.29/features/slice-130/status.md",
+        "dev/plans/0.8.29/features/slice-130/test-map.md",
+        "dev/plans/0.8.29/features/slice-130/review-log.md"
       ],
-      "conditions": "Final selected110/120 pins/artifacts and each permitted venue/session/cap; missing cells unmeasured."
+      "conditions": "Final selected110/120 pins/artifacts and each permitted venue/session/cap; missing cells unmeasured.",
+      "phase": "DESIGN_REVIEWED_WAITING_CAMPAIGN_INPUTS",
+      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-130/review-log.md. No implementation or source qualification follows this planning status. Bounded design after FIX1; exact selected artifacts/pins, venue/session inputs, C fixture and E equivalence/shipping evidence remain held. No campaign/spend authority."
     },
     {
       "slice": 140,

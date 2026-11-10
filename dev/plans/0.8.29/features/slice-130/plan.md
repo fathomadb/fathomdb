@@ -1,138 +1,79 @@
 ---
-title: "0.8.29 Slice 130 — CUDA platform, SDK release and soak qualification"
-status: PROPOSED
+title: "Slice 130 — CUDA platform, SDK release and soak qualification"
+status: WAITING_FOR_CAMPAIGN_INPUTS
 target_release: 0.8.29
 slice: 130
 ---
 
 # Slice 130 — CUDA platform, SDK release and soak qualification
 
-## Goal, evidence and independent units
+## Phase A scope
 
-Qualify selected platform and resource claims at the chosen .29 source/artifacts.
-This draft executes no campaign and authorizes no provisioning, installation or
-host reflash. Read the [brief](../../planning-brief.md), [reconciliation](../../reconciliation-plan.md),
-[evidence register](../../planning-evidence.md), [.28 qualification](../../../0.8.28/features/slice-31/qualification.md),
-[pool contract](../../../../adr/ADR-0.8.28-tegra-private-cuda-pool.md),
-[allocation-witness successor](../../../../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md),
-[close design](../../../0.8.28/features/slice-31/design.md#141-n1-the-close-release-q29-contract-ruled-by-q34)
-and [historical soak](../../../0.8.28/features/slice-31/qualification/2026-10-15-ORIN-G8-SOAK-32295692f56b.md).
+Read-only reconciliation and review candidates, with no source implementation,
+installation, model download, hardware operation, provisioning, spending or
+campaign. [Requirements](requirements.md), [acceptance](acceptance.md),
+[design](design.md), [test map](test-map.md) and
+[campaign protocol](campaign-protocol.md) define separate A–E exits.
+[Status](status.md) records actual evidence, pending decisions and validation.
+All S130 identifiers are release-local, not additions to canonical acceptance.
 
-| Unit / carryover | Established evidence | Proposed qualification delta |
-| --- | --- | --- |
-| A / `TC-b267d940` | Q5 Tegra CUDA13 remains UNMEASURED | Approved actual venue, then exact CUDA13 Tegra artifact/SDK qualification |
-| B / `TC-ff476f59` | x86 GCP CUDA cells do not qualify aarch64 | Approved non-Tegra AWS g5g host and actual generic ARM CUDA consumers |
-| C / `TC-4755a9d9` | aarch64 Python/Node currently initialize CUDA at load | Separate non-Tegra early-init hypothesis, design and fork/V8 hazard evidence |
-| D / `TC-8278f17d` | Embedder close release measured; SDK reserved bytes unmeasured | Rust/Python/Node test-only observations through real SDK lifecycle paths |
-| E / `TC-84f7f62d` | Q39 accepted old soak as measured, including failed drift rows | Preregistered plateau/control criterion and isolated sampler churn |
+| Unit / carryover | Required qualification |
+| --- | --- |
+| A / TC-b267d940 | Actual selected CUDA13 Tegra artifact/consumer on the previously directed, vetted CloudJetson venue; Q5 remains unmeasured until then. |
+| B / TC-ff476f59 | Actual generic non-Tegra ARM CUDA consumers on previously assigned AWS g5g; separate compatible artifact and installed/source-consumer identities. |
+| C / TC-4755a9d9 | Non-Tegra early-init hypothesis and Python fork/Node worker hazards; change only after evidence and accepted successor design. |
+| D / TC-8278f17d | Actual Rust/Python/Node engine first/last close/drop RESERVED memory observations, including process-lifetime exceptions. |
+| E / TC-84f7f62d | Revised plateau/control rule and churn-free sampler on the explicit instrumented counterpart pair, separately required exact shipping lifecycle/witness proof and reviewed build equivalence; preserve Q39 and every historical failed drift row. |
 
-Fork memories inspected: `cudarc-fork-qualification-and-tegra-pool-facts.md`,
-`forks-coreyt-cudarc-and-candle-fathomdb.md` and
-`windchill3-never-change-driver-or-primary-cuda.md` in the verified external store.
-Their measured class is AGX Orin64/JetPack6/CUDA12.6; no new model/class support follows.
+130's A–E are unrelated to fork maintenance A/B/C. Owner seq-367 limits140 to
+required110/120 repairs and necessary release versioning; fork B/C is .30.
+None of the five qualification units is silently deferred by that ruling.
+Format37/no database migration, R580/primary12.6 on windchill3, never K620,
+no host-wide reset/driver/symlink change and no local Orin reflash remain fixed.
 
-## Preparation: local needs, requirements, acceptance and design
+## Readiness and dependency order
 
-Deliver `requirements.md`, `design.md`, `test-map.md` and `campaign-protocol.md`
-beside this plan before code/runs. These are draft release-local IDs, not new
-canonical acceptance IDs. Each selected unit needs a separately reviewable exit.
+All units are included qualification work; exact missing inputs block affected
+execution or claims, not unrelated release work. Design/harness preparation can
+precede110/120/140 closure. Source entry requires actual10 closure, final-baseline
+reread, parent-created isolated worktree/strict preflight and independent fresh
+Astra-medium design PASS. This Phase A claims none of those exits.
 
-- N130-1: users need platform and toolkit claims backed by their actual artifacts.
-- N130-2: SDK users need truthful last-model memory release and bounded steady use.
-- R130-1 / A130-1: A/B receipts bind host architecture/Tegra identity, UUID,
-  driver/toolkit/libraries, model, source/native artifact hashes and actual forward;
-  missing hosts/artifacts produce UNMEASURED cells, never a pass or inferred support.
-- R130-2 / A130-2: C changes initialization only after reviewed non-Tegra evidence;
-  import/registration, CPU-only/driverless/opt-out, fork and Node heap controls
-  meet the approved design while proven Orin behavior remains qualified.
-- R130-3 / A130-3: D observes the actual decided private pool: under `max`, one
-  remaining model retains reservation; after the last model drops, checked
-  `reserved_current == 0`; threshold `0`, singleton and clean exit controls agree
-  with the accepted contract. Define bounded scheduler-reference settling first.
-- R130-4 / A130-4: E freezes numeric terminal-slope/plateau/control-difference
-  bounds, warm-up, sample cadence, duration and rejection rules before results;
-  the declared controls pass with zero errors/mismatches and no swap.
-- R130-5 / A130-5: final claims identify final selected pins/artifacts and every
-  failure/skip; unaffected historical evidence is reused only with a scoped rationale.
-Read current [shared init helper](../../../../../src/rust/crates/fathomdb-embedder/src/cuda_driver_init.rs),
-[Node hook](../../../../../src/rust/crates/fathomdb-napi/src/cuda_early_init.rs),
-[Python hook](../../../../../src/rust/crates/fathomdb-py/src/lib.rs) and
-[release tests](../../../../../src/rust/crates/fathomdb-embedder/src/cuda_pool_release_tests.rs).
-Node registration runs outside the loader lock; do not replace it with a constructor.
-Python CUDA features imply `tegra-pool`; source-built non-Tegra aarch64 can run
-its hook too. Rust has no load hook and admits the successful probe initialization.
-Research official pinned CUDA pool/init documentation, actual g5g/venue capabilities,
-Python fork/spawn/forkserver and Node worker/V8 behavior only for unresolved design
-questions. Record versions and observations; this draft performs no fresh web review.
-Fit the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md): use
-real SDK shutdown/resource controls and measured post-state; defer broad fuzzing and
-exhaustive hardware matrices. The new USED witness improves allocation attribution,
-but cannot prove reserved-memory release; keep both measurements separate.
+| Edge | Kind / meaning |
+| --- | --- |
+|10 actual closure → source entry | Hard; owned tools/native identity/resource reservation/UUID selection, not borrowed10 environments. |
+| Vetted available CloudJetson/session → A | Hard for actual A run; JetPack7.2/root/data handling and exact installed stack must be checked, not inferred from vendor marketing. |
+| Available approved g5g session → B/C live study | Hard for those runs; account/access/region/capacity/price/cap are unknown. Broad venue choice is already ruled. |
+| Reviewed D/E seam/protocol → D/E | Hard; existing CUDA12.6 Orin access/reservation required, independent of A/B availability. Numeric bounds below are proposals. |
+| Required140 repair qualification → selected pins → affected110/120 integration/artifacts → final130 | Conditional hard edge for affected final claims;130 never gates initial140 or initial120 proof. |
+| B characterization → C change decision | Evidence dependency; a successful forward alone does not justify removing an accepted hook. |
+| D before E; cheap controls before long/paid cells | Preferred order, avoiding wasted runs; no invented release-wide gate. |
 
-## Dependencies, prerequisites and safe ordering
+120 still awaits artifact selection/identities/channels/Rust-CLI scope and compiler
+6111901 disposition;110 awaits exact fault envelope. No automatic CUDA13.2 upgrade
+or new support follows. Final affected130 qualification needs actual final pins
+and artifacts. Pin movement invalidates only affected receipts after explicit
+comparison; unchanged evidence is reusable with recorded blast radius.
 
-Hard: Slice9 selects units/claims and resolves venue/spend authority; approved10
-provides owned tools/native environments, resource/GPU locks and UUID selector
-preparation (`TC-ad1f7d4f`) before new CUDA campaigns. Missing setup fails preflight.
-A requires an explicitly approved CUDA13 Tegra venue and its actual software stack;
-CloudJetson is a candidate, not booked capacity or permission to reflash the Orin.
-B requires available approved g5g access, driver/toolkit setup and ARM artifacts;
-C needs B's host evidence plus its own accepted hazard/design change before code.
-D/E can proceed on the qualified CUDA12.6 Orin independently of A/B availability.
-Final affected campaigns require selected140 fork unit qualification → chosen pins
-→ affected110 integration and120 artifact qualification →130 final reruns.
-140's initial fork qualification and120's initial artifact qualification do NOT
-require130 completion; their bounded unit tests precede these final composed runs.
-Design/harness preparation can start earlier; pin movement invalidates only affected
-receipts after explicit blast-radius review. Keep reset fault claims in110.
-New prerequisites: exact available venues, artifact selection per cell, approved
-settling bound, private counter test seam, C's hazard hypothesis and E's numeric rule.
-windchill3 stays R580 with primary CUDA12.6; guard before/after runs, select approved
-3090s by UUID, never K620. A host absence blocks its claim, not unrelated .29 work.
+## Execution after readiness
 
-## Tasks, implementation discipline and deliverables
+1. Parent resolves exact outstanding inputs and obtains independent design PASS.
+2. Same owner implements only approved seams with observed assertion-failing RED
+   commits before separate GREEN commits. Existing passing coverage is preserved,
+   never presented as new RED; no Slice20 exception applies here.
+3. Commit reusable measurement tools/README and measurement-correctness controls;
+   freeze protocol before results. Serialize shared native/manifests/interfaces
+   with110/120/140; do not edit a running runner.
+4. Run approved cells, stop on genuine failures, retain raw outcomes, exact
+   commands/identities/exits and unit verdicts. No selective success retries.
+5. Scoped lint→typecheck→tests during work; one full stable source-phase verifier,
+   required affected feature/native/hardware controls, then fresh independent
+   Astra-medium implementation/results review. Parent integrates only passing
+   scope and updates JSON-owned state/views.160 receives results, not publication
+   authority.
 
-1. Freeze the selected-unit matrix, contract/test traceability and provenance fields;
-   independently review requirements/design/protocol before implementation or spend.
-2. A/B: establish approved host identity and installed consumer contracts, then run
-   forced CUDA forwards, library/allocator reports, CPU/auto/driverless controls and
-   orderly close/exit for relevant Rust/Python/Node consumers. Retain named refusals.
-3. C: test the hypothesis that non-Tegra load-time initialization is unnecessary;
-   compare enabled/late-init paths, import order, Node heap/worker loads and Python
-   fork-before-CUDA, spawn/forkserver controls. Parent CUDA use still carries fork
-   hazards. Preserve Orin heap-reservation proof, exact opt-out and all-CPU skip;
-   no automatic removal or widened pool admission from a passing g5g forward alone.
-4. D: add narrowly gated test-only counters bound to the real process/context/pool;
-   no public SDK counter API. Separate subprocesses exercise each SDK, two engines,
-   first/last close, drop, threshold0/max and process-lifetime model exceptions.
-   Observe after actual ownership release without caller trim/synchronize that
-   manufactures success. USED allocation-witness controls remain independent;
-   RSS or global UMA free memory cannot substitute for `reserved_current`.
-5. E: remove Python sampler's deliberate 200000-dict churn from the primary soak
-   or isolate it as a separately identified arm. Run matched pool-on/off 60-minute
-   controls and judge the preregistered terminal30-minute plateau, RSS/pool series,
-   latency and output checks. No post-result threshold edits or selective retries.
-6. Commit reproducible harnesses and raw/summary receipts with exact commands,
-   durations, versions, identities, guards and failure dispositions. Preserve Q39,
-   original failed drift rows and failed v1 witness records without relabeling them.
-
-## Verification, review and completion decisions
-
-For each behavior change, stage/commit its genuine assertion-failing RED before
-GREEN; existing passing characterization is retained without inventing a RED.
-Use focused lint→typecheck→tests during work, real native binding/SDK checks and
-required full agent verification once on the final code phase; contract/docs edits
-use their scoped validators. Obtain independent code/protocol/results review,
-audit RED evidence and integrate from current .29 in isolated implementer worktrees.
-Serialize native/interface/harness landings with110/120/140; never edit a running
-runner. Stop the affected unit on genuine failure, identity ambiguity, unapproved
-venue/change, missing artifact or unresolved hazard; resolve or record explicit
-owner deferral and narrow the claim. Deliver unit verdicts to160, not publication
-permission. No host availability, pass, review approval or new support is claimed here.
-
-## Fork scope boundary (owner seq-367)
-
-Only required repairs from .29 Slice140 may supply affected pins here. The
-[broader .30 maintenance](../../../0.8.30/fork-maintenance-plan.md) is not a
-prerequisite. A need for that broader work returns to the owner for explicit
-scope review; it is not pulled into .29 automatically.
+Apply the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
+to real lifecycle post-state, resource controls and bounded anomaly/measurement
+tests. Defer exhaustive hardware, whole-workspace fuzz/MC-DC and new performance
+sweeps. No tamper/digest-hardening test framework is added. Missing mandatory
+acceptance requires explicit owner disposition; UNMEASURED is never PASS.

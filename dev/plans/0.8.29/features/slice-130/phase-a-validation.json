@@ -1,0 +1,84 @@
+{
+  "phase": "A",
+  "status": "WAITING_FOR_CAMPAIGN_INPUTS",
+  "review": "Independent Astra design FIX3P2 received; same-reviewer recheck pending parent dispatch",
+  "source_head": "ad102de7630141762aee28123fac57cbef9f61d5",
+  "source_clean": true,
+  "files": [
+    {
+      "path": "dev/plans/0.8.29/features/slice-130/acceptance.md",
+      "sha256": "fa41c809ff783504aa07666cc1949b30cbff91fa37d8b121a8e0338dc00d2050"
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-130/campaign-protocol.md",
+      "sha256": "b713fc1befcba3b5ff9226952f67e1dbb7b49eb669bb1e60c595c26495e707d2"
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-130/design.md",
+      "sha256": "cfe2f5fff7885b16858d096bba8a623090496316a5052a5c59a9de4789be0589"
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-130/plan.md",
+      "sha256": "7a8f30ac1e2b6efb366a7af01e283525f4a738ed75dcde413ec07436973c9175"
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-130/requirements.md",
+      "sha256": "53cafd5044274e25ae832020d09c1d69d18a378198d79d11820a14cc7d70335b"
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-130/status.md",
+      "sha256": "d10091307a3af90979cd671c28f71676197b831a0bbd20a0537c5a884826eed4"
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-130/test-map.md",
+      "sha256": "93f0e68dc1727689d30ad44f5b7f3cce7bc1b6f09902a1b210b9bceb3a8991dd"
+    }
+  ],
+  "bounded_checks": {
+    "scope_files": 7,
+    "relative_links": 38,
+    "errors": [],
+    "exit_code": 0
+  },
+  "supplemental_markdown": {
+    "tool": "external markdownlint-cli2",
+    "actual_version": "0.23.0",
+    "declared_version": "^0.23.3",
+    "explicit_files": 7,
+    "errors": 0,
+    "exit_code": 0,
+    "authoritative": false
+  },
+  "authoritative_markdown": {
+    "command": "./scripts/agent-lint-md.sh",
+    "exit_code": 1,
+    "reason": "checkout-owned markdownlint-cli2 absent",
+    "scope": "stopped before structure; no tool install or borrow"
+  },
+  "root_only_checks": {
+    "check-release-state-views.sh": 0,
+    "lint-plan-anchors.sh": 0,
+    "candidate_import_validated": false
+  },
+  "execution": {
+    "source_writes": false,
+    "builds_installs_downloads": false,
+    "hardware_runs": false,
+    "spend_provision": false,
+    "product_qualification": false
+  },
+  "official_web_read_date": "2026-11-10",
+  "official_web_sources": [
+    "https://docs.nvidia.com/cuda/archive/12.6.1/cuda-driver-api/group__CUDA__MALLOC__ASYNC.html",
+    "https://docs.python.org/3.13/library/multiprocessing.html",
+    "https://nodejs.org/download/release/v25.9.0/docs/api/worker_threads.html",
+    "https://aws.amazon.com/ec2/instance-types/g5g/"
+  ],
+  "revision": "FIX1",
+  "fix1_findings": {
+    "F1": "Require exact unchanged positive RESERVED across first close with no intervening allocation; survivor forward follows comparison.",
+    "F2": "Only primary E pair uses instrumented counterparts with all numerical/counter criteria; actual shipping lifecycle/v2 proof and reviewed paired-build equivalence separately mandatory. No shipping numerical plateau claim or automatic extra long campaign; explicit holds on missing evidence/equivalence.",
+    "F3": "Separate t0 baseline; exactly60 scheduled samples k1..60 at60..3600s, terminal k31..60. Hand-computed count/window and slope/median oracle."
+  },
+  "predecessor_update": "Parent reports actual10 closure HELD for P1 ownership correction."
+}

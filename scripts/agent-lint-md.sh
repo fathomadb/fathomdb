@@ -22,7 +22,7 @@ else
   {
     echo "FAIL lint-md-structure: markdownlint-cli2 not found at node_modules/.bin/markdownlint-cli2."
     echo "  A missing structural markdown linter must never report a silent pass (TC-37)."
-    echo "  Fix: select the declared Node/npm pins and run npm ci in this checkout."
+    echo "  Fix: select the declared Node/npm pins; use scripts/bootstrap.sh for owned setup, or npm ci in this checkout."
     echo "  Linked worktrees require their own node_modules; do not share a mutable install."
   } >&2
   exit 1

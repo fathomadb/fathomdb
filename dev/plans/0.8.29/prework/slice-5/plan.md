@@ -1,124 +1,142 @@
 ---
 title: Slice 5 — verification adequacy proposal
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.29
 slice: 5
 ---
 
 # Slice 5 — verification adequacy proposal
 
-## Goal, maturity and boundary
+## Completion
 
-Propose whether verification establishes the product outcomes on .29's critical
-paths, and identify the smallest useful additions. A need→requirement→AC→test
-link is necessary but does not establish an adequate oracle or exercised path.
-This prework produces reviewable proposals, not product qualification or fixes.
-No test campaign, environment change, canonical acceptance edit, threshold change,
-state activation or publication belongs here. Follow the newer
-[planning brief](../../planning-brief.md) where older reconciliation text differs.
+Proposal complete after independent Astra-medium plan and fresh final-output
+PASS, serial parent import and scoped checks. See [review log](review-log.md).
+Phase records below retain historical inspection status. No product, hardware,
+environment or release-readiness qualification follows this closure.
 
-[Release scope](../../../plan-0.8.29.md) preserves integrated MCP/queue/Block 1,
-B2-2/3, partial B2-6 and B2-8 storage; residual reporting remains distinct.
-The [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
-favors owned-boundary faults, post-state checks, resource controls, properties
-and reference comparisons. Adopt those selectively; defer general SQLite fuzzing,
-all-allocation sweeps and broad protocol campaigns. Add no blanket 100% coverage,
-new numerical gate or exhaustive platform/CUDA matrix.
+## Purpose and authority
 
-## Sources inspected and limits
+Deliver a bounded need→requirement→acceptance→actual-oracle proposal for selected
+.29 outcomes. Mapping completeness and meaningful outcome detection are separate
+questions. This owner drafts five own documents; the parent imports serially and
+obtains independent Astra-medium plan and fresh final-output reviews under the
+[direct execution mandate](../../direct-execution.md). No product tests, source,
+canonical AC, Git, ledger, setup, dispatch or publication changes belong here.
+Proposal work needs completeness checks, not invented RED/GREEN evidence.
 
-- Read the brief, release/reconciliation plans and quality roadmap; sampled
-  [needs](../../../../needs.md), [requirements](../../../../requirements.md),
-  [acceptance](../../../../acceptance.md) and [test plan](../../../../test-plan.md).
-- Read active [architecture purpose/profile](../../../../design/fathomdb-data-plane-architecture-v2.md)
-  and inspected [agent-access design inventory](../../../../design/agent-access/README.md).
-- Read [engine hints](../../../../../src/rust/crates/fathomdb-engine/src/hints.rs)
-  including unit tests, and [MCP bridge](../../../../../src/rust/crates/fathomdb-mcp/src/bridge.rs).
-- Read complete MCP [feedback tests](../../../../../src/rust/crates/fathomdb-mcp/tests/feedback.rs)
-  and [hint allocation test](../../../../../src/rust/crates/fathomdb-mcp/tests/hints_allocation.rs).
-  These provide source evidence, not current runtime passes or complete B2 proof.
-- Inspected [verification runner](../../../../../scripts/agent-verify.sh), test-runner
-  registration/skip handling and [.28 qualification inventory](../../../0.8.28/features/slice-95/qualification.md).
-  Bind historical receipts to their source/artifact/configuration; do not promote
-  an old assembled campaign into an uninterrupted current .29 green result.
-- Applied verified memory entries `slice-prompt-verify-test-claims.md`,
-  `conformance-rewrite-vacuous-green-trap.md`, `0.8.27-slice70-projection-move-lessons.md`,
-  `tdd-red-must-fail-per-finding.md` and `full-gate-run-frequency.md`.
+Consume the actual [Slice 3 requirements](../slice-3/requirements.md),
+[acceptance](../slice-3/acceptance.md) and [allocation](../slice-3/allocation.md),
+completed0/1/2/6/7/8 proposals, and Slice4's source findings with their actual
+review status. Draft4/5 disagreements go to9; neither creates a3 closure cycle.
+The [master plan](../../../plan-0.8.29.md) and accepted ADRs retain authority.
 
-## Release-local draft needs, requirements and acceptance
+Current constraints: format37, no database migration; query scaffold retained;
+compact text default and B2-8 storage settled; built hints/queue/span storage
+preserved.20–90 proceed through their existing design/evidence gates.100/110
+are already included; only actual fault/remedy/venue prerequisites remain.
+90 requires approved80 AND the actual Block1 follow-up exit after selected20–70,
+not160.140 includes only required reset/artifact repairs and necessary repair
+release versioning; .30 rebase/marker/multiarch work never gates .29.
+R580/primary12.6 stay fixed; K620 is never used. Specific policy, venue, spend,
+optional study and publication decisions remain explicit.
 
-IDs below are proposal-local; canonical AC IDs remain unchanged.
+## Audit preparation and design
 
-| Need | Requirement | Falsifiable proposal acceptance |
-| --- | --- | --- |
-| S5-N1: Users receive trustworthy persisted and retrieved state | S5-R1: Trace each selected release outcome through contract, AC, source and test oracle | S5-A1: Every selected outcome has a complete chain or an explicit missing/conflicting link, owner and disposition |
-| S5-N2: Agents can act on truthful results and diagnostics | S5-R2: Assess composed MCP/SDK paths, including budgets, hints, paging and coverage | S5-A2: Each critical path names a wrong behavior its proposed tests detect and the observable distinguishing it |
-| S5-N3: Qualification matches supported operating claims | S5-R3: Classify evidence by exact source, platform, artifact, feature and failure model | S5-A3: Historical, source-only, skipped, diagnostic and current executed evidence are distinguishable in every row |
-| S5-N4: Assurance remains affordable and useful | S5-R4: Rank gaps by user harm, changed seam and oracle strength | S5-A4: Every proposed addition has a bounded method, cost assumption, receiving slice and decision; deferred work has a reason |
+Read canonical [needs](../../../../needs.md), [requirements](../../../../requirements.md),
+[acceptance](../../../../acceptance.md), [test plan](../../../../test-plan.md),
+[ADR index](../../../../adr/ADR-0.6.0-decision-index.md), affected interfaces and
+the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md).
+Read full relevant test files, selected in-source test modules, helpers and
+selectors before load-bearing assertion claims. Do not infer coverage from a
+filename, banner, fixture presence, compiled target or source inclusion.
 
-## Prep and draft review design
+The [requirements](requirements.md) define S5-N/R/A1–4.
+[Traceability](traceability.md) joins all22 R29-3P/O3 obligations and selected
+concrete assertions. [Design](design.md) specifies independent expectations,
+negative controls, future RED/GREEN and evidence boundaries.
+[Findings](findings.md) gives single owners, priorities and bounded dispositions.
+This is representative risk analysis, not exhaustive corpus/native/CUDA coverage.
 
-Create `requirements.md`, `design.md` and `traceability.md` beside this plan when
-this slice is commissioned; they remain drafts for Slice 9. Start with Slice 3's
-contract proposals and Slice 4's architecture findings, then iterate on both.
-Read the relevant accepted ADR and complete test before making a load-bearing
-claim about its assertion. Search integration tests and in-source `#[cfg(test)]`
-modules across engine, SDK, bindings and adapter before declaring a gap.
+Apply quality-roadmap real-store post-state checks, owned-boundary faults,
+resource witnesses, properties and independent reference comparisons at changed
+seams. Defer global coverage percentages, all-allocation sweeps, general SQLite
+fuzzing, broad protocol campaigns and exhaustive platform/CUDA matrices. New
+evidence is format37 invalidation, intentional body identity, existing crash
+coverage, partial B2 and attributed USED controls. Historical failures retain
+their real exits; an assembled .28 campaign is never current .29 execution.
 
-The design is a compact evidence table: outcome/need, requirement, AC or local
-criterion, owning source seam, test/fixture and actual assertion, selection flags,
-evidence maturity, plausible undetected defect, risk, cost and receiving slice.
-Record absent links explicitly. Separate mapping completeness from adequacy:
-ask whether the intended user outcome can still fail while every mapped test passes.
+## Work and receiving owners
 
-| Critical path / allocation | Adequacy challenge and proposed evidence approach |
-| --- | --- |
-| Governed write→projection→search; 20/30/40/50 | Snapshot/liveness/filter-before-cap and record identity survive cache/fusion changes; compare real-DB results with independently specified expected IDs/provenance, including write-interleaving and rollback |
-| Search→SDK→MCP; 60/70/80/90 | Both formats preserve semantics, budget/paging and truthful hints/spans; inventory native/facade/export distinctions and known/unknown embedding coverage without backfill |
-| Queue→deadline/cancel→drain/close; 20/60 | Bridge source retains started work after response abandonment; propose permit/idle/resource post-state witnesses, not error-only assertions |
-| Erasure→interruption→reopen; 100 | Survivor/history/projection/WAL obligations under accepted format37 semantics; compare existing tests before adding bounded process-crash cases |
-| CUDA fault→drop→exit; 110/120/130/140 | Detection alone cannot prove safe destruction; specify fault permission, outstanding-allocation lifetime and subprocess exit before execution |
-| Installed package→open/use/close; 160 | Bind supported existing package obligations to actual consumers and artifacts; source imports and library-only CUDA proof do not establish shipped product support |
+1. Reconcile reviewed3's22 obligations and actual4 source findings; preserve
+   accepted intent and identify undecided contract versus missing evidence.
+2. Inspect bounded complete test bodies and actual assertions; ask which wrong
+   outcome can pass. Preserve strong controls and label shared-route limits.
+3. Assign each residual to its existing single behavior owner10–160; separate
+   design80, delivery90, parity support70 and combined qualification160.
+4. Specify narrow future RED/GREEN only for real behavior changes. Preserve
+   human-intent goldens/snapshots; never refresh them autonomously or change
+   established tests to hide failures. Exact selectors, artifact identity and
+   resource/fault permissions become execution prerequisites of affected owners.
+5. Check intended-destination links, stable mappings and scope, obtain independent
+   plan review, then finalize these same five files and obtain fresh output review.
 
-Source examples constrain the draft: hints unit tests exercise empty/full/degraded
-facts; feedback tests assert query association and noninterference. Neither
-establishes all residual B2 behavior. Allocation tests contain BLOCK and notify-only
-checks; preserve that distinction. AC-083 remains tracked at 100k with its accepted
-targets, not a newly blocking performance gate.
+Research starts with repository primary contracts/source/tests. No new external
+semantics claim is needed for this proposal. Future unresolved SQLite/Tokio/MCP/
+CUDA questions use versioned official sources before execution design acceptance.
 
-Challenge shared predicates in optimized/reference routes and duplicated parity
-literals; specify an independent expected-state oracle or disclose the limitation.
-Primary-source research starts with accepted ADRs, implementation, full tests and
-runner selectors; consult official SQLite/Rust/Tokio/NVIDIA documentation only for
-specific unresolved semantics, with dated citations. No research or host result
-is preclaimed. Review fit against real product risks and maintenance cost, then
-revise scope before recommending any expensive mutation/fault/coverage campaign.
+## Validation and exit
 
-## Dependencies, tasks and completion
+Proposal acceptance means S5-A1–4 are inspectable and every gap has an owner,
+method/cost class and disposition. Independent verdicts and real check exits must
+be recorded by the parent; this plan does not preclaim either review.
+Check scoped Markdown/planning links after import. Missing checkout-owned CLI
+is an authoritative lint failure; explicit-file external0.23.0 lint versus
+declared0.23.3 is supplemental only. No environment provisioning or full product
+gate is justified by these documentation proposals.
 
-Hard inputs: current source/accepted contracts and the proposal brief. Slice 9
-requires this output; draft 3/4/5 exchanges are iterative, not circular approval gates.
-Prefer contract mapping before test assessment. Slice 0 supplies proposed venue/tool
-availability; 7 supplies runner-selection findings. Their absence is an explicit
-unknown, not proof that a test is missing. Serialize shared contract/state edits.
+Later code owners use actual failing-first per behavior, visible RED before
+GREEN, relevant scoped checks and required final owned full verification once
+per stable code phase. Preserve compiler diagnostics, skip counts, required
+long/feature selectors and affected reruns. Source-only analysis cannot qualify
+installed artifacts, supported platforms, hardware venues or release readiness.
 
-1. Inventory selected outcomes and full test/source mappings; preserve built signals.
-2. Challenge each critical-path oracle with a concrete counterexample; classify gaps
-   as absent test, weak oracle, selector/skip issue, stale evidence or undecided contract.
-3. Rank proposals and assign to existing slices; record conditional hardware/fork/
-   artifact prerequisites only for affected checks, not unrelated MCP work.
-4. Deliver draft requirements/design/traceability and a short `findings.md` for 9.
-   Include rejected/deferred methods, unresolved questions and bounded effort estimates.
-5. Obtain independent read-only review of mapping and adequacy before checkpoint.
-   Close this prework only when S5-A1–A4 can be checked directly from the drafts.
+## Phase A reconciliation and actual checks
 
-## Review, validation and decision points
+Reread completed3 at `2d5041795f0cbbe49d55d81a2710f09e2043b8a9`, including
+its actual two independent PASS verdicts,22 obligations and allocation. No
+disagreement remains. Read4's concurrent Phase A alignment/test/findings candidates:
+their source-only cache/identity/remedy/coverage/crash boundaries agree with this
+audit; independent4 review remains pending at this witness and is not certified
+by5.9 consolidates any later differences without a3/4/5 closure cycle.
 
-Validate links and scoped Markdown after import; do not run full product gates for
-this proposal. Later approved behavior changes require per-behavior failing RED,
-GREEN, independent review and relevant checks; final code phases retain required
-full gates on owned tooling, with affected reruns and honest skip/failure accounting.
-New prerequisites for the next reviewer: settle disputed contract/oracle semantics,
-confirm current selectors and artifact attribution, and locate exact venue/fault
-permissions before costing execution. Route threshold/support/default changes or
-unbounded work to Slice 9; source-only uncertainty remains open rather than passed.
+Actual checks exited0: exact five-file scope,28 resolving destination links,
+22 unique matching requirement/oracle/owner joins,12 unique findings, newlines/
+whitespace and unchanged product/scripts/workflows from product6edc1155f.
+Supplemental explicit-file external markdownlint-cli2 v0.23.0 exited0, zero errors.
+Authoritative `./scripts/agent-lint-md.sh` exited1 at missing checkout-owned CLI;
+declared0.23.3 remains unprovided. No setup or product tests ran. Parent plan
+review/import/final-output review and imported scoped validators remain future
+steps; none is preclaimed by these checks.
+
+## Phase B finalization
+
+Parent reports independent Astra-medium plan/design PASS with no findings.
+The reviewer confirmed the22 obligation joins,12 findings and actual selected
+assertions, including existing crash/native controls and reset supervision gap.
+This is an independent design verdict, not this owner's output verdict.
+
+Reread root at `2d5041795f0cbbe49d55d81a2710f09e2043b8a9`; parent's six
+Slice4 PhaseB imports are present as planning-only modifications and await fresh
+final-output review. Their actual source/test findings agree with5; no new
+behavior allocation or scope expansion is needed. Completed3 and settled
+constraints remain unchanged. Parent remains the sole repository writer.
+
+PhaseB changes only this plan's phase/check metadata; the other four documents
+are byte-identical to the reviewed PhaseA candidates. Bounded checks again
+exited0 for exact five-file scope,28 links,22 obligation/owner joins,12 findings,
+newlines/whitespace and unchanged product/scripts/workflows. Supplemental
+explicit-five-file CLI0.23.0 lint exited0 with zero errors. The authoritative
+owned Markdown gate again exited1 for missing CLI; declared0.23.3 remains absent.
+No source/tests/setup/Git mutation, product/full gate, native or GPU execution
+occurred. TDD is N/A for this proposal. OUTPUT_READY requests parent-controlled
+fresh independent final-output review/import; no closure or self-PASS is claimed.

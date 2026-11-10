@@ -1,120 +1,110 @@
 ---
 title: 0.8.29 Slice 4 architecture and source alignment proposal
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.29
 slice: 4
 ---
 
 # Slice 4: architecture and source alignment
 
-## Goal, maturity and boundary
+## Completion
 
-Produce a code-grounded architecture review plan and, when prework is run,
-proposals for the Slice 9 decision package. This draft does not execute that
-review or approve any correction. Distinguish implemented, historically proven,
-designed, experimental and net-new behavior; inclusion does not prove current qualification.
+Proposal complete after independent Astra-medium plan and fresh final-output
+PASS, serial parent import and scoped checks. See [review log](review-log.md).
+Phase records below retain historical inspection status. No product, hardware,
+environment or release-readiness qualification follows this closure.
 
-The [drafting brief](../../planning-brief.md),
-[reconciliation](../../reconciliation-plan.md) and
-[release proposal](../../../plan-0.8.29.md) set scope. Format 37, integrated
-MCP/queue/Block 1 and partial B2 behavior are the starting substrate.
-No source, canonical contract, environment, Git, ledger or release-state change
-belongs to this slice. Architecture changes remain proposed successors/addenda.
+## Finalization status
 
-## Sources inspected and bounded reading
+Independent Astra-medium plan/design review passed with no findings. PhaseB
+finalizes this same six-file proposal; fresh final-output review and parent
+import/closure are pending. The review file records check metadata and limits.
 
-- [Active architecture v2](../../../../design/fathomdb-data-plane-architecture-v2.md): current profile and data-plane/semantic-policy boundary.
-- [ADR index](../../../../adr/ADR-0.6.0-decision-index.md), [runtime topology](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md), [format37 visibility](../../../../adr/ADR-0.8.28-transactional-visibility-coalescing.md).
-- [Canonical identity ADR](../../../../adr/ADR-0.8.0-canonical-identity-substrate.md), [provider transport ADR](../../../../adr/ADR-0.8.6-generalized-provider-protocol.md), [narrow provider record](../../../0.8.28/features/slice-50/built-in-provider-implementation-record.md).
-- [MCP architecture proposal](../../../../design/mcp-adapter/architecture.md), [agent-access work list](../../../../design/agent-access/README.md), [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md).
-- Concrete source excerpts: [fusion](../../../../../src/rust/crates/fathomdb-engine/src/fusion.rs), [open/provider admission](../../../../../src/rust/crates/fathomdb-engine/src/open.rs), [search](../../../../../src/rust/crates/fathomdb-engine/src/search.rs), [hints](../../../../../src/rust/crates/fathomdb-engine/src/hints.rs), [registry](../../../../../src/rust/crates/fathomdb-mcp/src/registry.rs).
-- [Writer coalescing](../../../../../src/rust/crates/fathomdb-engine/src/write_commit.rs), [projection publication](../../../../../src/rust/crates/fathomdb-engine/src/projection_commit.rs), [schema version](../../../../../src/rust/crates/fathomdb-schema/src/lib.rs).
-- Memory index and verified entries `verify-design-against-code-not-just-architecture.md`, `acceptance-md-locked-no-feature-acs.md`, `agent-access-block1-design-state.md`, `physical-erasure-done-defects-only.md` informed this draft; old memory status yields to current source/decisions.
+## Goal and boundary
 
-Initial observations bound the future review: fusion explicitly merges by body;
-production numerical-provider admission is Default/None; hints already include
-empty-result/degradation signals; coalescing is transaction-owned. These are
-inspection findings, not new correctness or performance claims.
+Produce a bounded, source-grounded alignment proposal for the selected release
+ladder. Separate built behavior, historical qualification, unimplemented residuals,
+stale prose and unsettled semantics. This slice changes its six proposal files
+only; canonical contracts, product source/tests, setup, Git, ledgers and release
+state are outside its ownership. Documentation-only work has no code TDD.
 
-## Slice prep: local needs, requirements and acceptance
+The [direct mandate](../../direct-execution.md),
+[release requirements and ladder](../../../plan-0.8.29.md),
+[Slice 3 contract allocation](../slice-3/allocation.md) and
+[local criteria](requirements.md) govern this review. Format37/no database
+migration, compact text default and B2-8 storage are settled. Keep the query
+scaffold and built queue/hints. Source work belongs to20+; approved preparation
+belongs to10. Only genuine unresolved choices go to9.
 
-All IDs below are release-local drafts; none amends canonical acceptance.
+## Inputs and inspection provenance
 
-| Local ID | Draft need or requirement | Falsifiable acceptance |
-| --- | --- | --- |
-| PW29-4-N1 | Designers need an accurate exists-versus-new map. | Every reviewed proposal is tied to current owner modules and a maturity classification. |
-| PW29-4-R1 | Compare Slice 0–3 proposals with accepted architecture and current code. | Every material claim has authority, source seam, delta and destination; unknowns are explicit. |
-| PW29-4-R2 | Preserve identity, eligibility and visibility across optimizations. | Matrix addresses duplicate bodies, identity spaces, pre-cap eligibility, frozen reads, generation/nonce and external writers. |
-| PW29-4-R3 | Preserve provider, runtime and adapter ownership. | Matrix distinguishes numeric embedding from caller semantic subprocess tasks and names every execution/commit boundary. |
-| PW29-4-R4 | Propose bounded, independently reviewable corrections. | Each finding states evidence, affected contract, alternatives, proposed slice, prerequisites and a disconfirming check. |
-| PW29-4-AC1 | Review scope is complete. | Every selected slice theme and every Slice 0–3 architecture-affecting finding has a row or explicit exclusion. |
-| PW29-4-AC2 | Proposals are decision-ready. | No proposed behavior change lacks a test oracle, authority disposition or Slice 9 decision entry; no proposal claims execution. |
+Initial Phase A root read: November10,2026, planning commit `a0274cee6` on
+`llm/0.8.29-chat`. Selected product paths under `src/`, `Cargo.toml` and
+`Cargo.lock` have no diff from inspected product baseline `6edc1155f`.
+These are dated witnesses; refresh Git/source facts before downstream execution.
+Actual completed3 and final root were reread at `2d5041795`; its independent
+plan/fresh-output PASS log and reconciliation are recorded in [findings](review.md).
 
-## Design approach and fit revision
+Read AGENTS, the canonical external memory index and existing entries
+`verify-design-against-code-not-just-architecture.md`,
+`slice-prompt-verify-test-claims.md`, `acceptance-md-locked-no-feature-acs.md`,
+`agent-access-block1-design-state.md`, `physical-erasure-done-defects-only.md`,
+`windchill3-never-change-driver-or-primary-cuda.md` and
+`full-gate-run-frequency.md`. The old memory AC maximum is historical: current
+canonical acceptance contains later accepted successors including AC-081a/b/c.
+No global AC is minted here.
 
-Draft `requirements.md`, `design.md`, `alignment-matrix.md` and `test-mapping.md`
-beside this plan. Map authority → actual owner/call path → proposal → observable
-invariant → destination. Classify mismatch as stale documentation, code defect,
-unsettled contract, intentional deferred destination or insufficient evidence.
+Completed0/1/2/6/7/8 proposal outputs and review records supply environment,
+dependency, retention, documentation and delivery inputs. Their evidence is not
+product qualification. The [alignment matrix](alignment-matrix.md) names exact
+source owners; [test mapping](test-mapping.md) distinguishes complete test-file
+reads from other sampled seams. No exhaustive call graph, complete platform
+review, runtime readiness, measured benefit or fresh external research is claimed.
 
-Review five bounded paths rather than commissioning a general redesign:
+## Method, tasks and fit
 
-1. Open/configuration/provider refusal → owned runtime → close; preserve failed-open cleanup and bounded provider retention.
-2. Canonical/projection commit → format37 generation/nonce → ordinary/frozen read invalidation, including external SQLite writers.
-3. Dense/native eligibility and source-dependency fallback → exact text candidates → fusion → snippets; keep provenance and UTF-8 boundaries explicit.
-4. MCP admission/registry → synchronous SDK → engine dispatch → response shaping; preserve queue run-to-completion and data-free hints.
-5. SDK/native/facade fields → compact output/degradation/span reporting; distinguish built storage/signals from unbuilt presentation.
+1. Map accepted authority → current source seam → maturity → proposed delta.
+2. Review five paths: open/provider/runtime/close; commit/snapshot visibility;
+   eligibility/text/fusion/snippets; MCP admission/SDK/dispatch/shaping; native/
+   SDK fields to degradation and scored-span reporting.
+3. Challenge differences using independently specified identity, snapshot,
+   Unicode, budget and cleanup outcomes. Record alternatives, prerequisites,
+   receiving slices and evidence that would disconfirm each concern.
+4. Reconcile actual completed3 and exchange findings with5. Keep docs/setup/
+   dependency/delivery proposals with their existing owners; do not design
+   replacement features or duplicate their censuses.
+5. Stop at PLAN_READY for parent-controlled independent Astra-medium plan
+   review. After PASS, finalize only the reviewed proposal scope and submit for
+   fresh final-output review; parent owns import, closure and maintained status.
 
-Challenge cache proposals with write-interleaved workloads; a generation cache
-is not selected by read-only prototype results. Counters/schema changes need a
-separate decision. Fusion identity needs an explicit ADR/census before the
-optimized text route; do not turn equal-body merging into a silent ranking change.
-Keep Block 2 coverage/scored spans truthful; no guessed weak-result threshold.
+The [design](design.md) preserves engine/SDK/MCP responsibility. The
+[quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md) supports
+optimized/reference, boundary, failure/reopen and resource controls at changed
+FathomDB seams. General SQLite fuzzing, global coverage targets and exhaustive
+hardware matrices remain deferred. New source evidence matters: format37 owns
+transactional invalidation; hints/span storage exist; provider admission is
+narrower than historical transport prose. These observations revise review
+premises without adding gates or performance thresholds.
 
-Primary-source research starts with accepted ADR successor chains, maintained
-interfaces and production callers/tests. For an unresolved mechanism, plan a
-bounded check of SQLite or upstream runtime/library documentation; record the
-exact question and applicability before external research. No external research
-was performed for this plan. Reconcile historical proposal assumptions against source.
-Apply the quality roadmap's optimized/reference and boundary/fault-oracle ideas
-to proposed tests; defer broad fuzzing, exhaustive matrices and SQLite internals.
-Fit review revises ownership/deltas before proposing any architecture addendum.
+## Dependency and completion rules
 
-## Dependencies, tasks and deliverables
+30 supplies current measurement inputs to40/50;40→50 remains preferred landing
+order.60 can develop using existing engine filter/flag support, then qualify on
+integrated fusion.50 identity,60 fields and70 reasons settle before80 approval.
+90 requires approved80 AND the actual Block1 follow-up exit after selected20–70;
+160 is downstream, never a substitute for that exit.
 
-- Hard input for completed review: Slice 0 environment constraints, 1 candidate/pin impacts, 2 disposition inventory and 3 draft needs/contracts. Reading can start earlier; missing drafts remain explicit prerequisites.
-- Iterate with Slice 3 on contract intent and Slice 5 on meaningful test oracles; send stale audience documentation to 6 and build/CI mechanics to 7.
-- Slice 9 requires the reviewed package; Slice 10 may implement only recorded preparation decisions. Product corrections stay in their selected feature slices.
-- Preserve 30 measurements as hard inputs to 40/50; 40 → 50 is preferred landing order only; 60 uses integrated flags/filter support, with final fusion parity later. Approval of 80 needs settled identity/fields/degradation; 90 also needs Block 1 follow-up exit.
-- Conditional fork qualification in 140 precedes affected pin adoption in 110/120 and final qualification in 130; numerical labels do not imply execution order.
-- Shared contracts/source owners are review conflicts to serialize later. Prework readers may fan out; only the parent assembles repository drafts. No compute/host access is assumed.
+140 includes only required A repairs and necessary repair-release versioning;
+fork qualification precedes affected110/120 pins, then130 final proof. Broader
+rebase/marker/multiarch work belongs to .30 and is no .29 prerequisite.100/110
+inclusion is already assigned; compare existing fault coverage and resolve actual
+venue/remedy controls. Preserve R580/primary12.6 and never execute on K620.
+Specific policy/venue/spend/optional-experiment/publication gates remain.
 
-Tasks: inventory incoming proposals; build the five path maps; challenge contract
-and ownership deltas; draft corrective alternatives; identify test obligations;
-review fit with 3/5; issue `review.md` with unresolved items and Slice 9 inputs.
-Each finding records current evidence, confidence, impact, proposed allocation,
-decision owner and the evidence needed to reject or accept its premise.
-
-New prerequisites for the next reviewer: verify the active profile's eleven-member
-workspace statement against integrated MCP manifests; distinguish historical
-generalized subprocess-provider text from current numerical-provider admission;
-rebase cache assumptions onto format37; census equal-body identity collisions;
-confirm B2-6/B2-7 residuals before assigning new implementation.
-
-## Completion, independent review and stop points
-
-Complete only when local AC1/AC2 pass against the assembled artifacts and an
-independent reviewer can reconstruct every material claim from cited evidence.
-Record review findings and unresolved disagreements without inventing verdicts.
-Validate links and relevant Markdown/planning rules when drafts enter the repo;
-proposal completeness is the oracle here, not a product-test pass.
-
-Later authorized behavior changes require reviewed contracts, per-behavior RED
-evidence before implementation, real databases, boundary/property tests and
-independent code review. Source phases use required full/native qualification;
-planning validation cannot support a whole-workspace green claim.
-Stop a proposed promotion at an accepted-ADR conflict, undecided identity,
-unsupported performance premise or unavailable evidence; route it to Slice 9.
-Physical erasure stays complete except concrete defects and bounded Slice 100
-qualification. Overflow chunking, ANN, caller-provider APIs and ranking/default
-changes need their own authorization; this architecture review creates none.
+Complete proposal work only when PW29-4-AC1/2 have explicit evidence/limits,
+links resolve from intended destinations, whitespace/scoped checks are recorded
+and both independent reviews actually pass. Parent runs applicable repository
+validators after import. Missing checkout-owned Markdown tooling stays a failed
+or unavailable gate; supplemental external lint cannot establish its success.
+Later behavior PRs require their own contract review, observed RED→GREEN,
+appropriate native/full verification and independent code review.

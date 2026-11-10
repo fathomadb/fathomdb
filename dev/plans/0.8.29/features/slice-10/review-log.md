@@ -33,7 +33,7 @@ No remaining blocking design findings. This permits approved Slice 10 preparatio
 
 Read-only review; no tests, setup, activation or Git mutations performed.
 
-## Current validation boundary
+## PhaseA validation boundary (historical)
 
 Owner static candidate completeness, ancestry, views and62 destination links:
 exit0. Supplemental external cli2.23.0 Markdown: exit0; authoritative owned
@@ -75,3 +75,26 @@ The required headings bind substantive existing content. `state.master` resolves
 Inspected receipts show all 26 commission checks exited 0. Parent reports renderer and staged design-reference checks exited 0. HEAD remains the Slice 9 closure; no staged source/script changes.
 
 Read-only review only. Approval covers the normal bootstrap commit retry and approved preparation, not product readiness or publication.
+
+## Implementation gate addendum independent design review
+
+Reviewer GPT-6 Astra medium, /root/slice_10_astra_design, November10,2026.
+Exact durable report: `/tmp/fathomdb-0829-direct/slice-10/design-addendum-astra-review.md`.
+Accepted af37af56f460b4a3c17a77b11b0f9ff0e769cb15 runner inventory and
+cdd41e2630a0084a5782128aa68d4de913aca90b published.28 authority govern these
+validator repairs. No product oracle, test-policy waiver or publication authority
+is created. Implementation and fresh independent final code review remain open.
+
+### Addendum terminal response (verbatim)
+
+PASS — the bounded design addendum is consistent with the approved preparation scope.
+
+- Restore the TC37 diagnostic in code; keep its existing test unchanged.
+- Update the Jetson validator to the five labels already accepted in `af37af56…`. The new fixture provides attributable RED evidence and checks every missing-label rejection while retaining existing workflow assertions.
+- Align the maintained-runbook expectation with published `.28` authority; retain historical `.27` cases.
+
+This repairs stale validators against previously accepted human specifications; it does not waive fix-to-spec discipline or generate new product oracles.
+
+Wait for the frozen collector to finish. Commit observed RED before separate GREEN, regenerate owned derived content, and rerun failed/incomplete and affected checks. Preserve original failures and assembled-verification limits. Fresh independent final implementation review remains required.
+
+Read-only review; no fixtures, builds, installs or mutations performed.

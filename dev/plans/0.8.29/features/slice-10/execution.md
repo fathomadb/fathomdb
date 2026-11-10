@@ -166,3 +166,34 @@ dev/platform-capabilities.json still naming0.8.27 despite published0.8.28.
 Only that metadata is corrected; platform list/status and the human oracle stay
 unchanged. The failed/incomplete test suite is rerun under repaired supervision;
 no second full wrapper or uninterrupted full-green claim follows.
+
+## Frozen collector and TC37 observed RED
+
+Clean b3dfb51745aac79bb36bc1b52598d706fe4c8751 all-tier collector exited1:
+registered211/ran211/passed207/failed4/skipped0/excluded0, no resource stop,
+unchanged start/end HEAD and empty tracked delta. Full Rust workspace serial
+exit0 (1468814ms), TypeScript exit0 (75767ms), hermetic executable N-API gate
+exit0 (27078ms), Python candidate receipt exit0. Python suite:1745 passed,
+36 skipped,1 failed. Other failures: Jetson accepted-label literal, current
+Tegra runbook-version literal and TC37 missing-tool repair diagnostic.
+
+Raw task logs/final-test-suite.log and receipts/final-test-suite.json retain
+real exits/resources. Read-only retention saved111 transient suite diagnostics
+under task logs/retained-test-spills, including complete Rust/Python/TS outputs;
+earlier successful fixture detail was already removed by the canonical runner.
+No interrupted or failed attempt becomes uninterrupted full green.
+
+Unchanged existing scripts/tests/test_lint_md_hard_fail_on_missing_linter.sh
+provides actual behavioral RED at b3df: source diagnostic still refuses absent
+linter but lost its required supported bootstrap repair pointer. Existing test
+is already tracked and stays unchanged. No source GREEN precedes this record.
+Exact observed diagnostic:
+
+```text
+FAIL lint-md-structure: markdownlint-cli2 not found at node_modules/.bin/markdownlint-cli2.
+  A missing structural markdown linter must never report a silent pass (TC-37).
+  Fix: select the declared Node/npm pins and run npm ci in this checkout.
+  Linked worktrees require their own node_modules; do not share a mutable install.
+exit=1
+FAIL  hard-fail message does not tell the operator how to fix it (scripts/bootstrap.sh)
+```

@@ -43,7 +43,7 @@ if [ -f "$PUBLISHER" ]; then
 fi
 if [ -f "$RUNBOOK" ]; then
   require_text "$RUNBOOK" 'publish-tegra-pages.sh' 'runbook names the one-command publisher'
-  require_text "$RUNBOOK" '0.8.27+tegra' 'runbook names the exact Tegra distribution'
+  require_text "$RUNBOOK" '0.8.28+tegra' 'runbook names the exact Tegra distribution'
   require_text "$RUNBOOK" 'Maturin 1.14.1' 'runbook records the pinned build tool'
   require_text "$RUNBOOK" 'not published to PyPI' 'runbook states the registry boundary'
 fi

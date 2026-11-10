@@ -10,18 +10,9 @@ cd_repo_root
 # Rust
 run_capped build-rust cargo build --workspace --quiet
 
-# Python — install in editable mode if pyproject changed.
+# Python — always build a source-bound wheel in the checkout-owned environment.
 if [ -f src/python/pyproject.toml ]; then
-  python_bin="python3"
-  if [ -x .venv/bin/python ]; then
-    python_bin=".venv/bin/python"
-  fi
-  sentinel=".cache/agent/python-installed"
-  mkdir -p "$(dirname "$sentinel")"
-  if [ ! -f "$sentinel" ] || [ src/python/pyproject.toml -nt "$sentinel" ]; then
-    run_capped build-python "$python_bin" -m pip install --quiet -e src/python
-    touch "$sentinel"
-  fi
+  run_capped build-python bash "$SCRIPT_DIR/setup-python-owned.sh" --build
 else
   skip_notice build-python "no src/python/pyproject.toml"
 fi

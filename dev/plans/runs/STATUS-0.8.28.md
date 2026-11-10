@@ -65,10 +65,11 @@ RTX 3090 cells and the two GCP sessions pass, with G8 accepted as measured
 
 There are <!-- BEGIN GENERATED release-state:0.8.28:status-live-open-count -->ZERO<!-- END GENERATED release-state:0.8.28:status-live-open-count --> live open decisions:
 
-The publication decision is ruled at seq-366. The operational preflight needs
-explicit approval for the exact `v0.8.28` environment/runner-group allowlists.
-Organization access is authorized; GPU168, Windows31 and Jetson22 executed
-CI28 successfully in their original routes. No tag has been pushed.
+Publication and both exact protected-tag entries are owner-approved. They are
+configured with the original reviewers/restrictions preserved. All three local
+runners passed actual CI. The final documentation-only update is complete and
+Markdown-linted; package publication and installed-package verification remain.
+
 
 Ruled on 2026-10-30 and 2026-10-31 (release state, `decisions.ruled`):
 

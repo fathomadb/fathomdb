@@ -14,9 +14,9 @@ parity rules remain owned by `design/bindings.md`.
 
 This document covers the lower-level `fathomdb` facade. Rust application code
 uses the dedicated `fathomdb-sdk` crate, whose Python/TypeScript-parity
-contract is [`rust-sdk.md`](rust-sdk.md) (0.8.27 Slice 132).
+contract is [`rust-sdk.md`](rust-sdk.md).
 
-## Fresh-database open boundary (0.8.26 Slice 40)
+## Fresh-database open boundary
 
 All public `Engine::open*` routes bootstrap a missing or zero-length path at
 schema 37. A non-empty database is admitted only when its effective committed
@@ -64,13 +64,9 @@ connection keeps its own page cache of SQLite's default 2,000 KiB. That holds
 for the Python wheel, the npm addon, `cargo install fathomdb-cli` and every
 consumer of the published Rust crates; no build flag is needed. A consumer that
 links its own SQLite instead of the bundled one (for example through
-`LIBSQLITE3_SYS_USE_PKG_CONFIG`) gets that library's page-cache mode. The
-0.8.27 registry crates still resolve `libsqlite3-sys` 0.38 and share one page
-cache across connections; for them,
-`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` at build time gives one
-page cache per connection.
+`LIBSQLITE3_SYS_USE_PKG_CONFIG`) gets that library's page-cache mode.
 
-## Per-engine configuration (0.8.27 Slice 90)
+## Per-engine configuration
 
 `Engine::open_with_choice_and_config(path, choice, config)` accepts a public
 `EngineConfig` whose fields are optional requested values: the five `u64`
@@ -159,7 +155,7 @@ provider directly and must not supply deadline, queue-bound, lock-order, or
 performance evidence. Production open, projection, search, frozen-search, and
 direct-embed paths have no such exception.
 
-### Explicit engine test fixtures (0.8.27 Slice 140)
+### Explicit engine test fixtures
 
 The engine's doc-hidden test fixtures require `fathomdb-engine/test-hooks`
 for external consumers, in both dev and release profiles. Crate unit tests
@@ -175,7 +171,7 @@ dependency with the feature. Production binding preflight
 operator diagnostics retain their production routes. This feature is absent
 from shipped SDK, addon, wheel, and CLI feature lists.
 
-### Unstable binding-support items in `fathomdb-embedder` (0.8.27 Slice 110)
+### Unstable binding-support items in `fathomdb-embedder`
 
 `fathomdb-embedder` exports five `#[doc(hidden)]` items for the Node addon's
 early CUDA initialisation on Jetson: `initialize_cuda_driver`,
@@ -1677,7 +1673,7 @@ recency, and globally selects top-N only after traversal completes. Query
 seeding is FTS-first and records its projection status and text-fallback
 degradation.
 
-## Exact graph artifact evidence (0.8.26 Slice 20)
+## Exact graph artifact evidence
 
 `GraphExpandRequestV1.include_evidence` is opt-in and defaults to false. It is
 accepted only with a frozen graph context. When true,

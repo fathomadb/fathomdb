@@ -2,14 +2,14 @@
 title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
-implementation_status: active authority; current 0.8.28 profile with retained 0.8.26 history
+implementation_status: active authority; self-contained current 0.8.28 profile
 target_release: 0.8.28
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-11-04 by 0.8.28 Slice 92
+last_reconciled: 2026-11-09 for the 0.8.28 release
 ---
 
 # FathomDB data-plane architecture v2
@@ -36,66 +36,14 @@ The boundary is complete when a semantic component can implement its policy
 through governed FathomDB APIs without raw SQL, private shadow indexes,
 duplicated liveness rules, or manual projection cleanup.
 
-## Architecture destination and executable profiles
-
-Architecture v2 describes the multi-release destination. Version 2.1 adds the
-approved executable profile for 0.8.25; it does not claim that every destination
-mechanism ships in that release.
-
-The 0.8.25 profile is deliberately narrower:
-
-- one immutable canonical-source-to-derived dependency per derived revision;
-- one bounded atomic actuation transaction with compact terminal receipts;
-- direct-dependent lifecycle/erasure closure;
-- mandatory eligibility-before-ranking and optional self-contained frozen read
-  contexts, without persisted snapshot leases;
-- core projection generations/readiness;
-- canonical and `operational_state` keyset pages, without graph pagination;
-- stateless compact evidence references for one source;
-- bounded one-call reciprocal tracing and read-only integrity checks;
-- deterministic one-page constrained combined graph expansion; and
-- representative installed/release verification rather than an exhaustive
-  scale-by-feature-by-CUDA matrix.
-
-Designs deferred beyond that profile are inventoried in
-[`0.8.x-after-0.8.25-design-notes.md`](0.8.x-after-0.8.25-design-notes.md).
-An active 0.8.25 slice design must not expose a deferred destination type or
-behavior merely because it appears later in this document.
-
-## As-built 0.8.26 profile — historical baseline
-
-Version 2.2 recorded the 0.8.26 source candidate after Slice 40. This
-historical profile applies its accepted decisions to the v2 model and is the
-baseline for the current 0.8.28 profile below. It does not introduce a new
-decision or claim publication. Detailed field/error contracts remain in
-[`dev/interfaces/`](../interfaces/README.md), accepted decisions remain in the
-[`ADR index`](../adr/ADR-0.6.0-decision-index.md), and topic implementation
-detail remains under [`dev/design/`](README.md).
-
-### Workspace and ownership
-
-The 0.8.26 Rust workspace had ten members:
-
-- the thin public `fathomdb` facade;
-- `fathomdb-engine`, which owns runtime, reader/writer coordination,
-  actuation, lifecycle/closure, frozen reads, evidence, graph expansion,
-  pagination, projection generations, and integrity mechanisms;
-- the operator-only `fathomdb-cli`;
-- the pure compiler `fathomdb-query` and migration owner `fathomdb-schema`;
-- `fathomdb-embedder-api` and `fathomdb-embedder`;
-- the `fathomdb-py` and `fathomdb-napi` native binding crates; and
-- the internal `fathomdb-tc5-benchmark` harness.
-
-`src/python/` and `src/ts/` own the Python and TypeScript package layers over
-the native crates. Only documented facade/binding APIs are public contracts;
-engine module/file boundaries remain internal and may change.
-
 ## Current 0.8.28 profile
 
 ### Workspace and application SDK ownership
 
-The current Rust workspace has **eleven** members: the ten retained owners
-listed in the historical 0.8.26 profile plus `fathomdb-sdk`. The dedicated
+The current Rust workspace has **eleven** members: `fathomdb`, `fathomdb-sdk`,
+`fathomdb-engine`, `fathomdb-cli`, `fathomdb-query`, `fathomdb-schema`,
+`fathomdb-embedder-api`, `fathomdb-embedder`, `fathomdb-py`, `fathomdb-napi`
+and the internal `fathomdb-tc5-benchmark`. The dedicated
 Rust application SDK is a peer of the Python and TypeScript SDKs, with the
 44 governed operations across `Engine`, `read`, `graph`, `admin` and
 root-level `rerank`. The standalone `embed_batch_cls` operation remains
@@ -113,9 +61,9 @@ The [Rust SDK contract](../interfaces/rust-sdk.md) and
 [generated contributor map](../../docs/generated/contributor-map.md) give
 current operation and package paths. Rust engine file/module boundaries are
 internal implementation ownership, not SDK contracts. The following addenda
-record implemented boundaries retained from 0.8.27 without rewriting the historical model.
+describe the implemented diagnostic transport and native ownership boundaries.
 
-### 0.8.27 Python diagnostic transport addendum
+### Python diagnostic transport
 
 This addendum records the Slice 100 implementation under the accepted
 [`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md).
@@ -158,7 +106,7 @@ removes the formerly inert Python heartbeat interval. The
 transport mechanics and exact payloads are owned by
 [`bindings.md`](bindings.md) and [`lifecycle.md`](lifecycle.md).
 
-### 0.8.27 TypeScript native boundary addendum
+### TypeScript native boundary
 
 Slice 110 decomposes `fathomdb-napi` by responsibility while retaining one
 native `Engine` class and the existing generated JavaScript registration
@@ -248,6 +196,18 @@ limitations remain explicit in [embedder.md](embedder.md). The
 explicit windows and durable incomplete obligations; queued intent does not
 revoke logical visibility. No SLA or new erasure campaign follows.
 
+### Method-specific CUDA allocation evidence
+
+The opt-in built-in default-embedder witness is current-only v2 with one tagged
+measurement. Discrete non-private contexts use global-free model/control proof;
+integrated private contexts use live USED growth and an exact 64 MiB same-pool
+control with checked completion and return to baseline. Device/process/context
+identity and a real 384-dimensional forward remain required. Common global
+readings are diagnostic for the private method. Unsupported allocator/hardware
+combinations refuse the witness instead of selecting a method from its result.
+The [allocation-witness ADR](../adr/ADR-0.8.28-attributable-cuda-allocation-witness.md)
+owns the precise union, selection, ordering and proof requirements.
+
 ### Governed read and evidence paths
 
 Both explanation-enabled frozen search paths complete with a valid non-empty
@@ -293,9 +253,18 @@ another semantic caller owns extraction, ontology, truth/contradiction,
 retrieval planning, synthesis, answer verification, model/provider choice,
 spend, and HITL policy.
 
-The 0.8.26 profile remains single-source and reproduce-or-fail. Multi-source
+The current profile remains single-source and reproduce-or-fail. Multi-source
 causal provenance/liveness, persisted snapshot leases, graph continuation/full
 paths, persisted evidence replay, and semantic policy remain deferred.
+
+## Architecture destination and executable profile
+
+The 0.8.28 profile above describes the implemented system. Architecture v2 also
+states longer-term constraints; a destination type or behavior below is not
+an implemented API merely because it appears in the model. Deferred mechanisms
+remain in [the design notes](0.8.x-after-0.8.25-design-notes.md) until their own
+requirements and accepted implementation decisions authorize them. Earlier
+as-built profiles remain in Git history and their release-local plans.
 
 ## Durable artifact classes
 
@@ -420,8 +389,8 @@ hidden inside a FathomDB data-plane claim.
 
 ## Compatibility and safety
 
-The following destination rules are qualified by the accepted breaking 0.8.26
-profile: affected actuation contracts change V1 in place, and noncurrent
+The following destination rules follow the accepted breaking-contract boundary:
+affected actuation contracts change V1 in place, and noncurrent
 databases are refused rather than migrated. The later graph-evidence decision
 adds a first-generation V1 sidecar without creating a parallel graph API.
 
@@ -461,7 +430,7 @@ of architecture v2 rather than optional implementation guidance:
 | A25-01 | A frozen read is defined by reproducible canonical boundary, validity instant, projection generation, and eligibility envelope. 0.8.25 provides optional self-contained reproduce-or-fail context with typed unavailable, mismatch, and drift outcomes; persisted leases add expiry only in a later profile. It does not promise a permanently held SQLite reader transaction. | 35 |
 | A25-02 | Exact locators are UTF-8 byte ranges over a named immutable revision, using a declared canonical byte representation and hash algorithm; invalid boundaries and hash mismatch reject typed. | 15, 50 |
 | A25-03 | FathomDB exposes governed current operational state backed by `operational_state`; `latest_state` remains a consumer concept. | 45 |
-| A25-04 | Multi-source dependencies use a bounded Engine-known liveness grammar. `all_required` and `any_surviving` have distinct removal behavior; unsupported rules reject typed. | Deferred beyond 0.8.26; future allocation requires approval. |
+| A25-04 | Multi-source dependencies use a bounded Engine-known liveness grammar. `all_required` and `any_surviving` have distinct removal behavior; unsupported rules reject typed. | Deferred; future allocation requires approval. |
 | A25-05 | Every new persisted or public type defines schema/wire version and unknown-field/unknown-variant behavior, with feature-local Rust, Python, TypeScript, and applicable Windows CPU/native proof. | active 15–60; audit 75; future slices retain the rule |
 | A25-06 | Eligibility and graph constraints execute before seed/candidate truncation and expansion. 0.8.25 reports compact inclusion/degradation state; expanded deterministic ineligible/not-selected explanation follows only when justified. | 35/55/60 core; expanded explanation 0.8.28 |
 | A25-07 | Default `SearchHit` remains compact. Evidence handles are opt-in, bound to the originating visibility envelope, and resolve stale or invisible state only to typed non-disclosure. | 50 |
@@ -472,29 +441,9 @@ reuses, amends, or supersedes them.
 
 ## Release allocation
 
-The current 0.8.28 work is allocated by
-[`plan-0.8.28.md`](../plans/plan-0.8.28.md): Slice 92 converges documentation,
-Slice 95 owns final CI/candidate qualification, and publication remains separately
-authorized. The .27 ownership refactor and qualification are historical evidence
-in [`plan-0.8.27.md`](../plans/plan-0.8.27.md).
-
-The historical 0.8.26 profile was allocated by
-[`plan-0.8.26.md`](../plans/plan-0.8.26.md). Its implemented public boundaries
-are recorded in the maintained interface documents and its as-built
-requirements/evidence in Slices 10, 20, 30, 35, and 40. Slice 45 reconciles
-this architecture; Slice 46 owns detailed topic-design convergence; Slice 50
-owns integrated non-publishing package/platform verification.
-
-The predecessor 0.8.25 allocation follows.
-
-The complete allocation is
-[`plan-0.8.25.md`](../plans/plan-0.8.25.md). The requirement inventory is
-[`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](../plans/memex-0.6.0-needs-in-fathomdb-0.8.25.md),
-and the delivery method is
-[`fathomdb-data-plane-foldback-v2.md`](../plans/fathomdb-data-plane-foldback-v2.md).
-
-Slice 4 review, Slice 5 verification analysis, Slice 6 HITL approval, and Slice
-7 repository preparation are complete. Architecture v2 became the active
-versioned successor when S7-07 recorded complete GREEN at `007a3152`; Slice 7
-closed at `dbf3a479`. Slice 10+ designs may now advance through their own
-independent READY and implementation gates in dependency order.
+The 0.8.28 release is allocated by
+[`plan-0.8.28.md`](../plans/plan-0.8.28.md). Slice 95 owns final CI and
+installed-artifact qualification; publication follows explicit owner
+authorization and the registry/Pages gates. Accepted ADRs and the current
+interface contracts remain the semantic authorities. Earlier allocations and
+activation evidence remain in their release-local plans and Git history.

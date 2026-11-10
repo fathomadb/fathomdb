@@ -11,7 +11,7 @@ content here. Those belong in `docs/`.
 
 Read these first — this is where the current release actually lives.
 
-- [`ROADMAP.md`](ROADMAP.md) — consolidated post-0.8.26 release candidates,
+- [`ROADMAP.md`](ROADMAP.md) — consolidated release candidates,
   review checkpoints, unscheduled backlog, and parked work
 - `plans/` release planning and execution. Contains:
   - `plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md` — current program

@@ -1,8 +1,5 @@
 # fathomdb
 
-> Documentation targets 0.8.28; publication is pending. Install routes apply
-> once matching artifacts are published.
-
 The Rust facade crate for **FathomDB** — a local-first, embedded retrieval engine for application
 and agent workloads, built on SQLite.
 

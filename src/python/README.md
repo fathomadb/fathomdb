@@ -1,8 +1,5 @@
 # FathomDB
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 Python SDK for **FathomDB** — a local-first, embedded retrieval engine for application and agent
 workloads, built on SQLite.
 
@@ -82,10 +79,17 @@ nothing.
 ## Erasing data
 
 Every canonical row carries a `source_id`, and that is deliberate: it is what makes the row
-erasable. `engine.erase_source(source_id)` removes every row written under that provenance together
+erasable. Under the default autonomous policy, `engine.erase_source(source_id)` removes every row written under that provenance together
 with its full-text, vector and secondary-index shadows, and finishes the erasure at rest.
 `engine.purge(logical_id)` does the same for a single governed record. Both are idempotent, so an
 interrupted erasure obligation can simply be retried.
+
+A store configured with `physical_erasure_policy="explicit_maintenance"`
+requires an exclusive maintenance window for physical erasure; direct
+erase/purge outside that window raises `MaintenanceError`. Queueing an erasure
+intent does not delete or hide records. Completion is certified by the
+maintenance result, while incomplete cleanup retains its durable fences. See
+the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/operations/erasure.md).
 
 ## Other SDKs
 

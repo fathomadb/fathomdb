@@ -1,6 +1,6 @@
 # Tegra Pages publication
 
-The 0.8.27 release delivers `fathomdb==0.8.27+tegra` and the matched-version
+The 0.8.28 release delivers `fathomdb==0.8.28+tegra` and the matched-version
 `fathomdb-linux-arm64-gnu-tegra` Node tarball through first-party GitHub Pages
 for classic Jetson Orin. The wheel is not published to PyPI and the tarball is
 not published to npm. This exact-commit procedure performs that publication
@@ -14,6 +14,10 @@ Every Pages deployment rebuilds the whole site, from both the docs deployer
 stays online only while `scripts/release/tegra-pages-retained.json` names it
 with its URL and SHA-256. Both deployers download every listed artifact,
 check its digest, and republish it.
+
+Keep the dispatch commit inclusive of freshly fetched current `main` through
+both site preparation and deployment. A later `main` commit outside that
+candidate makes the source-currency check refuse deployment.
 
 Before deploying, each runs
 `scripts/release/check-tegra-pages-retention-live.sh`. It reads the live
@@ -36,16 +40,19 @@ artifact, plus any the run added, from its public URL, checks each SHA-256,
 and checks that the index pages link each one.
 
 The list records previously published artifacts by exact URL and digest.
-After a publication, the script prints the new wheel and tarball entries; add
-them to the list before the next deployment. Do not add future artifacts to
+After live verification, append the new wheel and tarball entries with the
+actual run digests to the list on both `main` and the release branch before
+the next documentation deployment. The workflow already performs public
+installed-package smokes; running the operator helper after that dispatch would
+start another build and repeat those smokes. Do not add future artifacts to
 the retained list before their publication is verified.
 
 ## Publish
 
 Publication is deliberately manual: it requires an exact reviewed commit on
-`release/0.8.27`, then uses the dedicated Jetson workflow. Dispatch the
+`release/0.8.28`, then uses the dedicated Jetson workflow. Dispatch the
 workflow from an authenticated operator host with the exact remote branch
-head, `candidate_version=0.8.27` and `publish_to_pages=true`; its
+head, `candidate_version=0.8.28` and `publish_to_pages=true`; its
 `post-publish-smoke-jetson` job runs the installed public-artifact proof.
 Alternatively, from a clean checkout on the classic Jetson host with
 authenticated `gh`, the operator helper dispatches the same workflow and
@@ -53,8 +60,8 @@ repeats the public-artifact smokes locally:
 
 ```bash
 scripts/release/publish-tegra-pages.sh \
-  --candidate-version 0.8.27 \
-  --candidate-sha <remote-release-0.8.27-head>
+  --candidate-version 0.8.28 \
+  --candidate-sha <remote-release-0.8.28-head>
 ```
 
 The script refuses a SHA that is not the current remote release-branch head,
@@ -80,7 +87,7 @@ The site serves:
 ```text
 https://fathomadb.github.io/fathomdb/tegra/simple/
 https://fathomadb.github.io/fathomdb/tegra/node/
-https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.27.tgz
+https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.28.tgz
 ```
 
 The workflow's `post-publish-smoke-jetson` job runs two post-publication
@@ -88,7 +95,7 @@ smokes on the Jetson. The operator script also runs these smokes when invoked
 from the Jetson host:
 
 - the installed Pages-wheel forced-CUDA smoke;
-- a Node smoke that installs `fathomdb@0.8.27` from npm and the tarball from
+- a Node smoke that installs `fathomdb@0.8.28` from npm and the tarball from
   its Pages URL. It checks the downloaded tarball's SHA-256 against the
   Jetson build digest before installing. It then repeats forced-CUDA
   embedding with its GPU allocation witness, forced-CUDA reranking (checked
@@ -99,9 +106,9 @@ It reports completion only after both pass. `--skip-pages-smoke` records an
 INCOMPLETE publication check with a nonzero exit. A failed smoke also reports
 INCOMPLETE.
 
-## Pending 0.8.28 witness contract
+## Current allocation witness contract
 
-The pending 0.8.28 candidate uses
+The 0.8.28 artifacts use
 `fathomdb.tegra-gpu-allocation-witness/v2`. Its tagged `measurement` identifies
 which counter proves model allocation. On Tegra, `private_pool_used` requires
 an actual private pool, checked completion, at least 64 MiB of live model
@@ -118,8 +125,9 @@ proof. Container evidence includes `pid_namespace` to bind the process's local
 PID to the host PID reported by NVIDIA-SMI. Historical v1 records retain their
 original interpretation.
 
-These candidate checks prepare 0.8.28; the published 0.8.27 artifact URLs above
-remain the publication baseline until release authorization.
+The retained manifest records every verified published version by exact filename,
+URL and SHA-256. Keep earlier artifacts listed until an explicit withdrawal is
+authorized; a current documentation update does not withdraw package bytes.
 
 ## Troubleshoot
 

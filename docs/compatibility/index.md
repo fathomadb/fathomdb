@@ -1,8 +1,5 @@
 # Compatibility
 
-> Documentation targets 0.8.28; publication is pending. Install routes apply
-> once matching artifacts are published.
-
 Supported platforms, toolchains, and version-alignment policy for the
 **0.8.28** release.
 
@@ -50,7 +47,7 @@ and its higher ABI floor is therefore a distinct, checked publication
 contract.
 
 **Measured glibc floor (tegra): 2.35**, for the Jetson/Tegra CUDA Python
-wheel and, from 0.8.27, the `fathomdb-linux-arm64-gnu-tegra` Node addon.
+wheel and the `fathomdb-linux-arm64-gnu-tegra` Node addon.
 Both use the Tegra Pages distribution route; the table below covers the
 generic native packages. Each is built host-natively on a Jetson Orin against
 JetPack's
@@ -168,13 +165,9 @@ re-ingest through the public write surface.
 
 ## Performance posture
 
-The preceding 0.8.26 release acceptance is historical evidence. Its measurements are validation
-evidence for the tested workloads and machines, not a general latency SLA.
-The historical AC-020 scaling-ratio gate was explicitly retired and replaced
-by independent absolute sequential, concurrent, and reader-independence
-budgets; those successor checks passed. The final bounded AC-012 rerun also
-passed. The exact dispositions and retained measurements are recorded in the
-[0.8.26 release status](https://github.com/fathomadb/fathomdb/blob/main/dev/plans/runs/STATUS-0.8.26.md).
+Release qualification validates concrete workloads on named machines; it is
+not a general latency SLA. Current qualification and its limits are recorded
+in the [0.8.28 release status](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/plans/runs/STATUS-0.8.28.md).
 
 Clients evaluating FathomDB for performance-sensitive workloads should still
 measure on their own corpus and hardware rather than treating a release-gate

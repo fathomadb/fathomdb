@@ -1,8 +1,5 @@
 # FathomDB
 
-> Documentation targets 0.8.28; publication is pending. Exact-version install
-> commands apply once matching registry or Pages artifacts are published.
-
 FathomDB is an embedded retrieval and graph data system for applications and
 agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through

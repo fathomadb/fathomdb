@@ -1,7 +1,7 @@
 ---
 title: Actuation Subsystem Design
 date: 2026-09-15
-target_release: 0.8.26
+target_release: 0.8.28
 desc: Atomic caller-decided semantic batches, prospective validation, compact receipts, replay, and lifecycle effects
 blast_radius: fathomdb-engine actuation; Rust/Python/TypeScript bindings; schema-37 receipt tables
 status: ACTIVE

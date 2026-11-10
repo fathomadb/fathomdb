@@ -1,15 +1,15 @@
 ---
 title: CLI Public Interface
 date: 2026-09-14
-target_release: 0.8.27
-desc: Public CLI surface through 0.8.27 Slice 103
+target_release: 0.8.28
+desc: Current 0.8.28 operator CLI surface
 blast_radius: src/rust/crates/fathomdb-cli/src/lib.rs; design/recovery.md; design/errors.md
 status: locked
 ---
 
 # CLI Interface
 
-Public CLI surface for the 0.8.27 operator binary. The canonical verb table and
+Public CLI surface for the 0.8.28 operator binary. The canonical verb table and
 recovery semantics are owned by `design/recovery.md`; this file owns concrete
 flag spelling, root command paths, and exit-code classes.
 
@@ -501,7 +501,7 @@ typed report structs; the CLI serializes them under a `verb` discriminator.
   field spellings lives in the CLI serialization layer; the engine report
   structs are not renamed to satisfy CLI spelling requirements.
 
-## Data-plane integrity (0.8.25 Slice 55; immutable route in 0.8.26 Slice 30)
+## Data-plane integrity
 
 `fathomdb doctor data-plane-integrity --check <kind>... --max-work <1..10000>
 --max-findings <1..100> [--json] <db_path>` runs the four checks in canonical

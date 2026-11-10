@@ -5,7 +5,7 @@ status: COMPLETE
 
 # Slice 95 status
 
-**PREPUBLICATION COMPLETE. Publication authorized; routing preflight pending.**
+**PREPUBLICATION COMPLETE. Publication authorized; documentation updated.**
 Reviewed implementation
 `3741dfb8a3d85bced4bfac6047083cc7e30da314` is integrated into `origin/main`,
 `dev/0.8.28` and `release/0.8.28`. Astra design/code reviews and separate
@@ -73,18 +73,13 @@ or dependency update was identified in the bounded branch/transcript audit.
 
 ## Publication authorization, retained limits and cleanup
 
-The owner authorized publication on 2026-11-09 at steward ledger seq-366,
-after exact Windows task-directory cleanup. No tag, registry or Pages
-publication has started. Organization CLI access is now authorized, and all
-three local runners executed the real CI28 identity probe successfully. The
-unchanged tag pre-push guard still rejects `v0.8.28`: group3 lacks its exact
-release-workflow tag entry, and the protected CUDA environment lacks its tag
-deployment policy. Automatic approval review previously rejected that policy
-change without explicit permission to alter protection settings. Next: approve
-only those two exact entries, retain all reviewers/restrictions, verify the tag
-guard, and publish from a reviewed commit that permits push workflows. The
-concrete request is retained under CI28 evidence as
-`publication-route-proposal.json`; neither publication-policy change is applied.
+The owner authorized publication and the two exact protected-tag entries.
+Those entries are installed, existing reviewers/restrictions are preserved,
+and the normal tag routing guard passes. The first release attempt was stopped
+before package uploads for the owner's final documentation update. Maintained
+user, package, contributor and architecture documentation now targets 0.8.28;
+Markdown lint passes. Resume the unfinished publication jobs after landing
+this documentation-only checkpoint, reusing completed native builds.
 
 Publisher jobs being skipped does not show their
 publish/dry-run bodies executed. The original three local leaf dry-runs retain

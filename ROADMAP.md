@@ -5,16 +5,15 @@ the release plan of record.
 
 ## Deferred additions to admin.configure_runtime
 
-Recorded 2026-09-10. The agreed initial API scope is SQLite memory-statistics
-configuration: performance (`MEMSTATUS=0`) and diagnostics (`MEMSTATUS=1`),
-configured before SQLite initialization, with an application restart to change
-modes. No shared-runtime compatibility mode, connection-opening guard, ownership
-marker, or database-file access restriction is requested. The implementation
-must still demonstrate AC-020 recovery and preserve protected read/write results.
-This roadmap entry does not implement that API or mark its verification complete.
+The 0.8.28 API already provides SQLite memory-statistics configuration:
+performance (`MEMSTATUS=0`) and diagnostics (`MEMSTATUS=1`), selected before
+SQLite initialization, with an application restart to change modes. Its current
+contract is documented in [runtime configuration](docs/reference/config.md).
+This roadmap commissions no shared-runtime compatibility mode, connection-opening
+guard, ownership marker, or database-file access restriction.
 
-Only settings genuinely shared across the loaded runtime belong here. Defer the
-following candidates; none is required for the MEMSTATUS change:
+Only settings genuinely shared across the loaded runtime belong here. The
+following extensions remain deferred; none is required by the current API:
 
 1. **SQLite diagnostic-log routing.** Consider routing SQLite's runtime-wide
    error/warning callback into FathomDB's existing logging infrastructure. First

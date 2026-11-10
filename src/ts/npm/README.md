@@ -12,7 +12,7 @@ and `require`s the matching platform package, throwing a clear
 `UnsupportedPlatformError` when none is present — never a silent runtime
 segfault (R-REL-4f, `dev/design/0.8.18-slice-20-publish-pipeline.md`).
 
-## Packages for 0.8.27
+## Packages for 0.8.28
 
 - `linux-x64-gnu/` — `fathomdb-linux-x64-gnu`
 - `linux-arm64-gnu/` — `fathomdb-linux-arm64-gnu`
@@ -32,17 +32,17 @@ shares the generic package's `os`/`cpu`/`libc` tuple: listing it as an
 `optionalDependency` would install a Tegra-linked binary on every AArch64
 glibc host. `scripts/release/npm-inject-optional-deps.sh` refuses to inject
 it. It is built on the Jetson by `scripts/release/build-napi-cuda-tegra.sh`
-and, in 0.8.27, distributed only as an
+and distributed only as an
 exact-version tarball on the Tegra Pages site, never on the npm registry:
 
 ```text
 https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-<version>.tgz
 ```
 
-The 0.8.27 Pages publication route provides this tarball alongside its
+The 0.8.28 Pages publication route provides this tarball alongside its
 SHA-256. Check that published digest and install the same exact version as
 `fathomdb`; follow the
-[Jetson installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.27/docs/install/typescript.md#classic-jetson-orin-with-cuda).
+[Jetson installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/install/typescript.md#classic-jetson-orin-with-cuda).
 
 The loader selects it only when it is installed and the host is confirmed as a
 classic Jetson Orin. A version that differs from `fathomdb` fails with

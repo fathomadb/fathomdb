@@ -163,7 +163,11 @@ of `scripts/agent-verify.sh`.
 ### Historical new-crate bootstrap
 
 The application SDK's initial registry creation used a one-time API token.
-That bootstrap is complete; 0.8.28 uses its configured trusted publisher.
+The missing SDK trusted publisher caused the 0.8.28 API-token recovery. It is
+now configured for `fathomadb/fathomdb`, workflow `release.yml`, owner ID
+`315419477`, with no environment requirement, matching the release job. Live
+OIDC-only run42750034084 verified that identity and a fresh token exchange;
+all build and publication jobs were skipped. Subsequent SDK releases use OIDC.
 A future new crate still needs registry creation before trusted publishing can
 issue its first token. It must publish after its dependencies are available.
 

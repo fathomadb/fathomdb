@@ -497,6 +497,7 @@ run_tier_suite fast test-windows-wal-attribution-ci-job bash scripts/tests/test_
 # runner route. This static mutation suite retains its exact runner identity,
 # immutable candidate checkout, nonpublishing boundary, and package payload.
 run_tier_suite fast test-jetson-tegra-cuda-evidence-ci-job bash scripts/tests/test_jetson_tegra_cuda_evidence_ci_job.sh
+run_tier_suite fast test-jetson-tegra-label-oracle bash scripts/tests/test_jetson_tegra_label_oracle.sh
 run_tier_suite fast test-stage-tegra-pages-payload bash scripts/tests/test_stage_tegra_pages_payload.sh
 run_tier_suite fast test-tegra-pages-publisher-ci-job bash scripts/tests/test_tegra_pages_publisher_ci_job.sh
 run_tier_suite fast test-tegra-publication-operator-path bash scripts/tests/test_tegra_publication_operator_path.sh

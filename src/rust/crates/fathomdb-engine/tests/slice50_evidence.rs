@@ -295,6 +295,72 @@ fn evidence_sidecar_hook_belongs_to_its_engine() {
     assert_eq!(second_worker.join().unwrap().evidence[0].artifact_revision_id, "hook-b-r1");
 }
 
+#[test]
+fn evidence_resolver_hook_belongs_to_its_engine() {
+    let first_dir = TempDir::new().unwrap();
+    let second_dir = TempDir::new().unwrap();
+    let first = evidence_hook_engine(&first_dir, "resolve-a", "resolve-a-r1");
+    let second = evidence_hook_engine(&second_dir, "resolve-b", "resolve-b-r1");
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let first_frozen = freeze_stable(&first, &context);
+    let second_frozen = freeze_stable(&second, &context);
+    let first_ref =
+        first.search_with_evidence(&request("hookneedle", first_frozen.clone())).unwrap().evidence
+            [0]
+        .evidence_ref
+        .clone();
+    let second_ref = second
+        .search_with_evidence(&request("hookneedle", second_frozen.clone()))
+        .unwrap()
+        .evidence[0]
+        .evidence_ref
+        .clone();
+    let first_request = EvidenceResolveRequestV1 {
+        schema_version: 1,
+        evidence_ref: first_ref,
+        context: first_frozen,
+    };
+    let second_request = EvidenceResolveRequestV1 {
+        schema_version: 1,
+        evidence_ref: second_ref,
+        context: second_frozen,
+    };
+    let (fired_tx, fired) = mpsc::channel();
+    arm_evidence_before_resolve_return_hook_for_test(
+        &first,
+        Box::new(move || {
+            fired_tx.send(()).unwrap();
+        }),
+    );
+    let unrelated = second.resolve_evidence(&second_request).unwrap();
+    let stolen = fired.try_recv().is_ok();
+    let owned = first.resolve_evidence(&first_request).unwrap();
+    let owner_fired = fired.recv_timeout(Duration::from_millis(100)).is_ok();
+    assert_eq!(unrelated.artifact_revision_id, "resolve-b-r1");
+    assert_eq!(owned.artifact_revision_id, "resolve-a-r1");
+    assert_eq!(owned.canonical_source_body, "hookneedle");
+    assert!(!stolen, "an unrelated engine consumed the owner's resolver hook");
+    assert!(owner_fired, "the armed engine must reach its own resolver hook");
+    first.resolve_evidence(&first_request).unwrap();
+    assert!(fired.try_recv().is_err(), "the resolver hook fires only once");
+
+    let (first_pause, first_hook) = evidence_hook_pause();
+    let (second_pause, second_hook) = evidence_hook_pause();
+    arm_evidence_before_resolve_return_hook_for_test(&first, first_hook);
+    arm_evidence_before_resolve_return_hook_for_test(&second, second_hook);
+    let first_worker =
+        EvidenceHookWorker::spawn(&first_pause, move || first.resolve_evidence(&first_request));
+    let second_worker =
+        EvidenceHookWorker::spawn(&second_pause, move || second.resolve_evidence(&second_request));
+    first_pause.wait_ready();
+    second_pause.wait_ready();
+    first_pause.release();
+    assert_eq!(first_worker.join().unwrap().artifact_revision_id, "resolve-a-r1");
+    assert!(!second_worker.is_finished(), "the other engine's pause is still owned");
+    second_pause.release();
+    assert_eq!(second_worker.join().unwrap().artifact_revision_id, "resolve-b-r1");
+}
+
 fn assert_unavailable(error: EngineError) {
     assert!(
         matches!(
@@ -1801,17 +1867,11 @@ fn evidence_linearizes_at_sidecar_and_resolver_return_seams() {
 
     let equivalent = freeze_stable(&engine, &context);
     let evidence_ref = search.evidence[0].evidence_ref.clone();
-    let ready = Arc::new(Barrier::new(2));
-    let release = Arc::new(Barrier::new(2));
-    let hook_ready = Arc::clone(&ready);
-    let hook_release = Arc::clone(&release);
-    arm_evidence_before_resolve_return_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    let (resolver_pause, resolver_hook) = evidence_hook_pause();
+    arm_evidence_before_resolve_return_hook_for_test(&engine, resolver_hook);
     let resolve_worker = {
         let engine = Arc::clone(&engine);
-        thread::spawn(move || {
+        EvidenceHookWorker::spawn(&resolver_pause, move || {
             engine.resolve_evidence(&EvidenceResolveRequestV1 {
                 schema_version: 1,
                 evidence_ref,
@@ -1819,7 +1879,7 @@ fn evidence_linearizes_at_sidecar_and_resolver_return_seams() {
             })
         })
     };
-    ready.wait();
+    resolver_pause.wait_ready();
     let external = rusqlite::Connection::open(&path).unwrap();
     external
         .execute(
@@ -1829,8 +1889,8 @@ fn evidence_linearizes_at_sidecar_and_resolver_return_seams() {
         )
         .unwrap();
     drop(external);
-    release.wait();
-    let resolved = resolve_worker.join().unwrap().unwrap();
+    resolver_pause.release();
+    let resolved = resolve_worker.join().unwrap();
     assert_eq!(resolved.canonical_source_body, source_body);
     assert_eq!(resolved.evidence_text, source_body);
 }

@@ -277,7 +277,7 @@ impl Engine {
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let result = evidence::resolve(&tx, request)?;
         #[cfg(any(test, feature = "test-hooks"))]
-        evidence_linearization_hooks::fire_before_resolve_return();
+        self.evidence_before_resolve_return_hook.fire();
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
@@ -1503,8 +1503,6 @@ use crate::snippet::SnippetOptions;
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::ReadView;
-#[cfg(any(test, feature = "test-hooks"))]
-use crate::test_hooks::evidence_linearization_hooks;
 use crate::Engine;
 use fathomdb_query::compile_text_query_with;
 use std::sync::atomic::Ordering;

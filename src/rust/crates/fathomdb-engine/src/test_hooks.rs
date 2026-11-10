@@ -642,39 +642,11 @@ pub fn arm_page_after_validation_hook_for_test(engine: &crate::Engine, hook: Box
     frozen_after_validation_hook::arm(engine, hook);
 }
 
-// Slice 50 one-shot rendezvous for the exact evidence transaction seams. Both
-// hooks are dormant on production paths and fire only when explicitly armed by
-// an integration test.
+// Engine ownership prevents parallel evidence controls from consuming another
+// database's rendezvous. These hooks are absent from production builds.
 #[cfg(any(test, feature = "test-hooks"))]
 pub(crate) mod evidence_linearization_hooks {
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
-
-    struct OneShotHook {
-        armed: AtomicBool,
-        hook: Mutex<Option<Box<dyn Fn() + Send>>>,
-    }
-
-    impl OneShotHook {
-        const fn new() -> Self {
-            Self { armed: AtomicBool::new(false), hook: Mutex::new(None) }
-        }
-
-        fn arm(&self, hook: Box<dyn Fn() + Send>) {
-            *self.hook.lock().expect("evidence linearization hook mutex") = Some(hook);
-            self.armed.store(true, Ordering::SeqCst);
-        }
-
-        fn fire(&self) {
-            if !self.armed.swap(false, Ordering::SeqCst) {
-                return;
-            }
-            if let Some(hook) = self.hook.lock().expect("evidence linearization hook mutex").take()
-            {
-                hook();
-            }
-        }
-    }
 
     #[derive(Default)]
     pub(crate) struct OwnedHook {
@@ -694,16 +666,6 @@ pub(crate) mod evidence_linearization_hooks {
                 hook();
             }
         }
-    }
-
-    static BEFORE_RESOLVE_RETURN: OneShotHook = OneShotHook::new();
-
-    pub(crate) fn arm_before_resolve_return(hook: Box<dyn Fn() + Send>) {
-        BEFORE_RESOLVE_RETURN.arm(hook);
-    }
-
-    pub(crate) fn fire_before_resolve_return() {
-        BEFORE_RESOLVE_RETURN.fire();
     }
 }
 
@@ -725,14 +687,22 @@ pub fn arm_evidence_before_sidecar_hook_for_test(
     engine.evidence_before_sidecar_hook.arm(hook);
 }
 
-/// Arm the Slice-50 post-resolution, pre-return rendezvous for one evidence read.
+/// Arm the post-resolution, pre-return rendezvous on `engine` only.
+///
+/// The next evidence resolution on this engine invokes `hook` once in its
+/// transaction, without holding the hook mutex. Other engines cannot consume it.
+/// The callback is dropped if the engine is dropped before it is invoked.
+///
+/// # Panics
+///
+/// Panics if this engine already has an armed resolver hook.
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub fn arm_evidence_before_resolve_return_hook_for_test(
-    _engine: &crate::Engine,
+    engine: &crate::Engine,
     hook: Box<dyn Fn() + Send>,
 ) {
-    evidence_linearization_hooks::arm_before_resolve_return(hook);
+    engine.evidence_before_resolve_return_hook.arm(hook);
 }
 
 #[cfg(feature = "test-hooks")]

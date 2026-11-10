@@ -1069,6 +1069,8 @@ impl Engine {
                         graph_expand_rss_delta_bytes: AtomicU64::new(0),
                         #[cfg(any(test, feature = "test-hooks"))]
                         evidence_before_sidecar_hook: Arc::default(),
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        evidence_before_resolve_return_hook: Default::default(),
                         #[cfg(feature = "test-hooks")]
                         graph_evidence_before_resolve_return_hook: Mutex::new(None),
                         #[cfg(feature = "test-hooks")]

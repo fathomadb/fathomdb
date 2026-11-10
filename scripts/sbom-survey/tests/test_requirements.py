@@ -39,3 +39,9 @@ def test_malformed_hash_cli_exits_three_naming_manifest(tmp_path):
     result = run_cli(['--repo', str(tmp_path), '--offline', '--tiers', str(tier_file), '--out', str(tmp_path / 'out')], 'malformed-hashes', 'exit3 for malformed exporter hash')
     assert result.returncode == 3, result.stderr
     assert 'export-requirements.txt' in result.stderr
+
+
+def test_hash_word_in_a_valid_marker_is_plain_requirement_text():
+    parser = require('sbom_survey.parse.python', 'plain-marker', 'preserve valid PEP508 marker text')
+    pairs = parser.parse_requirements('requirements.txt', 'certifi==2026.7.22; platform_release == "--hash"')
+    assert [(d.name, pin) for d, pin in pairs] == [('certifi', '2026.7.22')]

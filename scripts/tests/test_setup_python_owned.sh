@@ -69,5 +69,11 @@ case "${1:-bootstrap}" in
   grep -Fq 'python|-m|maturin|build|' "$S10_CALLS" || { echo 'FAIL stale timestamp incorrectly skipped candidate wheel build' >&2; exit 1; }
   echo 'PASS stale timestamp cannot authorize native reuse'
   ;;
- *) echo 'unknown setup fixture case'  >&2; exit 2 ;;
+ missing)
+  /usr/bin/python3 -c 'import shutil,sys; shutil.rmtree(sys.argv[1])' "$fixture/.venv"
+  if (cd "$fixture"; bash "$root/scripts/agent-build.sh"); then echo 'FAIL missing environment accepted' >&2; exit 1; fi
+  if [ -e "$S10_CALLS" ] && grep -Fq 'cargo|' "$S10_CALLS"; then echo 'FAIL missing owned environment reached Cargo workload' >&2; exit 1; fi
+  echo 'PASS missing owned environment stops before Cargo'
+  ;;
+ *) echo 'unknown setup fixture case'   >&2; exit 2 ;;
 esac

@@ -2,7 +2,8 @@
 
 These are release-local criteria, not additions to locked `dev/acceptance.md`.
 They refine [O3-06](../../prework/slice-3/acceptance.md). Source inspections are
-not passing test receipts. All20 criteria are currently unexecuted. Completed10
+not passing test receipts. The table defines exit criteria; current partial evidence is in
+[execution](execution.md), with no whole20 PASS. Completed10
 at104dcbc and parent closure d7d928 supply predecessor preparation evidence only;
 its local PASS/assembled qualification and214 registrations do not satisfy20 or
 Windows evidence. No20 test may borrow that environment.
@@ -26,8 +27,8 @@ Source-entry acceptance prerequisite: actual integrated10 has been reread and
 its material changes reflected here; parent-controlled updated design review,
 selected20 base ancestry and strict dependency/worktree preflight must pass,
 then20 establishes its own source-bound helper/feature/native/tool/resource
-identity and awaits GO. No source work or product checks
-occur in this PhaseA. The coverage exception/defer question is unanswered;
+identity before source work. Actual source GO, entry checks and partial runtime
+evidence are recorded in execution.md; original PhaseA had no product checks. The coverage exception/defer question is unanswered;
 reviewer PASS cannot waive it.
 
 Current policy status: A3/A5 additions are held under unruled state item

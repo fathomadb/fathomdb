@@ -1,6 +1,6 @@
 ---
 title: "Slice 20 — dependable queue and parallel-test evidence"
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.29
 slice: 20
 ---
@@ -15,20 +15,18 @@ updated design, independent Astra-medium adversarial design PASS, same-owner
 TDD implementation in a fresh isolated source worktree, fresh independent
 Astra-medium code review. No Steward/Orchestrator role or nested agent.
 
-This is PhaseA research/design only. Initial queue/test source witness was
-52a85c38c/product6edc1155f; actual completed10 is now
-104dcbcbe92a1eca730d146b99ab17d444df6217, independently Astra-medium PASS and
-integrated/closed by parent metadata d7d928f8e49d7af6a792385534f4e991c13232b3.
-The clean parent checkout is `/mnt/data/worktrees/fathomdb-0.8.29`, branch
-`llm/0.8.29-chat`; local release/0.8.29 has the same closure tip. Completed9,
-current10 source/docs/18-pair evidence,214-suite registry and actual JSON/board
-were reread.10 is COMPLETE_ON_RELEASE_BRANCH;20 is NOT_STARTED/next20.
+The updated design passed independent Astra-medium review; parent source GO
+covers genuine reproduced repairs only. Sole-writer source checkout is
+`/mnt/data/worktrees/fathomdb-0.8.29-s20-test-hygiene`, branch
+`llm/0.8.29-s20-test-hygiene`, entry base02e30d861beddc8061af0dc22f12106d5e09dd32.
+Actual10 source104dcbc and parent closure d7d928 are ancestral. The02e30d delta
+contains reviewed documentation/state only. Own entry strict closed10/32GiB
+preflight passed with zero warnings, then owned tool/native setup completed.
+[Execution](execution.md) owns actual RED/GREEN, resources, limits and receipts.
 
-This reconciliation replaces the earlier98fc candidate's pending10 design input.
-No20 source checkout exists yet. Only these six scratch candidates are updated;
-no source/tests/setup/Git/ledger mutations or product executions occur. Parent
-commissions the updated Astra design recheck and creates a fresh20 source
-worktree after strict closed10 preflight; source implementation waits for GO.
+This source phase never writes the frozen parent/release state, boards, ledgers
+or other checkouts. A3/A5 policy remains unanswered; no exception or defer is
+inferred, and20 cannot close or clear30/Block1 dependencies by repair-subset PASS.
 
 Preserve format37/no database migration, current queue defaults/fields and
 wait/run/cancel/permit policy, existing source-proof oracles, query property
@@ -147,8 +145,8 @@ Keep the original hypotheses and source oracles; don't repeat10's fixed child-
 import/ownership/validator repairs. Fresh resource measurement must account for
 source now on /mnt/data; historical10 floors/peaks do not reserve20 capacity.
 
-Updated design is ready for parent-controlled Astra recheck. The real-defect
-repair subset remains authorized subject to genuine per-finding RED/GREEN,
-reviewed design, fresh worktree/preflight and GO. A3/A5 additions remain held:
+Parent-controlled updated Astra design PASS and source GO cover the real-defect
+repair subset after actual own entry checks, now recorded in execution.md.
+Every independent repair still requires genuine per-finding RED/GREEN. A3/A5 additions remain held:
 owner has answered neither alternativeA norB. Reviewer PASS cannot choose the
 policy or close20 without actual disposition/proof.

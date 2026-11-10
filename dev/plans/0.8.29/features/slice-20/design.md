@@ -1,9 +1,9 @@
 # Slice 20 design
 
-## Existing substrate and exact delta
+## Reviewed baseline and exact delta
 
 [Queue admission](../../../../design/agent-access/queue-admission.md) test23
-explicitly records the uncovered Ready→pre-enqueue race. Current `Registry`
+explicitly records the uncovered Ready→pre-enqueue race. The reviewed `Registry`
 captures `Next::Admit { load, epoch, changed }` under its mutex, unlocks, and
 calls `admit`. Free permits bypass `QueueTicket`; queued calls increment before
 `after_arrival_check`. After a permit, `admit` rechecks shutdown, phase and epoch;
@@ -16,7 +16,7 @@ Delta: test-only observation of the existing gap and of stale rejection/engine
 entry. Preserve runtime branches and error/deadline semantics unless a genuine
 behavior failure is reproduced. No reader cancellation or retry estimate.
 
-Engine `evidence_linearization_hooks` has two global `OneShotHook` values;
+At the reviewed baseline, engine `evidence_linearization_hooks` has two global `OneShotHook` values;
 `arm` overwrites the singleton, any engine can consume it, and `fire` currently
 invokes the closure while its mutex guard may remain alive. The graph-evidence
 resolver already has an engine-owned hook; frozen-validation and reader-search

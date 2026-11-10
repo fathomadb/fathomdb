@@ -116,3 +116,16 @@ and conditional suite registrations:207fast+7heavy=214. Parent-owned explicit-
 six-file Markdown CLI0.23.3 exited0 with zero issues. No source/product tests,
 builds, setup, repo/Git/ledger mutation or20 implementation occurred. This is
 updated-design readiness for independent Astra review, not its verdict or GO.
+
+## Source-phase checkpoint
+
+[Execution](execution.md) joins exact RED/GREEN commits and completed checks to
+T20-1/2/3/6/7. T20-3 now executes the two planned ownership regressions and all29
+evidence cases with original assertions. Existing public feature-boundary consumer
+check passes; T20-6 admission25/lifecycle18 passes with bounded Tokio workers.
+T20-4/5 and T20-8 additions remain policy-held; T20-9 actual Windows remains
+resource-held. Two checked CPU release configurations show no old warning; no
+CUDA warning-build qualification is claimed. Final full/native qualification is
+recorded by actual frozen-source receipts, not by reinterpreting these scoped
+passes as whole20 green. Capacity proposal/review outside this tree is not code
+permission and cannot mutate the frozen source during its gate.

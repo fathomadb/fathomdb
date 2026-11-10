@@ -28,7 +28,7 @@ Historical rows read only through `dev/agent-tools/ledgerwatch/ledgerwatch.py`
 with --dry-run and /tmp state path. IDs abbreviated below retain their actual
 stable identities; no ledger closure/retarget was written.
 
-| Carryover / history | Current source witness | Proposed disposition and remaining proof |
+| Carryover / history | Reviewed baseline source witness | Proposed disposition and remaining proof |
 | --- | --- | --- |
 | TC-cbff7211, seq309; TC57 RuntimeConfiguration(TooLate), Slice135 global FD count | TC57 `wal_pair` calls configure_test_runtime before raw opens; both engine arms use actual worker/embed non-vacuity. .28 Slice42 changed persistent-full FD observation to owned paths. Slice40 create_versioned_sqlite also configures first; raw WAL child is a separate executable. | Split subcases. Preserve .28 FD repair. TC57 currently unreproduced; intact parallel/isolated selectors precede edits. Do not infer remaining runtime poison from historical title. |
 | TC-7a7bf5b0, seq290; evidence parallel failure2/15 historically | `test_hooks.rs::evidence_linearization_hooks` BEFORE_SIDECAR/BEFORE_RESOLVE_RETURN are global Options; arm overwrite and cross-engine fire possible. Existing `evidence_linearizes_at_sidecar_and_resolver_return_seams` uses both. `evidence_search_races_are_snapshot_atomic_or_wholly_refused` can traverse sidecar without arming it. | Deterministic A-arm/B-first and dual-arm controls can test theft/overwrite. Needs current real RED before engine-owned repair. Graph resolver already engine-owned; retain it. |
@@ -100,3 +100,15 @@ Parent root moved to /mnt/data/worktrees/fathomdb-0.8.29 and owns Markdown0.23.3
 Its document tool may validate these scratch candidates; source10 tools/env are
 not reusable.20 resource ownership/measurements remain to establish, accounting
 for actual filesystem co-location rather than reusing10 capacity readings.
+
+## Source-phase receiving evidence
+
+[Execution](execution.md) records actual two-pair RED/GREEN repair, independent
+sidecar RED audit, complete29-test ordinary-parallel evidence target, TC57
+parallel/serial controls, Slice40, default/dev/release public test-hook boundary
+and MCP admission/lifecycle controls. Both checked CPU non-test release warning
+configurations pass without diagnostic; old exact warning configuration remains
+unknown. Baseline global-hook rows above are pre-implementation evidence; current
+sidecar/resolver hooks are engine-owned. No current Windows proof or held A3/A5
+addition follows. Actual final source/full/native receipts remain external and
+source-bound; qualification is never inferred from this original inventory.

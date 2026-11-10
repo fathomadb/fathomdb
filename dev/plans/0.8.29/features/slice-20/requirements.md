@@ -51,3 +51,10 @@ partition evidence or call missing/zero-selector checks product passes.
 Independent design review may accept genuine repair scope without waiving the
 explicit owner-held race23/T2 coverage choice. A3/A5 remain pending either an
 actual exception answer plus implementation/proof, or explicit defer disposition.
+
+Source phase uses the actual design PASS/source GO and owned entry evidence in
+[execution](execution.md). Parent-owned release controls remain frozen. Only
+actual demonstrated repairs are implemented; original R1/R4 hypotheses that did
+not reproduce are recorded rather than forced into code changes. R3/R5 new
+coverage policy and R6 actual Windows evidence remain explicit holds, unaffected
+by repair-subset scoped/full/native qualification.

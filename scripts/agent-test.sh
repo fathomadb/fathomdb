@@ -558,6 +558,7 @@ run_tier_suite fast test-ci-skip-message-warning bash scripts/tests/test_ci_skip
 run_tier_suite fast test-ci-long-job-efficiency bash scripts/tests/test_ci_long_job_efficiency.sh
 run_tier_suite fast test-bootstrap-heavy bash scripts/tests/test_bootstrap_heavy.sh
 run_tier_suite fast test-bootstrap-venv-ownership bash scripts/tests/test_bootstrap_ownership_order.sh venv
+run_tier_suite fast test-bootstrap-module-ownership bash scripts/tests/test_bootstrap_ownership_order.sh modules
 run_tier_suite fast test-owned-python-bootstrap bash scripts/tests/test_setup_python_owned.sh bootstrap
 run_tier_suite fast test-owned-python-stale bash scripts/tests/test_setup_python_owned.sh stale
 run_tier_suite fast test-owned-python-missing bash scripts/tests/test_setup_python_owned.sh missing

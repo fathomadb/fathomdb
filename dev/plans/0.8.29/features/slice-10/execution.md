@@ -148,3 +148,21 @@ Raw failed run and resource receipt remain task logs/full-agent-verify.log and
 receipts/full-agent-verify.json. Remaining qualification resumes through affected
 lint, typecheck, unchanged strict security and all tests; any resulting evidence
 is assembled/resumed, never an uninterrupted full-gate pass.
+
+## Resumed gate checkpoint
+
+On clean8d20a8c0356651408eda68d22ca7cf6886006725, canonical agent-lint,
+agent-typecheck and STRICT=1 AC037_LIVE_OPTIONAL=1 agent-security exited0,
+as demonstrated by the serial set-e shell entering agent-test afterward.
+Raw task logs/resumed-source-gate.log includes all lint/typecheck steps and
+security0violations/0blockers/0downgrades, including real ptrace and live-netns
+negative controls. Declared platform/ESLint skips remain explicit.
+
+The operational monitor then failed when du raced a removed temporary security
+fixture directory. Its original test child was stopped via verified own cwd,
+command and process group30287; no gate exit was inferred from monitor failure.
+This test attempt is incomplete. Its existing platform-truth assertion exposed
+dev/platform-capabilities.json still naming0.8.27 despite published0.8.28.
+Only that metadata is corrected; platform list/status and the human oracle stay
+unchanged. The failed/incomplete test suite is rerun under repaired supervision;
+no second full wrapper or uninterrupted full-green claim follows.

@@ -31,8 +31,8 @@ was added or rewritten. Integration remains `dev/0.8.29` in its own checkout.
 |4 | [Alignment](prework/slice-4/alignment-matrix.md), [findings](prework/slice-4/review.md) | Five selected paths source-reviewed; no exhaustive call graph/platform proof. |
 |5 | [Actual oracles](prework/slice-5/traceability.md), [gaps](prework/slice-5/findings.md) | Selected complete tests inspected, not executed; remaining native/selector/fault audit scope explicit. |
 |6 | [Evidence](prework/slice-6/evidence-register.md), [corrections](prework/slice-6/correction-register.md) | Proposal complete with two Astra-medium PASS gates; three audiences, two directly read chats and14 correction rows. No example execution or complete docs audit. |
-|7 | [Delays](prework/slice-7/delay-register.md), [checks](prework/slice-7/test-mapping.md) | Existing fixed .28 controls retained; .29 first-tag route needs decision; current access/peak cost unmeasured. |
-|8 | [Reserved plan](prework/slice-8/plan.md) | Still unassigned; no hidden work. |
+|7 | [Delays](prework/slice-7/delay-register.md), [checks](prework/slice-7/test-mapping.md) | Proposal complete with two Astra-medium PASS gates; approved narrow .29 route and owned-setup test mapping corrected. Current access/peak cost unmeasured. |
+|8 | [Reserved plan](prework/slice-8/plan.md) | Reservation complete with two Astra-medium PASS gates; still unassigned, no hidden work. |
 
 Each slice also has local requirements/design/acceptance mapping. Independent
 package review and scoped validation are separate from these research findings.

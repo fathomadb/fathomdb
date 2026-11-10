@@ -75,12 +75,17 @@ or dependency update was identified in the bounded branch/transcript audit.
 
 The owner authorized publication on 2026-11-09 at steward ledger seq-366,
 after exact Windows task-directory cleanup. No tag, registry or Pages
-publication has started. The required pre-push guard cannot read GPU runner
-group3 with the current CLI scopes (HTTP403). The protected CUDA environment
-also lacks the exact `v0.8.28` tag policy. Automatic approval review rejected
-adding that policy without explicit permission to modify protection settings.
-Next: obtain that narrow approval and runner-group access, preserve required
-reviewers, verify both tag routes, then push the annotated tag once.
+publication has started. Organization CLI access is now authorized, and all
+three local runners executed the real CI28 identity probe successfully. The
+unchanged tag pre-push guard still rejects `v0.8.28`: group3 lacks its exact
+release-workflow tag entry, and the protected CUDA environment lacks its tag
+deployment policy. Automatic approval review previously rejected that policy
+change without explicit permission to alter protection settings. Next: approve
+only those two exact entries, retain all reviewers/restrictions, verify the tag
+guard, and publish from a reviewed commit that permits push workflows. The
+concrete request is retained under CI28 evidence as
+`publication-route-proposal.json`; neither publication-policy change is applied.
+
 Publisher jobs being skipped does not show their
 publish/dry-run bodies executed. The original three local leaf dry-runs retain
 their unchanged-input scope. Registry-installed end-to-end smoke follows actual
@@ -110,10 +115,11 @@ unchanged. The VM was off after cleanup; the old task qcow2 remains absent. Rece
 `target/slice95-final-format37/approved-ci/ci26-windows-cleanup/verification.json`.
 The earlier deletion rejection is resolved by seq-366 and is historical.
 
-A fresh private local GPU executor is prepared under
+CI26 prepared a fresh private local GPU executor under
 `/mnt/data/tmp2/fathomdb-s95-publish-gpu-20261109`, with public runner bits and
-private Rust/tool caches. It is unregistered and has no listener; standing
-services, driver580 and primary CUDA12.6 are unchanged. Preparation receipt:
+private Rust/tool caches. At that stage it was unregistered with no listener;
+preparation changed no standing services, driver580 or primary CUDA12.6. CI28
+below activates this installation as the restored standing runner. Receipt:
 `target/slice95-final-format37/approved-ci/ci26-gpu-preparation/preparation.json`.
 
 ## Self-hosted runner readiness follow-up
@@ -138,11 +144,11 @@ job129494925358 on runner31/`MEMEX-AFE8V4I00` and Jetson job129494925495 on
 runner22/`ubuntu`, both SUCCESS. Tegra toolchains/CUDA/pinned model caches and
 disk space were checked. The CUDA job129494925601 had no assigned runner and
 was cancelled; the overall run is CANCELLED, not a three-platform pass. The
-original organization CUDA runner6 in restricted group3 has a deleted
+original organization CUDA runner6 in restricted group3 then had a deleted
 registration; its endless restart loop was stopped without changing its unit,
 driver580, primary CUDA12.6 or Coral service. Organization runner/group APIs
-return403 with current CLI scopes. Restore that original registration and
-verify group/workflow eligibility with authorized organization access; no
+returned403 with the then-current CLI scopes. CI28 below resolves restoration
+and proves group3 job delivery with authorized organization access; no
 repository-runner replacement or protection-policy bypass was used.
 
 The manual/main-only identity probe has empty permissions, fixed labels and
@@ -157,3 +163,32 @@ cancelled and10 skipped. No rerun or full CI-green claim is made.
 The owned implementation worktree/branch was removed after preserving ten
 evidence files with equal hashes. Evidence root:
 `target/slice95-final-format37/approved-ci/ci27-runner-readiness/`.
+
+## GPU restoration and publication preflight
+
+The owner completed organization authorization and requested restoration in the
+existing restricted group. The same organization/name was registered as
+runner168 in group3. The existing enabled user service now runs the prepared
+2.338.2 installation at `/mnt/data/tmp2/fathomdb-s95-publish-gpu-20261109`,
+with private Cargo/Rust/tool caches. **This is the active standing installation;
+retain it.** The old installation is preserved for rollback. Astra approved
+the bounded unit changes: installation paths/environment and
+`Restart=on-failure`, preventing the demonstrated terminal-registration
+restart storm while the official wrapper handles retryable/update exits.
+Driver580, primary CUDA12.6 and the Coral service remain unchanged.
+
+Actual run42726255745 at
+`a3a364d99d83eba5f5d4f84ab3f4e70b4ab1fdaf` is **SUCCESS**: GPU168 on
+`windchill3`, Windows31 on `MEMEX-AFE8V4I00`, and Jetson22 on `ubuntu` all
+executed identity jobs successfully. Only the exact main-only probe workflow
+was temporarily added to group3 for this proof; it was removed afterward.
+Independent verification confirms the entire original group policy is
+restored exactly. All three runners remain running. This proves identity and
+job delivery; no inference, package build or publication is claimed.
+
+Local pre-tag metadata/Axis-W/main-ancestry checks exit0. The unchanged
+protected tag route exits1 for the missing exact group entry. Primary PyPI,
+npm and crates.io version endpoints and GitHub Release return404 for0.8.28.
+Publication remains unstarted pending the explicit two-entry policy approval.
+Evidence and independent verification:
+`target/slice95-final-format37/approved-ci/ci28-gpu-restoration/`.

@@ -1,139 +1,118 @@
 ---
-title: "0.8.29 Slice 10 — decision-bound release preparation"
-status: PROPOSED
+title: "0.8.29 Slice 10 — approved release preparation"
+status: ACTIVE
 target_release: 0.8.29
 slice: 10
 ---
 
-# Slice 10 — decision-bound release preparation
+# Slice 10 — approved release preparation
 
-Database boundary, owner `seq-368`: .29 requires no database migration. Use the
-existing format37 substrate and stored span/visibility data. See the
-[release baseline](../../../plan-0.8.29.md#baseline-and-workspace); a design
-requiring a storage-format change returns for explicit scope review.
+## Approved design and current phase
 
-## Goal, maturity and authority
+Independent Astra-medium design review passed after FIX1 corrected worktree
+creation ownership. See [review log](review-log.md). Parent bootstraps reviewed
+metadata before creating the isolated source worktree; the same Sol-high owner
+implements there after strict preflight. Preparation remains open. Dated PhaseA
+statements below are inspection history, not current setup/qualification claims.
 
-Prepare only the workspace, tools, release metadata and bounded dependency/docs/CI
-changes actually selected by Slice 9 after independent plan review and final HITL.
-This draft grants no implementation authority. The [brief](../../planning-brief.md)
-and [proposal register](../../proposal-register.md) control scope. November 10
-Slice9 batches1/2 approved the bounded subset now specified in
-[requirements](requirements.md), [design](design.md) and
-[preparation tasks](preparation-tasks.md). Independent bounded review passed after3 FIX cycles;
-final owner acceptance and implementation go-ahead remain pending. The original
-drafting observations and unselected recommendations below are not current
-approval or environment-readiness claims.
-Do not create environments, switch branches, activate state, install, clean up,
-change code/contracts, dispatch workflows, append ledgers or publish while drafting.
+## Mandate and phase history
 
-The [evidence register](../../planning-evidence.md) reports integrated .28 at
-`6edc1155f`, format 37, W=0.8.28/E=0.8.0, and no live .29 state/board. Existing
-MCP/queue/Block 1 and B2-2/3 plus partial B2-6 remain source baseline facts.
-Node 26.8.2/npm 12.0.2 differ from Node 25/npm 11.12.1 contracts; owned venv and TS
-modules are absent, root modules are shared by symlink, and 18GiB/98% disk is a
-dated observation requiring refresh. No setup or product test was run for this draft.
+Implement the bounded preparation already approved in Slice9 batches1/2 through
+[direct execution](../../direct-execution.md): independent Astra-medium plan
+PASS, same Sol-high owner's isolated implementation with observed RED→GREEN,
+then fresh Astra-medium implementation review. No generic final-permission wait
+is added. Specific outstanding artifact/fault/venue/spend/publication choices
+remain attached to their owning items; they do not block this preparation.
+This candidate is PhaseA design only: no setup, source changes or activation ran.
 
-## Inspected preparation sources
+[Requirements](requirements.md), [design](design.md),
+[tasks](preparation-tasks.md), [test mapping](test-mapping.md),
+[preparation register](preparation-register.md), [resources](resources.md) and
+[bootstrap proposal](bootstrap-proposal.md) are the complete reviewed contract.
+Actual0–8 proposal outputs/reviews and final9 decisions were reread at
+final9 commit e76031ae422e56b9aead73042dedc6190a96d0ae before PLAN_READY. No predecessor proposal PASS establishes runtime
+qualification. Reviewed4/5 clarify existing crash, native and route evidence;
+none expands preparation into downstream features.
 
-Read [Slice 0](../../prework/slice-0/plan.md), [Slice 1](../../prework/slice-1/plan.md)
-and the Slice 7 scratch draft; Slice 9's plan/rulings were unavailable at drafting.
-Read [preflight](../../../../../scripts/preflight.sh), [release discovery](../../../../../scripts/release-current.py),
-[state renderer/checker](../../../../../scripts/check-release-state-views.sh), [version owner](../../../../../scripts/set-version.sh),
-[root npm](../../../../../package.json), [TS manifest](../../../../../src/ts/package.json), [bootstrap install sites](../../../../../scripts/bootstrap.sh),
-[bindings build contract](../../../../design/bindings.md), [release routing design](../../../../design/release.md) and
-[CUDA tag guard](../../../../../scripts/release/check-tag-cuda-route.sh).
-Memory index and verified `agent-worktree-stale-base-trap.md`, `session-must-enter-own-worktree.md`, `disk-cleanup-check-live-scratch.md` and
-`full-gate-run-frequency.md` inform ownership, preservation and verification cost.
+## Fixed boundaries and release ancestry
 
-## Slice preparation: local needs, requirements and acceptance
+Use the current integrated product baseline6edc1155f039f87cd0a37660cb27ae4373bbce71
+and completed.28 ancestry, plus actual subsequent planning/decision commits.
+Derive actual HEAD/branch/refs before each transition. Source implementation gets
+a fresh isolated `llm/` worktree; this parent planning checkout imports only the
+minimal reviewed metadata bootstrap serially. Never edit source in that checkout.
+The state validator requires local `release/0.8.29`; create it from the verified
+final9 ancestor if absent, without switching another checkout or replacing a ref.
+Strict preflight follows valid state bootstrap and precedes implementation.
 
-Release-local draft labels only; no canonical AC additions.
+W→0.8.29 is mechanical release work; use set-version.sh, retain independent
+E0.8.0 and unchanged public trait. Retain format37/no migration (seq-368), query
+scaffold, qualified SQLite/forks/MCP, existing span/hints/queue and all canonical
+IDs/thresholds. Only required fork repair A belongs140; B/C remain.30 (seq-367).
+R580 and primary CUDA12.6 stay fixed; never K620. No cleanup, broad upgrades,
+global tools, workflow dispatch, external ACL changes or publication belongs10.
 
-| Need | Requirement | Falsifiable completion signal |
-| --- | --- | --- |
-| S10-N1 isolation | S10-R1 execute recorded scope in an owned workspace | S10-A1 names approved decisions, owner, checkout/branch/base/session cwd; other writers and existing work remain intact. |
-| S10-N2 reproducibility | S10-R2 own tools, native bindings and resources | S10-A2 records selected pins, resolved paths, module/artifact identity, setup receipt and resource limits; borrowed installs or silent skips fail. |
-| S10-N3 durable truth | S10-R3 bootstrap one .29 state authority | S10-A3 tracked state/board/views select exactly .29, preserve historical .28 and pass discovery/view/dependency checks without invented closures. |
-| S10-N4 bounded change | S10-R4 apply individually selected preparation | S10-A4 every dependency/docs/CI diff maps to a ruling and required checks; unselected proposals have explicit dispositions. |
-| S10-N5 safe handover | S10-R5 qualify preparation without release claims | S10-A5 independent review, actual scoped/full evidence and unmet platform/access prerequisites are recorded; downstream owners can reproduce setup. |
+## Execution sequence and acceptance
 
-## Architecture reading, design draft and fit revision
+1. Parent imports reviewed metadata bootstrap from real9 closure/Git, stages new
+   state/board, renders declared views, verifies discovery/dependencies and commits.
+   Keep10 IN_PROGRESS; record only actual proposal completion0–9, reserved8 included.
+2. Parent safely fast-forwards the unattached local release ref to the committed
+   metadata tip with expected-old-SHA protection; never reset/switch another ref.
+   Parent runs strict precreation preflight against actual closed9, then creates
+   a fresh isolated source worktree at the exact bootstrap commit with
+   `git worktree add`. Same10 owner enters it, verifies ancestry/cwd/HEAD and
+   committed bootstrap files, and repeats strict worktree/dependency preflight.
+   Parent never edits the child source worktree.
+3. Recheck owned storage and numeric budgets before installing/building. Prepare
+   command-local exact Node/npm, owned root/TS/Mermaid modules, owned Python and
+   separate survey venv. No borrowed modules/venv or editable native install.
+4. Per behavior, commit observed failing tests before implementation, then green
+   unchanged oracles. Implement the smallest common noneditable Python setup,
+   narrow survey corrections, exact.29 route and itemized docs/locks/version work.
+5. Run mapped scoped checks during editing. Regenerate derived files and commit
+   the final stable tree; run required full agent-verify once with owned tools and
+   ptrace-capable executor, preserving every real failure/skip and scoped resumption.
+6. Obtain fresh independent implementation review; resolve findings within retry
+   bounds, integrate through parent without shared source edits, then update JSON
+   closure/views from reachable Git and actual receipts.10 stays open until this.
 
-Draft `requirements.md`, `design.md`, `test-mapping.md` and `preparation-register.md`
-alongside this plan before implementation. Map each local requirement to exact
-Slice 9 ruling, edit/install sites, owner, validation and stop condition. Reconcile
-the master plan's older preparation allocation with the decision-bound ladder.
-One writer owns release state and shared manifests/locks. Mutable venv, npm/native
-outputs and receipts belong to the checkout; immutable caches need explicit input
-identity. Do not run bootstrap wholesale through shared npm or editable bindings.
-Resolve its editable-install guidance against worktree isolation first: propose
-a wheel built from the exact target tree and installed noneditable into its own
-venv; never repoint a shared venv or manually copy native libraries.
-Apply the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)'s
-truthful skips, bounded failure controls and installed-package identity checks;
-defer broad fuzz/coverage programs. [CUDA policy](../../../../adr/ADR-0.8.28-cuda-version-support-policy.md)
-and its [usage review](../../../../design/cuda-version-support-review.md) remain
-authoritative; incomplete usage research and second-artifact delivery stay in 120.
-Challenging fit points are state bootstrap before dependency preflight, native
-ownership despite existing guidance, limited disk/swap, and protected first-tag
-routing. Revise this draft from actual Slice 9 outcomes; widen no approval by inference.
-Planned primary research is limited to unresolved selected package release/security
-notes, supported tool installation instructions and GitHub runner/environment/OIDC
-contracts; retain dates and uncertainty. No latest-version or access claim is made.
+Exit requires S10-A1..A8 evidence in the register: scope-to-diff mapping, owned
+setup/native paths and digests, state/preflight, contained dependency qualification,
+complete survey and strict route controls, factual docs and aligned W versions.
+S10 acceptance closes preparation only; release_readiness remains NOT_READY and
+publication HELD until their separate gates. No dataset, GPU, platform or published
+package clearance follows local preparation.20/30 receive reproducible setup;
+100/110/120/130/140/150/160 retain their gates.
 
-## Hard dependencies, conditional edges and conflicts
+## Quality and checks
 
-- Hard: actual 0–8 findings, interactive Slice 9 dispositions, reviewed decision-bound Slice 10
-  plan, resolved material FIX-n findings (maximum four cycles) and final HITL.
-- Hard before builds: approved workspace ownership/base, owned setup method,
-  disk/scratch/concurrency budget and required tool access. A historical runner
-  success proves neither current availability nor permission for the candidate.
-- State bootstrap occurs in an approved existing isolated checkout before any
-  release-dependent `--worktree`/`--expect-closed` preflight or new implementer spawn.
-  Plain health/landing-only checks do not require a live state; do not weaken guards.
-- Conditional: selected 2/6 cleanup/docs and 1 updates need itemized rulings; fork
-  changes need 140 qualification before adoption. Selected 7 fixes precede affected
-  20/30 checks; unrelated feature work is not gated on deferred preparation.
-- Serialize state, version/lock, bootstrap and workflow writes. Reserve GPU/VM/
-  Jetson resources with downstream owners; R580/primary 12.6 fixed, never K620.
-- New prerequisites for 9: authorize an exact .29 first-tag route because current
-  bootstrap accepts only `v0.8.28`; decide install-guidance conflict, shared-module
-  replacement method and capacity. Preserve runner-group/environment reviewers.
+Apply the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
+to fail-closed setup, malformed parser controls, independent schema oracle and
+installed artifact identity. Defer global coverage/fuzzing/whole-matrix campaigns;
+no new release AC or numerical performance target is created. The
+[CUDA policy](../../../../adr/ADR-0.8.28-cuda-version-support-policy.md) and recorded
+[usage review](../../research/cuda-version-adoption.md) remain unchanged;120 owns
+unresolved artifact/exposure/policy decisions.10's route test needs no GPU fault.
 
-## Proposed execution work and deliverables after approval
+PhaseA checks are destination links, mapping completeness, whitespace and available
+supplemental Markdown diagnostics. Owned authoritative Markdown gate currently
+fails for absent CLI; do not install it in PhaseA or report supplemental.23.0 as
+declared.23.3. Later metadata uses state/version checks, docs use Markdown/public
+checks, source/scripts/tests use full verification. Never shorten compiler output.
+Stop affected work on ownership/native identity mismatch, insufficient budgets,
+failed strict guard, missing actual authority, source/contract expansion or failed
+checks. Two same-issue failures require rereading tests/ADRs/memory before retry.
 
-1. Freeze approved scope in the preparation register; refresh Git refs/ownership
-   and capacity. Reuse only an explicitly assigned idle isolated .29 checkout.
-   Another session's checkout requires a distinct workspace; never force a switch.
-2. In that assigned checkout, bootstrap approved `release-state-0.8.29.json` and
-   `STATUS-0.8.29.md`, declared views and baseline/dependency facts from Git; track
-   them together, regenerate via the checker, verify discovery, then commit safely.
-   Mark 9 accepted only from its real ruling; keep 10 open until its checks pass.
-3. Run strict preflight before any new spawn; if selected, create a fresh `llm/`
-   preparation branch/worktree from verified current .29 baseline, verify ancestry and required files, then switch the execution session cwd into it and recheck.
-4. Provision approved command-local Node 25.9.0/npm 11.12.1, Rust 1.95 components,
-   developer Python >=3.11 and owned venv/pip with Ruff 0.15.17/Pyright 1.1.410. Install owned root/TS modules from locks; build owned Python/TS native artifacts
-   and record source SHA, import/module paths, versions, features and output digests.
-5. Use approved owned build/scratch paths and numeric stop thresholds; measure
-   restore/build/upload/cache-post peaks. Preserve live scratch, caches and standing runners; cleanup requires its own exact scope. Stop before exhausting capacity.
-6. Run `set-version.sh --workspace 0.8.29` and `--check-files`; cover Cargo/lock,
-   Python runtime/package, TS lock/platform packages. Keep independent E=0.8.0 unless separately justified and approved; do not publish or create release tags.
-7. Apply only selected dependency/docs/CI items with their own evidence. Implement
-   any bounded .29 routing decision with held GPU approval and unchanged protections; authenticated policy changes need their authorized actor, never a broad exception.
+## PhaseA actual checks
 
-## Validation, independent review and exit
-
-Draft/import validation is Markdown/link checking only. Metadata uses release-state and version checks; docs use Markdown plus public-doc checks when applicable.
-Later behavior/script fixes require per-behavior visible failing tests first,
-then green without changing the oracle; mechanical version bumps are exempt.
-Use actionlint for workflows and targeted guard/package/native tests while editing.
-Run required full `agent-verify.sh` once on final clean source/script phases with
-owned tools, preserving exact diagnostics; ptrace denial needs an unchanged strict
-rerun on a capable executor. Scoped passes and inherited .28 receipts are not full green.
-Independent review checks decision-to-diff coverage, ownership, state reachability,
-failure controls and bounded routing before safe .29 integration. Persist actual
-receipts/dispositions and verify 10 closure from Git before downstream preflight.
-Unknown ownership, failed setup/gate, public-contract expansion, unavailable access
-or exceeded budget stops the affected work and returns its decision to 9; readiness
-and eventual published-consumer qualification remain 160, publication separately authorized.
+At final9 baseline e76031ae422e56b9aead73042dedc6190a96d0ae, static checks exited0:
+11 exact candidate files,62 resolving destination links,10 real reachable proposal
+closure witnesses,8 local criteria,9 tasks,3 declared views byte-equal to the
+existing pure renderers and clean unchanged root. External explicit-file
+cli2.23.0 lint exited0 on10 Markdown files, zero errors; declared.23.3 remains
+absent. Actual `agent-lint-md.sh` exited1 for missing owned CLI before later legs.
+These are proposal checks only: no actual state activation, local ref creation,
+strict-dependent preflight, source/test/environment mutation or product test ran.
+Postreview bootstrap must validate the real tracked/ref state; no side checkout
+or simulated strict-preflight PASS was constructed.

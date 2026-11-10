@@ -1,0 +1,492 @@
+{
+  "release": "0.8.29",
+  "release_kind": "Direct execution; preparation in progress; publication held",
+  "board": "dev/plans/runs/STATUS-0.8.29.md",
+  "plan": "dev/plans/plan-0.8.29.md",
+  "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
+  "active_ref": "refs/heads/release/0.8.29",
+  "schema_version": 37,
+  "public_docs_target_release": "0.8.28",
+  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
+  "ladder": [
+    {
+      "slice": 0,
+      "short": "ENV-PROPOSAL",
+      "title": "Environment and resource preparation proposal",
+      "depends_on": [],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "850f2c15df1ebf3262f0346e340721f9ff2422ad",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-0/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-0/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 1,
+      "short": "DEPENDENCY-PROPOSAL",
+      "title": "Dependency inventory and bounded correction proposal",
+      "depends_on": [],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "39289560125367aea0c80fb335c6d51260376ba0",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-1/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-1/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 2,
+      "short": "CRUFT-PROPOSAL",
+      "title": "Retention and bounded correction proposal",
+      "depends_on": [],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "39289560125367aea0c80fb335c6d51260376ba0",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-2/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-2/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 3,
+      "short": "CONTRACT-PROPOSAL",
+      "title": "Needs requirements acceptance and allocation proposal",
+      "depends_on": [
+        0,
+        1,
+        2
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "2d5041795f0cbbe49d55d81a2710f09e2043b8a9",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-3/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-3/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 4,
+      "short": "FIT-PROPOSAL",
+      "title": "Architecture and source alignment proposal",
+      "depends_on": [
+        3
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "52a85c38cb50af220b418a4d05bc4c6e31f23fe2",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-4/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-4/review.md; no product/environment qualification."
+    },
+    {
+      "slice": 5,
+      "short": "TEST-PROPOSAL",
+      "title": "Verification adequacy proposal",
+      "depends_on": [
+        3
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "52a85c38cb50af220b418a4d05bc4c6e31f23fe2",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-5/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-5/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 6,
+      "short": "DOCS-PROPOSAL",
+      "title": "Documentation correction proposal",
+      "depends_on": [],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "de85cbf40c85cd89dd8785453346b5eb0367f01c",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-6/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-6/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 7,
+      "short": "DELIVERY-PROPOSAL",
+      "title": "Delivery and protected route proposal",
+      "depends_on": [
+        0,
+        1
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "a0274cee6722c415e90b0bdda7a5578a43d41fda",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-7/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-7/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 8,
+      "short": "RESERVED",
+      "title": "Reserved empty slice disposition",
+      "depends_on": [],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "a0274cee6722c415e90b0bdda7a5578a43d41fda",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-8/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-8/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 9,
+      "short": "DECISIONS",
+      "title": "Reviewed decision checkpoint and approved preparation mapping",
+      "depends_on": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "e76031ae422e56b9aead73042dedc6190a96d0ae",
+      "design_refs": [
+        "dev/plans/0.8.29/prework/slice-9/plan.md"
+      ],
+      "evidence": "Proposal/reserved disposition only: actual independent Astra-medium plan and fresh final-output PASS recorded in dev/plans/0.8.29/prework/slice-9/review-log.md; no product/environment qualification."
+    },
+    {
+      "slice": 10,
+      "short": "PREPARATION",
+      "title": "Approved owned tools state dependency docs survey and route preparation",
+      "depends_on": [
+        9
+      ],
+      "status": "IN_PROGRESS",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-10/plan.md"
+      ]
+    },
+    {
+      "slice": 20,
+      "short": "TEST-HYGIENE",
+      "title": "Residual test hygiene and deterministic queue proof",
+      "depends_on": [
+        10
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-20/plan.md"
+      ]
+    },
+    {
+      "slice": 30,
+      "short": "MEASURE",
+      "title": "Current source-bound baseline and tracked AC083 measurements",
+      "depends_on": [
+        20
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-30/plan.md"
+      ]
+    },
+    {
+      "slice": 40,
+      "short": "CACHE",
+      "title": "Conditional measured snapshot-safe eligibility cache",
+      "depends_on": [
+        30
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-40/plan.md"
+      ],
+      "conditions": "Adopt only if30 measurements and reviewed snapshot/invalidation safety justify it; otherwise record authorized rejection/defer."
+    },
+    {
+      "slice": 50,
+      "short": "FUSION-TEXT",
+      "title": "Approved identity semantics and exact text/snippet route",
+      "depends_on": [
+        30
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-50/plan.md"
+      ],
+      "conditions": "Accepted identity successor precedes production semantic change."
+    },
+    {
+      "slice": 60,
+      "short": "MCP",
+      "title": "Accepted MCP output flags filters budgets and paging",
+      "depends_on": [
+        10
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-60/plan.md"
+      ]
+    },
+    {
+      "slice": 70,
+      "short": "SDK-DEGRADATION",
+      "title": "Bounded degradation and native SDK parity",
+      "depends_on": [
+        10
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-70/plan.md"
+      ]
+    },
+    {
+      "slice": 80,
+      "short": "B2-DESIGN",
+      "title": "Residual Block2 contract design",
+      "depends_on": [
+        50,
+        60,
+        70
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-80/plan.md"
+      ],
+      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish."
+    },
+    {
+      "slice": 90,
+      "short": "B2-BUILD",
+      "title": "Accepted residual Block2 implementation",
+      "depends_on": [
+        80
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-90/plan.md"
+      ],
+      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit."
+    },
+    {
+      "slice": 100,
+      "short": "INTERRUPTION",
+      "title": "Coverage-first bounded interruption and reopen qualification",
+      "depends_on": [
+        10
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-100/plan.md"
+      ],
+      "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap."
+    },
+    {
+      "slice": 110,
+      "short": "RESET",
+      "title": "Reviewed CUDA reset lifetime remedy and permitted fault qualification",
+      "depends_on": [
+        10
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-110/plan.md"
+      ],
+      "conditions": "Actual reset timing/venue answer and reviewed lifetime remedy remain required;140 fork-first proof before affected pin adoption."
+    },
+    {
+      "slice": 120,
+      "short": "CUDA-ARTIFACT",
+      "title": "CUDA usage review selected artifact design and delivery",
+      "depends_on": [
+        10
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-120/plan.md"
+      ],
+      "conditions": "Actual artifact selection and consumed-kernel/compiler exposure assessment required; support changes owner-ratified, publishing separately authorized."
+    },
+    {
+      "slice": 130,
+      "short": "CUDA-QUALIFICATION",
+      "title": "Affected selected CUDA platform and SDK qualification",
+      "depends_on": [
+        110,
+        120
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-130/plan.md"
+      ],
+      "conditions": "Final selected110/120 pins/artifacts and each permitted venue/session/cap; missing cells unmeasured."
+    },
+    {
+      "slice": 140,
+      "short": "REQUIRED-FORK-REPAIRS",
+      "title": "Only required reset/artifact fork repairs and necessary versioning",
+      "depends_on": [
+        9
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-140/plan.md"
+      ],
+      "conditions": "Concrete required110/120 repair design only, fork-local qualified before product pins; B/C maintenance belongs.30 and never gates.29."
+    },
+    {
+      "slice": 150,
+      "short": "OPTIONAL-EXPERIMENTS",
+      "title": "Only individually selected preregistered experiments",
+      "depends_on": [
+        10,
+        30
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-150/plan.md"
+      ],
+      "conditions": "Individual explicit study selection/preregistration/caps required; no currently selected experiment or inferred spend."
+    },
+    {
+      "slice": 160,
+      "short": "COMBINED-CLOSE",
+      "title": "Selected combined qualification documentation and release readiness",
+      "depends_on": [
+        90,
+        100,
+        110,
+        120,
+        130
+      ],
+      "status": "NOT_STARTED",
+      "design_refs": [
+        "dev/plans/0.8.29/features/slice-160/plan.md"
+      ],
+      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate. Optional140/150 only if selected. Publication held."
+    }
+  ],
+  "landed": [],
+  "next_slice": 10,
+  "remaining_ladder": [
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    70,
+    80,
+    90,
+    100,
+    110,
+    120,
+    130,
+    140,
+    150,
+    160
+  ],
+  "decisions": {
+    "ruled": [
+      {
+        "id": "direct-slice-execution",
+        "title": "Approved work proceeds through direct Sol-high ownership and independent Astra-medium plan/final reviews, without generic renewed acceptance.",
+        "source": "dev/plans/0.8.29/direct-execution.md; actual Slice9 decision log"
+      },
+      {
+        "id": "preparation-batches-1-2",
+        "title": "Owned scratch and pinned tools/native environments, contained Rustls/DOMPurify, state/docs/survey and exact protected.29 route approved.",
+        "source": "dev/plans/0.8.29/prework/slice-9/decision-log.md batches1/2"
+      },
+      {
+        "id": "feature-batches-3-4",
+        "title": "Tests/search and MCP/SDK/Block2 accepted subject to their recorded design/evidence gates;100/110 and combined160 included.",
+        "source": "dev/plans/0.8.29/prework/slice-9/decision-log.md batches3/4 and direct mandate"
+      },
+      {
+        "id": "query-retained",
+        "title": "Keep query property scaffold.",
+        "source": "Slice9 Batch2 owner ruling"
+      },
+      {
+        "id": "workspace-versions",
+        "title": "Mechanical W0.8.29 coordination included; independent E0.8.0 retained.",
+        "source": "Slice9 direct mandate and accepted dev/design/release.md version axes"
+      },
+      {
+        "id": "fork-a-only",
+        "title": "Required repairs A and necessary repair-release versioning in.29; B/C maintenance in.30.",
+        "source": "owner steward seq-367"
+      },
+      {
+        "id": "format37-no-migration",
+        "title": "No database migration for.29; existing format37.",
+        "source": "owner steward seq-368"
+      },
+      {
+        "id": "settled-agent-contracts",
+        "title": "Compact text default, B2-8 stored spans and unavailable-only state/verdict omission remain settled; preserve existing hints/queue/storage.",
+        "source": "actual Slice9 decision log and accepted agent contracts"
+      }
+    ],
+    "unruled": [
+      {
+        "id": "reset-timing-venue",
+        "title": "Actual reset timing/venue answer before110 fault execution.",
+        "owner_slice": 110
+      },
+      {
+        "id": "artifact-selection",
+        "title": "Actual CUDA-major artifact selection contract before120 delivery.",
+        "owner_slice": 120
+      },
+      {
+        "id": "qualified-session-caps",
+        "title": "Exact permitted venue/current session quote and caps before affected130/priced campaigns.",
+        "owner_slice": 130
+      },
+      {
+        "id": "optional-experiments",
+        "title": "Individual150 study inclusion or explicit defer remains pending.",
+        "owner_slice": 150
+      },
+      {
+        "id": "publication",
+        "title": "Explicit actual publication authorization remains separate.",
+        "owner_slice": 160
+      }
+    ]
+  },
+  "acceptance": {
+    "status": "NOT_RUN",
+    "criteria": [
+      "S10-A1",
+      "S10-A2",
+      "S10-A3",
+      "S10-A4",
+      "S10-A5",
+      "S10-A6",
+      "S10-A7",
+      "S10-A8"
+    ],
+    "record": "dev/plans/0.8.29/features/slice-10/preparation-register.md"
+  },
+  "release_readiness": {
+    "status": "NOT_READY",
+    "qualification": "Preparation and product/native/platform qualification have not run.",
+    "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
+  },
+  "generated_views": [
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/plan-0.8.29.md",
+      "location": "Immediate next slice"
+    },
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.29.md",
+      "location": "Current state"
+    },
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.29.md",
+      "location": "Next action"
+    }
+  ]
+}

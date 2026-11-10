@@ -1,12 +1,12 @@
 ---
-title: FathomDB 0.8.29 — release and slice proposal
-status: PROPOSED
+title: FathomDB 0.8.29 — release execution plan
+status: ACTIVE
 target_release: 0.8.29
 date: 2026-11-09
 execution_model: direct slice agents; GPT-6.1 Sol high; Astra medium review gates
 ---
 
-# FathomDB 0.8.29 — release and slice proposal
+# FathomDB 0.8.29 — release execution plan
 
 ## Current execution mandate
 
@@ -26,22 +26,21 @@ MCP/queue/Block 1, Block 2, scale and CUDA work into `dev/0.8.29`.
 The owner confirmed 0.8.29 on November 9. This proposal expands the prior
 0–120 ladder using the requested prework and mod10 feature slices.
 
-This turn writes plans, local draft contracts and review records only.
-Prework identifies/proposes changes; it does not provision environments,
-upgrade dependencies, remove source/docs/features, alter canonical contracts,
-activate release state or run product qualification. Existing branch/worktree
-setup is a fact, not a new Slice 0 execution claim. Publication stays separately
-authorized.
+Prework0–9 proposal outputs completed their independent review gates; the
+approved preparation now advances in10 through its own plan/TDD/final-review
+pipeline. Specific fault/venue, artifact/policy, session/spend, optional study and
+publication choices retain their actual item gates. Proposal completion is not
+product or environment qualification. No generic final acknowledgment is added.
 
 The [reconciliation register](0.8.29/reconciliation-plan.md) preserves maturity,
 TC identities and old branch dispositions. The [planning brief](0.8.29/planning-brief.md)
 defines the drafter assignments; [evidence and limits](0.8.29/planning-evidence.md)
 identifies actual source/transcript observations. Each slice has its own draft
-plan below. They are proposals, not approved execution contracts.
+plan below. Approved scope follows the direct review pipeline; each pending condition remains attached to its owning item.
 
 ## Baseline and workspace
 
-- Current integration tip: `6edc1155f039f87cd0a37660cb27ae4373bbce71`.
+- Inspected product-source baseline: `6edc1155f039f87cd0a37660cb27ae4373bbce71`.
   Completed .28 `f4343524198f15cc78ec006ea4e1a4e48cf9f04e` is included.
 - Schema baseline: **37**, including transactional read-visibility coalescing.
   Owner ruling, steward `seq-368`: **no database migration is required for .29**.
@@ -57,18 +56,20 @@ plan below. They are proposals, not approved execution contracts.
   This chat plans in its managed worktree on `llm/0.8.29-chat`; main is untouched.
   Slice 0 proposes ownership/reuse/create/switch procedure; 10 executes only
   approved workspace changes.
-- .28 is published. `scripts/release-current.py` currently succeeds with no
-  active release; .29 state/board creation belongs to approved Slice 10.
-  Until activation, this proposed plan is not a live release-state declaration.
+- .28 is published and its historical state remains unchanged. Approved10
+  metadata bootstrap activates the tracked.29 state/board selected by
+  `scripts/release-current.py`; setup and product qualification remain unexecuted.
+  Generated control regions below are owned by release-state-0.8.29.json.
 - Runtime/manifest versions, available hosts and source-bound verification
   evidence must be distinguished from actual current environment readiness.
   Do not borrow another checkout's venv or repoint editable bindings.
 
 ## Prework effort: Slices 0–9
 
-These plans specify work to perform, rather than declaring the prework reviews
-complete. All findings and changes to needs/requirements/acceptance/architecture
-remain local drafts. Existing observations seed an initial proposal register.
+Actual0–9 proposal outputs and independent plan/fresh final reviews are complete
+at the Git witnesses recorded in.29 state and each review log. They allocate
+future behavior/contract work without claiming product tests or qualification.
+Current selection is the reviewed decision log and register, not the seed scores.
 
 | Slice | Scope and durable proposal | Plan |
 | ---: | --- | --- |
@@ -109,22 +110,26 @@ actual decisions in the local decision log; use ledgerwrite for any resulting
 canonical ledger events, with stable TC identities and a fresh full-tail read.
 Do not preselect approval or infer it from time or silence.
 
-Derive Slice 10 scope from those decisions. Obtain independent subagent review.
-Apply up to four FIX-n cycles with findings and resulting changes recorded, then
-present material changes to HITL and capture the final decision. If four cycles
-leave unresolved issues, narrow the proposal or return those issues to HITL;
-never quietly proceed or loop without limit. Update this plan and the accepted
-slice contracts from the final decision. This draft set is not that HITL session.
+Slice9 now supplies the reviewed decision-to-task mapping.10 refines that scope,
+obtains independent Astra-medium plan PASS, implements with observed RED→GREEN
+and receives fresh independent implementation review. New material policy, venue,
+spend or publication choices return to the owner as concrete item decisions;
+approved preparation does not need another generic acceptance. State activation
+preserves real proposal closures and leaves10 open until verified integration.
 
-## Proposed preparation and feature slices
+## Slice ladder — preparation and features
+
+### Reserved-gap policy
 
 Feature numbering begins at **20** in multiples of ten. Slice 10 is preparation
 authorized by Slice 9, not the first feature. Empty gaps are not patch lanes;
 new initial features receive mod10 numbers and explicit placement.
 
+### Preparation and feature allocations
+
 | Slice | Scope | Hard inputs or conditions | Draft plan |
 | ---: | --- | --- | --- |
-| 10 | Approved workspace/environment/tool/dependency/doc/CI preparation; coordinated version decisions; state/board/views and selected rerunnable tools | Recorded 9 decisions and reviewed, HITL-accepted preparation scope | [Preparation](0.8.29/features/slice-10/plan.md) |
+| 10 | Approved workspace/environment/tool/dependency/doc/CI preparation; coordinated version decisions; state/board/views and selected rerunnable tools | Actual reviewed9 decisions and independent10 plan PASS; own implementation/final gate | [Preparation](0.8.29/features/slice-10/plan.md) |
 | 20 | Residual test hygiene, queue enqueue/drain race, warning/parallel failures and chunking tripwire constant test | Needed 10 preparation; current residuals verified rather than assumed | [Test/queue hygiene](0.8.29/features/slice-20/plan.md) |
 | 30 | Current 100k tracked AC-083 and baseline, write-interleaved/cache suitability, MCP/SDK/open/embedding, drain/300k follow-ups | Dependable tools and tests from 10/20 | [Measurement](0.8.29/features/slice-30/plan.md) |
 | 40 | Remaining eligibility cache and selected per-batch metadata work | 30 evidence; reviewed format37 snapshot/invalidation design; no automatic counter/schema fallback | [Eligibility/batch](0.8.29/features/slice-40/plan.md) |
@@ -154,10 +159,11 @@ Built B2-2/3 and partial B2-6 need preservation/current qualification, not dupli
 implementation. The broader EP-03 draft, new weak-result thresholds, overflow
 chunking, ANN and caller-provider production APIs are not implied by allocation.
 
-## Draft release needs and acceptance allocation
+## Draft release needs, requirements and acceptance allocation
 
-These release-local drafts do not edit canonical product needs or locked ACs.
-Slice3 reconciles the full CRUD/traceability; the slice plans expand each row.
+These release-local mappings retain canonical product needs and locked ACs.
+Completed3–5 provide reviewed CRUD/source/oracle allocation; each behavior owner
+implements its accepted contract changes in the same reviewed scope.
 
 | Draft need / requirement | Acceptance signal | Allocation |
 | --- | --- | --- |
@@ -231,7 +237,7 @@ dependency rule. Independent research/drafting may run concurrently. Concurrent
 repository writers use separate worktrees; root-owned planning drafts are
 imported serially. Never share checkout branch switching or another writer's venv.
 
-## Contract, design and verification discipline
+## Cross-cutting DoD — contract, design and verification discipline
 
 Every slice begins with prep: confirm goals/current maturity; write local draft
 needs, requirements, acceptance and architecture CRUD; read active architecture;
@@ -301,8 +307,14 @@ Use JSON as the single writer of generated release views after activation.
 Use ledgerwatch/ledgerwrite for ledgers and stable TC ids.
 
 [The proposal register and decision log](0.8.29/proposal-register.md) distinguish
-accepted directions from pending scope decisions. User confirmation of the
-release number and request to draft do not approve implementation.
-Next work is the proposal-producing prework in 0–8 and its actual HITL review
-in 9. Until then, environment setup, feature implementation and publication
-remain future work governed by their reviewed decisions.
+approved work from genuinely pending item decisions. Actual0–9 reviews are
+complete;10 now prepares the bounded approved scope through its own independent
+reviews and TDD. Product implementation follows the selected ladder and actual
+prerequisites. Publication remains separately authorized.
+
+## Immediate next slice
+
+<!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 10** (`PREPARATION`) — Approved owned tools state dependency docs survey and route preparation
+
+**Remaining ladder:** 10 → 20 → 30 → 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

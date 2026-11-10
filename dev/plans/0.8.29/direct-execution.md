@@ -66,7 +66,7 @@ direct mandate is not a blanket approval for those actions.
 Slices0–8 proposal outputs/reservation completed with independent Astra-medium plan and
 fresh final-output PASS; their local review logs retain evidence and tooling
 limits. Slice9 checkpoint also completed both review gates, retaining specific
-unanswered feature choices. Slice10 updates approved preparation design; Slice20
-does read-only queue/test research and must reconcile completed10 before its
-own design review. Successor owners must read these completed outputs. Valid release-state/
+unanswered feature choices. Slice10 design passed after one ownership correction; parent bootstraps reviewed
+metadata before creating its isolated source worktree. Slice20 has a bounded
+read-only draft and must reconcile completed10 before its own design review. Successor owners must read these completed outputs. Valid release-state/
 board ownership begins in10 as planned. This method file is not a second ladder.

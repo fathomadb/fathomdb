@@ -63,10 +63,19 @@ direct mandate is not a blanket approval for those actions.
 
 ## Current work
 
-Slices0–8 proposal outputs/reservation completed with independent Astra-medium plan and
-fresh final-output PASS; their local review logs retain evidence and tooling
-limits. Slice9 checkpoint also completed both review gates, retaining specific
-unanswered feature choices. Slice10 design passed after one ownership correction; parent bootstraps reviewed
-metadata before creating its isolated source worktree. Slice20 has a bounded
-read-only draft and must reconcile completed10 before its own design review. Successor owners must read these completed outputs. Valid release-state/
-board ownership begins in10 as planned. This method file is not a second ladder.
+Slices0–9 proposal/reservation/checkpoint outputs completed both independent
+review gates. Slice10 approved preparation completed at
+104dcbcbe92a1eca730d146b99ab17d444df6217 after independent design and fresh
+implementation PASS, real per-behavior RED/GREEN and assembled qualification.
+Its execution/review records preserve actual failures, resumptions and skips.
+JSON is the ladder authority; readiness NOT_READY/publication HELD persist.
+
+Read-only successor designs may be reviewed against a named immutable candidate
+while predecessor qualification is pending; that review never opens source
+entry. Before implementation, each owner must reconcile the actual integrated
+predecessor, update affected plans/designs/requirements/AC and obtain any required
+review recheck, then enter a fresh parent-created worktree after strict dependency
+preflight.20/60/70 proposals retain their own decisions and source-entry holds.
+The current20 test-only policy question does not waive RED/GREEN for defects.
+Specific110/120/130/150/publication choices remain explicit. No candidate or
+planning review counts as completed source work. This file is not a second ladder.

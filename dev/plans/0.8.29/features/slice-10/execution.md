@@ -374,3 +374,16 @@ ShellCheck directive marks the intentionally literal source-text match; no
 ratchet or policy changed. No synthetic RED, extra behavior pair or native rerun.
 Exact design report: /tmp/fathomdb-0829-direct/slice-10/selector-placement-astra-review.md.
 Resume only failed/remaining affected checks, preserving original exits.
+
+## Parent closure after terminal review
+
+The checkpoint statements above retain their original timing. Fresh independent
+Astra-medium implementation review passed actual frozen
+104dcbcbe92a1eca730d146b99ab17d444df6217 with no unresolved findings; see
+[verbatim verdict](review-log.md#fresh-final-implementation-verdict-and-parent-integration).
+Parent verified actual receipts/Git and fast-forward integrated that exact SHA
+in its own checkout. JSON now closes10 and records S10-A1..A8 preparation PASS;
+next20 must reread this completed baseline. Final affected checks exited0 on
+clean104d; original failed/interrupted attempts and all skips remain retained.
+No uninterrupted full-green, general platform or published-artifact claim is
+made. Release readiness stays NOT_READY and publication HELD.

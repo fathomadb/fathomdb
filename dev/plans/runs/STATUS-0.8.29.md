@@ -8,24 +8,27 @@ target_release: 0.8.29
 
 [State](../release-state-0.8.29.json) owns generated control facts.
 [Master](../plan-0.8.29.md) and [direct method](../0.8.29/direct-execution.md)
-retain scope and item gates. This metadata bootstrap is not setup/product green.
+retain scope and item gates. [Preparation evidence](../0.8.29/features/slice-10/execution.md)
+records assembled qualification; release readiness remains NOT_READY.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.29:status-current-state -->**Next is Slice 10 (PREPARATION), IN_PROGRESS.** Completed on local `release/0.8.29` per release state: 0 (`850f2c15df1ebf3262f0346e340721f9ff2422ad`) · 1 (`39289560125367aea0c80fb335c6d51260376ba0`) · 2 (`39289560125367aea0c80fb335c6d51260376ba0`) · 3 (`2d5041795f0cbbe49d55d81a2710f09e2043b8a9`) · 4 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 5 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 6 (`de85cbf40c85cd89dd8785453346b5eb0367f01c`) · 7 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 8 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 9 (`e76031ae422e56b9aead73042dedc6190a96d0ae`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.29:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.29:status-current-state -->**Next is Slice 20 (TEST-HYGIENE), NOT_STARTED.** Completed on local `release/0.8.29` per release state: 0 (`850f2c15df1ebf3262f0346e340721f9ff2422ad`) · 1 (`39289560125367aea0c80fb335c6d51260376ba0`) · 2 (`39289560125367aea0c80fb335c6d51260376ba0`) · 3 (`2d5041795f0cbbe49d55d81a2710f09e2043b8a9`) · 4 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 5 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 6 (`de85cbf40c85cd89dd8785453346b5eb0367f01c`) · 7 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 8 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 9 (`e76031ae422e56b9aead73042dedc6190a96d0ae`) · 10 (`104dcbcbe92a1eca730d146b99ab17d444df6217`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.29:status-current-state -->
 
-Only proposal/reserved outputs0–9 are complete, with actual independent reviews.
-Their full source/review witnesses are in the state ladder; no product feature,
-platform, artifact or environment qualification follows those closures.
+Proposal/reserved outputs0–9 and approved preparation10 are complete on the
+local release branch, with actual independent review and reachable witnesses.
+10 qualification preserves original failed runs and scoped resumptions. Product,
+selected platform/artifact and final acceptance remain pending.
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Continue Slice 10 (PREPARATION)** — Approved owned tools state dependency docs survey and route preparation. **Remaining ladder:** 10 → 20 → 30 → 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Commission Slice 20 (TEST-HYGIENE)** — Residual test hygiene and deterministic queue proof. **Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
 
-Use the reviewed [Slice10 contract](../0.8.29/features/slice-10/plan.md).
-Parent imports metadata serially; same10 owner gets a fresh isolated source
-worktree after strict closed9 preflight.10 remains open until actual tests,
-fresh independent review and reachable integration supply closure evidence.
+The next source owner rereads actual completed10 and its
+[reviewed contract](../0.8.29/features/slice-10/plan.md), updates its own
+requirements/AC/design and enters a fresh parent-created worktree after strict
+closed10 preflight.20 retains the unanswered already-correct test-only policy
+choice; genuine defect repairs remain authorized with per-behavior RED/GREEN.
 
 ## Retained gates
 

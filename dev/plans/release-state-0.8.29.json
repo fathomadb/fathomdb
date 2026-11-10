@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Direct execution; preparation in progress; publication held",
+  "release_kind": "Direct execution; preparation complete; product work pending; publication held",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -156,10 +156,12 @@
       "depends_on": [
         9
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-10/plan.md"
-      ]
+      ],
+      "sha": "104dcbcbe92a1eca730d146b99ab17d444df6217",
+      "evidence": "Approved preparation only: independent Astra-medium design and fresh implementation PASS at104dcbc;18 observed RED/GREEN pairs, actual original211-suite failed collector and qualified affected reruns,214 current registrations. Canonical Rust/TS/N-API pass; Python1746 passed36 skipped. Original failures/skips retained; assembled qualification, no uninterrupted full-green or release-matrix claim. See features/slice-10/execution.md and review-log.md."
     },
     {
       "slice": 20,
@@ -362,9 +364,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 10,
+  "next_slice": 20,
   "remaining_ladder": [
-    10,
     20,
     30,
     40,
@@ -449,11 +450,16 @@
         "id": "publication",
         "title": "Explicit actual publication authorization remains separate.",
         "owner_slice": 160
+      },
+      {
+        "id": "slice20-already-correct-coverage-policy",
+        "title": "Actual owner answer on narrow test-only exception for already-correct pre-enqueue race23 proof and five-constant guard, or explicit deferral. Genuine defect repairs retain per-behavior RED/GREEN.",
+        "owner_slice": 20
       }
     ]
   },
   "acceptance": {
-    "status": "NOT_RUN",
+    "status": "PASS",
     "criteria": [
       "S10-A1",
       "S10-A2",
@@ -464,11 +470,12 @@
       "S10-A7",
       "S10-A8"
     ],
-    "record": "dev/plans/0.8.29/features/slice-10/preparation-register.md"
+    "record": "dev/plans/0.8.29/features/slice-10/preparation-register.md",
+    "scope": "S10-A1..A8 approved local preparation only; independent implementation review PASS104dcbc. Canonical release acceptance and final readiness remain160-owned."
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Preparation and product/native/platform qualification have not run.",
+    "qualification": "Slice10 local preparation passed independent implementation review with assembled source/component evidence. Product, selected platform/artifact and final release qualification remain pending; no uninterrupted full-gate or published-package qualification claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

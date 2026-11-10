@@ -41,12 +41,23 @@ source-grounded residuals and actual reproduction still required. In particular:
 - .28 Slice42's owned-file FD repair is inherited, not a new20 fix.
 - TC57's raw-WAL helper already configures SQLite before opening; reproduce any
   current residual rather than applying that fix twice.
-- Sidecar/resolver hooks remain global; graph-evidence hooks are already scoped.
+- The reproduced global sidecar/resolver hooks are now engine-owned at657edeb;
+  graph-evidence hooks were already scoped.
 - Queue phase/epoch fallback exists. A deterministic observation of Ready before
   permit/queue accounting is missing; `hold_arrivals` is after queue insertion.
 - Historical Windows names changed with failed-open policy. Path identity is a
   plausible test-hook cause, not a reproduced current Windows diagnosis.
 - T2's five production constants already equal their accepted values.
+
+## Integrated repair subset
+
+The two genuine Linux hook-ownership repairs completed separate observed
+RED/GREEN, assembled qualification and fresh independent Astra-medium
+implementation PASS at657edeb76caaf9c8d2aab433766bec9362e73217. Parent integrated
+that exact subset; [execution](execution.md) and [review](review-log.md) preserve
+actual results and limits. This is partial completion only: A3/A5 policy is
+unanswered and Windows A6 unqualified. No Slice20 closure,30 clearance or Block1
+exit follows.
 
 ## Requirements, design and release join
 

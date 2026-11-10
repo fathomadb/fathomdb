@@ -24,11 +24,13 @@ selected platform/artifact and final acceptance remain pending.
 
 <!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Continue Slice 20 (TEST-HYGIENE)** — Residual test hygiene and deterministic queue proof. **Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
 
-The next source owner rereads actual completed10 and its
-[reviewed contract](../0.8.29/features/slice-10/plan.md), updates its own
-requirements/AC/design and enters a fresh parent-created worktree after strict
-closed10 preflight.20 retains the unanswered already-correct test-only policy
-choice; genuine defect repairs remain authorized with per-behavior RED/GREEN.
+Slice20's independently reviewed Linux hook-ownership repairs are integrated
+at657edeb76caaf9c8d2aab433766bec9362e73217;
+[execution](../0.8.29/features/slice-20/execution.md) preserves assembled
+qualification and limits. A3/A5 policy and Windows A6 remain open, so20 is not
+closed and30/Block1 exit remain held. Independently authorized60 may proceed
+after reconciling this actual baseline and design recheck; its hard dependency
+is completed10. Source owners use fresh parent-created worktrees and own tools.
 
 ## Retained gates
 

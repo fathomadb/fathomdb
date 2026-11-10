@@ -79,3 +79,15 @@ preflight.20/60/70 proposals retain their own decisions and source-entry holds.
 The current20 test-only policy question does not waive RED/GREEN for defects.
 Specific110/120/130/150/publication choices remain explicit. No candidate or
 planning review counts as completed source work. This file is not a second ladder.
+
+The parent checkout now resides at /mnt/data/worktrees/fathomdb-0.8.29 on
+llm/0.8.29-chat; /mnt/data/worktrees remains the shared directory for sibling
+checkouts. The former app-managed path is a symlink to this checkout; custom
+path reattachment was rejected by the app, so no successful reattachment is
+claimed. Git linkage and original file manifest were verified after relocation.
+
+Slice20 Linux repairs are integrated at657edeb76caaf9c8d2aab433766bec9362e73217
+after genuine RED/GREEN and fresh independent implementation PASS.20 remains
+open for A3/A5 policy and actual Windows A6; no30 clearance or Block1 exit.
+Slice60's independent approved work can enter after actual-baseline adaptation,
+required design recheck and strict closed10 preflight.

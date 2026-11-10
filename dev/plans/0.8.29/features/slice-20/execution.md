@@ -210,3 +210,24 @@ unanswered and A6 unqualified. Capacity FIX3 design and core artifact
 received independent static PASS only; bootstrap/compiler/binary/transfer/controls/
 PowerShell and all Windows runtime remain NOT_RUN. Capacity-only owner choice
 is still unanswered; no storage/ACL/guest/compiler action occurred.
+
+## Completed native refresh and partial integration
+
+Final clean source657edeb76caaf9c8d2aab433766bec9362e73217 completed the
+reviewed root-inventory correction and affected checks, then fresh owned
+production Python/TypeScript builds and real write/search/close/reopen/exit
+lifecycles. Canonical Python test-hooks candidate and child matched the exact
+source, digest and nonce slice20-final-2489444; scaffold1passed. Python suite
+1746passed/36skipped. TypeScript625TAPpassed/6TAPskipped and15 additional in-body
+skip markers remain limitations. Final source-native refresh receipt is
+/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s20/receipts/final-source-native-refresh.json.
+The complete handoff remains
+/tmp/fathomdb-0829-direct/slice-20/linux-repair-subset-handoff.json.
+
+Fresh independent Astra-medium implementation PASS is recorded in
+[review log](review-log.md). Parent integrated exactly this qualified Linux
+repair subset by fast-forward. Original failed collector attempts, affected
+reruns, runtime warning and skips remain disclosed; this is assembled
+qualification, never an uninterrupted verifier exit0. No borrowed parent-native
+qualification is claimed. A3/A5 policy remains unanswered and actual Windows A6
+unqualified. Slice20 remains open;30 and Block1 exit are not cleared.

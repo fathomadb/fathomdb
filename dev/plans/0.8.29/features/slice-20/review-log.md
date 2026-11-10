@@ -20,3 +20,22 @@ Approval covers the bounded genuine-defect repair design only. Remaining gates:
 - A3/A5 remain held pending the actual owner answer. No exception or deferral is inferred.
 
 This is not implementation approval, Slice20 closure, Slice30 dependency clearance or Block1 exit. Read-only recheck; no installs, builds, tests or mutations performed.
+
+## Final implementation review: integrated Linux repair subset
+
+Fresh independent reviewer GPT-6 Astra, medium, /root/slice_20_astra_final
+reviewed both source repairs, unchanged RED/GREEN assertions, independent clean
+RED replay, original failures, affected corrections and completed native refresh.
+This reviewer is distinct from the owner and original design reviewer. Parent
+fast-forwarded the reviewed source into llm/0.8.29-chat and local release/0.8.29
+at657edeb76caaf9c8d2aab433766bec9362e73217. Source-owner checkout was not edited.
+
+Terminal implementation response (verbatim):
+
+PASS — genuine-defect Linux repair subset at `657edeb76caaf9c8d2aab433766bec9362e73217`.
+
+No unresolved actionable findings. Verified clean frozen source, unchanged product code since collection, final native artifact hashes, candidate nonce/child identity, and successful Python/TS lifecycle receipts.
+
+Qualification is assembled: original failed attempts, corrected affected checks, skips and runtime warning remain disclosed. No uninterrupted full-green claim.
+
+Approval covers repair-subset integration only. A3/A5 policy and actual Windows A6 remain open; no Slice20 closure, Slice30 clearance, Block1 exit or release/publication approval follows.

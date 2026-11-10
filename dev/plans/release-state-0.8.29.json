@@ -180,8 +180,9 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "DESIGN_REVIEWED_SOURCE_NOT_STARTED",
-      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-20/review-log.md. No implementation or source qualification follows this planning status. Genuine-defect repair design only; A3/A5 remain held for the unanswered already-correct coverage-policy question."
+      "phase": "LINUX_REPAIR_SUBSET_INTEGRATED_CRITERIA_HELD",
+      "evidence": "Two genuine engine-owned sidecar/resolver hook repairs integrated at657edeb76caaf9c8d2aab433766bec9362e73217 after separate observed RED/GREEN pairs and fresh independent Astra-medium implementation PASS. Assembled qualification preserves original failures, affected reruns, skips and loader warning; final source-bound Python/TS native identity/lifecycle passed. See features/slice-20/execution.md and review-log.md. A3/A5 policy unanswered and actual Windows A6 unqualified; Slice20 remains IN_PROGRESS, no Slice30 clearance or Block1 exit.",
+      "qualified_subset_sha": "657edeb76caaf9c8d2aab433766bec9362e73217"
     },
     {
       "slice": 30,

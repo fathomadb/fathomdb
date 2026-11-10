@@ -17,7 +17,10 @@ State fields: release0.8.29; board/plan exact paths above;
 master `dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md` (existing ACTIVE
 program authority, also cited by historical.27/.28 states);
 active_ref refs/heads/release/0.8.29; schema_version37; no completion/published
-receipt, no main-integration/publication claim; public_docs_target_release0.8.28.
+receipt, no main-integration/publication claim. Omit public_docs_target_release:
+the public-doc checker then follows the latest published.28 state. When present,
+that field must equal its own release and deliberately selects pending-release
+docs;10 does not enable that promotion.
 ladder has each actual0–9 proposal/reserved closure exactly once with full
 reachable SHA and actual independent review log;10 IN_PROGRESS without closure
 SHA;20..160 open/conditional per accepted master. `landed=[]` (no remote-main

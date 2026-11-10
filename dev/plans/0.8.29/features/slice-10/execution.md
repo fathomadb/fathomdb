@@ -133,3 +133,18 @@ The subsequent actual-prefix guard changes only setup/test code and generated
 command hashes; native Cargo/Python/TS inputs and versions/pins remain identical.
 Final full verification follows the regenerated clean source; no source edits
 occur during its run. Final readiness and independent review remain pending.
+
+## Full-run metadata finding
+
+The one strict full invocation at98fcbd546e73402adfcbd0b8fd916a91edccc5b4
+exited1 during lint after owned preflight, shell/module lint, full workspace
+clippy, rustfmt, migration/platform and release-contract checks passed.
+public-doc-truth rejected bootstrap public_docs_target_release0.8.28: a present
+active-state field means pending-release docs promotion and must equal that
+state's own version. Removing the field uses the checker's existing explicit
+latest-published fallback, preserving published.28 docs. No checker, source
+contract, readiness or publication gate was weakened. Bootstrap prose is corrected.
+Raw failed run and resource receipt remain task logs/full-agent-verify.log and
+receipts/full-agent-verify.json. Remaining qualification resumes through affected
+lint, typecheck, unchanged strict security and all tests; any resulting evidence
+is assembled/resumed, never an uninterrupted full-gate pass.

@@ -21,6 +21,7 @@ intentionally superseded in the reviewed initial RED, before source changes.
 | Timestamp-only reuse |e7d9cd0c8 |0f1825a8f | Existing timestamp caused candidate wheel build to be skipped. |
 | Missing owned env ordering |e35c3ed80 |44216ece1 | Existing caller reached Cargo before refusing absent env. |
 | Exact Pyright pin plus notice |af68d1d68 |a4841a083 | Exact1.1.410 with informational banner was incorrectly rejected. |
+| Actual interpreter ownership |418869252 |2f8f684bd | Foreign sys.prefix launcher reached package installation. |
 | Exporter discovery |47e802971 |b49b31065 | Explicit tracked exact exporter omitted. |
 | Valid inline hashes |e45857999 |19ddfb60a | Exact certifi pair silently dropped. |
 | Exporter dispatch/completeness |3640e68c8 |eb51f3f36 | Explicit28-pin boundary map empty. |
@@ -117,3 +118,18 @@ survey-final-cli.log, survey-final-tests.log and the version logs.
 
 The source-phase full gate and final source/version/pin native receipts are still
 pending at this checkpoint; no preparation closure or release green is claimed.
+
+## Final artifact checkpoint
+
+Clean assembled source1cadab2ea92eca61f1132526be10cb41deec74f3 built the
+W0.8.29 production Python wheel and TypeScript/native package successfully with
+owned tools. Monitored start/end HEAD/delta match; no resource stop. Installed
+Python write/search/close/reopen/search/close/process-exit smoke passed on a real
+fresh store, module in this checkout's site-packages, native SHA256
+5e80e3eece0e643d384326be7ecbcd88b576d75cfb4dfef41ba3c447acda9e9f.
+Receipts: task receipts/final-python-wheel.json, final-ts-build.json and
+python-installed-smoke.json; exact wheel identity also in .cache/agent/python-native.json.
+The subsequent actual-prefix guard changes only setup/test code and generated
+command hashes; native Cargo/Python/TS inputs and versions/pins remain identical.
+Final full verification follows the regenerated clean source; no source edits
+occur during its run. Final readiness and independent review remain pending.

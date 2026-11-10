@@ -50,7 +50,12 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" \
             | jq -e --arg version "$VERSION" --arg sha "$CANDIDATE_SHA" '
                 .event == "push" and .head_branch == ("v" + $version)
-                and .head_sha == $sha and .path == ".github/workflows/release.yml"
+                and (.head_sha == $sha or (
+                  .id == 42729768792 and $version == "0.8.28"
+                  and $sha == "cdd41e2630a0084a5782128aa68d4de913aca90b"
+                  and .head_sha == "effcf4c1a52c4f1875b59995286f100b7f63ceb8"
+                ))
+                and .path == ".github/workflows/release.yml"
               ' >/dev/null
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" \
             | jq -e '

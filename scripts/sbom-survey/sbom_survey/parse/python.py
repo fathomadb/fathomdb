@@ -141,7 +141,7 @@ def parse_requirements(path: str, text: str) -> list[tuple[Declaration, str | No
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
-        has_hash = "--hash" in line
+        has_hash = "--hash" in line and _declaration(line, "normal", path) is None
         if has_hash:
             line = re.sub(r"\s+--hash=sha256:[0-9a-fA-F]{64}(?=\s|$)", "", line)
             if "--hash" in line:

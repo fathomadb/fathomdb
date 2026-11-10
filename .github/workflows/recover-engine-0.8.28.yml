@@ -1,4 +1,4 @@
-name: Recover engine 0.8.28 publication
+name: Recover SDK 0.8.28 publication
 
 on:
   workflow_dispatch:
@@ -7,17 +7,17 @@ permissions:
   contents: read
 
 jobs:
-  publish-engine:
+  publish-sdk:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ github.sha }}
+          ref: 4b9e9fef89089bef9e03cd788ba4c136a09fcee0
           fetch-depth: 0
           persist-credentials: false
-      - name: Require the exact manifest-only tag descendant
+      - name: Require the exact verified repair tree
         shell: bash
         run: |
           python3 - <<'PY'
@@ -32,7 +32,7 @@ jobs:
           manifest = "src/rust/crates/fathomdb-engine/Cargo.toml"
           workflow = ".github/workflows/recover-engine-0.8.28.yml"
           assert os.environ["GITHUB_REF"] == "refs/heads/main", "main-only recovery"
-          assert git("rev-parse", "HEAD").decode().strip() == os.environ["GITHUB_SHA"], "checkout SHA mismatch"
+          assert git("rev-parse", "HEAD").decode().strip() == "4b9e9fef89089bef9e03cd788ba4c136a09fcee0", "verified repair checkout mismatch"
           assert git("rev-parse", "v0.8.28^{commit}").decode().strip() == published, "published tag changed"
           subprocess.run(["git", "merge-base", "--is-ancestor", published, "HEAD"], check=True)
           changed = set(git("diff", "--name-only", published, "HEAD").decode().splitlines())
@@ -42,14 +42,14 @@ jobs:
           new = b'fathomdb-engine = { path = ".", features = ["test-hooks"] }'
           assert original.count(old) == 1, "unexpected original self dev-dependency"
           assert Path(manifest).read_bytes() == original.replace(old, new, 1), "unexpected manifest change"
-          print("Exact manifest-only engine publication recovery authorized by source checks")
+          print("Exact verified SDK publication recovery authorized by source checks")
           PY
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
-      - name: Publish only the repaired engine package
+      - name: Publish only the SDK package
         shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           CARGO_BUILD_JOBS: "2"
-        run: bash scripts/release/cargo-publish-if-new.sh fathomdb-engine
+        run: bash scripts/release/cargo-publish-if-new.sh fathomdb-sdk

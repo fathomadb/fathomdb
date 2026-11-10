@@ -63,8 +63,8 @@ direct mandate is not a blanket approval for those actions.
 
 ## Current work
 
-Slices0,1,2,6,7,8 proposal outputs completed with independent Astra-medium plan and
+Slices0,1,2,3,6,7,8 proposal outputs completed with independent Astra-medium plan and
 fresh final-output PASS; their local review logs retain evidence and tooling
-limits. Slice3 is reconciling contracts/allocation;4/5 will challenge that actual
-result. Successor owners must read these actual outputs. Valid release-state/
+limits. Slices4/5 are challenging source alignment and test adequacy against
+that actual allocation. Successor owners must read these completed outputs. Valid release-state/
 board ownership begins in10 as planned. This method file is not a second ladder.

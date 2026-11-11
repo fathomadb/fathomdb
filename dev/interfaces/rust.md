@@ -633,7 +633,9 @@ The Rust workspace also exposes the semver-stable companion crate
   `EvidenceSearchResultV1.search_result`), and `search_expand` /
   `search_expand_frozen` (on `SearchExpandResult.degradations`). Results,
   ranking, `soft_fallback` and `explanation` are unchanged. Other embed
-  failures still leave the list empty. `embed_text` keeps returning
+  failures still leave the list empty. Actual engine shutdown returns typed
+  `EngineError::Closing` from the query helper before reader dispatch; unrelated
+  dispatch cancellation retains its prior sparse fallback. `embed_text` keeps returning
   `EngineError::Overloaded`. Both types are re-exported by `fathomdb` and
   `fathomdb-sdk` (EP-03)
 - counter/profile/stress payload shapes are owned by `design/lifecycle.md`

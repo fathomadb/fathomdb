@@ -125,8 +125,8 @@ pub(crate) fn map_runtime_embedder_error(err: RuntimeEmbedderError) -> EngineErr
 }
 
 /// The query vector for a search. A failed query embedding drops the vector
-/// arm (`Ok(None)`, the sparse fallback), except a CUDA pool kind, which is
-/// raised typed (ruling 33). Queue overload is recorded in `degradations`
+/// arm (`Ok(None)`, the sparse fallback), except actual engine shutdown and CUDA
+/// pool kinds, which are raised typed. Bounded fallback causes are recorded in `degradations`
 /// (see [`query_vector_or_degradation`]). A provider panic resumes.
 pub(crate) fn search_query_vector(
     dispatcher: &EmbedDispatcher,
@@ -134,6 +134,7 @@ pub(crate) fn search_query_vector(
     degradations: &mut Vec<ArmDegradation>,
 ) -> Result<Option<Vec<f32>>, EngineError> {
     match dispatch_embed_vector(dispatcher, text) {
+        Err(DispatchError::Closing) => Err(EngineError::Closing),
         Err(DispatchError::Provider(
             error @ (RuntimeEmbedderError::CudaPoolExhausted { .. }
             | RuntimeEmbedderError::CudaContextLost { .. }

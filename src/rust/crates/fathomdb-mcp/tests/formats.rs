@@ -368,3 +368,22 @@ async fn compact_expand_has_one_ordered_line_per_target() {
     assert_eq!(text.lines().count(), 2);
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn compact_use_store_quotes_name_and_preserves_session_action() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("a", "note", "river a")]);
+    fixture.store("b.sqlite", vec![node("b", "note", "river b")]);
+    let harness = Harness::start(wire_config(
+        &fixture,
+        json!({"stores":{"a":{"path":"a.sqlite"},"b":{"path":"b.sqlite"}}}),
+    ))
+    .await;
+    let result = wire(&harness, "use_store", json!({"store":"b"})).await;
+    assert_eq!(text_of(&result), "default store: \"b\"");
+    let result = wire(&harness, "search", json!({"query":"river"})).await;
+    let text = text_of(&result);
+    assert!(text.starts_with("search store=\"b\" "), "{text}");
+    assert!(text.lines().any(|line| line.starts_with("\"l:b\" ")), "{text}");
+    harness.shutdown().await;
+}

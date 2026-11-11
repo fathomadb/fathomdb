@@ -95,6 +95,10 @@ Slice60's implemented format/direct-filter/budget subset is integrated at
 and assembled214-suite qualification. F11 remains held;60 is not closed. Its
 records preserve the original wrapper failure, native skips and actual source
 identities. Reviewed successor proposals were imported without source-completion
-claims.70 may enter a fresh parent-created worktree after actual integrated-base
-rereading and strict closed10 preflight; owned setup and per-behavior RED/GREEN
-remain mandatory. JSON remains the sole ladder authority.
+claims.70 completed at e875f36042f89c1d84756f78135db0e8926c1ed4 after actual
+integrated-base rereading, design recheck, seven committed RED/GREEN pairs,
+assembled214/214-suite qualification and fresh production Python/TS proofs.
+Fresh distinct Astra final review passed; the parent integrated that exact SHA
+following strict closed10 landing preflight. Native skips and original failed
+checks/targeted resumptions remain explicit.20/60/F11 and Block1 remain open.
+JSON remains the sole ladder authority.

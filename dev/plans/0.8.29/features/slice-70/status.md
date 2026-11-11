@@ -1,6 +1,6 @@
 ---
 title: Slice 70 — implementation and qualification status
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.29
 slice: 70
 ---
@@ -68,7 +68,8 @@ canonical Rust jobs1 qualification. Logs/receipts retain argv, cwd, SHA/delta,
 exits and resource samples. No cleanup. Parent's environment qualifies nothing
 for70. Own canonical noneditable Python provisioning and production TS builds
 passed; exact Node25.9.0/npm11.12.1, Python3.13.13/library, Ruff0.15.17 and
-Pyright1.1.410 identities are retained. Source-bound final artifacts remain to qualify.
+Pyright1.1.410 identities are retained. Final source-bound artifacts passed the
+production checks recorded below.
 
 ## Executed scope and remaining qualification
 
@@ -136,3 +137,31 @@ provider-free lifecycle success cannot replace it. No installed live-timeout
 provider-injection route is claimed. Whole20/60/F11, Block1 and160 stay separate.
 
 No model/GPU/fault/toolkit/driver/VM/cloud/publication or schema/migration change.
+
+## Final independent acceptance and parent integration
+
+Fresh distinct GPT-6 Astra-medium reviewer `/root/slice_70_astra_final` issued
+terminal PASS with no actionable findings at clean
+`e875f36042f89c1d84756f78135db0e8926c1ed4`. The parent verified actual production
+module digests and all six production phase raw-log hashes, then fast-forwarded
+the release checkout and explicit local release ref after strict closed10
+landing preflight passed with zero warnings. Slice70 is complete on the local
+release branch; the parent closure commit changes metadata only.
+
+Fresh canonical production Python build, four installed absence cases and29
+existing contract invocations passed with zero skips. The production module
+SHA256 is `212b4b41ad3e5d9d75bbed1a33753f78be26c7a8a16b6d3400ddcb1fb94bbf0c`.
+Fresh canonical production TS build,24 loaded-artifact contract tests and real
+package-entry open/write/search/text-only/close/exit passed with zero skips. Its
+module SHA256 is `7c67a6361953ca91937c4b4529c6ff2fd8a2270fd97c6d9bd16732afd1cc9eb1`.
+Both builds name clean e875f360 and include final timeout/Closing code.
+
+`receipts/final-native-proof-summary.json` in the retained task root has SHA256
+`11e35e726502444a0c84ef0dc462f84d11893a47c056a9455678e4ddb4266b1e`.
+The test-hook candidate/child remains attributed to4d094 with the recorded nonce
+and exact14,160-other-input equivalence; production artifacts remain separate.
+The earlier assembled receipt's remaining-phase note is historical and is
+superseded by this final proof summary. Native work has finished.
+
+This acceptance covers70 only. Whole20/60/F11, Block1 and160 remain open; release
+readiness is NOT_READY and publication is HELD. No remote push is claimed.

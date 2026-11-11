@@ -266,7 +266,7 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-70/design.md",
         "dev/plans/0.8.29/features/slice-70/execution-map.md",
@@ -278,8 +278,9 @@
         "dev/plans/0.8.29/features/slice-70/status.md",
         "dev/plans/0.8.29/features/slice-70/test-map.md"
       ],
-      "phase": "DESIGN_REVIEWED_SOURCE_ENTRY_AUTHORIZED",
-      "evidence": "Astra-medium actual20 and actual60 candidate rechecks PASS, followed by coherent-document consistency PASS. Exact reason-order successors, strict historical row4 handling, independent sizing, genuine Closing runtime RED and separate facade compile reachability evidence remain required. Before import, the parent verified all22 reviewed source/test pins against integrated Slice60 commit 5271c1bf022f0ea22f95f7433e226feb2315043e. Historical candidate/evidence pins retain their original meaning. The source owner must reread the actual integrated baseline before coding; strict closed10 entry, owned setup, real RED/GREEN and fresh final implementation review remain required."
+      "phase": "IMPLEMENTED_QUALIFIED_INDEPENDENT_REVIEW_PASS",
+      "evidence": "Implemented bounded degradation/native SDK parity at e875f36042f89c1d84756f78135db0e8926c1ed4 after integrated-predecessor design PASS, seven committed RED/GREEN pairs and fresh distinct Astra-medium final implementation PASS. Assembled214/214 canonical suites: Rust2720 passed67 ignored, Python1750 passed36 skipped, TypeScript629 passed6 skipped. Original failures and targeted resumptions remain explicit. Fresh source-bound production Python/TS artifact digests and lifecycle exits pass; separate4d094 nonce-bound test-hook child proof is reused only with exact14,160-input metadata equivalence. See features/slice-70/status.md and review-log.md. No installed live-timeout injection/model/GPU claim; whole20/60/F11, Block1 and release qualification remain separate.",
+      "sha": "e875f36042f89c1d84756f78135db0e8926c1ed4"
     },
     {
       "slice": 80,
@@ -479,7 +480,6 @@
     40,
     50,
     60,
-    70,
     80,
     90,
     100,
@@ -583,7 +583,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 local preparation, integrated20 Linux repairs and the60 format/direct-filter/budget subset have independent implementation PASS within their recorded limits. Actual product/platform/artifact, remaining criteria and final release qualification remain pending. No uninterrupted full-wrapper or published-package qualification claim.",
+    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs and60 format/direct-filter/budget subset also passed within their recorded limits. Whole20/60/F11, remaining product/platform/artifact criteria and final160 qualification remain pending. Assembled qualification retains original interruptions/resumptions/skips; no uninterrupted full-wrapper or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

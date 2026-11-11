@@ -1780,4 +1780,24 @@ mod compact_render_tests {
             assert!(!text.contains(omitted), "{text}");
         }
     }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(64))]
+        #[test]
+        fn compact_fetch_frames_roundtrip_valid_utf8(
+            chars in proptest::collection::vec(proptest::sample::select(vec!['a',' ','"','\\','\r','\n','|','é','😀']), 0..120),
+        ) {
+            let body = chars.into_iter().collect::<String>();
+            let output = FetchOutput { envelope:envelope("s",1,0,Vec::new(),100000),
+                items:vec![FetchItem::Record {reference:"l:a".into(),record:RecordOut {kind:"note".into(),body:body.clone(),body_cut:body.trim().is_empty()}}],hints:Vec::new() };
+            let text = render_fetch(&output);
+            let (_, framed) = text.split_once('\n').unwrap();
+            let (header, framed) = framed.split_once('\n').expect("record header then verbatim body");
+            let size = header.strip_prefix("record \"l:a\" kind=\"note\" bytes=")
+                .expect("length-framed record header").split_whitespace().next().unwrap().parse::<usize>().unwrap();
+            proptest::prop_assert_eq!(size,body.len());
+            proptest::prop_assert_eq!(&framed.as_bytes()[..size],body.as_bytes());
+            proptest::prop_assert_eq!(&framed.as_bytes()[size..],b"\n");
+        }
+    }
 }

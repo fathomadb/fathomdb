@@ -213,3 +213,70 @@ async fn compact_orient_reports_real_projection_status_without_a_provider() {
     harness.shutdown().await;
     engine.close().unwrap();
 }
+
+fn quoted_prefix(input: &str) -> (String, &str) {
+    let mut decoder = serde_json::Deserializer::from_str(input).into_iter::<String>();
+    let value = decoder.next().unwrap().unwrap();
+    (value, &input[decoder.byte_offset()..])
+}
+
+fn fetch_frames(text: &str) -> Vec<Value> {
+    let (_, mut remaining) = text.split_once('\n').expect("fetch header line");
+    let mut items = Vec::new();
+    while !remaining.is_empty() {
+        let (header, tail) = remaining.split_once('\n').expect("item header line");
+        if let Some(fields) = header.strip_prefix("record ") {
+            let (reference, fields) = quoted_prefix(fields);
+            let (kind, fields) = quoted_prefix(fields.strip_prefix(" kind=").unwrap());
+            let mut fields = fields.strip_prefix(" bytes=").unwrap().split_whitespace();
+            let bytes: usize = fields.next().unwrap().parse().unwrap();
+            let cut = fields.next() == Some("cut");
+            assert_eq!(
+                tail.as_bytes().get(bytes),
+                Some(&b'\n'),
+                "one framing LF after exactly n bytes"
+            );
+            let body = std::str::from_utf8(&tail.as_bytes()[..bytes]).unwrap();
+            items.push(json!({"ref":reference,"kind":kind,"body":body,"cut":cut}));
+            remaining = &tail[bytes + 1..];
+        } else {
+            let fields =
+                header.strip_prefix("error ").expect("length-framed record or per-item error");
+            let (reference, fields) = quoted_prefix(fields);
+            items.push(json!({"ref":reference,"error":fields.trim()}));
+            remaining = tail;
+        }
+    }
+    items
+}
+
+#[tokio::test]
+async fn compact_fetch_frames_exact_utf8_in_request_order() {
+    let fixture = Fixture::new();
+    let id = "odd \" | é\r\n😀";
+    let body = "a\r\nrecord \"l:fake\" kind=\"x\" bytes=4\n😀\n";
+    fixture.store("a.sqlite", vec![node(id, "note", body), node("small", "note", "small body")]);
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let reference = format!("l:{id}");
+    let result = wire(&harness,"fetch",json!({"refs":[reference,"l:missing","bad","h:x",reference,"p:7","l:small"],"as_of":1900000000,"max_tokens":100000})).await;
+    let text = text_of(&result);
+    assert!(
+        text.starts_with("fetch store=\"a\" epoch=1 validity_instant=1900000000 items=7 tokens="),
+        "{text}"
+    );
+    let items = fetch_frames(&text);
+    assert_eq!(items.len(), 7);
+    assert_eq!(items[0], json!({"ref":reference,"kind":"note","body":body,"cut":false}));
+    assert_eq!(items[4], items[0], "duplicate refs preserve a separate ordered outcome");
+    for (index, reference, code) in [
+        (1, "l:missing", "not_found/not_found"),
+        (2, "bad", "invalid_request/bad_argument"),
+        (3, "h:x", "invalid_request/unsupported_ref"),
+        (5, "p:7", "invalid_request/unsupported_ref"),
+    ] {
+        assert_eq!(items[index]["ref"], reference);
+        assert!(items[index]["error"].as_str().unwrap().starts_with(code), "{}", items[index]);
+    }
+    assert_eq!(items[6], json!({"ref":"l:small","kind":"note","body":"small body","cut":false}));
+    harness.shutdown().await;
+}

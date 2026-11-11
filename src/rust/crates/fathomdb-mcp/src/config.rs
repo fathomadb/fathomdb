@@ -107,6 +107,8 @@ pub struct Config {
     /// Whether results carry the `hints` sidecar when a call does not say;
     /// a call's own `hints` argument wins.
     pub hints: bool,
+    /// Tool result representation: `text` (default) or `structured`.
+    pub result_format: String,
 }
 
 impl Default for Config {
@@ -127,6 +129,7 @@ impl Default for Config {
             use_default_embedder: false,
             telemetry_dir: None,
             hints: true,
+            result_format: "text".into(),
         }
     }
 }
@@ -168,6 +171,7 @@ const TOP_LEVEL_KEYS: &[&str] = &[
     "use_default_embedder",
     "telemetry_dir",
     "hints",
+    "result_format",
     "write",
     "scope",
 ];
@@ -219,6 +223,15 @@ impl Config {
             telemetry_dir: optional_string(&object, "telemetry_dir")?
                 .map(|path| absolutize(base_dir, &path)),
             hints: boolean(&object, "hints", defaults.hints)?,
+            result_format: match object.get("result_format") {
+                None => defaults.result_format,
+                Some(Value::String(value)) if matches!(value.as_str(), "text" | "structured") => {
+                    value.clone()
+                }
+                Some(_) => {
+                    return Err(ConfigError::new("result_format: must be text or structured"))
+                }
+            },
         };
         if boolean(&object, "write", false)? {
             return Err(ConfigError::new("write: must be false in this release (read-only)"));

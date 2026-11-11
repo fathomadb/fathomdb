@@ -352,13 +352,17 @@ fn finish(output: &impl Serialize, text: String, max_tokens: u32, cut: bool) -> 
     value["budget"]["cut"] = serde_json::json!(cut);
     value["budget"]["max_tokens"] = serde_json::json!(max_tokens);
     value["budget"]["used_tokens"] = serde_json::json!(0);
+    let budget = value.as_object_mut().unwrap().remove("budget").unwrap();
+    let without = serde_json::to_string(&value).expect("tool outputs serialize").len();
+    value["budget"] = budget;
     for _ in 0..4 {
         let json = serde_json::to_string(&value).expect("tool outputs serialize");
-        let (next, whole) = shape::with_budget(value.clone(), &json, max_tokens, cut);
-        if next["budget"]["used_tokens"] == value["budget"]["used_tokens"] {
-            return (Rendered { structured: next, text }, whole);
+        let used = shape::estimate_tokens(without + json.len());
+        if value["budget"]["used_tokens"] == used {
+            let (structured, whole) = shape::with_budget(value, &json, max_tokens, cut);
+            return (Rendered { structured, text }, whole);
         }
-        value = next;
+        value["budget"]["used_tokens"] = serde_json::json!(used);
     }
     panic!("structured budget count did not converge within four renders");
 }

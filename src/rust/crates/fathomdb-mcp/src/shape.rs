@@ -38,13 +38,19 @@ pub fn with_budget(mut structured: Value, text: &str, max_tokens: u32, cut: bool
     }
     let without = serde_json::to_string(&structured).expect("serializable").len();
     let used = estimate_tokens(without + text.len());
-    if let Value::Object(object) = &mut structured {
-        object.insert(
-            "budget".to_string(),
-            serde_json::json!({"max_tokens": max_tokens, "used_tokens": used, "cut": cut}),
-        );
-    }
-    let whole = serde_json::to_string(&structured).expect("serializable").len();
+    let whole = if let Value::Object(object) = &mut structured {
+        let budget = serde_json::json!({"max_tokens": max_tokens, "used_tokens": used, "cut": cut});
+        // Inserting one fixed ASCII key into an object adds its value, key and
+        // colon, plus a comma exactly when another field is already present.
+        let whole = without
+            + usize::from(!object.is_empty())
+            + "\"budget\":".len()
+            + serde_json::to_string(&budget).expect("budget serializes").len();
+        object.insert("budget".to_string(), budget);
+        whole
+    } else {
+        without
+    };
     (structured, estimate_tokens(whole + text.len()))
 }
 

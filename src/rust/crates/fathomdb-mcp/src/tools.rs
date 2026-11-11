@@ -1880,4 +1880,13 @@ mod compact_render_tests {
             }
         }
     }
+
+    #[test]
+    fn compact_feedback_keeps_not_recorded_epoch_time_reason_and_budget() {
+        let result = not_recorded("s", 7, NotRecordedReason::TextMode, 4000);
+        let instant = result.structured["validity_instant"].as_i64().unwrap();
+        let expected = format!("feedback store=\"s\" epoch=7 validity_instant={instant} status=not_recorded reason=text_mode tokens=");
+        assert!(result.text.starts_with(&expected), "{}", result.text);
+        assert!(!result.text.contains("state="));
+    }
 }

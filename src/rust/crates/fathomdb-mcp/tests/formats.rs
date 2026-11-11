@@ -387,3 +387,27 @@ async fn compact_use_store_quotes_name_and_preserves_session_action() {
     assert!(text.lines().any(|line| line.starts_with("\"l:b\" ")), "{text}");
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn compact_feedback_unique_ref_keeps_recorded_envelope() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("one", "note", "river crossing")]);
+    let harness = Harness::start(wire_config(&fixture, json!({"telemetry_dir":"telemetry"}))).await;
+    let search = text_of(&wire(&harness, "search", json!({"query":"river","mode":"hybrid"})).await);
+    let response = search
+        .lines()
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .find_map(|word| word.strip_prefix("response_id="))
+        .unwrap();
+    let result = wire(&harness, "feedback", json!({"response_id":response,"used":["l:one"]})).await;
+    let text = text_of(&result);
+    assert!(text.starts_with("feedback store=\"a\" epoch=1 validity_instant="), "{text}");
+    assert!(text.contains(" status=recorded tokens="), "{text}");
+    assert!(!text.contains(" reason="), "{text}");
+    let expired =
+        text_of(&wire(&harness, "feedback", json!({"response_id":"expired","used":[]})).await);
+    assert!(expired.contains(" status=not_recorded reason=response_expired tokens="), "{expired}");
+    harness.shutdown().await;
+}

@@ -126,6 +126,25 @@ route target was executed separately. T70-1 Markdown whitespace failure and the
 guarded correction/affected-only pass remain recorded. No test weakening,
 resource stop or uninterrupted full-green claim follows from these scoped pairs.
 
+## Qualification and final-source proof attribution
+
+[Status](status.md#assembled-stable-code-qualification) records the single full
+wrapper's inventory stop, one-line reported-module repair, initial212/214 all-tier
+result, reviewed exact oracle successors and affected-only214/214 assembled pass.
+Actual counts are Rust2720/0/67ignored, Python1750/0/36skip, TS629/0/6skip.
+Original Python1748/2/36 and TS628/1/6 failures remain raw evidence, not new TDD
+pairs. No full Rust/wrapper rerun followed expectation-only changes.
+
+Final-source proof runs after this metadata freeze: fresh canonical noneditable
+production Python and production TS release builds, installed lifecycle/retained
+existing contract controls, plus the separately verified canonical nonce-bound
+4d094 test-hook candidate and child. Later Markdown-only commits reuse that
+proof with explicit relevant runtime/manifest/config/input equivalence; they do
+not trigger test-hook rebuilds solely for documentation SHA. Earlier absence-phase production artifacts cannot satisfy
+that requirement. Exact source/profile/lock/module/digest/nonce/child records are
+retained under the task-root final-native receipts named in [status](status.md).
+Only parent-commissioned fresh distinct final review can accept the implementation.
+
 ## Historical pre-entry checklist (completed at589467)
 
 Wait for parent's actual source-entry instruction and assigned isolated worktree;

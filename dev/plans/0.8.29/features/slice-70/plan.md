@@ -30,8 +30,10 @@ pre-entry proposal; this section supplies its actual entry facts.
 Python1744pass/38skip, TS625pass/6skip, strict security and exact candidate/child
 identity. The original307 full-wrapper inventory failure remains recorded.
 Whole60/F11 and whole20 remain open; neither adds a hard70 prerequisite.
-Executed scoped runtime pairs are recorded in [status](status.md); final stable-tree
-qualification and fresh independent implementation review remain separate.
+Executed runtime pairs and assembled214/214 stable-code qualification are recorded
+in [status](status.md), with original failures/skips and exact reviewed oracle
+adaptations retained. Final-source native proof and fresh independent implementation
+review remain separate; no uninterrupted full-wrapper or release pass is claimed.
 Approved reason/remedy/export/Closing/UTF8 scope and all RED ordering/oracles
 remain unchanged; no new policy, provider route, threshold/default or gate.
 

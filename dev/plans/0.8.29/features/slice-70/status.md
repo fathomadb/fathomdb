@@ -80,13 +80,59 @@ UTF8 interval and bounded-taxonomy prose corrections preserve existing selectors
 all authored fixtures and native assertion fragments. Direct filters and all14
 historical text-only manual cases remain unchanged. No manual history is rewritten.
 
-Final stable-tree strict agent-verify, existing Unicode/shared-fixture controls,
-fresh owned production lifecycles and final nonce-bound candidate/child proof are
-still pending. Their actual skips/failures/resumptions will be retained. Current
-scoped passes do not qualify all targets or constitute full-workspace green.
+## Assembled stable-code qualification
+
+One strict full wrapper ran on clean298197dcb and stopped at the required module
+inventory: the new cfg(test) closing module lacked classification.69653ac0b added
+only `reported embedding::closing_tests`; the existing gate then passed123 modules,
+20 governed and104 configurations. No ownership/forbid/allowance/config policy
+changed. Failed lint plus remaining canonical phases resumed on clean69653.
+Lint/typecheck pass; strict security reports0 violations/0 blockers/0 downgrades.
+
+The all-tier collector registered/ran214 suites:212 passed and Python/TS failed
+old exact expectations. Rust completed2720pass/0fail/67ignored. Initial Python
+was1748pass/2fail/36skip; TS628pass/1fail/6skip (635 total). All raw results remain.
+The missed seams were the public reason-alias declaration fingerprint and Python/
+TS flush expected caller-remedy triples. They are oracle inventory adaptations,
+not runtime bugs or new behavioral TDD evidence.
+
+The SAME independent design Astra passed exact packets cb4833e9,2617d8d1 and
+02bb21e5.4d094b27c composes only their disjoint hunks, proven by cumulative diff
+SHA256 de8d05486787677dc91b56976d162a0216e37dd08e66987c38e30b0540251c87.
+Both aliases remain the exact closed three-word Literal; full row/cardinality/
+identity/stub guards remain. All producer pins use the ordered supported pair,
+including skipped model cases without model execution; synthetic payload data is
+unchanged. Two pyi partial-taxonomy comments and their exact reversal strings
+were corrected. Human JSONL, PINNED, historical declaration JSON and additions are
+byte-frozen. No signature, skip gate, runtime implementation or selector changed.
+
+Only affected canonical Python/TS suites and scoped Ruff/Pyright/TS checks resumed.
+Python1750pass/0fail/36skip and TS629pass/0fail/6skip, with current clean candidate
+receipt verification and real child nonce/source/module/digest agreement. This
+assembles214/214 suites with original interruptions preserved; it is not an
+uninterrupted full-wrapper pass. Rust and security remain attributed to unchanged
+runtime inputs at69653, rather than an unnecessary rerun for test/stub metadata.
+
+Evidence root `/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s70` retains
+`receipts/assembled-qualification.json`, `affected-binding-resumption.json`,
+`reviewed-oracle-composition.json`, `qualification-observed-before-oracle-adaptation.json`,
+all phase/resource receipts and raw logs.261 all-tier spills were retained with
+zero missed opens. No resource stop occurred. Final source-bound native evidence
+is issued separately by the final native phase into that same task root; final
+acceptance requires honest separate production build/lifecycle subjects and the
+verified4d094 test-hook nonce/child subject, with explicit relevant runtime,
+manifest/config/input equivalence for later Markdown-only metadata commits.
+
+The final native phase rebuilds BOTH production bindings canonically from the
+final source; earlier absence-phase bytes cannot qualify timeout/Closing. Installed
+production and tested4d094 test-hook candidate/child identities stay distinct.
+No test-hook rebuild is done solely to change a later documentation commit SHA. Artifact/proof
+completion is recorded in `receipts/final-native-proof-summary.json`, which the
+parent must verify before fresh distinct final Astra acceptance. This document
+freeze does not self-promote or land the implementation.
+
 Built-in model CPU/auto success is not claimed under the allocated no-model scope;
 provider-free lifecycle success cannot replace it. No installed live-timeout
-provider-injection route is claimed. Fresh distinct final Astra implementation
-review is parent-owned and pending; no child landing or release-ready verdict.
+provider-injection route is claimed. Whole20/60/F11, Block1 and160 stay separate.
 
 No model/GPU/fault/toolkit/driver/VM/cloud/publication or schema/migration change.

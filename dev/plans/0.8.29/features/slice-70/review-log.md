@@ -49,3 +49,23 @@ Cancelled stayed unchanged. The exact guarded historical comparator amendment
 followed its own authored positive runtime RED, with assertions/negatives frozen.
 No implementation self-review verdict is issued. Parent must commission the fresh
 distinct Astra final audit after stable-tree qualification and artifact proof.
+
+## Reviewed qualification expectation adaptation
+
+After actual all-tier failures, the SAME independent design Astra passed three
+exact packets against clean69653: Python cb4833e9159e7eed8effabbc3d82da8810ae5c90fe6f4ae43fcacfd45c63e933,
+TS2617d8d1c843e11a47f46bd69d5fbcf029b5af0ac6f1fb92ca3c7a0abd8df5af and
+additional02bb21e569391bb8ea020397973d6f3b5e970cc56b64e3f4ccf4e3f5be56bdaa.
+Parent delivered PASS/GO. Composition4d094b27c was verified against independent
+per-file edit union; no approved hunk was overwritten. Alias closure/full equality,
+cardinality/identity/stub guards, all flush/pending/recovery assertions, synthetic
+transport data, model skips and frozen human inputs are preserved. The additional
+packet fixes only known stale model-gated producer pins and exact pyi comment/
+reversal contexts. No runtime repair, new coverage/model run or late TDD claim.
+
+Affected Python/TS suite resumption passed; [status](status.md) preserves exact
+initial failures, assembled counts, raw receipts and artifact limits. Runtime
+source remains identical to Rust/security qualification at69653. Fresh distinct
+final implementation review remains parent-owned and requires fresh production
+proof plus the verified4d094 nonce/child proof, with explicit relevant input
+equivalence for later Markdown-only commits. These adaptation PASSes do not replace it.

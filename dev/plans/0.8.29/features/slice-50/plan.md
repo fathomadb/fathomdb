@@ -7,131 +7,112 @@ slice: 50
 
 # Slice 50 — Fusion identity, exact deferred content and record-start snippets
 
-Database boundary, owner `seq-368`: .29 requires no database migration. Use the
-existing format37 substrate and stored span/visibility data. See the
-[release baseline](../../../plan-0.8.29.md#baseline-and-workspace); a design
-requiring a storage-format change returns for explicit scope review.
+## Actual checkpoint and scope
 
-## Current checkpoint scope
+Phase A source/design proposal at frozen parent
+`2f6913c1d59ac8ff3a30de835b57290a8635998c`; this is not PLAN_READY, source
+entry, an identity ruling or performance evidence. Only isolated proposal files
+were written. Parent imports reviewed documents and owns repository/state writes.
 
-Gated scope approved in Slice9 Batch3: identity census/ADR precedes exact text/snippet implementation;30 baseline remains required. No particular identity successor has yet been selected.
+Slice9 Batch3 approves identity census/ADR **before** exact text/snippet
+implementation. [Decision log](../../prework/slice-9/decision-log.md),
+[release plan](../../../plan-0.8.29.md) and
+[proposal P12](../../proposal-register.md) retain the accepted identity and
+Slice30 baseline prerequisites. This revision replaces historical prototype
+assumptions with the actual [source census](census.md),
+[requirements/acceptance](requirements.md), [design](design.md),
+[test map](test-map.md) and [proposed identity ADR](../../../../adr/ADR-0.8.29-retrieval-record-identity.md).
+The ADR is a proposal, not an accepted successor.
 
-The [decision log](../../prework/slice-9/decision-log.md) owns current rulings;
-original draft observations below retain their historical evidence limits.
+Completed10 source `104dcbcbe92a1eca730d146b99ab17d444df6217`, closure
+`d7d928f8e49d7af6a792385534f4e991c13232b3`, supplies owned preparation and
+current security/tool/state corrections. Integrated20 subset
+`657edeb76caaf9c8d2aab433766bec9362e73217` includes Linux test-hook repairs;
+20 remains open for A3/A5 policy and Windows A6. No30 clearance or Block1 exit
+follows. Actual30 measurements have not run: the exact frozen TC5 input pack
+is unavailable; the owner was asked to reconnect original cold storage or
+supply an existing copy. Retain that hard prerequisite. Historical100k numbers
+are neither a baseline nor measured benefit for50.
 
-## Goal, maturity and inspected evidence
+60 source work is active in a sibling checkout under the parent's native
+window. Its reviewed formats/flags/direct-text-filter contract informs parity;
+unfinished60 code is not integrated evidence. 60 can proceed independently;
+50 must reconcile the actual integrated delta before its eventual source phase.
 
-- Return distinct eligible records with faithful provenance while reducing unnecessary
-  FTS body hydration and record-start snippet segmentation; identity changes need approval first.
-- Authority: [brief](../../planning-brief.md), [reconciliation](../../reconciliation-plan.md),
-  [release ladder](../../../plan-0.8.29.md), and [canonical identity ADR](../../../../adr/ADR-0.8.0-canonical-identity-substrate.md).
-- Inspected [fusion](../../../../../src/rust/crates/fathomdb-engine/src/fusion.rs),
-  [search](../../../../../src/rust/crates/fathomdb-engine/src/search.rs),
-  [snippet selector](../../../../../src/rust/crates/fathomdb-engine/src/snippet.rs), and
-  [snippet queries](../../../../../src/rust/crates/fathomdb-engine/src/snippet_query.rs).
-- Fusion currently credits the first body occurrence per arm; equal-body records merge.
-  Explanation maps and graph seed exclusion also use bodies: changing only the fusion key is insufficient.
-- Current hybrid deferred-identity route still materializes every matched body. Its
-  narrow admission excludes filters, relaxed views, graph, explanation and reweighting.
-- [Format 35 ADR](../../../../adr/ADR-0.8.28-store-format-35.md) and inspected
-  [projector](../../../../../src/rust/crates/fathomdb-engine/src/index_projector.rs) already establish node
-  FTS rowid = write_cursor. Current baseline is format 37; do not reimplement this invariant.
-- Inspected .28 [historical-view design](../../../0.8.28/features/slice-80/design.md) and
-  [filtered direct-text plan](../../../0.8.28/features/slice-90/plan.md): filters/flags already exist,
-  including fixed direct-text candidate inputs and ordered limit prefixes.
-- Read via `git show exp/0.8.29-ac013-scale-search:<path>`: experiment README and
-  `src/rust/crates/fathomdb-engine/src/scale_search_experiment.rs`; old body-based prototype is evidence,
-  not approved production code or current performance proof. No product tests ran for this draft.
+## Intended outcome and fixed boundaries
 
-## Slice preparation: needs, requirements and acceptance draft
+- Distinguish eligible records and their provenance under an explicitly chosen
+  retrieval identity; preserve caller-facing IdSpace and canonical lifecycle
+  identity unless separately ruled. Equal bodies are not evidence of equal
+  revisions, sources, visibility or vector coverage.
+- Review the SDK helper→pack success-to-refusal consequence for repeated public
+  IDs in the same identity ruling; propose preserved helper/pack contracts.
+  Retain role-tagged stored bytes and body-relative snippet coordinates.
+- Establish a complete reference under that ruling, then avoid hydrating every
+  lexical match when exact ranking can be computed from lightweight identities.
+  Preserve full deep-arm agreement and the current node-then-edge text ordering.
+- Specialize record-start snippet selection without changing any snippet byte,
+  window, span, highlight, anchor, cut flag or accepted option behavior. Keep
+  general Unicode selection as a fallback where a bounded prefix is unproven.
+- Existing format37 only; no schema/database migration, compatibility shim,
+  query-scaffold deletion, chunking, new vectors, ranking weights/defaults,
+  ANN, exact-literal/phrase feature or public occurrence-token ABI is selected.
+  Built hints, head spans and byte-coordinate contracts remain.
+- Embedder identity remains embedder-owned. Do not put identity strings in vector
+  configs. Keep frozen snapshot/nonce authority and pre-cap eligibility.
 
-- Need S50-N1: users can distinguish equal text from distinct records, revisions and sources.
-- Need S50-N2: exact ranking must remain affordable at scale without losing deep-arm agreement.
-- Need S50-N3: long unmatched bodies get deterministic, Unicode-safe record-start snippets cheaply.
-- S50-R1 / S50-A1: approved identity distinguishes the ADR-selected node/edge/revision/ownerless cases;
-  fixtures assert count, order, IDs, cursor, branch, source and explanation provenance, not body sets alone.
-- S50-R2 / S50-A2: optimized and complete reference return identical ordered hits, score bits,
-  fallback/error metadata and snippets under the accepted identity, including overlap below text rank 200.
-- S50-R3 / S50-A3: eligibility precedes caps; flags, filters, historical/frozen reads, graph seeds,
-  recency, importance and CE rerank retain reviewed semantics through either exact route or reference fallback.
-- S50-R4 / S50-A4: record-start output equals the full-selector reference for generated Unicode and
-  every valid option, including text, anchor, cut, windows, spans, highlights and byte budgets.
-- S50-R5 / S50-A5: bound hydration/segmentation work is witnessed separately from timing; repeat
-  Slice 30 workloads on the qualified candidate and report p50/p99, memory and route counts without
-  attributing earlier CS64/native eligibility improvements to this slice.
-- These IDs are release-local drafts, not new canonical acceptance IDs. Produce `requirements.md`,
-  `design.md`, `test-map.md`, identity ADR proposal and census evidence before implementation.
+## Work sequence
 
-## Architecture and proposed design revision
+1. Complete source/consumer census and proposed requirements, design and genuine
+   runtime RED/GREEN decomposition. Source-only preparation is authorized now.
+   Runtime Memex census stays held in source-only Phase A; later execution needs
+   the exact appropriate consistent snapshot and safe read-only method. Census
+   scope is already approved; filesystem readability alone supplies no method.
+2. Parent obtains independent Astra-medium design review, including the context-
+   packing consequence and both O3-09 role-tagged fixture families. Resolve findings with
+   the same owner; present identity, provenance and ambiguous-feedback choices
+   to HITL. Reviewer PASS does not settle those choices or missing30 evidence.
+3. After actual prerequisites and parent source entry: use a fresh isolated
+   checkout, strict preflight and owned setup. Reconcile all integrated40/60/70
+   changes; 40-before50 is preferred for attribution, not a semantic dependency.
+4. Implement selected identity/reference first, in independent per-behavior RED
+   and GREEN commits. Preserve historical ID/frozen fixtures; change intentional
+   body-dedup assertions only against the accepted successor, never to hide a
+   failure. Do not claim coverage that already passes as a new RED.
+5. Implement exact lightweight ranking/hydration separately from identity.
+   Start with a complete lightweight rank scan; any later early-stop bound needs
+   a proof including floating-point/tie behavior. Keep unsupported controls on
+   the complete reference. Implement bounded prefix specialization separately.
+6. Validate focused lint/typecheck/tests while working; one full final
+   `agent-verify` on a final clean owned checkout, then affected reruns only.
+   Run required feature/performance and installed Rust/Python/N-API/MCP parity
+   on the actual integrated identity build. Preserve all diagnostics/skips.
+7. Parent commissions fresh independent Astra-medium final code/verification
+   review. Close only after approved local acceptance and real evidence;
+   release-state integration is parent-owned. 90 still requires accepted80 and
+   the separate actual Block1 exit after integrated20–70;160 is not that exit.
 
-- Draft identity options and consequences before selection: per-version cursor with node/edge namespace,
-  logical entity identity, and current body identity. Recommend record-version identity for review;
-  `SearchHit.id` alone can be shared by revisions or equal-content legacy rows and is not sufficient.
-- Specify ownerless FTS identity using table/cursor/row identity, malformed or missing ownership behavior,
-  per-arm repeated-record credit, deterministic ties, representative branch and provenance ownership.
-  Keep canonical logical_id uniqueness unchanged; fusion identity is a separate retrieval decision.
-- Census equal-body groups in an authorized read-only Memex snapshot and representative evaluation
-  fixtures: records, logical IDs, revisions, kinds, sources, arm overlap and observed merged provenance.
-  Bind corpus/snapshot/query identities; publish aggregates only and record unavailable access honestly.
-- Submit census plus rank/provenance examples for HITL identity ruling. Amend conflicting body-dedup
-  language in retrieval/historical design and affected interface docs only during authorized execution.
-- Establish the complete ranking reference under that decision first. Share identity, RRF contribution,
-  rank and tie comparison code between it and the optimized route; preserve weights and post-fusion stages.
-- Deferred content computes every eligible match's exact `(bm25, cursor)` rank from lightweight rows,
-  accounts for every vector/text/edge overlap at its full rank, then hydrates only candidates provably
-  able to enter final output. Prove any stopping bound including ties; never use an approximate prefix cap.
-- Preserve distinct edge ranking/corpus rules and rowid mapping; node rowid identity does not imply
-  edge FTS rowid identity. Verify all current write/rebuild/reprojection paths preserve node identity.
-- Keep one vector candidate/contribution per record at the fusion boundary; specify duplicate vector-ID
-  handling without enabling record-grouped candidate-selection experiments or generating overflow vectors.
-- Carry cursor-keyed identity through explanation rank/score maps, graph seed exclusion/hydration,
-  evidence provenance and snippets. Historical graph traversal still resolves logical entities as designed.
-- Retain conservative reference routing for unsupported controls and invariant failures; define which
-  errors must propagate. Never silently omit candidates, bypass source-dependency fallback or weaken view authority.
-- Prefix-only optimization applies after span normalization proves record-start selection. Prove bounded
-  Unicode segmentation against the full selector before skipping whole-body tables; arbitrarily long
-  grapheme/word context may require fallback. Preserve ellipses, whitespace/CRLF and UTF-8 byte offsets.
+## Dependencies, decisions and status
 
-## Challenges, research, fit review and prerequisites
+Hard source inputs remain dependable20/actual30 baseline and accepted identity
+semantics/census disposition; no missing input is waived here. Runtime consumer
+census scope is approved; execution needs the exact appropriate consistent
+snapshot/access method and does not require a new generic permission request. Production ranking
+or provenance change also needs the identity ADR accepted. The smallest MCP
+feedback correction is proposed, not authorized by this file.
 
-- Hard: approved Slice 10 preparation, trusted Slice 30 baseline and an accepted identity ADR/census
-  before changed ranking/provenance or optimized production route. Census access is a new explicit prerequisite.
-- Preferred: 40 lands before 50 for attribution/shared engine files; it is not a semantic dependency.
-  Coordinate 60/70 final native parity on integrated fusion; serialize engine landings 40/50/70/100/110.
-- Planned primary-source research: SQLite FTS5 bm25/rank/content lookup and transaction snapshot docs;
-  pinned unicode-segmentation implementation plus Unicode UAX #29 rules for bounded-prefix context.
-  Record consulted versions/URLs and counterexamples in `design.md`; do not infer latest-library facts.
-- Fit review: compare prototype proof to format37, separate vector IDs, native pre-cap eligibility,
-  current direct-text filters and historical/frozen authority. Reject old env knobs and obsolete vector fallback.
-- Challenging seams: deep-rank ties, duplicated bodies across node/edge arms, ownerless rows, same logical
-  ID across revisions, explanation joins, graph entity semantics and long combining/ZWJ/regional-indicator runs.
-- Proposed revision: identity/reference first, then bounded route optimization, then prefix specialization;
-  split implementation units if any cannot independently demonstrate RED and exact GREEN.
+The ADR/census contains bounded choices for record-version versus entity/body
+fusion, same-record graph provenance and repeated public references. Parent
+handles rulings; no new policy gate or .30 deferral is inferred. B/C fork/rebase/
+multiarchitecture work remains .30; it is unrelated to50.
 
-## Tasks, review and completion signals
+Current result: source-only census and design drafted; Memex runtime census,
+identity/HITL decisions, independent design review,30 evidence, source entry,
+TDD, benchmarks and final review remain outstanding. No product tests, models,
+GPU, private DB reads/copies or environment/Git mutations ran in this phase.
 
-1. Complete local needs/requirements/test mapping; inspect existing tests in full before gap claims.
-   Use [deep-rank control](../../../../../src/rust/crates/fathomdb-engine/tests/slice71_search_statement_trace.rs)
-   and [Unicode properties](../../../../../src/rust/crates/fathomdb-engine/tests/snippet_selector.rs) as starting evidence.
-2. Produce census, identity ADR and adversarial design review; obtain recorded HITL ruling before code.
-   Independent reviewer challenges scoring proof, identity/provenance and Unicode context, with unresolved issues explicit.
-3. Implement approved identity with per-behavior failing tests first, separate RED/GREEN commits and
-   recorded failure evidence; audit RED shas. Preserve frozen/historical fixtures instead of regenerating goldens.
-4. Implement deferred content and prefix specialization separately; real-database fixtures plus generated
-   ranking/Unicode properties cover empty arms, deep overlap, ties, duplicate vectors, node/edge equal bodies,
-   ownerless rows, filter/view combinations, rollback/concurrent snapshots and forced-reference route witnesses.
-5. Verify installed Python/N-API and Rust SDK parity for IDs, scores, sources, explanations and UTF-8
-   snippets; include filtered provider-free direct text, historical flags and current native artifact identities.
-6. Run focused lint/typecheck/tests in latency order, then one full `agent-verify` for final code phase
-   in a checkout-owned environment; required feature/performance checks and affected MCP conformance follow.
-   Repeat Slice 30 baseline protocols with/without optimization; report isolated and composed 40+50 effects.
-7. Independent code/verification review checks exact output and actual route/work witnesses. Close only
-   with traceable AC evidence, acknowledged performance limits, docs/interface updates and release-state integration.
-
-## Stop and decision points
-
-- Stop ranking/provenance changes until identity ruling; inaccessible census or unresolved ownerless/version
-  semantics stays a documented dependency, not assumed approval. No Memex writes are part of this slice.
-- Any score/order/provenance divergence, Unicode counterexample or unproven stopping bound blocks optimization;
-  retain reference implementation and revise design. No ANN, overflow chunking, threshold/default experiments,
-  schema/counter fallback, canonical contract edits or publication is authorized by this planning draft.
+Phase A validation:7 explicit Markdown candidates passed markdownlint0.41.1
+from installed cli2.23.3 with the repository rule config; intended-destination
+relative links and trailing whitespace checks passed. Repository HEAD stayed
+2f6913c1d59ac8ff3a30de835b57290a8635998c and Git status remained clean.
+These scoped document checks are not product/full-workspace qualification.

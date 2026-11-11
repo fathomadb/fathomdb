@@ -205,9 +205,18 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-40/plan.md"
+        "dev/plans/0.8.29/features/slice-40/acceptance.md",
+        "dev/plans/0.8.29/features/slice-40/design.md",
+        "dev/plans/0.8.29/features/slice-40/measurement-plan.md",
+        "dev/plans/0.8.29/features/slice-40/plan.md",
+        "dev/plans/0.8.29/features/slice-40/release-integration.md",
+        "dev/plans/0.8.29/features/slice-40/requirements.md",
+        "dev/plans/0.8.29/features/slice-40/review-log.md",
+        "dev/plans/0.8.29/features/slice-40/test-map.md"
       ],
-      "conditions": "Adopt only if30 measurements and reviewed snapshot/invalidation safety justify it; otherwise record authorized rejection/defer."
+      "conditions": "Adopt only if30 measurements and reviewed snapshot/invalidation safety justify it; otherwise record authorized rejection/defer.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium design PASS after FIX1 corrected AC-083 to text only. This is a bounded proposal: current Slice30 measurements, prospective tolerances, concrete selection and snapshot/invariance proof still precede implementation. No cache has been selected."
     },
     {
       "slice": 50,
@@ -218,9 +227,17 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-50/plan.md"
+        "dev/plans/0.8.29/features/slice-50/census.md",
+        "dev/plans/0.8.29/features/slice-50/design.md",
+        "dev/plans/0.8.29/features/slice-50/feedback-decision.md",
+        "dev/plans/0.8.29/features/slice-50/plan.md",
+        "dev/plans/0.8.29/features/slice-50/requirements.md",
+        "dev/plans/0.8.29/features/slice-50/review-log.md",
+        "dev/plans/0.8.29/features/slice-50/test-map.md"
       ],
-      "conditions": "Accepted identity successor precedes production semantic change."
+      "conditions": "Accepted identity successor precedes production semantic change.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium bounded PhaseA PASS after context-pack and role-tagged fixture corrections. The feedback decision presentation also passed review; the actual human ruling remains unanswered. Current measurements, representative safe census inputs and identity/ADR decisions remain held. No identity or new feedback ABI was selected."
     },
     {
       "slice": 60,
@@ -238,8 +255,9 @@
         "dev/plans/0.8.29/features/slice-60/test-plan.md",
         "dev/plans/0.8.29/features/slice-60/review-log.md"
       ],
-      "phase": "DESIGN_REVIEWED_SOURCE_ENTRY_AUTHORIZED",
-      "evidence": "Sol-high owner reconciled actual10 and integrated20 Linux repair subset657edeb at parent37f9eba. Fresh independent Astra-medium actual20 design recheck PASS after the sole source-entry preflight sequencing FIX, recorded in features/slice-60/review-log.md. Approved formats/flags/direct-text-filter contracts and immutable oracles retained. Hard dependency10 is closed;20 policy/Windows holds do not block independent60. Parent-created fresh source worktree, strict closed10 entry, owned setup, real per-behavior RED/GREEN, source qualification and fresh implementation review remain required."
+      "phase": "QUALIFIED_MCP_SUBSET_INTEGRATED_F11_HELD",
+      "evidence": "Implemented format/direct-filter/budget subset integrated at5271c1bf022f0ea22f95f7433e226feb2315043e after genuine runtime RED/GREEN and fresh independent Astra-medium implementation PASS. Assembled qualification:214/214 canonical suites passed; native ignored/skipped cases and original307 wrapper failure remain explicit. Runtime inputs match tested7038; source-bound production lifecycle, nonce-bound child identity, retained logs and supplemental post-code GPU metadata proof are recorded in features/slice-60/execution.md and review-log.md. F11 historical flags/feedback ruling remains held: no whole60/20/Block1 or release closure.",
+      "qualified_subset_sha": "5271c1bf022f0ea22f95f7433e226feb2315043e"
     },
     {
       "slice": 70,
@@ -248,10 +266,20 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-70/plan.md"
-      ]
+        "dev/plans/0.8.29/features/slice-70/design.md",
+        "dev/plans/0.8.29/features/slice-70/execution-map.md",
+        "dev/plans/0.8.29/features/slice-70/historical-oracle-successor.md",
+        "dev/plans/0.8.29/features/slice-70/oracle-successors.md",
+        "dev/plans/0.8.29/features/slice-70/plan.md",
+        "dev/plans/0.8.29/features/slice-70/requirements.md",
+        "dev/plans/0.8.29/features/slice-70/review-log.md",
+        "dev/plans/0.8.29/features/slice-70/status.md",
+        "dev/plans/0.8.29/features/slice-70/test-map.md"
+      ],
+      "phase": "DESIGN_REVIEWED_SOURCE_ENTRY_AUTHORIZED",
+      "evidence": "Astra-medium actual20 and actual60 candidate rechecks PASS, followed by coherent-document consistency PASS. Exact reason-order successors, strict historical row4 handling, independent sizing, genuine Closing runtime RED and separate facade compile reachability evidence remain required. Before import, the parent verified all22 reviewed source/test pins against integrated Slice60 commit 5271c1bf022f0ea22f95f7433e226feb2315043e. Historical candidate/evidence pins retain their original meaning. The source owner must reread the actual integrated baseline before coding; strict closed10 entry, owned setup, real RED/GREEN and fresh final implementation review remain required."
     },
     {
       "slice": 80,
@@ -264,9 +292,20 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-80/plan.md"
+        "dev/plans/0.8.29/features/slice-80/acceptance.md",
+        "dev/plans/0.8.29/features/slice-80/census.md",
+        "dev/plans/0.8.29/features/slice-80/design.md",
+        "dev/plans/0.8.29/features/slice-80/needs.md",
+        "dev/plans/0.8.29/features/slice-80/plan.md",
+        "dev/plans/0.8.29/features/slice-80/requirements.md",
+        "dev/plans/0.8.29/features/slice-80/review-log.md",
+        "dev/plans/0.8.29/features/slice-80/review.md",
+        "dev/plans/0.8.29/features/slice-80/status.md",
+        "dev/plans/0.8.29/features/slice-80/test-map.md"
       ],
-      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish."
+      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium bounded PhaseA and aggregate-v2 PASS, then nine-document consolidation consistency PASS. Exact carriers, numeric profile.dimension, stored-mapped-span population, unavailable semantics and writer-only cache authority agree. No aggregate physical-vector probes or strengthened validation/refusal policy are proposed. Actual50/60/70 reconciliation and full80/90 gates remain held; this is not accepted new ABI or implementation clearance."
     },
     {
       "slice": 90,
@@ -277,9 +316,19 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-90/plan.md"
+        "dev/plans/0.8.29/features/slice-90/acceptance.md",
+        "dev/plans/0.8.29/features/slice-90/census.md",
+        "dev/plans/0.8.29/features/slice-90/design.md",
+        "dev/plans/0.8.29/features/slice-90/needs.md",
+        "dev/plans/0.8.29/features/slice-90/plan.md",
+        "dev/plans/0.8.29/features/slice-90/requirements.md",
+        "dev/plans/0.8.29/features/slice-90/review-log.md",
+        "dev/plans/0.8.29/features/slice-90/status.md",
+        "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit."
+      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review."
     },
     {
       "slice": 100,
@@ -290,9 +339,17 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-100/plan.md"
+        "dev/plans/0.8.29/features/slice-100/coverage-matrix.md",
+        "dev/plans/0.8.29/features/slice-100/design.md",
+        "dev/plans/0.8.29/features/slice-100/plan.md",
+        "dev/plans/0.8.29/features/slice-100/requirements.md",
+        "dev/plans/0.8.29/features/slice-100/review-log.md",
+        "dev/plans/0.8.29/features/slice-100/status.md",
+        "dev/plans/0.8.29/features/slice-100/test-plan.md"
       ],
-      "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap."
+      "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium bounded actual20 evidence/design recheck PASS. Reuse of the existing eight-control execution is accepted with explicitly stated source/configuration inference limits. Active-checkpoint interruption and richer combined crash assertions remain open; no product defect, new test-policy exception or whole100/D28-09 closure was established."
     },
     {
       "slice": 110,
@@ -352,9 +409,18 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-140/plan.md"
+        "dev/plans/0.8.29/features/slice-140/acceptance.md",
+        "dev/plans/0.8.29/features/slice-140/design.md",
+        "dev/plans/0.8.29/features/slice-140/plan.md",
+        "dev/plans/0.8.29/features/slice-140/requirements.md",
+        "dev/plans/0.8.29/features/slice-140/review-log.md",
+        "dev/plans/0.8.29/features/slice-140/source-census.md",
+        "dev/plans/0.8.29/features/slice-140/status.md",
+        "dev/plans/0.8.29/features/slice-140/test-map.md"
       ],
-      "conditions": "Concrete required110/120 repair design only, fork-local qualified before product pins; B/C maintenance belongs.30 and never gates.29."
+      "conditions": "Concrete required110/120 repair design only, fork-local qualified before product pins; B/C maintenance belongs.30 and never gates.29.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium bounded PhaseA PASS. Only concrete repairs required by110/120 and necessary repair-release versioning belong in.29. Broader upstream/rebase/marker/multiarch B/C work belongs in.30 and is not a.29 prerequisite. Required repair selection, fork-local design/qualification and publication gates remain held; no speculative repair or no-repair result is claimed."
     },
     {
       "slice": 150,
@@ -366,9 +432,18 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-150/plan.md"
+        "dev/plans/0.8.29/features/slice-150/acceptance.md",
+        "dev/plans/0.8.29/features/slice-150/checkpoint-dispositions.md",
+        "dev/plans/0.8.29/features/slice-150/design.md",
+        "dev/plans/0.8.29/features/slice-150/plan.md",
+        "dev/plans/0.8.29/features/slice-150/requirements.md",
+        "dev/plans/0.8.29/features/slice-150/review-log.md",
+        "dev/plans/0.8.29/features/slice-150/status.md",
+        "dev/plans/0.8.29/features/slice-150/test-map.md"
       ],
-      "conditions": "Individual explicit study selection/preregistration/caps required; no currently selected experiment or inferred spend."
+      "conditions": "Individual explicit study selection/preregistration/caps required; no currently selected experiment or inferred spend.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium bounded PhaseA PASS. All15 inventory items remain NOT_SELECTED. Q9 recommended deferral is not an owner ruling. No experiment, research campaign, numerical gate, spend, default change or mandatory approval question is added. Future work requires actual individual selection and affected predecessor evidence."
     },
     {
       "slice": 160,
@@ -383,9 +458,17 @@
       ],
       "status": "NOT_STARTED",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-160/plan.md"
+        "dev/plans/0.8.29/features/slice-160/design.md",
+        "dev/plans/0.8.29/features/slice-160/plan.md",
+        "dev/plans/0.8.29/features/slice-160/qualification.md",
+        "dev/plans/0.8.29/features/slice-160/requirements.md",
+        "dev/plans/0.8.29/features/slice-160/review-log.md",
+        "dev/plans/0.8.29/features/slice-160/status.md",
+        "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
-      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate. Optional140/150 only if selected. Publication held."
+      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate. Optional140/150 only if selected. Publication held.",
+      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "evidence": "Astra-medium bounded PhaseA design PASS. The matrix preserves mandatory versus conditional coverage, release-specific measurement freshness, justified unchanged-input reuse, assembled-evidence limits, native identity, Block1-before90 sequencing and separate publication authorization. No runtime qualification, final implementation approval or publish readiness follows."
     }
   ],
   "landed": [],
@@ -500,7 +583,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 local preparation passed independent implementation review with assembled source/component evidence. Product, selected platform/artifact and final release qualification remain pending; no uninterrupted full-gate or published-package qualification claim.",
+    "qualification": "Slice10 local preparation, integrated20 Linux repairs and the60 format/direct-filter/budget subset have independent implementation PASS within their recorded limits. Actual product/platform/artifact, remaining criteria and final release qualification remain pending. No uninterrupted full-wrapper or published-package qualification claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

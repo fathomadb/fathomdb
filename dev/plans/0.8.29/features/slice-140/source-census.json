@@ -1,0 +1,106 @@
+{
+  "observed_on": "2026-11-10",
+  "product_head": "02e30d861beddc8061af0dc22f12106d5e09dd32",
+  "reused_candidate": "98fcbd546e73402adfcbd0b8fd916a91edccc5b4",
+  "method": "Read-only Git-object/current cached archive hash comparison; no builds/downloads/native execution",
+  "product_inputs": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "29165cf6790976df8db53776d9ae2d08ce45d01c3a9845a7726c0c8ff9187835",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "bf2c9122b50fe841f2407c625755ebc910491699e41872db4690b09c66c19525",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-embedder/Cargo.toml",
+      "sha256": "c9138ac1c9ef6af105f27801bb4b08cd96a2afe512226b1377f545e6170409ff",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-embedder/src/cuda_pool_policy.rs",
+      "sha256": "947d2abc0fd34cb73b0b531640ef78db93395bce2a14c57628cb0b7cead52421",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-embedder/src/cuda_pool_policy_tests.rs",
+      "sha256": "611bd366f1302b23b14e0a8dde0dea173cc083cd130cbd98100564093dc3f0e9",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-embedder/src/candle_bge.rs",
+      "sha256": "d699b8f9db419c1118ecc8c3a412a9eca450257294569aa58bf958a691b77ab3",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-embedder/src/candle_reranker.rs",
+      "sha256": "6f11d2da378d45dfd51dcff8b6a689a2e76c1228208ff200559fbddaf26ba2d7",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-embedder/src/cuda_libraries.rs",
+      "sha256": "025d8a5466df57ff99adca76c2959745a2b09c418396732c96a7bbcfb17f4cc5",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "src/ts/src/platform.ts",
+      "sha256": "25f5d8821e69b2d2dc1a74adfe3bb5202d075c1d7bfef26b9ae611ebb340e5b6",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "scripts/release/cuda-artifact-contract.sh",
+      "sha256": "883daebc3df8f4c3b59c0d97b8ffc20b9a8e7777fcb88cc11d806dbb6b8a5e1f",
+      "unchanged_from_110_120_candidate": true
+    },
+    {
+      "path": "scripts/pinned-override-rot.json",
+      "sha256": "831835af06e79c4de71cdb2e1866c979f6ba26b155d47c84655872abf20e2c78",
+      "unchanged_from_110_120_candidate": true
+    }
+  ],
+  "current_cached_archive_checks": [
+    {
+      "package": "candle-core-fathomdb-0.11.0",
+      "sha256": "b5feacc063f44c77a54cb8b43d03c5e32fa5421f4163f0524194783e21563341",
+      "matches_current_lock_and_prior_receipt": true,
+      "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
+      "prior_source_comparisons": 63
+    },
+    {
+      "package": "candle-nn-fathomdb-0.11.0",
+      "sha256": "69c7432aa63cb543065f49453fa2e258e4dc3bd458abbcb7c150d17e90026200",
+      "matches_current_lock_and_prior_receipt": true,
+      "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
+      "prior_source_comparisons": 24
+    },
+    {
+      "package": "candle-transformers-fathomdb-0.11.0",
+      "sha256": "513008c79a9751ec5fdc08918dcdb1a8872c95e90f7697a9f8c5ef1951e3d222",
+      "matches_current_lock_and_prior_receipt": true,
+      "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
+      "prior_source_comparisons": 204
+    },
+    {
+      "package": "cudarc-fathomdb-0.19.10",
+      "sha256": "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2",
+      "matches_current_lock_and_prior_receipt": true,
+      "vcs_sha1": "b777f8d94eedca8334e9331cf520d554b22544b7",
+      "prior_source_comparisons": 101
+    }
+  ],
+  "reused_proposal_receipts": [
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-110/phase-a/dev/plans/0.8.29/features/slice-110/source-authentication.json",
+      "sha256": "ea23185279ae913a81751a5feb66bfdbea5efd48d204ce00ef5c429dc2b1388b"
+    },
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-120/phase-a/dev/plans/0.8.29/features/slice-120/source-inspection.json",
+      "sha256": "f81b91848217694a10db4a1589c137f8892865ec0b942aa961666bcf2bb6b28f"
+    }
+  ],
+  "qualified_repair": null,
+  "compiler_exposure": "UNKNOWN",
+  "new_version_or_pin_selected": false
+}

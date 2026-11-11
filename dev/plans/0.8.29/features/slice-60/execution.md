@@ -184,3 +184,11 @@ No ref ABI/guard/provider/model workaround, whole60 completion, full green,
 20/30/Block1 exit or platform release qualification is claimed. Fresh independent
 Astra final implementation/results review remains required; owner does not
 self-approve or merge.
+
+## Parent integration checkpoint
+
+Fresh independent Astra-medium implementation PASS accepted only the qualified
+format/direct-filter/budget subset at5271c1bf022f0ea22f95f7433e226feb2315043e.
+Parent integrated that commit by fast-forward after strict closed10 preflight.
+Runtime inputs remain those qualified at7038; final record updates are Markdown
+only. F11 remains held and the release remains NOT_READY/publication HELD.

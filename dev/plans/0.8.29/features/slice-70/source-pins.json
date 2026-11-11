@@ -1,0 +1,244 @@
+{
+  "classification": "read-only actual60 candidate fit and proposed oracle successor; not source clearance",
+  "parent_frozen": "2f6913c1d59ac8ff3a30de835b57290a8635998c",
+  "candidate60_pin": "307c92e3b4b8c674eec28fc940c879e9054fff90",
+  "candidate60_landed": false,
+  "candidate60_complete": false,
+  "candidate60_worktree_observation": "307c HEAD with dirty operator packaging materialization repair; pinned git blobs only used as product input",
+  "source_pins": [
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/config.rs",
+      "git_blob": "7514ca91cfa88312353ac37aa8a33581f0b49fe9",
+      "sha256": "d0f2fde4d9167e4e548043007a7f4a474d2d248f34619dec2d6fa306706211a2",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/edge.rs",
+      "git_blob": "6513965bdac4a8bfe3a95a50a601af7de4336aa7",
+      "sha256": "72af534cac107b71496b9860ac207ce08812a554968d0e51de9ab7d4280c6aa0",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/hooks.rs",
+      "git_blob": "1fd464656d5b597eda28e8ab10d27f2d88ad110e",
+      "sha256": "2521ff21906b9f1aced7b80f4858d29c64d2f808d7ba334572c26512e7b0867c",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/output.rs",
+      "git_blob": "9b8fdb6a53e0df630b4b194e637ffefbb681e234",
+      "sha256": "d97b0597b355113066e9d01ce5d0c1ed4329b8547766fd18dabf96495a7406ca",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/shape.rs",
+      "git_blob": "0aef05ba5fd49a9984d5f19b33de8445c0864b04",
+      "sha256": "ad730c3c2e0723dd4518df086e5b5d1015b3fe3326c079edb8b217d220e67bcb",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/tools.rs",
+      "git_blob": "ca5c58818440a0acef9c494bcff18201dc292130",
+      "sha256": "ecfb5b2963762da36cc82c6fb87fa955051e2d1c1d64499fbf51d4fdac5d4695",
+      "changed_by_successor_proposal": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/hints.rs",
+      "git_blob": "5dce007d4ba6643a2dd4f66291f0ba491a7b7b9b",
+      "sha256": "26c808944880d59d5f5f0651d13c609e873d6537245bec797c1bca7ee880ab29",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/seams.rs",
+      "git_blob": "dea56a1cde37bdf8fa9404ed7dc5c80db59eb998",
+      "sha256": "845a3f8727392b82f88bf22cdeae1e65194769b3fc7fe91ace9a936060fa38d5",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/src/registry.rs",
+      "git_blob": "a20f44c89d1950eb094209b2436feacc421d7d54",
+      "sha256": "60f04b101dfa907650f2e3ebfcaf44a3da010f84fc322a449d86acea68d05853",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/search.rs",
+      "git_blob": "4d35ea960a70fd9a1bd734ae07028b62d075521e",
+      "sha256": "9fa16d31c18ad09584c0eb9774f505768c8b6d8db7cafb80649ba2fb2c5f1c3a",
+      "changed_by_successor_proposal": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/hints.rs",
+      "git_blob": "4d83ed8591bb21c82d424e4834158d75baf88ca0",
+      "sha256": "821d61abb93215275b96ea7ea221854da626ea14a34593d2ca9a396edd0c851c",
+      "changed_by_successor_proposal": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/hints_baseline.rs",
+      "git_blob": "fb66deeceafbab061060d4c0e7f1ce6b4bb6c0a6",
+      "sha256": "877253ec1a721ba7ed8bffe1c3f576d16e594b08ad1b122c7c86651d2393949b",
+      "changed_by_successor_proposal": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/hints_properties.rs",
+      "git_blob": "e46c6a4a10367e1ffb0a8a56eaeb5279703159c8",
+      "sha256": "d4a195063766989267c5bd0008d3a64bb643b522a9ac3d73899e315011a89e46",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/direct_filters.rs",
+      "git_blob": "709fe6c756e70d5c3ededc059f7e1d80b22961c0",
+      "sha256": "377c52c9c3bb98e9b1d8706d231073d67d34446238a562ecf6b002d445dbb7c2",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/formats.rs",
+      "git_blob": "37dd0c02b37ff1c5b97099f55b31d746c4817409",
+      "sha256": "5324bb89d42169ecacc22aa5f324d40569eb01aae82316226188b4ca867d57b6",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/schema.rs",
+      "git_blob": "9c4f7ff7d5e503191e25e3867f67d1db9a4c8ac2",
+      "sha256": "d5816220b0afabbdf853d26f18c10410882f33255c9981bde7203c1e15f80586",
+      "changed_by_successor_proposal": true
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/field_census.rs",
+      "git_blob": "dfbb5e13f6846109888f2a7167a2d85efd5d985a",
+      "sha256": "7146f5f310f63e7dc68cedde595f0d40c3ed41c89820299aed41a964bdf9e538",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/determinism.rs",
+      "git_blob": "5c6b72dbdf1e43df3a839411018e2920fa65a67e",
+      "sha256": "fc98d1a14de490a0c40196737e99a7b24a411d5694b1d5813a63ee6770eac958",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/embedder.rs",
+      "git_blob": "9f9d91178a7a3e692baedcb326cfa3504c12abfe",
+      "sha256": "cd5fdb4c059606cd991e6ba2e48b760289219685df86e7b7078f613b5e972f18",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/hints_overhead.rs",
+      "git_blob": "3973ce5fd662fb099deba242009d2c9d6fc9876b",
+      "sha256": "110600b47255d7a88d3a5a0e04d0e51672241ddc32ce26579f54a7f413c1b3e8",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/common/mod.rs",
+      "git_blob": "510524fd17c050d1b4f5be8828e0193c4d0bf0e8",
+      "sha256": "6c0625e27e62f18a984587cc831b4eb1fbc6d48ae65f739e64d6008e836b7101",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "src/rust/crates/fathomdb-mcp/tests/fixtures/hints_off_baseline.jsonl",
+      "git_blob": "63c3ad7318dacbccbb99c14c7ced2429ff29b058",
+      "sha256": "0cdca8a0b906b9cd0b559c0e870e898fd4637da4b9d6176b99047a93c73070b4",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/experiments/0.8.29-slice60-projected-metadata/driver/src/main.rs",
+      "git_blob": "b9eeffa3dfec54b759716b72089767b3881c8511",
+      "sha256": "b42473c3194bb0621e4280246dd6bf91a5e254f6fda28f1c0d56e475a49a5766",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/experiments/0.8.29-slice60-projected-metadata/mcp_check.py",
+      "git_blob": "717a8630dffd013ed1913b9d9d0c39400e2865ef",
+      "sha256": "6c053ce9fc9fdddaf261bd1e63ee3c43ff508e331af0ce940fca1e5cdf87d7b5",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/experiments/0.8.29-slice60-projected-metadata/qualification.json",
+      "git_blob": "8f21a9a2fa5d70f773845bf751712ff5b6f0a9ba",
+      "sha256": "ac90fa1f8ecaafb03e48b04120f84ccfd3aaf6a70fef4e57d0f83f0cdb622a51",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/experiments/0.8.29-slice60-projected-metadata/executed-sources.json",
+      "git_blob": "2a655017db08af1ceed45b0fe6c0277a198aa3cb",
+      "sha256": "b3eca132581374a76b304bfcc3ef25787582c0fa2225e9a80a2a0b03444cf1cd",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/experiments/0.8.29-slice60-projected-metadata/operator-sources.json",
+      "git_blob": "ff5ed8ec4631285c8fa52717ddcb6c0dde85f5c6",
+      "sha256": "7e6349880bcf626af774f36d5588599e2d451013991527b448e0f6415eb626da",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-60/execution.md",
+      "git_blob": "d72f1ced837f957e2ee5d5cc008047194e3d96ac",
+      "sha256": "252f1e398a7c68e0bebaa5560308803e7c182fd90442035460b026ef1b4bf089",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-60/status.md",
+      "git_blob": "7557ebf770f5fbac3a295bde264a5fa488341cb4",
+      "sha256": "0ac1bae5838aeb0b61c20738af7dc8c3e40f2ebbc47e180140dab5e69674324d",
+      "changed_by_successor_proposal": false
+    },
+    {
+      "path": "dev/plans/0.8.29/features/slice-60/review-log.md",
+      "git_blob": "c36099aafc13d983920767a50f682f8f3862e26d",
+      "sha256": "e3802f55331b2853fb6b9afbbb3675d97a6c4e5dfffaef0fb93800e5c90962cc",
+      "changed_by_successor_proposal": false
+    }
+  ],
+  "retained_reviewed70_inputs": [
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-70/actual20-reconciliation/dev/plans/0.8.29/features/slice-70/design.md",
+      "sha256": "cfa1d1624a07a4f695df3dd86312c74cbe12cf6d1b0272fd68986d85c44d1535"
+    },
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-70/actual20-reconciliation/dev/plans/0.8.29/features/slice-70/historical-oracle-successor.md",
+      "sha256": "85da7dba4bc4ab3ac97d919c60e3a53f3dff8b816e7f5c7b4c1a8b1ebea0f88a"
+    },
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-70/actual20-reconciliation/dev/plans/0.8.29/features/slice-70/plan.md",
+      "sha256": "957878983772da1990e13b899b14743a448e2e23ae9496720478d2554e4bb2a7"
+    },
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-70/actual20-reconciliation/dev/plans/0.8.29/features/slice-70/requirements.md",
+      "sha256": "cbd18435fa682932db5fcf1462157a3e3c1055da8c40c9f07c9f85b04b45ee13"
+    },
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-70/actual20-reconciliation/dev/plans/0.8.29/features/slice-70/status.md",
+      "sha256": "e10125c5f1d96054fc0ef8ef9aaf84ffa3117fdd04a1b889c6ee79466f480314"
+    },
+    {
+      "path": "/tmp/fathomdb-0829-direct/slice-70/actual20-reconciliation/dev/plans/0.8.29/features/slice-70/test-map.md",
+      "sha256": "36ddba370718d12b3d6e31bb87f8aeb7b9a4074abc0ec8b685f3bd97db3e1f6b"
+    }
+  ],
+  "proposal_changed_paths": [
+    "src/rust/crates/fathomdb-mcp/src/tools.rs",
+    "src/rust/crates/fathomdb-mcp/tests/hints.rs",
+    "src/rust/crates/fathomdb-mcp/tests/hints_baseline.rs",
+    "src/rust/crates/fathomdb-mcp/tests/schema.rs",
+    "src/rust/crates/fathomdb-mcp/tests/search.rs"
+  ],
+  "proposal_diff_sha256": "c9835f30e813a2324f051fbcc501c3aa71575b86e500c7a0aed73389d44aa758",
+  "proposal_execution": "NOT_RUN; illustrative oracle hunks only; runtime RED fixtures/negative controls specified in packet before implementation",
+  "consolidated_candidate60_pin": "7038b5b47dc7dd02bc64e612d788fa334ff79b61",
+  "candidate60_successor_diff_paths": [
+    "dev/experiments/0.8.29-slice60-projected-metadata/README.md",
+    "dev/experiments/0.8.29-slice60-projected-metadata/driver/Cargo.toml",
+    "dev/experiments/0.8.29-slice60-projected-metadata/materialize_driver.py",
+    "dev/experiments/0.8.29-slice60-projected-metadata/operator-sources.json"
+  ],
+  "candidate60_product_and_test_equivalence": "All pinned src/ objects unchanged between307c and7038; only the four listed reviewed operator packaging paths differ.",
+  "candidate60_qualification_boundary": "Parent reports remaining lint/typecheck/strict security PASS, all-tier tests running and no material final-audit finding; terminal PASS/receipts and landing remain pending. No70 source clearance.",
+  "canonical_links": {
+    "plan": "plan.md",
+    "requirements": "requirements.md",
+    "design": "design.md",
+    "test_map": "test-map.md",
+    "historical_successor": "historical-oracle-successor.md",
+    "execution_map": "execution-map.md",
+    "oracle_successors": "oracle-successors.md",
+    "proposed_diff": "oracle-successors.proposed.diff"
+  }
+}

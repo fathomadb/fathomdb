@@ -1,0 +1,56 @@
+---
+title: Slice 160 qualification matrix
+status: PROPOSED
+target_release: 0.8.29
+---
+
+# Slice 160 qualification matrix
+
+All rows below are **unexecuted by160**. They name existing contracts/routes;
+they do not dispatch work. Source references are [canonical requirements/AC](requirements.md),
+[.28 execution inventory](../../../0.8.28/features/slice-95/qualification.md),
+[current .28 closure](../../../0.8.28/features/slice-95/status.md),
+[release design](../../../../design/release.md), [master](../../../plan-0.8.29.md)
+and [reconciliation](../../reconciliation-plan.md). Current scripts/tests and
+accepted successors control any stale historical wiring.
+
+## Required qualification and freshness
+
+| Row / local acceptance | Existing route and meaningful oracle | Freshness / current hold |
+| --- | --- | --- |
+| Q1 / A160-1 | Selected slices' actual review/exits plus condition register below; reconcile source/git and raw evidence, not run-state narration. |10 closed;20 Linux subset only;60 source active; other selected exits not yet established. |
+| Q2 / A160-2 | `scripts/agent-verify.sh` full default: owned tools, workspace clippy/check, security and actual registered tests. Prepare clean final tree; preserve lint→type→test short-circuit. | One final code-phase broad run, scoped correction/resumption afterward. Current60 final run/fresh review pending;10/20 assembled evidence is not final integrated .29 qualification. |
+| Q3 / A160-2 | Current `scripts/check-test-target-coverage.py` inventory and `scripts/test-feature-complete.sh` with pinned live BGE/reranker/nomic/ONNX/available3090 requirements; actual missing assets fail. | Applicable .29 feature campaign required; no copied historical counts or normal-gate feature skips as coverage. |
+| Q4 / A160-2 | `STRICT=1 scripts/agent-security.sh`; real AC036/037 plus maintained security controls;0violations/0blockers/0downgrades. | Current code/config or applicable current .29 equivalent run. Strict ptrace/netns executor required; optional live downgrade insufficient. |
+| Q5 / A160-2 | AC011a/b existing `scripts/run-ac011-write-throughput.sh`:1KB>=1000/s,100KB>=100/s, existing5s warmup/60s measurement, canonical x64/NVMe. | Candidate source applicability and unchanged workload required. Existing .28 throughput may retain its unchanged-input scope; refresh if .29 write/runtime/build/host inputs invalidate it. No new automatic profiling campaign. |
+| Q6 / A160-2 | Release isolated `perf_gates::ac_012_text_query_latency_on_fts5_path` N10000:20/150ms; `ac_013_vector_retrieval_latency` N10000/dim768:80/300ms, accepted sample protocol. | Actual once-per-.29 observations from30/Block1 may be reused if final inputs apply. No debug/concurrent-build timings or100k thresholds as binding verdict. |
+| Q7 / A160-2 | AC073 accepted real-corpus stress, bound=max(10×baseline,150ms). Retain legacy EU7 overall exit and superseded recall assertion independently. | Fresh applicable .29 stress; synthetic AC019 report-only cannot pass it. Missing accepted workload blocks this row. |
+| Q8 / A160-2 | AC075 accepted `experiments.tc5_gpu_v2` frozen bridge:7667 real docs/100queries/K192/top10/exact-f32 vector truth; CI-high>=0.90. | Fresh applicable .29 candidate-bound tool/native/model/input proof. Frozen index/qualified manifest/referenced pack missing; UUID C8D47C11D47C03CA reconnect/copy question unanswered. No regenerated or10k convenience substitute; legacy EU7 recall not replacement. |
+| Q9 / A160-2 | AC081a/b release absolute batch <=500ms sequential/<=100ms eight-reader; current seven-process protocol. AC081c real distinct-reader progress remains separate correctness witness. | Applicable final .29 observation or justified unchanged-scope reuse; AC020 ratio remains retired. Host invalidity is not failure waiver. |
+| Q10 / A160-2 | Required long AC02160s warning-free schema/DDL and1000-iteration cursor fixture with positive writes; use `AGENT_LONG=1 scripts/check.sh` or reviewed exact unchanged selectors. | Run only missing/invalidated long scopes. Normal gate skips are explicit, not proof; no duplicate full workspace run solely to reach these selectors. |
+| Q11 / A160-3 | Real engine/SDK/MCP all-tools/error/filter-before-cap/flags/queue-close/budget/paging controls; conformance under text and structured; accepted independent field/UTF-8/span/coverage oracles. | Final composed50/60/70/90 inputs;60 partial work and proposed80 are insufficient. Historical conformance failures need actual resolution; repeated-ref feedback ruling pending. |
+| Q12 / A160-3 | Block1 required approved LoCoMo smoke and corrected item4 live built-server text/structured remeasure: same-page bytes separately from end-to-end tokens/cost/accuracy/paired interval. | Required earlier exit before90. Reuse final-applicable results; refresh invalidated90/B2/fusion/output scopes. No token target; accuracy drop outside accepted paired interval stops. Actual budget/model/prompt/fixture permission first; no spend inferred. |
+| Q13 / A160-2/4 |100 existing eight crash controls plus active-checkpoint/richer postcrash mapping; real survivor/history/projection/span/fence/WAL/reopen/retry proof. | Existing mapped evidence reuse has limits; G100-1/G100-2 open. Coverage inventory/review alone cannot close missing proof. No machine/power-loss or migration campaign. |
+| Q14 / A160-4 | Five CPU targets: Linux x64/ARM64, macOS x64/ARM64, Windows x64; build/test, fresh installed Python/Node+strict TS consumer, wheel-size and native receipt collector. Distinct Windows WAL; external Rust archive consumer and CLI. | Final .29 package/main/declarations/native bytes and target provenance. Required unavailable targets block readiness; source test/build alone insufficient.20 A6 lacks capacity/execution; not supplied by unrelated historical CI. |
+| Q15 / A160-4 | AC082a–d exact x64 artifact/member linkage, driverless auto/cpu lifecycle, forced CUDA typed negative, selected GPU PID/UUID forward and explicit CPU nonuse; existing installed consumers/negative controls. | Current selected .29 artifact bytes; old CUDA-library proof cannot qualify new distributable. No CUDA mounts in driverless control; independent CPU/GPU claims. |
+| Q16 / A160-4 | Selected110 fault remedy/close/drop/exit,120 artifact/library/PTX/selection,130 A–E exact venues/SDK pool/initialization/soak protocols and included140 pins. |110 fault model;120 package selection/ADR.25 reconciliation/compiler6111901 exposure;130 actual access/caps/final artifact/fixtures remain open. Prior broad venue ruling is retained. Rows cannot be skipped merely because host unavailable. |
+| Q17 / A160-5 | Scoped interfaces/parity/surface/version/docs/lifecycle/state gates, strict MkDocs where public docs affected. W0.8.29, independentE; notes disclose accepted source breaks/default and support limits. | After actual changes; .29 routing repair already in10, external exact-tag checks occur when applicable. Metadata-only changes need no second full source gate. |
+| Q18 / A160-5 | `scripts/release/local-dry-run.sh` and distinct `release.yml` immutable-candidate dry-run; actual package/auth/routing/required job outcomes. | Later authorized executor/dispatch only; publication/Pages HELD. Skipped jobs remain skipped. Actual SDK trusted-publisher repair need not repeat. No READY claim while required rehearsal pending. |
+| Q19 / A160-6 | Required publishers and fresh published-version Python/npm/Rust SDK/CLI consumers, persisted read/write, missing record, separate-process reopen, close/exit. | **NOT APPLICABLE BEFORE SEPARATE PUBLICATION AUTHORIZATION.** No vtag/registry action now. Candidate installs cannot close this post-publication row. |
+
+## Conditional inclusion and no-run criteria
+
+| Scope | Condition and automatic execution consequence | What still blocks |
+| --- | --- | --- |
+|40 cache/batch | If30 shows no workload benefit or reviewed format37 snapshot safety fails, no optimization implementation; preserve baseline and report result. | Missing30 measurement/safety assessment is unknown, not negative evidence. Selected independently justified batch work retains its own exit. |
+|50 identity/text | Approved work retains actual30 baseline and identity census/ruling before changed fusion semantics. | No identity chosen by160; absent decision is a real mandatory dependency, not an automatic skip. |
+|90 residual B2 | Build only approved80 residuals; already-built/satisfied B2 cases need preservation evidence rather than duplicate code. | Actual approved80 and real Block1 exit; early80 design PASS alone insufficient. |
+|100 interruption | Reuse actual unchanged mapped evidence; no additional fault run for obligations already discharged. | G100-1/G100-2 need real proof or actual disposition; no strict-TDD exception is inferred from20. |
+|140 fork A | If110/120 establish no concrete required fork repair, no fork source/version/publish work; qualify unchanged pins. | If remedy requires a fork change, its fork-local TDD/review/qualification and affected pins are mandatory. |
+|Fork B/C | Already moved to.30 by owner seq367. No .29 run or fresh deferral vote. | A concrete necessary A repair cannot silently expand into B/C. |
+|150 optional studies | No actually selected authorized study means no experiment/spend/product promotion and no product-readiness dependency on execution. Preserve checkpoint items as unselected/open, not owner-deferred by inference. | Any actually selected study needs its preregistration/budget/fixtures/verdict; product promotion needs explicit placement. A checkpoint disposition request is distinct from a mandatory runtime gate. |
+|Unpromised cells | No musl/32bit/WindowsARM/new toolkit/2M/fullCPU mirror or calibrated-verdict program arises from160. | Required Tier1/selected130 rows cannot be relabeled unpromised to bypass failure. |
+
+A required-row exclusion requires its existing contract/authority; absence of
+resources is BLOCKED/UNMEASURED. Routine conditional no-run outcomes above need
+no new blanket human approval. No exclusion is described as PASS.

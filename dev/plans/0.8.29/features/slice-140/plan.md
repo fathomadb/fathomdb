@@ -1,99 +1,88 @@
 ---
 title: Slice 140 — required fork repairs only
-status: PROPOSED
+status: WAITING_FOR_REQUIRED_REPAIR_SELECTION
 target_release: 0.8.29
 slice: 140
 ---
 
 # Slice 140 — required fork repairs only
 
-## Owner scope and boundary
+## Scope and present maturity
 
-Owner ruling, steward `seq-367` (November 10): **focus on A in 0.8.29; move
-B/C work to 0.8.30**. Release allocation is decided; implementation design,
-qualification and publication are separate gates. The
-[decision log](../../prework/slice-9/decision-log.md) cites that ruling and the
-[0.8.30 receiving plan](../../../0.8.30/fork-maintenance-plan.md) owns deferred
-maintenance. It is not a prerequisite for closing .29.
+Owner ruling seq-367 selects **A only** for .29: concrete required110 reset-
+lifetime or120 selected-artifact fork repairs and versioning necessary to
+release those repairs. [B/C maintenance](../../../0.8.30/fork-maintenance-plan.md)
+belongs to .30 and never gates .29.130 qualification A–E is a different label
+set. No repair, new version, pin, fault model or artifact choice is selected.
+Status is WAITING_FOR_REQUIRED_REPAIR_SELECTION, not PLAN_READY.
 
-This slice covers only the smallest fork repairs demonstrably required by the
-selected reset-safety work in110 or artifact work in120, plus version-policy
-decisions needed to release those repairs. It does not authorize a general
-Candle rebase, unused-marker cleanup or multiarchitecture kernel expansion.
-If a required repair cannot remain inside this boundary, stop for an explicit
-owner scope decision. Do not silently pull .30 work back into .29.
+This read-only Phase A reconciles actual source at
+`02e30d861beddc8061af0dc22f12106d5e09dd32`. Actual10 implementation
+`104dcbcbe92a1eca730d146b99ab17d444df6217` is integrated/closed via
+`d7d928f8e`; its assembled/resumed qualification preserves failures/skips.
+0–9 are proposal/decision outputs, not runtime qualification.20's active source
+checkout is not predecessor evidence. See [source census](source-census.md)
+and [status](status.md).
 
-## Units and release disposition
+## Review package and selection contract
 
-| Unit / stable identity | 0.8.29 scope | Receiving exit or destination |
-| --- | --- | --- |
-| U140-R required repair | Conditional on concrete approved110/120 design evidence; minimal cudarc/Candle lifetime, correctness or delivery repair | Fork-local requirement/regression, design, review and qualification; product proof stays in110/120/130. |
-| U140-V / FT-1 / TC-daa1985b | Only if an included repair needs a new cudarc code release | Choose a distinct publishable version with exact upstream-base provenance; qualify before pin adoption. No independent maintenance expansion. |
-| U140-C / TC-509dc8a6 | Excluded from .29 | Candle upstream rebase moves to .30. |
-| U140-M / FT-2 / TC-93d11583 | Excluded from .29; retain current marker | Marker/removal-path cleanup moves to .30. |
-| U140-K / TC-323f15b0 | Excluded from .29 | Multiarchitecture SASS/PTX, selection, dtype/kernel availability and MoE coverage move to .30. |
+- [Requirements](requirements.md) and [acceptance](acceptance.md) retain the
+  original R140/A140-1–6 local identities and canonical joins.
+- [Design](design.md) distinguishes exact candidate repairs, evidence that
+  selects them, fork ownership and version/pin provenance.
+- [Test map](test-map.md) separates fork human-intent unit/negative/device
+  qualification from110/120 integration and final130 qualification.
 
-Retain qualified pins unless a selected required repair justifies a change:
-cudarc-fathomdb0.19.10 (`b777f8d9`), Candle-fathomdb0.11.0/kernels source
-`182ceab0`. The fork's0.11.0 is based on upstream0.10.2, not upstream0.11.x.
-Current x86 kernels target7.5 and product embed/rerank useF32. Neither new GPU
-targets nor BF16/F8 product modes are implied by required repair scope.
+110 remains WAITING_FOR_FAULT_MODEL. Its recommended coordinated live-object,
+no-active-work reset is unanswered; neither that envelope nor quarantine,
+shared-loss API or process isolation is approved here.120 remains
+WAITING_FOR_ARTIFACT_SELECTION. CUDA13 inclusion is settled; names/channel,
+explicit installation versus automatic pre-load selection, Rust/CLI scope,
+compiler6111901 exposure/disposition and relevant policy choices remain held.
+The concrete CUDA13 remedy-text gap is in product code owned by120; it does
+not itself require a fork repair. Compiler exposure remains UNKNOWN.
 
-## Local requirements and acceptance
+Every proposed U140-R repair must name an accepted110/120 obligation, exact
+source witness, observed failing behavior, smaller alternative comparison,
+affected fork files/APIs, finite cleanup/qualification contract and exact
+required pin/version change. Without that packet, independently useful designs
+remain unselected. A no-repair-needed exit requires explicit evidence against
+the selected110/120 obligations; lack of selection is not that exit.
 
-- R140-1/A140-1: every proposed diff identifies the specific110/120 obligation
-  requiring it and why a smaller repair is insufficient. Deferred .30 work is
-  explicitly excluded from the diff and dependency graph.
-- R140-2/A140-2: preserve current capabilities: private-pool ownership, driverless
-  CPU loading, AArch64 CPU safety, typed CUDA refusal and supported artifact
-  behavior. Public API changes update accepted interfaces/ADRs in the same PR;
-  no backwards-compatibility shims are introduced.
-- R140-3/A140-3: authenticated fork sources and exact package/feature closure
-  match qualified repair commits. Root patches do not propagate to registry
-  consumers; source and installed-consumer claims stay distinct.
-- R140-4/A140-4: observed failing behavioral controls precede repair; healthy
-  teardown/resource release and affected CPU/GPU paths remain correct. An
-  expected-crash characterization is not proof of safe teardown.
-- R140-5/A140-5: optional new release versioning is bounded to required repairs;
-  no stale candidate lock, unqualified pin or deferred rebase enters indirectly.
-- R140-6/A140-6: .29 closure needs only selected required-repair exits or explicit
-  no-repair-needed disposition; it never waits for the .30 maintenance plan.
+## Dependency and execution sequence
 
-These are local criteria, not new canonical AC IDs or current execution claims.
+| Edge | Kind and meaning |
+| --- | --- |
+| Actual10 closure and current accepted source → source entry | Hard; reconcile later predecessor changes, parent-created isolated worktree and strict preflight; owned tools/artifacts.10 is now closed, but its environment is not borrowed. |
+| Accepted110/120 requirement/design → a particular140 repair | Conditional prerequisite. Neither completed110 nor completed120 is required to identify a repair. |
+| Fresh independent Astra design PASS → implementation | Hard for the selected fork-local design/test packet. The parent dispatches reviewers and creates fork worktrees at explicit reviewed bases. |
+| Initial fork qualification → chosen exact pins → affected110/120 integration/artifacts → final130 | Conditional hard chain for an included repair. Final130 never gates initial140 or initial120 proof. |
+| Cudarc before dependent Candle; cheap checks before live cells | Preferred order where the selected repair actually affects both; no gratuitous Candle release or GPU campaign. |
+| .30 rebase/marker/multiarch/dtype/MoE maintenance → .29 | No edge. Preserve stable deferred TC identities in the receiving plan. |
 
-## Design, ownership and qualification
+After selection/review, each behavior gets an observed failing RED commit
+before separate GREEN, with the oracle preserved. No missing-helper compile
+failure, intentional break or passing-on-arrival coverage substitutes. Fork
+requirements/design/tests/reviews/receipts live in each fork's `fathomdb/`;
+FathomDB records qualified consumption and product proof, not duplicate fork
+suite execution. Source phases use scoped checks while working and one final
+clean full applicable gate; fresh independent implementation/results review
+precedes parent integration. Serialize shared manifests, pins and interfaces.
 
-Use [accepted pool/fork contracts](../../../../adr/ADR-0.8.28-tegra-private-cuda-pool.md),
-[driverless linkage](../../../../adr/ADR-0.8.25-driverless-cuda-runtime-linkage.md),
-the [pin registry](../../../../../scripts/pinned-override-rot.json) and exact
-consumed source. Read requirements/design/test mappings before code. The entire
-ownership graph and cleanup paths must support the approved reset fault model;
-artifact compiler exposure/mitigation remains a120 design prerequisite.
+## Fixed boundaries and exit
 
-Requirements, design, TDD, review and fork qualification live in each owning
-fork's `fathomdb/` directory. FathomDB consumes qualified exact identities and
-tests product integration; it does not rerun or duplicate the fork test suites.
-Apply the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
-with bounded lifecycle/resource controls, independent outputs and honest platform
-limits. General GPU/dtype expansion and broad build tuning belong to .30.
+Preserve format37 **NO DATABASE MIGRATION**, query scaffold, existing spans,
+hints and queue, private-pool/allocator behavior, CPU/ARM safety, driverless
+linkage, strict forced CUDA and current typed errors. No backwards-compatibility
+shim, CPU substitution, allocator switching or same-process reconstruction is
+implied. Public changes need the affected accepted ADR/interface updates.
 
-1. Identify concrete110/120 repair requirements and draft fork-local design/test
-   mapping; independently review before implementation.
-2. Stage/commit an observed failing regression before minimal repair; preserve
-   the oracle through GREEN/refactor. Qualify affected fork behavior and healthy
-   controls with an isolated writer and owned tools.
-3. Resolve FT-1 only if a new cudarc code release is needed; obtain required fork
-   release authority, verify package/source identities and review pin adoption.
-4. Adopt qualified cudarc → dependent Candle → FathomDB pins where required;
-   update locks, pin registry and relied-on item records together. Run affected
-   product/runtime/packaging checks and the final source-phase full gate once.
-5. Record required-repair/no-repair-needed disposition and affected consumer
-   evidence. Leave deferred .30 units open under their stable TC identities.
+Keep windchill3 R580 and primary12.6; never K620, host-wide reset, driver/toolkit
+symlink changes or Orin reflash. Exact venue/session/cap and publication remain
+specific gates. Preparing a distinct release version does not authorize registry
+or tag publication. No fork PR/upstream write/force push is permitted here.
 
-Hard inputs: approved110/120 design and required10 setup; strict preflight before
-implementation worktrees. Included repair qualification precedes affected110/120
-pin adoption and130 final qualification. No dependency on a .30 rebase or kernel
-campaign exists. Serialize manifests/pins/shared source landings. Fault execution
-still requires a reviewed model and explicitly permitted isolated venue.
-R580/primary12.6 stay fixed on windchill3; never runK620 or infer unmeasured
-Orin/CUDA13 support. Publication remains separately authorized.
+Exit requires A140-1–6 for every selected repair or an explicit evidenced
+no-repair-needed disposition. U140-V/FT-1/TC-daa1985b applies only when a required
+cudarc code release needs a distinct version. TC-509dc8a6, TC-93d11583 and
+TC-323f15b0 stay .30. This proposal makes no repair/qualification/closure claim.

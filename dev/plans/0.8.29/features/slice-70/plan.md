@@ -7,128 +7,139 @@ slice: 70
 
 # Slice 70 — Truthful degradation and SDK/native contract parity
 
-## Current checkpoint scope
+## Authority and readiness
 
-Bounded degradation/parity correction scope approved in Slice9 Batch4. Review exact reason/error precedence; broader EP03, caller numerical injection and new thresholds are not implied.
+Slice9 Batch4 approves bounded degradation/parity corrections through the
+[direct execution gates](../../direct-execution.md). The same direct Sol-high
+owner prepares and later implements; parent dispatches independent Astra-medium
+design and fresh final reviewers. No Steward/Orchestrator or nested agent.
+Parent reports fresh independent Astra PASS for the actual20 reconciliation,
+its narrow historical successor and the actual60 candidate packet. This
+consolidated proposed set awaits same-Astra consistency recheck; no source
+clearance follows. Parent remains frozen2f6913c1. Candidate60 is unlanded7038b5b4;
+actual final integration/identity reread still precedes70 source GO.
 
-The [decision log](../../prework/slice-9/decision-log.md) owns current rulings;
-original draft observations below retain their historical evidence limits.
+Use [requirements](requirements.md), [design](design.md), [test map](test-map.md),
+[execution map](execution-map.md), [exact oracle successors](oracle-successors.md),
+[historical successor](historical-oracle-successor.md) and [status](status.md)
+as one package. The [pinned oracle diff](oracle-successors.proposed.diff) is
+unexecuted review material; [source pins](source-pins.json) fixes its baseline.
+These replace stale draft assumptions without changing canonical locked ACs.
+Track TC-42c6708b, TC-c4fd774a and TC-36bc3ad8; do not claim ledger closure.
 
-## Goal, maturity and boundary
+## Goal and bounded delta
 
-Give callers truthful per-call reasons for missing query embeddings, nameable
-public result types and consistent snippet byte contracts across bindings.
-This is a proposal under the [brief](../../planning-brief.md) and
-[reconciliation](../../reconciliation-plan.md); drafting authorizes no implementation.
-Track `TC-42c6708b`, `TC-c4fd774a` and `TC-36bc3ad8`; reconcile their original
-claims against current source before recording closure.
+Make requested query-vector absence/timeouts explicit, eliminate unsupported
+numeric-provider advice, expose required facade types and state byte ranges
+correctly across Rust/Python/TS/native contracts. Preserve existing retrieval,
+failed-open, snapshot, eligibility, typed-error and human-intent byte oracles.
 
-- Built: `EmbedderOverloaded`, search/expand propagation and empty-list omission
-  in Python/TS; Rust always carries a vector. Queue saturation and queued expiry
-  share `embedder_overloaded`; do not relabel queued expiry as started timeout.
-- Net-new allocated scope: absent (`NotConfigured`) and started-timeout reasons,
-  facade export residuals and demonstrated documentation/native parity gaps.
-- The [EP-03 draft](../../../../design/mcp-adapter/engine-proposals/EP-03-hybrid-search-degradation.md)
-  is only partly implemented/approved. `EmbedderFailed`, eligibility/projection
-  reasons and broader adapter changes are not authorized by this allocation.
-- Preserve the [accepted open policy](../../../../adr/ADR-0.8.28-vector-compatibility-open-policy.md):
-  actual checker refusal returns no Engine; None admission is deliberate.
-  Do not restore `dense_disabled`, caller-provider production admission, new
-  checker/cache behavior, or pretend provider-free text requires embedding.
+- Built: overload reasons on ordinary/frozen/evidence/expand; real native overload
+  conversion/healthy omission; five snippet fields, byte slicing and fixtures.
+- Proposed new behavior: NotConfigured→embedder_absent;
+  StartedTimeout→embedder_timeout; actual dispatch shutdown Closing→existing
+  Closing error. Non-close Cancelled stays unchanged and explicitly deferred.
+- Preserve Provider(Failed/Timeout)/InvalidOutput sparse fallback without a new
+  reason, all three hard typed CUDA errors and actual ordinary/frozen panic split.
+- Remove configure_caller_embedder from blocked readiness/drain remedies while
+  preserving semantic subprocess providers and Default/None engine admission.
+- Export exactly SearchHit, IdSpace, IdSpaceKind, SnippetOptions, SnippetAnchor,
+  SnippetV1 through facade; SDK already exports them. No new helper operation.
+- Correct TS/NAPI closed-interval snippet prose to half-open UTF-8 ranges;
+  existing defaults/ranges/search rejection/pure clamping remain.
+- Minimal new reason/hint translation belongs70 under the reviewed60 seam;
+  retain the sampled MCP epoch label alongside per-call reasons. Stage all five
+  exact oracle-owner successors before shared absence GREEN as linked below.
 
-## Slice preparation and local acceptance draft
+Wholesale EP03, provider injection, thresholds/calibration/weak-result state,
+projection/eligibility/failure labels, new span/ref carriers and adapter redesign
+are outside this bounded scope.80/90 own new coverage/scored-span representation.
 
-Deliver `requirements.md`, `design.md` and `test-map.md` beside the executed
-slice plan. The IDs below are release-local drafts, not canonical AC additions.
+## Prerequisites and integration
 
-| Need / requirement | Falsifiable local acceptance |
-| --- | --- |
-| S70-N1/R1: explain skipped vector work | S70-A1: `NotConfigured` produces only `vector/embedder_absent`; `StartedTimeout` produces only `vector/embedder_timeout`, with surviving text hits and no fabricated vector hits. |
-| S70-N1/R2: distinguish overload and failure | S70-A2: saturation/queued expiry retain overload; Closing/Cancelled fail the call, CUDA typed failures remain errors and panic resumes; none becomes a success degradation. |
-| S70-N2/R3: consistent requested-arm reporting | S70-A3: ordinary, frozen, evidence and expand paths preserve identical reason meaning; healthy reads have no new labels; explicit text-only reads never embed or report an unrequested vector arm. |
-| S70-N3/R4: usable Rust contracts | S70-A4: external facade consumer can name the approved hit/identity/snippet types; SDK consumer still compiles independently with its existing exports. |
-| S70-N4/R5: portable snippet ranges/options | S70-A5: all five option fields/defaults/ranges and half-open UTF-8 ranges agree through Rust/PyO3/Python/NAPI/TS; multibyte examples decode the intended substring. |
-| S70-N2/R6: preserve result contract | S70-A6: fixed real-store cases retain hits, order, scores, soft fallback and explanations; only approved reason metadata changes; Rust empty/Python None/TS absent conventions remain. |
+1. Actual10 source104dcbc passed fresh Astra review and closed at d7d928.
+   Parent2f6913c1 includes actual20 Linux subset657edeb76 and metadata successors.
+   Its two repaired evidence hooks remain engine-owned, with explicit Engine
+   arguments, bounded callbacks and unchanged transaction placement.20 A3/A5/A6
+   remain held. Closed10 is70's hard prerequisite; do not invent20/30 closure.
+   Before source: parent-created checkout, strict closed10/base preflight, own
+   tools/artifacts, and re-read actually integrated60.60 currently owns the sole
+   native window in its isolated sibling; its unfinished output is not input.
+2. Parent reports Astra PASS for bounded taxonomy/precedence, genuine Closing
+   correction/Cancelled deferral, six facade exports and retained MCP label.
+   The actual60 packet's exact five oracle-owner successors and runtime ordering
+   also passed that reviewer; this consolidation introduces no semantic delta.
+   Actual60 candidate7038 differs from reviewed307c only in the four non-product
+   operator packaging paths recorded in source-pins.json.
+3. Serialize engine/interface writes with40/50/70/100/110; coordinate MCP shared
+   files with60.40/50 preferred landing order is not a new semantic prerequisite
+   for labels; actual predecessor edits must be reread before source work.
+4. Recheck affected parity on actual integrated50 identity when it lands and
+   actual60 formats before70 source.50 final code is not integrated or a new
+   blanket70 source prerequisite. Preserve
+   healthy EP03 PINNED; an inherited conflict is a finding, never a golden refresh.
+5. 70 supplies settled contracts to80.90 waits approved80 AND actual Block1
+   follow-up exit after20–70. Final combined160 remains distinct.
 
-Read the [Rust](../../../../interfaces/rust.md), [SDK](../../../../interfaces/rust-sdk.md),
-[Python](../../../../interfaces/python.md) and [TypeScript](../../../../interfaces/typescript.md)
-interfaces with the [SDK ADR](../../../../adr/ADR-0.8.27-rust-sdk-parity.md).
-Draft the dispatch outcome table first, then the consumer/export and field matrix;
-challenge every claim against live code, including existing inline tests.
+Keep format37/no migration and existing targets. Fork140 A-only required repairs
+and necessary repair versioning stay distinct from .30 B/C. R580/primary12.6 fixed,
+no K620. Unanswered110 reset venue/120 artifact policy, priced sessions, optional
+experiments and publication do not become authority for70 work.
 
-## Design challenges, research and fit revision
+## Implementation work after design PASS
 
-The inspected [embedding helper](../../../../../src/rust/crates/fathomdb-engine/src/embedding.rs)
-currently swallows `Closing`/`Cancelled` via `Err(_) => None`; EP-03's assertion
-that these already fail is stale. Review the exact error mapping before a bounded
-fix; use the existing Closing category rather than inventing cancellation DTOs.
-Audit bypass/early-return paths so reasons are neither lost nor duplicated.
-Do not infer runtime provider health from open-epoch readiness metadata.
+1. Execute T70-1 remedy runtime RED→GREEN with real readiness/drain transport.
+2. Execute separate T70-7a and7b MCP hint-translation runtime RED→GREEN on literal
+   absent/timeout degradation words through the existing `hints::degraded` API.
+   This exercises parsing, engine hint cause and output conversion without using
+   unavailable variants in RED or pretending a mapping fixture is a live fault.
+3. Execute T70-2 absence runtime RED→GREEN; stage real engine/native/installed
+   None-provider and actual60 both-format MCP assertions before that GREEN.
+   Include every [exact successor](oracle-successors.md): real SDK reason and
+   independent mandatory-envelope pair, MCP/hint exact pair, guarded historical
+   row4 and preserved underlying absence in the synthetic-overload mapping.
+   Do not drop all degradations or regenerate any fixture to obtain GREEN.
+4. Execute T70-3 observed-start timeout runtime RED→GREEN; stage all supported
+   engine/native route assertions before GREEN. Do not claim installed/MCP live
+   timeout when only real engine/native and mapping-fixture proof is available.
+5. Execute T70-4 existing-helper/actual-engine-close runtime RED→GREEN; no prior
+   production factoring is needed. Preserve deadline winner and Cancelled rules.
+6. Execute separate six-type facade compile RED→GREEN, accurately labeled API
+   reachability as already approved in this plan. It does not replace runtime
+   behavioral RED, and no missing test helper is a runtime failure. New wrapper
+   fixtures/coverage which already pass are not added to manufacture a pair.
+7. Correct only demonstrated docstring/interface gaps; reuse existing Unicode/
+   field/fixture tests. No authored golden or test expectation changes after GREEN.
+8. Run scoped lint/typecheck/tests and installed owned-artifact checks, then one
+   required full source-phase agent gate on the final stable clean tree. Preserve
+   exact exits/raw diagnostics, skip counts, selected features and native digests.
+9. Fresh independent Astra final review audits actual diff, observed RED SHAs,
+   controls, final qualification and remaining limits. Resolve actionable findings
+   within retry budget; parent integrates passing scope and records release state.
 
-The [facade](../../../../../src/rust/crates/fathomdb/src/lib.rs) lacks exports
-already present in the [SDK](../../../../../src/rust/crates/fathomdb-sdk/src/lib.rs),
-including hit/identity and snippet types. Produce an exact proposed export list,
-including whether the pure snippet helper belongs, with governed-surface impact.
-The SDK is a separate closed operation surface; do not merge its contract with
-facade wholesale engine reachability or add commands to close a type gap.
+Apply [quality-roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
+provider anomaly/cleanup and boundary-value controls. Defer broad fuzzing,
+allocation/GPU campaigns and numerical classification. Existing tests and new
+source evidence determine work; no missing behavior is inferred from a title.
 
-[Python types](../../../../../src/python/fathomdb/types.py) and
-[TS search](../../../../../src/ts/src/search.ts) already carry five snippet fields
-and UTF-8 examples. Revise historical “missing” claims to proven residuals;
-make `[start, end)` explicit, preserve body-relative versus text-relative ranges,
-and preserve search rejection versus pure-selector clamping.
-Planned primary-source research: trace dispatch deadlines/shutdown ownership,
-frozen/evidence/expand adapters, native conversion and actual exported consumers;
-consult pinned PyO3/NAPI docs only if conversion semantics remain uncertain.
-Apply the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
-through real-store provider faults and Unicode properties; defer broad protocol
-fuzzing, allocation sweeps and CUDA campaigns. No new resource campaign is implied.
+## Actual predecessor fit
 
-## Dependencies and newly identified prerequisites
+10's --check-ownership/--provision/--build and exact canonical pytest candidate/
+child nonce/source/digest contract remain. Installed production proof uses the
+own wheel/addon from an external cwd with PYTHONPATH cleared.10 and20 assembled
+qualification, original failed collectors, affected reruns and declared skips
+remain input evidence only;70 borrows no mutable venv/modules/target/native.
 
-- Hard: recorded Slice 9/10 authorization and owned tooling for execution;
-  reviewed bounded reason/error mapping and governed export approval before code.
-- Design may start immediately. Serialize engine landings 40, 50, 70, 100, 110;
-  40/50 are shared-file/attribution ordering, not semantic prerequisites for labels.
-- Coordinate Slice 60's compact/structured formatting and final integrated SDK
-  parity; Slice 80 approval consumes settled degradation/field contracts, and
-  Slice 90 also needs the integrated Block 1 follow-up exit after 20–70.
-- Newly identified: reconcile stale Closing/Cancelled claims; specify deterministic
-  started-timeout controls that finish cleanup; approve exact facade type delta.
-  Existing test-only provider seams may model faults, never production injection.
-- One implementation writer per isolated checkout; serialize shared dispatch,
-  search/result types, conformance allowlists and canonical interface changes.
+Actual20 changed evidence capture/request wiring in shared search owners, not
+query-vector classification, rank/snippet logic or public production payloads.
+Do not overwrite those test-hook repairs when editing search interfaces. Its
+48-field current root census already includes both handles;70 adds no Engine
+field or census update for the bounded fix.
 
-## Tasks, validation and integration
-
-1. Complete outcome/export/option census and local requirement-to-test mapping;
-   independently review design fit and authorization before implementation.
-2. Add behavior-specific failing tests, commit/stage RED evidence, then implement
-   absent and started-timeout labels separately; preserve overload regression.
-   Use real databases and dispatcher gates with bounded joins, not sleep guesses.
-3. Add runtime-close/cancel error regressions and preserve CUDA/panic controls;
-   exercise ordinary, frozen, evidence and expand paths with no false fallback.
-   Review existing timeout assertions intentionally: contract updates must encode
-   approved behavior before the fix, never weaken tests to obtain GREEN.
-4. Add external facade compile tests for approved exports; reuse actual SDK
-   consumer tests and observed surface checks, not duplicate literal allowlists.
-5. Extend native conversion and shared snippet-fixture coverage through installed
-   checkout-owned Python/Node artifacts; wrapper mapping tests alone are insufficient.
-   Properties cover combining marks, astral text, grapheme-safe bounds, defaults,
-   each option field and search rejection/pure clamping; do not regenerate goldens.
-6. Update actual interface docs, docstrings and approved surface records in the
-   implementation PR; remove stale claims only where the approved change lands.
-7. Run scoped checks while iterating, then the required full agent gate once on
-   the final code phase, plus affected native/SDK parity and both MCP formats.
-   Missing owned environments fail preflight; never borrow another checkout's venv.
-8. Obtain independent code review, sample RED evidence and resolve findings;
-   integrate on current .29 without overwriting other writers; recheck affected
-   seams after rebase/landing and provide receipts for the Block 1 follow-up exit.
-
-## Decisions and exit
-
-Owner/reviewer must settle the exact export list and bounded Closing/Cancelled
-correction; broader EP-03 reasons or adapter redesign need separate authorization.
-Exit requires A1–A6 evidence, approved contract changes, native parity and review;
-unavailable venues or residual findings remain explicit open items. No review,
-HITL ruling, test pass, ledger closure or publication is claimed by this draft.
+60's approved compact-text default, structured JSON text plus identical final
+structured payload, format-aware budgets and complete closed text filters remain
+60-owned. Reconcile actual integrated code before70 entry. F11 feedback ambiguity
+has no owner answer;70 selects no feedback ABI/token remedy.50 identity/census,
+80 design/aggregate proposal and90 source approval retain their own gates.120
+owns major-aware CUDA installation guidance;70 preserves fatal CUDA transport
+without universally freezing12-only wording or inferring13 artifact selection.

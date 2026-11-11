@@ -75,7 +75,8 @@ while predecessor qualification is pending; that review never opens source
 entry. Before implementation, each owner must reconcile the actual integrated
 predecessor, update affected plans/designs/requirements/AC and obtain any required
 review recheck, then enter a fresh parent-created worktree after strict dependency
-preflight.20/60/70 proposals retain their own decisions and source-entry holds.
+preflight. Remaining20 criteria and60 F11 retain their explicit holds;70 does not
+wait for whole20/60 closure beyond its declared hard prerequisites.
 The current20 test-only policy question does not waive RED/GREEN for defects.
 Specific110/120/130/150/publication choices remain explicit. No candidate or
 planning review counts as completed source work. This file is not a second ladder.
@@ -89,5 +90,11 @@ claimed. Git linkage and original file manifest were verified after relocation.
 Slice20 Linux repairs are integrated at657edeb76caaf9c8d2aab433766bec9362e73217
 after genuine RED/GREEN and fresh independent implementation PASS.20 remains
 open for A3/A5 policy and actual Windows A6; no30 clearance or Block1 exit.
-Slice60's independent approved work can enter after actual-baseline adaptation,
-required design recheck and strict closed10 preflight.
+Slice60's implemented format/direct-filter/budget subset is integrated at
+5271c1bf022f0ea22f95f7433e226feb2315043e after fresh independent implementation PASS
+and assembled214-suite qualification. F11 remains held;60 is not closed. Its
+records preserve the original wrapper failure, native skips and actual source
+identities. Reviewed successor proposals were imported without source-completion
+claims.70 may enter a fresh parent-created worktree after actual integrated-base
+rereading and strict closed10 preflight; owned setup and per-behavior RED/GREEN
+remain mandatory. JSON remains the sole ladder authority.

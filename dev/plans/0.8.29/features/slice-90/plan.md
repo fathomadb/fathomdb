@@ -1,138 +1,106 @@
 ---
-title: "Slice 90: implement approved residual Block 2 behavior"
+title: "Slice 90: accepted-residual implementation proposal"
 status: PROPOSED
 target_release: 0.8.29
 slice: 90
 ---
 
-# Slice 90: implement approved residual Block 2 behavior
+# Slice 90 accepted-residual implementation proposal
 
-Database boundary, owner `seq-368`: .29 requires no database migration. Use the
-existing format37 substrate and stored span/visibility data. See the
-[release baseline](../../../plan-0.8.29.md#baseline-and-workspace); a design
-requiring a storage-format change returns for explicit scope review.
+This is a bounded early proposal only. Its baseline is clean
+`2f6913c1d59ac8ff3a30de835b57290a8635998c`; [census](census.md) distinguishes
+built source, predecessor candidates and proposed80 contracts. No90 source
+change is authorized by this packet or by a bounded proposal review.
 
-## Current checkpoint scope
+## Goal and fixed boundaries
 
-Conditional residual build scope approved in Slice9 Batch4: accepted80 AND Block1 follow-up exit are hard gates. Build only accepted residuals; preserve existing signals/storage.
+Implement only residual behavior in the exact owner-approved80 revision, after
+actual integrated selected20–70 and the separate Block1 follow-up exit. Preserve
+built hints, default signals, queue and format37 spans. Accepted B2-8 storage,
+compact text default and unavailable-only omission remain settled; their exact
+new aggregate carrier still requires full80 approval. Do not invent approval,
+calibrated verdicts, weak thresholds, overflow chunking, ANN, an SDK hint-default
+flip, new governed operations or storage migration/backcompat work. Keep query
+clone-equality scaffold. Runtime/native/model/GPU/database/network/cleanup work
+is outside this early assignment.
 
-The [decision log](../../prework/slice-9/decision-log.md) owns current rulings;
-original draft observations below retain their historical evidence limits.
+[Needs](needs.md)→[requirements](requirements.md)→[acceptance](acceptance.md)
+→[test-map](test-map.md) trace release-local R29-3P-14/15. [Design](design.md)
+and [census](census.md) expose existing versus net-new work. No canonical AC or
+numerical threshold is minted; locked requirements/acceptance retain authority.
 
-## Evidence, goal and boundary
+## Actual prerequisites, without a90↔160 cycle
 
-Implement only missing behavior explicitly approved by Slice 80 on the current
-format-37 integration tip. This plan is a proposal; it authorizes no code now.
-The [brief](../../planning-brief.md), [reconciliation](../../reconciliation-plan.md)
-and [release ladder](../../../plan-0.8.29.md) establish the residual scope.
-Inspected [bounded hints design](../../../../design/agent-access/hints-sidecar.md),
-[accepted hints ADR](../../../../adr/ADR-0.8.29-agent-hints-sidecar.md),
-[long-record guard](../../../../design/long-record-embedding.md) and
-[compact output design](../../../../design/agent-access/compact-text-block.md).
-Code evidence: MCP [tools](../../../../../src/rust/crates/fathomdb-mcp/src/tools.rs),
-[output](../../../../../src/rust/crates/fathomdb-mcp/src/output.rs) and
-[errors](../../../../../src/rust/crates/fathomdb-mcp/src/error.rs); engine
-[span validation](../../../../../src/rust/crates/fathomdb-engine/src/vector_spans.rs),
-[span publication](../../../../../src/rust/crates/fathomdb-engine/src/projection_commit.rs),
-[snippets](../../../../../src/rust/crates/fathomdb-engine/src/snippet.rs) and
-[provider contract](../../../../../src/rust/crates/fathomdb-embedder-api/src/lib.rs).
-No product tests were run for this draft; inclusion is not qualification.
+1. Record exact integrated predecessor SHAs and full80 requirements/design/
+   acceptance revision plus actual owner approval.80's bounded Astra PASS is
+   insufficient. Its aggregate-v2 SHA256
+   `a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`
+   supersedes old aggregate unavailability/carrier/rollback paragraphs only;
+   this does not settle actual50 identity or final60/70 contracts.
+2. Require the **unnumbered Block1 follow-up exit**, after selected20–70:
+   applicable full/feature/performance checks, both-format current conformance
+   and approved smoke/item-4 remeasure. Missing exact30 TC5 inputs, partial20
+   policy/Windows cells and pending final60/70 source qualification are not
+   passing exits. Explicit parent dispositions, where authorized, are recorded
+   as dispositions, not invented passing measurements.
+3. Reread actual integrated20/30/40/50/60/70 and80, affected full test files,
+   accepted ADR/interface deltas and source/native identity. Revise this packet's
+   delta against real integrated behavior before claiming full readiness or
+   coding. Get any materially changed seam rechecked by independent Astra-medium.
+   No generic reapproval of settled compact/B2-8 decisions is requested.
+4. Parent performs strict dependency/clean-base/disk preflight and creates a
+   fresh90 worktree with one writer and checkout-owned tools/native artifacts.
+   Never source-code in parent or borrow another checkout's venv. Serialize
+   engine/interface/native shared landings with other source owners.
 
-| Row | Observed maturity | Proposed implementation delta, subject to 80 |
-| --- | --- | --- |
-| B2-1 | Required unavailable state/verdict placeholders remain | Apply approved omission/optional semantics and orient disclosure in both formats |
-| B2-2/3 | Empty-result/degradation hints built | Preserve and qualify; consume 70's accepted reason vocabulary |
-| B2-4 | Generic serde parse error remains | Approved accepted-argument details and authoritative schema-derived names |
-| B2-5 | Feedback rejects foreign refs generically | Approved bounded offending-ref details, preserving request-order semantics |
-| B2-6 | Row default markers and default-store hint built | Only approved top-level/default text/instruction gaps still missing after 60 |
-| B2-7 | Admission already waits before busy | Regression qualification; no replacement queue or retry-after field |
-| B2-8 | Span table, cleanup/validation and default-unknown offset exist | Approved orient coverage and per-hit scored-extent reporting with binding parity |
+160 is downstream combined qualification/close; it is never substituted for
+this pre90 exit. Later CUDA/fault/experiment/publication holds remain their
+owners' scope and do not become invented90 design questions.
 
-Overflow chunking, ANN, new ranking thresholds and SDK hints-default changes
-remain outside this slice. `weak_results` stays reserved. No storage rewrite,
-legacy migration or broader EP-03 adoption follows from B2 allocation.
+## Bounded execution after source entry
 
-## Preparation and local draft contracts
+- Freeze residual census and accepted contracts; remove any residual already
+  implemented by actual predecessors. An existing pass is regression evidence,
+  not permission to create a duplicate feature or manufacture a failure.
+- Implement omission, unknown-argument detail, feedback-offender detail and
+  default-store disclosure as separate staged/committed semantic RED/GREEN units.
+- Build approved aggregate carrier/capture/read path with real existing
+  projection_status/orient runtime RED before new types/helpers. Separate
+  subsequent invalidation/publication behavior fixes only where real assertions
+  fail. Capture adds explicit O(N) stream work inside existing validation;
+  orient adds no scan/vector probes. Preserve old validation/refusal boundary.
+- Carry exact selected50 vector participation and stored endpoints through the
+  existing snippet sidecar. Use same-snapshot lookup/checked UTF-8/u32 semantics,
+  actual installed/native parity and frozen error controls. No body/ref borrowing.
+- Extend maintained interfaces/MR/EP17/long-record prose and both formats/schema/
+  field census/accounting in the same implementation PR. Keep request surface,
+  error precedence, query/ranking/filter behavior and current spans unchanged.
+- Run focused latency-ordered lint/typecheck/tests per unit. On stable final
+  source run required full agent verification, owned native/installed boundary
+  checks and applicable feature/performance seams. Preserve raw failed diagnostics,
+  exits, feature/env/artifact identities and unresolved cells.
+- Obtain fresh independent Astra-medium implementation/final review; audit actual
+  RED SHAs without oracle changes. Integrate exact reviewed revision, rerun affected
+  seams and let parent update release JSON/generated views/ledgers serially.
 
-Produce `requirements.md`, `design.md` and `test-map.md` beside this plan before
-implementation; IDs below are release-local drafts, not canonical AC additions.
+Any measurement/operator code is committed, parameterized, rerunnable and indexed
+in its experiment README before using its output. No ephemeral harness-only proof,
+bench/test tampering or golden regeneration. No passing-on-arrival coverage is
+mislabelled RED. Keep old controls without claiming every new assertion must
+fail if the behavior already exists.
 
-- N90-1: callers can distinguish unavailable capabilities from real failures.
-- N90-2: callers can correct invalid arguments/refs and use the session default.
-- N90-3: callers can assess represented vector content without fabricated coverage.
-- R90-1 / A90-1: approved B2-1 fields are omitted/disclosed consistently in text
-  and structured modes; schema and serialized bytes agree on actual presence.
-- R90-2 / A90-2: approved B2-4/5 errors name accepted keys/offending refs with
-  deterministic ordering, UTF-8-safe bounds and omission counts where specified;
-  successful calls allocate no error details and errors contain no record body.
-- R90-3 / A90-3: default-store field, text and instructions agree with session
-  state through default changes, no-default sessions and hints-disabled calls.
-- R90-4 / A90-4: coverage/scored extent obey 80's denominator, identity, view,
-  snapshot and unknown rules; unknown is distinguishable from zero and complete.
-- R90-5 / A90-5: existing hints, budgets, paging, queue and shutdown remain valid
-  in both output modes; snippet opt-out retains its approved cost/shape contract.
-Architecture reading includes SDK [exports](../../../../../src/rust/crates/fathomdb-sdk/src/lib.rs),
-[Python native snippets](../../../../../src/rust/crates/fathomdb-py/src/snippet.rs),
-[N-API snippets](../../../../../src/rust/crates/fathomdb-napi/src/snippet.rs),
-[Python types](../../../../../src/python/fathomdb/types.py) and
-[TypeScript types](../../../../../src/ts/src/search.ts). All need coordinated review.
-Challenge the design against current native conversions, projection generations,
-format-37 visibility publication and fusion identity; do not infer byte extent
-from tokenizer limits, body length, snippet windows or a different record's span.
-Planned primary research: inspect pinned serde/schemars error/schema APIs and
-current provider tokenizer-offset implementations only where 80 leaves a concrete
-implementation uncertainty. Record versions/source locations and bounded findings.
-Fit review revises the delta against integrated 50/60/70 and 80's signed design;
-return contradictions to 80 rather than inventing a new approved field layout.
+## Review scope and stop points
 
-## Dependencies, prerequisites and isolation
+The early reviewer can challenge source fidelity, scope separation, concrete
+proposed routine choices, requirement/acceptance/test joins and retained hard
+gates. A PASS is bounded proposal quality only. Full80/90 readiness, source
+permission and product correctness remain unclaimed. Owner rulings stay owner
+rulings; reviewer design approval is not consent by inference.
 
-Hard gate: exact approved Slice 80 requirements/design revision AND the recorded
-Block 1 follow-up exit after integrated selected 20–70. That exit includes required
-full/feature/performance checks, both-format conformance and approved smoke/item-4
-remeasure. It is an unnumbered milestone; final Slice 160 is downstream of 90.
-Slice 10 must provide approved release setup and checkout-owned native tooling.
-Missing prerequisites: 80's final wire/public field layouts, bounds/precedence,
-coverage denominators, unknown aggregation, view/time behavior, projection/provider
-identity and snapshot provenance; a bounded no-scan orient strategy; approved
-scored-extent applicability for text-only, hybrid and vector hits. Historical
-`scored_bytes` is design input, not permission to assume its final type or layout.
-Record those decisions before coding; B2-8 and text-default approval stay settled.
-Prefer implementation after 50/60/70 land to avoid redoing identity/rendering work.
-Use one fresh implementer worktree after preflight, one writer per checkout;
-serialize engine/interface/native/state writes with other active slice landings.
-
-## Work, TDD and deliverables
-
-1. Freeze a code-grounded built/residual matrix and approved contract revision;
-   map each residual to owner needs, test names and affected public interfaces.
-2. Implement approved B2-1/4/5/6 deltas as separate RED then GREEN units, retaining
-   existing 2/3/7 behavior; record genuine failing assertion evidence at each RED.
-3. Implement B2-8 reads/reporting under the approved snapshot/view authority;
-   preserve null unknowns, known empty/full/truncated extents and UTF-8 boundaries.
-   Join by approved record/vector/projection identity, including equal-body records;
-   test reproject, rollback, visibility changes and stale generation rejection.
-4. Carry approved public types through Rust SDK, PyO3/Python, N-API/TypeScript and
-   MCP formats; amend affected interfaces/designs in the same reviewed change.
-5. Add real-database RED cases for unknown/mixed-known coverage, empty bodies,
-   hidden/inactive/superseded rows, frozen concurrent snapshots and provider changes.
-   Property tests generate multibyte bodies/valid extents and assert byte bounds,
-   unknown preservation and reference/serialization round trips; use human intent,
-   never regenerated golden oracles. Add shutdown/queue cancellation regressions
-   only for changed behavior; preserve existing admission/lifecycle tests as controls.
-6. Deliver reviewed implementation, contract/test map and verification receipts
-   identifying exact source/native artifacts, settings and any unresolved failures.
-
-## Verification, review and stop points
-
-Run focused lint/typecheck/tests per unit; validate actual checkout-owned Python
-and Node native artifacts plus Rust SDK parity, not just wrapper mocks. Exercise
-both MCP formats, errors, hint toggles, budget/paging and stdio/shutdown/queue paths.
-Run the required full agent gate once on the final code phase; missing owned tools
-is a preflight failure. Run scoped Markdown/interface checks for contract edits.
-Obtain independent requirements/design challenge before code and adversarial code
-review before landing; audit RED shas and require fixes at the reviewed revision.
-Integrate from the current .29 tip, rerun affected seam checks, and leave composed
-release qualification to 160. Stop for unresolved 80 prerequisites, changed public
-semantics, unbounded orient scans or unknown-to-full inference; seek a recorded
-bounded design ruling. No fabricated approvals, benchmark gains or pass receipts.
+Stop affected source entry for unapproved80, absent Block1 exit, unsettled50
+identity/feedback seam, mismatched60/70 contracts, unbounded orient work,
+physical probes leaking into aggregate, broadened open refusal, stale snapshot
+reuse, unknown→full/zero inference, unproved native limits or storage change.
+Present concrete contradictions to their existing owner; do not add a generic
+unresolved-policy loop or silently waive a gate. [Status](status.md) records
+what this proposal actually checked.

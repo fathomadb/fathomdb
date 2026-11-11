@@ -105,6 +105,8 @@ The separate canonical test-hook child receipt binds7038 and nonce
 agent-test-3483006 to actual loaded module digest2c681fa7cb5e35811f951283f2757e668b2f881d8601b61d9ec796d000bcaf7e.
 The collector retained285 logs with no missed opens; no resource stop occurred.
 Exact raw paths, hashes, counts, production equivalence and limits are in owned
-task receipts/final-qualified-subset.json. Fresh distinct independent final
-implementation/results review is pending. F11 remains held: no whole60 closure,
-20/30/Block1 exit, source acceptance, merge or platform/release readiness follows.
+task receipts/final-qualified-subset.json. Fresh distinct independent Astra-medium
+implementation/results review passed at5271c1bf022f0ea22f95f7433e226feb2315043e.
+The parent integrated only that qualified format/direct-filter/budget subset.
+F11 remains held: no whole60 closure,20/30/Block1 exit or platform/release
+readiness follows.

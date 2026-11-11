@@ -1,0 +1,32 @@
+---
+title: "Slice 90: acceptance targets"
+status: PROPOSED
+target_release: 0.8.29
+slice: 90
+---
+
+# Slice 90 acceptance targets
+
+These are falsifiable future runtime oracles, not executed tests or canonical
+AC additions. Rn→An and [test-map](test-map.md) provide the reverse joins.
+
+| Local acceptance | Observation |
+| --- | --- |
+| S90-A1 | Real store-bound responses omit state and search verdict, schemas accept absence, and orient declares exactly four missing capabilities in order. No real readiness/degradation field disappears. |
+| S90-A2 | Every tool's accepted array equals sorted tools/list inputSchema.properties; unknown key wins over wrong known-key type regardless of JSON key order. Exact64 and over64 multibyte keys obey the stated raw-byte bound. Nested attributes remain accepted. |
+| S90-A3 | Known response plus used=[foreign-b,foreign-a,foreign-b], unused=[foreign-c] returns that order and zero sink labels.51 short offenders gives50 and refs_omitted1; over128-byte offenders are omitted whole/count once per occurrence. Wrong-store/expired/reopened/telemetry/text outcomes retain existing precedence.50 ambiguity ruling remains separate. |
+| S90-A4 | No default, configured default, use_store switch and separate sessions agree across top-level value, flags/hint and quoted header, including hints=false. Store-less search uses that session default. Guide is≤1200 bytes. |
+| S90-A5 | Real projection_status/orient reports the exact stored default identity and population; retained historical/inactive/out-of-window mapped heads count. Pending/no-head rows do not; valid ownerless/bodyless/dual-owner mappings increment only unattributed_heads. Missing physical vector is not a new aggregate/open refusal. Existing completion policy still applies. |
+| S90-A6 | Stored heads (length,end)=(10,4),(6,6),(0,0),(8,NULL) give R4/K3/U1/T1/B16/V6, unattributed0, shares1/3 and6/16. Known-empty alone yields R1/K1/T0, shares0/1 andnull. Unknown-empty alone gives R1/U1 andboth null. Empty mapped population gives all0 andboth null, never “fully covered.” |
+| S90-A7 | Trace/work counters show no new aggregate vector_default access, second traversal or ordinary-reader capture. Full-validation original bad-span/orphan errors remain; attribution exclusions cannot hide them. New arithmetic/row-transfer overhead is reported from actual source-bound capture runs. |
+| S90-A8 | Stable reopened/fully validated writer snapshot yields available. Fresh unseeded/mutated engine yields truthful cache_cold/state_changed with no stale numbers; existing full refresh may restore available. Rollback, external commit, profile/schema change, rebuild/erase/reopen and commit failure cannot retag or publish stale/uncommitted facts. Token corruption is error. Orient's added coverage work stays fixed across two corpus sizes. |
+| S90-A9 | Exact vector-participant selected row end9 yields9, provider-unknown yieldsNone, known0 yieldsSome(0), no vector contribution yieldsNone. Equal bodies/different owners or repeated refs cannot lend endpoints. Frozen mutation retains current typed refusal; older pinned snapshots never pick newer spans. Node/edge/role-tagged and multibyte bytes obey hand-authored coordinates. |
+| S90-A10 | Actual installed Python/TS and Rust/native conversions preserve aggregate integer limits, exact fractions, absent/null/0 and scored endpoints. In available and unavailable variants profile.dimension8 is numeric8 in JSON/TS and exact int8 in Python; counts/bytes/fraction components alone take the MCP/NAPI/TS decimal-string transport. Malformed aggregate native payloads give projection_generation_corrupt at exact RFC6901 field path. Snippets off adds0 coverage queries/sets/sidecars; text-only/standalone helper adds0 span lookups. Hybrid adds≤1 indexed per-hit lookup per final vector participant. |
+| S90-A11 | Both-format final output counts every coverage/scored byte and quoted escape; kept results, response handle and continuation agree after cuts. Mandatory metadata overflow refuses under60. Errors carry full bounded correction data without hints/budget. Existing queue/hints/lifecycle/filter/paging/frozen controls stay valid. |
+| S90-A12 | Actual predecessor and source-entry receipts exist; per-behavior RED shas fail for named semantic assertion reasons and GREEN passes without oracle changes. Source/native identity, strict final gate and fresh independent final PASS bind to exact reviewed code. A proposal PASS never satisfies this. |
+
+Existing AC-031, AC-060a, AC-068a/b, AC-069, AC-074 and affected
+AC-072/075/076/081 controls remain canonical. Tracked AC-083 is not a new gate.
+None alone proves these new local behaviors. Actual20 policy/Windows,30's exact
+TC5 inputs,50 identity,60 final gate and70 implementation remain predecessor
+holds; scoped Markdown validation cannot discharge them.

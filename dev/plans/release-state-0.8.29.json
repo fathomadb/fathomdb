@@ -238,8 +238,8 @@
         "dev/plans/0.8.29/features/slice-60/test-plan.md",
         "dev/plans/0.8.29/features/slice-60/review-log.md"
       ],
-      "phase": "DESIGN_REVIEWED_SOURCE_NOT_STARTED",
-      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-60/review-log.md. No implementation or source qualification follows this planning status."
+      "phase": "DESIGN_REVIEWED_SOURCE_ENTRY_AUTHORIZED",
+      "evidence": "Sol-high owner reconciled actual10 and integrated20 Linux repair subset657edeb at parent37f9eba. Fresh independent Astra-medium actual20 design recheck PASS after the sole source-entry preflight sequencing FIX, recorded in features/slice-60/review-log.md. Approved formats/flags/direct-text-filter contracts and immutable oracles retained. Hard dependency10 is closed;20 policy/Windows holds do not block independent60. Parent-created fresh source worktree, strict closed10 entry, owned setup, real per-behavior RED/GREEN, source qualification and fresh implementation review remain required."
     },
     {
       "slice": 70,

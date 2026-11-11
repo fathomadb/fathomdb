@@ -17,14 +17,18 @@ default, explicit `structured` option, built hints and B2-8 storage are settled.
 Format37 remains; no database migration, ranking/default-mode change, new tool,
 calibration, weak-result threshold or production provider API is included.
 
-Actual successor baseline is parent closure
-`d7d928f8e49d7af6a792385534f4e991c13232b3`, integrating independently reviewed10
-source `104dcbcbe92a1eca730d146b99ab17d444df6217`. Read-only reconciliation
-consumed the completed18-pair register,214 registrations, final review and
-assembled qualification.10 is COMPLETE_ON_RELEASE_BRANCH with S10-A1..A8 PASS;
-next20 remains NOT_STARTED. Readiness is NOT_READY and publication HELD.
-Parent confirms independent60 Astra design PASS after tiny-budget FIX1. This
-checkpoint changes no approved product contract and is not implementation PASS.
+Actual entry baseline is metadata commit
+`37f9eba37d74904d8e67a9192f6c8ef8c4f2ec47`, with unchanged product subset
+`657edeb76caaf9c8d2aab433766bec9362e73217`, descending from completed10 source
+`104dcbcbe92a1eca730d146b99ab17d444df6217` and closure
+`d7d928f8e49d7af6a792385534f4e991c13232b3`. Read-only reconciliation reviewed
+20's genuine hook repairs, execution/handoff and fresh independent subset PASS.
+20 remains IN_PROGRESS: A3/A5 policy unanswered, Windows A6 unqualified; no30
+clearance or Block1 exit follows.60 has only hard dependency10, already closed.
+Readiness is NOT_READY and publication HELD. Prior60 design PASS after FIX1 is
+historical; the fresh actual20 Astra-medium recheck now passed after the
+source-entry sequencing FIX, as recorded in review-log.md. No approved product
+contract changed and this is not implementation PASS.
 No60 source checkout/preflight/owned setup exists; parent GO and a fresh
 parent-created worktree with strict closed10 preflight still precede source work.
 [Design](design.md) records actual existing/new seams; [requirements](requirements.md)
@@ -37,7 +41,7 @@ No product tests, source/environment/Git/ledger mutations or provisioning ran.
   independent60 design PASS after FIX1. Remaining source entrance: parent GO,
   current release state, fresh parent-created worktree and strict closed10
   preflight, then60-owned setup/artifact receipts. No source work is begun here.
-- No hard40/50 runtime prerequisite for independent60 work. Final affected MCP/
+- 20 holds are not hard60 prerequisites. No hard40/50 runtime prerequisite for independent60 work. Final affected MCP/
   SDK parity must use the same integrated fusion/identity build; Slice50's
   selected successor governs distinct-record/revision behavior.
 - Serialize canonical MCP/interface writes with70/80/90.70 owns new degradation
@@ -51,8 +55,12 @@ No product tests, source/environment/Git/ledger mutations or provisioning ran.
 
 ## Execution after design PASS
 
-1. Reconciliation is complete throughd7d928f8; reread any later integrated change
-   at parent GO. Enter the parent's fresh worktree after strict closed10 preflight,
+1. Reconciliation covers product657edeb7 and metadata37f9eba3; obtain independent
+   design recheck (now PASS), then verify this committed base or later delta at parent GO.
+   Parent runs closed10/plan/disk precreation preflight without --worktree and
+   measures destination filesystems, creates the fresh worktree, then runs strict
+   preflight with --worktree and verifies target branch/HEAD/clean identity before
+   provisioning or implementation. Enter that verified target,
    then provision owned tools/native receipts. Commit reviewed documents there.
    Run setup-python-owned.sh --check-ownership before any installer/hooks/npm;
    only --provision creates the venv, then --build/agent-build creates source-bound

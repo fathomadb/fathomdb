@@ -11,9 +11,12 @@ observed_on: 2026-11-10
 
 This candidate implements [requirements](requirements.md), the accepted
 [compact direction](../../../../design/agent-access/compact-text-block.md) §7
-and Slice9 Batch4. Current read-only successor baseline is parent closure
-`d7d928f8e49d7af6a792385534f4e991c13232b3`, integrating reviewed10 source
-`104dcbcbe92a1eca730d146b99ab17d444df6217`. Initial evidence atad102 and candidate
+and Slice9 Batch4. Current committed entry base is
+`37f9eba37d74904d8e67a9192f6c8ef8c4f2ec47`; its metadata-only diff leaves
+current immutable product witness at integrated20 subset
+`657edeb76caaf9c8d2aab433766bec9362e73217`, with reviewed10 source
+`104dcbcbe92a1eca730d146b99ab17d444df6217` and closure
+`d7d928f8e49d7af6a792385534f4e991c13232b3` ancestral. Initial evidence atad102 and candidate
 98fc/8d20 is retained as dated history; actual completed10 now supersedes their
 pending status. Parent confirms independent60 Astra design PASS after tiny-budget
 FIX1. This checkpoint changes no approved behavioral contract and supplies no
@@ -33,20 +36,24 @@ Read actual10 plan/design/requirements/review-log/register/test-mapping/resource
 complete execution/18-pair evidence, current helper/AGENTS/bootstrap/build/test
 callers,214 registration accounting and relevant source diff through104d/d7d9.
 Read current master release needs/requirements/AC allocation, relevant canonical
-NEED/REQ/AC bodies, JSON and board. Release-current returns the tracked.29
-board/state tuple; local release/0.8.29 and parent HEAD equal d7d928f8, with104d
-ancestral.10 is complete/preparation PASS;20 NOT_STARTED, readiness NOT_READY,
-publication HELD. Do not read pending20 implementation as integrated truth or
-infer a60 TDD exception from its unanswered test-only policy question.
+NEED/REQ/AC bodies, JSON and board. At committed metadata37f9eba3, parent HEAD
+and local release/0.8.29 agree and tracked status is clean;104d/d7d9/657e are
+ancestral.37f9 changes only the six integration/status documents, not src/scripts.10 is complete/preparation PASS.
+20's Linux repair subset is integrated after fresh independent Astra PASS, but
+20 remains IN_PROGRESS with A3/A5 unanswered and A6 unqualified. Readiness stays
+NOT_READY/publication HELD. Verify the parent's later committed metadata base,
+JSON60 depends_on=[10] and actual closed10 preflight before source entry. No20
+closure,30 clearance,Block1 exit or60 TDD exception follows.
 
-Selected MCP/SDK/engine source/tests, hints/compact design, accepted hints ADR
-and canonical needs/requirements/acceptance have no delta from the earlier
-reviewed60 source witness; rmcp/macros remain3.5.1.10's MCP interface/architecture
+Selected MCP/SDK source/tests, direct-text eligibility/filter logic,
+hints/compact design, accepted hints ADR and canonical needs/requirements/AC
+have no behavior delta from the earlier reviewed60 witness; rmcp/macros remain3.5.1.10's MCP interface/architecture
 wording accurately distinguishes built engine/SDK support from adapter residuals.
 No format/flags/filter/budget/framing/precision/schema-cache/identity contract
 change is needed; accepted60 tiny-budget/human-baseline comparator rules remain.
-No additional Astra design recheck is needed for this evidence/setup-only update;
-a later material behavior/design delta returns to independent review.
+The parent's fresh independent Astra-medium actual20 reconciliation recheck
+passed after the source-entry sequencing FIX (review-log.md). This is design
+acceptance, not source qualification or a policy waiver.
 
 10's final source104d has terminal independent Astra implementation PASS. Its
 assembled qualification retains initial98fc lint failure, an interrupted attempt
@@ -88,6 +95,88 @@ MemAvailable8GiB stop,200GiB total own-task ceiling,30s monitoring and sustained
 swap rule. Supervisor must tolerate transient temporary-directory races and
 attribute actual child exits; an interrupted monitor/workload never passes by
 inference. No cleanup follows a stop.10 sampled peaks are not a60 reservation.
+
+## Actual20 source impact
+
+Reviewed02e30d861beddc8061af0dc22f12106d5e09dd32..657edeb7 changes:
+engine-owned cfg(test/test-hooks) sidecar and resolver one-shot callbacks replace
+global slots. The sidecar Arc travels through the evidence reader request and
+capture; the resolver callback stays on its exact Engine. The public test-only
+arm functions now require &Engine; callbacks run without the hook mutex, reject
+same-engine re-arm and drop with owner lifetime. Evidence tests use bounded,
+cleanup-safe pauses; two private fields require exact module/root census rows
+(48 current fields). Preserve these signatures/rows and ordinary parallel proof.
+No60 test may restore global hook storage or loosen the root census.60's planned
+SDK direct-route witness is a separate narrow seam, not either evidence hook.
+No production schema, ordinary text/hybrid retrieval, ranking, metadata, snippet,
+provider, state/epoch or MCP contract changed in this subset.
+
+Qualification remains assembled: initial gate stopped at the missing field map;
+continuation ran214 suites/212pass/2fail, followed by reviewed root-inventory and
+exact PyO3 executable loader reruns. The original exits/skips and UV3.13 loader
+warning remain. Final source-bound Python/TS identities and lifecycle passed;
+this is not one uninterrupted full gate or60/native/Windows qualification.
+Source-entry tooling must account for selected Python shared-library identity,
+not assume20's loader environment applies to60. See status and test plan.
+
+## Concrete source-entry setup proposal
+
+Not executed at this planning checkpoint. Independent recheck now PASS; parent alone creates
+fresh `/mnt/data/worktrees/fathomdb-0.8.29-s60-mcp` on
+`llm/0.8.29-s60-mcp` from committed37f9 (or a specifically reconciled later tip).
+Use this order; --worktree requires an already existing worktree:
+
+1. From the verified committed parent checkout, run precreation
+   `STRICT=1 bash scripts/preflight.sh --expect-closed 10 --plan dev/plans/plan-0.8.29.md --min-disk-gb 32`
+   without --worktree. Separately measure free bytes on the destination parent
+   `/mnt/data/worktrees` and private task filesystem `/mnt/data/tmp2` against the
+   resource floors below; this no-worktree invocation measures /tmp disk only.
+2. Parent creates the fresh source worktree from the verified committed base.
+3. With that path now existing, run
+   `STRICT=1 bash scripts/preflight.sh --worktree /mnt/data/worktrees/fathomdb-0.8.29-s60-mcp --expect-closed 10 --plan dev/plans/plan-0.8.29.md --min-disk-gb 32`.
+   Then verify target top-level/branch/HEAD, clean tracked state, closed10 ancestry
+   and exact release ref before any provisioning or implementation.
+
+20 closure is not checked as a60 dependency. No automatic
+rebase/reset or owner-created audit worktree; parent arranges later RED replay.
+
+Fresh noncolliding task namespace is
+`/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s60` (mode700). Keep distinct Cargo home/
+target, npm/pip/XDG/Puppeteer caches, TMPDIR/TMP/TEMP, logs and receipts there;
+checkout owns real .venv, root/TS/Mermaid modules and native output. Reuse only
+matching immutable system binaries. Run `bash scripts/setup-python-owned.sh
+--check-ownership` in that checkout before installers/hooks/npm. Install only
+private npm11.12.1 using immutable Node25.9.0, then locked `npm ci` in root,
+src/ts and dev/tools/mermaid. Provision the checkout venv solely with
+`bash scripts/setup-python-owned.sh --provision`; the canonical selector chooses
+actual installed Python>=3.11 (20 chose immutable UV3.13.13). Record actual
+interpreter/base-runtime/SOABI and verify Ruff0.15.17/Pyright1.1.410. Do not force
+an older interpreter or borrow20's mutable setup to evade the selector.
+
+Before Cargo's PyO3 executable tests, inspect the selected own interpreter's
+sysconfig LIBDIR/LDLIBRARY and exact library path/hash/SONAME. If its shared
+library needs a loader path, use only a verified command-local LD_LIBRARY_PATH
+for those processes, retaining stderr. No global linker/config/symlink change.
+The20 error exit127 and warning are historical evidence, not inherited60 failure
+or proof that the same workaround is needed. Missing library/ownership stops.
+
+Use common `--build`/`scripts/agent-build.sh` for source-bound noneditable
+production Python/TS artifacts. Record source/delta/lock/features/interpreter/
+ABI/module digests. Installed lifecycle smoke clears PYTHONPATH and imports own
+site-packages from external cwd; compare documented IdSpace identity. Canonical
+agent-test separately owns fresh test-hooks wheel/nonce/digest and child imports
+via only its own src/python PYTHONPATH. Never manually copy a module or use
+editable/maturin-develop. Prepare other full-gate developer prerequisites using
+10's existing supported owned recipe; no exporter/model download is implied.
+
+Keep one heavy phase, Cargo/CMake jobs2 (canonical serial Rust gate stays jobs1).
+Refresh root32GiB/taskfs250GiB/MemAvailable16GiB start; stop only owned workload
+at root<20GiB/taskfs<50GiB/MemAvailable<8GiB, task+checkout200GiB or sustained
+swap-in/out>64MiB/s for three30s samples. Record actual child exits and tolerate
+transient du races; no cleanup on stop. No measurements/capacity reservation
+are claimed now. Scoped checks while implementing; one final strict full agent
+verify on clean stable source with ptrace capability. Preserve actual failed/
+unrun/skipped outcomes and fresh independent final implementation review.
 
 ## Existing versus new
 

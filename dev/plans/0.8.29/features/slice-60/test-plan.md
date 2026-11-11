@@ -17,8 +17,12 @@ slice90_filtered_body_fts.rs. Paths below use `src/rust/crates/` prefix.
 Existing admission/lifecycle/full feature suites are retained verification
 candidates, not newly claimed full-body audits. Actual10 source104dcbcbe92a1eca730d146b99ab17d444df6217
 is independently reviewed/integrated and closed at parentd7d928f8e49d7af6a792385534f4e991c13232b3.
-Selected product source/tests are unchanged from bootstrap; current canonical
-needs/requirements/ACs, master allocation, tracked JSON and board were reread.
+MCP/SDK product source/tests and direct-text selection logic are unchanged at
+integrated20 witness657edeb76caaf9c8d2aab433766bec9362e73217; engine evidence
+hooks now require their owning &Engine and preserve bounded parallel controls.
+Current canonical needs/requirements/ACs, master allocation, JSON and board were
+reread. Committed metadata-only37f9eba37d74904d8e67a9192f6c8ef8c4f2ec47
+was rechecked with clean HEAD/local release ref; repeat at actual source entry.
 10's18 RED/GREEN pairs,214 registrations and assembled qualification are its
 recorded evidence, not60 runs or uninterrupted full-green. Parent confirms60
 Astra design PASS after FIX1; all approved oracle/behavior clauses below remain.
@@ -192,7 +196,12 @@ or pass-on-arrival exception counts. New integration assertions must be staged
 before the final still-missing behavior they exercise, not counted as separate
 RED after implementation. Do not reopen product scope just to manufacture RED.
 
-1. F01 result_format parsing/default/embedded validation; separate GREEN.
+1. F01a strict JSON result_format acceptance through from_json_str (no new-field
+   reference at RED), then separate GREEN introducing the public String field.
+   F01b then constructs that now-existing field with invalid values and requires
+   Adapter::new validation at its own runtime RED before separate GREEN. Stage
+   JSON null/type/unknown/case controls before F01a fix; passing controls are not
+   claimed as new RED. Default text is observed through F02/F03 public calls.
 2. F02 discovery output schemas depend only on server format, get_tool/list
    agree, same-format content/config independent; separate GREEN.
 3. F03 list_stores compact lines/format envelope and quoted stores.
@@ -227,10 +236,62 @@ splits/selector names are recorded with observed failures on the completed10
 baseline; if a proposed behavior already works, do not change product solely to
 force failure. Record it as an existing control and implement only real deltas.
 
+## Test-by-test implementation register
+
+Prospective selectors below name independent assertions, not executed tests or
+promised failures. Run the exact selector on its own RED SHA; record command,
+assertion, actual exit and0pass/1fail where applicable before separate GREEN.
+A test passing on arrival is a retained control, never an artificial RED. Every
+row with a distinct missing behavior gets its own RED/GREEN pair; stage related
+matrix/composition assertions before that same fix can make them pass. Do not
+break working behavior, add a missing-helper compile failure or claim later
+passing coverage as RED. Freeze each tested oracle during its repair.
+
+| Unit / prospective selector | Independent runtime assertion at RED; bounded GREEN |
+| --- | --- |
+| F01a `result_format_json_accepts_only_the_two_values` | Existing from_json_str accepts valid text/structured; baseline rejects unknown key. Add strict key/parser/default String only; wrong/null/type/case controls stage here. |
+| F01b `embedded_result_format_is_revalidated` | After F01a introduces the public field, invalid hand-built Config must fail Adapter::new naming result_format. Add embedded validate; no missing-field RED. |
+| F02 `default_discovery_has_no_output_schema` | Omitted format lists seven unchanged names/inputs with no outputSchema; get/list agree. Explicit structured retains schemas. Clear only text route schemas; per-connection mixed-format harness prevents global-cache bleed. |
+| F03 `list_stores_text_has_one_block_and_quoted_names` | Default result has one text/no structuredContent and authored store/default/readiness rows. Wire-envelope branch first; no other tool renderer is completed here. |
+| F04a `search_compact_rows_keep_quotes_and_scores` | Raw search rows parse hostile refs/kinds/src exactly and show independently rounded3dec SDK score/CE, ordered IDs and CR/LF-flattened snippet bytes. Implement search grammar only. |
+| F04b `search_text_retains_diagnostics_and_highlights` | Requested trace/per-hit JSON and absent/empty/nonempty highlights survive with valid byte coordinates. Implement these missing fields; raw typed scores stay exact. |
+| F04c `hosted_continuation_reports_best_effort` | Hosted page includes continuation_exact=false when typed output does. Add caveat rendering; no state-read/drift authority. |
+| F05 `orient_text_keeps_real_readiness_fields` | Authored projection/embedding/runtime/affected-kind facts survive; only approved unavailable placeholders omitted. Add orient renderer without B2 state/verdict invention. |
+| F06a `fetch_frames_exact_utf8_in_request_order` | Hand-authored header-like/CRLF/NUL-if-valid/astral/trailing-LF bodies recover by bytes; duplicate/missing/malformed refs preserve one outcome each. Implement raw framing, no body normalization. |
+| F06b `fetch_item_errors_keep_existing_details` | Missing/unsupported/ambiguous item error has exact class/code/message/remedy/candidates/detail, where real typed output has them. Implement per-item detail rendering, not new errors. |
+| F07 `expand_has_one_ordered_line_per_target` | Hand-authored graph with hostile refs/edge/kind and CR/LF/pipes retains hop/order/body/cut/bound. Implement expand grammar, not graph semantics. |
+| F08a `use_store_text_quotes_default_name` | Session switch returns exact quoted store and subsequent default action. Implement use_store representation only. |
+| F08b `feedback_text_keeps_envelope_and_reason` | Real accepted/rejected feedback retains store/epoch/time/status/reason/degradation/budget. Implement feedback representation only. |
+| F09a `structured_text_is_exact_final_payload_json` | Representative completed tool's explicit structured text equals serialization of final structuredContent and schema validates. Add common serialization; stage all seven tool/error matrix assertions before this fix. |
+| F09b `text_tool_error_keeps_all_typed_fields` | Wire error isError=true/text-only and complete candidates/detail/busy including empty-vs-absent. Add selected error renderer; final field census staged before last missing field fix. |
+| F10a `text_count_measures_final_utf8` | Independently measured final text count includes quotes/hints/framing/count digits and fits max. Add≤4-render convergence, staging Unicode/digit-boundary properties first. |
+| F10b `structured_fit_counts_both_final_copies` | Hand-authored final JSON proves both-copy fit and displayed used exclusion; old human text cannot satisfy it. Add converged structured accounting and exact transmitted S(u). |
+| F10c `search_keeps_whole_prefix_and_retries_without_hints` | Authored independently sized leading prefixes choose expected kept count/handle; sole fit hit survives hints-off retry. Fix only whole-hit shaping/fallback; no snippet recut/skip. |
+| F10d `tiny_budget_zero_progress_is_truthful` | Independent specimen predicts zero-hit cut_by_budget/no continuation/no hints/final fit or mandatory-overflow bad_argument. Before GREEN adapt arbitrary256..6000 property with independent prefix oracle; no filtering or raised minimum. |
+| F10e `fetch_cut_hint_budget_returns_uncut_records` | Independent complete target-format fetch size is sufficient on unchanged state; constrained bodies remain UTF-8 prefixes, all outcomes retained or typed refusal. Fix body shaping and target-format suggested budget at separate pairs if independently missing. |
+| F10f `expand_budget_cuts_bodies_before_suffix_targets` | Independent authored graph sizing predicts prefixes then trailing-target drop/bound=budget; mandatory metadata overflow refuses. Add only missing format-specific cut logic. |
+| F11a `search_superseded_view_and_handle_are_effective` | Raw include_superseded changes exact authored old/current selection and canonical identity; false/absent hashes match. Add this field/view/hash/override rules. |
+| F11b `search_inactive_view_and_handle_are_effective` | Raw include_inactive and both flags choose authored pending/deleted/current nodes/edges at fixed bounds, SDK exact control. Add inactive path; invalid types and continuation false override assertions stage before fix. |
+| F12 `direct_text_forwards_the_closed_filter` | Explicit/config text accepts each five fields/conjunctions and returns authored expected IDs, >100 nonmatches pre-cap target, AND attrs excluding edges, empty-filter control. All cases run to refusal at this RED before one narrow complete SearchFilter forwarding fix; do not manufacture per-field partial production filtering. |
+| F13 matrix staged with F12 | Unknown/nonfilterable even nohit yields InvalidFilter/bad_argument; actual projection empty-status/inclusive-time positive vs missing-row/body-JSON negatives; None-provider direct dispatch once/hybrid zero. Stage before F12 GREEN; controls already passing are not separate RED claims. |
+| F14 matrix staged with F10/F11/F12 | Every filter/true flag affects identity; key order/default false does not; overrides refuse; same-state progress-capable pages traverse100, arbitrary budgets independently stop/refuse. Hosted writes preserve eligibility/caveat without no-gap promise; inherited stale/reopen rules remain controls. |
+
+Pure parsing/round-trip/accounting properties accompany the corresponding wire
+behavior before GREEN. Comparator adaptation/negative controls are reviewed
+oracle maintenance, not fabricated product REDs; historical JSONL and EP03
+PINNED bytes remain immutable. If a row is already satisfied after an earlier
+coherent fix, it must have been staged before that fix or remain honestly an
+existing control. This register adds no test-only policy exception.
+
 ## Verification after source work
 
-Actual10 closure and independent60 design PASS are satisfied; source work still
-waits for parent GO and fresh parent-created60 worktree/strict closed10 preflight.
+Actual10 closure and prior60 design PASS are satisfied. This actual20
+reconciliation passed fresh independent Astra-medium design recheck after the
+source-entry sequencing FIX (review-log.md), then requires parent
+GO. Parent first runs strict closed10/plan/disk preflight without --worktree,
+measures destination filesystems and creates the fresh60 worktree; then strict
+preflight with --worktree and target branch/HEAD/clean identity must pass before
+provisioning or implementation.20 holds do not block60 or supply a TDD exception.
 Reread any later integrated delta at that entry. Before installers/hooks/npm,
 use final helper --check-ownership; only --provision owns canonical venv creation,
 then --build/agent-build creates fresh source-bound noneditable artifacts.

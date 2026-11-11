@@ -17,3 +17,22 @@ FIX1 remains intact: whole-hit progress conditions, independent arbitrary tiny-b
 All five candidates and 17 local links checked. Read-only review; no builds, tests, setup or mutations.
 
 Source work still requires parent dispatch, fresh isolated worktree, strict dependency preflight, actual-base verification and owned setup/artifacts. Final source qualification and a **fresh independent Astra implementation review** remain required. No release-readiness or policy waiver follows.
+
+## Actual20 independent design recheck
+
+Fresh independent reviewer GPT-6 Astra, medium,
+/root/slice_60_actual20_astra_design verified the frozen six-file actual20
+reconciliation against parent37f9eba37d74904d8e67a9192f6c8ef8c4f2ec47.
+One source-entry ordering finding was fixed: precreation preflight cannot name
+a worktree that does not yet exist. No behavioral or oracle change followed.
+Parent imports reviewed documents serially before fresh source worktree creation.
+
+Terminal response (verbatim):
+
+PASS — the sequencing FIX resolves the sole actionable finding.
+
+Verified the new manifest/diff hashes and all six candidate hashes. Precreation preflight now omits `--worktree`, measures destination filesystems, then requires parent creation followed by strict target preflight and identity checks before setup or implementation.
+
+Approved behavior, immutable oracles, per-behavior RED/GREEN and actual10/20 boundaries remain intact. No further material findings.
+
+Design acceptance only; owned source qualification and a fresh independent final implementation review remain required. Read-only; no builds, tests, setup or mutations.

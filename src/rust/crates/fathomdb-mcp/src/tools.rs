@@ -631,6 +631,9 @@ fn render_search(output: &SearchOutput) -> String {
     if let Some(handle) = &output.continuation {
         text.push_str(&format!(" continuation={handle}"));
     }
+    if let Some(exact) = output.continuation_exact {
+        text.push_str(&format!(" continuation_exact={exact}"));
+    }
     text.push_str(&format!(
         " response_id={} tokens={}/{}{}",
         output.response_id,

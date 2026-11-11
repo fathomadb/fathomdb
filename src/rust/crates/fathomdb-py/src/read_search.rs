@@ -626,4 +626,59 @@ mod degradation_tests {
         assert_eq!(words, Some(vec![("vector".to_string(), "embedder_overloaded".to_string())]));
         assert!(PySearchExpandResult::from_rust(healthy).degradations.is_none());
     }
+    fn absent_engine(dir: &tempfile::TempDir) -> fathomdb_engine::Engine {
+        let engine = fathomdb_engine::Engine::open_with_choice(
+            dir.path().join("s70-absence.sqlite"),
+            fathomdb_engine::EmbedderChoice::None,
+        )
+        .unwrap()
+        .engine;
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".into(),
+                body: "sliceseventyneedle note".into(),
+                source_id: SourceId::new("s70-native").unwrap(),
+                logical_id: Some("s70-native-note".into()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine
+    }
+
+    #[test]
+    fn search_result_reports_per_call_absence() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = absent_engine(&dir);
+        let text =
+            PySearchResult::from_rust(engine.search_text_only("sliceseventyneedle").unwrap());
+        let converted = PySearchResult::from_rust(engine.search("sliceseventyneedle").unwrap());
+        engine.close().unwrap();
+        assert!(text.degradations.is_none());
+        let words = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|e| (e.arm, e.reason)).collect::<Vec<_>>());
+        assert_eq!(words, Some(vec![("vector".into(), "embedder_absent".into())]));
+        assert_eq!(converted.results.len(), 1);
+        assert_eq!(converted.results[0].id.value, "s70-native-note");
+        assert_eq!(converted.results[0].branch, "text");
+    }
+
+    #[test]
+    fn search_expand_result_reports_per_call_absence() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = absent_engine(&dir);
+        let result = engine.search_expand("sliceseventyneedle", None, 1).unwrap();
+        assert_eq!(result.search_hits.len(), 1);
+        assert_eq!(result.search_hits[0].id.value, "s70-native-note");
+        assert_eq!(result.search_hits[0].branch, SoftFallbackBranch::Text);
+        let converted = PySearchExpandResult::from_rust(result);
+        engine.close().unwrap();
+        let words = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|e| (e.arm, e.reason)).collect::<Vec<_>>());
+        assert_eq!(words, Some(vec![("vector".into(), "embedder_absent".into())]));
+    }
 }

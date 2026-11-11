@@ -105,28 +105,45 @@ async fn empty_text_search_suggests_hybrid_only_when_hybrid_available() {
 #[tokio::test(flavor = "multi_thread")]
 async fn empty_with_degradation_emits_no_results_and_degraded() {
     let (_fixture, harness) = harness_with(river_notes(3, 40), json!({})).await;
-    let (_compact_fixture, compact) = compact_peer(river_notes(3, 40), json!({})).await;
     let result = harness.call("search", json!({"query": "zebra", "mode": "hybrid"})).await;
     let found = result.structured_content.clone().unwrap();
     assert_eq!(found["completeness"], "empty_not_ready");
     assert_eq!(
+        found["degradation"],
+        json!([
+            {"arm":"vector","reason":"embedder_absent"},
+            {"arm":"vector","reason":"embedder_unavailable"}
+        ])
+    );
+    assert_eq!(
         hints_of(&found),
         vec![
-            json!({"action": "none", "reason": "degraded", "arm": "vector", "cause": "embedder_unavailable"}),
+            json!({"action": "none", "reason": "degraded", "arm": "vector", "cause": "embedder_absent"}),
             json!({"action": "search", "reason": "no_results"}),
         ]
     );
+    assert!(!found.to_string().contains("index_not_ready"), "{found}");
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn empty_compact_with_degradation_emits_no_results_and_degraded() {
+    let (_compact_fixture, compact) = compact_peer(river_notes(3, 40), json!({})).await;
     let text_result = compact.call("search", json!({"query":"zebra","mode":"hybrid"})).await;
     assert!(text_result.structured_content.is_none());
     let text = common::text_of(&text_result);
-    assert!(!found.to_string().contains("index_not_ready"), "{found}");
     assert!(!text.contains("index_not_ready"), "{text}");
     let hint_lines: Vec<&str> = text.lines().filter(|line| line.starts_with("hint: ")).collect();
     assert_eq!(hint_lines.len(), 2, "one text line per hint: {text}");
-    assert!(hint_lines[0].starts_with("hint: none "), "{text}");
+    assert_eq!(hint_lines[0], "hint: none arm=vector cause=embedder_absent (degraded: an arm did not run or ran degraded; nothing to retry)", "{text}");
+    let degradation_lines =
+        text.lines().filter(|line| line.starts_with("degraded: ")).collect::<Vec<_>>();
+    assert_eq!(
+        degradation_lines,
+        vec!["degraded: vector embedder_absent", "degraded: vector embedder_unavailable"]
+    );
     assert!(hint_lines[1].starts_with("hint: search "), "{text}");
     compact.shutdown().await;
-    harness.shutdown().await;
 }
 
 /// § 8 test 7 and § 6 B2-3: a degraded hybrid search names its first

@@ -359,3 +359,61 @@ fn historical_comparator_rejects_unapproved_semantic_and_accounting_changes() {
         );
     }
 }
+
+#[test]
+fn historical_hybrid_absence_has_only_the_authored_successor_delta() {
+    let rows = BASELINE
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    let pair = json!([
+        {"arm":"vector","reason":"embedder_absent"},
+        {"arm":"vector","reason":"embedder_unavailable"}
+    ]);
+    let mut payload = rows[4]["result"]["structuredContent"].clone();
+    payload["degradation"] = pair.clone();
+    let valid = current_wire(&rows[4], payload.clone());
+    assert!(compare_baseline(&valid, &rows[4], 4).is_ok(), "approved exact absence successor");
+    for wrong in [
+        json!([{"arm":"vector","reason":"embedder_unavailable"}]),
+        json!([{"arm":"vector","reason":"embedder_absent"}]),
+        json!([{"arm":"vector","reason":"embedder_unavailable"},{"arm":"vector","reason":"embedder_absent"}]),
+        json!([{"arm":"text","reason":"embedder_absent"},{"arm":"vector","reason":"embedder_unavailable"}]),
+        json!([{"arm":"vector","reason":"embedder_timeout"},{"arm":"vector","reason":"embedder_unavailable"}]),
+        json!([{"arm":"vector","reason":"embedder_absent"},{"arm":"vector","reason":"embedder_absent"},{"arm":"vector","reason":"embedder_unavailable"}]),
+        json!([{"arm":"vector","reason":"embedder_absent"},{"arm":"vector","reason":"embedder_overloaded"},{"arm":"vector","reason":"embedder_unavailable"}]),
+    ] {
+        let mut changed = payload.clone();
+        changed["degradation"] = wrong;
+        assert!(compare_baseline(&current_wire(&rows[4], changed), &rows[4], 4).is_err());
+    }
+    for (key, value) in [
+        ("response_id", json!("r1-0000000000000000")),
+        ("completeness", json!("complete")),
+        ("state", json!({"status":"wrong"})),
+        ("verdict", json!("wrong")),
+    ] {
+        let mut changed = payload.clone();
+        changed[key] = value;
+        assert!(compare_baseline(&current_wire(&rows[4], changed), &rows[4], 4).is_err(), "{key}");
+    }
+    let mut changed = payload.clone();
+    changed["results"][0]["score"] = json!(9);
+    assert!(compare_baseline(&current_wire(&rows[4], changed), &rows[4], 4).is_err());
+    for index in [2, 3, 5, 6] {
+        let mut text = rows[index]["result"]["structuredContent"].clone();
+        text["degradation"] = pair.clone();
+        assert!(compare_baseline(&current_wire(&rows[index], text), &rows[index], index).is_err());
+    }
+    let mut changed = valid.clone();
+    changed["result"]["content"][0]["text"] = json!("wrong");
+    assert!(compare_baseline(&changed, &rows[4], 4).is_err());
+    let mut changed = valid.clone();
+    changed["result"]["structuredContent"]["budget"]["used_tokens"] = json!(1);
+    changed["result"]["content"][0]["text"] =
+        json!(serde_json::to_string(&changed["result"]["structuredContent"]).unwrap());
+    assert!(compare_baseline(&changed, &rows[4], 4).is_err());
+    let mut changed = valid;
+    changed["id"] = json!(99);
+    assert!(compare_baseline(&changed, &rows[4], 4).is_err());
+}

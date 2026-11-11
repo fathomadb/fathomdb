@@ -74,7 +74,10 @@ async fn hybrid_mode_without_an_embedder_returns_lexical_hits_and_names_the_vect
     assert_eq!(found["mode"], "hybrid");
     assert_eq!(refs(&found), vec!["l:note:1"]);
     // MR-032.1: the vector arm and why it did not run.
-    assert_eq!(found["degradation"], json!([{"arm": "vector", "reason": "embedder_unavailable"}]));
+    assert_eq!(
+        found["degradation"],
+        json!([{"arm": "vector", "reason": "embedder_absent"}, {"arm": "vector", "reason": "embedder_unavailable"}])
+    );
     // MR-032.3: never `complete` while an arm that could contribute is degraded.
     assert_eq!(found["completeness"], "partial");
     let empty = harness.ok("search", json!({"query": "zebra", "mode": "hybrid"})).await;
@@ -248,7 +251,7 @@ fn assert_fits(result: &rmcp::model::CallToolResult, max_tokens: u64) {
 fn mandatory_search_size(mode: &str, explain: bool, max_tokens: u64, sdk_trace: &Value) -> u64 {
     let mut p = json!({"store":"a","epoch":1,"validity_instant":1900000000,"state":{"status":"unavailable"},"degradation":[],"budget":{"max_tokens":max_tokens,"used_tokens":0,"cut":true},"mode":mode,"response_id":"r1-0000000000000000","results":[],"completeness":"cut_by_budget","verdict":"unavailable","continuation":null});
     if mode == "hybrid" {
-        p["degradation"] = json!([{"arm":"vector","reason":"embedder_unavailable"}]);
+        p["degradation"] = json!([{"arm":"vector","reason":"embedder_absent"},{"arm":"vector","reason":"embedder_unavailable"}]);
     }
     if explain {
         p["explanation"] = if mode == "text" {
@@ -291,7 +294,15 @@ async fn every_response_fits_its_budget() {
     let control = sdk.search("river", options).unwrap();
     assert_eq!(control.results.len(), 40, "authored unchanged lexical fixture");
     assert!(control.soft_fallback.is_none());
-    assert!(control.degradations.is_empty());
+    assert_eq!(
+        control
+            .degradations
+            .iter()
+            .map(|entry| (entry.arm, entry.reason.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(fathomdb_sdk::SoftFallbackBranch::Vector, "embedder_absent")],
+        "the same-state None-provider hybrid control reports exactly its per-call absence"
+    );
     let trace = &control.explanation.as_ref().unwrap().trace;
     let sdk_trace = json!({"query_chars":trace.query_chars,"k":trace.k,"rerank_depth":trace.rerank_depth,"pool_n":trace.pool_n,"alpha":trace.alpha,"use_graph_arm":trace.use_graph_arm,"recency":trace.recency,"embedder_id":trace.embedder_id,"ce_active":trace.ce_active,"vector_hits":trace.vector_hits,"text_hits":trace.text_hits,"graph_hits":trace.graph_hits,"dropped_edge_hits":trace.dropped_edge_hits});
     sdk.close().unwrap();

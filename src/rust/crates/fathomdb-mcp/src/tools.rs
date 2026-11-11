@@ -1732,11 +1732,15 @@ mod degradation_tests {
         let run = SearchRun::from_result(overloaded_hybrid_result());
         assert_eq!(
             search_degradations(SearchMode::Hybrid, &run, true),
-            vec![entry("vector", "embedder_overloaded")]
+            vec![entry("vector", "embedder_absent"), entry("vector", "embedder_overloaded")]
         );
         assert_eq!(
             shape::canonical_degradation(search_degradations(SearchMode::Hybrid, &run, false)),
-            vec![entry("vector", "embedder_overloaded"), entry("vector", "embedder_unavailable")],
+            vec![
+                entry("vector", "embedder_absent"),
+                entry("vector", "embedder_overloaded"),
+                entry("vector", "embedder_unavailable")
+            ],
             "the existing entries stay"
         );
     }

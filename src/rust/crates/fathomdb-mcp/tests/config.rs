@@ -369,3 +369,14 @@ fn result_format_json_accepts_only_the_two_values() {
         assert!(invalid(&input, dir.path()).contains("result_format"), "{input}");
     }
 }
+
+#[tokio::test]
+async fn embedded_result_format_is_revalidated() {
+    for value in ["", "TEXT", "json"] {
+        let config = Config { result_format: value.into(), ..Config::default() };
+        let error = fathomdb_mcp::Adapter::new(config)
+            .err()
+            .expect("invalid embedded result_format must be rejected");
+        assert!(error.to_string().contains("result_format"), "{error}");
+    }
+}

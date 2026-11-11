@@ -50,10 +50,16 @@ same task's receipts and logs directories. No model bytes or database are tracke
   final launcher loads validation modules after descriptor sanitation. These
   copies were not substituted into the observed run, and were not model-run
   again for documentation. No assertion/predicate/record/budget was removed.
-- `driver/` is the public SDK producer and no-CUDA None control. Its independent
+- `driver/` preserves the public SDK producer/None-control source and independent
+  lock; no runnable Cargo manifest or extra Cargo override is tracked here.
+  `materialize_driver.py` creates a fresh external task-owned manifest only
+  after checking the exact archived manifest hash, authoritative root patch,
+  actual source SDK binding, frozen private lock and every root package pin.
+  Its independent
   lock retains307 root-pinned package versions/sources/checksums; the sole added
-  package is this publish-false manual operator. Its SDK path is relative to this
-  checkout; candle-kernels keeps exact root patch182ceab0547348993b6dbec4b1aed610dcc8b23f.
+  package is this publish-false manual operator. Its SDK path is bound to the actual
+  source checkout during explicit materialization; candle-kernels keeps exact governed
+  root patch182ceab0547348993b6dbec4b1aed610dcc8b23f.
 - `mcp_check.py` runs real stdio structured/text sessions (optional format args),
   authored14-case selections, exact raw/display scores and format/fit checks.
 - `netns_exec.sh` and `netns_final_exec.py` form the final runtime boundary:
@@ -106,12 +112,14 @@ regular non-symlink files and distinct inodes. Never download on a miss.
 Normal CPU/full-gate environment/cache/features/targets stay unchanged.
 
 ```bash
+python "$ops/materialize_driver.py" "$S60_TASK/gpu-metadata/driver"
+manual_manifest="$S60_TASK/gpu-metadata/driver/Cargo.toml"
 # GPU build in a subshell: no global environment change and no model execution.
-(source "$ops/build_env.sh"; cargo build --manifest-path "$ops/driver/Cargo.toml"   --features cuda-producer --locked)
+(source "$ops/build_env.sh"; cargo build --manifest-path "$manual_manifest"   --features cuda-producer --locked --offline)
 # One fresh producer; runner verifies hashes/room/namespace and records real exits.
 python "$ops/resource_guard.py" manual-producer python "$ops/run_producer.py" run-001
 # Once producer has closed, separate no-CUDA SDK control artifact/session.
-CARGO_TARGET_DIR="$S60_TASK/gpu-metadata/cpu-control-target" cargo build   --manifest-path "$ops/driver/Cargo.toml" --no-default-features --locked
+CARGO_TARGET_DIR="$S60_TASK/gpu-metadata/cpu-control-target" cargo build   --manifest-path "$manual_manifest" --no-default-features --locked --offline
 "$S60_TASK/gpu-metadata/cpu-control-target/debug/s60-manual-metadata-acceptance"   controls "$S60_TASK/gpu-metadata/run-001"   > "$S60_TASK/gpu-metadata/run-001/controls.jsonl"
 # Normal actual candidate shipping consumer, separate from CUDA producer target.
 cargo build -p fathomdb-mcp --bin fathomdb-mcp --no-default-features --locked
@@ -148,3 +156,18 @@ node "$ops/production_lifecycle.mjs" "$S60_TASK/production-typescript.sqlite"
 
 The canonical full gate's nonce-bound Python candidate/child native receipt is
 separate evidence, not a substitute for these production open/close/exit checks.
+
+## Interrupted full gate and packaging repair
+
+The single strict full gate on307c92e3 passed preflight, shell/module boundaries,
+workspace Clippy, rustfmt, migration/capability/doc checks, then stopped at the
+pinned-override inventory: the portable driver's duplicate tracked Cargo patch
+was outside the exact supported locations. The guard and its allowed inventory
+are unchanged. The repair removes that tracked manifest and explicitly checks/
+materializes the real private manifest from already-governed inputs, matching
+the originally executed external package method. The exact original manifest/
+lock/source remain preserved. Static tempdir controls exercise materialization
+and refusal paths, without native/model/projection execution. Earlier gate passes
+are retained; only the failed lint check and remaining canonical stages resume.
+Production307 artifact evidence is reusable through exact unchanged relevant
+source/manifest/lock inputs; nonce-bound test-hook qualification remains separate.

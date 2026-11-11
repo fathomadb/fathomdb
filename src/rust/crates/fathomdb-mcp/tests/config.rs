@@ -346,3 +346,26 @@ fn config_accepts_a_boolean_hints_key() {
     assert_eq!(parse(r#"{"hints": true}"#, base).unwrap(), parse("{}", base).unwrap());
     assert!(invalid(r#"{"hints": "yes"}"#, base).contains("hints"));
 }
+
+#[test]
+fn result_format_json_accepts_only_the_two_values() {
+    let dir = tempfile::tempdir().unwrap();
+    for format in ["text", "structured"] {
+        let input = serde_json::json!({"result_format": format}).to_string();
+        assert!(parse(&input, dir.path()).is_ok(), "result_format={format} must be accepted");
+    }
+    assert_eq!(parse(r#"{"result_format":"text"}"#, dir.path()).unwrap(), Config::default());
+    for value in [
+        serde_json::json!(null),
+        serde_json::json!(true),
+        serde_json::json!(7),
+        serde_json::json!([]),
+        serde_json::json!({}),
+        serde_json::json!("TEXT"),
+        serde_json::json!("json"),
+        serde_json::json!(""),
+    ] {
+        let input = serde_json::json!({"result_format": value}).to_string();
+        assert!(invalid(&input, dir.path()).contains("result_format"), "{input}");
+    }
+}

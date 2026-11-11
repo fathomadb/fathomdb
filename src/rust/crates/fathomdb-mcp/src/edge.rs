@@ -71,7 +71,13 @@ pub struct FathomServer {
 impl FathomServer {
     pub(crate) fn new(shared: Arc<Shared>) -> Self {
         let session = Arc::new(Session::new(shared.config.default_store.clone()));
-        Self { shared, session, tool_router: Self::tool_router() }
+        let mut tool_router = Self::tool_router();
+        if shared.config.result_format == "text" {
+            for route in tool_router.map.values_mut() {
+                route.attr.output_schema = None;
+            }
+        }
+        Self { shared, session, tool_router }
     }
 
     async fn dispatch(

@@ -1257,7 +1257,7 @@ class SearchResult:
     #: retrieval explicitly requests explanation. New optional field with a
     #: default (the Python evolution rule), so the non-explain shape is unchanged.
     explanation: Explanation | None = None
-    #: Requested arms that did not run; ``None`` when every requested arm ran.
+    #: Requested arms that did not run; ``None`` when no bounded cause is reported.
     degradations: list[ArmDegradation] | None = None
     #: EP-17 snippet sidecar: one ``SnippetV1`` per hit, in ``results`` order,
     #: when the search passed ``snippet=``; ``None`` otherwise.
@@ -1607,7 +1607,7 @@ class SearchExpandResult:
     search_hits: list[SearchHit]
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
-    #: Requested search arms that did not run; ``None`` when every arm ran.
+    #: Requested search arms that did not run; ``None`` when no bounded cause is reported.
     degradations: list[ArmDegradation] | None = None
 
 

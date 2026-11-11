@@ -37,3 +37,15 @@ An initial launcher stop over the canonical own-commits warning remains retained
 ancestry/test-only delta was verified without changing the guard. Parent returned
 the native window after all its native processes ended. This is independent RED
 reproduction, not final implementation approval.
+
+## Implementation evidence prepared for fresh final review
+
+The [execution map](execution-map.md#observed-implementation-sequence) records
+immutable RED/GREEN pairs and evidence paths. Every changed runtime behavior
+failed through existing APIs before its separate fix. Six public facade exports
+retain their explicitly approved compile-reachability proof only. Actual Closing
+used the existing helper and real Engine.close with release/join cleanup; non-close
+Cancelled stayed unchanged. The exact guarded historical comparator amendment
+followed its own authored positive runtime RED, with assertions/negatives frozen.
+No implementation self-review verdict is issued. Parent must commission the fresh
+distinct Astra final audit after stable-tree qualification and artifact proof.

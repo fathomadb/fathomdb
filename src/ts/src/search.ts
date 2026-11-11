@@ -63,7 +63,7 @@ export interface SnippetOptions {
 export type SnippetAnchor = "whole" | "match" | "start";
 
 /**
- * One hit's snippet. Ranges are `[start, end]` UTF-8 byte offsets (not
+ * One hit's snippet. Ranges are `[start, end)` UTF-8 byte offsets (not
  * UTF-16 indices): `windows` and `spans` into the record body, `highlights`
  * into `text`. `text` is at most `maxBytes` bytes: the windows joined in body
  * order with `"… "`, `" … "` and `" …"`. `highlights` is empty unless
@@ -248,7 +248,7 @@ function validateSnippetOptionTypes(snippet: unknown): void {
 
 /**
  * EP-17 pure snippet selector, the same function search uses. `spans` are
- * match spans as `[start, end]` UTF-8 byte offsets into `body` (not UTF-16
+ * match spans as `[start, end)` UTF-8 byte offsets into `body` (not UTF-16
  * indices), so `Buffer.from(body, "utf8").subarray(start, end).toString("utf8")`
  * is the matched text; spans that are empty, run past the body or split a
  * character are ignored. `options` defaults to all-default `SnippetOptions`; values out of
@@ -359,7 +359,7 @@ function mapNativeSnippet(native: NativeSnippetV1): SnippetV1 {
 
 /**
  * `{ degradations }` when the native list is non-empty, else `{}`, so the key
- * is absent when every requested arm ran.
+ * is absent when no bounded cause is reported.
  */
 export function mapNativeDegradations(
   native: NativeArmDegradation[] | null | undefined,
@@ -799,7 +799,7 @@ export interface SearchResult {
    * Opt-in explanation sidecar; `null` unless the retrieval requests explanation.
    */
   explanation: Explanation | null;
-  /** Requested arms that did not run; absent when every requested arm ran. */
+  /** Requested arms that did not run; absent when no bounded cause is reported. */
   degradations?: ArmDegradation[];
   /**
    * EP-17 snippet sidecar: one {@link SnippetV1} per hit, in `results` order,

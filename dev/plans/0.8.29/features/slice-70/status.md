@@ -1,11 +1,11 @@
 ---
-title: Slice 70 — actual source-entry reconciliation
+title: Slice 70 — implementation and qualification status
 status: PROPOSED
 target_release: 0.8.29
 slice: 70
 ---
 
-# Slice 70 source-entry status
+# Slice 70 implementation status
 
 Sole writer entered `/mnt/data/worktrees/fathomdb-0.8.29-s70-sdk`, branch
 `llm/0.8.29-s70-sdk`, clean base589467efdc47c29e2a81a798c88877ed38f2761f.
@@ -20,10 +20,10 @@ The [plan](plan.md), [requirements](requirements.md), [design](design.md),
 [test map](test-map.md), [execution map](execution-map.md),
 [exact oracle successors](oracle-successors.md) and
 [historical successor](historical-oracle-successor.md) retain the approved
-behavior and runtime ordering. Only actual-entry/predecessor facts are updated
-for the SAME Astra design reviewer before implementation. Parent owns review
+behavior and runtime ordering. The SAME Astra integrated-baseline design recheck
+passed with zero material findings before the approved source pairs ran. Parent owns review
 commissioning and final landing; no nested agents, generated release-state,
-ledger or parent-checkout writes are permitted. No product GREEN before PASS.
+ledger or parent-checkout writes are permitted. No product GREEN preceded PASS.
 
 All22 [historical product/test pins](source-pins.json) match actual589467.
 The prior source-pins and [illustrative oracle diff](oracle-successors.proposed.diff)
@@ -66,11 +66,27 @@ only its child group at root<20GiB/task<50GiB/MemAvailable<8GiB/owned>=200GiB or
 swap>=64MiB/s for3 consecutive30s samples. One heavy phase/jobs2 setup and
 canonical Rust jobs1 qualification. Logs/receipts retain argv, cwd, SHA/delta,
 exits and resource samples. No cleanup. Parent's environment qualifies nothing
-for70. Own canonical noneditable setup/artifact receipts are still in progress.
+for70. Own canonical noneditable Python provisioning and production TS builds
+passed; exact Node25.9.0/npm11.12.1, Python3.13.13/library, Ruff0.15.17 and
+Pyright1.1.410 identities are retained. Source-bound final artifacts remain to qualify.
 
-No70 tests or implementation have run at this documentation freeze. Independent
-baseline-fit design recheck is pending; owned setup may proceed while it runs.
-Source changes then follow genuine per-behavior committed/staged runtime RED and
-separate GREEN, scoped checks, one final strict full gate on clean code, own
-production lifecycles/candidate-child identity and fresh distinct final review.
+## Executed scope and remaining qualification
+
+The [execution map](execution-map.md#observed-implementation-sequence) records
+all seven separate committed RED/GREEN pairs, exact boundary limits and scoped
+passing counts. Supported remedies, per-call absence/started timeout, actual
+Closing, exact oracle successors and six-type compile reachability are implemented.
+UTF8 interval and bounded-taxonomy prose corrections preserve existing selectors,
+all authored fixtures and native assertion fragments. Direct filters and all14
+historical text-only manual cases remain unchanged. No manual history is rewritten.
+
+Final stable-tree strict agent-verify, existing Unicode/shared-fixture controls,
+fresh owned production lifecycles and final nonce-bound candidate/child proof are
+still pending. Their actual skips/failures/resumptions will be retained. Current
+scoped passes do not qualify all targets or constitute full-workspace green.
+Built-in model CPU/auto success is not claimed under the allocated no-model scope;
+provider-free lifecycle success cannot replace it. No installed live-timeout
+provider-injection route is claimed. Fresh distinct final Astra implementation
+review is parent-owned and pending; no child landing or release-ready verdict.
+
 No model/GPU/fault/toolkit/driver/VM/cloud/publication or schema/migration change.

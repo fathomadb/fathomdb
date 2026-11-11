@@ -389,7 +389,7 @@ pub(super) struct PySearchResult {
     /// only when `search(..., explain=True)`; `None` (default) keeps the payload
     /// byte-identical to the pre-0.8.8 shape.
     explanation: Option<PyExplanation>,
-    /// Requested arms that did not run; `None` when every requested arm ran.
+    /// Requested arms that did not run; `None` when no bounded cause is reported.
     degradations: Option<Vec<PyArmDegradation>>,
     /// EP-17 snippet sidecar, one per hit in `results` order; `None` unless
     /// the search asked for snippets.

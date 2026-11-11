@@ -54,7 +54,7 @@ export interface SearchExpandResult {
   searchHits: SearchHit[];
   expanded: ExpandedNode[];
   allLogicalIds: string[];
-  /** Requested search arms that did not run; absent when every requested arm ran. */
+  /** Requested search arms that did not run; absent when no bounded cause is reported. */
   degradations?: ArmDegradation[];
 }
 

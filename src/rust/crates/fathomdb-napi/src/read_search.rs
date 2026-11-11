@@ -725,7 +725,7 @@ pub struct SearchResult {
     /// (`explanation` in JS). Present only when `search(..., explain=true)`; `null`
     /// (default) keeps the payload byte-identical to the pre-0.8.8 shape.
     pub explanation: Option<Explanation>,
-    /// Requested arms that did not run; absent when every requested arm ran.
+    /// Requested arms that did not run; absent when no bounded cause is reported.
     pub degradations: Option<Vec<ArmDegradation>>,
     /// EP-17 snippet sidecar, one per hit in `results` order; absent unless
     /// the search asked for snippets.

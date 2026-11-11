@@ -10,18 +10,22 @@ slice: 70
 Parent reports fresh independent Astra PASS for reviewed70 actual20 fit,
 its narrow historical successor and the actual60 candidate packet. This linked
 canonical [plan](plan.md)/[design](design.md)/[test map](test-map.md) consolidation
-awaits same-Astra consistency recheck, not a new owner semantic decision.
+passed same-Astra consistency and actual integrated-baseline rechecks before
+implementation; no new owner semantic decision was introduced.
 [Exact oracle successors](oracle-successors.md), [strict historical successor](historical-oracle-successor.md)
 and [illustrative diff](oracle-successors.proposed.diff) supply concrete test
-amendments. No source GO or executed RED/GREEN follows from the proposal.
+amendments. Separate parent source-entry authorization and observed execution
+are recorded below; the proposal alone did not supply either.
 
 ## Actual source-entry reconciliation
 
 Actual entry589467 and integrated qualified partial60 subset5271 are recorded
 in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
 All22 historical product/test pins match; approved scope, exact oracles and
-runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
-implementation; only owned setup may run while that review is pending.
+runtime RED ordering stay unchanged. The same independent Astra baseline-fit
+review passed with zero material findings before implementation; see the
+[review log](review-log.md). Executed pairs and outstanding qualification are
+recorded in [status](status.md) and the [execution map](execution-map.md).
 
 ## Behavioral ordering and staging
 
@@ -92,7 +96,37 @@ not approved. Block1 actual exit and160 combined qualification stay separate.
 20 Linux repairs are integrated but A3/A5 policy/Windows A6 remain held; closed10
 is70's hard prerequisite.60 complete closure is not invented as another hard gate.
 
-## Actual integrated reread before source dispatch
+## Observed implementation sequence
+
+All rows followed the reviewed order. Tests were staged before their listed RED,
+committed before separate GREEN, and assertions stayed frozen during each fix.
+The approved historical comparator implementation is separate from its frozen
+assertion tail. Evidence root is
+`/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s70`: `receipts/<phase>.json` records exact
+argv/cwd/SHA/delta/exits/resources and `logs/<phase>.log` retains raw diagnostics
+and passing output. The `t70-*-pair.json` and `t70-*-test-freeze.json` receipts
+identify each immutable boundary. These are scoped passes, not the final full gate.
+
+| Step / local acceptance | Immutable RED → separate GREEN | Observed boundary |
+| --- | --- | --- |
+| T70-1 / A70-4 | `1ec8b6c652` → `14c66d5cca` | Engine2 failures at unsupported triple; installed Python/Node failures. GREEN engine4, installed readiness/drain controls pass. Parent independently reproduced exact committed graph RED. |
+| T70-7a / A70-7 | `2af9f81f84` → `8f63b4b687` | Literal absence translator and schema each runtime-fail, then pass; no missing-symbol evidence. |
+| T70-7b / A70-7 | `9a9e5e4d16` → `cbaf01eace` | Timeout translator and schema independently runtime-fail, then pass; not a live MCP timeout claim. |
+| T70-2 / A70-1/7/8 | `f8924a365d` → `837064e499` | Engine5, PyO3 native2, NAPI native2, installed Python4/Node4 all runtime-fail missing absence. Six exact MCP/comparator boundaries fail. GREEN engine5/native4+4/MCP24+15+3+21/installed4+4 pass. |
+| T70-3 / A70-1/2/7/8 | `bc78ad02df` → `fdef37ef41` | Engine5 reached started-timeout failures, old holder1 failure, native2+2 failures. D27 start, held-slot queued-probe, release/reuse and provider-error controls pass. GREEN engine11/overload4/PINNED1/CUDA14/foreground10/native6+6/hints3/schema1 pass. |
+| T70-4 / A70-3 | `529c3a31e6` → `25adc7b76b` | Existing helper actually returns Ok(None) during actual held-provider Engine.close:0pass/1fail. Release/both joins precede assertion; outer close observed separately. GREEN exact helper1/CUDA14/foreground10 pass; non-close Cancelled unchanged. |
+| T70-5 / A70-5 | `f66157c636` → `4d0cb66f34` | Approved public API compile reachability ONLY: exactly six unresolved types become exported. Consumer actual field types, curated Rust census45, existing recovery/SDK controls pass. No runtime-behavior claim. |
+| T70-8 / A70-6/8 | Documentation correction only | Existing selectors/defaults/ranges/Unicode fixtures reused. No fabricated behavior defect, new passing stand-in or fixture regeneration. Final qualification follows. |
+
+Retained nonproduct interruptions: initial setup EROFS/cache discovery, one
+Cargo duplicate --lib CLI typo, initial selected-libpython loader127 before a
+verified command-local loader path yielded actual runtime RED, and Cargo stopping
+a multi-target RED run after the first expected failure before the remaining
+route target was executed separately. T70-1 Markdown whitespace failure and the
+guarded correction/affected-only pass remain recorded. No test weakening,
+resource stop or uninterrupted full-green claim follows from these scoped pairs.
+
+## Historical pre-entry checklist (completed at589467)
 
 Wait for parent's actual source-entry instruction and assigned isolated worktree;
 no native phase runs while60 owns that window. At eventual integrated60, compare

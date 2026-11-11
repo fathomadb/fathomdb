@@ -25,7 +25,7 @@ pub struct SearchExpandResult {
     pub search_hits: Vec<SearchHit>,
     pub expanded: Vec<ExpandedNode>,
     pub all_logical_ids: Vec<String>,
-    /// Requested search arms that did not run; absent when every arm ran.
+    /// Requested search arms that did not run; absent when no bounded cause is reported.
     pub degradations: Option<Vec<ArmDegradation>>,
 }
 

@@ -42,7 +42,7 @@ fn checked<T: TryFrom<i64>>(name: &str, value: Option<i64>, default: T) -> Resul
     })
 }
 
-/// One hit's snippet. Ranges are `[start, end]` UTF-8 byte offsets:
+/// One hit's snippet. Ranges are `[start, end)` UTF-8 byte offsets:
 /// `windows` and `spans` into the record body, `highlights` into `text`.
 #[napi(object)]
 pub struct SnippetV1 {
@@ -94,7 +94,7 @@ impl SnippetOptionsInput {
 }
 
 /// EP-17 pure selector (`fathomdb_engine::snippet_for`): the snippet of
-/// `body` for match `spans` (`[start, end]` UTF-8 byte ranges). Spans that are
+/// `body` for match `spans` (`[start, end)` UTF-8 byte ranges). Spans that are
 /// not pairs of `u32` are ignored, as the selector ignores spans that run past
 /// the body. Never fails; out-of-range options are clamped.
 #[napi(js_name = "snippetFor")]

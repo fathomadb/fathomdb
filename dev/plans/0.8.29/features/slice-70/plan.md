@@ -14,8 +14,9 @@ Source entry is the sole-writer checkout
 clean base589467efdc47c29e2a81a798c88877ed38f2761f. Parent created it after
 strict closed10 landing/target preflights; the owner repeated exact identity
 and strict target preflight with zero hard failures/warnings. Setup ownership
-check passed. Own documentation is frozen for the same Astra design reviewer
-before implementation; approved owned setup may proceed during that review.
+check passed. The same independent Astra integrated-baseline design recheck
+passed with zero material findings before implementation. Owned setup and the
+approved separate RED/GREEN pairs have now run; see [status](status.md).
 
 Integrated60 qualified subset5271c1bf022f0ea22f95f7433e226feb2315043e has fresh
 independent implementation PASS. All22 pinned product/test objects match the
@@ -29,7 +30,8 @@ pre-entry proposal; this section supplies its actual entry facts.
 Python1744pass/38skip, TS625pass/6skip, strict security and exact candidate/child
 identity. The original307 full-wrapper inventory failure remains recorded.
 Whole60/F11 and whole20 remain open; neither adds a hard70 prerequisite.
-No70 runtime pass, implementation result or final review is claimed here.
+Executed scoped runtime pairs are recorded in [status](status.md); final stable-tree
+qualification and fresh independent implementation review remain separate.
 Approved reason/remedy/export/Closing/UTF8 scope and all RED ordering/oracles
 remain unchanged; no new policy, provider route, threshold/default or gate.
 
@@ -39,17 +41,18 @@ Slice9 Batch4 approves bounded degradation/parity corrections through the
 [direct execution gates](../../direct-execution.md). The same direct Sol-high
 owner prepares and later implements; parent dispatches independent Astra-medium
 design and fresh final reviewers. No Steward/Orchestrator or nested agent.
-Parent reports fresh independent Astra PASS for the actual20 reconciliation,
-its narrow historical successor and the actual60 candidate packet. This
-consolidated proposed set awaits same-Astra consistency recheck; no source
-clearance follows. Parent remains frozen2f6913c1. Candidate60 is unlanded7038b5b4;
-actual final integration/identity reread still precedes70 source GO.
+Parent reports fresh independent Astra PASS for actual20 reconciliation, the
+strict historical successor, actual60 fit, coherent consolidation and the actual
+integrated589467 baseline. The assigned source owner executed the approved pairs
+below after that PASS. Historical candidate facts remain in [source pins](source-pins.json);
+actual parent remains frozen589467 and integrated60 subset5271 stays partial.
+No source landing, whole20/60/F11 closure or release verdict follows.
 
 Use [requirements](requirements.md), [design](design.md), [test map](test-map.md),
 [execution map](execution-map.md), [exact oracle successors](oracle-successors.md),
 [historical successor](historical-oracle-successor.md) and [status](status.md)
 as one package. The [pinned oracle diff](oracle-successors.proposed.diff) is
-unexecuted review material; [source pins](source-pins.json) fixes its baseline.
+historical review material; [source pins](source-pins.json) fixes its baseline.
 These replace stale draft assumptions without changing canonical locked ACs.
 Track TC-42c6708b, TC-c4fd774a and TC-36bc3ad8; do not claim ledger closure.
 

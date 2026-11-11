@@ -9,12 +9,12 @@ slice: 70
 
 The [Slice9 Batch4 ruling](../../prework/slice-9/decision-log.md) approves bounded
 corrections through the [direct execution gates](../../direct-execution.md).
-This consolidated candidate reconciles completed10, integrated20 Linux repairs
-and reviewed unlanded60 product candidate7038b5b47dc7dd02bc64e612d788fa334ff79b61.
-Parent remains clean2f6913c1d59ac8ff3a30de835b57290a8635998c. Parent reports
-Astra PASS for each input packet; this consistency consolidation still needs
-independent recheck. Source requires parent GO, own isolation/owned setup,
-strict closed10 preflight and actual integrated60 rereading.
+This contract reconciles completed10, integrated20 Linux repairs and integrated
+qualified partial60 subset5271 at assigned base589467. All22 historical source
+pins match. Parent remains frozen589467. The same independent Astra baseline-fit
+recheck passed before implementation; owned isolation, setup and staged runtime
+pairs have executed. [Status](status.md) records exact evidence and remaining
+qualification/review limits; whole20/60/F11 closure is not inferred.
 IDs below are release-local; canonical `dev/acceptance.md` remains locked.
 
 ## Actual source-entry reconciliation
@@ -22,8 +22,10 @@ IDs below are release-local; canonical `dev/acceptance.md` remains locked.
 Actual entry589467 and integrated qualified partial60 subset5271 are recorded
 in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
 All22 historical product/test pins match; approved scope, exact oracles and
-runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
-implementation; only owned setup may run while that review is pending.
+runtime RED ordering stay unchanged. The same independent Astra baseline-fit
+review passed with zero material findings before implementation; see the
+[review log](review-log.md). Executed pairs and outstanding qualification are
+recorded in [status](status.md) and the [execution map](execution-map.md).
 
 ## Need and authority
 

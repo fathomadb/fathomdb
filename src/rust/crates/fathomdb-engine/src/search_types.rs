@@ -204,7 +204,7 @@ pub struct SearchResult {
     /// amendments do not reshape `SearchResult`/`SearchHit`.
     pub explanation: Option<Explanation>,
     /// Requested arms that did not run, in the order arm then reason. Empty (no
-    /// allocation) when every requested arm ran. Results, ranking,
+    /// allocation) when no bounded cause is reported. Results, ranking,
     /// `soft_fallback` and `explanation` are the same with or without it.
     pub degradations: Vec<ArmDegradation>,
     /// EP-17 match-centred snippets: a sidecar parallel to `results` (same

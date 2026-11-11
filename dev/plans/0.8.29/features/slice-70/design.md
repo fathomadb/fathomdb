@@ -12,8 +12,8 @@ not a product verification receipt. Initial behavior witness was product
 `6edc1155f039f87cd0a37660cb27ae4373bbce71`. Reconciliation witness: clean parent `2f6913c1d59ac8ff3a30de835b57290a8635998c`,
 including completed10 source104dcbc/closured7d928 and independently reviewed20
 Linux subset657edeb76. Parent reports independent Astra PASS for actual20 fit, strict historical
-successor and actual60 candidate fit. Consolidation is proposed for consistency
-recheck, with no source authorization. Actual60 product/test pins at307c remain
+successor and actual60 candidate fit. Consolidation and actual integrated-baseline consistency rechecks passed before
+source entry. Executed source evidence is recorded in [status](status.md). Actual60 product/test pins at307c remain
 identical at candidate7038; only reviewed non-product operator packaging differs.
 See [source pins](source-pins.json) for exact objects and exceptions.
 
@@ -22,10 +22,12 @@ See [source pins](source-pins.json) for exact objects and exceptions.
 Actual entry589467 and integrated qualified partial60 subset5271 are recorded
 in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
 All22 historical product/test pins match; approved scope, exact oracles and
-runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
-implementation; only owned setup may run while that review is pending.
+runtime RED ordering stay unchanged. The same independent Astra baseline-fit
+review passed with zero material findings before implementation; see the
+[review log](review-log.md). Executed pairs and outstanding qualification are
+recorded in [status](status.md) and the [execution map](execution-map.md).
 
-## Built behavior versus proposed delta
+## Reviewed entry589467 behavior and approved delta
 
 Paths below are repository-relative. This pass reread EP03 byte/overload, readiness engine/Python/TS, foreground/CUDA
 and native degradation module bodies, wrapper EP03 bodies, relevant snippet

@@ -7,26 +7,39 @@ desc: Draft engine proposal. Report on every hybrid SearchResult which arms ran 
 
 # EP-03 — Typed degradation on hybrid search
 
-Status: Draft. Priority P1. Not an accepted decision, except the
-`embedder_overloaded` part, which is built (agent-access Block 1 slice S3).
+Status: Draft. Priority P1. The broader proposal remains unaccepted. The bounded
+query-feedback subset below is implemented; Slice70 final qualification and fresh
+independent implementation review remain separate.
 
-## Built so far: `embedder_overloaded`
+## Built so far: bounded query feedback
 
-- Engine: `SearchResult.degradations: Vec<ArmDegradation>` and
-  `SearchExpandResult.degradations`, with `ArmDegradation` and
-  `DegradationReason` (only `EmbedderOverloaded`). The list is empty when
-  nothing degraded. `Saturated` and `QueuedExpired` on the query embedding give
-  `[{Vector, EmbedderOverloaded}]` on the non-frozen, frozen, evidence and
-  search-expand paths. Results, ranking, `soft_fallback` and `explanation` do
-  not change. Other dispatch errors keep today's silent behaviour.
-- R-OBS-2 (open question 1) is answered for the bindings: present only when
-  non-empty. Python gives `None`, TypeScript leaves the key absent. In Rust the
-  field is always there and empty.
-- Python and TypeScript carry it on search and search-expand results; they and
-  the MCP adapter use the wire word `embedder_overloaded`. The adapter keeps its existing entries.
-- Not built: the other reasons, the removal of the adapter's per-epoch
-  `embedder_unavailable` and `dense_disabled` entries, and the
-  `VectorEquivalenceMismatch` mapping.
+- Engine search and expand results carry `ArmDegradation` values with
+  `EmbedderAbsent` (`embedder_absent`) for no numerical runtime configured for
+  this call, `EmbedderTimeout` (`embedder_timeout`) for an actually started
+  dispatcher deadline, and `EmbedderOverloaded` (`embedder_overloaded`) for
+  `Saturated`/`QueuedExpired` before provider start. Ordinary, frozen, evidence
+  and both search-expand paths retain the reason. Ranking/results/soft fallback
+  and the healthy pre-field PINNED bytes are unchanged.
+- A started timeout does not release the provider's worker slot. Provider-returned
+  Timeout/Failed and invalid vectors retain unlabeled sparse fallback. Ordinary
+  provider panic still unwinds; frozen reader panic still becomes Storage. All
+  three hard CUDA payloads remain typed. Actual engine-close dispatch Closing
+  is raised from the existing query helper; unrelated Cancelled stays deferred.
+- Python gives `None` and TypeScript omits the key for an empty reason list.
+  Empty means no bounded cause was reported, not that every requested arm ran.
+  Native search/expand conversion preserves the bounded words. Installed live
+  absence is proven separately from real engine-to-Rust-native timeout proof;
+  there is no installed provider-injection timeout qualification.
+- The adapter retains its sampled per-open-epoch `embedder_unavailable` label
+  alongside the per-call absence reason. Its canonical None-provider hybrid pair
+  is exactly absent then unavailable; the degraded hint names the first reason.
+  Both new hint cause words are translated and accepted by the closed schema.
+- Not built: broader failure/eligibility/projection vocabularies, removal of the
+  adapter epoch labels, non-close cancellation semantics, and the proposed
+  VectorEquivalenceMismatch mapping. No weak-result verdict or threshold is added.
+
+The motivation and candidate design below describe the original pre-subset
+proposal; the implemented subset above supersedes its blanket error-loss claims.
 
 ## Problem
 

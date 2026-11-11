@@ -8,23 +8,27 @@ slice: 70
 # Slice 70 test map
 
 This maps [R70-1–8 / A70-1–8](requirements.md) to existing source assertions
-and future tests. No product test, import, build or environment change ran here.
-Candidate names/commands are future selectors, not executed coverage.
+and the reviewed staged tests. This specification was frozen before execution;
+[status](status.md) and the [execution map](execution-map.md) now record observed
+RED/GREEN evidence. Candidate descriptions below retain their planning meaning;
+only the actual receipts/counts establish executed coverage.
 [Execution map](execution-map.md) is the ordered staging contract;
 [oracle inventory](oracle-successors.md), [strict historical amendment](historical-oracle-successor.md)
 and [pinned illustrative diff](oracle-successors.proposed.diff) are attached test
 specifications, not optional scratch addenda. Inputs passed parent-owned Astra
-review; this consolidation awaits consistency recheck.
+review; consolidation and actual integrated-baseline rechecks passed.
 
 ## Actual source-entry reconciliation
 
 Actual entry589467 and integrated qualified partial60 subset5271 are recorded
 in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
 All22 historical product/test pins match; approved scope, exact oracles and
-runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
-implementation; only owned setup may run while that review is pending.
+runtime RED ordering stay unchanged. The same independent Astra baseline-fit
+review passed with zero material findings before implementation; see the
+[review log](review-log.md). Executed pairs and outstanding qualification are
+recorded in [status](status.md) and the [execution map](execution-map.md).
 
-## Existing controls inspected
+## Existing controls inspected at entry589467
 
 | Source body, relative to repository | Actual assertion / qualification limit |
 | --- | --- |
@@ -115,7 +119,8 @@ required agent-verify once; missing owned setup stops preflight. Fresh independe
 Astra final review samples actual RED evidence and verification limits. Block1
 follow-up exit and combined160 gates remain separate, not claimed by this map.
 
-Completed10 evidence is input only: no70 environment was provisioned or tested.
+Completed10 evidence is input only. At the planning freeze no70 environment had
+been provisioned; current owned setup/execution is recorded in [status](status.md).
 Actual104dcbc passed fresh Astra implementation review and closed at d7d928;
 214 registrations/18 behavior pairs and assembled qualification retain original
 failures, affected reruns and skips. There is no uninterrupted full-green claim
@@ -125,9 +130,10 @@ venv, node_modules, wheel, native module or mutable Cargo target to qualify70.
 Actual20 Linux subset657edeb76 is integrated at parent2f6913c1; its evidence-only
 hook repairs/census and original failures/affected reruns/skips were reread.
 20 A3/A5 policy and Windows A6 remain held.70 hard dependency stays closed10.
-60 owns the active native window; no source execution occurs here or alongside it.
-Recheck actual integrated60 before parent creates70 source execution. Parent2f6913c1
-is a read-only planning witness, not70 environment or source authorization.
+At the planning freeze60 owned the native window and parent2f6913c1 was a
+read-only witness. Actual integrated60 was subsequently reread at assigned589467;
+parent returned the sole native window to70 after its independent remedy RED audit.
+No simultaneous parent native process or borrowed70 environment is claimed.
 
 ## Exact genuine Closing RED on existing APIs
 
@@ -187,8 +193,9 @@ fixture or artificial passing coverage pair is added.
 Candidate60 source/test pins at307c remain unchanged at7038; non-product packaging
 paths are recorded in source-pins.json. Full actual integrated60 hash/diff reread
 precedes source GO;60 complete closure is not an extra hard prerequisite.
-Text/direct-filter/manual controls remain empty/unchanged. Source-bound70 artifacts
-and real RED receipts do not yet exist.
+Text/direct-filter/manual controls remain unchanged. Real70 RED receipts and
+scoped artifacts now exist as [status](status.md) records; final source-bound
+qualification and fresh independent review remain separate.
 
 Human-intent oracles stay exact: EP03 PINNED literal bytes and shared authored
 snippet fixture are untouched; seeded logical identities, ranking contributions

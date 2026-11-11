@@ -156,20 +156,28 @@ fn cancel_signal(context: &RequestContext<RoleServer>) -> Cancel {
 fn to_result(outcome: Outcome, structured: bool) -> CallToolResult {
     match outcome {
         Ok(rendered) => {
-            let mut result = CallToolResult::success(vec![ContentBlock::text(rendered.text)]);
+            let text = if structured {
+                serde_json::to_string(&rendered.structured).expect("tool outputs serialize")
+            } else {
+                rendered.text
+            };
+            let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
             if structured {
                 result.structured_content = Some(rendered.structured);
             }
             result
         }
         Err(error) => {
-            let text = error.render();
-            let mut result = CallToolResult::error(vec![ContentBlock::text(text)]);
             if structured {
-                result.structured_content =
-                    Some(serde_json::to_value(ErrorOutput { error }).expect("errors serialize"));
+                let payload =
+                    serde_json::to_value(ErrorOutput { error }).expect("errors serialize");
+                let text = serde_json::to_string(&payload).expect("errors serialize");
+                let mut result = CallToolResult::error(vec![ContentBlock::text(text)]);
+                result.structured_content = Some(payload);
+                result
+            } else {
+                CallToolResult::error(vec![ContentBlock::text(error.render())])
             }
-            result
         }
     }
 }

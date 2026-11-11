@@ -142,6 +142,13 @@ appears as `[{Vector, EmbedderOverloaded}]` with wire word
 `embedder_overloaded`, the same word Python and TypeScript use. See
 [rust](rust.md#caller-visible-data-shapes).
 
+The blocked payload's remediations are exactly `configure_default_embedder`,
+then `submit_non_embedding_input`. The former selects the supported built-in
+runtime on a subsequent open; it is not live reconfiguration. The latter avoids
+new embedding work and does not clear an already pending backlog. Production caller-supplied
+numerical engine providers are unsupported; semantic extractor/consolidation
+subprocess providers remain a separate contract.
+
 Search through the engine's maintained FTS index returns `Storage` when a
 persisted FTS row cannot be decoded. The rank-stream optimization may retry
 through full stable sort, but a decoding failure there does not return a

@@ -24,3 +24,16 @@ Own task receipts/design-recheck.json and source-entry-docs-freeze.json retain
 actual source/diff/tree facts; parent delivered the independent verdict. The
 implementer does not self-promote. A fresh distinct final Astra implementation
 review remains required after final stable-tree qualification.
+
+## Independent committed remedy RED audit
+
+Parent reproduced1ec8b6c652a7036eed829430db59c908609eda61 in a separate detached
+checkout using private copied source caches/target and no borrowed native bytes.
+Exact engine graph-edge selector returned101:0passed/1failed/3filtered, with the
+unsupported caller action present in actual triple versus approved pair. Audit
+checkout stayed clean at1ec8; no resource stop. External receipt is
+/tmp/fathomdb-0829-direct/slice-70/remedy-red-audit.json with full raw log hashes.
+An initial launcher stop over the canonical own-commits warning remains retained;
+ancestry/test-only delta was verified without changing the guard. Parent returned
+the native window after all its native processes ended. This is independent RED
+reproduction, not final implementation approval.

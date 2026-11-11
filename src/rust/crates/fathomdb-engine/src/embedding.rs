@@ -91,11 +91,7 @@ pub(crate) fn embedder_required_for(affected_kinds: &[String]) -> EmbedderRequir
         code: "FDB_EMBEDDER_REQUIRED",
         operation,
         state: EmbeddingReadinessState::Blocked,
-        remediations: vec![
-            "configure_default_embedder",
-            "configure_caller_embedder",
-            "submit_non_embedding_input",
-        ],
+        remediations: vec!["configure_default_embedder", "submit_non_embedding_input"],
         documentation_url: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
     }
 }

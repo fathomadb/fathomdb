@@ -1035,6 +1035,13 @@ URL. In the same condition `Engine::drain` returns
 refusal returns no engine. Later worker failures retain operational readiness
 and ordinary bounded drain behavior.
 
+The blocked payload's remediations are exactly `configure_default_embedder`,
+then `submit_non_embedding_input`. The former selects the supported built-in
+runtime on a subsequent open; it is not live reconfiguration. The latter avoids
+new embedding work and does not clear an already pending backlog. Production caller-supplied
+numerical engine providers are unsupported; semantic extractor/consolidation
+subprocess providers remain a separate contract.
+
 Types:
 
 - `ProjectionSpec { name: String, roles: BTreeSet<ProjectionRole>, fts:

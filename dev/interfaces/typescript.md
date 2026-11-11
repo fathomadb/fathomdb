@@ -637,6 +637,13 @@ returns no engine. A later worker that exhausts its retries records a durable
 `failed` terminal; once the scheduler is idle,
 `engine.drain(...)` may resolve normally. That worker outcome is not `EmbedderRequiredError`.
 
+The blocked payload's remediations are exactly `configure_default_embedder`,
+then `submit_non_embedding_input`. The former selects the supported built-in
+runtime on a subsequent open; it is not live reconfiguration. The latter avoids
+new embedding work and does not clear an already pending backlog. Production caller-supplied
+numerical engine providers are unsupported; semantic extractor/consolidation
+subprocess providers remain a separate contract.
+
 ### `fts` / `vector` require the `searchable` role (0.8.20 Slice 23, R-20-SV)
 
 ⚠ **BREAKING.** `engine.configureProjections` REJECTS a `ProjectionSpec` with

@@ -154,6 +154,17 @@ fn cancel_signal(context: &RequestContext<RoleServer>) -> Cancel {
 }
 
 fn to_result(outcome: Outcome, structured: bool) -> CallToolResult {
+    let outcome = outcome.and_then(|rendered| {
+        if let Some(max) = rendered.structured.get("budget").and_then(|budget|budget["max_tokens"].as_u64()) {
+            let bytes = if structured {
+                2 * serde_json::to_string(&rendered.structured).expect("tool outputs serialize").len()
+            } else {rendered.text.len()};
+            if crate::shape::estimate_tokens(bytes) > max {
+                return Err(crate::error::ToolError::bad_argument("the mandatory result metadata cannot fit max_tokens; raise max_tokens or request fewer items"));
+            }
+        }
+        Ok(rendered)
+    });
     match outcome {
         Ok(rendered) => {
             let text = if structured {

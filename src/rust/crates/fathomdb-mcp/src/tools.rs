@@ -326,10 +326,65 @@ fn envelope(
     }
 }
 
+fn counted_text(text: &str, max_tokens: u32, cut: bool) -> String {
+    let end = text.find('\n').unwrap_or(text.len());
+    let (header, _) = text[..end].rsplit_once(" tokens=").expect("budgeted header has tokens");
+    let mut used = 0;
+    for _ in 0..4 {
+        let final_text = format!(
+            "{header} tokens={used}/{max_tokens}{}{}",
+            if cut { " cut" } else { "" },
+            &text[end..]
+        );
+        let next = shape::estimate_tokens(final_text.len());
+        if used == next {
+            return final_text;
+        }
+        used = next;
+    }
+    // The protocol edge turns invariant panics into an internal JSON-RPC error.
+    panic!("text budget count did not converge within four renders");
+}
+
 fn finish(output: &impl Serialize, text: String, max_tokens: u32, cut: bool) -> (Rendered, u64) {
-    let value = serde_json::to_value(output).expect("tool outputs serialize");
-    let (structured, whole) = shape::with_budget(value, &text, max_tokens, cut);
-    (Rendered { structured, text }, whole)
+    let text = counted_text(&text, max_tokens, cut);
+    let mut value = serde_json::to_value(output).expect("tool outputs serialize");
+    value["budget"]["cut"] = serde_json::json!(cut);
+    value["budget"]["max_tokens"] = serde_json::json!(max_tokens);
+    value["budget"]["used_tokens"] = serde_json::json!(0);
+    for _ in 0..4 {
+        let json = serde_json::to_string(&value).expect("tool outputs serialize");
+        let (next, whole) = shape::with_budget(value.clone(), &json, max_tokens, cut);
+        if next["budget"]["used_tokens"] == value["budget"]["used_tokens"] {
+            return (Rendered { structured: next, text }, whole);
+        }
+        value = next;
+    }
+    panic!("structured budget count did not converge within four renders");
+}
+
+fn whole_for_format(rendered: &Rendered, structured_whole: u64, format: &str) -> u64 {
+    if format == "structured" {
+        structured_whole
+    } else {
+        shape::estimate_tokens(rendered.text.len())
+    }
+}
+
+fn uncut_fetch_budget(output: &FetchOutput, format: &str) -> u64 {
+    let mut output = output.clone();
+    output.hints.clear();
+    let mut max = 256;
+    for _ in 0..4 {
+        output.envelope.budget.max_tokens = max;
+        let (rendered, whole) = finish(&output, render_fetch(&output), max, false);
+        let whole = whole_for_format(&rendered, whole, format);
+        if whole <= u64::from(max) {
+            return u64::from(max);
+        }
+        max = u32::try_from(whole).expect("uncut fetch budget fits u32");
+    }
+    panic!("uncut fetch budget did not converge within four renders");
 }
 
 fn plain(output: &impl Serialize, text: String) -> Rendered {
@@ -747,6 +802,7 @@ pub(crate) struct SearchShape<'a> {
     pub(crate) validity_instant: i64,
     pub(crate) degradation: &'a [Degradation],
     pub(crate) max_tokens: u32,
+    pub(crate) format: &'a str,
     pub(crate) canonical: &'a CanonicalSearch,
     pub(crate) canonical_json: &'a str,
     pub(crate) offset: usize,
@@ -778,6 +834,7 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
         validity_instant,
         degradation,
         max_tokens,
+        format,
         canonical,
         canonical_json,
         offset,
@@ -849,7 +906,7 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
         };
         let text = render_search(&output);
         let (rendered, whole) = finish(&output, text, max_tokens, cut);
-        let fits = whole <= u64::from(max_tokens);
+        let fits = whole_for_format(&rendered, whole, format) <= u64::from(max_tokens);
         if kept == 0 && with_hints && hints.is_enabled() && (!fits || !page.is_empty()) {
             // Hints are advisory: they never cost the page every hit (which
             // would also end its continuation chain) nor push an empty page
@@ -1074,6 +1131,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         validity_instant,
         degradation: &degradation,
         max_tokens,
+        format: &ctx.shared.config.result_format,
         canonical: &canonical,
         canonical_json: &canonical_json,
         offset,
@@ -1244,23 +1302,22 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
             hints,
         }
     };
+    let format = &ctx.shared.config.result_format;
+    uncut_whole.set(uncut_fetch_budget(&build(&bodies), format));
     shape::cut_bodies(
         &mut bodies,
         |bodies| {
             let output = build(bodies);
             let cut = bodies.iter().any(|(_, cut)| *cut);
-            let whole = finish(&output, render_fetch(&output), max_tokens, cut).1;
-            if !cut {
-                uncut_whole.set(whole);
-            }
-            bytes_over(whole, max_tokens)
+            let (rendered, whole) = finish(&output, render_fetch(&output), max_tokens, cut);
+            bytes_over(whole_for_format(&rendered, whole, format), max_tokens)
         },
-        2,
+        if format == "structured" { 2 } else { 1 },
     );
     let output = build(&bodies);
     let cut = bodies.iter().any(|(_, cut)| *cut);
     let (rendered, whole) = finish(&output, render_fetch(&output), max_tokens, cut);
-    if whole > u64::from(max_tokens) {
+    if whole_for_format(&rendered, whole, format) > u64::from(max_tokens) {
         return Err(ToolError::bad_argument(
             "the result cannot fit max_tokens even with empty bodies; fetch fewer refs or raise max_tokens",
         ));
@@ -1442,24 +1499,40 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             hints,
         }
     };
+    let format = &ctx.shared.config.result_format;
+    let complete_fetch = FetchOutput {
+        envelope: envelope(&store, answered.epoch, validity_instant, vec![], 256),
+        items: result
+            .targets
+            .iter()
+            .zip(&references)
+            .map(|(target, reference)| FetchItem::Record {
+                reference: reference.clone(),
+                record: RecordOut {
+                    kind: target.kind.clone(),
+                    body: target.body.clone(),
+                    body_cut: false,
+                },
+            })
+            .collect(),
+        hints: vec![],
+    };
+    uncut_whole.set(uncut_fetch_budget(&complete_fetch, format));
     shape::cut_bodies(
         &mut bodies,
         |bodies| {
             let output = build(bodies, kept);
             let cut = bodies.iter().any(|(_, cut)| *cut);
-            let whole = finish(&output, render_expand(&output), max_tokens, cut).1;
-            if !cut {
-                uncut_whole.set(whole);
-            }
-            bytes_over(whole, max_tokens)
+            let (rendered, whole) = finish(&output, render_expand(&output), max_tokens, cut);
+            bytes_over(whole_for_format(&rendered, whole, format), max_tokens)
         },
-        2,
+        if format == "structured" { 2 } else { 1 },
     );
     loop {
         let output = build(&bodies[..kept], kept);
         let cut = kept < result.targets.len() || bodies.iter().any(|(_, cut)| *cut);
         let (rendered, whole) = finish(&output, render_expand(&output), max_tokens, cut);
-        if whole <= u64::from(max_tokens) || kept == 0 {
+        if whole_for_format(&rendered, whole, format) <= u64::from(max_tokens) || kept == 0 {
             return Ok(rendered);
         }
         kept -= 1;

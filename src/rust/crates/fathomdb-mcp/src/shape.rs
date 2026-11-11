@@ -157,12 +157,13 @@ pub fn quote(text: &str) -> String {
 
 /// Shorten the longest bodies until `excess` (bytes over budget for the
 /// current bodies) reaches zero or every body is empty. `bodies` holds
-/// `(text, cut)` pairs. Each body appears in both the structured content and
-/// the text block, so each removed character saves at least two bytes.
+/// `(text, cut)` pairs. `copies` is one for compact text, two for structured
+/// JSON plus its identical text copy. A removed character saves at least that
+/// many bytes; UTF-8 boundaries and earliest-index ties remain deterministic.
 pub fn cut_bodies(
     bodies: &mut [(String, bool)],
     mut excess: impl FnMut(&[(String, bool)]) -> usize,
-    _copies: usize,
+    copies: usize,
 ) {
     loop {
         let over = excess(bodies);
@@ -180,7 +181,7 @@ pub fn cut_bodies(
         };
         let (body, cut) = &mut bodies[longest];
         let chars = body.chars().count();
-        let keep = chars.saturating_sub(over.div_ceil(2).max(1));
+        let keep = chars.saturating_sub(over.div_ceil(copies).max(1));
         let (shorter, _) = snippet(body, keep);
         *body = shorter;
         *cut = true;

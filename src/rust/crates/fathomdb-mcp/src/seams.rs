@@ -415,6 +415,7 @@ fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> Sha
         validity_instant: 0,
         degradation: &page.degradation,
         max_tokens: page.max_tokens,
+        format: "structured",
         canonical: &page.canonical,
         canonical_json: &page.canonical_json,
         offset: page.offset,
@@ -426,8 +427,9 @@ fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> Sha
     });
     ShapedSearchPage {
         next_offset: shaped.continuation.as_ref().map(|_| page.offset + shaped.kept),
+        text: serde_json::to_string(&shaped.rendered.structured)
+            .expect("structured output serializes"),
         structured: shaped.rendered.structured,
-        text: shaped.rendered.text,
         kept: shaped.kept,
         iterations: shaped.iterations,
     }

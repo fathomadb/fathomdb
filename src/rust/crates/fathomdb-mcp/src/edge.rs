@@ -110,7 +110,7 @@ impl FathomServer {
             "feedback" => tools::feedback(&ctx, arguments).await,
             _ => unreachable!("the router only dispatches declared tools"),
         };
-        to_result(outcome)
+        to_result(outcome, self.shared.config.result_format == "structured")
     }
 }
 
@@ -153,18 +153,22 @@ fn cancel_signal(context: &RequestContext<RoleServer>) -> Cancel {
     Cancel::new(receiver)
 }
 
-fn to_result(outcome: Outcome) -> CallToolResult {
+fn to_result(outcome: Outcome, structured: bool) -> CallToolResult {
     match outcome {
         Ok(rendered) => {
             let mut result = CallToolResult::success(vec![ContentBlock::text(rendered.text)]);
-            result.structured_content = Some(rendered.structured);
+            if structured {
+                result.structured_content = Some(rendered.structured);
+            }
             result
         }
         Err(error) => {
             let text = error.render();
             let mut result = CallToolResult::error(vec![ContentBlock::text(text)]);
-            result.structured_content =
-                Some(serde_json::to_value(ErrorOutput { error }).expect("errors serialize"));
+            if structured {
+                result.structured_content =
+                    Some(serde_json::to_value(ErrorOutput { error }).expect("errors serialize"));
+            }
             result
         }
     }

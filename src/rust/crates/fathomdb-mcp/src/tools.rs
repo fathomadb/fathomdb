@@ -405,7 +405,7 @@ pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) ->
         let readiness = serde_json::to_value(row.readiness).expect("serializes");
         text.push_str(&format!(
             "\n{} open={} readiness={}{}",
-            row.name,
+            shape::quote(&row.name),
             row.open,
             readiness.as_str().unwrap_or("closed"),
             if row.default { " default" } else { "" }

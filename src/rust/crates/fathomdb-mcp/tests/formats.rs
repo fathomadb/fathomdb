@@ -280,3 +280,67 @@ async fn compact_fetch_frames_exact_utf8_in_request_order() {
     assert_eq!(items[6], json!({"ref":"l:small","kind":"note","body":"small body","cut":false}));
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn compact_error_fetch_items_keep_message_and_remedy() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("one", "note", "river")]);
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let text = text_of(
+        &wire(&harness, "fetch", json!({"refs":["l:missing","h:x","bad"],"max_tokens":100000}))
+            .await,
+    );
+    let items = fetch_frames(&text);
+    assert_eq!(items.len(), 3);
+    let error = items[0]["error"].as_str().unwrap();
+    assert!(
+        error.contains(
+            " message=\"no record is visible for this reference under the requested view\""
+        ),
+        "{error}"
+    );
+    assert!(
+        error.contains(
+            " remedy=\"check the reference, as_of, include_superseded and include_inactive\""
+        ),
+        "{error}"
+    );
+    for item in &items {
+        assert!(item["error"].as_str().unwrap().contains(" message="), "{item}");
+        assert!(item["error"].as_str().unwrap().contains(" remedy="), "{item}");
+    }
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn compact_error_unknown_store_keeps_candidates() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("one", "note", "river")]);
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let result = wire(&harness, "search", json!({"store":"aa","query":"river"})).await;
+    assert_eq!(result.is_error, Some(true));
+    assert!(result.structured_content.is_none());
+    let text = text_of(&result);
+    assert!(text.starts_with("error invalid_request/unknown_store message="), "{text}");
+    assert!(text.contains(" candidates=[\"a\"]"), "{text}");
+    assert!(text.contains(" remedy="), "{text}");
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn compact_error_sdk_invalid_filter_keeps_typed_detail() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("one", "note", "river")]);
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let result = wire(
+        &harness,
+        "search",
+        json!({"query":"nohit","mode":"hybrid","attributes":{"unknown":"x"}}),
+    )
+    .await;
+    assert_eq!(result.is_error, Some(true));
+    let text = text_of(&result);
+    assert!(text.starts_with("error invalid_request/bad_argument message="), "{text}");
+    assert!(text.contains(" detail=\"InvalidFilterError\""), "{text}");
+    harness.shutdown().await;
+}

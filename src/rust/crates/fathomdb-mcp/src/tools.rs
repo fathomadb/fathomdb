@@ -1808,4 +1808,43 @@ mod compact_render_tests {
             proptest::prop_assert_eq!(&framed.as_bytes()[size..],b"\n");
         }
     }
+
+    #[test]
+    fn compact_error_keeps_empty_candidates_and_complete_busy_details() {
+        use crate::error::{Busy, BusyReason, ErrorClass};
+        let candidates = ToolError {
+            class: ErrorClass::InvalidRequest,
+            code: "unknown_store",
+            message: "store \"a\" is unknown".into(),
+            remedy: "choose a store",
+            candidates: Some(Vec::new()),
+            detail: None,
+            busy: None,
+        };
+        let busy = ToolError {
+            class: ErrorClass::Busy,
+            code: "admission",
+            message: "store \"a\" is busy".into(),
+            remedy: "retry later",
+            candidates: None,
+            detail: Some("OverloadedError"),
+            busy: Some(Box::new(Busy {
+                reason: BusyReason::QueueFull,
+                in_flight: 1,
+                queued: 2,
+                abandoned: 0,
+                stuck: false,
+            })),
+        };
+        let first = candidates.render();
+        let second = busy.render();
+        let mut missing = Vec::new();
+        for (text,expected) in [
+            (&first," message=\"store \\\"a\\\" is unknown\""),
+            (&first," remedy=\"choose a store\""), (&first," candidates=[]"),
+            (&second," detail=\"OverloadedError\""),
+            (&second," busy={\"reason\":\"queue_full\",\"in_flight\":1,\"queued\":2,\"abandoned\":0,\"stuck\":false}"),
+        ] { if !text.contains(expected) { missing.push(expected); } }
+        assert!(missing.is_empty(), "missing {missing:?}; {first}; {second}");
+    }
 }

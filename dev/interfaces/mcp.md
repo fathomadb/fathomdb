@@ -328,8 +328,11 @@ Result adds:
   `{arm: "vector", reason: "embedder_unavailable"}`, which the adapter adds when
   the store's embedding readiness, read once per open epoch, reports no usable
   embedder (the engine reports no soft fallback in that case, MR-032.1), plus
-  each entry of the engine's own `degradations` list. Today that list has one
-  reason: `{arm: "vector", reason: "embedder_overloaded"}`, reported when this
+  each entry of the engine's own `degradations` list. Per-call missing numerical
+  configuration is `{arm: "vector", reason: "embedder_absent"}`; it is distinct
+  from the retained sampled epoch `embedder_unavailable` label. Canonical order
+  on a None-provider hybrid call is exactly absent then unavailable, and the
+  degraded hint names absent. `{arm: "vector", reason: "embedder_overloaded"}` is reported when this
   search's query embedding was refused because the embed queue was full or it
   expired in that queue. The search still returns its text-arm hits (EP-03).
 - `verdict`: `unavailable` in this release (MR-031).

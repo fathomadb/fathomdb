@@ -157,7 +157,7 @@ pub(crate) fn dispatch_embed_vector(
 
 /// The query vector, or `None` with the reason recorded when the embedding was
 /// refused for a reason the search reports instead of failing on. Errors other
-/// than queue overload keep today's silent text-only behaviour; a provider panic
+/// than missing configuration or queue overload keep the unlabeled sparse fallback; a provider panic
 /// resumes on the caller.
 pub(crate) fn query_vector_or_degradation(
     embedded: Result<Vec<f32>, DispatchError>,
@@ -166,6 +166,13 @@ pub(crate) fn query_vector_or_degradation(
     match embedded {
         Ok(vector) => Some(vector),
         Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+        Err(DispatchError::NotConfigured) => {
+            degradations.push(ArmDegradation::new(
+                SoftFallbackBranch::Vector,
+                DegradationReason::EmbedderAbsent,
+            ));
+            None
+        }
         Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
             degradations.push(ArmDegradation::new(
                 SoftFallbackBranch::Vector,

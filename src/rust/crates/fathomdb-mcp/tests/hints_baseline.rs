@@ -187,6 +187,36 @@ fn compare_baseline(current: &Value, expected: &Value, index: usize) -> Result<(
     }
     let original = &expected["result"]["structuredContent"];
     let mut desired = original.clone();
+    if index == 4 {
+        let refs = original["results"]
+            .as_array()
+            .ok_or("historical hybrid results")?
+            .iter()
+            .map(|hit| hit["ref"].clone())
+            .collect::<Vec<_>>();
+        if expected["id"] != 7
+            || original["store"] != "a"
+            || original["epoch"] != 1
+            || original["mode"] != "hybrid"
+            || original["validity_instant"] != 1900000000_i64
+            || original["degradation"] != json!([{"arm":"vector","reason":"embedder_unavailable"}])
+            || refs
+                != vec![
+                    json!("l:note:00"),
+                    json!("l:note:01"),
+                    json!("l:note:02"),
+                    json!("l:note:03"),
+                    json!("l:note:04"),
+                    json!("l:note:05"),
+                ]
+        {
+            return Err("historical hybrid absence successor guard mismatch".into());
+        }
+        desired["degradation"] = json!([
+            {"arm":"vector","reason":"embedder_absent"},
+            {"arm":"vector","reason":"embedder_unavailable"}
+        ]);
+    }
     if let Some(budget) = payload.get("budget") {
         let max = original["budget"]["max_tokens"].as_u64().ok_or("unexpected budget")?;
         if budget["max_tokens"] != max {

@@ -16,7 +16,7 @@ T = TypeVar("T")
 #: added in 0.8.8 (Slice 10) to match Rust/TS — it surfaces via
 #: ``PerHitExplain.arm`` (and, for graph-arm hits, ``SearchHit.branch``).
 SoftFallbackBranch = Literal["vector", "text", "text_edge", "graph_arm"]
-DegradationReason = Literal["embedder_overloaded"]
+DegradationReason = Literal["embedder_absent", "embedder_overloaded"]
 #: Where a snippet's text comes from: the whole body, a window centred on
 #: match spans, or the record start.
 SnippetAnchor = Literal["whole", "match", "start"]
@@ -464,7 +464,8 @@ class SnippetV1:
 class ArmDegradation:
     """One search arm that was requested but did not run, and why.
 
-    `reason` ``"embedder_overloaded"``: the query embedding was refused because
+    ``"embedder_absent"`` means no numerical runtime was configured for this query.
+    ``"embedder_overloaded"`` means the query embedding was refused because
     the embed queue was full, or it expired in that queue. The search still
     returned the hits of its other arms.
     """

@@ -136,7 +136,9 @@ function in every row.
 | `engine.consolidate_with_provider` | `consolidate_with_provider(&self, cmd: &[&str], axes: &[ConsolidateAxis]) -> Result<ConsolidateReceipt>` | same |
 | `engine.embed` | `embed(&self, text: &str) -> Result<Vec<f32>>` | `embed_text` |
 
-Search results carry the engine's `degradations` list unchanged
+Search results carry the engine's `degradations` list unchanged. Per-call missing
+numerical configuration is `[{Vector, EmbedderAbsent}]` (`embedder_absent`).
+An empty list reports no bounded cause and does not prove every arm ran
 (`ArmDegradation`, `DegradationReason`, re-exported). An overloaded embed queue
 appears as `[{Vector, EmbedderOverloaded}]` with wire word
 `embedder_overloaded`, the same word Python and TypeScript use. See

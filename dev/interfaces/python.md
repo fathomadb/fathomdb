@@ -221,9 +221,10 @@ helper; see `ADR-0.8.27-python-subscriber-delivery`.
 `soft_fallback.branch` uses the typed values owned by `design/retrieval.md`.
 
 `SearchResult.degradations` is `list[ArmDegradation] | None`. It is `None`
-when every requested arm ran. Each `ArmDegradation(arm, reason)` spells `arm`
-like `soft_fallback.branch`. The one `DegradationReason` today is
-`"embedder_overloaded"`: the query embedding was refused because the embed
+when no bounded degradation cause is reported; this does not prove every arm ran.
+Each `ArmDegradation(arm, reason)` spells `arm` like `soft_fallback.branch`.
+`"embedder_absent"` means no numerical runtime was configured for this query.
+`"embedder_overloaded"` means the query embedding was refused because the embed
 queue was full, or it expired in that queue. The search still returns the
 other arms' hits. Ordinary, frozen and evidence searches report it, and so do
 `graph.search_expand` and `search_expand_frozen` on

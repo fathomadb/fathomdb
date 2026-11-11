@@ -616,11 +616,13 @@ The Rust workspace also exposes the semver-stable companion crate
 - hybrid fallback, when present, exposes a typed branch enum whose values are
   owned by `design/retrieval.md`
 - `SearchResult.degradations: Vec<ArmDegradation>` lists requested arms that
-  did not run. It is empty when every requested arm ran. `ArmDegradation
+  did not run for a reported bounded cause. An empty list means no such cause
+  was reported; it does not prove every requested arm ran. `ArmDegradation
   { arm: SoftFallbackBranch, reason: DegradationReason }` and
   `DegradationReason` are `#[non_exhaustive]`; `ArmDegradation::new` builds
-  one and `DegradationReason::as_str` gives the wire word. The one reason
-  today is `EmbedderOverloaded` (`embedder_overloaded`): the query embedding
+  one and `DegradationReason::as_str` gives the wire word. `EmbedderAbsent`
+  (`embedder_absent`) means no numerical runtime was configured for this query.
+  `EmbedderOverloaded` (`embedder_overloaded`) means the query embedding
   was refused because the embed queue was full (`Saturated`) or expired in
   that queue (`QueuedExpired`). The search then runs on its other arms and
   reports `[{Vector, EmbedderOverloaded}]`. Every hybrid read that embeds a

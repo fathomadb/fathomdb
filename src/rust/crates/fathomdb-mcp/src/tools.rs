@@ -428,6 +428,32 @@ struct OrientRead {
     readiness: EmbeddingReadinessOut,
 }
 
+fn render_orient(output: &OrientOutput) -> String {
+    let mut text = format!(
+        "orient store={} epoch={} validity_instant={}\nprojections: {}",
+        output.envelope.store,
+        output.envelope.epoch,
+        output.envelope.validity_instant,
+        output.projections.len()
+    );
+    for projection in &output.projections {
+        text.push_str(&format!(
+            "\n{} roles={} fts={} vector={}",
+            projection.name,
+            projection.roles.join(","),
+            projection.fts,
+            projection.vector
+        ));
+    }
+    text.push_str(&format!(
+        "\nembedding: state={} usable_embedder={} pending={}\nkinds: unavailable\ncounts: unavailable",
+        output.embedding_readiness.state,
+        output.embedding_readiness.usable_embedder,
+        output.embedding_readiness.pending_count
+    ));
+    text
+}
+
 pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: OrientArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
@@ -482,29 +508,7 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         kinds: Unavailable::new(),
         counts: Unavailable::new(),
     };
-    let mut text = format!(
-        "orient store={} epoch={} validity_instant={}\nprojections: {}",
-        answered.store,
-        answered.epoch,
-        validity_instant,
-        output.projections.len()
-    );
-    for projection in &output.projections {
-        text.push_str(&format!(
-            "\n{} roles={} fts={} vector={}",
-            projection.name,
-            projection.roles.join(","),
-            projection.fts,
-            projection.vector
-        ));
-    }
-    text.push_str(&format!(
-        "\nembedding: state={} usable_embedder={} pending={}\nkinds: unavailable\ncounts: unavailable",
-        output.embedding_readiness.state,
-        output.embedding_readiness.usable_embedder,
-        output.embedding_readiness.pending_count
-    ));
-    Ok(finish(&output, text, max_tokens, false).0)
+    Ok(finish(&output, render_orient(&output), max_tokens, false).0)
 }
 
 struct SearchRun {
@@ -1702,6 +1706,49 @@ mod compact_render_tests {
             proptest::prop_assert_eq!(decoder.next().unwrap().unwrap(), reference);
             let expected = if empty { " hl=[] | river" } else { " hl=0-5 | river" };
             proptest::prop_assert!(row.contains(expected), "{row}");
+        }
+    }
+
+    #[test]
+    fn compact_orient_keeps_all_real_fields_and_only_approved_omissions() {
+        let output = OrientOutput {
+            envelope: envelope("s", 1, 0, Vec::new(), 4000),
+            projections: vec![ProjectionRow {
+                name: "text".into(),
+                roles: vec!["searchable".into()],
+                fts: true,
+                vector: false,
+            }],
+            projection_status: ProjectionStatusOut {
+                runtime_embedder_available: false,
+                runtime_unavailability_reason: "no_runtime".into(),
+                projections: vec![ProjectionDenseRow {
+                    name: "text".into(),
+                    dense_readiness: "not_declared".into(),
+                }],
+                vector_unsupported_kinds: vec!["edgekind".into()],
+            },
+            embedding_readiness: EmbeddingReadinessOut {
+                state: "blocked".into(),
+                usable_embedder: false,
+                pending_count: 2,
+                affected_kinds: vec!["note".into()],
+            },
+            kinds: Unavailable::new(),
+            counts: Unavailable::new(),
+        };
+        let text = render_orient(&output);
+        for expected in [
+            "orient store=\"s\" epoch=1 validity_instant=0 tokens=0/4000",
+            "projection \"text\" roles=searchable fts=true vector=false dense=not_declared",
+            "embedding: state=blocked usable_embedder=false pending=2 affected_kinds=[\"note\"]",
+            "runtime_embedder: available=false reason=no_runtime",
+            "vector_unsupported_kinds=[\"edgekind\"]",
+        ] {
+            assert!(text.contains(expected), "missing {expected}: {text}");
+        }
+        for omitted in ["state=unavailable", "kinds:", "counts:", "verdict"] {
+            assert!(!text.contains(omitted), "{text}");
         }
     }
 }

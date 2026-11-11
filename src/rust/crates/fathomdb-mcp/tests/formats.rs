@@ -179,3 +179,37 @@ async fn hosted_continuation_reports_best_effort() {
     harness.shutdown().await;
     engine.close().unwrap();
 }
+
+#[tokio::test]
+async fn compact_orient_reports_real_projection_status_without_a_provider() {
+    let fixture = Fixture::new();
+    let engine = std::sync::Arc::new(
+        fathomdb_sdk::Engine::open(fixture.path("host.sqlite"), Default::default()).unwrap(),
+    );
+    let spec = fathomdb_sdk::ProjectionSpec {
+        name: "text".into(),
+        roles: [fathomdb_sdk::ProjectionRole::Searchable].into_iter().collect(),
+        fts: Some(fathomdb_sdk::ProjectionFts { tokenizer: None }),
+        vector: None,
+        source: None,
+    };
+    engine.configure_projections(&[spec], &[]).unwrap();
+    engine.write(&[node("one", "note", "river")]).unwrap();
+    let status = fathomdb_sdk::read::projection_status(&engine).unwrap();
+    assert!(!status.runtime_embedder_available);
+    assert_eq!(status.runtime_unavailability_reason.as_str(), "no_runtime");
+    let harness = Harness::start(Config::default()).await;
+    harness.adapter.register_engine("host", engine.clone()).unwrap();
+    let text = text_of(&wire(&harness, "orient", json!({"store":"host"})).await);
+    assert!(
+        text.contains(
+            "projection \"text\" roles=searchable fts=true vector=false dense=not_declared"
+        ),
+        "{text}"
+    );
+    assert!(text.contains("affected_kinds=[]"), "{text}");
+    assert!(text.contains("runtime_embedder: available=false reason=no_runtime"), "{text}");
+    assert!(text.contains("vector_unsupported_kinds=[]"), "{text}");
+    harness.shutdown().await;
+    engine.close().unwrap();
+}

@@ -133,6 +133,8 @@ pub enum HintCause {
     ProjectionDeferred,
     /// Graph: the projection is degraded (`projection_degraded`).
     ProjectionDegraded,
+    /// No numerical runtime was configured for this query (`embedder_absent`).
+    EmbedderAbsent,
 }
 
 impl HintCause {
@@ -150,6 +152,7 @@ impl HintCause {
             Self::ProjectionBlocked => "projection_blocked",
             Self::ProjectionDeferred => "projection_deferred",
             Self::ProjectionDegraded => "projection_degraded",
+            Self::EmbedderAbsent => "embedder_absent",
         }
     }
 }

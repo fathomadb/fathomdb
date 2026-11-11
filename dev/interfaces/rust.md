@@ -1347,7 +1347,7 @@ is `dev/interfaces/mcp.md` § 3; this section documents only the engine subset.
     and `limit < HINT_LIMIT_CAP` (100); `limit` is `min(2 × limit, 100)`.
 - `HintCause` carries every cause word a degradation can have:
   `soft_fallback`, `dense_disabled`, `embedder_unavailable`,
-  `embedder_overloaded`, and the graph-expansion codes
+  `embedder_overloaded`, `embedder_absent`, and the graph-expansion codes
   `query_seed_text_fallback`, `projection_legacy_unverified`,
   `projection_processing`, `projection_blocked`, `projection_deferred`,
   `projection_degraded`. `HintArm` is `vector`, `text`, `text_edge`,

@@ -289,6 +289,8 @@ pub enum HintCause {
     ProjectionBlocked,
     ProjectionDeferred,
     ProjectionDegraded,
+    /// This query had no configured numerical embedding runtime.
+    EmbedderAbsent,
 }
 
 impl HintArm {
@@ -323,6 +325,7 @@ impl HintCause {
             C::ProjectionBlocked => Self::ProjectionBlocked,
             C::ProjectionDeferred => Self::ProjectionDeferred,
             C::ProjectionDegraded => Self::ProjectionDegraded,
+            C::EmbedderAbsent => Self::EmbedderAbsent,
             _ => return None,
         })
     }

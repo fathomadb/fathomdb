@@ -199,7 +199,7 @@ This is the one vocabulary table (MR-072):
 - Closed values: `action` is `fetch`, `search` or `none`; `mode` is `text` or
   `hybrid`; `arm` is `vector`, `text`, `text_edge`, `graph_arm` or `graph`;
   `cause` is `soft_fallback`, `dense_disabled`, `embedder_unavailable`,
-  `embedder_overloaded`, or a graph code (`query_seed_text_fallback`,
+  `embedder_overloaded`, `embedder_absent`, or a graph code (`query_seed_text_fallback`,
   `projection_legacy_unverified`, `projection_processing`,
   `projection_blocked`, `projection_deferred`, `projection_degraded`).
   `dense_disabled` remains a pure hint vocabulary value; admitted built-in

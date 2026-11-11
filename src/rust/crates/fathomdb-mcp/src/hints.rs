@@ -191,6 +191,7 @@ fn cause(word: &str) -> Option<HintCause> {
         "projection_blocked" => HintCause::ProjectionBlocked,
         "projection_deferred" => HintCause::ProjectionDeferred,
         "projection_degraded" => HintCause::ProjectionDegraded,
+        "embedder_absent" => HintCause::EmbedderAbsent,
         _ => return None,
     })
 }

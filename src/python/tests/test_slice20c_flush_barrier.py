@@ -582,7 +582,6 @@ def test_a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable(tmp_pa
         assert blocked.operation == "vector_projection"
         assert blocked.remediations == (
             "configure_default_embedder",
-            "configure_caller_embedder",
             "submit_non_embedding_input",
         )
         assert blocked.documentation_url == "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED"
@@ -733,7 +732,6 @@ def test_a_pending_edge_body_survives_a_full_scan_window_of_node_rows(tmp_path) 
         assert blocked.operation == "graph_edge_body_projection"
         assert blocked.remediations == (
             "configure_default_embedder",
-            "configure_caller_embedder",
             "submit_non_embedding_input",
         )
         assert blocked.documentation_url == "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED"

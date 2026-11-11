@@ -93,7 +93,7 @@ EP03_EP17_STUB_EDITS = (
     ),
     (
         "    explanation: Explanation | None\n"
-        "    # None when every requested arm ran.\n"
+        "    # None when no bounded degradation cause is reported.\n"
         "    degradations: list[ArmDegradation] | None\n"
         "    # EP-17: one per hit when the search passed `snippet`; None otherwise.\n"
         "    snippets: list[SnippetV1] | None\n"
@@ -137,7 +137,7 @@ EP03_EP17_STUB_EDITS = (
     ),
     (
         "    all_logical_ids: list[str]\n"
-        "    # None when every requested search arm ran.\n"
+        "    # None when no bounded search degradation cause is reported.\n"
         "    degradations: list[ArmDegradation] | None\n",
         "    all_logical_ids: list[str]\n",
     ),
@@ -275,6 +275,21 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
         for path in (f"fathomdb.{suffix}", f"fathomdb.types.{suffix}"):
             assert path not in expected
             expected[path] = {"kind": kind, "path": path, "signature": signature}
+    # Slice70 extends only the two public reason aliases; preserve the frozen inputs.
+    for path_name in ("fathomdb.DegradationReason", "fathomdb.types.DegradationReason"):
+        old_row = {
+            "kind": "python-value",
+            "path": path_name,
+            "signature": "DegradationReason = Literal['embedder_overloaded']",
+        }
+        assert expected[path_name] == old_row
+        expected[path_name] = {
+            **old_row,
+            "signature": (
+                "DegradationReason = Literal['embedder_absent', 'embedder_timeout', "
+                "'embedder_overloaded']"
+            ),
+        }
     assert "fathomdb.snippet_for" not in expected
     expected["fathomdb.snippet_for"] = {
         "kind": "python-function",

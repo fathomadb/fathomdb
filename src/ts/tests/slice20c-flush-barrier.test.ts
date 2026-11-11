@@ -603,7 +603,6 @@ test("a no-embedder session leaves an enrolled kind's write recoverable", async 
       operation: "vector_projection",
       remediations: [
         "configure_default_embedder",
-        "configure_caller_embedder",
         "submit_non_embedding_input",
       ],
       documentationUrl: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
@@ -759,7 +758,6 @@ test("a no-embedder pending edge stays recoverable behind a full node scan windo
       operation: "graph_edge_body_projection",
       remediations: [
         "configure_default_embedder",
-        "configure_caller_embedder",
         "submit_non_embedding_input",
       ],
       documentationUrl: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",

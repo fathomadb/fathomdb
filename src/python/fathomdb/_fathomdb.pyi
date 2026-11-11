@@ -181,7 +181,7 @@ class SearchResult:
     results: list[SearchHit]
     # Opt-in; None unless ordinary or frozen retrieval requests explanation.
     explanation: Explanation | None
-    # None when every requested arm ran.
+    # None when no bounded degradation cause is reported.
     degradations: list[ArmDegradation] | None
     # EP-17: one per hit when the search passed `snippet`; None otherwise.
     snippets: list[SnippetV1] | None
@@ -686,7 +686,7 @@ class SearchExpandResult:
     search_hits: list[SearchHit]
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
-    # None when every requested search arm ran.
+    # None when no bounded search degradation cause is reported.
     degradations: list[ArmDegradation] | None
 
 class RuntimeConfiguration:

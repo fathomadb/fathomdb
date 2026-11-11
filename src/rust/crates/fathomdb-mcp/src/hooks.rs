@@ -9,6 +9,12 @@ pub(crate) struct Hooks {
 
 impl Hooks {
     #[inline]
+    pub(crate) fn before_search(&self, _hybrid: bool) {
+        #[cfg(feature = "test-seams")]
+        self.seams.before_search(_hybrid);
+    }
+
+    #[inline]
     pub(crate) fn before_open(&self, _store: &str) {
         #[cfg(feature = "test-seams")]
         self.seams.before_open(_store);

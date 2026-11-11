@@ -23,6 +23,7 @@ struct State {
     arrivals_blocked: BTreeSet<String>,
     admitted_held: BTreeMap<String, usize>,
     progress_bursts: BTreeMap<String, u32>,
+    search_routes: [usize; 2],
 }
 
 /// Injectable delays and faults, shared by every clone.
@@ -153,6 +154,17 @@ impl Seams {
     /// progress notifications (values 1..=n) before the tool body runs.
     pub fn burst_progress(&self, tool: &str, n: u32) {
         self.state().progress_bursts.insert(tool.to_string(), n);
+    }
+
+    /// Counts actual adapter dispatches to the direct-text and hybrid SDK APIs.
+    /// This witnesses routing only, not internal inference operations.
+    pub fn search_route_calls(&self) -> (usize, usize) {
+        let state = self.state();
+        (state.search_routes[0], state.search_routes[1])
+    }
+
+    pub(crate) fn before_search(&self, hybrid: bool) {
+        self.state().search_routes[usize::from(hybrid)] += 1;
     }
 
     pub(crate) fn before_open(&self, store: &str) {

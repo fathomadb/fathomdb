@@ -85,7 +85,7 @@ async fn hybrid_mode_without_an_embedder_returns_lexical_hits_and_names_the_vect
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn filters_are_hybrid_only_and_constrain_hybrid_results() {
+async fn exact_kind_filters_constrain_both_routes() {
     let (_fixture, harness) = harness_with(
         vec![
             node("note:1", "note", "river crossing one"),
@@ -94,23 +94,10 @@ async fn filters_are_hybrid_only_and_constrain_hybrid_results() {
         json!({}),
     )
     .await;
-    for filter in [
-        json!({"kind": "note"}),
-        json!({"source_type": "x"}),
-        json!({"status": "open"}),
-        json!({"created_after": 1}),
-        json!({"attributes": {"a": "b"}}),
-    ] {
-        let mut args = json!({"query": "river", "mode": "text"});
-        for (key, value) in filter.as_object().unwrap() {
-            args[key] = value.clone();
-        }
-        let error = harness.err("search", args).await;
-        assert_eq!(error["code"], "bad_argument", "{filter}: {error}");
+    for mode in ["text", "hybrid"] {
+        let found = harness.ok("search", json!({"query":"river","mode":mode,"kind":"doc"})).await;
+        assert_eq!(refs(&found), vec!["l:doc:1"], "{mode}");
     }
-    let found =
-        harness.ok("search", json!({"query": "river", "mode": "hybrid", "kind": "doc"})).await;
-    assert_eq!(refs(&found), vec!["l:doc:1"]);
     harness.shutdown().await;
 }
 

@@ -1011,6 +1011,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     snippet_options.max_point_queries = u8::try_from(run_limit).unwrap_or(u8::MAX);
     let snippet = Some(snippet_options);
     let started_limit = ctx.run_limit();
+    let hooks = ctx.shared.hooks.clone();
     let (answered, run) = bridge::call(
         guard,
         started_limit,
@@ -1024,6 +1025,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     options.view = view;
                     options.limit = run_limit;
                     options.snippet = snippet;
+                    hooks.before_search(false);
                     engine.search_text_only(&request.query, options)?
                 }
                 SearchMode::Hybrid => {
@@ -1033,6 +1035,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     options.view = view;
                     options.limit = run_limit;
                     options.snippet = snippet;
+                    hooks.before_search(true);
                     engine.search(&request.query, options)?
                 }
             };

@@ -114,7 +114,7 @@ pub mod admin {
     pub use fathomdb_engine::configure_runtime;
 }
 
-// The 26 governed application-surface types (`dev/interfaces/rust.md` § 2a) —
+// The governed application-surface types (`dev/interfaces/rust.md` § 2a) —
 // always present on the default facade.
 //
 // 17 original types + 7 new types from Slices 20 (G5/G6) and 35 (G4):
@@ -181,11 +181,11 @@ pub use fathomdb_engine::{
     GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
     GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
     GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
-    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, IngestWithExtractorReceipt, InitialState,
-    LifecycleActuationV1, LifecycleState, MutationProjectionStatusRequestV1,
-    MutationProjectionStatusV1, NodeRecord, OpenReport, OpenStage, OpenedEngine,
-    OperationalStateRecordV1, PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1,
-    PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
+    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, IdSpace, IdSpaceKind,
+    IngestWithExtractorReceipt, InitialState, LifecycleActuationV1, LifecycleState,
+    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NodeRecord, OpenReport,
+    OpenStage, OpenedEngine, OperationalStateRecordV1, PageCursor, PageError, PageErrorReason,
+    PageRequestV1, PageV1, PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
     ProjectionGenerationError, ProjectionGenerationErrorReason, ProjectionGenerationId,
     ProjectionGenerationOriginV1, ProjectionGenerationStatusV1, ProjectionReadinessV1,
     ProjectionRole, ProjectionRuntimeStateV1, ProjectionRuntimeStatus,
@@ -194,12 +194,13 @@ pub use fathomdb_engine::{
     ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace, ReadContextV1,
     ReadView, RecoveryHint, ResolvedEvidenceV1, ResolvedGraphEvidenceV1, ResolvedGraphSeedV1,
     RuntimeConfiguration, RuntimeConfigurationError, RuntimeSqliteMode, ScalarValue,
-    SearchExpandResult, SearchFilter, SearchResult, SoftFallback, SoftFallbackBranch,
-    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, StructuralDegradationCodeV1, StructuralDependencyStateV1,
-    StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
-    StructuralProjectionOriginV1, Subscription, TraceArtifactClassV1, TraceArtifactRoleV1,
-    TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection, WriteProvenanceV1, WriteReceipt,
+    SearchExpandResult, SearchFilter, SearchHit, SearchResult, SnippetAnchor, SnippetOptions,
+    SnippetV1, SoftFallback, SoftFallbackBranch, SourceDependencyRegistrationV1,
+    SourceDependencyV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    StructuralDegradationCodeV1, StructuralDependencyStateV1, StructuralInclusionStateV1,
+    StructuralInclusionV1, StructuralLifecycleStateV1, StructuralProjectionOriginV1, Subscription,
+    TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1,
+    TraversalDirection, WriteProvenanceV1, WriteReceipt,
 };
 pub use fathomdb_engine::{
     CudaPoolMode, CudaPoolSettingConflict, CudaPoolSettingValue, PoolSettingSource,

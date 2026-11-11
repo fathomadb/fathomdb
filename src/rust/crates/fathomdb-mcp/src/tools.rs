@@ -1145,12 +1145,10 @@ fn render_fetch(output: &FetchOutput) -> String {
                 text.push_str(&record.body);
                 text.push('\n');
             }
-            FetchItem::Error { reference, error } => text.push_str(&format!(
-                "error {} {}/{}\n",
-                shape::quote(reference),
-                error.class_str(),
-                error.code
-            )),
+            FetchItem::Error { reference, error } => {
+                text.push_str(&error.render_item(reference));
+                text.push('\n');
+            }
         }
     }
     text

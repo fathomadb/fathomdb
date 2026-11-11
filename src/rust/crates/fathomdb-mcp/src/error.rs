@@ -347,13 +347,44 @@ impl ToolError {
         mapped.with_detail(kind)
     }
 
-    pub(crate) fn render(&self) -> String {
-        format!(
-            "error {}/{}: {} Remedy: {}",
+    fn render_fields(&self) -> String {
+        let mut text = format!(
+            "{}/{} message={} remedy={}",
             self.class_str(),
             self.code,
-            self.message,
-            self.remedy
+            serde_json::to_string(&self.message).expect("strings serialize"),
+            serde_json::to_string(self.remedy).expect("strings serialize")
+        );
+        if let Some(candidates) = &self.candidates {
+            text.push_str(&format!(
+                " candidates={}",
+                serde_json::to_string(candidates).expect("strings serialize")
+            ));
+        }
+        if let Some(detail) = self.detail {
+            text.push_str(&format!(
+                " detail={}",
+                serde_json::to_string(detail).expect("strings serialize")
+            ));
+        }
+        if let Some(busy) = &self.busy {
+            text.push_str(&format!(
+                " busy={}",
+                serde_json::to_string(busy).expect("busy serializes")
+            ));
+        }
+        text
+    }
+
+    pub(crate) fn render(&self) -> String {
+        format!("error {}", self.render_fields())
+    }
+
+    pub(crate) fn render_item(&self, reference: &str) -> String {
+        format!(
+            "error {} {}",
+            serde_json::to_string(reference).expect("strings serialize"),
+            self.render_fields()
         )
     }
 

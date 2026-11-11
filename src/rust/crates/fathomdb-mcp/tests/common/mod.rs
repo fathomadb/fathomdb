@@ -205,44 +205,26 @@ impl Harness {
 
 pub async fn call(client: &Client, tool: &str, args: Value) -> CallToolResult {
     let Value::Object(arguments) = args else { panic!("arguments must be an object") };
-    if OUTPUT_SCHEMAS.get().is_none() {
-        let tools = client.list_all_tools().await.expect("tools/list");
-        record_schemas(&serde_json::to_value(tools).unwrap());
-    }
+    let tools = serde_json::to_value(client.list_all_tools().await.expect("tools/list")).unwrap();
     let result = client
         .call_tool(CallToolRequestParams::new(tool.to_string()).with_arguments(arguments))
         .await
         .unwrap_or_else(|error| panic!("{tool}: protocol error {error:?}"));
     if let Some(structured) = &result.structured_content {
-        assert_output_valid(tool, structured);
+        assert_output_valid(tool, structured, &tools);
     }
     result
 }
 
-/// Schemas for the inherited explicitly structured-only callers. Mixed-format
-/// wire tests capture schemas from their own connection instead.
-static OUTPUT_SCHEMAS: std::sync::OnceLock<std::collections::HashMap<String, Value>> =
-    std::sync::OnceLock::new();
-
-/// Record output schemas from a `tools/list` `tools` array.
-pub fn record_schemas(tools: &Value) {
-    let schemas = tools
+/// MR-071.1: every `structuredContent` the suite sees validates against its
+/// tool's declared `outputSchema` (draft 2020-12).
+pub fn assert_output_valid(tool: &str, structured: &Value, tools: &Value) {
+    let schema = &tools
         .as_array()
         .expect("tools array")
         .iter()
-        .map(|tool| {
-            let name = tool["name"].as_str().expect("tool name").to_string();
-            (name, tool["outputSchema"].clone())
-        })
-        .collect();
-    let _ = OUTPUT_SCHEMAS.set(schemas);
-}
-
-/// MR-071.1: every `structuredContent` the suite sees validates against its
-/// tool's declared `outputSchema` (draft 2020-12).
-pub fn assert_output_valid(tool: &str, structured: &Value) {
-    let schemas = OUTPUT_SCHEMAS.get().expect("output schemas recorded before calls");
-    let schema = schemas.get(tool).unwrap_or_else(|| panic!("{tool} declares no outputSchema"));
+        .find(|entry| entry["name"] == tool)
+        .expect("declared tool")["outputSchema"];
     assert!(schema.is_object(), "{tool} declares no outputSchema");
     let compiled = jsonschema::JSONSchema::options()
         .with_draft(jsonschema::Draft::Draft202012)
@@ -287,7 +269,8 @@ pub async fn err_peer(peer: &rmcp::Peer<RoleClient>, tool: &str, args: Value) ->
     };
     assert_eq!(result.is_error, Some(true), "{tool} unexpectedly succeeded");
     let structured = result.structured_content.expect("structuredContent");
-    assert_output_valid(tool, &structured);
+    let tools = serde_json::to_value(peer.list_all_tools().await.expect("tools/list")).unwrap();
+    assert_output_valid(tool, &structured, &tools);
     structured["error"].clone()
 }
 
@@ -315,6 +298,7 @@ pub struct RawClient {
     next_id: u64,
     /// Every server notification received so far.
     pub notifications: Vec<Value>,
+    schemas: Value,
 }
 
 impl RawClient {
@@ -332,11 +316,12 @@ impl RawClient {
             reader: tokio::io::BufReader::new(reader),
             next_id: 1,
             notifications: Vec::new(),
+            schemas: Value::Null,
         };
         client.request("initialize", initialize_params()).await;
         client.notify("notifications/initialized", json!({})).await;
         let tools = client.request("tools/list", json!({})).await;
-        record_schemas(&tools["result"]["tools"]);
+        client.schemas = tools["result"]["tools"].clone();
         client
     }
 
@@ -389,7 +374,9 @@ impl RawClient {
         let response = self.request("tools/call", json!({"name": tool, "arguments": args})).await;
         let result =
             response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"));
-        assert_output_valid(tool, &result["structuredContent"]);
+        if let Some(payload) = result.get("structuredContent") {
+            assert_output_valid(tool, payload, &self.schemas);
+        }
         result
     }
 }
@@ -410,6 +397,7 @@ pub struct Spawned {
     pub stdout_lines: Arc<Mutex<Vec<String>>>,
     pub stderr: Arc<Mutex<String>>,
     next_id: u64,
+    schemas: Value,
 }
 
 impl Spawned {
@@ -447,14 +435,14 @@ impl Spawned {
                 sink.push('\n');
             }
         });
-        Self { child, stdin, lines, stdout_lines, stderr, next_id: 1 }
+        Self { child, stdin, lines, stdout_lines, stderr, next_id: 1, schemas: Value::Null }
     }
 
     pub fn initialize(&mut self) -> Value {
         let response = self.request("initialize", initialize_params());
         self.notify("notifications/initialized", json!({}));
         let tools = self.request("tools/list", json!({}));
-        record_schemas(&tools["result"]["tools"]);
+        self.schemas = tools["result"]["tools"].clone();
         response
     }
 
@@ -508,7 +496,9 @@ impl Spawned {
         let response = self.request("tools/call", params);
         let result =
             response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"));
-        assert_output_valid(tool, &result["structuredContent"]);
+        if let Some(payload) = result.get("structuredContent") {
+            assert_output_valid(tool, payload, &self.schemas);
+        }
         result
     }
 
@@ -518,7 +508,9 @@ impl Spawned {
         let params = json!({"name": tool, "arguments": args, "_meta": {"progressToken": token}});
         let line = self.request_raw("tools/call", params);
         let response: Value = serde_json::from_str(&line).expect("JSON-RPC response");
-        assert_output_valid(tool, &response["result"]["structuredContent"]);
+        if let Some(payload) = response["result"].get("structuredContent") {
+            assert_output_valid(tool, payload, &self.schemas);
+        }
         line
     }
 
@@ -527,7 +519,9 @@ impl Spawned {
         let response = self.request("tools/call", json!({"name": tool, "arguments": args}));
         let result =
             response.get("result").cloned().unwrap_or_else(|| panic!("protocol error {response}"));
-        assert_output_valid(tool, &result["structuredContent"]);
+        if let Some(payload) = result.get("structuredContent") {
+            assert_output_valid(tool, payload, &self.schemas);
+        }
         result
     }
 

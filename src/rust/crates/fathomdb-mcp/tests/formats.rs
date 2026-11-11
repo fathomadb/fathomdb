@@ -411,3 +411,48 @@ async fn compact_feedback_unique_ref_keeps_recorded_envelope() {
     assert!(expired.contains(" status=not_recorded reason=response_expired tokens="), "{expired}");
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn structured_text_is_exact_final_payload_json_for_all_tools_and_errors() {
+    let fixture = Fixture::new();
+    fixture.store(
+        "a.sqlite",
+        vec![
+            node("one", "note", "river"),
+            node("two", "note", "another river"),
+            common::edge("link", "one", "two"),
+        ],
+    );
+    let harness =
+        Harness::start(wire_config(&fixture, json!({"result_format":"structured"}))).await;
+    let mut mismatches = Vec::new();
+    for (tool, args) in [
+        ("list_stores", json!({})),
+        ("use_store", json!({"store":"a"})),
+        ("orient", json!({})),
+        ("search", json!({"query":"river","explain":true})),
+        ("fetch", json!({"refs":["l:one","bad"]})),
+        ("expand", json!({"refs":["l:one"]})),
+        ("feedback", json!({"response_id":"expired","used":[]})),
+    ] {
+        let result = wire(&harness, tool, args).await;
+        assert_ne!(result.is_error, Some(true), "{tool}");
+        let payload = result.structured_content.as_ref().unwrap();
+        if text_of(&result) != serde_json::to_string(payload).unwrap() {
+            mismatches.push(format!("{tool} success"));
+        }
+    }
+    for tool in ["list_stores", "use_store", "orient", "search", "fetch", "expand", "feedback"] {
+        let result = wire(&harness, tool, json!({"unexpected":true})).await;
+        assert_eq!(result.is_error, Some(true), "{tool}");
+        let payload = result.structured_content.as_ref().unwrap();
+        if text_of(&result) != serde_json::to_string(payload).unwrap() {
+            mismatches.push(format!("{tool} error"));
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "text must be the exact serialized final payload: {mismatches:?}"
+    );
+    harness.shutdown().await;
+}

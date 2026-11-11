@@ -37,7 +37,9 @@ fn spawn_call(harness: &Harness, tool: &str, args: Value) -> JoinHandle<CallTool
             .await
             .unwrap_or_else(|error| panic!("{tool}: protocol error {error:?}"));
         if let Some(structured) = &result.structured_content {
-            common::assert_output_valid(&tool, structured);
+            let tools =
+                serde_json::to_value(peer.list_all_tools().await.expect("tools/list")).unwrap();
+            common::assert_output_valid(&tool, structured, &tools);
         }
         result
     })

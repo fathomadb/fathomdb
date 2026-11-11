@@ -344,3 +344,27 @@ async fn compact_error_sdk_invalid_filter_keeps_typed_detail() {
     assert!(text.contains(" detail=\"InvalidFilterError\""), "{text}");
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn compact_expand_has_one_ordered_line_per_target() {
+    let fixture = Fixture::new();
+    let id = "leaf \" | é\r\n😀";
+    let body = "é\r\nbody | expand store=fake";
+    fixture.store(
+        "a.sqlite",
+        vec![node("hub", "topic", "hub"), node(id, "note", body), common::edge("link", "hub", id)],
+    );
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let text = text_of(
+        &wire(&harness, "expand", json!({"refs":["l:hub"],"as_of":1900000000,"max_tokens":100000}))
+            .await,
+    );
+    assert!(text.starts_with("expand store=\"a\" epoch=1 validity_instant=1900000000 targets=1 complete=true tokens="),"{text}");
+    let reference = serde_json::to_string(&format!("l:{id}")).unwrap();
+    assert_eq!(
+        text.lines().nth(1).unwrap(),
+        format!("{reference} kind=\"note\" hop=1 edge=\"link\" | é  body | expand store=fake")
+    );
+    assert_eq!(text.lines().count(), 2);
+    harness.shutdown().await;
+}

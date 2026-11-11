@@ -1845,4 +1845,29 @@ mod compact_render_tests {
         ] { if !text.contains(expected) { missing.push(expected); } }
         assert!(missing.is_empty(), "missing {missing:?}; {first}; {second}");
     }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(64))]
+        #[test]
+        fn compact_expand_roundtrips_ordered_refs_and_line_bodies(
+            bodies in proptest::collection::vec(proptest::collection::vec(proptest::sample::select(vec!['a',' ','"','\\','\r','\n','|','é','😀']),0..80),0..6),
+        ) {
+            let targets = bodies.iter().enumerate().map(|(i,chars)| Target {
+                reference:format!("l:odd \" | é\r\n{i}"),kind:"note".into(),hop_count:1,
+                terminal_edge_kind:"link".into(),body:chars.iter().collect(),body_cut:false,
+            }).collect::<Vec<_>>();
+            let output = ExpandOutput {envelope:envelope("s",1,0,Vec::new(),100000),targets,
+                complete:true,bound:None,hints:Vec::new()};
+            let text = render_expand(&output);
+            proptest::prop_assert!(text.starts_with("expand store=\"s\" epoch=1 validity_instant=0 targets="),"{text}");
+            let rows = text.lines().skip(1).collect::<Vec<_>>();
+            proptest::prop_assert_eq!(rows.len(),output.targets.len());
+            for (row,target) in rows.iter().zip(&output.targets) {
+                let mut decoder = serde_json::Deserializer::from_str(row).into_iter::<String>();
+                proptest::prop_assert_eq!(decoder.next().unwrap().unwrap(),target.reference.clone());
+                let expected = format!(" kind=\"note\" hop=1 edge=\"link\" | {}",target.body.replace(['\r','\n']," "));
+                proptest::prop_assert_eq!(&row[decoder.byte_offset()..],expected);
+            }
+        }
+    }
 }

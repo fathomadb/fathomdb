@@ -242,6 +242,34 @@ fn assert_fits(result: &rmcp::model::CallToolResult, max_tokens: u64) {
     assert_eq!(structured["budget"]["max_tokens"], max_tokens);
 }
 
+// Independent mandatory zero-progress payload: authored envelope/handle widths
+// and exact trace fields from a same-state SDK control read before adapter open.
+// No production shaper or rendered MCP payload supplies this oracle.
+fn mandatory_search_size(mode: &str, explain: bool, max_tokens: u64, sdk_trace: &Value) -> u64 {
+    let mut p = json!({"store":"a","epoch":1,"validity_instant":1900000000,"state":{"status":"unavailable"},"degradation":[],"budget":{"max_tokens":max_tokens,"used_tokens":0,"cut":true},"mode":mode,"response_id":"r1-0000000000000000","results":[],"completeness":"cut_by_budget","verdict":"unavailable","continuation":null});
+    if mode == "hybrid" {
+        p["degradation"] = json!([{"arm":"vector","reason":"embedder_unavailable"}]);
+    }
+    if explain {
+        p["explanation"] = if mode == "text" {
+            json!({"status":"unavailable","reason":"text_mode"})
+        } else {
+            json!({"trace":sdk_trace,"per_hit":[]})
+        };
+    }
+    for _ in 0..4 {
+        let text = serde_json::to_string(&p).unwrap();
+        let mut without = p.clone();
+        without.as_object_mut().unwrap().remove("budget");
+        let used = tokens(serde_json::to_string(&without).unwrap().len() + text.len());
+        if p["budget"]["used_tokens"] == used {
+            return tokens(2 * text.len());
+        }
+        p["budget"]["used_tokens"] = json!(used);
+    }
+    panic!("authored lower-bound count must converge");
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn every_response_fits_its_budget() {
     let long_notes: Vec<PreparedWrite> = (0..40)
@@ -253,18 +281,40 @@ async fn every_response_fits_its_budget() {
             )
         })
         .collect();
-    let (_fixture, harness) = harness_with(long_notes, json!({"idle_timeout_secs": 0})).await;
+    let fixture = Fixture::new();
+    let path = fixture.store("a.sqlite", long_notes);
+    let sdk = fathomdb_sdk::Engine::open(&path, Default::default()).unwrap();
+    let mut options = fathomdb_sdk::SearchOptions::default();
+    options.limit = 40;
+    options.explain = true;
+    options.view.valid_as_of = Some(1_900_000_000);
+    let control = sdk.search("river", options).unwrap();
+    assert_eq!(control.results.len(), 40, "authored unchanged lexical fixture");
+    assert!(control.soft_fallback.is_none());
+    assert!(control.degradations.is_empty());
+    let trace = &control.explanation.as_ref().unwrap().trace;
+    let sdk_trace = json!({"query_chars":trace.query_chars,"k":trace.k,"rerank_depth":trace.rerank_depth,"pool_n":trace.pool_n,"alpha":trace.alpha,"use_graph_arm":trace.use_graph_arm,"recency":trace.recency,"embedder_id":trace.embedder_id,"ce_active":trace.ce_active,"vector_hits":trace.vector_hits,"text_hits":trace.text_hits,"graph_hits":trace.graph_hits,"dropped_edge_hits":trace.dropped_edge_hits});
+    sdk.close().unwrap();
+    let harness = Harness::start(fixture.config(
+        json!({"stores":{"a":{"path":"a.sqlite"}},"default_store":"a","idle_timeout_secs":0}),
+    ))
+    .await;
     for max_tokens in [256_u64, 300, 512, 1000, 2500, 4000, 20_000] {
         for explain in [false, true] {
             for mode in ["text", "hybrid"] {
                 let result = harness
                     .call(
                         "search",
-                        json!({"query": "river", "limit": 40, "max_tokens": max_tokens, "explain": explain, "mode": mode}),
+                        json!({"query": "river", "limit": 40, "max_tokens": max_tokens, "explain": explain, "mode": mode,"as_of":1_900_000_000}),
                     )
                     .await;
-                assert_ne!(result.is_error, Some(true));
-                assert_fits(&result, max_tokens);
+                if result.is_error == Some(true) {
+                    let error = &result.structured_content.as_ref().unwrap()["error"];
+                    assert_eq!(error["code"], "bad_argument");
+                    assert!(mandatory_search_size(mode,explain,max_tokens,&sdk_trace)>max_tokens,"refusal requires independent mandatory-overflow proof: {mode}/{explain}/{max_tokens}: {error}");
+                } else {
+                    assert_fits(&result, max_tokens);
+                }
             }
         }
     }

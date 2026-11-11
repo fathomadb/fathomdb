@@ -1989,4 +1989,42 @@ mod compact_render_tests {
         assert!(result.text.starts_with(&expected), "{}", result.text);
         assert!(!result.text.contains("state="));
     }
+    #[test]
+    fn final_budget_display_digit_boundaries_are_exact() {
+        for used in [9_usize, 10, 99, 100, 999, 1000, 9999, 10000] {
+            for cut in [false, true] {
+                let header = format!("t tokens={used}/100000{}\n", if cut { " cut" } else { "" });
+                let bytes = 4 * used - header.len();
+                let body = format!("{}{}", "é".repeat(bytes / 2), "x".repeat(bytes % 2));
+                let expected = format!("{header}{body}");
+                let initial = format!("t tokens=0/100000\n{body}");
+                assert_eq!(counted_text(&initial, 100000, cut), expected);
+                assert_eq!(expected.len(), 4 * used);
+            }
+        }
+        for used in [99_usize, 100, 999, 1000, 9999, 10000] {
+            let mut expected = serde_json::json!({"body":"","budget":{"max_tokens":100000,"used_tokens":0,"cut":false}});
+            let mut p = expected.clone();
+            p.as_object_mut().unwrap().remove("budget");
+            let base = serde_json::to_string(&expected).unwrap().len()
+                + serde_json::to_string(&p).unwrap().len();
+            let bytes = (4 * used - base - (used.to_string().len() - 1)) / 2;
+            expected["body"] =
+                serde_json::json!(format!("{}{}", "é".repeat(bytes / 2), "x".repeat(bytes % 2)));
+            expected["budget"]["used_tokens"] = serde_json::json!(used);
+            let mut p = expected.clone();
+            p.as_object_mut().unwrap().remove("budget");
+            let json = serde_json::to_string(&expected).unwrap();
+            assert_eq!(
+                (json.len() + serde_json::to_string(&p).unwrap().len()).div_ceil(4),
+                used,
+                "independent authored specimen"
+            );
+            let mut initial = expected.clone();
+            initial["budget"]["used_tokens"] = serde_json::json!(0);
+            let (actual, whole) = finish(&initial, "t tokens=0/100000".into(), 100000, false);
+            assert_eq!(actual.structured, expected);
+            assert_eq!(whole, (2 * json.len()).div_ceil(4) as u64);
+        }
+    }
 }

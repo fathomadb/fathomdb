@@ -36,3 +36,56 @@ Verified the new manifest/diff hashes and all six candidate hashes. Precreation 
 Approved behavior, immutable oracles, per-behavior RED/GREEN and actual10/20 boundaries remain intact. No further material findings.
 
 Design acceptance only; owned source qualification and a fresh independent final implementation review remain required. Read-only; no builds, tests, setup or mutations.
+
+## Actual source bounded test reviews
+
+Parent reported fresh independent Astra PASS for the exact immutable baseline
+comparator v2 after an initial FIX: constrained fetch must independently derive
+the retained deterministic prefix, rather than accept any shorter fitting body.
+Candidate SHA256 cd8a68aa40973c81bee062ab72705d4ac8e7c2c9c3a8c848389e68728a47abca;
+diff d46d2e88732714acd9c580b9967d2d9266797e02e5fcf0e7c22883c48fce9ef9.
+The original automatic-review rejection and exact rejected proposal are retained
+externally. A narrow reviewed retry was approved automatically; no tool bypass
+or historical fixture rewrite occurred.
+
+Parent reported independent Astra PASS for the single F12 arm-assertion repair:
+map independent same-state SDK Text to text and TextEdge to text_edge, reject
+unexpected vector/graph, preserve IDs/raw scores/provider-free route counters.
+Original4 REDs and first failed GREEN remain; no production arm change followed.
+
+Parent reported independent Astra PASS for late integration-test adaptation
+patch7a6e9a788f379d2b10808350ef8a1bf00331e2870ed2350a9cc581305a9b59a7:
+separate authored SDK fixtures instead of two registries opening one file,
+both-format exact two-process determinism/hints, and independently justified
+mandatory-overflow refusal. Original failures/timing remain recorded. The
+shortest-field bound proved insufficient for the actual300-token hybrid trace;
+the stronger same-state SDK trace-control proposal then passed independent
+Astra review: candidate7d905d1957376c8f01a53e8d8bd198bb0779398d71bdf533120134db87b2e1af,
+diff45f5a31fe2ef7f491e9838a527f6abe02b3212a9b9866ae3de13a35d1adcc35d.
+The exact narrow patch was applied through automatic review; the full21-test
+search target passed. Original shortest-bound failure timing remains retained.
+No new product RED, performance threshold or fixture/oracle waiver follows.
+
+These are bounded test-contract reviews only. Fresh final independent Astra
+implementation/results review remains required after frozen qualification.
+
+## Supplemental positive-metadata setup review
+
+Positive assertions were not staged before F12GREEN. A late test candidate was
+compiled only, archived and removed from the source without execution/landing.
+Parent directed honest post-code manual acceptance through existing public APIs,
+not a new passing-on-arrival test or invented RED. Standing GPU policy requires
+an available3090 for real encoding; the CPU producer proposal was never run.
+
+Independent Astra GPU setup v1 returned FIX for explicit command-local XDG
+cache plus a concrete network-disabled runtime boundary, and sequential
+structured AND compact reader coverage. Frozen v2 with exact sources/hashes is
+external. The rootless user+net wrapper dry-run proved distinct namespace,
+lo DOWN, no IPv4/6 routes and NVML access. No host setting change or model
+copy/load/compute occurred. Independent v2 recheck returned FIX because host
+sockets can survive namespace entry as inherited descriptors. After re-reading
+the launcher chain, frozen v3 makes the final Python process close/verify all
+FDs≥3 and reject socket stdio before direct exec. The same exec path proved
+seeded socket/file EBADF, each socket-stdio refusal126 before target execution,
+and ordinary-stream NVML identity success0. v1/v2 remain immutable externally.
+Setup v3 recheck and actual manual results remain owed.

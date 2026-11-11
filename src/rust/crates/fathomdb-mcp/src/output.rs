@@ -1,6 +1,7 @@
 //! Typed tool results. Each type is both what the tool serializes into
-//! `structuredContent` and the source of its declared `outputSchema`
-//! (MR-071), so the two cannot drift apart.
+//! `structuredContent` and the source of its declared `outputSchema` in
+//! structured mode (MR-071). Compact mode renders the same governed facts
+//! according to the explicit presentation census in the MCP interface.
 
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -33,9 +34,10 @@ pub struct Degradation {
     pub reason: String,
 }
 
-/// The budget actually applied (MR-041). `used_tokens` is
-/// ceil(bytes / 4) of the structured content without `budget` plus the text
-/// block.
+/// The budget actually applied (MR-041). In structured mode `used_tokens`
+/// counts the payload without this budget plus its final JSON text copy;
+/// fit counts both complete copies. Compact text displays its own final
+/// UTF-8 byte count divided by four, rounded up.
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct Budget {
     pub max_tokens: u32,

@@ -1,6 +1,6 @@
 ---
 title: MCP Server Interface (fathomdb-mcp)
-date: 2026-10-17
+date: 2026-11-10
 target_release: unscheduled (evaluation build)
 desc: Tool contract, launch configuration, result envelope and error model for the fathomdb-mcp server, first release (read-only, adapter-only).
 blast_radius: src/rust/crates/fathomdb-mcp/**; dev/design/mcp-adapter/*.md
@@ -11,8 +11,9 @@ status: proposed
 
 Contract for the first, adapter-only release of the FathomDB MCP server. It
 records the original `fathomdb-sdk` 0.8.27 evaluation baseline. Current integration
-includes queue/hints and engine/SDK filter/view options; adapter residuals remain
-with0.8.29 Slices60/80/90. Semantics
+includes queue/hints, compact formats and direct text filters. Historical search
+view exposure remains held pending the repeated-ref feedback ruling; structured
+state/verdict additions remain with0.8.29 Slices80/90. Semantics
 are owned by `dev/design/mcp-adapter/requirements.md` (MR-###); this file owns
 names, shapes, defaults and codes. The server is read-only and unscoped in this
 release.
@@ -54,6 +55,7 @@ fathomdb-mcp --config <path.json> --check-config
 | `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"text"` until the MR-021 evaluation shows hybrid at or above BM25 precision@3. |
 | `use_default_embedder` | bool | false | Passed to `OpenOptions`. Required for `"hybrid"`. |
 | `telemetry_dir` | path or null | null | Absolute or relative to the config file. When set, a fresh sink `<dir>/<store>.<pid>.<epoch>.jsonl` is enabled on every open and feedback is recorded (MR-024, MR-024.7). |
+| `result_format` | `"text"` or `"structured"` | `"text"` | Exact, case-sensitive configuration; invalid values/types/unknown keys fail. Embedded Config values are revalidated. Structured consumers must explicitly select `"structured"`. |
 | `hints` | bool | true | Whether results carry the `hints` sidecar of suggested next calls (§ 3) when a call does not pass its own `hints` argument. Precedence: the call's argument, then this key, then the default. |
 | `write` | bool | false | Must be false in this release. |
 | `scope` | null | null | Must be null in this release (MR-014.4). |
@@ -71,14 +73,91 @@ optional): whether the result carries the `hints` sidecar. It defaults to the
 configured `hints` key (§ 2). It is not part of the canonical request, so it
 never changes a `response_id` or `continuation` hash.
 
-Every successful result carries `structuredContent` (an object, schema
-declared as the tool's `outputSchema`) and one `text` content block that is a
-compact rendering of the same data. Each `outputSchema` is
-`anyOf[<result>, {error}]` with a root `"type": "object"`, because tool errors
-also carry `structuredContent` (§6, MR-071.1). Field order is fixed; maps are sorted by
-key; no wall-clock or random values appear except `validity_instant` (MR-043).
-In text blocks, record content and every `ref` (hit, item, target and hint
-lines) are JSON-quoted, so a writer-chosen id reads as data.
+Every tool success and typed tool error has exactly one text content block.
+With the default `result_format: "text"`, results omit `structuredContent` and
+discovery omits `outputSchema`. With `"structured"`, discovery declares
+`anyOf[<result>, {error}]` with root `"type": "object"`; every payload validates
+against that connection's schema, and its text is exactly the compact JSON
+serialization of the final `structuredContent`, including the final budget.
+Both error formats retain `isError`. Inputs/tool names are identical.
+Field order is deterministic; maps are sorted by key; no wall-clock or random
+values appear except `validity_instant` (MR-043).
+
+### Compact text grammar and final accounting
+
+Quoted metadata (`q`) is a JSON string; `j` is compact JSON; enum words and
+handles are bare. Dynamic refs, stores, kinds, sources, edges and projections
+always use `q`. Body text is data. Search/expand replace each CR and LF with
+one ASCII space (CRLF becomes two); other UTF-8 bytes and highlight offsets
+are preserved. Fetch bodies retain every byte.
+
+| Output | Compact representation |
+| --- | --- |
+| list_stores | `stores: N`, followed by `q open=<bool> readiness=<word>[ default]` rows and optional hint lines. |
+| use_store | `default store: q`. |
+| orient | Header `orient store=q epoch=N validity_instant=N tokens=U/M[ cut]`; projection rows name/roles/fts/vector/dense readiness, embedding state/usable/pending/affected, runtime availability/reason and vector-unsupported kinds. |
+| search | Header `search store=q epoch=N validity_instant=N mode=<word> hits=N completeness=<word> [kind=q] [continuation=c] [continuation_exact=false] response_id=r tokens=U/M[ cut]`. Common kind may appear once in the header. |
+| search hit | `q arm=<word> score=<x.xxx> [ce=<x.xxx>] [anchor=<word>] [cut] [kind=q] [src=q] [hl=a-b,…] \| <snippet>`. Whole anchor is omitted; requested empty highlights are `hl=[]`, distinct from absence. |
+| explanations | `explain: j` (two leading spaces) after its hit contains the full per-hit object; `explanation: j` contains trace or unavailable status/reason once. No per-hit trace duplication. |
+| fetch | Header names store/epoch/validity/items/tokens. `record q kind=q bytes=N[ cut]`, LF, exactly N raw UTF-8 body bytes, then one framing LF. Empty bodies have N=0. |
+| fetch item error | `error q <class>/<code> message=q remedy=q [candidates=j] [detail=q] [busy=j]`. Input order, duplicates and all item outcomes remain intact. |
+| expand | Header names store/epoch/validity/targets/complete/optional bound/tokens; ordered rows `q kind=q hop=N edge=q[ cut] \| <body>`, with degradation and hints. |
+| feedback | Header names store/epoch/validity/status/optional reason/tokens and retains degradation. |
+| top-level error | `error <class>/<code> message=q remedy=q [candidates=j] [detail=q] [busy=j]`. Empty candidates remain explicit; busy retains reason/in_flight/queued/abandoned/stuck. |
+
+Displayed score/CE values use three decimals only in compact text; raw scores,
+rankings and explanation JSON retain exact typed values. Placeholder state and
+verdict, and orient's unavailable kinds/counts, are omitted only in compact
+text; structured retains them. This is presentation, not a new semantic ruling.
+
+For compact text T(u), `used_tokens = ceil(len_utf8(T(u))/4)` includes its own
+count, framing, quotes, flags and hints. For structured S(u) and P=S without
+its top-level budget, displayed used is `ceil((len_utf8(P)+len_utf8(S(u)))/4)`;
+fit is `ceil(2*len_utf8(S(u))/4) <= max_tokens`. Both final JSON budget copies
+count for fit. These measure inner payload bytes, excluding JSON-RPC escaping.
+Counts stabilize within four renders or fail internally. list_stores/use_store
+remain unbudgeted. No budgeted success may exceed its final fit predicate.
+
+Search removes only trailing whole hits and never recuts a snippet. It retries
+without hints if hints lose every hit or overflow an empty page. A tiny budget
+may yield zero results with cut=true, completeness=cut_by_budget, no hints and
+no continuation when no whole leading hit fits but mandatory metadata does.
+This does not mean the ranked input is empty. Raise the budget and restart;
+complete no-gap traversal requires at least one whole hit to fit every
+nonterminal page. Truly empty input retains cut=false. Mandatory overflow is a
+typed bad_argument. Fetch cuts UTF-8 prefixes without dropping outcomes or
+refuses if mandatory items cannot fit. Expand cuts longest bodies first, then
+trailing targets with bound=budget. Body-cut hints size a complete uncut fetch
+in the selected target format, so the suggested call returns uncut bodies on
+unchanged state.
+
+### Serialized field census
+
+`field_census.rs` checks these exact schema leaf paths for all seven success
+variants and every typed error. Envelope fields are flattened at the top level;
+`ref` is the serde name of internal reference fields. Optional/untagged variants
+retain the same classifications. Arrays retain order and empty-versus-absent
+meaning. Every listed field is retained in structured mode.
+
+| Group | Exact fields | Compact classification |
+| --- | --- | --- |
+| Envelope | store, epoch, validity_instant; degradation[].arm/reason; budget.max_tokens/used_tokens/cut | Header, degradation lines, converged tokens/flag. |
+| Unavailable envelope | state.status; search verdict; orient kinds.status/counts.status | Only approved text omissions. No semantic state/verdict replacement. |
+| list_stores | stores[].name/open/readiness/default | Quoted name and words/flags; length supplies header count. |
+| use_store | store | Quoted selected store. |
+| orient projections | projections[].name/roles[]/fts/vector; projection_status.projections[].name/dense_readiness | Joined by exact name in projection rows; unmatched status rows remain visible. |
+| orient readiness | embedding_readiness.state/usable_embedder/pending_count/affected_kinds[]; projection_status.runtime_embedder_available/runtime_unavailability_reason/vector_unsupported_kinds[] | Explicit embedding/runtime/unsupported lines; array values are JSON. |
+| search | mode, response_id, completeness, continuation, continuation_exact | Header; null/absent continuation has no advancing handle. Hosted false caveat remains explicit. |
+| search hits | results[].ref/kind/snippet/snippet_cut/snippet_anchor/highlights[][]/source_id/score/arm/ce_score | Quoted metadata, raw line body, optional anchor/cut/highlights, three-decimal score/CE display. Missing optional values are absent; whole anchor is implicit. |
+| explanation trace | explanation.trace.query_chars/k/rerank_depth/pool_n/alpha/use_graph_arm/recency/embedder_id/ce_active/vector_hits/text_hits/graph_hits/dropped_edge_hits | Complete compact JSON in explanation line. |
+| per-hit explanation | explanation.per_hit[].ref/arm/vector_rank/text_rank/graph_rank/fused_score/ce_score/blended | Complete compact JSON after corresponding hit, retaining nulls/raw f64. |
+| unavailable explanation | explanation.status/reason | Complete compact JSON. |
+| fetch record | items[].ref/record.kind/body/body_cut | Quoted metadata, exact UTF-8 byte frame/cut. |
+| fetch error | items[].ref/error plus every Error field below | Quoted reference and full typed error rendering, one outcome per input. |
+| expand | complete, bound; targets[].ref/kind/hop_count/terminal_edge_kind/body/body_cut | Header bound/complete; ordered quoted metadata/flattened body/cut rows. |
+| feedback | status, reason | Header words, with envelope above. |
+| Hint | hints[].action/reason/refs[]/refs_omitted/mode/arm/cause/continuation/max_tokens/store | One fixed-template line per hint; all optional fields remain represented. Internal cut_anchors is serde/schema skipped and only selects the snippet hint sentence. |
+| Error | error.class/code/message/remedy/candidates[]/detail; error.busy.reason/in_flight/queued/abandoned/stuck | Class/code plus JSON-quoted strings and complete JSON candidates/busy; same mapping under items[].error. |
 
 Common envelope fields (present on every store-bound result):
 
@@ -89,7 +168,7 @@ Common envelope fields (present on every store-bound result):
 | `validity_instant` | integer | Epoch seconds the read was answered at. The adapter resolves now itself when the caller gives no `as_of` and always passes it as `ReadView.valid_as_of`, so this is never null (MR-023.2). It is the only time-derived field (MR-043.2). `orient` and `feedback` take no `as_of`; theirs is the call time. A continuation page reuses the instant of its first page. |
 | `state` | `{ "status": "unavailable" }` | MR-050; the state read is an engine follow-up. |
 | `degradation` | array of `{arm, reason}` | MR-032. Empty when nothing degraded. |
-| `budget` | `{max_tokens, used_tokens, cut}` | `used_tokens` = ceil(bytes ÷ 4) of the serialized structured content (with `budget` itself elided) plus the text block. It is computed before `budget` is inserted, so the value is stable (MR-041). |
+| `budget` | `{max_tokens, used_tokens, cut}` | Final format-specific count and fit as above (MR-041). Compact text presents these as `tokens=U/M[ cut]`. |
 
 ### Hints (ADR-0.8.29-agent-hints-sidecar)
 
@@ -112,7 +191,7 @@ This is the one vocabulary table (MR-072):
 | `degraded` | `none` | `arm`, `cause` | `search`, `expand` | a degradation entry is present; names the first entry in canonical order |
 | `no_results` | `search` | `mode?` | `search` | zero hits on the page; `mode: "hybrid"` only for a text search on a store with a usable embedder the configuration permits and the dense arm on, otherwise rephrase |
 | `snippet_cut` | `fetch` | `refs`, `refs_omitted?` | `search` | kept hits with `snippet_cut: true` |
-| `body_cut` | `fetch` | `refs`, `refs_omitted?`, `max_tokens` | `fetch`, `expand` | items or targets with `body_cut: true`; `max_tokens` is the whole-response estimate with every body uncut (at least 256) |
+| `body_cut` | `fetch` | `refs`, `refs_omitted?`, `max_tokens` | `fetch`, `expand` | items or targets with `body_cut: true`; `max_tokens` sizes a complete uncut target-format fetch (at least 256) |
 | `cut_by_budget` | `search` | `continuation`, `max_tokens` | `search` | hits were dropped to fit `max_tokens` (this call's) and a continuation exists |
 | `more_results` | `search` | `continuation` | `search` | the page reached its limit (below 100) and a continuation exists |
 | `default_store_set` | `search` | `store` | `list_stores` | the session has a default store |
@@ -179,9 +258,9 @@ accepted by [seq-359](../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
 | --- | --- | --- | --- |
 | `query` | string | required | Non-empty. |
 | `mode` | `"text"` or `"hybrid"` | config `search_mode` | `text` → `search_text_only`; `hybrid` → `search`. |
-| `kind`, `source_type`, `status` | string | none | `SearchFilter` fields; `hybrid` only, `text` rejects them. |
-| `created_after` | integer | none | Epoch seconds; `hybrid` only. |
-| `attributes` | object string→string | none | Declared exact projections; `hybrid` only. |
+| `kind`, `source_type`, `status` | string | none | Closed `SearchFilter` predicates in both modes, before candidate caps/dedup/ranking/limit. |
+| `created_after` | integer | none | Inclusive lower bound on stored projection creation time, epoch seconds; both modes. |
+| `attributes` | object string→string | none | Declared filterable node-scoped exact projections; both modes; equalities are ANDed. |
 | `as_of` | integer | now | `ReadView.valid_as_of` (MR-023). |
 | `limit` | integer 1..100 | 10 | Ranked cap is 100 (MR-041.2). |
 | `max_tokens` | integer ≥ 256 | config | MR-041. |
@@ -194,14 +273,18 @@ in the current adapter. The engine and SDK support these view flags; Slice60
 owns their adapter support. Unknown adapter arguments remain
 `invalid_request/bad_argument`.
 
-**Planned for 0.8.29 Slice 60:** the current text-mode filter refusal and
-hybrid-only filter descriptions above are replaced by0.8.28 Slice90's filtered
-body-FTS contract. All five existing filter fields will be accepted in text
-mode, before engine candidate caps and ranking, composing with the planned view
-flags. Status/time keep existing projected-metadata availability rules; text
-search performs no inference. See the [planned requirements and acceptance
-criteria](../plans/0.8.29/features/slice-60/requirements.md). This is allocated
-work, not support implemented by the current adapter.
+Text forwards the complete closed filter to SDK `search_text_only`; it performs
+no query embedding, vector, CE or graph work. Empty attributes are a no-op.
+Unknown/nonfilterable attributes return bad_argument with InvalidFilterError
+detail even when the lexical query has no matches. Attributes use canonical
+node rows and exclude edges. Status/time require existing projection metadata;
+missing rows never match body JSON's status/time lookalikes. Empty status is the
+stored sentinel; created_after uses inclusive projection time, not body or
+canonical-record time. Filter predicates and fixed validity instant survive
+continuations and define canonical identity; attribute key order does not.
+The required real Default-producer→None-reader composition is tracked by the
+Slice60 qualification record; provider-free missing-metadata controls alone do
+not establish positive projected-status/time qualification.
 
 Result adds:
 
@@ -343,8 +426,8 @@ last 256 of each per store (least recently used dropped; an identical hash
 overwrites an identical entry). A handle from another store, another epoch, or
 one that was dropped fails as `invalid_request/stale_handle` with remedy
 "re-run the search".
-A continuation call takes only `store`, `continuation`, `max_tokens` and
-`hints`; any other argument is `invalid_request/bad_argument`.
+A continuation call takes only `store`, `continuation`, `max_tokens`,
+`hints` and `highlights`; any other argument is `invalid_request/bad_argument`.
 
 - **Standalone, read-only:** the adapter is the sole opener and nothing writes,
   so a store cannot change within an epoch and a same-epoch continuation is
@@ -357,8 +440,10 @@ A continuation call takes only `store`, `continuation`, `max_tokens` and
 
 ## 6. Errors
 
-Tool errors are MCP tool results with `isError: true` and structured content
-`{error: {class, code, message, remedy, candidates?, detail?, busy?}}`. `detail` is
+Tool errors are MCP tool results with `isError: true`. Structured mode carries
+`{error: {class, code, message, remedy, candidates?, detail?, busy?}}` and its exact
+JSON text; compact mode carries the full rendered error and no structured
+content. `detail` is
 the SDK `ErrorKind` class name (for example `DatabaseLockedError`) when the
 error came from the SDK. Messages are adapter templates and never quote SDK
 message text. JSON-RPC errors are reserved for protocol faults; a panicking

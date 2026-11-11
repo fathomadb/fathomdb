@@ -60,13 +60,12 @@ async fn every_tool_accepts_a_hints_argument() {
     harness.shutdown().await;
 }
 
-async fn compact_peer(fixture: &Fixture, extra: Value) -> Harness {
-    let mut config =
-        json!({"stores":{"a":{"path":"a.sqlite"}},"default_store":"a","result_format":"text"});
+async fn compact_peer(writes: Vec<PreparedWrite>, extra: Value) -> (Fixture, Harness) {
+    let mut config = json!({"result_format":"text"});
     for (key, value) in extra.as_object().unwrap() {
         config[key] = value.clone();
     }
-    Harness::start(fixture.config(config)).await
+    harness_with(writes, config).await
 }
 
 fn hints_of(result: &Value) -> Vec<Value> {
@@ -105,8 +104,8 @@ async fn empty_text_search_suggests_hybrid_only_when_hybrid_available() {
 /// `degraded` then `no_results`, and no `index_not_ready` word.
 #[tokio::test(flavor = "multi_thread")]
 async fn empty_with_degradation_emits_no_results_and_degraded() {
-    let (fixture, harness) = harness_with(river_notes(3, 40), json!({})).await;
-    let compact = compact_peer(&fixture, json!({})).await;
+    let (_fixture, harness) = harness_with(river_notes(3, 40), json!({})).await;
+    let (_compact_fixture, compact) = compact_peer(river_notes(3, 40), json!({})).await;
     let result = harness.call("search", json!({"query": "zebra", "mode": "hybrid"})).await;
     let found = result.structured_content.clone().unwrap();
     assert_eq!(found["completeness"], "empty_not_ready");
@@ -402,7 +401,8 @@ async fn list_stores_emits_default_store_set_hint() {
         hints_of(&listed),
         vec![json!({"action": "search", "reason": "default_store_set", "store": "a"})]
     );
-    let compact = compact_peer(&fixture, json!({"default_store":null})).await;
+    let (_compact_fixture, compact) =
+        compact_peer(river_notes(1, 40), json!({"default_store":null})).await;
     let selected = compact.call("use_store", json!({"store":"a"})).await;
     assert_ne!(selected.is_error, Some(true));
     let text_result = compact.call("list_stores", json!({})).await;
@@ -479,8 +479,8 @@ async fn hit_line_refs_are_quoted_in_text_blocks() {
         common::edge("link", odd, "note:2"),
         common::edge("link", "note:2", odd),
     ];
-    let (fixture, harness) = harness_with(writes, json!({})).await;
-    let compact = compact_peer(&fixture, json!({})).await;
+    let (_fixture, harness) = harness_with(writes.clone(), json!({})).await;
+    let (_compact_fixture, compact) = compact_peer(writes, json!({})).await;
     let quoted = |reference: &str| serde_json::to_string(reference).unwrap();
     let odd_ref = format!("l:{odd}");
     for hints in [true, false] {

@@ -23,8 +23,9 @@ fn fixture() -> Fixture {
 const PINNED: i64 = 1_900_000_000;
 
 /// One scripted session; returns each response line as written.
-fn session(fixture: &Fixture) -> Vec<String> {
-    let config = fixture.config_file(json!({"stores": {"a": {"path": "a.sqlite"}}}));
+fn session(fixture: &Fixture, format: &str) -> Vec<String> {
+    let config =
+        fixture.config_file(json!({"stores": {"a": {"path": "a.sqlite"}},"result_format":format}));
     let mut server = Spawned::start(&config);
     server.initialize();
     let mut lines = vec![server.request_raw("tools/list", json!({}))];
@@ -32,7 +33,18 @@ fn session(fixture: &Fixture) -> Vec<String> {
     lines.push(server.call_raw("list_stores", json!({})));
     let first = server.call_raw("search", json!({"query": "river", "limit": 4, "as_of": PINNED}));
     let first_value: Value = serde_json::from_str(&first).unwrap();
-    let continuation = first_value["result"]["structuredContent"]["continuation"].clone();
+    let continuation = if format == "structured" {
+        first_value["result"]["structuredContent"]["continuation"].clone()
+    } else {
+        let text = first_value["result"]["content"][0]["text"].as_str().unwrap();
+        json!(text
+            .lines()
+            .next()
+            .unwrap()
+            .split_ascii_whitespace()
+            .find_map(|field| field.strip_prefix("continuation="))
+            .unwrap())
+    };
     lines.push(first);
     lines.push(server.call_raw("search", json!({"continuation": continuation})));
     lines.push(server.call_raw(
@@ -56,14 +68,23 @@ fn session(fixture: &Fixture) -> Vec<String> {
 #[test]
 fn pinned_sessions_in_two_process_lifetimes_are_byte_identical() {
     let fixture = fixture();
-    let one = session(&fixture);
-    let two = session(&fixture);
-    assert_eq!(one.len(), two.len());
-    for (left, right) in one.iter().zip(&two) {
-        assert_eq!(left, right, "MR-043.1");
+    for format in ["structured", "text"] {
+        let one = session(&fixture, format);
+        let two = session(&fixture, format);
+        assert_eq!(one, two, "MR-043.1 {format}");
+        let search: Value = serde_json::from_str(&one[3]).unwrap();
+        if format == "structured" {
+            assert!(search["result"]["structuredContent"]["continuation"]
+                .as_str()
+                .unwrap()
+                .starts_with("c1-"));
+        } else {
+            assert!(search["result"]["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains(" continuation=c1-"));
+        }
     }
-    // The pinned search really paged, so continuation handles were compared too.
-    assert!(one[3].contains("\"continuation\":\"c1-"), "{}", one[3]);
 }
 
 fn without_instant(line: &str) -> String {
@@ -113,9 +134,30 @@ fn unpinned_sessions_differ_only_in_the_validity_instant() {
 #[test]
 fn hints_are_deterministic_across_process_lifetimes() {
     let fixture = fixture();
-    let one = session(&fixture);
-    let two = session(&fixture);
-    assert_eq!(one, two, "MR-043.1 with hints");
-    assert!(one.iter().any(|line| line.contains("\"hints\":[")), "hints were emitted");
-    assert!(one.iter().any(|line| line.contains("\\nhint: ")), "hint text lines were emitted");
+    for format in ["structured", "text"] {
+        let one = session(&fixture, format);
+        let two = session(&fixture, format);
+        assert_eq!(one, two, "MR-043.1 with hints, {format}");
+        if format == "structured" {
+            assert!(
+                one.iter().any(|line| line.contains("\"hints\":[")),
+                "structured hints were emitted"
+            );
+            for line in &one {
+                let value: Value = serde_json::from_str(line).unwrap();
+                if let Some(payload) = value["result"].get("structuredContent") {
+                    assert_eq!(
+                        value["result"]["content"][0]["text"],
+                        serde_json::to_string(payload).unwrap(),
+                        "exact structured JSON text, hints included"
+                    );
+                }
+            }
+        } else {
+            assert!(
+                one.iter().any(|line| line.contains("\\nhint: ")),
+                "compact hint lines were emitted"
+            );
+        }
+    }
 }

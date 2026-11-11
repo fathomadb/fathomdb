@@ -385,12 +385,16 @@ a fetch tool returns full content for references. Meets AN-009.
 **MR-041 — Caller-set budget with continuation.** A caller can set a response
 budget measured by the adapter's estimator, serialized bytes ÷ 4 (owner
 decision, 2026-10-17, as a starting rule of thumb; versioned so it can change).
-The response fits, says it was cut, and carries a continuation.
-Meets AN-009.
+Every successful response fits the configured representation. A cut search
+carries a continuation only when at least one whole leading hit fits; mandatory
+metadata overflow refuses with bad_argument. Meets AN-009.
 
-- MR-041.1 For any budget at or above the documented minimum, the estimator
-  applied to the serialized structured output does not exceed the budget.
-- MR-041.2 With no state advance between pages, following continuations of a
+- MR-041.1 For any accepted budget, every budgeted success fits the final
+  format-specific byte predicate in the interface: compact text including its
+  own count, or both exact final JSON copies in structured mode. Mandatory
+  metadata overflow is a typed refusal, never an oversize success.
+- MR-041.2 With no state advance between pages and enough budget for at least
+  one whole leading hit on each nonterminal page, following continuations of a
   search returns every ranked result up to the engine's ranked-result cap (100
   today, `MAX_RANKED_LIMIT`) with no duplicates and no gaps; past the cap the
   response says the cap was reached. **[engine]** for ranked pagination beyond
@@ -425,7 +429,7 @@ AN-011.
 
 - MR-043.1 Every read tool, called twice in two process lifetimes against an
   unchanged database with the validity instant pinned, yields byte-identical
-  `structuredContent` and text.
+  text, and structuredContent when configured, within each result format.
 - MR-043.2 With the validity instant unpinned, the two outputs differ only in
   the validity-instant field, and in results whose validity window boundary
   fell between the two calls. No identifier is derived from the instant.
@@ -550,8 +554,10 @@ filters records itself.
 - MR-070.2 The adapter crate's manifest depends on `fathomdb-sdk` and on no
   other FathomDB crate, nor on `rusqlite`, checked by a manifest lint.
 
-**MR-071 — Typed contract.** Every tool declares input and output schemas, and
-every structured output validates against its output schema.
+**MR-071 — Typed contract.** Every tool declares an input schema. In configured
+structured mode it also declares an output schema, and every structured output
+validates against that connection's schema. Default compact-text mode omits
+outputSchema and structuredContent; input contracts are identical.
 
 - MR-071.1 Every `structuredContent` in the test suite validates against its
   tool's declared `outputSchema`.

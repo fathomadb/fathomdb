@@ -169,8 +169,9 @@ search event).
   `ReadView.valid_as_of`. The value is reported as `validity_instant` (MR-023.2).
 - **search.**
   - `mode=text` → `engine.search_text_only(query, options)`, `options` a
-    `TextSearchOptions::default()` with `view` and `limit` set.
-    Filters are rejected in text mode. This path never captures telemetry, so
+    `TextSearchOptions::default()` with the complete closed `filter`, `view`,
+    `limit` and snippet options set. Predicates are applied in the engine before
+    caps/ranking; the adapter never filters governed results. This path never captures telemetry, so
     its responses carry no query id, and feedback on them returns `text_mode`.
   - `mode=hybrid` → `engine.search(query, options)`, `options` a
     `SearchOptions::default()` with `filter`, `view`, `limit` and `explain`
@@ -179,8 +180,8 @@ search event).
     from `result.explanation.correlation_id` when it starts with `q`. The
     explanation is removed from output unless the caller asked for it
     (MR-024.6).
-  - `include_superseded` and `include_inactive` are never set on search; the
-    engine rejects them there.
+  - Search view-flag exposure remains held pending the repeated-ref feedback
+    ruling. The engine/SDK support the flags; the adapter currently rejects them.
   - The shaper builds `results` from the engine's snippet sidecar (EP-17:
     `snippet`, `snippet_cut` and `snippet_anchor` from `snippets[i]`, requested
     with `max_bytes: snippet_bytes`), then `completeness`: `empty` or
@@ -189,7 +190,7 @@ search event).
     `cut_by_budget`. It adds `degradation` from `soft_fallback` and
     `dense_disabled_reason`, and fixes `verdict: unavailable`.
   - Then the budget pass: drop trailing results until
-    `ceil(bytes(structured + text) / 4) ≤ max_tokens`. If any were dropped, set
+    the selected format's final-byte predicate holds (interface §3). If any were dropped, set
     `cut_by_budget` and store a continuation.
 - **Continuations.** The session stores `{store, epoch, args, offset}` under
   `c<epoch>-<hash>`, with the hash as in the interface §4 (SHA-256 over store,
@@ -221,6 +222,15 @@ search event).
   `engine.record_feedback(query_id, used, unused, "agent")`.
 - **list_stores / use_store.** Registry and session only; no engine.
 
+Final accounting converges compact text including its displayed count and
+structured JSON including both final copies within four renders. The edge
+refuses any mandatory overflow. Search retains whole leading hits, with
+hints-off fallback and truthful zero-progress tiny-budget pages; complete
+traversal requires progress-capable budgets. Fetch keeps byte-framed UTF-8
+prefixes/outcomes; expand cuts bodies then trailing targets. Sufficient body-cut
+budgets measure complete fetch in the selected target format. The interface
+owns exact grammar and serialized-field presentation classifications.
+
 ## 8. rmcp usage
 
 - `#[tool_router]` on an `FathomServer` struct holding the shared registry and
@@ -230,9 +240,10 @@ search event).
   then a typed `invalid_request/bad_argument` tool error; with rmcp 3.5.1's
   `Parameters<Args>` it would be an unstructured text error. The input schema
   is attached explicitly from `Args`. Each tool returns `CallToolResult`:
-  structured content from the shaper and the text block from its renderer;
-  `is_error` is set for tool errors.
-- Output schemas: attached explicitly as `anyOf[<result>, {error}]` with a
+  the configured compact text, or structured content with its exact final JSON
+  text copy. `is_error` is set for tool errors. Default text omits output schemas;
+  structured attaches them from the same connection's configured router.
+- Structured-mode output schemas: attached explicitly as `anyOf[<result>, {error}]` with a
   root `"type": "object"`, because tool errors also carry structured content.
   rmcp 3.5.1 derives an output schema only from a `Json<T>` return. The shared
   test clients validate every structured result in the suite against it,
@@ -267,7 +278,7 @@ returns an rmcp client.
 | 4b | `tests/stores.rs` | Three stores return their own records (MR-005.1), listing has no paths (MR-005.2), no creation without `create` (MR-005.5), handle from another store rejected (MR-005.6), embedded mode with two host engines (MR-004.1) |
 | 5 | `tests/bridge.rs` | A panic on the blocking thread is `internal/panic` and frees its admission permit |
 | 5b | `tests/admission.rs` | Admission queue (MR-033.2; `dev/design/agent-access/queue-admission.md` § 9): FIFO wait for a permit, `busy/admission` reasons `queue_full` and `deadline`, no start check, queued and cancelled calls, `busy/store_switch`, progress while queued; started calls run to completion, `timeout/deadline` at the run limit from the permit and the adapter keeps serving (MR-033.1), abandoned and stuck counts, cancel of a running call, shutdown with waiters |
-| 6 | `tests/search.rs` | Text and hybrid paths, filters rejected in text mode, `as_of` and `validity_instant` (MR-023), snippet cap (MR-040.1), completeness values (MR-030.1, MR-032), continuation exact on an unchanged store and stale on a new epoch (MR-041.2/.5), budget fits (MR-041.1/.3), references contain the logical id and are stable across restarts (MR-042.1/.3) |
+| 6 | `tests/search.rs` | Text and hybrid paths, closed direct-text filters, `as_of` and `validity_instant` (MR-023), snippet cap (MR-040.1), completeness values (MR-030.1, MR-032), continuation exact on an unchanged store and stale on a new epoch (MR-041.2/.5), budget fits (MR-041.1/.3), references contain the logical id and are stable across restarts (MR-042.1/.3) |
 | 7 | `tests/fetch_expand.rs` | Fetch order and per-item errors (MR-052), `l:` only (MR-042.2), malformed versus missing reference (MR-054.2), same content as SDK (MR-040.2, MR-070.1), `as_of` on fetch (MR-023.1), expand bounds (MR-053) |
 | 8 | `tests/feedback.rs` | `telemetry_disabled` (MR-024.2), `text_mode`, recorded with the right query id under concurrent hybrid searches (MR-024.1/.6), available in read-only mode (MR-024.4), wrong store or foreign refs rejected (MR-024.5), `store_reopened` (MR-006.5), unique ids per sink file across epochs (MR-024.7), output unchanged after feedback (MR-024.3) |
 | 8b | `tests/readonly.rs` | After calling every tool, the canonical write cursor and a digest of canonical and op-store rows are unchanged (MR-060.1) |

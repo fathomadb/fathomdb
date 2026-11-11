@@ -715,3 +715,56 @@ async fn body_cut_hint_budget_fits_complete_target_format_fetch() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+#[tokio::test]
+async fn compact_filtered_pages_traverse_the_sdk_prefix_when_each_whole_hit_fits() {
+    let fixture = Fixture::new();
+    let writes = (0..130)
+        .map(|i| node(&format!("n{i:03}"), "note", &format!("river crossing {i:03} café")))
+        .collect();
+    let path = fixture.store("a.sqlite", writes);
+    let sdk = fathomdb_sdk::Engine::open(&path, Default::default()).unwrap();
+    let mut options = fathomdb_sdk::TextSearchOptions::default();
+    options.view.valid_as_of = Some(1_900_000_000);
+    options.limit = 100;
+    let mut filter = fathomdb_sdk::SearchFilter::default();
+    filter.kind = Some("note".into());
+    options.filter = Some(filter);
+    let control = sdk.search_text_only("river", options).unwrap();
+    assert_eq!(control.results.len(), 100);
+    for hit in &control.results {
+        let body = format!("river crossing {} café", &hit.id.value[1..]);
+        let one=format!("search store=\"a\" epoch=1 validity_instant=1900000000 mode=text hits=1 completeness=cut_by_budget kind=\"note\" continuation=c1-0000000000000000 response_id=r1-0000000000000000 tokens=256/256 cut\n{} arm=text score={:.3} src=\"fixture\" | {body}",serde_json::to_string(&hit.id.to_prefixed()).unwrap(),hit.score);
+        assert!(
+            one.len().div_ceil(4) <= 256,
+            "independent complete one-hit specimen establishes progress"
+        );
+    }
+    let expected = control.results.iter().map(|hit| hit.id.to_prefixed()).collect::<Vec<_>>();
+    sdk.close().unwrap();
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let mut args =
+        json!({"query":"river","kind":"note","as_of":1900000000,"limit":5,"max_tokens":256});
+    let mut collected = Vec::new();
+    for _ in 0..101 {
+        let result = wire(&harness, "search", args).await;
+        checked_wire_budget(&result, "text", 256).unwrap();
+        let text = text_of(&result);
+        let header = text.lines().next().unwrap();
+        let page = text.lines().skip(1).map(|row| quoted_prefix(row).0).collect::<Vec<_>>();
+        if collected.len() < expected.len() {
+            assert!(!page.is_empty(), "the independent budget specimen proves a whole hit fits");
+        }
+        collected.extend(page);
+        assert_eq!(collected, expected[..collected.len()]);
+        if let Some(next) =
+            header.split_ascii_whitespace().find_map(|word| word.strip_prefix("continuation="))
+        {
+            args = json!({"continuation":next,"max_tokens":256});
+        } else {
+            break;
+        }
+    }
+    assert_eq!(collected, expected, "full traversal follows only from the whole-hit fit proof");
+    harness.shutdown().await;
+}

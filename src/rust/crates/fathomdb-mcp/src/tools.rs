@@ -1121,24 +1121,32 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
 
 fn render_fetch(output: &FetchOutput) -> String {
     let mut text = format!(
-        "fetch store={} epoch={} items={} validity_instant={}",
-        output.envelope.store,
+        "fetch store={} epoch={} validity_instant={} items={} tokens={}/{}{}",
+        shape::quote(&output.envelope.store),
         output.envelope.epoch,
+        output.envelope.validity_instant,
         output.items.len(),
-        output.envelope.validity_instant
+        output.envelope.budget.used_tokens,
+        output.envelope.budget.max_tokens,
+        if output.envelope.budget.cut { " cut" } else { "" }
     );
     hints::render(&output.hints, &mut text);
+    text.push('\n');
     for item in &output.items {
         match item {
-            FetchItem::Record { reference, record } => text.push_str(&format!(
-                "\n{} kind={} body={}{}",
-                shape::quote(reference),
-                shape::quote(&record.kind),
-                shape::quote(&record.body),
-                if record.body_cut { " (cut)" } else { "" }
-            )),
+            FetchItem::Record { reference, record } => {
+                text.push_str(&format!(
+                    "record {} kind={} bytes={}{}\n",
+                    shape::quote(reference),
+                    shape::quote(&record.kind),
+                    record.body.len(),
+                    if record.body_cut { " cut" } else { "" }
+                ));
+                text.push_str(&record.body);
+                text.push('\n');
+            }
             FetchItem::Error { reference, error } => text.push_str(&format!(
-                "\n{} error={}/{}",
+                "error {} {}/{}\n",
                 shape::quote(reference),
                 error.class_str(),
                 error.code

@@ -126,15 +126,15 @@ pub struct SearchArgs {
     pub query: Option<String>,
     /// `text` (lexical only) or `hybrid`; defaults to the operator's search_mode.
     pub mode: Option<ModeArg>,
-    /// Exact kind filter (hybrid only).
+    /// Exact kind filter.
     pub kind: Option<String>,
-    /// Exact source type filter (hybrid only).
+    /// Exact source type filter.
     pub source_type: Option<String>,
-    /// Exact status filter (hybrid only).
+    /// Exact status filter.
     pub status: Option<String>,
-    /// Lower bound on creation time, epoch seconds (hybrid only).
+    /// Lower bound on creation time, epoch seconds.
     pub created_after: Option<i64>,
-    /// Declared filterable attribute equalities (hybrid only).
+    /// Declared filterable attribute equalities.
     pub attributes: Option<BTreeMap<String, String>>,
     /// Validity instant, epoch seconds; defaults to now.
     pub as_of: Option<i64>,
@@ -953,16 +953,6 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 Some(ModeArg::Hybrid) => SearchMode::Hybrid,
                 None => ctx.shared.config.search_mode,
             };
-            let filtered = args.kind.is_some()
-                || args.source_type.is_some()
-                || args.status.is_some()
-                || args.created_after.is_some()
-                || args.attributes.is_some();
-            if mode == SearchMode::Text && filtered {
-                return Err(ToolError::bad_argument(
-                    "kind, source_type, status, created_after and attributes need mode \"hybrid\"",
-                ));
-            }
             let limit = args.limit.unwrap_or(10);
             if !(1..=MAX_RANKED as u64).contains(&limit) {
                 return Err(ToolError::bad_argument("limit must be in 1..=100"));
@@ -1022,6 +1012,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             let result = match mode {
                 SearchMode::Text => {
                     let mut options = TextSearchOptions::default();
+                    options.filter = search_filter(&request);
                     options.view = view;
                     options.limit = run_limit;
                     options.snippet = snippet;

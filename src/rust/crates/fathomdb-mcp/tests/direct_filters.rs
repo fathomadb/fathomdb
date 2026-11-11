@@ -139,7 +139,32 @@ async fn direct_text_forwards_every_closed_filter_and_conjunction() {
             assert_eq!(actual, control, "same-snapshot exact SDK IDs/scores {predicates}");
             assert_eq!(found["mode"], "text");
             assert_eq!(found["degradation"], json!([]));
-            assert!(found["results"].as_array().unwrap().iter().all(|hit| hit["arm"] == "text"));
+            assert_eq!(
+                found["results"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|hit| hit["arm"].as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                {
+                    let mut options = TextSearchOptions::default();
+                    options.filter = filter(&predicates);
+                    options.view.valid_as_of = Some(PINNED);
+                    options.limit = 100;
+                    engine
+                        .search_text_only("filterriver", options)
+                        .unwrap()
+                        .results
+                        .into_iter()
+                        .map(|hit| match hit.branch {
+                            fathomdb_sdk::SoftFallbackBranch::Text => "text",
+                            fathomdb_sdk::SoftFallbackBranch::TextEdge => "text_edge",
+                            other => panic!("unexpected nonlexical direct-text branch: {other:?}"),
+                        })
+                        .collect::<Vec<_>>()
+                },
+                "same-state SDK lexical node/edge arms; vector/graph branches forbidden"
+            );
         }
     }
     for predicates in [json!({}), json!({"attributes":{}})] {

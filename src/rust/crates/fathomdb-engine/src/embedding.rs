@@ -157,8 +157,8 @@ pub(crate) fn dispatch_embed_vector(
 
 /// The query vector, or `None` with the reason recorded when the embedding was
 /// refused for a reason the search reports instead of failing on. Errors other
-/// than missing configuration or queue overload keep the unlabeled sparse fallback; a provider panic
-/// resumes on the caller.
+/// than missing configuration, a dispatcher deadline or queue overload keep
+/// the unlabeled sparse fallback; a provider panic resumes on the caller.
 pub(crate) fn query_vector_or_degradation(
     embedded: Result<Vec<f32>, DispatchError>,
     degradations: &mut Vec<ArmDegradation>,
@@ -170,6 +170,13 @@ pub(crate) fn query_vector_or_degradation(
             degradations.push(ArmDegradation::new(
                 SoftFallbackBranch::Vector,
                 DegradationReason::EmbedderAbsent,
+            ));
+            None
+        }
+        Err(DispatchError::StartedTimeout) => {
+            degradations.push(ArmDegradation::new(
+                SoftFallbackBranch::Vector,
+                DegradationReason::EmbedderTimeout,
             ));
             None
         }

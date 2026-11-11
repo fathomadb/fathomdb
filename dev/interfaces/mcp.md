@@ -332,7 +332,9 @@ Result adds:
   configuration is `{arm: "vector", reason: "embedder_absent"}`; it is distinct
   from the retained sampled epoch `embedder_unavailable` label. Canonical order
   on a None-provider hybrid call is exactly absent then unavailable, and the
-  degraded hint names absent. `{arm: "vector", reason: "embedder_overloaded"}` is reported when this
+  degraded hint names absent. `embedder_timeout` reports a query that started in
+  its provider but exceeded the engine dispatcher deadline; provider-returned Timeout/Failed
+  and invalid vectors remain unlabeled. `{arm: "vector", reason: "embedder_overloaded"}` is reported when this
   search's query embedding was refused because the embed queue was full or it
   expired in that queue. The search still returns its text-arm hits (EP-03).
 - `verdict`: `unavailable` in this release (MR-031).

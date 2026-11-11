@@ -66,6 +66,9 @@ pub enum DegradationReason {
     /// No numerical runtime was configured for this query. The vector arm was
     /// skipped while the remaining arms ran. Wire word `embedder_absent`.
     EmbedderAbsent,
+    /// The query started in its provider but exceeded the dispatcher deadline.
+    /// The worker retains its slot until it returns. Wire word `embedder_timeout`.
+    EmbedderTimeout,
     /// The query embedding was refused because the embed dispatcher's waiting
     /// queue was full, or the request expired in that queue before any provider
     /// worker started it. The vector arm was skipped and the search ran on the
@@ -78,6 +81,7 @@ impl DegradationReason {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::EmbedderAbsent => "embedder_absent",
+            Self::EmbedderTimeout => "embedder_timeout",
             Self::EmbedderOverloaded => "embedder_overloaded",
         }
     }

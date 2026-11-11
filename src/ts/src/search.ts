@@ -22,11 +22,13 @@ export interface SoftFallback {
 }
 
 /** Why a requested search arm did not run. */
-export type DegradationReason = "embedder_absent" | "embedder_overloaded";
+export type DegradationReason = "embedder_absent" | "embedder_timeout" | "embedder_overloaded";
 
 /**
  * One search arm that was requested but did not run, and why.
  * `embedder_absent`: no numerical runtime was configured for this query.
+ * `embedder_timeout`: the query started in its provider but exceeded the
+ * dispatcher deadline; its worker retains its slot until it returns.
  * `embedder_overloaded`: the query embedding was refused because the embed
  * queue was full, or it expired in that queue; the search still returned the
  * hits of its other arms.

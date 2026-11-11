@@ -622,6 +622,9 @@ The Rust workspace also exposes the semver-stable companion crate
   `DegradationReason` are `#[non_exhaustive]`; `ArmDegradation::new` builds
   one and `DegradationReason::as_str` gives the wire word. `EmbedderAbsent`
   (`embedder_absent`) means no numerical runtime was configured for this query.
+  `EmbedderTimeout` (`embedder_timeout`) means the query started in its provider
+  but exceeded the dispatcher deadline; its worker retains its slot until return.
+  A provider-returned Timeout/Failed or invalid vector keeps the unlabeled sparse fallback.
   `EmbedderOverloaded` (`embedder_overloaded`) means the query embedding
   was refused because the embed queue was full (`Saturated`) or expired in
   that queue (`QueuedExpired`). The search then runs on its other arms and

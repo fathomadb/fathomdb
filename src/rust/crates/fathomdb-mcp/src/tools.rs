@@ -668,22 +668,38 @@ fn render_search(output: &SearchOutput) -> String {
         if let Some(source) = &hit.source_id {
             text.push_str(&format!(" src={}", shape::quote(source)));
         }
+        if let Some(ranges) = &hit.highlights {
+            let ranges = if ranges.is_empty() {
+                "[]".into()
+            } else {
+                ranges
+                    .iter()
+                    .map(|(start, end)| format!("{start}-{end}"))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            };
+            text.push_str(&format!(" hl={ranges}"));
+        }
         text.push_str(" | ");
         text.push_str(&hit.snippet.replace(['\r', '\n'], " "));
         if let Some(explain) = per_hit.and_then(|per_hit| per_hit.get(index)) {
             text.push_str(&format!(
-                "\n   explain: vector_rank={:?} text_rank={:?} graph_rank={:?} fused={} blended={}",
-                explain.vector_rank,
-                explain.text_rank,
-                explain.graph_rank,
-                explain.fused_score,
-                explain.blended
+                "\n  explain: {}",
+                serde_json::to_string(explain).expect("explanation serializes")
             ));
         }
     }
-    if let Some(ExplanationOut::Unavailable { reason, .. }) = &output.explanation {
-        text.push_str(&format!("\nexplanation: unavailable ({reason})"));
+    if let Some(explanation) = &output.explanation {
+        let value = match explanation {
+            ExplanationOut::Detail { trace, .. } => serde_json::json!({"trace": trace}),
+            other => serde_json::to_value(other).expect("explanation serializes"),
+        };
+        text.push_str(&format!(
+            "\nexplanation: {}",
+            serde_json::to_string(&value).expect("explanation serializes")
+        ));
     }
+
     text
 }
 

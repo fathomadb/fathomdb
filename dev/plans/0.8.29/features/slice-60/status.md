@@ -47,15 +47,14 @@ compile-only test candidate was archived externally and removed without ever
 running or landing; its assertions did not precede F12GREEN. The accepted path
 is honest supplemental post-code manual acceptance through public SDK and MCP calls,
 exactly2docs+1edge and the normal actual CPU MCP consumer in both formats.
-The bounded GPU setup v1 received FIX for concrete network isolation and compact
-reader coverage. Frozen v2 supplies a validated rootless user+net namespace
-(only lo DOWN, routes[] and NVML access), private command-local XDG/HF/CUDA
-caches, selected3090 UUID/cuda:0 and sequential structured/text sessions. Its
-independent recheck found inherited descriptors could survive unshare. Frozen
-v3 uses a final-process sanitizer before direct exec: model-free probes prove
-seeded socket/file descriptors close and socket stdio refuses before target
-execution. It awaits recheck before any model copy/load/compute. No missing-asset
-ruling, fake provider/metadata, new regression/TDD claim or scope waiver follows.
+Independent Astra passed bounded v3 setup after cache/isolation/descriptor fixes.
+Actual supplemental qualification passed: selected3090 real Default producer
+then close, SDK None14 cases, structured MCP14 cases and compact MCP14 cases.
+The original manual compact-orient spelling failure is retained; its reviewed
+text-only correction passed without another model/structured run. Exact sources,
+post-code timing and reproducible operator copies are indexed in
+`dev/experiments/0.8.29-slice60-projected-metadata/README.md`. No new RED or
+regression coverage claim follows. Final full gate remains owed.
 Later accepted50/70 parity and Block1/90/combined160 gates remain separate.
 
 ## Actual setup and checks

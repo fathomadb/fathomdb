@@ -1,0 +1,64 @@
+{
+  "source_sha": "2d8278c7290799afec4f9d15f06c5010017a9fd7",
+  "classification": "supplemental post-code manual acceptance; no new RED/regression coverage",
+  "gpu": {
+    "exit": 0,
+    "pid": 3418425,
+    "engaged": true,
+    "max_utilization": 5,
+    "max_owned_mib": 436,
+    "sample_count": 76
+  },
+  "producer": {
+    "cuda_compiled": true,
+    "database": "/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s60/gpu-metadata/run-001/store.sqlite",
+    "model_downloads": 0,
+    "producer_pid": 3418425,
+    "rows": [
+      [
+        "a",
+        1794366027,
+        ""
+      ],
+      [
+        "edge",
+        1794366027,
+        ""
+      ]
+    ],
+    "selected_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+    "vector_rows": 3,
+    "visible_ordinal": 0
+  },
+  "sdk_none_cases": 14,
+  "mcp_sessions": [
+    {
+      "format": "structured",
+      "cases": 14,
+      "exit": 0,
+      "evidence": "first-consumer-attempt/mcp-structured-transcript.json; v2 reached text only after structured close returned0"
+    },
+    {
+      "format": "text",
+      "cases": 14,
+      "exit": 0,
+      "evidence": "mcp-text-transcript.json; approved v3 affected-only resume"
+    }
+  ],
+  "artifacts": {
+    "gpu_producer": {
+      "path": "/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s60/gpu-metadata/target/debug/s60-manual-metadata-acceptance",
+      "sha256": "3054e520227dc93997ca50e60dc550fc17f829ae092ac884ba8d78d2b35d101d"
+    },
+    "cpu_sdk_control": {
+      "path": "/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s60/gpu-metadata/cpu-control-target/debug/s60-manual-metadata-acceptance",
+      "sha256": "d663a1605dc86d4a785579e4eb8364f24e3ab98f2a8ebdfb7788b98ca704b3c9"
+    },
+    "cpu_mcp": {
+      "path": "/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s60/target/debug/fathomdb-mcp",
+      "sha256": "e52130b70c2cdec9d61258d22435f8eda3e889b0b4284f77380892ccb9ae7547"
+    }
+  },
+  "original_failure_retained": true,
+  "f11": "HELD pending actual ruling"
+}

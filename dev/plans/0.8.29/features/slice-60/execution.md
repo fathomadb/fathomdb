@@ -141,23 +141,23 @@ requires the available3090 for real BGE preparation. CPU model execution never
 occurred. Source-only manual SDK drivers and actual normal MCP stdio consumers
 are external; no new provider/API/helper is introduced in the product.
 
-The bounded GPU v1 proposal received independent Astra FIX: explicit private
-XDG_CACHE_HOME plus a real network-disabled runtime boundary, and both reader
-formats. Frozen v2 is retained under
-`/tmp/fathomdb-0829-direct/slice-60/positive-metadata-review/manifest-v2.json`.
-Its exact unshare user+net wrapper probe passes with only lo DOWN, IPv4/IPv6
-routes[], selected UUID mask and read-only NVML access. It verifies destination
-pins and room inside that boundary before exec; there is no live-network
-fallback. Actual producer target/cache remain separate from normal CPU/full-
-gate resources; the normal actual candidate MCP binary and a no-CUDA SDK
-control perform sequential structured/text manual checks on the same completed
-3-row fixture and stored timestamps. Independent v2 review found inherited
-host-network descriptors could survive unshare. Frozen v3 retains v1/v2 and
-uses a final Python sanitizer before direct exec. Its same-path model-free
-probes observed and closed inherited socket/file FDs3/5 (target EBADF), refused
-socket stdin/stdout/stderr126 before target execution, and passed ordinary
-local-stream namespace/empty-route/NVML checks0. v3 recheck remains required.
-No model copy/load/compute has yet occurred.
+The bounded GPU v1/v2 proposals received independent FIX for actual XDG cache,
+both consumer formats and inherited descriptors. Astra passed final v3 after
+same-path model-free FD/namespace probes. Actual run at checkpoint2d8278c72
+passed one Default3090 producer (3 vector rows), no download/reranker/witness,
+then closed.76 NVML samples bound PID3418425 to selected UUID/cuda:0 with5%
+utilization/436MiB. Driver580.178.04/primary12.6 unchanged. Genuine a/edge
+status='' and created_at1794366027 were preserved in the completed store.
+
+Separate no-CUDA SDK None14 cases and actual normal MCP structured14 cases
+passed. Compact orient initially failed two manual expected field spellings;
+existing F05 contract was correct. Same Astra passed exact two-spelling fix and
+optional format selection. Text-only resumption passed14 cases/exit0; original
+failure/structured pass remain retained, with no repeated producer/structured
+run or new product RED claim. Combined receipt is task gpu-metadata/run-001/
+manual-qualification.json. Exact executed sources plus separately disclosed
+portable operator copies, lock provenance, commands and artifact hashes are
+indexed in dev/experiments/0.8.29-slice60-projected-metadata/README.md.
 
 No ref ABI/guard/provider/model workaround, whole60 completion, full green,
 20/30/Block1 exit or platform release qualification is claimed. Fresh independent

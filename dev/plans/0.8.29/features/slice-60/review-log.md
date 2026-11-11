@@ -89,3 +89,10 @@ FDs≥3 and reject socket stdio before direct exec. The same exec path proved
 seeded socket/file EBADF, each socket-stdio refusal126 before target execution,
 and ordinary-stream NVML identity success0. v1/v2 remain immutable externally.
 Setup v3 recheck and actual manual results remain owed.
+
+Astra v3 setup terminal PASS resolved the final-process descriptor finding. Parent
+explicitly authorized the bounded actual3090 producer and sequential None-reader
+composition. After the retained compact-orient manual spelling failure, same
+Astra passed exact checker diff2c93992f543ef5bd3b2d410d3a8b354ea7463328454da0ec7060f91db14a4faa;
+text-only resumption passed14 cases. This is supplemental post-code acceptance,
+not new regression/TDD evidence. Final implementation review is still required.

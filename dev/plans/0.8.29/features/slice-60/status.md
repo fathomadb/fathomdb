@@ -54,7 +54,7 @@ The original manual compact-orient spelling failure is retained; its reviewed
 text-only correction passed without another model/structured run. Exact sources,
 post-code timing and reproducible operator copies are indexed in
 `dev/experiments/0.8.29-slice60-projected-metadata/README.md`. No new RED or
-regression coverage claim follows. Final full gate remains owed.
+regression coverage claim follows. Assembled canonical qualification is recorded below.
 Later accepted50/70 parity and Block1/90/combined160 gates remain separate.
 
 ## Actual setup and checks
@@ -86,9 +86,25 @@ unchanged; the historical comparator uses only its independently reviewed exact
 allowlist and rejects unjustified shorter fetch prefixes.
 
 Supplemental display digit-boundary and independently progress-capable compact
-filtered traversal controls pass, with no new RED claim. Final stable-source
-strict full agent-verify has not run. Fresh installed
-production Python/TS lifecycle, canonical Python candidate/child nonce identity,
-complete retained native output/real exits/skips, final docs checks and fresh
-independent Astra implementation/results review remain required. No full green,
-source acceptance, release readiness, merge or platform qualification is claimed.
+filtered traversal controls pass, with no new RED claim. The single strict full
+wrapper at307c92e3 failed at the extra manual Cargo-patch inventory after earlier
+lint passes. Independently reviewed packaging-only7038b5b4 removed that tracked
+manifest and explicitly materializes the exact governed private inputs; no guard
+or product source changed. Failed/remaining canonical stages then passed on
+clean7038b5b47dc7dd02bc64e612d788fa334ff79b61, without another full wrapper.
+
+All214 registered suites ran/passed; zero failed, suite-skipped or excluded.
+Rust reported2694 passed/0 failed/67 ignored; Python1744 passed/38 skipped;
+TypeScript625 passed/0 failed/6 skipped. Strict security recorded zero violations,
+blockers or downgrades with actual ptrace/live netns. Existing canonical ignored/
+skipped cases remain explicit; no filtering or policy waiver was added.
+
+Fresh canonical production Python/TS builds and installed open/close/exit checks
+passed on307, with unchanged relevant runtime/source/manifest/lock inputs at7038.
+The separate canonical test-hook child receipt binds7038 and nonce
+agent-test-3483006 to actual loaded module digest2c681fa7cb5e35811f951283f2757e668b2f881d8601b61d9ec796d000bcaf7e.
+The collector retained285 logs with no missed opens; no resource stop occurred.
+Exact raw paths, hashes, counts, production equivalence and limits are in owned
+task receipts/final-qualified-subset.json. Fresh distinct independent final
+implementation/results review is pending. F11 remains held: no whole60 closure,
+20/30/Block1 exit, source acceptance, merge or platform/release readiness follows.

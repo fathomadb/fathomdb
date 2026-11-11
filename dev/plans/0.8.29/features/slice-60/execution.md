@@ -115,16 +115,37 @@ released native window; no remaining audit child preceded its return.
 
 ## Qualification boundary
 
-Final stable-source strict full agent-verify has not run. The selected owned
-Python library is verified by path/hash/SONAME in python-loader-identity;
-this executor passed an actual strace/ptrace probe. Final source-bound production
-Python/TS lifecycle and canonical test-hook candidate/child identity are distinct
-required evidence. A task-owned read-only descriptor collector will preserve
-canonical passing native spills across their normal unlink; it changes no gate.
-The inotify probe failed before launching its child because the host watch limit
-was exhausted; no global setting changed. The2ms read-only polling/retained-FD
-probe then preserved both authored output lines after canonical unlink, with
-exit0 and no missed opens.
+The single strict full agent-verify wrapper ran on clean307c92e3 and failed at
+pinned-override-rot: the durable manual driver added an unsupported tracked
+Cargo-patch location. Earlier canonical lint passes and the actual failure are
+retained. Same Astra passed exact four-file packaging repair7038b5b4: no guard
+change/new pin, exact root patch/source binding/frozen lock validation, external
+materialization only. Static valid/refusal controls passed without native/model
+runs. Failed and remaining canonical stages resumed on clean
+7038b5b47dc7dd02bc64e612d788fa334ff79b61; there was no second full wrapper.
+
+Assembled resumption exited0:214 registered/ran/passed,0 failed/skipped/excluded.
+Rust:2694 passed,0 failed,67 ignored across405 reports; Python1744 passed,
+38 skipped; TypeScript625 passed,0 failed,6 skipped of631. Strict security had
+0 violations/blockers/downgrades, including real ptrace and live netns. Native
+Rust used canonical serial jobs1/test-threads1. Numeric resource floors remained
+satisfied, with no stop;285 complete captured logs were retained and no opens
+were missed. Raw commands/exits/counts/paths/hashes and original wrapper failure
+are indexed by owned task receipts/final-qualified-subset.json and its referenced
+resource/retention manifests. Canonical ignored/skipped cases remain visible.
+
+Production Python/TS canonical builds and two installed open/close cycles each
+passed on307; exact relevant Rust/Python/TS/manifest/lock inputs are unchanged at
+7038. Production Python digest92d8c07ea23dc1c420fd96d8ea5b685dc94c5924dd6bb997d1f20a03fc922ac7
+and NAPI digest0f80025e5209d513d277aef964e030093ce142f42ac850242c2c218239b42a73
+are separate from test-hook qualification. The canonical fresh child-loaded test
+module digest2c681fa7cb5e35811f951283f2757e668b2f881d8601b61d9ec796d000bcaf7e
+binds clean7038 and nonceagent-test-3483006; the canonical receipt verifier passed.
+Selected Python shared-library path/hash/SONAME and command-local loader path
+remain verified. The read-only spill collector preserved native output across
+canonical unlink without changing any gate. Its earlier inotify probe failed
+before a child due to host watch limits; no global setting changed. The2ms
+polling/retained-FD probe and final collector both passed with no missed opens.
 
 F11 search view exposure/repeated-ref feedback remains held for the actual user
 ruling and reviewed addendum. Positive MCP projected-status/time qualification

@@ -1464,18 +1464,40 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     }
 }
 
+fn render_feedback(output: &FeedbackOutput) -> String {
+    let status = match output.status {
+        FeedbackStatus::Recorded => "recorded",
+        FeedbackStatus::NotRecorded => "not_recorded",
+    };
+    let mut text = format!(
+        "feedback store={} epoch={} validity_instant={} status={status}",
+        shape::quote(&output.envelope.store),
+        output.envelope.epoch,
+        output.envelope.validity_instant
+    );
+    if let Some(reason) = output.reason {
+        let reason = serde_json::to_value(reason).expect("reason serializes");
+        text.push_str(&format!(" reason={}", reason.as_str().expect("reason word")));
+    }
+    text.push_str(&format!(
+        " tokens={}/{}{}",
+        output.envelope.budget.used_tokens,
+        output.envelope.budget.max_tokens,
+        if output.envelope.budget.cut { " cut" } else { "" }
+    ));
+    for entry in &output.envelope.degradation {
+        text.push_str(&format!("\ndegraded: {} {}", entry.arm, entry.reason));
+    }
+    text
+}
+
 fn not_recorded(store: &str, epoch: u64, reason: NotRecordedReason, max_tokens: u32) -> Rendered {
     let output = FeedbackOutput {
         envelope: envelope(store, epoch, now_secs(), vec![], max_tokens),
         status: FeedbackStatus::NotRecorded,
         reason: Some(reason),
     };
-    let reason_text = serde_json::to_value(reason).expect("serializes");
-    let text = format!(
-        "feedback store={store} status=not_recorded reason={}",
-        reason_text.as_str().unwrap_or("")
-    );
-    finish(&output, text, max_tokens, false).0
+    finish(&output, render_feedback(&output), max_tokens, false).0
 }
 
 pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
@@ -1564,8 +1586,7 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
         status: FeedbackStatus::Recorded,
         reason: None,
     };
-    let text = format!("feedback store={store} status=recorded");
-    Ok(finish(&output, text, max_tokens, false).0)
+    Ok(finish(&output, render_feedback(&output), max_tokens, false).0)
 }
 
 #[cfg(test)]

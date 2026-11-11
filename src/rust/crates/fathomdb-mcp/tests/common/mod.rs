@@ -53,15 +53,23 @@ impl Fixture {
     }
 
     /// Parse `config` as if it were a file in the fixture directory.
-    pub fn config(&self, config: Value) -> Config {
+    pub fn config(&self, mut config: Value) -> Config {
+        config.as_object_mut().unwrap().entry("result_format").or_insert(json!("structured"));
         Config::from_json_str(&config.to_string(), self.dir.path()).expect("valid test config")
     }
 
-    pub fn config_file(&self, config: Value) -> PathBuf {
+    pub fn config_file(&self, mut config: Value) -> PathBuf {
+        config.as_object_mut().unwrap().entry("result_format").or_insert(json!("structured"));
         let path = self.path("mcp.json");
         std::fs::write(&path, config.to_string()).expect("write config");
         path
     }
+}
+
+/// Explicit structured configuration for inherited semantic/schema tests.
+/// Default-format wire tests use the public Config default directly.
+pub fn structured_config() -> Config {
+    Config { result_format: "structured".into(), ..Config::default() }
 }
 
 pub fn node(logical_id: &str, kind: &str, body: &str) -> PreparedWrite {
@@ -211,8 +219,8 @@ pub async fn call(client: &Client, tool: &str, args: Value) -> CallToolResult {
     result
 }
 
-/// Every tool's declared `outputSchema`, by name. The tool list is static
-/// (MR-012.1), so one listing serves every test in the binary.
+/// Schemas for the inherited explicitly structured-only callers. Mixed-format
+/// wire tests capture schemas from their own connection instead.
 static OUTPUT_SCHEMAS: std::sync::OnceLock<std::collections::HashMap<String, Value>> =
     std::sync::OnceLock::new();
 

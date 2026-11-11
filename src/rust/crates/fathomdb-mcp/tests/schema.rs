@@ -20,7 +20,7 @@ fn compile(schema: &Value) -> jsonschema::JSONSchema {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn every_tool_declares_draft_2020_12_input_and_output_schemas() {
-    let harness = Harness::start(fathomdb_mcp::config::Config::default()).await;
+    let harness = Harness::start(common::structured_config()).await;
     let tools = serde_json::to_value(harness.tools().await).unwrap();
     for tool in tools.as_array().unwrap() {
         let name = tool["name"].as_str().unwrap();
@@ -36,7 +36,7 @@ async fn every_tool_declares_draft_2020_12_input_and_output_schemas() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn output_schemas_are_not_vacuous() {
-    let harness = Harness::start(fathomdb_mcp::config::Config::default()).await;
+    let harness = Harness::start(common::structured_config()).await;
     let tools = serde_json::to_value(harness.tools().await).unwrap();
     let schema_of = |name: &str| -> jsonschema::JSONSchema {
         let tool = tools.as_array().unwrap().iter().find(|tool| tool["name"] == name).unwrap();
@@ -99,7 +99,7 @@ async fn every_tool_result_and_error_validates_against_its_output_schema() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn input_schemas_declare_the_argument_bounds() {
-    let harness = Harness::start(fathomdb_mcp::config::Config::default()).await;
+    let harness = Harness::start(common::structured_config()).await;
     let tools = serde_json::to_value(harness.tools().await).unwrap();
     let property = |tool: &str, name: &str| -> Value {
         let tool = tools.as_array().unwrap().iter().find(|t| t["name"] == tool).unwrap();

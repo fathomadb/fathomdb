@@ -296,7 +296,7 @@ fn the_process_holds_no_listening_socket() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn adapter_requires_no_store_to_serve_the_handshake() {
-    let adapter = Adapter::new(fathomdb_mcp::config::Config::default()).unwrap();
+    let adapter = Adapter::new(common::structured_config()).unwrap();
     let client = common::connect(&adapter).await;
     let tools = client.list_all_tools().await.unwrap();
     assert_eq!(tools.len(), 7);
@@ -329,7 +329,7 @@ fn closing_stdin_drains_open_stores_and_releases_their_locks() {
 /// field in one sentence, within the compact-guide cap.
 #[tokio::test(flavor = "multi_thread")]
 async fn instructions_say_hints_lists_suggested_next_calls() {
-    let harness = Harness::start(fathomdb_mcp::config::Config::default()).await;
+    let harness = Harness::start(common::structured_config()).await;
     let instructions = instructions_of(&harness);
     assert!(
         instructions.contains("`hints` lists suggested next calls"),

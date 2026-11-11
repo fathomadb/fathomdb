@@ -8,7 +8,6 @@ mod common;
 use std::sync::Arc;
 
 use common::{connect, node, Fixture, Harness};
-use fathomdb_mcp::config::Config;
 use fathomdb_mcp::Adapter;
 use fathomdb_sdk::{Engine, OpenOptions};
 use serde_json::json;
@@ -168,7 +167,7 @@ async fn embedded_mode_serves_host_engines_without_a_second_open() {
     fixture.store("two.sqlite", vec![node("note:2", "note", "second host river")]);
     let one = Arc::new(Engine::open(fixture.path("one.sqlite"), OpenOptions::default()).unwrap());
     let two = Arc::new(Engine::open(fixture.path("two.sqlite"), OpenOptions::default()).unwrap());
-    let adapter = Adapter::new(Config::default()).unwrap();
+    let adapter = Adapter::new(common::structured_config()).unwrap();
     adapter.register_engine("one", one.clone()).unwrap();
     adapter.register_engine("two", two.clone()).unwrap();
     assert!(adapter.register_engine("one", one.clone()).is_err(), "duplicate names refused");
@@ -198,7 +197,7 @@ async fn embedded_continuations_are_marked_inexact() {
         (0..4).map(|i| node(&format!("note:{i}"), "note", &format!("host river {i}"))).collect();
     fixture.store("one.sqlite", writes);
     let one = Arc::new(Engine::open(fixture.path("one.sqlite"), OpenOptions::default()).unwrap());
-    let adapter = Adapter::new(Config::default()).unwrap();
+    let adapter = Adapter::new(common::structured_config()).unwrap();
     adapter.register_engine("one", one.clone()).unwrap();
     let client = connect(&adapter).await;
     let page =

@@ -430,26 +430,55 @@ struct OrientRead {
 
 fn render_orient(output: &OrientOutput) -> String {
     let mut text = format!(
-        "orient store={} epoch={} validity_instant={}\nprojections: {}",
-        output.envelope.store,
+        "orient store={} epoch={} validity_instant={} tokens={}/{}{}",
+        shape::quote(&output.envelope.store),
         output.envelope.epoch,
         output.envelope.validity_instant,
-        output.projections.len()
+        output.envelope.budget.used_tokens,
+        output.envelope.budget.max_tokens,
+        if output.envelope.budget.cut { " cut" } else { "" }
     );
+    for entry in &output.envelope.degradation {
+        text.push_str(&format!("\ndegraded: {} {}", entry.arm, entry.reason));
+    }
     for projection in &output.projections {
+        let dense =
+            output.projection_status.projections.iter().find(|entry| entry.name == projection.name);
         text.push_str(&format!(
-            "\n{} roles={} fts={} vector={}",
-            projection.name,
+            "\nprojection {} roles={} fts={} vector={}",
+            shape::quote(&projection.name),
             projection.roles.join(","),
             projection.fts,
             projection.vector
         ));
+        if let Some(dense) = dense {
+            text.push_str(&format!(" dense={}", dense.dense_readiness));
+        }
+    }
+    // Status rows remain explicit if a hosted registry changes between reads.
+    for status in &output.projection_status.projections {
+        if !output.projections.iter().any(|projection| projection.name == status.name) {
+            text.push_str(&format!(
+                "\nprojection {} dense={}",
+                shape::quote(&status.name),
+                status.dense_readiness
+            ));
+        }
     }
     text.push_str(&format!(
-        "\nembedding: state={} usable_embedder={} pending={}\nkinds: unavailable\ncounts: unavailable",
+        "\nembedding: state={} usable_embedder={} pending={} affected_kinds={}",
         output.embedding_readiness.state,
         output.embedding_readiness.usable_embedder,
-        output.embedding_readiness.pending_count
+        output.embedding_readiness.pending_count,
+        serde_json::to_string(&output.embedding_readiness.affected_kinds)
+            .expect("strings serialize")
+    ));
+    text.push_str(&format!(
+        "\nruntime_embedder: available={} reason={}\nvector_unsupported_kinds={}",
+        output.projection_status.runtime_embedder_available,
+        output.projection_status.runtime_unavailability_reason,
+        serde_json::to_string(&output.projection_status.vector_unsupported_kinds)
+            .expect("strings serialize")
     ));
     text
 }

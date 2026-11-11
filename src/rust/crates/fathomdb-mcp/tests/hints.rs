@@ -60,6 +60,15 @@ async fn every_tool_accepts_a_hints_argument() {
     harness.shutdown().await;
 }
 
+async fn compact_peer(fixture: &Fixture, extra: Value) -> Harness {
+    let mut config =
+        json!({"stores":{"a":{"path":"a.sqlite"}},"default_store":"a","result_format":"text"});
+    for (key, value) in extra.as_object().unwrap() {
+        config[key] = value.clone();
+    }
+    Harness::start(fixture.config(config)).await
+}
+
 fn hints_of(result: &Value) -> Vec<Value> {
     result.get("hints").and_then(Value::as_array).cloned().unwrap_or_default()
 }
@@ -96,7 +105,8 @@ async fn empty_text_search_suggests_hybrid_only_when_hybrid_available() {
 /// `degraded` then `no_results`, and no `index_not_ready` word.
 #[tokio::test(flavor = "multi_thread")]
 async fn empty_with_degradation_emits_no_results_and_degraded() {
-    let (_fixture, harness) = harness_with(river_notes(3, 40), json!({})).await;
+    let (fixture, harness) = harness_with(river_notes(3, 40), json!({})).await;
+    let compact = compact_peer(&fixture, json!({})).await;
     let result = harness.call("search", json!({"query": "zebra", "mode": "hybrid"})).await;
     let found = result.structured_content.clone().unwrap();
     assert_eq!(found["completeness"], "empty_not_ready");
@@ -107,13 +117,16 @@ async fn empty_with_degradation_emits_no_results_and_degraded() {
             json!({"action": "search", "reason": "no_results"}),
         ]
     );
-    let text = common::text_of(&result);
+    let text_result = compact.call("search", json!({"query":"zebra","mode":"hybrid"})).await;
+    assert!(text_result.structured_content.is_none());
+    let text = common::text_of(&text_result);
     assert!(!found.to_string().contains("index_not_ready"), "{found}");
     assert!(!text.contains("index_not_ready"), "{text}");
     let hint_lines: Vec<&str> = text.lines().filter(|line| line.starts_with("hint: ")).collect();
     assert_eq!(hint_lines.len(), 2, "one text line per hint: {text}");
     assert!(hint_lines[0].starts_with("hint: none "), "{text}");
     assert!(hint_lines[1].starts_with("hint: search "), "{text}");
+    compact.shutdown().await;
     harness.shutdown().await;
 }
 
@@ -284,13 +297,15 @@ async fn continuation_hint_equals_result_continuation() {
 #[tokio::test(flavor = "multi_thread")]
 async fn paging_hint_text_says_pass_only_the_continuation() {
     let (_fixture, harness) =
-        harness_with(river_notes(30, 400), json!({"snippet_bytes": 40})).await;
+        harness_with(river_notes(30, 400), json!({"snippet_bytes":40,"result_format":"text"}))
+            .await;
     for (args, reason) in [
-        (json!({"query": "river", "limit": 5}), "more_results"),
-        (json!({"query": "river", "limit": 20, "max_tokens": 700}), "cut_by_budget"),
+        (json!({"query":"river","limit":5}), "more_results"),
+        (json!({"query":"river","limit":20,"max_tokens":256}), "cut_by_budget"),
     ] {
         let result = harness.call("search", args).await;
-        let found = result.structured_content.clone().unwrap();
+        assert_ne!(result.is_error, Some(true));
+        assert!(result.structured_content.is_none());
         let text = common::text_of(&result);
         let line = text
             .lines()
@@ -300,8 +315,19 @@ async fn paging_hint_text_says_pass_only_the_continuation() {
             .unwrap_or_else(|| panic!("no {reason} hint line: {text}"));
         assert!(line.contains("only the continuation"), "{line}");
         assert!(line.contains("do not repeat query or limit"), "{line}");
-        let next = harness.ok("search", json!({"continuation": found["continuation"]})).await;
-        assert!(!common::refs(&next).is_empty(), "{next}");
+        let continuation = text
+            .lines()
+            .next()
+            .unwrap()
+            .split_ascii_whitespace()
+            .find_map(|field| field.strip_prefix("continuation="))
+            .unwrap();
+        let next = harness.call("search", json!({"continuation":continuation})).await;
+        assert_ne!(next.is_error, Some(true), "{}", common::text_of(&next));
+        assert!(
+            common::text_of(&next).lines().skip(1).any(|line| line.starts_with('"')),
+            "the next text page has hits"
+        );
     }
     harness.shutdown().await;
 }
@@ -376,13 +402,21 @@ async fn list_stores_emits_default_store_set_hint() {
         hints_of(&listed),
         vec![json!({"action": "search", "reason": "default_store_set", "store": "a"})]
     );
-    let text = common::text_of(&result);
+    let compact = compact_peer(&fixture, json!({"default_store":null})).await;
+    let selected = compact.call("use_store", json!({"store":"a"})).await;
+    assert_ne!(selected.is_error, Some(true));
+    let text_result = compact.call("list_stores", json!({})).await;
+    assert!(text_result.structured_content.is_none());
+    let text = common::text_of(&text_result);
     assert!(
         text.lines().any(|line| line.starts_with("hint: search store=\"a\" (default_store_set: ")),
         "{text}"
     );
     let off = harness.ok("list_stores", json!({"hints": false})).await;
     assert_eq!(hints_of(&off), Vec::<Value>::new());
+    let off_text = compact.call("list_stores", json!({"hints":false})).await;
+    assert!(!common::text_of(&off_text).lines().any(|line| line.starts_with("hint: ")));
+    compact.shutdown().await;
     harness.shutdown().await;
 }
 
@@ -445,29 +479,33 @@ async fn hit_line_refs_are_quoted_in_text_blocks() {
         common::edge("link", odd, "note:2"),
         common::edge("link", "note:2", odd),
     ];
-    let (_fixture, harness) = harness_with(writes, json!({})).await;
+    let (fixture, harness) = harness_with(writes, json!({})).await;
+    let compact = compact_peer(&fixture, json!({})).await;
     let quoted = |reference: &str| serde_json::to_string(reference).unwrap();
     let odd_ref = format!("l:{odd}");
     for hints in [true, false] {
         let result = harness.call("search", json!({"query": "river", "hints": hints})).await;
-        let text = common::text_of(&result);
         let found = result.structured_content.clone().unwrap();
-        for (index, reference) in common::refs(&found).iter().enumerate() {
-            let line = format!("\n{}. {} kind=", index + 1, quoted(reference));
+        let result = compact.call("search", json!({"query":"river","hints":hints})).await;
+        assert!(result.structured_content.is_none());
+        let text = common::text_of(&result);
+        for reference in &common::refs(&found) {
+            let line = format!("\n{} arm=", quoted(reference));
             assert!(text.contains(&line), "search hit line {line:?} in {text}");
         }
         let result =
-            harness.call("fetch", json!({"refs": [odd_ref, "l:note:2"], "hints": hints})).await;
+            compact.call("fetch", json!({"refs": [odd_ref, "l:note:2"], "hints": hints})).await;
         let text = common::text_of(&result);
         for reference in [odd_ref.as_str(), "l:note:2"] {
-            let line = format!("\n{} kind=", quoted(reference));
+            let line = format!("\nrecord {} kind=", quoted(reference));
             assert!(text.contains(&line), "fetch item line {line:?} in {text}");
         }
-        let result = harness.call("expand", json!({"refs": ["l:note:2"], "hints": hints})).await;
+        let result = compact.call("expand", json!({"refs": ["l:note:2"], "hints": hints})).await;
         let text = common::text_of(&result);
         let line = format!("\n{} kind=", quoted(&odd_ref));
         assert!(text.contains(&line), "expand target line {line:?} in {text}");
     }
+    compact.shutdown().await;
     harness.shutdown().await;
 }
 
@@ -494,8 +532,9 @@ async fn snippet_cut_hint_text_follows_the_snippet_anchor() {
         ),
     ];
     for (writes, expected) in cases {
-        let (_fixture, harness) = harness_with(writes, json!({})).await;
+        let (_fixture, harness) = harness_with(writes, json!({"result_format":"text"})).await;
         let result = harness.call("search", json!({"query": "zanzibar"})).await;
+        assert!(result.structured_content.is_none());
         let text = common::text_of(&result);
         let line = text
             .lines()

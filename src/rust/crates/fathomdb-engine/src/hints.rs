@@ -135,6 +135,8 @@ pub enum HintCause {
     ProjectionDegraded,
     /// No numerical runtime was configured for this query (`embedder_absent`).
     EmbedderAbsent,
+    /// The query started in its provider but exceeded its deadline (`embedder_timeout`).
+    EmbedderTimeout,
 }
 
 impl HintCause {
@@ -153,6 +155,7 @@ impl HintCause {
             Self::ProjectionDeferred => "projection_deferred",
             Self::ProjectionDegraded => "projection_degraded",
             Self::EmbedderAbsent => "embedder_absent",
+            Self::EmbedderTimeout => "embedder_timeout",
         }
     }
 }

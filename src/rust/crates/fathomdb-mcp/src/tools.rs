@@ -611,18 +611,36 @@ fn render_search(output: &SearchOutput) -> String {
         ModeWord::Text => "text",
         ModeWord::Hybrid => "hybrid",
     };
+    let common_kind = output
+        .results
+        .first()
+        .map(|hit| hit.kind.as_str())
+        .filter(|kind| output.results.iter().all(|hit| hit.kind == *kind));
     let mut text = format!(
-        "search store={} epoch={} mode={} completeness={} results={} validity_instant={}\nresponse_id={} continuation={}\ndegradation={}",
-        output.envelope.store,
+        "search store={} epoch={} validity_instant={} mode={} hits={} completeness={}",
+        shape::quote(&output.envelope.store),
         output.envelope.epoch,
-        mode,
-        output.completeness.as_str(),
-        output.results.len(),
         output.envelope.validity_instant,
-        output.response_id,
-        output.continuation.as_deref().unwrap_or("none"),
-        shape::render_degradation(&output.envelope.degradation),
+        mode,
+        output.results.len(),
+        output.completeness.as_str(),
     );
+    if let Some(kind) = common_kind {
+        text.push_str(&format!(" kind={}", shape::quote(kind)));
+    }
+    if let Some(handle) = &output.continuation {
+        text.push_str(&format!(" continuation={handle}"));
+    }
+    text.push_str(&format!(
+        " response_id={} tokens={}/{}{}",
+        output.response_id,
+        output.envelope.budget.used_tokens,
+        output.envelope.budget.max_tokens,
+        if output.envelope.budget.cut { " cut" } else { "" }
+    ));
+    for entry in &output.envelope.degradation {
+        text.push_str(&format!("\ndegraded: {} {}", entry.arm, entry.reason));
+    }
     hints::render(&output.hints, &mut text);
     let per_hit = match &output.explanation {
         Some(ExplanationOut::Detail { per_hit, .. }) => Some(per_hit),
@@ -630,17 +648,28 @@ fn render_search(output: &SearchOutput) -> String {
     };
     for (index, hit) in output.results.iter().enumerate() {
         text.push_str(&format!(
-            "\n{}. {} kind={} score={} arm={} source={} anchor={} snippet={}{}",
-            index + 1,
+            "\n{} arm={} score={:.3}",
             shape::quote(&hit.reference),
-            shape::quote(&hit.kind),
-            hit.score,
             hit.arm,
-            hit.source_id.as_deref().map_or_else(|| "none".to_string(), shape::quote),
-            hit.snippet_anchor,
-            shape::quote(&hit.snippet),
-            if hit.snippet_cut { " (cut)" } else { "" }
+            hit.score
         ));
+        if let Some(ce) = hit.ce_score {
+            text.push_str(&format!(" ce={ce:.3}"));
+        }
+        if hit.snippet_anchor != "whole" {
+            text.push_str(&format!(" anchor={}", hit.snippet_anchor));
+        }
+        if hit.snippet_cut {
+            text.push_str(" cut");
+        }
+        if common_kind.is_none() {
+            text.push_str(&format!(" kind={}", shape::quote(&hit.kind)));
+        }
+        if let Some(source) = &hit.source_id {
+            text.push_str(&format!(" src={}", shape::quote(source)));
+        }
+        text.push_str(" | ");
+        text.push_str(&hit.snippet.replace(['\r', '\n'], " "));
         if let Some(explain) = per_hit.and_then(|per_hit| per_hit.get(index)) {
             text.push_str(&format!(
                 "\n   explain: vector_rank={:?} text_rank={:?} graph_rank={:?} fused={} blended={}",

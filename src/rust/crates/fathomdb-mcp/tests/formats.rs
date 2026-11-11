@@ -157,3 +157,25 @@ async fn compact_search_signal_highlights_and_text_explanation() {
     );
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn hosted_continuation_reports_best_effort() {
+    let fixture = Fixture::new();
+    let path = fixture.store(
+        "host.sqlite",
+        (0..3).map(|i| node(&format!("host{i}"), "note", &format!("river {i}"))).collect(),
+    );
+    let engine = std::sync::Arc::new(fathomdb_sdk::Engine::open(path, Default::default()).unwrap());
+    let harness = Harness::start(Config::default()).await;
+    harness.adapter.register_engine("host", engine.clone()).unwrap();
+    let result =
+        wire(&harness, "search", json!({"store":"host","query":"river","limit":1,"hints":false}))
+            .await;
+    let text = text_of(&result);
+    let header = text.lines().next().unwrap();
+    assert!(header.contains(" continuation=c1-"), "{header}");
+    assert!(header.contains(" continuation_exact=false "), "{header}");
+    assert!(!header.contains("state="), "epoch is not a new freshness assertion");
+    harness.shutdown().await;
+    engine.close().unwrap();
+}

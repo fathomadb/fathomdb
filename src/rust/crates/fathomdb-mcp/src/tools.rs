@@ -1285,25 +1285,35 @@ fn degradation_code(code: GraphExpansionDegradationCodeV1) -> &'static str {
 
 fn render_expand(output: &ExpandOutput) -> String {
     let mut text = format!(
-        "expand store={} epoch={} targets={} complete={} bound={} validity_instant={}\ndegradation={}",
-        output.envelope.store,
+        "expand store={} epoch={} validity_instant={} targets={} complete={}",
+        shape::quote(&output.envelope.store),
         output.envelope.epoch,
-        output.targets.len(),
-        output.complete,
-        output.bound.as_deref().unwrap_or("none"),
         output.envelope.validity_instant,
-        shape::render_degradation(&output.envelope.degradation)
+        output.targets.len(),
+        output.complete
     );
+    if let Some(bound) = &output.bound {
+        text.push_str(&format!(" bound={bound}"));
+    }
+    text.push_str(&format!(
+        " tokens={}/{}{}",
+        output.envelope.budget.used_tokens,
+        output.envelope.budget.max_tokens,
+        if output.envelope.budget.cut { " cut" } else { "" }
+    ));
+    for entry in &output.envelope.degradation {
+        text.push_str(&format!("\ndegraded: {} {}", entry.arm, entry.reason));
+    }
     hints::render(&output.hints, &mut text);
     for target in &output.targets {
         text.push_str(&format!(
-            "\n{} kind={} hops={} via={} body={}{}",
+            "\n{} kind={} hop={} edge={}{} | {}",
             shape::quote(&target.reference),
             shape::quote(&target.kind),
             target.hop_count,
             shape::quote(&target.terminal_edge_kind),
-            shape::quote(&target.body),
-            if target.body_cut { " (cut)" } else { "" }
+            if target.body_cut { " cut" } else { "" },
+            target.body.replace(['\r', '\n'], " ")
         ));
     }
     text

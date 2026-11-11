@@ -155,19 +155,6 @@ pub fn quote(text: &str) -> String {
     serde_json::to_string(text).expect("strings serialize")
 }
 
-/// Render degradation entries for text blocks.
-#[must_use]
-pub fn render_degradation(entries: &[Degradation]) -> String {
-    if entries.is_empty() {
-        return "none".to_string();
-    }
-    entries
-        .iter()
-        .map(|entry| format!("{}({})", entry.arm, entry.reason))
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
 /// Shorten the longest bodies until `excess` (bytes over budget for the
 /// current bodies) reaches zero or every body is empty. `bodies` holds
 /// `(text, cut)` pairs. Each body appears in both the structured content and

@@ -222,6 +222,10 @@ fn quoted_prefix(input: &str) -> (String, &str) {
 
 fn fetch_frames(text: &str) -> Vec<Value> {
     let (_, mut remaining) = text.split_once('\n').expect("fetch header line");
+    while remaining.starts_with("hint: ") {
+        let (_, tail) = remaining.split_once('\n').expect("hint line before frames");
+        remaining = tail;
+    }
     let mut items = Vec::new();
     while !remaining.is_empty() {
         let (header, tail) = remaining.split_once('\n').expect("item header line");
@@ -455,4 +459,259 @@ async fn structured_text_is_exact_final_payload_json_for_all_tools_and_errors() 
         "text must be the exact serialized final payload: {mismatches:?}"
     );
     harness.shutdown().await;
+}
+
+fn checked_wire_budget(result: &CallToolResult, format: &str, max: u64) -> Result<(), String> {
+    if result.is_error == Some(true) {
+        return Err(format!("unexpected refusal: {}", text_of(result)));
+    }
+    let text = text_of(result);
+    if format == "structured" {
+        let payload = result.structured_content.as_ref().ok_or("missing payload")?;
+        if text != serde_json::to_string(payload).unwrap() {
+            return Err("text differs from final JSON".into());
+        }
+        let mut p = payload.clone();
+        p.as_object_mut().unwrap().remove("budget");
+        let expected = (serde_json::to_string(&p).unwrap().len() + text.len()).div_ceil(4) as u64;
+        if payload["budget"]["used_tokens"] != expected {
+            return Err(format!(
+                "structured displayed count {} expected {expected}",
+                payload["budget"]["used_tokens"]
+            ));
+        }
+        if (2 * text.len()).div_ceil(4) as u64 > max {
+            return Err("both final JSON copies overflow".into());
+        }
+    } else {
+        if result.structured_content.is_some() {
+            return Err("text carried structuredContent".into());
+        }
+        let count = text
+            .lines()
+            .next()
+            .unwrap()
+            .split_ascii_whitespace()
+            .find_map(|word| word.strip_prefix("tokens="))
+            .ok_or("missing count")?;
+        let (used, applied) = count.split_once('/').unwrap();
+        let used = used.parse::<u64>().unwrap();
+        if applied.parse::<u64>().unwrap() != max {
+            return Err("max changed".into());
+        }
+        let expected = text.len().div_ceil(4) as u64;
+        if used != expected {
+            return Err(format!(
+                "text count {used} expected {expected} for {} UTF8 bytes",
+                text.len()
+            ));
+        }
+        if used > max {
+            return Err("final text overflows".into());
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn final_wire_counts_include_their_own_digits_and_every_tool_field() {
+    let mut failures = Vec::new();
+    for format in ["text", "structured"] {
+        for body_len in [1, 40, 400, 4000] {
+            let fixture = Fixture::new();
+            let body = format!("river {}\r\n😀", "é\\\"|".repeat(body_len));
+            fixture.store(
+                "a.sqlite",
+                vec![
+                    node("n", "note", &body),
+                    node("to", "note", "river target"),
+                    common::edge("link", "n", "to"),
+                ],
+            );
+            let harness = Harness::start(wire_config(
+                &fixture,
+                json!({"result_format":format,"default_max_tokens":20000,"hints":true}),
+            ))
+            .await;
+            for (tool, args) in [
+                ("orient", json!({})),
+                (
+                    "search",
+                    json!({"query":"river","limit":1,"max_tokens":20000,"highlights":true,"explain":true}),
+                ),
+                ("fetch", json!({"refs":["l:n","l:missing","h:x"],"max_tokens":20000})),
+                ("expand", json!({"refs":["l:n"],"max_tokens":20000})),
+                ("feedback", json!({"response_id":"expired","used":[]})),
+            ] {
+                let result = wire(&harness, tool, args).await;
+                if let Err(error) = checked_wire_budget(&result, format, 20000) {
+                    failures.push(format!("{format}/{body_len}/{tool}: {error}"));
+                }
+            }
+            harness.shutdown().await;
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[tokio::test]
+async fn budgeted_tools_refuse_mandatory_metadata_overflow() {
+    let fixture = Fixture::new();
+    let engine = std::sync::Arc::new(
+        fathomdb_sdk::Engine::open(fixture.path("many.sqlite"), Default::default()).unwrap(),
+    );
+    let specs = (0..30)
+        .map(|i| fathomdb_sdk::ProjectionSpec {
+            name: format!("projection_{i:02}"),
+            roles: [fathomdb_sdk::ProjectionRole::Rankable].into(),
+            fts: None,
+            vector: None,
+            source: None,
+        })
+        .collect::<Vec<_>>();
+    engine.configure_projections(&specs, &[]).unwrap();
+    let mut failures = Vec::new();
+    for format in ["text", "structured"] {
+        let config = Config::from_json_str(
+            &json!({"result_format":format,"default_max_tokens":256}).to_string(),
+            fixture.dir.path(),
+        )
+        .unwrap();
+        let harness = Harness::start(config).await;
+        harness.adapter.register_engine("a", engine.clone()).unwrap();
+        let result = wire(&harness, "orient", json!({"store":"a"})).await;
+        if result.is_error != Some(true) {
+            failures.push(format!("{format} orient returned oversized mandatory metadata"));
+        } else if let Some(payload) = result.structured_content {
+            assert_eq!(payload["error"]["code"], "bad_argument");
+        }
+        harness.shutdown().await;
+    }
+    engine.close().unwrap();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[tokio::test]
+async fn final_budget_cuts_keep_fetch_outcomes_and_expand_suffix_bounds() {
+    let fixture = Fixture::new();
+    let body = format!("river {}\r\n😀", "é\\\"|".repeat(600));
+    let mut writes = vec![node("root", "note", "river root")];
+    for i in 0..8 {
+        writes.push(node(&format!("n{i}"), "note", &body));
+        writes.push(common::edge("link", "root", &format!("n{i}")));
+    }
+    fixture.store("a.sqlite", writes);
+    let mut failures = Vec::new();
+    for format in ["text", "structured"] {
+        let harness =
+            Harness::start(wire_config(&fixture, json!({"result_format":format,"hints":true})))
+                .await;
+        for (tool, args) in [
+            ("search", json!({"query":"river","limit":8,"max_tokens":256})),
+            ("fetch", json!({"refs":["l:n0","l:missing","l:n0","h:x"],"max_tokens":512})),
+            ("expand", json!({"refs":["l:root"],"max_tokens":256})),
+        ] {
+            let result = wire(&harness, tool, args).await;
+            if result.is_error == Some(true) {
+                if let Some(payload) = result.structured_content {
+                    assert_eq!(payload["error"]["code"], "bad_argument");
+                }
+                continue;
+            }
+            let max = if tool == "fetch" { 512 } else { 256 };
+            if let Err(error) = checked_wire_budget(&result, format, max) {
+                failures.push(format!("{format}/{tool}: {error}"));
+            }
+            if tool == "fetch" {
+                if let Some(payload) = &result.structured_content {
+                    assert_eq!(payload["items"].as_array().unwrap().len(), 4);
+                    for i in [0, 2] {
+                        assert!(body
+                            .starts_with(payload["items"][i]["record"]["body"].as_str().unwrap()));
+                    }
+                    assert_eq!(payload["items"][1]["error"]["code"], "not_found");
+                    assert_eq!(payload["items"][3]["error"]["code"], "unsupported_ref");
+                } else {
+                    let frames = fetch_frames(&text_of(&result));
+                    assert_eq!(frames.len(), 4);
+                }
+            }
+            if let Some(payload) = result.structured_content {
+                if tool == "expand" && payload["targets"].as_array().unwrap().len() < 8 {
+                    assert_eq!(payload["bound"], "budget");
+                }
+            }
+        }
+        harness.shutdown().await;
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[tokio::test]
+async fn body_cut_hint_budget_fits_complete_target_format_fetch() {
+    let fixture = Fixture::new();
+    let body = format!("river {}\r\n😀", "é\\\"|".repeat(600));
+    let mut writes = vec![node("root", "note", "river root")];
+    for i in 0..6 {
+        writes.push(node(&format!("n{i}"), "note", &body));
+        writes.push(common::edge("link", "root", &format!("n{i}")));
+    }
+    fixture.store("a.sqlite", writes);
+    let mut failures = Vec::new();
+    for format in ["text", "structured"] {
+        let harness =
+            Harness::start(wire_config(&fixture, json!({"result_format":format,"hints":true})))
+                .await;
+        for (tool, args) in [
+            ("fetch", json!({"refs":["l:n0","l:n1","l:n2"],"max_tokens":1000,"as_of":1900000000})),
+            ("expand", json!({"refs":["l:root"],"max_tokens":1000,"as_of":1900000000})),
+        ] {
+            let cut = wire(&harness, tool, args).await;
+            assert_ne!(cut.is_error, Some(true), "{}", text_of(&cut));
+            let (refs, max) = if let Some(payload) = &cut.structured_content {
+                let hint = payload["hints"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|hint| hint["reason"] == "body_cut")
+                    .unwrap();
+                (hint["refs"].clone(), hint["max_tokens"].as_u64().unwrap())
+            } else {
+                let text = text_of(&cut);
+                let line = text
+                    .lines()
+                    .find(|line| line.starts_with("hint: fetch ") && line.contains("(body_cut: "))
+                    .unwrap();
+                let input = line.strip_prefix("hint: fetch ").unwrap();
+                let mut decoder = serde_json::Deserializer::from_str(input).into_iter::<Value>();
+                let refs = decoder.next().unwrap().unwrap();
+                let max = input[decoder.byte_offset()..]
+                    .split_ascii_whitespace()
+                    .find_map(|word| word.strip_prefix("max_tokens="))
+                    .unwrap()
+                    .parse::<u64>()
+                    .unwrap();
+                (refs, max)
+            };
+            let uncut =
+                wire(&harness, "fetch", json!({"refs":refs,"max_tokens":max,"as_of":1900000000}))
+                    .await;
+            if let Err(error) = checked_wire_budget(&uncut, format, max) {
+                failures.push(format!("{format}/{tool} hinted fetch: {error}"));
+            }
+            if let Some(payload) = &uncut.structured_content {
+                for item in payload["items"].as_array().unwrap() {
+                    assert_eq!(item["record"]["body"], body);
+                    assert_eq!(item["record"]["body_cut"], false);
+                }
+            } else {
+                for frame in fetch_frames(&text_of(&uncut)) {
+                    assert_eq!(frame["body"], body);
+                    assert_eq!(frame["cut"], false);
+                }
+            }
+        }
+        harness.shutdown().await;
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

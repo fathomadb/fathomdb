@@ -1244,15 +1244,19 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
             hints,
         }
     };
-    shape::cut_bodies(&mut bodies, |bodies| {
-        let output = build(bodies);
-        let cut = bodies.iter().any(|(_, cut)| *cut);
-        let whole = finish(&output, render_fetch(&output), max_tokens, cut).1;
-        if !cut {
-            uncut_whole.set(whole);
-        }
-        bytes_over(whole, max_tokens)
-    });
+    shape::cut_bodies(
+        &mut bodies,
+        |bodies| {
+            let output = build(bodies);
+            let cut = bodies.iter().any(|(_, cut)| *cut);
+            let whole = finish(&output, render_fetch(&output), max_tokens, cut).1;
+            if !cut {
+                uncut_whole.set(whole);
+            }
+            bytes_over(whole, max_tokens)
+        },
+        2,
+    );
     let output = build(&bodies);
     let cut = bodies.iter().any(|(_, cut)| *cut);
     let (rendered, whole) = finish(&output, render_fetch(&output), max_tokens, cut);
@@ -1438,15 +1442,19 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             hints,
         }
     };
-    shape::cut_bodies(&mut bodies, |bodies| {
-        let output = build(bodies, kept);
-        let cut = bodies.iter().any(|(_, cut)| *cut);
-        let whole = finish(&output, render_expand(&output), max_tokens, cut).1;
-        if !cut {
-            uncut_whole.set(whole);
-        }
-        bytes_over(whole, max_tokens)
-    });
+    shape::cut_bodies(
+        &mut bodies,
+        |bodies| {
+            let output = build(bodies, kept);
+            let cut = bodies.iter().any(|(_, cut)| *cut);
+            let whole = finish(&output, render_expand(&output), max_tokens, cut).1;
+            if !cut {
+                uncut_whole.set(whole);
+            }
+            bytes_over(whole, max_tokens)
+        },
+        2,
+    );
     loop {
         let output = build(&bodies[..kept], kept);
         let cut = kept < result.targets.len() || bodies.iter().any(|(_, cut)| *cut);

@@ -162,6 +162,7 @@ pub fn quote(text: &str) -> String {
 pub fn cut_bodies(
     bodies: &mut [(String, bool)],
     mut excess: impl FnMut(&[(String, bool)]) -> usize,
+    _copies: usize,
 ) {
     loop {
         let over = excess(bodies);
@@ -242,7 +243,7 @@ mod tests {
             let size = |state: &[(String, bool)]| -> usize {
                 state.iter().map(|(body, _)| 2 * serde_json::to_string(body).unwrap().len()).sum()
             };
-            cut_bodies(&mut state, |state| size(state).saturating_sub(budget));
+            cut_bodies(&mut state, |state| size(state).saturating_sub(budget), 2);
             let fits = size(&state) <= budget;
             prop_assert!(fits || state.iter().all(|(body, _)| body.is_empty()));
             for ((body, cut), before) in state.iter().zip(&original) {

@@ -203,5 +203,8 @@ async fn hints_validate_against_output_schema() {
     valid["hints"] =
         json!([{"action": "none", "reason": "degraded", "arm": "vector", "cause": "tired"}]);
     assert!(!schema.is_valid(&valid), "an unknown cause is rejected");
+    valid["hints"] =
+        json!([{"action":"none","reason":"degraded","arm":"vector","cause":"embedder_absent"}]);
+    assert!(schema.is_valid(&valid), "the approved absence cause validates");
     harness.shutdown().await;
 }

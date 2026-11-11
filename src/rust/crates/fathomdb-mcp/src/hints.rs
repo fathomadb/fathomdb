@@ -328,4 +328,16 @@ mod tests {
         );
         assert!(degraded(&[]).is_none());
     }
+
+    #[test]
+    fn absent_cause_maps_to_degraded_hint() {
+        let entries = [entry("vector", "embedder_absent")];
+        let hint = degraded(&entries).expect("the approved absence cause needs a hint");
+        assert_eq!(
+            serde_json::to_value(hint).unwrap(),
+            serde_json::json!({
+                "action": "none", "reason": "degraded", "arm": "vector", "cause": "embedder_absent"
+            })
+        );
+    }
 }

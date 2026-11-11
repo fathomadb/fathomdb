@@ -284,6 +284,9 @@ impl Config {
     /// # Errors
     /// [`ConfigError`] naming the first key at fault.
     pub fn validate(&self) -> Result<(), ConfigError> {
+        if !matches!(self.result_format.as_str(), "text" | "structured") {
+            return Err(ConfigError::new("result_format: must be text or structured"));
+        }
         if self.max_open_stores != 1 {
             return Err(ConfigError::new("max_open_stores: must be 1 in this release (MR-005.7)"));
         }

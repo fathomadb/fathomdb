@@ -140,3 +140,20 @@ async fn compact_search_rows_keep_quotes_and_scores() {
     assert_eq!(result.structured_content.unwrap()["results"][0]["score"].as_f64().unwrap(), score);
     structured.shutdown().await;
 }
+
+#[tokio::test]
+async fn compact_search_signal_highlights_and_text_explanation() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", vec![node("unicode", "note", "é\r\nriver café 😀")]);
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let result =
+        wire(&harness, "search", json!({"query":"river","highlights":true,"explain":true})).await;
+    let text = text_of(&result);
+    assert!(text.lines().any(|line| line.contains(" hl=4-9 | é  river café 😀")), "{text}");
+    let explanation = text.lines().find_map(|line| line.strip_prefix("explanation: ")).unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(explanation).unwrap(),
+        json!({"status":"unavailable","reason":"text_mode"})
+    );
+    harness.shutdown().await;
+}

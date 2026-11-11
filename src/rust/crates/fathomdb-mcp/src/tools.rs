@@ -1612,4 +1612,77 @@ mod compact_render_tests {
         assert_eq!(output.results[0].score, 0.123456);
         assert_eq!(output.results[0].ce_score, Some(0.987654));
     }
+
+    #[test]
+    fn compact_search_signal_keeps_full_explanation_json() {
+        let mut output = search_output();
+        output.explanation = Some(ExplanationOut::Detail {
+            trace: TraceOut {
+                query_chars: 5,
+                k: 1,
+                rerank_depth: 3,
+                pool_n: 7,
+                alpha: 0.25,
+                use_graph_arm: true,
+                recency: false,
+                embedder_id: "none".into(),
+                ce_active: false,
+                vector_hits: 0,
+                text_hits: 1,
+                graph_hits: 0,
+                dropped_edge_hits: 2,
+            },
+            per_hit: vec![PerHitOut {
+                reference: "l:a".into(),
+                arm: "text".into(),
+                vector_rank: None,
+                text_rank: Some(1),
+                graph_rank: None,
+                fused_score: 0.123456,
+                ce_score: Some(0.987654),
+                blended: 0.222222,
+            }],
+        });
+        let text = render_search(&output);
+        let per_hit = text
+            .lines()
+            .find_map(|line| line.strip_prefix("  explain: "))
+            .expect("one complete JSON per-hit explanation");
+        assert_eq!(
+            serde_json::from_str::<Value>(per_hit).unwrap(),
+            serde_json::json!({
+                "ref":"l:a", "arm":"text", "vector_rank":null, "text_rank":1, "graph_rank":null,
+                "fused_score":0.123456, "ce_score":0.987654, "blended":0.222222
+            })
+        );
+        let trace = text.lines().find_map(|line| line.strip_prefix("explanation: ")).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(trace).unwrap(),
+            serde_json::json!({"trace":{
+                "query_chars":5,"k":1,"rerank_depth":3,"pool_n":7,"alpha":0.25,
+                "use_graph_arm":true,"recency":false,"embedder_id":"none","ce_active":false,
+                "vector_hits":0,"text_hits":1,"graph_hits":0,"dropped_edge_hits":2
+            }})
+        );
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(64))]
+        #[test]
+        fn compact_search_signal_roundtrips_refs_and_requested_highlights(
+            chars in proptest::collection::vec(proptest::sample::select(vec!['a',' ','"','\\','\r','\n','|','é','😀']), 1..40),
+            empty in proptest::bool::ANY,
+        ) {
+            let mut output = search_output();
+            let reference = format!("l:{}", chars.into_iter().collect::<String>());
+            output.results[0].reference = reference.clone();
+            output.results[0].highlights = Some(if empty { Vec::new() } else { vec![(0,5)] });
+            let text = render_search(&output);
+            let row = text.lines().find(|line| line.starts_with('"')).unwrap();
+            let mut decoder = serde_json::Deserializer::from_str(row).into_iter::<String>();
+            proptest::prop_assert_eq!(decoder.next().unwrap().unwrap(), reference);
+            let expected = if empty { " hl=[] | river" } else { " hl=0-5 | river" };
+            proptest::prop_assert!(row.contains(expected), "{row}");
+        }
+    }
 }

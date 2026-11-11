@@ -32,6 +32,7 @@ reported embed_dispatch
 reported embed_dispatch::core
 reported embed_dispatch::d27_observation
 reported embedding
+reported embedding::closing_tests
 reported erasure
 reported erasure_maintenance
 reported erasure_queue

@@ -929,3 +929,7 @@ required-features = ["test-hooks", "operator"]
 [[test]]
 name = "slice85_budget"
 required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice70_query_degradations"
+required-features = ["test-hooks"]

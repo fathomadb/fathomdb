@@ -175,9 +175,14 @@ fn a_queued_embed_request_past_its_deadline_is_reported_as_embedder_overloaded()
 
     embedder.open();
     let started_timeout = holder.join().unwrap().expect("the started request's search completes");
-    assert!(
-        started_timeout.degradations.is_empty(),
-        "a started-then-timed-out embed is not embedder_overloaded"
+    assert_eq!(
+        started_timeout
+            .degradations
+            .iter()
+            .map(|entry| (entry.arm, entry.reason.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(SoftFallbackBranch::Vector, "embedder_timeout")],
+        "a started-then-timed-out embed has its own reason, distinct from queued overload"
     );
     assert_text_only_with_overload(&result);
     Arc::try_unwrap(engine).unwrap_or_else(|_| panic!("sole owner")).close().expect("close");

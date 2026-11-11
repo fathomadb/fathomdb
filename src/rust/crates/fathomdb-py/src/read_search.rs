@@ -681,4 +681,82 @@ mod degradation_tests {
             .map(|entries| entries.into_iter().map(|e| (e.arm, e.reason)).collect::<Vec<_>>());
         assert_eq!(words, Some(vec![("vector".into(), "embedder_absent".into())]));
     }
+    struct OpenGateOnDrop(Arc<Gate>);
+    impl Drop for OpenGateOnDrop {
+        fn drop(&mut self) {
+            *self.0.closed.lock().unwrap() = false;
+            self.0.changed.notify_all();
+        }
+    }
+
+    fn started_timeout_result<T>(op: fn(&fathomdb_engine::Engine) -> T) -> T {
+        let dir = tempfile::tempdir().unwrap();
+        let gate = Arc::new(Gate::default());
+        let engine = fathomdb_engine::Engine::open_with_test_choice_and_config_for_test(
+            dir.path().join("s70-native-timeout.sqlite"),
+            TestEmbedderChoice::Caller(gate.clone()),
+            EngineConfig {
+                embedder_pool_size: Some(1),
+                embedder_call_timeout_ms: Some(300),
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap()
+        .engine;
+        let release = OpenGateOnDrop(gate.clone());
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".into(),
+                body: "sliceseventyneedle note".into(),
+                source_id: SourceId::new("s70-native-timeout").unwrap(),
+                logical_id: Some("s70-native-timeout-note".into()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.drain(30_000).unwrap();
+        engine.begin_d27_observation_for_test(Instant::now());
+        *gate.closed.lock().unwrap() = true;
+        let result = op(&engine);
+        let events = engine.d27_observation_for_test().unwrap().embed_dispatch_events;
+        let blocked = gate.blocked.load(Ordering::SeqCst);
+        drop(release);
+        let healthy = engine.embed_text("released worker reused");
+        engine.close().unwrap();
+        assert_eq!(blocked, 1, "the converted request itself reached its held provider");
+        assert_eq!(events.len(), 1);
+        assert!(events[0].started_ns.is_some() && events[0].terminal_ns.is_some());
+        assert_eq!(healthy.unwrap(), vec![1.0; 8]);
+        result
+    }
+
+    #[test]
+    fn search_result_reports_started_timeout() {
+        let result = started_timeout_result(|engine| engine.search("sliceseventyneedle").unwrap());
+        assert_eq!(result.results.len(), 1);
+        assert_eq!(result.results[0].id.value, "s70-native-timeout-note");
+        assert_eq!(result.results[0].branch, SoftFallbackBranch::Text);
+        let converted = PySearchResult::from_rust(result);
+        let words = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|e| (e.arm, e.reason)).collect::<Vec<_>>());
+        assert_eq!(words, Some(vec![("vector".into(), "embedder_timeout".into())]));
+    }
+
+    #[test]
+    fn search_expand_result_reports_started_timeout() {
+        let result = started_timeout_result(|engine| {
+            engine.search_expand("sliceseventyneedle", None, 1).unwrap()
+        });
+        assert_eq!(result.search_hits.len(), 1);
+        assert_eq!(result.search_hits[0].id.value, "s70-native-timeout-note");
+        assert_eq!(result.search_hits[0].branch, SoftFallbackBranch::Text);
+        let converted = PySearchExpandResult::from_rust(result);
+        let words = converted
+            .degradations
+            .map(|entries| entries.into_iter().map(|e| (e.arm, e.reason)).collect::<Vec<_>>());
+        assert_eq!(words, Some(vec![("vector".into(), "embedder_timeout".into())]));
+    }
 }

@@ -418,7 +418,7 @@ pub(crate) async fn use_store(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> O
     let args: UseStoreArgs = parse(arguments)?;
     ctx.shared.registry.ensure_slot(&args.store)?;
     ctx.session.set_default_store(&args.store);
-    let text = format!("default store: {}", args.store);
+    let text = format!("default store: {}", shape::quote(&args.store));
     Ok(plain(&UseStoreOutput { store: args.store }, text))
 }
 

@@ -34,7 +34,6 @@ test("read.embeddingReadiness and immediate typed drain rejection keep edge bodi
     assert.equal(readiness.operation, "graph_edge_body_projection");
     assert.deepEqual(readiness.remediations, [
       "configure_default_embedder",
-      "configure_caller_embedder",
       "submit_non_embedding_input",
     ]);
     assert.equal(readiness.documentationUrl, "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED");

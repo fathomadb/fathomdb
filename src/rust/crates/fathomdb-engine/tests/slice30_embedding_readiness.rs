@@ -6,7 +6,8 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    EmbeddingOperation, EmbeddingReadinessState, Engine, EngineError, PreparedWrite, SourceId,
+    EmbeddingOperation, EmbeddingReadinessState, Engine, EngineError, InitialState, PreparedWrite,
+    SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::OptionalExtension;
@@ -110,6 +111,10 @@ fn body_bearing_edge_without_embedder_reports_blocked_and_drain_is_immediate_typ
     let blocked = readiness.blocked.expect("blocked payload");
     assert_eq!(blocked.operation, EmbeddingOperation::GraphEdgeBodyProjection);
     assert_eq!(blocked.code, "FDB_EMBEDDER_REQUIRED");
+    assert_eq!(
+        blocked.remediations,
+        vec!["configure_default_embedder", "submit_non_embedding_input"]
+    );
     assert_eq!(blocked.documentation_url, "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED");
 
     let started = std::time::Instant::now();
@@ -120,6 +125,7 @@ fn body_bearing_edge_without_embedder_reports_blocked_and_drain_is_immediate_typ
         EngineError::EmbedderRequired(ref required)
             if required.operation == EmbeddingOperation::GraphEdgeBodyProjection
                 && required.code == "FDB_EMBEDDER_REQUIRED"
+                && required == &blocked
     ));
 }
 
@@ -207,4 +213,35 @@ fn equivalence_refused_open_preserves_pending_work_for_explicit_recovery() {
     assert!(readiness.blocked.is_some());
     assert!(matches!(opened.engine.drain(0), Err(EngineError::EmbedderRequired(_))));
     opened.engine.close().unwrap();
+}
+
+#[test]
+fn pending_vector_work_reports_only_supported_remedies_in_readiness_and_drain() {
+    let dir = TempDir::new().expect("tempdir");
+    let engine = Engine::open(db_path(&dir, "missing_vector_embedder")).unwrap().engine;
+    engine.configure_vector_kind_for_test("note").unwrap();
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "note".into(),
+            body: "pending vector work".into(),
+            source_id: SourceId::new("test:slice70-readiness").unwrap(),
+            logical_id: Some("pending-vector-note".into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .unwrap();
+    let readiness = engine.read_embedding_readiness().unwrap();
+    assert_eq!(readiness.state, EmbeddingReadinessState::Blocked);
+    assert_eq!(readiness.pending_count, 1);
+    let blocked = readiness.blocked.unwrap();
+    assert_eq!(blocked.operation, EmbeddingOperation::VectorProjection);
+    assert_eq!(
+        blocked.remediations,
+        vec!["configure_default_embedder", "submit_non_embedding_input"]
+    );
+    assert_eq!(engine.drain(0), Err(EngineError::EmbedderRequired(blocked)));
+    assert_eq!(engine.read_embedding_readiness().unwrap().pending_count, 1);
+    engine.close().unwrap();
 }

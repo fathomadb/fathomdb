@@ -41,7 +41,6 @@ def test_embedding_readiness_and_immediate_error_are_typed_and_body_private(tmp_
         assert readiness.operation == "graph_edge_body_projection"
         assert readiness.remediations == (
             "configure_default_embedder",
-            "configure_caller_embedder",
             "submit_non_embedding_input",
         )
         assert readiness.documentation_url == "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED"

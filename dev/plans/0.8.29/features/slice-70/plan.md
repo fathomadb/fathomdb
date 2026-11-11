@@ -7,6 +7,32 @@ slice: 70
 
 # Slice 70 — Truthful degradation and SDK/native contract parity
 
+## Actual source-entry reconciliation
+
+Source entry is the sole-writer checkout
+`/mnt/data/worktrees/fathomdb-0.8.29-s70-sdk`, branch `llm/0.8.29-s70-sdk`,
+clean base589467efdc47c29e2a81a798c88877ed38f2761f. Parent created it after
+strict closed10 landing/target preflights; the owner repeated exact identity
+and strict target preflight with zero hard failures/warnings. Setup ownership
+check passed. Own documentation is frozen for the same Astra design reviewer
+before implementation; approved owned setup may proceed during that review.
+
+Integrated60 qualified subset5271c1bf022f0ea22f95f7433e226feb2315043e has fresh
+independent implementation PASS. All22 pinned product/test objects match the
+historical307c/7038 witnesses exactly. Actual final60 source, affected bodies,
+execution/status/review and the partial integration boundary were reread.
+Original source-pins/proposed diff and raw predecessor evidence remain unchanged.
+Historical candidate and future-entry wording below records the reviewed
+pre-entry proposal; this section supplies its actual entry facts.
+
+60 qualification is assembled214/214 suites, Rust2694pass/67ignored,
+Python1744pass/38skip, TS625pass/6skip, strict security and exact candidate/child
+identity. The original307 full-wrapper inventory failure remains recorded.
+Whole60/F11 and whole20 remain open; neither adds a hard70 prerequisite.
+No70 runtime pass, implementation result or final review is claimed here.
+Approved reason/remedy/export/Closing/UTF8 scope and all RED ordering/oracles
+remain unchanged; no new policy, provider route, threshold/default or gate.
+
 ## Authority and readiness
 
 Slice9 Batch4 approves bounded degradation/parity corrections through the

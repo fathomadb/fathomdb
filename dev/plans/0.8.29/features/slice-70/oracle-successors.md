@@ -21,6 +21,14 @@ The four non-product operator packaging changes are enumerated in source pins;
 five test/oracle owners. Production70 enum/helper translation edits remain the
 already reviewed design, not implemented by this packet.
 
+## Actual source-entry reconciliation
+
+Actual entry589467 and integrated qualified partial60 subset5271 are recorded
+in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
+All22 historical product/test pins match; approved scope, exact oracles and
+runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
+implementation; only owned setup may run while that review is pending.
+
 ## Receiving product contracts
 
 60 now implements strict text-default result_format, schema-bound discovery,

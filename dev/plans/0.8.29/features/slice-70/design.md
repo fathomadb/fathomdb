@@ -17,6 +17,14 @@ recheck, with no source authorization. Actual60 product/test pins at307c remain
 identical at candidate7038; only reviewed non-product operator packaging differs.
 See [source pins](source-pins.json) for exact objects and exceptions.
 
+## Actual source-entry reconciliation
+
+Actual entry589467 and integrated qualified partial60 subset5271 are recorded
+in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
+All22 historical product/test pins match; approved scope, exact oracles and
+runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
+implementation; only owned setup may run while that review is pending.
+
 ## Built behavior versus proposed delta
 
 Paths below are repository-relative. This pass reread EP03 byte/overload, readiness engine/Python/TS, foreground/CUDA

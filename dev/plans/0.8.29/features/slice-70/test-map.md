@@ -16,6 +16,14 @@ and [pinned illustrative diff](oracle-successors.proposed.diff) are attached tes
 specifications, not optional scratch addenda. Inputs passed parent-owned Astra
 review; this consolidation awaits consistency recheck.
 
+## Actual source-entry reconciliation
+
+Actual entry589467 and integrated qualified partial60 subset5271 are recorded
+in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
+All22 historical product/test pins match; approved scope, exact oracles and
+runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
+implementation; only owned setup may run while that review is pending.
+
 ## Existing controls inspected
 
 | Source body, relative to repository | Actual assertion / qualification limit |

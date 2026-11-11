@@ -17,6 +17,14 @@ independent recheck. Source requires parent GO, own isolation/owned setup,
 strict closed10 preflight and actual integrated60 rereading.
 IDs below are release-local; canonical `dev/acceptance.md` remains locked.
 
+## Actual source-entry reconciliation
+
+Actual entry589467 and integrated qualified partial60 subset5271 are recorded
+in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
+All22 historical product/test pins match; approved scope, exact oracles and
+runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
+implementation; only owned setup may run while that review is pending.
+
 ## Need and authority
 
 N29-A/K → R29-REL-A/K → R29-3P-12 / O3-12 / D29-SDK in the

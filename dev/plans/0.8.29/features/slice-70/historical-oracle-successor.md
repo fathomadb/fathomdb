@@ -15,6 +15,14 @@ gate. The prior reviewed originals remain immutable outside this candidate tree.
 See [complete oracle inventory](oracle-successors.md), [pinned diff](oracle-successors.proposed.diff)
 and [runtime ordering](execution-map.md).
 
+## Actual source-entry reconciliation
+
+Actual entry589467 and integrated qualified partial60 subset5271 are recorded
+in the [plan](plan.md#actual-source-entry-reconciliation) and [status](status.md).
+All22 historical product/test pins match; approved scope, exact oracles and
+runtime RED ordering stay unchanged. Same-reviewer baseline-fit recheck precedes
+implementation; only owned setup may run while that review is pending.
+
 ## Confirmed conflict
 
 Immutable `src/rust/crates/fathomdb-mcp/tests/fixtures/hints_off_baseline.jsonl`

@@ -115,6 +115,12 @@ const GOVERNED_SURFACE_ALLOWLIST: &[&str] = &[
     // `SearchResult.degradations` report types.
     "ArmDegradation",
     "DegradationReason",
+    "SearchHit",
+    "IdSpace",
+    "IdSpaceKind",
+    "SnippetOptions",
+    "SnippetAnchor",
+    "SnippetV1",
 ];
 
 /// The permanent five-name recovery denylist. Identical to the single shared
@@ -187,11 +193,17 @@ fn t_074_rust_governed_surface_resolves() {
     // Agent-access Block 1 S3 (EP-03) — search degradation report types.
     let _ = type_name::<fathomdb::ArmDegradation>();
     let _ = type_name::<fathomdb::DegradationReason>();
+    let _ = type_name::<fathomdb::SearchHit>();
+    let _ = type_name::<fathomdb::IdSpace>();
+    let _ = type_name::<fathomdb::IdSpaceKind>();
+    let _ = type_name::<fathomdb::SnippetOptions>();
+    let _ = type_name::<fathomdb::SnippetAnchor>();
+    let _ = type_name::<fathomdb::SnippetV1>();
 
     assert_eq!(
         GOVERNED_SURFACE_ALLOWLIST.len(),
-        39,
-        "GOVERNED_SURFACE_ALLOWLIST must list exactly the 39 resolved governed types"
+        45,
+        "GOVERNED_SURFACE_ALLOWLIST must list exactly the 45 resolved governed types"
     );
 }
 

@@ -70,3 +70,14 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::WithdrawResult>();
     let _ = std::any::type_name::<fathomdb::CleanupResult>();
 }
+
+#[test]
+fn retrieval_result_shape_exports_compile() {
+    use fathomdb::{IdSpace, IdSpaceKind, SearchHit, SnippetAnchor, SnippetOptions, SnippetV1};
+    fn name_fields(hit: &SearchHit, snippet: &SnippetV1, _options: SnippetOptions) {
+        let _: &IdSpace = &hit.id;
+        let _: &IdSpaceKind = &hit.id.space;
+        let _: &SnippetAnchor = &snippet.anchor;
+    }
+    let _: fn(&SearchHit, &SnippetV1, SnippetOptions) = name_fields;
+}

@@ -1544,3 +1544,43 @@ mod degradation_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod compact_render_tests {
+    use super::*;
+
+    fn search_output() -> SearchOutput {
+        SearchOutput {
+            envelope: envelope("s", 1, 0, Vec::new(), 4000),
+            mode: ModeWord::Hybrid,
+            response_id: "r1-0000000000000000".into(),
+            results: vec![Hit {
+                reference: "l:a".into(),
+                kind: "note".into(),
+                snippet: "river".into(),
+                snippet_cut: false,
+                snippet_anchor: "whole".into(),
+                highlights: None,
+                source_id: None,
+                score: 0.123456,
+                arm: "text".into(),
+                ce_score: Some(0.987654),
+            }],
+            completeness: crate::output::Completeness::Complete,
+            verdict: UnavailableWord::Unavailable,
+            continuation: None,
+            continuation_exact: None,
+            explanation: None,
+            hints: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn compact_search_rows_include_ce_score() {
+        let output = search_output();
+        let text = render_search(&output);
+        assert!(text.contains("score=0.123 ce=0.988"), "{text}");
+        assert_eq!(output.results[0].score, 0.123456);
+        assert_eq!(output.results[0].ce_score, Some(0.987654));
+    }
+}

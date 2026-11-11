@@ -107,3 +107,36 @@ async fn list_stores_text_has_one_block_and_quoted_names() {
     text_of(&error);
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn compact_search_rows_keep_quotes_and_scores() {
+    let fixture = Fixture::new();
+    let id = "odd space\"\\|é\r\n😀";
+    let body = "river \r\n| café e\u{301} 😀";
+    let path = fixture.store("a.sqlite", vec![node(id, "note", body)]);
+    let engine = fathomdb_sdk::Engine::open(path, Default::default()).unwrap();
+    let mut options = fathomdb_sdk::TextSearchOptions::default();
+    options.view.valid_as_of = Some(1_900_000_000);
+    let expected = engine.search_text_only("river", options).unwrap();
+    assert_eq!(expected.results.len(), 1);
+    let score = expected.results[0].score;
+    engine.close().unwrap();
+    let harness = Harness::start(wire_config(&fixture, json!({}))).await;
+    let result = wire(&harness, "search", json!({"query":"river","as_of":1_900_000_000})).await;
+    let text = text_of(&result);
+    assert!(text.starts_with("search store=\"a\" epoch=1 validity_instant=1900000000 mode=text hits=1 completeness=complete kind=\"note\" response_id=r1-"), "{text}");
+    let quoted = serde_json::to_string(&format!("l:{id}")).unwrap();
+    let flattened = body.replace(['\r', '\n'], " ");
+    assert_eq!(
+        text.lines().nth(1).unwrap(),
+        format!("{quoted} arm=text score={score:.3} src=\"fixture\" | {flattened}")
+    );
+    assert_eq!(text.lines().count(), 2, "one LF-delimited hit line");
+    assert!(text.lines().next().unwrap().contains(" tokens="));
+    harness.shutdown().await;
+    let structured =
+        Harness::start(wire_config(&fixture, json!({"result_format":"structured"}))).await;
+    let result = wire(&structured, "search", json!({"query":"river","as_of":1_900_000_000})).await;
+    assert_eq!(result.structured_content.unwrap()["results"][0]["score"].as_f64().unwrap(), score);
+    structured.shutdown().await;
+}

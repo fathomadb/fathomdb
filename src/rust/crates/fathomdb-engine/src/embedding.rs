@@ -262,3 +262,121 @@ impl Engine {
         Ok(out)
     }
 }
+
+#[cfg(test)]
+mod closing_tests {
+    use super::*;
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{mpsc, Arc, Mutex};
+    use std::thread::{self, JoinHandle};
+    use std::time::Duration;
+
+    const HELD_QUERY: &str = "slice70-held-existing-helper-query";
+
+    #[derive(Debug)]
+    struct HeldQueryProvider {
+        armed: AtomicBool,
+        reached: mpsc::Sender<()>,
+        release: Mutex<mpsc::Receiver<()>>,
+    }
+
+    impl Embedder for HeldQueryProvider {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("s70-actual-close", "r1", 8)
+        }
+        fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+            if text == HELD_QUERY && self.armed.swap(false, Ordering::SeqCst) {
+                let _ = self.reached.send(());
+                // A lost test actor cannot leave the provider blocked indefinitely.
+                let _ = self.release.lock().unwrap().recv_timeout(Duration::from_secs(5));
+            }
+            Ok(vec![1.0; 8])
+        }
+    }
+
+    struct CloseActors {
+        release: Option<mpsc::Sender<()>>,
+        actors: Vec<JoinHandle<()>>,
+    }
+
+    impl CloseActors {
+        fn release_and_join(&mut self) -> bool {
+            if let Some(release) = self.release.take() {
+                let _ = release.send(());
+            }
+            let mut joined = true;
+            for actor in self.actors.drain(..) {
+                joined &= actor.join().is_ok();
+            }
+            joined
+        }
+    }
+
+    impl Drop for CloseActors {
+        fn drop(&mut self) {
+            let _ = self.release_and_join();
+        }
+    }
+
+    #[test]
+    fn query_helper_returns_closing_when_its_engine_closes() {
+        let dir = tempfile::tempdir().unwrap();
+        let (reached_tx, reached_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let provider = Arc::new(HeldQueryProvider {
+            armed: AtomicBool::new(false),
+            reached: reached_tx,
+            release: Mutex::new(release_rx),
+        });
+        let engine = Arc::new(
+            Engine::open_with_test_choice_and_config_for_test(
+                dir.path().join("helper-close.sqlite"),
+                TestEmbedderChoice::Caller(provider.clone()),
+                EngineConfig {
+                    embedder_pool_size: Some(1),
+                    embedder_call_timeout_ms: Some(5_000),
+                    ..EngineConfig::default()
+                },
+            )
+            .unwrap()
+            .engine,
+        );
+        // Install cleanup before arming the provider or starting either actor.
+        let mut cleanup = CloseActors { release: Some(release_tx), actors: Vec::new() };
+        provider.armed.store(true, Ordering::SeqCst);
+        let dispatch = Arc::clone(&engine.embed_dispatch);
+        let (helper_tx, helper_rx) = mpsc::channel();
+        cleanup.actors.push(thread::spawn(move || {
+            let mut degradations = Vec::new();
+            let outcome = search_query_vector(&dispatch, HELD_QUERY, &mut degradations);
+            let _ = helper_tx.send((outcome, degradations));
+        }));
+        let reached = reached_rx.recv_timeout(Duration::from_secs(2));
+        let close_engine = Arc::clone(&engine);
+        let (close_tx, close_rx) = mpsc::channel();
+        cleanup.actors.push(thread::spawn(move || {
+            let _ = close_tx.send(close_engine.close());
+        }));
+        let helper_outcome = helper_rx.recv_timeout(Duration::from_secs(2));
+        let close_before_release = close_rx.try_recv();
+        let close_was_pending = matches!(close_before_release, Err(mpsc::TryRecvError::Empty));
+        let joined = cleanup.release_and_join();
+        let close_outcome = match close_before_release {
+            Ok(result) => Some(result),
+            Err(mpsc::TryRecvError::Empty) => close_rx.recv_timeout(Duration::from_secs(2)).ok(),
+            Err(mpsc::TryRecvError::Disconnected) => None,
+        };
+        assert!(joined, "both helper and actual close actors must join");
+        assert!(reached.is_ok(), "the helper request must reach the held provider");
+        assert!(close_was_pending, "outer close must await the held provider independently");
+        assert!(matches!(close_outcome, Some(Ok(()))), "close after release: {close_outcome:?}");
+        let (outcome, degradations) =
+            helper_outcome.expect("existing helper must wake before its deadline");
+        assert!(degradations.is_empty());
+        assert!(
+            matches!(outcome, Err(EngineError::Closing)),
+            "existing helper outcome: {outcome:?}"
+        );
+    }
+}

@@ -13,6 +13,9 @@ use std::path::Path;
 mod raw;
 use raw::Recorder;
 
+#[path = "slice30/g_template.rs"]
+mod g_template;
+
 enum GAdapter {
     Core(Box<OpenedEngine>),
     Sdk(Box<SdkEngine>),
@@ -270,6 +273,9 @@ fn text_fixture_ack(uuid: &str) -> u64 {
 }
 
 fn run(config: &Value, out: &Path) {
+    if config["family"] == "G_TEMPLATE" {
+        return g_template::run(config, out);
+    }
     let mode = config["mode"].as_str().unwrap();
     let adapter = if mode.starts_with("engine_") { "engine" } else { "sdk" };
     let is_hybrid = matches!(mode, "engine_hybrid" | "sdk_hybrid");

@@ -267,6 +267,30 @@ impl GAdapter {
         (result, elapsed_ns)
     }
 
+    fn timed_hybrid_for_kind(
+        &self,
+        query: &str,
+        limit: usize,
+        kind: &str,
+    ) -> (fathomdb_engine::SearchResult, u64) {
+        let started = std::time::Instant::now();
+        let mut filter = fathomdb_engine::SearchFilter::default();
+        filter.kind = Some(kind.into());
+        let result = match self {
+            Self::Core(opened) => {
+                opened.engine.search_filtered_with_limit(query, Some(filter), limit).unwrap()
+            }
+            Self::Sdk(engine) => {
+                let mut options = fathomdb_sdk::SearchOptions::default();
+                options.limit = limit;
+                options.filter = Some(filter.into());
+                engine.search(query, options).unwrap()
+            }
+        };
+        let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+        (result, elapsed_ns)
+    }
+
     fn timed_embed(&self, query: &str) -> (Vec<f32>, u64) {
         let started = std::time::Instant::now();
         let vector = self.embed(query);

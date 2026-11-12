@@ -1056,6 +1056,35 @@ the new oracle. No full-source qualification or campaign-sized preparation is
 claimed. INITIAL future G2 actuation still requires warmups2/timed20 with actual
 timed10/20 phase coupling before its GREEN.
 
+### Generic G2 retrieval kind restriction
+
+REDf156c40f19df4d185b1e939c336c885b01761d11 runs successful actual SDK
+text/hybrid/mean calls on a closed-copy doc population plus ten governed reset
+notes. Text and hybrid return ten literal marker-note IDs for revisionreset;
+the intended eligibility assertion fails in both literal modes and the bounded
+property case (2tests/3failures). Mean384 finite/nonzero, device/accounting,
+reset/drain, query identity and independent current kind/cursor/span controls
+pass before that assertion. No learned vector order is asserted.
+
+The unchanged oracle SHA256 is
+`699fee534f6e87ecd54722a6f7524be27ee84d79477da91af4193b1973be8b2d`.
+Minimal GREEN applies the existing doc-kind filter only to generic G2 text and
+hybrid API options, including option/filter construction within the API timer.
+The old unfiltered wrappers remain unchanged; mean has no kind filter or ID
+population claim. Literal2doc/warm2 and bounded3doc/warm0,8doc/warm1 pass2/2.
+Text returns no note-query hits and literal alpha for the doc query; hybrid
+returns exactly the eligible doc set within limit10, independent of ranking.
+
+Pre-runtime identities are proofs/gd-g-kind-filter-red-identities.json and
+proofs/gd-g-kind-filter-green-identities.json; actual normal compiler closure is
+proofs/gd-g-host-kind-filter-green.json. RED uses reset binary5be2975d1d;
+GREEN binary SHA256 is
+`58da24dd5939c5bc6000d47a71d26f37f3d12fb030589ec26154383d447a40f1`.
+Task receipts/logs gd-g-kind-filter-scaffold-checks, -red, -green-build,
+-green-lint and -green preserve actual source/delta/argv/features/exit,
+13roots/original baseline and owned cleanup. This unit adds no scheduling;
+INITIAL later warmups2/timed20 actuation/order assertions remain mandatory.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

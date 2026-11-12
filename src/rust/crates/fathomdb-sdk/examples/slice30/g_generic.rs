@@ -14,18 +14,22 @@ fn observe(
     adapter: &str,
     sample_index: usize,
     input: &Value,
+    kind: Option<&str>,
 ) -> Value {
     let query = input["query"].as_str().unwrap();
     let fingerprint: String =
         Sha256::digest(query.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect();
     let mut row = if mode.ends_with("_text") {
-        let (result, elapsed_ns) = engine.timed_text(query, None);
+        let (result, elapsed_ns) = engine.timed_text(query, kind);
         let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
         json!({"mode":"direct_text","ok":true,"elapsed_ns":elapsed_ns,"ids":ids,
             "returned_hits":result.results.len(),"kind_filter":null,
             "search_snapshot":null,"snapshot_observation":"unavailable"})
     } else if mode.ends_with("_hybrid") {
-        let (result, elapsed_ns) = engine.timed_hybrid(query, 10);
+        let (result, elapsed_ns) = match kind {
+            Some(kind) => engine.timed_hybrid_for_kind(query, 10, kind),
+            None => engine.timed_hybrid(query, 10),
+        };
         let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
         json!({"mode":"hybrid","ok":true,"elapsed_ns":elapsed_ns,"ids":ids,
             "returned_hits":result.results.len(),"soft_fallback":format!("{:?}",result.soft_fallback),
@@ -40,6 +44,9 @@ fn observe(
         json!({"mode":"mean_embed","ok":true,"elapsed_ns":elapsed_ns,"dimension":384,
             "finite":true,"norm_squared":norm2})
     };
+    if kind.is_some() && !mode.ends_with("_mean") {
+        row["kind_filter"] = json!(kind);
+    }
     row["adapter"] = json!(adapter);
     row["sample_index"] = json!(sample_index);
     row["query_id"] = input["id"].clone();
@@ -97,7 +104,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
             first_warmup_record_start_ns =
                 Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         }
-        let mut row = observe(&engine, mode, adapter, sample_index, input);
+        let mut row = observe(&engine, mode, adapter, sample_index, input, g2.then_some("doc"));
         row["call_index"] = json!(calls);
         calls += 1;
         recorder.emit("warmups", &row);
@@ -109,7 +116,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
             first_timed_record_start_ns =
                 Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         }
-        let mut row = observe(&engine, mode, adapter, sample_index, input);
+        let mut row = observe(&engine, mode, adapter, sample_index, input, g2.then_some("doc"));
         row["call_index"] = json!(calls);
         calls += 1;
         recorder.emit("samples", &row);

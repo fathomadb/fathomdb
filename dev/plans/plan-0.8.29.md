@@ -336,7 +336,7 @@ These outputs do not activate .29 or approve environment/product changes.
 ## Integration, decisions and next action
 
 Selected work integrates through the local `release/0.8.29` ref from
-`llm/0.8.29-chat` in /mnt/data/worktrees/fathomdb-0.8.29, preserving integrated
+`llm/0.8.29-chat` in /mnt/data/worktrees/fathomdb-0.8.29-data, preserving integrated
 .28 and MCP/Block1 contracts. Preserve experiment sources and selectively adapt tools;
 no wholesale old prototype merge. Before landing, fetch allowed refs, check
 ancestry/current branch and integrate/review changed boundaries before a

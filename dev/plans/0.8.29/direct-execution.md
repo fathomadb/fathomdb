@@ -26,10 +26,12 @@ adversarial design review. After PASS, use real RED/GREEN and a fresh Astra-medi
 implementation review. Preserve existing completed exits unless affected evidence
 requires a scoped recheck. Parent owns release-plan/state integration serially.
 
-Use `/mnt/data/` for parent and slice worktrees and all owned task scratch, build
-targets, caches, temp files and qualification output. Set `TMPDIR` and
-`AGENT_LOG_DIR` to the assigned task root; installed immutable tools are read-only
-inputs. No cleanup or relocation of unrelated resources is implied.
+Use `/mnt/data/` for parent and slice worktrees, their common Git metadata and
+all owned task scratch, build targets, caches, temp files and qualification
+output. Set `TMPDIR` and `AGENT_LOG_DIR` to the assigned task root; installed
+immutable tools are read-only inputs. New slice worktrees attach to the isolated
+common repository named below. No cleanup or relocation of unrelated resources
+is implied.
 
 This continuation excludes CI work/execution and registry publication, including
 remote workflow dispatch and publishing tag pushes. Required local verification
@@ -103,11 +105,17 @@ The current20 test-only policy question does not waive RED/GREEN for defects.
 Specific110/120/130/150/publication choices remain explicit. No candidate or
 planning review counts as completed source work. This file is not a second ladder.
 
-The parent checkout now resides at /mnt/data/worktrees/fathomdb-0.8.29 on
-llm/0.8.29-chat; /mnt/data/worktrees remains the shared directory for sibling
-checkouts. The former app-managed path is a symlink to this checkout; custom
-path reattachment was rejected by the app, so no successful reattachment is
-claimed. Git linkage and original file manifest were verified after relocation.
+The active parent checkout is /mnt/data/worktrees/fathomdb-0.8.29-data on
+llm/0.8.29-chat. Its independent common Git repository is
+/mnt/data/repos/fathomdb-0.8.29-continuation.git; it has copied objects, no shared
+alternates or hardlinks, the same allowed origin, and preserved hook/signing
+settings. The original /mnt/data/worktrees/fathomdb-0.8.29 and prior Slice30
+measurement checkout remain preserved as read-only evidence paths; their old
+repository is no longer the continuation writer. /mnt/data/worktrees remains
+the directory for new isolated slice checkouts. The former app-managed symlink
+still names the older checkout; no successful app reattachment is claimed.
+Actual refs/source identities and closed10/disk preflights were verified in the
+new repository before the same Slice30 owner resumes design work.
 
 Slice20 Linux repairs are integrated at657edeb76caaf9c8d2aab433766bec9362e73217
 after genuine RED/GREEN and fresh independent implementation PASS.20 remains

@@ -215,3 +215,61 @@ precede the intended missing0vs128sample assertion. Hash/config/copy/WAL/device/
 parse/API failures are NOT_RED. Freeze each oracle through its minimal GREEN;
 retain16-record checkpoints and maintained manual selectors. No new API,
 accessor, capability, policy exception or TGD9 closed-template completion.
+
+## Remaining TGD-9 template subunits (bounded fit amendment)
+
+Accepted6620b4c1d proves only tiny deterministic768 D metadata. Its independent
+slice30_template_tool::inspect checks actual cursor/vector/span joins, but the
+producer's closed_metadata currently emits aggregate counts and ordered rows;
+it does not yet invoke a general completeness verifier. Normal GN
+GAdapter::prepare_hybrid still hardcodes two doc rows. Neither is a general
+normal-BGE closed-template command. The bounded TGD10 zero-write control pair
+is separate; further write schedules wait for these TGD9 obligations.
+
+1. **TGD9b actual completeness report.** Introduce a private example/tool helper,
+   shared by D and later normal G, using a read-only real SQLite connection.
+   For each actual kind, compare the exact distinct active canonical cursor set
+   with mapping cursors, physical vector row IDs and span cursors; reject missing,
+   duplicate or extra coverage. Check mapping kind/cursor/row identity, physical
+   f32 byte dimension, window0/start0, UTF8 body_length, actual nullable byte_end
+   bounds and stored profile name/revision/dimension. Report per-kind counts,
+   cursor coverage and known/unknown span ends, not only a total or terminal flag.
+   Pending0 is the separate successful engine readiness observation after drain.
+   Initial literal plus bounded real-store property oracles reuse D_TEMPLATE,
+   independently verify its already-correct rows/copy/reopen controls, and then
+   fail explicitly on absent new completeness-report fields. Missing files are
+   handled as absent report values; compiler/parser/setup failures are NOT_RED.
+   GREEN wires the helper into D's existing closed producer. No corrupt-store,
+   tamper or deliberately broken product fixture is needed.
+2. **TGD9c normal BGE closed producer.** Add a private G_TEMPLATE command branch
+   to the existing normal SDK example, built with embed-cuda only. Use current
+   Core Engine Default/public ProjectionSpec/write/drain/close APIs and its
+   actual OpenReport.default_embedder identity, then the shared verifier. No
+   test-hooks, slice30-measurement, SDK feature forwarding or public accessor in
+   this producer. Input is owned ordered JSONL id/kind/body records; governed
+   preparation uses fixed cohorts64 (no production knob), preserving order and
+   exact completed prefix. Initial manual oracle includes a65-row doc/note
+   boundary case (two governed calls) and bounded small Unicode cohorts. Stage
+   literal AND property assertions before the first report GREEN. Compile-ready
+   scaffold executes real preparation/close successfully; independent actual
+   cursor/vector/span/profile SQL and fresh closed-copy/reopen controls must pass
+   before explicit missing normal-template report RED. GREEN adds the report,
+   not the already-correct product semantics. Existing D/control oracles retain
+   their assertions and prior accepted meaning.
+
+The general helper is called by the producers themselves before any template
+is eligible for later retrieval; passing integration assertions alone is not
+wiring. Independent verification may use a contained Rust test artifact with
+existing engine proptest/rusqlite dev dependencies to inspect physical vec0;
+its identity is distinct from the normal GN producer. Initialize SQLite through
+the existing None open before independent SQLite use, without loading a model
+in that verifier. Keep the normal producer's actual Cargo feature closure in
+its proof; never infer normal identity from an engine test/example artifact.
+
+D's current varying/perf-gates-dense768 recipe retains unknown byte_end=NULL.
+BGE384 uses the existing CandleBgeEmbedder::truncation_offset head-window result:
+record actual known end or unknown, validate against UTF8 byte length and
+window0, and never infer full-body coverage merely from cursor completeness.
+Use finite/dimension/profile and literal ID/count invariants, not learned-vector
+goldens or standalone CLS. Long Unicode input in the literal fixture exercises
+head truncation; small property cases preserve count/order/span bounds.

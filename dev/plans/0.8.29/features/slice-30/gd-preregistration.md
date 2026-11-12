@@ -324,3 +324,52 @@ loop throughput. These are source TDD fixtures, not a campaign clock or natural
 timing run. All mutable paths stay in own /mnt/data roots; exact13-root selection,
 original69280403456 baseline and existing96GiB setup/G16/D16/200GiB caps/floors
 remain. No new numerical gate or broader lifecycle/source qualification follows.
+
+## Remaining TGD-9 source-fixture limits
+
+This amendment scopes source TDD only, before campaigns. TGD9b wires actual
+per-kind cursor/mapping/physical-vector/span/profile completeness into the
+closed producer. TGD9c adds normalGN Default-BGE closed preparation using it.
+The detailed missing-report RED/control sequence is in gd-test-map.md. Neither
+accepted6620 D metadata nor the tiny G hybrid producer is claimed to satisfy
+these remaining obligations. Later TGD10 write schedules stay held until this
+bounded reconciliation is reviewed and implemented.
+
+Normal G template source fixture uses only the privately staged pinned BGE384
+files and normal embed-cuda artifact, forced approved3090 UUID
+GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b/cuda:0, R580/primaryCUDA12.6.
+Reserve the same exclusive lock; recheck identity/free capacity and actual
+own PID/UUID memory<=8GiB. Capture positive utilization during actual BGE
+provider preparation, alongside that PID's allocation and each open's reported
+CUDA identity. A bounded manual child may prepare the literal65-row cohort
+boundary and at most four small generated cohorts in sequence, each a fresh
+owned store. CUDA engagement is attributed to that child/preparation series,
+not separately inferred for every fast individual row or text-only query.
+Sample required identity/memory/utilization at100ms cadence with bounded probes;
+missing engagement or invalid accounting is NOT_RED/unqualified, with existing
+refusal/stop semantics. No inference padding, CPU substitute, device switch,
+new model fetch, artificial natural-campaign wait or utilization claim for
+text-only calls. Existing mean/hybrid/text oracles retain their scope.
+
+Each source child has180s total including30s cleanup reserve; readiness/probes
+and process waits remain bounded, and only owned children are stopped/waited.
+Build outside runtime checks; capture exact test/config/source/model/feature/
+binary identities BEFORE each runtime. The65-row case validates fixed64-cohort
+framing, not campaign scale. Property inputs stay tiny; no10k/100k seed, campaign
+clock, timings or source/lifecycle qualification is implied.
+
+After real drain and readiness0, verify exact per-kind physical coverage/profile
+and actual span semantics, close engine AND every verifier, require WAL absent
+or empty, then hash the main file. Every copy goes to a fresh writable owned
+directory; check initial copied hash before reopening, repeat independent
+coverage/profile/readiness checks, close/drop again, and leave source unchanged.
+Keep D unknown spans separate from BGE head-window ends; complete indexed cursor
+coverage is not a full-body embedding claim. Producer metadata records governed
+cohort counts/rows/order and separate preparation/drain/verification/close costs.
+No retrieval latency or ancillary SQLite commit count is invented.
+
+All mutable input/output/proofs remain under the existing new data-backed task.
+Every guard explicitly uses the current13 disjoint roots and original immutable
+baseline69280403456; same96GiB setup reservation, G16/D16 raw,200GiB aggregate,
+start16/root32/data250 and stop8/root20/data50 floors. No reservation reset,
+capacity expansion or campaign authority follows from this amendment.

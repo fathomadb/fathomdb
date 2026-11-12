@@ -24,7 +24,7 @@ impl GAdapter {
             "engine_mean" | "engine_hybrid" => Self::Core(Box::new(
                 Engine::open_with_choice(path, EmbedderChoice::Default).unwrap(),
             )),
-            "sdk_mean" => Self::Sdk(Box::new(
+            "sdk_mean" | "sdk_hybrid" => Self::Sdk(Box::new(
                 SdkEngine::open(
                     path,
                     OpenOptions { use_default_embedder: true, ..OpenOptions::default() },
@@ -50,21 +50,22 @@ impl GAdapter {
     }
 
     fn prepare_hybrid(&self, path: &Path) -> Value {
-        let Self::Core(opened) = self else { panic!("unsupported fixture population") };
         let started = std::time::Instant::now();
-        opened
-            .engine
-            .configure_projections(
-                &[ProjectionSpec {
-                    name: "s30_dense".into(),
-                    roles: [ProjectionRole::Searchable].into_iter().collect(),
-                    fts: None,
-                    vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
-                    source: None,
-                }],
-                &[],
-            )
-            .unwrap();
+        let specs = [ProjectionSpec {
+            name: "s30_dense".into(),
+            roles: [ProjectionRole::Searchable].into_iter().collect(),
+            fts: None,
+            vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+            source: None,
+        }];
+        match self {
+            Self::Core(opened) => {
+                opened.engine.configure_projections(&specs, &[]).unwrap();
+            }
+            Self::Sdk(engine) => {
+                engine.configure_projections(&specs, &[]).unwrap();
+            }
+        }
         let batch: Vec<_> = [("alpha", "alphaonly evidence"), ("beta", "betaonly evidence")]
             .into_iter()
             .map(|(id, body)| PreparedWrite::Node {
@@ -78,12 +79,27 @@ impl GAdapter {
                 valid_until: None,
             })
             .collect();
-        opened.engine.write(&batch).unwrap();
+        match self {
+            Self::Core(opened) => {
+                opened.engine.write(&batch).unwrap();
+            }
+            Self::Sdk(engine) => {
+                engine.write(&batch).unwrap();
+            }
+        }
         let seed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
         let draining = std::time::Instant::now();
-        opened.engine.drain(5000).unwrap();
+        match self {
+            Self::Core(opened) => opened.engine.drain(5000).unwrap(),
+            Self::Sdk(engine) => engine.drain(5000).unwrap(),
+        }
         let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-        let pending = opened.engine.read_embedding_readiness().unwrap().pending_count;
+        let pending = match self {
+            Self::Core(opened) => opened.engine.read_embedding_readiness().unwrap().pending_count,
+            Self::Sdk(engine) => {
+                fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count
+            }
+        };
         let connection =
             rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
                 .unwrap();
@@ -99,7 +115,11 @@ impl GAdapter {
     fn hybrid(&self, query: &str) -> fathomdb_engine::SearchResult {
         match self {
             Self::Core(opened) => opened.engine.search_filtered_with_limit(query, None, 2).unwrap(),
-            Self::Sdk(_) => panic!("unsupported hybrid population"),
+            Self::Sdk(engine) => {
+                let mut options = fathomdb_sdk::SearchOptions::default();
+                options.limit = 2;
+                engine.search(query, options).unwrap()
+            }
         }
     }
 
@@ -114,6 +134,7 @@ impl GAdapter {
 fn run(config: &Value, out: &Path) {
     let mode = config["mode"].as_str().unwrap();
     let adapter = if mode.starts_with("engine_") { "engine" } else { "sdk" };
+    let is_hybrid = matches!(mode, "engine_hybrid" | "sdk_hybrid");
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
     assert!(samples > 0);
     let query = config["query"].as_str().unwrap();
@@ -128,12 +149,12 @@ fn run(config: &Value, out: &Path) {
     };
     assert_eq!(resolution.selected_cuda_uuid.as_deref(), config["gpu_uuid"].as_str());
     assert_eq!(device.ordinal, 0);
-    let fixture = if mode == "engine_hybrid" { engine.prepare_hybrid(&store) } else { Value::Null };
+    let fixture = if is_hybrid { engine.prepare_hybrid(&store) } else { Value::Null };
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
     for sample in 0..samples {
-        let row = if mode == "engine_hybrid" {
+        let row = if is_hybrid {
             let started = std::time::Instant::now();
             let result = engine.hybrid(query);
             let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
@@ -158,17 +179,19 @@ fn run(config: &Value, out: &Path) {
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2})
         };
-        recorder.emit("samples", &row);
+        if mode != "sdk_hybrid" {
+            recorder.emit("samples", &row);
+        }
         calls += 1;
     }
     recorder.flush_all();
     let loop_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
     engine.close();
     let proof = json!({"api_calls":calls,
-        "dimension":if mode == "engine_hybrid" {None} else {Some(384)},
-        "finite_nonzero":if mode == "engine_hybrid" {None} else {Some(true)},
-        "fixture":fixture,"fixture_ids":if mode == "engine_hybrid" {json!(["l:alpha","l:beta"])} else {Value::Null},
-        "pooling":if mode == "engine_hybrid" {format!("{adapter} hybrid API with configured mean query embedding")} else {format!("{adapter} mean API")},"selected_cuda_uuid":resolution.selected_cuda_uuid,
+        "dimension":if is_hybrid {None} else {Some(384)},
+        "finite_nonzero":if is_hybrid {None} else {Some(true)},
+        "fixture":fixture,"fixture_ids":if is_hybrid {json!(["l:alpha","l:beta"])} else {Value::Null},
+        "pooling":if is_hybrid {format!("{adapter} hybrid API with configured mean query embedding")} else {format!("{adapter} mean API")},"selected_cuda_uuid":resolution.selected_cuda_uuid,
         "cuda_compiled":resolution.cuda_compiled,"cuda_ordinal":device.ordinal,
         "driver_version":device.driver_version,"cuda_toolkit_version":device.cuda_toolkit_version,
         "cuda_libraries":format!("{:?}",device.cuda_libraries),

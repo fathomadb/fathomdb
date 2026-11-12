@@ -16,11 +16,11 @@ class CoreHybridTests(core.CoreMeanTests):
             raise RuntimeError("existing hybrid API literal fixture did not pass")
         if (proof["fixture"]["rows"],proof["fixture"]["vectors"],proof["fixture"]["pending"])!=(2,2,0):
             raise RuntimeError("real governed projection fixture is not drained/dense")
-        self.assertEqual(len(rows),128,"missing actual core hybrid measurement population")
+        self.assertEqual(len(rows),128,f"missing actual {self.adapter} hybrid measurement population")
         self.assertEqual(issues,[])
         for index,row in enumerate(rows):
             self.assertEqual((row["sample_index"],row["query_index"]),(index,0))
-            self.assertEqual((row["adapter"],row["mode"],row["ok"]),("engine","hybrid",True))
+            self.assertEqual((row["adapter"],row["mode"],row["ok"]),(self.adapter,"hybrid",True))
             self.assertEqual(sorted(row["ids"]),["l:alpha","l:beta"])
             self.assertEqual(row["returned_hits"],2)
             self.assertEqual((row["soft_fallback"],row["degradations"]),("None","[]"))

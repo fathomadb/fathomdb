@@ -704,6 +704,18 @@ run_tier_maybe_suite heavy test-slice30-gd-completion "$slice30_measurement_plat
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_completion.py
 '
 
+slice30_g_mean_gpu_reason="$slice30_measurement_platform_reason"
+if [ -z "$slice30_g_mean_gpu_reason" ] && { [ "${AGENT_LONG:-0}" != 1 ] \
+  || [ "${CUDA_VISIBLE_DEVICES:-}" != GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b ] \
+  || [ "${FATHOMDB_EMBED_DEVICE:-}" != cuda:0 ]; }; then
+  slice30_g_mean_gpu_reason="manual pinned3090 source test: AGENT_LONG=1, reserved CUDA_VISIBLE_DEVICES UUID and forced cuda:0 required"
+fi
+run_tier_maybe_suite heavy test-slice30-g-core-mean "$slice30_g_mean_gpu_reason" bash -c '
+  set -euo pipefail
+  cargo build --locked --release -p fathomdb-sdk --example slice30_g_mean --features embed-cuda
+  python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_mean.py
+'
+
 # Python
 python_bin=""
 if [ -x .venv/bin/python ]; then

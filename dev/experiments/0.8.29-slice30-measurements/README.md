@@ -18,6 +18,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [control.py](control.py) | Freeze actual source/lock/binary/input identities and balanced plan; serialized Linux campaign with resource observations; report every complete/failed/not-run/partial cell. Long CLI runs require AGENT_LONG=1. |
 | [slice30_gd_diagnostic.rs](../../../src/rust/crates/fathomdb-engine/examples/slice30_gd_diagnostic.rs) | G/D core-only diagnostic scaffold, real current APIs, fixed-selector completion test in native/test_completion.py; explicit maintained heavy suite. First RED used an empty feature; current private per-engine transport nests exact-reader snapshots, actual predicate/SQL spans and vector/text blocks. Its current tiny None-provider fixture driver is not a G/D campaign adapter. No public SDK test accessor. |
 | [gd_feasibility.py](gd_feasibility.py) | Pure lower-scale resource forecasts; current time/storage/shared-clock dimensions use integer-ceiling1.5headroom against870s work/900s total and16GiB per family including retained evidence, with prep/waits retained in the4h clock and30s cleanup reserved. Overall hypothetical eligibility requires complete lower evidence plus all three dimensions; reports ELIGIBLE_PROJECTION or NOT_RUN_RESOURCE. No database/model/launcher or actual resource admission. Hand-computed hypothetical observations and bounded monotonicity cases in test_gd_feasibility.py, selected by maintained Python discovery. |
+| [native/test_g_mean.py](native/test_g_mean.py) | Manual normal core mean source oracle: pinned3090/actual PID+UUID memory and utilization,128 real mean calls then exact raw records/checkpoints. SDK example slice30_g_mean uses embed-cuda only, no test-hooks/observer/standalone CLS. Source TDD, not campaign. Maintained test-slice30-g-core-mean selector requires AGENT_LONG=1 plus exact reserved UUID and forced cuda:0; otherwise reports manual skip. |
 | [gd_resources.py](gd_resources.py) | G/D conservative allocated/apparent aggregation, setup/raw reservations and owned child phase guard; selectively adapts the committed Slice60 resource guard. Literal math in test_gd_resources.py and real tiny-child/final-sample/group/du controls in test_gd_guard_*.py are selected by the existing maintained Python discovery suite. |
 | [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
@@ -161,3 +162,21 @@ within two attempts then refused with diagnostics. Logs/receipts persist under t
 Tiny unit roots/caps exercise enforcement without a heavy/native/model workload;
 normal CLI uses the accepted limits and real entry inventory. No tamper/drift or
 new product resource API is introduced. Old P artifacts/environments stay read-only.
+
+## Normal G core mean source proof
+
+Build the SDK example slice30_g_mean with --locked --release --features embed-cuda.
+The manual native/test_g_mean.py oracle requires the exact approved3090 UUID in
+CUDA_VISIBLE_DEVICES and FATHOMDB_EMBED_DEVICE=cuda:0, own S30_GD_TASK/Cargo
+target and preverified pinned inputs. Invoke only under the reviewed current
+resource guard (explicit13 roots/baseline69280403456), reserving the GPU and
+checking actual floors. No model fetch or CPU alternative. Its bounded source
+fixture hashes binary/test BEFORE runtime and retains output/GPU samples under
+own proofs/g-mean. ELIGIBLE_PROJECTION never starts this fixture or a campaign.
+
+The existing P recorder moved to the private shared example helper
+examples/slice30/raw.rs. Methods retain the same16-record checkpoint/phase
+flush policy and costs; unchanged P example controls cover relocation. G's
+API timer stops before validation/serialization/checkpointing. Loop throughput
+includes those costs and excludes separately scoped open/close. This first
+mode supports core mean only; SDK/hybrid/schedules/templates remain pending.

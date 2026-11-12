@@ -25,7 +25,7 @@ fn run(config: &Value, out: &Path) {
     };
     assert_eq!(resolution.selected_cuda_uuid.as_deref(), config["gpu_uuid"].as_str());
     assert_eq!(device.ordinal, 0);
-    let recorder = Recorder::new(out);
+    let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
     for sample in 0..samples {
@@ -36,11 +36,13 @@ fn run(config: &Value, out: &Path) {
         assert!(vector.iter().all(|x| x.is_finite()));
         let norm2 = vector.iter().map(|x| f64::from(*x).powi(2)).sum::<f64>();
         assert!(norm2 > 0.0);
-        let _row = json!({"adapter":"engine","mode":"mean_embed","ok":true,
+        let row = json!({"adapter":"engine","mode":"mean_embed","ok":true,
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2});
+        recorder.emit("samples", &row);
         calls += 1;
     }
+    recorder.flush_all();
     let loop_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
     opened.engine.close().unwrap();
     let proof = json!({"api_calls":calls,"dimension":384,"finite_nonzero":true,

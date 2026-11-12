@@ -433,6 +433,58 @@ or network occurred in staging. Read-only resumed GPU inventory shows approved
 R580.178.04 and primary CUDA12.6. This is inventory, not engagement/reservation.
 Actual GPU reservation/engagement and fresh resource checks still precede BGE.
 
+## TGD-8 first normal core mean population
+
+REDed66cf8ab follows successful compile-ready real API scaffolding, not an
+intentional product defect. Normal GN command builds SDK example slice30_g_mean
+with embed-cuda only, no observer/test-hooks/CLS. Unchanged P controls pass6/6
+after private Recorder relocation; normalized method body is identical except
+pub(super) and one terminal blank line. P test-region SHA256
+315f58c87c3a1d02dad429ba6eeb1971258929d6a956332aaadc955791a0e859 is unchanged.
+Preliminary literal newline comparison asserted before normalization; this is
+identity-check preparation, never runtime RED.
+
+Actual gd-core-mean-red builds successfully, then128existing Engine::embed_text
+calls validate384finite/nonzero output and actual selected CUDA UUID. Only then
+the oracle fails AssertionError0!=128 missing raw population, with valid empty
+JSONL rather than parser/fixture/device failure. Binary hash BEFORE runtime
+99f9554df200c254ff4b340a752f3254ebce6b2872809404cd93d1f599d8b131; test
+48dcb4935560f0d5dbe58bd284bba0cc27783fd5dddebb31f1921940a5fbd256.
+Real ownPID2937651 has10GPU samples/max532MiB/max94%util on approved3090.
+Full cold build/test197.35s, minRAM15.521GiB/end17.080GiB, no resource stop.
+
+Minimal GREEN only emits each core-mean row through the SAME shared P recorder
+after the API timer and phase-flushes before ending loop timing. Immutable test
+passes1/1 in2.743s,128records/8checkpoints/21906encoded bytes, checkpoint125130ns
+and total persistence345835ns in this fixture. These descriptive costs are not
+a new performance gate or natural campaign result. GREEN binary BEFORE runtime
+2b41f12dde4bbe23320aa9fbb05afa11662ac62bb047cdb82cd17744a038b972.
+Actual GREEN runtime source is ed66 plus its retained emit/flush delta; the
+separate GREEN commit body binds that exact implementation and unchanged test.
+
+Both raw command/source/resource/GPU proofs and hashes remain under
+gd-core-mean-red/green receipts/logs and proofs/g-mean. OpenReport attests
+selectedUUID/cuda0 and built-major12 libraries: driver580.178.04, cuBLAS12.6.1.4
+from primary CUDA12.6 and cuRAND10.3.7.68. Driver API capability13.0 is not
+CUDA13 userspace substitution. Optional driver_version/cuda_toolkit_version
+fields on the device record are null, not fabricated. Own GPU lock and actual
+PID/UUID utilization are independently retained. No source/model/native
+lifecycle/full qualification or campaign acceptance follows from this unit.
+
+Affected GN Clippy exits0, default-feature compilation exits0 and shellcheck
+including SC2312, Ruff, totality223labels and scoped Markdown/diff pass. The
+first combined Pyright invocation exited0 but explicitly ignored its absolute
+include; this is an evidence gap, not type coverage or RED. Corrected only the
+owned scratch config to relative paths, reran only affected Pyright: actual
+JSON summary filesAnalyzed1/errors0/warnings0 at pinned1.1.410. Preserve both
+raw outputs and distinct receipts, not an uninterrupted type-pass claim.
+
+The maintained test-slice30-g-core-mean selector explicitly registers this
+manual hardware oracle: AGENT_LONG=1 plus exact reserved CUDA UUID/forced
+cuda:0, otherwise an honest manual skip. It is not silently hidden by the
+experiments ignore or Cargo example compilation. Later G modes and all native
+D/template/worker/held/overlap/pairing units remain separate, unimplemented.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under
@@ -450,5 +502,7 @@ borrowed. Owned Python/dev/noneditable native setup succeeded at9e as recorded a
 TS setup subsequently succeeded at c159 as recorded above; final source-bound
 production lifecycle proofs remain outstanding. Scoped passes here are not the one final stable full gate.
 The reviewed resource allocation remains96GiB setup plus16GiB each G/D raw,
-200GiB conservative aggregate over the five disjoint roots, with accepted floors.
+200GiB conservative aggregate over the active thirteen disjoint roots with
+original baseline69280403456B and accepted floors. Historical five-root receipts
+retain their original subjects.
 M/F/20/whole30/40/50/pre90 remain held; no G/D natural timings have run.

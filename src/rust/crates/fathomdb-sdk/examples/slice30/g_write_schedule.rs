@@ -17,7 +17,10 @@ fn ns(origin: Instant) -> u64 {
     u64::try_from(origin.elapsed().as_nanos()).unwrap()
 }
 
-fn current_coverage(path: &Path, expected: &fathomdb_embedder_api::EmbedderIdentity) -> Value {
+pub(super) fn current_coverage(
+    path: &Path,
+    expected: &fathomdb_embedder_api::EmbedderIdentity,
+) -> Value {
     let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
     let profile: (String,String,u32) = connection.query_row("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'", [], |row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).unwrap();
     assert_eq!(

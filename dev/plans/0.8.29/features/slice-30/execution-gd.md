@@ -556,6 +556,21 @@ Maintained manual SDK-hybrid selection is explicit. Closed campaign templates,
 direct text, schedules, workers/overlap, full source/lifecycle and campaign
 qualification remain pending; fixture preparation does not pre-close TGD9.
 
+## TGD-8 core text-only population
+
+After exact109949820 design PASS/parent GO, RED b1d6de706 succeeds through the
+fixed closed-copy/counts/Default-open/READY-accounting/ACK protocol and128literal
+alpha calls before missing0!=128records. Oracle92fd617d02a290a58397e1c9bfadc4bf8504c831a1135620ddee80a01273e0a9
+stays unchanged through emit-only GREEN,1/1 pass in1.623s,128records/8checkpoints.
+Pre-runtime binaries: RED d8a02118ee1f109f42755873a70725b5d2e5d8826c04a7fe4498be64fa92e17d;
+GREEN60923a4cb000843a56bc628deeae2e62637dc2fc153a1042c22bb46cd5723a90.
+Existing gd-core-text-red/green receipts/logs and printed proofs/g-text roots
+retain exact source/delta/config/fixture/GPU-accounting evidence. Required own
+PID memory is500MiB before ACK, never inferred from absent samples. No positive
+query-utilization or zero-process-GPU claim; inference oracles remain unchanged.
+The source fixture hash is unchanged. No TGD9/template, full source/lifecycle or
+campaign qualification follows; maintained manual core-text selection is explicit.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

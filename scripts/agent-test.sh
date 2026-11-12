@@ -734,6 +734,12 @@ run_tier_maybe_suite heavy test-slice30-g-sdk-hybrid "$slice30_g_mean_gpu_reason
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_sdk_hybrid.py
 '
 
+run_tier_maybe_suite heavy test-slice30-g-core-text "$slice30_g_mean_gpu_reason" bash -c '
+  set -euo pipefail
+  cargo build --locked --release -p fathomdb-sdk --example slice30_g_mean --features embed-cuda
+  python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_text.py
+'
+
 # Python
 python_bin=""
 if [ -x .venv/bin/python ]; then

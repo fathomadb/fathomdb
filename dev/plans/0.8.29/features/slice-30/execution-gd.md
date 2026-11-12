@@ -342,6 +342,21 @@ receipt/logs preserve exact CLI/source delta/resources; no resource stop.
 Shared-clock/final admission stay unimplemented. No native/template/schedule/
 100k/300k/campaign execution or heavy-floor relaxation is claimed.
 
+## Light shared-clock dimension
+
+Separate TGD-14 shared-clock REDa19229160 has8prior passes and4new genuine
+missing-report failures. Hypothetical45s projected work plus30s cleanup needs75s:
+remaining50s declines, remaining400s fits, and an exhausted4h clock has zero
+remaining. Prep/wait elapsed is retained, never reset for each target cell.
+
+Unchanged test SHA256
+b580790e637423797290e6fef5f4acf6adde946c3fa547242ae3003cd66fe673;
+GREEN gd-shared-feasibility-green passes12/12 in0.880s, including bounded
+monotonicity properties. Raw light-mode receipts/logs retain source deltas,
+actual CLI failures/results and five-root resource samples, resource_stop null.
+Final admission remains unimplemented. These hypothetical arithmetic fixtures
+are not template/native/schedule/100k/300k/campaign evidence.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

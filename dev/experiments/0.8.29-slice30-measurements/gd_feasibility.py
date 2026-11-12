@@ -23,6 +23,11 @@ def report(observation):
         family_bytes = observation["retained_family_bytes"] + additional
         result["storage"] = {"additional_bytes": additional, "family_bytes": family_bytes,
                              "cap_bytes": 16*1024**3, "fits": family_bytes <= 16*1024**3}
+    if "shared_elapsed_ns" in observation:
+        remaining = max(0, 14_400_000_000_000 - observation["shared_elapsed_ns"])
+        required = projected + 30_000_000_000
+        result["shared"] = {"remaining_ns": remaining, "required_ns": required,
+                            "cap_ns": 14_400_000_000_000, "fits": required <= remaining}
     return result
 
 

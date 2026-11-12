@@ -142,12 +142,22 @@ def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB
                 record["child_exit"] = child.returncode
         if record["resource_stop"]:
             code = 124
-    record.update(exit=code if code>=0 else 128-code,ended=time.time(),
-                  sha_end=git("rev-parse","HEAD"),delta_end=git("status","--porcelain"))
     try:
-        record["samples"].append(resource_sample(roots,task,baseline))
+        final = resource_sample(roots,task,baseline)
+        record["samples"].append(final)
+        final_issue = resource_issue(final,max_owned)
+        if record["pid"] is not None:
+            rate = (final["swap_bytes"]-last["swap_bytes"])/max(final["time"]-last["time"],0.001)
+            streak = streak+1 if rate>=64*1024**2 else 0
+            final_issue = final_issue or ("swap_rate" if streak>=3 else None)
+        record["resource_stop"] = record["resource_stop"] or final_issue
     except Exception as error:
         record["final_sample_error"] = str(error)
+        record["resource_stop"] = record["resource_stop"] or "final_observation_unavailable"
+    if record["pid"] is not None and record["resource_stop"]:
+        code = 124
+    record.update(exit=code if code>=0 else 128-code,ended=time.time(),
+                  sha_end=git("rev-parse","HEAD"),delta_end=git("status","--porcelain"))
     (task/"receipts"/(phase_name+".json")).write_text(json.dumps(record,indent=2)+"\n")
     return record
 

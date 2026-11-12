@@ -45,7 +45,7 @@ def freeze(cells, corpus, queries, binary, out):
     return manifest
 
 
-def run_frozen(root, max_load=2):
+def run_frozen(root, max_load: float | None = 2):
     """Execute the frozen native plan under its resource/time/quiet limits."""
     root = Path(root).resolve()
     manifest = json.loads((root / "manifest.json").read_text())
@@ -112,6 +112,8 @@ def summarize(root):
     state = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
     output = []
     paired = {}
+    resource_path = root / "resources.jsonl"
+    resources = [json.loads(line) for line in resource_path.read_text().splitlines()] if resource_path.exists() else []
     def lines(path, issues):
         records = []
         if not path.exists():
@@ -145,7 +147,14 @@ def summarize(root):
             issues.append("actual warmup/timed count differs from plan")
         if report["status"] == "complete" and (issues or result.get("complete") is not True):
             report["status"] = "incomplete"
-        report.update(attempt=str(attempt), issues=issues, actual=result, adapters=[])
+        load_values = [r["load"] for r in resources if previous.get("pid") is not None and r.get("pid") == previous["pid"]]
+        before_load = (previous.get("environment_before") or {}).get("load")
+        if before_load is not None:
+            load_values.append(before_load)
+        report.update(attempt=str(attempt), issues=issues, actual=result, adapters=[],
+                      commit_shape=cell.get("commit_shape"), max_load=max(load_values, default=None),
+                      noisy=any(load > 2.5 for load in load_values) if load_values else None,
+                      resources_available=bool(load_values))
         counts = [row["raw_fts_matches"] for row in matches]
         report["match_counts"] = {"queries":len(counts), "zero":counts.count(0),
             "min":min(counts, default=None), "max":max(counts, default=None),

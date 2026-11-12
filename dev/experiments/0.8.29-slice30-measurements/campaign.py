@@ -1,9 +1,11 @@
 """Run Slice30 frozen cells with distinct attempts and retained outcomes."""
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import time
+from typing import Any
 
 
 def make_plan(cells, repeats):
@@ -12,7 +14,7 @@ def make_plan(cells, repeats):
     for repeat in range(repeats):
         ordered = cells if repeat % 2 == 0 else list(reversed(cells))
         for cell in ordered:
-            item = dict(cell, repeat=repeat, id=f"{cell['name']}-r{repeat}")
+            item: dict[str, Any] = dict(cell, repeat=repeat, id=f"{cell['name']}-r{repeat}")
             if "adapters" in item:
                 item["adapters"] = (list(cell["adapters"]) if repeat % 2 == 0
                                     else list(reversed(cell["adapters"])))
@@ -40,11 +42,13 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None):
         attempt.mkdir()
         config = attempt / "cell.json"
         config.write_text(json.dumps(cell, indent=2) + "\n")
+        started_at = time.time()
         started = time.monotonic_ns()
         error = None
         with (attempt / "child.log").open("wb") as log:
             child = subprocess.Popen([*command, str(config), str(attempt)],
                                      stdout=log, stderr=subprocess.STDOUT)
+            group = os.getpgid(child.pid)
             while True:
                 remaining = timeout - (time.monotonic_ns() - started) / 1000000000
                 try:
@@ -72,7 +76,9 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None):
                 error = "child returned without result.json"
         outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "exit": code,
                    "status": "complete" if complete else "failed", "error": error,
-                   "elapsed_ns": time.monotonic_ns() - started, "environment_before": context}
+                   "elapsed_ns": time.monotonic_ns() - started, "environment_before": context,
+                   "started_at": started_at, "ended_at": time.time(), "pid": child.pid,
+                   "pgid": group, "command": [*command, str(config), str(attempt)]}
         outcomes.append(outcome)
         (root / "campaign-state.json").write_text(json.dumps(outcomes, indent=2) + "\n")
     return outcomes

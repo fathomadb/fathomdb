@@ -27,7 +27,9 @@ from steady-state; this is fresh-process or fresh-engine state with **OS cache
 uncontrolled**, never a cold-disk claim. Do not time compilation/model loading
 as retrieval. P2 batch counts are1000/100/10; marker correctness probes occur
 outside the timed natural calls and are separately counted/timed. Batch size1
-rotates over ten marker IDs; batch size10 replaces all ten. Validate exact
+rotates over ten marker IDs; batch size10 replaces all ten in one existing atomic
+governed write(batch) call, not ten independent calls. batch_count counts successful
+governed calls; no all-ancillary-SQLite-commit count is claimed. Validate exact
 marker content/version immediately after each commit. No concurrent writer in
 P; committed interleaving is distinct from future D/G overlap.
 

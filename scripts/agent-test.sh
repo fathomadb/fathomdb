@@ -137,6 +137,14 @@ run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqli
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
 run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py
 run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
+# P-only campaign control uses Linux /proc observations and flock; other
+# platforms retain an explicit unsupported-tool disposition, not Linux proof.
+slice30_measurement_platform_reason=""
+if [ "$(uname -s)" != "Linux" ]; then
+  slice30_measurement_platform_reason="Slice30 P measurement controller is Linux-only"
+fi
+run_tier_maybe_suite fast test-slice30-measurement-tools "$slice30_measurement_platform_reason" \
+  python3 -m unittest discover -s dev/experiments/0.8.29-slice30-measurements -v
 run_tier_suite fast test-test-targets python3 scripts/tests/test_test_targets.py
 run_tier_suite fast check-test-target-coverage python3 scripts/check-test-target-coverage.py
 run_tier_suite fast test-napi-build-hermetic python3 scripts/tests/test_napi_build_hermetic.py
@@ -684,6 +692,10 @@ run_tier_suite fast test-ci-rust-workspace-gate bash scripts/tests/test_ci_rust_
 run_tier_suite fast test-aarch64-candle-feature-closure bash scripts/tests/test_aarch64_candle_feature_closure.sh
 run_tier_suite fast test-aarch64-candle-cpu bash scripts/tests/test_aarch64_candle_cpu.sh
 run_tier_suite heavy test-rust bash scripts/test-rust-workspace.sh --serial
+# Cargo's default example handling compiles examples but does not select their
+# unit assertions. Execute the bounded real-store adapter contracts explicitly.
+run_tier_suite heavy test-slice30-measurement-adapter cargo test --locked --release \
+  --jobs 1 -p fathomdb-sdk --example slice30_measure -- --test-threads=1 --nocapture
 
 # Python
 python_bin=""

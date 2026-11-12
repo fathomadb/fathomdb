@@ -1,0 +1,110 @@
+[
+  {
+    "name": "p1-n10000",
+    "family": "P1",
+    "n": 10000,
+    "adapters": [
+      "engine",
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "commit_shape": "read-mostly; seed batches outside retrieval timing"
+  },
+  {
+    "name": "p1-n100000",
+    "family": "P1",
+    "n": 100000,
+    "adapters": [
+      "engine",
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "commit_shape": "read-mostly; seed batches outside retrieval timing"
+  },
+  {
+    "name": "p2-b1-s1",
+    "family": "P2",
+    "n": 100000,
+    "adapters": [
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "batch_size": 1,
+    "searches_per_batch": 1,
+    "commit_shape": "one existing atomic governed write(batch) call per scheduled cohort",
+    "governed_write_calls_per_cohort": 1
+  },
+  {
+    "name": "p2-b1-s10",
+    "family": "P2",
+    "n": 100000,
+    "adapters": [
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "batch_size": 1,
+    "searches_per_batch": 10,
+    "commit_shape": "one existing atomic governed write(batch) call per scheduled cohort",
+    "governed_write_calls_per_cohort": 1
+  },
+  {
+    "name": "p2-b1-s100",
+    "family": "P2",
+    "n": 100000,
+    "adapters": [
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "batch_size": 1,
+    "searches_per_batch": 100,
+    "commit_shape": "one existing atomic governed write(batch) call per scheduled cohort",
+    "governed_write_calls_per_cohort": 1
+  },
+  {
+    "name": "p2-b10-s1",
+    "family": "P2",
+    "n": 100000,
+    "adapters": [
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "batch_size": 10,
+    "searches_per_batch": 1,
+    "commit_shape": "one existing atomic governed write(batch) call per scheduled cohort",
+    "governed_write_calls_per_cohort": 1
+  },
+  {
+    "name": "p2-b10-s10",
+    "family": "P2",
+    "n": 100000,
+    "adapters": [
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "batch_size": 10,
+    "searches_per_batch": 10,
+    "commit_shape": "one existing atomic governed write(batch) call per scheduled cohort",
+    "governed_write_calls_per_cohort": 1
+  },
+  {
+    "name": "p2-b10-s100",
+    "family": "P2",
+    "n": 100000,
+    "adapters": [
+      "sdk"
+    ],
+    "warmup": 500,
+    "samples": 1000,
+    "batch_size": 10,
+    "searches_per_batch": 100,
+    "commit_shape": "one existing atomic governed write(batch) call per scheduled cohort",
+    "governed_write_calls_per_cohort": 1
+  }
+]

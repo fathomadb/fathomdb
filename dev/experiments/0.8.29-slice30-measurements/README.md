@@ -3,29 +3,92 @@
 Initial P only: provider-free direct text, unchanged format37 and contracts.
 [Design](../../plans/0.8.29/features/slice-30/design.md) and
 [preregistration](../../plans/0.8.29/features/slice-30/preregistration.md) own scope.
-G/D need later concrete review; M/F and whole30 remain held.
+G/D need later concrete review; M/F, whole30,40/50 source and pre90 remain held.
+No old prototype timing is a current baseline or fidelity result.
 
-## Tools and origins
+## Committed tools and origins
 
-- `converter.py`: current bounded LongMemEval input conversion. Origin:
-  07095a16dad020798bc5125cbde0c909e8c38a78,
-  dev/experiments/ac013-scale-search/lme_corpus.py. Preserves first-seen unique
-  nonempty turn/session order and all questions; source answers are never read.
-  Prefix selection/reporting and array validation are separate new behaviors.
-- `test_tools.py`: literal order/count oracles; planned statistics/runner tests
-  are added in their own runtime RED/GREEN units. No tamper/drift/path-hardening.
+| Tool | Purpose and origin |
+| --- | --- |
+| [converter.py](converter.py) | First-seen unique nonempty LME turn/session order, bounded prefix, all question order and actual counts/hashes. Selectively adapted from07095a16dad020798bc5125cbde0c909e8c38a78 dev/experiments/ac013-scale-search/lme_corpus.py; no answer fields enter workload construction. |
+| [campaign.py](campaign.py) | Balanced cell/adapter repetition order, bounded real child execution, separate fresh attempts, retained failures and resume of incomplete cells. Current implementation; selective scheduling concepts from the same ref's ssweep.py and aa30085fcb293d40cf5f34eaa568b3e215339cfc ac013-seed-drain/drain_sweep.py. No old prototype/provider/runtime hooks. |
+| [metrics.py](metrics.py) | Nearest-rank p50/p99, arithmetic mean, error-inclusive throughput, matched query/repeat differences and fixed-seed query-cluster descriptive intervals. Hand-computed oracles; no treatment/numerical verdict. |
+| [control.py](control.py) | Freeze actual source/lock/binary/input identities and balanced plan; serialized Linux campaign with resource observations; report every complete/failed/not-run/partial cell. Long CLI runs require AGENT_LONG=1. |
+| [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
+| [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
+| [test_tools.py](test_tools.py) | Eleven bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
+
+The Rust example's five independently specified real-store assertions are
+explicitly selected by test-slice30-measurement-adapter in the maintained agent
+runner. Eleven Python tool tests are selected by test-slice30-measurement-tools;
+its controller is Linux-only and reports that boundary on other platforms.
+These are bounded ordinary tests. They never launch the natural100k campaign.
 
 ## Commands
 
-Use this checkout's Python and an owned/mnt/data output directory:
+Use this checkout's own Python/native/tool environment and private/mnt/data
+paths. Set TMPDIR, AGENT_LOG_DIR, CARGO_HOME, CARGO_TARGET_DIR and package caches
+there before setup/build. Never borrow another checkout's install or target.
+Build outside measurements:
 
 ```bash
+cargo build --locked --release -p fathomdb-sdk --example slice30_measure
 .venv/bin/python -m unittest discover -s dev/experiments/0.8.29-slice30-measurements -v
-.venv/bin/python dev/experiments/0.8.29-slice30-measurements/converter.py \
-  --lme /mnt/data/OWNED/longmemeval_s_cleaned.json --limit 100000 \
-  --out /mnt/data/OWNED/converted
+cargo test --locked --release -p fathomdb-sdk --example slice30_measure -- --nocapture
 ```
 
-Outputs are corpus.jsonl, queries.jsonl and inputs.json; raw text remains outside
-Git. CLI limits are configurable. New measurement results may be used only after
-the corresponding tools/tests and frozen cells are committed. No timing has run.
+With OWNED and CARGO_TARGET_DIR pointing to the assigned/mnt/data task paths:
+
+```bash
+D=dev/experiments/0.8.29-slice30-measurements
+.venv/bin/python "$D/converter.py" \
+  --lme "$OWNED/inputs/longmemeval_s_cleaned.json" --limit 100000 \
+  --out "$OWNED/converted"
+.venv/bin/python "$D/control.py" freeze --cells "$D/cells.json" \
+  --corpus "$OWNED/converted/corpus.jsonl" --queries "$OWNED/converted/queries.jsonl" \
+  --binary "$CARGO_TARGET_DIR/release/examples/slice30_measure" --out "$OWNED/p-campaign"
+AGENT_LONG=1 .venv/bin/python "$D/control.py" run "$OWNED/p-campaign"
+.venv/bin/python "$D/control.py" summarize "$OWNED/p-campaign"
+```
+
+Freeze requires a new output directory. Each incomplete retry gets a fresh
+attempt; completed cells remain attributed to their original files/native
+subject. Preserve aborted attempts. A changed source/input/artifact campaign
+needs a new frozen directory and the applicable reviewed scope, not a hidden
+replacement. All raw text/DB/WAL/samples/logs stay outside tracked source.
+
+## Output and interpretation
+
+Converter outputs corpus.jsonl, queries.jsonl and inputs.json. Campaign freeze
+writes owned read-only manifest.json/plan.json before timing. Runtime writes
+resources.jsonl and results/campaign-state.json; each attempt retains cell.json,
+child.log, store.sqlite and separate samples/warmups/batches/marker-probes/matches
+JSONL plus result.json. Summary includes missing/incomplete cells and preserves
+raw distributions; interrupted partial files are identified. Compile logs and
+source qualification are separate from measurement output.
+
+P1 uses exactly its stated natural-record count and no marker/filter. Only
+complete unfiltered100k/500question/1000call P1 passes receive tracked AC083
+80/300ms target distances; those are reports, not numerical pass gates. P2 adds
+ten marker IDs, makes one existing atomic governed write(batch) call per1/10-record
+cohort, filters doc-kind natural records, and inserts separate marker
+freshness proof queries between writes and natural searches. Report their cost
+and cache effect; P2 is not the tracked unfiltered100k fixture or a pure
+write→search schedule without proof calls. batches.jsonl/batch_count count successful
+governed calls; rows records their cohort size. Canonical batch atomicity follows
+the existing SDK/core commit contract, not instrumentation of all ancillary
+SQLite commits. No projection-overlap claim follows.
+
+API sample timing stops before output record hydration/serialization. Loop
+throughput includes driver recording and, for P2, writes/probes; it is labelled
+separately from API latency. Raw FTS match counts use the actual default product
+compiler on the controlled active node fixture, separately from limit10 returned
+hits. This is match/cost characterization, not relevance gold. Snapshot authority
+is explicitly unavailable; write receipts do not prove search-snapshot reuse.
+OS cache is uncontrolled, so fresh-engine/process calls are not cold-disk claims.
+
+One lock, start load<=2, noisy flag>2.5,900s cells, cumulative4h and16GiB
+measurement output cap apply with the reviewed outer owned resource guard.
+No compilation/concurrent owned campaign is allowed in the timing window.
+Source, failed attempts, skips and outliers remain explicit. Whole30, fidelity,
+MCP/Windows/Block1 and final160 obligations are not discharged by this P subset.

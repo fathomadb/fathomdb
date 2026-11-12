@@ -313,6 +313,11 @@ Existing GPU reservation/free-memory/cap and required identity/memory accounting
 remain. Accounting failure keeps existing refusal/stop behavior, NOT_RED and
 unqualified; missing/invalid accounting never establishes8GiB-cap compliance.
 
+Manual text TDD readiness/ACK follows the fixed bounded protocol in the test
+map, before API/loop clocks. Required PID/UUID memory/cap checks precede release;
+failure cancels and boundedly reaps only the owned child, NOT_RED/unqualified.
+Natural campaigns and existing inference oracles gain no wait or padding.
+
 Copy/open/count/proof/close costs remain outside API timers and separately
 attributed; raw serialization/checkpoints remain outside API timers and inside
 loop throughput. These are source TDD fixtures, not a campaign clock or natural

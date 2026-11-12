@@ -199,6 +199,16 @@ memory accounting keeps the existing refusal/stop behavior, is NOT_RED and
 unqualified, and never counts as8GiB-cap compliance. Healthy no-inference text
 calls need no positive utilization. Mean/hybrid GPU oracles remain unchanged.
 
+Manual text TDD fixtures alone use fixed text_fixture_handshake=true at RED
+and GREEN: after Default open/copied-count verifier release and BEFORE API/loop
+clocks, stdout READY <own_pid> <selected_uuid> followed by stdin ACK. Readiness
+and ACK each have<=15s deadlines, including required accounting work. Controller
+validates actual own PID/exact UUID memory and8GiB cap before release. EOF,
+protocol/accounting error or timeout cancels with bounded stop-and-wait of only
+its child; no unbounded read/join/cleanup. No inference padding or new engine/SDK
+API, mean/hybrid wait or natural-campaign wait. This is fixture scaffolding for
+the text-output oracle, not a separately claimed new passing coverage unit.
+
 Implement engine_text and sdk_text as SEPARATE runtime RED/GREEN units using
 existing text-only APIs. Compile-ready successful128-call/literal-ID proof must
 precede the intended missing0vs128sample assertion. Hash/config/copy/WAL/device/

@@ -490,10 +490,15 @@ wiring, then one required full gate and fresh actual artifact/native proof.
 ## D11 initial worker-transport oracle (proposed source fit)
 
 The [separate transport](gd-extension.md#d11-separate-worker-transport-and-shared-clock-fit-proposal)
-leaves accepted GO query collection unchanged. First RED may add compile-ready
-hidden setter/drain stubs returning an empty worker report, plus a tiny D driver
-branch using CURRENT real deterministic768 configure/write/drain/close APIs.
-No worker instrumentation precedes RED. Keep selector, features(test-hooks plus
+leaves accepted GO query collection unchanged. A compile-ready RED scaffold may
+use only a private driver delegating CURRENT real deterministic768 APIs and
+read absent worker output as0. Alternatively, new hidden setter/drain methods
+must expose an ACTUAL backed buffer, enablement and cumulative counter: empty
+records/zero loss reflect genuinely unwired recording, and capacity comes from
+the actual bound, never a fabricated product report or constant substitute for
+state. No existing correct behavior is disabled to manufacture RED. The tiny D
+driver uses real configure/write/drain/close APIs; worker/event recording remains
+unwired before RED. Keep selector, features(test-hooks plus
 slice30-measurement), argv/config and test bytes fixed through minimal GREEN;
 missing symbols/failed build/setup/SQL controls are NOT_RED.
 
@@ -525,7 +530,10 @@ GREEN: an owned real SQLite readonly SELECT followed by the wrong typed column
 read returns actual InvalidColumnType. Pass/propagate that original Err through
 the observer lifetime helper; expect one aborted record, positive interval,
 cleanup unconfirmed and unknown commit outcome null. The RED helper scaffold
-must preserve the Err and emit no record, so missing transport fails explicitly.
+propagates the ACTUAL Err unchanged; observation is honestly absent while event/
+Drop transport remains unwired. It must not fabricate an outcome/report or
+suppress already correct recording. Missing observation is read as0 and fails
+the intended assertion explicitly, not an exception from absent output.
 This is observer-helper error/Drop behavior, not an end-to-end worker failure or
 injected product fault. Do not claim an actual worker panic/recovery occurred;
 preserve the existing catch/recovery/cleanup source boundaries unchanged.

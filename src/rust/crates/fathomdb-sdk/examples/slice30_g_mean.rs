@@ -16,6 +16,9 @@ use raw::Recorder;
 #[path = "slice30/g_template.rs"]
 mod g_template;
 
+#[path = "slice30/g_write_schedule.rs"]
+mod g_write_schedule;
+
 enum GAdapter {
     Core(Box<OpenedEngine>),
     Sdk(Box<SdkEngine>),
@@ -319,7 +322,10 @@ fn run(config: &Value, out: &Path) {
     };
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
-    let mut calls = 0;
+    let mut calls = 0_usize;
+    let mut scheduled_write_calls = 0;
+    let mut scheduled_write_rows = 0;
+    let mut marker_probes = 0;
     for sample in 0..samples {
         let record_start_ns = (config["schedule"] == "write")
             .then(|| u64::try_from(loop_started.elapsed().as_nanos()).unwrap());
@@ -365,6 +371,12 @@ fn run(config: &Value, out: &Path) {
         }
         recorder.emit("samples", &row);
         calls += 1;
+        if config["schedule"] == "write" && calls.is_multiple_of(10) {
+            let cohort = g_write_schedule::run(&engine, &store, calls, &mut recorder, loop_started);
+            scheduled_write_calls += 1;
+            scheduled_write_rows += cohort.rows;
+            marker_probes += cohort.probes;
+        }
     }
     recorder.flush_all();
     let loop_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
@@ -373,7 +385,7 @@ fn run(config: &Value, out: &Path) {
         Value::Null
     } else {
         json!({"mode":config["schedule"],"natural_calls":calls,"natural_kind_filter":"doc",
-            "scheduled_write_calls":0,"scheduled_write_rows":0,"marker_probes":0})
+            "scheduled_write_calls":scheduled_write_calls,"scheduled_write_rows":scheduled_write_rows,"marker_probes":marker_probes})
     };
     let proof = json!({"api_calls":calls,"schedule":schedule,
         "dimension":if is_hybrid || is_text {None} else {Some(384)},
@@ -384,7 +396,7 @@ fn run(config: &Value, out: &Path) {
         "driver_version":device.driver_version,"cuda_toolkit_version":device.cuda_toolkit_version,
         "cuda_libraries":format!("{:?}",device.cuda_libraries),
         "raw_persistence":recorder.statistics_since([0;5]),"loop_ns":loop_ns,
-        "throughput_scope":"API calls plus validation/serialization/checkpoint loop; open/close separate"});
+        "throughput_scope":if config["schedule"] == "write" {"natural APIs plus scheduled writes/drains/probes/current verification/serialization/phase checkpoints; reset/open/close separate"} else {"API calls plus validation/serialization/checkpoint loop; open/close separate"}});
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
 }
 

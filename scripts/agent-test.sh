@@ -794,6 +794,12 @@ run_tier_maybe_suite heavy test-slice30-g-readonly-schedule "$slice30_g_mean_gpu
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_readonly_schedule.py
 '
 
+run_tier_maybe_suite heavy test-slice30-g-write-schedule "$slice30_g_mean_gpu_reason" bash -c '
+  set -euo pipefail
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_template.py
+  python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_write_schedule.py
+'
+
 run_tier_maybe_suite heavy test-slice30-g-template "$slice30_g_mean_gpu_reason" bash -c '
   set -euo pipefail
   python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_template.py

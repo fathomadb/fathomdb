@@ -687,6 +687,44 @@ Maintained manual template selector is explicit; test=false prevents automatic
 Rust execution while explicit --test selects the same harness. Later writes,
 full source/lifecycle/campaign qualification remain held for parent evaluation.
 
+## TGD10 actual SDK post-group write actuation
+
+RED36072cbc1 has successful reset/DefaultCUDA/natural doc-filtered calls and
+independent current-cursor/span SQL, then literal20calls0actual governed events/
+0probes versus2/20. Property10calls likewise0versus1;0/2 in4.699s. This is
+missing work, not metadata omitted after implementing an entire schedule.
+Oracle025e4ecb68ff0ac57b2893305443bbd8d6987bbe875910befabfe99616eb1f62
+is unchanged through first GREEN,2/2 in6.596s, bounded10/20/30 and literal20calls.
+The literal has2atomic governed calls/20written rows,2drains,20literal probes,
+2current-coverage events:6phase records, not6writes. Four reviewed flush points
+produce10checkpoints/46raw records. Current2doc+10note joins are verified apart
+from retained20historical physical vectors after two revisions. P/readonly
+schemas and original Recorder controls remain unchanged; no purge/product fix.
+
+Pre-runtime normalGN RED19ad167645a7377e974f3f0e85f2be7ffacc492c4e5a2ae62235af5ecc95b548;
+GREENd03079dacd82d879d72bafbe6309d2364fe5c0fa574837030d2bb39d5bf81a90.
+Existing gd-write-schedule-red/green receipts/logs and proofs/gd-write-schedule-
+red/green-identities.json retain actual source/delta/test/controller/config/
+model/artifact hashes; feature closures -write-red/-write-green prove normal
+no-hooks/no-observer identity. Printed g-text roots preserve raw timestamps/
+records/current/history observations and required GPU accounting. No query-text
+inference-utilization claim.13roots/original69280403456/no stop. Only completed
+flush prefixes have the existing process-stop retention scope; commit/event gaps,
+pending flush partials and no-fsync limits remain as preregistered. Tiny5s drains,
+2-row queries and this SDK text route do not implement the campaign map below.
+
+Retain gd-write-schedule-scoped exit101: Clippy required is_multiple_of on the
+new guard. Equivalent guards were corrected without oracle/config changes;
+-scoped-v2 passes Clippy/default compile/Ruff/Pyright10files/SC2312/232-label
+selection/MD/diff. Actual FINAL pre-runtime normalGN is
+1d081db9b558342d9f6de012e9951b401df954f5fe1fd63fc26a016a588b2c48,
+rebuilt in -green-build-v2 with feature closure -write-green-v2. Source-bound
+-green-v2 runtime passes2/2 in6.530s with the same fixed oracle; corresponding
+-green-v2-identities.json retains actual bytes. First d030 runtime remains its
+original subject. Unchanged read-only oracle b34965184ea57e5ebc0ff028fb9dc356caca531834f886f5aab47fdc8eb56737
+passes1/1 in -readonly-control on the final binary:20calls/0scheduled writes or
+probes/2checkpoints. No whole-wrapper or unrelated model replay was performed.
+
 ## Remaining runnable-campaign wiring (source work, not eligibility)
 
 Canonical manifest arithmetic is26measurement cells: G1=4/G2=2/GO=4/GG=2

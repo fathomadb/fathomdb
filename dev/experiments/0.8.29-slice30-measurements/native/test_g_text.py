@@ -110,8 +110,10 @@ def _acknowledge(child, deadline):
 class CoreTextTests(unittest.TestCase):
     adapter="engine"
     mode="engine_text"
+    samples=128
+    extra_config={}
 
-    def test_literal_text_calls_emit_their_population(self):
+    def run_fixture(self):
         if os.environ.get("CUDA_VISIBLE_DEVICES")!=GPU or os.environ.get("FATHOMDB_EMBED_DEVICE")!="cuda:0":
             raise RuntimeError("normal Default open requires the fixed forced CUDA identity")
         task=Path(os.environ["S30_GD_TASK"])
@@ -142,8 +144,8 @@ class CoreTextTests(unittest.TestCase):
         (root/"identity.json").write_text(json.dumps(identity,indent=2)+"\n")
         print(json.dumps(identity),flush=True)
         config=root/"cell.json"
-        config.write_text(json.dumps({"mode":self.mode,"samples":128,"query":"alphaonly",
-            "gpu_uuid":GPU,"text_fixture_handshake":True}))
+        config.write_text(json.dumps({"mode":self.mode,"samples":self.samples,"query":"alphaonly",
+            "gpu_uuid":GPU,"text_fixture_handshake":True,**self.extra_config}))
         (task/"locks").mkdir(exist_ok=True)
         snapshots=[]
         ack=False
@@ -193,7 +195,7 @@ class CoreTextTests(unittest.TestCase):
             if child.returncode:
                 raise RuntimeError("text fixture API/protocol failure: "+(root/"child.log").read_text())
         proof=json.loads((out/"api-proof.json").read_text())
-        if proof["api_calls"]!=128 or proof["fixture_ids"]!=["l:alpha"] or proof["fixture_ack_ns"]<=0:
+        if proof["api_calls"]!=self.samples or proof["fixture_ids"]!=["l:alpha"] or proof["fixture_ack_ns"]<=0:
             raise RuntimeError("existing text calls/literal identity/ACK proof invalid")
         if (proof["fixture"]["rows"],proof["fixture"]["vectors"],proof["fixture"]["pending"],proof["fixture"]["raw_fts_matches"])!=(2,2,0,1):
             raise RuntimeError("independent copied fixture counts invalid")
@@ -204,6 +206,11 @@ class CoreTextTests(unittest.TestCase):
         issues=[]
         rows=inference.read_jsonl_records(out/"samples.jsonl",issues)
         print(json.dumps({"api_proof":proof,"observed_records":len(rows),"issues":issues}),flush=True)
+        return root,proof,rows,issues
+
+    def test_literal_text_calls_emit_their_population(self):
+        root,proof,rows,issues=self.run_fixture()
+        out=root/"out"
         self.assertEqual(len(rows),128,f"missing actual {self.adapter} direct-text population")
         self.assertEqual(issues,[])
         for index,row in enumerate(rows):

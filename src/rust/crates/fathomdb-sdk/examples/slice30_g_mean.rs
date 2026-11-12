@@ -164,20 +164,77 @@ impl GAdapter {
         json!({"rows":rows,"vectors":vectors,"pending":pending,"raw_fts_matches":matches})
     }
 
-    fn text(&self, query: &str) -> fathomdb_engine::SearchResult {
+    fn prepare_marker_control(&self, path: &Path) -> Value {
+        let writes: Vec<_> = (0..10)
+            .map(|slot| PreparedWrite::Node {
+                kind: "note".into(),
+                body: format!("s30markercurrent{slot} revisionreset"),
+                source_id: SourceId::new("test:slice30-g-schedule").unwrap(),
+                logical_id: Some(format!("s30marker-{slot}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        let started = std::time::Instant::now();
+        match self {
+            Self::Core(opened) => {
+                opened.engine.write(&writes).unwrap();
+            }
+            Self::Sdk(engine) => {
+                engine.write(&writes).unwrap();
+            }
+        }
+        let reset_write_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+        let draining = std::time::Instant::now();
+        match self {
+            Self::Core(opened) => opened.engine.drain(5000).unwrap(),
+            Self::Sdk(engine) => engine.drain(5000).unwrap(),
+        }
+        let reset_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
+        let connection =
+            rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        let rows: Vec<(String,String)> = connection.prepare("SELECT logical_id,body FROM canonical_nodes WHERE kind='note' AND superseded_at IS NULL ORDER BY logical_id").unwrap().query_map([],|row| Ok((row.get(0)?,row.get(1)?))).unwrap().collect::<Result<_,_>>().unwrap();
+        let expected: Vec<_> = (0..10)
+            .map(|slot| {
+                (format!("s30marker-{slot}"), format!("s30markercurrent{slot} revisionreset"))
+            })
+            .collect();
+        assert_eq!(rows, expected);
+        let counts: Vec<(String, u64)> = connection
+            .prepare("SELECT kind,count(*) FROM _fathomdb_vector_rows GROUP BY kind ORDER BY kind")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(counts, [("doc".into(), 2), ("note".into(), 10)]);
+        json!({"reset_write_calls":1,"reset_rows":10,"reset_write_ns":reset_write_ns,"reset_drain_ns":reset_drain_ns,"marker_ids":rows.iter().map(|row| &row.0).collect::<Vec<_>>(),"marker_bodies":rows.iter().map(|row| &row.1).collect::<Vec<_>>(),"doc_vectors":2,"note_vectors":10})
+    }
+
+    fn text(&self, query: &str, kind: Option<&str>) -> fathomdb_engine::SearchResult {
+        let filter = kind.map(|kind| {
+            let mut filter = fathomdb_engine::SearchFilter::default();
+            filter.kind = Some(kind.into());
+            filter
+        });
         match self {
             Self::Core(opened) => opened
                 .engine
                 .search_text_only_filtered_with_snippets(
                     query,
-                    None,
+                    filter,
                     &fathomdb_engine::ReadView::default(),
                     10,
                     None,
                 )
                 .unwrap(),
             Self::Sdk(engine) => {
-                engine.search_text_only(query, fathomdb_sdk::TextSearchOptions::default()).unwrap()
+                let mut options = fathomdb_sdk::TextSearchOptions::default();
+                options.filter = filter;
+                engine.search_text_only(query, options).unwrap()
             }
         }
     }
@@ -242,6 +299,13 @@ fn run(config: &Value, out: &Path) {
     } else {
         Value::Null
     };
+    let marker_control = if config["schedule"] == "readonly" {
+        assert!(is_text, "initial schedule fixture uses the direct-text population");
+        engine.prepare_marker_control(&store)
+    } else {
+        assert!(config["schedule"].is_null(), "unsupported schedule");
+        Value::Null
+    };
     let fixture_ack_ns = if is_text && config["text_fixture_handshake"].as_bool() == Some(true) {
         text_fixture_ack(resolution.selected_cuda_uuid.as_deref().unwrap())
     } else {
@@ -253,12 +317,13 @@ fn run(config: &Value, out: &Path) {
     for sample in 0..samples {
         let row = if is_text {
             let started = std::time::Instant::now();
-            let result = engine.text(query);
+            let result = engine.text(query, (!marker_control.is_null()).then_some("doc"));
             let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
             let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
             assert_eq!(ids, ["l:alpha"]);
             json!({"adapter":adapter,"mode":"direct_text","ok":true,"sample_index":sample,
                 "query_index":0,"elapsed_ns":elapsed_ns,"ids":ids,"returned_hits":result.results.len(),
+                "kind_filter":if marker_control.is_null(){Value::Null}else{json!("doc")},
                 "search_snapshot":null,"snapshot_observation":"unavailable"})
         } else if is_hybrid {
             let started = std::time::Instant::now();
@@ -294,7 +359,7 @@ fn run(config: &Value, out: &Path) {
     let proof = json!({"api_calls":calls,
         "dimension":if is_hybrid || is_text {None} else {Some(384)},
         "finite_nonzero":if is_hybrid || is_text {None} else {Some(true)},
-        "fixture":fixture,"fixture_ack_ns":fixture_ack_ns,"fixture_ids":if is_text {json!(["l:alpha"])} else if is_hybrid {json!(["l:alpha","l:beta"])} else {Value::Null},
+        "marker_preparation":marker_control,"fixture":fixture,"fixture_ack_ns":fixture_ack_ns,"fixture_ids":if is_text {json!(["l:alpha"])} else if is_hybrid {json!(["l:alpha","l:beta"])} else {Value::Null},
         "pooling":if is_text {format!("{adapter} text-only API; query embedding not requested")} else if is_hybrid {format!("{adapter} hybrid API with configured mean query embedding")} else {format!("{adapter} mean API")},"selected_cuda_uuid":resolution.selected_cuda_uuid,
         "cuda_compiled":resolution.cuda_compiled,"cuda_ordinal":device.ordinal,
         "driver_version":device.driver_version,"cuda_toolkit_version":device.cuda_toolkit_version,

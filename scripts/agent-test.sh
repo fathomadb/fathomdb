@@ -752,6 +752,10 @@ run_tier_maybe_suite heavy test-slice30-gd-stats "$slice30_measurement_platform_
   cargo test --locked --release -p fathomdb-engine --test slice30_measurement_stats \
   --features slice30-measurement
 
+run_tier_maybe_suite heavy test-slice30-gd-outcomes "$slice30_measurement_platform_reason" \
+  cargo test --locked --release -p fathomdb-engine --test slice30_measurement_outcomes \
+  --features slice30-measurement
+
 run_tier_maybe_suite heavy test-python "$python_suite_skip_reason" "${python_suite_command[@]}"
 run_tier_maybe_suite heavy test-python-native-receipt "$python_receipt_skip_reason" python3 scripts/tests/verify_python_test_hook_receipt.py "$python_receipt_path" "$python_receipt_nonce"
 

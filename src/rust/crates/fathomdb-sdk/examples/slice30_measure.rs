@@ -176,6 +176,11 @@ fn raw_match_count(path: &Path, query: &str, kind: Option<&str>) -> u64 {
     }
 }
 
+#[cfg(test)]
+fn run_cell(_config: &Value, _out: &Path) -> Value {
+    json!({"complete": false, "sample_count": 0, "warmup_count": 0})
+}
+
 fn main() {
     eprintln!("Slice30 cell command is not implemented yet");
     std::process::exit(2);
@@ -268,5 +273,83 @@ mod tests {
             .iter()
             .all(|id| id.as_str().unwrap().starts_with("l:alpha-")));
         engine.close();
+    }
+
+    #[test]
+    fn cell_keeps_warmups_separate_and_seeds_one_fresh_natural_store() {
+        let directory = tempfile::tempdir().unwrap();
+        let corpus = directory.path().join("corpus.jsonl");
+        let queries = directory.path().join("queries.jsonl");
+        std::fs::write(&corpus, "\"alphaonly evidence\"\n\"betaonly evidence\"\n").unwrap();
+        std::fs::write(&queries, "\"alphaonly\"\n\"betaonly\"\n").unwrap();
+        let out = directory.path().join("out");
+        let config = json!({"family":"P1", "n":2, "adapters":["engine","sdk"],
+            "warmup":3, "samples":4, "repeat":0, "corpus":corpus, "queries":queries});
+        let result = run_cell(&config, &out);
+        assert_eq!(result["sample_count"], 8);
+        assert_eq!(result["warmup_count"], 6);
+        assert_eq!(result["filtered"], false);
+        assert_eq!(result["natural_records"], 2);
+        let rows: Vec<Value> = std::fs::read_to_string(out.join("samples.jsonl"))
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(rows.len(), 8);
+        assert_eq!(
+            rows.iter().map(|row| row["ids"].clone()).collect::<Vec<_>>(),
+            vec![
+                json!(["l:s30doc-0"]),
+                json!(["l:s30doc-1"]),
+                json!(["l:s30doc-0"]),
+                json!(["l:s30doc-1"]),
+                json!(["l:s30doc-0"]),
+                json!(["l:s30doc-1"]),
+                json!(["l:s30doc-0"]),
+                json!(["l:s30doc-1"])
+            ]
+        );
+        let connection = rusqlite::Connection::open_with_flags(
+            out.join("store.sqlite"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, u64>(0))
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            connection
+                .query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |row| row
+                    .get::<_, u64>(0))
+                .unwrap(),
+            0
+        );
+        drop(connection);
+        assert!(std::panic::catch_unwind(|| run_cell(&config, &out)).is_err());
+    }
+
+    #[test]
+    fn cell_labels_filtered_marker_schedule_separately_from_p1() {
+        let directory = tempfile::tempdir().unwrap();
+        let corpus = directory.path().join("corpus.jsonl");
+        let queries = directory.path().join("queries.jsonl");
+        std::fs::write(&corpus, "\"naturalalpha\"\n\"naturalbeta\"\n").unwrap();
+        std::fs::write(&queries, "\"naturalalpha\"\n").unwrap();
+        let out = directory.path().join("out");
+        let config = json!({"family":"P2", "n":2, "adapters":["sdk"], "batch_size":1,
+            "searches_per_batch":1, "warmup":3, "samples":4, "repeat":0,
+            "corpus":corpus, "queries":queries});
+        let result = run_cell(&config, &out);
+        assert_eq!(result["sample_count"], 4);
+        assert_eq!(result["warmup_count"], 3);
+        assert_eq!(result["filtered"], true);
+        assert_eq!(result["natural_records"], 2);
+        assert_eq!(result["marker_records"], 10);
+        assert_eq!(result["batch_count"], 4);
+        assert_eq!(result["marker_probe_count"], 4);
+        assert_eq!(result["complete"], true);
     }
 }

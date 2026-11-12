@@ -1214,6 +1214,51 @@ normal-only validation and all GPU/resource deadlines remain. These are tiny
 source/transport proofs, not paired observer-cost results or campaign/native/
 lifecycle/final source qualification. GG/D/budget/controller/pairing work remains.
 
+### GG time-copy measured stages
+
+RED3337f151cbeff8574165bd6c6eb1f6feb1b48bb5 observes zero actual timed
+hybrid stage calls after all four existing real public-view controls succeed.
+Literal baseline/before/inside/after subtests each fail0vs2; the property's
+first stage fails0vs1 (2tests/5assertions). A baseline query at100 precedes one
+governed row valid90..110, then80/100/120 direct-text controls prove literal
+absent/inside-only visibility. Real Default/CUDA, write/drain/pending0,
+physical65→66/no-history and independent window/cursor/span/visible SQL controls
+precede the intended missing-call assertions. Missing stage files are observed0,
+never misclassified as a fixture/parser error.
+
+Fixed oracle SHA256 is
+`b2cbbf1c77adbc2d6a0425d363324ce1191d772cfbb1f2fff41b43545ca35b22`.
+Minimal GREEN adds the actual public search_reranked_view_with_limit warmup/
+timed loops immediately after each literal control: baseline BEFORE the row
+write, then before/inside/after with the appended row unchanged. Existing
+observer/Recorder are reused. Each API clock includes view argument construction;
+fingerprints, validation, observer drains and persistence stay outside it.
+Loop scope includes warmup+timed calls/validation/collection/persistence;
+literal controls, write/drain, open/close and measured observer toggles are
+separate. Control text calls remain unobserved and cannot pollute stage records.
+No recency/importance/full-sort/test-hook override or product routing change.
+
+GREEN2/2 covers three fixtures with12completed stages/32hybrid calls
+(24timed,8warmup). Actual all-nodes invocation values are true/false/true/false;
+reader SnapshotStamp effective_at is100/80/100/120. One Engine owns monotonic
+call IDs across stages; generation increases after the governed append and
+stays fixed across the three subsequent stages. Hybrid IDs are checked only
+against eligible sets, not a learned vector ranking. Literal text and current/
+visible counts supply the independent visibility oracle.
+
+Actual RED diagnostic binary is80ed04875b; GREEN SHA256 is
+`b06d9645ece82e47f171c2582ca1be12fa2a3466cf9605521b7e5f7a846078f0`.
+Task proofs/gd-gg-time-red-identities.json and -green-identities.json include
+all shared/new GG sources, oracle/controller/builder/binary/features before
+runtime; compiler proofs gd-g-host-gg-time-red/green capture the actual no-hooks
+observer artifact. Receipts/logs gd-gg-time-scaffold-build, -scaffold-checks,
+-red, -green-build, -green-lint and -green preserve actual commands/source/
+deltas/exit,13roots/originalbaseline and cleanup. Prior GO/G1 proofs retain
+their original subjects: their callers/transport bodies are unchanged, not
+relabelled current full qualification. The suite's unique build-label assignment
+propagates date failure before invoking its builder. The governed valid→Deleted
+copy remains a separate unit; no100k preparation/campaign/full qualification.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

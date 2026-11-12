@@ -1,5 +1,11 @@
 # Slice30 G/D prospective cells and resources
 
+Current execution: reviewed design PASS and parent source GO at5968884b.
+Bounded source TDD is underway; see [actual execution](execution-gd.md).
+Historical design-stage statements below describe the349/b83 review subject,
+not current runtime authorization or completed qualification. No G/D natural
+campaign or whole-slice acceptance is claimed.
+
 Status: DESIGN ONLY. No G/D runtime authorization. Freeze actual immutable
 source/artifact/model/template/cell identities after design PASS, parent GO,
 owned setup, real TDD and source qualification. Preserve accepted P freeze/raw

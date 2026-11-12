@@ -175,8 +175,14 @@ diagnostic reads. The bounded pinned-reader race independently distinguishes its
 old generation/body from the adjacent post-commit new generation/body. `predicates.has_source_dependencies` records only its actual existing invocation,
 with `invoked=true`, boolean `value` and inclusive `elapsed_ns`; the original
 predicate error still propagates unchanged (value null). No skipped predicate is
-evaluated to populate a report. Other predicate, final error disposition and
-drop reporting are not yet supplied. Closing admission
+evaluated to populate a report. `vector_arm_requires_fallback` records its actual
+invocation/value/time and a nested `sql` span only around its dependency SQL.
+A called/false no-dependency result has SQL invoked=false with reason
+`no_dependencies` and null value/time. The outer predicate's original
+history/vector short circuit is preserved: NOT_CALLED uses invoked=false,
+null value/time and reason `history_incomplete` or `query_vector_absent`.
+This never substitutes false/zero for a skipped predicate. Other predicate,
+final error disposition and drop reporting are not yet supplied. Closing admission
 returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.
 

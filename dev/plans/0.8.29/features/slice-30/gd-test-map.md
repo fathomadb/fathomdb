@@ -1,5 +1,11 @@
 # Slice30 G/D executable test and TDD proposal
 
+Current execution: reviewed design PASS and parent source GO at5968884b.
+Bounded source TDD is underway; see [actual execution](execution-gd.md).
+Historical design-stage statements below describe the349/b83 review subject,
+not current runtime authorization or completed qualification. No G/D natural
+campaign or whole-slice acceptance is claimed.
+
 Status: DESIGN ONLY at349e9fa07. No listed test was authored/executed yet.
 AGENTS strict per-behavior runtime RED→committed RED→separate GREEN applies.
 Existing passing product tests are controls, not new coverage labelled RED.

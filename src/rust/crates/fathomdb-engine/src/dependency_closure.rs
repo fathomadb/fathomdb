@@ -921,6 +921,7 @@ pub(crate) fn vector_arm_requires_fallback(
     include_inactive: bool,
     include_out_of_window: bool,
     effective_at: i64,
+    #[cfg(feature = "slice30-measurement")] sql_observation: Option<&mut serde_json::Value>,
 ) -> rusqlite::Result<bool> {
     if !has_source_dependencies {
         return Ok(false);
@@ -966,11 +967,21 @@ pub(crate) fn vector_arm_requires_fallback(
            )\
          )"
     );
-    if include_out_of_window {
+    #[cfg(feature = "slice30-measurement")]
+    let sql_started = sql_observation.as_ref().map(|_| std::time::Instant::now());
+    let result = if include_out_of_window {
         connection.query_row(&sql, [], |row| row.get(0))
     } else {
         connection.query_row(&sql, [effective_at], |row| row.get(0))
+    };
+    #[cfg(feature = "slice30-measurement")]
+    if let (Some(output), Some(started)) = (sql_observation, sql_started) {
+        *output = json!({
+            "invoked": true, "value": result.as_ref().ok(),
+            "elapsed_ns": u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+        });
     }
+    result
 }
 
 pub(crate) fn has_source_dependencies(connection: &Connection) -> rusqlite::Result<bool> {

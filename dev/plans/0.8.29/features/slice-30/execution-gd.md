@@ -52,6 +52,63 @@ The RED binary content hash was not captured before rebuilding; its runtime
 artifact path/build/actual failures remain in the original log. No retrospective
 hash is claimed. Subsequent RED commands hash actual built tests before runtime.
 
+## Predicate progress and independent prefix corrections
+
+TGD-2 dependency-presence:5498181ba→e6c6d8672. Both ordinary and governed
+source/derived stores genuinely failed missing invocation Null!=true, then2/2
+passed with the identical test SHA256
+4805862af99b940fa475283b17cc5ef601ba4b313ea482991379594b5f46e3b4.
+Actual false/true values, query correlation and positive fine duration are
+required. gd-dependency-red/green receipts/logs retain full executable hashes,
+features and dirty-source attribution; affected Clippy passes.
+
+TGD-3 fallback RED93117f250 preceded this revision's minimal GREEN.2prior predicate tests
+passed and5new literal cases failed their missing actual invocation/NOT_CALLED
+spans: vectorless, history-incomplete, dense no-dependency, valid-dependency and
+governed source lifecycle loss. Successful product result assertions precede
+each failure. RED executable SHA256
+02a828d170273d5b4a0dc9628dd43e2cb7bd37c0c35b83cb6aca51837d285c65;
+test SHA256ca0bb22bec8f5bc63e3b614beb394f1c09a2c00550f0d282de7be4fa18e82fd6.
+After guard acceptance, the unchanged tests pass7/7 with actual predicate and
+SQL-branch timings and explicit skipped/null dispositions. GREEN executable
+SHA2562f61de62d5c3d150d85a8df9ec0f269862f1d8c3f4068af1229c6b2955554a45.
+gd-fallback-green log/receipt retain build/features/test hash and exact source
+delta; affected Clippy and default engine cargo check pass, resource_stop null.
+This adds no all-nodes/vector/text/error/worker instrumentation.
+
+A fresh independent Astra implementation-prefix review found three resource
+guard defects; no actionable Rust completion/stamp finding. Native work stopped
+before these fixes. The same reviewer returned GUARD_FINDINGS_RESOLVED at
+bf891946d, accepting all three corrections; the parent lifted only that protective
+hold, with the original bounded source GO and campaign prerequisites unchanged. Each correction has a genuine committed runtime RED and separate GREEN;
+its test bytes are identical between the pair.
+
+| Correction | RED → GREEN | Actual RED and minimal outcome | Immutable test SHA256 |
+| --- | --- | --- | --- |
+| Final sample disposition |e2e39f367→d3ccf0670 |2real immediate-exit children wrongly reported0 instead of124 for over-cap/unavailable final observation; now2/2pass, actual child exit retained |d3bfde1e1e9a2e79ea4b2b63781b4670244d17462ec59e5ee89a90d61a02319f |
+| Entire owned group |6150cbbfb→f51197b06 |2actual ignoring descendants survived exited/TERM-exited leader; now both gone/reaped before disposition |1a5ba8f983b0731bf9664fbb4bb6527212771a785b9294b40f1bcfb0edf03e2b |
+| Verifiable du totals |ad93ceb44→bf891946d |Real GNUdu exits1/numeric8192/Permission denied but was accepted; now both failed attempts retained and totals refused |a3a78f45b107d11c994e493766b0b660611cb8346fa05432a49d387c81c86e7f |
+
+Exact correction receipts/logs: red/green-gd-final-observation,
+red-gd-owned-group and-v2, green-gd-owned-group, red-gd-du-evidence,
+green-gd-du-and-guards. Original owned-group RED is retained; v2 strengthens only
+the tiny fixture wrapper's bounded wait/cleanup before its RED commit, with the
+same two intended survival failures. The fixture always cleans its own RED
+leaks. The guard's process-local Linux subreaper scope restores prior state;
+only its created group is signaled/reaped, independently of leader state. TERM
+has15s grace, then KILL plus5s group completion bound. Actual leader exit and
+cleanup disposition stay separate. This is not a host configuration change.
+
+Final affected stdlib controls9/9pass in30.71s, Ruff/diff/normal hooks pass at
+cleanbf891946d. This is scoped guard qualification, not an uninterrupted full
+source gate or acceptance of the unfinished G/D campaign. No native/model/GPU
+work ran during these corrections. New test files are selected by the maintained
+Python root discovery suite. This guard verdict is not whole-source acceptance;
+later units/final qualification remain outstanding. Post-review resource recheck
+uses the ORIGINAL admission baseline, not a refreshed allocation: owned65.639GiB,
+setup used1.117GiB/remaining94.883GiB, root/task free77.344/577.231GiB,
+MemAvailable23.061GiB; no resource stop. Receipt gd-post-review-resources.json.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

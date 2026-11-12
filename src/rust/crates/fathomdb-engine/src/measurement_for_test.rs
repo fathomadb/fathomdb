@@ -47,6 +47,21 @@ pub(super) struct Completion {
 }
 
 impl Completion {
+    pub(super) fn skipped_predicate(&mut self, name: &'static str, reason: &'static str) {
+        self.predicates.insert(
+            name.into(),
+            json!({
+                "invoked": false, "value": null, "elapsed_ns": null, "reason": reason,
+            }),
+        );
+    }
+
+    pub(super) fn attach_sql(&mut self, name: &'static str, sql: Value) {
+        if let Some(span) = self.predicates.get_mut(name) {
+            span["sql"] = sql;
+        }
+    }
+
     pub(super) fn stamp(&mut self, connection: &rusqlite::Connection, effective_at: i64) {
         let started = std::time::Instant::now();
         let generation = crate::frozen_read::load_visibility_generation(connection);
@@ -119,7 +134,7 @@ impl Engine {
     ///
     /// Records contain engine/call IDs and reader worker index. At most 32768
     /// records are retained between drains. This first completion transport does
-    /// exposes same-reader snapshot and dependency-presence timing when available,
+    /// exposes same-reader snapshot and actual predicate timing when available,
     /// but not final error disposition or drop metadata.
     /// Returns `Closing` when admission closes or `Storage` on a poisoned buffer.
     #[doc(hidden)]

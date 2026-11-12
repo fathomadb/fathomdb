@@ -1,5 +1,11 @@
 # Slice30 G/D concrete extension design
 
+Current execution: reviewed design PASS and parent source GO at5968884b.
+Bounded source TDD is underway; see [actual execution](execution-gd.md).
+Historical design-stage statements below describe the349/b83 review subject,
+not current runtime authorization or completed qualification. No G/D natural
+campaign or whole-slice acceptance is claimed.
+
 Status: DESIGN PROPOSAL ONLY. Baseline349e9fa07d6c624affab69709735f35c18c0abae
 contains accepted P at0d8be5bb75516955ebf99b94913b9b54921bb3a4. Parent integrated
 P/state at2381de882 and the all-/mnt/data storage checkpoint at349e9fa07.

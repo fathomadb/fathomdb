@@ -2002,8 +2002,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         false
     };
     let vector_eligibility_degraded = history_incomplete
-        || query_vector.is_some()
-            && dependency_closure::vector_arm_requires_fallback(
+        || query_vector.is_some() && {
+            #[cfg(not(feature = "slice30-measurement"))]
+            let fallback = dependency_closure::vector_arm_requires_fallback(
                 &tx,
                 has_source_dependencies,
                 view.view.include_superseded,
@@ -2011,6 +2012,44 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 view.view.include_out_of_window,
                 view.edge_now(),
             )?;
+            #[cfg(feature = "slice30-measurement")]
+            let fallback = {
+                let mut sql = _measurement.as_ref().map(|_| {
+                    serde_json::json!({
+                        "invoked": false, "value": null, "elapsed_ns": null,
+                        "reason": "no_dependencies",
+                    })
+                });
+                let result = crate::measurement_for_test::measure_bool(
+                    &mut _measurement,
+                    "vector_arm_requires_fallback",
+                    || {
+                        dependency_closure::vector_arm_requires_fallback(
+                            &tx,
+                            has_source_dependencies,
+                            view.view.include_superseded,
+                            view.view.include_inactive,
+                            view.view.include_out_of_window,
+                            view.edge_now(),
+                            sql.as_mut(),
+                        )
+                    },
+                );
+                if let (Some(measurement), Some(sql)) = (_measurement.as_mut(), sql) {
+                    measurement.attach_sql("vector_arm_requires_fallback", sql);
+                }
+                result?
+            };
+            fallback
+        };
+    #[cfg(feature = "slice30-measurement")]
+    if let Some(measurement) = _measurement.as_mut() {
+        if history_incomplete {
+            measurement.skipped_predicate("vector_arm_requires_fallback", "history_incomplete");
+        } else if query_vector.is_none() {
+            measurement.skipped_predicate("vector_arm_requires_fallback", "query_vector_absent");
+        }
+    }
     let vector_results = if let Some(query_vector) =
         query_vector.filter(|_| !vector_eligibility_degraded)
     {

@@ -17,7 +17,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [metrics.py](metrics.py) | Nearest-rank p50/p99, arithmetic mean, error-inclusive throughput, matched query/repeat differences and fixed-seed query-cluster descriptive intervals. Hand-computed oracles; no treatment/numerical verdict. |
 | [control.py](control.py) | Freeze actual source/lock/binary/input identities and balanced plan; serialized Linux campaign with resource observations; report every complete/failed/not-run/partial cell. Long CLI runs require AGENT_LONG=1. |
 | [slice30_gd_diagnostic.rs](../../../src/rust/crates/fathomdb-engine/examples/slice30_gd_diagnostic.rs) | G/D core-only diagnostic scaffold, real current APIs, fixed-selector completion test in native/test_completion.py; explicit maintained heavy suite. First RED used an empty feature; current private per-engine completion transport nests exact-reader snapshot metadata. No public SDK test accessor. |
-| [gd_resources.py](gd_resources.py) | G/D conservative allocated/apparent aggregation, setup/raw reservations and owned child phase guard; selectively adapts the committed Slice60 resource guard. Literal math and actual tiny-child tests in test_gd_resources.py are selected by the existing maintained Python discovery suite. |
+| [gd_resources.py](gd_resources.py) | G/D conservative allocated/apparent aggregation, setup/raw reservations and owned child phase guard; selectively adapts the committed Slice60 resource guard. Literal math in test_gd_resources.py and real tiny-child/final-sample/group/du controls in test_gd_guard_*.py are selected by the existing maintained Python discovery suite. |
 | [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
 | [test_tools.py](test_tools.py) | Fourteen bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
@@ -124,7 +124,11 @@ accepted96GiB setup/16GiB each raw/200GiB aggregate, plus fixed disk/memory/swap
 floors. Raw campaign directories are task/g and task/d. The guard records actual
 command/cwd/source/delta/exit, resource snapshots and separate child exit; a
 resource stop is124, preflight refusal125. Only its own child process group is
-terminated and waited. Logs/receipts persist under task/logs and task/receipts.
+terminated and waited, including descendants after leader exit. A process-local
+Linux subreaper scope restores its previous state; only the created process
+group is signaled/reaped (TERM15s, then KILL/5s completion bound). Final resource
+observations govern disposition, and failed du numeric partial totals are retried
+within two attempts then refused with diagnostics. Logs/receipts persist under task/logs and task/receipts.
 Tiny unit roots/caps exercise enforcement without a heavy/native/model workload;
 normal CLI uses the accepted limits and real entry inventory. No tamper/drift or
 new product resource API is introduced. Old P artifacts/environments stay read-only.

@@ -203,12 +203,16 @@
         "dev/plans/0.8.29/features/slice-30/test-map.md",
         "dev/plans/0.8.29/features/slice-30/product-architecture.md",
         "dev/plans/0.8.29/features/slice-30/prerequisite-change.md",
-        "dev/plans/0.8.29/features/slice-30/review-log.md"
+        "dev/plans/0.8.29/features/slice-30/review-log.md",
+        "dev/plans/0.8.29/features/slice-30/execution.md",
+        "dev/plans/0.8.29/features/slice-30/results-p.md"
       ],
-      "phase": "INITIAL_P_DESIGN_ACCEPTED_SOURCE_ENTRY_CHECKS_PENDING",
+      "phase": "P_SUBSET_IMPLEMENTED_QUALIFIED_REVIEW_PASS_WHOLE_SLICE_OPEN",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "Initial P-only Linux entry: actual closed10, integrated qualified Linux20 subset657edeb and current70 ancestry/source, accepted design, own strict preflight/setup and explicit parent GO. G/D require concrete extension review; M remains held on20 A3/A5 proof or owner disposition; F needs exact frozen TC5/current-candidate proof.20 Windows A6, whole30,40/50 source gates and pre90 Block1 remain open.",
-      "evidence": "Independent Astra-medium PASS on ten-document P-only design and exact20-to10 Linux entry cut. Direct-text bypasses MCP/embedding; only unfiltered P1 qualifies tracked100k text; P2 marker/write-filter cells stay distinct. Pinned LME/BGE inputs verified locally; elevated read-only host inventory sees idle3090s, sandbox query failure was visibility only. Design/tools prepared only; no source implementation, benchmark, model or GPU campaign has run."
+      "conditions": "P-only Linux subset is qualified after reviewed closed10/qualified Linux20/current70 entry and owned setup. G/D still require concrete extension design review and parent GO; M remains held on20 A3/A5 proof or owner disposition; F needs the exact frozen TC5 pack/current-candidate proof. Windows20 A6, whole20/30,40/50 source gates and pre90 Block1 remain open.",
+      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
+      "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
+      "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4"
     },
     {
       "slice": 40,
@@ -602,7 +606,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs and60 format/direct-filter/budget subset also passed within their recorded limits. Whole20/60/F11, remaining product/platform/artifact criteria and final160 qualification remain pending. Assembled qualification retains original interruptions/resumptions/skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication.391ae66aa adds reviewed20 planning only; local implementation/qualification remains distinct from published-release completion.",
+    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs,60 format/direct-filter/budget subset and30 provider-free P measurements passed within their recorded limits. P runtime2fd and final documentation0d8 have fresh independent P-subset acceptance; whole30/G/D/M/F remain open. Whole20/60/F11, remaining product/platform/artifact criteria, pre90 Block1 and final160 qualification remain pending. Assembled qualification retains original failures, interruptions/resumptions and inner skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

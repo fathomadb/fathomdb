@@ -335,8 +335,9 @@ These outputs do not activate .29 or approve environment/product changes.
 
 ## Integration, decisions and next action
 
-All selected work lands on current `dev/0.8.29`, preserving integrated .28 and
-MCP/Block1 contracts. Preserve experiment sources and selectively adapt tools;
+Selected work integrates through the local `release/0.8.29` ref from
+`llm/0.8.29-chat` in /mnt/data/worktrees/fathomdb-0.8.29, preserving integrated
+.28 and MCP/Block1 contracts. Preserve experiment sources and selectively adapt tools;
 no wholesale old prototype merge. Before landing, fetch allowed refs, check
 ancestry/current branch and integrate/review changed boundaries before a
 fast-forward. Never force-push or move another session's checkout.
@@ -347,9 +348,13 @@ Use ledgerwatch/ledgerwrite for ledgers and stable TC ids.
 
 [The proposal register and decision log](0.8.29/proposal-register.md) distinguish
 approved work from genuinely pending item decisions. Actual0–9 reviews are
-complete;10 now prepares the bounded approved scope through its own independent
-reviews and TDD. Product implementation follows the selected ladder and actual
-prerequisites. Publication remains separately authorized.
+complete. Approved10 preparation and qualified product subsets are recorded in
+the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provide
+current direct-text evidence. P acceptance does not close whole30 or downstream
+source gates. The same30 owner next prepares a concrete G/D extension design
+for independent Astra review before parent source/runtime GO. Product work
+continues through the selected ladder, actual prerequisites and genuine TDD.
+Publication remains separately authorized.
 
 ## Immediate next slice
 

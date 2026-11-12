@@ -28,13 +28,19 @@ Slice20's independently reviewed Linux hook-ownership repairs are integrated
 at657edeb76caaf9c8d2aab433766bec9362e73217;
 [execution](../0.8.29/features/slice-20/execution.md) preserves assembled
 qualification and limits. A3/A5 policy and Windows A6 remain open;20 and the
-Block1 exit are not closed. Reviewed30 documentationbea7f05cd and its exact
+Block1 exit are not closed. The reviewed30
 [prerequisite amendment](../0.8.29/features/slice-30/prerequisite-change.md)
-allow initial provider-free Linux P entry from closed10 plus the qualified20/70
-source baseline after actual preflight and parent GO. G/D extension review,
-M20 proof/policy, F frozen-input and whole30/40/50 gates remain. Independently
-qualified60 subset and completed70 retain their recorded bounds. Each source
-owner uses a fresh parent-created worktree and own /mnt/data resources.
+was satisfied for the provider-free Linux P subset. The parent accepts that
+subset after independent code/results/documentation PASS and its own raw-data,
+artifact-hash, ancestry and clean-tree checks; see
+[P results](../0.8.29/features/slice-30/results-p.md) and the
+[execution record](../0.8.29/features/slice-30/execution.md).
+Qualification remains assembled, with original failures and inner skips retained.
+The same30 owner next prepares a concrete G/D extension design for Astra review;
+this is design work only until parent GO. M20 proof/policy, F frozen-input,
+whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
+completed70 retain their recorded bounds. Each source owner uses a fresh
+parent-created worktree and own /mnt/data resources.
 
 ## Retained gates
 

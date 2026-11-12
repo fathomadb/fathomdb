@@ -286,6 +286,45 @@ all failures remain retained. Corrected candidate must return to the SAME
 implementation reviewer before canonical native/G work resumes. No full gate,
 G/model/GPU/campaign or whole-slice acceptance is inferred.
 
+## Actual prefix setup and light time forecasts
+
+Same Astra returned TGD7_PREFIX_ACCEPTABLE_PENDING_REMAINING_WORK at9e5e647ad
+for37fbdbc32→9e5e647ad, accepting the exact helper/error/rows-null/unchanged-test
+proof. Temporary code hold lifted. Canonical owned Python/dev/noneditable wheel
+setup then completed at clean9e in205.85s, resource_stop null. Receipt
+gd-canonical-python-setup.json and preserved gd-prefix-python-native.json identify
+wheel SHA25648fe0c333190890a16fdbac9ae7ec3a996b0e313a2e517bb70f6f5ca88ebb071
+and installed native d8c6c1436d8ffbdac1261bafcfb9a454c8a386d84443282bf33cea4676ba6187
+under this checkout's own venv/Python3.13.13. This is setup/build/import identity,
+not lifecycle or final-source qualification; no model/GPU work ran.
+
+The following TS phase DID NOT START: gd-canonical-ts-setup refused125/pidnull
+because actual MemAvailable12.208GiB was below fixed16GiB start. Preserve that
+refusal separately from runtime RED. Owned setup group2661787 had no remaining
+host processes. No host app was stopped, cache cleared or threshold changed.
+Original five-root resources measured66.732GiB owned/2.210GiB setup used of96;
+storage/reserved raw caps remain unchanged. Heavy/native/GPU/campaign starts
+still require16GiB, with8GiB stop floor. Parent requested user assistance;
+no answer or capacity recovery is assumed.
+
+Parent explicitly allowed small stdlib source tests with monitored8GiB stop
+while heavy work waits. TGD-14 TIME-only RED9bb2dcf02 runs actual tiny stdin/JSON
+CLI children and fails4missing-report assertions: hypothetical100k/210s→300k
+945s declines;10k/10s→100k150s fits time;1ns×4.5 rounds up5ns; bounded monotonicity
+requires boolean projection. These are independent human math fixtures, not
+actual template, schedule,100k/300k or shared-clock campaign runs.
+
+Unchanged test SHA256
+47888d4dd4f3f5581970a6e54561d2fbff134f6b30cce73aa340d97328c75c7d;
+GREEN gd-time-feasibility-green passes4/4including8bounded property cases in
+0.296s. Integer rational headroom rounds up without float underestimation; time
+alone admits no workload. Storage/shared-clock/final eligibility remain separate
+unimplemented dimensions. The new tool has no database/model/native launcher.
+Raw gd-time-feasibility-red/green receipts/logs preserve actual source deltas,
+CLI failures/results and full five-root resource samples, resource_stop null,
+light_only=true. This light check does not weaken16GiB heavy start or bypass the
+retained TS refusal. Pure math completion is not native/campaign evidence.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

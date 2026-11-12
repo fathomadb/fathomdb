@@ -1,4 +1,4 @@
-"""Adapt the selected P corpus JSONL to the private normal-G record input."""
+"""Adapt selected P corpus/question JSONL to private normal-G record inputs."""
 
 import argparse
 import json
@@ -16,13 +16,25 @@ def encode_records(corpus, output):
     return {"records": count}
 
 
+def encode_queries(queries, output):
+    """Write selected questions in source order to a fresh input and return its count."""
+    payload = Path(queries).read_bytes()
+    questions = [json.loads(line) for line in payload.splitlines()]
+    with Path(output).open("xb") as stream:
+        stream.write(payload)
+    return {"records": len(questions)}
+
+
 def main():
     """Encode an existing selected corpus; never reselect turns or questions."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--corpus", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--corpus", type=Path)
+    source.add_argument("--queries", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
-    print(json.dumps(encode_records(args.corpus, args.out)))
+    result = encode_records(args.corpus, args.out) if args.corpus is not None else encode_queries(args.queries, args.out)
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":

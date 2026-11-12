@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -38,6 +39,7 @@ impl Collector {
             outcome: None,
             error_class: None,
             stamp_attempted: false,
+            active_blocks: BTreeMap::new(),
         })
     }
 }
@@ -52,11 +54,15 @@ pub(super) struct Completion {
     outcome: Option<&'static str>,
     error_class: Option<&'static str>,
     stamp_attempted: bool,
+    // Only the fixed vector/text call sites populate this map.
+    active_blocks: BTreeMap<&'static str, std::time::Instant>,
 }
 
 impl Completion {
-    pub(super) fn begin_block(&mut self, _name: &'static str) -> std::time::Instant {
-        std::time::Instant::now()
+    pub(super) fn begin_block(&mut self, name: &'static str) -> std::time::Instant {
+        let started = std::time::Instant::now();
+        self.active_blocks.insert(name, started);
+        started
     }
 
     pub(super) fn finish_outcome<T>(
@@ -75,6 +81,15 @@ impl Completion {
             SearchReaderError::InvalidArgument(_) => "InvalidArgument",
         });
         if result.is_err() {
+            let error_class = self.error_class;
+            for (name, started) in std::mem::take(&mut self.active_blocks) {
+                self.blocks.entry(name.to_owned()).or_insert_with(|| json!({
+                    "invoked": true,
+                    "elapsed_ns": u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    "rows": null, "reason": "entered_error", "error_class": error_class,
+                    "degraded": null,
+                }));
+            }
             for name in [
                 "has_source_dependencies",
                 "vector_arm_requires_fallback",
@@ -101,6 +116,7 @@ impl Completion {
         elapsed: std::time::Duration,
         rows: usize,
     ) {
+        self.active_blocks.remove(name);
         let mut record = json!({
             "invoked": true,
             "elapsed_ns": u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX),

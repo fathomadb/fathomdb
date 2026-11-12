@@ -125,6 +125,7 @@ cargo test --locked --release -p fathomdb-engine --test slice30_measurement_snap
 cargo test --locked --release -p fathomdb-engine --test slice30_measurement_predicates --features test-hooks,slice30-measurement
 cargo test --locked --release -p fathomdb-engine --test slice30_measurement_stats --features slice30-measurement
 cargo test --locked --release -p fathomdb-engine --test slice30_measurement_outcomes --features slice30-measurement
+cargo test --locked --release -p fathomdb-engine --lib --features test-hooks,slice30-measurement measurement_for_test::tests:: -- --nocapture
 cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features slice30-measurement
 python3 dev/experiments/0.8.29-slice30-measurements/native/test_completion.py
 ```

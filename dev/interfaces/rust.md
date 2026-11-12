@@ -219,8 +219,14 @@ not_reached; no adjacent state or invented zero generation is substituted.
 A failed diagnostic stamp read is separately observer_read_failed. Predicates
 and blocks not reached after an error report invoked=false with null value/rows/
 time and reason not_reached, preserving existing observations already made.
-An invoked predicate with null value represents its propagated SQLite error,
-not false. Internal query collection begins in read_search_work_in_tx and passes
+An entered vector/text block that fails before completion remains invoked=true,
+with reason entered_error, the reader-result error_class, positive elapsed_ns
+through propagated result handling/cleanup, and unknown rows=null. This is not
+a SQL-only timer or a completed block. Completed block observations survive a
+later error; genuinely unreached work stays invoked=false/not_reached. Only the
+two fixed block call sites populate pending entry state, which successful block
+completion clears. An invoked predicate with null value represents its propagated
+SQLite error, not false. Internal query collection begins in read_search_work_in_tx and passes
 one borrowed completion context to read_search_in_tx; finish observes the result
 after its transaction handling. Failures before reader dispatch produce no new
 internal record, and panic/unfinished outcome is unavailable rather than ok.

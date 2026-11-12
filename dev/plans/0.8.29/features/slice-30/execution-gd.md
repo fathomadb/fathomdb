@@ -223,7 +223,7 @@ workers and G/D adapters/model/campaigns remain outstanding.
 
 ## Typed query outcome and unavailable-state unit
 
-Separate TGD-7 RED4fe42dd92 has4actual missing-projection failures: literal
+Separate TGD-7 RED4fe42dd92→GREEN07cdef1f8 has4actual missing-projection failures: literal
 successful query Null!=ok; ordinary InvalidFilter and governed-write stale frozen
 context Null!=error after the original typed product errors pass first; bounded
 real-DB sequence property None!=Some(ok), minimal flags[false]. No database fault
@@ -249,6 +249,42 @@ exit0/resource_stop null. GREEN executable SHA256
 Raw gd-outcomes-red/green receipts/logs retain exact command/source delta/features/
 hashes/failures/results. Prior per-predicate calls/order and product return values
 are unchanged. Worker/adapters/model/campaign/final whole-source work remains.
+
+## Entered-but-failed block correction
+
+Same Astra found one P2 at07cdef1f8: absent successful block records were filled
+as not_reached even when a SQL error occurred after a real block start. Canonical
+Python/NAPI/TS provisioning had NOT started. Only the prefix-bound setup entry
+at07completed (strict closed10/ownership/pins/resources0) and a private immutable
+npm distribution copy; receipt gd-owned-setup-entry.json. Rust TDD builds above
+are separate from canonical binding setup.
+
+The same reviewer FIT_CONFIRMED the exact contained helper-level oracle.
+RED37fbdbc32 extracts only the existing Instant into private begin_block, wired
+at both unchanged production starts, WITHOUT entered-state tracking. A real
+owned Engine store and readonly SQL body-to-i64 getter produce actual SQLite
+InvalidColumnType. The original Err is verified before/after finish_outcome.
+Both fixed vector/text literals fail invokedfalse!=true; bounded fixed-label
+property fails Some(false)!=Some(true), minimaltext=false. Completed-vector and
+pre-entry-text controls pass first. Actual3failures/171filtered in0.06s;
+this is a real-SQL/helper observer proof, not end-to-end product fault injection.
+
+Immutable embedded cfg(test) module SHA256
+a85e621b082ba98a85665a17999db9bbc314bd1165fb553c824cb617e8aea977;
+RED lib-test executable SHA256
+4da58cf087979c9d8e3d1802a9c57b3962e1dec7c02ae7471cbc74ef8194d21e.
+GREEN gd-block-entry-green adds only pending starts for two fixed labels,
+clears them on successful completion and finalizes entered_error on the original
+Err with positive elapsed through result handling/cleanup and unknown rows=null.
+Completed observations remain and genuinely unreached work stays distinct.
+Actual3/3passes (8property cases),171filtered,0.33s; feature lib+tests Clippy and
+default lib Clippy pass, exit0/resource_stop null. Test-region bytes are identical
+across RED/GREEN; implementation bytes necessarily differ.
+
+Raw gd-block-entry-red/green commands/source deltas/features/binary hashes and
+all failures remain retained. Corrected candidate must return to the SAME
+implementation reviewer before canonical native/G work resumes. No full gate,
+G/model/GPU/campaign or whole-slice acceptance is inferred.
 
 ## Evidence locations and interpretation
 

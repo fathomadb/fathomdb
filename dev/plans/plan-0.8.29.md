@@ -19,6 +19,28 @@ pipeline; genuinely unresolved scope/policy/venue/spend/publication choices reta
 their explicit gates. Earlier proposal-only drafting descriptions below document
 the package's origin, not an instruction to stop after drafting.
 
+## Current completion boundary
+
+The owner requests completion of the remaining selected .29 work through direct,
+sequential slice agents, excluding CI work/execution and registry publication.
+Each slice owner rereads integrated predecessors and revises scope, plan,
+requirements/acceptance, design and product architecture where necessary. A fresh
+independent Astra-medium adversarial review must pass before implementation;
+implementation uses genuine per-behavior RED/GREEN and a fresh Astra-medium final
+review. The parent evaluates each result, adjusts release allocation where needed,
+integrates accepted work and dispatches the next slice owner. Completed slices
+retain their verified exits unless subsequent evidence invalidates affected scope.
+No Steward or Orchestrator role is used.
+
+Local lint/typecheck/test, required source-phase verification, source-bound native
+consumers and permitted selected hardware qualification remain in scope. CI
+workflow changes, remote CI dispatch/monitoring, tag pushes and registry publication
+are deferred. Slice160 must distinguish completed local implementation/qualification
+from outstanding CI/publication and post-publication consumer proof; this request
+does not authorize a published-release completion claim. Specific unresolved
+identity, test-policy, artifact, fault-envelope and venue/spend choices retain their
+item gates. Resolve those concretely while progressing independent approved work.
+
 ## Goal, scope and authority
 
 Finish agent access, improve exact search at scale, and reconcile the paused

@@ -23,6 +23,17 @@ nested agent or renewed generic approval checkpoint is required.
 and [test map](test-map.md) define this slice. Local A160 IDs are traceability,
 not new canonical ACs, support targets, thresholds or test oracles.
 
+## Owner-directed local completion boundary
+
+The current continuation completes selected local implementation/qualification
+and maintained documentation, excluding CI work/execution and registry publication.
+Reconcile this plan, requirements, architecture and qualification matrix against
+actual integrated predecessors before design review. Retain local checks and
+permitted hardware/package-consumer evidence. Leave remote CI, workflow changes,
+publishing tags, registry uploads and post-publication registry smoke deferred and
+unexecuted. Report local completion separately from release readiness/publication;
+no skipped publisher or CI body supplies a passing qualification claim.
+
 ## Actual predecessor baseline
 
 Read-only source inspection is bound to clean release parent

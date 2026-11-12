@@ -16,6 +16,23 @@ generic role launchers/seat contracts and earlier generic waiting language.
 No such coordinating role or nested agent is launched. The parent dispatches
 the requested slice owners and reviewers directly.
 
+## Current continuation scope
+
+The owner requests sequential remaining-slice completion with one dedicated owner
+per slice and parent evaluation before dispatching the next. Each owner reconciles
+actual integrated predecessor work and updates its scope, plan, requirements/AC,
+design and product architecture as needed before the independent Astra-medium
+adversarial design review. After PASS, use real RED/GREEN and a fresh Astra-medium
+implementation review. Preserve existing completed exits unless affected evidence
+requires a scoped recheck. Parent owns release-plan/state integration serially.
+
+This continuation excludes CI work/execution and registry publication, including
+remote workflow dispatch and publishing tag pushes. Required local verification
+and selected permitted hardware/installed-consumer proof remain in scope. Keep
+CI/publication and post-publication smoke explicitly outstanding at160; local
+completion is distinct from published-release completion. Specific unresolved
+policy/artifact/fault/venue/spend choices are not answered by this mandate.
+
 ## Per-slice sequence
 
 1. Owner rereads its actual scope, plan, requirements/acceptance and design, plus

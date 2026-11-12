@@ -554,3 +554,23 @@ Source tests remain tiny/180s, data-backed and under the same13roots/original
 baseline/reservations. Per-fixture copy/open/coverage/close attribution and hard
 native/controller phase bounds remain explicitly outstanding before full GG or
 campaign qualification; no campaign clock or full-size preparation starts here.
+
+### Supported-kind successor for the governed copy
+
+The [successor fit](gd-test-map.md#successor-fit-derived-role-is-independent-of-dense-supported-node-kind)
+preserves5f2fbad and its first failed fact fixture as NOT_RED. Canonical
+committability is broader than vector_storage's locked dense writer vocabulary;
+fact is intentionally not enrolled, despite its up_to_date terminal. The
+failure occurred at valid-state coverage BEFORE any source transition, not at
+closure erasure. No product enrollment repair or vocabulary expansion is allowed.
+
+Correct only the derived fixture node KIND to note, preserving its derived
+provenance ROLE and source KIND doc. Valid per-kind vectors are doc=N+1/note=1;
+after source Deleted, the source doc shadow remains and closed derived note
+projections are erased, yielding doc=N+1/note=0. All aggregate canonical/current/
+retained/visible equations, identities, fixed public views and original cell/
+resource/timing limits stay unchanged. Existing public readiness is captured
+before both inventories and is paired with actual physical checks, never used
+as a substitute. Preserve failed-store/source/oracle/binary artifacts. The
+held scaffold/fixture is corrected only after this exact successor review and
+parent source continuation; no meaningful RED or governed GREEN yet exists.

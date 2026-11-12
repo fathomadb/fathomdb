@@ -361,7 +361,7 @@ Authoritative bodies under src/rust/crates/fathomdb-engine/src/ are:
   search_index and search_index_v2 for these ordinary leaf nodes.
 
 Use a fresh no-dependency base of N active doc nodes (tiny fixture N=65), then
-append one canonical source doc and one derived fact through ProvenancedNodeV1/
+append one canonical source doc and one derived-role note through ProvenancedNodeV1/
 WriteProvenanceV1 and register their source dependency. Both are ordinary leaf
 nodes with default BGE384 projections. Query a literal control term absent from
 base bodies. BOTH governed stages use ReadView valid_as_of=100 with all other
@@ -409,6 +409,52 @@ query parameter, with unchanged time-stage oracles as relocation controls.
 This is private tool reporting of existing behaviour: no product policy/public
 stats schema/API/format/venue/gate change, no store corruption/purge experiment,
 no G2 verifier relaxation and no campaign/full-size preparation authority.
+
+### Successor fit: derived role is independent of dense-supported node kind
+
+The first5f2fbad scaffold used node kind fact because the older dependency
+predicate fixture used it. That payload is canonically committable but is NOT
+in the current dense writer's locked kind domain. This invalidates only that
+fixture assumption, not the derived provenance contract or lifecycle accounting.
+
+At the unchanged206405 product source, vector_storage.rs
+VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES/resolve_source_type/
+kind_is_vector_committable accept email/article/paper/meeting/note/todo/doc,
+not fact. write.rs batch_vector_kinds_needing_enrolment normalizes
+ProvenancedNode through storage_write_shape; vector_kind_needs_enrolment refuses
+unsupported kinds. There is no provenance-specific enrollment bug.
+index_projector.rs project_canonical_node_row marks a never-vector-projected
+cursor up_to_date without enrolling it, so terminal/readiness is not proof that
+a physical vector exists. Do not extend this vocabulary or relax the verifier.
+
+Actual failed-store read-only observations in
+proofs/gd-gg-governed-fact-fit-observation.json: gg-source/doc/cursor66 is active
+with one mapping; gg-derived/fact/cursor67 is active with zero mappings. Both
+terminals are up_to_date; only doc is enrolled. No closure/transition occurred.
+The write/register/first drain returned, but no public readiness getter was
+reached before the inventory panic. gd-gg-governed-red is therefore NOT_RED;
+it demonstrates no closure erasure or measured-stage failure. Original source/
+oracle/binary preimages and the initial manifest are preserved under
+proofs/gd-gg-governed-not-red-preimages in the owned task; no product fix follows.
+
+Use KIND note for the derived provenance ROLE, retaining source KIND doc, the
+same logical/revision/dependency identities, bodies/hash/locator semantics and
+both fixed100 public views. Note's actual dense late enrollment is already
+proved by accepted G2 source units. Thus valid kinds become doc=N+1/note=1;
+after closure the retained vector kinds are doc=N+1/note=0. The N+2 canonical,
+N active/2deleted, N+1 retained, source-shadow/derived-erasure and zero
+superseded equations above stay unchanged. A derived role is not a requirement
+to use node kind fact; no new kind or compatibility shim is introduced.
+
+Before the meaningful missing-stage RED, capture the EXISTING public
+EmbeddingReadiness after the first drain and after transition/drain: actual
+state/usable_embedder/pending_count/affected_kinds/blocked, then independent
+physical coverage. A ready report or up_to_date terminal alone never closes the
+coverage control. Unexpected controls remain NOT_RED/unqualified. Preserve the
+failed fact stores and all evidence; alter the fixture/oracle only after this
+successor clarification receives independent design PASS and parent continuation.
+This remains private fixture/source-fit work, without policy/API/public stats/
+format/venue/numerical-gate or campaign changes.
 
 ## Generic-route/artifact/budget TDD seams (after reviewed source GO)
 

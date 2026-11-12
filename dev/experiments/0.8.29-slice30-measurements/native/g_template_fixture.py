@@ -27,6 +27,8 @@ def run(config, root, *, binary=None, feature_path=None):
         model.append({"path":str(path),"sha256":actual})
     cell=json.loads(config.read_text())
     paths=[config,*[Path(row["records"]) for row in cell["templates"]]]
+    if "queries" in cell:
+        paths.append(Path(cell["queries"]))
     feature_path=Path(feature_path) if feature_path is not None else task/"proofs/gd-gn-feature-closure.json"
     features=json.loads(feature_path.read_text())
     actual_binary=hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -36,7 +38,7 @@ def run(config, root, *, binary=None, feature_path=None):
         "delta":subprocess.check_output(["git","status","--porcelain"],text=True),
         "binary":str(binary),"binary_sha256":actual_binary,"controller_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "inputs":[{"path":str(path),"sha256":hashlib.sha256(path.read_bytes()).hexdigest()} for path in paths],
-        "pins":model,"feature_closure":features,"scope":"Default open/configure/governed seed/drain/verification/close series; no query timing"}
+        "pins":model,"feature_closure":features,"scope":"Bounded Default preparation plus requested real API controls; no natural campaign timing or per-call GPU attribution"}
     (root/"identity.json").write_text(json.dumps(identity,indent=2)+"\n")
     print(json.dumps(identity),flush=True)
     snapshots=[]
@@ -76,7 +78,7 @@ def run(config, root, *, binary=None, feature_path=None):
                     child.wait(timeout=5)
                 (root/"gpu-engagement.json").write_text(json.dumps({"before":before,"samples":snapshots,
                     "pid":child.pid,"exit":child.returncode,"probe_cadence_target_ms":100,
-                    "scope":"whole real preparation series; no per-row or text-query inference claim"},indent=2)+"\n")
+                    "scope":"whole bounded preparation/API-control series; no per-call GPU or text-query inference claim"},indent=2)+"\n")
         if child.returncode:
             raise RuntimeError("normal preparation failed NOT_RED: "+(root/"child.log").read_text())
         if not any(row["own_MiB"]>0 and row["util"]>0 for row in snapshots):

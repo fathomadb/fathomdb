@@ -22,6 +22,9 @@ mod g_write_schedule;
 #[path = "g_limit.rs"]
 mod g_limit;
 
+#[path = "g_generic.rs"]
+mod g_generic;
+
 enum GAdapter {
     Core(Box<OpenedEngine>),
     Sdk(Box<SdkEngine>),
@@ -250,6 +253,27 @@ impl GAdapter {
         }
     }
 
+    fn timed_text(&self, query: &str, kind: Option<&str>) -> (fathomdb_engine::SearchResult, u64) {
+        let started = std::time::Instant::now();
+        let result = self.text(query, kind);
+        let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+        (result, elapsed_ns)
+    }
+
+    fn timed_hybrid(&self, query: &str, limit: usize) -> (fathomdb_engine::SearchResult, u64) {
+        let started = std::time::Instant::now();
+        let result = self.hybrid(query, limit);
+        let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+        (result, elapsed_ns)
+    }
+
+    fn timed_embed(&self, query: &str) -> (Vec<f32>, u64) {
+        let started = std::time::Instant::now();
+        let vector = self.embed(query);
+        let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+        (vector, elapsed_ns)
+    }
+
     fn close(&self) {
         match self {
             Self::Core(opened) => opened.engine.close().unwrap(),
@@ -281,6 +305,12 @@ fn text_fixture_ack(uuid: &str) -> u64 {
 }
 
 pub(super) fn run(config: &Value, out: &Path) {
+    if config["family"] == "G_FEED_FIXTURE" {
+        return g_generic::fixture(config, out);
+    }
+    if config["family"] == "G_PASS" {
+        return g_generic::run(config, out, Path::new(config["store"].as_str().unwrap()));
+    }
     if config["family"] == "G_LIMIT" {
         return g_limit::run(config, out);
     }
@@ -338,9 +368,8 @@ pub(super) fn run(config: &Value, out: &Path) {
         let record_start_ns = (config["schedule"] == "write")
             .then(|| u64::try_from(loop_started.elapsed().as_nanos()).unwrap());
         let mut row = if is_text {
-            let started = std::time::Instant::now();
-            let result = engine.text(query, (!marker_control.is_null()).then_some("doc"));
-            let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+            let (result, elapsed_ns) =
+                engine.timed_text(query, (!marker_control.is_null()).then_some("doc"));
             let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
             assert_eq!(ids, ["l:alpha"]);
             json!({"adapter":adapter,"mode":"direct_text","ok":true,"sample_index":sample,
@@ -348,9 +377,7 @@ pub(super) fn run(config: &Value, out: &Path) {
                 "kind_filter":if marker_control.is_null(){Value::Null}else{json!("doc")},
                 "search_snapshot":null,"snapshot_observation":"unavailable"})
         } else if is_hybrid {
-            let started = std::time::Instant::now();
-            let result = engine.hybrid(query, 2);
-            let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+            let (result, elapsed_ns) = engine.timed_hybrid(query, 2);
             let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
             let mut ordered = ids.clone();
             ordered.sort();
@@ -361,9 +388,7 @@ pub(super) fn run(config: &Value, out: &Path) {
                 "soft_fallback":format!("{:?}",result.soft_fallback),
                 "degradations":format!("{:?}",result.degradations)})
         } else {
-            let started = std::time::Instant::now();
-            let vector = engine.embed(query);
-            let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+            let (vector, elapsed_ns) = engine.timed_embed(query);
             assert_eq!(vector.len(), 384);
             assert!(vector.iter().all(|x| x.is_finite()));
             let norm2 = vector.iter().map(|x| f64::from(*x).powi(2)).sum::<f64>();

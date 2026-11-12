@@ -192,9 +192,12 @@ Keep normal GN embed-cuda artifact, Default core open / SDK
 use_default_embedder:true, forced approved UUID/cuda:0 and actual OpenReport
 identity. Text-only APIs request no query embedding; no positive GPU utilization
 requirement or query-GPU-work claim applies. Model open may use CUDA; this is
-not a claim of zero process GPU activity. Reserve/recheck the same GPU, retain
-actual available NVML samples and8GiB cap; unavailable sampled usage stays
-unobserved. Existing mean/hybrid positive-utilization oracles remain unchanged.
+not a claim of zero process GPU activity. Reserve/recheck the same GPU and
+preserve required device/memory accounting and the8GiB cap. ONLY positive query
+utilization evidence is inapplicable: failed/unparseable required identity or
+memory accounting keeps the existing refusal/stop behavior, is NOT_RED and
+unqualified, and never counts as8GiB-cap compliance. Healthy no-inference text
+calls need no positive utilization. Mean/hybrid GPU oracles remain unchanged.
 
 Implement engine_text and sdk_text as SEPARATE runtime RED/GREEN units using
 existing text-only APIs. Compile-ready successful128-call/literal-ID proof must

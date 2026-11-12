@@ -309,7 +309,9 @@ utilization is inapplicable to the text-only API; report no inference population
 and preserve actual OpenReport/NVML observations without fabricating activity or
 claiming process-wide absence. All mean/hybrid inference GPU assertions remain
 unchanged. No model work is mirrored onto CPU and no new model fetch follows.
-Existing GPU reservation/free-memory/cap requirements still apply to model open.
+Existing GPU reservation/free-memory/cap and required identity/memory accounting
+remain. Accounting failure keeps existing refusal/stop behavior, NOT_RED and
+unqualified; missing/invalid accounting never establishes8GiB-cap compliance.
 
 Copy/open/count/proof/close costs remain outside API timers and separately
 attributed; raw serialization/checkpoints remain outside API timers and inside

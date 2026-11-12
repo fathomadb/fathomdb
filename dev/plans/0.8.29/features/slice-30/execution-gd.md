@@ -521,6 +521,24 @@ manual GPU prerequisites as core mean. This prefix implements successful normal
 core/SDK mean populations only: no hybrid/template/schedule/worker/held/overlap/
 pairing, final source qualification, binding lifecycle or campaign acceptance.
 
+## TGD-8 normal core hybrid population
+
+RED ac48ec2e9 follows a real governed two-row/two-vector fixture with pending0
+and128 successful hybrid calls returning literal alpha+beta IDs without fallback
+or degradation. Only missing raw records fail0!=128. Shared GPU setup extraction
+retains all mean literals; affected core/SDK mean controls each pass1/1.
+Oracle536d91d9d20ac44b3c813571da6e1b672de18876dfca4ce9ad15189b6584b0c2
+and runner f1ef669438485364fa5bf68d03e6005df8c56b71d74d58cbf6020b6a3fd429ab
+stay unchanged through GREEN. Pre-runtime binaries: RED ee016c6272676c3b7212af7a2a2c68df84e0152214d51d7f11145227c5f082f7;
+GREEN a19cf266d4b0c76799f9be00a5490578af03c2bf8a8b678ee8a9e30ddb96a5dc.
+
+GREEN only emits the missing population through the same recorder:1/1 passes
+in3.805s,128records/8checkpoints. Existing gd-core-hybrid-red/green receipts/logs
+and their printed proof roots retain exact source/delta/exit/GPU/binary identities.
+All use13 roots/original69280403456 baseline, no resource stop. TGD9 closed
+campaign templates, remaining modes, final source/lifecycle qualification and
+campaigns remain uncompleted. No new numerical gate or product API follows.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

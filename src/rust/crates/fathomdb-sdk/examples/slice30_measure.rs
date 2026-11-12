@@ -2,9 +2,11 @@
 //! dev/experiments/0.8.29-slice30-measurements/README.md for commands and scope.
 
 #[cfg(test)]
-use fathomdb_engine::{EmbedderChoice, Engine as CoreEngine};
+use fathomdb_engine::{EmbedderChoice, Engine as CoreEngine, ReadView, SearchFilter};
 #[cfg(test)]
-use fathomdb_sdk::{Engine as SdkEngine, InitialState, OpenOptions, PreparedWrite, SourceId};
+use fathomdb_sdk::{
+    Engine as SdkEngine, InitialState, OpenOptions, PreparedWrite, SourceId, TextSearchOptions,
+};
 #[cfg(test)]
 use serde_json::{json, Value};
 #[cfg(test)]
@@ -66,8 +68,33 @@ fn node(id: &str, kind: &str, body: &str) -> PreparedWrite {
 }
 
 #[cfg(test)]
-fn observe(_engine: &Adapter, _query: &str, _kind: Option<&str>) -> Value {
-    json!({"ok": false, "ids": [], "error": "measurement adapter unimplemented"})
+fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
+    let filter = kind.map(|kind| {
+        let mut filter = SearchFilter::default();
+        filter.kind = Some(kind.into());
+        filter
+    });
+    let started = std::time::Instant::now();
+    let result = match engine {
+        Adapter::Core(engine) => engine
+            .search_text_only_filtered_with_snippets(query, filter, &ReadView::default(), 10, None)
+            .map_err(|error| format!("{error:?}")),
+        Adapter::Sdk(engine) => {
+            let mut options = TextSearchOptions::default();
+            options.filter = filter;
+            engine.search_text_only(query, options).map_err(|error| format!("{error:?}"))
+        }
+    };
+    let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).expect("bounded sample duration");
+    match result {
+        Ok(result) => json!({"ok": true, "elapsed_ns": elapsed_ns,
+            "ids": result.results.iter().map(|hit| hit.id.to_prefixed()).collect::<Vec<_>>(),
+            "bodies": result.results.iter().map(|hit| &hit.body).collect::<Vec<_>>(),
+            "returned_hits": result.results.len(), "projection_cursor": result.projection_cursor,
+            "soft_fallback": format!("{:?}", result.soft_fallback), "degradations": format!("{:?}", result.degradations),
+            "search_snapshot": null, "snapshot_observation": "unavailable"}),
+        Err(error) => json!({"ok": false, "elapsed_ns": elapsed_ns, "ids": [], "error": error}),
+    }
 }
 
 fn main() {

@@ -1004,6 +1004,58 @@ canonical(kind,cursor) joins after each drain and report retained totals apart.
 The accepted fresh-template verifier retains its no-extras contract; no purge,
 policy/ranking change or total-physical-vectors==12 assumption is introduced.
 
+### Generic G2 reset precursor
+
+The exact e21 reset-placement fit received independent design PASS and parent
+source continuation. RED43d41f74ded3f5ef7484fc83d79cc069cce4748e observes
+actual current notes0vs10 after two successful same-store SDK-text passes.
+Literal2doc/warm2 and bounded3doc/warm0 cases pass existing API/device,
+closed-copy and independent doc/cursor/span controls before the intended failure.
+The fixed oracle SHA256 is
+`de5ce3a3ce21c10a678b606cb4826fe86327f1626fba0075ff5739e3fd5c34a6`.
+
+The minimal GREEN adds only the generic G2 governed ten-row reset, drain and
+existing actual current/physical/history verifier. One pass-local origin after
+open/identity and before batch construction anchors reset and first-record
+starts. The separate loop excludes reset/open/close; record starts include
+fingerprint preparation before the unchanged API timer. Warmups0 explicitly
+reports first-warmup null/not_applicable. Existing P/G1/legacy schemas and the
+fresh-two-doc helper stay unchanged; no kind-filter or scheduled actuation is
+introduced by this unit.
+
+The unchanged two tests pass across three fixtures:2doc/warm2,3doc/warm0 and
+65doc/warm2, each with two resets on one cell copy. Each pass has one governed
+reset call/ten rows and pending0. Current notes remain10; after the second reset
+retained history is10 and total physical vectors are doc_count+20. External
+readonly SQL independently joins canonical kind/cursor to mapping/span and
+counts retained mappings/history; Rust coverage additionally reads actual
+physical vectors, dimension/profile and UTF8 spans. The source copy hash remains
+fixed. Unchanged G1 warmup3/3 and pass-plan2/2 controls pass on this GREEN binary.
+
+Actual GREEN normal host binary SHA256 is
+`5be2975d1ddc07c0f094feb9f048e9f9af1a4c72cbd2b506dd9a6f12aba924c9`;
+RED uses the previously built8e normal binary
+`1991cf3ea7cc1c9d767719968b59a62f925fafad4e0a64ed310c92f14c0d4599`.
+Pre-runtime source/oracle/binary/feature/environment identities are in
+proofs/gd-g-generic-reset-red-v2-identities.json and
+proofs/gd-g-generic-reset-green-identities.json; the normal compiler closure is
+proofs/gd-g-host-generic-reset-green.json. Receipts/logs
+gd-g-generic-reset-red-v2, -green-build, -green-lint, -green and
+-unchanged-controls retain actual command/cwd/source delta/exit,13 roots and
+original baseline69280403456B. No resource stop occurred.
+
+Preparation failures remain NOT_RED: a task helper NameError caused the first
+scaffold typecheck to lack its intended project file (wrong1175-file analysis,
+exit3); corrected-v2/v3 analyze the actual one-file oracle with zero issues.
+The initial runtime's Python direct vector_default read lacked vec0 and raised
+before the intended assertion. Original fixture bytes are preserved in
+proofs/gd-g-generic-reset-initial-fixture-not-red.py and its actual -red log/
+receipt; external SQL now uses the established mapping/span pattern. Only
+-red-v2 is genuine runtime RED. Maintained manual suite and README select/index
+the new oracle. No full-source qualification or campaign-sized preparation is
+claimed. INITIAL future G2 actuation still requires warmups2/timed20 with actual
+timed10/20 phase coupling before its GREEN.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

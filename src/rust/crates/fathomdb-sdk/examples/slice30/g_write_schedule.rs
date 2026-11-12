@@ -66,6 +66,34 @@ fn current_coverage(path: &Path, expected: &fathomdb_embedder_api::EmbedderIdent
     json!({"current_by_kind":by_kind,"current_vector_cursors":physical_ids.len(),"total_physical_vectors":total,"historical_physical_vectors":historical})
 }
 
+pub(super) fn reset(adapter: &GAdapter, path: &Path) -> Value {
+    let GAdapter::Sdk(engine) = adapter else { panic!("G2 reset is SDK only") };
+    let writes: Vec<_> = (0..10)
+        .map(|slot| PreparedWrite::Node {
+            kind: "note".into(),
+            body: format!("s30markercurrent{slot} revisionreset"),
+            source_id: SourceId::new("test:slice30-g-schedule").unwrap(),
+            logical_id: Some(format!("s30marker-{slot}")),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        })
+        .collect();
+    let writing = Instant::now();
+    engine.write(&writes).unwrap();
+    let write_ns = ns(writing);
+    let draining = Instant::now();
+    engine.drain(5000).unwrap();
+    let drain_ns = ns(draining);
+    let pending = fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count;
+    assert_eq!(pending, 0);
+    let coverage = current_coverage(path, &engine.open_report().default_embedder);
+    assert_eq!(coverage["current_by_kind"]["note"], 10);
+    json!({"reset_write_calls":1,"reset_rows":writes.len(),"reset_write_ns":write_ns,
+        "reset_drain_ns":drain_ns,"pending_after_drain":pending,"coverage":coverage})
+}
+
 /// Execute one SDK G2 cohort after a completed natural group; return actual rows/probes.
 /// Panics on API/coverage/output failure; already completed phase flushes stay recorded.
 pub(super) fn run(

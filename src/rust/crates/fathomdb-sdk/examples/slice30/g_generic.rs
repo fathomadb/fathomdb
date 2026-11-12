@@ -1,6 +1,6 @@
 //! Private generic G single-pass caller, separate from bounded source fixture preparation.
 
-use super::{g_template, GAdapter, Recorder};
+use super::{g_template, g_write_schedule, GAdapter, Recorder};
 use fathomdb_embedder::EffectiveEmbedDevice;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -72,6 +72,18 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
         GAdapter::Core(_) => "engine",
         GAdapter::Sdk(_) => "sdk",
     };
+    let g2 = config["population"] == "G2";
+    let pass_origin = std::time::Instant::now();
+    let mut reset_start_ns = None;
+    let mut reset_end_ns = None;
+    let reset = g2.then(|| {
+        reset_start_ns = Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+        let reset = g_write_schedule::reset(&engine, store);
+        reset_end_ns = Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+        reset
+    });
+    let mut first_warmup_record_start_ns = None;
+    let mut first_timed_record_start_ns = None;
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
@@ -81,6 +93,10 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
         .unwrap_or(0);
     assert!(warmup_count <= queries.len());
     for (sample_index, input) in queries.iter().take(warmup_count).enumerate() {
+        if g2 && sample_index == 0 {
+            first_warmup_record_start_ns =
+                Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+        }
         let mut row = observe(&engine, mode, adapter, sample_index, input);
         row["call_index"] = json!(calls);
         calls += 1;
@@ -89,6 +105,10 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     recorder.flush_all();
     let warmup_calls = calls;
     for (sample_index, input) in queries.iter().enumerate() {
+        if g2 && sample_index == 0 {
+            first_timed_record_start_ns =
+                Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+        }
         let mut row = observe(&engine, mode, adapter, sample_index, input);
         row["call_index"] = json!(calls);
         calls += 1;
@@ -99,11 +119,19 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     let closing = std::time::Instant::now();
     engine.close();
     let close_ns = u64::try_from(closing.elapsed().as_nanos()).unwrap();
-    let proof = json!({"mode":mode,"api_calls":calls,"timed_api_calls":calls-warmup_calls,"warmup_api_calls":warmup_calls,"open_ns":open_ns,
+    let mut proof = json!({"mode":mode,"api_calls":calls,"timed_api_calls":calls-warmup_calls,"warmup_api_calls":warmup_calls,"open_ns":open_ns,
         "close_ns":close_ns,"loop_ns":loop_ns,"store":store,
         "selected_cuda_uuid":resolution.selected_cuda_uuid,"cuda_compiled":resolution.cuda_compiled,
         "raw_persistence":recorder.statistics_since([0;5]),
         "throughput_scope":"warmup and timed API calls plus input identity/validation/serialization/checkpoints; open/close separate"});
+    if let Some(reset) = reset {
+        proof["g2_reset"] = reset;
+        proof["g2_placement"] = json!({"reset_start_ns":reset_start_ns,"reset_end_ns":reset_end_ns,
+            "first_warmup_record_start_ns":first_warmup_record_start_ns,
+            "first_warmup_disposition":if warmup_count == 0 { "not_applicable" } else { "observed" },
+            "first_timed_record_start_ns":first_timed_record_start_ns});
+        proof["throughput_scope"] = json!("warmup and timed API calls plus input identity/validation/serialization/checkpoints; reset/open/close separate");
+    }
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
 }
 

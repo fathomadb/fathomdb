@@ -1,0 +1,177 @@
+use fathomdb_embedder_api::Embedder;
+use fathomdb_engine::{
+    Engine, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec, ProjectionVector,
+    SourceId, TestEmbedderChoice,
+};
+use rusqlite::{Connection, OpenFlags};
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use std::cell::Cell;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Instant;
+
+use super::template_verify;
+use super::varying_embedder::VaryingEmbedder;
+
+struct Hold<'a> {
+    engine: &'a Engine,
+    active: bool,
+    release_requests: &'a Cell<usize>,
+}
+
+impl<'a> Hold<'a> {
+    fn freeze(engine: &'a Engine, release_requests: &'a Cell<usize>) -> Self {
+        engine.set_projection_scheduler_frozen_for_test(true);
+        Self { engine, active: true, release_requests }
+    }
+
+    fn release(&mut self) {
+        if self.active {
+            self.engine.set_projection_scheduler_frozen_for_test(false);
+            self.release_requests.set(self.release_requests.get() + 1);
+            self.active = false;
+        }
+    }
+}
+
+impl Drop for Hold<'_> {
+    fn drop(&mut self) {
+        self.release();
+    }
+}
+
+fn now(origin: Instant) -> u64 {
+    u64::try_from(origin.elapsed().as_nanos()).unwrap()
+}
+
+fn timed<T>(origin: Instant, work: impl FnOnce() -> T) -> (T, Value) {
+    let start = now(origin);
+    let value = work();
+    let end = now(origin);
+    (value, json!({"start_ns":start,"end_ns":end}))
+}
+
+fn readiness(value: fathomdb_engine::EmbeddingReadiness) -> Value {
+    json!({"state":value.state.as_str(),"pending_count":value.pending_count,
+        "usable_embedder":value.usable_embedder,"affected_kinds":value.affected_kinds,
+        "blocked":value.blocked.as_ref().map(|blocked|format!("{blocked:?}"))})
+}
+
+fn snapshot(path: &Path) -> Value {
+    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    let count = |table: &str| {
+        connection
+            .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row.get::<_, u64>(0))
+            .unwrap()
+    };
+    let canonical: Vec<Value> = connection.prepare("SELECT logical_id,kind,write_cursor,length(CAST(body AS BLOB)) FROM canonical_nodes WHERE superseded_at IS NULL ORDER BY write_cursor").unwrap().query_map([], |row| Ok(json!({"id":row.get::<_,String>(0)?,"kind":row.get::<_,String>(1)?,"write_cursor":row.get::<_,u64>(2)?,"body_bytes":row.get::<_,usize>(3)?}))).unwrap().collect::<Result<_, _>>().unwrap();
+    let profile: Value = connection.query_row("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'", [], |row| Ok(json!({"name":row.get::<_,String>(0)?,"revision":row.get::<_,String>(1)?,"dimension":row.get::<_,u32>(2)?}))).unwrap();
+    json!({"canonical_rows":count("canonical_nodes"),"records":canonical,
+        "mapped_vectors":count("_fathomdb_vector_rows"),"physical_vectors":count("vector_default"),
+        "span_rows":count("_fathomdb_vector_spans"),"profile":profile})
+}
+
+fn observation(origin: Instant, engine: &Engine, path: &Path) -> Value {
+    let (ready, readiness_time) = timed(origin, || engine.read_embedding_readiness().unwrap());
+    let ready = readiness(ready);
+    let (sql, sql_time) = timed(origin, || snapshot(path));
+    json!({"start_ns":readiness_time["start_ns"],"end_ns":sql_time["end_ns"],
+        "readiness":ready,"readiness_time":readiness_time,"sql":sql,"sql_time":sql_time})
+}
+
+pub(super) fn run(config: &Value, out: &Path) {
+    let origin = Instant::now();
+    std::fs::create_dir_all(out).unwrap();
+    let store = out.join("store.sqlite");
+    assert!(!store.exists(), "held fixture must be fresh");
+    let (opened, opening) = timed(origin, || {
+        Engine::open_with_test_choice_for_test(
+            &store,
+            TestEmbedderChoice::Caller(Arc::new(VaryingEmbedder)),
+        )
+        .unwrap()
+    });
+    let engine = &opened.engine;
+    let (_, configuring) = timed(origin, || {
+        engine
+            .configure_projections(
+                &[ProjectionSpec {
+                    name: "s30_dense".into(),
+                    roles: [ProjectionRole::Searchable].into_iter().collect(),
+                    fts: None,
+                    vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                    source: None,
+                }],
+                &[],
+            )
+            .unwrap()
+    });
+    engine.begin_d27_observation_for_test(origin);
+    let configuration = engine.d27_observation_for_test().unwrap().configuration_observation;
+    assert_eq!((configuration.scheduler_runtime_threads, configuration.embedder_pool_size), (2, 5));
+    let empty = observation(origin, engine, &store);
+    assert_eq!(empty["readiness"]["pending_count"], 0);
+    assert_eq!(empty["sql"]["canonical_rows"], 0);
+    assert_eq!(empty["sql"]["physical_vectors"], 0);
+    let requests = Cell::new(0);
+    let (mut hold, freezing) = timed(origin, || Hold::freeze(engine, &requests));
+    let (_, empty_idle) = timed(origin, || engine.drain(5000).unwrap());
+    let idle = observation(origin, engine, &store);
+    assert_eq!(idle["readiness"]["pending_count"], 0);
+    assert_eq!(idle["sql"]["canonical_rows"], 0);
+    let records = config["records"].as_array().unwrap();
+    let cohort = usize::try_from(config["cohort"].as_u64().unwrap()).unwrap();
+    assert!(!records.is_empty() && cohort > 0);
+    let mut writes = Vec::new();
+    for chunk in records.chunks(cohort) {
+        let batch: Vec<_> = chunk
+            .iter()
+            .map(|row| PreparedWrite::Node {
+                kind: row["kind"].as_str().unwrap().into(),
+                body: row["body"].as_str().unwrap().into(),
+                source_id: SourceId::new("test:s30-held").unwrap(),
+                logical_id: Some(row["id"].as_str().unwrap().into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        let (receipt, clock) = timed(origin, || engine.write(&batch).unwrap());
+        writes.push(json!({"clock":clock,"rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors}));
+    }
+    let held = observation(origin, engine, &store);
+    assert_eq!(held["readiness"]["pending_count"], records.len());
+    assert_eq!(held["sql"]["physical_vectors"], 0);
+    let mode = config["release_mode"].as_str().unwrap();
+    let (_, releasing) = timed(origin, || {
+        match mode {
+            "explicit" => hold.release(),
+            "drop" => (),
+            _ => panic!("unknown release mode"),
+        }
+        drop(hold);
+    });
+    let (_, draining) = timed(origin, || engine.drain(5000).unwrap());
+    let released = observation(origin, engine, &store);
+    assert_eq!(released["readiness"]["pending_count"], 0);
+    assert_eq!(released["sql"]["physical_vectors"], records.len());
+    let (coverage, coverage_time) =
+        timed(origin, || template_verify::coverage(&store, &VaryingEmbedder.identity()));
+    let (_, closing) = timed(origin, || engine.close().unwrap());
+    let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
+    assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
+    let hash: String = Sha256::digest(std::fs::read(&store).unwrap())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    let controls = json!({"api_complete":true,"clock_scope":"one attempt origin before open; serialization outside API clocks",
+        "open":opening,"configure":configuring,"empty":empty,"freeze_request":freezing,
+        "empty_idle_drain":empty_idle,"idle":idle,"writes":writes,"held":held,"release_request":releasing,
+        "release_mode":mode,"release_requests":requests.get(),"released_drain":draining,"released":released,
+        "coverage":coverage,"coverage_time":coverage_time,"close":closing,"closed_main_sha256":hash,
+        "configured_projection_workers":configuration.scheduler_runtime_threads,"configured_provider_workers":configuration.embedder_pool_size});
+    std::fs::write(out.join("controls.json"), serde_json::to_vec_pretty(&controls).unwrap())
+        .unwrap();
+}

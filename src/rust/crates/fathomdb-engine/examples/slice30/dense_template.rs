@@ -11,12 +11,8 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::Arc;
 
-#[path = "template_verify.rs"]
-mod template_verify;
-
-#[path = "varying_embedder.rs"]
-mod varying_embedder;
-use varying_embedder::VaryingEmbedder;
+use super::template_verify;
+use super::varying_embedder::VaryingEmbedder;
 
 pub(super) fn run(config: &Value, out: &Path) {
     std::fs::create_dir_all(out).unwrap();

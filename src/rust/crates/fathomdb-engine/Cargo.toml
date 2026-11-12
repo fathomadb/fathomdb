@@ -968,3 +968,7 @@ test = false
 [[test]]
 name = "slice30_projection_measurements"
 required-features = ["test-hooks", "slice30-measurement"]
+
+[[test]]
+name = "slice30_held_tool"
+required-features = ["test-hooks"]

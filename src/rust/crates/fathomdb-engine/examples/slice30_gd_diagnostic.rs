@@ -9,6 +9,17 @@ use std::path::Path;
 #[path = "slice30/dense_template.rs"]
 mod dense_template;
 
+#[cfg(feature = "test-hooks")]
+#[path = "slice30/held_fixture.rs"]
+mod held_fixture;
+
+#[cfg(feature = "test-hooks")]
+#[path = "slice30/template_verify.rs"]
+mod template_verify;
+#[cfg(feature = "test-hooks")]
+#[path = "slice30/varying_embedder.rs"]
+mod varying_embedder;
+
 fn strings(path: &str) -> Vec<String> {
     std::fs::read_to_string(path)
         .expect("read owned input")
@@ -18,6 +29,12 @@ fn strings(path: &str) -> Vec<String> {
 }
 
 fn run(config: &Value, out: &Path) {
+    if config["family"] == "D_HELD_FIXTURE" {
+        #[cfg(feature = "test-hooks")]
+        return held_fixture::run(config, out);
+        #[cfg(not(feature = "test-hooks"))]
+        panic!("D held fixture requires its explicit test-hooks artifact");
+    }
     if config["family"] == "D_TEMPLATE" {
         #[cfg(feature = "test-hooks")]
         return dense_template::run(config, out);

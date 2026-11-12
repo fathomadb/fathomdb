@@ -10,11 +10,22 @@ target_release: 0.8.29
 
 Slice9 Batch3 approves identity census and an ADR **before** exact text/snippet
 implementation; it does not select a successor. Current source at frozen parent
-`2f6913c1d59ac8ff3a30de835b57290a8635998c` deliberately merges equal bodies.
+`3fa16620ac30cbe3ed66f5bfe542f2f7a62b8982` deliberately merges equal bodies.
 [Source/consumer census](../plans/0.8.29/features/slice-50/census.md) and
 [requirements](../plans/0.8.29/features/slice-50/requirements.md) document the
-actual delta. Runtime authorized-snapshot census and actual30 baseline remain
-missing; no measured frequency/benefit or source entrance follows from this ADR.
+actual delta. Accepted30 P is a real provider-free direct-text baseline (16cells,
+20000successful timed calls); whole30/G/D/M/F and the runtime consumer snapshot/
+method remain open. No hybrid frequency/benefit or source entrance follows.
+Prior bounded Phase A and feedback-presentation PASS remain historical. Initial
+final PASS was superseded by the P2 cursor-alias proposal finding. Same-reviewer
+DESIGN PASS covers exact v4 patch
+`0f7ac8312786f8db9e116e175ffdbf1af7aa0b64cc9f861430a272f5b09ffd67`.
+A new different-reviewer FINAL DOC/OUTPUT PASS covers corrected 13-file parent
+candidate SHA256
+`7a9be30c9974f36fa3ccd6bb1bef7347d1ee1c045616963c44b2b4a0387add49`,
+with no remaining P1/P2 and actual parent scoped checks. The
+[review log](../plans/0.8.29/features/slice-50/review-log.md) records subjects and
+limits. V5 changes review/check records only; it has no invented separate PASS.
 
 Accepted constraints retained:
 
@@ -46,8 +57,12 @@ identity, not a ranking experiment.
 Graph traversal still visits logical entities/resolves the latest eligible node
 as designed. Recommended provenance is existing representative-first ownership
 (vector input, then text, then graph); graph-only representatives retain the first
-winning edge/entity seed and separate evidence origin. A body twin never lends
-source/span/coverage. This recommendation is part of the pending ruling.
+winning edge/entity seed and separate evidence origin. Concretely, vector/text
+representatives retain their own canonical source; graph-only edge seeds and
+neighbors retain the first winning edge source/confidence, while entity-FTS
+seeds retain the selected node source. This preserves current branch semantics;
+it does not redefine all GraphArm source_id values as canonical-node ownership.
+A body twin never lends source/span/coverage. This recommendation is part of the pending ruling.
 
 Ownerless FTS is an explicit case, not permission to infer canonical ownership
 from public IdSpace or branch. Keep ownerless content identity and absent source
@@ -58,11 +73,24 @@ storage to repair it. The source carrier must retain the real FTS locator.
 ## Public reference and consumer choice
 
 [Repeated-ref decision](../plans/0.8.29/features/slice-50/feedback-decision.md)
-separates existing historical SDK duplicates,60's newly reachable adapter flags,
-and additional50 equal-body exposure. Recommend bounded Unique/Ambiguous
-feedback state and typed refusal only for otherwise-recordable ambiguous labels,
-with existing not_recorded precedence. Alternative: MCP-only response-local
-feedback_ref beside unchanged logical ref. Neither alternative is selected here.
+separates existing historical SDK duplicates, conditional60/F11 search-flag
+exposure and additional50 equal-body exposure. Integrated60 still rejects search
+include_superseded/include_inactive; its FetchArgs support is a separate seam.
+Recommend a private SafeCursor/Ambiguous target for visible refs: require one
+ref occurrence in the returned page and one cursor occurrence across the
+complete captured query result, before offset/budget shaping. Repeated visible
+refs or captured cursor aliases refuse
+otherwise-recordable named labels atomically, after existing visible-membership/
+not_recorded guards. Same cursor does not prove same selected record; hidden
+ref strings stay nonmembers when absent from the returned page, while their
+records still contribute to cursor-alias detection. A singleton visible ref
+also present off page at a different cursor remains safe; only page-local ref
+multiplicity and complete-run cursor multiplicity govern refusal.
+This conservative adapter guard needs no new engine/public carrier. Existing
+cursor-only telemetry result_ids/arm_of remains limited; it is not upgraded by
+this proposal. A response-local feedback_ref alone cannot disambiguate cursor
+labels; any such ABI or telemetry identity redesign stays unselected. Neither
+policy is selected here.
 Logical fetch remains latest-eligible under its requested view and does not
 promise exact searched revision retrieval. A feedback fix does not change it.
 
@@ -96,11 +124,17 @@ assertions before the identity fix; unchanged codec/pack assertions are controls
   weighting/evidence/snippets and final same-build SDK/MCP parity. Preserve actual
   graph path and frozen authority; do not deduplicate by body in one downstream map.
 - Existing doc-hidden exported fusion helpers currently receive SearchHit only;
-  it does not contain an ownerless FTS rowid or unambiguous artifact class. The
-  implementation design must reconcile that helper contract with the internal
-  keyed carrier before code. Do not guess keys from branch/body or introduce a
-  compatibility adapter. Any public signature/type delta requires its interface
-  update and review; this proposal does not silently select an added API.
+  it does not contain ownerless FTS rowid or unambiguous artifact class. Propose
+  making fuse_rrf/fuse_three_arms crate-private over an internal keyed carrier
+  and removing the two lib.rs public exports. Relocate pure arithmetic tests
+  without changing their independent formula oracle; integration REDs use
+  existing Engine search and must fail on selected records, not missing exports.
+  [Design](../plans/0.8.29/features/slice-50/design.md) specifies the carrier and
+  locator/positional-sidecar flow. This public removal remains UNSELECTED:
+  acceptance must expressly cover it and same-change interface notes. No
+  body-keyed compatibility shim or exported physical-locator ABI is proposed.
+  If public removal is rejected, review an exact public signature/carrier
+  alternative before code; never infer keys from branch/body/public ID.
 - Amend maintained body-dedup language in `dev/interfaces/rust.md`,
   `dev/interfaces/rust-sdk.md`, `dev/interfaces/python.md`,
   `dev/interfaces/typescript.md`, affected historical-view/retrieval designs,
@@ -114,6 +148,10 @@ assertions before the identity fix; unchanged codec/pack assertions are controls
 ## Decision status
 
 PROPOSED. Identity, graph representative/provenance and ambiguous-label policy
-await HITL; missing authorized runtime census remains visible. Parent requests
-independent Astra-medium design review and records exact rulings. No acceptance,
-policy waiver, production code or30/Block1 clearance is claimed.
+await HITL; missing authorized runtime census remains visible. The recorded
+bounded documentation/census verdicts supply no ruling; parent still owns
+recording actual human decisions. No semantic50 question has been asked or ruled. No acceptance,
+policy waiver, production code or30/Block1 clearance is claimed. The bounded
+[pending decision packet](../plans/0.8.29/features/slice-50/status.md) also makes
+the helper→pack consequence and proposed helper visibility explicit. No accepted
+ADR/index ruling or interface has been changed.

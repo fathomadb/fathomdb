@@ -9,10 +9,22 @@ slice: 50
 
 ## Actual checkpoint and scope
 
-Phase A source/design proposal at frozen parent
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`; this is not PLAN_READY, source
-entry, an identity ruling or performance evidence. Only isolated proposal files
-were written. Parent imports reviewed documents and owns repository/state writes.
+Current documentation/callsite-census candidate at qualified parent
+`3fa16620ac30cbe3ed66f5bfe542f2f7a62b8982`. The earlier bounded Phase A
+proposal at `2f6913c1d59ac8ff3a30de835b57290a8635998c` and feedback presentation
+received independent Astra-medium PASS; see [review log](review-log.md).
+Those are historical proposal verdicts. Same-reviewer Astra-medium DESIGN PASS
+covers exact v4 patch
+`0f7ac8312786f8db9e116e175ffdbf1af7aa0b64cc9f861430a272f5b09ffd67`.
+The initial final PASS was superseded by the P2 cursor-alias proposal finding.
+A new different-reviewer FINAL DOC/OUTPUT PASS covers the corrected 13-file
+parent candidate SHA256
+`7a9be30c9974f36fa3ccd6bb1bef7347d1ee1c045616963c44b2b4a0387add49`,
+with no remaining P1/P2. Parent scoped Markdown/state/diff checks passed on that
+subject; [review log](review-log.md) records receipt attribution and limits.
+No semantic ruling follows. This phase permits owned Markdown/proposed-ADR edits and
+read-only source inspection only. Parent owns review, scoped tooling checks,
+import and release-state changes. No PLAN_READY or source entry follows.
 
 Slice9 Batch3 approves identity census/ADR **before** exact text/snippet
 implementation. [Decision log](../../prework/slice-9/decision-log.md),
@@ -29,15 +41,26 @@ Completed10 source `104dcbcbe92a1eca730d146b99ab17d444df6217`, closure
 current security/tool/state corrections. Integrated20 subset
 `657edeb76caaf9c8d2aab433766bec9362e73217` includes Linux test-hook repairs;
 20 remains open for A3/A5 policy and Windows A6. No30 clearance or Block1 exit
-follows. Actual30 measurements have not run: the exact frozen TC5 input pack
-is unavailable; the owner was asked to reconnect original cold storage or
-supply an existing copy. Retain that hard prerequisite. Historical100k numbers
-are neither a baseline nor measured benefit for50.
+follows. Accepted30 P runtime source is `2fd772558e46d0b1645dce2ffea730d0bdd3305c`,
+with final result documents `0d8be5bb75516955ebf99b94913b9b54921bb3a4`.
+Its [results](../slice-30/results-p.md) contain16completed cells and20000
+successful timed calls. Provider-free100k direct text is27.184–27.509ms p50,
+106.911–107.682ms p99; filtered/write P2 is a different population and schedule.
+P is a real current direct-text baseline, with assembled qualification and
+original failures/skips retained. It supplies no hybrid/vector/drain/queue or
+TC5 fidelity proof. G/D remain isolated and unqualified; M/F remain open.
+The exact frozen TC5 pack is absent on a separate cold volume; `/mnt/data` is
+mounted and available. Do not regenerate or substitute F inputs. Whole30 and
+50's hard30 source dependency remain OPEN.
 
-60 source work is active in a sibling checkout under the parent's native
-window. Its reviewed formats/flags/direct-text-filter contract informs parity;
-unfinished60 code is not integrated evidence. 60 can proceed independently;
-50 must reconcile the actual integrated delta before its eventual source phase.
+60's formats/direct-filter/budget subset is integrated at
+`5271c1bf022f0ea22f95f7433e226feb2315043e`; F11 repeated-reference semantics
+remain held. Current MCP search still rejects include_superseded/include_inactive;
+FetchArgs accepting them is a different boundary. 70 is COMPLETE at
+`e875f36042f89c1d84756f78135db0e8926c1ed4`, including implemented absence/started-
+timeout reasons, hints and native parity. Retain these actual same-build outputs.
+100's current documentation checkpoint is integrated at3fa16620a; no unanswered
+coverage exception is approved by that checkpoint. None closes30 or Block1.
 
 ## Intended outcome and fixed boundaries
 
@@ -64,7 +87,7 @@ unfinished60 code is not integrated evidence. 60 can proceed independently;
 ## Work sequence
 
 1. Complete source/consumer census and proposed requirements, design and genuine
-   runtime RED/GREEN decomposition. Source-only preparation is authorized now.
+   runtime RED/GREEN decomposition. Read-only source preparation is authorized now.
    Runtime Memex census stays held in source-only Phase A; later execution needs
    the exact appropriate consistent snapshot and safe read-only method. Census
    scope is already approved; filesystem readability alone supplies no method.
@@ -106,13 +129,24 @@ fusion, same-record graph provenance and repeated public references. Parent
 handles rulings; no new policy gate or .30 deferral is inferred. B/C fork/rebase/
 multiarchitecture work remains .30; it is unrelated to50.
 
-Current result: source-only census and design drafted; Memex runtime census,
-identity/HITL decisions, independent design review,30 evidence, source entry,
-TDD, benchmarks and final review remain outstanding. No product tests, models,
-GPU, private DB reads/copies or environment/Git mutations ran in this phase.
+Current result: the corrected documentation/census checkpoint has exact-v4
+DESIGN PASS, corrected-parent FINAL DOC/OUTPUT PASS and actual parent scoped
+checks as recorded above. V5 updates records only and claims no separate PASS.
+Runtime Memex snapshot/method, identity/provenance/feedback/helper-pack rulings,
+whole30, source entry, TDD, hybrid measurements and future implementation review
+remain outstanding. [Status and decision packet](status.md) names the choices.
+No tests, setup, native imports, builds, models, GPU or private DB inspection ran.
+No dependency amendment is selected: preparation is already permitted; P cannot
+justify removing the hybrid baseline requirement. 40-before50 remains attribution
+preference, not a semantic dependency. Full80 reconciliation needs50's settled
+identity/feedback/packing/vector consequences;90 then needs full80 and the actual
+pre90 Block1 exit.160 is downstream of those exits.
 
-Phase A validation:7 explicit Markdown candidates passed markdownlint0.41.1
+Historical Phase A validation:7 explicit Markdown candidates passed markdownlint0.41.1
 from installed cli2.23.3 with the repository rule config; intended-destination
 relative links and trailing whitespace checks passed. Repository HEAD stayed
 2f6913c1d59ac8ff3a30de835b57290a8635998c and Git status remained clean.
-These scoped document checks are not product/full-workspace qualification.
+Those historical checks are separate from the parent's actual scoped passes on
+the corrected 13-file candidate7a9be30c above. Owner lightweight hashes/links/
+diff checks are task receipts, not a locally executed Markdown gate. No product,
+runtime or full-workspace qualification is claimed.

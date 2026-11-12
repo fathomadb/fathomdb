@@ -359,18 +359,25 @@ predicates remain unqualified; the minimal coverage-only proposal requires a
 specific strict-TDD exception, still ungranted. Active native-checkpoint proof
 is optional under the original transaction-or-checkpoint minimum.
 
-After100's fresh final output review and parent integration, the next50 owner
-reconciles the already-authorized source census and proposed identity contract.
-Qualified60/70 and actual30 P inform that planning; P supplies no G/D/M/F/TC5
-qualification or hard30 source closure. No semantic identity/feedback/packing
-choice, runtime census or source entry is inferred. Physical erasure remains
-done except defects. Future30 resumption reconciles current parent metadata
-without rewriting RED/GREEN hashes. Actual dependencies and pre90 Block1 remain.
+Slice100's documentary checkpoint is integrated after distinct final review;
+its exact H/P/W coverage exception remains ungranted. Slice50's current-parent
+source census and proposed identity contract passed fresh design review. The
+identity/provenance/feedback/helper-pack and public-helper dispositions remain
+unselected, with runtime census method and hard30 source dependency open.
+Qualified60/70 and actual30 P inform this planning; P supplies no G/D/M/F/TC5
+qualification. Current MCP search still rejects relaxed flags under F11.
+
+After50's different final document review and integration, the next80 owner
+performs already-authorized early documentary/source-census reconciliation.
+Preserve full80's unsettled50/60 inputs and dependency list; no ABI adoption,
+full80 approval or90 source entry follows. Physical erasure remains done except
+defects. Future30 resumption reconciles current parent metadata without rewriting
+RED/GREEN hashes. Actual dependencies and pre90 Block1 remain.
 Publication remains separately authorized.
 
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`FUSION-TEXT`) — Approved identity semantics and exact text/snippet route
+**IMMEDIATE NEXT: Slice 80** (`B2-DESIGN`) — Residual Block2 contract design
 
-**Remaining ladder:** 50 → 30 → 20 → 40 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 80 → 50 → 30 → 20 → 40 → 60 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

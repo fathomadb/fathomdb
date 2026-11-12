@@ -8,7 +8,8 @@ slice: 50
 # Slice 50 proposed design
 
 [Source census](census.md) is the evidence boundary. This design is reviewable
-before30 runs, but production identity/exact-route work retains actual30 and
+after accepted direct-text P, but production identity/exact-route work retains
+whole30 and
 HITL prerequisites. No accepted successor or optimization benefit is claimed.
 
 ## Architecture delta and decisions
@@ -40,16 +41,57 @@ no schema fix or new corruption vocabulary is authorized.
 The identity ruling must also choose same-record graph provenance: recommend
 existing representative-first ownership (vector input, then text, then graph),
 with the existing first-winning graph path retained separately for a graph-only
-representative/evidence. Never replace a node's own source with a body twin's
-edge source. Preserve current nested graph fusion, graph logical visited set,
+representative/evidence. For a vector/text representative retain the canonical
+record's own source;
+for graph-only edge seeds/traversal retain the winning edge source/confidence;
+entity-FTS graph seeds retain the selected node source. These are existing
+branch-specific semantics. Keep canonical ownership separately for evidence/
+vector spans; do not overwrite GraphArm source with canonical-node source or
+borrow any equal-body record's path/source. Preserve current nested graph fusion,
+graph logical visited set,
 confidence mapping, recency→importance→CE ordering and their candidate domains.
 This is an identity change, not a new graph-ranking experiment.
 
 Public refs can repeat even today in historical SDK results. Follow the
 [feedback decision](feedback-decision.md): recommend refusing labels ambiguous
-across distinct cursors without changing logical fetch. The alternative can be
-an MCP-only feedback_ref; no engine ABI is presumed. Parent obtains the actual
+by repeated visible-page refs or repeated telemetry cursors across the complete
+captured query result, including hidden cursor aliases, without changing logical
+fetch. The private SafeCursor/Ambiguous adapter target needs no new engine/
+public carrier. Same cursor never proves same record. A public feedback_ref
+alone cannot resolve a telemetry cursor alias; that alternative remains
+unselected with the same cursor guard required. Parent obtains the actual
 ruling and coordinates its smallest affected adapter boundary with60/80.
+
+## Proposed internal carrier and exported-helper disposition
+
+SearchHit alone cannot supply the required ownership key. Propose a crate-private
+RankedRecord containing the selected RecordKey, SearchHit (after hydration),
+optional actual FtsLocator(table,rowid), explicit vector-input membership and
+captured graph origin. The lightweight phase uses the same key/locator with
+numeric rank inputs and no body; representative hydration fills the hit in the
+same transaction. No physical locator survives as a new SDK/MCP field.
+Canonical keys are obtained from actual row ownership at query time; ownerless
+rows use their explicit FTS locator. Retain positional sidecars through truncation
+and rerank; key snippet locators by RecordKey/selected position, not cursor alone.
+
+Concrete proposed resolution: make fuse_rrf/fuse_three_arms crate-private over
+this carrier and remove their two doc-hidden lib.rs public exports. Move their
+pure arithmetic/credit/tie tests beside the private implementation, retaining
+independent handwritten expected values; integration tests call existing Engine
+search. Keep other exports/constants unchanged. Current callable consumers found
+are pr_g9_rrf_fusion.rs and slice40_fts_ranking.rs. Removing a doc-hidden pub
+function is a public-surface change: require explicit accepted-ADR authorization,
+maintained interface removal notes and independent review in that same future
+product change. Do not leave a body-keyed public shim or export RecordKey/FTS
+locators merely to preserve tests. This is a proposed visibility resolution, not
+an authorized removal or a selected occurrence ABI. If removal is rejected,
+return a concrete public carrier/signature proposal for review before code.
+
+Test relocation/signature compilation is never product RED. Existing Engine
+search supplies the failing equal-body selected-record assertions before key
+GREEN, so their callable API/oracle survives the private-helper change. Preserve
+historical at-rest IDs, formula controls and intentional tests except precisely
+the body-collapse expectations superseded by the accepted ruling.
 
 ## Context packing and role-tagged stored bodies
 
@@ -94,6 +136,10 @@ repeated occurrences, even when later occurrences receive no credit. Vector
 fanout/physical head ownership stays as shipped; no record-grouped KNN or
 candidate-selection experiment is smuggled into the fusion key change.
 
+Graph exclusion changes from body to selected record: a record already present
+in the two-arm input is still excluded from graph emission, so this does not add
+a graph agreement boost to that record. An unrelated equal-body record no longer
+suppresses the reachable node. Logical visited ordering and graph caps stay.
 The graph route keeps its current two-stage fusion; the reference includes
 recency, importance/confidence and CE exactly as today. Filters validate in the
 reader snapshot and predicates precede every existing cap. Frozen authentication,
@@ -108,6 +154,13 @@ artifact/owner key, cursor and FTS locator for every eligible node/edge match;
 sort with the same per-corpus comparator and concatenate in the same order.
 No approximate top200 or early stopping. Vector hits already carry their
 bodies and keys; add every lexical overlap at its full positional rank.
+
+Keep the current short-circuit order: absent/history-degraded vector paths must
+not execute the hybrid all_nodes_directly_eligible proof; dependency presence
+is checked once in the reader snapshot and unsupported dependencies use reference.
+Neither P's direct route nor successful lookup of one owner proves global owner
+presence or snapshot equivalence. Preserve query-free direct-text dispatch and
+branch-sensitive frozen nonce validation before result/content access.
 
 Compute scores with exactly the reference's arithmetic and accumulation order.
 Top-L selection preserves score bits, vector-input tie preference and insertion
@@ -167,10 +220,11 @@ this proof against actual pinned tables before implementation approval.
 
 ## Research and verification limits
 
-Cargo.lock pins unicode-segmentation1.13.2 (checksum in lock). Its installed
-`src/word.rs` iterator/state-machine was inspected: ALetter/Numeric, WSegSpace,
+Cargo.lock pins unicode-segmentation1.13.2 (checksum in lock). The prior Phase A inspection of its
+installed `src/word.rs` iterator/state-machine found: ALetter/Numeric, WSegSpace,
 Format/Extend and Regional states explain why arbitrary prefix slicing is not
-an established bound. Full selector/query source and the cited tests were read;
+an established bound. Current selector/query seams were reinspected; inherited full-test inspection
+is bounded by exact unchanged Git blobs in the attribution receipt;
 no dependency upgrade or fetched package is needed for this proposal. Future
 review must verify the proposed restricted alphabet against pinned word and
 grapheme tables and SQLite bm25/rank query semantics. Reference URLs for that
@@ -185,3 +239,11 @@ rules and no-migration constraints remain. Stop affected work on unruled identit
 missing authorized census, unproved bound, divergent score/provenance/Unicode,
 source-dependency bypass or required storage change. Continue unrelated approved
 work; do not create new release gates or infer policy waivers.
+
+Local product-architecture handoff: full80 must reconcile selected record count,
+public-ref multiplicity, helper→pack refusal, path provenance and per-record
+vector participation/coverage before claiming a coherent residual design.90
+requires full80 and the actual pre90 Block1 exit after integrated20–70;160 is
+downstream. No global architecture or released interface was rewritten in this
+proposal. The release plan's generated “Approved identity semantics” label is
+not an accepted identity ADR; parent must keep source/decision holds explicit.

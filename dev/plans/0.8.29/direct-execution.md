@@ -172,14 +172,21 @@ an exact current-parent resumption instruction when resources permit. Reconcile
 parent metadata by normal merge if needed; never rebase or rewrite recorded
 RED/GREEN commits. Strict current-source/resource checks still precede execution.
 
-## Next source-only identity reconciliation
+## Reviewed identity proposal and early Block 2 reconciliation
 
-After100 reports, receives a different fresh final output review and is integrated,
-main selects the already-authorized50 source/consumer census and proposed identity
-ADR reconciliation. This is documentation/read-only source work, not source entry.
-Reconcile actual60/70 and measured30 P; hard30 source remains open and P is not
-G/D/M/F/TC5 qualification. Proposed identity/provenance/feedback/helper-pack choices
-remain undecided. No live Memex database/snapshot access, runtime census, tools,
-builds, native tests, models, GPU work, CI or publication follows. Keep one active
-owner,30 quiescent, all mutable resources under /mnt/data and resource floors.
-100's exact coverage exception and all80/90/Block1 dependencies remain held.
+The dedicated50 owner reconciled its source/consumer-callsite census and proposed
+identity ADR against qualified60/70 and measured30 P. Fresh design review passed;
+parent scoped checks, different final DOC review and integration accept only the
+documentary checkpoint. Identity/provenance/feedback/helper-pack/helper visibility
+remain unselected. Hard30 source and runtime-consumer snapshot/method remain open;
+P is not G/D/M/F/TC5 qualification. Current MCP search still rejects relaxed flags
+under F11; fetch remains separate.
+
+After50 reports, receives final document review and is integrated, main selects
+already-authorized early80 documentary/source reconciliation. Treat50 options as
+conditional and preserve80 dependencies/full-approval hold. Historical aggregate
+and consolidation reviews are bounded, not a new ABI or source approval.
+No tooling, native tests, database, model, GPU, source/runtime, CI or publication
+work follows. Keep one active owner,30 quiescent, all mutable resources under
+/mnt/data and the unchanged resource floors.100's exact coverage exception and
+all90/Block1 prerequisites remain held.

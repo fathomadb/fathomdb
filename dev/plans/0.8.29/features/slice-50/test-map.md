@@ -7,15 +7,21 @@ slice: 50
 
 # Slice 50 test map and runtime TDD proposal
 
-No test was executed in Phase A; this revision addresses the two bounded Astra
-design findings without changing the frozen feedback-decision note. Existing tests are inspection evidence, not
+No test was executed in either documentation phase. The historical bounded
+Astra findings were resolved before the earlier PASS. The corrected exact-v4
+design and corrected 13-file parent DOC/OUTPUT subjects passed their respective
+reviews as recorded in review-log.md; no runtime/test qualification follows. Existing tests are inspection evidence, not
 new REDs or qualification. New expected outcomes below are conditional on the
 identity/provenance/feedback ruling; a passing-on-arrival invariant is retained
 coverage, not a fabricated behavior change.
 
-## Existing tests inspected in full
+## Existing full-file inspection inherited and current-source checks
 
 Paths are under `src/rust/crates/fathomdb-engine/tests/` unless qualified.
+All ten listed test blobs are unchanged from the earlier frozen2f baseline;
+this preserves the earlier full-file findings, not a claim of new execution.
+This phase also reread complete slice71, SDK slice41 and MCP feedback files and
+relevant identity/fusion assertions; receipt pins inspected paths and limits.
 
 | Test file | Actual assertions and relevance | Limit / required refinement |
 | --- | --- | --- |
@@ -28,7 +34,7 @@ Paths are under `src/rust/crates/fathomdb-engine/tests/` unless qualified.
 | `snippet_selector.rs` | All selector rules, clamping/rejection/defaults, exact example output, invalid spans, NFD widening, head/merge/word/sentence behavior, emoji/ZWJ/RI safety, Unicode proptest invariants and retained regressions. | General properties verify invariants, not optimized/full differential work bounds. Random options cover40..700, so new differential must also exercise maximum4000 and boundaries explicitly. |
 | `snippet_search.rs` | Real DB text/hybrid/frozen sidecars, invalid options, far matches/Porter/NFC/NFD, exact table/byte spans, marker fallback, Vector branch lexical anchors, off invariance, token unchanged, read-only SQL positive control, cap20 and all-or-nothing per-term pool (38 queries in3-term case). | Preserve same run-window semantics. Add record-keyed lookup in new duplicate fixtures; its body-based snippet_of helper is ambiguous for those fixtures. |
 | SDK `tests/slice41_context_pack.rs` | Full file read: helper keeps prefixed l: ID, decodes tagged/untagged parts, preserves metadata, malformed bodies refuse; fixture pack_errors test pins repeated-ID InvalidArgument, including context[0].id across lists. | No guarantee that a list of helper results has unique IDs. New record fusion exposes h: collisions; historical l: collisions already exist. Preserve helper/pack contracts unless separately ruled. |
-| MCP `tests/feedback.rs` | Correct unique-ref cursor labels, concurrent query attribution, unknown/wrong-store/expired/reopened handling, text/telemetry-off omission and no effect on later output. | No distinct-cursor repeated-ref oracle. Actual guard/ref/fetch trace is in feedback-decision.md. |
+| MCP `tests/feedback.rs` | Correct unique-ref cursor labels, concurrent query attribution, unknown/wrong-store/expired/reopened handling, text/telemetry-off omission and no effect on later output. | No repeated-ref, same-cursor/different-record or complete-window alias oracle. Actual guard/ref/fetch/telemetry trace is in feedback-decision.md. |
 
 Other candidate suites (graph history, evidence/frozen authentication, installed
 binding snippet parity and performance) were located but not exhaustively read
@@ -49,10 +55,11 @@ and must not be presented later as an independently observed RED.
 
 | Unit → requirement | Runtime RED proposed using already callable behavior | Minimal GREEN and validation |
 | --- | --- | --- |
-| I1 → R1 | Existing `fuse_rrf`: two vector hits with equal body, distinct cursors/logical IDs/sources must both survive under selected record identity. Baseline returns one. Hand-compute each score; assert exact ID/cursor/source/branch/order. | Core selected-key fusion only. Same-record repeated hits still get one arm credit at first original positional rank; pin original later rank, manual weighted arithmetic and exact-score tie. Pure fixture alone is not DB integration proof. |
+| I1 → R1 | Existing Engine search on real SQLite: equal-body distinct governed records/sources must both survive under selected identity. Baseline returns one. Stage exact cursor/ID/source/branch/count/order assertions before GREEN; pure per-arm manual RRF fixtures supplement this product RED after the reviewed private-helper relocation. Missing helper symbols never count as RED. | Core selected-key fusion with ownership carrier; preserve the Engine oracle unchanged. Same-record repeated hits still get one arm credit at first original positional rank; pin original later rank, manual weighted arithmetic and exact-score tie. Pure fixture alone is not DB integration proof. |
 | I2 → R1/R2 | Real SQLite write anonymous/governed and distinct-governed equal-body twins, node/edge same body, two historical same-body revisions and byte-identical stored role-tagged twins from distinct sources. Stage these semantic assertions before the identity fix. Assert selected records/source and unchanged IdSpace. Baseline collapses eligible twins. | Carry source-derived ownership through node/edge/vector/historical fusion. Retain default visibility and at-rest identities. Ownerless rows use exact FTS locator; malformed ownership has explicit oracle after ADR choice. |
 | I3 → R2 | If selected-key fusion lands before consumers, equal-body records have different per-arm ranks and sources; explained output must attach each manual rank/score to its own cursor. Graph fixture has an unrelated equal-body node in fused results; exact reachable node/path must remain. Baseline consumer maps/exclusions produce wrong rank or suppress node. | Migrate key maps/exclusion and provenance carrier one seam at a time. Preserve logical BFS, first winning edge, nested fusion, recency/importance/CE and evidence authority. If earlier GREEN already fixes a case, keep it as coverage; do not label it a new RED. |
-| F1 → R2/R7 | After explicit option1 ruling, telemetry-enabled real hybrid response contains repeated ref with distinct cursors; named feedback must be typed bad_argument with no label. Current code records the last mapped cursor. | Bounded Unique(cursor)/Ambiguous response map; ambiguity check after existing not_recorded guards, before any feedback write. Unique/same-cursor, unknown, epoch, disabled telemetry/text, mixed named labels and both formats are controls. Option2 requires its own separately reviewed runtime RED. |
+| F1 → R2/R7 | After option1 ruling, telemetry-enabled real hybrid response contains repeated ref with distinct cursors; named feedback must be bad_argument with no label. Current code records one mapped cursor. | Saturating visible-page ref occurrence proof and private SafeCursor/Ambiguous targets; preserve membership/not_recorded precedence and atomicity. Repeated occurrences refuse even when cursors agree; no cursor-sameness inference. |
+| F2 → R2/R7 | Separate real-store unit: two distinct selected records have unique refs but share a stored cursor in the same captured query. Include two ownerless FTS rowids and ownerless FTS versus canonical edge; assert refusal/no labels when only one alias is visible or named. Current cursor-only feedback records the aliased u64. This is a proposed runtime failure, not a reproduced result. | Add complete-result cursor occurrence proof independently after F1. Count all SearchRun.hits before offset/budget shaping, retain only visible-ref membership. No engine/public carrier or telemetry-schema change. Cover earlier/later hidden aliases, mixed safe/unsafe atomic refusal and unmentioned unrelated ambiguity; no passing coverage presented as RED. |
 | T1 → R3/R6 | Already-public hybrid query over many long matches, fixed deterministic embedder, no graph/filter/CE/explain/dependencies. Freeze setup, then a serial test allocator counts large Rust allocations during the real search. Assert a derived bound proportional to vector hydrated pool+final hits plus lightweight rows, not matched body bytes. Baseline hydrates all M bodies and fails the work bound; selected hits still match the complete control. | Complete lightweight rank census and final hydration. Do not claim old route-witness equality as new RED. Test allocator observes actual allocations across worker threads, not an implementation-populated boolean; validate measurement scope with a deliberate large allocation/control outside product code. |
 | T2 → R3/R4 | Only if widening admission changes behavior: construct the newly admitted combination with a real DB and assert route/work bound plus hand-selected filtered/frozen results. Current reference route violates that intentional work requirement. | Widen one combination only when reviewed. Otherwise these combinations remain reference controls, with no invented RED for unchanged fallback. |
 | P1 → R5/R6 | Existing `snippet_for` on a preallocated multi-MiB ASCII alnum/space body with empty spans; isolate allocator interval around invocation. Assert output against the full reference outside measured interval and bounded allocation independent of suffix length. Current whole-body boundary vectors violate the derived allocation bound. | Restricted-prefix specialization; count only actual call allocations. Repeat with suffix lengths spanning orders of magnitude; direct work counter/allocator bounds, not flaky timing. |
@@ -78,8 +85,9 @@ or fixture/golden regeneration is proposed.
   contain exactly `\u001e\u0011café pear` (escape notation; stored bytes begin
   0x1e,0x11). Search `cafe`, limit sufficient for both, highlights=true,
   max_bytes=40. Under selected record identity assert two exact cursors/sources
-  and unchanged equal h: IDs, with original text rank1/2 manual RRF scores and
-  tie order. Baseline body fusion returns one, a genuine selected-record-count
+  and unchanged equal h: IDs, with original one-based RRF positions1/2 (scores3/31,3/32) and
+  current zero-based explanation text_rank0/1 when requested. Tie controls are
+  separate; these two text-only scores are not tied. Baseline body fusion returns one, a genuine selected-record-count
   failure. Both stored bodies remain the exact12 UTF-8 bytes; decoded role is
   user. Each whole snippet text is those stored bytes, window [(0,12)], body
   span [(2,7)] and snippet highlight [(2,7)], Whole and cut=false. This proves
@@ -140,11 +148,52 @@ this packet selects no such behavior.
   winning branch, two query pools, highlights and byte budgets. Stored vector
   spans/hints remain unchanged;80/90 own public coverage composition.
 - Fresh installed Rust/Python/N-API controls compare same-build selected IDs,
-  source/score/explanation and UTF-8 sidecars. MCP both formats follow approved60
+  source/score/explanation and UTF-8 sidecars. Engine assertions may use internal
+  cursors; Python/TypeScript compare observable IDs, source, body/role, order,
+  score and span fields, since those bindings expose no write_cursor. MCP both formats follow approved60
   rounding/whole-hit budget/paging; do not recut snippets. Addressing policy is
   separately ruled; logical fetch still returns latest eligible per its view.
 
-Only after actual30 is available, repeat its fixed natural-text and write-
-interleaved cells with the qualified50 candidate/reference; untraced latency
+Accepted30 P is already available and remains immutable. Only after current
+source dependencies and applicable hybrid baselines are satisfied, repeat its
+fixed natural-text and write-interleaved cells with the qualified50 candidate/reference; untraced latency
 and separate work/RSS diagnostics identify50's contribution. No performance
 run, full gate, model, install, source change or native execution occurred here.
+
+Additional ownership controls for I2/I3: same-body records A/B with only A in the
+vector candidate pool, separate sources/revisions, distinct head span byte_end
+(including unknown) and CE membership. Expected A score includes exactly its
+own vector term; B gets only its own lexical term. Current body fusion would
+credit the representative from both. Pair fixed-time view flags and validity
+endpoints with explicit eligible record tuples before caps, then retain selected
+record/prefix parity. For graph-only fixtures assert exact winning edge source/
+confidence separately from canonical-node ownership; mixed vector/text+graph
+fixtures preserve the two-arm exclusion of the same record. Ownerless rows with
+same cursor but different FTS rowids require separate positional snippets and
+truthful absent source; never let FtsRows' current cursor map overwrite one.
+
+Do not turn visibility removal, moved tests, same-build70 reason controls,
+different role tags, helper duplicate refusal or existing full-route agreement
+into passing-on-arrival RED claims. Each changed behavior still needs a real
+runtime assertion failure and separate GREEN against unchanged selected intent.
+
+Final-review P2 fixture refinement: use different stored bodies/refs for F2 so
+current body fusion does not itself hide the cursor-alias failure. After identity
+GREEN, also pair equal-body same-ref/same-cursor ownerless records with distinct
+FTS rowids; the proposed conservative policy refuses without guessing sameness.
+A source-derived ownerless-vs-edge alias uses no matching canonical node, so the
+node-FTS LEFT JOIN remains ownerless. Expected mapping is hand-authored by FTS
+rowid/class and cursor, never inferred from body/branch/u64 equality. Pin exact
+captured R, query_id and visible page; aliases hidden by offset/budget still
+make a visible label unsafe, but naming a hidden ref remains nonmember refusal.
+Unrelated unmentioned ambiguity must not block a safe cursor; naming both safe
+and unsafe labels must produce zero feedback writes. Another continuation call's
+separate captured event is not unioned into R. These are future real-DB/adapter
+oracles; no tests or telemetry files were executed/read in this phase.
+
+Required non-refusal control for F2: P contains a singleton visible ref and R
+contains another hit with that same ref but a different cursor. With each cursor
+unique in R, naming that visible ref remains recordable against its visible
+cursor. The converse different-ref/same-cursor hidden alias refuses. Keep ref
+counting page-local and cursor counting complete-run-local; the full R must not
+create membership for hidden-only ref strings or merge separate query events.

@@ -18,15 +18,17 @@ def encode_records(corpus, output):
 
 def encode_queries(queries, output):
     """Write selected questions in source order to a fresh input and return its count."""
-    payload = Path(queries).read_bytes()
-    questions = [json.loads(line) for line in payload.splitlines()]
-    with Path(output).open("xb") as stream:
-        stream.write(payload)
-    return {"records": len(questions)}
+    count = 0
+    with Path(queries).open("rb") as source, Path(output).open("xb") as stream:
+        for index, line in enumerate(source):
+            record = {"id": index, "query": json.loads(line)}
+            stream.write((json.dumps(record) + "\n").encode("utf-8"))
+            count += 1
+    return {"records": count}
 
 
 def main():
-    """Encode an existing selected corpus; never reselect turns or questions."""
+    """Encode selected bodies/questions without reselecting turns or questions."""
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--corpus", type=Path)

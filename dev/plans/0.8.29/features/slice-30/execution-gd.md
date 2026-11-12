@@ -807,6 +807,26 @@ oracles or native inputs. Final coverage/Markdown/diff recheck is retained as
 campaign qualification. Generic feed/warmups/pass matrix/GO/GG/budgets and D work
 remain outstanding under the reviewed plan.
 
+## Thin question-record projection
+
+The pinned selected P questions are JSON strings. The generic G feed uses ordered
+ID/query records, with source-order IDs 0..499 for the same frozen 500 questions.
+RED71150a19487feca51677811ae7bd5504898789dd observed successful real CLI/count/
+valid-JSONL/source-preservation controls, then both literal duplicate/Unicode and
+bounded property assertions failed strings versus ID/query records (0/2,0.283s).
+Minimal streamed projection GREEN passes unchanged oracle
+ e3f528ddd5ac303a6408cba92b965a6d2bc5444b80a488062c7c0e4f569baeec,
+2/2 in0.736s (literal plus8 Unicode cases). Existing corpus codec controls pass
+2/2 in0.450s; its encode_records function is byte-identical to c9. P converter
+and pinned inputs are unchanged; duplicates/text/order are retained.
+
+Task gd-g-query-inputs-red/green receipts/logs retain all CLI roots and per-call
+before-runtime Python/tool/oracle/input hashes, command/source/delta. Ruff and
+correctly configured Pyright (3files,zero diagnostics) pass in the GREEN receipt.
+Both codec suites remain selected by maintained root Python discovery. This is
+small source-only preparation tooling, not actual canonical500 encoding, native
+query forwarding, model/DB/GPU work or a campaign-clock/qualification claim.
+
 ## Generic thin record encoder
 
 RED9ac3adfb4 runs a real successful CLI and parses valid selected string JSONL,

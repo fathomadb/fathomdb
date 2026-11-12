@@ -109,10 +109,10 @@ def read_jsonl_records(path, issues):
     if not path.exists():
         issues.append(f"missing {path.name}")
         return records
-    for number, line in enumerate(path.read_text().splitlines(), 1):
+    for number, line in enumerate(path.read_bytes().splitlines(), 1):
         try:
-            records.append(json.loads(line))
-        except json.JSONDecodeError:
+            records.append(json.loads(line.decode("utf-8")))
+        except (UnicodeDecodeError, json.JSONDecodeError):
             issues.append(f"partial/invalid {path.name}:{number}")
     return records
 
@@ -127,7 +127,8 @@ def summarize(root):
     output = []
     paired = {}
     resource_path = root / "resources.jsonl"
-    resources = [json.loads(line) for line in resource_path.read_text().splitlines()] if resource_path.exists() else []
+    resource_issues = []
+    resources = read_jsonl_records(resource_path, resource_issues) if resource_path.exists() else []
     for cell in plan:
         previous = state.get(cell["id"])
         report = dict(id=cell["id"], family=cell["family"], n=cell["n"],
@@ -178,7 +179,7 @@ def summarize(root):
         if cell["family"] == "P1" and report["status"] == "complete":
             paired.setdefault(str(cell["n"]), []).extend(rows)
     return {"scope":"P only; whole30/M/F/G/D and release exits are not qualified",
-            "manifest":manifest,"cells":output,"gated":False,
+            "manifest":manifest,"cells":output,"gated":False,"resource_issues":resource_issues,
             "complete":bool(output) and all(cell["status"] == "complete" for cell in output),
             "paired_adapters":{n:paired_difference(rows) for n,rows in paired.items()}}
 

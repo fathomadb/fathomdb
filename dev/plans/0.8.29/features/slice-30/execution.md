@@ -92,3 +92,23 @@ own logs. Source stays frozen throughout. P0 actual program and the frozen P
 manifest/campaign follow outside the verification/build window. Future results
 will preserve source identities, raw failures/skips and affected resumptions;
 whole20/30/Block1/fidelity and publication remain separate.
+
+## First full wrapper and affected correction
+
+Actual clean765210905 full agent-verify passed owned-tool preflight, then exited1
+at lint-shell/SC2312 after57s. New platform-selector inline uname masked its
+return. No Rust/native/typecheck/security/test phase had run. The original
+full-local-v1 log and read-only retained2spills (0missed) remain intact; guard
+reported no resource stop and clean matching source boundaries.
+
+The correction moves uname into a separate task-specific assignment checked by
+set-e, then compares the captured value. No ratchet entry, policy suppression,
+test/threshold change or platform substitution. Failed lint and previously
+unexecuted canonical phases resume on the next clean freeze; no full-wrapper
+exit0 or uninterrupted qualification is claimed.
+
+Affected canonical shell lint exits0 after the assignment correction. Read-only
+committed-source comparison also verifies unchanged Python test files or complete
+Rust test modules for all13valid RED/GREEN pairs; invalid124e9f9b2 stays excluded.
+The compact external result is receipts/committed-tdd-oracles.json. This is an
+oracle-identity check, not a runtime replay or independent review substitute.

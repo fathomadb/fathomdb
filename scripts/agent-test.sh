@@ -140,7 +140,8 @@ run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_s
 # P-only campaign control uses Linux /proc observations and flock; other
 # platforms retain an explicit unsupported-tool disposition, not Linux proof.
 slice30_measurement_platform_reason=""
-if [ "$(uname -s)" != "Linux" ]; then
+slice30_measurement_host_os="$(uname -s)"
+if [ "$slice30_measurement_host_os" != "Linux" ]; then
   slice30_measurement_platform_reason="Slice30 P measurement controller is Linux-only"
 fi
 run_tier_maybe_suite fast test-slice30-measurement-tools "$slice30_measurement_platform_reason" \

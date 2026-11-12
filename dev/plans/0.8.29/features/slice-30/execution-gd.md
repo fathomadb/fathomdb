@@ -197,7 +197,7 @@ remain unchanged; actual gd-text-hydration-docs scoped check exits0. The same
 reviewer returned BLOCK_PREFIX_ACCEPTABLE_PENDING_REMAINING_WORK at5f0bd0950.
 No additional native rerun or final source/campaign qualification follows.
 
-TGD-7 report-only RED659523ee6 follows original design review confirmation.
+TGD-7 report-only RED659523ee6→GREENd12d98f25 follows original design review confirmation.
 Its compile-ready getter emits an empty object without changing correct retention
 or the existing counter.32769real observed tiny-store queries, no intermediate
 drain, first verify retained32768 and literal call-ID bounds; new reported drops
@@ -220,6 +220,35 @@ Raw gd-stats-red/green receipt/logs preserve exact features, source deltas, hash
 and actual runtime failures/passes. The later public drain-doc grammar clarification
 changes no functional source body or test input. Error/unavailable disposition,
 workers and G/D adapters/model/campaigns remain outstanding.
+
+## Typed query outcome and unavailable-state unit
+
+Separate TGD-7 RED4fe42dd92 has4actual missing-projection failures: literal
+successful query Null!=ok; ordinary InvalidFilter and governed-write stale frozen
+context Null!=error after the original typed product errors pass first; bounded
+real-DB sequence property None!=Some(ok), minimal flags[false]. No database fault
+injection, new product API, adjacent snapshot or guessed zero generation.
+RED executable SHA256
+d79c7c258d9f1a9a48df3e73573da537948541f0629557fc297ac5d576e39f57;
+unchanged test SHA256
+bdb25fc01512d5f4f8e73f5944e6c032c0ddac4c92cc99f5536694d8655c6b5a.
+
+GREEN gd-outcomes-green preserves original validation/error ordering. Collection
+starts in read_search_work_in_tx, passes one borrowed completion to the existing
+inner search, then observes that reader result after transaction handling. No
+SearchReaderWork public payload or SDK accessor is added. Metadata classifies the
+reader-result variant without its raw payload; unreached work stays null with
+explicit reason. Failed frozen validation cannot expose a later adjacent stamp.
+API failures before reader dispatch have no internal record and must remain
+explicitly unavailable in future tool output; panic/unfinished state is not ok.
+
+Actual new4/4passes (including8bounded property cases), feature AND default
+Clippy,2/2initial pinned snapshot tests and unchanged completion1/1all pass,
+exit0/resource_stop null. GREEN executable SHA256
+785777ac78b6ad57ebaf21b3455d0542027c81d1f6ecaad44cf9d3b504307aca.
+Raw gd-outcomes-red/green receipts/logs retain exact command/source delta/features/
+hashes/failures/results. Prior per-predicate calls/order and product return values
+are unchanged. Worker/adapters/model/campaign/final whole-source work remains.
 
 ## Evidence locations and interpretation
 

@@ -798,7 +798,9 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<C::Output, SearchReaderError> {
-    read_search_in_tx(
+    #[cfg(feature = "slice30-measurement")]
+    let mut measurement = attribution.measurement.begin(worker_idx);
+    let result = read_search_in_tx(
         reader,
         work.compiled.as_ref(),
         work.query_vector.as_deref(),
@@ -826,7 +828,14 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
         attribution,
         worker_idx,
         capture,
-    )
+        #[cfg(feature = "slice30-measurement")]
+        &mut measurement,
+    );
+    #[cfg(feature = "slice30-measurement")]
+    if let Some(measurement) = measurement.as_mut() {
+        measurement.finish_outcome(&result);
+    }
+    result
 }
 
 pub(crate) struct SearchStatement<'connection> {
@@ -1854,9 +1863,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
     mut capture: C,
+    #[cfg(feature = "slice30-measurement")] _measurement: &mut Option<
+        crate::measurement_for_test::Completion,
+    >,
 ) -> Result<C::Output, SearchReaderError> {
-    #[cfg(feature = "slice30-measurement")]
-    let mut _measurement = attribution.measurement.begin(worker_idx);
     // 0.8.20 Slice 15b fix-2 (R-20-NV) — the `:now` instant is read HERE, in
     // Rust, ONCE per query, and bound positionally into every node-hydration
     // SELECT. Never `datetime('now')` / `strftime('%s','now')`: an inline clock
@@ -1975,11 +1985,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     #[cfg(not(feature = "slice30-measurement"))]
     let has_source_dependencies = dependency_closure::has_source_dependencies(&tx)?;
     #[cfg(feature = "slice30-measurement")]
-    let has_source_dependencies = crate::measurement_for_test::measure_bool(
-        &mut _measurement,
-        "has_source_dependencies",
-        || dependency_closure::has_source_dependencies(&tx),
-    )?;
+    let has_source_dependencies =
+        crate::measurement_for_test::measure_bool(_measurement, "has_source_dependencies", || {
+            dependency_closure::has_source_dependencies(&tx)
+        })?;
     let read_dependency_eligibility = |alias: &str, now_idx: usize| {
         if has_source_dependencies {
             dependency_closure::read_eligibility_sql(
@@ -2021,7 +2030,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     })
                 });
                 let result = crate::measurement_for_test::measure_bool(
-                    &mut _measurement,
+                    _measurement,
                     "vector_arm_requires_fallback",
                     || {
                         dependency_closure::vector_arm_requires_fallback(
@@ -2408,7 +2417,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 let eligible = {
                     _all_nodes_invoked = true;
                     crate::measurement_for_test::measure_bool(
-                        &mut _measurement,
+                        _measurement,
                         "all_nodes_directly_eligible",
                         || {
                             dependency_closure::all_nodes_directly_eligible(

@@ -113,7 +113,8 @@ MCP/Windows/Block1 and final160 obligations are not discharged by this P subset.
 The engine-only slice30-measurement feature is independent of test-hooks and has
 no SDK/binding forwarding. Current private query records contain completion,
 same-reader snapshot, actual predicates/SQL subspan, vector/text candidate blocks
-and a separate cumulative drop report. The current tiny driver remains a
+reader-result outcome/unavailable state, and a separate cumulative drop report.
+The current tiny driver remains a
 None-provider fixture; natural G/D adapters/model/campaigns are not implemented.
 Exact scopes/failures/subjects live in
 [actual execution](../../plans/0.8.29/features/slice-30/execution-gd.md).
@@ -123,6 +124,7 @@ Maintained heavy suites explicitly select these rerunnable targets:
 cargo test --locked --release -p fathomdb-engine --test slice30_measurement_snapshot --features test-hooks,slice30-measurement
 cargo test --locked --release -p fathomdb-engine --test slice30_measurement_predicates --features test-hooks,slice30-measurement
 cargo test --locked --release -p fathomdb-engine --test slice30_measurement_stats --features slice30-measurement
+cargo test --locked --release -p fathomdb-engine --test slice30_measurement_outcomes --features slice30-measurement
 cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features slice30-measurement
 python3 dev/experiments/0.8.29-slice30-measurements/native/test_completion.py
 ```

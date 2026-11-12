@@ -208,8 +208,23 @@ Drops are monotonic for this Engine's lifetime. Record drain and enable/disable
 do not reset them; newly opening an Engine starts at zero. The separate getter
 and record drain are not an atomic pair: conservation requires joined/quiescent
 calls, and controllers use cumulative differences rather than summing repeated
-reads. Closing admission returns `Closing`. Final query error disposition is
-not yet supplied. Closing admission
+reads. Closing admission returns `Closing`.
+
+The query completion's `outcome` is ok/error and `error_class` names the actual
+reader-result variant (Sqlite, Evidence, InvalidFilter, RerankerDevicePolicy,
+FrozenRead, WriteValidation or InvalidArgument), without raw error payloads.
+The original result/error propagates unchanged. Failed validation precedes
+snapshot sampling: snapshot_available=false, snapshot=null and reason
+not_reached; no adjacent state or invented zero generation is substituted.
+A failed diagnostic stamp read is separately observer_read_failed. Predicates
+and blocks not reached after an error report invoked=false with null value/rows/
+time and reason not_reached, preserving existing observations already made.
+An invoked predicate with null value represents its propagated SQLite error,
+not false. Internal query collection begins in read_search_work_in_tx and passes
+one borrowed completion context to read_search_in_tx; finish observes the result
+after its transaction handling. Failures before reader dispatch produce no new
+internal record, and panic/unfinished outcome is unavailable rather than ok.
+Tool API records must retain such failures/absence explicitly. Closing admission
 returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.
 

@@ -35,6 +35,9 @@ impl Collector {
             snapshot: None,
             predicates: serde_json::Map::new(),
             blocks: serde_json::Map::new(),
+            outcome: None,
+            error_class: None,
+            stamp_attempted: false,
         })
     }
 }
@@ -46,9 +49,48 @@ pub(super) struct Completion {
     snapshot: Option<Value>,
     predicates: serde_json::Map<String, Value>,
     blocks: serde_json::Map<String, Value>,
+    outcome: Option<&'static str>,
+    error_class: Option<&'static str>,
+    stamp_attempted: bool,
 }
 
 impl Completion {
+    pub(super) fn finish_outcome<T>(
+        &mut self,
+        result: &Result<T, crate::search::SearchReaderError>,
+    ) {
+        use crate::search::SearchReaderError;
+        self.outcome = Some(if result.is_ok() { "ok" } else { "error" });
+        self.error_class = result.as_ref().err().map(|error| match error {
+            SearchReaderError::Sqlite(_) => "Sqlite",
+            SearchReaderError::Evidence(_) => "Evidence",
+            SearchReaderError::InvalidFilter(_) => "InvalidFilter",
+            SearchReaderError::RerankerDevicePolicy(_) => "RerankerDevicePolicy",
+            SearchReaderError::FrozenRead(_) => "FrozenRead",
+            SearchReaderError::WriteValidation => "WriteValidation",
+            SearchReaderError::InvalidArgument(_) => "InvalidArgument",
+        });
+        if result.is_err() {
+            for name in [
+                "has_source_dependencies",
+                "vector_arm_requires_fallback",
+                "all_nodes_directly_eligible",
+            ] {
+                self.predicates.entry(name.to_owned()).or_insert_with(|| json!({
+                    "invoked": false, "value": null, "elapsed_ns": null, "reason": "not_reached",
+                }));
+            }
+            for name in ["vector", "text"] {
+                self.blocks.entry(name.to_owned()).or_insert_with(|| {
+                    json!({
+                        "invoked": false, "rows": null, "elapsed_ns": null, "reason": "not_reached",
+                        "degraded": null,
+                    })
+                });
+            }
+        }
+    }
+
     pub(super) fn complete_block(
         &mut self,
         name: &'static str,
@@ -97,6 +139,7 @@ impl Completion {
     }
 
     pub(super) fn stamp(&mut self, connection: &rusqlite::Connection, effective_at: i64) {
+        self.stamp_attempted = true;
         let started = std::time::Instant::now();
         let generation = crate::frozen_read::load_visibility_generation(connection);
         let cursor = crate::projection_commit::load_projection_cursor(connection);
@@ -126,6 +169,16 @@ impl Drop for Completion {
                 "snapshot": self.snapshot,
                 "predicates": self.predicates,
                 "blocks": self.blocks,
+                "outcome": self.outcome,
+                "error_class": self.error_class,
+                "snapshot_available": self.snapshot.is_some(),
+                "snapshot_unavailable_reason": if self.snapshot.is_some() {
+                    None
+                } else if self.stamp_attempted {
+                    Some("observer_read_failed")
+                } else {
+                    Some("not_reached")
+                },
             }));
         } else {
             self.collector.dropped.fetch_add(1, Ordering::Relaxed);
@@ -187,8 +240,9 @@ impl Engine {
     /// Records contain engine/call IDs and reader worker index. At most 32768
     /// records are retained between drains. Records include same-reader snapshot,
     /// actual predicate timing and vector/text block observations when available.
-    /// Cumulative drops are returned separately by the stats getter; final query
-    /// error disposition is not yet supplied.
+    /// Cumulative drops are returned separately by the stats getter. The reader
+    /// result's outcome/category is reported without changing that result; an API
+    /// failure before reader dispatch has no new query record.
     /// Returns `Closing` when admission closes or `Storage` on a poisoned buffer.
     #[doc(hidden)]
     pub fn take_slice30_measurements_for_test(&self) -> Result<Vec<Value>, EngineError> {

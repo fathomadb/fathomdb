@@ -50,7 +50,7 @@ LME, generated synthetic bodies and convenience10k are not substitutes. Whole30,
 | search.rs read_search_in_tx at349 | has_source_dependencies once/snapshot; vector fallback short-circuits on history/vector/dependencies; all_nodes_directly_eligible behind all current guards. P direct text does not execute that hybrid eligibility scan. |
 | dependency_closure.rs predicate functions | Exact existing predicates. No-dependency fallback returns without the dependency SQL; all-nodes scan is not a blanket per-search cost. |
 | connection_runtime.rs profile callback; search.rs Slice71 trace | Public milliseconds/zero placeholders and global label-only trace cannot supply exact per-query predicate timing/snapshot attribution. Do not extend/use that global trace. |
-| projection_worker.rs candidate_page_sql/scheduler_scan_sql and runtime_configuration.rs | Current per-arm scan bound256, commit batch64, default orchestration2/provider5. Existing configured concurrency is observed, not retuned. active_jobs counts rows, not workers. |
+| projection_worker.rs candidate_page_sql/scheduler_scan_sql and runtime_configuration.rs | Current per-arm scan bound256, commit batch64, default orchestration2/provider5. Existing configured concurrency is observed, not retuned. active_jobs counts ProjectionJob entries, not workers; D node jobs correspond to cursors, not a general physical-row count. |
 | projection_runtime.rs freeze/readiness; runtime_lifecycle.rs drain | Existing held fixture, passive drain and durable pending predicates. Terminal/drain alone is not vector coverage. Held and true overlap are different cells. |
 | tests/exp_ac013_page_cache.rs; dev/experiments/ac013-page-cache | Selectively reuse deterministic body/vector generator and read-only page/WAL observation. Its30minute drain, old knobs, full-sort/PRAGMA/libsqlite flags and stale digest assumptions are excluded. No wholesale prototype merge. |
 
@@ -217,3 +217,69 @@ remaining-budget timeouts; existing unbounded measure_root/resource_sample are
 not a hard-deadline campaign implementation. Keep source guard defaults and
 already accepted cleanup/resource semantics unchanged unless a separately
 staged bounded-tool unit requires an optional campaign-deadline path.
+
+## D11 separate worker transport and shared-clock fit (proposal)
+
+Source subject26cb528230e6137c299b0118da9a066e95420683. In
+projection_worker::projection_worker_loop, worker_idx is the actual projection
+thread. The popped Vec<ProjectionJob> forms a batch; queued_jobs/active_jobs
+count jobs, in_flight contains cursors. Provider embed_dispatch::core worker
+indices/live_workers are a DIFFERENT population; defaults2/5 describe configured
+projection/provider topology, never observed concurrency. Existing catch_unwind,
+commit failure reporting and mandatory state cleanup retain their order/results.
+
+Keep take_slice30_measurements_for_test and its query-only capacity/drop contract
+unchanged. Propose TWO hidden Engine methods under slice30-measurement only:
+slice30_observe_projection_workers_for_test(bool) and
+ take_slice30_projection_measurements_for_test(origin: std::time::Instant)
+ -> Result<serde_json::Value, EngineError>. The setter returns Result<(),
+EngineError>. No SDK forwarding, environment switch or capacity knob. Add the
+exact Rust interface note with implementation, not a claim of an existing API.
+Both use normal admission and return Closing after close; draining a poisoned
+worker buffer returns Storage, without altering query or product error paths.
+
+The existing per-engine attribution owner carries a SEPARATE worker buffer,
+fixed32768 completed batches and independent cumulative dropped counter; query
+records/counters are not mixed or reset. The drain report has records/capacity/
+dropped, removes completed records in completion order, and reads its counter
+under the same worker-buffer lock. Drops accumulate for the Engine lifetime;
+arm/disarm/drain never reset them. The two streams retain at most65536 records
+combined, each with its own32768 bound; no new resource allowance. Starts sample
+worker enablement; disabling
+retains records and permits already observed batches to finish. Normal compiled-
+out behavior and GO's exactly-one-query-record contract remain unchanged.
+
+Capture typed Instant start/end with engine_id, separate monotonic batch_id,
+actual worker_idx, job_count and captured cursor list. Bound each list by existing
+PROJECTION_COMMIT_BATCH64; no bodies/SQL are collected. Begin follows removal/
+active accounting and precedes run_projection_jobs. Explicit finish follows the
+existing catch/recovery, error reporting and mandatory state cleanup. Its inclusive
+interval is NOT provider kernel time or SQLite transaction duration. Retain actual
+commit Ok/Err and caught-unwind disposition separately; Ok does not prove every
+job projected successfully. Per-job physical/pending/failure controls remain.
+
+The ended-record disposition is finished only after explicit post-cleanup finish;
+a guard abandoned by early error/unwind emits aborted at Drop, with cleanup
+unconfirmed and unknown commit outcome null. A poisoned/unavailable cleanup state
+is explicit, never successful cleanup. Observations cannot swallow/replace the
+original error/unwind or run product cleanup themselves. Sample actual queued_jobs,
+active_jobs and in_flight membership count after entry accounting and after cleanup,
+with sample timestamps; they may include other workers' jobs and are not atomic
+batch-start facts or physical-vector counts. Serialize outside the state lock.
+No new scheduler notification, rendezvous or runtime configuration follows.
+
+The tool creates ONE attempt-local Instant before any writes/queries/readiness
+and passes it to the worker drain. Typed worker timestamps convert relative to
+that SAME origin outside API clocks; driver writer/query/readiness intervals use
+origin.elapsed directly. Do not independently zero intervals or use reader-worker
+IDs as projection IDs. An origin after an event produces null offsets plus an
+explicit unavailable issue, not saturated zero/qualifying overlap. This is an
+in-process clock, not cross-process epoch arithmetic. No query schema change is
+needed. Actual D controls share this load; no observer-controlled scheduler pause.
+
+A completed-buffer drain cannot preserve an interrupted in-flight batch. Report
+missing completion/partial output honestly; no every-start durability claim.
+Worker/driver phase persistence and absolute deadline integration remain later
+units. Separate stream bounds add no budget: same13roots/original69280403456,
+96GiB setup/G16/D16/200GiB aggregate and existing floors. Source fixtures remain
+180/150/30; no large population, artificial timed delay or campaign authority.

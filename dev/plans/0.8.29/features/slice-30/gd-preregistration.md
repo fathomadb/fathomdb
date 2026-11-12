@@ -577,3 +577,22 @@ or GREEN. After independent design PASS and parent continuation, the bounded
 [execution record](execution-gd.md#gg-governed-validdeleted-measured-stages)
 records the supported-note missing-stage RED and minimal GREEN; actual campaign
 populations, phase deadlines and final qualification remain pending.
+
+## D11 transport clarification (proposal, no runtime evidence)
+
+The [D11 fit](gd-extension.md#d11-separate-worker-transport-and-shared-clock-fit-proposal)
+uses a separate engine-owned bounded worker stream. Query getter/drop semantics,
+GN/GO artifacts and all accepted G/P timing boundaries stay unchanged. Actual
+projection worker_idx, batch ID, job count/cursors and provider-pool identities
+are distinct. Completed batch start/end timestamps and driver query/writer/full
+readiness invocations share ONE attempt Instant; conversion/persistence is outside
+API timers. No zero-based per-thread clocks or queued/pending counts substitute
+for observed worker intervals. Worker records retain actual completion ordering;
+missing/unavailable/drop outcomes prevent complete attribution. The initial tiny
+source oracle is not evidence of two active workers or real triple overlap.
+
+No D cell, fixed workload, observation cadence, time/storage/headroom gate or
+conditional eligibility changes. The separate fixed32768 worker buffer and query
+buffer are charged within existing reservations. DN/DO-off/on source identities,
+actual workload/observer load and all pending held/overlap/deadline/controller
+qualification remain required; no campaign clock has begun.

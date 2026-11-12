@@ -92,8 +92,8 @@ caller/warmup/pass routing; full campaign qualification remains pending.
 
 ## Proposed generic G artifact ownership (current fit review)
 
-The generic normal G caller now uses a SEPARATE feature-gated binary; the
-remaining diagnostic G caller will use the same private host
+The generic normal and diagnostic G callers use a SEPARATE feature-gated binary
+in the same private host
 in existing publish=false fathomdb-tc5-benchmark, as specified by
 [the fit amendment](gd-extension.md#generic-g-ownership-and-route-fit-amendment-planning-only).
 That package is only a private host: existing TC5 main/protocol/features remain
@@ -108,6 +108,20 @@ this new host. No product ABI/ranking/cache/provider policy changes follow.
 Planned controller-owned absolute clocks will bound native phases/probes/cleanup
 without making synchronous Engine APIs cancellable. The11e09 fit received exact
 design PASS/source GO; GN is implemented with accepted bounded G1 source prefixes
-through8e5823. G2/GO/GG/controller/budget wiring, remaining D work and final source/
-native/lifecycle/campaign qualification remain pending. Earlier proposal wording
+through8e5823. Later bounded G2, GO and GG prefixes are implemented through26cb528;
+full population/phase attribution/deadline/controller/budget wiring, remaining D
+work and final source/native/lifecycle/campaign qualification remain pending.
+Earlier proposal wording
 is historical and does not make the current GN host planning-only.
+
+## Proposed D worker ownership clarification
+
+The [D11 separate-stream fit](gd-extension.md#d11-separate-worker-transport-and-shared-clock-fit-proposal)
+keeps completed query collection and accepted GO transport intact. Per-engine
+projection batch records have their own bounded buffer/drop count, actual
+projection worker IDs and captured typed monotonic intervals. The private D tool
+normalizes those intervals against its one writer/query/readiness attempt origin;
+provider workers and configured concurrency remain distinct observations. No SDK
+surface, scheduler notification/pause, product counter/policy or default-build
+instrumentation is introduced. This is a proposal pending exact design review,
+not implemented D attribution or campaign qualification.

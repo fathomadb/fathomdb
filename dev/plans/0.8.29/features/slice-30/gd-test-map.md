@@ -486,3 +486,53 @@ real-runtime units with current deterministic768/test-hooks, not G substitutes.
 All new suites/builders are indexed and selected explicitly; hardware suites use
 the existing manual convention. Freeze stable source only after real generic
 wiring, then one required full gate and fresh actual artifact/native proof.
+
+## D11 initial worker-transport oracle (proposed source fit)
+
+The [separate transport](gd-extension.md#d11-separate-worker-transport-and-shared-clock-fit-proposal)
+leaves accepted GO query collection unchanged. First RED may add compile-ready
+hidden setter/drain stubs returning an empty worker report, plus a tiny D driver
+branch using CURRENT real deterministic768 configure/write/drain/close APIs.
+No worker instrumentation precedes RED. Keep selector, features(test-hooks plus
+slice30-measurement), argv/config and test bytes fixed through minimal GREEN;
+missing symbols/failed build/setup/SQL controls are NOT_RED.
+
+Initial literal65doc/note jobs plus bounded Unicode properties (1..129jobs,
+1..65governed-cohort size, completed tail preserved) first
+prove actual governed receipts, readiness pending0, independent canonical(kind,
+cursor)→mapping→physical(mapping.rowid)/span/profile coverage, unknown D span ends
+and closed WAL/copy/reopen controls. Capture configured2/5 separately. Existing
+query API/result and exactly-one QueryComplete control succeeds; worker getter
+must not consume or add query records. Only then assert observed worker cursor
+coverage/job-count sum equals the written population: empty report fails0vs65
+(and property0vsN), not a missing-file/parser exception.
+
+Before GREEN stage exact cursor conservation/no duplicates or extras, unique
+batch IDs/engine ownership, job_count==cursor-list length in1..64, actual worker
+IDs in0..2, start<=end within the SAME driver attempt, and non-overlapping
+successive batches per worker. Completion order may differ from cursor/admission
+order; do not invent global batch ordering or require both workers to run.
+Repeated quiescent drains have empty new records and stable cumulative drops;
+normal/off paths remain empty controls. Actual observed distinct workers and
+interval overlap supply concurrency; configuration alone never does. Preserve
+literal AND property oracles before first GREEN, including query-stream isolation.
+
+Use no new rendezvous in this first unit. Existing unbounded Barrier worker
+hooks are not suitable. Later held diagnostics use cancellation-safe bounded
+release-before-drain/join/close, while ordinary timed overlap has no holds/sleeps.
+Stage a separate initial helper-level error oracle BEFORE the first transport
+GREEN: an owned real SQLite readonly SELECT followed by the wrong typed column
+read returns actual InvalidColumnType. Pass/propagate that original Err through
+the observer lifetime helper; expect one aborted record, positive interval,
+cleanup unconfirmed and unknown commit outcome null. The RED helper scaffold
+must preserve the Err and emit no record, so missing transport fails explicitly.
+This is observer-helper error/Drop behavior, not an end-to-end worker failure or
+injected product fault. Do not claim an actual worker panic/recovery occurred;
+preserve the existing catch/recovery/cleanup source boundaries unchanged.
+
+The feature-gated proposed methods/record types exist only in engine measurement
+code. The D driver remains the current engine example/test-hooks identity, with
+actual compiler closure recorded for DN(test-hooks) and DO(test-hooks plus
+slice30-measurement); engine self-dev feature unification must be retained in
+those proofs. No private G/TC5-host feature or SDK accessor changes. Default/no-
+feature compilation and accepted query/GO suites are affected reuse controls.

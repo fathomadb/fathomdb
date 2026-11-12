@@ -46,8 +46,9 @@ def own_memory(pid):
 class CoreMeanTests(unittest.TestCase):
     adapter = "engine"
     mode = "engine_mean"
+    query = "alpha "*510
 
-    def test_actual_mean_calls_emit_each_measurement_with_real_gpu_engagement(self):
+    def run_fixture(self):
         if os.environ.get("CUDA_VISIBLE_DEVICES")!=GPU or os.environ.get("FATHOMDB_EMBED_DEVICE")!="cuda:0":
             raise RuntimeError("manual fixture requires the exact reserved3090 and forced CUDA")
         task = Path(os.environ["S30_GD_TASK"])
@@ -70,7 +71,7 @@ class CoreMeanTests(unittest.TestCase):
                 raise RuntimeError("pinned input unavailable before loader: "+str(path))
         config = root/"cell.json"
         config.write_text(json.dumps({"mode":self.mode,"gpu_uuid":GPU,
-            "samples":SAMPLES,"query":"alpha "*510}))
+            "samples":SAMPLES,"query":self.query}))
         locks = task/"locks"
         locks.mkdir(exist_ok=True)
         samples=[]
@@ -109,17 +110,21 @@ class CoreMeanTests(unittest.TestCase):
                     (root/"gpu-engagement.json").write_text(json.dumps({"before":before,
                         "samples":samples,"pid":child.pid,"exit":child.returncode},indent=2)+"\n")
             if child.returncode:
-                raise RuntimeError("real mean API fixture failed: "+(root/"child.log").read_text())
+                raise RuntimeError("real API fixture failed: "+(root/"child.log").read_text())
             if not any(row["own_used_MiB"]>0 and row["gpu"]["util"]>0 for row in samples):
                 raise RuntimeError("no own PID/UUID memory plus positive utilization during BGE work")
         proof=json.loads((root/"out/api-proof.json").read_text())
-        if proof["api_calls"]!=SAMPLES or proof["dimension"]!=384 or proof["finite_nonzero"] is not True:
-            raise RuntimeError("existing real mean API validation did not pass")
         if proof["selected_cuda_uuid"]!=GPU or proof["cuda_ordinal"]!=0 or proof["cuda_compiled"] is not True:
             raise RuntimeError("runtime OpenReport did not attest the reserved CUDA route")
         issues=[]
         rows=read_jsonl_records(root/"out/samples.jsonl",issues)
         print(json.dumps({"api_proof":proof,"observed_records":len(rows),"issues":issues}),flush=True)
+        return root,proof,rows,issues
+
+    def test_actual_population_records_are_retained(self):
+        root,proof,rows,issues = self.run_fixture()
+        if proof["api_calls"]!=SAMPLES or proof["dimension"]!=384 or proof["finite_nonzero"] is not True:
+            raise RuntimeError("existing real mean API validation did not pass")
         self.assertEqual(len(rows),SAMPLES,f"missing actual {self.adapter} mean measurement population")
         self.assertEqual(issues,[])
         for index,row in enumerate(rows):

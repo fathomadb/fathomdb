@@ -24,7 +24,7 @@ impl GAdapter {
             "engine_mean" | "engine_hybrid" | "engine_text" => Self::Core(Box::new(
                 Engine::open_with_choice(path, EmbedderChoice::Default).unwrap(),
             )),
-            "sdk_mean" | "sdk_hybrid" => Self::Sdk(Box::new(
+            "sdk_mean" | "sdk_hybrid" | "sdk_text" => Self::Sdk(Box::new(
                 SdkEngine::open(
                     path,
                     OpenOptions { use_default_embedder: true, ..OpenOptions::default() },
@@ -176,7 +176,9 @@ impl GAdapter {
                     None,
                 )
                 .unwrap(),
-            Self::Sdk(_) => panic!("unsupported text population"),
+            Self::Sdk(engine) => {
+                engine.search_text_only(query, fathomdb_sdk::TextSearchOptions::default()).unwrap()
+            }
         }
     }
 
@@ -214,7 +216,7 @@ fn run(config: &Value, out: &Path) {
     let mode = config["mode"].as_str().unwrap();
     let adapter = if mode.starts_with("engine_") { "engine" } else { "sdk" };
     let is_hybrid = matches!(mode, "engine_hybrid" | "sdk_hybrid");
-    let is_text = mode == "engine_text";
+    let is_text = matches!(mode, "engine_text" | "sdk_text");
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
     assert!(samples > 0);
     let query = config["query"].as_str().unwrap();
@@ -283,7 +285,9 @@ fn run(config: &Value, out: &Path) {
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2})
         };
-        recorder.emit("samples", &row);
+        if mode != "sdk_text" {
+            recorder.emit("samples", &row);
+        }
         calls += 1;
     }
     recorder.flush_all();

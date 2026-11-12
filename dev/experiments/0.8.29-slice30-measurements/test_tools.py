@@ -90,6 +90,31 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(len({row[2] for row in calls}), 4)
             self.assertTrue(all((Path(row[2]) / "run.txt").exists() for row in calls))
 
+    def test_resume_keeps_complete_cells_and_restarts_failed_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls = root / "calls.jsonl"
+            failed = root / "failed-once"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "c=json.loads(pathlib.Path(sys.argv[1]).read_text())",
+                "o=pathlib.Path(sys.argv[2])",
+                f"with open({str(calls)!r},'a') as f: f.write(json.dumps([c['name'],str(o)])+'\\n')",
+                f"flag=pathlib.Path({str(failed)!r})",
+                "if c['name']=='b' and not flag.exists(): flag.write_text('failed'); sys.exit(7)",
+                "(o/'result.json').write_text(json.dumps({'complete':True}))",
+            ])
+            plan = make_plan([{"name": "a"}, {"name": "b"}], 1)
+            command = [sys.executable, "-c", code]
+            first = run_campaign(plan, root / "results", command)
+            second = run_campaign(plan, root / "results", command)
+            observed = [json.loads(line) for line in calls.read_text().splitlines()]
+            self.assertEqual([row[0] for row in observed], ["a", "b", "b"])
+            self.assertNotEqual(observed[1][1], observed[2][1])
+            self.assertEqual(first[1]["exit"], 7)
+            self.assertEqual([row["status"] for row in second], ["complete", "complete"])
+            self.assertTrue((Path(observed[1][1]) / "child.log").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

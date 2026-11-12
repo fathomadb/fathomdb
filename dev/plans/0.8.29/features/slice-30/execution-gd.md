@@ -357,6 +357,29 @@ actual CLI failures/results and five-root resource samples, resource_stop null.
 Final admission remains unimplemented. These hypothetical arithmetic fixtures
 are not template/native/schedule/100k/300k/campaign evidence.
 
+## Light final admission-report composition
+
+Shared-clock GREEN15453cb1c follows REDa19229160. The separate final-report
+REDfd4af1acc runs16tests:12prior pass,4new tests yield7 intended missing-report
+assertions across true, three independent resource refusals, absent/failed lower
+completion and bounded missing-evidence properties. Every tiny CLI succeeds;
+these are runtime assertion failures, not fixtures/setup/native failures.
+
+Unchanged test SHA256
+ed764bc7b45df29f88379975fe95703e2d666ecdcc406918c1dc5e1bb189cda9;
+GREEN gd-admission-feasibility-green passes16/16 in1.093s. ELIGIBLE_PROJECTION
+requires complete lower status plus time, storage and shared-clock reports all
+fitting. Missing/failed lower evidence or any missing/false dimension reports
+NOT_RUN_RESOURCE. This pure report neither starts cells nor verifies actual
+resource availability, source qualification, template correctness or schedule.
+The future controller must obtain those real prerequisites independently.
+
+Raw gd-admission-feasibility-red/green light receipts/logs preserve actual
+command/cwd/SHA/deltas/exit and all five-root samples, resource_stop null. Heavy
+starts remain16GiB and the actual TS refusal remains retained. The four separate
+forecast pairs complete only the approved hypothetical report subset of TGD-14.
+Native-dependent fixture/schedule/GPU tests and campaigns have not run.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under
@@ -370,8 +393,8 @@ hashes and feature identity. No resource stop occurred in these phases.
 
 The source-only Cargo registry/Git object copy created private writable caches;
 no target, installed native product, venv or mutable sibling tool environment was
-borrowed. Own native/Python/TS production setup and final source-bound proofs
-remain outstanding. Scoped passes here are not the one final stable full gate.
+borrowed. Owned Python/dev/noneditable native setup succeeded at9e as recorded above;
+TS setup and final source-bound production lifecycle proofs remain outstanding. Scoped passes here are not the one final stable full gate.
 The reviewed resource allocation remains96GiB setup plus16GiB each G/D raw,
 200GiB conservative aggregate over the five disjoint roots, with accepted floors.
 M/F/20/whole30/40/50/pre90 remain held; no G/D natural timings have run.

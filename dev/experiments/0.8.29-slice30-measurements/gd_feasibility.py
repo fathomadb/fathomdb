@@ -5,12 +5,14 @@ import sys
 
 
 def report(observation):
-    """Return the time dimension for positive lower/target sizes and elapsed ns.
+    """Report resource projections for positive lower/target sizes and elapsed ns.
 
     Scale complete observed elapsed time by target/lower and fixed1.5 headroom,
     rounding up to ns. Compare with870s work admission, reserving30s in900s.
     Optional peak/retained bytes similarly forecast additional family retention
-    against16GiB. These components alone never admit any workload.
+    against16GiB; shared elapsed retains prep/waits and30s cleanup. Admission
+    reports require a complete lower observation and every component fitting.
+    This pure report never launches work or checks actual runtime resources.
     """
     numerator = observation["elapsed_ns"] * observation["target_n"] * 3
     denominator = observation["lower_n"] * 2
@@ -28,6 +30,12 @@ def report(observation):
         required = projected + 30_000_000_000
         result["shared"] = {"remaining_ns": remaining, "required_ns": required,
                             "cap_ns": 14_400_000_000_000, "fits": required <= remaining}
+    eligible = observation.get("lower_status") == "complete" and all(
+        result.get(dimension, {}).get("fits") is True
+        for dimension in ("time", "storage", "shared")
+    )
+    result["admission"] = {"eligible": eligible,
+                           "disposition": "ELIGIBLE_PROJECTION" if eligible else "NOT_RUN_RESOURCE"}
     return result
 
 

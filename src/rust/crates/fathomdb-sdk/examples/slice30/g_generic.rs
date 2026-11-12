@@ -1,6 +1,8 @@
 //! Private generic G single-pass caller, separate from bounded source fixture preparation.
 
-use super::{g_observer_controls, g_template, g_write_schedule, CoreObserver, GAdapter, Recorder};
+use super::{
+    g_observer, g_observer_controls, g_template, g_write_schedule, CoreObserver, GAdapter, Recorder,
+};
 use fathomdb_embedder::EffectiveEmbedDevice;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -54,8 +56,8 @@ fn observe(
     row
 }
 
-pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<CoreObserver>) {
-    if _observer.is_some() {
+pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<CoreObserver>) {
+    if observer.is_some() {
         assert!(config["mode"].as_str().unwrap().starts_with("engine_"));
     }
     assert!(store.exists(), "generic pass requires its owned writable closed-template copy");
@@ -95,6 +97,14 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<Co
     let mut first_warmup_record_start_ns = None;
     let mut first_timed_record_start_ns = None;
     let mut recorder = Recorder::new(out);
+    let mut observation = observer.map(|callbacks| {
+        let GAdapter::Core(opened) = &engine else { unreachable!() };
+        g_observer::Observation::new(
+            &opened.engine,
+            callbacks,
+            config["observer"].as_bool().unwrap_or(false),
+        )
+    });
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
     let writing = g2 && config["schedule"] == "write";
@@ -114,6 +124,9 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<Co
                 .or_else(|| Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap()));
         }
         let mut row = observe(&engine, mode, adapter, sample_index, input, g2.then_some("doc"));
+        if let Some(observation) = observation.as_mut() {
+            row["observer"] = observation.complete(!mode.ends_with("_mean"));
+        }
         row["call_index"] = json!(calls);
         calls += 1;
         if let Some(started) = record_start_ns {
@@ -133,6 +146,9 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<Co
                 .or_else(|| Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap()));
         }
         let mut row = observe(&engine, mode, adapter, sample_index, input, g2.then_some("doc"));
+        if let Some(observation) = observation.as_mut() {
+            row["observer"] = observation.complete(!mode.ends_with("_mean"));
+        }
         row["call_index"] = json!(calls);
         calls += 1;
         if let Some(started) = record_start_ns {
@@ -173,6 +189,10 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<Co
             "scheduled_write_calls":scheduled_write_calls,"scheduled_write_rows":scheduled_write_rows,
             "marker_probes":marker_probes});
         proof["throughput_scope"] = json!("warmup and timed API calls plus input identity/validation/serialization/checkpoints/scheduled writes/drain/probes/coverage; reset/open/close separate");
+    }
+    if let Some(observation) = observation {
+        proof["observer_setup_ns"] = json!(observation.setup_ns);
+        proof["throughput_scope"] = json!("warmup and timed API calls plus input identity/validation/observer collection/serialization/checkpoints; observer setup/open/close separate");
     }
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
 }

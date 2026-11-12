@@ -979,7 +979,7 @@ is yet qualified. Every conditional entry remains represented if not run.
 | GT2 and TGD9/14 integration | Normal G_TEMPLATE reads ordered JSONL, commits64-row cohorts, Default BGE/Mean, shared physical verifier, close/hash; D template uses current deterministic768. | Actual pinned corpus prefix→ordered record input, template sealing/copies, lower-size observation admission and common deadline integration. Current drain(5000) is a tiny-fixture bound, not a900s preparation/cell budget. |
 | G1=4; TGD10 route adaptation | Normal no-hooks private host, all six actual API modes, arbitrary ordered query feed/limit10, requested unscheduled warmups and supplied forward/reversed pass orders on one copy are implemented through8e5823. | Actual pinned10k/100k sealing/copies and500-query/50-warmup execution with reviewed deadlines/admission; TGD14 still generates the immutable balanced descriptors. Tiny source controls are not full-size execution or campaign qualification. |
 | G2=2; TGD10 actuation and per-mode adaptation | Generic per-pass reset/current-history coverage, retrieval doc-kind filtering, all-three-SDK-mode timed-group actuation and supplied same-copy mode/schedule descriptors are implemented in bounded source units; warmups2/timed20 and read-only preservation have initial literal/property oracles. | TGD14 still generates the immutable balanced repeat descriptors and admission; actual50/500 populations and remaining-budget drains remain pending. The new same-copy fixture proves supplied forward/reversed descriptors; earlier per-mode copy fixtures retain only their bounded source roles. |
-| GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). The private tc5-host fit received11e09 design PASS and normal GN is implemented; the separate no-hooks GO feature/runtime adapter remains pending. No SDK accessor/feature forwarding is inferred. GG needs its governed source-valid/invalid and no-dependency/time-window copies and declared100-query stages, not only predicate tests. |
+| GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). The private tc5-host fit received11e09 design PASS and normal GN is implemented; the no-hooks GO runtime adapter now has a bounded source unit with distinct GN and same-artifact off/on controls; final qualification remains pending. No SDK accessor/feature forwarding is inferred. GG needs its governed source-valid/invalid and no-dependency/time-window copies and declared100-query stages, not only predicate tests. |
 | D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness and fresh physical completeness. | Actual1024-row cohorts, current worker lifecycle IDs/intervals (11), bounded held/release/drain phases (12), ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
 | Every entry; TGD14 launcher/admission | Existing13-root/original-baseline guard and pure time/storage/shared-clock forecasts. | One immutable manifest/attempt controller with900s total/870s work/30s cleanup, remaining-budget drains/close/partial retention; one shared4h clock INCLUDING GT/Dseed preparation, copies, quiet waits and retries. Pure ELIGIBLE_PROJECTION is not admission. Check actual retained bytes/floors and lower observations; refuse instead of resetting a deadline, substituting a smaller population or growing caps. |
 | Cross-entry results; TGD15 | P raw metrics/paired-call math and bounded observer transport/counters. | Actual G/D result schemas, complete identity/query/template/mode/repeat grouping, paired observer cost with missing/errors/drops/unpaired disposition, and tiny real-child oracles before report GREEN. No percentile subtraction or reuse of P results as G/D timing. |
@@ -1155,6 +1155,64 @@ retain exact commands/source/deltas/exit,13roots/originalbaseline and cleanup.
 This proves execution of supplied tiny descriptors, not their generation,
 actual500-query/full-size populations or campaign admission. GO/GG, budgets,
 D/controller/pairing and final stable qualification remain outstanding.
+
+### Private GO Core transport
+
+Preliminary RED0adeeb96703f1032911ddf2c938e396da6da6fe7 preserves first oracle
+587447 and gd-go-red: two genuine hybrid0vs1 failures only. Other expectations
+were staged but unreached; they are not retrospectively called RED coverage.
+Before implementation, final RED8885c36649399deb432b354bbd2a56ef06c9cd84
+strengthens absence-safe independent literal subtests. Actual gd-go-red-v2
+reports7assertion failures: hybrid/text0vs1, mean off/on missing N/A and both
+real typed-error0vs1, plus the property's first hybrid failure. Successful real
+corresponding API/value/input/device/closed-copy/error controls precede them.
+The final oracle SHA256 is
+`04567adf0831a01627923fad1795a1216d53c399355dbfcaf41773d8a2d0d4c3`.
+
+GREEN preserves that oracle and reports2/2. Three bounded question-order cases
+execute nine actual series: distinct GN, GO-off and GO-on per case. All108query
+API calls succeed; GO-on retains24successful search records and6typed-error
+records. Mean has no reader-query record and is explicitly not_applicable;
+GN has no observer fields. Off/on use ONE exact GO artifact. InvalidFilter and
+FrozenRead raw errors/timers remain unchanged; the latter's actual record has
+null snapshot/not_reached, never an adjacent fabricated stamp.
+
+Private host-only feature references become neutral typed Core callbacks in
+shared tool code. No SDK public accessor/feature is added. Existing successful
+API wrappers/timers are unchanged. Arm/initial counter read are setup, outside
+API and loop clocks; per-call record drains/counter reads follow API timers,
+inside loop scope. Reported transport_ns measures those callbacks, excluding
+metadata serialization. The loop includes validation/observer collection/output/
+checkpoints; observer setup/open/close are separate. Counter fields preserve
+engine-lifetime cumulative before/after and their delta, never sum repeated
+cumulative reads. Missing/unpaired/dropped or unavailable transport remains
+explicit; unknown counter values stay null rather than fabricated zero.
+
+Actual immutable RED artifacts in proofs/gd-go-artifacts-red are GN892460f1f1
+and GO1bc7b16721. Fresh GREEN artifacts in proofs/gd-go-artifacts-green are GN
+`8805dfefd65fd7d1b84eee97ba84a5ed5d3aa4dae9790b53e0aeabc3a05668e9`
+and GO
+`842b17a013cf4efe42ff3e61e94850d6039c91ee64f54db50518a66b008eac3f`.
+Each directory retains matching gn-features.json/go-features.json; GO has the
+actual engine measurement feature and no test-hooks/TC5, GN has no observer.
+The mutable target path is not used to relabel former binaries. Pre-runtime
+proofs/gd-go-red-identities.json, -red-v2-identities.json and
+-green-identities.json hash all shared Rust helpers (including newly added
+error/transport modules as applicable), host/controller/builder/oracle and BOTH
+archived artifacts/features. Compiler proofs gd-g-host-go-scaffold-gn,
+-go-scaffold-red, -go-green-gn and -go-green-go retain actual profile/features.
+
+Actual task receipts/logs gd-go-scaffold-gn-build, -scaffold-checks,
+-oracle-checks, -scaffold-gn-unchanged-controls, -scaffold-go-build,
+-scaffold-go-lint, -red, -final-oracle-checks, -red-v2, -green-gn-build,
+-green-gn-lint, -green-gn-unchanged-controls, -green-go-build, -green-go-lint
+and -green preserve commands/cwd/source/delta/exit and13roots/originalbaseline.
+Unchanged six-mode GN feed controls pass2/2 before both artifact freezes.
+The maintained manual suite builds/freezes distinct binaries and the README
+indexes the controller's explicit diagnostic identity option. Existing default
+normal-only validation and all GPU/resource deadlines remain. These are tiny
+source/transport proofs, not paired observer-cost results or campaign/native/
+lifecycle/final source qualification. GG/D/budget/controller/pairing work remains.
 
 ## Evidence locations and interpretation
 

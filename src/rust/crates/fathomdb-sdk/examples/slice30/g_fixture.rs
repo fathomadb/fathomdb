@@ -32,6 +32,9 @@ pub(super) type CoreObserver = (
     fn(&Engine) -> Result<Value, EngineError>,
 );
 
+#[path = "g_observer.rs"]
+mod g_observer;
+
 #[path = "g_observer_controls.rs"]
 mod g_observer_controls;
 

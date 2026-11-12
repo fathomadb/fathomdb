@@ -1,6 +1,6 @@
 //! Bounded Core error controls; source errors and unavailable reader routes stay explicit.
 
-use super::{CoreObserver, GAdapter};
+use super::{g_observer, CoreObserver, GAdapter};
 use fathomdb_engine::{
     EngineError, FrozenReadErrorReason, InitialState, PreparedWrite, ReadContextV1, ReadView,
     SearchFilter, SourceId,
@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use std::path::Path;
 use std::time::Instant;
 
-pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<CoreObserver>) {
+pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<CoreObserver>) {
     let adapter = GAdapter::open("engine_hybrid", store);
     let report = adapter.report();
     assert_eq!(
@@ -19,6 +19,13 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<Co
     assert_eq!(report.default_embedder.dimension, 384);
     let GAdapter::Core(opened) = &adapter else { unreachable!() };
     let engine = &opened.engine;
+    let mut observation = observer.map(|callbacks| {
+        g_observer::Observation::new(
+            engine,
+            callbacks,
+            config["observer"].as_bool().unwrap_or(false),
+        )
+    });
     let started = Instant::now();
     let mut filter = SearchFilter::default();
     filter.attributes.push(("not_declared".into(), "alice".into()));
@@ -27,8 +34,11 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<Co
     let error =
         invalid.as_ref().expect_err("ordinary undeclared attribute must be typed InvalidFilter");
     assert!(matches!(error, EngineError::InvalidFilter { .. }));
-    let invalid_row = json!({"operation":"invalid_filter","ok":false,"error_class":"InvalidFilter",
+    let mut invalid_row = json!({"operation":"invalid_filter","ok":false,"error_class":"InvalidFilter",
         "raw_error":format!("{error:?}"),"elapsed_ns":elapsed_ns});
+    if let Some(observation) = observation.as_mut() {
+        invalid_row["observer"] = observation.complete(true);
+    }
     let context = engine
         .freeze_read_context(
             &ReadContextV1::new(
@@ -58,8 +68,11 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<Co
     assert!(
         matches!(error, EngineError::FrozenRead(error) if error.reason == FrozenReadErrorReason::StateDrifted)
     );
-    let frozen_row = json!({"operation":"stale_frozen","ok":false,"error_class":"FrozenRead",
+    let mut frozen_row = json!({"operation":"stale_frozen","ok":false,"error_class":"FrozenRead",
         "raw_error":format!("{error:?}"),"elapsed_ns":elapsed_ns});
+    if let Some(observation) = observation.as_mut() {
+        frozen_row["observer"] = observation.complete(true);
+    }
     adapter.close();
     let proof = json!({"controls":[invalid_row,frozen_row],"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
         "scope":"actual Core error APIs and argument construction; freeze/write/drain/observer transport excluded"});

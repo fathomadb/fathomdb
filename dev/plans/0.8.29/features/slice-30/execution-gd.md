@@ -482,8 +482,44 @@ raw outputs and distinct receipts, not an uninterrupted type-pass claim.
 The maintained test-slice30-g-core-mean selector explicitly registers this
 manual hardware oracle: AGENT_LONG=1 plus exact reserved CUDA UUID/forced
 cuda:0, otherwise an honest manual skip. It is not silently hidden by the
-experiments ignore or Cargo example compilation. Later G modes and all native
-D/template/worker/held/overlap/pairing units remain separate, unimplemented.
+experiments ignore or Cargo example compilation. At7c the later G modes and native D/template/worker/held/overlap/pairing
+units remained separate and unimplemented; the SDK mean follow-up is below.
+
+## TGD-8 separate SDK mean population
+
+RED519f52609 adds only a compile-ready normal SDK route using existing
+SdkEngine::open(use_default_embedder:true)/SdkEngine::embed. Shared fixture
+parameterization moves the existing core mode/adapter literals into fixed
+CoreMeanTests attributes engine/engine_mean;128/dimension384/index/norm/timer/
+checkpoint/GPU assertions are preserved. SdkMeanTests separately fixes sdk/
+sdk_mean. Added runner hash distinguishes the SDK entry script from the shared
+oracle; exact Git delta and staged hash are in gd-sdk-mean-scaffold-identities.
+Core parameterization control passes1/1, not relabelled a new RED behavior.
+
+Only then SDK RED verifies128successful real mean calls, actual reported CUDA
+UUID and ownPID2963368/max532MiB/max92%util, before the genuine0!=128 missing
+SDK population assertion. No parser/config/device/build/setup failure. Native
+binary BEFORE runtime31eecffc438eb5a1a7c007c3ae5df434a44a7ec5c46e0eca1d069d1e253bb65d.
+Shared oracle SHA256
+3e271c4ac7a1ac104b134f2493825ef7ef4b73ba78ebf75beeb8e1cd3d10f814
+and SDK runner
+4fe1357536bbd1b836099c29ae9339523417c891de02d80b7726e0b98a29eb44
+remain unchanged through GREEN. Raw SDK proof and identity/GPU/log/receipt hashes
+are mapped in gd-sdk-mean-red-identities; all guards use13roots and unchanged
+baseline69280403456. RED RAM18.502→18.403GiB, no resource stop.
+
+Minimal GREEN removes only the SDK-output guard: both existing modes emit their
+actual per-call row via the unchanged P recorder outside the API timer. SDK
+passes1/1 in2.729s:128records/8checkpoints/21522encoded bytes, checkpoint141407ns
+and total persistence317237ns in this source fixture. GREEN binary BEFORE runtime
+945717f98998349e307bc0aac080b2b6524d6bd99a8dcc1c5d3d949627e0c27b.
+Source subject519f plus retained emit delta is bound by the separate GREEN
+commit body. Full GPU/proof hashes remain in gd-sdk-mean-green-identities.
+
+Maintained test-slice30-g-sdk-mean selects the new oracle under the same explicit
+manual GPU prerequisites as core mean. This prefix implements successful normal
+core/SDK mean populations only: no hybrid/template/schedule/worker/held/overlap/
+pairing, final source qualification, binding lifecycle or campaign acceptance.
 
 ## Evidence locations and interpretation
 

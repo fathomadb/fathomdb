@@ -85,9 +85,7 @@ fn run(config: &Value, out: &Path) {
         let row = json!({"adapter":adapter,"mode":"mean_embed","ok":true,
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2});
-        if mode == "engine_mean" {
-            recorder.emit("samples", &row);
-        }
+        recorder.emit("samples", &row);
         calls += 1;
     }
     recorder.flush_all();

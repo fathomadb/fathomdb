@@ -25,7 +25,7 @@ impl Collector {
         let engine_id = NEXT_ENGINE.fetch_add(1, Ordering::Relaxed);
         Self {
             engine_id,
-            projection: Arc::new(projection::Collector::new()),
+            projection: Arc::new(projection::Collector::new(engine_id)),
             enabled: AtomicBool::new(false),
             next_call: AtomicU64::new(1),
             records: Mutex::new(Vec::new()),

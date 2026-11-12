@@ -980,7 +980,7 @@ is yet qualified. Every conditional entry remains represented if not run.
 | G1=4; TGD10 route adaptation | Normal no-hooks private host, all six actual API modes, arbitrary ordered query feed/limit10, requested unscheduled warmups and supplied forward/reversed pass orders on one copy are implemented through8e5823. | Actual pinned10k/100k sealing/copies and500-query/50-warmup execution with reviewed deadlines/admission; TGD14 still generates the immutable balanced descriptors. Tiny source controls are not full-size execution or campaign qualification. |
 | G2=2; TGD10 actuation and per-mode adaptation | Generic per-pass reset/current-history coverage, retrieval doc-kind filtering, all-three-SDK-mode timed-group actuation and supplied same-copy mode/schedule descriptors are implemented in bounded source units; warmups2/timed20 and read-only preservation have initial literal/property oracles. | TGD14 still generates the immutable balanced repeat descriptors and admission; actual50/500 populations and remaining-budget drains remain pending. The new same-copy fixture proves supplied forward/reversed descriptors; earlier per-mode copy fixtures retain only their bounded source roles. |
 | GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). The private tc5-host fit received11e09 design PASS and normal GN is implemented; the no-hooks GO runtime adapter now has a bounded source unit with distinct GN and same-artifact off/on controls; final qualification remains pending. No SDK accessor/feature forwarding is inferred. Bounded time and governed valid/Deleted stage adapters now execute actual Core calls with independent literal controls. Declared100-query stages,100k copies and phase-budget integration remain pending; tiny fixtures do not qualify those populations. |
-| D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness and fresh physical completeness. | Actual1024-row cohorts, current worker lifecycle IDs/intervals (11), bounded held/release/drain phases (12), ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
+| D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness/fresh physical completeness and bounded D11 separate worker/job/clock transport. | Actual1024-row cohorts and campaign worker-stream integration, bounded held/release/drain phases (12), ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
 | Every entry; TGD14 launcher/admission | Existing13-root/original-baseline guard and pure time/storage/shared-clock forecasts. | One immutable manifest/attempt controller with900s total/870s work/30s cleanup, remaining-budget drains/close/partial retention; one shared4h clock INCLUDING GT/Dseed preparation, copies, quiet waits and retries. Pure ELIGIBLE_PROJECTION is not admission. Check actual retained bytes/floors and lower observations; refuse instead of resetting a deadline, substituting a smaller population or growing caps. |
 | Cross-entry results; TGD15 | P raw metrics/paired-call math and bounded observer transport/counters. | Actual G/D result schemas, complete identity/query/template/mode/repeat grouping, paired observer cost with missing/errors/drops/unpaired disposition, and tiny real-child oracles before report GREEN. No percentile subtraction or reuse of P results as G/D timing. |
 
@@ -1295,6 +1295,63 @@ before runtime. Receipts/logs gd-gg-governed-corrected-scaffold-checks,
 source/delta/exit,13roots/originalbaseline and completed owned cleanup.
 Per-fixture copy/open/coverage/close attribution and absolute native/controller
 phase bounds remain pending. No100k preparation, campaign or full qualification.
+
+### D11 separate projection batch transport
+
+The exact c5c8790/7c53290 method received design PASS and parent source GO.
+RED600bcd8ab38399ecf330ffadf7de39b6c5337cf3 has actual backed enablement,
+buffer/counter and genuinely unwired event publication; no correct product path
+was disabled. Real configure/write/drain/profile/cursor/span/closed-copy/reopen/
+query controls pass before missing job observations0vs65 and property0vs109.
+The disabled/query control passes. Four independent helper tests preserve actual
+readonly InvalidColumnType then fail missing aborted lifetime, toggle retention
+[0,0]vs[1,1], loss0vs1 at32769 observations and unavailable-clock observation.
+This is one bounded transport pair with six failing tests, not six separate pairs.
+
+Fixed main oracle is
+`c2c4c133933c13219a3a2aeb4c560a654d814b310b66e4df66bfb014d03e547e`;
+embedded helper test-region is
+`25c48451342235d83c44fa97ae7aa5598991c353329937f49edfbceaba8d2605`.
+GREEN leaves both byte-identical: main3/3 and helper4/4 pass. Four property stores
+have109/12/64/39jobs; literal has65, off control3. Observed jobs/cursors and actual
+worker IDs are separate from physical vectors, configured2/provider5 and query
+reader IDs. No requirement or claim that both workers must overlap follows.
+The32769 readonly-error lifetimes test the helper buffer, not32769 actual worker
+batches or an injected worker failure. Original errors propagate unchanged.
+
+Typed endpoints live in a separate fixed32768-ended-record stream; query records/
+capacity/drop semantics remain untouched. Begin precedes actual projection work;
+normal end is captured promptly AFTER existing catch/recovery/error reporting/
+mandatory cleanup and BEFORE state sampling/publication/serialization. No
+scheduler pause or notification is added. Checked conversion against the driver's
+one attempt origin exposes unavailable/null timing; cumulative loss survives
+both toggles and drains. Getter serialization occurs outside the buffer lock.
+The tiny source driver uses ONE non-renewing5s collection deadline after drain,
+BEFORE query-isolation controls, outside API clocks; partial/empty output reaches
+the intended assertion. This is not the pending campaign remaining-budget path.
+
+Task proofs/gd-d-worker-red-identities.json and -green-identities.json bind
+actual sources/oracles/helper/argv/compiler artifacts and BOTH binaries before
+runtime. RED main/helper binaries are aa7ad804c8c469c25f097e4ca7ed78d7df66194c3bd31716ee2891eab61dddac
+and12a2847e78bb21e935ad39efb7b0a9fc4ade6a682683fff36d4795223c2c314b;
+GREEN b1360ac692caf4c8f1e227ed51b08bd79f71f9681f114fd7c2ae75b1750a4768
+and1cffc10f99f082d0c3f59e298d132646cc7a97c2b6fb33948af0181d5833a778.
+Compiler proofs gd-d-worker-red-v3-compiler.json/-green-compiler.json retain
+actual default/test-hooks/slice30-measurement opt3 artifacts, no model/GPU route.
+The deterministic provider impl and original D template run/metadata bodies are
+source-byte identical relocations (gd-d-worker-provider-relocation.json).
+Initial warning-bearing build is preparation only; final oracles/lint/build
+precede runtime. Maintained test-slice30-gd-projection-workers selects both
+executables; explicit nonzero results are preserved. All receipts/logs retain
+13roots/original69280403456, source/delta/exit/resources and owned cleanup.
+Affected default/no-measurement Clippy and22existing query assertions pass,
+including16nested guard controls. Fresh existing D template controls pass4/4
+(12tiny child fixtures) on standalone binary
+`cca58b605e7a4d4598ed005c1f87d4f6230085f00b8f41e6f1e4938b4a7de7a2`.
+Their original proptest persistence warnings remain in the raw log. No prior
+G/P/binding artifact is relabelled as qualifying this changed engine source.
+D12/D13, native phase/controller budgets, full-size preparation, whole-source/
+production lifecycle qualification and campaigns remain held.
 
 ## Evidence locations and interpretation
 

@@ -1,28 +1,97 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg(test)]
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use serde_json::{json, Value};
 
+use crate::projection_runtime::{ProjectionJob, ProjectionRuntimeShared};
 use crate::{Engine, EngineError};
 
 pub(crate) struct Collector {
+    engine_id: u64,
     enabled: AtomicBool,
+    next_batch: AtomicU64,
     buffer: Mutex<Buffer>,
 }
 
 struct Buffer {
     capacity: usize,
-    records: Vec<Value>,
+    records: Vec<Record>,
     dropped: u64,
 }
 
+struct StateSample {
+    at: Instant,
+    queued_jobs: usize,
+    active_jobs: usize,
+    in_flight_cursors: usize,
+}
+
+impl StateSample {
+    fn read(shared: &ProjectionRuntimeShared) -> Option<Self> {
+        let state = shared.state.lock().ok()?;
+        Some(Self {
+            at: Instant::now(),
+            queued_jobs: state.queued_jobs,
+            active_jobs: state.active_jobs,
+            in_flight_cursors: state.in_flight.len(),
+        })
+    }
+
+    fn report(self, origin: Instant) -> (Value, bool) {
+        let at = offset(self.at, origin);
+        (
+            json!({"at_ns":at,"queued_jobs":self.queued_jobs,"active_jobs":self.active_jobs,
+            "in_flight_cursors":self.in_flight_cursors}),
+            at.is_none(),
+        )
+    }
+}
+
+struct Record {
+    engine_id: u64,
+    batch_id: u64,
+    worker_idx: usize,
+    cursors: Vec<(String, u64)>,
+    started: Instant,
+    ended: Instant,
+    start_state: Option<StateSample>,
+    end_state: Option<StateSample>,
+    disposition: &'static str,
+    commit_outcome: Option<&'static str>,
+    caught_unwind: Option<bool>,
+    cleanup: &'static str,
+}
+
+fn offset(at: Instant, origin: Instant) -> Option<u64> {
+    at.checked_duration_since(origin).and_then(|duration| u64::try_from(duration.as_nanos()).ok())
+}
+
+impl Record {
+    fn report(self, origin: Instant) -> Value {
+        let start = offset(self.started, origin);
+        let end = offset(self.ended, origin);
+        let (start_state, start_issue) =
+            self.start_state.map(|state| state.report(origin)).unwrap_or((Value::Null, false));
+        let (end_state, end_issue) =
+            self.end_state.map(|state| state.report(origin)).unwrap_or((Value::Null, false));
+        let clock_issue = (start.is_none() || end.is_none() || start_issue || end_issue)
+            .then_some("origin_after_event_or_duration_overflow");
+        json!({"event":"ProjectionBatchEnd","engine_id":self.engine_id,"batch_id":self.batch_id,
+            "worker_idx":self.worker_idx,"job_count":self.cursors.len(),
+            "cursors":self.cursors.into_iter().map(|(kind,cursor)|json!({"kind":kind,"write_cursor":cursor})).collect::<Vec<_>>(),
+            "start_ns":start,"end_ns":end,"clock_issue":clock_issue,"start_state":start_state,"end_state":end_state,
+            "disposition":self.disposition,"commit_outcome":self.commit_outcome,
+            "caught_unwind":self.caught_unwind,"cleanup":self.cleanup})
+    }
+}
+
 impl Collector {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(engine_id: u64) -> Self {
         Self {
+            engine_id,
             enabled: AtomicBool::new(false),
+            next_batch: AtomicU64::new(1),
             buffer: Mutex::new(Buffer {
                 capacity: super::CAPACITY,
                 records: Vec::new(),
@@ -30,11 +99,95 @@ impl Collector {
             }),
         }
     }
+
+    fn publish(&self, record: Record) {
+        let mut buffer = self.buffer.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if buffer.records.len() < buffer.capacity {
+            buffer.records.push(record);
+        } else {
+            buffer.dropped = buffer.dropped.saturating_add(1);
+        }
+    }
+}
+
+pub(crate) struct Batch {
+    collector: Arc<Collector>,
+    record: Option<Record>,
+}
+
+fn enter(
+    collector: Arc<Collector>,
+    worker: usize,
+    cursors: impl FnOnce() -> Vec<(String, u64)>,
+) -> Option<Batch> {
+    if !collector.enabled.load(Ordering::Relaxed) {
+        return None;
+    }
+    let started = Instant::now();
+    let record = Record {
+        engine_id: collector.engine_id,
+        batch_id: collector.next_batch.fetch_add(1, Ordering::Relaxed),
+        worker_idx: worker,
+        cursors: cursors(),
+        started,
+        ended: started,
+        start_state: None,
+        end_state: None,
+        disposition: "aborted",
+        commit_outcome: None,
+        caught_unwind: None,
+        cleanup: "unconfirmed",
+    };
+    Some(Batch { collector, record: Some(record) })
 }
 
 #[cfg(test)]
-fn begin(_collector: Arc<Collector>, _worker: usize, _cursors: Vec<(String, u64)>) -> Instant {
-    Instant::now()
+fn begin(collector: Arc<Collector>, worker: usize, cursors: Vec<(String, u64)>) -> Option<Batch> {
+    enter(collector, worker, || cursors)
+}
+
+pub(crate) fn begin_jobs(
+    collector: Arc<Collector>,
+    worker: usize,
+    jobs: &[ProjectionJob],
+) -> Option<Batch> {
+    enter(collector, worker, || jobs.iter().map(|job| (job.kind.clone(), job.cursor)).collect())
+}
+
+impl Batch {
+    pub(crate) fn capture_start_state(&mut self, shared: &ProjectionRuntimeShared) {
+        if let Some(record) = self.record.as_mut() {
+            record.start_state = StateSample::read(shared);
+        }
+    }
+
+    pub(crate) fn finish(
+        mut self,
+        ended: Instant,
+        outcome: &'static str,
+        caught_unwind: bool,
+        cleanup_confirmed: bool,
+        shared: &ProjectionRuntimeShared,
+    ) {
+        if let Some(mut record) = self.record.take() {
+            record.ended = ended;
+            record.end_state = StateSample::read(shared);
+            record.disposition = "finished";
+            record.commit_outcome = Some(outcome);
+            record.caught_unwind = Some(caught_unwind);
+            record.cleanup = if cleanup_confirmed { "confirmed" } else { "unavailable" };
+            self.collector.publish(record);
+        }
+    }
+}
+
+impl Drop for Batch {
+    fn drop(&mut self) {
+        if let Some(mut record) = self.record.take() {
+            record.ended = Instant::now();
+            self.collector.publish(record);
+        }
+    }
 }
 
 impl Engine {
@@ -64,21 +217,21 @@ impl Engine {
     #[doc(hidden)]
     pub fn take_slice30_projection_measurements_for_test(
         &self,
-        _origin: Instant,
+        origin: Instant,
     ) -> Result<Value, EngineError> {
         let _operation = self.ensure_open()?;
-        let mut buffer = self
-            .wal_attribution
-            .measurement
-            .projection
-            .buffer
-            .lock()
-            .map_err(|_| EngineError::Storage)?;
-        Ok(json!({
-            "records": std::mem::take(&mut buffer.records),
-            "capacity": buffer.capacity,
-            "dropped": buffer.dropped,
-        }))
+        let (records, capacity, dropped) = {
+            let mut buffer = self
+                .wal_attribution
+                .measurement
+                .projection
+                .buffer
+                .lock()
+                .map_err(|_| EngineError::Storage)?;
+            (std::mem::take(&mut buffer.records), buffer.capacity, buffer.dropped)
+        };
+        let records: Vec<_> = records.into_iter().map(|record| record.report(origin)).collect();
+        Ok(json!({"records":records,"capacity":capacity,"dropped":dropped}))
     }
 }
 

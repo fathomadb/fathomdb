@@ -163,8 +163,8 @@ and `take_slice30_projection_measurements_for_test(origin: std::time::Instant)
 -> Result<serde_json::Value, EngineError>`. This is a SEPARATE engine-owned stream;
 query getter/records/capacity/loss semantics below remain unchanged. No SDK or
 binding forwarding, production setting, scheduler notification or capacity knob.
-The initial backed buffer/enablement/counter exist while worker event publication
-is not yet connected; this source scaffold claims no completed worker evidence.
+Worker publication is wired only at actual batch entry/post-cleanup finish;
+helper error/Drop observations retain their distinct aborted disposition.
 
 The fixed capacity is32768 ended batches, with an independent Engine-lifetime
 cumulative dropped counter. Report fields records/capacity/dropped are taken

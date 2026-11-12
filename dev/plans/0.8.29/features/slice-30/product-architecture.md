@@ -123,5 +123,6 @@ projection worker IDs and captured typed monotonic intervals. The private D tool
 normalizes those intervals against its one writer/query/readiness attempt origin;
 provider workers and configured concurrency remain distinct observations. No SDK
 surface, scheduler notification/pause, product counter/policy or default-build
-instrumentation is introduced. This is a proposal pending exact design review,
-not implemented D attribution or campaign qualification.
+instrumentation is introduced. The exact c5/7c design received PASS and source
+continuation; bounded D11 source transport now has a genuine RED/GREEN pair.
+Held/real-overlap adapters, full-source and campaign qualification remain pending.

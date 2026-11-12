@@ -493,15 +493,29 @@ pub(crate) fn projection_worker_loop(
             }
         };
 
+        #[cfg(feature = "slice30-measurement")]
+        let mut batch_observation = crate::measurement_for_test::projection::begin_jobs(
+            Arc::clone(&shared.wal_attribution.measurement.projection),
+            worker_idx,
+            &jobs,
+        );
+        #[cfg(feature = "slice30-measurement")]
+        if let Some(observation) = batch_observation.as_mut() {
+            observation.capture_start_state(&shared);
+        }
+
         // EU-5f — isolate worker faults. A panic inside `embed()` (or the
         // commit) must not skip the state cleanup below, or `active_jobs`
         // would stay elevated forever and `wait_for_idle` / `drain` would
         // wedge into `EngineError::Scheduler` (Finding A). Mirrors the
         // reader pool's `LiveGuard` panic-safety. The local commit tx rolls
         // back on unwind, leaving the connection clean for reuse.
-        let commit_result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let execution = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             run_projection_jobs(&shared, &mut connection, &jobs, worker_idx)
-        })) {
+        }));
+        #[cfg(feature = "slice30-measurement")]
+        let caught_unwind = execution.is_err();
+        let commit_result = match execution {
             Ok(result) => result,
             Err(_)
                 if connection
@@ -512,6 +526,8 @@ pub(crate) fn projection_worker_loop(
             }
             Err(_) => Err(rusqlite::Error::InvalidQuery),
         };
+        #[cfg(feature = "slice30-measurement")]
+        let commit_outcome = if commit_result.is_ok() { "ok" } else { "error" };
         if let Err(err) = commit_result {
             // Host subscribers are arbitrary application code. Their panic must
             // not bypass the mandatory state cleanup below, or the durable
@@ -531,6 +547,8 @@ pub(crate) fn projection_worker_loop(
             }
         }
 
+        #[cfg(feature = "slice30-measurement")]
+        let mut cleanup_confirmed = false;
         if let Ok(mut state) = shared.state.lock() {
             state.active_jobs = state.active_jobs.saturating_sub(jobs.len());
             for job in &jobs {
@@ -539,7 +557,16 @@ pub(crate) fn projection_worker_loop(
             if !state.stopping {
                 state.pending_scan = true;
             }
+            #[cfg(feature = "slice30-measurement")]
+            {
+                cleanup_confirmed = true;
+            }
             shared.state_cvar.notify_all();
+        }
+        #[cfg(feature = "slice30-measurement")]
+        if let Some(observation) = batch_observation {
+            let ended = Instant::now();
+            observation.finish(ended, commit_outcome, caught_unwind, cleanup_confirmed, &shared);
         }
     }
 }

@@ -165,6 +165,20 @@ impl Engine {
         Ok(())
     }
 
+    /// Report the fixed capacity and cumulative records dropped by this Engine.
+    ///
+    /// The intended object has `capacity` and `dropped` integer fields. Drops
+    /// accumulate for this Engine's lifetime: enable/disable and record drains
+    /// do not reset them; a newly opened Engine starts at zero. This read is
+    /// not atomic with a separate record drain; conservation uses quiescent
+    /// calls, and reports compare cumulative differences rather than summing
+    /// repeated readings. Returns `Closing` when admission closes.
+    #[doc(hidden)]
+    pub fn slice30_measurement_stats_for_test(&self) -> Result<Value, EngineError> {
+        let _operation = self.ensure_open()?;
+        Ok(json!({}))
+    }
+
     /// Drain this Engine's private completed query records in completion order.
     ///
     /// Records contain engine/call IDs and reader worker index. At most 32768

@@ -199,7 +199,17 @@ hydration before fusion/snippet extraction, with invoked=true, elapsed_ns and
 candidate rows. The guarded all-nodes predicate and its observer work are nested
 inside this text span. These are inclusive timings, never additive exclusive
 shares; text candidate rows are distinct from raw FTS matches and final hits.
-Final error disposition and drop reporting are not yet supplied. Closing admission
+The hidden `slice30_measurement_stats_for_test() -> Result<serde_json::Value,
+EngineError>` report contract has fixed `capacity=32768` and cumulative `dropped`
+integers. The compile-ready RED scaffold initially supplies an empty object;
+its missing report is tested before the separate implementation. Existing
+bounded retention is a correctness control, with no new capacity setter.
+Drops are monotonic for this Engine's lifetime. Record drain and enable/disable
+do not reset them; newly opening an Engine starts at zero. The separate getter
+and record drain are not an atomic pair: conservation requires joined/quiescent
+calls, and controllers use cumulative differences rather than summing repeated
+reads. Closing admission returns `Closing`. Final query error disposition is
+not yet supplied. Closing admission
 returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.
 

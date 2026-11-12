@@ -947,3 +947,7 @@ required-features = ["test-hooks", "slice30-measurement"]
 [[test]]
 name = "slice30_measurement_predicates"
 required-features = ["test-hooks", "slice30-measurement"]
+
+[[test]]
+name = "slice30_measurement_stats"
+required-features = ["slice30-measurement"]

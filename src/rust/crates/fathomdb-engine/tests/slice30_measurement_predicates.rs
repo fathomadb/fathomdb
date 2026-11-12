@@ -255,3 +255,167 @@ fn governed_source_lifecycle_loss_calls_sql_and_reports_fallback_true() {
     called_fallback(&one_observation(&engine), true, true);
     engine.close().unwrap();
 }
+
+fn all_nodes_case(case: &str) {
+    use fathomdb_engine::SearchFilter;
+    let root = TempDir::new().unwrap();
+    let engine = dense_engine(&root.path().join("all-nodes.sqlite"), case == "dependencies");
+    let mut view = ReadView { valid_as_of: Some(100), ..ReadView::default() };
+    if case == "future" || case == "expired" {
+        engine.slice30_observe_queries_for_test(false).unwrap();
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "source outside".into(),
+                source_id: SourceId::new("test:slice30-window").unwrap(),
+                logical_id: Some("outside".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: (case == "future").then_some(200),
+                valid_until: (case == "expired").then_some(50),
+            }])
+            .unwrap();
+        engine.drain(5000).unwrap();
+        engine.slice30_observe_queries_for_test(true).unwrap();
+    }
+    view.include_superseded = case == "include_superseded";
+    view.include_inactive = case == "include_inactive";
+    view.include_out_of_window = case == "include_out_of_window";
+    engine.set_recency_reweight_enabled_for_test(case == "recency");
+    engine.set_importance_reweight_enabled_for_test(case == "importance");
+    let filter = (case == "filter").then(|| {
+        let mut filter = SearchFilter::default();
+        filter.kind = Some("doc".into());
+        filter
+    });
+    let result = if case == "direct_text" {
+        engine.search_text_only_filtered_with_snippets("source", None, &view, 10, None).unwrap()
+    } else {
+        engine
+            .search_reranked_view(
+                "source",
+                filter,
+                usize::from(case == "rerank"),
+                case == "graph",
+                0.3,
+                0,
+                case == "explain",
+                &view,
+            )
+            .unwrap()
+    };
+    let mut ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
+    ids.sort();
+    assert_eq!(
+        ids,
+        if case == "dependencies" { vec!["l:derived", "l:source"] } else { vec!["l:plain"] }
+    );
+    let record = one_observation(&engine);
+    let span = &record["predicates"]["all_nodes_directly_eligible"];
+    if matches!(case, "default" | "future" | "expired") {
+        assert_eq!(span["invoked"], true, "missing called all-nodes predicate span");
+        assert_eq!(span["value"], case == "default");
+        assert!(span["elapsed_ns"].as_u64().unwrap() > 0);
+    } else {
+        let reason = match case {
+            "direct_text" => "query_vector_absent",
+            "filter" => "filter",
+            "perf_limit" => "perf_limit",
+            "dependencies" => "source_dependencies",
+            "include_superseded" => "include_superseded",
+            "include_inactive" => "include_inactive",
+            "include_out_of_window" => "include_out_of_window",
+            "recency" => "recency",
+            "importance" => "importance",
+            "rerank" => "rerank",
+            "graph" => "graph",
+            "explain" => "explain",
+            "full_sort" => "full_sort",
+            _ => panic!("unknown literal case"),
+        };
+        assert_eq!(span["invoked"], false, "missing guarded all-nodes NOT_CALLED disposition");
+        assert_eq!(span["reason"], reason);
+        assert!(span["value"].is_null());
+        assert!(span["elapsed_ns"].is_null());
+    }
+    engine.close().unwrap();
+}
+
+struct OwnedChild(Option<std::process::Child>);
+
+impl Drop for OwnedChild {
+    fn drop(&mut self) {
+        if let Some(mut child) = self.0.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
+fn bounded_control_output(command: &mut std::process::Command) -> std::process::Output {
+    command.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+    let mut owned = OwnedChild(Some(command.spawn().unwrap()));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while owned.0.as_mut().unwrap().try_wait().unwrap().is_none() {
+        assert!(std::time::Instant::now() < deadline, "tiny control exceeded its30s bound");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    owned.0.take().unwrap().wait_with_output().unwrap()
+}
+
+#[test]
+fn all_nodes_guard_controls_preserve_invocation_and_null_skip_distinction() {
+    const SELECTOR: &str = "S30_GD_ALL_NODES_CASE";
+    if let Ok(case) = std::env::var(SELECTOR) {
+        all_nodes_case(&case);
+        return;
+    }
+    let mut failed = Vec::new();
+    for case in [
+        "default",
+        "future",
+        "expired",
+        "direct_text",
+        "filter",
+        "perf_limit",
+        "dependencies",
+        "include_superseded",
+        "include_inactive",
+        "include_out_of_window",
+        "recency",
+        "importance",
+        "rerank",
+        "graph",
+        "explain",
+        "full_sort",
+    ] {
+        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "all_nodes_guard_controls_preserve_invocation_and_null_skip_distinction",
+                "--nocapture",
+            ])
+            .env(SELECTOR, case)
+            .env_remove("FATHOMDB_PERF_EXPERIMENTS")
+            .env_remove("FATHOMDB_PERF_SEARCH_LIMIT")
+            .env_remove("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST");
+        if case == "perf_limit" {
+            command.env("FATHOMDB_PERF_EXPERIMENTS", "1").env("FATHOMDB_PERF_SEARCH_LIMIT", "10");
+        }
+        if case == "full_sort" {
+            command.env("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", "1");
+        }
+        let output = bounded_control_output(&mut command);
+        println!(
+            "case={case} exit={}\n{}{}",
+            output.status,
+            String::from_utf8(output.stdout).unwrap(),
+            String::from_utf8(output.stderr).unwrap()
+        );
+        if !output.status.success() {
+            failed.push(case);
+        }
+    }
+    assert!(failed.is_empty(), "all-nodes observer literal controls failed: {failed:?}");
+}

@@ -194,6 +194,11 @@ and degraded=false. When the actual arm is skipped, invoked=false with null
 rows/time and reason query_vector_absent or eligibility_degraded; `degraded`
 retains the existing eligibility-degradation flag. This is not a pure tensor,
 embedding, SQL-only, final-hit, or dense-completeness measurement.
+`blocks.text` reports inclusive node/edge FTS candidate retrieval and identity
+hydration before fusion/snippet extraction, with invoked=true, elapsed_ns and
+candidate rows. The guarded all-nodes predicate and its observer work are nested
+inside this text span. These are inclusive timings, never additive exclusive
+shares; text candidate rows are distinct from raw FTS matches and final hits.
 Final error disposition and drop reporting are not yet supplied. Closing admission
 returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.

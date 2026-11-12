@@ -2278,6 +2278,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // post-filter it against the same metadata the vector branch was pruned by
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
+    #[cfg(feature = "slice30-measurement")]
+    let _text_started = _measurement.as_ref().map(|_| std::time::Instant::now());
     let mut deferred_text_identity = false;
     // EP-17: the search-local `write_cursor → (table, rowid)` map, filled only
     // when snippets are requested.
@@ -2778,6 +2780,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             0
         };
     text_results.extend(edge_candidates);
+    #[cfg(feature = "slice30-measurement")]
+    if let (Some(measurement), Some(started)) = (_measurement.as_mut(), _text_started) {
+        measurement.complete_block("text", started.elapsed(), text_results.len());
+    }
     // GA-2 / Slice-40 (◆ B-1) measurement seam: when `vector_stage_only` is set
     // (only ever by the eu7 recall harness via `set_vector_stage_only_for_test`,
     // off for every production caller), return the pre-fusion VECTOR-branch

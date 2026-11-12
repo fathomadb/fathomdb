@@ -138,7 +138,7 @@ text blocks, error/drop reporting, worker/tool/model/campaign units remain open.
 
 ## Vector block unit
 
-TGD-5 RED99d6e9308 has8prior passing tests and3new runtime failures at absent
+TGD-5 RED99d6e9308→GREEN290d1e584 has8prior passing tests and3new runtime failures at absent
 actual-span/NOT_RUN/degraded state, Null!=true/false. Independent read-only SQL
 counts2real vectors before hybrid returns literal beta/plain IDs; direct text
 returns only plain, and governed source lifecycle loss returns no hits. These
@@ -156,6 +156,34 @@ hydration before fusion. Skipped rows/time stay null; actual eligibility
 degradation is explicit. Text block/error/drop/worker/tool/model units remain
 unimplemented. Current vector_stage_only still computes text before selecting
 fusion output; no pure-vector timing or skipped-text claim is made.
+
+## Text block unit
+
+TGD-6 REDfb1356b0f has11prior passing tests and3new actual runtime failures:
+missing text candidate block Null!=true in hybrid, vector-bearing direct text
+and provider-free direct text. Literal API IDs pass before each assertion;
+one pre-fusion text candidate is required despite hybrid's two final hits.
+Actual RED executable SHA256
+5a0f09c6a97e63a0bba595e25004094a4e06166fa4f28500c8b055248ba34d67;
+unchanged test SHA256
+ec551e163582b0b1f4111c14ccc95f709a4b9f675d42678373b5453241629c99.
+
+GREEN gd-text-block-green records actual command/source delta/features/test
+binary hash,14/14passes, feature Clippy/default check and unchanged fixed
+completion oracle1/1, all exit0/resource_stop null. Only current node/edge text
+candidate work is bracketed, through identity hydration and before fusion/snippet
+extraction. It includes the nested all-nodes predicate/observer cost; no exclusive
+share or percentile subtraction is implied. Candidate rows are distinct from raw
+FTS match counts/final hits. No product routing changes, pure-vector timing,
+BGE/fidelity or campaign/whole-source qualification is claimed.
+
+The original Astra design reviewer also accepted the upcoming report-only
+TGD-7 fit: retain fixed32768capacity, fresh collector/no intermediate drains,
+32769completed tiny-store real observed calls→retained32768/new reported dropped1;
+bounded zero-drop conservation property. Empty stats-output scaffolding may
+support the genuine missing-report RED, with no capacity setter or product-path
+change. Counter lifetime/reset/drain semantics must be explicit. This is source
+fit confirmation only, not a new campaign/budget allowance or completed unit.
 
 ## Evidence locations and interpretation
 

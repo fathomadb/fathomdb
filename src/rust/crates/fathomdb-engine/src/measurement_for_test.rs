@@ -55,15 +55,15 @@ impl Completion {
         elapsed: std::time::Duration,
         rows: usize,
     ) {
-        self.blocks.insert(
-            name.into(),
-            json!({
-                "invoked": true,
-                "elapsed_ns": u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX),
-                "rows": rows,
-                "degraded": false,
-            }),
-        );
+        let mut record = json!({
+            "invoked": true,
+            "elapsed_ns": u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX),
+            "rows": rows,
+        });
+        if name == "vector" {
+            record["degraded"] = json!(false);
+        }
+        self.blocks.insert(name.into(), record);
     }
 
     pub(super) fn skipped_block(

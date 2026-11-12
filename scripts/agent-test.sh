@@ -698,6 +698,12 @@ run_tier_suite heavy test-rust bash scripts/test-rust-workspace.sh --serial
 run_tier_suite heavy test-slice30-measurement-adapter cargo test --locked --release \
   --jobs 1 -p fathomdb-sdk --example slice30_measure -- --test-threads=1 --nocapture
 
+run_tier_maybe_suite heavy test-slice30-gd-completion "$slice30_measurement_platform_reason" bash -c '
+  set -euo pipefail
+  cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features slice30-measurement
+  python3 dev/experiments/0.8.29-slice30-measurements/native/test_completion.py
+'
+
 # Python
 python_bin=""
 if [ -x .venv/bin/python ]; then

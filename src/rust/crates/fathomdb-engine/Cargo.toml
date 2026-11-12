@@ -31,6 +31,8 @@ dunce = "=1.0.5"
 
 [features]
 default = []
+# Non-default marker for the bounded Slice30 diagnostic scaffold.
+slice30-measurement = []
 # Private TC-5 reader-worker route. This is intentionally not forwarded by the
 # facade or any language binding.
 tc5-benchmark = []
@@ -933,3 +935,7 @@ required-features = ["test-hooks", "operator"]
 [[test]]
 name = "slice70_query_degradations"
 required-features = ["test-hooks"]
+
+[[example]]
+name = "slice30_gd_diagnostic"
+path = "examples/slice30_gd_diagnostic.rs"

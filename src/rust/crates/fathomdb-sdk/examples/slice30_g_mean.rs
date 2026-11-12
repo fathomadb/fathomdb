@@ -1,7 +1,8 @@
 //! Bounded Slice30 mean-embedding measurement adapter; see the indexed README.
 
 use fathomdb_embedder::EffectiveEmbedDevice;
-use fathomdb_engine::{EmbedderChoice, Engine};
+use fathomdb_engine::{EmbedderChoice, Engine, OpenReport, OpenedEngine};
+use fathomdb_sdk::{Engine as SdkEngine, OpenOptions};
 use serde_json::{json, Value};
 use std::path::Path;
 
@@ -9,16 +10,61 @@ use std::path::Path;
 mod raw;
 use raw::Recorder;
 
+enum MeanAdapter {
+    Core(Box<OpenedEngine>),
+    Sdk(Box<SdkEngine>),
+}
+
+impl MeanAdapter {
+    fn open(mode: &str, path: &Path) -> Self {
+        match mode {
+            "engine_mean" => Self::Core(Box::new(
+                Engine::open_with_choice(path, EmbedderChoice::Default).unwrap(),
+            )),
+            "sdk_mean" => Self::Sdk(Box::new(
+                SdkEngine::open(
+                    path,
+                    OpenOptions { use_default_embedder: true, ..OpenOptions::default() },
+                )
+                .unwrap(),
+            )),
+            _ => panic!("unsupported mean population"),
+        }
+    }
+
+    fn report(&self) -> &OpenReport {
+        match self {
+            Self::Core(opened) => &opened.report,
+            Self::Sdk(engine) => engine.open_report(),
+        }
+    }
+
+    fn embed(&self, query: &str) -> Vec<f32> {
+        match self {
+            Self::Core(opened) => opened.engine.embed_text(query).unwrap(),
+            Self::Sdk(engine) => engine.embed(query).unwrap(),
+        }
+    }
+
+    fn close(&self) {
+        match self {
+            Self::Core(opened) => opened.engine.close().unwrap(),
+            Self::Sdk(engine) => engine.close().unwrap(),
+        }
+    }
+}
+
 fn run(config: &Value, out: &Path) {
-    assert_eq!(config["mode"], "engine_mean");
+    let mode = config["mode"].as_str().unwrap();
+    let adapter = if mode == "engine_mean" { "engine" } else { "sdk" };
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
     assert!(samples > 0);
     let query = config["query"].as_str().unwrap();
     std::fs::create_dir_all(out).unwrap();
     let store = out.join("store.sqlite");
     assert!(!store.exists(), "source fixture store must be fresh");
-    let opened = Engine::open_with_choice(store, EmbedderChoice::Default).unwrap();
-    let resolution = opened.report.embedder_device_resolution.as_ref().unwrap();
+    let engine = MeanAdapter::open(mode, &store);
+    let resolution = engine.report().embedder_device_resolution.as_ref().unwrap();
     let device = match &resolution.effective_device {
         EffectiveEmbedDevice::Cuda(device) => device,
         EffectiveEmbedDevice::Cpu => panic!("G requires the reserved CUDA provider"),
@@ -30,23 +76,25 @@ fn run(config: &Value, out: &Path) {
     let mut calls = 0;
     for sample in 0..samples {
         let started = std::time::Instant::now();
-        let vector = opened.engine.embed_text(query).unwrap();
+        let vector = engine.embed(query);
         let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
         assert_eq!(vector.len(), 384);
         assert!(vector.iter().all(|x| x.is_finite()));
         let norm2 = vector.iter().map(|x| f64::from(*x).powi(2)).sum::<f64>();
         assert!(norm2 > 0.0);
-        let row = json!({"adapter":"engine","mode":"mean_embed","ok":true,
+        let row = json!({"adapter":adapter,"mode":"mean_embed","ok":true,
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2});
-        recorder.emit("samples", &row);
+        if mode == "engine_mean" {
+            recorder.emit("samples", &row);
+        }
         calls += 1;
     }
     recorder.flush_all();
     let loop_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
-    opened.engine.close().unwrap();
+    engine.close();
     let proof = json!({"api_calls":calls,"dimension":384,"finite_nonzero":true,
-        "pooling":"engine mean API","selected_cuda_uuid":resolution.selected_cuda_uuid,
+        "pooling":format!("{adapter} mean API"),"selected_cuda_uuid":resolution.selected_cuda_uuid,
         "cuda_compiled":resolution.cuda_compiled,"cuda_ordinal":device.ordinal,
         "driver_version":device.driver_version,"cuda_toolkit_version":device.cuda_toolkit_version,
         "cuda_libraries":format!("{:?}",device.cuda_libraries),

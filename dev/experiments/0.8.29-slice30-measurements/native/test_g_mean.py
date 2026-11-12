@@ -44,6 +44,9 @@ def own_memory(pid):
 
 
 class CoreMeanTests(unittest.TestCase):
+    adapter = "engine"
+    mode = "engine_mean"
+
     def test_actual_mean_calls_emit_each_measurement_with_real_gpu_engagement(self):
         if os.environ.get("CUDA_VISIBLE_DEVICES")!=GPU or os.environ.get("FATHOMDB_EMBED_DEVICE")!="cuda:0":
             raise RuntimeError("manual fixture requires the exact reserved3090 and forced CUDA")
@@ -53,6 +56,8 @@ class CoreMeanTests(unittest.TestCase):
         root.mkdir(parents=True)
         identity = {"binary":str(binary),"sha256":hashlib.sha256(binary.read_bytes()).hexdigest(),
                     "test_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                    "runner":str(Path(sys.argv[0]).resolve()),
+                    "runner_sha256":hashlib.sha256(Path(sys.argv[0]).read_bytes()).hexdigest(),
                     "source":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
                     "delta":subprocess.check_output(["git","status","--porcelain"],text=True),
                     "features":["embed-cuda"],"observer":False,"test_hooks":False,"root":str(root)}
@@ -64,7 +69,7 @@ class CoreMeanTests(unittest.TestCase):
             if hashlib.sha256(path.read_bytes()).hexdigest()!=row["sha256"]:
                 raise RuntimeError("pinned input unavailable before loader: "+str(path))
         config = root/"cell.json"
-        config.write_text(json.dumps({"mode":"engine_mean","gpu_uuid":GPU,
+        config.write_text(json.dumps({"mode":self.mode,"gpu_uuid":GPU,
             "samples":SAMPLES,"query":"alpha "*510}))
         locks = task/"locks"
         locks.mkdir(exist_ok=True)
@@ -115,11 +120,11 @@ class CoreMeanTests(unittest.TestCase):
         issues=[]
         rows=read_jsonl_records(root/"out/samples.jsonl",issues)
         print(json.dumps({"api_proof":proof,"observed_records":len(rows),"issues":issues}),flush=True)
-        self.assertEqual(len(rows),SAMPLES,"missing actual core mean measurement population")
+        self.assertEqual(len(rows),SAMPLES,f"missing actual {self.adapter} mean measurement population")
         self.assertEqual(issues,[])
         for index,row in enumerate(rows):
             self.assertEqual((row["sample_index"],row["query_index"]),(index,0))
-            self.assertEqual((row["adapter"],row["mode"],row["ok"]),("engine","mean_embed",True))
+            self.assertEqual((row["adapter"],row["mode"],row["ok"]),(self.adapter,"mean_embed",True))
             self.assertEqual((row["dimension"],row["finite"]),(384,True))
             self.assertGreater(row["norm_squared"],0)
             self.assertGreater(row["elapsed_ns"],0)

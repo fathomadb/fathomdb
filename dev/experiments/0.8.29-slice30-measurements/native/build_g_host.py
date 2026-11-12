@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 
 def build(label, observer=False):
@@ -48,9 +49,10 @@ def build(label, observer=False):
                      "compiler_json_sha256": hashlib.sha256(log.read_bytes()).hexdigest(),
                      "normal_gn": not observer, "observer": observer, "artifacts": artifacts})
     proof_path.write_text(json.dumps(identity, indent=2) + "\n")
+    (task / "proofs/gd-g-host-feature-closure.json").write_bytes(proof_path.read_bytes())
     print(json.dumps({"proof": str(proof_path), "binary_sha256": identity["binary_sha256"],
                       "engine_features": engine[0]["features"]}), flush=True)
 
 
 if __name__ == "__main__":
-    build(sys.argv[1], observer=len(sys.argv) == 3 and sys.argv[2] == "observer")
+    build(sys.argv[1] if len(sys.argv) > 1 else str(time.time_ns()), observer=len(sys.argv) == 3 and sys.argv[2] == "observer")

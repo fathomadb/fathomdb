@@ -12,10 +12,10 @@ import time
 from test_g_text import GPU, _accounting, _remaining
 
 
-def run(config, root):
+def run(config, root, *, binary=None, feature_path=None):
     """Run the owned normal producer; refuse missing CUDA proof and preserve all output."""
     task=Path(os.environ["S30_GD_TASK"])
-    binary=Path(os.environ["CARGO_TARGET_DIR"])/"release/examples/slice30_g_mean"
+    binary=Path(binary) if binary is not None else Path(os.environ["CARGO_TARGET_DIR"])/"release/examples/slice30_g_mean"
     if os.environ.get("CUDA_VISIBLE_DEVICES")!=GPU or os.environ.get("FATHOMDB_EMBED_DEVICE")!="cuda:0":
         raise RuntimeError("normal BGE template requires approved forced CUDA")
     model=[]
@@ -27,7 +27,7 @@ def run(config, root):
         model.append({"path":str(path),"sha256":actual})
     cell=json.loads(config.read_text())
     paths=[config,*[Path(row["records"]) for row in cell["templates"]]]
-    feature_path=task/"proofs/gd-gn-feature-closure.json"
+    feature_path=Path(feature_path) if feature_path is not None else task/"proofs/gd-gn-feature-closure.json"
     features=json.loads(feature_path.read_text())
     actual_binary=hashlib.sha256(binary.read_bytes()).hexdigest()
     if features["binary_sha256"]!=actual_binary or features["normal_gn"] is not True:

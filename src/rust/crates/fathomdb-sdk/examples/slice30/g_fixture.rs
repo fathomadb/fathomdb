@@ -19,6 +19,9 @@ mod g_template;
 #[path = "g_write_schedule.rs"]
 mod g_write_schedule;
 
+#[path = "g_limit.rs"]
+mod g_limit;
+
 enum GAdapter {
     Core(Box<OpenedEngine>),
     Sdk(Box<SdkEngine>),
@@ -276,6 +279,9 @@ fn text_fixture_ack(uuid: &str) -> u64 {
 }
 
 pub(super) fn run(config: &Value, out: &Path) {
+    if config["family"] == "G_LIMIT" {
+        return g_limit::run(config, out);
+    }
     if config["family"] == "G_TEMPLATE" {
         return g_template::run(config, out);
     }

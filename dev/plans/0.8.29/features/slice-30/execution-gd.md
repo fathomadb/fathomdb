@@ -571,6 +571,20 @@ query-utilization or zero-process-GPU claim; inference oracles remain unchanged.
 The source fixture hash is unchanged. No TGD9/template, full source/lifecycle or
 campaign qualification follows; maintained manual core-text selection is explicit.
 
+## TGD-8 separate SDK text-only population
+
+RED408ab6ad5 completes copied fixture/counts, Default CUDA identity, fixed bounded
+READY-accounting/ACK and128literal SDK alpha calls before missing0!=128records.
+Core oracle92fd617d02a290a58397e1c9bfadc4bf8504c831a1135620ddee80a01273e0a9
+and SDK runnerc0498e7abc8ca3a0231f3c81c482ec07572a9787ea8bfb2154bf7dcaf6fc6753
+stay unchanged through emit-only GREEN,1/1 pass in1.626s,128records/8checkpoints.
+Pre-runtime binaries: REDa4b8f1a990d7d62c9101ec1cdc4a1c948bec703568c0a1c691700bbd98e110b2;
+GREEN1fe6b7ed692aad2e71c8ffe5c6096fcc1b559b2aa726b71aa5c172e92ed68431.
+Existing gd-sdk-text-red/green receipts/logs and printed proofs/g-text roots
+retain source/config/fixture/GPU-accounting identities. No query-GPU claim,
+inference-oracle edit, new SDK API, template/lifecycle/campaign completion.
+Maintained manual SDK-text selection is explicit; remaining G/D work stays open.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

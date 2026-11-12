@@ -23,6 +23,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [native/test_g_core_hybrid.py](native/test_g_core_hybrid.py) | Manual core hybrid population: governed two-row/two-vector fixture, pending0, literal alpha+beta result set,128 real calls and retained raw records. Uses normal mean BGE/GPU; no observer/test-hooks. Maintained test-slice30-g-core-hybrid uses the same explicit manual prerequisites. This fixture does not implement closed campaign templates. |
 | [native/test_g_sdk_hybrid.py](native/test_g_sdk_hybrid.py) | Separate SDK hybrid oracle: existing SDK governed projections/write/drain/readiness/search, same literal two-ID fixture and retained records. Maintained test-slice30-g-sdk-hybrid uses the explicit manual GPU prerequisites. |
 | [native/test_g_text.py](native/test_g_text.py) | Core text-only records on a fresh hash-bound copy of the accepted closed BGE fixture. Fixed bounded manual READY/ACK validates own PID/UUID memory before API clocks; no query inference-utilization claim. Maintained test-slice30-g-core-text uses normal Default/forced-CUDA identity and the explicit manual prerequisites. |
+| [native/test_g_sdk_text.py](native/test_g_sdk_text.py) | Separate SDK text-only population with the unchanged closed-copy/READY-accounting oracle and fixed sdk/sdk_text literals. Existing public SDK API, no query inference-utilization claim. Maintained test-slice30-g-sdk-text has the same explicit manual prerequisites. |
 | [gd_resources.py](gd_resources.py) | G/D conservative allocated/apparent aggregation, setup/raw reservations and owned child phase guard; selectively adapts the committed Slice60 resource guard. Literal math in test_gd_resources.py and real tiny-child/final-sample/group/du controls in test_gd_guard_*.py are selected by the existing maintained Python discovery suite. |
 | [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
@@ -182,5 +183,5 @@ The existing P recorder moved to the private shared example helper
 examples/slice30/raw.rs. Methods retain the same16-record checkpoint/phase
 flush policy and costs; unchanged P example controls cover relocation. G's
 API timer stops before validation/serialization/checkpointing. Loop throughput
-includes those costs and excludes separately scoped open/close. Core/SDK mean and hybrid plus core text populations are implemented. SDK text,
-schedules and closed templates remain pending.
+includes those costs and excludes separately scoped open/close. Core/SDK mean, hybrid and text-only populations are implemented. Schedules and
+closed templates remain pending.

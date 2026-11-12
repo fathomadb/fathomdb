@@ -358,13 +358,20 @@ binary identities BEFORE each runtime. The65-row case validates fixed64-cohort
 framing, not campaign scale. Property inputs stay tiny; no10k/100k seed, campaign
 clock, timings or source/lifecycle qualification is implied.
 
-After real drain and readiness0, verify exact per-kind physical coverage/profile
+After real drain and readiness0, verify per-kind exact cursor coverage/cardinality
+through canonical(kind,write_cursor)→mapping(kind,write_cursor)→physical
+rowid=mapping.rowid and span(vector_rowid=mapping.rowid,
+write_cursor=mapping.write_cursor), rejecting missing/duplicate/extra rows.
+No global cursor=rowid assumption applies. Verify physical dimension/profile
 and actual span semantics, close engine AND every verifier, require WAL absent
 or empty, then hash the main file. Every copy goes to a fresh writable owned
 directory; check initial copied hash before reopening, repeat independent
 coverage/profile/readiness checks, close/drop again, and leave source unchanged.
-Keep D unknown spans separate from BGE head-window ends; complete indexed cursor
-coverage is not a full-body embedding claim. Producer metadata records governed
+D NULL byte_end remains valid unknown coverage. Pinned BGE successful paths
+require nonNULL UTF8-aligned window0 ends: short input end==body byte length,
+deliberately overlength Unicode input end<body byte length. Record actual ends;
+no learned-vector or exact token-offset golden. Complete indexed cursor coverage
+is not a full-body embedding claim. Producer metadata records governed
 cohort counts/rows/order and separate preparation/drain/verification/close costs.
 No retrieval latency or ancillary SQLite commit count is invented.
 

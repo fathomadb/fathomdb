@@ -228,11 +228,13 @@ is separate; further write schedules wait for these TGD9 obligations.
 
 1. **TGD9b actual completeness report.** Introduce a private example/tool helper,
    shared by D and later normal G, using a read-only real SQLite connection.
-   For each actual kind, compare the exact distinct active canonical cursor set
-   with mapping cursors, physical vector row IDs and span cursors; reject missing,
-   duplicate or extra coverage. Check mapping kind/cursor/row identity, physical
-   f32 byte dimension, window0/start0, UTF8 body_length, actual nullable byte_end
-   bounds and stored profile name/revision/dimension. Report per-kind counts,
+   Join active canonical(kind,write_cursor) to mapping(kind,write_cursor),
+   physical vector rowid=mapping.rowid, and span(vector_rowid=mapping.rowid,
+   write_cursor=mapping.write_cursor). Do not assume write_cursor equals rowid.
+   Per kind, require exact cursor-set coverage and cardinality at each join;
+   reject missing, duplicate or extra mappings, physical rows and spans. Check
+   physical f32 byte dimension, window0/start0, UTF8 body_length, actual nullable
+   byte_end bounds and stored profile name/revision/dimension. Report per-kind counts,
    cursor coverage and known/unknown span ends, not only a total or terminal flag.
    Pending0 is the separate successful engine readiness observation after drain.
    Initial literal plus bounded real-store property oracles reuse D_TEMPLATE,
@@ -267,9 +269,11 @@ in that verifier. Keep the normal producer's actual Cargo feature closure in
 its proof; never infer normal identity from an engine test/example artifact.
 
 D's current varying/perf-gates-dense768 recipe retains unknown byte_end=NULL.
-BGE384 uses the existing CandleBgeEmbedder::truncation_offset head-window result:
-record actual known end or unknown, validate against UTF8 byte length and
-window0, and never infer full-body coverage merely from cursor completeness.
-Use finite/dimension/profile and literal ID/count invariants, not learned-vector
-goldens or standalone CLS. Long Unicode input in the literal fixture exercises
-head truncation; small property cases preserve count/order/span bounds.
+Pinned BGE384 CandleBgeEmbedder::truncation_offset returns Some(end) on every
+successful path. Require nonNULL UTF8-aligned ends in window0: short input
+end==body UTF8 byte length; deliberately overlength Unicode input
+end<body byte length. Record the actual end without a learned-vector or exact
+token-offset golden. D NULL ends remain valid unknown coverage. Never infer
+full-body coverage merely from cursor completeness. Use finite/dimension/profile
+and literal ID/count invariants, not standalone CLS; small property cases
+preserve count/order/span bounds and successful BGE nonNULL UTF8-aligned ends.

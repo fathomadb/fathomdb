@@ -305,7 +305,7 @@ fn run(config: &Value, out: &Path) {
     } else {
         Value::Null
     };
-    let marker_control = if config["schedule"] == "readonly" {
+    let marker_control = if matches!(config["schedule"].as_str(), Some("readonly" | "write")) {
         assert!(is_text, "initial schedule fixture uses the direct-text population");
         engine.prepare_marker_control(&store)
     } else {
@@ -321,7 +321,9 @@ fn run(config: &Value, out: &Path) {
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
     for sample in 0..samples {
-        let row = if is_text {
+        let record_start_ns = (config["schedule"] == "write")
+            .then(|| u64::try_from(loop_started.elapsed().as_nanos()).unwrap());
+        let mut row = if is_text {
             let started = std::time::Instant::now();
             let result = engine.text(query, (!marker_control.is_null()).then_some("doc"));
             let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
@@ -356,6 +358,11 @@ fn run(config: &Value, out: &Path) {
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2})
         };
+        if let Some(started) = record_start_ns {
+            row["record_start_ns"] = json!(started);
+            row["record_ready_ns"] =
+                json!(u64::try_from(loop_started.elapsed().as_nanos()).unwrap());
+        }
         recorder.emit("samples", &row);
         calls += 1;
     }
@@ -365,7 +372,7 @@ fn run(config: &Value, out: &Path) {
     let schedule = if marker_control.is_null() {
         Value::Null
     } else {
-        json!({"mode":"readonly","natural_calls":calls,"natural_kind_filter":"doc",
+        json!({"mode":config["schedule"],"natural_calls":calls,"natural_kind_filter":"doc",
             "scheduled_write_calls":0,"scheduled_write_rows":0,"marker_probes":0})
     };
     let proof = json!({"api_calls":calls,"schedule":schedule,

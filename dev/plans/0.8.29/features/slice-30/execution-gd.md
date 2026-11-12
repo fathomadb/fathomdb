@@ -687,6 +687,44 @@ Maintained manual template selector is explicit; test=false prevents automatic
 Rust execution while explicit --test selects the same harness. Later writes,
 full source/lifecycle/campaign qualification remain held for parent evaluation.
 
+## Remaining runnable-campaign wiring (source work, not eligibility)
+
+Canonical manifest arithmetic is26measurement cells: G1=4/G2=2/GO=4/GG=2
+(12G), D1=8/DC=4/D3=2conditional (14D), plus at most2GT preparation entries.
+Maximum28entries;32GiB is combined raw retention, not a cell count. There are
+no missing four cells or new entries. No machine G/D campaign manifest/launcher
+is yet qualified. Every conditional entry remains represented if not run.
+
+| Route/remaining unit | Reusable completed foundation | Missing runnable wiring before qualification |
+| --- | --- | --- |
+| GT2 and TGD9/14 integration | Normal G_TEMPLATE reads ordered JSONL, commits64-row cohorts, Default BGE/Mean, shared physical verifier, close/hash; D template uses current deterministic768. | Actual pinned corpus prefix→ordered record input, template sealing/copies, lower-size observation admission and common deadline integration. Current drain(5000) is a tiny-fixture bound, not a900s preparation/cell budget. |
+| G1=4; TGD10 route adaptation | Actual core/SDK mean/hybrid/text APIs and normal no-hooks artifact; accepted recorder/metrics. | Replace fresh hardcoded2-row/literal-ID/single-query fixture path with qualified10k/100k copies, all500question IDs,50warmups/500timed calls, limit10, all mode/adapter passes and sequential close/reopen on the same store. Reverse repeat order exactly as preregistered. Tiny fixture success does not implement these routes. |
+| G2=2; TGD10 actuation and per-mode adaptation | Accepted zero-write SDK text control, actual note reset/drain/current2doc+10note fixture; new b10/s10 actuation is the current source unit. | After each10natural calls, atomic10-row governed write→drain→10literal note probes, separately measured/countable; filter doc only on retrieval, no filter claim for mean embedding. Full-size/mode passes, reset before each schedule,50/500warmup/timed order and all three SDK populations remain to wire. |
+| GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). A concrete private diagnostic artifact fit needs parent review before source; no SDK accessor/feature forwarding is inferred. GG needs its governed source-valid/invalid and no-dependency/time-window copies and declared100-query stages, not only predicate tests. |
+| D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness and fresh physical completeness. | Actual1024-row cohorts, current worker lifecycle IDs/intervals (11), bounded held/release/drain phases (12), ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
+| Every entry; TGD14 launcher/admission | Existing13-root/original-baseline guard and pure time/storage/shared-clock forecasts. | One immutable manifest/attempt controller with900s total/870s work/30s cleanup, remaining-budget drains/close/partial retention; one shared4h clock INCLUDING GT/Dseed preparation, copies, quiet waits and retries. Pure ELIGIBLE_PROJECTION is not admission. Check actual retained bytes/floors and lower observations; refuse instead of resetting a deadline, substituting a smaller population or growing caps. |
+| Cross-entry results; TGD15 | P raw metrics/paired-call math and bounded observer transport/counters. | Actual G/D result schemas, complete identity/query/template/mode/repeat grouping, paired observer cost with missing/errors/drops/unpaired disposition, and tiny real-child oracles before report GREEN. No percentile subtraction or reuse of P results as G/D timing. |
+
+Current source GO is only the bounded TGD10 actual-actuation unit. This map
+records remaining preregistered work and source-fit gaps; it grants no additional
+source/campaign authority. Remaining new tool behaviours need genuine per-behaviour
+RED/GREEN and bounded fit review where the concrete artifact/route changes.
+Before final stable-source qualification the actual generic routes, normal/
+diagnostic identities,28-entry maximum manifest and remaining-budget controller
+must be runnable and independently reviewed. Fixed5s fixture drains and literal
+alpha/beta query populations cannot silently become campaign implementations.
+
+### TGD10 current versus retained vector populations
+
+write_commit's logical-ID supersession explicitly leaves NodeFts/Vector shadows
+intact and refreshes vector eligibility; only attribute/property-FTS projections
+are purged there. This is existing product behaviour, not a defect. G2 revisions
+therefore keep2doc+10note CURRENT cursors while physical/history totals grow.
+Initial literal/property schedule oracles independently inspect current
+canonical(kind,cursor) joins after each drain and report retained totals apart.
+The accepted fresh-template verifier retains its no-extras contract; no purge,
+policy/ranking change or total-physical-vectors==12 assumption is introduced.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

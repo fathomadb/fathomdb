@@ -20,7 +20,7 @@ def make_plan(cells, repeats):
     return plan
 
 
-def run_campaign(plan, root, command, timeout=900):
+def run_campaign(plan, root, command, timeout=900, before=None, monitor=None):
     """Execute every cell in an owned fresh attempt directory, retaining failures."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -32,6 +32,7 @@ def run_campaign(plan, root, command, timeout=900):
         if completed and completed["status"] == "complete" and completed.get("cell") == cell:
             outcomes.append(completed)
             continue
+        context = before() if before else None
         cell_root = root / cell["id"]
         cell_root.mkdir(exist_ok=True)
         prior = [int(p.name.split("-")[1]) for p in cell_root.glob("attempt-*") if p.is_dir()]
@@ -42,22 +43,36 @@ def run_campaign(plan, root, command, timeout=900):
         started = time.monotonic_ns()
         error = None
         with (attempt / "child.log").open("wb") as log:
-            try:
-                child = subprocess.run([*command, str(config), str(attempt)],
-                                       stdout=log, stderr=subprocess.STDOUT, timeout=timeout)
-                code = child.returncode
-            except subprocess.TimeoutExpired:
-                code, error = 124, "cell timeout"
+            child = subprocess.Popen([*command, str(config), str(attempt)],
+                                     stdout=log, stderr=subprocess.STDOUT)
+            while True:
+                remaining = timeout - (time.monotonic_ns() - started) / 1000000000
+                try:
+                    code = child.wait(timeout=max(0.01, min(30, remaining)))
+                    break
+                except subprocess.TimeoutExpired:
+                    error = "cell timeout" if remaining <= 0 else (monitor(child.pid) if monitor else None)
+                    if error:
+                        child.terminate()
+                        try:
+                            child.wait(timeout=15)
+                        except subprocess.TimeoutExpired:
+                            child.kill()
+                            child.wait()
+                        code = 124
+                        break
+            if monitor:
+                error = error or monitor(child.pid)
         result_path = attempt / "result.json"
         complete = False
-        if code == 0:
+        if code == 0 and error is None:
             if result_path.exists():
                 complete = json.loads(result_path.read_text()).get("complete") is True
             else:
                 error = "child returned without result.json"
         outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "exit": code,
                    "status": "complete" if complete else "failed", "error": error,
-                   "elapsed_ns": time.monotonic_ns() - started}
+                   "elapsed_ns": time.monotonic_ns() - started, "environment_before": context}
         outcomes.append(outcome)
         (root / "campaign-state.json").write_text(json.dumps(outcomes, indent=2) + "\n")
     return outcomes

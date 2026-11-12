@@ -2,11 +2,14 @@
 
 import argparse
 import hashlib
+import fcntl
+import os
+import time
 import json
 from pathlib import Path
 import subprocess
 
-from campaign import make_plan
+from campaign import make_plan, run_campaign
 
 
 def freeze(cells, corpus, queries, binary, out):
@@ -43,7 +46,60 @@ def freeze(cells, corpus, queries, binary, out):
 
 def run_frozen(root, max_load=2):
     """Execute the frozen native plan under its resource/time/quiet limits."""
-    return []
+    root = Path(root).resolve()
+    manifest = json.loads((root / "manifest.json").read_text())
+    plan = json.loads((root / "plan.json").read_text())
+    results = root / "results"
+    results.mkdir(exist_ok=True)
+    with (root / "campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        clock = root / "run-clock.json"
+        if not clock.exists():
+            clock.write_text(json.dumps({"started_at": time.time()}) + "\n")
+        started = json.loads(clock.read_text())["started_at"]
+        def observe(pid=None):
+            size = subprocess.run(["du", "-sb", str(results)], capture_output=True, text=True)
+            if size.returncode:
+                size = subprocess.run(["du", "-sb", str(results)], capture_output=True, text=True)
+            size.check_returncode()
+            rss = None
+            if pid is not None:
+                try:
+                    rss = [line for line in Path(f"/proc/{pid}/status").read_text().splitlines()
+                           if line.startswith(("VmRSS:", "VmHWM:"))]
+                except FileNotFoundError:
+                    pass
+            record = {"time": time.time(), "load": os.getloadavg()[0],
+                      "output_bytes": int(size.stdout.split()[0]), "pid": pid, "rss": rss,
+                      "cpu": Path("/proc/stat").read_text().splitlines()[0],
+                      "disk": [line for line in Path("/proc/diskstats").read_text().splitlines()
+                               if "nvme0n1p2" in line],
+                      "memory": [line for line in Path("/proc/meminfo").read_text().splitlines()
+                                 if line.startswith(("MemAvailable:", "SwapFree:"))]}
+            with (root / "resources.jsonl").open("a") as output:
+                output.write(json.dumps(record) + "\n")
+            return record
+        def monitor(pid=None):
+            record = observe(pid)
+            if record["time"] - started >= manifest["campaign_seconds"]:
+                return "campaign time cap"
+            if record["output_bytes"] >= manifest["active_bytes"]:
+                return "measurement output cap"
+            return None
+        def before():
+            waiting = time.monotonic()
+            while True:
+                error = monitor()
+                if error:
+                    raise RuntimeError(error)
+                record = observe()
+                if max_load is None or record["load"] <= max_load:
+                    return record
+                if time.monotonic() - waiting >= manifest["cell_seconds"]:
+                    raise RuntimeError("quiet CPU start not available within cell wait cap")
+                time.sleep(5)
+        return run_campaign(plan, results, [manifest["binary"]["path"]],
+                            timeout=manifest["cell_seconds"], before=before, monitor=monitor)
 
 
 def main():
@@ -53,8 +109,15 @@ def main():
     freeze_parser = sub.add_parser("freeze")
     for field in ("cells", "corpus", "queries", "binary", "out"):
         freeze_parser.add_argument("--" + field, type=Path, required=True)
+    run_parser = sub.add_parser("run")
+    run_parser.add_argument("root", type=Path)
     args = parser.parse_args()
-    freeze(args.cells, args.corpus, args.queries, args.binary, args.out)
+    if args.action == "freeze":
+        freeze(args.cells, args.corpus, args.queries, args.binary, args.out)
+    else:
+        results = run_frozen(args.root)
+        if any(row["status"] != "complete" for row in results):
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

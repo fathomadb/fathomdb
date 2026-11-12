@@ -596,3 +596,21 @@ conditional eligibility changes. The separate fixed32768 worker buffer and query
 buffer are charged within existing reservations. DN/DO-off/on source identities,
 actual workload/observer load and all pending held/overlap/deadline/controller
 qualification remain required; no campaign clock has begun.
+
+## D12 held-precondition clarification (no cell or budget change)
+
+The [D12 source fit](gd-test-map.md#d12-empty-idle-held-precondition-method-clarification)
+requires verified-empty configuration, existing freeze and a bounded successful
+EMPTY drain/idle proof before the first governed write. Existing active scans
+can outlive the freeze call; do not infer that they were cancelled. No writer
+starts until the configured runtime has no queued/active jobs or active scan and
+the durable no-pending probe succeeds. No new runtime hook or scheduler setting.
+
+Literal3 and bounded tiny source oracles distinguish existing real held/released
+controls from new phase-report RED. One attempt origin covers all setup/write/
+readiness/release/drain/close boundaries. The idempotent tool guard explicitly
+releases before drain/join/close; Drop is release-only fallback, and owned-child
+hard cleanup bounds still apply. Held observations are pending work, not dense
+AC013 or worker-concurrency evidence. Ordinary real-overlap cells use no freeze
+or artificial delay. D11 evaluation/design continuation precedes D12 source;
+no10k/100k seed preparation, campaign clock, new cell or eligibility change.

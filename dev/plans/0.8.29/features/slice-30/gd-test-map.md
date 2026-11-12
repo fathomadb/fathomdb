@@ -544,3 +544,53 @@ actual compiler closure recorded for DN(test-hooks) and DO(test-hooks plus
 slice30-measurement); engine self-dev feature unification must be retained in
 those proofs. No private G/TC5-host feature or SDK accessor changes. Default/no-
 feature compilation and accepted query/GO suites are affected reuse controls.
+
+## D12 empty-idle held precondition (method clarification)
+
+Source subject9b1b252b6aa05b47e12bacff82c8c7a161faa020; this is read-only
+source fit, not held runtime evidence. projection_runtime::ProjectionRuntime::
+set_frozen(true) sets state.frozen and notifies, without cancelling work;
+projection_worker::projection_dispatcher_loop checks it BEFORE incrementing
+active_scans. A scan already past that check can
+still fetch/admit work. Freeze never cancels admitted jobs or existing scans.
+
+Use a FRESH caller-provider deterministic768 store: configure the reviewed
+projection while empty, independently verify canonical0/vector0/pending0 and
+actual profile/configuration, then create the tool-owned freeze guard. While
+STILL EMPTY, call existing Engine::drain with a bounded source-fixture timeout.
+runtime_lifecycle::Engine::drain takes the configured-runtime wait_for_idle route;
+projection_runtime::ProjectionRuntime::wait_for_idle requires active_jobs0,
+queued_jobs0 AND active_scans0, then a successful durable no-pending probe before
+returning. Only Some(false), meaning NO durable pending work, completes idle;
+Some(true), unavailable locking or failed probing cannot establish it. No
+concurrent writer is allowed before this succeeds. Frozen then prevents a new scan before writes.
+This is a fresh empty-work precondition, not a new product cancellation proof or
+an assertion that a readiness count alone exposes admitted/in-flight work.
+
+Only AFTER that idle proof, use existing governed writes for the literal3rows
+(and bounded small Unicode/count cohorts). write::Engine::write late-enrolls
+supported kinds transactionally; its notify_new_work sets pending_scan without
+clearing frozen. Capture actual pending3/vector0 while held, then release and
+use actual drain/readiness plus independent kind/cursor→mapping→physical/span/
+profile completeness to establish pending0/vector3. D unknown covered ends stay
+NULL; body byte lengths are separate. Existing readiness/freeze/completion
+behavior is a setup control, never relabelled new product RED. Initial literal
+AND property tests must first pass those controls and then fail ONLY the new
+missing held/released phase reports/counts/order before reporting GREEN.
+
+One tool-owned idempotent guard releases explicitly BEFORE post-release drain,
+thread join, engine close or any orderly cleanup. Drop releases on early error/
+unwind as fallback; it does not drain/join/close inside Drop. Cleanup must retain
+its own original child hard deadline, stop/wait only that owned child and report
+failure/partial data rather than wait forever. No unbounded Barrier, new hook,
+freeze-setter repair, active-work cancellation or timed-overlap hold/sleep.
+
+Create ONE attempt Instant before open/configuration. Record open/configure,
+empty checks, freeze request, empty-idle drain, each governed write, held full
+readiness/SQL observations, release, post-release drain/coverage and close with
+start/end offsets on that SAME clock. Release-call return is not inferred worker
+progress: actual subsequent drain/physical completion is required. API durations
+exclude report serialization; observation/collection/persistence remain explicit
+source work. The D11 collection window is one non-renewing5s source limit outside
+API clocks, later clamped to original native work/hard/shared deadlines. No fresh
+window can expand the existing150work/30cleanup source or870/30 cell bounds.

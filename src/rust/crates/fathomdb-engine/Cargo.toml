@@ -943,3 +943,7 @@ path = "examples/slice30_gd_diagnostic.rs"
 [[test]]
 name = "slice30_measurement_snapshot"
 required-features = ["test-hooks", "slice30-measurement"]
+
+[[test]]
+name = "slice30_measurement_predicates"
+required-features = ["test-hooks", "slice30-measurement"]

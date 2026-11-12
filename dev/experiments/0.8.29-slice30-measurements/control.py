@@ -10,6 +10,7 @@ from pathlib import Path
 import subprocess
 
 from campaign import make_plan, run_campaign
+from metrics import aggregate, paired_difference
 
 
 def freeze(cells, corpus, queries, binary, out):
@@ -104,7 +105,70 @@ def run_frozen(root, max_load=2):
 
 def summarize(root):
     """Report every planned cell, actual raw samples and explicit missing work."""
-    return {"cells": []}
+    root = Path(root)
+    plan = json.loads((root / "plan.json").read_text())
+    manifest = json.loads((root / "manifest.json").read_text())
+    state_path = root / "results" / "campaign-state.json"
+    state = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+    output = []
+    paired = {}
+    def lines(path, issues):
+        records = []
+        if not path.exists():
+            issues.append(f"missing {path.name}")
+            return records
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                issues.append(f"partial/invalid {path.name}:{number}")
+        return records
+    for cell in plan:
+        previous = state.get(cell["id"])
+        report = dict(id=cell["id"], family=cell["family"], n=cell["n"],
+                      status=previous["status"] if previous else "not_run")
+        output.append(report)
+        if previous is None:
+            continue
+        attempt = Path(previous["attempt"])
+        issues = []
+        rows = lines(attempt / "samples.jsonl", issues)
+        warmups = lines(attempt / "warmups.jsonl", issues)
+        matches = lines(attempt / "matches.jsonl", issues)
+        try:
+            result = json.loads((attempt / "result.json").read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            result = {}
+            issues.append("missing/partial result.json")
+        expected = cell["samples"] * len(cell["adapters"])
+        if len(rows) != expected or len(warmups) != cell["warmup"] * len(cell["adapters"]):
+            issues.append("actual warmup/timed count differs from plan")
+        if report["status"] == "complete" and (issues or result.get("complete") is not True):
+            report["status"] = "incomplete"
+        report.update(attempt=str(attempt), issues=issues, actual=result, adapters=[])
+        counts = [row["raw_fts_matches"] for row in matches]
+        report["match_counts"] = {"queries":len(counts), "zero":counts.count(0),
+            "min":min(counts, default=None), "max":max(counts, default=None),
+            "mean":sum(counts) / len(counts) if counts else None}
+        report["store_bytes"] = (attempt / "store.sqlite").stat().st_size if (attempt / "store.sqlite").exists() else None
+        for adapter in cell["adapters"]:
+            selected = [row for row in rows if row["adapter"] == adapter]
+            wall = next((p["wall_ns"] for p in result.get("passes", []) if p["adapter"] == adapter), 0)
+            stats = aggregate(selected, wall)
+            tracked = (cell["family"] == "P1" and cell["n"] == 100000
+                and result.get("filtered") is False and result.get("natural_records") == 100000
+                and result.get("query_count") == 500 and len(matches) == 500
+                and len(selected) == 1000 and stats["ok"] == 1000 and report["status"] == "complete")
+            distance = ({"p50":stats["successful_latency"]["p50_ms"] - 80,
+                         "p99":stats["successful_latency"]["p99_ms"] - 300} if tracked else None)
+            report["adapters"].append({"adapter":adapter,"statistics":stats,
+                "tracked_fixture":tracked,"tracked_distance_ms":distance,"gated":False})
+        if cell["family"] == "P1" and report["status"] == "complete":
+            paired.setdefault(str(cell["n"]), []).extend(rows)
+    return {"scope":"P only; whole30/M/F/G/D and release exits are not qualified",
+            "manifest":manifest,"cells":output,"gated":False,
+            "complete":bool(output) and all(cell["status"] == "complete" for cell in output),
+            "paired_adapters":{n:paired_difference(rows) for n,rows in paired.items()}}
 
 
 def main():
@@ -116,12 +180,20 @@ def main():
         freeze_parser.add_argument("--" + field, type=Path, required=True)
     run_parser = sub.add_parser("run")
     run_parser.add_argument("root", type=Path)
+    summary_parser = sub.add_parser("summarize")
+    summary_parser.add_argument("root", type=Path)
     args = parser.parse_args()
     if args.action == "freeze":
         freeze(args.cells, args.corpus, args.queries, args.binary, args.out)
-    else:
+    elif args.action == "run":
         results = run_frozen(args.root)
         if any(row["status"] != "complete" for row in results):
+            raise SystemExit(1)
+    else:
+        result = summarize(args.root)
+        (args.root / "summary.json").write_text(json.dumps(result, indent=2) + "\n")
+        print(json.dumps({"complete":result["complete"],"cells":len(result["cells"])}))
+        if not result["complete"]:
             raise SystemExit(1)
 
 

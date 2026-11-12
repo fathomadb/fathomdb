@@ -80,5 +80,6 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None):
                    "started_at": started_at, "ended_at": time.time(), "pid": child.pid,
                    "pgid": group, "command": [*command, str(config), str(attempt)]}
         outcomes.append(outcome)
-        (root / "campaign-state.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+        previous[cell["id"]] = outcome
+        state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
     return outcomes

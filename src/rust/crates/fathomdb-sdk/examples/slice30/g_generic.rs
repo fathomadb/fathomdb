@@ -129,7 +129,13 @@ pub(super) fn fixture(config: &Value, out: &Path) {
 
 pub(super) fn cell(config: &Value, out: &Path, store: &Path) {
     std::fs::create_dir_all(out).unwrap();
-    run(config, &out.join("pass-0"), store);
+    let passes = config["passes"].as_array().unwrap();
+    assert!(!passes.is_empty());
+    for (ordinal, mode) in passes.iter().enumerate() {
+        let mut pass = config.clone();
+        pass["mode"] = mode.clone();
+        run(&pass, &out.join(format!("pass-{ordinal}")), store);
+    }
 }
 
 pub(super) fn plan_fixture(config: &Value, out: &Path) {

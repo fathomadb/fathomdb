@@ -839,6 +839,37 @@ clarified; no workload, observation method, criterion or budget changes. At the4
 warmup source/runtime had begun. Exact independent design PASS and parent
 continuation preceded the following G1 warmup source unit.
 
+## Actual G1 pass-plan execution
+
+RED531e67913efd6f01241cefc33ab57082e5c4ebe3 delegates one existing pass on the
+owned cell copy. Real65-row preparation/closed-copy/current SQL/CUDA/open-close
+and five query-call controls pass, then literal/bounded repeat assertions fail
+one actual completed pass versus six (0/2,5.530s). No missing-command/parser/
+metadata exception is called RED. Initial oracles include both frozen forward
+and reverse adapter/mode plans, per-pass query IDs/values/phase counts and the
+same working store before the outer loop is implemented.
+
+Minimal GREEN iterates the ordered frozen pass descriptors, changing only mode
+and output directory for the existing single-pass function. One copy is made
+before the cell; each call opens/closes/drops its own Engine on that SAME store.
+Existing per-pass raw files and post-close API proofs retain completed prefixes;
+no new pass journal/clock or fixture-loop-as-campaign claim. Fixed oracle
+bd5d68e83b45158468336ecc72625df511aee41a43cac5a1ce339b359f4efd7b passes2/2 in7.930s:
+three tiny series/six passes each, forward/reverse orders,90actual query calls
+(54timed/36warmup). Each source cell has18timed/12warmup calls, with default API
+options, no learned rankings and no scheduled writes. loop_ns includes both
+phases; downstream rates must use their stated numerator/scope.
+
+Normal host RED1743014236fd91aaf042b70dfaa81232d8231aec4e20c3600acfcc699d08a2e9;
+GREEN1991cf3ea7cc1c9d767719968b59a62f925fafad4e0a64ed310c92f14c0d4599.
+Task gd-g-pass-plan-build/scaffold-checks/red/green-build/green receipts retain
+actual results; pre-runtime proofs/gd-g-pass-plan-red/green-identities.json pin
+source/env/controller/oracle/binary and actual no-TC5/test-hooks/observer closure.
+Scaffold Clippy/Ruff/Pyright1file0 and GREEN affected Clippy0 pass. Maintained
+manual test-slice30-g-pass-plan selects the oracle; final shell/coverage/Markdown/
+diff checks are in -final-checks. Canonical500/full-size preparation, generic G2,
+GO/GG/budgets/D/controller/pairing and final source qualification remain open.
+
 ## Actual G1 warmup calls and phase separation
 
 RED0cc12d171c77ad6d973f81badf4069a79ec5996b observes real timed APIs in all six

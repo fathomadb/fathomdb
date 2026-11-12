@@ -8,6 +8,7 @@ import tempfile
 import subprocess
 
 from campaign import make_plan, run_campaign
+from control import freeze, run_frozen
 from converter import convert
 from metrics import aggregate, distribution, paired_difference
 
@@ -139,6 +140,33 @@ class FreezeTests(unittest.TestCase):
             self.assertEqual(manifest["queries"]["count"], 1)
             self.assertEqual(manifest["measurement_layer"], "public-direct-text")
             self.assertFalse(manifest["gated"])
+
+
+class FrozenRunTests(unittest.TestCase):
+    def test_frozen_run_executes_each_actual_recording_child(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries, cells = [root / name for name in ["corpus.jsonl", "queries.jsonl", "cells.json"]]
+            corpus.write_text('"alpha"\n"beta"\n')
+            queries.write_text('"alpha"\n')
+            cells.write_text(json.dumps([{"name":"tiny", "family":"P1", "n":2,
+                                         "adapters":["engine","sdk"], "warmup":1, "samples":2}]))
+            recorder = root / "recording-child"
+            calls = root / "calls.jsonl"
+            recorder.write_text(f"#!{sys.executable}\n" + "\n".join([
+                "import json,pathlib,sys", "c=json.loads(pathlib.Path(sys.argv[1]).read_text())",
+                "o=pathlib.Path(sys.argv[2])",
+                f"with open({str(calls)!r},'a') as f: f.write(json.dumps(c['repeat'])+'\\n')",
+                "(o/'result.json').write_text(json.dumps({'complete':True}))",
+            ]) + "\n")
+            recorder.chmod(0o755)
+            frozen = root / "frozen"
+            freeze(cells, corpus, queries, recorder, frozen)
+            results = run_frozen(frozen, max_load=None)
+            observed = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
+            self.assertEqual(observed, [0, 1])
+            self.assertEqual([row["status"] for row in results], ["complete", "complete"])
+            self.assertTrue((frozen / "resources.jsonl").exists())
 
 
 if __name__ == "__main__":

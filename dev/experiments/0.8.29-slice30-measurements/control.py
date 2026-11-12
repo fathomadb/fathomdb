@@ -41,6 +41,11 @@ def freeze(cells, corpus, queries, binary, out):
     return manifest
 
 
+def run_frozen(root, max_load=2):
+    """Execute the frozen native plan under its resource/time/quiet limits."""
+    return []
+
+
 def main():
     """Operate an explicitly selected local campaign; never build in timings."""
     parser = argparse.ArgumentParser(description=__doc__)

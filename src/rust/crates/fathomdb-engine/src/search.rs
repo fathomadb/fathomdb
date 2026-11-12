@@ -1856,7 +1856,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     mut capture: C,
 ) -> Result<C::Output, SearchReaderError> {
     #[cfg(feature = "slice30-measurement")]
-    let _measurement = attribution.measurement.begin(worker_idx);
+    let mut _measurement = attribution.measurement.begin(worker_idx);
     // 0.8.20 Slice 15b fix-2 (R-20-NV) — the `:now` instant is read HERE, in
     // Rust, ONCE per query, and bound positionally into every node-hydration
     // SELECT. Never `datetime('now')` / `strftime('%s','now')`: an inline clock
@@ -1899,6 +1899,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         }
         #[cfg(any(test, feature = "test-hooks"))]
         frozen_after_validation_hook::fire(attribution);
+    }
+    #[cfg(feature = "slice30-measurement")]
+    if let Some(measurement) = _measurement.as_mut() {
+        measurement.stamp(&tx, view.edge_now());
     }
     let mut degradations = Vec::new();
     let owned_compiled;

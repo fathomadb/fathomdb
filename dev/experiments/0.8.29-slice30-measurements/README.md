@@ -3,7 +3,9 @@
 Initial P only: provider-free direct text, unchanged format37 and contracts.
 [Design](../../plans/0.8.29/features/slice-30/design.md) and
 [preregistration](../../plans/0.8.29/features/slice-30/preregistration.md) own scope.
-G/D need later concrete review; M/F, whole30,40/50 source and pre90 remain held.
+G/D have a reviewed bounded design and explicit source GO; implementation/TDD
+are underway. No G/D campaign or final qualification is claimed. M/F, whole30,
+40/50 source and pre90 remain held.
 No old prototype timing is a current baseline or fidelity result.
 
 ## Committed tools and origins
@@ -14,7 +16,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [campaign.py](campaign.py) | Balanced cell/adapter repetition order, bounded real child execution, separate fresh attempts, retained failures and resume of incomplete cells. Current implementation; selective scheduling concepts from the same ref's ssweep.py and aa30085fcb293d40cf5f34eaa568b3e215339cfc ac013-seed-drain/drain_sweep.py. No old prototype/provider/runtime hooks. |
 | [metrics.py](metrics.py) | Nearest-rank p50/p99, arithmetic mean, error-inclusive throughput, matched query/repeat differences and fixed-seed query-cluster descriptive intervals. Hand-computed oracles; no treatment/numerical verdict. |
 | [control.py](control.py) | Freeze actual source/lock/binary/input identities and balanced plan; serialized Linux campaign with resource observations; report every complete/failed/not-run/partial cell. Long CLI runs require AGENT_LONG=1. |
-| [slice30_gd_diagnostic.rs](../../../src/rust/crates/fathomdb-engine/examples/slice30_gd_diagnostic.rs) | G/D core-only diagnostic scaffold, real current APIs, fixed-selector completion test in native/test_completion.py; explicit maintained heavy suite. Empty non-default feature marker at first RED, no observer API/implementation yet. |
+| [slice30_gd_diagnostic.rs](../../../src/rust/crates/fathomdb-engine/examples/slice30_gd_diagnostic.rs) | G/D core-only diagnostic scaffold, real current APIs, fixed-selector completion test in native/test_completion.py; explicit maintained heavy suite. First RED used an empty feature; current private per-engine completion transport nests exact-reader snapshot metadata. No public SDK test accessor. |
 | [gd_resources.py](gd_resources.py) | G/D conservative allocated/apparent aggregation, setup/raw reservations and owned child phase guard; selectively adapts the committed Slice60 resource guard. Literal math and actual tiny-child tests in test_gd_resources.py are selected by the existing maintained Python discovery suite. |
 | [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |

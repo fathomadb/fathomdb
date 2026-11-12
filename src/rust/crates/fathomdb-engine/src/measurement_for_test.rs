@@ -32,6 +32,7 @@ impl Collector {
             collector: Arc::clone(self),
             call_id: self.next_call.fetch_add(1, Ordering::Relaxed),
             worker,
+            snapshot: None,
         })
     }
 }
@@ -40,6 +41,25 @@ pub(super) struct Completion {
     collector: Arc<Collector>,
     call_id: u64,
     worker: usize,
+    snapshot: Option<Value>,
+}
+
+impl Completion {
+    pub(super) fn stamp(&mut self, connection: &rusqlite::Connection, effective_at: i64) {
+        let started = std::time::Instant::now();
+        let generation = crate::frozen_read::load_visibility_generation(connection);
+        let cursor = crate::projection_commit::load_projection_cursor(connection);
+        let observer_ns = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX);
+        if let (Ok(generation), Ok(cursor)) = (generation, cursor) {
+            self.snapshot = Some(json!({
+                "event": "SnapshotStamp",
+                "generation": generation,
+                "projection_cursor": cursor,
+                "effective_at": effective_at,
+                "observer_ns": observer_ns,
+            }));
+        }
+    }
 }
 
 impl Drop for Completion {
@@ -52,6 +72,7 @@ impl Drop for Completion {
                 "engine_id": self.collector.engine_id,
                 "call_id": self.call_id,
                 "worker": self.worker,
+                "snapshot": self.snapshot,
             }));
         } else {
             self.collector.dropped.fetch_add(1, Ordering::Relaxed);
@@ -77,7 +98,8 @@ impl Engine {
     ///
     /// Records contain engine/call IDs and reader worker index. At most 32768
     /// records are retained between drains. This first completion transport does
-    /// not yet expose snapshot, predicate, error disposition or drop metadata.
+    /// exposes same-reader snapshot metadata when available, but not predicate,
+    /// error disposition or drop metadata.
     /// Returns `Closing` when admission closes or `Storage` on a poisoned buffer.
     #[doc(hidden)]
     pub fn take_slice30_measurements_for_test(&self) -> Result<Vec<Value>, EngineError> {

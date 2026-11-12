@@ -167,8 +167,14 @@ existing engine-owned attribution Arc; no global record buffer is used.
 Observation is disabled at open. Each call samples enablement at reader entry;
 disabling retains prior records and does not cancel an active observed call.
 Drain removes completed records in completion order, bounded to32768 between
-drains. Snapshot/predicate/error disposition/drop reporting are not yet supplied
-by this initial transport. Closing admission returns `Closing`; a poisoned drain
+drains. The nested `snapshot` is either null or a `SnapshotStamp` containing
+`generation`, `projection_cursor`, `effective_at` and `observer_ns`. Both metadata
+reads use the actual search reader transaction after the existing post-validation
+hook; the frozen effective time is reused. `observer_ns` measures these extra
+diagnostic reads. The bounded pinned-reader race independently distinguishes its
+old generation/body from the adjacent post-commit new generation/body. Predicate,
+error disposition and drop reporting are not yet supplied. Closing admission
+returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.
 
 ### Explicit engine test fixtures

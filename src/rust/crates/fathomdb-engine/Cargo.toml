@@ -31,7 +31,7 @@ dunce = "=1.0.5"
 
 [features]
 default = []
-# Non-default marker for the bounded Slice30 diagnostic scaffold.
+# Independent non-default engine-owned measurement diagnostics.
 slice30-measurement = []
 # Private TC-5 reader-worker route. This is intentionally not forwarded by the
 # facade or any language binding.

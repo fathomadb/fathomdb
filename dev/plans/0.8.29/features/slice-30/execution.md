@@ -112,3 +112,38 @@ committed-source comparison also verifies unchanged Python test files or complet
 Rust test modules for all13valid RED/GREEN pairs; invalid124e9f9b2 stays excluded.
 The compact external result is receipts/committed-tdd-oracles.json. This is an
 oracle-identity check, not a runtime replay or independent review substitute.
+
+## Original1f collection and reviewed pre-timing corrections
+
+Clean1f2133bea canonical continuation completed lint, typecheck and security,
+then selected216test suites:214passed,2failed,0skipped. Both failing suites,
+test-pages-site and test-tegra-pages-retention, refused stale generated
+contributor-map.md; retention follow-on assertions retain their raw diagnostics.
+Original1f evidence remains intact. Guard exited1 with no resource stop and
+identical clean start/end SHA. No uninterrupted full-wrapper success is claimed.
+The293retained spills and one missed internal fake-pass fixture remain explicit.
+Production binding/native evidence from that run is attributed to1f.
+
+Fresh independent Astra review requested three output-tool corrections before
+natural timing; the same reviewer accepted their bounded prospective method.
+Each new regression preceded its separate fix; original5Rust tests are unchanged.
+
+| Unit | Actual runtime RED | Separate GREEN |
+| --- | --- | --- |
+| Completed tail resume |9f808605a: real a/b/c children, retry loses on-disk c-r0 |ed4f43ab7:12tests pass; original c attempt remains, third resume starts no children |
+| UTF8 partial output |322c0d476: literal summary and bounded prefix property lose completed observations to actual UnicodeDecodeError |33781a19f:14tests pass,20deterministic property examples, strict per-line bytes;3ms literal retained with issue/incomplete disposition |
+| Raw checkpoints |1885f543f:6real-store tests,5pass and actual child16-observation rendezvous loses0vs16 raw samples |5b1019c99:6unchanged tests pass; P1/P2 checkpoints,4warmups,16timed IDs/times and P2 batch/probe records survive owned-child stop/wait |
+
+R2 checkpoints are outside API/write timers, every16records per stream and phase
+boundaries. The readiness ACK follows successful16threcord checkpoint. Between
+completed checkpoints <=15tail records may be unavailable; a pending interrupted
+flush can be partial. No fsync, full pending-flush survival or DB recovery claim.
+Actual metadata reports records/encoded bytes/checkpoints/persistence time and
+checkpoint time; throughput includes recording/checkpoint I/O. R3 adds a genuine
+bounded codec invariant alongside its literal summary regression, not a fuzz or
+tamper framework. All three new oracle modules remain byte-stable across fixes.
+
+Affected checks, legitimate generated contributor-map refresh, rebuilt actual P0
+program proofs and same-reviewer correction verdict precede the clean actual P
+campaign freeze. Natural timings remain held at this checkpoint. Whole20/30,
+M/F/G/D,40/50 source, Windows/pre90/Block1 and final160 remain separate holds.

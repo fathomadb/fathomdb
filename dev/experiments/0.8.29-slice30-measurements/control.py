@@ -34,6 +34,10 @@ def freeze(cells, corpus, queries, binary, out):
         "cell_seconds": 900, "campaign_seconds": 14400, "active_bytes": 16 * 1024**3,
         "repeat_count": 2, "warmup_policy": "separate records; not included in timed statistics",
         "source_observation": "freeze records actual dirty state; qualifying timing requires clean source",
+        "raw_persistence": {"checkpoint_records":16, "unit":"per stream",
+            "boundaries":"warmup/pass/diagnostic completion", "fsync":False,
+            "scope":"outside API/write timers; included in timed loop throughput",
+            "interruption":"up to15 tail records between completed checkpoints; pending flush may be partial"},
     }
     if manifest["corpus"]["count"] < max(cell["n"] for cell in plan):
         raise ValueError("corpus is smaller than a selected cell")

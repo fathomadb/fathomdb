@@ -1,6 +1,6 @@
 # Slice 30 initial P preregistration
 
-Status: PROPOSED; freeze by commit after design acceptance, before timed work.
+Status: P design accepted; immutable actual campaign freeze still precedes timing.
 This is an observation campaign, not performance tuning or a new release gate.
 Only P is the initial source/runtime review request. Later groups require the
 concrete fit/review boundary in [design](design.md).
@@ -63,6 +63,19 @@ additional balanced repeat only if needed to interpret an apparent target miss
 or adapter difference, within existing caps. This is not retry-until-green.
 No filtering out slow calls/errors/outliers. Error latencies/counts are separate
 from successful-call percentiles; all requests remain in throughput denominators.
+
+## Raw output checkpoints
+
+Each raw stream appends outside API/write timers and flushes every16records plus
+warmup/pass/diagnostic boundaries. No fsync or power-loss durability claim. The
+<=15uncheckpointed-tail bound applies between completed checkpoints; interruption
+during a pending flush can leave that checkpoint partial. Record encoded bytes,
+records, successful checkpoint calls/time and total persistence time. Pass
+persistence totals include warmups; timed throughput excludes warmups and includes
+timed serialization/checkpoints, plus P2 committed writes/marker proof queries.
+Shared CPU/cache/I/O influence remains; do not subtract this overhead from latency.
+Strict per-line UTF8 decoding preserves complete JSONL prefixes, reports invalid
+or truncated final lines, and retains failed/incomplete cell disposition.
 
 ## Resource and stop rules
 

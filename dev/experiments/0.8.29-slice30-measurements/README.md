@@ -16,11 +16,11 @@ No old prototype timing is a current baseline or fidelity result.
 | [control.py](control.py) | Freeze actual source/lock/binary/input identities and balanced plan; serialized Linux campaign with resource observations; report every complete/failed/not-run/partial cell. Long CLI runs require AGENT_LONG=1. |
 | [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
-| [test_tools.py](test_tools.py) | Eleven bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
+| [test_tools.py](test_tools.py) | Fourteen bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
 
-The Rust example's five independently specified real-store assertions are
+The Rust example's six independently specified real-store assertions are
 explicitly selected by test-slice30-measurement-adapter in the maintained agent
-runner. Eleven Python tool tests are selected by test-slice30-measurement-tools;
+runner. Fourteen Python tool tests are selected by test-slice30-measurement-tools;
 its controller is Linux-only and reports that boundary on other platforms.
 These are bounded ordinary tests. They never launch the natural100k campaign.
 
@@ -79,8 +79,18 @@ governed calls; rows records their cohort size. Canonical batch atomicity follow
 the existing SDK/core commit contract, not instrumentation of all ancillary
 SQLite commits. No projection-overlap claim follows.
 
+Raw streams append after each completed operation and flush every16records per
+stream plus warmup/pass/diagnostic boundaries, without fsync. Result metadata
+reports encoded bytes, record/checkpoint counts, persistence and checkpoint time.
+Between completed checkpoints, up to15tail records per stream may be unavailable;
+interruption during a pending flush may leave that checkpoint partial. Completed
+UTF8 JSONL prefixes survive a partial final line, which is reported as an issue.
+A useful raw prefix never turns an interrupted cell into complete qualification.
+The bounded child test stops only its own process after the16th checkpoint ACK;
+this proves tool output retention, not database recovery or power-loss durability.
+
 API sample timing stops before output record hydration/serialization. Loop
-throughput includes driver recording and, for P2, writes/probes; it is labelled
+throughput includes serialization/checkpoint I/O and, for P2, writes/probes; it is labelled
 separately from API latency. Raw FTS match counts use the actual default product
 compiler on the controlled active node fixture, separately from limit10 returned
 hits. This is match/cost characterization, not relevance gold. Snapshot authority

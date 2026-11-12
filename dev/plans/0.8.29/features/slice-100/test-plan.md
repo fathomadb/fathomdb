@@ -1,26 +1,20 @@
-# Slice 100 selectors, independent oracles and execution holds
+# Slice 100 test map and evidence limits
 
-All commands below are **available selectors**, not new100 executions. Actual10
-is closed; independently reviewed20 Linux subset657edeb is integrated at clean
-parent/release2f6913c. The actual20 canonical run supports existing-control reuse
-as described below. This planning update authorizes no executions. Later selected runs require the
-parent's fresh checkout/GO, strict closed10 dependency preflight, actual-base
-reread and checkout-owned tooling/source identity. Recorded independent actual10 design PASS was
-bounded to existing-evidence reconciliation; this actual20 update awaits fresh
-independent design/evidence recheck. Use the actual completed10
-owned setup helper and artifacts rather than another checkout's venv/modules.
-No model/data/registry download or environment change occurred here.
-Keep original error diagnostics and real exit codes. Required final source gate
-is once on the stable final code phase, not repeatedly for this scratch package.
+This candidate authorizes read-only inspection and documentation only. S1–S9
+are existing selectors and assertion mappings, not requested new runs, tests or
+source changes. [Design](design.md) explains selective current input equivalence
+and the retained historical actual20 execution inference. Its bounded Astra PASS
+is preserved; fresh v1 design PASS covers the bounded census. Exact v2 semantic
+design PASS covers the proposal. Exact v3 design PASS verified documentary fixes;
+parent scoped checks and a different fresh final documentary/output PASS cover
+the imported stable parent candidate, as bound in [review log](review-log.md).
 
-## Existing proof to reuse before writing tests
-
-Base form is `cargo test --locked -p fathomdb-engine --features operator,test-hooks`
-plus selectors below and `-- --test-threads=1` where no exact filter is given.
-These targets require both named features in Cargo.toml. Default workspace tests
-without them can skip the target entirely. Ignored child entrypoints called by
-their normal parent count as actual child execution only when exit/reachability
-evidence proves the parent ran; do not directly run all ignored tests.
+Existing selector form is `cargo test --locked -p fathomdb-engine --features
+operator,test-hooks` plus the row below and serial test threads. Feature-gated
+targets can be omitted without these features. Ignored child entrypoints count
+as reached only through a parent whose assertions require their named exit;
+directly selecting all ignored tests is not an equivalent proof. No command in
+this map was executed by this owner.
 
 | Selector | Exact target/filter / AC / meaningful independent oracle |
 | --- | --- |
@@ -34,73 +28,138 @@ evidence proves the parent ran; do not directly run all ignored tests.
 | S8 | `--test erasure_completeness`; A3/A4. AC080 raw-file positive secret/control before close, typed BUSY refusal and original-sink selective redaction/retry/reopen; preserve existing platform-specific Windows distinct-child diagnostic. Linux execution does not qualify that Windows selector. Record actual inventory, not stale “ten” count by narration. |
 | S9 | `--lib physical_erasure::tests::`, then `--lib visibility_admission_tests::`, `--lib visibility_coalescing_tests::`, `--lib projection_registry::span_erasure_tests::`, plus `--test slice95_visibility_coalescing`; A1/A3/A6. Actual deferred-COMMIT rollback, mapped non-head replay residue refusal,24-case retry/survivor property, armed-state admission, mapping/span cleanup while coalesced, direct orphan-span erasure and current37 constraints. Record actual nonzero selections/features and property failures/seeds. |
 
-Select only affected obligations or reuse exactly attributable existing receipts;
-these rows define the evidence set, not permission for a broad repeat campaign.
-Retain old successes, failures, first/persistent fault cases and healthy controls.
-No observed RED/GREEN or product pass is supplied by the selector table.
+## Original obligation and remaining evidence
 
-Actual20 reuse: its independently reviewed Linux subset657edeb is integrated.
-Clean6eee source-bound canonical workspace Rust command has no filters/exclusions;
-workspace operator/test-hooks closure selects these controls. The retained quiet
-Rust log hash aacbdb427f6a809d34ef046fe38ebebf5b8e01256f21e32a2d5e338d53bbd2a2
-matches its index. Lines1611–1629 match85 crash's2tests/eightchild launches/1pass/
-1ignored/0fail; unchanged passing parent implies all eight exit73/state/retry
-checks. This is command/source inference, not named phase/PID/binary-hash output.
-Other existing controls have matching quiet count/child blocks. Entire src/lock
-match6eee→657→2f691; the prior02e erasure/control inputs are also unchanged.
-Collector212pass/2fail plus reviewed affected corrections remains assembled
-qualification. Final657 binding identities/lifecycles are separate, not a Rust
-recapture. Retain all receipt limits for independent review; no duplicate broad
-campaign is indicated.20 remains open and creates no new hard dependency. No
-success fills G100-1/G100-2 observations absent from the unchanged assertions.
+S1/S2 establish actual transaction-interior interruption, addressing D28-09's
+“inside a transaction or WAL checkpoint” fault-position minimum. S1 has eight
+exit73 witnesses with5s watchdog and target/survivor/ticket logical-state/retry
+assertions. It checks exact Complete phase pre-retry only after_completion_commit.
+S2 has broader canonical/debt/continuation/sink assertions with unbounded child
+waits. Neither establishes every rich dimension after every abrupt exit.
 
-## Optional new evidence — not authorized to land under current TDD rule
+S3–S9 retain distinct autonomous, explicit, offline, positive physical, survivor,
+history, span and refusal oracles. S8 raw physical proof is before close; S3's
+post-crash main-file scan is after close. S7's route result evidence is historical;
+current70 changes query degradation reporting, although its erasure mechanisms
+and named test are unchanged. No automatic current-native/artifact qualification
+is inferred from selective source equivalence.
 
-Q1 in [design](design.md) targets A100-5/G100-1 only: an owned disposable child
-under a verified native-frame breakpoint, not timed termination. Reached receipt
-must prove erasure checkpoint callstack, positive frame work and exact child/
-binary identity before abrupt child exit. If breakpoint never reaches, stop and
-record missing control; do not emit success. Debugger/ptrace/native symbols and
-permitted venue need actual qualification before any fault. No new VFS or SQLite
-patch, host/power/disk fault, process-wide kill or production deadline is allowed.
+G100-1 active-native-checkpoint interruption is NOT QUALIFIED and optional under
+the original OR. Three retained predicates remain unmet: interrupted survivor
+history (G100-2H), direct post-crash projection/span state (G100-2P) and independent
+main/live-WAL absence after post-crash completion before close (G100-2W). These
+are actual evidence gaps, distinct from optional all-in-one/every-family/every-hook
+proof. [Design](design.md#obligation-and-disposition-map) retains their authority.
 
-If the specific passing-coverage exception is explicitly chosen and Q1 is
-reviewed viable, the narrow protocol is: one release-through healthy control,
-one attributable active-copy interruption, inspect the untouched post-crash
-artifacts through a live observer, then reopen explicit policy and assert
-Finalizing/Removed/root+ticket identity-free/global write fence/coalescing0 and
-survivor preservation before explicit retry. Retry must Complete with structural
-zero, actual live-WAL absence and one receipt; reopen again with no resurrection.
-This is process-crash checkpoint qualification only. Any debugger interruption
-that can publish a terminal success before the observed native return fails the
-oracle. Bound all owned actors by a reviewed external watchdog and reap on every
-failure; timeout is no product result.
+## Minimal coverage-only proposal
 
-G100-2, if specifically excepted, should reuse existing hooks rather than build a
-new matrix: rich explicit before-delete rollback, after-delete committed removal,
-and after-redacted identity-free state are the candidate minimal cells. Compare
-raw target cursor families/mapped vector IDs/spans and exact survivor history
-against pre-authored expected values and an independent survivor-only store.
-One original sink adds the existing after-rename replay witness; multiple-sink
-success/refusal stays with existing controls. All selected positive families must
-actually be populated. Preserve existing85 crash assertions verbatim; added
-assertions cannot weaken them. Coverage controls/mutants test test adequacy only,
-not substitute for observed baseline RED. No new tests are selected by default.
+**Proposal only: no implementation, execution or exception granted.** One proposed
+new normal parent in existing `tests/slice85_crash.rs`, named
+`interrupted_history_projection_spans_and_live_wal`, addresses H/P/W. It uses two
+existing faults and one healthy control, on disposable real format37 databases
+with persisted ExplicitMaintenance. No debugger, new runtime hook, production
+change, native checkpoint fault, sink expansion or broader campaign is proposed.
 
-## Receipts and terminal disposition
+### Exact reuse and selected cells
 
-Each executed cell records source SHA/tree/delta, Cargo.lock/config/features,
-toolchain/OS/architecture, test executable digest, exact command/test count,
-ignored/skip/exit status, child identity/reached fault and pre/post state, observer
-and live-WAL timing, fault-free control and replay result. Native carriers, if
-affected, additionally require own installed module/ABI/features/digest receipt
-and real open/read/write/close/reopen/exit; existing10 artifacts are not100 proof.
+Source symbols below are verified at1099978, within `fathomdb-engine`:
+`tests/slice85_crash.rs` owns ignored `crash_child` and normal parent
+`actual_process_exits_preserve_atomic_intent_removal_redaction_and_receipt`,
+which owns eight-phase exit73/watchdog/reopen/retry assertions. Preserve that
+original default seed, loop and assertions. Add only a test-local prepared-fixture
+mode to the same child for the new parent; it opens the prepared DB with the same
+deterministic provider/persisted policy and skips the default two-row seed.
+It still queues the existing source selector and completes through the same
+maintenance API, arming only existing before_delete_commit or after_delete_commit.
+The selected source-erasure hooks bracket COMMIT after real writes in
+`src/erasure.rs::Engine::excise_source_inner`, at `before_delete_commit` and
+`after_delete_commit`; no runtime hook is added or moved.
 
-For each confirmed defect: observed RED SHA/assertion/exact selector/log → separate
-GREEN SHA → unchanged oracle and independent review. Audit RED from Git before
-acceptance. Two same-issue corrections trigger the repository rethink rule.
-No code/no new coverage after reviewed source reconciliation is a valid result;
-record G100-1/G100-2 limitations explicitly and obtain their specific disposition
-before full D28-09 closure. A full gate passing cannot fill a missing reached
-fault or authorize a TDD exception. Later affected core changes invalidate the
-named receipts and160 reruns the affected combined seams.
+Reuse `Fixed` and `rich_fixture` in `tests/slice85_scope.rs`: deterministic
+8-dimensional provider, searchable text projection and existing doc vector kind. A local test helper
+needs only `target` (`target-source`) and `survivor` (`kept-source`),
+each with three deterministic body versions containing distinct target/control byte markers; drain each revision
+so lexical/vector/span populations are positive. No dependency tree, non-head
+synthetic vector or four-family cross-product is required for these three gaps.
+Reuse `snapshot`,
+`complete_erasure_removes_positive_terms_from_every_family_and_preserves_history`
+and `survivor_only_database_agrees_on_fts_order_and_score_bits` in
+`tests/slice82_physical_erasure.rs`, plus `erasure_wal_bytes_absent` in
+`tests/erasure_completeness.rs` for raw byte/control semantics. These private
+helpers are in separate integration targets; copy only their small seed/oracle
+recipe locally rather than changing production or extracting shared infrastructure.
+
+| Proposed cell / mapped acceptance | Reached boundary and independent assertions |
+| --- | --- |
+| H / A100-4 / G100-2H | For both selected crashes, independently read all three survivor canonical versions after reopen and again after retry. Compare every captured canonical row/column, cursor/rowID and body to the validated pre-crash snapshot, not just presence/count. Parent first checks that snapshot contains the three literal intended survivor bodies. Compare final survivor-only lexical ID/order/score bits against a separately seeded survivor-only store. |
+| P / A100-3 / G100-2P | Before fault, capture positive target/survivor cursors, lexical rows, mapped native vector IDs and span tuples. After before_delete_commit exit73/reopen, target canonical/lexical/vector/span records equal their pre-crash snapshots (rollback). After after_delete_commit exit73/reopen, target canonical rows, selected lexical rows, captured native vector IDs/mappings and target-cursor spans are directly zero. Survivor history, lexical rows, vector IDs/mappings and spans remain as captured in both cases. Check before any retry through independent raw SQLite reads, not product proof validators or logical read absence. |
+| W / A100-3 / G100-2W | Retry each crashed ticket to Complete; healthy control completes without a hook. Before any final Engine/observer close or subsequent write, independently scan main and live-WAL for absence of the positive target marker and presence of the survivor control marker in at least one artifact. Record each artifact's existence/length; successful TRUNCATE may leave WAL empty/absent, but unexpected I/O errors fail. Repeat direct target structural-zero and survivor-history checks. Complete alone is insufficient. |
+
+### Minimal protocol and independent controls
+
+Prepare each fixture and the separate survivor-only reference from literal
+version bodies. Independently capture raw canonical/lexical/vector/span rows in
+stable key order; assert the three intended historical bodies and positive target/
+survivor lexical, native-vector and span populations. Require actual target/control
+bytes with the seeded Engine live. Close preparation ownership before child open;
+never regenerate expected snapshots from post-crash results.
+
+Execute before_delete_commit and after_delete_commit once each through the
+prepared child with exact73/reached phase and existing5s watchdog/kill-and-wait.
+Hook miss/fall-through99 or zero selection fails. Reopen ExplicitMaintenance with
+the deterministic provider, independently check H/P before retry, and end the
+observer transaction before TRUNCATE. Retry the same ticket, then check H/P/W
+with Engine and observer still live and no ordinary post-completion writes.
+One healthy no-fault completion uses the same fixture and terminal H/P/W checks;
+positive populations plus survivor-only comparison prevent vacuous absence or
+whole-store deletion from passing. Original eight controls remain unchanged.
+
+Use a60s external bound per fixture sequence and cleanup only owned children on
+failure; bounds are test limits, not product deadlines. Retain all three fixture outcomes'
+source/features/executable/command/count/exit, reached phase, raw pre/post snapshot
+and artifact results, failures/skips. Timeout is unqualified. No mutation of
+correct product code or missing-hook compile failure supplies RED.
+
+### Required narrow policy exception and future qualification
+
+These assertions will likely pass on the already-correct baseline. Strict TDD
+cannot truthfully supply a product RED for absent assertions. The needed exception
+would authorize **only this test-local H/P/W coverage parent, prepared-child mode,
+small seed/oracle helpers and healthy control**, as honestly labeled coverage-only
+commits with observed baseline results; no manufactured RED, new hook, production
+change or further campaign. That exception is not granted, not inherited from20
+and not asked of the user here. If absent, leave these three evidence gaps open.
+A real accepted-invariant failure instead becomes its own observed RED commit/body
+with exact assertion evidence, then separate minimal GREEN with unchanged tests.
+
+Any later execution requires explicit scope/exception, reviewed exact source
+entry and owned preflight/tools/artifacts. Native work starts only with aggregate
+MemAvailable>=16GiB, data free>=250GiB and root free>=32GiB; light documentation
+uses8GiB. Use one native phase, serial tests/jobs1 and task-only data temp/cache/
+logs; borrow no slice resources. Current roughly13.6GiB memory permits docs only.
+No paid/GPU/model/VM/network fault venue is required. Watchdog/resource failure
+stops the owned task, preserves receipts and authorizes no threshold reduction.
+
+Focused proposed selectors are the new parent and unchanged original parent in
+`--test slice85_crash`, with operator,test-hooks and nonzero counts. If authorized
+test/executable changes are implemented, run the required full source gate once
+on the stable final code phase, keeping original failures and affected resumptions;
+do not substitute focused coverage for it. Parent then obtains fresh independent
+implementation/results review before any predicate or whole-slice closure claim.
+Current documentary reviews/checks provide none of that runtime acceptance.
+
+## Review and verification of this candidate
+
+Owner performed link/source/hash/scope/whitespace consistency checks and froze
+the exact seven-file patch/manifest. No repository Markdown or full source gate
+ran in that owner stage. Parent subsequently passed the scoped Markdown/state/
+diff checks on unchanged11-file diffc0e80622 against1099978, then obtained the
+different fresh final DOC/OUTPUT PASS. [Review log](review-log.md) records exact
+subjects, receipt and limits. These are documentary results, not product-test
+passes, H/P/W qualification or a verdict on this record-only delta.
+
+A later demonstrated defect needs observed RED SHA/assertion/selector evidence,
+separate GREEN and unchanged oracle. Any future affected source gate is run once
+on a stable code phase with original failures and scoped resumptions retained;
+this map creates no execution or all-release rerun authority.160 retains affected
+final combined qualification. Slice20's unresolved exception grants none to100.

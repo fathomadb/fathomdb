@@ -7,116 +7,105 @@ slice: 100
 
 # Slice 100 — bounded interrupted-erasure reconciliation
 
-Direct Sol-high ownership follows the [execution mandate](../../direct-execution.md):
-independent fresh Astra-medium design review before implementation, same owner
-for any approved implementation, then a fresh independent implementation review.
-No Steward/Orchestrator role or nested agent. This reconciliation changes only
-the same six scratch documents, with intended repository destinations preserved.
-Recorded independent Astra actual10 design recheck passed at02e30d, bounded to
-existing-evidence reconciliation; it approved no new faults or closure. This
-actual20 evidence update still requires fresh independent output/results review.
+This is a documentation and read-only source/evidence proposal at qualified
+parent `1099978cd7d7aef6e745cfc850ddb8f9b57050d3`. The same dedicated Sol-high
+owner follows the [direct mandate](../../direct-execution.md); parent commissions
+fresh independent Astra-medium design review and a different fresh final output
+review. No source/test/executable change, new fault or closure is selected.
 
-## Authority and exact scope
+## Authority and original obligation
 
-D28-09 inclusion is already assigned by the owner, not a new question. Its
-[original obligation](../../../0.8.28-draft-scope.md) is controlled erasure
-interruption inside a transaction or WAL checkpoint, truthful reopened state and
-repair of confirmed violations. Completed [3](../../prework/slice-3/allocation.md),
+[D28-09](../../../0.8.28-draft-scope.md) says “inside a transaction or WAL
+checkpoint”. Its original minimum does not require both. It also requires
+controlled named interruption, independent reopened-state and physical-erasure
+oracles, truthful completion and repeatable recovery; repair is conditional on
+an observed violation. Existing transaction-interior process exits address the
+fault-position minimum, with the exact proof limits in [the census](coverage-matrix.md).
+This proposal does not declare the entire original obligation complete.
+
+Completed [3](../../prework/slice-3/requirements.md),
 [4](../../prework/slice-4/alignment-matrix.md),
 [5](../../prework/slice-5/traceability.md) and
-[9](../../prework/slice-9/decision-log.md) retain this bounded allocation.
-The [master release](../../../plan-0.8.29.md) supplies N29-R/R29-REL-R;
-R29-3P-16/O3-16 is its local need/requirement/oracle join.
+[9](../../prework/slice-9/decision-log.md) retain bounded100 inclusion and
+R29-3P-16/O3-16: compare existing coverage, then fill proven interruption/reopen
+post-state gaps under accepted maintenance semantics. They name survivor/history,
+projection/span/fence/ticket/telemetry/WAL and eventual completion, but do not
+expressly require every dimension in one fixture or every hook, or an active
+native-checkpoint interruption in addition to transaction proof. The proposed
+interpretation and unresolved residual are explicit in [design](design.md).
+A review may challenge this interpretation; it cannot supply an owner waiver.
 
-Verified external memory `physical-erasure-done-defects-only.md` closes the
-feature and optimization program except defects. The accepted
+Verified external memory `physical-erasure-done-defects-only.md` closes further
+feature, optimization and research effort except concrete defects. The accepted
 [maintenance contract](../../../../design/explicit-maintenance-erasure/contract.md),
 [explicit ADR](../../../../adr/ADR-0.8.28-explicit-erasure-maintenance.md),
 [autonomous ADR](../../../../adr/ADR-0.8.28-resumable-physical-cleanup.md) and
 [format37 ADR](../../../../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
-remain authoritative. No database migration, new guarantee, cleanup API,
-availability program, SLA or latency retiming is allocated. No host/power/disk
-faults, driver/toolkit changes, K620, paid venue or publication is authorized.
+remain in force. This reconciliation changes no API, format, threshold or guarantee.
 
-## Result of source reconciliation
+## Proposed outcome and limits
 
-The [census](coverage-matrix.md) maps actual source and complete test bodies.
-Existing evidence already covers real process exits at eight explicit queue/
-delete/redaction/receipt boundaries, transaction-interior rollback before delete
-and sanitation commits, positive sanitation continuation, autonomous reopen,
-durable fences, original sinks, offline receipt reconciliation, all FTS families,
-non-head vectors, spans and independent survivor/history controls.
+Retain eight real explicit-policy crash controls, transaction-interior rollback,
+positive sanitation continuation, autonomous reopen, fences, sink replay and
+independent success/survivor/history/span witnesses. No demonstrated product
+defect currently justifies source repair. A before-commit fault after writes
+inside IMMEDIATE is transaction-interior interruption, not missing coverage.
 
-No current product defect has been observed or established by this read-only
-audit. A before-commit hook is inside its active transaction; the premise that
-transaction-interior process-crash coverage is absent would be false. Conversely,
-neither checkpoint BUSY nor pre/post-call observations prove an abrupt exit
-inside active checkpoint work. G100-1 active-checkpoint reachability and G100-2 rich post-crash composition
-assertions remain open. Integrated20 supplies usable command/source execution
-inference for the existing controls under G100-3; final independent review
-remains. These are evidence classes, not three established bugs.
+G100-1 remains optional unproven active-native-checkpoint reachability. G100-2
+contains three retained evidence gaps, not demonstrated bugs. An exhaustive
+combined matrix is not an additional gate for the original disjunctive minimum.
+The retained post-state gaps are concrete: unchanged survivor historical versions
+after interruption (G100-2H), direct post-crash projection/span state (G100-2P),
+and independent main/live-WAL absence after post-crash completion before close
+(G100-2W). These cannot disappear by labeling a larger conjunction optional.
+Whole100/D28-09 closure remains unclaimed. The test plan proposes two existing
+transaction faults plus a healthy control for exactly these three predicates.
 
-## Ordered work and policy disposition
+The prior bounded actual20 evidence/design Astra PASS remains valid for that
+reviewed proposal. It accepted eight-control execution inference with quiet-log
+limits; it did not waive either proof limit. Current source differs from that
+baseline. [Status](status.md) and [design](design.md) record actual integrated
+10/20/60/70/30-P and selective unchanged inputs, rather than entire-source equality.
+Fresh v1 design review passed this current-source reconciliation with no P1/P2
+findings and identified the three concrete retained predicates above. Exact v2
+semantic design PASS covers the coverage-only proposal, with documentary fixes
+addressed in exact v3 DESIGN PASS. Parent scoped checks and a different fresh
+final DOC/OUTPUT PASS cover the imported stable11-file diffc0e80622 against1099978,
+as bound in [review log](review-log.md). No verdict upgrades historical runtime
+proof or grants a policy exception.
 
-1. Parent arranges fresh independent review of the actual20 evidence update; the
-   prior actual10 design PASS remains bounded to its reviewed source/evidence.
-2. Actual10 implementation104dcbcbe92a1eca730d146b99ab17d444df6217 has fresh
-   Astra implementation PASS and parent closure d7d928f8e. The prior recheck read
-   that evidence at02e30d861beddc8061af0dc22f12106d5e09dd32.
-   Current clean parent/release2f6913c1d59ac8ff3a30de835b57290a8635998c includes
-   independently reviewed20 Linux repairs657edeb. Existing crash-control inputs
-   remain unchanged; recheck later actual deltas before any source entry.
-   Parent provides the fresh isolated checkout and explicit source entry;
-   strict closed10 dependency preflight and own tools/artifacts still precede
-   execution. This read-only update authorizes no setup, native tests or faults.
-3. Reuse or execute the existing selected suites under [the test plan](test-plan.md).
-   Accept matching receipts only with exact source/configuration/test identity;
-   report zero-selection, skip and historical results honestly.
-4. G100-2 new passing coverage is **deferred by this candidate** under the current
-   strict TDD rule; retain its explicit coverage limitation. G100-1's optional
-   debugger-based child qualification is a concrete design alternative, not
-   selected or authorized execution. Both require the specific disposition in
-   [design](design.md) before new passing-on-arrival tests/harnesses can land.
-5. A genuine contract failure, if later observed, receives its own observed RED
-   commit with exact failure evidence, then a separate minimal GREEN. Preserve
-   its human-intent oracle unchanged. An absent hook/compile failure or mutation
-   of correct code is never a substitute RED.
-6. Close only the discharged obligations. A reviewed no-code reconciliation is
-   valid; it cannot silently certify or waive G100-1/G100-2. Full D28-09 closure
-   requires their proof or explicit authorized disposition. Reviewers cannot
-   supply that owner policy decision.
+## Ordered work
 
-The unanswered Slice20 race23/T2 exception question applies only there and grants
-no Slice100 exception. `tdd-red-must-fail-per-finding.md` permits documentation
-only without RED; this package invents no blanket qualification exception.
+The review, documentary correction, scoped-check and final-output steps below
+completed for the exact v3/imported parent subjects recorded above. The conditional
+repair boundary is unchanged; this record update adds no implementation step.
 
-## Integration and verification
+1. Review this seven-file reconciliation against original and later authority,
+   complete named test bodies, source mechanisms and retained evidence.
+2. Resolve concrete documentary findings through this same owner. Parent runs
+   the applicable scoped Markdown/state checks on the exact reviewed patch;
+   no borrowed tools or product execution are needed for this candidate.
+3. Obtain a different fresh final output review. A reviewed no-code documentary
+   result is valid. Preserve unproven cells and the separate closure decision.
+4. If a concrete accepted-invariant defect is later demonstrated, scope its
+   repair separately: observed per-finding RED commit/body evidence followed by
+   separate minimal GREEN with unchanged tests and independent review. No new
+   test, debugger alternative or passing qualification harness is selected now.
 
-[Requirements](requirements.md), [design](design.md), [test plan](test-plan.md)
-and [status](status.md) bind the narrow result and remaining holds. No semantic
-dependency on80/90 or CUDA hardware is identified. Serialize source/shared-hook
-landings with40/50/70/110; later affected engine/source changes explicitly
-invalidate the corresponding receipts and require affected rechecks. Slice160
-owns final combined affected qualification, not automatic all-.29 inheritance.
+Strict TDD is unchanged. Implementing the proposed likely-passing coverage cells
+would need an explicit narrow coverage-only exception; it is neither granted nor
+requested from the user here. No Slice20 exception is inferred. Any later fault/source execution requires explicit
+scope, actual-parent reread, own closed10 preflight/tools/resources and review.
+Slice160 owns affected final combined qualification, without an automatic repeat
+of all historical tests. No dependency on30 runtime,80/90 or CUDA is introduced;
+30 G/D is isolated, unqualified and outside this parent's source/evidence.
 
-The [completed10 execution](../slice-10/execution.md) and
-[terminal review](../slice-10/review-log.md#fresh-final-implementation-verdict-and-parent-integration)
-replace the old in-flight candidate assumption. The actual preparation includes
-early nonmutating ownership guards, noneditable own-wheel setup, exact pytest
-parent/child native identity,18 observed RED/GREEN pairs and214 registrations.
-Its original failed211-suite collector and qualified affected resumptions remain
-assembled10 evidence. Independently reviewed20 Linux subset657edeb is integrated.
-Its clean6eee source-bound214-suite collector212pass/2fail plus reviewed affected
-corrections is likewise assembled qualification. The matching quiet Rust eight-
-child block and unchanged source support existing-control execution inference,
-not active-checkpoint or rich post-crash proof.20 A3/A5 and WindowsA6 remain open.
+## Quality-roadmap fit
 
-Planning-only import uses scoped Markdown checks. Any source, test or executable
-change requires the required final full source gate on its stable owned tree,
-with original failure evidence and scoped resumptions retained. No product tests,
-faults, builds, setup, downloads or source/Git/ledger writes occurred in Phase A.
-
-Quality-roadmap fit: adopt the bounded anomaly/reopen and independent positive
-survivor approach already present; defer general VFS/OOM/MC/DC/fuzz campaigns.
-The new evidence is substantial inherited coverage and the strict TDD constraint,
-which favor explicit no-code/disposition paths over redundant erasure work.
+The [roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md) applies
+bounded anomaly/reopen testing, positive witnesses and independent survivor-only
+comparison already present. New evidence is substantial existing real-crash
+coverage and unchanged erasure mechanisms despite later query/MCP work. Defer
+new VFS/OOM/power-loss/fuzz/MC/DC or optimization campaigns under the owner closure;
+roadmap recommendations create no automatic gates. Local architectural attribution
+is sufficient: no contradiction requiring a global architecture edit was found.

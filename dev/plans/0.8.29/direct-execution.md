@@ -155,8 +155,10 @@ The30 owner completed the eligible reviewed G/D code prefix and light forecast
 work, but its source remains isolated and unqualified. Heavy TS/native/GPU entry
 requires actual16GiB available RAM; a refusal before child creation is not RED.
 No task-owned setup group remains to stop. Keep that owner quiescent under the
-original allocation while100 performs only bounded current-parent source/evidence
-planning. Slice100 depends on completed10 and has no30 runtime dependency.
+original allocation. The bounded100 reconciliation identified three retained
+post-crash predicates and a minimal, still-unselected coverage proposal. It
+introduced no runtime execution or strict-TDD exception.100 depends on completed10
+and has no30 runtime dependency.
 
 Main may advance reviewed planning metadata during this resource hold; it must
 not integrate unqualified30 code or select new100 faults/coverage exceptions.
@@ -169,3 +171,15 @@ After100 reports, main evaluates the next assignment and gives the same30 owner
 an exact current-parent resumption instruction when resources permit. Reconcile
 parent metadata by normal merge if needed; never rebase or rewrite recorded
 RED/GREEN commits. Strict current-source/resource checks still precede execution.
+
+## Next source-only identity reconciliation
+
+After100 reports, receives a different fresh final output review and is integrated,
+main selects the already-authorized50 source/consumer census and proposed identity
+ADR reconciliation. This is documentation/read-only source work, not source entry.
+Reconcile actual60/70 and measured30 P; hard30 source remains open and P is not
+G/D/M/F/TC5 qualification. Proposed identity/provenance/feedback/helper-pack choices
+remain undecided. No live Memex database/snapshot access, runtime census, tools,
+builds, native tests, models, GPU work, CI or publication follows. Keep one active
+owner,30 quiescent, all mutable resources under /mnt/data and resource floors.
+100's exact coverage exception and all80/90/Block1 dependencies remain held.

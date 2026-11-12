@@ -353,18 +353,24 @@ the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provid
 current direct-text evidence. P acceptance does not close whole30 or downstream
 source gates. The reviewed G/D source prefix remains isolated while host RAM
 is below its unchanged16GiB heavy start floor. The same30 owner is quiescent;
-its light work and static pinned-input preparation are complete, with final
-native/runtime qualification still pending. The next100 owner performs only
-bounded existing-evidence planning from the qualified parent under closed10,
-independently of30 runtime. Physical erasure remains done except defects; no new
-fault campaign, coverage exception or G100-1/G100-2 waiver follows. Future30
-resumption reconciles current parent metadata without rewriting RED/GREEN hashes.
-Product work continues through actual dependencies, reviews and genuine TDD.
+final native/runtime qualification remains pending. Slice100's current-parent
+documentary design passed independent Astra review. Three retained post-crash
+predicates remain unqualified; the minimal coverage-only proposal requires a
+specific strict-TDD exception, still ungranted. Active native-checkpoint proof
+is optional under the original transaction-or-checkpoint minimum.
+
+After100's fresh final output review and parent integration, the next50 owner
+reconciles the already-authorized source census and proposed identity contract.
+Qualified60/70 and actual30 P inform that planning; P supplies no G/D/M/F/TC5
+qualification or hard30 source closure. No semantic identity/feedback/packing
+choice, runtime census or source entry is inferred. Physical erasure remains
+done except defects. Future30 resumption reconciles current parent metadata
+without rewriting RED/GREEN hashes. Actual dependencies and pre90 Block1 remain.
 Publication remains separately authorized.
 
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 100** (`INTERRUPTION`) — Coverage-first bounded interruption and reopen qualification
+**IMMEDIATE NEXT: Slice 50** (`FUSION-TEXT`) — Approved identity semantics and exact text/snippet route
 
-**Remaining ladder:** 100 → 30 → 20 → 40 → 50 → 60 → 80 → 90 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 50 → 30 → 20 → 40 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

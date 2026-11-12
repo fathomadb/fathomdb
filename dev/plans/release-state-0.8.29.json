@@ -212,7 +212,7 @@
       ],
       "phase": "REVIEWED_GD_PREFIX_ISOLATED_RUNTIME_ENTRY_WAITING_MEMORY",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "Qualified P subset remains integrated. G/D Rust9e and forecast49be prefixes have independent implementation-review acceptance only, isolated on the same owner branch with no final full source/native/runtime/campaign qualification. Initial Python9e setup/build/import passed; TS start was refused125/pidnull at about12.4GiB RAM below16GiB. All eligible light work and private pin/hash/count staging are complete; no model/DB/GPU ran. Keep30 quiescent until explicit parent resumption with current metadata reconciliation, actual resources and original96setup+32raw/200GiB bounds. No G/D code integration or qualification is implied. M20 policy/proof, F exact TC5, Windows20, whole20/30,40/50/pre90 remain held.",
+      "conditions": "Qualified P subset remains integrated. G/D Rust9e and forecast49be prefixes have independent implementation-review acceptance only, isolated on the same owner branch with no final full source/native/runtime/campaign qualification. Initial Python9e setup/build/import passed; TS start was refused125/pidnull at about12.4GiB RAM below16GiB. Eligible light work and private pin/hash/count staging are complete. Static pinned-input staging opened no database and ran no model or GPU workload. Earlier observer TDD used real temporary databases; no G/D campaign ran. Keep30 quiescent until explicit parent resumption with current metadata reconciliation, actual resources and original96setup+32raw/200GiB bounds. No G/D code integration or qualification is implied. M20 policy/proof, F exact TC5, Windows20, whole20/30,40/50/pre90 remain held.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows. Concrete G/D design b83 passed independent Astra-medium review after correcting triple-overlap/pending-witness and same-reader snapshot-race oracles. The shared-example feature clarification separately passed. Parent independently verified clean Markdown-only candidate and conservative aggregate resource admission. At design entry, G/D source/campaign authority was prospective and no implementation or runtime result existed. Subsequent isolated source-prefix progress below does not establish final qualification or campaign results. At isolated49be, all resource/completion/snapshot/predicate/block/stats/outcome/forecast completed prefixes passed fresh independent Astra reviews, with actual fixes and original failures retained. Own Python setup9e exited0 in205.85s as build/import evidence only; heavy TS refused before child creation. Conservative owned footprint66.951GiB/setup2.429of96 and pinned local input copies are recorded under slice30-gd. Host memory remains below16GiB start, with no task-owned leftover process; no threshold or host process was changed. This is an unqualified pending source branch, not landed G/D work.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -248,7 +248,7 @@
       "depends_on": [
         30
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-50/census.md",
         "dev/plans/0.8.29/features/slice-50/design.md",
@@ -258,9 +258,9 @@
         "dev/plans/0.8.29/features/slice-50/review-log.md",
         "dev/plans/0.8.29/features/slice-50/test-map.md"
       ],
-      "conditions": "Accepted identity successor precedes production semantic change.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded PhaseA PASS after context-pack and role-tagged fixture corrections. The feedback decision presentation also passed review; the actual human ruling remains unanswered. Current measurements, representative safe census inputs and identity/ADR decisions remain held. No identity or new feedback ABI was selected."
+      "conditions": "Planning and read-only source/consumer-callsite census only under existing9 Batch3, after100 documentation handoff and parent integration. Reconcile qualified current60/70 and measured30 P without substituting P for G/D/M/F/TC5. Hard30 source dependency remains open; no full source-preflight success or implementation/runtime census is implied. Preserve proposed identity ADR/HITL choices for identity, provenance, feedback and helper/pack consequences. No live Memex/snapshot/DB/tool/native/test/benchmark/model/GPU/CI/publish work; only local50 docs and still-proposed ADR reconciliation with fresh design and distinct final output reviews.",
+      "phase": "CURRENT_PARENT_SOURCE_CENSUS_AND_PROPOSED_IDENTITY_PLANNING_AUTHORIZED",
+      "evidence": "Astra-medium bounded PhaseA PASS after context-pack and role-tagged fixture corrections. The feedback decision presentation also passed review; the actual human ruling remains unanswered. Current measurements, representative safe census inputs and identity/ADR decisions remain held. No identity or new feedback ABI was selected. Parent selects already-authorized source-only census/proposal reconciliation while30 is quiescent and100 retained predicates remain policy-held. Prior bounded PhaseA PASS is historical; fresh current-parent review is required. This assignment selects no semantic choice and supplies no source acceptance."
     },
     {
       "slice": 60,
@@ -371,9 +371,9 @@
         "dev/plans/0.8.29/features/slice-100/status.md",
         "dev/plans/0.8.29/features/slice-100/test-plan.md"
       ],
-      "conditions": "Planning/source-census continuation only from qualified current parent after closed10; independent of30 runtime and80/90. Reconcile eight existing controls and originalD28-09 under physical-erasure-done-defects-only closure. Fresh Astra scope/design review required; G100-1/G100-2 remain explicit. No source/test/executable/tool/native setup, DB/debugger/process crash/fault/VM/GPU/model campaign or TDD exception is authorized by this planning entry.",
-      "phase": "BOUNDED_EVIDENCE_RECONCILIATION_PLANNING_AUTHORIZED",
-      "evidence": "Astra-medium bounded actual20 evidence/design recheck PASS. Reuse of the existing eight-control execution is accepted with explicitly stated source/configuration inference limits. Active-checkpoint interruption and richer combined crash assertions remain open; no product defect, new test-policy exception or whole100/D28-09 closure was established. Parent permits a bounded current-source/evidence planning continuation while30 is quiescent under an actual host-memory start refusal. Preserve the historical bounded actual20 review PASS; stale pending-review/baseline prose must be reconciled, not treated as current. No new evidence, defect, source qualification or D28-09 closure is claimed by this assignment."
+      "conditions": "Documentation-only current-parent reconciliation has fresh Astra-medium exact v3 design PASS, actual parent scoped Markdown/state/diff passes and a different fresh Astra-medium final documentation/output PASS. Parent normal-hook integration accepts only this documentary checkpoint. Original transaction-or-checkpoint minimum has genuine transaction-interior evidence. Three retained predicates remain unqualified: survivor history after interruption, direct post-crash projection/span state, and independent main-plus-live-WAL physical absence after post-crash completion. Minimal proposal uses existing before_delete_commit/after_delete_commit and one healthy control. Narrow passing-coverage exception is ungranted; no test/source/native/runtime/fault execution or whole100/D28-09 closure follows. Active native-checkpoint interruption is optional, not a new gate.",
+      "phase": "DOCUMENTARY_CHECKPOINT_REVIEWED_THREE_PREDICATES_POLICY_HELD",
+      "evidence": "Historical bounded actual20 Astra PASS and original assembled collector failures/skips remain explicit. Current owner compared qualified parent1099978 to collector6eee through22 selective source/test/runner pins and retained65288-byte Rust log digest; parent independently verified all22 and log identity. Entire src/Cargo.lock differ and no all-transitive/current-binary equality or fresh100 runtime is claimed. Exact v3 seven-file documentation patch7f4e58ac6d3d7420248f33cd4623ebe51a7d5326e1c1d46c2c3cc7bcd3806dd5 passed independent Astra design review after MD012/source-symbol corrections. No product defect established. H/P/W proposal remains unselected pending exact policy/resource prerequisites; no debugger/new production hook, broader campaign or implicit20 exception. Different fresh Astra final documentation/output PASS reviewed the exact11-file parent diff c0e80622ed6e83547e16c526dae2e90c4200288955ae3be0c6a691123a7c4646; actual scoped Markdown/state/diff checks passed without candidate mutation. Review/check-record updates receive narrow consistency recheck; source/test/runtime/whole100 acceptance remains absent."
     },
     {
       "slice": 110,
@@ -496,16 +496,16 @@
     }
   ],
   "landed": [],
-  "next_slice": 100,
+  "next_slice": 50,
   "remaining_ladder": [
-    100,
+    50,
     30,
     20,
     40,
-    50,
     60,
     80,
     90,
+    100,
     110,
     120,
     130,
@@ -611,7 +611,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs,60 format/direct-filter/budget subset and30 provider-free P measurements passed within their recorded limits. P runtime2fd and final documentation0d8 have fresh independent P-subset acceptance; whole30/G/D/M/F remain open. Whole20/60/F11, remaining product/platform/artifact criteria, pre90 Block1 and final160 qualification remain pending. Assembled qualification retains original failures, interruptions/resumptions and inner skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication. Isolated G/D reviewed prefixes remain unqualified pending native/runtime capacity. Slice100 now receives planning-only existing-evidence reconciliation from the qualified parent; no new fault, policy ruling, source gate waiver or release completion follows.",
+    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs,60 format/direct-filter/budget subset and30 provider-free P measurements passed within their recorded limits. P runtime2fd and final documentation0d8 have fresh independent P-subset acceptance; whole30/G/D/M/F remain open. Whole20/60/F11, remaining product/platform/artifact criteria, pre90 Block1 and final160 qualification remain pending. Assembled qualification retains original failures, interruptions/resumptions and inner skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication. Isolated G/D reviewed prefixes remain unqualified pending native/runtime capacity. Slice100 now receives planning-only existing-evidence reconciliation from the qualified parent; no new fault, policy ruling, source gate waiver or release completion follows. Slice100 documentary design identifies three retained post-crash predicates with a minimal ungranted coverage-only proposal; whole100/D28-09 remains open. Next50 is source-only planning, with hard30 source and identity/HITL prerequisites unchanged.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

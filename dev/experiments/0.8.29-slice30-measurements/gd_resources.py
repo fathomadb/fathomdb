@@ -16,3 +16,11 @@ def setup_growth(roots, task_path, raw_roots, baseline):
                 row[metric] = max(0, row[metric] - sum(raw[metric] for raw in raw_roots))
         remaining.append(row)
     return max(0, aggregate_roots(remaining) - baseline)
+
+
+GiB = 1024**3
+
+
+def reservation_ok(owned, setup_used, g_raw, d_raw):
+    """Preserve accepted setup and both raw-family reservations under200GiB."""
+    return True

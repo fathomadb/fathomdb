@@ -572,5 +572,8 @@ retained/visible equations, identities, fixed public views and original cell/
 resource/timing limits stay unchanged. Existing public readiness is captured
 before both inventories and is paired with actual physical checks, never used
 as a substitute. Preserve failed-store/source/oracle/binary artifacts. The
-held scaffold/fixture is corrected only after this exact successor review and
-parent source continuation; no meaningful RED or governed GREEN yet exists.
+successor proposal froze the held scaffold without claiming a meaningful RED
+or GREEN. After independent design PASS and parent continuation, the bounded
+[execution record](execution-gd.md#gg-governed-validdeleted-measured-stages)
+records the supported-note missing-stage RED and minimal GREEN; actual campaign
+populations, phase deadlines and final qualification remain pending.

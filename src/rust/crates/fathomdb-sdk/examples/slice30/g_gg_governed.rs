@@ -1,6 +1,6 @@
 //! Explicit governed GG fixture inventory; retained source and erased derived are distinct.
 
-use super::{g_template, CoreObserver, GAdapter};
+use super::{g_gg_stages, g_template, CoreObserver, GAdapter};
 use fathomdb_engine::{
     ArtifactRevisionId, CanonicalHash, InitialState, LifecycleState, PreparedWrite,
     ProvenancedNodeV1, ReadView, SourceDependencyRegistrationV1, SourceId, SourceLocator,
@@ -162,7 +162,7 @@ fn control(engine: &fathomdb_engine::Engine, stage: &str) -> Value {
     json!({"stage":stage,"valid_as_of":100,"ids":ids,"elapsed_ns":elapsed_ns})
 }
 
-pub(super) fn fixture(config: &Value, out: &Path, _observer: CoreObserver) {
+pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
     g_template::run(config, out);
     let source = out.join("case-0/template.sqlite");
@@ -232,6 +232,13 @@ pub(super) fn fixture(config: &Value, out: &Path, _observer: CoreObserver) {
     let valid_readiness = readiness(engine);
     let valid = inventory(&store, &report.default_embedder, false);
     let mut controls = vec![control(engine, "valid")];
+    g_gg_stages::measure_stage(
+        engine,
+        config,
+        &directory,
+        ("valid", 100, "s30gggoverned"),
+        observer,
+    );
     let transitioning = Instant::now();
     engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
     let transition_ns = u64::try_from(transitioning.elapsed().as_nanos()).unwrap();
@@ -242,12 +249,19 @@ pub(super) fn fixture(config: &Value, out: &Path, _observer: CoreObserver) {
     let pending = deleted_readiness["pending_count"].as_u64().unwrap();
     let deleted = inventory(&store, &report.default_embedder, true);
     controls.push(control(engine, "deleted"));
+    g_gg_stages::measure_stage(
+        engine,
+        config,
+        &directory,
+        ("deleted", 100, "s30gggoverned"),
+        observer,
+    );
     adapter.close();
     assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
     let proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
         "governed_write_calls":1,"write_rows":2,"dependency_registrations":1,"transitions":1,"pending":pending,
         "write_ns":write_ns,"register_ns":register_ns,"valid_drain_ns":valid_drain_ns,"transition_ns":transition_ns,"deleted_drain_ns":deleted_drain_ns,
-        "scope":"ordinary provenance/dependency/lifecycle/public-view controls and physical inventory; no timed governed stage claim"});
+        "scope":"ordinary provenance/dependency/lifecycle/public-view controls and physical inventory; timed stages recorded separately"});
     std::fs::write(directory.join("controls.json"), serde_json::to_vec_pretty(&proof).unwrap())
         .unwrap();
 }

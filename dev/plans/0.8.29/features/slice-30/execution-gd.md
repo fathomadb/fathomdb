@@ -979,7 +979,7 @@ is yet qualified. Every conditional entry remains represented if not run.
 | GT2 and TGD9/14 integration | Normal G_TEMPLATE reads ordered JSONL, commits64-row cohorts, Default BGE/Mean, shared physical verifier, close/hash; D template uses current deterministic768. | Actual pinned corpus prefix→ordered record input, template sealing/copies, lower-size observation admission and common deadline integration. Current drain(5000) is a tiny-fixture bound, not a900s preparation/cell budget. |
 | G1=4; TGD10 route adaptation | Normal no-hooks private host, all six actual API modes, arbitrary ordered query feed/limit10, requested unscheduled warmups and supplied forward/reversed pass orders on one copy are implemented through8e5823. | Actual pinned10k/100k sealing/copies and500-query/50-warmup execution with reviewed deadlines/admission; TGD14 still generates the immutable balanced descriptors. Tiny source controls are not full-size execution or campaign qualification. |
 | G2=2; TGD10 actuation and per-mode adaptation | Generic per-pass reset/current-history coverage, retrieval doc-kind filtering, all-three-SDK-mode timed-group actuation and supplied same-copy mode/schedule descriptors are implemented in bounded source units; warmups2/timed20 and read-only preservation have initial literal/property oracles. | TGD14 still generates the immutable balanced repeat descriptors and admission; actual50/500 populations and remaining-budget drains remain pending. The new same-copy fixture proves supplied forward/reversed descriptors; earlier per-mode copy fixtures retain only their bounded source roles. |
-| GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). The private tc5-host fit received11e09 design PASS and normal GN is implemented; the no-hooks GO runtime adapter now has a bounded source unit with distinct GN and same-artifact off/on controls; final qualification remains pending. No SDK accessor/feature forwarding is inferred. GG needs its governed source-valid/invalid and no-dependency/time-window copies and declared100-query stages, not only predicate tests. |
+| GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). The private tc5-host fit received11e09 design PASS and normal GN is implemented; the no-hooks GO runtime adapter now has a bounded source unit with distinct GN and same-artifact off/on controls; final qualification remains pending. No SDK accessor/feature forwarding is inferred. Bounded time and governed valid/Deleted stage adapters now execute actual Core calls with independent literal controls. Declared100-query stages,100k copies and phase-budget integration remain pending; tiny fixtures do not qualify those populations. |
 | D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness and fresh physical completeness. | Actual1024-row cohorts, current worker lifecycle IDs/intervals (11), bounded held/release/drain phases (12), ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
 | Every entry; TGD14 launcher/admission | Existing13-root/original-baseline guard and pure time/storage/shared-clock forecasts. | One immutable manifest/attempt controller with900s total/870s work/30s cleanup, remaining-budget drains/close/partial retention; one shared4h clock INCLUDING GT/Dseed preparation, copies, quiet waits and retries. Pure ELIGIBLE_PROJECTION is not admission. Check actual retained bytes/floors and lower observations; refuse instead of resetting a deadline, substituting a smaller population or growing caps. |
 | Cross-entry results; TGD15 | P raw metrics/paired-call math and bounded observer transport/counters. | Actual G/D result schemas, complete identity/query/template/mode/repeat grouping, paired observer cost with missing/errors/drops/unpaired disposition, and tiny real-child oracles before report GREEN. No percentile subtraction or reuse of P results as G/D timing. |
@@ -1258,6 +1258,43 @@ their original subjects: their callers/transport bodies are unchanged, not
 relabelled current full qualification. The suite's unique build-label assignment
 propagates date failure before invoking its builder. The governed valid→Deleted
 copy remains a separate unit; no100k preparation/campaign/full qualification.
+
+### GG governed valid/Deleted measured stages
+
+The first fact-kind fixture failed physical coverage before any transition or
+missing-stage assertion and remains NOT_RED. Its original binary,27preimages,
+failed stores and read-only observations remain under proofs/gd-gg-governed-
+not-red-preimages and gd-gg-governed-fact-fit-observation.json. The879a41b
+successor received independent design PASS before changing only derived KIND
+to supported note; source KIND stays doc, provenance role stays derived.
+
+Genuine RED669b1115abe36f2028e9c4a7dcfd69d49e9e170c reaches independent
+valid/Deleted0vs2 and property valid0vs1 assertions (2tests/3failures) after
+public readiness, closed-copy, actual canonical/physical/profile/span/FTS,
+closure and literal-view controls pass. Fixed oracle SHA256 is
+`7304c2c4514b2da2246eb01d0453abe88acdeca4d3f0aad0b89a95237f3e01d7`.
+Minimal GREEN adds only two calls to the existing shared GG measured-stage
+caller: valid BEFORE transition and Deleted AFTER drain/control. Time-stage
+oracles and the shared caller body remain unchanged; relocation controls pass2/2.
+
+GREEN2/2 covers three fixtures/six stages/16actual hybrid calls (12timed,
+4warmup). Both stages use valid_as_of100. Actual dependency/fallback SQL is
+invoked: valid false without degradation, Deleted true with explicit vector
+eligibility degradation and empty eligible IDs. Reader generation advances at
+transition; one Engine retains monotonic call IDs. No sparse fallback is
+labelled successful dense BGE work. Canonical rows remain67 (65active/2deleted),
+retained vectors/spans66; deleted source doc shadow remains, derived note
+mapping/span/both FTS shadows are absent. Counts are observed, not phase labels.
+
+RED binary is1452c8c3d5e64e6234e261cd253c208dabb9b711da0928f3fb04460b1d8433d0;
+GREEN is57b0a801db297ec483be2193f0bdd7dc38f1165983aa57b6588deacc1fbf790b.
+Task proofs/gd-gg-governed-corrected-red-identities.json and -green-identities.json
+bind sources/oracle/controller/model/binary/actual no-hooks observer closure
+before runtime. Receipts/logs gd-gg-governed-corrected-scaffold-checks,
+-corrected-build, -corrected-red, -green-build, -green-lint and -green preserve
+source/delta/exit,13roots/originalbaseline and completed owned cleanup.
+Per-fixture copy/open/coverage/close attribution and absolute native/controller
+phase bounds remain pending. No100k preparation, campaign or full qualification.
 
 ## Evidence locations and interpretation
 

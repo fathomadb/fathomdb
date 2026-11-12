@@ -32,6 +32,11 @@ integrates accepted work and dispatches the next slice owner. Completed slices
 retain their verified exits unless subsequent evidence invalidates affected scope.
 No Steward or Orchestrator role is used.
 
+The owner requires `/mnt/data/` for parent and slice worktrees, owned task scratch,
+build targets, caches, temporary files and qualification output. Set task-local
+`TMPDIR` and `AGENT_LOG_DIR` there; immutable installed tools may be read-only
+inputs. Do not relocate or clean another session's resources.
+
 Local lint/typecheck/test, required source-phase verification, source-bound native
 consumers and permitted selected hardware qualification remain in scope. CI
 workflow changes, remote CI dispatch/monitoring, tag pushes and registry publication

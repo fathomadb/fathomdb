@@ -26,6 +26,11 @@ adversarial design review. After PASS, use real RED/GREEN and a fresh Astra-medi
 implementation review. Preserve existing completed exits unless affected evidence
 requires a scoped recheck. Parent owns release-plan/state integration serially.
 
+Use `/mnt/data/` for parent and slice worktrees and all owned task scratch, build
+targets, caches, temp files and qualification output. Set `TMPDIR` and
+`AGENT_LOG_DIR` to the assigned task root; installed immutable tools are read-only
+inputs. No cleanup or relocation of unrelated resources is implied.
+
 This continuation excludes CI work/execution and registry publication, including
 remote workflow dispatch and publishing tag pushes. Required local verification
 and selected permitted hardware/installed-consumer proof remain in scope. Keep
@@ -60,8 +65,8 @@ review gates; do not add another generic role-confirmation or planning ceremony.
 
 ## Isolation, checks and retained scope
 
-Only one writer per checkout. Planning owners may draft in distinct /tmp output
-trees for reviewed parent import. Source owners get fresh isolated worktrees,
+Only one writer per checkout. Planning owners may draft in distinct assigned
+`/mnt/data/` task trees for reviewed parent import. Source owners get fresh isolated worktrees,
 checkout-owned tools/artifacts and strict release/dependency preflight after10
 activates valid state. Pre-activation proposal research cannot fabricate strict
 preflight success. Never borrow a venv or repoint another checkout's bindings.

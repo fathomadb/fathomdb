@@ -136,5 +136,54 @@ class SharedClockTests(unittest.TestCase):
         self.assertFalse(before["fits"] is False and after["fits"] is True)
 
 
+
+def admission_cli(**changes):
+    payload = {"lower_n":100_000,"target_n":300_000,"elapsed_ns":10_000_000_000,
+               "peak_bytes":1024**3,"retained_family_bytes":0,
+               "shared_elapsed_ns":14_000_000_000_000,"lower_status":"complete"}
+    for key,value in changes.items():
+        if value is None:
+            payload.pop(key,None)
+        else:
+            payload[key]=value
+    child = subprocess.run([sys.executable,str(TOOL)],input=json.dumps(payload),
+                           capture_output=True,text=True,timeout=5)
+    if child.returncode != 0:
+        raise AssertionError(child.stderr)
+    return json.loads(child.stdout).get("admission", {})
+
+
+class AdmissionReportTests(unittest.TestCase):
+    def test_complete_lower_with_all_three_projections_fitting_is_only_a_projection(self):
+        result = admission_cli()
+        print(json.dumps(result),flush=True)
+        self.assertEqual(result.get("eligible"),True)
+        self.assertEqual(result["disposition"],"ELIGIBLE_PROJECTION")
+
+    def test_any_resource_dimension_refuses_even_with_complete_lower(self):
+        for changes in ({"elapsed_ns":210_000_000_000},
+                        {"peak_bytes":4*1024**3},
+                        {"shared_elapsed_ns":14_350_000_000_000}):
+            with self.subTest(changes=changes):
+                result = admission_cli(**changes)
+                self.assertEqual(result.get("eligible"),False)
+                self.assertEqual(result["disposition"],"NOT_RUN_RESOURCE")
+
+    def test_failed_or_missing_lower_completion_refuses_despite_tiny_forecasts(self):
+        for status in ("failed",None):
+            with self.subTest(status=status):
+                result = admission_cli(lower_status=status)
+                self.assertEqual(result.get("eligible"),False)
+                self.assertEqual(result["disposition"],"NOT_RUN_RESOURCE")
+
+    @settings(max_examples=8,deadline=None)
+    @given(missing=st.sets(st.sampled_from(["peak_bytes","retained_family_bytes",
+                                          "shared_elapsed_ns"]),min_size=1))
+    def test_incomplete_resource_evidence_never_admits_a_target(self, missing):
+        result = admission_cli(**dict.fromkeys(missing))
+        self.assertEqual(result.get("eligible"),False)
+        self.assertEqual(result["disposition"],"NOT_RUN_RESOURCE")
+
+
 if __name__ == "__main__":
     unittest.main()

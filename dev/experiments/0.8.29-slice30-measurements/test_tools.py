@@ -209,7 +209,8 @@ class ManualRunTests(unittest.TestCase):
             cells.write_text(json.dumps([{"name":"tiny","family":"P1","n":2,
                 "adapters":["engine"],"warmup":0,"samples":1}]))
             child = root / "recording-child"
-            child.write_text(f"#!{sys.executable}\nimport pathlib,sys\npathlib.Path(sys.argv[2],'result.json').write_text('''{"complete":true}''')\n")
+            child.write_text(f"#!{sys.executable}\n" +
+                             "import pathlib,sys\npathlib.Path(sys.argv[2],'result.json').write_text('{\"complete\":true}')\n")
             child.chmod(0o755)
             frozen = root / "frozen"
             freeze(cells,corpus,queries,child,frozen)

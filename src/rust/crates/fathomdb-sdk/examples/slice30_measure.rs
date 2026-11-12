@@ -188,15 +188,99 @@ fn read_jsonl(path: &str) -> Vec<String> {
         .collect()
 }
 
-fn write_jsonl(path: &Path, rows: &[Value]) {
-    use std::io::Write;
-    let mut output =
-        std::io::BufWriter::new(std::fs::File::create(path).expect("create owned output"));
-    for row in rows {
-        serde_json::to_writer(&mut output, row).expect("write record");
-        output.write_all(b"\n").expect("write newline");
+const CHECKPOINT_RECORDS: u64 = 16;
+
+struct RawStream {
+    writer: std::io::BufWriter<std::fs::File>,
+    records: u64,
+    bytes: u64,
+    pending: u64,
+    checkpoints: u64,
+}
+
+struct Recorder {
+    streams: std::collections::BTreeMap<&'static str, RawStream>,
+    elapsed_ns: u64,
+    checkpoint_ns: u64,
+}
+
+impl Recorder {
+    fn new(out: &Path) -> Self {
+        let streams = ["samples", "warmups", "batches", "marker-probes", "matches"]
+            .into_iter()
+            .map(|name| {
+                (
+                    name,
+                    RawStream {
+                        writer: std::io::BufWriter::new(
+                            std::fs::File::create(out.join(format!("{name}.jsonl")))
+                                .expect("create raw output"),
+                        ),
+                        records: 0,
+                        bytes: 0,
+                        pending: 0,
+                        checkpoints: 0,
+                    },
+                )
+            })
+            .collect();
+        Self { streams, elapsed_ns: 0, checkpoint_ns: 0 }
     }
-    output.flush().expect("flush records");
+
+    fn checkpoint(stream: &mut RawStream) -> u64 {
+        use std::io::Write;
+        if stream.pending == 0 {
+            return 0;
+        }
+        let started = std::time::Instant::now();
+        stream.writer.flush().expect("checkpoint raw records");
+        stream.pending = 0;
+        stream.checkpoints += 1;
+        u64::try_from(started.elapsed().as_nanos()).unwrap()
+    }
+
+    fn emit(&mut self, name: &str, row: &Value) {
+        use std::io::Write;
+        let started = std::time::Instant::now();
+        let stream = self.streams.get_mut(name).expect("known raw stream");
+        let mut encoded = serde_json::to_vec(row).expect("encode raw record");
+        encoded.push(b'\n');
+        stream.writer.write_all(&encoded).expect("append raw record");
+        stream.records += 1;
+        stream.bytes += u64::try_from(encoded.len()).unwrap();
+        stream.pending += 1;
+        if stream.pending == CHECKPOINT_RECORDS {
+            self.checkpoint_ns += Self::checkpoint(stream);
+        }
+        self.elapsed_ns += u64::try_from(started.elapsed().as_nanos()).unwrap();
+    }
+
+    fn flush_all(&mut self) {
+        let started = std::time::Instant::now();
+        for stream in self.streams.values_mut() {
+            self.checkpoint_ns += Self::checkpoint(stream);
+        }
+        self.elapsed_ns += u64::try_from(started.elapsed().as_nanos()).unwrap();
+    }
+
+    fn totals(&self) -> [u64; 5] {
+        [
+            self.streams.values().map(|s| s.records).sum(),
+            self.streams.values().map(|s| s.bytes).sum(),
+            self.streams.values().map(|s| s.checkpoints).sum(),
+            self.elapsed_ns,
+            self.checkpoint_ns,
+        ]
+    }
+
+    fn statistics_since(&self, before: [u64; 5]) -> Value {
+        let after = self.totals();
+        json!({"records":after[0]-before[0],"encoded_bytes":after[1]-before[1],
+            "checkpoints":after[2]-before[2],"persistence_ns":after[3]-before[3],
+            "checkpoint_ns":after[4]-before[4],"checkpoint_records":CHECKPOINT_RECORDS,
+            "policy":"per stream every16 records and phase/pass boundaries; flush without fsync",
+            "retention":"between completed checkpoints at most15 tail records per stream are uncheckpointed; an interrupted pending flush may be partial"})
+    }
 }
 
 fn run_cell(config: &Value, out: &Path) -> Value {
@@ -243,41 +327,57 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     let mut batches = Vec::new();
     let mut probes = Vec::new();
     let mut passes = Vec::new();
+    let mut recorder = Recorder::new(out);
     for adapter in config["adapters"].as_array().expect("adapter list") {
         let name = adapter.as_str().expect("adapter name");
         let opening = std::time::Instant::now();
         let engine = Adapter::open(name, &store);
         let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
+        let persistence_before = recorder.totals();
         for sample in 0..warmup {
             let mut row =
                 observe(&engine, &queries[sample % queries.len()], filtered.then_some("doc"));
             row["adapter"] = json!(name);
             row["query_index"] = json!(sample % queries.len());
+            recorder.emit("warmups", &row);
             observer("warmups", &row);
             warmups.push(row);
         }
+        recorder.flush_all();
         let loop_started = std::time::Instant::now();
-        let mut measured = if filtered {
-            let schedule = run_schedule_observed(
-                &engine,
-                &queries,
-                samples,
-                number("batch_size"),
-                number("searches_per_batch"),
-                observer,
-            );
-            batches.extend(schedule.batches);
-            probes.extend(schedule.probes);
-            schedule.searches
-        } else {
-            (0..samples)
-                .map(|sample| {
-                    let row = observe(&engine, &queries[sample % queries.len()], None);
-                    observer("samples", &row);
-                    row
-                })
-                .collect()
+        let mut measured = {
+            let mut publish = |stream: &str, row: &Value| {
+                let mut record = row.clone();
+                record["adapter"] = json!(name);
+                record["repeat"] = config["repeat"].clone();
+                recorder.emit(stream, &record);
+                observer(stream, &record);
+            };
+            if filtered {
+                let schedule = run_schedule_observed(
+                    &engine,
+                    &queries,
+                    samples,
+                    number("batch_size"),
+                    number("searches_per_batch"),
+                    &mut publish,
+                );
+                batches.extend(schedule.batches);
+                probes.extend(schedule.probes);
+                schedule.searches
+            } else {
+                (0..samples)
+                    .map(|sample| {
+                        let mut row = observe(&engine, &queries[sample % queries.len()], None);
+                        row["sample_index"] = json!(sample);
+                        row["query_index"] = json!(sample % queries.len());
+                        publish("samples", &row);
+                        row
+                    })
+                    .collect()
+            }
         };
+        recorder.flush_all();
         let wall_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
         for (sample, row) in measured.iter_mut().enumerate() {
             row["adapter"] = json!(name);
@@ -291,16 +391,16 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
         drop(engine);
         passes.push(json!({"adapter":name,"wall_ns":wall_ns,"open_ns":open_ns,
             "close_ns":u64::try_from(closing.elapsed().as_nanos()).unwrap(),
-            "throughput_scope":if filtered {"natural searches over write/probe/search loop"} else {"natural search/record loop"}}));
+            "persistence_warmup_and_timed":recorder.statistics_since(persistence_before),
+            "throughput_scope":if filtered {"natural searches over write/probe/search/serialization/checkpoint loop"} else {"natural search/serialization/checkpoint loop"}}));
     }
-    let matches: Vec<_> = queries
-        .iter()
-        .enumerate()
-        .map(|(index, query)| {
-            json!({"query_index":index,
-        "raw_fts_matches":raw_match_count(&store, query, filtered.then_some("doc"))})
-        })
-        .collect();
+    for (index, query) in queries.iter().enumerate() {
+        let row = json!({"query_index":index,
+            "raw_fts_matches":raw_match_count(&store, query, filtered.then_some("doc"))});
+        recorder.emit("matches", &row);
+        observer("matches", &row);
+    }
+    recorder.flush_all();
     let connection =
         rusqlite::Connection::open_with_flags(&store, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .expect("read own post-cell counts");
@@ -312,11 +412,6 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     let vectors = count("SELECT COUNT(*) FROM _fathomdb_vector_rows");
     let format: u32 =
         connection.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
-    write_jsonl(&out.join("samples.jsonl"), &rows);
-    write_jsonl(&out.join("warmups.jsonl"), &warmups);
-    write_jsonl(&out.join("batches.jsonl"), &batches);
-    write_jsonl(&out.join("marker-probes.jsonl"), &probes);
-    write_jsonl(&out.join("matches.jsonl"), &matches);
     let complete = natural == n as u64
         && vectors == 0
         && format == 37
@@ -327,6 +422,7 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
         "filtered":filtered,"natural_records":natural,"marker_records":markers,"vector_rows":vectors,
         "format":format,"query_count":queries.len(),"batch_count":batches.len(),"marker_probe_count":probes.len(),
         "seed_open_ns":seed_open_ns,"seed_write_ns":seed_write_ns,"passes":passes,
+        "raw_persistence":recorder.statistics_since([0; 5]),
         "snapshot_observation":"unavailable; write receipts are not search snapshot authority",
         "cache_note":"P2 marker proof calls intervene between each write and natural searches; OS caches uncontrolled"});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();

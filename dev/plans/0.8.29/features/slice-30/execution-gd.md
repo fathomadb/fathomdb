@@ -109,6 +109,33 @@ uses the ORIGINAL admission baseline, not a refreshed allocation: owned65.639GiB
 setup used1.117GiB/remaining94.883GiB, root/task free77.344/577.231GiB,
 MemAvailable23.061GiB; no resource stop. Receipt gd-post-review-resources.json.
 
+## All-nodes predicate unit
+
+TGD-4 RED52225760b precedes this revision's minimal GREEN. The actual predicate
+target has7prior passes and1new parent failure after all16isolated real-store
+controls reach their intended missing observer assertion:3called cases
+(defaulttrue/futurefalse/expiredfalse) and13existing guard skips. Every literal
+product-ID assertion passes before the observer oracle. The parent runs every
+case, each bounded30s with owned kill/wait on exit; experimental environment
+values are confined to those tiny child controls. No natural campaign uses them.
+
+Initial gd-all-nodes-red is a pre-test E0639 non-exhaustive SearchFilter fixture
+compile failure, not RED. Corrected public Default+field construction and bounded
+child cleanup precede the committed genuine gd-all-nodes-red-v2 runtime RED.
+Its executable SHA256 is
+89616b343f234ebd11b907e06e581ab644e4ff834191953a5a6847f23882aae7;
+unchanged test SHA256
+6a933cadb4db2ff432ffa3e6cf28afa7055876d02dca7e1de67a1f092a548ae9.
+
+GREEN keeps the original guard/call order and errors, times only its existing
+predicate call and reports explicit NOT_CALLED/null plus the first existing
+guard reason. It does not eagerly invoke a skipped predicate. gd-all-nodes-green
+retains command/source delta/features/actual built hash and8/8selected tests
+(including all16controls),2/2snapshot cases, unchanged first completion oracle,
+feature Clippy and default engine check, all exit0/resource_stop null. This is
+one predicate unit with16literal controls, not16separate RED/GREEN pairs. Vector/
+text blocks, error/drop reporting, worker/tool/model/campaign units remain open.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

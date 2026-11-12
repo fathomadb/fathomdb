@@ -181,8 +181,14 @@ A called/false no-dependency result has SQL invoked=false with reason
 `no_dependencies` and null value/time. The outer predicate's original
 history/vector short circuit is preserved: NOT_CALLED uses invoked=false,
 null value/time and reason `history_incomplete` or `query_vector_absent`.
-This never substitutes false/zero for a skipped predicate. Other predicate,
-final error disposition and drop reporting are not yet supplied. Closing admission
+This never substitutes false/zero for a skipped predicate.
+`all_nodes_directly_eligible` is measured only at its existing final guarded call.
+Otherwise its record reports invoked=false, null value/time and the first
+original short-circuit reason: query_vector_absent, filter, perf_limit,
+source_dependencies, include_superseded, include_inactive, include_out_of_window,
+recency, importance, rerank, graph, explain or full_sort. These report stored
+control values; the skipped predicate is never evaluated for diagnostics.
+Final error disposition and drop reporting are not yet supplied. Closing admission
 returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.
 

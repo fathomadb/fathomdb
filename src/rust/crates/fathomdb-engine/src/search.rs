@@ -2360,6 +2360,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
         #[cfg(not(feature = "test-hooks"))]
         let force_full_sort = false;
+        #[cfg(feature = "slice30-measurement")]
+        let mut _all_nodes_invoked = false;
         let defer_text_identity = query_vector.is_some()
             && filter.is_none()
             && perf_limit.is_none()
@@ -2373,13 +2375,68 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             && !use_graph_arm
             && !explain
             && !force_full_sort
-            && dependency_closure::all_nodes_directly_eligible(
-                &tx,
-                view.view.include_superseded,
-                view.view.include_inactive,
-                view.view.include_out_of_window,
-                view.edge_now(),
-            )?;
+            && {
+                #[cfg(not(feature = "slice30-measurement"))]
+                let eligible = dependency_closure::all_nodes_directly_eligible(
+                    &tx,
+                    view.view.include_superseded,
+                    view.view.include_inactive,
+                    view.view.include_out_of_window,
+                    view.edge_now(),
+                )?;
+                #[cfg(feature = "slice30-measurement")]
+                let eligible = {
+                    _all_nodes_invoked = true;
+                    crate::measurement_for_test::measure_bool(
+                        &mut _measurement,
+                        "all_nodes_directly_eligible",
+                        || {
+                            dependency_closure::all_nodes_directly_eligible(
+                                &tx,
+                                view.view.include_superseded,
+                                view.view.include_inactive,
+                                view.view.include_out_of_window,
+                                view.edge_now(),
+                            )
+                        },
+                    )?
+                };
+                eligible
+            };
+        #[cfg(feature = "slice30-measurement")]
+        if !_all_nodes_invoked {
+            if let Some(measurement) = _measurement.as_mut() {
+                // Report the first short-circuit without evaluating the skipped predicate.
+                let reason = if query_vector.is_none() {
+                    "query_vector_absent"
+                } else if filter.is_some() {
+                    "filter"
+                } else if perf_limit.is_some() {
+                    "perf_limit"
+                } else if has_source_dependencies {
+                    "source_dependencies"
+                } else if view.view.include_superseded {
+                    "include_superseded"
+                } else if view.view.include_inactive {
+                    "include_inactive"
+                } else if view.view.include_out_of_window {
+                    "include_out_of_window"
+                } else if recency_enabled {
+                    "recency"
+                } else if importance_enabled {
+                    "importance"
+                } else if rerank_depth != 0 {
+                    "rerank"
+                } else if use_graph_arm {
+                    "graph"
+                } else if explain {
+                    "explain"
+                } else {
+                    "full_sort"
+                };
+                measurement.skipped_predicate("all_nodes_directly_eligible", reason);
+            }
+        }
         let join_sql = crate::filter::body_fts_rank_sql_view(
             &text_validity,
             &text_eligibility,

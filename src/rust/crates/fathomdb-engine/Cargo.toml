@@ -939,3 +939,7 @@ required-features = ["test-hooks"]
 [[example]]
 name = "slice30_gd_diagnostic"
 path = "examples/slice30_gd_diagnostic.rs"
+
+[[test]]
+name = "slice30_measurement_snapshot"
+required-features = ["test-hooks", "slice30-measurement"]

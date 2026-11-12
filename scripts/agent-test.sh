@@ -740,6 +740,10 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [
 else
   python_suite_skip_reason="pytest not installed or no tests dir"
 fi
+run_tier_maybe_suite heavy test-slice30-gd-snapshot "$slice30_measurement_platform_reason" \
+  cargo test --locked --release -p fathomdb-engine --test slice30_measurement_snapshot \
+  --features test-hooks,slice30-measurement
+
 run_tier_maybe_suite heavy test-python "$python_suite_skip_reason" "${python_suite_command[@]}"
 run_tier_maybe_suite heavy test-python-native-receipt "$python_receipt_skip_reason" python3 scripts/tests/verify_python_test_hook_receipt.py "$python_receipt_path" "$python_receipt_nonce"
 

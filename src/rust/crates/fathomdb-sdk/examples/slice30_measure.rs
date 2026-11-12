@@ -91,12 +91,24 @@ struct Schedule {
     probes: Vec<Value>,
 }
 
+#[cfg(test)]
 fn run_schedule(
     engine: &Adapter,
     queries: &[String],
     samples: usize,
     batch_size: usize,
     searches_per_batch: usize,
+) -> Schedule {
+    run_schedule_observed(engine, queries, samples, batch_size, searches_per_batch, &mut |_, _| {})
+}
+
+fn run_schedule_observed(
+    engine: &Adapter,
+    queries: &[String],
+    samples: usize,
+    batch_size: usize,
+    searches_per_batch: usize,
+    observer: &mut dyn FnMut(&str, &Value),
 ) -> Schedule {
     assert!(!queries.is_empty() && searches_per_batch > 0);
     assert!(batch_size == 1 || batch_size == 10);
@@ -122,6 +134,7 @@ fn run_schedule(
                 "write_ns": u64::try_from(start.elapsed().as_nanos()).unwrap(),
                 "after_write_cursor": cursor, "visibility_generation": null,
                 "authority_observation": "write receipt only; search snapshot unavailable"}));
+            observer("batches", output.batches.last().unwrap());
             for slot in slots {
                 let mut probe = observe(engine, &format!("s30markercurrent{slot}"), Some("note"));
                 probe["marker_current"] = json!(
@@ -130,12 +143,14 @@ fn run_schedule(
                             == json!([format!("s30markercurrent{slot} revision{batch}")])
                 );
                 probe["before_sample"] = json!(sample);
+                observer("marker-probes", &probe);
                 output.probes.push(probe);
             }
         }
         let mut result = observe(engine, &queries[sample % queries.len()], Some("doc"));
         result["sample_index"] = json!(sample);
         result["query_index"] = json!(sample % queries.len());
+        observer("samples", &result);
         output.searches.push(result);
     }
     output
@@ -185,6 +200,10 @@ fn write_jsonl(path: &Path, rows: &[Value]) {
 }
 
 fn run_cell(config: &Value, out: &Path) -> Value {
+    run_cell_observed(config, out, &mut |_, _| {})
+}
+
+fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, &Value)) -> Value {
     let number =
         |key: &str| usize::try_from(config[key].as_u64().expect(key)).expect("usize bound");
     let n = number("n");
@@ -234,23 +253,29 @@ fn run_cell(config: &Value, out: &Path) -> Value {
                 observe(&engine, &queries[sample % queries.len()], filtered.then_some("doc"));
             row["adapter"] = json!(name);
             row["query_index"] = json!(sample % queries.len());
+            observer("warmups", &row);
             warmups.push(row);
         }
         let loop_started = std::time::Instant::now();
         let mut measured = if filtered {
-            let schedule = run_schedule(
+            let schedule = run_schedule_observed(
                 &engine,
                 &queries,
                 samples,
                 number("batch_size"),
                 number("searches_per_batch"),
+                observer,
             );
             batches.extend(schedule.batches);
             probes.extend(schedule.probes);
             schedule.searches
         } else {
             (0..samples)
-                .map(|sample| observe(&engine, &queries[sample % queries.len()], None))
+                .map(|sample| {
+                    let row = observe(&engine, &queries[sample % queries.len()], None);
+                    observer("samples", &row);
+                    row
+                })
                 .collect()
         };
         let wall_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
@@ -323,6 +348,101 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interrupted_cell_retains_completed_raw_checkpoints() {
+        const CHILD_DIRECTORY: &str = "FATHOMDB_SLICE30_RETENTION_CHILD_DIRECTORY";
+        if let Some(directory) = std::env::var_os(CHILD_DIRECTORY) {
+            let directory = std::path::PathBuf::from(directory);
+            let config: Value =
+                serde_json::from_slice(&std::fs::read(directory.join("cell.json")).unwrap())
+                    .unwrap();
+            let mut observed = 0;
+            run_cell_observed(&config, &directory.join("out"), &mut |stream, _| {
+                if stream == "samples" {
+                    observed += 1;
+                    if observed == 16 {
+                        std::fs::write(directory.join("ready"), b"16 completed observations")
+                            .unwrap();
+                        std::thread::sleep(std::time::Duration::from_secs(30));
+                        panic!("parent did not stop its retention child");
+                    }
+                }
+            });
+            panic!("retention child unexpectedly completed");
+        }
+        struct OwnedChild(std::process::Child);
+        impl Drop for OwnedChild {
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                self.0.wait().expect("reap only owned retention child");
+            }
+        }
+        let records = |path: &Path| -> Vec<Value> {
+            std::fs::read_to_string(path)
+                .unwrap_or_default()
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect()
+        };
+        for family in ["P1", "P2"] {
+            let directory = tempfile::tempdir().unwrap();
+            let corpus = directory.path().join("corpus.jsonl");
+            let queries = directory.path().join("queries.jsonl");
+            std::fs::write(&corpus, "\"alphaonly evidence\"\n\"betaonly evidence\"\n").unwrap();
+            std::fs::write(&queries, "\"alphaonly\"\n\"betaonly\"\n").unwrap();
+            let config = json!({"family":family,"n":2,"adapters":["sdk"],"warmup":4,"samples":64,
+                "batch_size":1,"searches_per_batch":1,"repeat":0,"corpus":corpus,"queries":queries});
+            std::fs::write(
+                directory.path().join("cell.json"),
+                serde_json::to_vec(&config).unwrap(),
+            )
+            .unwrap();
+            let log = std::fs::File::create(directory.path().join("child.log")).unwrap();
+            let child = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "tests::interrupted_cell_retains_completed_raw_checkpoints",
+                    "--nocapture",
+                ])
+                .env(CHILD_DIRECTORY, directory.path())
+                .stdout(log.try_clone().unwrap())
+                .stderr(log)
+                .spawn()
+                .unwrap();
+            let child = OwnedChild(child);
+            let started = std::time::Instant::now();
+            let ready = directory.path().join("ready");
+            while !ready.exists() && started.elapsed() < std::time::Duration::from_secs(20) {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            let acknowledged = ready.exists();
+            drop(child);
+            assert!(
+                acknowledged,
+                "actual 16-observation rendezvous absent: {}",
+                std::fs::read_to_string(directory.path().join("child.log")).unwrap()
+            );
+            let out = directory.path().join("out");
+            let samples = records(&out.join("samples.jsonl"));
+            assert_eq!(samples.len(), 16, "{family}: completed raw checkpoint lost");
+            assert_eq!(records(&out.join("warmups.jsonl")).len(), 4);
+            assert!(!out.join("result.json").exists());
+            for (index, row) in samples.iter().enumerate() {
+                assert_eq!(row["ids"], json!([format!("l:s30doc-{}", index % 2)]));
+                assert_eq!(row["adapter"], "sdk");
+                assert_eq!(row["query_index"], index % 2);
+                assert_eq!(row["sample_index"], index);
+                assert!(row["elapsed_ns"].as_u64().unwrap() > 0);
+            }
+            if family == "P2" {
+                assert_eq!(records(&out.join("batches.jsonl")).len(), 16);
+                let probes = records(&out.join("marker-probes.jsonl"));
+                assert_eq!(probes.len(), 16);
+                assert!(probes.iter().all(|row| row["marker_current"] == true));
+            }
+        }
+    }
 
     #[test]
     fn observation_records_real_text_identity_across_reopen() {

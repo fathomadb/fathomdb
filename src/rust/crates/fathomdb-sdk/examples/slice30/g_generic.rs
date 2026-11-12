@@ -8,6 +8,45 @@ use std::collections::BTreeSet;
 use std::io::BufRead;
 use std::path::Path;
 
+fn observe(
+    engine: &GAdapter,
+    mode: &str,
+    adapter: &str,
+    sample_index: usize,
+    input: &Value,
+) -> Value {
+    let query = input["query"].as_str().unwrap();
+    let fingerprint: String =
+        Sha256::digest(query.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect();
+    let mut row = if mode.ends_with("_text") {
+        let (result, elapsed_ns) = engine.timed_text(query, None);
+        let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
+        json!({"mode":"direct_text","ok":true,"elapsed_ns":elapsed_ns,"ids":ids,
+            "returned_hits":result.results.len(),"kind_filter":null,
+            "search_snapshot":null,"snapshot_observation":"unavailable"})
+    } else if mode.ends_with("_hybrid") {
+        let (result, elapsed_ns) = engine.timed_hybrid(query, 10);
+        let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
+        json!({"mode":"hybrid","ok":true,"elapsed_ns":elapsed_ns,"ids":ids,
+            "returned_hits":result.results.len(),"soft_fallback":format!("{:?}",result.soft_fallback),
+            "degradations":format!("{:?}",result.degradations)})
+    } else {
+        assert!(mode.ends_with("_mean"));
+        let (vector, elapsed_ns) = engine.timed_embed(query);
+        assert_eq!(vector.len(), 384);
+        assert!(vector.iter().all(|value| value.is_finite()));
+        let norm2 = vector.iter().map(|value| f64::from(*value).powi(2)).sum::<f64>();
+        assert!(norm2 > 0.0);
+        json!({"mode":"mean_embed","ok":true,"elapsed_ns":elapsed_ns,"dimension":384,
+            "finite":true,"norm_squared":norm2})
+    };
+    row["adapter"] = json!(adapter);
+    row["sample_index"] = json!(sample_index);
+    row["query_id"] = input["id"].clone();
+    row["query_fingerprint"] = json!(fingerprint);
+    row
+}
+
 pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     assert!(store.exists(), "generic pass requires its owned writable closed-template copy");
     std::fs::create_dir_all(out).unwrap();
@@ -35,36 +74,11 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     };
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
+    let mut calls = 0;
     for (sample_index, input) in queries.iter().enumerate() {
-        let query = input["query"].as_str().unwrap();
-        let fingerprint: String =
-            Sha256::digest(query.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect();
-        let mut row = if mode.ends_with("_text") {
-            let (result, elapsed_ns) = engine.timed_text(query, None);
-            let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
-            json!({"mode":"direct_text","ok":true,"elapsed_ns":elapsed_ns,"ids":ids,
-                "returned_hits":result.results.len(),"kind_filter":null,
-                "search_snapshot":null,"snapshot_observation":"unavailable"})
-        } else if mode.ends_with("_hybrid") {
-            let (result, elapsed_ns) = engine.timed_hybrid(query, 10);
-            let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
-            json!({"mode":"hybrid","ok":true,"elapsed_ns":elapsed_ns,"ids":ids,
-                "returned_hits":result.results.len(),"soft_fallback":format!("{:?}",result.soft_fallback),
-                "degradations":format!("{:?}",result.degradations)})
-        } else {
-            assert!(mode.ends_with("_mean"));
-            let (vector, elapsed_ns) = engine.timed_embed(query);
-            assert_eq!(vector.len(), 384);
-            assert!(vector.iter().all(|value| value.is_finite()));
-            let norm2 = vector.iter().map(|value| f64::from(*value).powi(2)).sum::<f64>();
-            assert!(norm2 > 0.0);
-            json!({"mode":"mean_embed","ok":true,"elapsed_ns":elapsed_ns,"dimension":384,
-                "finite":true,"norm_squared":norm2})
-        };
-        row["adapter"] = json!(adapter);
-        row["sample_index"] = json!(sample_index);
-        row["query_id"] = input["id"].clone();
-        row["query_fingerprint"] = json!(fingerprint);
+        let mut row = observe(&engine, mode, adapter, sample_index, input);
+        row["call_index"] = json!(calls);
+        calls += 1;
         recorder.emit("samples", &row);
     }
     recorder.flush_all();
@@ -72,7 +86,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     let closing = std::time::Instant::now();
     engine.close();
     let close_ns = u64::try_from(closing.elapsed().as_nanos()).unwrap();
-    let proof = json!({"mode":mode,"api_calls":queries.len(),"open_ns":open_ns,
+    let proof = json!({"mode":mode,"api_calls":calls,"timed_api_calls":calls,"warmup_api_calls":0,"open_ns":open_ns,
         "close_ns":close_ns,"loop_ns":loop_ns,"store":store,
         "selected_cuda_uuid":resolution.selected_cuda_uuid,"cuda_compiled":resolution.cuda_compiled,
         "raw_persistence":recorder.statistics_since([0;5]),

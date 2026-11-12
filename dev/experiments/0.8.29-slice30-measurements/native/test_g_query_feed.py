@@ -18,7 +18,9 @@ QUESTIONS = [(41, "alphaonly épreuve"), (7, "betaonly βήτα"), (108, "s30non
 TEXT_IDS = {QUESTIONS[0][1]: ["l:alpha"], QUESTIONS[1][1]: ["l:beta"], QUESTIONS[2][1]: []}
 
 
-class QueryFeedTests(unittest.TestCase):
+class QueryFixture(unittest.TestCase):
+    extra_config = {}
+
     def fixture(self, questions):
         task = Path(os.environ["S30_GD_TASK"])
         root = Path(tempfile.mkdtemp(prefix="s30-g-query-feed-"))
@@ -32,9 +34,10 @@ class QueryFeedTests(unittest.TestCase):
         queries.write_text("".join(json.dumps({"id": identity, "query": query}) + "\n"
                                    for identity, query in questions))
         config = root / "cell.json"
-        config.write_text(json.dumps({"family": "G_FEED_FIXTURE", "gpu_uuid": GPU,
-                                     "templates": [{"records": str(source)}],
-                                     "queries": str(queries), "modes": MODES}))
+        cell = {"family": "G_FEED_FIXTURE", "gpu_uuid": GPU,
+                "templates": [{"records": str(source)}], "queries": str(queries), "modes": MODES}
+        cell.update(self.extra_config)
+        config.write_text(json.dumps(cell))
         binary = Path(os.environ["CARGO_TARGET_DIR"]) / "release/slice30-g-measurement"
         identity = {"root": str(root), "oracle_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                     "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
@@ -61,7 +64,9 @@ class QueryFeedTests(unittest.TestCase):
             proof = json.loads((directory / "api-proof.json").read_text())
             issues = []
             rows = read_jsonl_records(directory / "samples.jsonl", issues)
-            if proof["api_calls"] != len(questions) or issues or len(rows) != len(questions):
+            warmups = read_jsonl_records(directory / "warmups.jsonl", issues)
+            if (proof["api_calls"] != len(questions) + len(warmups) or issues
+                    or len(rows) != len(questions) or len(warmups) > cell.get("warmups", 0)):
                 raise RuntimeError("existing successful API/record framing controls failed, NOT_RED")
             if proof["selected_cuda_uuid"] != GPU or proof["cuda_compiled"] is not True:
                 raise RuntimeError("required actual Default CUDA identity failed, NOT_RED")
@@ -92,6 +97,7 @@ class QueryFeedTests(unittest.TestCase):
         print(json.dumps({"root": str(root), "existing_controls": "all six modes passed",
                           "actual_id_sequences": {mode: [row["query_id"] for row in rows]
                                                   for mode, rows in observations.items()}}), flush=True)
+        self.fixture_root = root
         return observations
 
     def require_forwarding(self, observations, questions, mode):
@@ -103,6 +109,9 @@ class QueryFeedTests(unittest.TestCase):
             self.assertEqual([row["ids"] for row in rows], [TEXT_IDS[query] for _, query in questions])
         self.assertEqual(len(rows), len(questions))
 
+
+
+class QueryFeedTests(QueryFixture):
     def test_literal_actual_query_identity_and_text_results_across_six_modes(self):
         observations = self.fixture(QUESTIONS)
         for mode in MODES:

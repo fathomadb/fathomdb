@@ -1,7 +1,7 @@
 # Slice30 P measured results
 
-Status: executed and locally qualified P candidate; fresh final results review
-and parent integration pending. Whole30 and downstream source gates stay open.
+Status: accepted P subset. Fresh Astra P-SUBSET PASS at0d8 and parent
+acceptance/integration at2381 followed this original measured candidate. Whole30 and downstream source gates stay open.
 All measurements below come from the same clean2fd772558e46d0b1645dce2ffea730d0bdd3305c,
 not a historical prototype or a different installed artifact.
 
@@ -180,8 +180,8 @@ through its normal CLI on tiny literal P1/P2 stores before timing.
 The16genuine grouped new-tool RED/GREEN units and invalid124fixture history are
 in [execution](execution.md); no already-correct product was broken to make RED.
 Same fresh Astra accepted correction code at5b and light-audited the actual
-freeze/first records without actionable findings. Final results verdict remains
-pending this packet; parent owns acceptance/integration and release-state edits.
+freeze/first records without actionable findings. Fresh final P verdict PASS and parent acceptance/integration are recorded at
+2381; parent owns further acceptance/integration and release-state edits.
 
 P gives40/50 a current provider-free direct-text cost/filtered-write baseline,
 not a selected cache/eligibility/ANN/default treatment or their source GO.

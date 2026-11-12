@@ -12,8 +12,22 @@
 
 A30-2 is workload/report completeness, not a new numerical pass gate. Accepted
 canonical gates remain separate. Current P execution/qualification is recorded in [results](results-p.md), with
-fresh final results review/parent integration pending. P covers workload/direct-route,
+fresh final P PASS/parent acceptance at2381. P covers workload/direct-route,
 committed-marker schedule, tool/TDD and owned-resource portions only; G/D/M/F
 and full branch/fidelity obligations remain unqualified. Windows20 cannot be proved by Linux, review,
 static PowerShell inspection or a future CI assumption. Pre90 Block1 exit and
 final160 require their actual outstanding proof/disposition.
+
+## G/D proposal acceptance boundary
+
+G/D are NOT_RUN. Accept them only against the exact [extension](gd-extension.md),
+[test oracles](gd-test-map.md) and [prospective cells/resources](gd-preregistration.md)
+after independent design PASS/parent GO and actual source/runtime qualification.
+Human literal IDs/counts/guard outcomes, same-reader generation/time, actual worker
+intervals and independent per-kind vector coverage falsify incorrect measurement;
+terminal/cursor-only readiness, skipped predicates filled with zero, synthetic
+BGE claims, CLS substitution, absent GPU engagement or missing overlap fail the
+corresponding local criterion. Normal/diagnostic identities and observer costs
+stay separate; no derived percentile subtraction or new numerical release gate.
+Conditional300k cannot silently use100k or exceed reviewed bounds. Partial G/D
+never discharges held M/F/20/Windows/whole30/40/50/pre90/final160 obligations.

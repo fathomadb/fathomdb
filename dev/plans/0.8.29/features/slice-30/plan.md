@@ -13,8 +13,9 @@ Parent integrated the independently reviewed exact P prerequisite split at
 144bde29b75b31f1ce7277edfb82b5c6d5735068. Same owner passed strict closed10
 preflight/ownership/resources and received explicit P-only source GO. Actual
 clean2fd772558e46d0b1645dce2ffea730d0bdd3305c now supplies the16executed P cells
-and [measured results](results-p.md). Local qualification is assembled; final
-fresh Astra results review and parent integration remain pending. Whole20/30,
+and [measured results](results-p.md). Local qualification is assembled. Fresh Astra P-SUBSET PASS at0d8 and parent
+acceptance/integration at2381 are complete; the current349 checkpoint puts all
+new work/Git metadata under/mnt/data. Whole20/30,
 G/D source, M/F,40/50 source and pre90 Block1 remain open.
 
 Historical PhaseA inspected c0c94b4203ffeb9e573efcc14e8b10df653318c5 and proposed
@@ -43,7 +44,8 @@ proposes the corresponding maintained architecture clarification.
 ## Sequence and retained boundaries
 
 P steps1–4 executed; [execution](execution.md) records actual RED/GREEN and
-qualification resumptions. Final review/integration in step5 remains pending.
+qualification resumptions. P final review/integration is accepted; G/D below
+requires its own design PASS and explicit parent GO.
 
 1. Parent reviews/integrates the per-cell dependency amendment after Astra PASS.
 2. Same owner provisions only its own /mnt/data tools/native environment after GO.
@@ -70,3 +72,13 @@ ANN/candidate/default change, overflow chunking, old experimental merge or
 fork B/C work. R580/primary CUDA12.6 remain fixed; K620 is excluded. No CI
 work/execution, registry publishing, paid session, reset/fault campaign, live
 Memex access/copy, new dataset/model fetch or host configuration change.
+
+## Current G/D design-only extension
+
+Same owner/new all-/mnt/data checkout at349 prepares the concrete
+[G/D extension](gd-extension.md), [executable test map](gd-test-map.md) and
+[prospective cells/resources](gd-preregistration.md). These revise actual source
+fit, requirements/acceptance and architecture for the next bounded phase; they
+are not source/model/GPU authority. P remains accepted with immutable evidence.
+G/D design review and parent GO precede all implementation/runtime. M/F and
+whole30/downstream/Block1/final160 holds remain unchanged.

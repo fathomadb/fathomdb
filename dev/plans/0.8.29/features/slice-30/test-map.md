@@ -51,3 +51,10 @@ invalid124fixture history, diagnostics and oracle identities are in
 [execution](execution.md). [Results](results-p.md) maps actual affected checks,
 assembled source qualification and remaining holds; no test count implies full
 whole30/fidelity/Windows completion.
+
+## Next G/D executable decomposition
+
+[G/D test map](gd-test-map.md) defines separate runtime RED/GREEN units for each
+new observer/adapter/schedule/report behavior and exact maintained feature/manual
+selection. It reuses passing P primitives/product contracts without relabelling
+coverage. No source/model/GPU work occurs before design PASS/parent GO.

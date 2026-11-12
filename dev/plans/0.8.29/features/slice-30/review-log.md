@@ -72,3 +72,28 @@ OriginalSC2312/Pages/MD012 failures, invalid124history and inner skips/ignores s
 explicit. This final candidate requests same-reviewer results acceptance and
 parent evaluation/integration. No self-closure/state/board/ledger edit follows.
 G/D extension and M/F/whole20/30/40/50/pre90/final160 holds remain unchanged.
+
+## Accepted P and new G/D design entry
+
+Parent conveyed fresh final Astra P-SUBSET PASS at0d8 and independently accepted
+all16raw outcomes/20k calls/statistics/identities and assembled qualification.
+Actual quiet Markdown receipt final-p-docs-reviewed.json records clean0d8 at
+both boundaries/exit0; the earlier empty quiet log remains, not fabricated into
+an exit receipt. Parent integrated P/state at2381. All P raw/manifests/environments
+remain at their immutable original subjects; whole30 stays IN_PROGRESS.
+
+Parent moved future work by independent copy to all-/mnt/data Git/worktrees,
+without deleting/relocating P. New owner checkout is
+/mnt/data/worktrees/fathomdb-0.8.29-s30-data, common Git
+/mnt/data/repos/fathomdb-0.8.29-continuation.git, exact349e9fa07 baseline.
+New task/env-design.sh is under/mnt/data/tmp2/fathomdb-0829-continuation/slice30-gd.
+Strict own preflight passed closed10/disk with0warnings; locked own Markdown
+modules only provisioned offline/private copied cache. No sibling mutable venv/
+modules/native/target borrowed and no G/D source/build/DB/model/GPU work ran.
+
+Read actual P/predecessor source/memory/ADRs and current engine/SDK/provider/
+worker bodies. [Extension](gd-extension.md), [test map](gd-test-map.md) and
+[preregistration](gd-preregistration.md) are the concrete DESIGN-ONLY candidate.
+The explicit separate G/D retention budget and shared4hour cap require review;
+no source/runtime GO or release-state edit is inferred. Independent Astra review
+is parent-commissioned; candidate verdict pending.

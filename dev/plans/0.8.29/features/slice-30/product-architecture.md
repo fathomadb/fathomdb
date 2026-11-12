@@ -73,3 +73,16 @@ belong to measurement tooling, not database recovery or a new product contract.
 [Results](results-p.md) describe actual current residual cost; filtered P2 versus
 unfiltered P1 is not a controlled write-only treatment comparison. Authoritative
 architecture paragraph above remains a parent integration proposal.
+
+## Proposed G/D architecture delta
+
+The [concrete extension](gd-extension.md) proposes one non-default engine-owned
+bounded measurement feature, independent from broad test-hooks. Its collector
+attaches to existing per-engine attribution ownership; query identity travels
+to the same reader transaction. Normal builds omit instrumentation. Hidden
+feature-only Engine accessors get a same-source-change Rust interface note;
+SDK production/test surfaces remain unchanged. Current provider admission,
+mean/CLS distinction, dispatch/default concurrency and worker commit ownership
+are preserved. D synthetic providers stay in existing test-hooks attachment.
+No global statement tracer, public production knob, cache or ranking change.
+This is a design proposal awaiting review/source GO, not implemented architecture.

@@ -22,3 +22,18 @@ The [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
 applies real-database boundaries, explicit independent oracles and resource
 release. General fuzzing, fault injection and exhaustive matrices are deferred;
 no such investment is needed to establish this bounded measurement baseline.
+
+## Concrete G/D extension requirements
+
+These remain local measurement requirements, mapped to existing A30 rather than
+new canonical gates. [Extension](gd-extension.md), [tests](gd-test-map.md) and
+[preregistration](gd-preregistration.md) define exact source/cell bounds.
+
+| Requirement | Existing acceptance mapping |
+| --- | --- |
+| G1: built-in pinned BGE384, normal core/SDK hybrid/direct-text/mean-embed populations on the same current store; actual reserved3090 engagement, no CLS/CPU/model substitution | A30-1/2/6 |
+| G2: filtered read-only control versus exact governed write/drain/proof schedule, actual counts/revisions and separate API/loop costs | A30-3/4 |
+| G3: actual engine-owned bounded per-query snapshot/predicate/arm observations; called versus skipped/null, inclusive spans, normal/feature-off/on identities and paired raw observer cost | A30-4/5/6 |
+| D1: existing contained deterministic768-d fixture, current worker predicates/defaults, held versus actual overlap, durable pending/vector coverage and per-worker/WAL/drain observations | A30-1/3/4 |
+| D2:10k/100k actual feasibility before conditional300k, explicit resource stop/incomplete/NOT_RUN and unchanged numerical gates | A30-6/7 |
+| GD: per-behavior genuine committed runtime RED before separate GREEN, maintained suite selection, own/mnt/data resources and one stable source phase/full gate, retained errors/skips/subjects | A30-5/6/7 |

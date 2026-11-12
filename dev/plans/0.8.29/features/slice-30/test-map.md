@@ -27,8 +27,8 @@ not confer a blanket30 exception.
 
 The exact Rust driver is
 `src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs`; current SDK dependencies
-expose both engine and SDK adapters. Only workspace query/rusqlite dev dependencies
-are needed for separate untimed match counts. No new public SDK API or runtime
+expose both engine and SDK adapters. Only workspace query and explicit engine-matching rusqlite0.41
+bundled/fallible_uint dev dependencies (existing lock0.41.1) are needed for separate untimed match counts. No new public SDK API or runtime
 observer belongs to initial P. Additional G/D observer/math/schedule cases get a
 concrete reviewed extension after P; no queued implementation under this map.
 

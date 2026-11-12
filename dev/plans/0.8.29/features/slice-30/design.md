@@ -28,7 +28,8 @@ converter, runner, analysis, tests and machine-readable cells. Use the exact Rus
 `src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs`, built with
 `cargo build --locked --release -p fathomdb-sdk --example slice30_measure`.
 Current SDK already depends on the engine and has serde_json/tempfile dev
-dependencies. Add fathomdb-query/rusqlite workspace dev dependencies only for
+dependencies. Add fathomdb-query as a workspace dev dependency and rusqlite0.41 with the
+engine-matching bundled/fallible_uint features (existing lock0.41.1) only for
 the separate untimed compiler/match-count query; no public SDK API or new
 production dependency. All tools are locally built; no downloaded helper or
 wholesale historical merge.

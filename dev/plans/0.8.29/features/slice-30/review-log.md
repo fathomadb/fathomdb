@@ -44,3 +44,13 @@ verification reminder is retained: newly authored experiment tests and SDK
 example compile/runtime controls must be explicitly selected with nonzero
 assertions in the maintained test inventory/runner before the final stable
 one-time full gate, rather than assumed discovered from their presence.
+
+## Narrow dev-dependency correction
+
+Actual root has workspace fathomdb-query but no workspace rusqlite entry. The
+first attempted inheritance failed cargo metadata/fmt before tests; this is
+pre-test setup evidence, never RED. Parent and same Astra independently approved
+the minimum correction: SDK dev-only rusqlite0.41 bundled/fallible_uint, matching
+engine and existing lock0.41.1. Root/production dependencies and versions are
+unchanged. The actual compiled match-observer RED is8449f80f0:3real-store tests,
+2pass/1fail/0ignored, raw count0 versus13; its GREEN follows separately.

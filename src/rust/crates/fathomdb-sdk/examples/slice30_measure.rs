@@ -152,8 +152,28 @@ fn run_schedule(
 }
 
 #[cfg(test)]
-fn raw_match_count(_path: &Path, _query: &str, _kind: Option<&str>) -> u64 {
-    0
+fn raw_match_count(path: &Path, query: &str, kind: Option<&str>) -> u64 {
+    let expression = fathomdb_query::compile_text_query(query).match_expression;
+    let connection =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("open own fixture for untimed match counts");
+    if let Some(kind) = kind {
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM search_index WHERE search_index MATCH ?1 AND kind=?2",
+                rusqlite::params![expression, kind],
+                |row| row.get(0),
+            )
+            .expect("filtered raw FTS count")
+    } else {
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM search_index WHERE search_index MATCH ?1",
+                [expression],
+                |row| row.get(0),
+            )
+            .expect("raw FTS count")
+    }
 }
 
 fn main() {

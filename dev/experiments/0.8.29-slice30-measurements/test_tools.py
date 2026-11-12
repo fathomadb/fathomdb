@@ -1,7 +1,12 @@
 """Human-specified Slice30 measurement oracles; no database mocking."""
 
 import unittest
+import json
+from pathlib import Path
+import sys
+import tempfile
 
+from campaign import make_plan, run_campaign
 from converter import convert
 from metrics import aggregate, distribution, paired_difference
 
@@ -60,6 +65,30 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(result.get("distinct_queries"), 2)
         self.assertEqual(result.get("sdk_minus_engine_mean_ms"), 3.5)
         self.assertEqual(result.get("bootstrap95_ms"), [3.0, 4.0])
+
+
+class RunnerTests(unittest.TestCase):
+    def test_balanced_order_runs_real_children_in_distinct_attempts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            recorder = root / "calls.jsonl"
+            code = (
+                "import json,pathlib,sys; "
+                "c=json.loads(pathlib.Path(sys.argv[1]).read_text()); "
+                "o=pathlib.Path(sys.argv[2]); "
+                f"f=open({str(recorder)!r},'a'); "
+                "f.write(json.dumps([c['name'],c['repeat'],str(o)])+'\\n');f.close(); "
+                "(o/'run.txt').write_text(c['id']); "
+                "(o/'result.json').write_text(json.dumps({'complete':True}))"
+            )
+            plan = make_plan([{"name": "a"}, {"name": "b"}], 2)
+            run_campaign(plan, root / "results", [sys.executable, "-c", code])
+            calls = [json.loads(line) for line in recorder.read_text().splitlines()] \
+                if recorder.exists() else []
+            self.assertEqual([row[:2] for row in calls],
+                             [["a", 0], ["b", 0], ["b", 1], ["a", 1]])
+            self.assertEqual(len({row[2] for row in calls}), 4)
+            self.assertTrue(all((Path(row[2]) / "run.txt").exists() for row in calls))
 
 
 if __name__ == "__main__":

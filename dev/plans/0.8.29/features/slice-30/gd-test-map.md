@@ -218,13 +218,12 @@ accessor, capability, policy exception or TGD9 closed-template completion.
 
 ## Remaining TGD-9 template subunits (bounded fit amendment)
 
-Accepted6620b4c1d proves only tiny deterministic768 D metadata. Its independent
-slice30_template_tool::inspect checks actual cursor/vector/span joins, but the
-producer's closed_metadata currently emits aggregate counts and ordered rows;
-it does not yet invoke a general completeness verifier. Normal GN
-GAdapter::prepare_hybrid still hardcodes two doc rows. Neither is a general
-normal-BGE closed-template command. The bounded TGD10 zero-write control pair
-is separate; further write schedules wait for these TGD9 obligations.
+Historical fit at6620b4c1d: its producer then emitted aggregate metadata rather
+than the general completeness report; GAdapter::prepare_hybrid was only a tiny
+two-row fixture. The following TGD9b/9c obligations were subsequently implemented
+and accepted atc8015ee6/7664a255; retain their original oracles below. Accepted GN
+host/G1 source prefixes now reach8e5823. They do not qualify generic G2/GO/GG or
+remaining controller/budget/D work and final campaigns.
 
 1. **TGD9b actual completeness report.** Introduce a private example/tool helper,
    shared by D and later normal G, using a read-only real SQLite connection.
@@ -317,6 +316,31 @@ strict UTF8-prefix/Recorder controls; no new fault/tamper/corrupt-store venue or
 product hook. These assertions belong to the initial actuation unit, not a
 separately claimed passing-on-arrival product proof. New event/timestamp fields
 apply to G WRITE populations only; P and read-only schemas/oracles stay unchanged.
+
+## Generic G2 reset precursor and placement oracle
+
+The generic driver still lacks per-pass reset linkage. Keep the legacy fresh-two-
+doc helper unchanged; reuse the existing current-versus-history coverage logic
+for the generic SDK reset. Initial literal/property cases use actual successful
+natural calls, then reject missing governed reset calls/rows and active notes
+(0vs1call/10rows), not merely missing metadata. Include two passes on ONE writable
+copy, bounded document counts and both positive/zero warmup requests. Check actual
+current cursor/vector/span coverage and retained superseded history independently.
+
+Generic-G2 API proof only: one pass-local monotonic origin after open/identity
+checks and before reset anchors reset start/end, first warmup-record start and
+first timed-record start. Reset start precedes batch construction; end follows
+write, drain and current-coverage checks. Record starts are immediately BEFORE
+shared observe, including fingerprint/record preparation BEFORE the API timer.
+Require reset completion <= first warmup-record start when warmups>0, and <= first
+timed-record start. For warmups0, first-warmup start is null/not_applicable;
+missing positive-warmup or timed starts are incomplete, never numeric zero.
+Future generic GWRITE record/cohort offsets use this SAME pass origin. The elapsed
+loop timer is separate: it starts AFTER reset, includes warmup+timed work and
+persistence (later scheduled work too), and is not compared as an absolute offset.
+Existing query API timers, P/G1/legacy schemas remain unchanged. No new journal,
+Engine API, observer venue, budget or workload; INITIAL later G2 write-coupling
+oracles still require warmups2/timed20 and actual timed10/20 phase placement.
 
 ## Generic-route/artifact/budget TDD seams (after reviewed source GO)
 

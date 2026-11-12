@@ -86,12 +86,14 @@ mean/CLS distinction, dispatch/default concurrency and worker commit ownership
 are preserved. D synthetic providers stay in existing test-hooks attachment.
 No global statement tracer, public production knob, cache or ranking change.
 At349 this was a design proposal. The engine collector and bounded source
-fixtures are now implemented through46ee7cf6e with accepted prefix reviews;
-generic campaign routes and final source/runtime qualification remain pending.
+fixtures were implemented through46ee7cf6e with accepted prefix reviews. Later
+GN source prefixes through8e5823 implement the private host and bounded G1 input/
+caller/warmup/pass routing; full campaign qualification remains pending.
 
 ## Proposed generic G artifact ownership (current fit review)
 
-The generic normal/diagnostic G caller moves to a SEPARATE feature-gated binary
+The generic normal G caller now uses a SEPARATE feature-gated binary; the
+remaining diagnostic G caller will use the same private host
 in existing publish=false fathomdb-tc5-benchmark, as specified by
 [the fit amendment](gd-extension.md#generic-g-ownership-and-route-fit-amendment-planning-only).
 That package is only a private host: existing TC5 main/protocol/features remain
@@ -103,6 +105,9 @@ Core observer collection stays engine-owned, outside caller API timers. D stays
 in explicit test-hooks/measurement artifacts. Earlier SDK/engine examples and
 all original proofs remain honest tiny-fixture identities, not relabelled as
 this new host. No product ABI/ranking/cache/provider policy changes follow.
-Controller-owned absolute clocks bound native phases/probes/cleanup without
-making synchronous Engine APIs cancellable. This ownership/route fit is still
-planning-only until exact design PASS and source GO, not an implemented host.
+Planned controller-owned absolute clocks will bound native phases/probes/cleanup
+without making synchronous Engine APIs cancellable. The11e09 fit received exact
+design PASS/source GO; GN is implemented with accepted bounded G1 source prefixes
+through8e5823. G2/GO/GG/controller/budget wiring, remaining D work and final source/
+native/lifecycle/campaign qualification remain pending. Earlier proposal wording
+is historical and does not make the current GN host planning-only.

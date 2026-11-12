@@ -1,9 +1,11 @@
 # Slice 30 staged measurement design
 
 Status: P accepted at0d8/integrated2381. Historical initial implementation scope
-below was **P only**. G/D bounded source prefixes through46ee7cf6e now have
-independent acceptance; generic G artifact/route/budget fit remains planning-only
-in [extension](gd-extension.md). No G/D campaign or final qualification follows.
+below was **P only**. The11e09 generic fit in [extension](gd-extension.md) received
+independent design PASS/source GO. Accepted bounded source prefixes through8e5823
+now implement GN's private host and G1 inputs/callers/warmups/pass execution.
+G2/GO/GG/controller/budget wiring and remaining D work are pending. No G/D
+campaign or final source/native/lifecycle qualification follows.
 M/F remain held; each further source stage needs its exact reviewed authority.
 All prerequisites in [parent proposal](prerequisite-change.md) remain in force.
 

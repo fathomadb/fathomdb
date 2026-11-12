@@ -425,8 +425,10 @@ no full-size preparation, campaign, later-route or final qualification authority
 
 ## Generic G passes and hard-budget/controller amendment
 
-Proposed generic artifacts move to private host slice30-g-measurement: GN uses
-slice30-g; GO-off/on share slice30-g-observer and differ only in runtime arm.
+The11e09 generic fit now has accepted GN host/G1 source prefixes through8e5823.
+Private host slice30-g-measurement uses slice30-g for GN; planned GO-off/on share
+slice30-g-observer and differ only in runtime arm. G2/GO/GG/controller/budget and
+remaining D wiring/final qualification stay pending; no campaign has started.
 No TC5/test-hooks in either feature closure. Capture actual compiler artifacts
 INCLUDING profile, lock/root patch/source/pins/build flags/binary identities.
 Root Cargo.toml has no custom release profile; use unchanged workspace --release,
@@ -497,3 +499,26 @@ failures/overruns. No900s+grace or native fresh5s drain; pass remaining work ms,
 refuse zero, preserve slow calls/errors. Same13roots/original69280403456 and all
 caps/floors apply. Resume preserves the original shared deadline; boot/clock
 identity mismatch cannot silently restart4h. No source campaign clock has begun.
+
+## Generic G2 reset-placement source fit
+
+This clarifies the existing reset-before-warmup requirement before reset code.
+Per-pass generic-G2 proof offsets share ONE monotonic origin after open/identity
+validation and before reset. Reset brackets batch construction, governed10-row
+write, drain and current-coverage validation; separate write/drain API durations
+retain their existing scope. First warmup/timed RECORD starts are sampled right
+before shared observe, including input fingerprint/preparation outside the API
+elapsed timer. Reset end must precede or equal those starts. Positive and zero
+warmup cases are initial oracles: first-warmup start is null/not_applicable only
+when the requested count is0; missing required starts remain incomplete.
+
+Future generic GWRITE record/write/drain/probe/coverage offsets use the same pass
+origin. loop_ns instead measures elapsed warmup+timed loop/persistence AFTER
+reset (later including scheduled work), excluding reset/open/close; its numerator/
+scope stays explicit in reports. No P/G1/legacy schema or API-clock change, new
+journal/Engine API/venue, new numerical gate or budget. Initial missing-reset
+runtime assertions cover actual call/row/note counts, two same-store passes and
+bounded document counts with current versus historical physical coverage. Later
+INITIAL generic-G2 actuation oracles retain warmups2/timed20 and actual timed10/20
+phase placement before GREEN. Canonical26measurement+2prep maximum and all caps,
+conditional eligibility and held obligations remain unchanged; no runtime here.

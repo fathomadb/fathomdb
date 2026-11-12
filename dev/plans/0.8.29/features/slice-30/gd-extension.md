@@ -155,9 +155,15 @@ reported precisely; no generic cold-drive request or unrelated Windows prerequis
 
 ## Generic G ownership and route fit amendment (planning only)
 
+The heading preserves the11e09 planning-freeze anchor. That exact fit received
+independent design PASS/source GO; GN host/input/caller/warmup/pass prefixes through
+8e5823 are now implemented and independently accepted within their bounded source
+scope. G2/GO/GG/controller/budget and remaining D wiring/final qualification are
+pending. The following artifact/identity/method constraints remain in force.
+
 Accepted source prefixes through46ee7cf6e cover the observer, actual API/tiny
 closed-template tools and bounded SDK-text actuation; they are not generic
-campaign routes. Proposed host is existing publish=false fathomdb-tc5-benchmark:
+campaign routes. The accepted host is existing publish=false fathomdb-tc5-benchmark:
 new separate bin slice30-g-measurement at src/slice30_g.rs, required-features
 slice30-g. Its default=[] and existing TC5 features/bin/main/protocol remain
 unchanged. Building G must NOT enable tc5-benchmark, tc5-benchmark-cuda or

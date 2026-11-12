@@ -20,7 +20,10 @@ final160 require their actual outstanding proof/disposition.
 
 ## G/D proposal acceptance boundary
 
-G/D are NOT_RUN. Accept them only against the exact [extension](gd-extension.md),
+Natural G/D campaigns remain NOT_RUN. Bounded source prefixes through46ee7cf6e
+are accepted as such, not generic-route/full-source/campaign qualification.
+Current private-host/route/deadline fit remains planning-only. Accept campaigns
+only against the exact [extension](gd-extension.md),
 [test oracles](gd-test-map.md) and [prospective cells/resources](gd-preregistration.md)
 after independent design PASS/parent GO and actual source/runtime qualification.
 Human literal IDs/counts/guard outcomes, same-reader generation/time, actual worker

@@ -317,3 +317,34 @@ strict UTF8-prefix/Recorder controls; no new fault/tamper/corrupt-store venue or
 product hook. These assertions belong to the initial actuation unit, not a
 separately claimed passing-on-arrival product proof. New event/timestamp fields
 apply to G WRITE populations only; P and read-only schemas/oracles stay unchanged.
+
+## Generic-route/artifact/budget TDD seams (after reviewed source GO)
+
+Pure sharing/refactor uses unchanged existing fixture controls; no fictional RED.
+New host selectors/features/argv/config stay fixed across each actual pair.
+Compile-ready scaffold may delegate the current single-query/one-pass caller;
+it must not introduce an intentionally wrong product stub. Missing native/module/
+selector/import errors are setup, not RED. The following are separate units,
+not one whole-route GREEN; reuse already working pieces rather than force RED.
+
+| Original unit / bounded addition | Initial runtime literal/property RED | Minimal GREEN |
+| --- | --- | --- |
+|10 input projection | Existing P converter selection is reused. Valid string JSONL versus required ordered id/kind/body records fails a literal/Unicode count-round-trip assertion, not a child parser exception. | Thin record encoder; preserve pinned corpus/question order and prefix. |
+|10 retrieval limit | Existing hybrid caller returns2 on a real>10-vector fixture despite requested10; Core/SDK count oracles fail2vs10. No learned ordered-ID golden. | Private limit parameter; legacy fixture remains2. |
+|10 query population | Fixed host scaffold delegates existing single-query calls; arbitrary query-file IDs/fingerprints and literal text alpha/beta/no-match results fail actual forwarding/order. Stage all six existing Core/SDK modes initially; hybrid/mean use actual argument fingerprint plus dimension/count/degradation controls, not learned rankings. | One shared query-feed loop, all requested IDs, existing API callers. |
+|10 warmups | Actual generic timed calls work but requested bounded warmup population is0vsrequired; initial G2 warmup/timed count and phase assertions reject scheduled warmup writes. | Separate unscheduled warmup loop and phase counters; timed schedule unchanged. |
+|10 pass plan | Existing one pass versus requested six Core/SDK-mode passes fails actual call/open-close/pass/order counts, including reversed repeat. | Shared outer pass scheduler, same store and fresh Engine open/close perpass. |
+|10 G2 mode adaptation | Existing SDK-text actuation is reused; hybrid/mean calls succeed but selected schedule has0actualcohorts/probes versus required2/20. Initial literal/property tests cover both missing mode adaptations, current/history and threephase/fourflush framing. | Route the existing SDK actuation after TIMED groups in both modes; no mean kind-filter claim. |
+|10 GO adapter | Same observer-feature host succeeds through actual Core APIs; on requested but missing driver arm/transport has0vs1correlated search record. Stage off/GN absence, typed InvalidFilter, unavailable snapshot and mean-not-applicable controls before GREEN. | Host-only Core observer adapter; shared caller/timer, cumulative drop DELTAS and raw errors. |
+|10 GG stages | Real governed/time-view controls pass first; missing requested stage calls/route observations fail actual literal IDs/guards/counts. Separate time stage and governed lifecycle stage pairs. | Public controlled-stage adapters; no duplicate product fix. |
+|14 native deadline | Expired admission still executes a real tiny None-provider DB operation (1vs0); separate remaining-drain literal/property math/call-argument oracle catches fixed5000 versus actual remaining budget. No BGE/CPU substitution claim for these helper controls. | Tool clock/admission then remaining-phase bounds in separate pairs; never change Engine timeouts. |
+|14 bounded probes/cleanup | Separate expired-probe prelaunch and in-flight owned subprocess deadline tests; current numeric du result after deadline or extended cleanup fails runtime refusal/time bound. Preserve diagnostics, group ownership/reaping and prior subreaper state. | Absolute-budget resource probes then cleanup clamping; source defaults unchanged. No delayed provider/model fault. |
+|14 controller/manifest | Real tiny recording/DB children expose missing shared prep/copy/quiet/retry clock and26+2plan/outcome handling; literal/property counts/order and completed-tail resume checked before fixes. | Separate shared-clock admission then manifest/attempt wiring; not pure forecast treated as launch. |
+|15 pairing/results | Actual tiny paired children/real DB pass records expose missing mode/query/template/adapter/repeat/error/drop/unpaired grouping and hand-computed raw-call math. | Separate grouping/report adaptation; preserve raw distributions, no percentile subtraction. |
+
+These extend original10–15 only. D11worker intervals/12held-drain/13strict triple
+intersection plus fully contained positive pending witness remain separate
+real-runtime units with current deterministic768/test-hooks, not G substitutes.
+All new suites/builders are indexed and selected explicitly; hardware suites use
+the existing manual convention. Freeze stable source only after real generic
+wiring, then one required full gate and fresh actual artifact/native proof.

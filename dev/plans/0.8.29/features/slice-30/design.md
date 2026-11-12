@@ -1,9 +1,10 @@
 # Slice 30 staged measurement design
 
-Status: P accepted at0d8/integrated2381; G/D concrete design-only proposal
-at349 is in [extension](gd-extension.md).
-Accepted initial implementation scope is **P only**. G/D/M/F
-remain designed staging boundaries, not implicit runtime/source authority.
+Status: P accepted at0d8/integrated2381. Historical initial implementation scope
+below was **P only**. G/D bounded source prefixes through46ee7cf6e now have
+independent acceptance; generic G artifact/route/budget fit remains planning-only
+in [extension](gd-extension.md). No G/D campaign or final qualification follows.
+M/F remain held; each further source stage needs its exact reviewed authority.
 All prerequisites in [parent proposal](prerequisite-change.md) remain in force.
 
 ## Current source and original tool fit

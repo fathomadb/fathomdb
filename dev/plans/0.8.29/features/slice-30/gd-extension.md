@@ -152,3 +152,62 @@ these exact bounds before source/runtime GO; otherwise narrow the matrix.
 No model fetch, new dataset, driver/toolkit/primary CUDA change, paid session,
 fault/reset/VM/Memex/CI/publish operation. Actual missing inputs/feasibility are
 reported precisely; no generic cold-drive request or unrelated Windows prerequisite.
+
+## Generic G ownership and route fit amendment (planning only)
+
+Accepted source prefixes through46ee7cf6e cover the observer, actual API/tiny
+closed-template tools and bounded SDK-text actuation; they are not generic
+campaign routes. Proposed host is existing publish=false fathomdb-tc5-benchmark:
+new separate bin slice30-g-measurement at src/slice30_g.rs, required-features
+slice30-g. Its default=[] and existing TC5 features/bin/main/protocol remain
+unchanged. Building G must NOT enable tc5-benchmark, tc5-benchmark-cuda or
+engine test-hooks. No TC5 assets/protocol/evidence or fidelity claim is reused.
+
+Private host feature slice30-g enables optional workspace SDK/query/embedding
+API/embedder edges, SDK's EXISTING embed-cuda, rusqlite0.41(bundled/fallible_uint)
+and libc0.2 for Linux CLOCK_MONOTONIC. All resolve existing locked versions
+(rusqlite0.41.1/libc0.2.186); no root/production dependency or SDK feature change.
+Private slice30-g-observer adds only slice30-g plus engine/slice30-measurement.
+GN uses the first feature; GO-off/on use the SAME second-feature executable and
+runtime observer flag. Existing engine-example self-dev test-hooks cannot supply
+GO; those examples remain D/test fixtures with honest identities. SDK accessors
+and observer forwarding remain absent. Existing private TC5 host ownership does
+not authorize modifying its TC5 executor or enabling its benchmark features.
+
+Factor private API callers/Recorder into shared tool modules, preserving legacy
+fixture arguments/oracles. Both new host builds use those same Core/SDK public
+callers and API clocks. Observer cfg references live only in the private host;
+Core-only GO arms/drains existing Engine records OUTSIDE API timers. No SDK
+public test accessor is added. GO-off still pays its actual compiled/control
+cost; GN is the distinct uninstrumented build. Mean embed has no reader query
+record: mark query observer not_applicable, never invent a SnapshotStamp or
+predicate zeros. Search success expects correlated engine/call records; missing,
+error-route unavailable, drops and unpaired records remain explicit.
+
+Generic G1 consumes qualified closed copies and arbitrary ordered query records,
+not hardcoded alpha/beta/one-query fixture assertions. Retrieval limit10 applies
+to hybrid/text; mean remains Engine::embed_text/SDK::embed,384finite/nonzero.
+Actual argument query fingerprint is computed beside the call from the SAME
+query slice (not from a separately planned ID); this plus literal text IDs tests
+routing without learned-vector goldens. Real counts, profile/span/readiness,
+copy/close and reserved CUDA controls precede each intended tool RED.
+
+GG uses Core/public ProvenancedNodeV1, WriteProvenanceV1 and dependency
+registration, then transition(source,Deleted,None), as current predicate tests
+demonstrate. Time copy uses explicit ReadView/public view search: baseline100, then one
+valid90..110 row at before80/inside100/after120, without supersession side effects. Literal direct-text checks establish
+expected visible IDs; timed hybrid stages report actual guards/degradation, not
+learned rankings. Source-valid→invalid and no-dependency/time-window copies are
+separate; actual100k+control-row totals and generations are recorded. No test
+recency/importance/full-sort override enters a campaign.
+
+Native deadline admission uses Linux CLOCK_MONOTONIC, shared with controller
+monotonic_ns; optional libc is tool-only, not a product cancellation API. Check
+before every open/copy/write/warmup/API/drain/proof/verification phase and pass
+floor(remaining work ns/1e6) to drain; refuse zero, never refresh a5s/30s budget.
+Engine::close has no timeout and can wait for SQLite owners; only the owned
+controller bounds that phase/process group. Blocking du/GPU probes also need
+remaining-budget timeouts; existing unbounded measure_root/resource_sample are
+not a hard-deadline campaign implementation. Keep source guard defaults and
+already accepted cleanup/resource semantics unchanged unless a separately
+staged bounded-tool unit requires an optional campaign-deadline path.

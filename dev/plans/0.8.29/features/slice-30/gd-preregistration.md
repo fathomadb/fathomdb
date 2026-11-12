@@ -41,8 +41,8 @@ Proposed artifact identities, built outside measurements in own target:
 
 | Artifact | Exact feature intent | Use |
 | --- | --- | --- |
-| GN | SDK embed-cuda; no test-hooks/measurement observer | Normal G engine/SDK APIs and seed templates. |
-| GO | GN plus engine/slice30-measurement; no test-hooks | Core-only diagnostic mode-off/on paired cells. |
+| GN | Proposed private host slice30-g (existing SDK embed-cuda); no test-hooks/observer | Generic G engine/SDK APIs/templates; earlier SDK fixture proofs retain original identities. |
+| GO | Proposed private host slice30-g-observer adds engine/slice30-measurement directly; no test-hooks | Same binary Core-only off/on controls; no SDK observer forwarding. |
 | DN | engine test-hooks; no CUDA/measurement observer | Existing hidden deterministic provider/held fixture, explicitly untraced test artifact. |
 | DO | DN plus engine/slice30-measurement | D pending/worker diagnostics; no production-provider claim. |
 
@@ -422,3 +422,78 @@ All existing13-root/original69280403456 accounting,96GiB setup/G16/D16/200GiB,
 start/stop floors, fixed900/870/30s cells and shared4h INCLUDING preparation/quiet
 remain. This bounded source-method review starts no campaign clock and grants
 no full-size preparation, campaign, later-route or final qualification authority.
+
+## Generic G passes and hard-budget/controller amendment
+
+Proposed generic artifacts move to private host slice30-g-measurement: GN uses
+slice30-g; GO-off/on share slice30-g-observer and differ only in runtime arm.
+No TC5/test-hooks in either feature closure. Capture actual compiler artifacts
+INCLUDING profile, lock/root patch/source/pins/build flags/binary identities.
+Root Cargo.toml has no custom release profile; use unchanged workspace --release,
+not a new per-package profile or old prototype flags. Historical SDK/engine
+fixture binaries retain their original evidence roles. Nothing here enables TC5.
+
+Queries are ordered records with unique IDs0..499 for the frozen500 questions;
+small source fixtures use distinct bounded IDs/counts. Each pass has50UNSCHEDULED
+warmup calls using first50ordered queries, then500TIMED calls with every ID once.
+Warmups have separate raw records/statistics; no warmup marker cohorts enter
+timed counts. G1 repeats: core(hybrid,text,mean), SDK(hybrid,text,mean), then
+reverse adapter/mode order in repeat1. Open/close/drop a fresh Engine perpass on
+ONE cell's writable template copy; include those costs in cell time. Retrieval
+limit10/default view/options, no graph/rerank/explain; mean has no limit/filter.
+
+G2 is SDK only: repeat0 modes hybrid/text/mean, each readonly then write;
+repeat1 reverses mode AND schedule order. Before EACH pass, one governed reset
+of10notes plus drain/current verification occurs BEFORE warmups/outside timed
+loop. Warmups do not write, so no second reset is required before timed calls.
+Reuse the same cell store; retained history/cache differences are observed,
+not a pure write-only treatment claim. Perpass500timed natural calls on a write pass yield50atomic
+cohorts/500written rows/500probes, with no scheduled work on readonly/warmup.
+Percell:6passes/300warmups/3000timed calls,6reset calls/60reset rows;
+3write passes total150cohorts/1500scheduled rows/1500probes. Current100000doc+
+10note coverage stays separate from growing legitimate historical vectors.
+G1 also has6passes/300warmups/3000timed calls, without scheduled marker writes.
+
+GG keeps its2cells/two fresh copies and10warmups/100timed fixed queries perstage.
+Time copy stages: unmodified baseline at100, then append ONE gg-window doc
+valid_from90/valid_until110 and query before80/inside100/after120. Thus all-nodes
+true/false/true/false is falsifiable without rewriting/deleting the window row;
+counts are100k then100k+1. A second copy appends canonical+derived/register
+(100k+2), then transition(source,Deleted,None) supplies valid/invalid stages.
+Each of these6stages has10warmups/100timed fixed control-query calls, with literal
+direct-text checks before timing and raw actual hybrid guards/degradation.
+Control terms are absent from natural input, verified during counted preparation.
+Record actual current/history/visible totals and generations, no learned ranking.
+GO search correlation drains outside API clocks. Mean reader diagnostics are
+not_applicable; errors retain actual payload/class, unavailable fields are null,
+drops use lifetime-counter deltas and missing/unpaired rows remain visible.
+
+Maximum manifest is26measurement entries (12G/14D including conditional2D3)
+plus2GT preparations. No extra D preparation cells: D generation/seed belongs
+inside its D1/DC/D3 entry. D11–13 still supply actual worker/held/overlap routes;
+10 supplies G generic/pass/guard routes;14 supplies bounded shared controller,
+admission and manifest;15 supplies results/pairing. Conditional eligibility is
+unchanged. Store all complete/failed/incomplete/not-run attempts, including
+completed-tail resume; no smaller substitute, new cells or budget reset.
+
+Start shared CLOCK_MONOTONIC4h BEFORE campaign input preparation/admission/quiet;
+start each900s entry BEFORE its resource/quiet/copy/open/setup work. GT record
+encoding is preparation within that clock. Native receives absolute entry work/
+hard deadlines and shared deadline, not a fresh duration at child startup.
+Work stops at870s (source fixtures150of180); final30s includes native close/
+flush/stop-and-wait/receipt. Reserve at most5s cooperative cleanup, then up to15s
+TERM,5s KILL/reap and5s bounded final observations/output, all CLAMPED to actual
+remaining hard/shared time. Earlier finish needs no waits/signals. No API is
+made cancellable: an in-flight call or close may overrun internally; owned-group
+controller stops it, records partial outcome and never reports a late pass.
+
+ONE resource observation (all13roots/raw directories and BOTH du attempts)
+shares ONE min(remaining phase/hard/shared,5s) deadline: no root or retry receives
+a fresh5s. Each GPU accounting observation likewise shares one such deadline
+across its component queries. Expiry/unavailable refuses/stops rather than
+accepting partial numbers or hanging. Controller owns
+only its created process groups, restores subreaper state and retains cleanup
+failures/overruns. No900s+grace or native fresh5s drain; pass remaining work ms,
+refuse zero, preserve slow calls/errors. Same13roots/original69280403456 and all
+caps/floors apply. Resume preserves the original shared deadline; boot/clock
+identity mismatch cannot silently restart4h. No source campaign clock has begun.

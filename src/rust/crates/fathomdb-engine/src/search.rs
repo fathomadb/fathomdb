@@ -2063,7 +2063,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         query_vector.filter(|_| !vector_eligibility_degraded)
     {
         #[cfg(feature = "slice30-measurement")]
-        let _vector_started = _measurement.as_ref().map(|_| std::time::Instant::now());
+        let _vector_started =
+            _measurement.as_mut().map(|measurement| measurement.begin_block("vector"));
         let mut rowids = Vec::new();
         let bin_vector = query_vector_bin.unwrap_or(query_vector);
         {
@@ -2288,7 +2289,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
     #[cfg(feature = "slice30-measurement")]
-    let _text_started = _measurement.as_ref().map(|_| std::time::Instant::now());
+    let _text_started = _measurement.as_mut().map(|measurement| measurement.begin_block("text"));
     let mut deferred_text_identity = false;
     // EP-17: the search-local `write_cursor → (table, rowid)` map, filled only
     // when snippets are requested.

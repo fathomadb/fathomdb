@@ -55,6 +55,10 @@ pub(super) struct Completion {
 }
 
 impl Completion {
+    pub(super) fn begin_block(&mut self, _name: &'static str) -> std::time::Instant {
+        std::time::Instant::now()
+    }
+
     pub(super) fn finish_outcome<T>(
         &mut self,
         result: &Result<T, crate::search::SearchReaderError>,
@@ -250,5 +254,109 @@ impl Engine {
         let mut records =
             self.wal_attribution.measurement.records.lock().map_err(|_| EngineError::Storage)?;
         Ok(std::mem::take(&mut *records))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{EmbedderChoice, InitialState, PreparedWrite, SourceId};
+    use proptest::prelude::*;
+    use tempfile::TempDir;
+
+    fn readonly_sql_error_after_block_entry(block: &'static str) -> Value {
+        let root = TempDir::new().unwrap();
+        let path = root.path().join("helper.sqlite");
+        let engine = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap().engine;
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "alphaonly evidence".into(),
+                source_id: SourceId::new("test:slice30-block-error").unwrap(),
+                logical_id: Some("alpha".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.slice30_observe_queries_for_test(true).unwrap();
+        let connection = rusqlite::Connection::open_with_flags(
+            &path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        let mut observation = engine.wal_attribution.measurement.begin(0).unwrap();
+        if block == "text" {
+            let started = observation.begin_block("vector");
+            let count: i64 = connection
+                .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!(count, 1);
+            observation.complete_block("vector", started.elapsed(), 1);
+        }
+        let _started = observation.begin_block(block);
+        let result: Result<(), crate::search::SearchReaderError> = connection
+            .query_row("SELECT body FROM canonical_nodes WHERE logical_id='alpha' AND superseded_at IS NULL", [], |row| row.get::<_, i64>(0))
+            .map(|_| ())
+            .map_err(crate::search::SearchReaderError::Sqlite);
+        assert!(matches!(
+            &result,
+            Err(crate::search::SearchReaderError::Sqlite(rusqlite::Error::InvalidColumnType(..)))
+        ));
+        observation.finish_outcome(&result);
+        assert!(matches!(
+            &result,
+            Err(crate::search::SearchReaderError::Sqlite(rusqlite::Error::InvalidColumnType(..)))
+        ));
+        drop(observation);
+        let records = engine.take_slice30_measurements_for_test().unwrap();
+        assert_eq!(records.len(), 1);
+        let record = records.into_iter().next().unwrap();
+        assert_eq!(record["outcome"], "error");
+        assert_eq!(record["error_class"], "Sqlite");
+        if block == "vector" {
+            assert_eq!(record["blocks"]["text"]["invoked"], false);
+            assert_eq!(record["blocks"]["text"]["reason"], "not_reached");
+        } else {
+            let completed = &record["blocks"]["vector"];
+            assert_eq!(completed["invoked"], true);
+            assert_eq!(completed["rows"], 1);
+            assert!(completed["elapsed_ns"].as_u64().unwrap() > 0);
+            assert!(completed["reason"].is_null());
+        }
+        drop(connection);
+        engine.close().unwrap();
+        record
+    }
+
+    fn entered_error(record: &Value, block: &str) {
+        let span = &record["blocks"][block];
+        assert_eq!(span["invoked"], true, "entered SQL error was mislabelled NOT_REACHED");
+        assert_eq!(span["reason"], "entered_error");
+        assert!(span["elapsed_ns"].as_u64().unwrap() > 0);
+        assert!(span["rows"].is_null());
+    }
+
+    #[test]
+    fn vector_entry_sql_error_remains_entered_and_text_unreached() {
+        entered_error(&readonly_sql_error_after_block_entry("vector"), "vector");
+    }
+
+    #[test]
+    fn text_entry_sql_error_remains_entered_and_completed_vector_survives() {
+        entered_error(&readonly_sql_error_after_block_entry("text"), "text");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 8, max_shrink_iters: 32, failure_persistence: None, ..ProptestConfig::default() })]
+        #[test]
+        fn entered_error_projection_covers_both_fixed_block_labels(text in any::<bool>()) {
+            let block = if text { "text" } else { "vector" };
+            let record = readonly_sql_error_after_block_entry(block);
+            prop_assert_eq!(record["blocks"][block]["invoked"].as_bool(), Some(true), "entered SQL error lost its entry state");
+            prop_assert_eq!(record["blocks"][block]["reason"].as_str(), Some("entered_error"));
+            prop_assert!(record["blocks"][block]["rows"].is_null());
+        }
     }
 }

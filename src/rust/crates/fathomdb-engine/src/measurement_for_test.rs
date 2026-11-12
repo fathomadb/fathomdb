@@ -34,6 +34,7 @@ impl Collector {
             worker,
             snapshot: None,
             predicates: serde_json::Map::new(),
+            blocks: serde_json::Map::new(),
         })
     }
 }
@@ -44,9 +45,42 @@ pub(super) struct Completion {
     worker: usize,
     snapshot: Option<Value>,
     predicates: serde_json::Map<String, Value>,
+    blocks: serde_json::Map<String, Value>,
 }
 
 impl Completion {
+    pub(super) fn complete_block(
+        &mut self,
+        name: &'static str,
+        elapsed: std::time::Duration,
+        rows: usize,
+    ) {
+        self.blocks.insert(
+            name.into(),
+            json!({
+                "invoked": true,
+                "elapsed_ns": u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX),
+                "rows": rows,
+                "degraded": false,
+            }),
+        );
+    }
+
+    pub(super) fn skipped_block(
+        &mut self,
+        name: &'static str,
+        reason: &'static str,
+        degraded: bool,
+    ) {
+        self.blocks.insert(
+            name.into(),
+            json!({
+                "invoked": false, "elapsed_ns": null, "rows": null,
+                "reason": reason, "degraded": degraded,
+            }),
+        );
+    }
+
     pub(super) fn skipped_predicate(&mut self, name: &'static str, reason: &'static str) {
         self.predicates.insert(
             name.into(),
@@ -91,6 +125,7 @@ impl Drop for Completion {
                 "worker": self.worker,
                 "snapshot": self.snapshot,
                 "predicates": self.predicates,
+                "blocks": self.blocks,
             }));
         } else {
             self.collector.dropped.fetch_add(1, Ordering::Relaxed);

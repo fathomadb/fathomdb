@@ -62,7 +62,7 @@ Actual false/true values, query correlation and positive fine duration are
 required. gd-dependency-red/green receipts/logs retain full executable hashes,
 features and dirty-source attribution; affected Clippy passes.
 
-TGD-3 fallback RED93117f250 preceded this revision's minimal GREEN.2prior predicate tests
+TGD-3 fallback RED93117f250→GREEN4b77b467e.2prior predicate tests
 passed and5new literal cases failed their missing actual invocation/NOT_CALLED
 spans: vectorless, history-incomplete, dense no-dependency, valid-dependency and
 governed source lifecycle loss. Successful product result assertions precede
@@ -111,7 +111,7 @@ MemAvailable23.061GiB; no resource stop. Receipt gd-post-review-resources.json.
 
 ## All-nodes predicate unit
 
-TGD-4 RED52225760b precedes this revision's minimal GREEN. The actual predicate
+TGD-4 RED52225760b→GREENa419da7b0. The actual predicate
 target has7prior passes and1new parent failure after all16isolated real-store
 controls reach their intended missing observer assertion:3called cases
 (defaulttrue/futurefalse/expiredfalse) and13existing guard skips. Every literal
@@ -135,6 +135,27 @@ retains command/source delta/features/actual built hash and8/8selected tests
 feature Clippy and default engine check, all exit0/resource_stop null. This is
 one predicate unit with16literal controls, not16separate RED/GREEN pairs. Vector/
 text blocks, error/drop reporting, worker/tool/model/campaign units remain open.
+
+## Vector block unit
+
+TGD-5 RED99d6e9308 has8prior passing tests and3new runtime failures at absent
+actual-span/NOT_RUN/degraded state, Null!=true/false. Independent read-only SQL
+counts2real vectors before hybrid returns literal beta/plain IDs; direct text
+returns only plain, and governed source lifecycle loss returns no hits. These
+product results are controls, not newly implemented product behavior. The
+normalized synthetic provider is not BGE or AC075 fidelity evidence.
+
+Immutable test SHA256
+f804b5d868ad34012116e757f6266f842dde4c772bb48029caad4a30035442ef;
+actual RED executable SHA256
+24f3166aad799d2880e9c75478725db7d1f936a737b3377a45cd37fdbb5cbbb7.
+GREEN receipt gd-vector-block-green retains the exact source delta, built
+executable hash,11/11runtime pass, feature Clippy/default check exit0 and no
+resource stop. Only the actual vector block is bracketed, including its SQL and
+hydration before fusion. Skipped rows/time stay null; actual eligibility
+degradation is explicit. Text block/error/drop/worker/tool/model units remain
+unimplemented. Current vector_stage_only still computes text before selecting
+fusion output; no pure-vector timing or skipped-text claim is made.
 
 ## Evidence locations and interpretation
 

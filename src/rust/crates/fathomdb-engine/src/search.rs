@@ -2053,6 +2053,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let vector_results = if let Some(query_vector) =
         query_vector.filter(|_| !vector_eligibility_degraded)
     {
+        #[cfg(feature = "slice30-measurement")]
+        let _vector_started = _measurement.as_ref().map(|_| std::time::Instant::now());
         let mut rowids = Vec::new();
         let bin_vector = query_vector_bin.unwrap_or(query_vector);
         {
@@ -2232,8 +2234,24 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 });
             }
         }
+        #[cfg(feature = "slice30-measurement")]
+        if let (Some(measurement), Some(started)) = (_measurement.as_mut(), _vector_started) {
+            measurement.complete_block("vector", started.elapsed(), results.len());
+        }
         results
     } else {
+        #[cfg(feature = "slice30-measurement")]
+        if let Some(measurement) = _measurement.as_mut() {
+            measurement.skipped_block(
+                "vector",
+                if vector_eligibility_degraded {
+                    "eligibility_degraded"
+                } else {
+                    "query_vector_absent"
+                },
+                vector_eligibility_degraded,
+            );
+        }
         Vec::new()
     };
     let vector_rows_visible = !vector_results.is_empty();

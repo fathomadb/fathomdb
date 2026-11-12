@@ -188,6 +188,12 @@ original short-circuit reason: query_vector_absent, filter, perf_limit,
 source_dependencies, include_superseded, include_inactive, include_out_of_window,
 recency, importance, rerank, graph, explain or full_sort. These report stored
 control values; the skipped predicate is never evaluated for diagnostics.
+`blocks.vector` reports inclusive existing vector SQL plus candidate hydration
+work, before fusion, with invoked=true, elapsed_ns, pre-fusion hydrated `rows`
+and degraded=false. When the actual arm is skipped, invoked=false with null
+rows/time and reason query_vector_absent or eligibility_degraded; `degraded`
+retains the existing eligibility-degradation flag. This is not a pure tensor,
+embedding, SQL-only, final-hit, or dense-completeness measurement.
 Final error disposition and drop reporting are not yet supplied. Closing admission
 returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.

@@ -222,5 +222,35 @@ class ManualRunTests(unittest.TestCase):
             self.assertFalse((frozen / "results").exists())
 
 
+class CompletedTailResumeTests(unittest.TestCase):
+    def test_resume_preserves_completed_tail_on_disk_and_original_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls, failed = root / "calls.jsonl", root / "failed-once"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "c=json.loads(pathlib.Path(sys.argv[1]).read_text())",
+                "o=pathlib.Path(sys.argv[2])",
+                f"with open({str(calls)!r},'a') as f: f.write(json.dumps([c['name'],str(o)])+'\\n')",
+                f"flag=pathlib.Path({str(failed)!r})",
+                "if c['name']=='b' and not flag.exists(): flag.write_text('failed'); sys.exit(7)",
+                "(o/'result.json').write_text(json.dumps({'complete':True}))",
+            ])
+            plan = make_plan([{"name":"a"},{"name":"b"},{"name":"c"}], 1)
+            command = [sys.executable,"-c",code]
+            first = run_campaign(plan,root / "results",command)
+            original_c = first[2]["attempt"]
+            self.assertEqual(first[1]["exit"],7)
+            run_campaign(plan,root / "results",command)
+            disk = {row["id"]:row for row in json.loads((root / "results" / "campaign-state.json").read_text())}
+            self.assertEqual(set(disk),{"a-r0","b-r0","c-r0"})
+            self.assertEqual(disk["c-r0"]["attempt"],original_c)
+            self.assertTrue(all(row["status"]=="complete" for row in disk.values()))
+            before = calls.read_bytes()
+            run_campaign(plan,root / "results",command)
+            self.assertEqual(calls.read_bytes(),before)
+            self.assertEqual([json.loads(line)[0] for line in before.decode().splitlines()], ["a","b","c","b"])
+
+
 if __name__ == "__main__":
     unittest.main()

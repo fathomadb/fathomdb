@@ -5,159 +5,86 @@ target_release: 0.8.29
 slice: 20
 ---
 
-# Slice 20 — dependable queue and parallel-test evidence
+# Slice 20 — continuation scope
 
-## Scope and current evidence
+Same dedicated GPT-6.1 Sol-high owner; parent commissions independent Astra-medium
+design and fresh implementation reviews. No Steward/Orchestrator or nested agent.
+This revision reconciles actual integrated20 repairs657edeb,60 subset5271c1bf,
+completed70 e875f360 and parent continuationfcbce1674. It supersedes the old source-
+entry instructions, without invalidating their historical execution receipts.
 
-Owner: GPT-6.1 Sol high, direct slice owner. Batch3 approved hygiene/queue
-proof; the [direct mandate](../../direct-execution.md) supplies the sequence:
-updated design, independent Astra-medium adversarial design PASS, same-owner
-TDD implementation in a fresh isolated source worktree, fresh independent
-Astra-medium code review. No Steward/Orchestrator role or nested agent.
+## Actual completed work and remaining outcomes
 
-The updated design passed independent Astra-medium review; parent source GO
-covers genuine reproduced repairs only. Sole-writer source checkout is
-`/mnt/data/worktrees/fathomdb-0.8.29-s20-test-hygiene`, branch
-`llm/0.8.29-s20-test-hygiene`, entry base02e30d861beddc8061af0dc22f12106d5e09dd32.
-Actual10 source104dcbc and parent closure d7d928 are ancestral. The02e30d delta
-contains reviewed documentation/state only. Own entry strict closed10/32GiB
-preflight passed with zero warnings, then owned tool/native setup completed.
-[Execution](execution.md) owns actual RED/GREEN, resources, limits and receipts.
+The two engine-owned evidence-hook repairs are integrated and independently
+accepted. Their real RED/GREEN, assembled qualification, failed attempts and
+native limitations remain in [execution](execution.md) and [review](review-log.md).
+Do not repeat those repairs or call their previous environment current proof.
+TC57/configure-first, Slice40 and non-test CPU warning controls were qualified
+within that subset; no current defect was demonstrated in them.
 
-This source phase never writes the frozen parent/release state, boards, ledgers
-or other checkouts. A3/A5 policy remains unanswered; no exception or defer is
-inferred, and20 cannot close or clear30/Block1 dependencies by repair-subset PASS.
+Remaining mandatory outcomes are A3 pre-enqueue race23, A5 live five-constant
+tripwire and A6 actual Windows startup/opener qualification. [Requirements](requirements.md),
+[acceptance](acceptance.md), [design](design.md) and [test map](test-map.md) retain
+precise conditions. A3/A5 remain held under the actual unanswered coverage-policy
+item. Neither continuation mandate nor design PASS chooses exception or defer.
+A6 remains capacity-held. No20 closure,30 clearance or Block1 exit follows.
 
-Preserve format37/no database migration, current queue defaults/fields and
-wait/run/cancel/permit policy, existing source-proof oracles, query property
-scaffold, accepted compact-default/B2-8 and hints omissions. No chunking,
-reader interruption, retry hints, admission-policy redesign, blanket test
-serialization, warning suppression or numerical release gate is allocated.
-R580/primary CUDA12.6 stay fixed; no K620, GPU fault or paid run is needed.
+## Integrated predecessor adaptation
 
-The [evidence register](evidence-register.md) distinguishes historical failures,
-source-grounded residuals and actual reproduction still required. In particular:
+60 preserves Registry admission/lifecycle code and adds direct-text/hybrid route
+counters to Seams/Hooks. Admission's helper now validates output against actual
+advertised format-bound schemas. Use that maintained helper; select text mode and
+structured format explicitly in the new race fixture so compact parsing and70's
+provider-free hybrid degradation do not become accidental oracles.70 adds
+embedder_absent/embedder_timeout and actual Closing propagation; keep those
+accepted words, order, remedies and native fixture successors. Queue error/wait/
+permit policy and the five T2 production values remain unchanged. No architecture
+or production-interface successor is required for this test-only continuation.
 
-- .28 Slice42's owned-file FD repair is inherited, not a new20 fix.
-- TC57's raw-WAL helper already configures SQLite before opening; reproduce any
-  current residual rather than applying that fix twice.
-- The reproduced global sidecar/resolver hooks are now engine-owned at657edeb;
-  graph-evidence hooks were already scoped.
-- Queue phase/epoch fallback exists. A deterministic observation of Ready before
-  permit/queue accounting is missing; `hold_arrivals` is after queue insertion.
-- Historical Windows names changed with failed-open policy. Path identity is a
-  plausible test-hook cause, not a reproduced current Windows diagnosis.
-- T2's five production constants already equal their accepted values.
+Keep format37, no migration, W0.8.29/E0.8.0, query scaffold, hints/spans/defaults,
+R580/primary CUDA12.6/no K620. No model, GPU fault, toolkit/driver change, new
+numerical threshold, chunking, reader interruption or retry hint is allocated.
+CI work/execution, remote dispatch, publishing tags and registries are excluded.
 
-## Integrated repair subset
+## Owned entry and ordered work
 
-The two genuine Linux hook-ownership repairs completed separate observed
-RED/GREEN, assembled qualification and fresh independent Astra-medium
-implementation PASS at657edeb76caaf9c8d2aab433766bec9362e73217. Parent integrated
-that exact subset; [execution](execution.md) and [review](review-log.md) preserve
-actual results and limits. This is partial completion only: A3/A5 policy is
-unanswered and Windows A6 unqualified. No Slice20 closure,30 clearance or Block1
-exit follows.
+Parent-created sole-writer checkout is
+`/mnt/data/worktrees/fathomdb-0.8.29-s20-continuation`, branch
+`llm/0.8.29-s20-continuation`, basefcbce16748a5885cb296f504579ff9630d11fc6a.
+Owner identity/clean-tree and strict closed10 preflight passed with zero warnings.
+TMPDIR, AGENT_LOG_DIR and all Cargo/UV/pip/npm/XDG cache/target/tool outputs
+are task-local; all task scratch/tools/logs/caches/targets/temp stay under
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice20`; no new /tmp/root-disk outputs.
+No source setup/build/test/transfer has run in this continuation.
 
-## Requirements, design and release join
+1. Parent obtains fresh adversarial design PASS for this exact revision.
+2. Parent GO opens only the reviewed, actually unheld work. Nonmutating ownership
+   check precedes any own setup; use canonical --provision and exact pinned tools.
+   Own source/native identity and measured capacity precede heavy work.
+3. Under an explicit A3/A5 exception, implement the conditional proof/guards and
+   isolated negative controls in design; retain honest coverage timing. Under an
+   explicit defer, parent records unsatisfied receiving disposition; no fake RED.
+4. A6 capacity approval, reviewed operational scripts/bootstrap and actual binary
+   controls precede exact-source native Windows build/four selectors. A discovered
+   real defect gets a committed failing regression and separate GREEN, fixed
+   assertions, exact raw evidence and an independent RED replay.
+5. Scoped checks during work; full source gate once on final stable clean source
+   if source/tests/scripts change, then fresh independent implementation review.
+   Only docs use scoped Markdown/state checks. Preserve failures and skipped cases.
 
-[Requirements](requirements.md), [acceptance](acceptance.md), [design](design.md)
-and [test map](test-map.md) define six local obligations S20-R1–R6/A1–A6.
-They refine N29-A/R29-REL-A and N29-R/R29-REL-R through R29-3P-06/O3-06 in
-[completed3](../../prework/slice-3/requirements.md) and
-[completed5](../../prework/slice-5/traceability.md). No canonical product AC is
-added or weakened. [Completed4](../../prework/slice-4/alignment-matrix.md)
-confirms this is residual proof/hygiene, not queue reconstruction.
+## Bounded capacity and decision boundary
 
-Canonical ancestry is coarse NEED-020→REQ-020/021/023→AC-022a/b/c,023a/b,025;
-O3-06 is the actual MCP race oracle. Existing AC/performance thresholds remain.
-The [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
-applies bounded interleavings, resource accounting and real-database outcomes;
-broad fuzzing/MC/DC/soak and exhaustive fault campaigns stay deferred.
+Host observation: about648GiB free on /mnt/data,56GiB root,23.6GiB available RAM;
+full swap allocation alone is not a stop decision. Refresh live rates/floors before
+setup. Review uses one heavy phase/jobs2, root32/20GiB, taskfs250/50GiB,
+MemAvailable16/8GiB, total owned200GiB and sustained swap64MiB/s for three30s
+samples. Canonical final Rust jobs1 stays intact. Count checkout/task and any
+image reservation together; do not sum duplicated filesystem capacity.
 
-## Ordered work after design PASS and owned setup
-
-1. Reread actual reviewed/integrated10 and adjust this candidate design for any
-   changed code/conditions before implementation. Verify10 closure in actual
-   JSON/ref ancestry, parent-created fresh20 worktree and strict preflight;
-   use10's helper to establish that20 checkout's own tools/native identity within
-   refreshed resource limits. No inherited10 environment or PASS substitutes.
-2. Reproduce each carryover with its exact parallel target and isolated control;
-   classify already-fixed, currently reproduced, unreproduced or unavailable.
-   Preserve original failed evidence and non-vacuity assertions.
-3. Stage/commit a genuine deterministic failing regression for each confirmed
-   repair, record exact failure and selector at RED SHA, then implement its
-   smallest cause and separately record GREEN. Tests stay fixed during repair.
-4. Scope evidence hooks to their engine; retain transaction placement and exact
-   provenance/snapshot assertions. Add bounded hook ownership/cleanup controls.
-5. Hold new Ready→pre-enqueue observation/race23 additions until the actual
-   coverage-policy answer; existing shutdown24, FIFO, late-permit, cancellation
-   and abandoned-work controls remain authorized preservation checks.
-6. Address only a reproduced non-test release warning; add the accepted actual
-   T2 constant guard only under the resolved TDD disposition below. Map and
-   qualify Windows successors on an available approved Windows venue.
-7. Run scoped lint/type/test checks while changing code, required full source
-   gate once on the final stable owned tree, then fresh independent code review.
-   Record failed suites and rerun affected checks; no green from skips.
-
-## Specific TDD prerequisite
-
-Verified external memory `tdd-red-must-fail-per-finding.md` requires each behavior
-change's real failing RED SHA and exempts only documentation. It also forbids
-passing-on-arrival coverage labelled “Not RED.” Existing production queue
-fallback and T2 constants may already pass their new assertions. Do not mutate
-working constants/queue logic to fabricate RED or claim a missing-seam compile
-failure proves a queue defect. Before landing these additions, parent must
-record the exact discipline disposition. [Design](design.md) presents concrete
-choices: explicit coverage exception with meaningful isolated negative controls,
-or defer those already-correct additions while keeping A3/A5 open. A genuine
-current behavior failure, if found, still requires its own RED/GREEN repair.
-This unresolved point affects those additions only; it is not another generic
-scope-approval request. Confirmed hook/Windows defects still require real RED.
-
-## Dependencies and exit
-
-Actual10 qualification/review/integration/closure is complete. Fresh20 source
-isolation, strict state/ref/dependency preflight, owned tools/native receipts and
-refreshed resources remain implementation-entry requirements, not already-passed
-claims. Windows access is an explicit qualification dependency; Linux cannot
-satisfy A6. No generic reconfirmation of approved20 scope is needed. One writer
-owns the new checkout; serialize affected engine/MCP source against other owners.
-No borrowed venv/modules/native artifacts or another checkout's mutable target.
-
-30 consumes the affected stable harness and precise unresolved limitations.
-Slice20 contributes to the unnumbered Block1 follow-up exit after selected20–70
-before90; it is not160. A selected mandatory criterion remains open until
-satisfied or explicitly disposed by its authority; design/code PASS cannot waive
-it. [Review and check records](test-map.md) must name actual source, selectors,
-features, reached/skip counts, raw exits, RED/GREEN SHAs and platform evidence.
-
-## Completed predecessor adaptation and review checkpoint
-
-[Completed10 execution](../slice-10/execution.md) and
-[terminal review](../slice-10/review-log.md) record18 genuine RED/GREEN pairs,
-original failed211-suite collector plus qualified affected reruns, and214 current
-registrations (207fast/7heavy). Canonical Rust/TS/N-API passed; repaired Python
-1746pass/36skip. Qualification is assembled, not uninterrupted full green or a
-new all214 collector;10 local preparation PASS is not20/platform/release proof.
-The actual [state](../../../release-state-0.8.29.json) and
-[board](../../../runs/STATUS-0.8.29.md) retain readiness NOT_READY/publication HELD.
-
-The final [owned helper](../../../../../scripts/setup-python-owned.sh) adds
-nonmutating --check-ownership before bootstrap mutators; only --provision creates
-venv. Root/TS module symlinks/escapes refuse before installers/npm. --provision
-and --build each build/install a fresh source-bound noneditable wheel. Full-test
-pytest/children now receive absolute own-checkout PYTHONPATH so they use the
-qualified test-hooks candidate; installed-production smoke stays site-packages.
-Neither20 setup nor global PYTHONPATH should bypass those distinct authorities.
-
-No inspected queue/engine/embedder Rust source or Rust test selector changed in10.
-Keep the original hypotheses and source oracles; don't repeat10's fixed child-
-import/ownership/validator repairs. Fresh resource measurement must account for
-source now on /mnt/data; historical10 floors/peaks do not reserve20 capacity.
-
-Parent-controlled updated Astra design PASS and source GO cover the real-defect
-repair subset after actual own entry checks, now recorded in execution.md.
-Every independent repair still requires genuine per-finding RED/GREEN. A3/A5 additions remain held:
-owner has answered neither alternativeA norB. Reviewer PASS cannot choose the
-policy or close20 without actual disposition/proof.
+Existing Windows VM now has9,151,545,344B C: free (8.52GiB), no alternate writable
+disk and no active build process. Existing32GiB build floor fails. Retain FIX3's
+concrete64GiB scratch-disk option, with explicit owner approval before image/ACL/
+attach/initialize; [design](design.md) records exact unresolved preparation.
+No approved host cross-build route exists. Parent's cross-build lead was corrected
+to investigation; native Linux target only and no demonstrated cross toolchain.
+No new infrastructure requirement or capacity waiver is inferred.

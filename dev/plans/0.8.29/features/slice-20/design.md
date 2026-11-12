@@ -1,243 +1,163 @@
-# Slice 20 design
+# Slice 20 continuation design
 
-## Reviewed baseline and exact delta
+## Reconciled product architecture
 
-[Queue admission](../../../../design/agent-access/queue-admission.md) test23
-explicitly records the uncovered Ready→pre-enqueue race. The reviewed `Registry`
-captures `Next::Admit { load, epoch, changed }` under its mutex, unlocks, and
-calls `admit`. Free permits bypass `QueueTicket`; queued calls increment before
-`after_arrival_check`. After a permit, `admit` rechecks shutdown, phase and epoch;
-stale attempts return None to the outer open-wait loop. `Load` survives reopen;
-permit ownership already defines in-flight work. Idle/LRU drains require both
-in-flight0 and queued0, so draining an already-queued ordinary waiter is not a
-valid fixture. Shutdown24 covers its different reachable transition.
+Actual657edeb owns sidecar/resolver hooks per Engine; graph hooks were already
+scoped. Preserve those accepted transaction positions, evidence-only carriers,
+ordinary-search layout and free export paths. Actual60 leaves Registry admission
+unchanged but adds route counters and format-bound schema validation; actual70
+adds bounded fallback causes and Closing propagation. Use current structured
+configuration and explicit text search for race fixtures. Do not overwrite those
+changes or resurrect old oracle expectations. No production architecture change,
+new product fields, queue policy, migration or model/GPU operation is selected.
 
-Delta: test-only observation of the existing gap and of stale rejection/engine
-entry. Preserve runtime branches and error/deadline semantics unless a genuine
-behavior failure is reproduced. No reader cancellation or retry estimate.
+Memory tdd-red-must-fail-per-finding.md permits docs only without genuine RED and
+forbids passing-on-arrival coverage. The actual A3/A5 owner ruling remains pending.
+The conditional route below is concrete review material, not an inferred waiver.
 
-At the reviewed baseline, engine `evidence_linearization_hooks` has two global `OneShotHook` values;
-`arm` overwrites the singleton, any engine can consume it, and `fire` currently
-invokes the closure while its mutex guard may remain alive. The graph-evidence
-resolver already has an engine-owned hook; frozen-validation and reader-search
-controls are already scoped. Delta: replace only sidecar/resolver ownership and
-bounded rendezvous use, retaining their exact transaction positions.
+## Conditional A3 proof and seam architecture
 
-`open.rs` startup/visibility/admission test hooks also use one global Option each
-and compare raw registered path to `canonical_path` at firing. Noncanonical or
-Windows verbatim identities can differ; concurrent arms can overwrite. This is
-a source-derived hypothesis requiring deterministic current reproduction. TC57
-and Slice40 versioned-parent helpers already configure before raw SQLite open;
-Slice40 WAL fixture opens raw SQLite only in its explicitly separate child.
+Registry::acquire captures Next::Admit under its mutex, then unlocks before admit.
+Free permits bypass QueueTicket; hold_arrivals runs after QueueTicket::join.
+After a permit, admit already rejects shutdown, non-Ready phase or changed epoch
+before constructing StoreGuard. Load survives reopen; idle/LRU require busy0.
+Thus force-draining a queued waiter is invalid and current source suggests missing
+proof rather than a demonstrated product defect.
 
-## Evidence rendezvous ownership
+Only with the actual exception, add one adapter-owned test-seams observation,
+consumed once in Next::Admit after registry unlock and before admit/permit/queue.
+Arm returns an owned handle tied to exact store plus unique attempt token; refuse
+an outstanding duplicate instead of overwrite. Reached carries captured epoch and
+Load counters. Async bounded release waits must not park a Tokio thread or retain
+registry/ownership mutexes. Guard Drop clears reached/held state after abort,
+unwind, timeout or release_all; old handles cannot clear a newer arm. Only armed
+attempts collect bounded stale-rejection/bridge-entry events. Pass captured epoch
+through Hooks::before_call; no product result/ordinary feature state is added.
+An observer must not extend original call wait_until or acquire a permit/ticket.
 
-Prefer an Engine-owned test-only hook set, enabled only by `test-hooks`/unit
-cfg. Keep the two existing free hook names and require an explicit `&Engine` owner,
-as the existing frozen hook already does; update all callers atomically. Do not
-keep old-signature compatibility shims. The existing test-seam inventory paths
-remain valid; its default/refusal and explicit-feature consumer check still runs.
-A hook has distinct armed/reached/released state and one owner; take the closure
-out of its mutex before calling it. No registry/ownership mutex is held across
-a rendezvous. An arm must not silently overwrite another outstanding arm.
+Use one real A store seeded with independently expected l:note:a. Configure
+structured output, explicit text search, idle1s and wait10s. Open epoch1, arm,
+spawn search, await reached(epoch1,queued0,in_flight0), observe closed with existing
+readiness helper and can_open lock proof. Close that probe before resuming.
+Block existing reopen seam, resume old attempt, observe stale rejection and
+reopening with no old-epoch bridge entry. Release reopen and assert exact ref,
+epoch2 only, zero accounting, later call and real idle/LRU health. Bound every
+actor with cleanup installed before arming; existing Harness release_all remains
+available. Idle proves the stale recheck; do not duplicate LRU unless a distinct
+branch obligation appears. The timer is std::time::Instant, so paused Tokio time
+alone cannot prove this transition.
 
-Resolver fires directly from its Engine at the existing pre-return position,
-inside the same transaction. Sidecar runs on a reader: clone the engine-owned
-handle into the existing evidence-only `EvidenceSearchReaderRequest`, then
-`EvidenceCapture`; fire at the existing post-ranking/pre-sidecar position.
-Keep ordinary search's zero-sized `NoEvidenceCapture` and request/channel shape
-free of evidence hook state. No ordinary search allocation or product field is
-justified by a test seam. `open.rs` initializes owned test state consistently.
+Separate controls keep reopen held through the original absolute deadline and
+require exact not_ready/reopening; abort/drop/panic releases the held seam; and
+shutdown at the gap refuses not_ready/draining without bridge entry. Keep existing
+queued/running cancellation semantics: no new pre-permit client-cancel guarantee.
 
-A bounded RAII pause owns release; hook closure signals reached then waits on a
-release channel with a finite deadline. Drop/timeout releases actors, and every
-spawned actor is joined or its bounded child is terminated/reaped. Existing
-unbounded two-party Barriers in changed bodies are replaced only with equivalent
-acknowledgments/cleanup, leaving semantic result assertions intact. A failed
-assertion must not strand the test executable. TestA and testB use distinct real
-DBs and frozen contexts, not database mocks or copied golden outputs.
+Negative controls use disposable parent-created isolated checkouts with identical
+new tests. First replace stale rejection's `return Ok(None)` with typed
+not_ready/draining: the unchanged primary test must fail its wait/reopen/success
+oracle. Second bypass the stale phase/epoch predicate: current closed-state
+fixture may panic at the absent Engine; retain this as sensitivity failure,
+without claiming it proves actual stale engine entry. The healthy proof itself
+requires a reached stale-rejection event plus zero old-epoch bridge entries, not
+only final success. Record each exact patch/assertion; never mutate the good
+candidate to obtain RED. These are coverage sensitivity controls only.
 
-RED recipe per seam: armA then execute a valid operation on B first. A bounded
-channel proves whether A's callback was stolen; B must complete without it,
-then A alone must reach it once. For simultaneous ownership, armA then armB,
-launch both, require each named acknowledgment, release independently and
-assert exact original per-engine evidence identities. Current global overwrite/
-theft yields an actual assertion failure, without relying on scheduler luck.
-Stage/commit that regression and its raw RED before changing ownership. If the
-required owner argument needs compile scaffolding, include only that test-hook
-signature/callsite adaptation in the RED commit while retaining the existing
-global storage/fire behavior. Then observe actual A/B theft/overwrite assertion
-failure; absent/new-signature compilation is not RED. All existing semantic
-assertions remain unchanged, and GREEN changes ownership without editing the
-staged regression. Reuse separate sidecar/resolver controls rather than one
-big-bang GREEN.
+## Conditional A5 live tripwire
 
-## Ready→pre-enqueue observation and race23
+Add engine fusion unit guard for actual RRF_K/RRF_WEIGHT_TEXT/RRF_WEIGHT_VECTOR
+and candle_bge module guard for DEFAULT_EMBEDDER_NAME/private MAX_SEQUENCE_TOKENS.
+Accepted expectations are30.0/3.0/1.0/fathomdb-bge-small-en-v1.5/512; each assertion
+names dev/design/overflow-chunking-reevaluation.md. Run default-embedder feature
+explicitly without constructing any model. No new production export, text parser
+or source-regex test. Five separate disposable mutations change one live constant
+at a time (31/4/2/different name/513); corresponding unchanged assertion must fail.
+These are sensitivity controls, not five fake product RED/GREEN pairs. T1 remains
+unmeasured and T3 unscheduled; no answer campaign or chunking decision follows.
 
-Add a one-shot adapter-owned `before_enqueue` hook in the `Next::Admit` arm,
-after dropping registry mutex and before entering `admit` (including its fast
-permit path). It consumes only an explicitly armed store/request token. Return
-a scoped pause handle to the test with async bounded reached/release methods.
-One-shot consumption prevents a second admission attempt after reopening from
-pausing again. All state is under existing `test-seams`; ordinary hooks inline
-to no-ops. `release_all`, handle Drop, task cancellation and panic release/reset
-held observations. A reached counter must decrement via Drop, not only the
-normal continuation. Do not park a Tokio runtime thread on a Condvar.
+If exception is declined or explicitly deferred, add neither coverage nor seams;
+parent records exact unsatisfied receiving disposition. Genuine current behavior
+defects found in either area still get their own committed failing test, separate
+GREEN and independent actual RED replay; do not manufacture a defect.
 
-Minimal read-only test observations: store/attempt epoch at reached; load's
-in_flight/queued/abandoned snapshot; stale phase/epoch rejection event; bridge
-entry `(store, epoch)` at the existing `before_call` point. Only explicitly
-armed observations collect events, avoiding unbounded logs/allocations in normal
-calls. These are test-only witnesses, not new admission configuration or result
-fields. Public `Seams` additions document timing, one-shot ownership, timeout,
-release and panic/cancellation cleanup. Update the test-only contract note in
-[the Rust interface](../../../../interfaces/rust.md) for the required Engine
-argument/lifetime and adapter seam feature boundary in the same implementation
-PR; product result/error/configuration contracts stay unchanged.
+## A6 existing VM, capacity and operational design
 
-Primary race uses real idle expiry because it does not leave another store
-competing for the one-open-store limit:
+Read-only refreshed VM gh-runner-wonl-win11 is running at the standing authenticated
+endpoint; Windows11 Pro, Rust/Cargo1.95, .NET csc.exe exists, no active builds.
+Only Disk0/QM00001 is writable; C: free9,151,545,344B (8.52GiB), guest available
+RAM28,422,604KiB. D/E/F are read-only media. This cannot meet32GiB build start.
+Compiler existence is not binary/source/hash/runtime qualification.
 
-1. OpenA and record epoch1; arm pre-enqueue pause and spawn its search.
-2. Await reached(epoch1), assert in_flight0/queued0. A blocked pre-enqueue
-   observer owns no permit/ticket and must not prevent the genuine idle close.
-3. Observe A closed and SDK lock available. Arm blocked reopen before release.
-4. Resume old attempt, observe stale rejection and reopening; assert no bridge
-   entry for this call at epoch1 and no leaked counter. No claim follows from
-   final response alone, which could miss a stale intermediate engine call.
-5. Release reopen; get independently expected `l:note:a`, epoch2. Assert only
-   epoch2 entered bridge, then later call succeeds and idle close releases lock.
+Retain the actual prior FIX3 proposal and latest static artifact PASS, not an
+invented approved cross-build history. Host has native Linux Rust target only;
+no demonstrated cross compiler/linker/Windows SDK. A host-built executable route
+would need a separate exact target/tool/ABI/dependency design before setup and
+cannot be claimed cheaper or ready. Current recommended bounded venue route is
+FIX3's64GiB disposable scratch disk in the existing VM, conditional on the actual
+owner's explicit image/ACL/live-attach/new-disk-format/floor approval.
 
-Use actual readiness/lock/reached events with bounded waits; waiting for an idle
-clock is not itself the race oracle. Paused time alone cannot drive this path
-because Registry uses `std::time::Instant`. Keep total fixture waits well inside
-configured deadline with generous supervision limits.
+Host task root is /mnt/data/tmp2/fathomdb-0829-continuation/slice20. Proposed
+fresh images-only sibling is
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice20-windows-images-fcbce1674`, image
+`windows-a6-64g.qcow2`, virtual size exactly68,719,476,736B. Both directory and
+image must be absent/non-symlink before creation. Create images directory0700;
+grant only refreshed QEMU UID execute-only there and image read/write, never
+traversal of the private task root. Original OS image
+`/var/lib/libvirt/images/gh-runner-wonl-win11.qcow2` and Disk0/QM00001 remain
+untouched. Use live-only USB0:10, target sdg, serial FDB29S20A6; no persistent
+configuration. Verify fresh VM UUID3a928939-57ed-4c62-999b-b610f3e44d42 and exact
+source/target/serial/port after attachment; discrepant/partial state stops. Reserve full64GiB image
+plus64GiB Linux build budget within200GiB total. Recheck QEMU UID, VM UUID, unused
+USB0:10/sdg, unique serial FDB29S20A6, unused R: and all disk identities. Require
+one newly visible disk absent from the pre-attach inventory, RAW, nonboot/non-
+system, exact64GiB and serial. Revalidate its UniqueId immediately before GPT
+initialization, partition creation and NTFS format; require same resulting
+partition GUID/unused R: binding and volume label FDB29S20A6. Refuse Disk0,
+prior disks, ambiguous serial, occupied paths or partial attachment. No OS disk,
+partition resize, shutdown, persistent config or global confinement change.
+Workspace R:32/20GiB, C:8/5GiB, guest memory16/8GiB start/stop are proposed FIX3
+floors requiring actual acceptance; current C: barely exceeds8GiB, refresh first.
 
-A second control leaves reopen blocked beyond the original absolute wait bound:
-assert exact `not_ready/reopening` and bounded termination, not a renewed full
-wait. A third test drops/aborts the test-only pause future after reached and requires
-its held observation to clear through RAII; release_all and panic/unwind cleanup
-also remain bounded. This tests seam lifecycle, not a new product cancellation
-guarantee before permit acquisition. Preserve existing queued-cancel and
-running-cancel controls: queued calls leave the line, started work retains its
-permit until completion.
-Shutdown at the gap must still refuse `not_ready/draining`; no forced idle/LRU
-drain with queued work. Retain current busy-store/LRU controls to prove no
-semantic weakening. Add a separate deterministic LRU-gap fixture only if idle
-proof does not exercise the same stale-recheck branch; do not duplicate without
-an independent branch obligation.
+Old artifact manifest SHA256
+0e48dca33c9bbb5c27b7d01f137c7a852f73abec934c62c304d66d20572396db has static
+PASS only. Preserve its creation-time private Job Object, sole noninherited
+kill-on-close handle, no breakaway, stdio whitelist, suspend/verify-before-resume,
+raw diagnostic retention and authoritative ActiveProcesses0 before next command.
+No sampled PID/SSH-exit cleanup claims. A later23-file execution-proposal FIX1 also received static Astra PASS under
+manifest4eca4a1ac1f64ba4cd4b09bd0ec0205e19be8bcd2049f56816e4b20b953f431b.
+It supplies complete bootstrap/compiler-supervision, transfer/extraction and
+negative/death-control source proposals. Reuse those actual sources with reviewed
+current path/owner reconciliation; do not reconstruct infrastructure. Actual
+PowerShell/ABI/compilation/binary/hash review and operational controls remain
+NOT_RUN/unqualified. The owned windows-operation-proposal-v2-frozen packet contains
+exact provisioning scripts and this reconciled package for parent-commissioned
+operation review. Its new-disk authorization must explicitly cover the single
+already-started guest initialize/partition/format sequence finishing after host
+transport loss; subsequent host actions stop, outcome remains UNKNOWN and only
+read-only inventory follows. Command initiation and timeout partial stdout/stderr
+are durably retained. Only that host logging helper has harmless local real-child
+control evidence; VM/storage/bootstrap/compiler/A6 operations remain NOT_RUN. Do not use unbuilt helper to contain its
+own compilation. Existing .NET read-only compiler availability needs exact hash
+and references; no installer or alternate compiler fallback.
 
-This adds proof for behavior already implemented. It has no production-defect
-RED until a failing current behavior is actually found. The TDD choice below
-must be settled before landing it.
+Standing memory windows-vm-for-fathomdb-testing.md already authorizes equivalent
+exact-source disposable verification transfer, hash checks at both ends and
+owned-path disposal after durable evidence. No renewed generic transfer question.
+It does not authorize disk/ACL changes. Updated paths/scripts must be reviewed;
+old /tmp host output defaults are replaced with owned /mnt/data paths. Future
+bounded operator/harness code is committed and indexed under experiment docs
+before use, per keep-measurement-tools-in-repo.md; no scratch-only gate tool.
 
-## Startup/runtime, warning and tripwire work
+After prerequisites, archive the clean final SHA with per-file inventory, hash
+both ends, reject occupied/symlink/reparse/traversal/case-folded duplicate paths,
+then build only engine operator,test-hooks --lib --no-run, jobs2,20min bound.
+Run exactly the four selectors in test-map, each90s with retained original logs,
+nonzero test count and private-job empty receipt. Lease60s, guest checks2s, host
+refresh/renew10s; timeout/failed measurement/transport loss stops only owned job,
+never advances. Missing final receipt remains UNKNOWN. No CI/registry action.
 
-For a reproduced startup hook identity failure, canonicalize registration with
-the same `canonical_database_path` authority used by open, propagate setup error
-rather than guessing identity, and key separate arms by exact DB identity where
-parallel ownership requires it. Preserve lock-before-classification ordering.
-Do not change production path simplification, refusal, provider admission,
-verification precedence or cleanup to make a test hook fire. Prove unrelated
-path cannot consume the hook. Existing same-path serial visibility tests remain
-until that ownership reason is independently removed. Opener rendezvous needs
-bounded ready/release and early-opener-error handling before Windows reruns.
-
-TC57 and Slice40 first run intact in ordinary parallel and isolated modes.
-If no current failure exists, record unreproduced/already-fixed and do not edit
-working helpers. A new deterministic runtime test must preserve configure-before-
-first-open, not call sqlite3_shutdown or force process-global state reset.
-
-Warning diagnosis uses a clean non-test release build of the MCP binary without
-`test-seams`, separately from test/dev-feature unification. Record exact item
-and cfg graph; change only proven ownership. If absent, no speculative warning
-fix or cfg-text mirror test. Release build warnings are not promoted to a new
-blanket `-D warnings` policy.
-
-T2 guard locations: engine fusion unit module reads live `RRF_K`,
-`RRF_WEIGHT_TEXT`, `RRF_WEIGHT_VECTOR`; embedder `candle_bge` module reads live
-`DEFAULT_EMBEDDER_NAME`, private `MAX_SEQUENCE_TOKENS` under default-embedder.
-No model construction/network/GPU or new production export. Failure text names
-[re-evaluation](../../../../design/overflow-chunking-reevaluation.md).
-That document's accepted assessment, not a snapshot regeneration, governs future
-expectation changes. T1 answer study and T3 kernel remain outside20; preserve
-standing ledger retarget duty at release close rather than close the monitor
-because T2 test was added.
-
-## Exact TDD alternatives for design review
-
-The verified strict memory forbids passing-on-arrival coverage except docs.
-Neither option below is currently an owner ruling:
-
-| Alternative | Concrete behavior and evidence | Consequence |
-| --- | --- | --- |
-| A: explicit owner exception for already-correct coverage | Add race23 instrumentation and five-constant guard as coverage, recording baseline behavior already correct. Require real reached/phase/entry witnesses. Demonstrate meaningful negative controls in disposable isolated verification trees: bypass stale rejection must be caught by race oracle; change each actual constant must fail its named guard. Restore those trees; never label intentionally broken production RED or fabricate repair. Existing confirmed defects still use per-finding genuine RED/GREEN. | Supplies approved missing20 proof and T2 monitor once exact exception is recorded. Requires no new product policy. |
-| B: defer already-correct additions under unchanged strict rule | Implement only genuine reproduced repairs with per-finding RED/GREEN. Keep race23/T2 explicitly unimplemented and A3/A5 open, preserving existing queue source proof and standing tripwire record. No dummy failing test, missing-seam compile claim or altered expected constant. | Parent records precise defer/receiving disposition; affected20 exit/30 dependency and Block1 proof cannot be claimed satisfied by review alone. |
-
-Astra review evaluates completeness/fit and negative-control feasibility; it does
-not choose policy for the owner. Parent presents this concrete choice only when
-relevant. Pending choice does not block approved10 preparation or independent
-real-defect diagnosis.
-
-## Actual completed10 adaptation
-
-Actual104dcbcbe92a1eca730d146b99ab17d444df6217 has fresh independent Astra final
-PASS and parent integration/closure d7d928f8e49d7af6a792385534f4e991c13232b3.
-Reread actual plan/requirements/design/tasks/resources/test mapping, execution,
-terminal review, final helper/caller diff, current214 registry and JSON/board.
-The older98fc pending-candidate input is superseded. Current parent checkout is
-/mnt/data/worktrees/fathomdb-0.8.29;10 COMPLETE_ON_RELEASE_BRANCH,20 NOT_STARTED.
-No inspected MCP/engine/embedder Rust source or Rust workspace/feature test
-selector changed. MCP documentation corrections preserve queue policy/refusal.
-
-10's18 observed pairs include five earlier parent-audited REDs and independently
-reproduced venv/module ownership corrections. Its single full wrapper failed
-at98fc; an interrupted attempt and original211-suite207pass/4fail collector remain
-recorded. Qualified affected reruns repair those four failures; three new registry
-entries ran separately. Current214 total/207fast/7heavy is a registration count,
-not an all214 collector pass or uninterrupted full green. Rust/TS/N-API pass,
-Python1746pass/36skip and scoped security/lint/typecheck remain source-bound10
-receipts, not20 or Windows qualification. No reason to rerun10 campaign wholesale.
-
-The final common helper's --check-ownership is nonmutating and runs before full/
-heavy bootstrap installers/hooks/npm. It rejects foreign activated env, symlinked
-venv and symlinked/escaping root/TS modules before any mutator. Only --provision
-creates a venv with canonical Python>=3.11 selection; actual sys.prefix checks,
-pip/Ruff/Pyright checks precede installation/native work. --provision and --build
-both freshly build from src/python, locked release with pyproject features and
-exact interpreter, install a noneditable wheel, verify site-packages prefix/digest
-outside source with PYTHONPATH cleared, and record source/delta/lock/features/
-wheel/interpreter/ABI/native identity. --check-ownership does not build or claim
-native readiness. agent-build still delegates Python before Cargo with no
-system/timestamp fallback. Use the integrated helper, not old manual setup.
-
-The canonical Python test runner now scopes `PYTHONPATH="$PWD/src/python"` only
-to pytest/children. The unchanged sanctioned fresh-wheel/clean-source/owned-venv/
-nonce/digest gate qualifies that candidate; do not globally export PYTHONPATH,
-modify conftest/test oracle, or use production module hook presence as identity.
-Installed-production lifecycle smoke remains a separate site-packages route.
-Retain distinct hermetic TS/N-API and production artifacts. This child-import fix
-is completed10 work, not another20 defect or test rewrite.
-
-Known exact10 tools are Node25.9.0/npm11.12.1, Rust1.95, Python3.12.3/pip24.0,
-Ruff0.15.17/Pyright1.1.410, Markdown CLI0.23.3. Parent now owns0.23.3 for document
-checks; source10 tools remain another checkout's property. Parent creates20
-fresh source worktree after closed10 strict preflight;20 must provision its own
-venv/modules/native receipts under refreshed task resource reservations. Run
---check-ownership before npm/other mutators; never borrow10 env/native/target.
-
-Carry forward bounded one-native/full-phase and Cargo/CMake jobs2 planning.
-10 reviewed limits were root32GiB start/20GiB stop, taskfs250GiB start/50GiB stop,
-total owned task storage200GiB, MemAvailable16GiB start/8GiB stop and sustained
-swap control.10 sampled peak57,674,990,155B is historical evidence, not reserved
-capacity. Source relocation to /mnt/data changes filesystem accounting: refresh
-actual source/tmp/task filesystem free bytes and combined same-filesystem use
-before provisioning; do not sum duplicate free-space readings as extra capacity.
-Stop only owned work at bounds; no cleanup or paid expansion is inferred.
-
-No implementation is authorized by this document update. Parent-controlled
-updated Astra design PASS, fresh worktree/base verification, strict closed10
-preflight, owned setup and explicit source GO remain. The owner coverageA/B
-answer is still pending; genuine confirmed repairs retain observed separate
-RED/GREEN while A3/A5 coverage additions stay held. Readiness remains NOT_READY,
-publication HELD; no new fault/GPU/Windows permission or coverage-policy waiver.
+For reproduced Windows path-hook mismatch, first commit a deterministic current
+runtime regression; only then align registration to canonical_database_path and
+scope independent arms. Opener's current Barrier can hang: outer process bound
+provides initial safe diagnosis. Any bounded rendezvous repair preserves lock-
+before-classification and all schema/error/owner assertions and gets genuine
+failure evidence before GREEN. Linux alias controls supplement actual Windows.

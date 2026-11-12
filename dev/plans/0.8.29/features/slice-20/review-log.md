@@ -39,3 +39,35 @@ No unresolved actionable findings. Verified clean frozen source, unchanged produ
 Qualification is assembled: original failed attempts, corrected affected checks, skips and runtime warning remain disclosed. No uninterrupted full-green claim.
 
 Approval covers repair-subset integration only. A3/A5 policy and actual Windows A6 remain open; no Slice20 closure, Slice30 clearance, Block1 exit or release/publication approval follows.
+
+## Continuation design and Windows operation proposal
+
+Parent-commissioned independent GPT-6 Astra-medium design review passed the
+five-document continuation revision against fcbce16748a5885cb296f504579ff9630d11fc6a.
+The narrow sensitivity-map correction retains both stale controls and five
+constant mutations as sensitivity evidence only. The final same-reviewer PASS
+covers cumulative diff cf737096a3d686adba8d6cce70cdfc1c2177316125bbf0a61ce0002031abb133,
+including the explicit full guest-sequence transport-loss disclosure.
+
+Fresh independent operations Astra returned FIX for inaccurate continuation
+wording and missing timeout initiation/partial-output logs. Non-destructive v2
+resolved both; terminal PASS verified all40 packet hashes and the unchanged
+harmless local real-child control's actual failure before correction and pass
+afterward. This is host logging evidence only, never product RED/GREEN or Windows
+qualification. Frozen packet is under the owned /mnt/data task root:
+windows-operation-proposal-v2-frozen, manifest SHA256
+5122aa082974461cb8a6f04e2f96accd645c19554844419cd43131355171aafa.
+Prior static-reviewed bootstrap/transfer/control sources are reused; no VM,
+provisioning, compiler, transfer or A6 execution occurred.
+
+Own strict closed10 preflight and nonmutating ownership check passed before
+bounded documentation-only tool provisioning. Own Node25.9.0/npm11.12.1 and
+Markdown0.23.3 ran the scoped Markdown gate successfully; no native/Python build
+or full source gate was needed. Task temp/cache/log outputs stay under /mnt/data.
+Parent owns release-state/board/ledger integration and final output evaluation.
+
+A3/A5's actual coverage exception remains unanswered. Actual64GiB image/isolated
+ACL/live attachment/verified-new-disk GPT/R:/NTFS/floor approval also remains
+unanswered, explicitly including an already-started guarded guest sequence
+finishing after transport loss. No source/VM GO, whole20 closure,30 dependency
+clearance, Block1 exit, CI or publication approval follows these design verdicts.

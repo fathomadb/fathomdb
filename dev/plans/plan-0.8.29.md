@@ -351,17 +351,20 @@ approved work from genuinely pending item decisions. Actual0–9 reviews are
 complete. Approved10 preparation and qualified product subsets are recorded in
 the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provide
 current direct-text evidence. P acceptance does not close whole30 or downstream
-source gates. The same30 owner implements the independently reviewed
-[G/D design](0.8.29/features/slice-30/gd-extension.md) within the recorded resource
-admission. Owned qualification, fresh implementation review, actual hardware
-proof and frozen identities precede bounded G/D campaigns; source authority
-never implies completed measurement. Product work continues through the selected
-ladder, actual prerequisites and genuine TDD.
+source gates. The reviewed G/D source prefix remains isolated while host RAM
+is below its unchanged16GiB heavy start floor. The same30 owner is quiescent;
+its light work and static pinned-input preparation are complete, with final
+native/runtime qualification still pending. The next100 owner performs only
+bounded existing-evidence planning from the qualified parent under closed10,
+independently of30 runtime. Physical erasure remains done except defects; no new
+fault campaign, coverage exception or G100-1/G100-2 waiver follows. Future30
+resumption reconciles current parent metadata without rewriting RED/GREEN hashes.
+Product work continues through actual dependencies, reviews and genuine TDD.
 Publication remains separately authorized.
 
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
+**IMMEDIATE NEXT: Slice 100** (`INTERRUPTION`) — Coverage-first bounded interruption and reopen qualification
 
-**Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 100 → 30 → 20 → 40 → 50 → 60 → 80 → 90 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

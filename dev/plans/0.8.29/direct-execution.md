@@ -141,10 +141,31 @@ mandatory criteria and records the exact reviewed Windows operations proposal.
 No product source changed. A3/A5 policy and Windows capacity authorization remain
 unanswered; compiler/control/Windows runtime qualification remains unexecuted.
 
-Slice30 documentationbea7f05cd and its exact P-only dependency amendment passed
-independent Astra-medium design review. State/master now permit initial direct-
-text Linux P entry from closed10 plus qualified integrated20/current70 after
-actual ancestry/preflight, own source/native setup and parent GO. G/D need later
-concrete review; M20 proof/policy, F frozen TC5, whole30/40/50 and pre90 Block1
-remain held. The parent selects eligible30 P as next work while20 decisions stay
-open; no closure is inferred. Keep each dedicated owner for later continuation.
+At the earlier P-only entry, Slice 30 documentation bea7f05cd and its dependency
+amendment passed independent Astra-medium design review. P subsequently completed
+its bounded qualification and measurements, recorded in the current state and
+[results](features/slice-30/results-p.md). G/D later received concrete design
+review and bounded source authority; its current resource hold is below.
+M20 proof/policy, F frozen TC5, whole30/40/50 and pre90 Block1 remain held.
+Keep each dedicated owner for later continuation.
+
+## Resource-held G/D and independent reconciliation
+
+The30 owner completed the eligible reviewed G/D code prefix and light forecast
+work, but its source remains isolated and unqualified. Heavy TS/native/GPU entry
+requires actual16GiB available RAM; a refusal before child creation is not RED.
+No task-owned setup group remains to stop. Keep that owner quiescent under the
+original allocation while100 performs only bounded current-parent source/evidence
+planning. Slice100 depends on completed10 and has no30 runtime dependency.
+
+Main may advance reviewed planning metadata during this resource hold; it must
+not integrate unqualified30 code or select new100 faults/coverage exceptions.
+Keep the existing physical-erasure closure and exact G100-1/G100-2 limitations.
+Fresh independent Astra review gates100 scope/design and later selected work.
+All mutable resources/Git stay under/mnt/data. The8GiB stop floor applies to
+light planning; the16GiB heavy start and all storage/time limits remain unchanged.
+
+After100 reports, main evaluates the next assignment and gives the same30 owner
+an exact current-parent resumption instruction when resources permit. Reconcile
+parent metadata by normal merge if needed; never rebase or rewrite recorded
+RED/GREEN commits. Strict current-source/resource checks still precede execution.

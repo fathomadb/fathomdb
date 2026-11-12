@@ -210,13 +210,14 @@
         "dev/plans/0.8.29/features/slice-30/gd-test-map.md",
         "dev/plans/0.8.29/features/slice-30/gd-preregistration.md"
       ],
-      "phase": "P_SUBSET_QUALIFIED_GD_DESIGN_ACCEPTED_BOUNDED_SOURCE_PHASE_AUTHORIZED",
+      "phase": "REVIEWED_GD_PREFIX_ISOLATED_RUNTIME_ENTRY_WAITING_MEMORY",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P-only Linux subset is qualified. Reviewed G/D design has parent resource admission: conservative A64.5223198GiB+96GiB new setup/build+32GiB retained evidence=192.5223198GiB<=200GiB, with start floors passed. Same30 owner may enter genuine per-behavior TDD after current strict preflight/owned setup; G/D campaigns require qualified frozen source/artifacts/native proofs, fresh implementation review and actual permitted hardware reservation/engagement. Per-family raw16GiB, cell900s/shared4h and all stop rules remain. M20 A3/A5 proof/disposition, F exact frozen TC5, Windows20 A6, whole20/30,40/50 source gates and pre90 Block1 remain open.",
-      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows. Concrete G/D design b83 passed independent Astra-medium review after correcting triple-overlap/pending-witness and same-reader snapshot-race oracles. The shared-example feature clarification separately passed. Parent independently verified clean Markdown-only candidate and conservative aggregate resource admission. G/D source/campaign authorization is prospective under that exact design; no G/D implementation, native qualification or measurement result exists yet.",
+      "conditions": "Qualified P subset remains integrated. G/D Rust9e and forecast49be prefixes have independent implementation-review acceptance only, isolated on the same owner branch with no final full source/native/runtime/campaign qualification. Initial Python9e setup/build/import passed; TS start was refused125/pidnull at about12.4GiB RAM below16GiB. All eligible light work and private pin/hash/count staging are complete; no model/DB/GPU ran. Keep30 quiescent until explicit parent resumption with current metadata reconciliation, actual resources and original96setup+32raw/200GiB bounds. No G/D code integration or qualification is implied. M20 policy/proof, F exact TC5, Windows20, whole20/30,40/50/pre90 remain held.",
+      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows. Concrete G/D design b83 passed independent Astra-medium review after correcting triple-overlap/pending-witness and same-reader snapshot-race oracles. The shared-example feature clarification separately passed. Parent independently verified clean Markdown-only candidate and conservative aggregate resource admission. At design entry, G/D source/campaign authority was prospective and no implementation or runtime result existed. Subsequent isolated source-prefix progress below does not establish final qualification or campaign results. At isolated49be, all resource/completion/snapshot/predicate/block/stats/outcome/forecast completed prefixes passed fresh independent Astra reviews, with actual fixes and original failures retained. Own Python setup9e exited0 in205.85s as build/import evidence only; heavy TS refused before child creation. Conservative owned footprint66.951GiB/setup2.429of96 and pinned local input copies are recorded under slice30-gd. Host memory remains below16GiB start, with no task-owned leftover process; no threshold or host process was changed. This is an unqualified pending source branch, not landed G/D work.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
-      "gd_design_sha": "b83cddba7c6a3ddb37d77d0576e06767a2e8a7ea"
+      "gd_design_sha": "b83cddba7c6a3ddb37d77d0576e06767a2e8a7ea",
+      "pending_source_candidate": "49be773da5c2d7637160c278a4c9a7cc9e5f4c20"
     },
     {
       "slice": 40,
@@ -360,7 +361,7 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-100/coverage-matrix.md",
         "dev/plans/0.8.29/features/slice-100/design.md",
@@ -370,9 +371,9 @@
         "dev/plans/0.8.29/features/slice-100/status.md",
         "dev/plans/0.8.29/features/slice-100/test-plan.md"
       ],
-      "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded actual20 evidence/design recheck PASS. Reuse of the existing eight-control execution is accepted with explicitly stated source/configuration inference limits. Active-checkpoint interruption and richer combined crash assertions remain open; no product defect, new test-policy exception or whole100/D28-09 closure was established."
+      "conditions": "Planning/source-census continuation only from qualified current parent after closed10; independent of30 runtime and80/90. Reconcile eight existing controls and originalD28-09 under physical-erasure-done-defects-only closure. Fresh Astra scope/design review required; G100-1/G100-2 remain explicit. No source/test/executable/tool/native setup, DB/debugger/process crash/fault/VM/GPU/model campaign or TDD exception is authorized by this planning entry.",
+      "phase": "BOUNDED_EVIDENCE_RECONCILIATION_PLANNING_AUTHORIZED",
+      "evidence": "Astra-medium bounded actual20 evidence/design recheck PASS. Reuse of the existing eight-control execution is accepted with explicitly stated source/configuration inference limits. Active-checkpoint interruption and richer combined crash assertions remain open; no product defect, new test-policy exception or whole100/D28-09 closure was established. Parent permits a bounded current-source/evidence planning continuation while30 is quiescent under an actual host-memory start refusal. Preserve the historical bounded actual20 review PASS; stale pending-review/baseline prose must be reconciled, not treated as current. No new evidence, defect, source qualification or D28-09 closure is claimed by this assignment."
     },
     {
       "slice": 110,
@@ -495,8 +496,9 @@
     }
   ],
   "landed": [],
-  "next_slice": 30,
+  "next_slice": 100,
   "remaining_ladder": [
+    100,
     30,
     20,
     40,
@@ -504,7 +506,6 @@
     60,
     80,
     90,
-    100,
     110,
     120,
     130,
@@ -610,7 +611,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs,60 format/direct-filter/budget subset and30 provider-free P measurements passed within their recorded limits. P runtime2fd and final documentation0d8 have fresh independent P-subset acceptance; whole30/G/D/M/F remain open. Whole20/60/F11, remaining product/platform/artifact criteria, pre90 Block1 and final160 qualification remain pending. Assembled qualification retains original failures, interruptions/resumptions and inner skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication.",
+    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs,60 format/direct-filter/budget subset and30 provider-free P measurements passed within their recorded limits. P runtime2fd and final documentation0d8 have fresh independent P-subset acceptance; whole30/G/D/M/F remain open. Whole20/60/F11, remaining product/platform/artifact criteria, pre90 Block1 and final160 qualification remain pending. Assembled qualification retains original failures, interruptions/resumptions and inner skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication. Isolated G/D reviewed prefixes remain unqualified pending native/runtime capacity. Slice100 now receives planning-only existing-evidence reconciliation from the qualified parent; no new fault, policy ruling, source gate waiver or release completion follows.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

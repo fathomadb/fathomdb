@@ -114,15 +114,30 @@ AC013. Freeze hooks never enter ordinary overlap or G latency cells.
 Overlap: no freeze, fake sleep, delayed provider or injected fault in timed
 work. Start actual writer, worker and query tasks with a bounded initial
 rendezvous only. Record native worker-ID intervals/state, governed write start/commit intervals
-and query intervals; count a real triple-overlap only when the query intersects
-both an actual writer interval and actual worker interval with independently
-positive eligible pending work. Pending count alone is not worker concurrency.
-Report partial intersections separately; no observed triple-overlap is incomplete.
-Writer intervals are real governed API start-to-commit/receipt intervals and may
-include lock waiting; this does not assert simultaneous SQLite write transactions.
-If no overlap is actually observed, report INCOMPLETE_OVERLAP, not a claimed
-concurrency benefit; do not insert an unreviewed delay or tune defaults to force
-it. Tool-only tiny tests may use existing bounded test controls for deterministic
+and query intervals on a single attempt-local monotonic clock. For q,w,j define
+L=max(q.start,w.start,j.start), U=min(q.end,w.end,j.end). Only L<U is a common
+triple interval; separate intersections with q do not suffice. Boundary-only
+contact is excluded. A successful positive readiness witness must also satisfy
+L<p.start<=p.end<U. Report every failed/outside witness and partial intersection
+separately; absent qualifying common overlap is INCOMPLETE_OVERLAP.
+
+Pending witness is the FULL timed invocation of existing
+Engine::read_embedding_readiness (timestamp immediately before/after, returned
+pending_count>0), not an unspecified poll or an assumed state carried forward.
+Source projection_generation.rs read_embedding_readiness invokes the existing
+pending_embedding_work under the primary-connection lock. Its constituent SQL
+reads occur within that invocation; positivity witnesses at least one eligible
+pending row sometime within the common interval, not a constant/exact aggregate
+throughout it. The lock/read may serialize with writes, so qualification is
+conservative and a missing witness is honest incomplete, not permission to
+move its timestamp, widen a writer interval or inject delay. No new connection
+or reimplemented pending SQL is required for this witness.
+
+Writer interval is the actual governed API start-to-successful-commit/receipt
+interval, including lock waiting; no simultaneous SQLite-write-transaction claim.
+Worker interval is one identified real batch lifecycle, with row count separate
+from worker count. Pending count never stands in for worker concurrency.
+Tool-only tiny tests may use existing bounded test controls for deterministic
 oracles, distinct from the timed campaign.
 
 Drain/terminal do not prove embedding completeness. Read live WAL-backed state
@@ -165,6 +180,17 @@ P. Current gd-design-entry owned_bytes covers only the new root; it does not
 prove aggregate capacity. Read-only old Git is not mutated. Before setup/source
 GO, measure the complete sum and reserve new build/DB headroom under200GiB;
 new setup/targets consume this budget as well as both retained G/D families.
+The guard admission/stop metric is the sum, per disjoint root, of
+max(apparent bytes from du -sb, allocated bytes from du -sB1), counting shared
+common Git once and never changing metric between entry and monitoring.
+Parent's design-time allocated-only inventory reported64.522GiB across the five
+roots; that is not the conservative max metric or a build reservation. Propose
+96GiB new setup/Cargo/cache growth reservation PLUS32GiB raw G/D retention before
+GO. Actual initial aggregate A must satisfy A+96+32<=200GiB. Monitor actual
+setup growth against that96GiB allowance without double-counting already-created
+bytes. If this cannot fit, stop and revise scope/budget before source GO; no cap
+approval follows from the allocated-only snapshot. The actual aggregate and
+remaining build/raw headroom must be captured before provisioning/heavy steps.
 Use one owner-private G/D Cargo target for feature-hashed builds, preserve each
 selected executable by source/feature/hash, no duplicate sibling targets.
 
@@ -230,3 +256,13 @@ ordinary GO build does not acquire broad test-hooks to run those controls and
 never enables their tuning overrides in measured G cells. Emit the actual first
 short-circuit reason/guard state without re-evaluating the skipped final scan.
 Extra engine generation-read time and nested spans remain observer overhead.
+
+## Snapshot-stamp qualification
+
+The INITIAL stamp RED includes the [bounded post-pin race](gd-test-map.md): the
+existing Engine-owned post-validation hook pauses a validated frozen reader;
+a governed writer commits g1/newonly; the reader later stamps g0/oldonly at
+fixed effective_at100 while fresh adjacent state sees g1. The stamp read is
+placed after that existing hook on its same tx. Stage the race and quiescent
+oracle together before stamp GREEN; no later passing-on-arrival race coverage,
+new unbounded Barrier, new production API or adjacent-generation substitution.

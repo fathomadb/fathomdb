@@ -97,3 +97,18 @@ worker bodies. [Extension](gd-extension.md), [test map](gd-test-map.md) and
 The explicit separate G/D retention budget and shared4hour cap require review;
 no source/runtime GO or release-state edit is inferred. Independent Astra review
 is parent-commissioned; candidate verdict pending.
+
+## G/D design review correction1
+
+Fresh Astra requested two P2 design corrections at03df99fdd: pairwise interval
+intersection admitted false triple overlap, and quiescent snapshot equality could
+miss adjacent-generation attribution. Owned documents now require strict common
+max-start/min-end intersection plus a positive readiness invocation wholly
+inside it, with disjoint/boundary/outside-pending literal negatives staged before
+GREEN. The initial snapshot-stamp RED now includes the existing post-validation
+hook race: commit g1 after reader g0 pins, then require g0/old row/effective time
+while adjacent state sees g1. Its bounded channel/drop cleanup reuses the existing
+callback shape without copying historical unbounded barriers. No source/runtime
+work ran. Resource proposal also names one conservative aggregate byte metric
+and explicit96GiB setup/build plus32GiB raw reservation before GO. Same-reviewer
+re-review remains pending; no resource/source/runtime approval is inferred.

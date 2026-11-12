@@ -80,8 +80,9 @@ engine-direct diagnostics alone supply internal branch attribution.
 Record per-engine ID/call ID/worker, actual FrozenView effective_at, projection cursor and
 read-visibility generation loaded on that SAME reader transaction. The extra
 diagnostic generation read is timed/labeled observer work; adjacent writer or
-public context reads never masquerade as its snapshot. No cache-key sufficiency
-or future-time safety proof follows from these observations.
+public context reads never masquerade as its snapshot. The initial snapshot-stamp RED includes the bounded post-pin/concurrent-commit
+race in [test map](gd-test-map.md), not just a quiescent adjacent-generation
+comparison. No cache-key sufficiency or future-time safety proof follows.
 
 Bracket actual calls/blocks with monotonic ns: dependency-presence predicate,
 vector-fallback predicate/its SQL branch, guarded all-nodes predicate, vector
@@ -96,8 +97,11 @@ SQL/kernel/queue partition. Any unsupported attribution stays unavailable.
 For D, collect per-worker batch start/finish and row count around the existing
 worker batch lifecycle, plus actual queued/active/in_flight state snapshots.
 Do not equate active_jobs with worker concurrency. Worker-ID interval overlap
-establishes observed worker concurrency, while a real overlap query must also
-intersect an actual governed writer interval and positive pending work; commit intervals may serialize normally.
+establishes observed worker concurrency. Real triple-overlap requires the strict
+COMMON intersection max(query_start,writer_start,worker_start) <
+min(query_end,writer_end,worker_end), not pairwise query intersections. A positive
+pending-read witness must lie wholly inside that common interval as specified in
+[preregistration](gd-preregistration.md). Boundary-only contact does not qualify; commit intervals may serialize normally.
 Read-only counts/page/WAL observations include the live WAL (no immutable=1).
 Exact pending membership and per-kind vector/spans are independent completion
 oracles, not just a cursor or terminal flag. No scheduler notification/control is

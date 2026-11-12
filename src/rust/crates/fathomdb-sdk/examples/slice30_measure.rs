@@ -151,6 +151,11 @@ fn run_schedule(
     output
 }
 
+#[cfg(test)]
+fn raw_match_count(_path: &Path, _query: &str, _kind: Option<&str>) -> u64 {
+    0
+}
+
 fn main() {
     eprintln!("Slice30 cell command is not implemented yet");
     std::process::exit(2);
@@ -216,5 +221,32 @@ mod tests {
             );
             engine.close();
         }
+    }
+
+    #[test]
+    fn match_observer_uses_product_compiler_and_keeps_raw_count_separate() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("matches.sqlite");
+        let engine = Adapter::open("sdk", &path);
+        for index in 0..12 {
+            engine.write(&[node(
+                &format!("alpha-{index}"),
+                "doc",
+                &format!("alpha evidence{index}"),
+            )]);
+        }
+        engine
+            .write(&[node("marker", "note", "alpha marker"), node("stopword", "doc", "the only")]);
+        let query = "The ALPHA, alpha?";
+        assert_eq!(raw_match_count(&path, query, None), 13);
+        assert_eq!(raw_match_count(&path, query, Some("doc")), 12);
+        let result = observe(&engine, query, Some("doc"));
+        assert_eq!(result["returned_hits"], 10);
+        assert!(result["ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|id| id.as_str().unwrap().starts_with("l:alpha-")));
+        engine.close();
     }
 }

@@ -1123,7 +1123,9 @@ dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
  "fathomdb-engine",
+ "fathomdb-query",
  "fathomdb-schema",
+ "rusqlite",
  "serde_json",
  "tempfile",
 ]

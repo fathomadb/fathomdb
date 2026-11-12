@@ -40,6 +40,8 @@ fn run(config: &Value, out: &Path) {
         })
         .collect();
     engine.write(&batch).unwrap();
+    #[cfg(feature = "slice30-measurement")]
+    engine.slice30_observe_queries_for_test(true).unwrap();
     let mut output = std::fs::File::create(out.join("samples.jsonl")).unwrap();
     for sample in 0..samples {
         let started = std::time::Instant::now();
@@ -59,6 +61,15 @@ fn run(config: &Value, out: &Path) {
         output.write_all(b"\n").unwrap();
     }
     output.flush().unwrap();
+    #[cfg(feature = "slice30-measurement")]
+    {
+        let mut observations = std::fs::File::create(out.join("observer.jsonl")).unwrap();
+        for record in engine.take_slice30_measurements_for_test().unwrap() {
+            serde_json::to_writer(&mut observations, &record).unwrap();
+            observations.write_all(b"\n").unwrap();
+        }
+        observations.flush().unwrap();
+    }
     engine.close().unwrap();
     std::fs::write(out.join("result.json"), b"{\"complete\":true}\n").unwrap();
 }

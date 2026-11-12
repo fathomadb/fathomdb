@@ -155,6 +155,22 @@ provider directly and must not supply deadline, queue-bound, lock-order, or
 performance evidence. Production open, projection, search, frozen-search, and
 direct-embed paths have no such exception.
 
+### Private Slice30 query measurements
+
+The independent, non-default `fathomdb-engine/slice30-measurement` feature
+provides doc-hidden `Engine::slice30_observe_queries_for_test(bool)` and
+`Engine::take_slice30_measurements_for_test() -> Result<Vec<serde_json::Value>, EngineError>`.
+It has no SDK/binding feature forwarding and does not enable `test-hooks`.
+The first transport emits `QueryComplete` with positive per-engine `engine_id`,
+per-engine monotonic `call_id`, and reader `worker` index. Records belong to the
+existing engine-owned attribution Arc; no global record buffer is used.
+Observation is disabled at open. Each call samples enablement at reader entry;
+disabling retains prior records and does not cancel an active observed call.
+Drain removes completed records in completion order, bounded to32768 between
+drains. Snapshot/predicate/error disposition/drop reporting are not yet supplied
+by this initial transport. Closing admission returns `Closing`; a poisoned drain
+buffer returns `Storage`. Normal builds compile this surface and collection out.
+
 ### Explicit engine test fixtures
 
 The engine's doc-hidden test fixtures require `fathomdb-engine/test-hooks`

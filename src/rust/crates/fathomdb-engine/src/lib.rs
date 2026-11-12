@@ -143,6 +143,8 @@ mod search_types;
 mod snippet;
 mod snippet_query;
 pub use snippet::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
+#[cfg(feature = "slice30-measurement")]
+mod measurement_for_test;
 mod structural_state;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;

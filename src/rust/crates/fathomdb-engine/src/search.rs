@@ -1855,6 +1855,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     worker_idx: usize,
     mut capture: C,
 ) -> Result<C::Output, SearchReaderError> {
+    #[cfg(feature = "slice30-measurement")]
+    let _measurement = attribution.measurement.begin(worker_idx);
     // 0.8.20 Slice 15b fix-2 (R-20-NV) — the `:now` instant is read HERE, in
     // Rust, ONCE per query, and bound positionally into every node-hydration
     // SELECT. Never `datetime('now')` / `strftime('%s','now')`: an inline clock

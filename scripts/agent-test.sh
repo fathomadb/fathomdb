@@ -800,6 +800,19 @@ run_tier_maybe_suite heavy test-slice30-g-write-schedule "$slice30_g_mean_gpu_re
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_write_schedule.py
 '
 
+run_tier_maybe_suite heavy test-slice30-g-observer "$slice30_g_mean_gpu_reason" bash -c '
+  set -e
+  artifacts=$(mktemp -d "${S30_GD_TASK}/proofs/go-artifacts-XXXXXX")
+  label=${artifacts##*/}
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "${label}-gn"
+  cp "${CARGO_TARGET_DIR}/release/slice30-g-measurement" "${artifacts}/gn"
+  cp "${S30_GD_TASK}/proofs/gd-g-host-feature-closure.json" "${artifacts}/gn-features.json"
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "${label}-go" observer
+  cp "${CARGO_TARGET_DIR}/release/slice30-g-measurement" "${artifacts}/go"
+  cp "${S30_GD_TASK}/proofs/gd-g-host-feature-closure.json" "${artifacts}/go-features.json"
+  S30_GO_ARTIFACTS="$artifacts" python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_observer.py
+'
+
 run_tier_maybe_suite heavy test-slice30-g-g2-pass-plan "$slice30_g_mean_gpu_reason" bash -c '
   set -e
   python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py

@@ -1,6 +1,6 @@
 //! Private generic G single-pass caller, separate from bounded source fixture preparation.
 
-use super::{g_template, g_write_schedule, GAdapter, Recorder};
+use super::{g_observer_controls, g_template, g_write_schedule, CoreObserver, GAdapter, Recorder};
 use fathomdb_embedder::EffectiveEmbedDevice;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -54,7 +54,10 @@ fn observe(
     row
 }
 
-pub(super) fn run(config: &Value, out: &Path, store: &Path) {
+pub(super) fn run(config: &Value, out: &Path, store: &Path, _observer: Option<CoreObserver>) {
+    if _observer.is_some() {
+        assert!(config["mode"].as_str().unwrap().starts_with("engine_"));
+    }
     assert!(store.exists(), "generic pass requires its owned writable closed-template copy");
     std::fs::create_dir_all(out).unwrap();
     let queries: Vec<Value> =
@@ -174,7 +177,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
 }
 
-pub(super) fn fixture(config: &Value, out: &Path) {
+pub(super) fn fixture(config: &Value, out: &Path, observer: Option<CoreObserver>) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
     g_template::run(config, out);
     let source = out.join("case-0/template.sqlite");
@@ -187,14 +190,23 @@ pub(super) fn fixture(config: &Value, out: &Path) {
         assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
         let mut pass = config.clone();
         pass["mode"] = mode.clone();
-        run(&pass, &directory, &store);
+        run(&pass, &directory, &store, observer);
         let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
         assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
         assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
     }
+    if config["error_controls"].as_bool() == Some(true) {
+        let directory = out.join("error-controls");
+        std::fs::create_dir(&directory).unwrap();
+        let store = directory.join("store.sqlite");
+        std::fs::copy(&source, &store).unwrap();
+        assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
+        g_observer_controls::run(config, &directory, &store, observer);
+        assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
+    }
 }
 
-pub(super) fn cell(config: &Value, out: &Path, store: &Path) {
+pub(super) fn cell(config: &Value, out: &Path, store: &Path, observer: Option<CoreObserver>) {
     std::fs::create_dir_all(out).unwrap();
     let passes = config["passes"].as_array().unwrap();
     assert!(!passes.is_empty());
@@ -209,11 +221,11 @@ pub(super) fn cell(config: &Value, out: &Path, store: &Path) {
             assert!(matches!(schedules[ordinal].as_str(), Some("readonly" | "write")));
             pass["schedule"] = schedules[ordinal].clone();
         }
-        run(&pass, &out.join(format!("pass-{ordinal}")), store);
+        run(&pass, &out.join(format!("pass-{ordinal}")), store, observer);
     }
 }
 
-pub(super) fn plan_fixture(config: &Value, out: &Path) {
+pub(super) fn plan_fixture(config: &Value, out: &Path, observer: Option<CoreObserver>) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
     g_template::run(config, out);
     let source = out.join("case-0/template.sqlite");
@@ -223,7 +235,7 @@ pub(super) fn plan_fixture(config: &Value, out: &Path) {
     let store = directory.join("store.sqlite");
     std::fs::copy(&source, &store).unwrap();
     assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
-    cell(config, &directory, &store);
+    cell(config, &directory, &store, observer);
     let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
     assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
     assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);

@@ -2,8 +2,8 @@
 
 use fathomdb_embedder::EffectiveEmbedDevice;
 use fathomdb_engine::{
-    EmbedderChoice, Engine, InitialState, OpenReport, OpenedEngine, PreparedWrite, ProjectionRole,
-    ProjectionSpec, ProjectionVector, SourceId,
+    EmbedderChoice, Engine, EngineError, InitialState, OpenReport, OpenedEngine, PreparedWrite,
+    ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
 };
 use fathomdb_sdk::{Engine as SdkEngine, OpenOptions};
 use serde_json::{json, Value};
@@ -24,6 +24,16 @@ mod g_limit;
 
 #[path = "g_generic.rs"]
 mod g_generic;
+
+// Feature-specific method references stay in the private host, never the SDK example.
+pub(super) type CoreObserver = (
+    fn(&Engine, bool) -> Result<(), EngineError>,
+    fn(&Engine) -> Result<Vec<Value>, EngineError>,
+    fn(&Engine) -> Result<Value, EngineError>,
+);
+
+#[path = "g_observer_controls.rs"]
+mod g_observer_controls;
 
 enum GAdapter {
     Core(Box<OpenedEngine>),
@@ -329,17 +339,26 @@ fn text_fixture_ack(uuid: &str) -> u64 {
 }
 
 pub(super) fn run(config: &Value, out: &Path) {
+    run_observed(config, out, None);
+}
+
+pub(super) fn run_observed(config: &Value, out: &Path, observer: Option<CoreObserver>) {
     if config["family"] == "G1_PLAN_FIXTURE" {
-        return g_generic::plan_fixture(config, out);
+        return g_generic::plan_fixture(config, out, observer);
     }
     if config["family"] == "G1_CELL" {
-        return g_generic::cell(config, out, Path::new(config["store"].as_str().unwrap()));
+        return g_generic::cell(
+            config,
+            out,
+            Path::new(config["store"].as_str().unwrap()),
+            observer,
+        );
     }
     if config["family"] == "G_FEED_FIXTURE" {
-        return g_generic::fixture(config, out);
+        return g_generic::fixture(config, out, observer);
     }
     if config["family"] == "G_PASS" {
-        return g_generic::run(config, out, Path::new(config["store"].as_str().unwrap()));
+        return g_generic::run(config, out, Path::new(config["store"].as_str().unwrap()), observer);
     }
     if config["family"] == "G_LIMIT" {
         return g_limit::run(config, out);

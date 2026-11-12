@@ -12,8 +12,8 @@ import time
 from test_g_text import GPU, _accounting, _remaining
 
 
-def run(config, root, *, binary=None, feature_path=None):
-    """Run the owned normal producer; refuse missing CUDA proof and preserve all output."""
+def run(config, root, *, binary=None, feature_path=None, diagnostic=False):
+    """Run the requested owned GN/GO artifact; preserve required feature/CUDA identity and output."""
     task=Path(os.environ["S30_GD_TASK"])
     binary=Path(binary) if binary is not None else Path(os.environ["CARGO_TARGET_DIR"])/"release/examples/slice30_g_mean"
     if os.environ.get("CUDA_VISIBLE_DEVICES")!=GPU or os.environ.get("FATHOMDB_EMBED_DEVICE")!="cuda:0":
@@ -32,8 +32,17 @@ def run(config, root, *, binary=None, feature_path=None):
     feature_path=Path(feature_path) if feature_path is not None else task/"proofs/gd-gn-feature-closure.json"
     features=json.loads(feature_path.read_text())
     actual_binary=hashlib.sha256(binary.read_bytes()).hexdigest()
-    if features["binary_sha256"]!=actual_binary or features["normal_gn"] is not True:
+    if diagnostic:
+        engine=[row for row in features["artifacts"] if row["target"]["name"]=="fathomdb_engine"]
+        if (features["normal_gn"] is not False or features.get("observer") is not True
+                or len(engine)!=1 or "slice30-measurement" not in engine[0]["features"]
+                or any(feature=="test-hooks" or feature.startswith("tc5-benchmark")
+                       for row in features["artifacts"] for feature in row["features"])):
+            raise RuntimeError("diagnostic producer requires actual observer/no-hooks/no-TC5 closure")
+    elif features["normal_gn"] is not True:
         raise RuntimeError("normal producer feature closure does not match executable")
+    if features["binary_sha256"]!=actual_binary:
+        raise RuntimeError("producer feature closure does not match executable")
     identity={"source":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
         "delta":subprocess.check_output(["git","status","--porcelain"],text=True),
         "binary":str(binary),"binary_sha256":actual_binary,"controller_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

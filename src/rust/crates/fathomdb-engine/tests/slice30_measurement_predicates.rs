@@ -499,3 +499,50 @@ fn source_lifecycle_degradation_is_reported_as_skipped_vector_arm() {
     assert_eq!(vector["degraded"], true);
     engine.close().unwrap();
 }
+
+fn check_text_block(with_vectors: bool, direct_text: bool) {
+    let root = TempDir::new().unwrap();
+    let path = root.path().join("text-block.sqlite");
+    let engine = if with_vectors {
+        two_vector_engine(&path)
+    } else {
+        let engine = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap().engine;
+        engine.write(&[plain()]).unwrap();
+        engine.slice30_observe_queries_for_test(true).unwrap();
+        engine
+    };
+    let result = if direct_text {
+        engine
+            .search_text_only_filtered_with_snippets("source", None, &ReadView::default(), 2, None)
+            .unwrap()
+    } else {
+        engine.search_with_limit("source", 2).unwrap()
+    };
+    let mut ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
+    ids.sort();
+    assert_eq!(
+        ids,
+        if with_vectors && !direct_text { vec!["l:beta", "l:plain"] } else { vec!["l:plain"] }
+    );
+    let record = one_observation(&engine);
+    let text = &record["blocks"]["text"];
+    assert_eq!(text["invoked"], true, "missing actual text candidate block span");
+    assert!(text["elapsed_ns"].as_u64().unwrap() > 0);
+    assert_eq!(text["rows"], 1, "one text candidate differs from two hybrid final hits");
+    engine.close().unwrap();
+}
+
+#[test]
+fn hybrid_text_block_reports_one_candidate_despite_two_fused_hits() {
+    check_text_block(true, false);
+}
+
+#[test]
+fn vector_bearing_direct_text_brackets_actual_text_block() {
+    check_text_block(true, true);
+}
+
+#[test]
+fn provider_free_direct_text_brackets_actual_text_block() {
+    check_text_block(false, true);
+}

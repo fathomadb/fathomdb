@@ -97,6 +97,24 @@ fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
     }
 }
 
+#[cfg(test)]
+struct Schedule {
+    searches: Vec<Value>,
+    batches: Vec<Value>,
+    probes: Vec<Value>,
+}
+
+#[cfg(test)]
+fn run_schedule(
+    _engine: &Adapter,
+    _queries: &[String],
+    _samples: usize,
+    _batch_size: usize,
+    _searches_per_batch: usize,
+) -> Schedule {
+    Schedule { searches: vec![], batches: vec![], probes: vec![] }
+}
+
 fn main() {
     eprintln!("Slice30 cell command is not implemented yet");
     std::process::exit(2);
@@ -125,6 +143,42 @@ mod tests {
             let reopened = Adapter::open(name, &path);
             assert_eq!(observe(&reopened, "betaonly", None)["ids"], json!(["l:beta"]));
             reopened.close();
+        }
+    }
+
+    #[test]
+    fn schedule_observes_commits_search_counts_and_current_marker_bodies() {
+        let cases = [
+            (1, 1, 4, vec![0, 1, 2, 3], 4, 3, "s30markercurrent3 revision3"),
+            (10, 10, 20, vec![0, 10], 20, 9, "s30markercurrent9 revision1"),
+            (1, 100, 200, vec![0, 100], 2, 1, "s30markercurrent1 revision1"),
+        ];
+        for (batch_size, ratio, samples, starts, probe_count, last_slot, expected_body) in cases {
+            let directory = tempfile::tempdir().unwrap();
+            let engine = Adapter::open("sdk", &directory.path().join("schedule.sqlite"));
+            engine.write(&[node("natural", "doc", "naturalalpha")]);
+            for slot in 0..10 {
+                engine.write(&[node(&format!("s30marker-{slot}"), "note", "initial marker")]);
+            }
+            let result =
+                run_schedule(&engine, &["naturalalpha".into()], samples, batch_size, ratio);
+            assert_eq!(result.searches.len(), samples);
+            assert!(result.searches.iter().all(|row| row["ids"] == json!(["l:natural"])));
+            assert_eq!(
+                result
+                    .batches
+                    .iter()
+                    .map(|row| row["before_sample"].as_u64().unwrap())
+                    .collect::<Vec<_>>(),
+                starts
+            );
+            assert_eq!(result.probes.len(), probe_count);
+            assert!(result.probes.iter().all(|row| row["ok"] == true));
+            assert_eq!(
+                observe(&engine, &format!("s30markercurrent{last_slot}"), Some("note"))["bodies"],
+                json!([expected_body])
+            );
+            engine.close();
         }
     }
 }

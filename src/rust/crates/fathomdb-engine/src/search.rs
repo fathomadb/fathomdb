@@ -1972,7 +1972,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;
     }
+    #[cfg(not(feature = "slice30-measurement"))]
     let has_source_dependencies = dependency_closure::has_source_dependencies(&tx)?;
+    #[cfg(feature = "slice30-measurement")]
+    let has_source_dependencies = crate::measurement_for_test::measure_bool(
+        &mut _measurement,
+        "has_source_dependencies",
+        || dependency_closure::has_source_dependencies(&tx),
+    )?;
     let read_dependency_eligibility = |alias: &str, now_idx: usize| {
         if has_source_dependencies {
             dependency_closure::read_eligibility_sql(

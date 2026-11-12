@@ -172,8 +172,11 @@ drains. The nested `snapshot` is either null or a `SnapshotStamp` containing
 reads use the actual search reader transaction after the existing post-validation
 hook; the frozen effective time is reused. `observer_ns` measures these extra
 diagnostic reads. The bounded pinned-reader race independently distinguishes its
-old generation/body from the adjacent post-commit new generation/body. Predicate,
-error disposition and drop reporting are not yet supplied. Closing admission
+old generation/body from the adjacent post-commit new generation/body. `predicates.has_source_dependencies` records only its actual existing invocation,
+with `invoked=true`, boolean `value` and inclusive `elapsed_ns`; the original
+predicate error still propagates unchanged (value null). No skipped predicate is
+evaluated to populate a report. Other predicate, final error disposition and
+drop reporting are not yet supplied. Closing admission
 returns `Closing`; a poisoned drain
 buffer returns `Storage`. Normal builds compile this surface and collection out.
 

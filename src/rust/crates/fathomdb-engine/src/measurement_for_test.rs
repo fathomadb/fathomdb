@@ -33,6 +33,7 @@ impl Collector {
             call_id: self.next_call.fetch_add(1, Ordering::Relaxed),
             worker,
             snapshot: None,
+            predicates: serde_json::Map::new(),
         })
     }
 }
@@ -42,6 +43,7 @@ pub(super) struct Completion {
     call_id: u64,
     worker: usize,
     snapshot: Option<Value>,
+    predicates: serde_json::Map<String, Value>,
 }
 
 impl Completion {
@@ -73,11 +75,30 @@ impl Drop for Completion {
                 "call_id": self.call_id,
                 "worker": self.worker,
                 "snapshot": self.snapshot,
+                "predicates": self.predicates,
             }));
         } else {
             self.collector.dropped.fetch_add(1, Ordering::Relaxed);
         }
     }
+}
+
+pub(super) fn measure_bool<E>(
+    observation: &mut Option<Completion>,
+    name: &'static str,
+    operation: impl FnOnce() -> Result<bool, E>,
+) -> Result<bool, E> {
+    let Some(observation) = observation.as_mut() else {
+        return operation();
+    };
+    let started = std::time::Instant::now();
+    let result = operation();
+    let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX);
+    observation.predicates.insert(
+        name.into(),
+        json!({"invoked": true, "value": result.as_ref().ok(), "elapsed_ns": elapsed_ns}),
+    );
+    result
 }
 
 impl Engine {
@@ -98,8 +119,8 @@ impl Engine {
     ///
     /// Records contain engine/call IDs and reader worker index. At most 32768
     /// records are retained between drains. This first completion transport does
-    /// exposes same-reader snapshot metadata when available, but not predicate,
-    /// error disposition or drop metadata.
+    /// exposes same-reader snapshot and dependency-presence timing when available,
+    /// but not final error disposition or drop metadata.
     /// Returns `Closing` when admission closes or `Storage` on a poisoned buffer.
     #[doc(hidden)]
     pub fn take_slice30_measurements_for_test(&self) -> Result<Vec<Value>, EngineError> {

@@ -159,7 +159,7 @@ fusion output; no pure-vector timing or skipped-text claim is made.
 
 ## Text block unit
 
-TGD-6 REDfb1356b0f has11prior passing tests and3new actual runtime failures:
+TGD-6 REDfb1356b0f→GREEN23b845f85 has11prior passing tests and3new actual runtime failures:
 missing text candidate block Null!=true in hybrid, vector-bearing direct text
 and provider-free direct text. Literal API IDs pass before each assertion;
 one pre-fusion text candidate is required despite hybrid's two final hits.
@@ -186,6 +186,40 @@ bounded zero-drop conservation property. Empty stats-output scaffolding may
 support the genuine missing-report RED, with no capacity setter or product-path
 change. Counter lifetime/reset/drain semantics must be explicit. This is source
 fit confirmation only, not a new campaign/budget allowance or completed unit.
+
+## Drop report unit and block review
+
+The same fresh implementation reviewer accepted vector/text instrumentation
+subject to one docs-only hydration correction. Commit5f0bd0950 changes only the
+interface/execution wording: include hydration actually done during retrieval,
+EXCLUDE deferred post-fusion/final-truncation hydration. Timers/native/routing
+remain unchanged; actual gd-text-hydration-docs scoped check exits0. The same
+reviewer returned BLOCK_PREFIX_ACCEPTABLE_PENDING_REMAINING_WORK at5f0bd0950.
+No additional native rerun or final source/campaign qualification follows.
+
+TGD-7 report-only RED659523ee6 follows original design review confirmation.
+Its compile-ready getter emits an empty object without changing correct retention
+or the existing counter.32769real observed tiny-store queries, no intermediate
+drain, first verify retained32768 and literal call-ID bounds; new reported drops
+then fail Null!=1. A bounded real-DB conservation property fails missing explicit
+zero None!=Some0, shrinking to calls0. Actual RED2failures in4.39s, executable
+SHA25676d85beee9254ba21af774909f703940b1bbaf97f7d378809b28da5135eb0ce4.
+
+Unchanged test SHA256
+495d5bca10b4db2a2a221a09a20a393da8a7b9fd74b83ee80e1202a8b3fd8ee3;
+GREEN gd-stats-green reports2/2passes in4.42s (including8bounded property cases),
+actual executable SHA256
+6a128af13c349f5f492d55512bcb084edbdd4494b8b581838aefd408cd5b158e.
+Only the existing fixed capacity/cumulative counter is exposed. Feature-only
+Clippy/default engine check and unchanged first completion1/1pass, all actual
+exit0/resource_stop null. Counter is Engine-lifetime monotonic: drain/enable
+do not reset, newly opened Engine resets to0. Conservation uses quiescent calls;
+future controller reports use cumulative differences, never sum repeated reads.
+No capacity knob, budget increase or production behavior change is introduced.
+Raw gd-stats-red/green receipt/logs preserve exact features, source deltas, hashes
+and actual runtime failures/passes. The later public drain-doc grammar clarification
+changes no functional source body or test input. Error/unavailable disposition,
+workers and G/D adapters/model/campaigns remain outstanding.
 
 ## Evidence locations and interpretation
 

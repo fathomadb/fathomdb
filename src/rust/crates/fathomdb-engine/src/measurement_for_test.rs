@@ -167,7 +167,7 @@ impl Engine {
 
     /// Report the fixed capacity and cumulative records dropped by this Engine.
     ///
-    /// The intended object has `capacity` and `dropped` integer fields. Drops
+    /// The object has `capacity` and `dropped` integer fields. Drops
     /// accumulate for this Engine's lifetime: enable/disable and record drains
     /// do not reset them; a newly opened Engine starts at zero. This read is
     /// not atomic with a separate record drain; conservation uses quiescent
@@ -176,15 +176,19 @@ impl Engine {
     #[doc(hidden)]
     pub fn slice30_measurement_stats_for_test(&self) -> Result<Value, EngineError> {
         let _operation = self.ensure_open()?;
-        Ok(json!({}))
+        Ok(json!({
+            "capacity": CAPACITY,
+            "dropped": self.wal_attribution.measurement.dropped.load(Ordering::Relaxed),
+        }))
     }
 
     /// Drain this Engine's private completed query records in completion order.
     ///
     /// Records contain engine/call IDs and reader worker index. At most 32768
-    /// records are retained between drains. This first completion transport does
-    /// exposes same-reader snapshot and actual predicate timing when available,
-    /// but not final error disposition or drop metadata.
+    /// records are retained between drains. Records include same-reader snapshot,
+    /// actual predicate timing and vector/text block observations when available.
+    /// Cumulative drops are returned separately by the stats getter; final query
+    /// error disposition is not yet supplied.
     /// Returns `Closing` when admission closes or `Storage` on a poisoned buffer.
     #[doc(hidden)]
     pub fn take_slice30_measurements_for_test(&self) -> Result<Vec<Value>, EngineError> {

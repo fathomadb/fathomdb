@@ -202,9 +202,8 @@ predicate and its observer work are nested inside this text span. These are incl
 shares; text candidate rows are distinct from raw FTS matches and final hits.
 The hidden `slice30_measurement_stats_for_test() -> Result<serde_json::Value,
 EngineError>` report contract has fixed `capacity=32768` and cumulative `dropped`
-integers. The compile-ready RED scaffold initially supplies an empty object;
-its missing report is tested before the separate implementation. Existing
-bounded retention is a correctness control, with no new capacity setter.
+integers. The report reads the existing capacity/counter without altering
+bounded retention, a correctness control with no new capacity setter.
 Drops are monotonic for this Engine's lifetime. Record drain and enable/disable
 do not reset them; newly opening an Engine starts at zero. The separate getter
 and record drain are not an atomic pair: conservation requires joined/quiescent

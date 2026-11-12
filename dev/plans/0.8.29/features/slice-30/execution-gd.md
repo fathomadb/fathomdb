@@ -171,8 +171,10 @@ ec551e163582b0b1f4111c14ccc95f709a4b9f675d42678373b5453241629c99.
 GREEN gd-text-block-green records actual command/source delta/features/test
 binary hash,14/14passes, feature Clippy/default check and unchanged fixed
 completion oracle1/1, all exit0/resource_stop null. Only current node/edge text
-candidate work is bracketed, through identity hydration and before fusion/snippet
-extraction. It includes the nested all-nodes predicate/observer cost; no exclusive
+candidate work is bracketed, including identity hydration actually performed
+during retrieval. Deferred identity hydration after fusion/final truncation and
+later snippet extraction are EXCLUDED. It includes the nested all-nodes
+predicate/observer cost; no exclusive
 share or percentile subtraction is implied. Candidate rows are distinct from raw
 FTS match counts/final hits. No product routing changes, pure-vector timing,
 BGE/fidelity or campaign/whole-source qualification is claimed.

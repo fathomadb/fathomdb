@@ -194,10 +194,11 @@ and degraded=false. When the actual arm is skipped, invoked=false with null
 rows/time and reason query_vector_absent or eligibility_degraded; `degraded`
 retains the existing eligibility-degradation flag. This is not a pure tensor,
 embedding, SQL-only, final-hit, or dense-completeness measurement.
-`blocks.text` reports inclusive node/edge FTS candidate retrieval and identity
-hydration before fusion/snippet extraction, with invoked=true, elapsed_ns and
-candidate rows. The guarded all-nodes predicate and its observer work are nested
-inside this text span. These are inclusive timings, never additive exclusive
+`blocks.text` reports inclusive node/edge FTS candidate retrieval, including
+identity hydration performed during that retrieval, with invoked=true,
+elapsed_ns and candidate rows. It EXCLUDES deferred identity hydration performed
+after fusion/final truncation and later snippet extraction. The guarded all-nodes
+predicate and its observer work are nested inside this text span. These are inclusive timings, never additive exclusive
 shares; text candidate rows are distinct from raw FTS matches and final hits.
 The hidden `slice30_measurement_stats_for_test() -> Result<serde_json::Value,
 EngineError>` report contract has fixed `capacity=32768` and cumulative `dropped`

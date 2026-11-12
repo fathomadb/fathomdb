@@ -827,6 +827,17 @@ Both codec suites remain selected by maintained root Python discovery. This is
 small source-only preparation tooling, not actual canonical500 encoding, native
 query forwarding, model/DB/GPU work or a campaign-clock/qualification claim.
 
+## Warmup dependency ordering clarification
+
+The accepted5f4 prefix supplies six working generic G1 callers, while generic G2
+scheduling remains unwired. The next warmup unit therefore targets G1 counts/
+order first. G2 no-warmup-write/count/phase-order assertions remain required in
+the INITIAL generic G2 actuation oracles BEFORE that GREEN. This preserves their
+final coupling, rather than adding passing-on-arrival coverage or implementing
+missing G2 scheduling merely as warmup scaffolding. Only test-map ordering is
+clarified; no workload, observation method, criterion or budget changes. No new
+warmup source/runtime has begun pending review of this docs-only clarification.
+
 ## Actual six-mode query forwarding
 
 RED ca57345bd7042dc29fdf2fdaa536f12cdc0140d6 kept the existing repeated-single-query

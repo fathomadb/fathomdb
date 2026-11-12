@@ -1,24 +1,18 @@
 //! Provider-free Slice30 direct-text measurement adapter. See the committed
 //! dev/experiments/0.8.29-slice30-measurements/README.md for commands and scope.
 
-#[cfg(test)]
 use fathomdb_engine::{EmbedderChoice, Engine as CoreEngine, ReadView, SearchFilter};
-#[cfg(test)]
 use fathomdb_sdk::{
     Engine as SdkEngine, InitialState, OpenOptions, PreparedWrite, SourceId, TextSearchOptions,
 };
-#[cfg(test)]
 use serde_json::{json, Value};
-#[cfg(test)]
 use std::path::Path;
 
-#[cfg(test)]
 enum Adapter {
     Core(Box<CoreEngine>),
     Sdk(Box<SdkEngine>),
 }
 
-#[cfg(test)]
 impl Adapter {
     fn open(adapter: &str, path: &Path) -> Self {
         match adapter {
@@ -49,7 +43,6 @@ impl Adapter {
     }
 }
 
-#[cfg(test)]
 fn node(id: &str, kind: &str, body: &str) -> PreparedWrite {
     PreparedWrite::Node {
         kind: kind.into(),
@@ -63,7 +56,6 @@ fn node(id: &str, kind: &str, body: &str) -> PreparedWrite {
     }
 }
 
-#[cfg(test)]
 fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
     let filter = kind.map(|kind| {
         let mut filter = SearchFilter::default();
@@ -93,14 +85,12 @@ fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
     }
 }
 
-#[cfg(test)]
 struct Schedule {
     searches: Vec<Value>,
     batches: Vec<Value>,
     probes: Vec<Value>,
 }
 
-#[cfg(test)]
 fn run_schedule(
     engine: &Adapter,
     queries: &[String],
@@ -151,7 +141,6 @@ fn run_schedule(
     output
 }
 
-#[cfg(test)]
 fn raw_match_count(path: &Path, query: &str, kind: Option<&str>) -> u64 {
     let expression = fathomdb_query::compile_text_query(query).match_expression;
     let connection =
@@ -176,14 +165,159 @@ fn raw_match_count(path: &Path, query: &str, kind: Option<&str>) -> u64 {
     }
 }
 
-#[cfg(test)]
-fn run_cell(_config: &Value, _out: &Path) -> Value {
-    json!({"complete": false, "sample_count": 0, "warmup_count": 0})
+fn read_jsonl(path: &str) -> Vec<String> {
+    std::fs::read_to_string(path)
+        .expect("read owned JSONL input")
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("JSON string line"))
+        .collect()
+}
+
+fn write_jsonl(path: &Path, rows: &[Value]) {
+    use std::io::Write;
+    let mut output =
+        std::io::BufWriter::new(std::fs::File::create(path).expect("create owned output"));
+    for row in rows {
+        serde_json::to_writer(&mut output, row).expect("write record");
+        output.write_all(b"\n").expect("write newline");
+    }
+    output.flush().expect("flush records");
+}
+
+fn run_cell(config: &Value, out: &Path) -> Value {
+    let number =
+        |key: &str| usize::try_from(config[key].as_u64().expect(key)).expect("usize bound");
+    let n = number("n");
+    let warmup = number("warmup");
+    let samples = number("samples");
+    let corpus = read_jsonl(config["corpus"].as_str().expect("corpus path"));
+    let queries = read_jsonl(config["queries"].as_str().expect("queries path"));
+    assert!(n > 0 && corpus.len() >= n && !queries.is_empty() && samples > 0);
+    let filtered = config["family"] == "P2";
+    assert!(filtered || config["family"] == "P1");
+    std::fs::create_dir_all(out).expect("create owned cell output");
+    let store = out.join("store.sqlite");
+    assert!(!store.exists(), "measurement store must be fresh");
+    let open_started = std::time::Instant::now();
+    let seed = Adapter::open("sdk", &store);
+    let seed_open_ns = u64::try_from(open_started.elapsed().as_nanos()).unwrap();
+    let write_started = std::time::Instant::now();
+    for start in (0..n).step_by(1024) {
+        let batch: Vec<_> = corpus[start..n.min(start + 1024)]
+            .iter()
+            .enumerate()
+            .map(|(offset, body)| node(&format!("s30doc-{}", start + offset), "doc", body))
+            .collect();
+        seed.write(&batch);
+    }
+    if filtered {
+        let markers: Vec<_> = (0..10)
+            .map(|slot| node(&format!("s30marker-{slot}"), "note", "initial marker"))
+            .collect();
+        seed.write(&markers);
+    }
+    let seed_write_ns = u64::try_from(write_started.elapsed().as_nanos()).unwrap();
+    seed.close();
+    drop(seed);
+    let mut rows = Vec::new();
+    let mut warmups = Vec::new();
+    let mut batches = Vec::new();
+    let mut probes = Vec::new();
+    let mut passes = Vec::new();
+    for adapter in config["adapters"].as_array().expect("adapter list") {
+        let name = adapter.as_str().expect("adapter name");
+        let opening = std::time::Instant::now();
+        let engine = Adapter::open(name, &store);
+        let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
+        for sample in 0..warmup {
+            let mut row =
+                observe(&engine, &queries[sample % queries.len()], filtered.then_some("doc"));
+            row["adapter"] = json!(name);
+            row["query_index"] = json!(sample % queries.len());
+            warmups.push(row);
+        }
+        let loop_started = std::time::Instant::now();
+        let mut measured = if filtered {
+            let schedule = run_schedule(
+                &engine,
+                &queries,
+                samples,
+                number("batch_size"),
+                number("searches_per_batch"),
+            );
+            batches.extend(schedule.batches);
+            probes.extend(schedule.probes);
+            schedule.searches
+        } else {
+            (0..samples)
+                .map(|sample| observe(&engine, &queries[sample % queries.len()], None))
+                .collect()
+        };
+        let wall_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
+        for (sample, row) in measured.iter_mut().enumerate() {
+            row["adapter"] = json!(name);
+            row["repeat"] = config["repeat"].clone();
+            row["sample_index"] = json!(sample);
+            row["query_index"] = json!(sample % queries.len());
+        }
+        rows.extend(measured);
+        let closing = std::time::Instant::now();
+        engine.close();
+        drop(engine);
+        passes.push(json!({"adapter":name,"wall_ns":wall_ns,"open_ns":open_ns,
+            "close_ns":u64::try_from(closing.elapsed().as_nanos()).unwrap(),
+            "throughput_scope":if filtered {"natural searches over write/probe/search loop"} else {"natural search/record loop"}}));
+    }
+    let matches: Vec<_> = queries
+        .iter()
+        .enumerate()
+        .map(|(index, query)| {
+            json!({"query_index":index,
+        "raw_fts_matches":raw_match_count(&store, query, filtered.then_some("doc"))})
+        })
+        .collect();
+    let connection =
+        rusqlite::Connection::open_with_flags(&store, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("read own post-cell counts");
+    let count = |sql| connection.query_row(sql, [], |row| row.get::<_, u64>(0)).unwrap();
+    let natural =
+        count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='doc' AND superseded_at IS NULL");
+    let markers =
+        count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='note' AND superseded_at IS NULL");
+    let vectors = count("SELECT COUNT(*) FROM _fathomdb_vector_rows");
+    let format: u32 =
+        connection.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
+    write_jsonl(&out.join("samples.jsonl"), &rows);
+    write_jsonl(&out.join("warmups.jsonl"), &warmups);
+    write_jsonl(&out.join("batches.jsonl"), &batches);
+    write_jsonl(&out.join("marker-probes.jsonl"), &probes);
+    write_jsonl(&out.join("matches.jsonl"), &matches);
+    let complete = natural == n as u64
+        && vectors == 0
+        && format == 37
+        && markers == if filtered { 10 } else { 0 }
+        && rows.iter().chain(&warmups).all(|row| row["ok"] == true)
+        && probes.iter().all(|row| row["marker_current"] == true);
+    let result = json!({"complete":complete,"sample_count":rows.len(),"warmup_count":warmups.len(),
+        "filtered":filtered,"natural_records":natural,"marker_records":markers,"vector_rows":vectors,
+        "format":format,"query_count":queries.len(),"batch_count":batches.len(),"marker_probe_count":probes.len(),
+        "seed_open_ns":seed_open_ns,"seed_write_ns":seed_write_ns,"passes":passes,
+        "snapshot_observation":"unavailable; write receipts are not search snapshot authority",
+        "cache_note":"P2 marker proof calls intervene between each write and natural searches; OS caches uncontrolled"});
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
 }
 
 fn main() {
-    eprintln!("Slice30 cell command is not implemented yet");
-    std::process::exit(2);
+    let args: Vec<_> = std::env::args().collect();
+    assert_eq!(args.len(), 3, "usage: slice30_measure cell.json owned-output-directory");
+    let config: Value = serde_json::from_slice(&std::fs::read(&args[1]).expect("read frozen cell"))
+        .expect("cell JSON");
+    let result = run_cell(&config, Path::new(&args[2]));
+    println!("{result}");
+    if result["complete"] != true {
+        std::process::exit(1);
+    }
 }
 
 #[cfg(test)]

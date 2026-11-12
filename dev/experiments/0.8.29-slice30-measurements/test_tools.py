@@ -9,7 +9,8 @@ import tempfile
 import subprocess
 
 from campaign import make_plan, run_campaign
-from control import freeze, run_frozen, summarize
+from control import freeze, read_jsonl_records, run_frozen, summarize
+from hypothesis import given, settings, strategies as st
 from converter import convert
 from metrics import aggregate, distribution, paired_difference
 
@@ -250,6 +251,55 @@ class CompletedTailResumeTests(unittest.TestCase):
             run_campaign(plan,root / "results",command)
             self.assertEqual(calls.read_bytes(),before)
             self.assertEqual([json.loads(line)[0] for line in before.decode().splitlines()], ["a","b","c","b"])
+
+
+class PartialUtf8Tests(unittest.TestCase):
+    def check_prefix(self, values, tail):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "samples.jsonl"
+            rows = [{"payload": value} for value in values]
+            path.write_bytes(b"".join(json.dumps(row, ensure_ascii=False).encode("utf-8") + b"\n" for row in rows)
+                             + b'{"payload":"' + tail)
+            issues = []
+            try:
+                actual = read_jsonl_records(path, issues)
+            except UnicodeDecodeError as error:
+                self.fail(f"valid completed prefix was lost to incomplete tail: {error}")
+            self.assertEqual(actual, rows)
+            self.assertEqual(issues, [f"partial/invalid samples.jsonl:{len(rows) + 1}"])
+
+    def test_literal_unicode_prefix_survives_incomplete_tail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            attempt = root / "results" / "attempt"
+            attempt.mkdir(parents=True)
+            (root / "manifest.json").write_text("{}")
+            (root / "plan.json").write_text(json.dumps([{"id":"literal", "family":"P1", "n":2,
+                "samples":1, "warmup":0, "adapters":["engine"]}]))
+            (root / "results" / "campaign-state.json").write_text(json.dumps([
+                {"id":"literal", "attempt":str(attempt), "status":"complete"}]))
+            row = {"adapter":"engine", "repeat":0, "query_index":0, "ok":True,
+                   "elapsed_ns":3000000, "payload":"λ🙂"}
+            (attempt / "samples.jsonl").write_bytes(json.dumps(row, ensure_ascii=False).encode("utf-8")
+                                                   + b'\n{"payload":"\xe2\x82')
+            (attempt / "warmups.jsonl").write_text("")
+            (attempt / "matches.jsonl").write_text('{"raw_fts_matches":2}\n')
+            (attempt / "result.json").write_text('{"complete":true}')
+            try:
+                result = summarize(root)
+            except UnicodeDecodeError as error:
+                self.fail(f"summary lost completed observation: {error}")
+            self.assertFalse(result["complete"])
+            self.assertEqual(result["cells"][0]["status"], "incomplete")
+            self.assertIn("partial/invalid samples.jsonl:2", result["cells"][0]["issues"])
+            self.assertEqual(result["cells"][0]["adapters"][0]["statistics"]["successful_latency"]["mean_ms"], 3)
+        self.check_prefix(["λ", "🙂"], b"\xe2\x82")
+
+    @settings(max_examples=20, deadline=None, derandomize=True, database=None)
+    @given(st.lists(st.text(st.characters(exclude_categories=("Cs",)), max_size=8), min_size=1, max_size=4),
+           st.sampled_from([b"\xe2", b"\xe2\x82", b"\xcf", b"\xf0", b"\xf0\x9f", b"\xf0\x9f\x99"]))
+    def test_completed_utf8_prefix_invariant(self, values, tail):
+        self.check_prefix(values, tail)
 
 
 if __name__ == "__main__":

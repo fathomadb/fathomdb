@@ -103,6 +103,20 @@ def run_frozen(root, max_load: float | None = 2):
                             timeout=manifest["cell_seconds"], before=before, monitor=monitor)
 
 
+def read_jsonl_records(path, issues):
+    """Read available JSONL observations, reporting invalid or missing records."""
+    records = []
+    if not path.exists():
+        issues.append(f"missing {path.name}")
+        return records
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            issues.append(f"partial/invalid {path.name}:{number}")
+    return records
+
+
 def summarize(root):
     """Report every planned cell, actual raw samples and explicit missing work."""
     root = Path(root)
@@ -114,17 +128,6 @@ def summarize(root):
     paired = {}
     resource_path = root / "resources.jsonl"
     resources = [json.loads(line) for line in resource_path.read_text().splitlines()] if resource_path.exists() else []
-    def lines(path, issues):
-        records = []
-        if not path.exists():
-            issues.append(f"missing {path.name}")
-            return records
-        for number, line in enumerate(path.read_text().splitlines(), 1):
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                issues.append(f"partial/invalid {path.name}:{number}")
-        return records
     for cell in plan:
         previous = state.get(cell["id"])
         report = dict(id=cell["id"], family=cell["family"], n=cell["n"],
@@ -134,9 +137,9 @@ def summarize(root):
             continue
         attempt = Path(previous["attempt"])
         issues = []
-        rows = lines(attempt / "samples.jsonl", issues)
-        warmups = lines(attempt / "warmups.jsonl", issues)
-        matches = lines(attempt / "matches.jsonl", issues)
+        rows = read_jsonl_records(attempt / "samples.jsonl", issues)
+        warmups = read_jsonl_records(attempt / "warmups.jsonl", issues)
+        matches = read_jsonl_records(attempt / "matches.jsonl", issues)
         try:
             result = json.loads((attempt / "result.json").read_text())
         except (FileNotFoundError, json.JSONDecodeError):

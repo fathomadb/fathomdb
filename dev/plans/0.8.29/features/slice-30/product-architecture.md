@@ -1,0 +1,63 @@
+# Slice 30 product architecture reconciliation
+
+## Actual integrated paths
+
+[Engine direct text](../../../../../src/rust/crates/fathomdb-engine/src/search_api.rs)
+`search_text_only_filtered_with_snippets` compiles text and dispatches
+`SearchReaderWork::text_only`; it never calls the query embedder or MCP registry.
+The explicit direct-text marker carries its distinct candidate behavior. The
+[Rust SDK](../../../../../src/rust/crates/fathomdb-sdk/src/engine.rs)
+`search_text_only` delegates to it. Calling hybrid `search` with an absent
+provider is a distinct route and is not a valid direct-text substitute.
+
+[Search](../../../../../src/rust/crates/fathomdb-engine/src/search.rs) reads
+`has_source_dependencies` once per reader transaction. The vector fallback
+predicate is conditional on vector availability/dependencies. The surviving
+`all_nodes_directly_eligible` scan is behind all deferred-text guards, including
+vector availability, no dependencies/filter/history/recency/importance/rerank/
+graph/explain/full-sort override. Direct text has an additional bounded rank
+route when eligible. Therefore100k direct-text latency cannot by itself estimate
+hybrid eligibility-cache benefit. Preserve each actual branch in attribution.
+
+[Projection worker](../../../../../src/rust/crates/fathomdb-engine/src/projection_worker.rs)
+`candidate_page_sql` and `scheduler_scan_sql` already bound each node/edge arm.
+[Format37](../../../../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
+already coalesces committed visibility publication.
+[Projection commit](../../../../../src/rust/crates/fathomdb-engine/src/projection_commit.rs)
+already shares generation/time/initial mean work per batch. Re-measure current
+residual work; do not restore or count historical prototype fixes as new savings.
+
+[SQLite profiling](../../../../../src/rust/crates/fathomdb-engine/src/connection_runtime.rs)
+uses a per-engine context at statement completion. Public profile records expose
+integer milliseconds and placeholder zero step/cache counters; they cannot prove
+sub-millisecond phase work, SQL-specific exclusive attribution or absent work.
+Keep observer overhead separate from untraced latency. Existing caches and
+snapshot authority remain as mapped in [40 design](../slice-40/design.md).
+
+[MCP registry](../../../../../src/rust/crates/fathomdb-mcp/src/registry.rs)
+adds lifecycle/admission/epoch/store behavior before the
+[bridge](../../../../../src/rust/crates/fathomdb-mcp/src/bridge.rs) reaches SDK.
+Its existing wait log observes only calls that waited.20 A3 covers that lifecycle
+gap; the two qualified20 hook repairs concern engine test seams.70 finalizes
+provider outcomes; it does not close the MCP race proof or20 Windows evidence.
+
+## Proposed maintained architecture clarification
+
+Parent may add this paragraph under the current integrated profile in
+[architecture v2](../../../../design/fathomdb-data-plane-architecture-v2.md):
+
+> Release0.8.29 measurement attribution distinguishes direct text, hybrid
+> retrieval, query embedding and MCP admission/lifecycle routes. Direct text
+> dispatches without a query embedder or MCP registry; hybrid eligibility
+> branches depend on actual vector/dependency/view state. Projection scans and
+> visibility coalescing already include their accepted bounded/current-format
+> implementations. Slice30 measures current residual work and read-mostly versus
+> committed write→search schedules; its diagnostics create no cache, ranking or
+> new numerical contract. Partial Linux measurements do not qualify held MCP,
+> Windows or frozen TC5 fidelity obligations. See the Slice30 design.
+
+No public API or product architecture change is needed to time the existing
+routes. Any narrowly necessary feature-gated diagnostic observer remains a test
+surface with a same-change Rust interface note, bounded owner and no new
+production environment switch. The source-grounded distinctions above replace
+stale Slice30 prototype/current-baseline equivalence claims.

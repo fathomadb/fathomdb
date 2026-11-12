@@ -7,130 +7,61 @@ slice: 30
 
 # Slice 30 — current scale and access-path measurements
 
-## Current checkpoint scope
+## Current proposal and entry boundary
 
-Scope approved in Slice9 Batch3: current measurements with existing targets. Owned setup and dependable20 tools/tests remain hard inputs; no baseline pass is inherited.
+This continuation replaces the pre-integration draft. It proposes a per-cell
+prerequisite split; it does not clear the currently tracked whole20 dependency.
+Independent Astra design PASS, parent integration of the exact dependency/plan
+amendment, fresh strict closed10 preflight and explicit parent source GO precede
+any source/test/tool setup or execution. Whole20, whole30 and pre90 Block1 exit
+remain open. No benchmark has run in this phase.
 
-The [decision log](../../prework/slice-9/decision-log.md) owns current rulings;
-original draft observations below retain their historical evidence limits.
+The inspected baseline is c0c94b4203ffeb9e573efcc14e8b10df653318c5. It includes
+qualified Linux20 repairs657edeb76caaf9c8d2aab433766bec9362e73217,
+60 format/direct-filter/budget5271c1bf022f0ea22f95f7433e226feb2315043e,
+and complete70 e875f36042f89c1d84756f78135db0e8926c1ed4. Later20 changes
+are documentation only. Read their actual execution/status bodies; their
+assembled suites, failures, affected resumptions and skips keep their original
+subjects. Fresh30 artifacts must come from the owned30 checkout.
 
-## Goal, maturity and boundary
+## Owned outcome
 
-- Establish reproducible current-format measurements that guide Slices 40/50 and
-  Block 1 follow-up qualification; this draft authorizes no runs or product fixes.
-- Follow the [brief](../../planning-brief.md), [reconciliation](../../reconciliation-plan.md)
-  and [release plan](../../../plan-0.8.29.md). Baseline is format 37, .29
-  `6edc1155f039f87cd0a37660cb27ae4373bbce71`, including published .28.
-- MCP/queue/Block 1 are integrated. CS64, bounded pending scans, native vector
-  lifecycle/validity and FTS rowid identity shipped; do not rebuild these fixes.
-- [Historical W4](../../../agent-access-block1-finish-plan.md) and the
-  [recommendation](../../../../experiments/ac013-page-cache/RECOMMENDATION.md)
-  contain old-contract evidence: LME 100k hybrid 283→149→54ms was a prototype comparison, not a current baseline or proof of write-interleaved benefit.
-- [.28 Slice 60](../../../0.8.28/features/slice-60/status.md) measured bare vec0
-  chunks64/128/256 through 2M vectors. It did not settle the old CS64/1024
-  crossing; no new ANN, layout, page-cache budget or ranking change belongs here.
+Deliver committed, indexed, rerunnable current-format measurement tools,
+preregistration and real samples for the eligible Linux cells. Report
+source/native/input identities, match counts, sample counts, errors, resource
+stops and uncertainty. Separate provider-free natural-text latency from BGE
+hybrid and synthetic engine controls. No historical timing is a current baseline.
 
-## Preparation: draft needs, requirements and acceptance
+The [requirements](requirements.md), [acceptance](acceptance.md),
+[design](design.md), [test map](test-map.md), [input inventory](inputs.md),
+[preregistration](preregistration.md) and
+[parent integration proposal](prerequisite-change.md) define this packet.
+The [architecture addendum](product-architecture.md) is source-grounded and
+proposes the corresponding maintained architecture clarification.
 
-- Draft `requirements.md`, `acceptance.md`, `design.md` and `test-map.md` beside
-  this plan during authorized preparation; local labels below create no canonical ACs.
-- N30-1/R30-1: developers need an attributable 100k natural-text baseline; record corpus selection, query match rate, native identity and raw distributions.
-- N30-2/R30-2: agent writes precede searches; characterize read-mostly AND committed write→search/batch-write→search schedules, including projection activity.
-- N30-3/R30-3: attribute MCP/SDK, admission wait, open/idle/store-switch and query-embedding costs without treating different fixtures/backends as equivalent.
-- N30-4/R30-4: distinguish writer/worker overlap and drain costs at 300k; preserve outliers and report explanation limits rather than silently discard them.
-- A30-1: a second operator can rerun each selected cell from committed tools,
-  identified inputs/configuration and native artifacts, obtaining the same workload.
-- A30-2: every scheduled cell has samples, counts, degradation/errors, resource
-  records and disposition; missing/aborted cells are explicit, never a green claim.
-- A30-3: AC-083 is owner-authorized, **tracked, not gated**: 100k LongMemEval
-  text, hybrid p50≤80ms / p99≤300ms targets. Report distance to target; add its
-  canonical entry only in separately authorized implementation, never in prework.
-- A30-4: report read-mostly and write-interleaved cache suitability separately, with current direct-node proof and source-dependency fallback costs distinguished.
+## Sequence and retained boundaries
 
-## Architecture, research and design revision
+1. Parent reviews/integrates the per-cell dependency amendment after Astra PASS.
+2. Same owner provisions only its own /mnt/data tools/native environment after GO.
+3. Implement one measurement behavior at a time with committed observed runtime
+   RED, unchanged test, separate GREEN and scoped checks. Do not manufacture RED
+   for behavior already correct; retain the existing tool or propose an exact
+   policy question if genuinely necessary.
+4. Freeze tools/preregistration before timing. Run P cells first, G cells only
+   with an actual3090 reservation/engagement; M and F cells retain their holds.
+5. Run the required local full source gate once on the final clean stable tree,
+   retain actual failures/skips and affected reruns, and obtain fresh independent
+   final Astra review. Parent evaluates/integrates before another owner starts.
 
-- Inspect current [search](../../../../../src/rust/crates/fathomdb-engine/src/search.rs),
-  [eligibility](../../../../../src/rust/crates/fathomdb-engine/src/dependency_closure.rs),
-  worker scans/commits, SDK facade, MCP registry/bridge/admission and embed dispatcher.
-- Bind snapshot/generation observations to the accepted [format 37 ADR](../../../../adr/ADR-0.8.28-transactional-visibility-coalescing.md):
-  coalesced publication, external writers, flags and time boundaries matter.
-  Do not restore the prototype's obsolete global vector eligibility scan.
-- Planned primary research: inspect exact pinned SQLite FTS5/rusqlite profile
-  semantics and Tokio/rmcp queue/timing behavior where instrumentation relies on
-  them; inspect pinned Hugging Face dataset metadata/license and actual source bytes.
-- Fit review must compare each historical probe's SQL, provider assumptions,
-  schema and tracing semantics with current source. Revise the measurement design
-  before execution; review does not approve historical runtime hooks or whole merges.
-- Challenges: shared GPU/CPU noise, overlapping projection, cold versus warm
-  state, query embedding versus retrieval, time-sensitive eligibility and tracer cost.
-  Apply the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
-  to measurement math and real-database boundaries; defer broad fuzz/matrix work.
+AC-083 is the owner-authorized **tracked, not gated**,100k LongMemEval **text**
+p50<=80ms/p99<=300ms target. Hybrid is a separate diagnostic cell. Existing
+AC-012/013/019/075/076 semantics remain unchanged. Canonical AC-083 prose, if
+needed during authorized implementation, must agree with this text-only scope;
+this proposal does not mint a new gate or edit locked canonical acceptance.
 
-## Sources, tools and identity
-
-- Reuse the [W4 tool index](../../../../experiments/ac013-page-cache/README.md),
-  `scripts/perf-experiments/run-ac013.sh`, engine `exp_ac013_page_cache.rs`,
-  MCP `examples/ac013_mcp.rs` and sweep.py only after current-contract fit checks.
-- Inspected original refs: scale-search `07095a16d` (README/PREREG,
-  lme_corpus.py, ssweep.py, analyze.py); scale-drain `aa30085fc`
-  (README/PREREG, drain_sweep.py); vector `cadcff392`, seed `8666ee72a`
-  are recommendation source identities. Preserve refs; branch-only paths are not .29 links.
-- Adapt selected scale/drain tools into a committed indexed experiment directory;
-  record origin path/ref and changes. No experimental provider/environment hooks,
-  old schema modules, F32 relayout, data migrations or capacity changes to compile them.
-- Pin LongMemEval-S `xiaowu0162/longmemeval-cleaned` snapshot and raw-file hash;
-  preserve converter's first-seen unique nonempty-turn order, select first 100k,
-  and pin all 500 questions/order plus resulting counts/digests. Historical full
-  conversion yielded 189,514 turns; verify actual inputs rather than assume it.
-- Confirm LME workload fit by match-count/body-length/duplicate statistics;
-  keep text outside tracked source. A synthetic control stays separately labelled.
-- Record source sha/dirty state, lockfile/features/profile, executable/native binding
-  paths/hashes, format, vector dimension/model/tokenizer/backend, dataset/query hashes,
-  seeds, warmups/samples/repeats, hardware/toolchain and relevant env/configuration.
-
-## Measurement sequence and decision rule
-
-1. Freeze preregistered cells and resource limits; prebuild once outside timings.
-   Use fresh database per seed repetition; do not borrow another checkout's binding.
-2. Run untraced 10k control and LME 100k hybrid/text/vector attribution controls;
-   retain original AC-013 semantics/defaults and manual/AGENT_LONG posture.
-   Use two interleaved repeats, reversing order; preregister bounded noisy reruns.
-3. Measure read-mostly and write→search schedules at 1/10/100 searches per
-   committed write batch, with identical query order and separately stated drain policy.
-   Record generation changes, scan/window-check time and projected cache hit potential;
-   any actual cache treatment requires separately reviewed Slice 40 design/authorization.
-4. Use the same BGE 384 store/backend for SDK search, embed-only and real stdio MCP
-   c1 plus in-flight 4/8/16/32; record throughput, success/error counts, queue wait
-   denominator and p50/p99/mean. Do not subtract percentile values as component costs.
-5. Measure fresh-process/populated open, first query, steady warm calls, idle expiry
-   and alternating-store switches; record open/drain/close, RSS/handles and embedding
-   initialization. Preserve queue cap 4/depth 32/run 30s/deadline 10s unless a cell states otherwise.
-6. Revisit TC-1807591f/TC-9a8e5f68/TC-dbf46d9e/TC-b5959972: compare held and
-   overlap seed shapes at 10k/100k/300k; separate write/drain/end-to-end, pending rows,
-   per-vector work, worker concurrency and WAL. Re-trace the disputed 300k outlier.
-7. Pair limited traced/untraced diagnostic cells on identical inputs; report callback,
-   logging and trace overhead. Traced SQL profiles explain costs; untraced samples supply latency claims. Bound debug logging's effect on MCP queue observations.
-8. Decide cache suitability from observed generation reuse and total miss/window-scan
-   costs for both schedules. Inconclusive/no benefit means redesign/defer with evidence;
-   maintained counters need a separate storage/ADR decision, never an automatic fallback.
-   Findings guide proposals; neither historical effect-size rules nor targets add release gates.
-
-## Dependencies, resources, verification and delivery
-
-- Hard: approved Slice 10 owned tools/native setup and Slice 20 dependable harness/race
-  work; approved local design/preregistration before runs.30 evidence precedes40/50.
-- Prefer settled Slice 10 dependency pins and quiet serialized measurements; later
- 120/140 CUDA/fork choices are conditional rerun triggers, not blanket prerequisites.
-- Resource proposal: one shared measurement lock, no compilation/concurrent campaigns,
-  scratch≤10GB including DB/WAL, each run≤15min and campaign≤4h; review feasibility
-  before execution and stop/report on bounds, never expand or clean others' scratch silently.
-- BGE seed/query workloads use available RTX 3090 cuda:0 (or cuda:1), verify actual
-  engagement; wait when busy. Exclude K620; preserve windchill3 R580 and primary CUDA 12.6.
-- Later tool changes require meaningful RED→GREEN for counts, math, cell ordering,
-  fresh-DB/resume behavior and real-DB smoke; no tamper/path-drift test bureaucracy.
-  Independently review design and adapted code; source/script changes get required full
-  agent-verify once on the final owned tree, plans get scoped Markdown validation.
-- Deliver local drafts, committed indexed tools/commands/origin shas, preregistration,
-  sample/config manifests, results and uncertainty report with Slice 40/50 recommendations.
-  Open prerequisites: dataset access/fit, compute reservation, exact artifact/provider
-  compatibility and approved run budgets; no benchmarks, environment/Git/ledger changes now.
+Format37/no migration, CS64, query scaffold, W0.8.29/E0.8.0, settled ranking,
+compact defaults, B2-8 and provider outcomes stay fixed. No cache treatment,
+ANN/candidate/default change, overflow chunking, old experimental merge or
+fork B/C work. R580/primary CUDA12.6 remain fixed; K620 is excluded. No CI
+work/execution, registry publishing, paid session, reset/fault campaign, live
+Memex access/copy, new dataset/model fetch or host configuration change.

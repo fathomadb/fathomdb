@@ -62,8 +62,10 @@ query-plan/runtime qualification is inferred.
 After80's documentary handoff, prioritize remaining G/D source with the same30
 owner only through explicit current-parent resumption and actual resource entry.
 Expanded13-root accounting retains original baseline/96GiB setup/G16+D16 raw/
-200GiB cap. Latest15.89584GiB available memory is below16GiB start: no heavy
-phase, automatic resume or threshold change. Storage admission is prospective.
+200GiB cap. The initial15.89584GiB memory refusal is retained. Fresh post80
+16.46707GiB/root/data entry and parent closed10 preflight passed. Original bounded
+G/D source continuation is authorized after exact parent merge/fresh owner checks;
+no automatic campaign or threshold change.
 On30 resumption, reconcile then-current parent metadata without rewriting
 RED/GREEN commits. M20 policy, F exact frozen-input, whole30/40/50 and pre90
 holds remain. Independently qualified60 subset and

@@ -377,9 +377,10 @@ After80's report/final review/integration, prioritize the same30 owner's remaini
 G/D source work only after explicit current-parent resumption and fresh resource
 floors. Prospective13-root accounting charges new documentation assets to the
 same original96GiB setup allowance and unchanged baseline; G16/D16 raw and200GiB
-total stay fixed. The latest15.89584GiB memory sample fails16GiB start, so storage
-admission alone grants no execution. Normal metadata merge preserves RED/GREEN
-history. No campaign precedes final source qualification, independent review and
+total stay fixed. The initial15.89584GiB sample failed; fresh post80 memory16.46707GiB
+and root/data floors passed with strict parent closed10 preflight. Original
+bounded G/D source resumption is authorized only after exact current-parent
+normal merge and fresh owner entry, preserving RED/GREEN history. No campaign precedes final source qualification, independent review and
 frozen artifact/hardware proof. Physical erasure remains done except defects;
 all actual dependencies and pre90 Block1 remain.
 Publication remains separately authorized.

@@ -212,3 +212,15 @@ This is prospective storage admission, not source execution or a threshold waive
 Keep all original stop/swap/jobs/time/model/device rules, one heavy phase and
 campaign prerequisites. Campaign seed preparation/waits consume its single4h
 clock; no G/D campaign has begun.50/80/90 and all other policy holds remain.
+
+### Actual source-entry activation
+
+The80 documentary checkpoint is integrated atbde5208b6. Fresh13-root entry
+recorded memory16.46707GiB/root77.27893GiB/data574.65830GiB, original reservation
+192.52240GiB, unchanged non-documentation inputs from596 and clean current parent.
+Strict parent closed10/landing preflight exited0. These actual receipts supersede
+the failed memory sample for entry readiness without erasing it. Main authorizes
+only the original bounded G/D source continuation after explicit instruction,
+exact current-parent normal merge and repeated owner resource/ownership checks.
+Both extended roots and original baseline stay explicit in every guard call.
+This is no source qualification, campaign start, policy ruling or gate waiver.

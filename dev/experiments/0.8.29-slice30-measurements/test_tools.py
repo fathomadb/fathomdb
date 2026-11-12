@@ -22,6 +22,12 @@ class ConversionTests(unittest.TestCase):
         self.assertEqual(result["total_unique_turns"], 3)
         self.assertEqual(result["selected_count"], 2)
 
+    def test_misaligned_session_arrays_are_rejected(self):
+        data = [{"question": "Q", "haystack_session_ids": ["a", "b"],
+                 "haystack_sessions": [[{"content": "alpha"}]]}]
+        with self.assertRaisesRegex(ValueError, "session.*length"):
+            convert(data, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

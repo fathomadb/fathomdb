@@ -342,6 +342,74 @@ Existing query API timers, P/G1/legacy schemas remain unchanged. No new journal,
 Engine API, observer venue, budget or workload; INITIAL later G2 write-coupling
 oracles still require warmups2/timed20 and actual timed10/20 phase placement.
 
+## Governed GG lifecycle inventory source fit
+
+This narrow clarification fixes initial oracle population definitions before the
+separate governed-stage source unit. Source baseline is
+206405c65518c039f068e37361abbcf332301a73; no new runtime evidence is claimed.
+Authoritative bodies under src/rust/crates/fathomdb-engine/src/ are:
+
+- record_lifecycle.rs, Engine::transition: source Active→Deleted updates the
+  non-superseded canonical row, refreshes vector eligibility and purges only
+  Attribute/PropertyFts projections; its NodeFts/vector shadows remain.
+- dependency_closure.rs, admit_soft_closure/apply_soft_effects: Complete soft
+  closure marks an active derived node deleted with reason source_lifecycle and
+  calls erase_row_projections for that dependent, retaining canonical provenance.
+- projection_registry.rs, erase_row_projections/ROW_OWNED_PROJECTIONS: derived
+  erasure includes both node FTS tables, managed mapping, physical vector and
+  span rows. index_projector.rs, project_canonical_node_row writes BOTH
+  search_index and search_index_v2 for these ordinary leaf nodes.
+
+Use a fresh no-dependency base of N active doc nodes (tiny fixture N=65), then
+append one canonical source doc and one derived fact through ProvenancedNodeV1/
+WriteProvenanceV1 and register their source dependency. Both are ordinary leaf
+nodes with default BGE384 projections. Query a literal control term absent from
+base bodies. BOTH governed stages use ReadView valid_as_of=100 with all other
+view flags at their defaults. Valid control IDs are exactly source+derived;
+after public transition(source,Deleted,None), neither is visible. A mismatching
+ordinary control is NOT_RED/unqualified, never grounds to change the view or
+lifecycle policy to force the count.
+The default-view active population and controlled visibility are distinguished
+from retained physical rows; no historical/superseded row is introduced.
+
+| Population | Source valid | Source Deleted with complete derived closure |
+| --- | --- | --- |
+| All canonical rows / non-superseded canonical cursors | N+2 | N+2 |
+| Canonical current rows by lifecycle state | active N+2, deleted0 | active N, deleted2 |
+| Superseded canonical history |0|0|
+| Mapped/physical vector rows and matching spans | N+2 | N+1: N active base rows plus retained deleted source |
+| Source's own vector and each node-FTS shadow |1each|1each, retained but invisible|
+| Derived vector/mapping/span and each node-FTS shadow |1each|0each, erased by closure|
+| Eligible/visible nodes under the declared public view | N+2 | N |
+
+Thus N=65 gives67 canonical rows,65 active+2deleted after transition,66 retained
+vectors, no derived mapping, zero superseded history and65 visible base nodes.
+The lifecycle source shadow is not called a historical superseded vector; the
+deleted derived row without projections is not called an incomplete active row.
+
+Keep the fresh-template verifier and G2 current_coverage helper UNCHANGED: their
+active/superseded accounting contracts do not apply to this post-closure store.
+A private GG inventory records canonical IDs/kinds/cursors/states, closure
+phase/affected count and per-row mapping/physical/span/FTS disposition. Join
+canonical(kind,cursor)→mapping(kind,cursor)→physical(mapping.rowid) and
+span(mapping.rowid,cursor); never assume global cursor=rowid. Validate actual
+profile/dimension/UTF8 spans for retained vectors and exact expected absence for
+the one closed derived artifact. Independent read-only SQL checks these counts
+and literal public-view controls check visibility before the intended RED.
+Do not turn arbitrary missing active mappings into an allowed exception.
+
+Initial literal/property tests must reach both valid/Deleted ordinary API
+controls, then independently observe missing actual timed hybrid stage calls
+(0vsrequested), not an exception from reusing an unsuitable verifier. Stage
+records later require actual dependency/fallback invocation/outcome, skipped
+all-nodes reason/null fields, reader snapshots and actual vector degradation;
+no learned ranking or assumed complete dense route when the actual arm degrades.
+The existing measured-stage caller may be mechanically shared with an explicit
+query parameter, with unchanged time-stage oracles as relocation controls.
+This is private tool reporting of existing behaviour: no product policy/public
+stats schema/API/format/venue/gate change, no store corruption/purge experiment,
+no G2 verifier relaxation and no campaign/full-size preparation authority.
+
 ## Generic-route/artifact/budget TDD seams (after reviewed source GO)
 
 Pure sharing/refactor uses unchanged existing fixture controls; no fictional RED.

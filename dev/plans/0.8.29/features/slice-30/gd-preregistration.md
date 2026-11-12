@@ -522,3 +522,35 @@ bounded document counts with current versus historical physical coverage. Later
 INITIAL generic-G2 actuation oracles retain warmups2/timed20 and actual timed10/20
 phase placement before GREEN. Canonical26measurement+2prep maximum and all caps,
 conditional eligibility and held obligations remain unchanged; no runtime here.
+
+## Governed-copy population clarification before source
+
+The [governed inventory source fit](gd-test-map.md#governed-gg-lifecycle-inventory-source-fit)
+pins206405c and the exact transition/soft-closure/row-projection bodies. It
+clarifies the existing actual-current/history/visible requirement without adding
+a measurement cell, numerical gate or production statistic. The governed copy
+remains separate from the accepted time-window copy; valid→Deleted is its own
+runtime RED/GREEN unit after this clarification's design review/source GO.
+
+For a fresh N-doc base, two governed provenance rows plus dependency registration
+give N+2 active canonical rows/vectors. Public source→Deleted completes soft
+closure: canonical N+2 persists, with active N/deleted2 and superseded0;
+retained mappings/physical vectors/spans become N+1. The deleted source retains
+its own node-FTS/vector shadow, while the closed derived node's node-FTS/vector/
+mapping/span projections are erased. Both controls become invisible, leaving
+N visible base rows. Tiny N=65 therefore ends canonical67, active65/deleted2,
+retained66, visible65; it does not end with67 eligible vectors or zero retained
+source shadows. Count both applicable node-FTS tables separately.
+
+Both governed stages hold valid_as_of=100 and other ReadView flags at defaults;
+literal controls must establish the actual valid/Deleted result before RED.
+Use private read-only per-row inventory and exact joins/count equations from
+the test map; source/derived closure/lifecycle categories stay distinct from
+superseded history. Existing fresh-template/G2 verifiers keep their contracts.
+Actual public-view literal IDs establish eligibility; actual observer records
+establish dependency/fallback/guard/degradation route, with unavailable fields
+remaining null. No policy/ABI/default/format change or new fault venue follows.
+Source tests remain tiny/180s, data-backed and under the same13roots/original
+baseline/reservations. Per-fixture copy/open/coverage/close attribution and hard
+native/controller phase bounds remain explicitly outstanding before full GG or
+campaign qualification; no campaign clock or full-size preparation starts here.

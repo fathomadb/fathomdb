@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Direct execution; preparation complete; product work pending; publication held",
+  "release_kind": "Direct sequential local completion; CI and registry publication excluded; remaining product qualification pending",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -180,9 +180,10 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "LINUX_REPAIR_SUBSET_INTEGRATED_CRITERIA_HELD",
-      "evidence": "Two genuine engine-owned sidecar/resolver hook repairs integrated at657edeb76caaf9c8d2aab433766bec9362e73217 after separate observed RED/GREEN pairs and fresh independent Astra-medium implementation PASS. Assembled qualification preserves original failures, affected reruns, skips and loader warning; final source-bound Python/TS native identity/lifecycle passed. See features/slice-20/execution.md and review-log.md. A3/A5 policy unanswered and actual Windows A6 unqualified; Slice20 remains IN_PROGRESS, no Slice30 clearance or Block1 exit.",
-      "qualified_subset_sha": "657edeb76caaf9c8d2aab433766bec9362e73217"
+      "phase": "CONTINUATION_DESIGN_REVIEWED_POLICY_AND_WINDOWS_CAPACITY_HELD",
+      "evidence": "Two genuine engine-owned sidecar/resolver hook repairs integrated at657edeb76caaf9c8d2aab433766bec9362e73217 after separate observed RED/GREEN pairs and fresh independent Astra-medium implementation PASS. Assembled qualification preserves original failures, affected reruns, skips and loader warning; final source-bound Python/TS native identity/lifecycle passed. See features/slice-20/execution.md and review-log.md. A3/A5 policy unanswered and actual Windows A6 unqualified; Slice20 remains IN_PROGRESS, no Slice30 clearance or Block1 exit. Continuation documentation391ae66aa reconciles integrated60/70 and passed independent Astra design plus fresh final documentation review. Exact Windows operations proposal5122aa08 passed fresh static review after two corrections; only harmless local logging-child failure/pass ran. Actual A3/A5 exception and new64GiB disk/ACL/liveattach/full guarded guest-format-sequence/floor authorization remain unanswered; no Windows runtime, source clearance,20 closure or Block1 exit follows.",
+      "qualified_subset_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
+      "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5"
     },
     {
       "slice": 30,
@@ -563,6 +564,11 @@
         "id": "slice20-already-correct-coverage-policy",
         "title": "Actual owner answer on narrow test-only exception for already-correct pre-enqueue race23 proof and five-constant guard, or explicit deferral. Genuine defect repairs retain per-behavior RED/GREEN.",
         "owner_slice": 20
+      },
+      {
+        "id": "slice20-windows-capacity",
+        "title": "Actual owner authorization for reviewed64GiB /mnt/data image, images-only ACL/live attachment/verified-new-disk GPT-R:-NTFS/full started guest sequence/floors; static5122aa08 proposal is not execution permission.",
+        "owner_slice": 20
       }
     ]
   },
@@ -583,7 +589,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs and60 format/direct-filter/budget subset also passed within their recorded limits. Whole20/60/F11, remaining product/platform/artifact criteria and final160 qualification remain pending. Assembled qualification retains original interruptions/resumptions/skips; no uninterrupted full-wrapper or published-package claim.",
+    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs and60 format/direct-filter/budget subset also passed within their recorded limits. Whole20/60/F11, remaining product/platform/artifact criteria and final160 qualification remain pending. Assembled qualification retains original interruptions/resumptions/skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication.391ae66aa adds reviewed20 planning only; local implementation/qualification remains distinct from published-release completion.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

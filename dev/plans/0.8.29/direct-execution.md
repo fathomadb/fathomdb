@@ -124,3 +124,18 @@ Fresh distinct Astra final review passed; the parent integrated that exact SHA
 following strict closed10 landing preflight. Native skips and original failed
 checks/targeted resumptions remain explicit.20/60/F11 and Block1 remain open.
 JSON remains the sole ladder authority.
+
+## Continuation checkpoint
+
+Reviewed Slice20 continuation documentation391ae66aa is integrated after fresh
+independent final Astra-medium PASS. It reconciles actual60/70, preserves all
+mandatory criteria and records the exact reviewed Windows operations proposal.
+No product source changed. A3/A5 policy and Windows capacity authorization remain
+unanswered; compiler/control/Windows runtime qualification remains unexecuted.
+
+The parent evaluates the next slice's actual prerequisite scope before source
+entry. Slice30 may prepare a reviewed dependency/current-input reconciliation;
+this checkpoint grants no30 runtime clearance or waiver of20/Block1 obligations.
+Any proposed separation of independently qualified Linux measurements from held
+Windows/queue-proof cells must pass review and be integrated into the plan/state
+before affected source work. Keep each dedicated owner for later continuation.

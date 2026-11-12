@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import subprocess
 
 from campaign import make_plan, run_campaign
 from converter import convert
@@ -114,6 +115,30 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(first[1]["exit"], 7)
             self.assertEqual([row["status"] for row in second], ["complete", "complete"])
             self.assertTrue((Path(observed[1][1]) / "child.log").exists())
+
+
+class FreezeTests(unittest.TestCase):
+    def test_cli_freezes_actual_balanced_cells_and_input_counts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries, cells = [root / name for name in ["corpus.jsonl", "queries.jsonl", "cells.json"]]
+            corpus.write_text('"alpha"\n"beta"\n')
+            queries.write_text('"alpha"\n')
+            cells.write_text(json.dumps([{"name":"tiny", "family":"P1", "n":2,
+                                         "adapters":["engine","sdk"], "warmup":1, "samples":2}]))
+            out = root / "frozen"
+            subprocess.run([sys.executable, str(Path(__file__).with_name("control.py")), "freeze",
+                            "--cells", str(cells), "--corpus", str(corpus), "--queries", str(queries),
+                            "--binary", sys.executable, "--out", str(out)], check=True)
+            self.assertTrue((out / "plan.json").exists(), "freeze command did not publish a cell plan")
+            plan = json.loads((out / "plan.json").read_text())
+            self.assertEqual([(c["repeat"],c["adapters"]) for c in plan],
+                             [(0,["engine","sdk"]),(1,["sdk","engine"])])
+            manifest = json.loads((out / "manifest.json").read_text())
+            self.assertEqual(manifest["corpus"]["count"], 2)
+            self.assertEqual(manifest["queries"]["count"], 1)
+            self.assertEqual(manifest["measurement_layer"], "public-direct-text")
+            self.assertFalse(manifest["gated"])
 
 
 if __name__ == "__main__":

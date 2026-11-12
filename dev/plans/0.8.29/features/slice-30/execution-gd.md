@@ -835,8 +835,48 @@ order first. G2 no-warmup-write/count/phase-order assertions remain required in
 the INITIAL generic G2 actuation oracles BEFORE that GREEN. This preserves their
 final coupling, rather than adding passing-on-arrival coverage or implementing
 missing G2 scheduling merely as warmup scaffolding. Only test-map ordering is
-clarified; no workload, observation method, criterion or budget changes. No new
-warmup source/runtime has begun pending review of this docs-only clarification.
+clarified; no workload, observation method, criterion or budget changes. At the4c67 freeze no new
+warmup source/runtime had begun. Exact independent design PASS and parent
+continuation preceded the following G1 warmup source unit.
+
+## Actual G1 warmup calls and phase separation
+
+RED0cc12d171c77ad6d973f81badf4069a79ec5996b observes real timed APIs in all six
+modes and valid empty warmup streams: literal0vs2 and property0vs1 fail, while
+requested0 preserves its exact timed/feed population (3tests/seven assertions,
+16.907s). Four tiny65-row source series complete72timed calls before the intended
+missing-warmup assertions. No G2 scheduling was introduced as scaffolding.
+
+Minimal GREEN calls the first requested query prefix through the SAME observe/
+API-clock path, emits warmups, flushes that phase, then runs the existing timed
+loop. Actual invocation ordinals establish warmups-before-timed order, while
+per-phase sample indices/counts remain separate. Default0 and all six mode value/
+identity controls pass; fixed oracle4dcb05577be9ed3505d12665aae706da1a5c0f047ab088cf9906e829465ead22
+passes3/3 in21.117s (positive literal/bounded counts plus requested0 control).
+Raw total/timed/warmup counters and phase checkpoint counts are independently
+asserted. API elapsed timers exclude input fingerprints/validation/output;
+whole-loop scope includes both phases and persistence, without subtraction.
+
+Only fixture setup was generalized to share query controls. With default0 it
+still requires three timed records/exactly three API calls and an empty warmup
+stream. Original feed assertion method bodies remain byte-identical to5f4;
+their hashes are retained in pre-runtime warmup identity manifests.
+Normal host RED2da98c23c0ede8ea1d6aba7c69946eaab8dbfdc402a5973319d90042707b319b;
+GREEN976811c8e6aa5e229eb06b42d86e7b1d7d47831996b45123c65350aa144cf58a.
+Task proofs/gd-g-warmup-red/green-identities.json include source/test/helper,
+compiler/features/binary and owned env/context hashes before runtime.
+
+Initial gd-g-warmup-scaffold-checks failed101 on missing nvcc PATH before Ruff/
+Pyright ran; it is setup/NOT_RED. After rereading actual build.rs/CUDA ADR/memory,
+OWN env-runtime.sh pins immutable12.6 for direct Cargo as well as maintained
+builders (ae8aa077bcf0f755a72cac2308af0dc7100e38c16ed7b8a65f53cb925b21f5ac;
+proofs/gd-g-warmup-env-context.json). No driver/toolkit/primary symlink change.
+Corrected -scaffold-checks-v2 Clippy/Ruff/Pyright2files0 preceded runtime RED.
+Task -green-build/-green retain the actual fresh artifact/runtime and affected
+Clippy0; final shell/coverage/Markdown/diff checks are in -final-checks. Maintained
+manual test-slice30-g-warmups selects the new oracle. Pass scheduling, INITIAL G2
+coupling, GO/GG/deadlines/D/controller/pairing and final qualification remain open;
+no canonical500 or full-size preparation/campaign was run.
 
 ## Actual six-mode query forwarding
 

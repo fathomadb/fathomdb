@@ -75,6 +75,19 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
+    let warmup_count = config
+        .get("warmups")
+        .map(|value| usize::try_from(value.as_u64().unwrap()).unwrap())
+        .unwrap_or(0);
+    assert!(warmup_count <= queries.len());
+    for (sample_index, input) in queries.iter().take(warmup_count).enumerate() {
+        let mut row = observe(&engine, mode, adapter, sample_index, input);
+        row["call_index"] = json!(calls);
+        calls += 1;
+        recorder.emit("warmups", &row);
+    }
+    recorder.flush_all();
+    let warmup_calls = calls;
     for (sample_index, input) in queries.iter().enumerate() {
         let mut row = observe(&engine, mode, adapter, sample_index, input);
         row["call_index"] = json!(calls);
@@ -86,11 +99,11 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     let closing = std::time::Instant::now();
     engine.close();
     let close_ns = u64::try_from(closing.elapsed().as_nanos()).unwrap();
-    let proof = json!({"mode":mode,"api_calls":calls,"timed_api_calls":calls,"warmup_api_calls":0,"open_ns":open_ns,
+    let proof = json!({"mode":mode,"api_calls":calls,"timed_api_calls":calls-warmup_calls,"warmup_api_calls":warmup_calls,"open_ns":open_ns,
         "close_ns":close_ns,"loop_ns":loop_ns,"store":store,
         "selected_cuda_uuid":resolution.selected_cuda_uuid,"cuda_compiled":resolution.cuda_compiled,
         "raw_persistence":recorder.statistics_since([0;5]),
-        "throughput_scope":"API calls plus input identity/validation/serialization/checkpoints; open/close separate"});
+        "throughput_scope":"warmup and timed API calls plus input identity/validation/serialization/checkpoints; open/close separate"});
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
 }
 

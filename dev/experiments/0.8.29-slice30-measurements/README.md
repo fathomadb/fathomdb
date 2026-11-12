@@ -14,6 +14,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [campaign.py](campaign.py) | Balanced cell/adapter repetition order, bounded real child execution, separate fresh attempts, retained failures and resume of incomplete cells. Current implementation; selective scheduling concepts from the same ref's ssweep.py and aa30085fcb293d40cf5f34eaa568b3e215339cfc ac013-seed-drain/drain_sweep.py. No old prototype/provider/runtime hooks. |
 | [metrics.py](metrics.py) | Nearest-rank p50/p99, arithmetic mean, error-inclusive throughput, matched query/repeat differences and fixed-seed query-cluster descriptive intervals. Hand-computed oracles; no treatment/numerical verdict. |
 | [control.py](control.py) | Freeze actual source/lock/binary/input identities and balanced plan; serialized Linux campaign with resource observations; report every complete/failed/not-run/partial cell. Long CLI runs require AGENT_LONG=1. |
+| [gd_resources.py](gd_resources.py) | G/D conservative allocated/apparent aggregation, setup/raw reservations and owned child phase guard; selectively adapts the committed Slice60 resource guard. Literal math and actual tiny-child tests in test_gd_resources.py are selected by the existing maintained Python discovery suite. |
 | [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
 | [test_tools.py](test_tools.py) | Fourteen bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
@@ -102,3 +103,25 @@ measurement output cap apply with the reviewed outer owned resource guard.
 No compilation/concurrent owned campaign is allowed in the timing window.
 Source, failed attempts, skips and outliers remain explicit. Whole30, fidelity,
 MCP/Windows/Block1 and final160 obligations are not discharged by this P subset.
+
+
+## G/D phase resource guard
+
+After the explicit G/D source GO, source the new owned env-runtime.sh and run:
+
+```bash
+python3 dev/experiments/0.8.29-slice30-measurements/gd_resources.py PHASE COMMAND ARG...
+python3 dev/experiments/0.8.29-slice30-measurements/test_gd_resources.py
+```
+
+The owned task's receipts/gd-source-entry-aggregate.json supplies disjoint roots
+and initial baseline. Allocated/apparent max is applied per root, with G/D raw
+subtrees subtracted per metric before setup growth is computed. Limits remain
+accepted96GiB setup/16GiB each raw/200GiB aggregate, plus fixed disk/memory/swap
+floors. Raw campaign directories are task/g and task/d. The guard records actual
+command/cwd/source/delta/exit, resource snapshots and separate child exit; a
+resource stop is124, preflight refusal125. Only its own child process group is
+terminated and waited. Logs/receipts persist under task/logs and task/receipts.
+Tiny unit roots/caps exercise enforcement without a heavy/native/model workload;
+normal CLI uses the accepted limits and real entry inventory. No tamper/drift or
+new product resource API is introduced. Old P artifacts/environments stay read-only.

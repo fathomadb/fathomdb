@@ -1,8 +1,11 @@
 """Literal resource-budget and real small-child controls for G/D tooling."""
 
 import unittest
+from pathlib import Path
+import sys
+import tempfile
 
-from gd_resources import aggregate_roots, reservation_ok, setup_growth
+from gd_resources import aggregate_roots, reservation_ok, run_guarded, setup_growth
 
 
 class AggregateTests(unittest.TestCase):
@@ -29,6 +32,24 @@ class ReservationTests(unittest.TestCase):
         self.assertFalse(reservation_ok(150*gib, 97*gib, 0, 0))
         self.assertFalse(reservation_ok(150*gib, 80*gib, 17*gib, 0))
         self.assertFalse(reservation_ok(200*gib, 96*gib, 16*gib, 16*gib))
+
+
+class GuardTests(unittest.TestCase):
+    def test_stops_only_small_owned_child_and_preserves_its_actual_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            payload, finished = root / "payload", root / "finished"
+            code = ("import pathlib,time; "
+                    f"pathlib.Path({str(payload)!r}).write_bytes(b'x'*131072); "
+                    "print('payload-ready',flush=True); time.sleep(0.5); "
+                    f"pathlib.Path({str(finished)!r}).write_text('finished')")
+            result = run_guarded([sys.executable,"-c",code], root, roots=[str(root)],
+                                 baseline=0, max_owned=65536, interval=0.01)
+            self.assertEqual(result["exit"], 124)
+            self.assertEqual(payload.stat().st_size, 131072)
+            self.assertFalse(finished.exists())
+            self.assertIn("payload-ready", (root / "logs/phase.log").read_text())
+            self.assertTrue((root / "receipts/phase.json").exists())
 
 
 if __name__ == "__main__":

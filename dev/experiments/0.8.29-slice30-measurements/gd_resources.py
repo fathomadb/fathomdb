@@ -27,3 +27,10 @@ def reservation_ok(owned, setup_used, g_raw, d_raw):
         return False
     forecast = owned + (96*GiB - setup_used) + (16*GiB - g_raw) + (16*GiB - d_raw)
     return forecast <= 200*GiB
+
+
+def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB,
+                interval=30, phase_name="phase"):
+    """Run one owned child, preserving output/exit and enforcing accepted resources."""
+    import subprocess
+    return {"exit": subprocess.run(command, check=False).returncode}

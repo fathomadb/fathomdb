@@ -8,7 +8,7 @@ import tempfile
 import subprocess
 
 from campaign import make_plan, run_campaign
-from control import freeze, run_frozen
+from control import freeze, run_frozen, summarize
 from converter import convert
 from metrics import aggregate, distribution, paired_difference
 
@@ -167,6 +167,35 @@ class FrozenRunTests(unittest.TestCase):
             self.assertEqual(observed, [0, 1])
             self.assertEqual([row["status"] for row in results], ["complete", "complete"])
             self.assertTrue((frozen / "resources.jsonl").exists())
+
+
+class SummaryTests(unittest.TestCase):
+    def test_summary_keeps_missing_cells_and_observed_samples_separate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            attempt = root / "results" / "a-r0" / "attempt-0001"
+            attempt.mkdir(parents=True)
+            plan = [{"id":"a-r0", "family":"P1", "n":2, "samples":4,
+                     "adapters":["engine"], "warmup":0},
+                    {"id":"a-r1", "family":"P1", "n":2, "samples":4,
+                     "adapters":["engine"], "warmup":0}]
+            (root / "plan.json").write_text(json.dumps(plan))
+            (root / "manifest.json").write_text(json.dumps({"source_sha":"literal sample fixture"}))
+            state = [{"id":"a-r0", "attempt":str(attempt), "status":"complete", "exit":0}]
+            (root / "results" / "campaign-state.json").write_text(json.dumps(state))
+            rows = [{"adapter":"engine", "repeat":0, "query_index":i, "sample_index":i,
+                     "ok":True, "elapsed_ns":n * 1000000} for i,n in enumerate([1,2,3,100])]
+            (attempt / "samples.jsonl").write_text("".join(json.dumps(row)+"\n" for row in rows))
+            (attempt / "warmups.jsonl").write_text("")
+            (attempt / "matches.jsonl").write_text('{"query_index":0,"raw_fts_matches":12}\n')
+            (attempt / "result.json").write_text(json.dumps({"complete":True,"filtered":False,
+                "natural_records":2,"query_count":1,"passes":[{"adapter":"engine","wall_ns":1000000000}]}))
+            result = summarize(root)
+            self.assertEqual(len(result["cells"]), 2)
+            self.assertEqual([cell["status"] for cell in result["cells"]], ["complete","not_run"])
+            self.assertEqual(result["cells"][0]["adapters"][0]["statistics"]["successful_latency"]["mean_ms"], 26.5)
+            self.assertEqual(result["cells"][0]["match_counts"]["max"], 12)
+            self.assertIsNone(result["cells"][0]["adapters"][0]["tracked_distance_ms"])
 
 
 if __name__ == "__main__":

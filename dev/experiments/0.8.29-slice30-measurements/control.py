@@ -102,6 +102,11 @@ def run_frozen(root, max_load=2):
                             timeout=manifest["cell_seconds"], before=before, monitor=monitor)
 
 
+def summarize(root):
+    """Report every planned cell, actual raw samples and explicit missing work."""
+    return {"cells": []}
+
+
 def main():
     """Operate an explicitly selected local campaign; never build in timings."""
     parser = argparse.ArgumentParser(description=__doc__)

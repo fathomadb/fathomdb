@@ -725,6 +725,21 @@ original subject. Unchanged read-only oracle b34965184ea57e5ebc0ff028fb9dc356cac
 passes1/1 in -readonly-control on the final binary:20calls/0scheduled writes or
 probes/2checkpoints. No whole-wrapper or unrelated model replay was performed.
 
+## Generic thin record encoder
+
+RED9ac3adfb4 runs a real successful CLI and parses valid selected string JSONL,
+then literal/Unicode property assertions fail strings versus required ordered
+s30doc-ID/doc/body records,0/2 in0.265s. This is a semantic projection RED, not
+an import/parser/setup failure. Minimal streamed encoder GREEN passes2/2 in0.445s
+with unchanged oracle90d5c18d505987721e40553cb6367ebd040d6867ad082695493e3d065c638497.
+Input UTF8 bodies/order/count and escaped newline framing survive; P conversion
+selection remains unchanged. Existing root Python discovery selects these tests.
+Task gd-g-inputs-red/green receipts/logs and proofs/gd-g-inputs-red/green-
+identities.json retain actual source/script/interpreter hashes and printed
+owned tmp/s30-g-input roots with pre-runtime argv/input/output identities.
+13roots/original69280403456/no stop; no model/native/DB/GPU/full-size preparation
+or campaign clock. Generic host/callers/route/deadline/controller work remains.
+
 ## Remaining runnable-campaign wiring (source work, not eligibility)
 
 Canonical manifest arithmetic is26measurement cells: G1=4/G2=2/GO=4/GG=2

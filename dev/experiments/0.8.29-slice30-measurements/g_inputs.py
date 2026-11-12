@@ -7,11 +7,13 @@ from pathlib import Path
 
 def encode_records(corpus, output):
     """Write selected bodies in order to a fresh record input and return its count."""
-    payload = Path(corpus).read_bytes()
-    bodies = [json.loads(line) for line in payload.splitlines()]
-    with Path(output).open("xb") as stream:
-        stream.write(payload)
-    return {"records": len(bodies)}
+    count = 0
+    with Path(corpus).open("rb") as source, Path(output).open("xb") as stream:
+        for index, line in enumerate(source):
+            record = {"id": f"s30doc-{index}", "kind": "doc", "body": json.loads(line)}
+            stream.write((json.dumps(record) + "\n").encode("utf-8"))
+            count += 1
+    return {"records": count}
 
 
 def main():

@@ -651,6 +651,42 @@ binary hashes,13roots/original69280403456 with no stop. Maintained template
 suite selects all four tests. Normal BGE producer TGD9c, later write schedules,
 source/lifecycle/campaign qualification remain held pending parent review/GO.
 
+## TGD-9c normal BGE closed producer
+
+Genuine REDc04b7c7a5 reaches both missing normal-template report assertions after
+all6tiny-template controls pass (literal65-row cohort boundary plus generated
+Unicode preparation),0/2 in3.84s. Normal producer uses public Core Default BGE
+Mean/projection/write/drain/close and the shared physical verifier, no hooks or
+observer. Each65-row input commits64+1 in order. Independent SQL verifies actual
+per-kind physical/profile coverage, nonNULL UTF8-aligned known spans, short
+ends==body bytes and overlength Unicode end<body bytes; copies hash/reopen fresh.
+Oraclea00dd3f520b9835110dc8142f748aea5818275ea480faf0c1bbfc2277d6186a6,
+controller9d755189ab58cd6715174451ccd47aabb4433a477ee306e8e58a51ef0c4edaf9
+and test executablec61de12620573924ad46fd35cfaffe31a6e71c688856d008e79b3d55074419ef
+remain unchanged through report-only GREEN,2/2 in6.15s (11tiny templates).
+
+Actual pre-runtime GN RED7ca32f09fe0b29268709cd500d5ae625c2caa7c25e8d84788b48174f67bbeaa6;
+GREENad68b2d249e29fad75764e987881380ad572c2464f1af7f1f9c80c4f4472142a.
+Use gd-bge-template-red-v2/green receipts/logs and proofs/gd-bge-template-red-v2/
+green-identities.json; actual GREEN closure is proofs/gd-gn-feature-closure-green-v2.json.
+Cargo compiler artifacts prove normal engine default/default-embedder/embed-cuda/
+tegra-pool features, with no test-hooks/observer; the independent test artifact
+is distinct. Printed tmp/s30-bge-template roots retain exact config/model/input/
+feature/source/binary/oracle and GPU samples. Actual required own PID memory
+peaks532MiB with positive preparation-series utilization; no per-row/text-query
+GPU inference claim. Same13roots/original69280403456/no stop; no campaign clock.
+
+Preserve original setup failures as NOT_RED: E0432 missing SDK dev sha2,
+lock-edge version disambiguation refusal, and initial file! package-cwd path
+failure before any CUDA child. Parent approved only SDKDEV sha2=0.11 and its
+existing0.11.0 lock edge. The first GREEN edit assertion made no mutation, but
+the shell built unchanged RED7ca; that gd-bge-template-green-build is NOT GREEN.
+logs/gd-bge-template-green-edit-note.txt states this; actual delta rebuilt as
+-green-build-v2 before runtime. Normal hooks/oracles were not bypassed.
+Maintained manual template selector is explicit; test=false prevents automatic
+Rust execution while explicit --test selects the same harness. Later writes,
+full source/lifecycle/campaign qualification remain held for parent evaluation.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

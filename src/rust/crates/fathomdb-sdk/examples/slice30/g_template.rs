@@ -134,5 +134,11 @@ pub(super) fn run(config: &Value, out: &Path) {
             serde_json::to_vec_pretty(&proof).unwrap(),
         )
         .unwrap();
+        let report = json!({"coverage":proof["coverage"],"closed_main_sha256":proof["closed_main_sha256"],"preparation":proof});
+        std::fs::write(
+            directory.join("template.json"),
+            serde_json::to_vec_pretty(&report).unwrap(),
+        )
+        .unwrap();
     }
 }

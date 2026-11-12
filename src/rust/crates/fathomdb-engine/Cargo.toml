@@ -963,3 +963,4 @@ required-features = ["test-hooks"]
 [[test]]
 name = "slice30_g_template"
 required-features = ["test-hooks"]
+test = false

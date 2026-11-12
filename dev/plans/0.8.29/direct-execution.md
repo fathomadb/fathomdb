@@ -190,3 +190,25 @@ No tooling, native tests, database, model, GPU, source/runtime, CI or publicatio
 work follows. Keep one active owner,30 quiescent, all mutable resources under
 /mnt/data and the unchanged resource floors.100's exact coverage exception and
 all90/Block1 prerequisites remain held.
+
+## Prospective G/D resumption after early design work
+
+After80 reports and its documentary checkpoint passes distinct final review and
+normal-hook integration, main may prioritize the same30 owner's remaining
+original G/D source units. Keep it quiescent until explicit instruction naming
+the exact current parent and fresh actual start-floor proof. Merge parent
+metadata normally; never rewrite RED/GREEN history. Original source scope and
+strict closed10/source/ownership/native/qualification gates remain.
+
+The conservative resource packet at
+/mnt/data/tmp2/fathomdb-0829-continuation/parent/slice30-resumption-resource-proposal.json
+extends the original five disjoint roots with current parent/task and100/50/80
+worktrees/tasks. Both the13-root list and original69280403456-byte baseline must
+be passed explicitly to every run_guarded call. Added assets consume the SAME
+96GiB setup/build allowance; G16+D16 raw and200GiB total remain. Never reset the
+allowance or rewrite the original receipt. Actual68.69795GiB owned/setup4.17555GiB
+preserves192.52240GiB reservation, but15.89584GiB memory FAILS16GiB start.
+This is prospective storage admission, not source execution or a threshold waiver.
+Keep all original stop/swap/jobs/time/model/device rules, one heavy phase and
+campaign prerequisites. Campaign seed preparation/waits consume its single4h
+clock; no G/D campaign has begun.50/80/90 and all other policy holds remain.

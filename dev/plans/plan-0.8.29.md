@@ -367,17 +367,26 @@ unselected, with runtime census method and hard30 source dependency open.
 Qualified60/70 and actual30 P inform this planning; P supplies no G/D/M/F/TC5
 qualification. Current MCP search still rejects relaxed flags under F11.
 
-After50's different final document review and integration, the next80 owner
-performs already-authorized early documentary/source-census reconciliation.
-Preserve full80's unsettled50/60 inputs and dependency list; no ABI adoption,
-full80 approval or90 source entry follows. Physical erasure remains done except
-defects. Future30 resumption reconciles current parent metadata without rewriting
-RED/GREEN hashes. Actual dependencies and pre90 Block1 remain.
+The early80 owner reconciled actual source and conditional50 inputs; its bounded
+documentary design and S80-F1 attribution correction passed fresh Astra review.
+Parent scoped checks and a different final DOC review precede checkpoint
+integration. Preserve unsettled50/60 inputs,80 dependencies and full80 approval
+hold; no ABI adoption or90 source entry follows.
+
+After80's report/final review/integration, prioritize the same30 owner's remaining
+G/D source work only after explicit current-parent resumption and fresh resource
+floors. Prospective13-root accounting charges new documentation assets to the
+same original96GiB setup allowance and unchanged baseline; G16/D16 raw and200GiB
+total stay fixed. The latest15.89584GiB memory sample fails16GiB start, so storage
+admission alone grants no execution. Normal metadata merge preserves RED/GREEN
+history. No campaign precedes final source qualification, independent review and
+frozen artifact/hardware proof. Physical erasure remains done except defects;
+all actual dependencies and pre90 Block1 remain.
 Publication remains separately authorized.
 
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`B2-DESIGN`) — Residual Block2 contract design
+**IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
 
-**Remaining ladder:** 80 → 50 → 30 → 20 → 40 → 60 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

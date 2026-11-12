@@ -9,25 +9,34 @@ slice: 80
 
 This is an early source-backed candidate, not production-ready approval.
 [Census](census.md) fixes source/authority limits; [requirements](requirements.md)
-and [acceptance](acceptance.md) own intended behavior. Actual selected50 identity
-and feedback consequences, final60 format/budget contract and accepted70 words
-must be reconciled before full80 approval. No repository change or execution
-receipt is represented by these documents.
+and [acceptance](acceptance.md) own intended behavior. Current50 proposed
+identity/feedback and actual integrated60 formats/budgets/70 words are reconciled
+below; unresolved50 and60/F11 choices still hold full80 approval. Only owned documentation changes are proposed;
+no product execution receipt is represented by them.
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+Current documentary source boundary is
+`5e4b5b61765aa9ce2557b2349218f44e74803f05`. Historical bounded Phase A,
+aggregate-v2 PASS (proposal SHA-256
+`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`)
+and consolidation consistency PASS remain recorded in [review log](review-log.md).
+Bounded v1 design PASS covers owner patch SHA-256
+`3620e6c185568752a6c422e1d37a7c9a577d7c7fe40fef7a8dda8dc45bab2a7e`.
+A different fresh reviewer issued FINAL DOC/OUTPUT PASS with no P1/P2 on the
+14-file parent diff SHA-256
+`709240de171103f26951c123265bbfcdddfa5938df9fea6f2e617e052dda4389`.
+Parent scoped Markdown/state/diff checks passed and independently verified78
+source pins; [review log](review-log.md) attributes subjects and limits. This v2
+updates records/citation only and claims no separate v2 PASS, new ABI/policy,
+full80 approval,90 source entry or runtime/resumption GO.
+[Current census](census.md) separates integrated code, qualified subsets and holds.
 
-Parent-supplied60 checkpoint: clean candidate
-`307c92e3b4b8c674eec28fc940c879e9054fff90` has source TDD for formats,
-filters and budgets, and post-code real-GPU manual SDK plus both MCP formats
-14-case PASS. Native/full gate and fresh final review remain pending; F11
-feedback ruling remains held. This is not60 completion, final-contract
-settlement or integration into the clean2f6913 parent.80 did not run those
-checks or read mutable worker output as authority.
+Integrated60 subset `5271c1bf022f0ea22f95f7433e226feb2315043e` supplies
+formats/direct filters/final budgets;70 is COMPLETE at
+`e875f36042f89c1d84756f78135db0e8926c1ed4` with actual reason/hint/native parity.
+Their assembled qualification preserves original failures, resumptions and skips;
+80 neither reran it nor inherits a new behavior pass. Whole60/F11 and20 remain
+open. SEARCH still rejects include_superseded/include_inactive; FETCH's separate
+flags do not authorize SEARCH forwarding. See [census](census.md).
 
 ## Informative responses, errors and default store
 
@@ -79,13 +88,25 @@ limit or successful duplicate/overlap-label policy is inferred. Malformed or
 unsupported-looking strings are membership failures here, not fetch parse_ref
 errors. No labels reach record_feedback on membership failure.
 
-50's distinct-cursor ambiguity decision is still pending. Its recommended
-atomic bad_argument only for otherwise-recordable named ambiguous refs is not
-an accepted ruling. It must not be confused with refs_not_in_response: a ref
-can belong to a page yet name several cursors. Preserve50's chosen precedence
-and do not mint feedback_ref, select first/last or label all occurrences here.
+50's corrected feedback guard remains PROPOSED/HITL-required. Under its
+recommended option, P is the exact visible page[..kept], and R is the complete
+SearchRun.hits captured for this query_id before offset/budget shaping. A named
+member is recordable only when its public ref occurs once in P and its numeric
+cursor occurs once in R. Same cursor does not prove selected-record sameness:
+ownerless NodesFts rowids can alias each other or a canonical edge cursor.
+Keep visible membership first, then epoch/telemetry/text/missing-query-ID guards;
+only otherwise-recordable named ambiguity would refuse atomically with existing
+bad_argument before any label writes. Hidden-only refs stay nonmembers. An
+off-page same-ref/different-cursor record remains safe; an off-page
+same-cursor/different-ref record makes the named member unsafe. Unrelated
+unmentioned ambiguity does not refuse a safe label. No hidden identity/count
+is exposed and legacy cursor-only telemetry is not upgraded. See the integrated
+[proposed decision](../slice-50/feedback-decision.md); this80 packet selects none
+of its alternatives and does not implement its guard.
+
 Logical fetch remains latest-visible resolution, not exact selected-version
-fetch; h:/p: remain unsupported where existing fetch says so.
+fetch; h:/p: remain unsupported where existing fetch says so. SEARCH historical
+flags are still rejected under60/F11; FETCH view flags are a distinct contract.
 
 Both new errors render structured fields verbatim as compact JSON and text
 argument=<JSON string> accepted=<JSON array> or refs_not_in_response=<JSON array>
@@ -135,8 +156,10 @@ committed stored tuples; no reproject or new generation is requested.
 Head uniqueness is grounded in vector_spans::validate: r.rowid=r.write_cursor,
 s.vector_rowid=r.rowid, s.write_cursor=r.write_cursor, window_number=0 and
 byte_start=0. Both mapping rowid and span vector_rowid are primary keys;
-UNIQUE(write_cursor,window_number) rules out a second0. Therefore each admitted
-canonical cursor counts once, independently of logical refs/body identity or50.
+UNIQUE(write_cursor,window_number) rules out a second0. This proves physical
+head uniqueness, not canonical-owner uniqueness; see S80-F1 below. Each admitted
+mapping must count once after exact owner classification, independent of logical
+refs/body identity or50. A joined SQL row is not automatically one record.
 Preserve the existing validation predicate **exactly**, including its
 COALESCE(n.body,e.body) body-length/boundary semantics. A missing/orphan span
 or any tuple/length/end condition that currently fails remains the same typed
@@ -225,8 +248,57 @@ the returned types through existing engine/facade/SDK roots and maintained
 Python/TS type roots. No governed-operation allowlist exception is needed.
 Malformed native payloads use the existing ProjectionGenerationError reason
 projection_generation_corrupt with the exact RFC6901 field path below
-/vectorCoverage (TS) or /vector_coverage (Python), as existing projection native
-decoders do. Do not misclassify them as caller-invalid arguments or cache misses.
+/vectorCoverage (TS) or /vector_coverage (Python), following the existing generation-status enum decoder error convention in
+Python read.py and TS read.ts. The coverage decoder and its numeric checks are
+net-new; current runtime-status conversion alone does not perform them. Do not misclassify them as caller-invalid arguments or cache misses.
+
+### Canonical attribution multiplicity source hold
+
+S80-F1 is newly source-derived at5e4b5b617, outside the historical reviewed
+three exclusion examples. canonical_nodes/edges.write_cursor is not globally
+UNIQUE; the unique node page index is partial (kind,write_cursor), so distinct
+same-table owners can share a cursor. vector_spans::validate's EXISTS joins do
+not reject multiplicity itself. Mapping/span primary keys cannot justify a
+naive one-joined-row/one-record stream or a guessed canonical representative.
+
+Candidate correction for current bounded review: preserve every original joined
+row's invalid-predicate result (any invalid row still errors), then classify
+one physical mapping once. Exactly one canonical row with non-NULL body is
+required to enter R/K/U/T/B/V; multiple same-table owners are ambiguous even if
+bodies/kinds/lengths agree. Proposed treatment is the existing unattributed_heads
+ambiguity meaning, once per mapping, without new fields or a storage refusal.
+Managed write.rs/write_commit.rs allocate a cursor per batch row; that writer
+behavior is not a schema/validator cardinality proof for every admitted state.
+No product defect or runtime construction is asserted.
+
+Concrete proposed stream: group the existing mapping→span→node→edge metadata
+join by r.rowid before emitting its scalar row. MAX(CASE WHEN the **unchanged original invalid predicate** THEN 1 ELSE 0 END),
+over every joined row, preserves EXISTS's WHERE rejection truth, including SQL
+NULL (which does not satisfy WHERE); a NULL predicate cannot become a new error.
+Per canonical table, MIN(rowid)/MAX(rowid) are NULL for no owner, equal for one,
+and unequal for multiple owners; use their presence/equality to derive capped
+zero/one/many cardinality, including cross-table owners. Distinct owners with
+equal bodies remain ambiguous. No COUNT of join-product rows is a record count.
+The single span's body_length/end are the same across this group; transfer only
+those scalar facts, invalid flag and ownership classification. Retain the
+existing orphan-span anti-join as the other UNION ALL arm in that same statement;
+an orphan remains an error, not an unattributed mapping. Check invalid before
+exclusion and before publication, regardless of result-row order.
+
+Rust then performs only the seven checked counter/byte updates once per grouped
+mapping; no SQL SUM/TOTAL or floating byte arithmetic, body String/vector BLOB,
+per-record Vec, per-mapping query or second full pass. The later implementation
+must demonstrate a streaming mapping-primary-key grouping plan and actual
+statement/VM work (including anomalous owner multiplicity), avoiding a new
+corpus-sized sort/materialization. If the concrete plan cannot satisfy that
+bound, return the query design for bounded review before GREEN; do not silently
+weaken the cost requirement. This phase executes no SQL or query-plan probe.
+
+Current bounded reviewer disposition is required; no historical PASS extends to
+this case. No schema/migration, eighth counter, strengthened validation/refusal,
+physical probe, new owner question or implementation authority follows. Keep
+S80-F1 visible until its exact design correction is reviewed and later genuine
+runtime RED/GREEN establishes the capture implementation.
 
 ### Arithmetic, omitted populations and examples
 
@@ -271,11 +343,11 @@ Concrete code ownership changes proposed:
 1. vector_spans.rs: retain scalar validate(Some(cursor)) and its scoped checks.
    Add crate-private validate_full_with_coverage(&Connection) returning the
    numeric summary, not an Engine cache mutation. Replace the healthy full
-   validation's EXISTS output with a streamed mapping-row result carrying its
-   existing invalid predicate, owner presence, body_length and nullable end.
-   Preserve the existing orphan-span anti-join check in that same SQL statement.
-   Carry owner-presence/body-NULL classification as scalar columns solely to
-   select denominators/exclusions after the unchanged invalid predicate. No
+   EXISTS output with S80-F1's grouped metadata stream: unchanged invalid
+   predicate truth, exact owner cardinality, body_length and nullable end.
+   Preserve the existing orphan-span anti-join in the same SQL statement.
+   Owner/body-NULL classification only selects denominators/exclusions after
+   the unchanged invalid predicate. No
    body String, vector BLOB or per-record Vec is transferred to Rust; update
    seven checked counters as rows stream. Preserve existing typed validation
    errors, without adding NULL-body or dual-owner refusal to this path.
@@ -434,8 +506,8 @@ test-hook providers/real files and dynamic native/JSON reads avoid compile-only
 missing-helper failures. Use native Python conversion of a real engine status
 for deterministic partial/unknown fixtures, then installed TS/MCP boundaries
 with approved existing local-model fixtures as in PhaseA. Preserve source-bound
-TDD and goldens; bounded aggregate v2 PASS does not replace the current
-consolidated-packet consistency recheck or later source reviews.
+TDD and goldens; bounded aggregate-v2 and consolidation consistency PASS do not replace this
+current reconciliation review or later source reviews.
 
 Proof controls: two corpus sizes confirm no full validation/owner traversal on
 warm or cold orient; actual capture SQL/trace contains no new vector_default
@@ -461,19 +533,26 @@ no vector contribution. Do not let a client infer that distinction from arm.
 An additional discriminant would be a separately reviewed sidecar amendment,
 not implicit permission from this scalar. Known-empty Some(0) stays distinct.
 
-Capture actual vector-participant record keys before fusion using50's selected
-internal ownership carrier; retain a search-local set only when snippets were
+Conditional on50's actual accepted successor, capture actual vector-participant
+record keys before fusion using its settled internal ownership carrier; retain a search-local set only when snippets were
 requested and vector candidates exist. After fusion/rerank/final truncation,
 look up spans only for returned keys in that set, on the same tx before commit.
-Node and edge ownership stay distinct; public repeated refs and identical
-bodies are never lookup keys.50's current proposed representative-first record
-contract must be actually settled; current body-fusion/explanation maps cannot
-be treated as that proof. A nonparticipant returns None even if it has a vector
+Node and edge ownership stay distinct; retain an ownerless FTS table+real rowid
+locator separately from stored cursor. Public refs, equal bodies, bare cursor
+and display branch are never selected-record or participation proof.50's
+proposed private key/locator/vector-membership and representative-first source
+contract are not implemented or accepted. Current body-fusion/explanation and
+cursor-keyed FtsRows maps cannot be treated as that handoff. A nonparticipant returns None even if it has a vector
 stored; query scoring is the claim, not existence of any embedding.
 
-Each lookup is indexed by vector_rowid/record cursor under the accepted head
-invariant and validates mapping owner, window0/start0, physical vector presence,
-body_length==returned stored-body bytes, integer end and UTF-8 boundary. Known
+After exact canonical ownership is proved by that settled handoff, a lookup is
+indexed by the selected physical head identity and validates its mapping owner,
+window0/start0, body_length==returned stored-body bytes, integer end and UTF-8
+boundary. An ownerless FTS hit cannot borrow a canonical vector span merely
+because cursor or body agrees. Reuse actual selected vector-stage observations
+and their existing validation; add no vec0 presence/rowid/EXISTS/payload probe
+for reporting. The exact private handoff and its local lookup query remain
+unsettled prerequisites, not an already-existing public field. Known
 end converts with checked u32::try_from; overflow is an existing typed storage/
 invariant failure, never clamped/None. SQL and tuple validation failures retain
 existing typed storage/corruption errors. The full validator is not called
@@ -494,7 +573,7 @@ stay. Vector-only long hits retain Start; short whole hits retain Whole.
 
 | Layer | Candidate mapping / absence |
 | --- | --- |
-| Rust engine/facade/SDK | Existing SnippetV1 plus scored_bytes:Option<u32>; SearchResult.snippets None when off, Some([]) for requested empty results.70 facade exports/reexports remain prerequisite. |
+| Rust engine/facade/SDK | Existing SnippetV1 plus scored_bytes:Option<u32>; SearchResult.snippets None when off, Some([]) for requested empty results.70 facade exports/reexports are integrated; preserve them. |
 | PyO3 / Python | Native getter Option<u32>; dataclass scored_bytes:int\|None=None; `_sdk_search` maps exact integer/None. Never coerce missing0 via truthiness. All three existing search surfaces share it; standalone helper None. |
 | NAPI / TS | Native optional integer; public scoredBytes?:number, present only for Some including0. Declare native binding.ts field and mapNativeSnippet; validate any dynamic conversion as integer0..2^32−1, never wrap. Entire snippets property absent when off. |
 | MCP structured | Hit.scored_bytes?:u32, omitted for None; copy from the aligned snippet. No new input flag. It means exactly the same scalar, not snippet length. |

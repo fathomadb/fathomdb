@@ -539,6 +539,23 @@ All use13 roots/original69280403456 baseline, no resource stop. TGD9 closed
 campaign templates, remaining modes, final source/lifecycle qualification and
 campaigns remain uncompleted. No new numerical gate or product API follows.
 
+## TGD-8 separate SDK hybrid population
+
+RED35efb0e50 validates existing SDK projection/write/drain/readiness/search APIs
+with2rows/2vectors/pending0 and128 literal alpha+beta results before intended
+0!=128 missing records. Core hybrid control passes1/1; mean oracle536d91d9
+is unchanged. Hybrid oracle1e8544c4ac8e4854d9f6a9b900d00f65c8b47c8aa0d632c38b4e14592707f478
+and SDK runner005ec9137ed2ea3214897cebcb7aa31f6aee7f477777f95829a3712b617d819c
+remain unchanged through GREEN. Pre-runtime binaries: RED0f08fa624fe829a017c0950e8823dd9e03ed0454f88e96cde2b0deb08c620e05;
+GREEN3729f3330c5561acea9b4f2115afa6bf4681ff94b174a212a30a63180e411ad3.
+
+Emit-only GREEN passes1/1 in3.802s with128records/8checkpoints. Existing
+receipts/logs gd-sdk-hybrid-red/green and printed proof roots preserve actual
+source/delta/resources/GPU identities, using13 roots/original69280403456, no stop.
+Maintained manual SDK-hybrid selection is explicit. Closed campaign templates,
+direct text, schedules, workers/overlap, full source/lifecycle and campaign
+qualification remain pending; fixture preparation does not pre-close TGD9.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

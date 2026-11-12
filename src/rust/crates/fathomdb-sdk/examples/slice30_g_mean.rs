@@ -179,9 +179,7 @@ fn run(config: &Value, out: &Path) {
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2})
         };
-        if mode != "sdk_hybrid" {
-            recorder.emit("samples", &row);
-        }
+        recorder.emit("samples", &row);
         calls += 1;
     }
     recorder.flush_all();

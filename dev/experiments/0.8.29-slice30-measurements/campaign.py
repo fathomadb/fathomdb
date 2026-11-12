@@ -24,8 +24,14 @@ def run_campaign(plan, root, command, timeout=900):
     """Execute every cell in an owned fresh attempt directory, retaining failures."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
+    state_path = root / "campaign-state.json"
+    previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
     outcomes = []
     for cell in plan:
+        completed = previous.get(cell["id"])
+        if completed and completed["status"] == "complete" and completed.get("cell") == cell:
+            outcomes.append(completed)
+            continue
         cell_root = root / cell["id"]
         cell_root.mkdir(exist_ok=True)
         prior = [int(p.name.split("-")[1]) for p in cell_root.glob("attempt-*") if p.is_dir()]
@@ -49,7 +55,7 @@ def run_campaign(plan, root, command, timeout=900):
                 complete = json.loads(result_path.read_text()).get("complete") is True
             else:
                 error = "child returned without result.json"
-        outcome = {"id": cell["id"], "attempt": str(attempt), "exit": code,
+        outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "exit": code,
                    "status": "complete" if complete else "failed", "error": error,
                    "elapsed_ns": time.monotonic_ns() - started}
         outcomes.append(outcome)

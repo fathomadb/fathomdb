@@ -1,5 +1,7 @@
 """Conservative owned G/D resource accounting and bounded phase execution."""
 
+from contextlib import contextmanager
+
 
 def aggregate_roots(roots):
     """Return the sum of each disjoint root's larger allocated/apparent size."""
@@ -80,13 +82,75 @@ def resource_issue(sample, max_owned, start=False):
     return None
 
 
+@contextmanager
+def _owned_subreaper():
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    previous = ctypes.c_int()
+    if libc.prctl(37, ctypes.byref(previous), 0, 0, 0) != 0:
+        raise OSError(ctypes.get_errno(), "get process child-subreaper state")
+    if libc.prctl(36, 1, 0, 0, 0) != 0:
+        raise OSError(ctypes.get_errno(), "set process child-subreaper state")
+    try:
+        yield
+    finally:
+        if libc.prctl(36, previous.value, 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "restore process child-subreaper state")
+
+
+def _cleanup_owned_group(child):
+    import os
+    import signal
+    import time
+    result = {"pgid": child.pid, "term_sent": False, "kill_sent": False, "reaped": []}
+
+    def reap():
+        child.poll()
+        while True:
+            try:
+                pid, status = os.waitpid(-child.pid, os.WNOHANG)
+            except ChildProcessError:
+                break
+            if not pid:
+                break
+            if pid == child.pid:
+                child.returncode = os.waitstatus_to_exitcode(status)
+            result["reaped"].append(pid)
+
+    def alive():
+        reap()
+        try:
+            os.killpg(child.pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+
+    def send(sig):
+        try:
+            os.killpg(child.pid, sig)
+            return True
+        except ProcessLookupError:
+            return False
+
+    if alive():
+        result["term_sent"] = send(signal.SIGTERM)
+        deadline = time.monotonic() + 15
+        while alive() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        if alive():
+            result["kill_sent"] = send(signal.SIGKILL)
+            deadline = time.monotonic() + 5
+            while alive() and time.monotonic() < deadline:
+                time.sleep(0.02)
+    result["complete"] = not alive()
+    return result
+
+
 def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB,
                 interval=30, phase_name="phase"):
     """Run one owned child, preserving output/exit and enforcing accepted resources."""
     import json
-    import os
     from pathlib import Path
-    import signal
     import subprocess
     import time
     task = Path(phase_dir).resolve()
@@ -109,7 +173,7 @@ def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB
               "owned_cap":max_owned,"pid":None}
     code = 125
     if issue is None:
-        with (task/"logs"/(phase_name+".log")).open("wb") as log:
+        with _owned_subreaper(), (task/"logs"/(phase_name+".log")).open("wb") as log:
             child = subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             record["pid"] = child.pid
             last, streak = start, 0
@@ -132,13 +196,9 @@ def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB
                             record["resource_stop"] = issue
                             break
             finally:
-                if child.poll() is None:
-                    os.killpg(child.pid,signal.SIGTERM)
-                    try:
-                        child.wait(timeout=15)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(child.pid,signal.SIGKILL)
-                        child.wait()
+                record["cleanup"] = _cleanup_owned_group(child)
+                if not record["cleanup"]["complete"]:
+                    record["resource_stop"] = record["resource_stop"] or "owned_group_cleanup_incomplete"
                 record["child_exit"] = child.returncode
         if record["resource_stop"]:
             code = 124

@@ -32,20 +32,25 @@ def reservation_ok(owned, setup_used, g_raw, d_raw):
 
 
 def measure_root(path):
-    """Read allocated/apparent totals, retaining transient du diagnostics."""
+    """Accept successful du totals only, retaining both bounded attempts on failure."""
     import subprocess
     row = {"path": str(path), "warnings": []}
     for key, flag in (("allocated", "-sB1"), ("apparent", "-sb")):
         for attempt in range(2):
             process = subprocess.run(["du", flag, str(path)], capture_output=True, text=True)
             lines = process.stdout.splitlines()
-            if lines and lines[-1].split()[0].isdigit():
-                row[key] = int(lines[-1].split()[0])
+            fields = lines[-1].split() if lines else []
+            if process.returncode == 0 and fields and fields[0].isdigit():
+                row[key] = int(fields[0])
                 if process.stderr:
                     row["warnings"].append(process.stderr)
                 break
+            row["warnings"].append(
+                f"attempt {attempt+1} du {flag} {path!s}: exit={process.returncode}, "
+                f"stdout={process.stdout!r}, stderr={process.stderr!r}"
+            )
             if attempt == 1:
-                raise RuntimeError("owned size unavailable: " + process.stderr)
+                raise RuntimeError("owned size unverifiable: " + "\n".join(row["warnings"]))
     return row
 
 

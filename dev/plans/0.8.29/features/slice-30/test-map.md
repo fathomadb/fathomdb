@@ -38,3 +38,16 @@ Relevant scoped Rust/Python lint and typecheck precede tests; run Markdown and
 release-view checks only for applicable docs/parent metadata. Required final
 full source gate runs once on a clean stable tree. No parent/sibling installed
 artifact qualifies30; no canonical benchmark/threshold/oracle rewrite.
+
+## Actual selected suites and correction units
+
+The maintained runner selects14Python tool tests and6Rust example tests,
+including20deterministic codec-property examples and real P1/P2 owned-child
+checkpoint interruption. No helper is ignored and no natural100k workload is
+launched by ordinary tests. Original5Rust oracle bodies remain unchanged.
+Real three-cell resume, UTF8-prefix summary/property, and checkpoint retention
+have distinct observed RED commits before separate GREEN; exact grouped units,
+invalid124fixture history, diagnostics and oracle identities are in
+[execution](execution.md). [Results](results-p.md) maps actual affected checks,
+assembled source qualification and remaining holds; no test count implies full
+whole30/fidelity/Windows completion.

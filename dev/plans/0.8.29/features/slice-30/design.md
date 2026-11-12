@@ -1,6 +1,7 @@
 # Slice 30 staged measurement design
 
-Status: PROPOSED. Initial implementation review request is **P only**. G/D/M/F
+Status: P implemented/measured on clean2fd; final results review pending.
+Accepted initial implementation scope is **P only**. G/D/M/F
 remain designed staging boundaries, not implicit runtime/source authority.
 All prerequisites in [parent proposal](prerequisite-change.md) remain in force.
 
@@ -73,7 +74,7 @@ do not introduce a production API just to fill the field.
 
 | Group | Actual prerequisite | Scope and current disposition |
 | --- | --- | --- |
-| P | Reviewed dependency cut, closed10/current source, own tools/input/native artifacts | Provider-free direct-text baseline and write schedules; proposed initial GO only. |
+| P | Reviewed dependency cut, closed10/current source, own tools/input/native artifacts | Provider-free direct-text baseline and write schedules;16cells measured, final results review pending. |
 | G | P tools qualified; updated concrete G packet/review; own pinned BGE cache, available reserved engaged3090 | Same BGE384 store for engine/SDK hybrid/direct-text/embed-only; read/write schedules and guarded branch attribution. No TC5 dependency. NOT_RUN. |
 | D | P tools; reviewed current worker observer/fixture fit and cap feasibility | Synthetic deterministic768-d held/overlap10k/100k/300k drain follow-ups, pending counts, worker concurrency and WAL;300k requires lower-scale extrapolation under15min/16GiB. NOT_RUN. |
 | M | Dependable selected G store;20 A3/A5 proof or actual owner disposition; reviewed exact MCP tooling | Real stdio c1/4/8/16/32, actual queue denominator/errors, fresh-process/open/idle/alternating-store costs. NOT_RUN/HELD. No claimed queue proof from timing. |
@@ -113,3 +114,17 @@ tolerances; P speed alone cannot select a cache.50 may refine text design from
 P distributions and hybrid/fusion design from G. Their existing source gates
 and whole30 dependency are unchanged. Final local release qualification remains
 160-owned and publication/CI remain outside this continuation.
+
+## Actual P preservation method
+
+The private SDK example uses only existing core/SDK direct-text and governed
+batch APIs. Its measurement-only recorder appends outside API/write clocks and
+flushes every16records per stream plus phase/pass boundaries, without fsync.
+Recorded persistence/checkpoint cost and throughput scope are explicit. A stop
+between checkpoints may lose<=15tail records; a stop during a pending flush can
+leave that checkpoint partial. Strict per-line UTF8 decoding preserves complete
+raw prefixes and reports issues without promoting incomplete cells. Resume
+updates all prior outcomes by ID, retaining completed trailing attempt identity.
+These three reviewed corrections have separate genuine runtime RED/GREEN units.
+See [execution](execution.md) and [actual results](results-p.md). No public or
+production observer API, cache/ranking/default change or new numerical gate.

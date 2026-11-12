@@ -11,7 +11,9 @@
 | A30-7 | Report P/G results separately from held M/F and20 A3/A5/A6. Frozen TC5 pack absence leaves fidelity unsatisfied. Parent may accept a qualified Linux subset; whole30 remains incomplete until remaining required cells qualify or receive explicit owner disposition. |
 
 A30-2 is workload/report completeness, not a new numerical pass gate. Accepted
-canonical gates remain separate. Current phase is documentation only: all
-runtime criteria are NOT_RUN. Windows20 cannot be proved by Linux, review,
+canonical gates remain separate. Current P execution/qualification is recorded in [results](results-p.md), with
+fresh final results review/parent integration pending. P covers workload/direct-route,
+committed-marker schedule, tool/TDD and owned-resource portions only; G/D/M/F
+and full branch/fidelity obligations remain unqualified. Windows20 cannot be proved by Linux, review,
 static PowerShell inspection or a future CI assumption. Pre90 Block1 exit and
 final160 require their actual outstanding proof/disposition.

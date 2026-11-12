@@ -61,3 +61,15 @@ routes. Any narrowly necessary feature-gated diagnostic observer remains a test
 surface with a same-change Rust interface note, bounded owner and no new
 production environment switch. The source-grounded distinctions above replace
 stale Slice30 prototype/current-baseline equivalence claims.
+
+## Implemented P tool boundary
+
+The committed private SDK example wraps existing direct APIs, with no production
+observer or environment switch. Natural API and governed-write clocks stop before
+JSONL serialization/checkpoints. Loop throughput includes those costs and P2
+writes/marker proofs; raw compiled-FTS matches stay separate from returned hits.
+Snapshot observations remain unavailable. Recorder/resume/strict UTF8 framing
+belong to measurement tooling, not database recovery or a new product contract.
+[Results](results-p.md) describe actual current residual cost; filtered P2 versus
+unfiltered P1 is not a controlled write-only treatment comparison. Authoritative
+architecture paragraph above remains a parent integration proposal.

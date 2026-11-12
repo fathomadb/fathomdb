@@ -1,7 +1,10 @@
 # Slice 30 read-only input inventory
 
-Observed against c0c94b4203ffeb9e573efcc14e8b10df653318c5 on2026-11-11.
-No model/product/native/benchmark run, input acquisition or live Memex read ran.
+Historical PhaseA read-only observation against
+c0c94b4203ffeb9e573efcc14e8b10df653318c5 on2026-11-11; at that phase no
+model/product/native/benchmark run, input acquisition or live Memex read ran.
+Subsequent owned LME preparation and P execution are recorded below and in
+[results](results-p.md). No model/GPU or live Memex use occurred.
 Hashes below identify existing bytes; they are not a new receipt-hardening suite.
 
 ## LongMemEval available
@@ -78,3 +81,14 @@ accepted frozen7667docs/100queries/K192/top10/exact-f32 bridge inputs and curren
 candidate-bound CUDA/native identities. LME/P/G latency cells do not consume
 that pack. Parent retains the exact-artifact availability question; do not ask
 whether/mnt/data exists or require reconnecting a drive for unrelated text work.
+
+## Actual owned P inputs
+
+Only registered LME/license bytes were copied into the assigned/mnt/data task.
+The committed converter produced100000selected turns/500questions. Corpus SHA
+cc5930e525a2af2954353f92dacf720cc4b79f40dbb7965c44bb5c985b5cb481 and query SHA
+0eeb5582fc93bee7e2a494054a55d26bb0940d771083b726f999a9682e74dc16 were frozen
+before16Pcells and checked unchanged afterward. Actual source/native/method
+identities and raw paths are in [results](results-p.md). Models were neither
+copied nor invoked; the exact frozen TC5 pack remains absent/held, not replaced
+by LME or the convenience10k corpus. /mnt/data remained available throughout.

@@ -1,28 +1,29 @@
 ---
 title: 0.8.29 Slice 30 — current scale and access-path measurements
-status: PROPOSED
+status: IN_PROGRESS
 target_release: 0.8.29
 slice: 30
 ---
 
 # Slice 30 — current scale and access-path measurements
 
-## Current proposal and entry boundary
+## Current execution and entry boundary
 
-This continuation replaces the pre-integration draft. It proposes a per-cell
-prerequisite split; it does not clear the currently tracked whole20 dependency.
-Independent Astra design PASS, parent integration of the exact dependency/plan
-amendment, fresh strict closed10 preflight and explicit parent source GO precede
-any source/test/tool setup or execution. Whole20, whole30 and pre90 Block1 exit
-remain open. No benchmark has run in this phase.
+Parent integrated the independently reviewed exact P prerequisite split at
+144bde29b75b31f1ce7277edfb82b5c6d5735068. Same owner passed strict closed10
+preflight/ownership/resources and received explicit P-only source GO. Actual
+clean2fd772558e46d0b1645dce2ffea730d0bdd3305c now supplies the16executed P cells
+and [measured results](results-p.md). Local qualification is assembled; final
+fresh Astra results review and parent integration remain pending. Whole20/30,
+G/D source, M/F,40/50 source and pre90 Block1 remain open.
 
-The inspected baseline is c0c94b4203ffeb9e573efcc14e8b10df653318c5. It includes
-qualified Linux20 repairs657edeb76caaf9c8d2aab433766bec9362e73217,
-60 format/direct-filter/budget5271c1bf022f0ea22f95f7433e226feb2315043e,
-and complete70 e875f36042f89c1d84756f78135db0e8926c1ed4. Later20 changes
-are documentation only. Read their actual execution/status bodies; their
-assembled suites, failures, affected resumptions and skips keep their original
-subjects. Fresh30 artifacts must come from the owned30 checkout.
+Historical PhaseA inspected c0c94b4203ffeb9e573efcc14e8b10df653318c5 and proposed
+this cut before source execution. It already included qualified Linux20 repairs
+657edeb76caaf9c8d2aab433766bec9362e73217,60subset
+5271c1bf022f0ea22f95f7433e226feb2315043e and complete70
+e875f36042f89c1d84756f78135db0e8926c1ed4. Later20 updates were docs-only.
+Predecessor evidence retains its original subjects; current30 uses owned tools,
+installed/native proofs and current source, not borrowed runtime evidence.
 
 ## Owned outcome
 
@@ -41,6 +42,9 @@ proposes the corresponding maintained architecture clarification.
 
 ## Sequence and retained boundaries
 
+P steps1–4 executed; [execution](execution.md) records actual RED/GREEN and
+qualification resumptions. Final review/integration in step5 remains pending.
+
 1. Parent reviews/integrates the per-cell dependency amendment after Astra PASS.
 2. Same owner provisions only its own /mnt/data tools/native environment after GO.
 3. Implement one measurement behavior at a time with committed observed runtime
@@ -50,7 +54,8 @@ proposes the corresponding maintained architecture clarification.
 4. Freeze tools/preregistration before timing. Run P cells first, G cells only
    with an actual3090 reservation/engagement; M and F cells retain their holds.
 5. Run the required local full source gate once on the final clean stable tree,
-   retain actual failures/skips and affected reruns, and obtain fresh independent
+   retain actual failures/skips and affected reruns (qualification may be assembled),
+   and obtain fresh independent
    final Astra review. Parent evaluates/integrates before another owner starts.
 
 AC-083 is the owner-authorized **tracked, not gated**,100k LongMemEval **text**

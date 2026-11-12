@@ -54,3 +54,21 @@ the minimum correction: SDK dev-only rusqlite0.41 bundled/fallible_uint, matchin
 engine and existing lock0.41.1. Root/production dependencies and versions are
 unchanged. The actual compiled match-observer RED is8449f80f0:3real-store tests,
 2pass/1fail/0ignored, raw count0 versus13; its GREEN follows separately.
+
+## P code and results candidate
+
+Fresh independent Astra reviewed clean1f and requested resume-tail preservation,
+incremental raw checkpoints and strict partial-UTF8 handling. Same reviewer
+accepted the prospective bounded method before GREEN, then returned
+CODE_REVIEW_PASS_PENDING_RESULTS at5b1019c99 after checking actual failures,
+unchanged oracles and code. A light audit of the frozen manifest/first records
+found no actionable concern; neither verdict was final results acceptance.
+
+Clean2fd772558 source, actual private binary and natural inputs froze before all
+16Pcells. Campaign exit0/summary complete16, no retries/errors/noisy flags/resource
+stops, and exact post-run hashes match. [Results](results-p.md) records raw paths,
+per-repeat metrics, actual resource/identity evidence and assembled qualification.
+OriginalSC2312/Pages/MD012 failures, invalid124history and inner skips/ignores stay
+explicit. This final candidate requests same-reviewer results acceptance and
+parent evaluation/integration. No self-closure/state/board/ledger edit follows.
+G/D extension and M/F/whole20/30/40/50/pre90/final160 holds remain unchanged.

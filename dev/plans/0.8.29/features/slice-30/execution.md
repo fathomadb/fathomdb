@@ -147,3 +147,23 @@ Affected checks, legitimate generated contributor-map refresh, rebuilt actual P0
 program proofs and same-reviewer correction verdict precede the clean actual P
 campaign freeze. Natural timings remain held at this checkpoint. Whole20/30,
 M/F/G/D,40/50 source, Windows/pre90/Block1 and final160 remain separate holds.
+
+## Completed P campaign and assembled qualification
+
+[Measured results](results-p.md) supersedes earlier pending-phase statements:
+clean2fd native P0 normal CLI passed, actual hashes froze, all16Pcells completed
+in3028.645s with no retry/timeout/resource stop, and committed summary exit0
+reports complete/no issues. Source boundaries remained exactly clean2fd.
+Post-run binary/corpus/query/cells/lock hashes match the prospective freeze.
+
+Qualification remains assembled: original765 wrapper SC2312 failure; clean1f
+canonical214/216 with two generated-map Pages failures; actual affected14Python/
+6Rust/Clippy/check/Ruff/Pyright and20/45Pages passes on exact staged5bmetadata;
+MD012 extra blank line/hook refusal retained; whitespace-only correction and
+normal-hook clean2fd plus scoped Markdown/public-doc gates pass. Unchanged
+production/binding/dependency inputs justify1f reuse; its receipt remains1f,
+not relabelled2fd. The private executable was rebuilt and actually invoked at2fd.
+Original inner Rust67ignored/38filtered, Python36skips and TS6skips stay explicit.
+
+Final phase-doc reconciliation is after quiet timings. Fresh final results
+review/parent integration is pending; no whole30/downstream/Block1 closure.

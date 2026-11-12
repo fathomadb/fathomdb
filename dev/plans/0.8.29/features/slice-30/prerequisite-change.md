@@ -1,6 +1,12 @@
 # Slice 30 exact parent integration proposal
 
-Status: PROPOSED; neither review nor this file changes tracked dependencies.
+Historical proposal, accepted/integrated by parent at144bde29b for P only.
+P source GO and actual2fd execution followed strict own entry checks. The text
+below preserves the exact proposed cut; [results](results-p.md) records current
+P evidence. All retained holds still apply.
+
+Status: historical proposal integrated at144bde29b; this file itself changes no
+tracked state.
 The parent alone owns JSON/master/generated board/ledgers and other slices.
 
 ## Minimal proposed state and plan amendment

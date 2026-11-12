@@ -955,3 +955,7 @@ required-features = ["slice30-measurement"]
 [[test]]
 name = "slice30_measurement_outcomes"
 required-features = ["slice30-measurement"]
+
+[[test]]
+name = "slice30_template_tool"
+required-features = ["test-hooks"]

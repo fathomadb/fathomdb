@@ -5,6 +5,10 @@ use serde_json::{json, Value};
 use std::io::Write;
 use std::path::Path;
 
+#[cfg(feature = "test-hooks")]
+#[path = "slice30/dense_template.rs"]
+mod dense_template;
+
 fn strings(path: &str) -> Vec<String> {
     std::fs::read_to_string(path)
         .expect("read owned input")
@@ -14,6 +18,12 @@ fn strings(path: &str) -> Vec<String> {
 }
 
 fn run(config: &Value, out: &Path) {
+    if config["family"] == "D_TEMPLATE" {
+        #[cfg(feature = "test-hooks")]
+        return dense_template::run(config, out);
+        #[cfg(not(feature = "test-hooks"))]
+        panic!("D fixture requires its explicit test-hooks artifact");
+    }
     assert_eq!(config["family"], "P1");
     let n = usize::try_from(config["n"].as_u64().unwrap()).unwrap();
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();

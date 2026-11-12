@@ -980,7 +980,7 @@ is yet qualified. Every conditional entry remains represented if not run.
 | G1=4; TGD10 route adaptation | Normal no-hooks private host, all six actual API modes, arbitrary ordered query feed/limit10, requested unscheduled warmups and supplied forward/reversed pass orders on one copy are implemented through8e5823. | Actual pinned10k/100k sealing/copies and500-query/50-warmup execution with reviewed deadlines/admission; TGD14 still generates the immutable balanced descriptors. Tiny source controls are not full-size execution or campaign qualification. |
 | G2=2; TGD10 actuation and per-mode adaptation | Generic per-pass reset/current-history coverage, retrieval doc-kind filtering, all-three-SDK-mode timed-group actuation and supplied same-copy mode/schedule descriptors are implemented in bounded source units; warmups2/timed20 and read-only preservation have initial literal/property oracles. | TGD14 still generates the immutable balanced repeat descriptors and admission; actual50/500 populations and remaining-budget drains remain pending. The new same-copy fixture proves supplied forward/reversed descriptors; earlier per-mode copy fixtures retain only their bounded source roles. |
 | GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). The private tc5-host fit received11e09 design PASS and normal GN is implemented; the no-hooks GO runtime adapter now has a bounded source unit with distinct GN and same-artifact off/on controls; final qualification remains pending. No SDK accessor/feature forwarding is inferred. Bounded time and governed valid/Deleted stage adapters now execute actual Core calls with independent literal controls. Declared100-query stages,100k copies and phase-budget integration remain pending; tiny fixtures do not qualify those populations. |
-| D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness/fresh physical completeness and bounded D11 separate worker/job/clock transport. | Actual1024-row cohorts and campaign worker-stream integration, bounded held/release/drain phases (12), ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
+| D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness/fresh physical completeness, bounded D11 worker/job/clock transport and D12 empty-idle held/released phase reports. | Actual1024-row cohorts, campaign worker-stream/held route and remaining-budget integration, ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
 | Every entry; TGD14 launcher/admission | Existing13-root/original-baseline guard and pure time/storage/shared-clock forecasts. | One immutable manifest/attempt controller with900s total/870s work/30s cleanup, remaining-budget drains/close/partial retention; one shared4h clock INCLUDING GT/Dseed preparation, copies, quiet waits and retries. Pure ELIGIBLE_PROJECTION is not admission. Check actual retained bytes/floors and lower observations; refuse instead of resetting a deadline, substituting a smaller population or growing caps. |
 | Cross-entry results; TGD15 | P raw metrics/paired-call math and bounded observer transport/counters. | Actual G/D result schemas, complete identity/query/template/mode/repeat grouping, paired observer cost with missing/errors/drops/unpaired disposition, and tiny real-child oracles before report GREEN. No percentile subtraction or reuse of P results as G/D timing. |
 
@@ -1352,6 +1352,53 @@ Their original proptest persistence warnings remain in the raw log. No prior
 G/P/binding artifact is relabelled as qualifying this changed engine source.
 D12/D13, native phase/controller budgets, full-size preparation, whole-source/
 production lifecycle qualification and campaigns remain held.
+
+### D12 held/released phase reports
+
+Exact e9ae991 method received design PASS and parent source GO. RED
+914751e3c0126457c65ce1af12d4c28187b1ca06 reaches ONLY missing phase reports0vs2
+in all3tests after real empty/configure/freeze/EMPTY-idle/write/held/release/drain/
+SQL/profile/span/close/hash/copy/reopen and one-clock ordering controls succeed.
+The three RED stores have11/cohort8/Drop,3/cohort2/Drop and3/cohort3/explicit rows.
+No correct product behavior was disabled; reports were honestly absent.
+
+Oracle SHA256
+`efd3ba7cd9248940915904967f108a2146ad32f0d867c8982ea593ff1b625497`
+is byte-identical through GREEN. Only serialization of the two captured actual
+readiness/SQL/clock observations is added. GREEN3/3 covers six fresh stores,
+28canonical rows/eight governed writes/12phase reports: five Drop releases and
+one explicit release, each one actual request. All held phases observe pendingN/
+vector0; all released phases observe pending0/vectorN with exact independent
+cursor/mapping/physical/span/profile checks. Release-return alone is not progress.
+No active scan cancellation, forced worker concurrency or real-overlap claim.
+
+One origin precedes open/configuration. Readiness API clocks stop before JSON
+conversion; SQL snapshot intervals include connection/query/row collection and
+shaping, not pure SQL-exclusive time. Report serialization is outside API clocks.
+The guard releases before final drain/close; Drop is release-only fallback.
+Source child supervision retains150work/30cleanup and owns only its child;
+partial/error/timeout outcomes are unqualified. Fixture-only drain(5000), final
+aggregate persistence and small populations do not qualify native campaign
+remaining-budget or incremental partial-output retention.
+
+Actual driver SHA256 is RED41750a5979ccb895707d7fa145443b2d2bc21f45e965afc63571f6bf7e4c33eb
+and GREEN0c1c42b601d1420ca33bf2769043c38ea3f1f5306ce61b8b6268bf63010b9f57;
+harness01c3bb2d512ce7b280bb627c2137c8482026d07663ab694b85f3a86dc55a78e5
+is unchanged. Task proofs/gd-d-held-red/green-identities.json and -compiler.json
+retain source/oracle/argv/binary/actual default+measurement+test-hooks opt3 closure
+before runtime. Raw roots/controls/profiles/child stdout/stderr remain linked from
+receipts/logs gd-d-held-red/green. Initial scaffold lint101 remains NOT_RED setup:
+duplicate private modules and Rust types were corrected without suppression;
+original dense-template/verifier/provider bodies remain byte-identical.
+
+Unchanged P1 completion1/1 and D template4/4 (12tiny child fixtures) pass on the
+actual GREEN driver; legacy completion's feature print is a requested subset,
+not the exhaustive compiler-recorded closure. Existing production/query inputs
+are unchanged from accepted D11, whose controls keep their original subject.
+Post-runtime README/execution status changes have explicit old/final hashes in
+task proofs/gd-d-held-capture-exceptions.json; no workload is rerun for those docs.
+All guards use13roots/original69280403456 with retained exits/resource samples/
+owned cleanup. D13/source-final/native/campaign/full-size work remains held.
 
 ## Evidence locations and interpretation
 

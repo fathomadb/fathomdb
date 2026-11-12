@@ -174,4 +174,17 @@ pub(super) fn run(config: &Value, out: &Path) {
         "configured_projection_workers":configuration.scheduler_runtime_threads,"configured_provider_workers":configuration.embedder_pool_size});
     std::fs::write(out.join("controls.json"), serde_json::to_vec_pretty(&controls).unwrap())
         .unwrap();
+    let phases: Vec<_> = [("held", &controls["held"]), ("released", &controls["released"])]
+        .into_iter()
+        .map(|(phase, observed)| {
+            json!({"phase":phase,
+            "start_ns":observed["start_ns"],"end_ns":observed["end_ns"],
+            "pending_count":observed["readiness"]["pending_count"],
+            "canonical_rows":observed["sql"]["canonical_rows"],
+            "physical_vectors":observed["sql"]["physical_vectors"],
+            "mapped_vectors":observed["sql"]["mapped_vectors"],
+            "span_rows":observed["sql"]["span_rows"],"profile":observed["sql"]["profile"]})
+        })
+        .collect();
+    std::fs::write(out.join("phases.json"), serde_json::to_vec_pretty(&phases).unwrap()).unwrap();
 }

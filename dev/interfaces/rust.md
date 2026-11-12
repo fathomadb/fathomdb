@@ -155,6 +155,40 @@ provider directly and must not supply deadline, queue-bound, lock-order, or
 performance evidence. Production open, projection, search, frozen-search, and
 direct-embed paths have no such exception.
 
+### Private Slice30 projection measurements
+
+The independent engine/slice30-measurement feature also declares doc-hidden
+`slice30_observe_projection_workers_for_test(bool) -> Result<(), EngineError>`
+and `take_slice30_projection_measurements_for_test(origin: std::time::Instant)
+-> Result<serde_json::Value, EngineError>`. This is a SEPARATE engine-owned stream;
+query getter/records/capacity/loss semantics below remain unchanged. No SDK or
+binding forwarding, production setting, scheduler notification or capacity knob.
+The initial backed buffer/enablement/counter exist while worker event publication
+is not yet connected; this source scaffold claims no completed worker evidence.
+
+The fixed capacity is32768 ended batches, with an independent Engine-lifetime
+cumulative dropped counter. Report fields records/capacity/dropped are taken
+under the worker-buffer lock; drains remove ended records in completion order.
+Enable/disable/drain do not reset loss or discard retained records; entry samples
+enablement and disabling permits already observed batches to finish. Both methods
+return Closing after admission closes; poisoned drain buffers return Storage.
+
+Worker records use actual projection worker_idx, separate batch_id, engine_id,
+job_count and kind/cursor list (at most64 jobs). Jobs/cursors are not physical
+vector rows, provider workers or configured concurrency. Typed Instant endpoints
+normalize against the supplied SAME driver writer/query/readiness attempt origin,
+outside API clocks; checked failure gives null offsets/explicit clock_issue.
+Start follows queue removal/active accounting; finished end is captured promptly
+after existing recovery/error reporting/state cleanup, before publication or
+serialization. It includes embedding/commit/recovery, not exclusive kernel/SQL
+work. Actual commit outcome/caught-unwind and cleanup availability remain separate;
+a committed batch may contain per-job failures. An abandoned lifetime reports
+aborted with cleanup unconfirmed and unknown outcome null, not successful finish.
+State samples carry their own timestamps/queued_jobs/active_jobs/in_flight counts;
+other workers can contribute, and samples are not atomic interval boundaries.
+Missing in-flight completion, drops and unavailable timing stay explicit; no
+all-starts/power-loss durability claim or product error/cleanup change follows.
+
 ### Private Slice30 query measurements
 
 The independent, non-default `fathomdb-engine/slice30-measurement` feature

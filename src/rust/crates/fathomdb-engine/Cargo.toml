@@ -964,3 +964,7 @@ required-features = ["test-hooks"]
 name = "slice30_g_template"
 required-features = ["test-hooks"]
 test = false
+
+[[test]]
+name = "slice30_projection_measurements"
+required-features = ["test-hooks", "slice30-measurement"]

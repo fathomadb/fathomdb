@@ -6,11 +6,14 @@ use serde_json::{json, Value};
 
 use crate::{Engine, EngineError};
 
+pub(super) mod projection;
+
 const CAPACITY: usize = 32_768;
 static NEXT_ENGINE: AtomicU64 = AtomicU64::new(1);
 
 pub(super) struct Collector {
     engine_id: u64,
+    pub(super) projection: Arc<projection::Collector>,
     enabled: AtomicBool,
     next_call: AtomicU64,
     records: Mutex<Vec<Value>>,
@@ -19,8 +22,10 @@ pub(super) struct Collector {
 
 impl Collector {
     pub(super) fn new() -> Self {
+        let engine_id = NEXT_ENGINE.fetch_add(1, Ordering::Relaxed);
         Self {
-            engine_id: NEXT_ENGINE.fetch_add(1, Ordering::Relaxed),
+            engine_id,
+            projection: Arc::new(projection::Collector::new()),
             enabled: AtomicBool::new(false),
             next_call: AtomicU64::new(1),
             records: Mutex::new(Vec::new()),

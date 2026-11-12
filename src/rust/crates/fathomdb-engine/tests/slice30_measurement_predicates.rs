@@ -419,3 +419,83 @@ fn all_nodes_guard_controls_preserve_invocation_and_null_skip_distinction() {
     }
     assert!(failed.is_empty(), "all-nodes observer literal controls failed: {failed:?}");
 }
+
+fn two_vector_engine(path: &std::path::Path) -> Engine {
+    let engine = dense_engine(path, false);
+    engine.slice30_observe_queries_for_test(false).unwrap();
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: "betaonly evidence".into(),
+            source_id: SourceId::new("test:slice30-block").unwrap(),
+            logical_id: Some("beta".into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .unwrap();
+    engine.drain(5000).unwrap();
+    let independent =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let count: i64 =
+        independent.query_row("SELECT COUNT(*) FROM vector_default", [], |row| row.get(0)).unwrap();
+    assert_eq!(count, 2);
+    drop(independent);
+    engine.slice30_observe_queries_for_test(true).unwrap();
+    engine
+}
+
+#[test]
+fn actual_vector_block_brackets_known_two_vector_hybrid_hydration() {
+    let root = TempDir::new().unwrap();
+    let engine = two_vector_engine(&root.path().join("vectors.sqlite"));
+    let result = engine.search_with_limit("source", 2).unwrap();
+    let mut ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
+    ids.sort();
+    assert_eq!(ids, ["l:beta", "l:plain"]);
+    let record = one_observation(&engine);
+    let vector = &record["blocks"]["vector"];
+    assert_eq!(vector["invoked"], true, "missing actual vector block span");
+    assert!(vector["elapsed_ns"].as_u64().unwrap() > 0);
+    assert_eq!(vector["rows"], 2);
+    assert_eq!(vector["degraded"], false);
+    engine.close().unwrap();
+}
+
+#[test]
+fn direct_text_on_vector_store_reports_vector_block_not_run() {
+    let root = TempDir::new().unwrap();
+    let engine = two_vector_engine(&root.path().join("text-on-vectors.sqlite"));
+    let result = engine
+        .search_text_only_filtered_with_snippets("source", None, &ReadView::default(), 2, None)
+        .unwrap();
+    assert_eq!(result.results.len(), 1);
+    assert_eq!(result.results[0].id.to_prefixed(), "l:plain");
+    let record = one_observation(&engine);
+    let vector = &record["blocks"]["vector"];
+    assert_eq!(vector["invoked"], false, "missing vector block NOT_RUN disposition");
+    assert_eq!(vector["reason"], "query_vector_absent");
+    assert!(vector["elapsed_ns"].is_null());
+    assert!(vector["rows"].is_null());
+    assert_eq!(vector["degraded"], false);
+    engine.close().unwrap();
+}
+
+#[test]
+fn source_lifecycle_degradation_is_reported_as_skipped_vector_arm() {
+    let root = TempDir::new().unwrap();
+    let engine = dense_engine(&root.path().join("degraded-vectors.sqlite"), true);
+    engine.transition("source", fathomdb_engine::LifecycleState::Deleted, None).unwrap();
+    let result = engine.search("source").unwrap();
+    assert!(result.results.is_empty());
+    let record = one_observation(&engine);
+    let vector = &record["blocks"]["vector"];
+    assert_eq!(vector["invoked"], false, "missing degraded vector arm disposition");
+    assert_eq!(vector["reason"], "eligibility_degraded");
+    assert!(vector["elapsed_ns"].is_null());
+    assert!(vector["rows"].is_null());
+    assert_eq!(vector["degraded"], true);
+    engine.close().unwrap();
+}

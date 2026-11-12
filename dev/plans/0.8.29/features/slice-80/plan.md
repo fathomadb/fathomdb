@@ -7,14 +7,23 @@ slice: 80
 
 # Slice 80 plan
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+Current documentary source boundary is
+`5e4b5b61765aa9ce2557b2349218f44e74803f05`. Historical bounded Phase A,
+aggregate-v2 PASS (proposal SHA-256
+`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`)
+and consolidation consistency PASS remain recorded in [review log](review-log.md).
+Bounded v1 design PASS covers owner patch SHA-256
+`3620e6c185568752a6c422e1d37a7c9a577d7c7fe40fef7a8dda8dc45bab2a7e`.
+A different fresh reviewer issued FINAL DOC/OUTPUT PASS with no P1/P2 on the
+14-file parent diff SHA-256
+`709240de171103f26951c123265bbfcdddfa5938df9fea6f2e617e052dda4389`.
+Parent scoped Markdown/state/diff checks passed and independently verified78
+source pins; [review log](review-log.md) attributes subjects and limits. This v2
+updates records/citation only and claims no separate v2 PASS, new ABI/policy,
+full80 approval,90 source entry or runtime/resumption GO.
+[Current census](census.md) separates integrated code, qualified subsets and holds.
 
-Source witness is frozen clean `2f6913c1d59ac8ff3a30de835b57290a8635998c`.
+Source witness is frozen clean `5e4b5b61765aa9ce2557b2349218f44e74803f05`.
 The owner permits early80 design before predecessor implementation. This is
 own-scope documentary consolidation only: no product source/test/runtime work,
 new ABI approval, parent/state/ledger mutation or nested agent activity.
@@ -45,33 +54,41 @@ choice. SDK hints Stage2/default placement stays conditional150.
 
 ## Work and remaining entrance
 
-1. Documentary consolidation is complete. Parent obtains the same-Astra narrow
-   consistency recheck against the exact nine files/digests; no implementation
-   or full80 verdict is inferred from bounded proposal PASS.
-2. Reconcile actual selected50 identity/ref/packing/vector-membership consequence,
-   final60 fields/accounting and actual70 reasons after integration. Recheck
-   release requirements/AC mappings against that source. No stale contracts.
-3. Full80 owner approval remains held until those inputs and required independent
-   reviews settle. Numeric carrier naming/cache choices are now concrete design,
-   not routine drafting deferred to that future review.
+1. Exact v1 owner patch3620e6c1 received bounded Astra-medium design PASS;
+   different fresh final DOC/OUTPUT PASS covered exact14-file parent diff709240de.
+   Parent actual scoped Markdown/state/diff checks and78-pin audit passed on
+   that unchanged candidate. V2 records those outcomes and corrects one schema
+   citation only; it has no separate PASS. Historical consistency PASS stands.
+2. Reconcile the eventual accepted50 record/ref/packing/helper/FTS/vector-membership
+   handoff and remaining60/F11 choices against integrated60/70. This packet
+   describes current code and conditional deltas; it selects no50 alternative.
+   S80-F1's multiplicity-safe aggregate attribution received bounded-v1 design review.
+3. Full80 requires those actual inputs, current release requirements/AC recheck,
+   required independent review and owner approval. Concrete carrier/cache design
+   remains a proposal; historical bounded reviews supply no new ABI approval.
 4. 90 additionally requires the actual unnumbered Block1 follow-up exit after
    integrated selected20–70: applicable full/feature/performance checks,
    both-format conformance and approved smoke/item4 remeasure.160 is downstream.
-5. Later90 stages/commits actual semantic REDs per behavior before GREEN,
-   preserves human oracles, completes owned-tooling source/native checks and
-   receives a fresh independent final implementation review.
+5. Later90 stages a separate real semantic runtime RED commit per behavior,
+   recording the failing assertion in its body, before a separate minimal GREEN
+   with unchanged oracle. No missing-symbol/compile-error/manufactured-golden or
+   passing-on-arrival substitute. Complete owned-tooling source/native checks and
+   a fresh independent final implementation review after approved source entry.
 
-10 is completed preparation evidence;20 is not closed,30 measured baseline/TC5
-inputs remain absent,50 has bounded design review without the actual identity/
-runtime-census/carrier proof, and70 has reviewed PhaseA without implementation.
+10 is completed preparation;20 remains partial.30 P is accepted provider-free
+zero-vector direct-text evidence, not G/D/M/F/TC5 or whole30. G/D isolated source
+is unqualified, quiescent and excluded; exact TC5 pack is missing on a separate
+cold volume.50's reviewed docs/ADR are integrated, but semantic choices, runtime
+census method/snapshot and hard30 source entrance remain open.70 is implemented
+and COMPLETE.100's unanswered coverage exception supplies none for80/90.
 
-Parent-supplied60 checkpoint: clean candidate
-`307c92e3b4b8c674eec28fc940c879e9054fff90` has source TDD for formats,
-filters and budgets, and post-code real-GPU manual SDK plus both MCP formats
-14-case PASS. Native/full gate and fresh final review remain pending; F11
-feedback ruling remains held. This is not60 completion, final-contract
-settlement or integration into the clean2f6913 parent.80 did not run those
-checks or read mutable worker output as authority.
+Integrated60 subset `5271c1bf022f0ea22f95f7433e226feb2315043e` supplies
+formats/direct filters/final budgets;70 is COMPLETE at
+`e875f36042f89c1d84756f78135db0e8926c1ed4` with actual reason/hint/native parity.
+Their assembled qualification preserves original failures, resumptions and skips;
+80 neither reran it nor inherits a new behavior pass. Whole60/F11 and20 remain
+open. SEARCH still rejects include_superseded/include_inactive; FETCH's separate
+flags do not authorize SEARCH forwarding. See [census](census.md).
 
 ## Canonical/release adaptation and validation
 
@@ -81,13 +98,27 @@ interfaces/MCP/EP17/long-record guard per requirements/design, retaining existin
 storage, schema37 and exact new error precedence. No canonical AC or operation
 is invented. No migrations/counters/backfill/reprojection or extra experiments.
 
-Apply quality-roadmap boundary/Unicode/snapshot/anomaly/bounded-work methods;
-defer broad MC/DC/fuzz/allocation/chunking campaigns. Existing release CUDA
-review stays; this consolidation adds no venue/model/GPU/paid permission.
+Quality-roadmap consultation applies boundary/Unicode/property methods to new
+byte/scalar carriers, same-snapshot real-database oracles to attribution/cache,
+and selected existing transaction/error seams to rollback/typed errors. Newly
+integrated60 budget properties and70 exact reason controls are preservation
+oracles; P's zero-vector timing cannot price aggregate capture/per-hit work.
+The new FTS cursor-alias and S80-F1 canonical-owner findings require adversarial
+identity/cardinality fixtures, not a global percentage gate. Defer broad MC/DC,
+SQL fuzzing, allocation-failure sweeps, broad fault campaigns and chunking because
+this phase changes documentation only and those campaigns are unselected.
+Existing CUDA policy/release review stands; no toolkit/provider/venue/model/GPU/
+paid authority is added. Physical erasure stays DONE except actual defects.
 
-Only document structure/internal links/hand arithmetic are checked here. Parent
-runs relevant scoped Markdown/release checks after import. Source qualification
+Only document structure/internal links/hand arithmetic are checked by this owner.
+Parent passed scoped Markdown/state/diff checks on unchanged14-file diff709240de;
+those are documentary checks, not runtime or query-plan proof. Source qualification
 uses the required owned-tooling full gate, exact native identity and actual
 exits; this document validation is no workspace-green claim. Originals stay
-frozen, [status](status.md) retains all source-entry holds, and root manifest.json
-records exact candidate files/digests for the consistency recheck.
+frozen and [status](status.md) retains all source-entry holds. The task-root
+review-ready manifest and full-index patch record this candidate's files/hashes,
+source pins and lightweight command exits; no tracked root manifest is invented.
+Light-only admission remains MemAvailable>=8GiB, data-free>=250GiB, root-free>=32GiB.
+No heavy/native work;16GiB heavy admission remains unchanged. No installs/borrowed
+mutable tools, product tests/builds/imports/database/snapshots/models/GPU/VM/network/
+benchmarks/faults/CI/publish. Parent used its owned pinned scoped validators.

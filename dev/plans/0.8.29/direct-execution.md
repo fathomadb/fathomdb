@@ -141,10 +141,86 @@ mandatory criteria and records the exact reviewed Windows operations proposal.
 No product source changed. A3/A5 policy and Windows capacity authorization remain
 unanswered; compiler/control/Windows runtime qualification remains unexecuted.
 
-Slice30 documentationbea7f05cd and its exact P-only dependency amendment passed
-independent Astra-medium design review. State/master now permit initial direct-
-text Linux P entry from closed10 plus qualified integrated20/current70 after
-actual ancestry/preflight, own source/native setup and parent GO. G/D need later
-concrete review; M20 proof/policy, F frozen TC5, whole30/40/50 and pre90 Block1
-remain held. The parent selects eligible30 P as next work while20 decisions stay
-open; no closure is inferred. Keep each dedicated owner for later continuation.
+At the earlier P-only entry, Slice 30 documentation bea7f05cd and its dependency
+amendment passed independent Astra-medium design review. P subsequently completed
+its bounded qualification and measurements, recorded in the current state and
+[results](features/slice-30/results-p.md). G/D later received concrete design
+review and bounded source authority; its current resource hold is below.
+M20 proof/policy, F frozen TC5, whole30/40/50 and pre90 Block1 remain held.
+Keep each dedicated owner for later continuation.
+
+## Resource-held G/D and independent reconciliation
+
+The30 owner completed the eligible reviewed G/D code prefix and light forecast
+work, but its source remains isolated and unqualified. Heavy TS/native/GPU entry
+requires actual16GiB available RAM; a refusal before child creation is not RED.
+No task-owned setup group remains to stop. Keep that owner quiescent under the
+original allocation. The bounded100 reconciliation identified three retained
+post-crash predicates and a minimal, still-unselected coverage proposal. It
+introduced no runtime execution or strict-TDD exception.100 depends on completed10
+and has no30 runtime dependency.
+
+Main may advance reviewed planning metadata during this resource hold; it must
+not integrate unqualified30 code or select new100 faults/coverage exceptions.
+Keep the existing physical-erasure closure and exact G100-1/G100-2 limitations.
+Fresh independent Astra review gates100 scope/design and later selected work.
+All mutable resources/Git stay under/mnt/data. The8GiB stop floor applies to
+light planning; the16GiB heavy start and all storage/time limits remain unchanged.
+
+After100 reports, main evaluates the next assignment and gives the same30 owner
+an exact current-parent resumption instruction when resources permit. Reconcile
+parent metadata by normal merge if needed; never rebase or rewrite recorded
+RED/GREEN commits. Strict current-source/resource checks still precede execution.
+
+## Reviewed identity proposal and early Block 2 reconciliation
+
+The dedicated50 owner reconciled its source/consumer-callsite census and proposed
+identity ADR against qualified60/70 and measured30 P. Fresh design review passed;
+parent scoped checks, different final DOC review and integration accept only the
+documentary checkpoint. Identity/provenance/feedback/helper-pack/helper visibility
+remain unselected. Hard30 source and runtime-consumer snapshot/method remain open;
+P is not G/D/M/F/TC5 qualification. Current MCP search still rejects relaxed flags
+under F11; fetch remains separate.
+
+After50 reports, receives final document review and is integrated, main selects
+already-authorized early80 documentary/source reconciliation. Treat50 options as
+conditional and preserve80 dependencies/full-approval hold. Historical aggregate
+and consolidation reviews are bounded, not a new ABI or source approval.
+No tooling, native tests, database, model, GPU, source/runtime, CI or publication
+work follows. Keep one active owner,30 quiescent, all mutable resources under
+/mnt/data and the unchanged resource floors.100's exact coverage exception and
+all90/Block1 prerequisites remain held.
+
+## Prospective G/D resumption after early design work
+
+After80 reports and its documentary checkpoint passes distinct final review and
+normal-hook integration, main may prioritize the same30 owner's remaining
+original G/D source units. Keep it quiescent until explicit instruction naming
+the exact current parent and fresh actual start-floor proof. Merge parent
+metadata normally; never rewrite RED/GREEN history. Original source scope and
+strict closed10/source/ownership/native/qualification gates remain.
+
+The conservative resource packet at
+/mnt/data/tmp2/fathomdb-0829-continuation/parent/slice30-resumption-resource-proposal.json
+extends the original five disjoint roots with current parent/task and100/50/80
+worktrees/tasks. Both the13-root list and original69280403456-byte baseline must
+be passed explicitly to every run_guarded call. Added assets consume the SAME
+96GiB setup/build allowance; G16+D16 raw and200GiB total remain. Never reset the
+allowance or rewrite the original receipt. Actual68.69795GiB owned/setup4.17555GiB
+preserves192.52240GiB reservation, but15.89584GiB memory FAILS16GiB start.
+This is prospective storage admission, not source execution or a threshold waiver.
+Keep all original stop/swap/jobs/time/model/device rules, one heavy phase and
+campaign prerequisites. Campaign seed preparation/waits consume its single4h
+clock; no G/D campaign has begun.50/80/90 and all other policy holds remain.
+
+### Actual source-entry activation
+
+The80 documentary checkpoint is integrated atbde5208b6. Fresh13-root entry
+recorded memory16.46707GiB/root77.27893GiB/data574.65830GiB, original reservation
+192.52240GiB, unchanged non-documentation inputs from596 and clean current parent.
+Strict parent closed10/landing preflight exited0. These actual receipts supersede
+the failed memory sample for entry readiness without erasing it. Main authorizes
+only the original bounded G/D source continuation after explicit instruction,
+exact current-parent normal merge and repeated owner resource/ownership checks.
+Both extended roots and original baseline stay explicit in every guard call.
+This is no source qualification, campaign start, policy ruling or gate waiver.

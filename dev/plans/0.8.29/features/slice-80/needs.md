@@ -7,18 +7,27 @@ slice: 80
 
 # Slice 80 needs
 
-This package designs residuals against frozen source
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`; it grants no implementation
+This package reconciles residuals against integrated source
+`5e4b5b61765aa9ce2557b2349218f44e74803f05`; it grants no implementation
 approval. [Census](census.md), [requirements](requirements.md),
 [acceptance](acceptance.md), [design](design.md) and [test map](test-map.md)
 form one review unit.
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+Current documentary source boundary is
+`5e4b5b61765aa9ce2557b2349218f44e74803f05`. Historical bounded Phase A,
+aggregate-v2 PASS (proposal SHA-256
+`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`)
+and consolidation consistency PASS remain recorded in [review log](review-log.md).
+Bounded v1 design PASS covers owner patch SHA-256
+`3620e6c185568752a6c422e1d37a7c9a577d7c7fe40fef7a8dda8dc45bab2a7e`.
+A different fresh reviewer issued FINAL DOC/OUTPUT PASS with no P1/P2 on the
+14-file parent diff SHA-256
+`709240de171103f26951c123265bbfcdddfa5938df9fea6f2e617e052dda4389`.
+Parent scoped Markdown/state/diff checks passed and independently verified78
+source pins; [review log](review-log.md) attributes subjects and limits. This v2
+updates records/citation only and claims no separate v2 PASS, new ABI/policy,
+full80 approval,90 source entry or runtime/resumption GO.
+[Current census](census.md) separates integrated code, qualified subsets and holds.
 
 | Local need | User outcome | Release allocation / existing authority |
 | --- | --- | --- |

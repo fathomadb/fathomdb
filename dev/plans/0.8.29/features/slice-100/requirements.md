@@ -1,34 +1,32 @@
 # Slice 100 needs, requirements and local acceptance
 
-N100 refines N29-R/R29-REL-R: an application needs truthful erasure state and
-surviving authorized data after an interruption within the declared fault model.
-R29-3P-16/O3-16 in [completed3](../../prework/slice-3/requirements.md) owns this
-allocation. Canonical ancestry remains NEED-001/020/021 and existing reliability/
-erasure requirements; AC-028a/b/c and R-20-E1/E5→AC-080 constrain retained audit,
+N100 refines the release N29-R/R29-REL-R need: interruption must preserve truthful
+erasure state and authorized surviving data within the declared fault model.
+[Completed3](../../prework/slice-3/requirements.md) allocates R29-3P-16/O3-16;
+[its oracle](../../prework/slice-3/acceptance.md) and completed4/5 retain the
+post-state comparison. [Design](design.md#obligation-and-disposition-map) separates
+original D28-09 minimum, later allocation and optional proof expansion.
+
+Canonical ancestry remains NEED-001/020/021 and existing erasure/reliability
+requirements. AC-028a/b/c and R-20-E1/E5→AC-080 constrain retained audit,
 projection, survivor and raw-byte success proof. Process exit supplies no new
-REQ-031b/AC-034 power/OS-crash proof. These A100 labels are local, not additions
-to locked canonical ACs. No existing threshold changes.
+REQ-031b/AC-034 power/OS-crash proof. A100 labels are local assessment criteria,
+not additions to locked ACs or new thresholds. Current documentation base is
+`1099978cd7d7aef6e745cfc850ddb8f9b57050d3`; no new product run occurs here.
 
-Completed10 implementation104dcbcbe92a1eca730d146b99ab17d444df6217 and parent
-closure d7d928f8e are integrated at02e30d861beddc8061af0dc22f12106d5e09dd32.
-That preparation dependency is satisfied. Reviewed20 Linux subset657edeb is
-integrated at current clean parent/release2f6913c. Its unchanged-source canonical
-Rust execution supports existing-control inference; A100-6 still needs independent
-review of this evidence and its receipt limits. Own exact-base preflight precedes
-any later source entry. Recorded bounded design PASS is not product acceptance.
-
-| Need → requirement → acceptance | Independent oracle / census / selector / source |
+| Need → requirement → local acceptance | Independent oracle and present assessment |
 | --- | --- |
-| N100 → R100-1: preserve atomic intent/deletion/sanitation and truthful phases. A100-1: each selected child reaches its named fault, uncommitted state rolls back, committed state survives, no speculative Complete. | Exit73 plus predefined state partition, raw SQL target/root/ticket state and survivor; C1–C6, S1/S2 in [test plan](test-plan.md). `erasure_queue::{queue_physical_erasure,activate_in}`, `erasure::{purge_inner,excise_source_inner}`, `physical_erasure::{sanitize_unit,prepare_redacted,finalize}`. |
-| N100 → R100-2: policy/fences remain exact across release/reopen. A100-2: Queued has unchanged visibility; explicit activated debt fences mutations and never starts autonomous work; autonomous reopen actually finishes without target/follow-up calls. | Separate explicit/autonomous controls and independently opened observer, not disabling worker during autonomy proof. C7/C10/C11; S3/S4/S7. `open`, `erasure_maintenance`, `physical_maintenance`, durable root/queue guards. |
-| N100 → R100-3: physical success preserves registered boundaries. A100-3: exact zero for canonical/projection/native/span targets, original-sink discharge, identity-free queue/root, successful TRUNCATE precede Complete; capture main/live WAL before close can mask residue. | Positive target population, raw tables/file bytes, recorded original fingerprints and unchanged control records. C5/C8/C9/C12; S4–S6/S8. Shared erasure/projection/span registry and finalizer; G100-2 remains explicitly partial for combined crash assertion coverage. |
-| N100 → R100-4: preserve exact selected scope/survivors and permitted replay. A100-4: survivor history/row IDs and independent survivor-only scores/order persist, retry converges, offline leaves Queued untouched and publishes same activated receipt. | Hand-selected targets plus independent survivor-only store, exact history snapshot, real retry/offline controls. C8–C12; S4–S6/S8. `erasure_queue::preview`, physical zero proof, `operator/data_plane::recover_complete_erasures`. |
-| N100 → R100-5: qualify the actual interruption model. A100-5: inside-checkpoint coverage requires an attributable active-checkpoint reached witness, not a sleep, pre/post hook, BUSY or unreached child; retain all fault/control outcomes and limitations. | C13/G100-1; optional Q1 in [design](design.md). Pinned SQLite `walCheckpoint` frame-copy position and owned child identity would be the independent boundary witness. No current selector establishes it; NOT QUALIFIED, not a reproduced product defect. |
-| N100 → R100-6: keep qualification honest and changes minimal. A100-6: exact source/tree/lock/features/tool/native/host/selector/exits/reachability receipts, verified closed10 ancestry, own strict preflight and two independent reviews; only real defect repairs receive per-finding RED→GREEN. | C14/G100-3; S1–S9 with own artifact receipts, Git/record checks and independent review. Existing [83](../../../0.8.28/features/slice-83/status.md), [85](../../../0.8.28/features/slice-85/status.md), [95](../../../0.8.28/features/slice-95/status.md) receipts keep original identities; completed10 preparation is not fresh100 proof or a coverage exception. |
+| N100 → R100-1 atomic intent/deletion/sanitation and truthful phases. A100-1: reached named process exit, rollback of uncommitted state, survival of committed state, no invented success. | C1–C6, S1/S2/S9. Exit73 with target/survivor/ticket logical state and retry is direct crash proof; exact phase/root scrub at every exit is not asserted. Fault-position minimum is evidenced; broader post-state is bounded. |
+| N100 → R100-2 exact policy and fences across release/reopen. A100-2: Queued visibility unchanged; explicit activated debt stays fenced and never starts autonomous cleanup; autonomous reopen finishes without follow-up target calls. | C7/C10/C11; S3/S4/S7. Independent observer and live worker prove autonomy separately; error/BUSY/reopen controls prove explicit fences. These separate controls are not one all-phase abrupt-crash proof. |
+| N100 → R100-3 physical success covers registered boundaries. A100-3: target structural zero, original-sink discharge, identity-free queue/root and successful TRUNCATE precede Complete, with raw main/live-WAL witness before close. | C5/C8/C9/C12; S4–S8. Positive population, raw tables/file bytes, original fingerprint and unchanged control records. Strong success/refusal proof; retained G100-2P lacks direct post-crash projection/span state, and G100-2W lacks independent main/live-WAL absence after post-crash completion before close. Proposed H/P/W cells are in the test plan. |
+| N100 → R100-4 exact scope, survivors and replay. A100-4: preserve survivor history/rowIDs and independent survivor-only scores/order; retry converges; offline leaves Queued untouched and publishes same activated receipt. | C8–C12; S4–S8. Exact snapshots, independent stores, actual retry/offline controls. Existing crash fixtures assert survivor presence/count only: retained G100-2H requires unchanged historical versions after interruption. Proposed H cell compares literal-intent-validated pre-crash raw rows and post-reopen history; no whole-policy qualification follows. |
+| N100 → R100-5 honest fault-model attribution. A100-5: identify actual reached transaction boundaries; preserve absent active-checkpoint proof, and infer no power/host fault. | C2/C3/C6/C13. Original “transaction or WAL checkpoint” minimum has real transaction-interior evidence. G100-1 active-native-checkpoint is NOT QUALIFIED; optional expansion is not an automatic additional minimum. No debugger/fault alternative is selected. |
+| N100 → R100-6 exact evidence and minimal changes. A100-6: retain source/configuration/selector/exits/reachability and provenance limits, actual closed10 ancestry, independent current design/final reviews and scoped documentation checks. | C14/S1–S9, selective22-file hash receipt and retained log. Historical bounded actual20 design PASS is preserved. Fresh v1/v2 semantic and exact v3 design PASS are recorded; parent scoped checks and different fresh final DOC/OUTPUT PASS apply to exact imported11-file diffc0e80622, as bound in review-log. No runtime qualification follows. Only docs are selected; a later real repair needs genuine RED→separate GREEN. |
 
-Every R/A row maps to N100 and the release FAULT row, and each census row maps
-back here. G100-1 and G100-2 stay open or explicitly disposed; a design PASS or
-passing representative suite cannot upgrade them to exhaustive qualification.
-No public behavior/API/format change is currently proposed. A discovered repair
-that changes a public contract must update its maintained interface/ADR in the
-same reviewed scope; scope expansion returns for the specific decision.
+R100-1–6 all map to N100 and the release FAULT row; each C/S cell maps back.
+Three retained predicates remain unmet: G100-2H interrupted survivor history,
+G100-2P direct post-crash projection/span state, and G100-2W independent main/live-
+WAL absence after post-crash completion. Every-family/every-hook conjunction and
+active-native-checkpoint interruption are not established additional gates.
+No defect, coverage exception, deferral or whole100/D28-09 acceptance is recorded.
+The compact proposed cells in the test plan are unapproved coverage-only work.

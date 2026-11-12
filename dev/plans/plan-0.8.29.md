@@ -351,12 +351,38 @@ approved work from genuinely pending item decisions. Actual0–9 reviews are
 complete. Approved10 preparation and qualified product subsets are recorded in
 the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provide
 current direct-text evidence. P acceptance does not close whole30 or downstream
-source gates. The same30 owner implements the independently reviewed
-[G/D design](0.8.29/features/slice-30/gd-extension.md) within the recorded resource
-admission. Owned qualification, fresh implementation review, actual hardware
-proof and frozen identities precede bounded G/D campaigns; source authority
-never implies completed measurement. Product work continues through the selected
-ladder, actual prerequisites and genuine TDD.
+source gates. The reviewed G/D source prefix remains isolated while host RAM
+is below its unchanged16GiB heavy start floor. The same30 owner is quiescent;
+final native/runtime qualification remains pending. Slice100's current-parent
+documentary design passed independent Astra review. Three retained post-crash
+predicates remain unqualified; the minimal coverage-only proposal requires a
+specific strict-TDD exception, still ungranted. Active native-checkpoint proof
+is optional under the original transaction-or-checkpoint minimum.
+
+Slice100's documentary checkpoint is integrated after distinct final review;
+its exact H/P/W coverage exception remains ungranted. Slice50's current-parent
+source census and proposed identity contract passed fresh design review. The
+identity/provenance/feedback/helper-pack and public-helper dispositions remain
+unselected, with runtime census method and hard30 source dependency open.
+Qualified60/70 and actual30 P inform this planning; P supplies no G/D/M/F/TC5
+qualification. Current MCP search still rejects relaxed flags under F11.
+
+The early80 owner reconciled actual source and conditional50 inputs; its bounded
+documentary design and S80-F1 attribution correction passed fresh Astra review.
+Parent scoped checks and a different final DOC review precede checkpoint
+integration. Preserve unsettled50/60 inputs,80 dependencies and full80 approval
+hold; no ABI adoption or90 source entry follows.
+
+After80's report/final review/integration, prioritize the same30 owner's remaining
+G/D source work only after explicit current-parent resumption and fresh resource
+floors. Prospective13-root accounting charges new documentation assets to the
+same original96GiB setup allowance and unchanged baseline; G16/D16 raw and200GiB
+total stay fixed. The initial15.89584GiB sample failed; fresh post80 memory16.46707GiB
+and root/data floors passed with strict parent closed10 preflight. Original
+bounded G/D source resumption is authorized only after exact current-parent
+normal merge and fresh owner entry, preserving RED/GREEN history. No campaign precedes final source qualification, independent review and
+frozen artifact/hardware proof. Physical erasure remains done except defects;
+all actual dependencies and pre90 Block1 remain.
 Publication remains separately authorized.
 
 ## Immediate next slice

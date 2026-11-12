@@ -210,13 +210,14 @@
         "dev/plans/0.8.29/features/slice-30/gd-test-map.md",
         "dev/plans/0.8.29/features/slice-30/gd-preregistration.md"
       ],
-      "phase": "P_SUBSET_QUALIFIED_GD_DESIGN_ACCEPTED_BOUNDED_SOURCE_PHASE_AUTHORIZED",
+      "phase": "BOUNDED_GD_SOURCE_RESUMPTION_AUTHORIZED_POST80_FRESH_OWNER_ENTRY_REQUIRED",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P-only Linux subset is qualified. Reviewed G/D design has parent resource admission: conservative A64.5223198GiB+96GiB new setup/build+32GiB retained evidence=192.5223198GiB<=200GiB, with start floors passed. Same30 owner may enter genuine per-behavior TDD after current strict preflight/owned setup; G/D campaigns require qualified frozen source/artifacts/native proofs, fresh implementation review and actual permitted hardware reservation/engagement. Per-family raw16GiB, cell900s/shared4h and all stop rules remain. M20 A3/A5 proof/disposition, F exact frozen TC5, Windows20 A6, whole20/30,40/50 source gates and pre90 Block1 remain open.",
-      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows. Concrete G/D design b83 passed independent Astra-medium review after correcting triple-overlap/pending-witness and same-reader snapshot-race oracles. The shared-example feature clarification separately passed. Parent independently verified clean Markdown-only candidate and conservative aggregate resource admission. G/D source/campaign authorization is prospective under that exact design; no G/D implementation, native qualification or measurement result exists yet.",
+      "conditions": "Qualified P remains integrated; isolated G/D49be prefix has review acceptance only, with remaining source/native/full-gate/campaign work unqualified. 80 documentary report/finalreview/integration completed atbde5208b6. Fresh parent13-root entry passed at16.46707GiB memory/root77.27893GiB/data574.65830GiB; strict parent closed10/landing preflight exited0. Parent authorizes original bounded G/D SOURCE resumption with the SAME30 owner, subject to exact current-parent normal merge and fresh owner start-floor checks before any heavy child. Normal-merge exact current parent metadata, preserving RED/GREEN history and strict closed10/source/ownership checks. Prospective13-root accounting includes parent and100/50/80 worktrees/tasks, charged against UNCHANGED original69280403456-byte baseline and96GiB setup plusG16/D16 raw within200GiB. Every run_guarded call must pass BOTH extended roots and original baseline explicitly; no allowance reset or old receipt rewrite. Initial15.89584GiB sample failed and remains retained; new actual entry passes. Begin only on explicit post-commit instruction. No campaign or source qualification is implied; original8GiB stop/swap/jobs/time/model/device/campaign prerequisites and all M/F/20/40/50/80/90 holds remain.",
+      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows. Concrete G/D design b83 passed independent Astra-medium review after correcting triple-overlap/pending-witness and same-reader snapshot-race oracles. The shared-example feature clarification separately passed. Parent independently verified clean Markdown-only candidate and conservative aggregate resource admission. At design entry, G/D source/campaign authority was prospective and no implementation or runtime result existed. Subsequent isolated source-prefix progress below does not establish final qualification or campaign results. At isolated49be, all resource/completion/snapshot/predicate/block/stats/outcome/forecast completed prefixes passed fresh independent Astra reviews, with actual fixes and original failures retained. Own Python setup9e exited0 in205.85s as build/import evidence only; heavy TS refused before child creation. Conservative owned footprint66.951GiB/setup2.429of96 and pinned local input copies are recorded under slice30-gd. At that earlier source hold, host memory was below16GiB start, with no task-owned leftover process; no threshold or host process was changed. This is an unqualified pending source branch, not landed G/D work. After reviewed independent documentary work, prospective expanded accounting measured13 disjoint roots:73763864576owned bytes,4483461120setup bytes used,206719356928reserved bytes<=214748364800cap. Astra prospective resource/priority PASS only; memory15.89584GiB<16, no heavy start or source resumption authorized. Initial Python setup/import remains non-final; TS refusal before child creation is preserved. Static input staging opened no database/model/GPU; earlier observer TDD used real temporary databases. Fresh post80 receipt verifies13-root owned68.69855GiB/setup4.17615GiB, same192.52240GiB reservation, current parent clean and non-documentation inputs unchanged from596. Actual memory16.46707GiB/root77.27893/data574.65830 passed; strict parent closed10 preflight exit0. This activates only the already-reviewed source continuation, with owner fresh entry still required and no automatic campaign.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
-      "gd_design_sha": "b83cddba7c6a3ddb37d77d0576e06767a2e8a7ea"
+      "gd_design_sha": "b83cddba7c6a3ddb37d77d0576e06767a2e8a7ea",
+      "pending_source_candidate": "49be773da5c2d7637160c278a4c9a7cc9e5f4c20"
     },
     {
       "slice": 40,
@@ -243,11 +244,11 @@
     {
       "slice": 50,
       "short": "FUSION-TEXT",
-      "title": "Approved identity semantics and exact text/snippet route",
+      "title": "Record-identity decisions and exact text/snippet route",
       "depends_on": [
         30
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-50/census.md",
         "dev/plans/0.8.29/features/slice-50/design.md",
@@ -255,11 +256,13 @@
         "dev/plans/0.8.29/features/slice-50/plan.md",
         "dev/plans/0.8.29/features/slice-50/requirements.md",
         "dev/plans/0.8.29/features/slice-50/review-log.md",
-        "dev/plans/0.8.29/features/slice-50/test-map.md"
+        "dev/plans/0.8.29/features/slice-50/test-map.md",
+        "dev/plans/0.8.29/features/slice-50/status.md",
+        "dev/adr/ADR-0.8.29-retrieval-record-identity.md"
       ],
-      "conditions": "Accepted identity successor precedes production semantic change.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded PhaseA PASS after context-pack and role-tagged fixture corrections. The feedback decision presentation also passed review; the actual human ruling remains unanswered. Current measurements, representative safe census inputs and identity/ADR decisions remain held. No identity or new feedback ABI was selected."
+      "conditions": "Current-parent documentation/source-callsite census has fresh exact-v4 Astra-medium P2-correction design PASS. Actual parent scoped Markdown/state/diff checks and a different fresh final DOC/OUTPUT review passed on the P2-corrected candidate; normal-hook integration accepts only the documentary checkpoint. Identity ADR remains proposed/HITL-required: record-version unit, branch-specific provenance, visible-page reference uniqueness plus complete captured-query cursor uniqueness for feedback, preserved helper/pack consequence and retirement of two doc-hidden exports are unselected. Runtime consumer snapshot/method and hard30 source dependency remain open. Current MCP search still rejects relaxed view flags under F11; fetch flags are separate. No semantic ruling, source/test/executable/tool/native/runtime census/benchmark/model/GPU/CI/publish authority or full80/90/Block1 waiver.",
+      "phase": "P2_CORRECTED_DOCUMENTARY_CHECKPOINT_REVIEWED_SEMANTICS_AND_SOURCE_HELD",
+      "evidence": "Historical bounded PhaseA and feedback-presentation PASS remain explicit. Fresh current-parent owner reconciled qualified10/20/60/70 and actual30 P without substituting P forG/D/M/F/TC5. Exact nine-file v4 patch0f7ac8312786f8db9e116e175ffdbf1af7aa0b64cc9f861430a272f5b09ffd67 passed independent Astra P2-correction design review. Parent independently verified31 source/test and3 consumer source pins at9cbe455888a50b1a69cc15cb9c0b35399416496d; no runtime/prevalence/native result. Initial final DOC PASS on v2 was explicitly superseded by source-proven feedback P2: stored FTS cursor is independent of rowid and not injective over record keys. V4 now requires singleton ref only in visible page P and singleton numeric cursor across complete result R captured for the exact query_id, preserving membership/not_recorded precedence and atomic refusal. Off-page same-ref/different-cursor remains safe; off-page same-cursor/different-ref is unsafe. No inferred record sameness, new public carrier/schema or all-store census. Legacy telemetry limitations remain; A new different final DOC/OUTPUT PASS on corrected13-file parent candidate7a9be30c9974f36fa3ccd6bb1bef7347d1ee1c045616963c44b2b4a0387add49 and actual parent scoped Markdown/state/diff passes resolve the design/output finding only; result-record updates receive a narrow consistency recheck before integration. All product/public-helper choices stay proposed."
     },
     {
       "slice": 60,
@@ -313,7 +316,7 @@
         60,
         70
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-80/acceptance.md",
         "dev/plans/0.8.29/features/slice-80/census.md",
@@ -326,9 +329,9 @@
         "dev/plans/0.8.29/features/slice-80/status.md",
         "dev/plans/0.8.29/features/slice-80/test-map.md"
       ],
-      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded PhaseA and aggregate-v2 PASS, then nine-document consolidation consistency PASS. Exact carriers, numeric profile.dimension, stored-mapped-span population, unavailable semantics and writer-only cache authority agree. No aggregate physical-vector probes or strengthened validation/refusal policy are proposed. Actual50/60/70 reconciliation and full80/90 gates remain held; this is not accepted new ABI or implementation clearance."
+      "conditions": "Current-parent early documentary reconciliation has exact v1 bounded Astra-medium design PASS; actual parent scoped Markdown/state/diff checks and a different fresh final DOC review passed; normal-hook integration accepts only this documentary checkpoint. Full80 approval still requires settled actual50/60 inputs, dependencies[50,60,70] and required decisions/reviews. All50 options remain proposed; no ABI adoption,90 source or actual pre90 Block1 waiver. S80-F1 explicitly proposes one classification per mapping with exactly one canonical row/non-NULL body; same-table or cross-table ambiguity increments existing unattributed_heads once. Preserve original invalid-predicate/COALESCE truth, orphan arm and caller errors first; no stronger open refusal, new counter or physical probe. Future streaming/query-plan/runtime proof is outstanding, not claimed.",
+      "phase": "EARLY_DOCUMENTARY_CHECKPOINT_REVIEWED_S80F1_FULL_APPROVAL_HELD",
+      "evidence": "Historical bounded PhaseA, aggregate-v2 and nine-document consolidation consistency PASS remain explicit without upgrade. Current ten-file documentary v1 patch3620e6c185568752a6c422e1d37a7c9a577d7c7fe40fef7a8dda8dc45bab2a7e passed fresh bounded Astra design. Owner reconciled implemented60/70 and qualifiedP separately from isolatedG/D and proposed50; parent independently verified78 baseline source/test/document Git/blob/hash pins. S80-F1 corrects false owner-cardinality inference from mapping/span PKs: grouped mapping-rowid metadata plus per-table MIN/MAX canonical rowids and MAX(CASE WHEN original invalid predicate THEN1 ELSE0 END) preserves original SQL WHERE/NULL error semantics and counts an ambiguous mapping once. No product defect, executed SQL/query plan, new validation/refusal, ABI acceptance, source/native or full80 qualification follows. Per-hit selected-record/real-locator/vector-membership dependencies remain unsettled; no cursor/branch inference or new physical vec0 probe. Different fresh final DOC/OUTPUT PASS verified exact14-file parent candidate709240de171103f26951c123265bbfcdddfa5938df9fea6f2e617e052dda4389 and actual scoped checks; no P1/P2. Schema-step citation is corrected during final record update; narrow record consistency recheck precedes normal-hook integration. No new runtime/query-plan/ABI/full80 acceptance."
     },
     {
       "slice": 90,
@@ -360,7 +363,7 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-100/coverage-matrix.md",
         "dev/plans/0.8.29/features/slice-100/design.md",
@@ -370,9 +373,9 @@
         "dev/plans/0.8.29/features/slice-100/status.md",
         "dev/plans/0.8.29/features/slice-100/test-plan.md"
       ],
-      "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded actual20 evidence/design recheck PASS. Reuse of the existing eight-control execution is accepted with explicitly stated source/configuration inference limits. Active-checkpoint interruption and richer combined crash assertions remain open; no product defect, new test-policy exception or whole100/D28-09 closure was established."
+      "conditions": "Documentation-only current-parent reconciliation has fresh Astra-medium exact v3 design PASS, actual parent scoped Markdown/state/diff passes and a different fresh Astra-medium final documentation/output PASS. Parent normal-hook integration accepts only this documentary checkpoint. Original transaction-or-checkpoint minimum has genuine transaction-interior evidence. Three retained predicates remain unqualified: survivor history after interruption, direct post-crash projection/span state, and independent main-plus-live-WAL physical absence after post-crash completion. Minimal proposal uses existing before_delete_commit/after_delete_commit and one healthy control. Narrow passing-coverage exception is ungranted; no test/source/native/runtime/fault execution or whole100/D28-09 closure follows. Active native-checkpoint interruption is optional, not a new gate.",
+      "phase": "DOCUMENTARY_CHECKPOINT_REVIEWED_THREE_PREDICATES_POLICY_HELD",
+      "evidence": "Historical bounded actual20 Astra PASS and original assembled collector failures/skips remain explicit. Current owner compared qualified parent1099978 to collector6eee through22 selective source/test/runner pins and retained65288-byte Rust log digest; parent independently verified all22 and log identity. Entire src/Cargo.lock differ and no all-transitive/current-binary equality or fresh100 runtime is claimed. Exact v3 seven-file documentation patch7f4e58ac6d3d7420248f33cd4623ebe51a7d5326e1c1d46c2c3cc7bcd3806dd5 passed independent Astra design review after MD012/source-symbol corrections. No product defect established. H/P/W proposal remains unselected pending exact policy/resource prerequisites; no debugger/new production hook, broader campaign or implicit20 exception. Different fresh Astra final documentation/output PASS reviewed the exact11-file parent diff c0e80622ed6e83547e16c526dae2e90c4200288955ae3be0c6a691123a7c4646; actual scoped Markdown/state/diff checks passed without candidate mutation. Review/check-record updates receive narrow consistency recheck; source/test/runtime/whole100 acceptance remains absent."
     },
     {
       "slice": 110,
@@ -610,7 +613,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs,60 format/direct-filter/budget subset and30 provider-free P measurements passed within their recorded limits. P runtime2fd and final documentation0d8 have fresh independent P-subset acceptance; whole30/G/D/M/F remain open. Whole20/60/F11, remaining product/platform/artifact criteria, pre90 Block1 and final160 qualification remain pending. Assembled qualification retains original failures, interruptions/resumptions and inner skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication.",
+    "qualification": "Qualified10 preparation,20 Linux subset,60 format/direct-filter/budget subset,COMPLETE70 and accepted30 P retain recorded scope and assembled evidence with original failures/resumptions/skips. P runtime2fd/docs0d have independent acceptance. G/D49be remains isolated/unqualified; resumption accounting preserves original caps; the initial memory refusal is retained, fresh parent entry passed and strict owner entry remains required. Whole20/30/50/60F11 and100 H/P/W remain open;100 coverage and50 identity/feedback questions were asked but are ungranted. Early80 documentary design/S80-F1 review does not settle50/60 inputs or grant full80/90/Block1 approval. Remaining platform/artifact/product acceptance and final160 combined qualification are pending. No uninterrupted full-wrapper or published-package claim; CI work/execution and registry publication remain excluded.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

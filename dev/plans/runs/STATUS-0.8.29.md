@@ -36,12 +36,39 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-The same30 owner now enters the independently reviewed
-[G/D design](../0.8.29/features/slice-30/gd-extension.md) through genuine TDD,
-owned setup and the recorded resource admission. Qualification, fresh independent
-implementation review, frozen artifact identities and actual hardware proof must
-precede the bounded campaigns. This source authority is not G/D completion.
-M20 proof/policy, F frozen-input, whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
+The same30 owner's reviewed G/D source prefix remains isolated and unqualified.
+Its eligible light work and pinned-input staging are complete, but actual host
+RAM is below the unchanged16GiB heavy start floor. Initial Python setup is not
+final native/lifecycle proof; the TS refusal launched no child. Keep that owner
+quiescent. Slice100's documentary design passed independent Astra review;
+three retained predicates remain unqualified: survivor history, projection/span
+state after interruption, and main-plus-live-WAL physical proof after recovery.
+The two-existing-faults/healthy-control coverage proposal has no TDD exception
+or execution authority. Whole100/D28-09 remains open; native-checkpoint proof
+is optional under the original transaction-or-checkpoint minimum.
+
+Slice100's reviewed documentary checkpoint is integrated; its exact H/P/W
+coverage exception is asked and ungranted. Slice50's current-parent census and
+proposed identity packet passed fresh design review. Five product/public-surface
+choices remain unselected, runtime census method unresolved and hard30 source
+open. Parent scoped checks and a different final DOC review precede its integration.
+No live Memex, source or runtime work follows from the proposal.
+
+The early80 documentary design and explicit S80-F1 attribution correction passed
+fresh bounded Astra review. Parent scoped checks and a different final DOC review
+precede integration;50/60 inputs and full80/90/Block1 holds remain. No ABI or
+query-plan/runtime qualification is inferred.
+
+After80's documentary handoff, prioritize remaining G/D source with the same30
+owner only through explicit current-parent resumption and actual resource entry.
+Expanded13-root accounting retains original baseline/96GiB setup/G16+D16 raw/
+200GiB cap. The initial15.89584GiB memory refusal is retained. Fresh post80
+16.46707GiB/root/data entry and parent closed10 preflight passed. Original bounded
+G/D source continuation is authorized after exact parent merge/fresh owner checks;
+no automatic campaign or threshold change.
+On30 resumption, reconcile then-current parent metadata without rewriting
+RED/GREEN commits. M20 policy, F exact frozen-input, whole30/40/50 and pre90
+holds remain. Independently qualified60 subset and
 completed70 retain their recorded bounds. Each source owner uses a fresh
 parent-created worktree and own /mnt/data resources.
 

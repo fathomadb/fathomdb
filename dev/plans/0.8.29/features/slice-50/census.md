@@ -7,8 +7,12 @@ slice: 50
 
 # Slice 50 source and consumer census
 
-Inspected frozen parent `2f6913c1d59ac8ff3a30de835b57290a8635998c`; no runtime
-census or tests. Paths below are repository-relative unless explicitly Memex.
+Current source boundary is `3fa16620ac30cbe3ed66f5bfe542f2f7a62b8982`.
+Prior full-file inspection at2f6913c1d59ac8ff3a30de835b57290a8635998c is
+retained where exact Git blobs are unchanged; current relevant search/fusion,
+span/selector, helper/packing and MCP search/feedback seams were reinspected.
+Task source-attribution receipt records exact blob/content hashes and inspection
+limits. No runtime census or tests. Paths below are repository-relative unless explicitly Memex.
 The canonical memory index was read at
 `/home/coreyt/.claude/projects/-home-coreyt-projects-fathomdb/memory/MEMORY.md`.
 Relevant verified files include `g0-identity-scope-logical-id-alone.md`,
@@ -119,7 +123,8 @@ chooses no new field/ID ABI. Preserve both choices honestly in consumer guidance
 - `slice90_filtered_body_fts.rs` supplies real provider-free closed-filter tests:
   metadata sentinel/time, missing metadata, node-scoped AND attributes,
   historical flags, typed undeclared-filter refusal and limit-prefix stability.
-  This is shipped engine/SDK behavior;60's remaining MCP forwarding is separate.
+  This is shipped engine/SDK behavior; integrated60 now forwards the closed
+  direct-text filter. Its relaxed-view search flags remain separately held by F11.
 
 ## Snippets: existing versus net-new
 
@@ -140,24 +145,24 @@ window sizes. Preserve existing stored span bytes and all hint/default settings.
 
 ## Consumer and data-access limits
 
-Read-only Memex source/docs at `/home/coreyt/projects/memex` were searched.
-`fathom_store.py:4300–4374` adapts SDK results from decoded body, kind, score,
-ce_score, source_id and logical IdSpace.value; source_id inside JSON properties
-is distinct from engine erasure provenance. Existing identity-recall audit is
-historical source analysis, not a current duplicate census. The inspected
-backup-orchestration doc says safe_export checkpoints; its April validation and
-rotation prose are older than current backup.py. That source declares
-`~/.memex/backups`; backup_dir creates it and rotation deletes old files, so no
-helper was invoked. R-I4's old read-only spike supplies no current snapshot
-identity or safe live-copy method.
+Read-only consumer **source only** at `/home/coreyt/projects/memex`, commit
+`9cbe455888a50b1a69cc15cb9c0b35399416496d` (inspected paths clean at that commit):
 
-Safe path metadata only: `/home/coreyt/.memex/backups` exists with24
-`fathom*.db` names. The latest filename timestamp candidate is
-`fathom-startup-20260630T142206.db` (696320 bytes, not a symlink), with both
-`-wal` and `-shm` present. The last8 filename-ordered candidates inspected also
-have both sidecars. This does not establish live-writer state, consistency,
-format37, source provenance or relevance; these old candidates are not a qualified
-current consumer census snapshot. No DB content/SQLite header was read.
+| Actual callsite | Observed downstream behavior | Inference limit |
+| --- | --- | --- |
+| `src/memex/fathom_store.py:4299–4393`, `WorldModelRepository.search` | SDK hybrid search; decodes stored body to properties, filters retired/family hits, threads score/CE/source and logical IdSpace.value; returns in result order up to limit. | No occurrence cursor survives this adapter; JSON source property and engine source remain distinct. |
+| Same file `:4489–4558`, `search_expand` and `:3610–3640`, WorldModelSearchHit | Opt-in graph search preserves logical ID and source; dataclass has no revision locator/packing label. | Graph source is currently a path provenance value; do not relabel it as canonical-node ownership. |
+| `src/memex/memory/retrieval_wm_search.py:180–275` | Knowledge caller takes first item_id/CE occurrence, then loads by knowledge_id and assigns position score. | This is deliberate consumer entity aggregation, not proof that engine record revisions should fuse. |
+| Same file `:277–391`, `:394–486` | Action retrieval deduplicates IDs in order; typed family retrieval filters properties, then by-ID loads and position-scores rows. | Search-selected revision is not promised by later by-ID loads. More engine hits need not survive consumer aggregation. |
+| `eval/fathomdb/run_track_b_retrieval.py:260–300` | Production search_documents result IDs; separate opt-in graph/rerank trace call. | A diagnostic trace call is not the measured production query's record/census proof. |
+
+A bounded source search of Memex `src`, `dev/fathomdb`, `eval/fathomdb` found
+no context_item_from_hit/pack_context or response_id/feedback_ref consumer.
+This says nothing about every deployed integration or other paths. No Memex
+source was modified, imported or executed. Historical backup documentation/path
+metadata in the prior census never established consistency or current format;
+this phase did not repeat filesystem data inspection. No live DB, snapshot,
+SQLite header, private data, models, configuration or secrets were opened.
 
 The owner already approved50 identity census/ADR scope; no renewed generic
 census approval is needed. No exact appropriate consumer snapshot/access protocol
@@ -176,3 +181,49 @@ visibility and per-arm overlap. Compare rows at fixed views and record populatio
 selection. Publish no bodies/raw IDs. Until then, runtime census is HELD and all
 frequency/benefit claims are unknown. The old LME twin counts in memory are
 historical study evidence, not fresh consumer measurements or30 substitution.
+
+## Current-source ownership hazards and consumer surface
+
+`bfs_graph_arm_candidates` is fully traced at search.rs:1355–1827. Entity-FTS
+seeds use the selected node source; edge-FTS endpoint seeds and reached neighbors
+carry the winning edge source/confidence. The current SearchHit contract in
+search_types.rs:100–120 documents that branch distinction. The record key names
+the reached node; the provenance carrier names how it was reached. Keeping
+representative-first means a same-record vector/text representative keeps its
+own source, while a graph-only representative retains its existing winning path
+source. Replacing every GraphArm source with the canonical node's own source
+would be a separate semantic change, not an identity fix. Accepted exact-graph
+artifact evidence also keeps selected target and terminal edge distinct.
+
+`snippet_query.rs` currently keys FtsRows by cursor; that is not enough to keep
+two explicit ownerless rows with the same cursor separate. The proposed internal
+carrier must retain key + actual (table,rowid) through final positional snippet
+assembly, independent of public/explanation cursor. Such injection fixtures are
+real SQLite controls, not permission to read/repair a live store. SearchHit's
+branch cannot classify vector-hydrated edges (they are TextEdge), nor distinguish
+ownerless rows. Never recover keys from public ID, decoded text or branch.
+
+Only engine lib.rs exports the two doc-hidden fusion helpers. Actual external-
+module callable consumers are `tests/pr_g9_rrf_fusion.rs` and
+`tests/slice40_fts_ranking.rs`; the IR-C experiment has a local formula and other
+matches are comments. Proposed crate-private helper disposition is in
+[design](design.md); absence of further matches in this checkout/inspected Memex
+is not evidence about external crates. No helper signature was changed.
+
+## Final-review P2: RecordKey is not the telemetry cursor domain
+
+At the same3fa16620a source boundary, filter.rs `body_fts_rank_sql_view` selects
+stored FTS write_cursor and independent rowid. The existing slice71 ownerless
+fixture omits rowid when inserting cursor999999; this is not a rowid=cursor
+invariant for ownerless FTS. Two ownerless locators or an ownerless node-FTS row
+and canonical edge can alias one cursor. telemetry.rs `capture_telemetry` masks
+stable IDs absent from both canonical tables but still captures cursor result_ids;
+`capture_telemetry_with_sink` keys arm_of on cursor, and `record_feedback` accepts
+cursor arrays. There is no proof that cursor equality implies selected-record
+equality, even when refs match. See [feedback decision](feedback-decision.md)
+for the conservative complete-result proof and visible-member boundary. Current
+SearchRun::from_result retains the complete captured result before page shaping,
+so the adapter can count complete-run cursors and visible-page refs without
+a new engine/public ABI.
+This source proof supplies no runtime reproduction, prevalence estimate or
+production-defect claim and authorizes no telemetry-schema change.

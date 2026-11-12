@@ -628,6 +628,29 @@ remaining TGD9 general/BGE template scope; parent authorized finishing only this
 bounded pair. Further TGD10 write schedules remain held for that reconciliation.
 No broader template/lifecycle/final source/campaign qualification is inferred.
 
+## TGD-9b tool-wired detailed completeness
+
+RED6ebe88005 preserves the two accepted metadata controls and adds initial
+literal/bounded property report oracles. Existing API/copy/reopen and independent
+canonical(kind,cursor)→mapping→physical(mapping.rowid)/span cardinality controls
+pass before both missing coverage-report assertions fail. No global rowid=cursor
+assumption is made by the new report or its independent join assertions.
+Oracle3837eee726f4806cd28b94e1aa735738042e4299a022fc7855b111d02d72c142
+is unchanged through GREEN:4/4 pass in1.54s, including both metadata controls and
+the new literal/property reports. The shared private tool verifier is actually
+called by D_TEMPLATE before metadata output. It validates exact physical
+coverage/profile/body/span bounds and reports per-kind/per-row observations;
+D NULL ends remain unknown. No corrupt-store or product-defect claim.
+
+Pre-runtime driver RED492c932d9c6c5e1d013af452014017ecad9f6a8d04d01dfb093c01d7a04ccde8;
+GREEN03cf4e43ef04e43bc22a2dedf4a13dbfd92ce971bdba3ebcf21dd3d5aa98af96.
+Test executableb19ecf398d6abe195340977a72ccf46f9a6d9af236c1ec2a85f8790119880282
+is unchanged. Existing gd-coverage-red/green receipts/logs and
+proofs/gd-coverage-red/green-identities.json retain actual source/delta/oracle/
+binary hashes,13roots/original69280403456 with no stop. Maintained template
+suite selects all four tests. Normal BGE producer TGD9c, later write schedules,
+source/lifecycle/campaign qualification remain held pending parent review/GO.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

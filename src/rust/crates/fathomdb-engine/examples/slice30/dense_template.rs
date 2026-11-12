@@ -11,6 +11,9 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::Arc;
 
+#[path = "template_verify.rs"]
+mod template_verify;
+
 struct VaryingEmbedder;
 
 impl Embedder for VaryingEmbedder {
@@ -102,7 +105,8 @@ pub(super) fn run(config: &Value, out: &Path) {
         "configuration_observation":"existing D27 configuration snapshot after drain",
         "provider":"test-hooks varying/perf-gates-dense768; no BGE","span_end":"unknown"});
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
-    let metadata = closed_metadata(&store, pending);
+    let mut metadata = closed_metadata(&store, pending);
+    metadata["coverage"] = template_verify::coverage(&store, &VaryingEmbedder.identity());
     std::fs::write(out.join("template.json"), serde_json::to_vec_pretty(&metadata).unwrap())
         .unwrap();
 }

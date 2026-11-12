@@ -800,6 +800,13 @@ run_tier_maybe_suite heavy test-slice30-g-write-schedule "$slice30_g_mean_gpu_re
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_write_schedule.py
 '
 
+run_tier_maybe_suite heavy test-slice30-gg-governed "$slice30_g_mean_gpu_reason" bash -c '
+  set -e
+  label=$(date +%s%N)
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "gg-governed-${label}" observer
+  python3 dev/experiments/0.8.29-slice30-measurements/native/test_gg_governed.py
+'
+
 run_tier_maybe_suite heavy test-slice30-gg-time "$slice30_g_mean_gpu_reason" bash -c '
   set -e
   label=$(date +%s%N)

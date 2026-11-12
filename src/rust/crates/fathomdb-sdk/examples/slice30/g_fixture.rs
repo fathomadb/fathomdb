@@ -32,6 +32,12 @@ pub(super) type CoreObserver = (
     fn(&Engine) -> Result<Value, EngineError>,
 );
 
+#[path = "g_gg_stages.rs"]
+mod g_gg_stages;
+
+#[path = "g_gg_governed.rs"]
+mod g_gg_governed;
+
 #[path = "g_gg_time.rs"]
 mod g_gg_time;
 
@@ -349,6 +355,13 @@ pub(super) fn run(config: &Value, out: &Path) {
 }
 
 pub(super) fn run_observed(config: &Value, out: &Path, observer: Option<CoreObserver>) {
+    if config["family"] == "GG_GOVERNED_FIXTURE" {
+        return g_gg_governed::fixture(
+            config,
+            out,
+            observer.expect("GG requires the private GO artifact"),
+        );
+    }
     if config["family"] == "GG_TIME_FIXTURE" {
         return g_gg_time::fixture(
             config,

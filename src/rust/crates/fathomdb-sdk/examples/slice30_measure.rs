@@ -34,14 +34,10 @@ impl Adapter {
         }
     }
 
-    fn write(&self, batch: &[PreparedWrite]) {
+    fn write(&self, batch: &[PreparedWrite]) -> u64 {
         match self {
-            Self::Core(engine) => {
-                engine.write(batch).expect("core write");
-            }
-            Self::Sdk(engine) => {
-                engine.write(batch).expect("SDK write");
-            }
+            Self::Core(engine) => engine.write(batch).expect("core write").cursor,
+            Self::Sdk(engine) => engine.write(batch).expect("SDK write").cursor,
         }
     }
 
@@ -106,13 +102,53 @@ struct Schedule {
 
 #[cfg(test)]
 fn run_schedule(
-    _engine: &Adapter,
-    _queries: &[String],
-    _samples: usize,
-    _batch_size: usize,
-    _searches_per_batch: usize,
+    engine: &Adapter,
+    queries: &[String],
+    samples: usize,
+    batch_size: usize,
+    searches_per_batch: usize,
 ) -> Schedule {
-    Schedule { searches: vec![], batches: vec![], probes: vec![] }
+    assert!(!queries.is_empty() && searches_per_batch > 0);
+    assert!(batch_size == 1 || batch_size == 10);
+    let mut output = Schedule { searches: vec![], batches: vec![], probes: vec![] };
+    for sample in 0..samples {
+        if sample % searches_per_batch == 0 {
+            let batch = sample / searches_per_batch;
+            let slots: Vec<usize> =
+                if batch_size == 1 { vec![batch % 10] } else { (0..10).collect() };
+            let writes: Vec<_> = slots
+                .iter()
+                .map(|slot| {
+                    node(
+                        &format!("s30marker-{slot}"),
+                        "note",
+                        &format!("s30markercurrent{slot} revision{batch}"),
+                    )
+                })
+                .collect();
+            let start = std::time::Instant::now();
+            let cursor = engine.write(&writes);
+            output.batches.push(json!({"before_sample": sample, "rows": writes.len(),
+                "write_ns": u64::try_from(start.elapsed().as_nanos()).unwrap(),
+                "after_write_cursor": cursor, "visibility_generation": null,
+                "authority_observation": "write receipt only; search snapshot unavailable"}));
+            for slot in slots {
+                let mut probe = observe(engine, &format!("s30markercurrent{slot}"), Some("note"));
+                probe["marker_current"] = json!(
+                    probe["ids"] == json!([format!("l:s30marker-{slot}")])
+                        && probe["bodies"]
+                            == json!([format!("s30markercurrent{slot} revision{batch}")])
+                );
+                probe["before_sample"] = json!(sample);
+                output.probes.push(probe);
+            }
+        }
+        let mut result = observe(engine, &queries[sample % queries.len()], Some("doc"));
+        result["sample_index"] = json!(sample);
+        result["query_index"] = json!(sample % queries.len());
+        output.searches.push(result);
+    }
+    output
 }
 
 fn main() {

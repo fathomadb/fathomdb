@@ -305,6 +305,12 @@ fn text_fixture_ack(uuid: &str) -> u64 {
 }
 
 pub(super) fn run(config: &Value, out: &Path) {
+    if config["family"] == "G1_PLAN_FIXTURE" {
+        return g_generic::plan_fixture(config, out);
+    }
+    if config["family"] == "G1_CELL" {
+        return g_generic::cell(config, out, Path::new(config["store"].as_str().unwrap()));
+    }
     if config["family"] == "G_FEED_FIXTURE" {
         return g_generic::fixture(config, out);
     }

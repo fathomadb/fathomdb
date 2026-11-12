@@ -126,3 +126,24 @@ pub(super) fn fixture(config: &Value, out: &Path) {
         assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
     }
 }
+
+pub(super) fn cell(config: &Value, out: &Path, store: &Path) {
+    std::fs::create_dir_all(out).unwrap();
+    run(config, &out.join("pass-0"), store);
+}
+
+pub(super) fn plan_fixture(config: &Value, out: &Path) {
+    assert_eq!(config["templates"].as_array().unwrap().len(), 1);
+    g_template::run(config, out);
+    let source = out.join("case-0/template.sqlite");
+    let original = Sha256::digest(std::fs::read(&source).unwrap());
+    let directory = out.join("cell");
+    std::fs::create_dir(&directory).unwrap();
+    let store = directory.join("store.sqlite");
+    std::fs::copy(&source, &store).unwrap();
+    assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
+    cell(config, &directory, &store);
+    let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
+    assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
+    assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
+}

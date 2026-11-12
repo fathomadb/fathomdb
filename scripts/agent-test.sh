@@ -800,6 +800,12 @@ run_tier_maybe_suite heavy test-slice30-g-write-schedule "$slice30_g_mean_gpu_re
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_write_schedule.py
 '
 
+run_tier_maybe_suite heavy test-slice30-g-pass-plan "$slice30_g_mean_gpu_reason" bash -c '
+  set -e
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py
+  python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_pass_plan.py
+'
+
 run_tier_maybe_suite heavy test-slice30-g-warmups "$slice30_g_mean_gpu_reason" bash -c '
   set -e
   python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py

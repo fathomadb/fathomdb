@@ -5,7 +5,9 @@ use fathomdb_engine::{
     Engine, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec, ProjectionVector,
     SourceId, TestEmbedderChoice,
 };
+use rusqlite::{Connection, OpenFlags};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -100,4 +102,41 @@ pub(super) fn run(config: &Value, out: &Path) {
         "configuration_observation":"existing D27 configuration snapshot after drain",
         "provider":"test-hooks varying/perf-gates-dense768; no BGE","span_end":"unknown"});
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
+    let metadata = closed_metadata(&store, pending);
+    std::fs::write(out.join("template.json"), serde_json::to_vec_pretty(&metadata).unwrap())
+        .unwrap();
+}
+
+fn closed_metadata(store: &Path, pending: u64) -> Value {
+    let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
+    assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
+    let connection = Connection::open_with_flags(store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    let records: Vec<Value> = connection.prepare(
+        "SELECT logical_id,kind,write_cursor,length(CAST(body AS BLOB)) FROM canonical_nodes WHERE superseded_at IS NULL ORDER BY write_cursor"
+    ).unwrap().query_map([], |row| Ok(json!({"id":row.get::<_,String>(0)?,"kind":row.get::<_,String>(1)?,"write_cursor":row.get::<_,i64>(2)?,"body_bytes":row.get::<_,u64>(3)?}))).unwrap().collect::<Result<_,_>>().unwrap();
+    let mut kinds = serde_json::Map::new();
+    for record in &records {
+        let count = kinds.entry(record["kind"].as_str().unwrap().to_owned()).or_insert(json!(0));
+        *count = json!(count.as_u64().unwrap() + 1);
+    }
+    let physical_vectors: u64 =
+        connection.query_row("SELECT count(*) FROM vector_default", [], |row| row.get(0)).unwrap();
+    let span_rows: u64 = connection
+        .query_row("SELECT count(*) FROM _fathomdb_vector_spans", [], |row| row.get(0))
+        .unwrap();
+    let known_ends: u64 = connection
+        .query_row(
+            "SELECT count(*) FROM _fathomdb_vector_spans WHERE byte_end IS NOT NULL",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(known_ends, 0, "deterministic recipe has unknown covered span ends");
+    let profile: Value = connection.query_row("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'", [], |row| Ok(json!({"name":row.get::<_,String>(0)?,"revision":row.get::<_,String>(1)?,"dimension":row.get::<_,u32>(2)?}))).unwrap();
+    drop(connection);
+    let hash: String = Sha256::digest(std::fs::read(store).unwrap())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    json!({"summary":{"records":records,"kind_counts":kinds,"physical_vectors":physical_vectors,"span_rows":span_rows,"pending_count":pending,"profile":profile,"span_end":"unknown"},"closed_main_sha256":hash})
 }

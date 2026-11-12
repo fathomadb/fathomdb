@@ -704,6 +704,12 @@ run_tier_maybe_suite heavy test-slice30-gd-completion "$slice30_measurement_plat
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_completion.py
 '
 
+run_tier_maybe_suite heavy test-slice30-gd-template "$slice30_measurement_platform_reason" bash -c '
+  set -euo pipefail
+  cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks
+  cargo test --locked --release -p fathomdb-engine --test slice30_template_tool --features test-hooks -- --test-threads=1 --nocapture
+'
+
 slice30_g_mean_gpu_reason="$slice30_measurement_platform_reason"
 if [ -z "$slice30_g_mean_gpu_reason" ] && { [ "${AGENT_LONG:-0}" != 1 ] \
   || [ "${CUDA_VISIBLE_DEVICES:-}" != GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b ] \

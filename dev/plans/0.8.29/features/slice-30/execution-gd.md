@@ -585,6 +585,28 @@ retain source/config/fixture/GPU-accounting identities. No query-GPU claim,
 inference-oracle edit, new SDK API, template/lifecycle/campaign completion.
 Maintained manual SDK-text selection is explicit; remaining G/D work stays open.
 
+## TGD-9 tiny deterministic template metadata
+
+RED7d4bc4178 reaches the explicit missing template summary assertion after real
+governed doc/note writes, drain/configuration, independent physical vector/span/
+profile checks, closed main-file copy and reopened readiness/count controls.
+Both literal and bounded property tests fail; no missing-file exception is RED.
+Oracle200faa334d30db85c20cffcd2be71511dc2da417699a73e009d76005eb9da4b2
+is unchanged through report-only GREEN,2/2 pass in0.79s (four generated cohorts
+plus retained RED input seed). Known UTF8 body byte lengths do not claim covered
+span ends; those remain NULL/unknown for the existing deterministic768 recipe.
+
+Pre-runtime driver hashes: RED7095378a7d50bfca68a0df684ef66476e9748c2b723e5cd10c4eaee1010b9bab;
+GREEN492c932d9c6c5e1d013af452014017ecad9f6a8d04d01dfb093c01d7a04ccde8.
+Existing task receipts/logs gd-template-red/green and proofs/gd-template-red/green-
+identities.json retain actual source/delta/test/binary identities,13roots and
+original69280403456 baseline with no resource stop. Initial sha2 LowerHex E0277
+is retained in gd-template-red-build as NOT_RED compile setup; build-v2 passes.
+The existing post-drain D27 configuration observation reports resolved2/5 only,
+not worker overlap. No actual10k/100k template, BGE/full-body coverage, schedule,
+lifecycle, final source or campaign qualification is inferred. The maintained
+bounded template suite is explicit; later schedule behavior remains separate.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

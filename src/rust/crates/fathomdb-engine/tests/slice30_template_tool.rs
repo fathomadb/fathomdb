@@ -54,7 +54,7 @@ fn inspect(path: &Path, records: &[Value]) -> Value {
     json!({"records":expected,"kind_counts":kinds,"physical_vectors":records.len(),"span_rows":records.len(),"pending_count":0,"profile":{"name":"varying","revision":"perf-gates-dense","dimension":768},"span_end":"unknown"})
 }
 
-fn verify(records: Vec<Value>) {
+fn verify(records: Vec<Value>) -> (Value, PathBuf) {
     let root = tempfile::Builder::new().prefix("s30-template-").tempdir().unwrap().keep();
     println!("template proof: {}", root.display());
     // SQLite runtime/vec registration must precede any independent connection.
@@ -129,6 +129,7 @@ fn verify(records: Vec<Value>) {
     };
     assert_eq!(metadata["summary"], expected, "missing closed-template metadata");
     assert_eq!(metadata["closed_main_sha256"], hash);
+    (metadata, store)
 }
 
 #[test]
@@ -147,5 +148,78 @@ proptest! {
     fn completed_cohort_preserves_counts_order_and_utf8_spans(rows in prop::collection::vec((any::<bool>(), 1usize..12), 1..7)) {
         let records = rows.iter().enumerate().map(|(index,(note,repeats))| json!({"id":format!("row-{index}"),"kind":if *note {"note"} else {"doc"},"body":format!("row {index} {}", "évidence ".repeat(*repeats))})).collect();
         verify(records);
+    }
+}
+
+fn detailed_coverage(records: Vec<Value>) {
+    let (metadata, store) = verify(records.clone());
+    let connection = Connection::open_with_flags(store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    let mut kinds = std::collections::BTreeMap::<String, Vec<i64>>::new();
+    let mut expected_rows = Vec::new();
+    let mut physical_ids = std::collections::BTreeSet::new();
+    for record in &records {
+        let id = record["id"].as_str().unwrap();
+        let kind = record["kind"].as_str().unwrap();
+        let body = record["body"].as_str().unwrap();
+        let cursors: Vec<i64> = connection.prepare("SELECT write_cursor FROM canonical_nodes WHERE logical_id=?1 AND kind=?2 AND superseded_at IS NULL").unwrap().query_map(rusqlite::params![id,kind], |row| row.get(0)).unwrap().collect::<Result<_,_>>().unwrap();
+        assert_eq!(cursors.len(), 1);
+        let cursor = cursors[0];
+        let mapping: Vec<i64> = connection
+            .prepare("SELECT rowid FROM _fathomdb_vector_rows WHERE kind=?1 AND write_cursor=?2")
+            .unwrap()
+            .query_map(rusqlite::params![kind, cursor], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(mapping.len(), 1);
+        let rowid = mapping[0];
+        assert!(physical_ids.insert(rowid));
+        let (physical_kind, bytes): (String, u64) = connection
+            .query_row(
+                "SELECT kind,length(embedding) FROM vector_default WHERE rowid=?1",
+                [rowid],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!((physical_kind.as_str(), bytes), (kind, 3072));
+        let spans: Vec<(i64,i64,Option<i64>,u64)> = connection.prepare("SELECT window_number,byte_start,byte_end,body_length FROM _fathomdb_vector_spans WHERE vector_rowid=?1 AND write_cursor=?2").unwrap().query_map(rusqlite::params![rowid,cursor], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).unwrap().collect::<Result<_,_>>().unwrap();
+        assert_eq!(spans, [(0, 0, None, u64::try_from(body.len()).unwrap())]);
+        kinds.entry(kind.to_owned()).or_default().push(cursor);
+        expected_rows.push(json!({"logical_id":id,"kind":kind,"write_cursor":cursor,"vector_rowid":rowid,"dimension":768,"window_number":0,"byte_start":0,"byte_end":null,"body_length":body.len()}));
+    }
+    for table in
+        ["canonical_nodes", "_fathomdb_vector_rows", "vector_default", "_fathomdb_vector_spans"]
+    {
+        let count: usize = connection
+            .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, records.len());
+    }
+    let by_kind: Vec<_> = kinds.into_iter().map(|(kind,mut cursors)| {
+        cursors.sort_unstable();
+        let count=cursors.len();
+        json!({"kind":kind,"cursors":cursors,"canonical_rows":count,"mapping_rows":count,"physical_vectors":count,"span_rows":count,"known_ends":0,"unknown_ends":count})
+    }).collect();
+    drop(connection);
+    println!("independent exact per-kind canonical/mapping/physical/span cardinality and D NULL controls passed");
+    let expected = json!({"verified":true,"by_kind":by_kind,"rows":expected_rows,"profile":{"name":"varying","revision":"perf-gates-dense","dimension":768}});
+    assert_eq!(metadata["coverage"], expected, "missing tool-wired detailed completeness report");
+}
+
+#[test]
+fn literal_tool_report_covers_each_doc_note_cursor_and_physical_span() {
+    detailed_coverage(vec![
+        json!({"id":"coverage-doc","kind":"doc","body":"literal document evidence"}),
+        json!({"id":"coverage-note","kind":"note","body":"literal note évidence"}),
+        json!({"id":"coverage-doc-2","kind":"doc","body":"second document"}),
+    ]);
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, ..ProptestConfig::default() })]
+    #[test]
+    fn generated_tool_report_preserves_per_kind_cursor_span_cardinality(rows in prop::collection::vec((any::<bool>(),1usize..8),1..7)) {
+        let records=rows.iter().enumerate().map(|(index,(note,repeats))|json!({"id":format!("coverage-{index}"),"kind":if *note {"note"}else{"doc"},"body":format!("record {index} {}","évidence ".repeat(*repeats))})).collect();
+        detailed_coverage(records);
     }
 }

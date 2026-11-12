@@ -788,6 +788,12 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [
 else
   python_suite_skip_reason="pytest not installed or no tests dir"
 fi
+run_tier_maybe_suite heavy test-slice30-g-readonly-schedule "$slice30_g_mean_gpu_reason" bash -c '
+  set -euo pipefail
+  cargo build --locked --release -p fathomdb-sdk --example slice30_g_mean --features embed-cuda
+  python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_readonly_schedule.py
+'
+
 run_tier_maybe_suite heavy test-slice30-gd-snapshot "$slice30_measurement_platform_reason" \
   cargo test --locked --release -p fathomdb-engine --test slice30_measurement_snapshot \
   --features test-hooks,slice30-measurement

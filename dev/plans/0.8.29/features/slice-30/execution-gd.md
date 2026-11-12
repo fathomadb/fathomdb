@@ -607,6 +607,27 @@ not worker overlap. No actual10k/100k template, BGE/full-body coverage, schedule
 lifecycle, final source or campaign qualification is inferred. The maintained
 bounded template suite is explicit; later schedule behavior remains separate.
 
+## TGD-10 bounded zero-write control report only
+
+RED97ca547c8 completes normal SDK Default CUDA open, governed ten-note marker
+reset/drain/per-kind vector controls,20literal doc-filtered alpha calls and empty
+write/probe streams, then fails None versus the required zero-write schedule
+report. Oracleb34965184ea57e5ebc0ff028fb9dc356caca531834f886f5aab47fdc8eb56737
+and shared text fixture331f337cf712edee0bc4f80fbfcc0fa7e788936cfc4e9509ebd74a636cdab765
+are unchanged through report-only GREEN,1/1 pass in1.668s. Original128-call core
+text assertions remain in the extracted runner and passed1/1 before this RED.
+
+Pre-runtime binary RED9723937314fa99a586c55a2d91ac5d559de32abe81cf65d0c1b143e4e1cdbba3;
+GREENf609f2d3fc6f65d8e6b63b17633966e48c2e6a2fccbbb6aa08a03d8f5628d67a.
+Existing gd-readonly-red/green receipts/logs and printed proofs/g-text roots
+preserve actual config/source/GPU-accounting identities,13roots/original baseline.
+Required own PID memory is500MiB before ACK; no text query inference-utilization
+claim. The preparation reset is outside API/pass timing and distinguished from
+zero scheduled writes. This unit was already active when parent reconciled the
+remaining TGD9 general/BGE template scope; parent authorized finishing only this
+bounded pair. Further TGD10 write schedules remain held for that reconciliation.
+No broader template/lifecycle/final source/campaign qualification is inferred.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

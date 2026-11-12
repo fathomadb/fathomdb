@@ -356,7 +356,13 @@ fn run(config: &Value, out: &Path) {
     recorder.flush_all();
     let loop_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
     engine.close();
-    let proof = json!({"api_calls":calls,
+    let schedule = if marker_control.is_null() {
+        Value::Null
+    } else {
+        json!({"mode":"readonly","natural_calls":calls,"natural_kind_filter":"doc",
+            "scheduled_write_calls":0,"scheduled_write_rows":0,"marker_probes":0})
+    };
+    let proof = json!({"api_calls":calls,"schedule":schedule,
         "dimension":if is_hybrid || is_text {None} else {Some(384)},
         "finite_nonzero":if is_hybrid || is_text {None} else {Some(true)},
         "marker_preparation":marker_control,"fixture":fixture,"fixture_ack_ns":fixture_ack_ns,"fixture_ids":if is_text {json!(["l:alpha"])} else if is_hybrid {json!(["l:alpha","l:beta"])} else {Value::Null},

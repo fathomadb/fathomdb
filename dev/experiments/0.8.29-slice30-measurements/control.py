@@ -186,6 +186,8 @@ def main():
     if args.action == "freeze":
         freeze(args.cells, args.corpus, args.queries, args.binary, args.out)
     elif args.action == "run":
+        if os.environ.get("AGENT_LONG") != "1":
+            parser.error("manual campaign requires AGENT_LONG=1")
         results = run_frozen(args.root)
         if any(row["status"] != "complete" for row in results):
             raise SystemExit(1)

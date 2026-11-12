@@ -277,3 +277,43 @@ token-offset golden. D NULL ends remain valid unknown coverage. Never infer
 full-body coverage merely from cursor completeness. Use finite/dimension/profile
 and literal ID/count invariants, not standalone CLS; small property cases
 preserve count/order/span bounds and successful BGE nonNULL UTF8-aligned ends.
+
+## TGD10 G actuation and phase framing amendment
+
+This is new G scheduling actuation. Reuse P's Recorder/decoder and marker-format
+concepts, not its scheduling loop: P writes before natural groups and does not
+drain. G first completes10natural calls, then one atomic10-row governed write,
+drain and10literal current-revision note probes; repeat after calls20, including
+the final cohort before pass close. Reset10markers/drain remains preparation,
+with0scheduled writes in the unchanged read-only control.
+
+Before GREEN, stage literal20-call and bounded real10/20/30-call property
+oracles. Compile-ready write selection initially only resets and makes successful
+natural calls; missing ACTUAL work must fail0write events versus2 (for20calls),
+not just absent metadata after implementing work. Existing natural IDs/doc
+filter/order, reset, CUDA identity/accounting controls pass first. Fixed oracles
+then require20written rows/20literal probes, phase timestamps/order/current
+revisions and exact ACTIVE canonical(kind,cursor)→mapping/physical/span coverage
+2doc+10note after every drain. Retained historical physical rows are separate:
+write_commit intentionally retains superseded vector shadows; no purge or total
+physical==12 assumption. Preserve the fresh-template no-extras verifier.
+
+G write batches.jsonl has EXACTLY3phase events per completed cohort, in order:
+`governed_write`, `projection_drained`, `active_coverage`. For20natural calls,
+6phase records mean2actual governed calls/20rows,2drains,20separate marker-probe
+records and2coverage observations; never6writes or auxiliary SQLite commits.
+Each phase/probe records actual cohort and after_natural_calls10/20. One
+pass-local monotonic origin timestamps natural record preparation and write/
+drain/probe/coverage intervals. Natural record intervals include API plus
+validation/formatting, not pure API latency. Existing API elapsed_ns still stops
+before output work. Require natural group end before write start, then drain,
+10ordered probes, coverage, then the next natural group. Literal final marker
+bodies and independent read-only current mapping/span SQL reject false counts.
+
+Initial literal/property assertions include every real completed event-prefix's
+phase order and write/drain/coverage counts (coverage<=drain<=write), probe group
+order and completed-prefix versus complete-pass distinction. Reuse unchanged P
+strict UTF8-prefix/Recorder controls; no new fault/tamper/corrupt-store venue or
+product hook. These assertions belong to the initial actuation unit, not a
+separately claimed passing-on-arrival product proof. New event/timestamp fields
+apply to G WRITE populations only; P and read-only schemas/oracles stay unchanged.

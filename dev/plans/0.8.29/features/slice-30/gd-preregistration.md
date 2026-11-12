@@ -380,3 +380,45 @@ Every guard explicitly uses the current13 disjoint roots and original immutable
 baseline69280403456; same96GiB setup reservation, G16/D16 raw,200GiB aggregate,
 start16/root32/data250 and stop8/root20/data50 floors. No reservation reset,
 capacity expansion or campaign authority follows from this amendment.
+
+## TGD10 G write observation method
+
+G b10/s10 acts AFTER each completed10natural calls, including calls500 in a
+full pass; the source oracle uses10/20/30calls. Ten-marker reset/drain is outside
+the pass and separate from scheduled work. One governed write(Vec10) is one
+atomic public API call; count successful calls and rows, not physical/auxiliary
+SQLite commits. Three G-write phase events per cohort are governed_write,
+projection_drained and active_coverage, with10separate literal note probes
+between drain and coverage. Read-only/P schemas and timings retain their scope.
+A common pass-local clock records actual operation order. Natural API timings
+exclude writes/drain/proofs/verification and recording; loop throughput includes
+all of these, phase flushes and their overhead. Query text-only calls make no
+inference-utilization claim; Default/reset/projection work retains its actual
+CUDA/provider identity and required accounting semantics.
+
+Use the unchanged16-record-per-stream Recorder and explicit phase flushes:
+emit governed_write immediately AFTER its successful API, then flush_all;
+emit projection_drained AFTER successful drain, then flush_all; emit each probe
+AFTER its call, and flush_all after all10probes; emit active_coverage AFTER
+successful current-cursor verification, then flush_all before the next natural
+group. Flushes are outside the corresponding API/write/drain/probe timers.
+Pass raw_persistence reports actual record/byte/checkpoint counts and persistence/
+checkpoint time; throughput includes them. There is no self-referential claim
+that a phase event includes the cost of flushing itself. Final pass flush stays.
+
+An emitted buffered record alone does NOT establish retention. Only the encoded
+valid prefix through a completed flush is eligible for the existing process-stop
+retention claim. A successful commit can be lost from tool output in the
+commit→event/flush gap; an interrupted pending flush can leave a partial final
+record, and uncheckpointed tails retain the existing at-most15-per-stream bound
+between completed checkpoints. Flush is not fsync, power-loss durability or an
+every-commit survival promise. Missing drain/probes/coverage or an interrupted
+attempt remains incomplete even when a valid write-event prefix survives. Keep
+original failures and raw streams; never turn a prefix into complete-pass proof.
+Initial actual-actuation literal/property count/order/prefix oracles and unchanged
+Recorder/UTF8 controls precede GREEN; no new fault injection/test-hook program.
+
+All existing13-root/original69280403456 accounting,96GiB setup/G16/D16/200GiB,
+start/stop floors, fixed900/870/30s cells and shared4h INCLUDING preparation/quiet
+remain. This bounded source-method review starts no campaign clock and grants
+no full-size preparation, campaign, later-route or final qualification authority.

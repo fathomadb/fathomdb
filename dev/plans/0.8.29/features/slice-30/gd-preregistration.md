@@ -293,3 +293,27 @@ fixed effective_at100 while fresh adjacent state sees g1. The stamp read is
 placed after that existing hook on its same tx. Stage the race and quiescent
 oracle together before stamp GREEN; no later passing-on-arrival race coverage,
 new unbounded Barrier, new production API or adjacent-generation substitution.
+
+## Tiny direct-text fixture fit amendment
+
+Source entry waits for adversarial design PASS on this bounded amendment.
+Use the exact accepted d675 hybrid fixture/proof/hash in the
+[test map](gd-test-map.md#direct-text-per-mode-implementation-fit-review-before-source-entry).
+Producer explicit close, released verifiers, WAL absent/empty and initial source/
+copy hashes precede every fresh writable owned copy. Independent copied counts
+and literal alpha-only results are controls before new record-output REDs.
+This2-row fixture is neither a10k/100k campaign template nor TGD9 completion.
+
+Normal Default/forced-CUDA open identity remains unchanged. Positive query GPU
+utilization is inapplicable to the text-only API; report no inference population
+and preserve actual OpenReport/NVML observations without fabricating activity or
+claiming process-wide absence. All mean/hybrid inference GPU assertions remain
+unchanged. No model work is mirrored onto CPU and no new model fetch follows.
+Existing GPU reservation/free-memory/cap requirements still apply to model open.
+
+Copy/open/count/proof/close costs remain outside API timers and separately
+attributed; raw serialization/checkpoints remain outside API timers and inside
+loop throughput. These are source TDD fixtures, not a campaign clock or natural
+timing run. All mutable paths stay in own /mnt/data roots; exact13-root selection,
+original69280403456 baseline and existing96GiB setup/G16/D16/200GiB caps/floors
+remain. No new numerical gate or broader lifecycle/source qualification follows.

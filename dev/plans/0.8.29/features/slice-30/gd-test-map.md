@@ -163,3 +163,42 @@ freeze source, run required full agent-verify once, retain inner skips/ignores a
 failed scopes, resume only affected failures. One final fresh independent Astra
 review evaluates actual code/TDD/native/source/measurement subjects; parent owns
 integration and release-state changes. G/D cannot discharge M/F/20/Block1.
+
+## Direct-text per-mode implementation fit (review before source entry)
+
+Reuse only the accepted d6756348aa579222f8722cb6dd73fbd0da1ad1a2 core-hybrid
+source fixture, not a campaign template. Exact producer proof root:
+/mnt/data/tmp2/fathomdb-0829-continuation/slice30-gd/proofs/g-mean/1794488732288403793.
+Its identity records actual ac48ec2e9 plus the emit-only GREEN delta and binary
+a19cf266d4b0c76799f9be00a5490578af03c2bf8a8b678ee8a9e30ddb96a5dc;
+producer exits0 after Engine::close. The local read-only verifier in
+GAdapter::prepare_hybrid is dropped on return before the query loop and close.
+All producer owners are released; no binding lifecycle qualification is inferred.
+
+Source out/store.sqlite is696320B, SHA256
+f24e6f6b4f87d661fcdcda763819a03db66be8b7ebe5bac6cd9330b21cbbbdf4.
+Read-only filesystem inventory found WAL absent. Before EACH test, require this
+same hash and WAL absent/empty, then copy only the closed main DB into a fresh
+writable owned output directory; verify the copied initial hash BEFORE opening.
+Never open/mutate the source fixture or copy live SQLite state. Independent
+read-only checks on the COPY require2active doc rows,2physical vectors,pending0,
+alpha/beta bodies "alphaonly evidence"/"betaonly evidence" and raw FTS alphaonly
+matches1; release that verifier before API timing. Core
+Engine::search_text_only_filtered_with_snippets and SDK Engine::search_text_only
+use no filter/default live view/limit10 and return l:alpha/returned_hits1. Raw
+match counts stay distinct; the original source hash remains unchanged.
+
+Keep normal GN embed-cuda artifact, Default core open / SDK
+use_default_embedder:true, forced approved UUID/cuda:0 and actual OpenReport
+identity. Text-only APIs request no query embedding; no positive GPU utilization
+requirement or query-GPU-work claim applies. Model open may use CUDA; this is
+not a claim of zero process GPU activity. Reserve/recheck the same GPU, retain
+actual available NVML samples and8GiB cap; unavailable sampled usage stays
+unobserved. Existing mean/hybrid positive-utilization oracles remain unchanged.
+
+Implement engine_text and sdk_text as SEPARATE runtime RED/GREEN units using
+existing text-only APIs. Compile-ready successful128-call/literal-ID proof must
+precede the intended missing0vs128sample assertion. Hash/config/copy/WAL/device/
+parse/API failures are NOT_RED. Freeze each oracle through its minimal GREEN;
+retain16-record checkpoints and maintained manual selectors. No new API,
+accessor, capability, policy exception or TGD9 closed-template completion.

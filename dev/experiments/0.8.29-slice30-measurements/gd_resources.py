@@ -23,4 +23,7 @@ GiB = 1024**3
 
 def reservation_ok(owned, setup_used, g_raw, d_raw):
     """Preserve accepted setup and both raw-family reservations under200GiB."""
-    return True
+    if owned >= 200*GiB or setup_used > 96*GiB or g_raw > 16*GiB or d_raw > 16*GiB:
+        return False
+    forecast = owned + (96*GiB - setup_used) + (16*GiB - g_raw) + (16*GiB - d_raw)
+    return forecast <= 200*GiB

@@ -380,6 +380,59 @@ starts remain16GiB and the actual TS refusal remains retained. The four separate
 forecast pairs complete only the approved hypothetical report subset of TGD-14.
 Native-dependent fixture/schedule/GPU tests and campaigns have not run.
 
+## Reviewed source resumption and expanded accounting
+
+Parent explicitly resumed only the original bounded G/D source phase from
+571d3e7dd96d6d0750eaa11c95a2ea22e8e23456. Normal merge c1594d94d preserves
+49be and every recorded RED/GREEN ancestor; gd-resumption-merge exits0 clean.
+Parent596→571d changes only reviewed documentation/state, and own src/scripts/
+Cargo/root package inputs remain byte-identical to49be. Actual657edeb/e875
+ancestry and owned Python/modules checks pass. gd-resumption-entry retains
+strict parent closed10/landing with0warnings and own exit0 with its expected
+advanced-slice-branch warning. No proposal from50/80 changes current identity,
+ranking, ABI or accepted defaults. No campaign is authorized or started.
+
+The reviewed thirteen disjoint roots below replace the five-root selection for
+ALL resumed resource samples. Each future run_guarded invocation passes roots
+explicitly from parent's slice30-resumption-resource-proposal.json extended_roots
+and baseline=69280403456, the ORIGINAL aggregate. The proposal's historical
+status does not itself grant authority; explicit571d parent resumption selects
+this accounting. Charge added assets to the SAME96GiB setup/build allowance,
+not a new allocation. G16/D16 raw, owned200GiB and all floors remain unchanged.
+
+- /mnt/data/tmp2/fathomdb-0829-continuation/slice30
+- /mnt/data/worktrees/fathomdb-0.8.29-s30-continuation
+- /mnt/data/tmp2/fathomdb-0829-continuation/slice30-gd
+- /mnt/data/worktrees/fathomdb-0.8.29-s30-data
+- /mnt/data/repos/fathomdb-0.8.29-continuation.git
+- /mnt/data/worktrees/fathomdb-0.8.29-data
+- /mnt/data/tmp2/fathomdb-0829-continuation/parent
+- /mnt/data/worktrees/fathomdb-0.8.29-s100-data
+- /mnt/data/tmp2/fathomdb-0829-continuation/slice100
+- /mnt/data/worktrees/fathomdb-0.8.29-s50-data
+- /mnt/data/tmp2/fathomdb-0829-continuation/slice50
+- /mnt/data/worktrees/fathomdb-0.8.29-s80-data
+- /mnt/data/tmp2/fathomdb-0829-continuation/slice80
+
+Own entry measured68.69879GiB owned/4.17639GiB setup used,16.59462GiB RAM,
+root77.27893GiB/data574.65806GiB. Receipt records every path and original baseline.
+Owned locked TS setup at clean c1594d94d then exits0 in65.734s: npmci, canonical
+NAPI release build58.96s, tsc build and typecheck. Actual thirteen-root guard
+start16.743GiB/min15.950GiB/end16.686GiB RAM, no stop, cleanup complete;
+owned68.897GiB/setup4.375GiB. gd-prefix-ts-native identifies actual module
+SHA256 bcb994b139b8ea122d7d6c570f5e5cfc1d4169cccbf8ed97fc49f6ee25caa67f.
+This is source-bound setup/build/typecheck, not lifecycle/final qualification;
+Python9e setup receipt and earlier TS refusal125/pidnull remain separately true.
+
+Previously approved light staging succeeded: gd-pinned-inputs and
+gd-pinned-input-staging identify own100k/500query bytes plus MIT attribution
+and the three BGE pins under own XDG cache0b2926f8a9b1. Hashes are unchanged;
+streamed bodies total99124130UTF8B. No model instantiation, DB/native invocation
+or network occurred in staging. Read-only resumed GPU inventory shows approved
+3090 UUID GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b,2MiB/24576MiB,0%util,
+R580.178.04 and primary CUDA12.6. This is inventory, not engagement/reservation.
+Actual GPU reservation/engagement and fresh resource checks still precede BGE.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under
@@ -394,7 +447,8 @@ hashes and feature identity. No resource stop occurred in these phases.
 The source-only Cargo registry/Git object copy created private writable caches;
 no target, installed native product, venv or mutable sibling tool environment was
 borrowed. Owned Python/dev/noneditable native setup succeeded at9e as recorded above;
-TS setup and final source-bound production lifecycle proofs remain outstanding. Scoped passes here are not the one final stable full gate.
+TS setup subsequently succeeded at c159 as recorded above; final source-bound
+production lifecycle proofs remain outstanding. Scoped passes here are not the one final stable full gate.
 The reviewed resource allocation remains96GiB setup plus16GiB each G/D raw,
 200GiB conservative aggregate over the five disjoint roots, with accepted floors.
 M/F/20/whole30/40/50/pre90 remain held; no G/D natural timings have run.

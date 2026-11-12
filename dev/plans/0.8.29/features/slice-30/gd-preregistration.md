@@ -162,6 +162,18 @@ pending before/after, actual batch rows, per-worker intervals, max simultaneous
 worker IDs, main/WAL bytes, phase durations and every error/abort. Default64-row
 commit batch and256-per-arm scan remain current; no old armlimit treatment.
 
+## Active resumption accounting amendment
+
+Explicit parent571d source-only resumption selects thirteen disjoint roots from
+parent task slice30-resumption-resource-proposal.json extended_roots, in place
+of the historical five-root selection below. Original baseline69280403456B is
+immutable. Every future run_guarded call must pass BOTH roots and baseline
+explicitly. Added parent/100/50/80 worktrees/tasks consume the existing96GiB
+setup/build allowance; no reset or double reservation. Full path list, actual
+entry and setup results are in [execution](execution-gd.md). Source resumption
+does not authorize campaigns; no campaign clock has begun. Historical design
+statements below remain attributed to349/b83. All original caps/floors apply.
+
 ## Hardware reservation, resources and stop rules
 
 Read-only inventory at design time: both3090s report2MiB/24576MiB and0%util,

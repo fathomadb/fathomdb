@@ -121,6 +121,15 @@ contact is excluded. A successful positive readiness witness must also satisfy
 L<p.start<=p.end<U. Report every failed/outside witness and partial intersection
 separately; absent qualifying common overlap is INCOMPLETE_OVERLAP.
 
+A dedicated tool-owned readiness-observer thread runs while writer/query tasks
+are active, at100ms minimum start-to-start cadence, with at most one readiness
+call in flight. It does not append a witness after a query and call it overlap.
+All DN/DO-off/DO-on controls use this same cadence; report its own invocation
+counts/durations/errors. Its SQL/lock/cache overhead remains part of the D fixture,
+not pure production latency. Stop the observer before engine close, retaining
+bounded child deadline/stop-and-wait cleanup. Do not widen the logical writer
+interval to an entire ingest session to create apparent common overlap.
+
 Pending witness is the FULL timed invocation of existing
 Engine::read_embedding_readiness (timestamp immediately before/after, returned
 pending_count>0), not an unspecified poll or an assumed state carried forward.

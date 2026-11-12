@@ -105,7 +105,8 @@ No exact guessed generation increment or regenerated snapshot/golden is used.
 Use one shared monotonic clock origin for every interval in an attempt. Let
 L=max(query_start,writer_start,worker_start), U=min(query_end,writer_end,worker_end).
 Require L<U. Pending witness [p_start,p_end] records the full invocation interval
-of existing Engine::read_embedding_readiness, immediate timestamp before call
+of existing Engine::read_embedding_readiness on the independent100ms-cadence
+tool observer thread (same in all D controls), immediate timestamp before call
 and immediately after its successful return, plus actual pending_count. Require
 L<p_start<=p_end<U AND pending_count>0. All SQL reads producing that result lie
 inside the bounded invocation interval; positivity is an existential pending

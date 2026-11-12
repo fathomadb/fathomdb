@@ -133,9 +133,10 @@ mandatory criteria and records the exact reviewed Windows operations proposal.
 No product source changed. A3/A5 policy and Windows capacity authorization remain
 unanswered; compiler/control/Windows runtime qualification remains unexecuted.
 
-The parent evaluates the next slice's actual prerequisite scope before source
-entry. Slice30 may prepare a reviewed dependency/current-input reconciliation;
-this checkpoint grants no30 runtime clearance or waiver of20/Block1 obligations.
-Any proposed separation of independently qualified Linux measurements from held
-Windows/queue-proof cells must pass review and be integrated into the plan/state
-before affected source work. Keep each dedicated owner for later continuation.
+Slice30 documentationbea7f05cd and its exact P-only dependency amendment passed
+independent Astra-medium design review. State/master now permit initial direct-
+text Linux P entry from closed10 plus qualified integrated20/current70 after
+actual ancestry/preflight, own source/native setup and parent GO. G/D need later
+concrete review; M20 proof/policy, F frozen TC5, whole30/40/50 and pre90 Block1
+remain held. The parent selects eligible30 P as next work while20 decisions stay
+open; no closure is inferred. Keep each dedicated owner for later continuation.

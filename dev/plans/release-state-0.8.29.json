@@ -190,12 +190,25 @@
       "short": "MEASURE",
       "title": "Current source-bound baseline and tracked AC083 measurements",
       "depends_on": [
-        20
+        10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-30/plan.md"
-      ]
+        "dev/plans/0.8.29/features/slice-30/plan.md",
+        "dev/plans/0.8.29/features/slice-30/requirements.md",
+        "dev/plans/0.8.29/features/slice-30/acceptance.md",
+        "dev/plans/0.8.29/features/slice-30/design.md",
+        "dev/plans/0.8.29/features/slice-30/inputs.md",
+        "dev/plans/0.8.29/features/slice-30/preregistration.md",
+        "dev/plans/0.8.29/features/slice-30/test-map.md",
+        "dev/plans/0.8.29/features/slice-30/product-architecture.md",
+        "dev/plans/0.8.29/features/slice-30/prerequisite-change.md",
+        "dev/plans/0.8.29/features/slice-30/review-log.md"
+      ],
+      "phase": "INITIAL_P_DESIGN_ACCEPTED_SOURCE_ENTRY_CHECKS_PENDING",
+      "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
+      "conditions": "Initial P-only Linux entry: actual closed10, integrated qualified Linux20 subset657edeb and current70 ancestry/source, accepted design, own strict preflight/setup and explicit parent GO. G/D require concrete extension review; M remains held on20 A3/A5 proof or owner disposition; F needs exact frozen TC5/current-candidate proof.20 Windows A6, whole30,40/50 source gates and pre90 Block1 remain open.",
+      "evidence": "Independent Astra-medium PASS on ten-document P-only design and exact20-to10 Linux entry cut. Direct-text bypasses MCP/embedding; only unfiltered P1 qualifies tracked100k text; P2 marker/write-filter cells stay distinct. Pinned LME/BGE inputs verified locally; elevated read-only host inventory sees idle3090s, sandbox query failure was visibility only. Design/tools prepared only; no source implementation, benchmark, model or GPU campaign has run."
     },
     {
       "slice": 40,
@@ -474,10 +487,10 @@
     }
   ],
   "landed": [],
-  "next_slice": 20,
+  "next_slice": 30,
   "remaining_ladder": [
-    20,
     30,
+    20,
     40,
     50,
     60,

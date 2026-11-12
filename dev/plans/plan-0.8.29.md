@@ -158,7 +158,7 @@ new initial features receive mod10 numbers and explicit placement.
 | ---: | --- | --- | --- |
 | 10 | Approved workspace/environment/tool/dependency/doc/CI preparation; coordinated version decisions; state/board/views and selected rerunnable tools | Actual reviewed9 decisions and independent10 plan PASS; own implementation/final gate | [Preparation](0.8.29/features/slice-10/plan.md) |
 | 20 | Residual test hygiene, queue enqueue/drain race, warning/parallel failures and chunking tripwire constant test | Needed 10 preparation; current residuals verified rather than assumed | [Test/queue hygiene](0.8.29/features/slice-20/plan.md) |
-| 30 | Current 100k tracked AC-083 and baseline, write-interleaved/cache suitability, MCP/SDK/open/embedding, drain/300k follow-ups | Dependable tools and tests from 10/20 | [Measurement](0.8.29/features/slice-30/plan.md) |
+| 30 | Current 100k tracked AC-083 and baseline, write-interleaved/cache suitability, MCP/SDK/open/embedding, drain/300k follow-ups | Closed10 plus qualified Linux20/current70 for reviewed P only; G/D extension review, M20 proof and F frozen-input holds remain | [Measurement](0.8.29/features/slice-30/plan.md) |
 | 40 | Remaining eligibility cache and selected per-batch metadata work | 30 evidence; reviewed format37 snapshot/invalidation design; no automatic counter/schema fallback | [Eligibility/batch](0.8.29/features/slice-40/plan.md) |
 | 50 | Fusion identity ADR/census, exact deferred-content text route and Unicode-safe record-start snippets | 30 baseline; accepted identity semantics before optimized production route | [Fusion/text](0.8.29/features/slice-50/plan.md) |
 | 60 | MCP compact text default and structured mode, flags, filtered direct text search, budgets/paging/errors | Existing .28 filter/flag support and reconciled accepted surface design; final parity on integrated fusion | [MCP surface](0.8.29/features/slice-60/plan.md) |
@@ -209,6 +209,16 @@ formats and approved smoke/item-4 remeasure. It precedes 90 and is not 160,
 avoiding a 90↔close dependency cycle. Resolve inherited conformance failures
 against supported capabilities; no silent baseline waiver.
 
+The reviewed [Slice30 prerequisite amendment](0.8.29/features/slice-30/prerequisite-change.md)
+permits initial provider-free Linux direct-text P work from closed10 and the
+qualified integrated Linux20/current70 baseline. Parent-owned state records10
+as30's entry dependency; actual ancestry, strict owned preflight and explicit
+source GO remain required. This advances eligible P work while20 is open; it
+neither closes20 nor clears whole30/40/50/Block1. G/D need concrete extension
+review, M retains20 proof/policy and F retains exact frozen TC5 inputs. Only
+unfiltered P1 supplies the tracked100k text result; marker/write-filter P2 is
+separate. Numerical order is not an execution prerequisite.
+
 40 before 50 is preferred landing order for attribution/shared engine files, not
 a semantic requirement. 60 can develop independently of their implementation;
 its final parity control runs on the same fused build. 80 design can start early,
@@ -230,12 +240,14 @@ flowchart LR
     P[Prework 0–8] --> H[9 HITL and review]
     H --> S[10 approved preparation]
     S --> T[20 hygiene]
-    T --> M[30 current baseline]
+    S --> M[30 staged measurements]
+    T -. MCP proof cells .-> M
+    T --> E[Block 1 follow-up exit]
     M --> C[40 eligibility]
     M --> F[50 identity and text]
     S --> A[60 MCP]
     S --> D[70 SDK and degradation]
-    C --> E[Block 1 follow-up exit]
+    C --> E
     F --> E
     A --> E
     D --> E
@@ -342,6 +354,6 @@ prerequisites. Publication remains separately authorized.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`TEST-HYGIENE`) — Residual test hygiene and deterministic queue proof
+**IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
 
-**Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

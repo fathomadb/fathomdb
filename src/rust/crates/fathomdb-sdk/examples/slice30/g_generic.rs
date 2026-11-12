@@ -198,9 +198,17 @@ pub(super) fn cell(config: &Value, out: &Path, store: &Path) {
     std::fs::create_dir_all(out).unwrap();
     let passes = config["passes"].as_array().unwrap();
     assert!(!passes.is_empty());
+    let schedules = config.get("schedules").map(|value| value.as_array().unwrap());
+    if let Some(schedules) = schedules {
+        assert_eq!(schedules.len(), passes.len());
+    }
     for (ordinal, mode) in passes.iter().enumerate() {
         let mut pass = config.clone();
         pass["mode"] = mode.clone();
+        if let Some(schedules) = schedules {
+            assert!(matches!(schedules[ordinal].as_str(), Some("readonly" | "write")));
+            pass["schedule"] = schedules[ordinal].clone();
+        }
         run(&pass, &out.join(format!("pass-{ordinal}")), store);
     }
 }

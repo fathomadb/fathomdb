@@ -978,7 +978,7 @@ is yet qualified. Every conditional entry remains represented if not run.
 | --- | --- | --- |
 | GT2 and TGD9/14 integration | Normal G_TEMPLATE reads ordered JSONL, commits64-row cohorts, Default BGE/Mean, shared physical verifier, close/hash; D template uses current deterministic768. | Actual pinned corpus prefix→ordered record input, template sealing/copies, lower-size observation admission and common deadline integration. Current drain(5000) is a tiny-fixture bound, not a900s preparation/cell budget. |
 | G1=4; TGD10 route adaptation | Normal no-hooks private host, all six actual API modes, arbitrary ordered query feed/limit10, requested unscheduled warmups and supplied forward/reversed pass orders on one copy are implemented through8e5823. | Actual pinned10k/100k sealing/copies and500-query/50-warmup execution with reviewed deadlines/admission; TGD14 still generates the immutable balanced descriptors. Tiny source controls are not full-size execution or campaign qualification. |
-| G2=2; TGD10 actuation and per-mode adaptation | Separate generic per-pass reset/current-history coverage, retrieval doc-kind filtering and all-three-SDK-mode post-TIMED-group helper linkage are implemented in bounded source units; warmups2/timed20 actual phase coupling and read-only preservation have initial literal/property oracles. | Route mode/schedule descriptors to all six RO/write passes on ONE cell copy in balanced repeat order, then actual50/500 populations and remaining-budget drains. Current fixture mode iteration copies per mode and cannot substitute for the declared G2 same-copy schedule sequence. |
+| G2=2; TGD10 actuation and per-mode adaptation | Generic per-pass reset/current-history coverage, retrieval doc-kind filtering, all-three-SDK-mode timed-group actuation and supplied same-copy mode/schedule descriptors are implemented in bounded source units; warmups2/timed20 and read-only preservation have initial literal/property oracles. | TGD14 still generates the immutable balanced repeat descriptors and admission; actual50/500 populations and remaining-budget drains remain pending. The new same-copy fixture proves supplied forward/reversed descriptors; earlier per-mode copy fixtures retain only their bounded source roles. |
 | GO=4/GG=2; TGD10 diagnostic routing and TGD15 pairing | Per-engine query completion/same-reader stamp/predicate/block observer and literal guard controls; current public governed source/time APIs. | Generic BGE diagnostic mode-off/on, actual500-query/guard-stage populations and budgets. Artifact source-fit gap: engine examples inherit engine's self-dev test-hooks; they cannot simply be labelled GO(no hooks). The private tc5-host fit received11e09 design PASS and normal GN is implemented; the separate no-hooks GO feature/runtime adapter remains pending. No SDK accessor/feature forwarding is inferred. GG needs its governed source-valid/invalid and no-dependency/time-window copies and declared100-query stages, not only predicate tests. |
 | D1=8/DC=4/D3=2; TGD11–13 | Existing deterministic768/test-hooks opener, default2/5 configuration, durable readiness and fresh physical completeness. | Actual1024-row cohorts, current worker lifecycle IDs/intervals (11), bounded held/release/drain phases (12), ordinary writer/query/worker overlap plus fully contained positive readiness witness (13),10warmups/100fixed queries and live WAL observations. DN/DO-off/on identities/control loads must match. No pending-count-as-concurrency or artificial delay in timed overlap. D3 only after real lower-scale feasibility. |
 | Every entry; TGD14 launcher/admission | Existing13-root/original-baseline guard and pure time/storage/shared-clock forecasts. | One immutable manifest/attempt controller with900s total/870s work/30s cleanup, remaining-budget drains/close/partial retention; one shared4h clock INCLUDING GT/Dseed preparation, copies, quiet waits and retries. Pure ELIGIBLE_PROJECTION is not admission. Check actual retained bytes/floors and lower observations; refuse instead of resetting a deadline, substituting a smaller population or growing caps. |
@@ -1122,6 +1122,39 @@ gd-g-generic-actuation-scaffold-checks, -red, -green-build, -green-lint and
 The source remains unqualified overall. Actual G2 same-cell RO/write descriptor
 routing, GO/GG, budgets/controllers/pairing, D and final stable qualification
 remain pending; no full-size preparation or campaign clock has begun.
+
+### Generic G2 supplied same-copy schedule descriptors
+
+REDae0e069e6e3b806ede6736624b502f4151b8fc77 observes actual cohort lists
+[0,0,0,0,0,0] versus requested[0,2,0,2,0,2] after six successful SDK mode
+passes on ONE copy, each with reset10, warmups2 and timed20. Initial literal/
+property oracles include forward/reversed modes AND schedules, reset placement,
+current/history accumulation and readonly preservation. Independent terminal
+mapping62 confirms six real resets with no prior actuation (2tests/2failures).
+
+Minimal GREEN only forwards the optional equal-length schedules list beside
+existing passes. The absent-list G1 branch and the entire per-pass caller body
+are unchanged. The same oracle passes2/2 on forward/reversed/forward cases,
+each with one cell copy, six fresh opens/resets and three real write passes.
+Each cell ends with122retained mappings,12current cursors and110historical
+vectors, with literal last marker revision determined by the final schedule.
+Within each pass, fresh reset finishes before warmups; writes follow actual
+timed10/20 and all intervals retain that pass's own origin. No comparison of
+independently zeroed clocks across passes is made.
+
+Fixed oracle SHA256 is
+`40c57bb86135517c91ab5180e554e1e10237a87fc9b9d89e0ebf99fdace2c30c`.
+Actual GREEN normal binary SHA256 is
+`8d82b67c7b63e75102f46953034cf99981bfb242a82420bf6e3efffa6227c146`;
+RED uses4d89840aae. Task pre-runtime identities are
+proofs/gd-g-g2-pass-plan-red-identities.json and
+proofs/gd-g-g2-pass-plan-green-identities.json; compiler closure is
+proofs/gd-g-host-g2-pass-plan-green.json. Receipts/logs
+gd-g-g2-pass-plan-scaffold-checks, -red, -green-build, -green-lint and -green
+retain exact commands/source/deltas/exit,13roots/originalbaseline and cleanup.
+This proves execution of supplied tiny descriptors, not their generation,
+actual500-query/full-size populations or campaign admission. GO/GG, budgets,
+D/controller/pairing and final stable qualification remain outstanding.
 
 ## Evidence locations and interpretation
 

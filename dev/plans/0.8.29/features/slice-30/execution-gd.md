@@ -325,6 +325,23 @@ CLI failures/results and full five-root resource samples, resource_stop null,
 light_only=true. This light check does not weaken16GiB heavy start or bypass the
 retained TS refusal. Pure math completion is not native/campaign evidence.
 
+## Light storage forecast dimension
+
+Separate TGD-14 STORAGE RED6e674e4ef has4prior time passes and4new actual tiny-CLI
+assertion failures for missing storage false/true/ceil-byte/monotonic reports.
+Hypothetical lower peak4GiB scaled3×1.5 adds18GiB plus retained1GiB=19GiB,
+exceeding fixed16GiB family cap. Lower peak1GiB adds4.5GiB plus retained10GiB
+fits14.5GiB. One byte scales4.5 and rounds up5. No large data is allocated.
+
+Unchanged test SHA256
+fc84f761f631704c60f67550e9cc1444e7077c2c9d180376c12040fd8f801678;
+GREEN gd-storage-feasibility-green passes8/8(time+storage;8property cases each)
+in0.587s. Forecast adds expected new target peak to already retained family
+outputs, rather than replacing/forgetting retained evidence. Raw light-mode
+receipt/logs preserve exact CLI/source delta/resources; no resource stop.
+Shared-clock/final admission stay unimplemented. No native/template/schedule/
+100k/300k/campaign execution or heavy-floor relaxation is claimed.
+
 ## Evidence locations and interpretation
 
 All current source-phase logs/receipts live under

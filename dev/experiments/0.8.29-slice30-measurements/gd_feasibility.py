@@ -9,13 +9,21 @@ def report(observation):
 
     Scale complete observed elapsed time by target/lower and fixed1.5 headroom,
     rounding up to ns. Compare with870s work admission, reserving30s in900s.
-    This component alone never admits a database/model/campaign workload.
+    Optional peak/retained bytes similarly forecast additional family retention
+    against16GiB. These components alone never admit any workload.
     """
     numerator = observation["elapsed_ns"] * observation["target_n"] * 3
     denominator = observation["lower_n"] * 2
     projected = (numerator + denominator - 1) // denominator
-    return {"time": {"projected_ns": projected, "fits": projected <= 870_000_000_000,
-                     "cap_ns": 870_000_000_000}}
+    result = {"time": {"projected_ns": projected, "fits": projected <= 870_000_000_000,
+                       "cap_ns": 870_000_000_000}}
+    if "peak_bytes" in observation and "retained_family_bytes" in observation:
+        numerator = observation["peak_bytes"] * observation["target_n"] * 3
+        additional = (numerator + denominator - 1) // denominator
+        family_bytes = observation["retained_family_bytes"] + additional
+        result["storage"] = {"additional_bytes": additional, "family_bytes": family_bytes,
+                             "cap_bytes": 16*1024**3, "fits": family_bytes <= 16*1024**3}
+    return result
 
 
 def main():

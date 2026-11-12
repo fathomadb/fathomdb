@@ -21,7 +21,7 @@ enum GAdapter {
 impl GAdapter {
     fn open(mode: &str, path: &Path) -> Self {
         match mode {
-            "engine_mean" | "engine_hybrid" => Self::Core(Box::new(
+            "engine_mean" | "engine_hybrid" | "engine_text" => Self::Core(Box::new(
                 Engine::open_with_choice(path, EmbedderChoice::Default).unwrap(),
             )),
             "sdk_mean" | "sdk_hybrid" => Self::Sdk(Box::new(
@@ -123,6 +123,63 @@ impl GAdapter {
         }
     }
 
+    fn inspect_text_fixture(&self, path: &Path) -> Value {
+        let pending = match self {
+            Self::Core(opened) => opened.engine.read_embedding_readiness().unwrap().pending_count,
+            Self::Sdk(engine) => {
+                fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count
+            }
+        };
+        let connection =
+            rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        let rows: u64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM canonical_nodes WHERE kind='doc' AND superseded_at IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let vectors: u64 = connection
+            .query_row("SELECT COUNT(*) FROM vector_default", [], |row| row.get(0))
+            .unwrap();
+        let bodies: Vec<(String,String)> = connection.prepare("SELECT logical_id,body FROM canonical_nodes WHERE superseded_at IS NULL ORDER BY logical_id").unwrap()
+            .query_map([],|row|Ok((row.get(0)?,row.get(1)?))).unwrap().collect::<Result<_,_>>().unwrap();
+        assert_eq!(
+            bodies,
+            [
+                ("alpha".to_string(), "alphaonly evidence".to_string()),
+                ("beta".to_string(), "betaonly evidence".to_string())
+            ]
+        );
+        let expression = fathomdb_query::compile_text_query("alphaonly").match_expression;
+        let matches: u64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM search_index WHERE search_index MATCH ?1",
+                [expression],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!((rows, vectors, pending, matches), (2, 2, 0, 1));
+        json!({"rows":rows,"vectors":vectors,"pending":pending,"raw_fts_matches":matches})
+    }
+
+    fn text(&self, query: &str) -> fathomdb_engine::SearchResult {
+        match self {
+            Self::Core(opened) => opened
+                .engine
+                .search_text_only_filtered_with_snippets(
+                    query,
+                    None,
+                    &fathomdb_engine::ReadView::default(),
+                    10,
+                    None,
+                )
+                .unwrap(),
+            Self::Sdk(_) => panic!("unsupported text population"),
+        }
+    }
+
     fn close(&self) {
         match self {
             Self::Core(opened) => opened.engine.close().unwrap(),
@@ -131,16 +188,43 @@ impl GAdapter {
     }
 }
 
+fn text_fixture_ack(uuid: &str) -> u64 {
+    use std::io::{Read, Write};
+    let started = std::time::Instant::now();
+    if writeln!(std::io::stdout(), "READY {} {}", std::process::id(), uuid).is_err()
+        || std::io::stdout().flush().is_err()
+    {
+        std::process::exit(2);
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    // The reader owns no engine state and is never joined after cancellation.
+    let _ack_reader = std::thread::spawn(move || {
+        let mut ack = [0u8; 4];
+        let valid = std::io::stdin().read_exact(&mut ack).is_ok() && ack == *b"ACK\n";
+        let _ = sender.send(valid);
+    });
+    if !matches!(receiver.recv_timeout(std::time::Duration::from_secs(15)), Ok(true)) {
+        eprintln!("manual text fixture ACK failed or exceeded15s");
+        std::process::exit(2);
+    }
+    u64::try_from(started.elapsed().as_nanos()).unwrap()
+}
+
 fn run(config: &Value, out: &Path) {
     let mode = config["mode"].as_str().unwrap();
     let adapter = if mode.starts_with("engine_") { "engine" } else { "sdk" };
     let is_hybrid = matches!(mode, "engine_hybrid" | "sdk_hybrid");
+    let is_text = mode == "engine_text";
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
     assert!(samples > 0);
     let query = config["query"].as_str().unwrap();
     std::fs::create_dir_all(out).unwrap();
     let store = out.join("store.sqlite");
-    assert!(!store.exists(), "source fixture store must be fresh");
+    if is_text {
+        assert!(store.exists(), "text fixture must be a fresh owned closed-source copy");
+    } else {
+        assert!(!store.exists(), "source fixture store must be fresh");
+    }
     let engine = GAdapter::open(mode, &store);
     let resolution = engine.report().embedder_device_resolution.as_ref().unwrap();
     let device = match &resolution.effective_device {
@@ -149,12 +233,32 @@ fn run(config: &Value, out: &Path) {
     };
     assert_eq!(resolution.selected_cuda_uuid.as_deref(), config["gpu_uuid"].as_str());
     assert_eq!(device.ordinal, 0);
-    let fixture = if is_hybrid { engine.prepare_hybrid(&store) } else { Value::Null };
+    let fixture = if is_hybrid {
+        engine.prepare_hybrid(&store)
+    } else if is_text {
+        engine.inspect_text_fixture(&store)
+    } else {
+        Value::Null
+    };
+    let fixture_ack_ns = if is_text && config["text_fixture_handshake"].as_bool() == Some(true) {
+        text_fixture_ack(resolution.selected_cuda_uuid.as_deref().unwrap())
+    } else {
+        0
+    };
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
     for sample in 0..samples {
-        let row = if is_hybrid {
+        let row = if is_text {
+            let started = std::time::Instant::now();
+            let result = engine.text(query);
+            let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+            let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
+            assert_eq!(ids, ["l:alpha"]);
+            json!({"adapter":adapter,"mode":"direct_text","ok":true,"sample_index":sample,
+                "query_index":0,"elapsed_ns":elapsed_ns,"ids":ids,"returned_hits":result.results.len(),
+                "search_snapshot":null,"snapshot_observation":"unavailable"})
+        } else if is_hybrid {
             let started = std::time::Instant::now();
             let result = engine.hybrid(query);
             let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
@@ -179,17 +283,19 @@ fn run(config: &Value, out: &Path) {
             "sample_index":sample,"query_index":0,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":true,"norm_squared":norm2})
         };
-        recorder.emit("samples", &row);
+        if !is_text {
+            recorder.emit("samples", &row);
+        }
         calls += 1;
     }
     recorder.flush_all();
     let loop_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
     engine.close();
     let proof = json!({"api_calls":calls,
-        "dimension":if is_hybrid {None} else {Some(384)},
-        "finite_nonzero":if is_hybrid {None} else {Some(true)},
-        "fixture":fixture,"fixture_ids":if is_hybrid {json!(["l:alpha","l:beta"])} else {Value::Null},
-        "pooling":if is_hybrid {format!("{adapter} hybrid API with configured mean query embedding")} else {format!("{adapter} mean API")},"selected_cuda_uuid":resolution.selected_cuda_uuid,
+        "dimension":if is_hybrid || is_text {None} else {Some(384)},
+        "finite_nonzero":if is_hybrid || is_text {None} else {Some(true)},
+        "fixture":fixture,"fixture_ack_ns":fixture_ack_ns,"fixture_ids":if is_text {json!(["l:alpha"])} else if is_hybrid {json!(["l:alpha","l:beta"])} else {Value::Null},
+        "pooling":if is_text {format!("{adapter} text-only API; query embedding not requested")} else if is_hybrid {format!("{adapter} hybrid API with configured mean query embedding")} else {format!("{adapter} mean API")},"selected_cuda_uuid":resolution.selected_cuda_uuid,
         "cuda_compiled":resolution.cuda_compiled,"cuda_ordinal":device.ordinal,
         "driver_version":device.driver_version,"cuda_toolkit_version":device.cuda_toolkit_version,
         "cuda_libraries":format!("{:?}",device.cuda_libraries),

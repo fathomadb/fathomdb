@@ -120,56 +120,65 @@ class ObserverTests(unittest.TestCase):
             self.assertEqual(row.get("observer", {}).get("records", []), [])
         engine_ids = set()
         for mode in ["engine_hybrid", "engine_text"]:
-            proof, warm, timed = on[mode]
-            call_ids = []
-            owners = set()
-            previous_dropped = 0
-            for row in [*warm, *timed]:
-                observation = row.get("observer", {})
-                records = observation.get("records", [])
-                self.assertEqual(len(records), 1, "missing correlated GO query record after successful real Core call")
-                record = records[0]
-                self.assertEqual(observation["status"], "observed")
-                self.assertEqual(observation["unpaired_records"], 0)
-                self.assertEqual(observation["capacity"], 32768)
-                self.assertEqual(observation["dropped_before"], previous_dropped)
-                self.assertEqual(observation["dropped_delta"], observation["dropped_after"] - previous_dropped)
-                self.assertEqual(observation["dropped_delta"], 0)
-                previous_dropped = observation["dropped_after"]
-                self.assertGreater(observation["transport_ns"], 0)
-                self.assertEqual((record["event"], record["outcome"], record["error_class"]), ("QueryComplete", "ok", None))
-                self.assertTrue(record["snapshot_available"])
-                self.assertEqual(record["snapshot"]["event"], "SnapshotStamp")
-                self.assertIsNone(record["snapshot_unavailable_reason"])
-                self.assertTrue(record["predicates"]["has_source_dependencies"]["invoked"])
-                self.assertIsInstance(record["worker"], int)
-                self.assertGreater(record["engine_id"], 0)
-                owners.add(record["engine_id"])
-                call_ids.append(record["call_id"])
-            self.assertEqual(len(owners), 1)
-            self.assertTrue(engine_ids.isdisjoint(owners))
-            engine_ids.update(owners)
-            self.assertEqual(call_ids, list(range(1, len(questions) + 2)))
-            self.assertLessEqual(sum(row["elapsed_ns"] for row in [*warm, *timed]), proof["loop_ns"])
+            with self.subTest(mode=mode):
+                proof, warm, timed = on[mode]
+                call_ids = []
+                owners = set()
+                previous_dropped = 0
+                for row in [*warm, *timed]:
+                    observation = row.get("observer", {})
+                    records = observation.get("records", [])
+                    self.assertEqual(len(records), 1, "missing correlated GO query record after successful real Core call")
+                    record = records[0]
+                    self.assertEqual(observation["status"], "observed")
+                    self.assertEqual(observation["unpaired_records"], 0)
+                    self.assertEqual(observation["capacity"], 32768)
+                    self.assertEqual(observation["dropped_before"], previous_dropped)
+                    self.assertEqual(observation["dropped_delta"], observation["dropped_after"] - previous_dropped)
+                    self.assertEqual(observation["dropped_delta"], 0)
+                    previous_dropped = observation["dropped_after"]
+                    self.assertGreater(observation["transport_ns"], 0)
+                    self.assertEqual((record["event"], record["outcome"], record["error_class"]), ("QueryComplete", "ok", None))
+                    self.assertTrue(record["snapshot_available"])
+                    self.assertEqual(record["snapshot"]["event"], "SnapshotStamp")
+                    self.assertIsNone(record["snapshot_unavailable_reason"])
+                    self.assertTrue(record["predicates"]["has_source_dependencies"]["invoked"])
+                    self.assertIsInstance(record["worker"], int)
+                    self.assertGreater(record["engine_id"], 0)
+                    owners.add(record["engine_id"])
+                    call_ids.append(record["call_id"])
+                self.assertEqual(len(owners), 1)
+                self.assertTrue(engine_ids.isdisjoint(owners))
+                engine_ids.update(owners)
+                self.assertEqual(call_ids, list(range(1, len(questions) + 2)))
+                self.assertLessEqual(sum(row["elapsed_ns"] for row in [*warm, *timed]), proof["loop_ns"])
         for populations in [off, on]:
-            for row in [*populations["engine_mean"][1], *populations["engine_mean"][2]]:
-                self.assertEqual(row["observer"]["status"], "not_applicable")
-                self.assertEqual(row["observer"]["records"], [])
-                self.assertEqual(row["observer"]["dropped_delta"], 0)
+            with self.subTest(mode="engine_mean", enabled=populations is on):
+                for row in [*populations["engine_mean"][1], *populations["engine_mean"][2]]:
+                    observation = row.get("observer", {})
+                    self.assertEqual(observation.get("status"), "not_applicable",
+                                     "missing GO mean not-applicable disposition after real mean call")
+                    self.assertEqual(observation["records"], [])
+                    self.assertEqual(observation["dropped_delta"], 0)
         for row in errors:
-            self.assertEqual(len(row.get("observer", {}).get("records", [])), 1,
-                             "missing correlated raw typed-error GO record")
-            record = row["observer"]["records"][0]
-            self.assertEqual((record["outcome"], record["error_class"]), ("error", row["error_class"]))
-            self.assertEqual(row["observer"]["dropped_delta"], 0)
-        invalid, frozen = [row["observer"]["records"][0] for row in errors]
-        self.assertTrue(invalid["snapshot_available"])
-        self.assertFalse(frozen["snapshot_available"])
-        self.assertIsNone(frozen["snapshot"])
-        self.assertEqual(frozen["snapshot_unavailable_reason"], "not_reached")
-        self.assertEqual([invalid["call_id"], frozen["call_id"]], [1, 2])
-        self.assertEqual(invalid["engine_id"], frozen["engine_id"])
-        self.assertNotIn(invalid["engine_id"], engine_ids)
+            with self.subTest(error=row["error_class"]):
+                records = row.get("observer", {}).get("records", [])
+                self.assertEqual(len(records), 1,
+                                 "missing correlated raw typed-error GO record after actual API refusal")
+                record = records[0]
+                self.assertEqual((record["outcome"], record["error_class"]), ("error", row["error_class"]))
+                self.assertEqual(row["observer"]["dropped_delta"], 0)
+                if row["error_class"] == "FrozenRead":
+                    self.assertFalse(record["snapshot_available"])
+                    self.assertIsNone(record["snapshot"])
+                    self.assertEqual(record["snapshot_unavailable_reason"], "not_reached")
+                else:
+                    self.assertTrue(record["snapshot_available"])
+        if all(len(row.get("observer", {}).get("records", [])) == 1 for row in errors):
+            invalid, frozen = [row["observer"]["records"][0] for row in errors]
+            self.assertEqual([invalid["call_id"], frozen["call_id"]], [1, 2])
+            self.assertEqual(invalid["engine_id"], frozen["engine_id"])
+            self.assertNotIn(invalid["engine_id"], engine_ids)
 
     def test_literal_gn_off_on_and_real_typed_error_transport(self):
         self.require_observer(QUESTIONS)

@@ -22,11 +22,11 @@ def convert(data, limit):
                     turns.add(text)
                     bodies.append(text)
     return {
-        "bodies": bodies,
+        "bodies": bodies[:limit],
         "queries": [question["question"] for question in data],
         "sessions": len(sessions),
         "total_unique_turns": len(bodies),
-        "selected_count": len(bodies),
+        "selected_count": len(bodies[:limit]),
     }
 
 

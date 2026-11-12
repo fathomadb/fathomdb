@@ -827,6 +827,48 @@ Both codec suites remain selected by maintained root Python discovery. This is
 small source-only preparation tooling, not actual canonical500 encoding, native
 query forwarding, model/DB/GPU work or a campaign-clock/qualification claim.
 
+## Actual six-mode query forwarding
+
+RED ca57345bd7042dc29fdf2fdaa536f12cdc0140d6 kept the existing repeated-single-query
+behavior in the compile-ready generic single-pass scaffold. The initial literal
+and bounded permutation oracles observed three real fixture series: preparation,
+closed source/hash/copies, independent current-cursor SQL and three successful
+API calls per each of six modes passed, then requested ID/fingerprint order
+failed (two tests/seven assertions in12.741s). This is one shared forwarding
+behavior with six literal subtests and a property, not seven separate pairs.
+
+Minimal GREEN iterates actual ordered query records. The SAME oracle
+2a4fe8d68c680acbeae973fa6be98869c773b8b740741521059af03da7c1eae0 passes2/2 in16.862s
+(literal plus three permutation cases),72actual calls across four tiny series.
+Each API fingerprint comes from the SAME query slice passed to the public API,
+outside its timer. Literal direct-text alpha/beta/no-match IDs, arbitrary ordered
+numeric IDs, hybrid limit10/non-degradation and mean384finite/nonzero controls
+remain independent of learned vector/ranking values. Fixture mode iteration uses
+fresh copies; it is not the remaining same-store campaign pass scheduler.
+
+Shared private timed_text/hybrid/embed wrappers move the existing clocks around
+the same backend functions, retaining option/filter/dispatch timing and excluding
+validation/output. Before RED, all six unchanged legacy mode oracles each passed
+128records/8checkpoints on SDK example23c90a2119ccda94b2df0e167be4425cf377ef073de7daa3a0068645c3b0bf0e;
+its entire g_fixture.rs is byte-identical through GREEN. Only the generic loop
+changed. No legacy schema, P caller/Recorder or oracle change.
+
+Task gd-g-query-feed-controls/red/green-build/green logs and receipts retain actual
+outcomes; pre-runtime proofs/gd-g-query-feed-red/green-identities.json hash the
+shared source, host, manifests/lock, controller/oracle and both artifacts. Normal
+host RED02e833c5e7c96a05e3179f841ce4693ad7c2659f0e91a9371ee3e4de677faa76;
+GREEN5de70051591d0e7ec04769563ebb73476f05f8fe637e9c01eb4b2e136cbc787c.
+Compiler proofs gd-g-host-query-feed-red/green.json retain actual release profile
+and no-TC5/test-hooks/observer closure. Each runtime identity preserves the full
+closure plus actual query-file SHA. Scope wording now accurately states bounded
+Default preparation plus API controls, excluding natural campaign timings and
+per-call GPU attribution. Original earlier identity wording remains historical.
+Both Clippy targets, Ruff and correctly configured Pyright2files/zero diagnostics
+pass in the source controls/GREEN receipts. Maintained manual test-slice30-g-query-feed
+selects the new tool/oracle; final shell/coverage/Markdown/diff checks are recorded
+in gd-g-query-feed-final-checks. Warmups, pass matrix, generic G2, GO/GG, budgets,
+D/controller/pairing and final qualification/campaigns remain outstanding.
+
 ## Generic thin record encoder
 
 RED9ac3adfb4 runs a real successful CLI and parses valid selected string JSONL,

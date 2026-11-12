@@ -35,8 +35,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     };
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
-    for sample_index in 0..queries.len() {
-        let input = &queries[0];
+    for (sample_index, input) in queries.iter().enumerate() {
         let query = input["query"].as_str().unwrap();
         let fingerprint: String =
             Sha256::digest(query.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect();

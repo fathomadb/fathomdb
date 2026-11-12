@@ -205,14 +205,18 @@
         "dev/plans/0.8.29/features/slice-30/prerequisite-change.md",
         "dev/plans/0.8.29/features/slice-30/review-log.md",
         "dev/plans/0.8.29/features/slice-30/execution.md",
-        "dev/plans/0.8.29/features/slice-30/results-p.md"
+        "dev/plans/0.8.29/features/slice-30/results-p.md",
+        "dev/plans/0.8.29/features/slice-30/gd-extension.md",
+        "dev/plans/0.8.29/features/slice-30/gd-test-map.md",
+        "dev/plans/0.8.29/features/slice-30/gd-preregistration.md"
       ],
-      "phase": "P_SUBSET_IMPLEMENTED_QUALIFIED_REVIEW_PASS_WHOLE_SLICE_OPEN",
+      "phase": "P_SUBSET_QUALIFIED_GD_DESIGN_ACCEPTED_BOUNDED_SOURCE_PHASE_AUTHORIZED",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P-only Linux subset is qualified after reviewed closed10/qualified Linux20/current70 entry and owned setup. G/D still require concrete extension design review and parent GO; M remains held on20 A3/A5 proof or owner disposition; F needs the exact frozen TC5 pack/current-candidate proof. Windows20 A6, whole20/30,40/50 source gates and pre90 Block1 remain open.",
-      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
+      "conditions": "P-only Linux subset is qualified. Reviewed G/D design has parent resource admission: conservative A64.5223198GiB+96GiB new setup/build+32GiB retained evidence=192.5223198GiB<=200GiB, with start floors passed. Same30 owner may enter genuine per-behavior TDD after current strict preflight/owned setup; G/D campaigns require qualified frozen source/artifacts/native proofs, fresh implementation review and actual permitted hardware reservation/engagement. Per-family raw16GiB, cell900s/shared4h and all stop rules remain. M20 A3/A5 proof/disposition, F exact frozen TC5, Windows20 A6, whole20/30,40/50 source gates and pre90 Block1 remain open.",
+      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows. Concrete G/D design b83 passed independent Astra-medium review after correcting triple-overlap/pending-witness and same-reader snapshot-race oracles. The shared-example feature clarification separately passed. Parent independently verified clean Markdown-only candidate and conservative aggregate resource admission. G/D source/campaign authorization is prospective under that exact design; no G/D implementation, native qualification or measurement result exists yet.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
-      "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4"
+      "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
+      "gd_design_sha": "b83cddba7c6a3ddb37d77d0576e06767a2e8a7ea"
     },
     {
       "slice": 40,

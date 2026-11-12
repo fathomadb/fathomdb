@@ -36,9 +36,12 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-The same30 owner next prepares a concrete G/D extension design for Astra review;
-this is design work only until parent GO. M20 proof/policy, F frozen-input,
-whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
+The same30 owner now enters the independently reviewed
+[G/D design](../0.8.29/features/slice-30/gd-extension.md) through genuine TDD,
+owned setup and the recorded resource admission. Qualification, fresh independent
+implementation review, frozen artifact identities and actual hardware proof must
+precede the bounded campaigns. This source authority is not G/D completion.
+M20 proof/policy, F frozen-input, whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
 completed70 retain their recorded bounds. Each source owner uses a fresh
 parent-created worktree and own /mnt/data resources.
 

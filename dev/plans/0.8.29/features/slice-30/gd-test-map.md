@@ -10,7 +10,8 @@ No missing import/feature/module/compile or fixture-construction failure is RED.
 The first observer RED has a fixed diagnostic selector, not a requirement applied
 to normal P. After GO, add only a compile-ready engine example
 examples/slice30_gd_diagnostic.rs and empty non-default slice30-measurement marker
-in engine Cargo.toml (plus its explicit example/required-feature declaration).
+in engine Cargo.toml (plus its explicit example declaration; do not require slice30-measurement for
+the shared DN/DO wrapper, and cfg-gate observer API references).
 No observer type/method/implementation exists yet. The wrapper invokes existing349
 Engine open/write/direct-text/close APIs on2literal rows and emits real successful
 API samples. Missing observer.jsonl is read as0records, not a fixture exception.

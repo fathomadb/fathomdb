@@ -351,9 +351,12 @@ approved work from genuinely pending item decisions. Actual0–9 reviews are
 complete. Approved10 preparation and qualified product subsets are recorded in
 the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provide
 current direct-text evidence. P acceptance does not close whole30 or downstream
-source gates. The same30 owner next prepares a concrete G/D extension design
-for independent Astra review before parent source/runtime GO. Product work
-continues through the selected ladder, actual prerequisites and genuine TDD.
+source gates. The same30 owner implements the independently reviewed
+[G/D design](0.8.29/features/slice-30/gd-extension.md) within the recorded resource
+admission. Owned qualification, fresh implementation review, actual hardware
+proof and frozen identities precede bounded G/D campaigns; source authority
+never implies completed measurement. Product work continues through the selected
+ladder, actual prerequisites and genuine TDD.
 Publication remains separately authorized.
 
 ## Immediate next slice

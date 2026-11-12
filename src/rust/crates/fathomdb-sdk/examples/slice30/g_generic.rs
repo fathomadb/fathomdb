@@ -94,32 +94,58 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
     let mut recorder = Recorder::new(out);
     let loop_started = std::time::Instant::now();
     let mut calls = 0;
+    let writing = g2 && config["schedule"] == "write";
+    let mut scheduled_write_calls = 0;
+    let mut scheduled_write_rows = 0;
+    let mut marker_probes = 0;
     let warmup_count = config
         .get("warmups")
         .map(|value| usize::try_from(value.as_u64().unwrap()).unwrap())
         .unwrap_or(0);
     assert!(warmup_count <= queries.len());
     for (sample_index, input) in queries.iter().take(warmup_count).enumerate() {
+        let record_start_ns =
+            writing.then(|| u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         if g2 && sample_index == 0 {
-            first_warmup_record_start_ns =
-                Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+            first_warmup_record_start_ns = record_start_ns
+                .or_else(|| Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap()));
         }
         let mut row = observe(&engine, mode, adapter, sample_index, input, g2.then_some("doc"));
         row["call_index"] = json!(calls);
         calls += 1;
+        if let Some(started) = record_start_ns {
+            row["record_start_ns"] = json!(started);
+            row["record_ready_ns"] =
+                json!(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+        }
         recorder.emit("warmups", &row);
     }
     recorder.flush_all();
     let warmup_calls = calls;
     for (sample_index, input) in queries.iter().enumerate() {
+        let record_start_ns =
+            writing.then(|| u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         if g2 && sample_index == 0 {
-            first_timed_record_start_ns =
-                Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+            first_timed_record_start_ns = record_start_ns
+                .or_else(|| Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap()));
         }
         let mut row = observe(&engine, mode, adapter, sample_index, input, g2.then_some("doc"));
         row["call_index"] = json!(calls);
         calls += 1;
+        if let Some(started) = record_start_ns {
+            row["record_start_ns"] = json!(started);
+            row["record_ready_ns"] =
+                json!(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
+        }
         recorder.emit("samples", &row);
+        let timed_calls = sample_index + 1;
+        if writing && timed_calls.is_multiple_of(10) {
+            let cohort =
+                g_write_schedule::run(&engine, store, timed_calls, &mut recorder, pass_origin);
+            scheduled_write_calls += 1;
+            scheduled_write_rows += cohort.rows;
+            marker_probes += cohort.probes;
+        }
     }
     recorder.flush_all();
     let loop_ns = u64::try_from(loop_started.elapsed().as_nanos()).unwrap();
@@ -138,6 +164,12 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path) {
             "first_warmup_disposition":if warmup_count == 0 { "not_applicable" } else { "observed" },
             "first_timed_record_start_ns":first_timed_record_start_ns});
         proof["throughput_scope"] = json!("warmup and timed API calls plus input identity/validation/serialization/checkpoints; reset/open/close separate");
+    }
+    if writing {
+        proof["schedule"] = json!({"mode":"write","natural_calls":queries.len(),
+            "scheduled_write_calls":scheduled_write_calls,"scheduled_write_rows":scheduled_write_rows,
+            "marker_probes":marker_probes});
+        proof["throughput_scope"] = json!("warmup and timed API calls plus input identity/validation/serialization/checkpoints/scheduled writes/drain/probes/coverage; reset/open/close separate");
     }
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
 }

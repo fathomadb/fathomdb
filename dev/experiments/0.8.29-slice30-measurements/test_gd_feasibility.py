@@ -51,5 +51,48 @@ class TimeProjectionTests(unittest.TestCase):
         self.assertFalse(before["fits"] is False and after["fits"] is True)
 
 
+def storage_cli(peak_bytes, retained_bytes):
+    payload = {"lower_n":100_000,"target_n":300_000,"elapsed_ns":1,
+               "peak_bytes":peak_bytes,"retained_family_bytes":retained_bytes}
+    child = subprocess.run([sys.executable,str(TOOL)],input=json.dumps(payload),
+                           capture_output=True,text=True,timeout=5)
+    if child.returncode != 0:
+        raise AssertionError(child.stderr)
+    return json.loads(child.stdout).get("storage", {})
+
+
+class StorageProjectionTests(unittest.TestCase):
+    def test_18gib_additional_and_existing_1gib_declines_fixed_16gib_family(self):
+        gib = 1024**3
+        result = storage_cli(4*gib,gib)
+        print(json.dumps(result),flush=True)
+        self.assertEqual(result.get("fits"),False)
+        self.assertEqual(result["additional_bytes"],18*gib)
+        self.assertEqual(result["family_bytes"],19*gib)
+        self.assertEqual(result["cap_bytes"],16*gib)
+
+    def test_4point5gib_additional_and_existing_10gib_fits_16gib_family(self):
+        gib = 1024**3
+        result = storage_cli(gib,10*gib)
+        self.assertEqual(result.get("fits"),True)
+        self.assertEqual(result["additional_bytes"],9*gib//2)
+        self.assertEqual(result["family_bytes"],29*gib//2)
+
+    def test_fractional_additional_byte_rounds_up(self):
+        result = storage_cli(1,0)
+        self.assertEqual(result.get("additional_bytes"),5)
+
+    @settings(max_examples=8,deadline=None)
+    @given(retained=st.integers(min_value=0,max_value=20*1024**3),
+           increase=st.integers(min_value=0,max_value=2*1024**3))
+    def test_more_retained_evidence_cannot_improve_storage_eligibility(self, retained, increase):
+        before = storage_cli(1024**3,retained)
+        after = storage_cli(1024**3,retained+increase)
+        self.assertIsInstance(before.get("fits"),bool,"missing storage-feasibility projection")
+        self.assertIsInstance(after.get("fits"),bool)
+        self.assertGreaterEqual(after["family_bytes"],before["family_bytes"])
+        self.assertFalse(before["fits"] is False and after["fits"] is True)
+
+
 if __name__ == "__main__":
     unittest.main()

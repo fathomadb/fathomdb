@@ -121,12 +121,14 @@ impl GAdapter {
         json!({"rows":rows,"vectors":vectors,"pending":pending,"seed_ns":seed_ns,"drain_ns":drain_ns})
     }
 
-    fn hybrid(&self, query: &str) -> fathomdb_engine::SearchResult {
+    fn hybrid(&self, query: &str, limit: usize) -> fathomdb_engine::SearchResult {
         match self {
-            Self::Core(opened) => opened.engine.search_filtered_with_limit(query, None, 2).unwrap(),
+            Self::Core(opened) => {
+                opened.engine.search_filtered_with_limit(query, None, limit).unwrap()
+            }
             Self::Sdk(engine) => {
                 let mut options = fathomdb_sdk::SearchOptions::default();
-                options.limit = 2;
+                options.limit = limit;
                 engine.search(query, options).unwrap()
             }
         }
@@ -347,7 +349,7 @@ pub(super) fn run(config: &Value, out: &Path) {
                 "search_snapshot":null,"snapshot_observation":"unavailable"})
         } else if is_hybrid {
             let started = std::time::Instant::now();
-            let result = engine.hybrid(query);
+            let result = engine.hybrid(query, 2);
             let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
             let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
             let mut ordered = ids.clone();

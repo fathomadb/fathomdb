@@ -25,8 +25,9 @@ pub(super) fn run(config: &Value, out: &Path) {
             matches!(&resolution.effective_device, EffectiveEmbedDevice::Cuda(device) if device.ordinal == 0)
         );
         let query = config["query"].as_str().unwrap();
+        let limit = usize::try_from(config["limit"].as_u64().unwrap()).unwrap();
         let started = std::time::Instant::now();
-        let result = engine.hybrid(query);
+        let result = engine.hybrid(query, limit);
         let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
         let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
         rows.push(json!({"mode":mode,"query":query,"requested_limit":config["limit"],

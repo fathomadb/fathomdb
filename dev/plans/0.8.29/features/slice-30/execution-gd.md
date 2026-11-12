@@ -747,8 +747,9 @@ host driver/toolkit/symlink mutation. The successful build used those same paths
 Task gd-g-shared-controls exited0 with unchanged core-mean128-record and SDK
 read-only20-record oracles (1/1 each); their actual binary hashes, source+delta,
 GPU/accounting and raw output remain in the existing g-mean/g-text proof roots.
-No API timing/checkpoint/output semantics changed. The host is compile scaffolding;
-its new requested-limit behavior and generic populations remain separate units.
+No API timing/checkpoint/output semantics changed. At that checkpoint the host was compile scaffolding;
+at that checkpoint its requested-limit behavior and generic populations were
+still separate outstanding units.
 These are prefix build/control proofs, not final source/lifecycle/campaign
 qualification. Every guarded command retains13roots and original69280403456B.
 Task gd-g-shared-scoped exited0 (both affected Clippy targets/Ruff/Markdown/diff).
@@ -757,6 +758,54 @@ helpers instead, and exited1; it is not changed-file type coverage. Corrected
 project-relative gd-g-shared-type-corrected analyzed both intended builder files,
 zero diagnostics/exit0. Initial rustfmt rejected one extra EOF blank line before
 the successful build; preparation only, not RED.
+
+## Private normal-G retrieval limit
+
+RED43f0545ac6a086bf6c7b3cb5b7e828e3428d71ba ran the fixed G_LIMIT selector through
+real65-row Default-BGE preparation, drain/close/hash and fresh writable copies,
+independent canonical/cursor/mapping/span checks and both successful non-degraded
+Core/SDK hybrid APIs. Only the requested count then failed:2vs10 for both adapters
+(one test/two subtest failures,2.431s). Minimal GREEN forwards the private limit;
+legacy caller explicitly retains2. Same oracle SHA256
+ d15b87c0b3458d2b67b7ce3de27f134a4257b51471c8fd5c539865d7edee6772
+passed1/1 in2.421s, both10distinct literal-fixture-member IDs; no learned ranking.
+Before final freeze, limit parsing moved outside the API interval. Rebuilt host
+and both affected Clippy targets passed; unchanged oracle passed1/1 in2.420s in
+ gd-g-limit-green-v2. Initial GREEN remains retained as its original subject.
+
+Pre-runtime proofs/gd-g-limit-red/green-identities.json hash the new shared source,
+private host/entry, Cargo manifests/lock, builders/controller, oracle and binaries.
+Actual GN binaries: RED7b87ba6ad4bed716752307b49e9a304b30c8878974f2d7a1163d7f685bf7dfcd;
+InitialGREENb240b4e176b553c0ad0e2507b4277c79af44d4358c9cc281754ce00ce82db69f;
+finalGREEN158591c168c40e50751a1ab461e6100a9f5e7c66761df601b714ba44f7344a59.
+Pre-runtime green-v2 identities and immutable compiler proof
+ gd-g-host-limit-green-v2.json bind that final source/artifact. Legacy controls
+remain explicitly bound to9f89867a312936e20f40d026523f7fd7dbc1bbedb923d26f7e63d7b3a890cd9d;
+their entire g_fixture.rs (including both actual legacy callers) is byte-identical
+between initial/final GREEN; only isolated G_LIMIT argument preparation moved.
+Immutable compiler proofs gd-g-host-limit/limit-green.json retain actual normal
+no-TC5/test-hooks/observer closure. Each runtime identity embeds its full closure;
+the common feature-closure copy is only the current builder pointer. New source
+fixture/API elapsed controls are not natural campaign timings or per-call GPU
+attribution; required actual preparation-series engagement/accounting is retained.
+
+Task gd-g-limit-red/green receipts/logs preserve actual assertions/results.
+Scoped Clippy (both artifacts), Ruff and canonical shell lint passed in
+ gd-g-limit-scoped; that command stopped on3missing-import Pyright configuration
+diagnostics. Corrected gd-g-limit-scoped-v2 analyzed3files/zero diagnostics, then
+stopped on source-derived feature-matrix drift for the earlier observer targets.
+The unexecuted-controls receipt separately passed unchanged Core+SDK legacy
+limit2 oracles (128records/8checkpoints,1/1 each), Markdown and diff checks.
+
+Automatic review initially rejected broad canonical matrix regeneration; no write
+occurred. Parent independently confirmed the exact8added-line/two-entry diff and
+explicitly authorized that narrow inventory update. The unchanged canonical
+writer then exited0 in gd-g-limit-matrix; existing extra sets/no removals preserved.
+This registers already-reviewed observer targets, without changing tests, policy
+oracles or native inputs. Final coverage/Markdown/diff recheck is retained as
+ gd-g-limit-final-checks. All original failures remain; no full source/lifecycle/
+campaign qualification. Generic feed/warmups/pass matrix/GO/GG/budgets and D work
+remain outstanding under the reviewed plan.
 
 ## Generic thin record encoder
 

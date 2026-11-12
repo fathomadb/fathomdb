@@ -5,8 +5,11 @@ from pathlib import Path
 task=Path(os.environ['S30_GD_TASK']); label=sys.argv[1] if len(sys.argv)>1 else str(time.time_ns())
 log=task/'logs'/f'gd-bge-template-{label}-compiler.jsonl'
 assert not log.exists()
+environment = dict(os.environ)
+environment.update(CUDA_HOME="/usr/local/cuda-12.6", CUDA_PATH="/usr/local/cuda-12.6")
+environment["PATH"] = "/usr/local/cuda-12.6/bin:" + environment["PATH"]
 with log.open('w') as output:
-    result=subprocess.run(['cargo','build','--locked','--release','-p','fathomdb-sdk','--example','slice30_g_mean','--features','embed-cuda','--message-format=json'],stdout=output)
+    result=subprocess.run(['cargo','build','--locked','--release','-p','fathomdb-sdk','--example','slice30_g_mean','--features','embed-cuda','--message-format=json'],stdout=output,env=environment)
 rows=[json.loads(line) for line in log.read_text().splitlines() if line.strip()]
 for row in rows:
     if row.get('reason')=='compiler-message': print(row['message']['rendered'],end='')

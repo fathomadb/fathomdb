@@ -19,8 +19,23 @@ tc5-benchmark-cuda = [
     "fathomdb-embedder/embed-cuda",
 ]
 
+slice30-g = [
+    "dep:fathomdb-sdk",
+    "dep:fathomdb-query",
+    "dep:rusqlite",
+    "dep:libc",
+    "dep:fathomdb-embedder",
+    "dep:fathomdb-embedder-api",
+    "fathomdb-sdk/embed-cuda",
+]
+slice30-g-observer = ["slice30-g", "fathomdb-engine/slice30-measurement"]
+
 [dependencies]
 fathomdb-engine = { workspace = true }
+fathomdb-sdk = { workspace = true, optional = true }
+fathomdb-query = { workspace = true, optional = true }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint"], optional = true }
+libc = { version = "0.2", optional = true }
 fathomdb-embedder = { workspace = true, optional = true }
 fathomdb-embedder-api = { workspace = true, optional = true }
 serde = { version = "1", features = ["derive"] }
@@ -35,3 +50,8 @@ tempfile = "3"
 name = "fathomdb-tc5-benchmark"
 path = "src/main.rs"
 required-features = ["tc5-benchmark"]
+
+[[bin]]
+name = "slice30-g-measurement"
+path = "src/slice30_g.rs"
+required-features = ["slice30-g"]

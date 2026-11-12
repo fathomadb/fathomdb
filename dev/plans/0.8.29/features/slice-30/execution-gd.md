@@ -725,6 +725,39 @@ original subject. Unchanged read-only oracle b34965184ea57e5ebc0ff028fb9dc356cac
 passes1/1 in -readonly-control on the final binary:20calls/0scheduled writes or
 probes/2checkpoints. No whole-wrapper or unrelated model replay was performed.
 
+## Shared private G caller and host scaffold
+
+The SDK example delegates its unchanged caller/timer/Recorder body to private
+slice30/g_fixture.rs; the separate private slice30-g-measurement binary uses
+that same module. Normal host slice30-g adds only the reviewed existing locked
+SDK/query/rusqlite/libc edges. Default features, the existing TC5 bin/main and
+TC5 protocol are unchanged. No new production API or SDK feature/accessor.
+Task proofs/gd-g-shared-relocation.json verifies exact normalized caller equality
+(module-local paths and private run visibility only), rather than claiming RED.
+
+Task gd-g-shared-build-v2 exited0: SDK example ca72997a11846c0c6bf48762ea41204c24fca55ae167c5daf64221cc2e50b13c;
+private GN host be683c0d8122cee4ee0361b72c4f53d908fb29707b67ace33f506ec9c72afea3.
+Actual host compiler artifacts/profile/features are retained in
+proofs/gd-g-host-scaffold.json: no TC5/test-hooks/observer; engine embed-cuda.
+The first gd-g-shared-build failed101 because its shell omitted nvcc's path;
+this is retained setup/NOT_RED, not a product or measurement RED. Both maintained
+builders now pin the immutable /usr/local/cuda-12.6 compiler environment; no
+host driver/toolkit/symlink mutation. The successful build used those same paths.
+
+Task gd-g-shared-controls exited0 with unchanged core-mean128-record and SDK
+read-only20-record oracles (1/1 each); their actual binary hashes, source+delta,
+GPU/accounting and raw output remain in the existing g-mean/g-text proof roots.
+No API timing/checkpoint/output semantics changed. The host is compile scaffolding;
+its new requested-limit behavior and generic populations remain separate units.
+These are prefix build/control proofs, not final source/lifecycle/campaign
+qualification. Every guarded command retains13roots and original69280403456B.
+Task gd-g-shared-scoped exited0 (both affected Clippy targets/Ruff/Markdown/diff).
+Initial gd-g-shared-type used invalid absolute include paths, analyzed scratch
+helpers instead, and exited1; it is not changed-file type coverage. Corrected
+project-relative gd-g-shared-type-corrected analyzed both intended builder files,
+zero diagnostics/exit0. Initial rustfmt rejected one extra EOF blank line before
+the successful build; preparation only, not RED.
+
 ## Generic thin record encoder
 
 RED9ac3adfb4 runs a real successful CLI and parses valid selected string JSONL,

@@ -12,6 +12,8 @@ def convert(data, limit):
     turns = set()
     bodies = []
     for question in data:
+        if len(question["haystack_session_ids"]) != len(question["haystack_sessions"]):
+            raise ValueError("session ID/session length mismatch")
         for sid, session in zip(question["haystack_session_ids"], question["haystack_sessions"]):
             if sid in sessions:
                 continue

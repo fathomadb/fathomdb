@@ -1,6 +1,7 @@
 """Human-specified Slice30 measurement oracles; no database mocking."""
 
 import unittest
+import os
 import json
 from pathlib import Path
 import sys
@@ -196,6 +197,28 @@ class SummaryTests(unittest.TestCase):
             self.assertEqual(result["cells"][0]["adapters"][0]["statistics"]["successful_latency"]["mean_ms"], 26.5)
             self.assertEqual(result["cells"][0]["match_counts"]["max"], 12)
             self.assertIsNone(result["cells"][0]["adapters"][0]["tracked_distance_ms"])
+
+
+class ManualRunTests(unittest.TestCase):
+    def test_long_cli_requires_manual_opt_in_before_workload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries, cells = [root / name for name in ["corpus.jsonl","queries.jsonl","cells.json"]]
+            corpus.write_text('"alpha"\n"beta"\n')
+            queries.write_text('"alpha"\n')
+            cells.write_text(json.dumps([{"name":"tiny","family":"P1","n":2,
+                "adapters":["engine"],"warmup":0,"samples":1}]))
+            child = root / "recording-child"
+            child.write_text(f"#!{sys.executable}\nimport pathlib,sys\npathlib.Path(sys.argv[2],'result.json').write_text('''{"complete":true}''')\n")
+            child.chmod(0o755)
+            frozen = root / "frozen"
+            freeze(cells,corpus,queries,child,frozen)
+            env = {key:value for key,value in os.environ.items() if key != "AGENT_LONG"}
+            result = subprocess.run([sys.executable,str(Path(__file__).with_name("control.py")),
+                "run",str(frozen)], env=env, capture_output=True,text=True,timeout=10)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("AGENT_LONG=1",result.stderr)
+            self.assertFalse((frozen / "results").exists())
 
 
 if __name__ == "__main__":

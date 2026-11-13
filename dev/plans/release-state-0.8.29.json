@@ -366,7 +366,7 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-100/coverage-matrix.md",
         "dev/plans/0.8.29/features/slice-100/design.md",
@@ -377,8 +377,8 @@
         "dev/plans/0.8.29/features/slice-100/test-plan.md"
       ],
       "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded actual20 evidence/design recheck PASS. Reuse of the existing eight-control execution is accepted with explicitly stated source/configuration inference limits. Active-checkpoint interruption and richer combined crash assertions remain open; no product defect, new test-policy exception or whole100/D28-09 closure was established."
+      "phase": "COVERAGE_AND_BOUNDED_Q1_APPROVED_SOURCE_PREPARATION",
+      "evidence": "Explicit owner approvals recorded at seq-371 (Slice100-only verification exception) and seq-372 (bounded Q1 owned-child scope/local unconfined executor). Independent Astra-medium protocol design PASS at reviewed 03bdd source base; manifest 93c24186320b596c529570fbda8194d24942a9d55b63c711bd805b8404e77c68. No source/runtime/fault qualification or100/D28-09 closure follows. Fresh isolated source preparation, approved-plan reconciliation, source review and actual actor/native-witness/healthy-control readiness precede Q1 execution. G2 uses only reviewed existing-hook cells; actual defects still committed RED/GREEN."
     },
     {
       "slice": 110,
@@ -573,6 +573,20 @@
         "owner_slice": 20,
         "source": "dev/steward/steward-ledger.jsonl seq-370",
         "scope": "Capacity-only creation and attachment of a uniquely owned64GiB scratch disk for the existing Windows VM. Preserve existing disks/data. Compiler/helper/test execution remains held until technical readiness; no authorization for the broader full guest-format/compiler/test sequence is inferred from this answer."
+      },
+      {
+        "id": "TC-8dbbb4b2-bef1-4aa3-bcb0-c31e2251db83",
+        "title": "Approve Slice100-only verification exception (Recommended)",
+        "owner_slice": 100,
+        "source": "dev/steward/steward-ledger.jsonl seq-371",
+        "scope": "Slice100 only: the reviewed new child/operator controls and four existing-hook recovery composition cells may be honest passing-on-arrival coverage commits. Actual accepted-contract defects still require a committed runtime RED followed by separate GREEN. This test-policy exception does not itself authorize Q1 debugger/fault execution."
+      },
+      {
+        "id": "TC-b62dc6aa-7d13-4013-8b0a-505b574d8b75",
+        "title": "Approve this bounded Q1 owned-child scope (Recommended)",
+        "owner_slice": 100,
+        "source": "dev/steward/steward-ledger.jsonl seq-372",
+        "scope": "Select the reviewed Q1 scope for a newly built disposable child on the local unconfined ptrace-capable executor: one healthy release-through control, then one SIGKILL only after that execution has its own qualified active native checkpoint witness. Bounded termination/reaping of only the same registered actors on failure is included. Caps are 120 seconds per case and 64 GiB owned allocation. Missing runtime checks stop UNQUALIFIED. Source review, actor/identity/runtime readiness and parent technical GO remain required. No host/disk/power/VM/GPU fault, external attachment, unrelated process/filesystem cleanup, timed-kill substitute, SQLite/VFS patch or production fault seam is included."
       }
     ],
     "unruled": [

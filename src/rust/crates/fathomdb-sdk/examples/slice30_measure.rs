@@ -765,14 +765,15 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     let configure_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
     let projection_declared = g_projection_declared(&engine);
     let start = std::time::Instant::now();
+    let mut seed_batches = Vec::new();
     for begin in (0..n).step_by(1024) {
-        engine.write(
-            &corpus[begin..n.min(begin + 1024)]
-                .iter()
-                .enumerate()
-                .map(|(offset, body)| node(&format!("s30doc-{}", begin + offset), "doc", body))
-                .collect::<Vec<_>>(),
-        );
+        let writes = corpus[begin..n.min(begin + 1024)]
+            .iter()
+            .enumerate()
+            .map(|(offset, body)| node(&format!("s30doc-{}", begin + offset), "doc", body))
+            .collect::<Vec<_>>();
+        let cursor = engine.write(&writes);
+        seed_batches.push(json!({"rows":writes.len(),"after_write_cursor":cursor}));
     }
     let write_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
     let remaining_ms = 900_000_u64
@@ -814,7 +815,8 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         "requested_provider":provider,"adapter":adapter,"natural_records":before_close["natural_records"],
         "projection_declared":projection_declared,"projection_declared_after_reopen":projection_declared_after_reopen,
         "configure_ns":configure_ns,"drain_ns":drain_ns,"cell_wall_ns":cell_wall_ns,
-        "open_ns":open_ns,"write_ns":write_ns,"close_ns":close_ns,"reopen_ns":reopen_ns,
+        "open_ns":open_ns,"write_ns":write_ns,"seed_batches":seed_batches,
+        "close_ns":close_ns,"reopen_ns":reopen_ns,
         "before_close":before_close,"after_reopen":after_reopen,"lexical_probe":lexical,
         "qualified_dense_fixture":qualified});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();

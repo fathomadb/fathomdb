@@ -156,5 +156,30 @@ class GNormalCliTests(unittest.TestCase):
                                     for fixture in result["fixtures"]))
 
 
+    def test_g_seed_commits_exact_thousand_record_chunks_at_the_real_boundary(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text("".join(json.dumps("gseedlasttoken" if index == 1000 else f"body{index}") + "\n"
+                                      for index in range(1001)))
+            queries.write_text('"gseedlasttoken"\n')
+            config = root / "cell.json"
+            config.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                          "adapter": "sdk", "n": 1001, "corpus": str(corpus),
+                                          "queries": str(queries)}))
+            child = subprocess.run([str(binary), str(config), str(root / "out")],
+                                   text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+            result = json.loads((root / "out" / "result.json").read_text())
+            self.assertEqual([batch["rows"] for batch in result["seed_batches"]], [1000, 1],
+                             "G must commit1000-row governed batches, retaining the final partial batch")
+            self.assertLess(result["seed_batches"][0]["after_write_cursor"],
+                            result["seed_batches"][1]["after_write_cursor"])
+            self.assertEqual(result["natural_records"], 1001)
+            self.assertEqual(result["lexical_probe"]["ids"], ["l:s30doc-1000"])
+            self.assertFalse(result["qualified_dense_fixture"])
+
+
 if __name__ == "__main__":
     unittest.main()

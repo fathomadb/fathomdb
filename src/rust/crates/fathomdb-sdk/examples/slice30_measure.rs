@@ -732,6 +732,10 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     let warmup = number("warmup");
     assert!(samples > 0);
     let observed = config["observe"] == true;
+    let record_first = config
+        .get("record_first_call")
+        .map(|value| value.as_bool().expect("boolean G first-call policy"))
+        .unwrap_or(true);
     let mut recorder = Recorder::new_g(out);
     let mut rows = Vec::new();
     let mut warmups = Vec::new();
@@ -780,7 +784,9 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
                 operation += 1;
                 row
             };
-            first_calls.push(publish("first-calls", "first_call", 0));
+            if record_first {
+                first_calls.push(publish("first-calls", "first_call", 0));
+            }
             for index in 0..warmup {
                 warmups.push(publish("warmups", "warmup", index));
             }
@@ -842,10 +848,11 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
             }));
     let result = json!({"complete":outcomes_ok && attribution_ok,"negative_control":negative,
         "sample_count":rows.len(),"warmup_count":warmups.len(),"first_call_count":first_calls.len(),
+        "record_first_call":record_first,
         "samples":rows,"warmups":warmups,"first_calls":first_calls,
         "observation_batches":traces,"passes":passes,"fixtures":fixtures,
         "raw_persistence":recorder.statistics_since([0;5]),
-        "cache_note":"first-call,readiness and warmup probes precede timed calls; OS caches uncontrolled; collector overhead uncorrected"});
+        "cache_note":"readiness and any configured first-call/warmup probes precede timed calls; OS caches uncontrolled; collector overhead uncorrected"});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result
 }

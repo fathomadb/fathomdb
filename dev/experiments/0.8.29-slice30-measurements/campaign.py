@@ -105,6 +105,7 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
             if execution["pid"] is None:
                 outcome["status"] = "not_run_resource"
                 outcome["reason"] = execution["error"]
+            (attempt / "outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
         outcomes.append(outcome)
         previous[cell["id"]] = outcome
         state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")

@@ -85,6 +85,12 @@ fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
     }
 }
 
+#[cfg(test)]
+fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
+    let _ = route;
+    observe(engine, query, None)
+}
+
 struct Schedule {
     searches: Vec<Value>,
     batches: Vec<Value>,
@@ -701,5 +707,35 @@ mod tests {
         assert_eq!(result["batch_count"], 4);
         assert_eq!(result["marker_probe_count"], 4);
         assert_eq!(result["complete"], true);
+    }
+}
+
+#[cfg(test)]
+mod g_route_tests {
+    use super::*;
+
+    #[test]
+    fn g_routes_reach_the_actual_text_hybrid_and_embed_boundaries() {
+        for adapter in ["engine", "sdk"] {
+            let directory = tempfile::tempdir().unwrap();
+            let engine = Adapter::open(adapter, &directory.path().join("g-routes.sqlite"));
+            engine.write(&[node("alpha", "doc", "alpha needle"), node("beta", "doc", "beta")]);
+            let embedded = observe_g_route(&engine, "embed", "alpha");
+            assert_eq!(
+                embedded["ok"], false,
+                "embed must reach the absent-provider boundary, not return a lexical search"
+            );
+            assert_eq!(embedded["error_kind"], "EmbedderNotConfiguredError");
+            assert_eq!(embedded["route"], "embed");
+            let text = observe_g_route(&engine, "text", "needle");
+            assert_eq!(text["ids"], json!(["l:alpha"]));
+            assert_eq!(text["degradations"], "[]");
+            assert_eq!(text["route"], "text");
+            let hybrid = observe_g_route(&engine, "hybrid", "needle");
+            assert_eq!(hybrid["ids"], json!(["l:alpha"]));
+            assert!(hybrid["degradations"].as_str().unwrap().contains("EmbedderAbsent"));
+            assert_eq!(hybrid["route"], "hybrid");
+            engine.close();
+        }
     }
 }

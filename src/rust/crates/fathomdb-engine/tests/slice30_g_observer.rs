@@ -84,3 +84,82 @@ fn observation_is_owned_bounded_and_transported_to_the_actual_reader() {
     assert!(matches!(a.begin_slice30_observation_for_test(2), Err(EngineError::Closing)));
     b.close().unwrap();
 }
+
+struct FixedVector;
+impl fathomdb_embedder_api::Embedder for FixedVector {
+    fn identity(&self) -> fathomdb_embedder_api::EmbedderIdentity {
+        fathomdb_embedder_api::EmbedderIdentity::new("slice30-observer-unit", "v1", 8)
+    }
+    fn embed(
+        &self,
+        _text: &str,
+    ) -> Result<fathomdb_embedder_api::Vector, fathomdb_embedder_api::EmbedderError> {
+        Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    }
+}
+
+fn seed_dense(path: &std::path::Path) -> Engine {
+    let engine =
+        Engine::open_with_embedder_for_test(path, std::sync::Arc::new(FixedVector)).unwrap().engine;
+    engine
+        .configure_projections(
+            &[fathomdb_engine::ProjectionSpec {
+                name: "doc".into(),
+                roles: [fathomdb_engine::ProjectionRole::Searchable].into_iter().collect(),
+                fts: None,
+                vector: Some(fathomdb_engine::ProjectionVector::default()),
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let rows =
+        [("alpha", "needle alpha"), ("beta", "beta")].map(|(id, body)| PreparedWrite::Node {
+            kind: "doc".into(),
+            body: body.into(),
+            logical_id: Some(id.into()),
+            source_id: SourceId::new("test:slice30-dense-unit").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        });
+    engine.write(&rows).unwrap();
+    engine.drain(5_000).unwrap();
+    assert_eq!(engine.read_embedding_readiness().unwrap().pending_count, 0);
+    engine
+}
+
+#[test]
+fn no_dependency_hybrid_observes_each_actual_guard_once_without_invented_sql() {
+    let directory = tempfile::tempdir().unwrap();
+    let engine = seed_dense(&directory.path().join("dense.sqlite"));
+    let observation = engine.begin_slice30_observation_for_test(128).unwrap();
+    let result = observation.with_operation(100, || engine.search("needle")).unwrap();
+    assert_eq!(result.results[0].id.value, "alpha");
+    let batch = observation.take();
+    let phase =
+        |name| batch.records.iter().filter(|record| record.phase == name).collect::<Vec<_>>();
+    let dependencies = phase("has_source_dependencies");
+    assert_eq!(dependencies.len(), 1, "one actual dependency EXISTS invocation must be observed");
+    assert_eq!(dependencies[0].facts["result"], false);
+    assert_eq!(dependencies[0].facts["sql_executed"], true);
+    let fallback = phase("vector_arm_requires_fallback");
+    assert_eq!(fallback.len(), 1);
+    assert_eq!(fallback[0].facts["result"], false);
+    assert_eq!(
+        fallback[0].facts["sql_executed"], false,
+        "no-dependency early return executes no fallback SQL"
+    );
+    let direct = phase("all_nodes_directly_eligible");
+    assert_eq!(direct.len(), 1);
+    assert_eq!(direct[0].facts["result"], true);
+    assert_eq!(direct[0].facts["sql_executed"], true);
+    assert!(dependencies
+        .iter()
+        .chain(&fallback)
+        .chain(&direct)
+        .all(|record| record.status == "ok" && record.operation_id == 100));
+    assert_eq!(batch.dropped_records, 0);
+    engine.close().unwrap();
+}

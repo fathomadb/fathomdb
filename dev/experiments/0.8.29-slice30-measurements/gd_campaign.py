@@ -121,6 +121,13 @@ def _conditional(cell,root,current,shared_start,work_deadline):
     if (lower is None or lower["status"]!="complete" or current is None
             or not lower.get("cell_elapsed_ns") or not lower["cell"].get("n")):
         raise _CampaignRefusal("lower_observation_unavailable")
+    if cell.get("requires_overlap"):
+        path=Path(lower["attempt"])/"qualification.json"
+        if lower["cell"].get("observer") is not True or not path.exists():
+            raise _CampaignRefusal("lower_overlap_unqualified")
+        qualification=json.loads(path.read_text())
+        if qualification.get("status")!="OBSERVED_OVERLAP" or not qualification.get("witnesses"):
+            raise _CampaignRefusal("lower_overlap_unqualified")
     raw="g_raw" if cell["family"].startswith("G") else "d_raw"
     observed=lower.get("resource_samples") or []
     if not observed or any(raw not in sample for sample in observed) or raw not in current:

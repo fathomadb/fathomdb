@@ -105,6 +105,8 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
             outcome["child_exit"] = execution["child_exit"]
             if execution.get("controller_signal") is not None:
                 outcome["controller_signal"] = execution["controller_signal"]
+            if execution.get("gpu_samples") is not None:
+                outcome["gpu_samples"] = execution["gpu_samples"]
             if execution.get("cpu_samples") is not None:
                 outcome["cpu_samples"] = execution["cpu_samples"]
             if execution.get("resource_samples") is not None:

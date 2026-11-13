@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 from campaign import run_campaign
+from gd_device import _accounting
 from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, aggregate_roots, measure_root, resource_issue, resource_sample, swap_streak
 from gd_feasibility import report as feasibility_report
 from gd_overlap import analyze_native
@@ -36,7 +37,8 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
     def prepare():
         check_clock()
-        reservation.enter_context(_gpu_reservation(cell, resources))
+        nonlocal gpu_before
+        gpu_before = reservation.enter_context(_gpu_reservation(cell, resources, effective_work_deadline, gpu_interval, stop_manifest))
         samples = []
         if resources:
             samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
@@ -78,11 +80,13 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         nonlocal cancelled
         cancelled = cancelled if cancelled is not None else number
 
+    gpu_before = None
     outcomes = []
     for planned in manifest["cells"]:
         now = time.monotonic_ns()
         hard_deadline = min(deadline, now+int(min(manifest["cell_seconds"],900)*1_000_000_000))
         cell_started_ns = None
+        gpu_before = None
         if clock["boot_id"] == boot_id and now < deadline:
             cell_deadlines = clock["cell_deadlines"]
             if planned["id"] not in cell_deadlines:
@@ -100,7 +104,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         def execute(cell, command, config, attempt, observe):
             nonlocal cancelled
             native = dict(cell,campaign_root=str(root)) if cell.get("template_from") else cell
-            result = _run_native(native, command, config, attempt, observe, bounds, resources, resource_interval, swap, load)
+            result = _run_native(native, command, config, attempt, observe, bounds, resources, resource_interval, swap, load, gpu_before, gpu_interval)
             if cell_started_ns is not None:
                 result["cell_started_ns"] = cell_started_ns
             cancelled = result.get("controller_signal")
@@ -137,7 +141,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
 
 @contextmanager
-def _gpu_reservation(cell, resources):
+def _gpu_reservation(cell, resources, work_deadline, interval, on_stop):
     if not cell.get("gpu_reservation"):
         yield
         return
@@ -152,7 +156,28 @@ def _gpu_reservation(cell, resources):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
             raise _CampaignRefusal("gpu_reserved") from error
-        yield
+        if os.environ.get("CUDA_VISIBLE_DEVICES") != gpu or os.environ.get("FATHOMDB_EMBED_DEVICE") != "cuda:0":
+            raise _CampaignRefusal("gpu_environment_unapproved")
+        samples = []
+        with _owned_stop_flags(on_stop) as stopped:
+            while True:
+                if stopped["signal"] is not None:
+                    raise _CampaignRefusal("controller_stopped", {"gpu_samples":samples}, stopped["signal"])
+                if time.monotonic_ns() >= work_deadline:
+                    raise _CampaignRefusal("gpu_idle_deadline", {"gpu_samples":samples})
+                try:
+                    before = _accounting(None, min(work_deadline/1_000_000_000,time.monotonic()+5))
+                except Exception as error:
+                    raise _CampaignRefusal(f"gpu_observation_unavailable: {error}", {"gpu_samples":samples}) from error
+                samples.append(before)
+                if stopped["signal"] is not None:
+                    raise _CampaignRefusal("controller_stopped", {"gpu_samples":samples}, stopped["signal"])
+                if time.monotonic_ns() >= work_deadline:
+                    raise _CampaignRefusal("gpu_idle_deadline", {"gpu_samples":samples})
+                if before["util"] == 0 and before["total_MiB"]-before["used_MiB"] >= 8192:
+                    break
+                time.sleep(max(0,min(max(0.1,interval),(work_deadline-time.monotonic_ns())/1_000_000_000)))
+        yield samples
 
 
 def _cpu_sample(load):
@@ -275,7 +300,7 @@ def _effective_bounds(cell,bounds):
     return effective
 
 
-def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None, load=None):
+def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None, load=None, gpu_before=None, gpu_interval: float = 1):
     native = dict(cell,**_effective_bounds(cell,bounds))
     hard_ns = native["hard_deadline_ns"]
     config.write_text(json.dumps(native, indent=2) + "\n")
@@ -290,6 +315,8 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
     next_probe = time.monotonic()+resource_interval
     cpu_samples = []
     next_cpu_probe = time.monotonic()
+    gpu_samples: list[dict[str,Any]] = [dict(row,phase="before") for row in gpu_before] if gpu_before is not None else []
+    next_gpu_probe = time.monotonic()
     with _owned_stop_flags() as stopped, _owned_subreaper(), (attempt / "child.log").open("wb") as log:
         if stopped["signal"] is not None:
             number = stopped["signal"]
@@ -309,6 +336,14 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
                     break
                 if child.poll() is not None:
                     break
+                if native.get("gpu_reservation") and now >= next_gpu_probe:
+                    try:
+                        sample = _accounting(child.pid,min(work,time.monotonic()+5))
+                        gpu_samples.append(dict(sample,phase="running"))
+                    except Exception as failure:
+                        error = f"gpu_observation_unavailable: {failure}"
+                        break
+                    next_gpu_probe = time.monotonic()+max(0.1,gpu_interval)
                 if native.get("cpu_observation") and now >= next_cpu_probe:
                     try:
                         sample = _cpu_sample(load)
@@ -371,6 +406,17 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
                 samples.append(sample)
             except _CampaignRefusal as refusal:
                 error = error or str(refusal)
+        if native.get("gpu_reservation") and stopped["signal"] is None:
+            try:
+                gpu_samples.append(dict(_accounting(child.pid,min(hard,time.monotonic()+5)),phase="final"))
+            except Exception as failure:
+                error = error or f"gpu_observation_unavailable: {failure}"
+            running=[row for row in gpu_samples if row["phase"]=="running"]
+            modes=native.get("passes",[native.get("mode","")])
+            inference=(native["family"] in {"G_PREPARE","G_TEMPLATE","GG_CELL"}
+                       or any(mode.endswith(("_hybrid","_mean")) for mode in modes))
+            if not any(row["own_MiB"]>0 and (row["util"]>0 or not inference) for row in running):
+                error = error or ("gpu_engagement_unobserved" if inference else "gpu_process_unobserved")
         if native.get("cpu_observation") and stopped["signal"] is None:
             try:
                 sample = _cpu_sample(load)
@@ -388,7 +434,8 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
         return {"exit":128+stop_signal if stop_signal is not None else (124 if error else child.returncode), "error":error,
                 "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup,
                 "resource_samples":samples if resources else None, "controller_signal":stop_signal,
-                "cpu_samples":cpu_samples if native.get("cpu_observation") else None}
+                "cpu_samples":cpu_samples if native.get("cpu_observation") else None,
+                "gpu_samples":gpu_samples if native.get("gpu_reservation") else None}
 
 
 class _CampaignRefusal(Exception):

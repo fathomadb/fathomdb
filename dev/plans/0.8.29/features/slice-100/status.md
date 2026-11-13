@@ -13,10 +13,11 @@ Seq-371 approves the100-only verification exception; seq-372 selects bounded Q1
 on the local unconfined ptrace-capable executor. [Exact decisions](owner-decisions.md),
 [Q1 protocol](q1-protocol.md), [composed oracles](composed-oracles.md) and
 [implementation map](implementation-map.md) are maintained here. The maintained-plan
-Astra recheck passed at c1226d1bf and parent implementation GO is5f8f12071. Source review, actual runtime
-readiness and parent technical GO precede Q1 execution. The approved coverage source is now written; [execution](execution.md) separates
-static controls from outstanding build/G2/native and Q1 qualification.100/D28-09
-stay open.
+Astra recheck passed at c1226d1bf and parent implementation GO is5f8f12071. Independent source rechecks accepted the scoped implementation and G2 results.
+Own build, five G2 cells and actual qualified Q1 healthy execution are complete.
+[Execution](execution.md) preserves their source subjects and original failures.
+The first witnessed interruption stopped UNQUALIFIED in operator exit handling;
+its tool repair and final full verification remain under review.100/D28-09 stay open.
 
 ## Source/evidence identity
 
@@ -68,19 +69,23 @@ establishes an exhaustive interrupted composition or a fresh100 artifact PASS.
 
 ## Material findings and holds
 
-G100-1 OPEN: no inspected control proves abrupt termination inside active native
-checkpoint work. Reviewed metadata confirms candidate native symbols/line tables;
-seq-372 selects the bounded local unconfined owned-child scope, not actual
-runtime viability or reached proof. A fresh own100 child, actor/source/binary/
-relocated-PC/locals/stack readiness and parent technical GO remain. Pre/post/
-BUSY/after-checkpoint receipt crashes keep their exact labels.
+G100-1 OPEN: own100 healthy execution at813054a70 reached relocated
+walCheckpoint69275 under erasure completion with readable eligible pending-frame
+locals, then completed normally0/DONE1 and passed live-file/close/reopen/status/
+no-resurrection assertions. The separately authorized interruption established
+its own witness and issued pidfd SIGKILL, but the operator timed out without an
+exit notification. It remains UNQUALIFIED: no observed fault exit, untouched
+snapshot or observer/retry result exists. This is not product recovery failure.
+Only registered actors were cleaned/reaped. No second real Q1 fault is authorized.
 
-G100-2 OPEN: rich physical/span/history/queue-phase/live-WAL assertions exist separately
-but not all together after each abrupt exit. This is an assertion-composition
-gap, not a demonstrated defect. Seq-371 now approves exactly the reviewed
-coverage-only child/operator and four existing-hook cells; implementation waits
-for the in-checkout recheck and source GO. Seq-369 remains20-only. Actual defects
-still need committed runtime RED then separate GREEN.
+G100-2: independent recheck accepted b59a2eb86's five passing G2 cells: healthy
+and four exact existing-hook exits73, untouched-before-observe copies, complete
+rollback preimages and post-removal/retry/reopen/sink assertions. Rollback has
+valid rich head vector/map/span data; healthy/post-removal retain900000/window1
+stress with pre-stress public scores. Healthy G2 completes/closes but does not
+separately reopen. This supplies the reviewed bounded composition, not every
+possible crash state or whole100 closure. Seq-371 labels coverage honestly;
+seq-369 remains20-only. Actual defects require runtime RED/separate GREEN.
 
 G100-3: existing-control execution inference now matches accepted f803 and
 current03bdd src/lock, pending independent100 review. Canonical serial workspace
@@ -93,13 +98,18 @@ checks. Quiet output omits phase names/PIDs/Rust binary digests. Disclose these
 limits; no automatic binary-hash or broad rerun gate is added. No G100-1/G100-2
 closure, new hard20 dependency or fresh100/native/full PASS follows.
 
-Source entry/preflight, maintained-plan recheck and source GO are complete.
-100 owns the transferred native window; Q1 debugger/inferior/ptrace/SIGKILL still
-require independent source review and parent technical readiness GO. Owned Node25.9.0/npm11.12.1/Markdown0.23.3 support scoped Markdown
-validation only, with npm scripts/browser downloads disabled. No full bootstrap,
-Python wheel/native build/import, product tests, debugger/ptrace/fault/model/GPU/
-VM/DB work ran in this phase. Historical records and scratch packets stay frozen.
-Actual qualification or explicit disposition still precedes100/D28-09 closure.
+Source entry/preflight, plan review, source GO and scoped native qualification
+are complete as recorded above. Own Node25.9.0/npm11.12.1/Markdown0.23.3 and
+Rust1.95.0 use the task-local Cargo cache/target. Existing85 and production API/
+erasure/SQLite/VFS/schema remain unchanged; schema37/no migration is fixed.
+No binary, native module or venv was borrowed. G is unintegrated, not a prerequisite.
+
+The interrupt-only tool repair has real harmless scripted-MI runtime RED17190c0d3
+then minimal GREEN;17tool controls pass, including wrong-SIGTERM refusal. These
+launch no debugger/ptrace/product and cannot establish real debugger exit delivery.
+Original qualified healthy and incomplete interruption remain immutable. Repair
+review, explicit additional real execution scope, own Python/native setup and
+final full verification remain. No further Q1 launch or100/D28-09 closure follows.
 
 ## Historical Phase A checks
 

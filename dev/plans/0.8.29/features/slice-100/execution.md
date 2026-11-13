@@ -71,3 +71,52 @@ g2-fixture-split/. These are Linux scoped coverage results, not full-workspace
 verification, Q1 reachability/healthy/interruption evidence or release closure.
 A checkout-owned Python/native environment and the full gate remain outstanding.
 Q1 launches await the fresh implementation/readiness recheck and parent GO.
+
+## Actual healthy and incomplete interruption
+
+At frozen813054a701852d59efa1105f19cae886995db971, own binary SHA256
+5ef5a99c5038148219fc00df4ff578259997df0ed8991b9863032cd8d305abc4 /
+build-id03abba308bee8b7d4b2d1f36233e08abc9ea5766 used operator/test-hooks.
+After parent technical GO, q1-healthy-813054a70/result.json is QUALIFIED_HEALTHY:
+PID2279327, normal0/DONE1, own walCheckpoint69275 at relocated0x5555566ea6f7
+under erasure completion. rc0/pIter nonnull/nBackfill0<iFrame253<=mxSafeFrame443/
+iDbpage1<=mxPage146/szPage4096/eMode3; completion/live raw checks/close/reopen/
+status/no-resurrection passed. Resource bounds held; adopted cleanup was empty.
+
+The matching separately authorized interruption established its distinct own
+PID2291215/nonce witness with those native predicates and issued pidfd SIGKILL.
+q1-interrupt-813054a70/result.json nevertheless remains UNQUALIFIED: actor/phase
+deadline waiting5s for exit notification. Raw MI ends after witness disassembly;
+the old branch never resumes the stopped debugger. No observed SIGKILL exit,
+untouched snapshot, observer or retry result exists. Bounded cleanup reaped the
+same-launch adopted inferior; recorded actors are gone. This is an operator exit
+handling defect, not product recovery failure. The selected one actual witnessed
+signal has been issued; repair/healthy success grants no second Q1 fault.
+
+Harmless actual scripted-MI subprocess runtime RED17190c0d3 reproduces the
+post-signal deadline with an independent outer safeguard. A prior missing-source
+adapter failure is retained separately, not counted as RED. Minimal interrupt-only
+GREEN adds exec-continue then exact SIGKILL notification under one shared5s exit
+deadline. All17controls pass, including wrong-SIGTERM refusal with no utility
+calls. Native/exit/utility subjects are synthetic; this is not debugger/kernel or
+recovery proof. Original healthy/native fixture/G2 remain unchanged.
+
+[GDB MI execution](https://sourceware.org/gdb/current/onlinedocs/gdb.html/GDB_002fMI-Program-Execution.html)
+describes exec-continue as resuming until a stop, including process end;
+[MI modes](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Asynchronous-and-non_002dstop-modes.html)
+documents mi-async off by default. These semantics and the retained trace support
+the fix; corrected actual exit delivery remains unverified. No longer timeout,
+async/non-stop switch, production validation change or new fault seam is added.
+
+## Bounded continuation — proposed and held
+
+Keep healthy_matches exact equality unchanged. Original healthy evidence stays
+valid for its original subject and is never relabelled. If owner authorizes one
+additional corrected Q1 attempt after independent repair review, recommend one
+fresh healthy followed by one independently witnessed interruption at the new
+frozen source, with the same own binary/SQLite/features/fixture. Use fresh cases,
+exact matching healthy JSON,120s/case,64GiB, jobs1/Tokio2 and current entry/stop
+floors. Only own registered actors; untouched files precede observer/retry.
+No exploratory debugger campaign or automatic retry. Exact final-SHA commands
+will be sent directly to parent; no further execution is presently authorized.
+Own setup and final full verification can proceed while fault scope is pending.

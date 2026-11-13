@@ -21,7 +21,11 @@ It changes no production erasure/API/SQLite/VFS/schema behavior or existing85 fi
   independent outer cleanup safeguard. Committed runtime RED then separate GREEN
   cover pre-MI-registration and pidfd-open failures without a debugger/product.
 - `test_cli_help.py`: actual documented CLI help regression, committed runtime
-  RED then separate GREEN. The complete tool suite has16passing controls.
+  RED then separate GREEN. The initial complete tool suite had16passing controls.
+- `test_interrupt_transition.py`: harmless real scripted-MI subprocess regression
+  for resume-before-exit notification and wrong-SIGTERM refusal. Committed runtime
+  RED/separate GREEN;17total controls pass. Proof/exit/utility subjects are
+  synthetic, with no debugger, ptrace, OS fault or product/recovery proof.
 - `src/rust/crates/fathomdb-engine/tests/slice100_interruption.rs`: ignored Q1
   normal-success child, raw observer/retry and G2 children. Its Linux regular G2
   parent executes one rich healthy control and the four reviewed existing-hook

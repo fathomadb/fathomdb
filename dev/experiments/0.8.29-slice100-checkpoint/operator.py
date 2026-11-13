@@ -602,7 +602,10 @@ def run_case(args) -> dict:
         else:
             # No timeout/earlier-run witness reaches this branch.
             actors.kill_inferior()
-            stop = debugger.stopped(5)
+            # A stopped MI target needs an execution transition to report its pending exit.
+            exit_until = min(debugger.deadline, time.monotonic() + 5)
+            debugger.command("-exec-continue", seconds=exit_until - time.monotonic())
+            stop = debugger.stopped(exit_until - time.monotonic())
             if stop.get("reason") != "exited-signalled" or stop.get("signal-name") != "SIGKILL":
                 raise Unqualified("exact owned SIGKILL not observed")
             result["fault_exit"] = stop

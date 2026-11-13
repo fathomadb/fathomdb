@@ -41,6 +41,32 @@ def build(inputs):
     for repeat in [0,1]:
         add("GG",100000,repeat,f"gg-r{repeat}",artifact="go",family="GG_CELL",
             observer=True,warmups=10,samples=100)
+    def add_d(group,n,workload,repeat,artifact="do",observer=True):
+        suffix=f"-{artifact}-off" if group=="DC" else ""
+        cell={"id":f"d/{group.lower()}-{n}-{workload}-r{repeat}{suffix}","group":group,
+              "n":n,"repeat":repeat,"measurement":True,"artifact":artifact,"observer":observer,
+              "workload":workload,"requires_overlap":observer and workload=="overlap",
+              "cohort":1024,"warmups":10,"samples":100,"readiness":True,
+              "query_source":inputs["queries"],"lower":None}
+        if workload=="held":
+            cell.update(family="D_HELD_FIXTURE",release_mode="explicit")
+        else:
+            cell.update(family="D_QUERY_FIXTURE",empty_start=True,records=[])
+        if group=="D1" and n==100000:
+            cell["lower"]=f"d/d1-10000-{workload}-r0"
+        if group=="D3":
+            cell.update(lower=f"d/d1-100000-{workload}-r0",conditional=True)
+        cells.append(cell)
+
+    d_order=[(10000,"held"),(10000,"overlap"),(100000,"held"),(100000,"overlap")]
+    for repeat,order in [(0,d_order),(1,list(reversed(d_order)))]:
+        for n,workload in order:
+            add_d("D1",n,workload,repeat)
+    for artifact in ["dn","do"]:
+        for workload in ["held","overlap"]:
+            add_d("DC",10000,workload,0,artifact,False)
+    for workload in ["held","overlap"]:
+        add_d("D3",300000,workload,0)
     return {"schema":"slice30-gd/catalog-v1", "campaign_seconds":14400,"cell_seconds":900,
             "artifacts":inputs["artifacts"],"resources":inputs["resources"],"cells":cells}
 

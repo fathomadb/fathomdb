@@ -367,5 +367,37 @@ class ResourceAdmissionCampaignTests(unittest.TestCase):
         self.assertEqual(list((root/"results").glob("*/attempt-*")),[])
 
 
+class ResourceFinalCampaignTests(unittest.TestCase):
+    def check_final_sample(self, rows):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        manifest["cells"][0]["write_records"] = [{"id":f"final-{i}","kind":"doc","body":f"clockwitness actual {i}"} for i in range(rows)]
+        resources = actual_resources()
+        outcome = run_manifest(manifest,root/"results",resources=resources)[0]
+        self.assertEqual(outcome["status"],"complete","real resource-admitted D route NOT_RED")
+        attempt = Path(outcome["attempt"])
+        self.assertEqual(len((attempt/"queries.jsonl").read_text().splitlines()),3)
+        with closing(sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],rows)
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],rows)
+        samples = outcome.get("resource_samples",[])
+        print(f"actual completed child final resource observations={len(samples)} {attempt}",flush=True)
+        self.assertEqual(len(samples),1,"successful native completion omitted its required final resource accounting")
+        self.assertEqual(samples[0]["phase"],"final")
+        self.assertGreaterEqual(samples[0]["time"],(attempt/"complete.json").stat().st_mtime)
+        self.assertEqual([row["path"] for row in samples[0]["roots"]],resources["roots"])
+        self.assertEqual(samples[0]["baseline"],69280403456)
+        self.assertGreaterEqual(samples[0]["memory_available"],8*1024**3)
+        self.assertLess(samples[0]["observed_ns"],json.loads((attempt/"cell.json").read_text())["hard_deadline_ns"])
+
+    def test_native_success_requires_actual_final_resource_observation(self):
+        self.check_final_sample(3)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=1,max_value=3))
+    def test_final_resource_check_follows_actual_written_population(self,rows):
+        self.check_final_sample(rows)
+
+
 if __name__ == "__main__":
     unittest.main()

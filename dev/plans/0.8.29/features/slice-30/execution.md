@@ -968,3 +968,15 @@ aggregate-cap qualification; those controller units remain required.
   toolkit fields, so required R580/primaryCUDA12.6 facts come from separate host
   observations rather than invented provider values. Actual positive qualification
   is still unestablished; frozen entry/sampler/whole-workload integration follows.
+
+### Whole G-W feasibility RED
+
+- `g-runner-whole-write-red` uses a literal coherent cost table, not measured
+  timing evidence: seed350s becomes700s at2x, but required warmups/natural calls
+  already add300s before writes/readiness/point+FTS probes. Seed-only policy
+  launches an actual harmless forbidden child; the literal marker assertion
+  fails. Exit 1, one runtime failure, no resource stop.
+- `g-runner-whole-write-fit-red` has three runtime failures, also freezing actual
+  cohort/replacement counts, remaining shared time, raw-growth headroom and
+  missing-cost refusal. These control tables do not alter or substitute any
+  real observation/evidence. All earlier assertions remain unchanged.

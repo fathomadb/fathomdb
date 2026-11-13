@@ -1,6 +1,7 @@
 """Tiny real manifest/controller/native D integration; not campaign qualification."""
 
 import hashlib
+import fcntl
 from contextlib import closing
 import json
 import os
@@ -1015,6 +1016,38 @@ class CpuObservationTests(unittest.TestCase):
         outcome = run_manifest(manifest, root/"unavailable", load=unavailable)[0]
         self.assertIsNone(outcome["pid"], "unavailable CPU baseline still launched actual native work")
         self.assertTrue(outcome["reason"].startswith("cpu_load_unavailable"))
+
+
+class GpuReservationTests(unittest.TestCase):
+    def check_locked(self, observer):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        manifest["cells"][0]["observer"] = observer
+        healthy = run_manifest(manifest, root/"healthy")[0]
+        self.assertEqual(healthy["status"], "complete", "real native control NOT_RED")
+        self.assertTrue((Path(healthy["attempt"])/"query.sqlite").exists())
+        gpu = "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"
+        manifest["cells"][0].update(gpu_reservation=True, gpu_uuid=gpu)
+        locks = Path(os.environ["S30_GD_TASK"])/"locks"
+        locks.mkdir(exist_ok=True)
+        prepared = []
+        with (locks/(gpu+".lock")).open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            outcome = run_manifest(manifest, root/"reserved",
+                                   before=lambda: prepared.append(True))[0]
+        self.assertIsNone(outcome["pid"], "reserved approved GPU still permitted actual native launch")
+        self.assertEqual((outcome["status"], outcome["reason"]),
+                         ("not_run_resource", "gpu_reserved"))
+        self.assertEqual(prepared, [], "GPU reservation refusal occurred after preparation")
+        self.assertEqual(list((root/"reserved").glob("*/attempt-*")), [])
+
+    def test_existing_owner_lock_refuses_native_and_preparation(self):
+        self.check_locked(False)
+
+    @settings(max_examples=2, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.booleans())
+    def test_observer_identity_cannot_bypass_same_gpu_reservation(self, observer):
+        self.check_locked(observer)
 
 
 if __name__ == "__main__":

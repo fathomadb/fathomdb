@@ -24,11 +24,15 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
     g_template::run(config, out);
     let source = out.join("case-0/template.sqlite");
-    let original = Sha256::digest(std::fs::read(&source).unwrap());
+    from_template(config, out, &source, observer);
+}
+
+pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer: CoreObserver) {
+    let original = Sha256::digest(std::fs::read(source).unwrap());
     let directory = out.join("time");
     std::fs::create_dir(&directory).unwrap();
     let store = directory.join("store.sqlite");
-    std::fs::copy(&source, &store).unwrap();
+    std::fs::copy(source, &store).unwrap();
     assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
     let adapter = GAdapter::open("engine_hybrid", &store);
     let report = adapter.report();
@@ -78,7 +82,7 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
         );
     }
     adapter.close();
-    assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
+    assert_eq!(Sha256::digest(std::fs::read(source).unwrap()), original);
     let proof = json!({"controls":controls,"baseline_coverage":baseline,"after_coverage":after,
         "governed_write_calls":1,"write_rows":1,"write_cursor":receipt.cursor,"write_ns":write_ns,
         "drain_ns":drain_ns,"pending":pending,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,

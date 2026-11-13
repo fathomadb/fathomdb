@@ -166,11 +166,15 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
     g_template::run(config, out);
     let source = out.join("case-0/template.sqlite");
-    let original = Sha256::digest(std::fs::read(&source).unwrap());
+    from_template(config, out, &source, observer);
+}
+
+pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer: CoreObserver) {
+    let original = Sha256::digest(std::fs::read(source).unwrap());
     let directory = out.join("governed");
     std::fs::create_dir(&directory).unwrap();
     let store = directory.join("store.sqlite");
-    std::fs::copy(&source, &store).unwrap();
+    std::fs::copy(source, &store).unwrap();
     assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
     let adapter = GAdapter::open("engine_hybrid", &store);
     let report = adapter.report();
@@ -257,7 +261,7 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
         observer,
     );
     adapter.close();
-    assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
+    assert_eq!(Sha256::digest(std::fs::read(source).unwrap()), original);
     let proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
         "governed_write_calls":1,"write_rows":2,"dependency_registrations":1,"transitions":1,"pending":pending,
         "write_ns":write_ns,"register_ns":register_ns,"valid_drain_ns":valid_drain_ns,"transition_ns":transition_ns,"deleted_drain_ns":deleted_drain_ns,

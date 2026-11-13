@@ -4,8 +4,9 @@ These are release-local measurement requirements, not new canonical ACs.
 
 The accepted P subset is preserved. The [G/D continuation](continuation-gd.md) reviews actual
 20/60/70 predecessors and release requirements/AC, refines G/D input/observer/
-TDD contracts and stages G first. It is a design candidate, not source or run GO;
-all unqualified cells and downstream holds remain required.
+TDD contracts and stages G first. Independent design/actual20-fit PASS and parent
+G source GO now authorize the owned source unit recorded in execution.md; G
+campaign/D source remain separate. All unqualified cells/downstream holds remain.
 
 | ID | Requirement and reason | Acceptance |
 | --- | --- | --- |
@@ -16,7 +17,7 @@ all unqualified cells and downstream holds remain required.
 | R30-5 | Preserve current counters/hoists and provider/queue contracts. Missing observer data cannot become zero-cost evidence or a new optimization. | A30-4 |
 | R30-6 | Keep each measurement tool committed/indexed, configurable and rerunnable; test counts/math/schedule/fresh-store/resume, interrupted raw-prefix preservation and actual real-DB routes. | A30-5 |
 | R30-7 | Own all mutable resources under/mnt/data; bound process/storage/memory/time and record native/source identities, errors and outliers. | A30-6 |
-| R30-8 | Distinguish authorized P, staged G/D, held M/F and Windows20 cells; partial Linux evidence never closes20/30/Block1 or clears downstream source gates. | A30-7 |
+| R30-8 | Distinguish accepted P, authorized G source, separately gated G campaign/D source, held M/F and Windows20 cells; partial Linux evidence never closes20/30/Block1 or clears downstream source gates. | A30-7 |
 | R30-9 | Preserve accepted AC075 TC5 frozen bridge separately from relevance and latency:7667 real docs/100queries/K192/top10/exact-f32 truth, CI-high>=0.90. | A30-7 |
 
 [REQ-010/011](../../../../requirements.md#performance-req-009req-018) provide

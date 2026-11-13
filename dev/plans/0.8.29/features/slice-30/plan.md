@@ -15,15 +15,18 @@ preflight/ownership/resources and received explicit P-only source GO. Actual
 clean2fd772558e46d0b1645dce2ffea730d0bdd3305c now supplies the16executed P cells
 and [measured results](results-p.md). Local qualification is assembled; fresh final Astra results PASS at
 0d8be5bb and parent acceptance2381de882 qualify only P. The
-[G/D continuation](continuation-gd.md) is the next bounded design candidate, with exact
-observer ownership/interface/TDD and separate D source gates. Whole20/30,
-G/D source, M/F,40/50 source and pre90 Block1 remain open.
+[G/D continuation](continuation-gd.md) passed independent FIX1 and actual20-fit
+review; parent authorized the isolated G source entry at03bdd0eb. Current G
+source/TDD evidence is in [execution](execution.md). G campaign and D source remain
+separately gated; whole20/30, M/F,40/50 source and pre90 Block1 remain open.
 
 Historical PhaseA inspected c0c94b4203ffeb9e573efcc14e8b10df653318c5 and proposed
 this cut before source execution. It already included qualified Linux20 repairs
 657edeb76caaf9c8d2aab433766bec9362e73217,60subset
 5271c1bf022f0ea22f95f7433e226feb2315043e and complete70
-e875f36042f89c1d84756f78135db0e8926c1ed4. Later20 updates were docs-only.
+e875f36042f89c1d84756f78135db0e8926c1ed4. Later20 updates before P entry were docs-only. Actual20 A3/A5 verification and
+capacity subset subsequently passed final Astra review and integrated atf803a964;
+G entry reconciled those real source/test changes without reopening accepted P.
 Predecessor evidence retains its original subjects; current30 uses owned tools,
 installed/native proofs and current source, not borrowed runtime evidence.
 

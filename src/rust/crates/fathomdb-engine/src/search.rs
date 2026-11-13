@@ -2218,11 +2218,20 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         Vec::new()
     };
     let vector_rows_visible = !vector_results.is_empty();
-    let soft_fallback = if vector_eligibility_degraded {
-        Some(SoftFallback { branch: SoftFallbackBranch::Vector })
-    } else if query_vector.is_some() && !vector_rows_visible {
-        tx.query_row(
-            "SELECT 1
+    let soft_fallback = {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let observation = crate::slice30_observer::span("source_fallback_selection");
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let mut probe_attempted = false;
+        let selected = if vector_eligibility_degraded {
+            Some(SoftFallback { branch: SoftFallbackBranch::Vector })
+        } else if query_vector.is_some() && !vector_rows_visible {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            {
+                probe_attempted = true;
+            }
+            tx.query_row(
+                "SELECT 1
              FROM search_index
              JOIN _fathomdb_vector_kinds ON _fathomdb_vector_kinds.kind = search_index.kind
              LEFT JOIN _fathomdb_projection_terminal
@@ -2230,12 +2239,19 @@ fn read_search_in_tx<C: SearchOriginCapture>(
              WHERE search_index MATCH ?1
               AND _fathomdb_projection_terminal.write_cursor IS NULL
              LIMIT 1",
-            [compiled.match_expression.as_str()],
-            |_row| Ok(SoftFallback { branch: SoftFallbackBranch::Vector }),
-        )
-        .optional()?
-    } else {
-        None
+                [compiled.match_expression.as_str()],
+                |_row| Ok(SoftFallback { branch: SoftFallbackBranch::Vector }),
+            )
+            .optional()?
+        } else {
+            None
+        };
+        #[cfg(any(test, feature = "slice30-observer"))]
+        observation.boolean_result(
+            &Ok::<bool, rusqlite::Error>(vector_eligibility_degraded),
+            probe_attempted,
+        );
+        selected
     };
     // Collect the text branch (ranked by `write_cursor`, as 0.7.2), then
     // post-filter it against the same metadata the vector branch was pruned by

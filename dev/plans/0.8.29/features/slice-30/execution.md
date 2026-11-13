@@ -195,7 +195,7 @@ No sibling runtime/target was borrowed; no model/GPU/dataset/P measurement ran.
 | --- | --- | --- |
 | G-T1 current engine/SDK routes | e48599fb9:1 real-store test, embed expected absent-provider failure but missing route returned lexical ok=true;0pass/1fail/0ignored |6284a91a2: unchanged test passes both adapters' text/hybrid/embed boundaries; no successful model/GPU claim. |
 | G-T2 negative fixture reporting |a5a6d8ff6: natural_records Null vs2. First implementation then exposed an invalid node-pending oracle (actual0) because None-provider node declarations remain inert. Both original failures remain. | Same Astra approved fixture-only patch3efe80c4: retain every expected value, add two body-bearing control edges alongside two natural nodes. af6f05ad7 is actual corrected-fixture RED on original compiling observer: Null vs2. ed84572f5 GREEN passes1 unchanged test for both adapters, pending2/blocked and normal reopen; negative control only. |
-| G-T3 bounded engine/operation owner |cc84899de:1 real-store test,0pass/1fail/0ignored, actual engine A API interval missing | Current GREEN candidate passes the unchanged ownership/reader/bound/drop/unwind/close oracle1/1. SDK forwarding is a private compile surface; normal CLI integration/feature consumers remain separately required. |
+| G-T3 bounded engine/operation owner |cc84899de:1 real-store test,0pass/1fail/0ignored, actual engine A API interval missing | Current GREEN candidate passes the unchanged ownership/reader/bound/drop/top-level-unwind/close oracle1/1. Nested with_operation restoration is not yet runtime-proved. SDK forwarding is a private compile surface; its actual SDK observer call, normal CLI integration and feature consumers remain separately required. |
 
 Raw commands/exits/logs and monitored resources are in task logs/receipts using
 `g-t1-*`, `g-t2-*`, `g-t2-corrected-*` and `g-t3-*`. Initial source assertions were
@@ -206,3 +206,29 @@ New observer module was classified before fast module-boundary PASS125modules,
 20governed/104configurations. Scoped lint and later phase work remain explicit;
 final stable full verification, actual native-child proof and fresh distinct
 Astra implementation/results review are not yet complete.
+
+Fresh independent G implementation preaudit through8cbd99582 found no concrete
+production regression and confirmed actual T1–T4 runtime attribution. It corrected
+the evidence limit: the current test exercises top-level unwind restoration, not
+nested with_operation restoration. Earlier commit/progress shorthand claiming
+nested proof was too broad; it is not rewritten as a completed proof. SDK observer
+forwarding is structural only so far. Both actual runtime obligations remain in
+the planned G CLI integration unit, with genuine missing-tool RED before GREEN;
+no already-correct observer behavior is broken to create RED. T1/T2 test helpers
+are negative/no-model controls, not complete G CLI/campaign or positive GPU proof.
+
+G-T3 GREEN committed99aacfc85. G-T4 runtime RED8ed21b761 failed missing actual
+dependency observation0vs1; GREEN8cbd99582 passes ownership/guard2/2 with exact
+call/SQL distinction and no duplicate query. Its first implementation had a
+missing facts initializer compiler error, retained separately and never RED.
+G-T5 REDd78ae7e85 failed absent skipped-guard record; GREENd115eeeff passes3/3
+with original short-circuit operand order/evaluation once and explicit not_run.
+G-T6 REDa1bcbf2a8 failed missing actual fallback-selection interval after public
+source/dependency checks; current GREEN passes4/4, observing the expected
+source-window fallback decision and derived membership at explicit T-1/T.
+The source must be eligible during provenance admission, so T is a safely future
+boundary rather than an already-expired1970 fixture; no sleeps/host-clock changes
+or raw closure rows. These8d deterministic provider controls establish observer
+logic only, never BGE/positive GPU/campaign or relevance/fidelity qualification.
+Their exact monitored logs/receipts use `g-t4-*`, `g-t5-*`, `g-t6-*` under the same
+owned task. Nested and SDK observer runtime proof remain outstanding as above.

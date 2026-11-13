@@ -208,6 +208,24 @@ class PartialGResultTests(source._NativeGFixture):
         self.assertTrue(group["issues"])
 
 
+class GpuEnvironmentResultTests(source._NativeGFixture):
+    check_accounting=source.GpuAccountingTests.check_accounting
+
+    def test_actual_cuda_preparation_accounting_survives_result_projection(self):
+        manifest,root,outcome=self.check_accounting("result GPU é")
+        report=summarize(manifest,root)
+        group=report["cells"][0]
+        self.assertEqual(group["kind"],"preparation")
+        self.assertEqual(group["status"],"complete")
+        context=group.get("environment",{})
+        print(f"actual GPU result context {root} keys={list(context)}",flush=True)
+        self.assertEqual(context.get("gpu_samples"),outcome["gpu_samples"],"result omitted actual required CUDA accounting")
+        self.assertTrue(context["gpu_requested"])
+        self.assertFalse(context["cpu_requested"])
+        self.assertIsNone(context["cpu_samples"])
+        self.assertIsNone(context["cpu_noisy"])
+
+
 class ObserverDeltaTests(unittest.TestCase):
     def test_report_uses_deltas_instead_of_summing_lifetime_counters(self):
         calls=[{"observer":{"records_available":True,"status":"observed","records":[{}],

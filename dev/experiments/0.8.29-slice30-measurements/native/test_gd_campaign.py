@@ -998,6 +998,7 @@ class CpuObservationTests(unittest.TestCase):
             self.assertTrue(all(row["includes_intentional_worker_load"] is True for row in samples))
             self.assertTrue(all(row["above_noisy_threshold"] is (runtime_load > 2.5) for row in samples))
         self.assertTrue(outcome["cleanup"]["complete"])
+        return manifest,root/"observed",outcome
 
     def test_actual_worker_load_is_sampled_without_relabeling_external_baseline(self):
         self.check_observation(3.0)
@@ -1018,6 +1019,46 @@ class CpuObservationTests(unittest.TestCase):
         outcome = run_manifest(manifest, root/"unavailable", load=unavailable)[0]
         self.assertIsNone(outcome["pid"], "unavailable CPU baseline still launched actual native work")
         self.assertTrue(outcome["reason"].startswith("cpu_load_unavailable"))
+
+
+class CpuEnvironmentResultTests(unittest.TestCase):
+    check_observation=CpuObservationTests.check_observation
+
+    def check_report(self,value):
+        from gd_results import summarize
+        manifest,root,outcome=self.check_observation(value)
+        report=summarize(manifest,root)
+        group=report["cells"][0]
+        context=group.get("environment",{})
+        print(f"actual CPU result context {root} keys={list(context)}",flush=True)
+        self.assertEqual(context.get("cpu_samples"),outcome["cpu_samples"],"result omitted observed runtime CPU context")
+        self.assertEqual(context["before"],outcome["environment_before"])
+        self.assertEqual(context["cpu_noisy"],value>2.5)
+        self.assertTrue(context["cpu_requested"])
+        self.assertFalse(context["gpu_requested"])
+        self.assertIsNone(context["gpu_samples"])
+        self.assertEqual(group["status"],"complete")
+
+    def test_actual_native_context_keeps_baseline_and_intentional_load(self):
+        self.check_report(3.0)
+
+    @settings(max_examples=2,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.sampled_from([2.0,2.5,2.51]))
+    def test_noise_threshold_labels_without_removing_raw_samples(self,value):
+        self.check_report(value)
+
+    def test_not_requested_accounting_stays_unknown(self):
+        from gd_results import summarize
+        root,_,manifest=clock_fixture()
+        manifest["cells"]=manifest["cells"][:1]
+        outcome=run_manifest(manifest,root/"plain")[0]
+        self.assertEqual(outcome["status"],"complete","actual plain DB work control NOT_RED")
+        self.assertEqual(len((Path(outcome["attempt"])/"queries.jsonl").read_text().splitlines()),3)
+        context=summarize(manifest,root/"plain")["cells"][0].get("environment",{})
+        self.assertIn("cpu_noisy",context,"result omitted unknown accounting disposition")
+        self.assertIsNone(context["cpu_noisy"])
+        self.assertIsNone(context["cpu_samples"])
+        self.assertIsNone(context["gpu_samples"])
 
 
 class GpuReservationTests(unittest.TestCase):

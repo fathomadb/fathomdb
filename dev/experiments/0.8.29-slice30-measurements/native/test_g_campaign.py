@@ -621,6 +621,7 @@ class GpuAccountingTests(_NativeGFixture):
         self.assertTrue(outcome["cleanup"]["complete"])
         resumed=run_manifest(manifest,root/"results",resources=self.resources,gpu_interval=0.1)
         self.assertEqual(resumed[0]["attempt"],outcome["attempt"])
+        return manifest,root/"results",outcome
 
     def test_controller_retains_real_reserved_cuda_series_accounting(self):
         self.check_accounting("évidence")

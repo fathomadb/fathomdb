@@ -505,5 +505,35 @@ class ControllerCancellationTests(unittest.TestCase):
         self.check_stop(signal.SIGINT)
 
 
+class AttemptHistoryTests(unittest.TestCase):
+    def check_history(self,samples):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        healthy = run_manifest(manifest,root/"healthy")[0]
+        self.assertEqual(healthy["status"],"complete","ordinary actual route NOT_RED")
+        manifest["cells"][0]["samples"] = samples
+        manifest["cell_seconds"] = 30.02
+        first = run_manifest(manifest,root/"results")[0]
+        second = run_manifest(manifest,root/"results")[0]
+        self.assertEqual([first["status"],second["status"]],["failed","failed"],"actual bounded failure controls NOT_RED")
+        self.assertNotEqual(first["attempt"],second["attempt"])
+        self.assertTrue(first["cleanup"]["complete"] and second["cleanup"]["complete"])
+        archives = []
+        for outcome in [first,second]:
+            path = Path(outcome["attempt"])/"outcome.json"
+            archives.append(json.loads(path.read_text()) if path.exists() else None)
+        print(f"actual retry archives present={sum(row is not None for row in archives)} {root}",flush=True)
+        self.assertEqual(archives,[first,second],"retry lost the prior actual failed outcome")
+        self.assertEqual(json.loads((root/"results/campaign-state.json").read_text()),[second])
+
+    def test_real_retry_retains_each_distinct_failed_attempt(self):
+        self.check_history(3000)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=2000,max_value=3000))
+    def test_actual_failure_results_survive_latest_state_replacement(self,samples):
+        self.check_history(samples)
+
+
 if __name__ == "__main__":
     unittest.main()

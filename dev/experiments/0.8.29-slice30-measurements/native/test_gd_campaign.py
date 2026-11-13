@@ -1096,6 +1096,55 @@ class CompletionAdmissionTests(unittest.TestCase):
     def test_each_original_bound_prevents_new_validation(self,key): self.check_admission(key)
 
 
+class CompletionRunningTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        root,_,manifest=clock_fixture()
+        manifest["cells"]=manifest["cells"][:1]
+        outcome=run_manifest(manifest,root/"healthy")[0]
+        assert outcome["status"]=="complete","actual native completion control NOT_RED"
+        cls.root=root
+        cls.store=Path(outcome["attempt"])/"query.sqlite"
+        cls.script=root/"validation-work.py"
+        cls.script.write_text("import sqlite3,sys,time,os,signal\nfrom pathlib import Path\nwith sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True) as db:\n assert db.execute('SELECT count(*) FROM canonical_nodes').fetchone()[0]==1\nroot=Path(sys.argv[2]);(root/'read').write_text(str(os.getpid()))\nif sys.argv[4]=='signal': os.kill(os.getppid(),signal.SIGTERM)\nend=time.monotonic_ns()+int(sys.argv[3])\nwhile time.monotonic_ns()<end: pass\n(root/'done').write_text('verified')\n")
+
+    def check_running(self,mode,work_ms):
+        from gd_campaign import _owned_stop_flags,_run_completion
+        root=Path(tempfile.mkdtemp(prefix="validator-running-",dir=self.root))
+        future=time.monotonic_ns()+3_000_000_000
+        bounds={"work_deadline_ns":future,"hard_deadline_ns":future+30_000_000_000,"shared_deadline_ns":future+30_000_000_000}
+        healthy=root/"healthy";healthy.mkdir()
+        result=_run_completion([sys.executable,str(self.script),str(self.store),str(healthy),"0","plain"],healthy,bounds,{"signal":None})
+        self.assertTrue(result["complete"] and (healthy/"read").exists() and (healthy/"done").exists(),"actual SQL validation control NOT_RED")
+        attempt=root/"running";attempt.mkdir()
+        bounds["work_deadline_ns"]=time.monotonic_ns()+work_ms*1_000_000 if mode=="deadline" else time.monotonic_ns()+3_000_000_000
+        bounds["hard_deadline_ns"]=bounds["work_deadline_ns"]+30_000_000_000
+        bounds["shared_deadline_ns"]=bounds["hard_deadline_ns"]
+        calls=[]
+        def monitor(pid):
+            calls.append(pid)
+            return "controlled validator resource refusal" if (attempt/"read").exists() else None
+        with _owned_stop_flags() as stopped:
+            result=_run_completion([sys.executable,str(self.script),str(self.store),str(attempt),"700000000","signal" if mode=="signal" else "plain"],attempt,bounds,stopped,monitor=monitor if mode=="resource" else None)
+        self.assertTrue((attempt/"read").exists(),"actual SQL work not reached NOT_RED")
+        self.assertEqual(int((attempt/"read").read_text()),result["pid"])
+        if mode=="signal": self.assertEqual(stopped["signal"],signal.SIGTERM)
+        print(f"actual running validator {attempt} mode={mode} complete={result['complete']} done={(attempt/'done').exists()} monitors={len(calls)}",flush=True)
+        with self.subTest(contract="no late success"):
+            self.assertFalse(result["complete"],"running validator ignored its original deadline/stop/resource refusal")
+        with self.subTest(contract="bounded work"):
+            self.assertFalse((attempt/"done").exists(),"validator work continued past its original bound or stop")
+        self.assertTrue(result["cleanup"]["complete"])
+        with self.assertRaises(ProcessLookupError): os.kill(result["pid"],0)
+
+    def test_running_validator_stops_at_original_work_endpoint(self): self.check_running("deadline",200)
+    def test_controller_stop_reaps_only_owned_validator(self): self.check_running("signal",200)
+    def test_running_validator_honors_resource_monitor(self): self.check_running("resource",200)
+    @settings(max_examples=2,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.integers(min_value=150,max_value=250))
+    def test_original_short_window_is_never_renewed_for_validation(self,work_ms): self.check_running("deadline",work_ms)
+
+
 class GpuReservationTests(unittest.TestCase):
     def check_locked(self, observer):
         root, _, manifest = clock_fixture()

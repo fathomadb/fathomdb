@@ -300,7 +300,7 @@ def _effective_bounds(cell,bounds):
     return effective
 
 
-def _run_completion(command,attempt,bounds,stopped):
+def _run_completion(command,attempt,bounds,stopped,monitor=None):
     """Run the actual validator command and retain its processing outcome."""
     started=time.monotonic_ns()
     def refusal():

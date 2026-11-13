@@ -3,10 +3,16 @@
 #[path = "../../fathomdb-sdk/examples/slice30/g_fixture.rs"]
 mod g_fixture;
 
+#[path = "../../fathomdb-engine/examples/slice30/budget_clock.rs"]
+mod budget_clock;
+
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     assert_eq!(args.len(), 3, "usage: slice30-g-measurement cell.json owned-output");
     let config = serde_json::from_slice(&std::fs::read(&args[1]).unwrap()).unwrap();
+    if budget_clock::phase(&config, std::path::Path::new(&args[2]), "entry").is_err() {
+        return;
+    }
     #[cfg(feature = "slice30-g-observer")]
     let observer: Option<g_fixture::CoreObserver> = Some((
         fathomdb_engine::Engine::slice30_observe_queries_for_test,

@@ -21,10 +21,10 @@ fact fixture remains NOT_RED. Controlled fixtures are not the100k campaign.
 
 ## Remaining implementation
 
-- Native execution budgets: complete G/held/preparation phase integration and
-  owned-controller cancellation. Ordinary D now enforces actual absolute entry/
-  phase limits and remaining-budget drains; source defaults retain5s only when
-  no absolute limits are supplied.
+- Native execution budgets: complete remaining G/held/preparation phase checks.
+  Ordinary D enforces absolute phase limits/remaining drains; GN/GO entry shares
+  the same clock. Owned cancellation and retry-result preservation are implemented.
+  Source defaults retain5s only when no absolute limits are supplied.
 - Controller: generate the26measurement+at most2preparation entries and wire
   family output placement, remaining generic G routes and conditional admission.
   Tiny real G/D completion/resume, the original shared clock, per-cell cleanup

@@ -31,6 +31,8 @@ dunce = "=1.0.5"
 
 [features]
 default = []
+# Private bounded Slice30 diagnostics; never forwarded by shipped artifacts.
+slice30-observer = []
 # Private TC-5 reader-worker route. This is intentionally not forwarded by the
 # facade or any language binding.
 tc5-benchmark = []
@@ -933,3 +935,7 @@ required-features = ["test-hooks", "operator"]
 [[test]]
 name = "slice70_query_degradations"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "slice30_g_observer"
+required-features = ["slice30-observer", "test-hooks"]

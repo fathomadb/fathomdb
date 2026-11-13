@@ -129,6 +129,13 @@ mod rerank;
 mod runtime_configuration;
 mod runtime_lifecycle;
 mod search;
+#[cfg(any(test, feature = "slice30-observer"))]
+mod slice30_observer;
+#[cfg(any(test, feature = "slice30-observer"))]
+#[doc(hidden)]
+pub use slice30_observer::{
+    Slice30ObservationBatch, Slice30ObservationGuard, Slice30ObservationRecord,
+};
 mod search_api;
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]

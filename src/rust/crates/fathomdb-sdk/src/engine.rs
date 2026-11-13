@@ -66,6 +66,18 @@ impl Engine {
         })
     }
 
+    /// Begin bounded test-only observations for this SDK engine's own core.
+    /// Returns the core InvalidArgument/Closing errors through normal SDK mapping;
+    /// the returned guard never exposes or retains the engine itself.
+    #[cfg(feature = "slice30-observer")]
+    #[doc(hidden)]
+    pub fn begin_slice30_observation_for_test(
+        &self,
+        max_records: usize,
+    ) -> Result<fathomdb_engine::Slice30ObservationGuard> {
+        Ok(self.core.begin_slice30_observation_for_test(max_records)?)
+    }
+
     pub(crate) fn core(&self) -> &CoreEngine {
         &self.core
     }

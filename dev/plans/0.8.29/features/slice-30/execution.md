@@ -1158,3 +1158,16 @@ coverage assertions are frozen together; unknown-provider metadata is a separate
 iteration in that same test. The deterministic scalar-head test provider is
 neither Default384 nor GPU qualification; projection/span storage is unchanged.
 Raw log and receipt retain their unique phase name under the owned task.
+
+### Stored span byte-range witness GREEN
+
+Against frozen RED `df73e2dd9`, `g-span-unicode-green` passes all10 actual
+observer-target tests, including known and unknown coverage iterations, exit0
+and no resource stop. The Rust assertion file is byte-identical to RED. The
+minimal Python witness reads actual committed window/start/end/body-length
+columns in write-cursor order through a read-only SQLite URI after native close.
+It reports every stored range, known full/partial counts, unknown count, stored
+body bytes and known represented bytes; unknown offsets remain null. Neither
+row counts nor character counts imply full-body coverage. Schema37, embedder
+truncation policy and vector/span storage are untouched. This synthetic provider
+proof is distinct from the still-held actual Default384/GPU qualification.

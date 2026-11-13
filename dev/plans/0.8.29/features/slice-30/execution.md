@@ -593,3 +593,16 @@ aggregate-cap qualification; those controller units remain required.
   unchanged. Ruff passes. Counted lengths include every retained file under the
   allocation root; no old artifact is removed to renew headroom. This proves
   refusal at entry, not yet production growth monitoring or scale feasibility.
+
+### G actual-preparation deadline RED
+
+- Added the callable preparation seam to the existing working attempt scaffold;
+  it runs real Python preparation and leaves dispatch behavior unchanged.
+  `g-t10-preparation-red` reproduces actual child dispatch after 100 ms of bounded
+  CPU preparation exhausted a 20 ms remaining shared allocation. The literal
+  failure is `AssertionError: True is not false : child dispatched after
+  preparation exhausted shared deadline`; one runtime failure, exit 1, no
+  resource stop. No compiler/missing-helper failure substitutes for this RED.
+- The preparation artifact and all 84 required refusal rows must remain, and
+  actual preparation wall time must be charged. This unit does not establish
+  later production native/model dispatch or storage-growth monitoring.

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import time
 import unittest
 
 from g_campaign import run_g_plan
@@ -93,3 +94,34 @@ class GStorageBudgetTests(unittest.TestCase):
             self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
                                 and row["reason"] == "active_storage_exhausted" for row in outcomes))
             self.assertEqual(len(json.loads((root / "g-outcomes.json").read_text())), 84)
+
+
+class GPreparationBudgetTests(unittest.TestCase):
+    def test_actual_preparation_consumes_shared_deadline_before_any_child_dispatch(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            used = 14400 * 10**9 - 20_000_000
+            (root / "g-budget.json").write_text(json.dumps({
+                "schema": "slice30-gd-budget/v1", "used_ns": used, "inflight": None,
+            }))
+            calls = root / "unexpected-child"
+            prepared = []
+            def prepare(cell, allocation):
+                started = time.monotonic_ns()
+                value = 0
+                while time.monotonic_ns() - started < 100_000_000:
+                    value += 1
+                prepared.append(cell["id"])
+                (allocation / "actual-preparation.json").write_text(json.dumps({"iterations": value}))
+                return {"prepared": True}
+            code = f"import pathlib; pathlib.Path({str(calls)!r}).write_text('started')"
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code], prepare=prepare)
+            self.assertFalse(calls.exists(), "child dispatched after preparation exhausted shared deadline")
+            self.assertEqual(prepared, ["g0-smoke"])
+            self.assertTrue((root / "actual-preparation.json").exists())
+            self.assertEqual(len(outcomes), 84)
+            self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
+                                and row["reason"] == "shared_time_exhausted" for row in outcomes))
+            self.assertGreaterEqual(json.loads((root / "g-budget.json").read_text())["used_ns"] - used,
+                                    100_000_000)

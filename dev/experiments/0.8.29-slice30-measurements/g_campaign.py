@@ -73,7 +73,7 @@ def active_bytes(root):
     return sum(path.stat().st_size for path in Path(root).rglob("*") if path.is_file())
 
 
-def run_g_plan(spec, root, command):
+def run_g_plan(spec, root, command, prepare=None):
     """Run a callable stage schedule with the existing owned-child attempt runner."""
     plan = make_g_plan(spec)
     root = Path(root)
@@ -98,7 +98,8 @@ def run_g_plan(spec, root, command):
             budget_path.write_text(json.dumps(budget, indent=2) + "\n")
             try:
                 remaining = (14400 * 10**9 - budget["used_ns"]) / 10**9
-                outcomes.extend(run_campaign([cell], root, command, timeout=min(900, remaining)))
+                outcomes.extend(run_campaign([cell], root, command, timeout=min(900, remaining),
+                                             before=(lambda: prepare(cell, root)) if prepare else None))
             finally:
                 budget["used_ns"] += time.monotonic_ns() - started
                 budget["inflight"] = None

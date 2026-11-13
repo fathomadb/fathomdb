@@ -9,8 +9,8 @@ import time
 def run_program_step(command, config, output, deadline_ns):
     """Retain one normal-program step under the same absolute parent cell deadline."""
     output = Path(output)
-    output.mkdir(parents=True, exist_ok=True)
-    path = output / "native-config.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    path = output.with_name(output.name + "-native-config.json")
     config = dict(config, remaining_cell_ms=max(0, (deadline_ns - time.monotonic_ns()) // 10**6))
     path.write_text(json.dumps(config, indent=2) + "\n")
     step = {"family": config["family"], "config": str(path), "output": str(output),
@@ -18,7 +18,7 @@ def run_program_step(command, config, output, deadline_ns):
     remaining = (deadline_ns - time.monotonic_ns()) / 10**9
     if config["remaining_cell_ms"] == 0 or remaining <= 0:
         return dict(step, status="not_run_cap", reason="cell_time_exhausted")
-    with (output / "native.log").open("wb") as log:
+    with output.with_name(output.name + "-native.log").open("wb") as log:
         try:
             child = subprocess.run([*command, str(path), str(output)], stdout=log,
                                    stderr=subprocess.STDOUT, check=False, timeout=remaining)
@@ -51,6 +51,6 @@ def execute_stage(cell, manifest, attempt, deadline_ns):
         output = attempt / "write"
     else:
         config = dict(common, family=cell["stage"], store=manifest["selected_store"])
-        output = attempt
+        output = attempt / "read"
     steps.append(run_program_step(manifest["command"], config, output, deadline_ns))
     return {"complete": all(step["complete"] for step in steps), "steps": steps}

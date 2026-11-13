@@ -24,6 +24,7 @@ class GWriteDispatchTests(unittest.TestCase):
                 "import json,pathlib,sys",
                 "config=json.loads(pathlib.Path(sys.argv[1]).read_text()); out=pathlib.Path(sys.argv[2])",
                 f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write(json.dumps(config)+'\\n')",
+                "out.mkdir(parents=True, exist_ok=True)",
                 "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
             ])
             manifest = {"command": [sys.executable, "-c", code], "corpus": "frozen-corpus.jsonl",

@@ -743,3 +743,18 @@ aggregate-cap qualification; those controller units remain required.
   Exact patch `g-write-protocol-child-mkdir.patch` SHA256
   `da116410cc3ae792d98a39fedfc816ddaad033c2263d91f47c7bcaee9e786054` is retained
   privately and has not been applied.
+
+- Fresh-output source correction places configs/logs beside the normal driver
+  output; the child owns creating its output. The strict frozen freshness test
+  passed alone in `g-t10-output-freshness-selected-green` while old fixture setup
+  awaited review. No combined GREEN was claimed then.
+- Independent Astra approved exactly the retained one-line child-owned mkdir
+  patch. Applied that exact SHA256; test blob changes
+  `63762a67b841a91827bf6bc8b9eb4795c08d0260` to
+  `59585968ca0c232b3edec3ef8fee8595a383e4b1`, while all assertion-call ASTs retain
+  SHA256 `5093f4153896c1d335f97977c3660c49b70056a85afad9ddc5440aa30ddaeafb`.
+  Old fixture and RED remain in git/raw receipts, with private before/after
+  identity record `g-write-protocol-fixture-identities.json`.
+- `g-t10-output-freshness-combined-green` passes both protocol/freshness tests,
+  exit 0, no resource stop; Ruff passes. This closes the command output contract
+  finding, without claiming actual DB/native/Default/GPU qualification.

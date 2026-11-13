@@ -661,3 +661,14 @@ aggregate-cap qualification; those controller units remain required.
   Matching completed outcomes continue to survive refusals. Production dispatch,
   absolute native phase deadlines, growth/feasibility and final qualification
   remain pending.
+
+### G retained-growth RED
+
+- `g-t10-storage-growth-red` executes one actual harmless Python child that
+  creates a retained 16 GiB sparse raw artifact and returns `complete: true`.
+  The controller incorrectly accepts it: `AssertionError: 'complete' !=
+  'failed' : cap-consuming child remained complete`. One runtime failure,
+  exit 1, no resource stop. This is a real artifact/decision witness without
+  physically allocating 16 GiB or opening any database.
+- The frozen contract requires that cap-consuming attempt incomplete, its raw
+  file retained, and all other 83 required cells refused without new attempts.

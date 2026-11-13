@@ -180,3 +180,23 @@ class GCellRetryBudgetTests(unittest.TestCase):
             self.assertEqual(len(list((root / "g0-smoke").glob("attempt-*"))), 1)
             self.assertEqual(json.loads((root / "g-budget.json").read_text())["cell_used_ns"]["g0-smoke"],
                              900 * 10**9)
+
+class GStorageGrowthTests(unittest.TestCase):
+    def test_child_reaching_retained_cap_is_incomplete_and_later_cells_remain_refused(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "out=pathlib.Path(sys.argv[2])",
+                "with (out/'partial.raw').open('wb') as stream: stream.truncate(16*1024**3)",
+                "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
+            ])
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code])
+            self.assertEqual(outcomes[0]["status"], "failed", "cap-consuming child remained complete")
+            self.assertEqual(outcomes[0]["error"], "active_storage_exhausted")
+            self.assertEqual((Path(outcomes[0]["attempt"]) / "partial.raw").stat().st_size, 16 * 1024**3)
+            self.assertEqual(len(outcomes), 84)
+            self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
+                                and row["reason"] == "active_storage_exhausted" for row in outcomes[1:]))
+            self.assertEqual(len(list(root.glob("*/attempt-*"))), 1)

@@ -68,11 +68,19 @@ def _run_native(cell, command, config, attempt, monitor, bounds):
     native = dict(cell)
     for key, limit in bounds.items():
         native[key] = min(native.get(key, limit), limit)
+    hard_ns = min(native["hard_deadline_ns"], native["shared_deadline_ns"])
+    native["work_deadline_ns"] = min(native["work_deadline_ns"], max(0, hard_ns-30_000_000_000))
     config.write_text(json.dumps(native, indent=2) + "\n")
-    work = bounds["work_deadline_ns"] / 1_000_000_000
-    hard = min(bounds["hard_deadline_ns"], bounds["shared_deadline_ns"]) / 1_000_000_000
+    refusal = {"exit":125, "error":"native_prelaunch_deadline", "pid":None, "pgid":None,
+               "child_exit":None, "cleanup":{"complete":True,"not_started":True}}
+    if time.monotonic_ns() >= native["work_deadline_ns"]:
+        return refusal
+    work = native["work_deadline_ns"] / 1_000_000_000
+    hard = hard_ns / 1_000_000_000
     error = None
     with _owned_subreaper(), (attempt / "child.log").open("wb") as log:
+        if time.monotonic_ns() >= native["work_deadline_ns"]:
+            return refusal
         child = subprocess.Popen([*command, str(config), str(attempt)], stdout=log,
                                  stderr=subprocess.STDOUT, start_new_session=True)
         try:

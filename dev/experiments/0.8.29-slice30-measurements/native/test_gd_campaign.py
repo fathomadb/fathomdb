@@ -178,6 +178,39 @@ class SharedClockCampaignTests(unittest.TestCase):
         self.assertEqual(clock.read_bytes(),saved)
 
 
+class CellRetryClockTests(unittest.TestCase):
+    def check_retry(self,milliseconds):
+        root, _, manifest=clock_fixture()
+        manifest["cells"]=manifest["cells"][:1]
+        healthy=run_manifest(manifest,root/"healthy")[0]
+        self.assertEqual(healthy["status"],"complete","real ordinary D completion control NOT_RED")
+        manifest["cell_seconds"]=30+milliseconds/1000
+        manifest["cells"][0]["samples"]=3000
+        results=root/"bounded"
+        first=run_manifest(manifest,results)[0]
+        if first["pid"] is None or first["status"]!="failed":
+            raise RuntimeError(f"actual first native deadline control NOT_RED {first}")
+        attempt=Path(first["attempt"])
+        calls=[json.loads(line) for line in (attempt/"queries.jsonl").read_text().splitlines()]
+        if not calls or len(calls)>=3001 or not all(row["ok"] for row in calls):
+            raise RuntimeError("actual bounded native prefix controls NOT_RED")
+        original=(attempt/"outcome.json").read_bytes()
+        second=run_manifest(manifest,results)[0]
+        print(f"actual cell retry {results} first_pid={first['pid']} retry_pid={second['pid']}",flush=True)
+        self.assertIsNone(second["pid"],"retry renewed the original per-cell work endpoint and launched another native child")
+        self.assertEqual((second["status"],second["reason"]),("not_run_resource","cell_work_deadline"))
+        self.assertEqual(len(list(results.glob("*/attempt-*"))),1)
+        self.assertEqual((attempt/"outcome.json").read_bytes(),original)
+
+    def test_failed_native_retry_cannot_renew_cell_budget(self):
+        self.check_retry(100)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=80,max_value=120))
+    def test_source_work_windows_remain_original_across_retry(self,milliseconds):
+        self.check_retry(milliseconds)
+
+
 class NativeAdmissionCampaignTests(unittest.TestCase):
     def check_native_admission(self, bound):
         root, binary, manifest = clock_fixture()

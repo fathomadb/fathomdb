@@ -39,12 +39,18 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-The same30 owner has a reviewed G-first/D design and actual20 fit; the packet
-is imported and fresh G source entry/parent GO remain. The20 proof condition for M is satisfied; its selected
-G-store/tooling prerequisites and F frozen-input,
+The reviewed G-first design and actual20 fit are imported; G source work is in
+progress in its isolated checkout. D source/runtime and GPU/model/campaign
+execution remain separately gated. The20 proof condition for M is satisfied; its
+selected G-store/tooling prerequisites and F frozen-input,
 whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
 completed70 retain their recorded bounds. Each source owner uses a fresh
 parent-created worktree and own /mnt/data resources.
+
+Slice100 owner decisions are recorded in the [ledger](../../steward/steward-ledger.jsonl)
+at seq-371 and seq-372. Its owner will reconcile the reviewed plans with those
+approvals before implementation in a fresh isolated checkout. Source/runtime
+qualification and100/D28-09 closure remain pending.
 
 ## Retained gates
 

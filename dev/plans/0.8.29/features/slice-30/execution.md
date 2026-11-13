@@ -1106,3 +1106,18 @@ aggregate-cap qualification; those controller units remain required.
   retain the full prediction, actual remaining time and explicit cap status;
   no budget, target or earlier assertion changed. Native execution remains gated
   on the now-returned window's verified sampler/loader setup and real-store REDs.
+
+### Returned native-window setup
+
+- Parent returned the sole native window after source100 actor absence/resource
+  checks. No model/GPU/campaign or D authority follows.
+- Prepared `g_phase.py` with unchanged G32/250/16GiB start floors,
+  20/50/8GiB stop floors,200GiB owned cap and existing swap limit. Its sampler
+  definitions are exact source100 `a9b2bbc7a12fbbff7e434802b5710a97bde5b29b`
+  accepted code, not the old partial-du shortcut; only confirmed absent owned
+  ENOENT can receive at most3 fresh measurements. Final observation errors also
+  fail closed. `g-strict-executor-smoke` passes with no resource stop, Python only.
+- Read the verified slice42 memory and checked the actual owned interpreter:
+  uv CPython3.13.13 LIBDIR contains libpython3.13.so.1.0. Its scoped loader path
+  is added to the private environment; Rust binding DT_NEEDED inspection remains
+  required before the full wrapper. No system loader change or borrowed module.

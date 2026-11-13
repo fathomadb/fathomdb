@@ -111,7 +111,9 @@ claimed. Git linkage and original file manifest were verified after relocation.
 
 Slice20 Linux repairs are integrated at657edeb76caaf9c8d2aab433766bec9362e73217
 after genuine RED/GREEN and fresh independent implementation PASS.20 remains
-open for A3/A5 policy and actual Windows A6; no30 clearance or Block1 exit.
+open for actual A3/A5 proofs and Windows A6; seq-369/370 are the current
+owner rulings. The accepted30 P subset has separate recorded entry/limits; no
+whole20/30 clearance or Block1 exit follows.
 Slice60's implemented format/direct-filter/budget subset is integrated at
 5271c1bf022f0ea22f95f7433e226feb2315043e after fresh independent implementation PASS
 and assembled214-suite qualification. F11 remains held;60 is not closed. Its
@@ -130,13 +132,23 @@ JSON remains the sole ladder authority.
 Reviewed Slice20 continuation documentation391ae66aa is integrated after fresh
 independent final Astra-medium PASS. It reconciles actual60/70, preserves all
 mandatory criteria and records the exact reviewed Windows operations proposal.
-No product source changed. A3/A5 policy and Windows capacity authorization remain
-unanswered; compiler/control/Windows runtime qualification remains unexecuted.
+No product source changed in that documentation checkpoint. Current owner
+rulings are ledger seq-369/370; actual proofs and compiler/control/Windows runtime
+qualification remain unexecuted in the resumed20 phase.
 
 Slice30 documentationbea7f05cd and its exact P-only dependency amendment passed
 independent Astra-medium design review. State/master now permit initial direct-
 text Linux P entry from closed10 plus qualified integrated20/current70 after
 actual ancestry/preflight, own source/native setup and parent GO. G/D need later
 concrete review; M20 proof/policy, F frozen TC5, whole30/40/50 and pre90 Block1
-remain held. The parent selects eligible30 P as next work while20 decisions stay
-open; no closure is inferred. Keep each dedicated owner for later continuation.
+remain held. The eligible30 P subset subsequently completed its own recorded
+qualification; whole30 remains open. Keep each dedicated owner for continuation.
+
+## Owner decisions recorded 2026-11-13
+
+The two actual Slice20 replies are recorded in the append-only ledger at seq-369
+and seq-370, and their exact scope is referenced in release-state decisions.ruled.
+A3/A5 execution now follows the approved verification-only route. Capacity work
+requires a reviewed derivative that stops after creation/attachment and read-only
+identity checks; the prior full guest-sequence packet cannot run unchanged under
+the narrower ruling. No renewed generic permission or broader authority is inferred.

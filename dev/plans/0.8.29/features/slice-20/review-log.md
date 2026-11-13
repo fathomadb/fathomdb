@@ -71,3 +71,13 @@ ACL/live attachment/verified-new-disk GPT/R:/NTFS/floor approval also remains
 unanswered, explicitly including an already-started guarded guest sequence
 finishing after transport loss. No source/VM GO, whole20 closure,30 dependency
 clearance, Block1 exit, CI or publication approval follows these design verdicts.
+
+## Actual owner rulings — 2026-11-13
+
+Current authority is `dev/steward/steward-ledger.jsonl` seq-369 and seq-370,
+referenced by release-state decisions.ruled. These supersede the unanswered-choice
+statements in the historical reviews above. The parent is reconciling the current
+base and commissioning the approved verification route and a capacity-only
+derivative; the earlier full guest-sequence packet cannot execute unchanged.
+No completed proof, disk operation, Windows qualification or slice closure follows
+from recording the rulings.

@@ -27,8 +27,9 @@ selected platform/artifact and final acceptance remain pending.
 Slice20's independently reviewed Linux hook-ownership repairs are integrated
 at657edeb76caaf9c8d2aab433766bec9362e73217;
 [execution](../0.8.29/features/slice-20/execution.md) preserves assembled
-qualification and limits. A3/A5 policy and Windows A6 remain open;20 and the
-Block1 exit are not closed. The reviewed30
+qualification and limits. Owner rulings seq-369/370 now govern the A3/A5
+verification-only continuation and capacity-only disk preparation. Actual proofs
+and Windows A6 qualification remain;20 and the Block1 exit are not closed. The reviewed30
 [prerequisite amendment](../0.8.29/features/slice-30/prerequisite-change.md)
 was satisfied for the provider-free Linux P subset. The parent accepts that
 subset after independent code/results/documentation PASS and its own raw-data,

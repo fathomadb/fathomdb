@@ -180,8 +180,8 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "CONTINUATION_DESIGN_REVIEWED_POLICY_AND_WINDOWS_CAPACITY_HELD",
-      "evidence": "Two genuine engine-owned sidecar/resolver hook repairs integrated at657edeb76caaf9c8d2aab433766bec9362e73217 after separate observed RED/GREEN pairs and fresh independent Astra-medium implementation PASS. Assembled qualification preserves original failures, affected reruns, skips and loader warning; final source-bound Python/TS native identity/lifecycle passed. See features/slice-20/execution.md and review-log.md. A3/A5 policy unanswered and actual Windows A6 unqualified; Slice20 remains IN_PROGRESS, no Slice30 clearance or Block1 exit. Continuation documentation391ae66aa reconciles integrated60/70 and passed independent Astra design plus fresh final documentation review. Exact Windows operations proposal5122aa08 passed fresh static review after two corrections; only harmless local logging-child failure/pass ran. Actual A3/A5 exception and new64GiB disk/ACL/liveattach/full guarded guest-format-sequence/floor authorization remain unanswered; no Windows runtime, source clearance,20 closure or Block1 exit follows.",
+      "phase": "A3_A5_VERIFICATION_EXCEPTION_APPROVED_WINDOWS_CAPACITY_ONLY_APPROVED",
+      "evidence": "Two genuine engine-owned sidecar/resolver hook repairs integrated at657edeb76caaf9c8d2aab433766bec9362e73217 after separate observed RED/GREEN and fresh independent Astra-medium implementation PASS. Previous assembled qualification/native identity limits remain in features/slice-20/execution.md and review-log.md. Continuation documentation391ae66aa reconciled60/70 and passed independent design/final documentation reviews. Owner seq-369 now authorizes A3/A5 verification-only proofs/negative controls for already-correct behavior; actual defects still require genuine RED/GREEN. Owner seq-370 authorizes only new64GiB scratch-disk creation/attachment. The broader5122 packet invokes guest initialization/formatting and is not executable unchanged under this narrower ruling. Current-base design recheck, bounded capacity-only derivative, actual proof execution and Windows technical qualification remain. No full20/30/Block1/release closure follows.",
       "qualified_subset_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
       "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5"
     },
@@ -549,6 +549,20 @@
         "id": "settled-agent-contracts",
         "title": "Compact text default, B2-8 stored spans and unavailable-only state/verdict omission remain settled; preserve existing hints/queue/storage.",
         "source": "actual Slice9 decision log and accepted agent contracts"
+      },
+      {
+        "id": "slice20-already-correct-coverage-policy",
+        "title": "Approve the narrow verification-only exception (Recommended)",
+        "owner_slice": 20,
+        "source": "dev/steward/steward-ledger.jsonl seq-369",
+        "scope": "Slice20 A3/A5 only: add proofs and negative controls for the already-correct queue race and five scheduling constants without manufacturing a failing RED. This does not waive genuine per-behavior RED/GREEN for any actual defect."
+      },
+      {
+        "id": "slice20-windows-capacity",
+        "title": "Approve 64 GiB capacity-only preparation (Recommended)",
+        "owner_slice": 20,
+        "source": "dev/steward/steward-ledger.jsonl seq-370",
+        "scope": "Capacity-only creation and attachment of a uniquely owned64GiB scratch disk for the existing Windows VM. Preserve existing disks/data. Compiler/helper/test execution remains held until technical readiness; no authorization for the broader full guest-format/compiler/test sequence is inferred from this answer."
       }
     ],
     "unruled": [
@@ -576,16 +590,6 @@
         "id": "publication",
         "title": "Explicit actual publication authorization remains separate.",
         "owner_slice": 160
-      },
-      {
-        "id": "slice20-already-correct-coverage-policy",
-        "title": "Actual owner answer on narrow test-only exception for already-correct pre-enqueue race23 proof and five-constant guard, or explicit deferral. Genuine defect repairs retain per-behavior RED/GREEN.",
-        "owner_slice": 20
-      },
-      {
-        "id": "slice20-windows-capacity",
-        "title": "Actual owner authorization for reviewed64GiB /mnt/data image, images-only ACL/live attachment/verified-new-disk GPT-R:-NTFS/full started guest sequence/floors; static5122aa08 proposal is not execution permission.",
-        "owner_slice": 20
       }
     ]
   },

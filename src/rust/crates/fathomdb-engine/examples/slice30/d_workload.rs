@@ -195,13 +195,15 @@ fn write_cohort(
     origin: Instant,
     launch_ns: u64,
     batch: &[PreparedWrite],
-    _raw: &mut std::fs::File,
+    raw: &mut std::fs::File,
 ) -> Value {
     let start_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
     let receipt = engine.write(batch).unwrap();
     let end_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
-    json!({"ok":true,"launch_ns":launch_ns,"start_ns":start_ns,"end_ns":end_ns,
-        "rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors})
+    let row = json!({"ok":true,"launch_ns":launch_ns,"start_ns":start_ns,"end_ns":end_ns,
+        "rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors});
+    write_row(raw, &row);
+    row
 }
 
 pub(super) fn write_row(output: &mut std::fs::File, row: &Value) {

@@ -46,5 +46,5 @@ see [Contributing](../contributing/index.md). Package versions are omitted.
 <!-- source-sha256: scripts/agent-build.sh bae6ec55fe6cd875141e56df1c4386a3ef6e99caf2ede309642cc30294eb1f94 -->
 <!-- source-sha256: scripts/agent-lint.sh ac7786c51221a1226569172edf02752416d29c46d4249257004013c1b2e621b0 -->
 <!-- source-sha256: scripts/agent-typecheck.sh f7011356df0fa8060754d6910d56e729145f05e6f6b5cc5abf402d16b7ac1b3b -->
-<!-- source-sha256: scripts/agent-test.sh a44de781354d60be6bc817fde232aaf815f6a2dd155f661f9725aae406f2d71e -->
+<!-- source-sha256: scripts/agent-test.sh 3e373e1770abe6eb785cd9d845031d725c440cba38d7ecee07a36cbb224886d2 -->
 <!-- source-sha256: scripts/agent-verify.sh 5834de3d2aa9b5d94c0d03ad303ff4eb8f6d320966436a7ddadb3b04b9d35e6f -->

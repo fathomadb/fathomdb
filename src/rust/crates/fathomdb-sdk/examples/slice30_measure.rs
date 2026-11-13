@@ -183,6 +183,34 @@ struct Schedule {
 }
 
 #[cfg(test)]
+struct GSchedule {
+    samples: usize,
+    batch_size: usize,
+    searches_per_batch: usize,
+}
+
+#[cfg(test)]
+fn run_g_schedule_observed(
+    engine: &Adapter,
+    route: &str,
+    queries: &[String],
+    original_bodies: &[String],
+    schedule: GSchedule,
+    observer: &mut dyn FnMut(&str, &Value),
+) -> Schedule {
+    let _ = (original_bodies, schedule.batch_size, schedule.searches_per_batch);
+    let mut output = Schedule { searches: vec![], batches: vec![], probes: vec![] };
+    for sample in 0..schedule.samples {
+        let mut row = observe_g_route(engine, route, &queries[sample % queries.len()]);
+        row["sample_index"] = json!(sample);
+        row["query_index"] = json!(sample % queries.len());
+        observer("samples", &row);
+        output.searches.push(row);
+    }
+    output
+}
+
+#[cfg(test)]
 fn run_schedule(
     engine: &Adapter,
     queries: &[String],
@@ -886,6 +914,109 @@ mod g_fixture_tests {
             assert_eq!(observe_g_route(&reopened, "text", "needle")["ids"], json!(["l:alpha"]));
             assert_eq!(g_fixture_observation(&reopened, &path)["pending_count"], 2);
             reopened.close();
+        }
+    }
+}
+
+#[cfg(test)]
+mod g_schedule_tests {
+    use super::*;
+
+    #[test]
+    fn natural_replacements_are_two_actual_cohorts_with_separate_current_probes() {
+        for name in ["engine", "sdk"] {
+            for route in ["text", "hybrid", "embed"] {
+                for batch_size in [1, 10] {
+                    let directory = tempfile::tempdir().unwrap();
+                    let path = directory.path().join("g-schedule.sqlite");
+                    let engine = Adapter::open(name, &path);
+                    let bodies =
+                        (0..10).map(|slot| format!("needle body{slot}")).collect::<Vec<_>>();
+                    engine.write(
+                        &bodies
+                            .iter()
+                            .enumerate()
+                            .map(|(slot, body)| node(&format!("s30doc-{slot}"), "doc", body))
+                            .collect::<Vec<_>>(),
+                    );
+                    let mut order = Vec::new();
+                    let output = run_g_schedule_observed(
+                        &engine,
+                        route,
+                        &["needle".into()],
+                        &bodies,
+                        GSchedule { samples: 4, batch_size, searches_per_batch: 2 },
+                        &mut |stream, _| order.push(stream.to_string()),
+                    );
+                    assert_eq!(output.batches.len(), 2, "missing actual G replacement cohorts");
+                    assert_eq!(
+                        output
+                            .batches
+                            .iter()
+                            .map(|row| row["before_sample"].as_u64().unwrap())
+                            .collect::<Vec<_>>(),
+                        [0, 2]
+                    );
+                    assert!(output
+                        .batches
+                        .iter()
+                        .all(|row| row["rows"] == batch_size
+                            && row["write_ns"].as_u64().unwrap() > 0));
+                    assert!(
+                        output.batches[0]["after_write_cursor"].as_u64().unwrap()
+                            < output.batches[1]["after_write_cursor"].as_u64().unwrap()
+                    );
+                    assert_eq!(output.searches.len(), 4);
+                    for (index, row) in output.searches.iter().enumerate() {
+                        assert_eq!(row["route"], route);
+                        assert_eq!(row["sample_index"], index);
+                        assert_eq!(row["query_index"], 0);
+                        assert_eq!(row["ok"], route != "embed");
+                        if route == "embed" {
+                            assert_eq!(row["error_kind"], "EmbedderNotConfiguredError");
+                        } else {
+                            assert_eq!(row["returned_hits"], 10);
+                        }
+                    }
+                    assert_eq!(output.probes.len(), 2 * batch_size);
+                    for (index, probe) in output.probes.iter().enumerate() {
+                        let cohort = index / batch_size;
+                        let slot = if batch_size == 1 { cohort } else { index % 10 };
+                        let token = format!("s30gmarker{slot}revision{cohort}");
+                        let body = format!("needle body{slot} {token}");
+                        assert_eq!(probe["before_sample"], cohort * 2);
+                        assert_eq!(probe["logical_id"], format!("s30doc-{slot}"));
+                        assert_eq!(probe["revision_token"], token);
+                        assert_eq!(probe["point_probe"]["body"], body);
+                        assert_eq!(probe["point_probe"]["current"], true);
+                        assert!(probe["point_probe"]["elapsed_ns"].as_u64().unwrap() > 0);
+                        assert_eq!(probe["text_probe"]["ids"], json!([format!("l:s30doc-{slot}")]));
+                        assert_eq!(probe["text_probe"]["bodies"], json!([body]));
+                        assert!(probe["text_probe"]["elapsed_ns"].as_u64().unwrap() > 0);
+                        assert_eq!(probe["marker_current"], true);
+                    }
+                    let mut expected = Vec::new();
+                    for _ in 0..2 {
+                        expected.push("batches".to_string());
+                        expected.extend(vec!["g-marker-probes".to_string(); batch_size]);
+                        expected.extend(vec!["samples".to_string(); 2]);
+                    }
+                    assert_eq!(order, expected);
+                    engine.close();
+                    drop(engine);
+                    let connection = rusqlite::Connection::open(&path).unwrap();
+                    let count =
+                        |sql| connection.query_row(sql, [], |row| row.get::<_, u64>(0)).unwrap();
+                    assert_eq!(count("SELECT COUNT(*) FROM canonical_nodes WHERE superseded_at IS NULL AND state='active' AND kind='doc'"), 10);
+                    assert_eq!(
+                        count("SELECT COUNT(*) FROM canonical_nodes"),
+                        10 + 2 * batch_size as u64
+                    );
+                    assert_eq!(count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='note'"), 0);
+                    assert_eq!(count("SELECT COUNT(*) FROM _fathomdb_vector_rows"), 0);
+                    assert_eq!(count("PRAGMA user_version"), 37);
+                }
+            }
         }
     }
 }

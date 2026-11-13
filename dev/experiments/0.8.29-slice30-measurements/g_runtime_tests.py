@@ -461,5 +461,31 @@ class GNormalCliTests(unittest.TestCase):
             self.assertGreater(prepared_result["reopen_close_ns"], 0)
 
 
+class GStoredSpanBindingTests(unittest.TestCase):
+    def test_normal_seed_step_retains_readonly_stored_span_witness_after_close(self):
+        from g_driver import run_program_step
+        import time
+
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text('"alpha needle"\n"βeta雪"\n')
+            queries.write_text('"needle"\n')
+            config = {"family": "G-seed", "provider": "none", "negative_control": True,
+                      "adapter": "sdk", "n": 2, "corpus": str(corpus), "queries": str(queries)}
+            step = run_program_step([str(binary)], config, root / "native", time.monotonic_ns() + 30 * 10**9)
+            self.assertTrue(step["complete"], step)
+            self.assertFalse(step["result"]["qualified_dense_fixture"])
+            self.assertEqual(step["result"]["natural_records"], 2)
+            expected = {"span_count": 0, "spans": [], "full_body_spans": 0,
+                        "partial_body_spans": 0, "unknown_coverage_spans": 0,
+                        "body_bytes": 0, "known_covered_bytes": None}
+            self.assertEqual(step.get("span_coverage"), expected,
+                             "closed native seed's actual stored-span witness was not retained")
+            with closing(sqlite3.connect((root / "native" / "store.sqlite").as_uri() + "?mode=ro", uri=True)) as connection:
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM _fathomdb_vector_spans").fetchone()[0], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

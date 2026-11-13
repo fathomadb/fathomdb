@@ -124,6 +124,11 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         .unwrap_or(0);
     assert!(warmup_count <= queries.len());
     for (sample_index, input) in queries.iter().take(warmup_count).enumerate() {
+        if super::budget_clock::phase(config, out, "warmup").is_err() {
+            recorder.flush_all();
+            engine.close();
+            return;
+        }
         let record_start_ns =
             writing.then(|| u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         if g2 && sample_index == 0 {
@@ -146,6 +151,11 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
     recorder.flush_all();
     let warmup_calls = calls;
     for (sample_index, input) in queries.iter().enumerate() {
+        if super::budget_clock::phase(config, out, "timed").is_err() {
+            recorder.flush_all();
+            engine.close();
+            return;
+        }
         let record_start_ns =
             writing.then(|| u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         if g2 && sample_index == 0 {

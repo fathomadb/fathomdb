@@ -706,6 +706,8 @@ run_tier_maybe_suite heavy test-slice30-gd-completion "$slice30_measurement_plat
 
 run_tier_maybe_suite heavy test-slice30-d-query-workload "$slice30_measurement_platform_reason" bash -c '
   set -euo pipefail
+  cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks
+  cargo test --locked --release -p fathomdb-engine --test slice30_d_workload --features test-hooks worker_native_feature_control -- --test-threads=1 --nocapture
   cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks,slice30-measurement
   cargo test --locked --release -p fathomdb-engine --test slice30_d_workload --features test-hooks,slice30-measurement -- --test-threads=1 --nocapture
 '

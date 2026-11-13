@@ -152,6 +152,16 @@ fn writer_fixture(appended: usize, cohort: usize, warmups: usize) {
 }
 
 fn writer_case(appended: usize, cohort: usize, warmups: usize, readiness: bool) -> PathBuf {
+    writer_observation_case(appended, cohort, warmups, readiness, false)
+}
+
+fn writer_observation_case(
+    appended: usize,
+    cohort: usize,
+    warmups: usize,
+    readiness: bool,
+    observer: bool,
+) -> PathBuf {
     let root = tempfile::Builder::new().prefix("s30-d-writer-").tempdir().unwrap().keep();
     println!(
         "writer fixture {} appended={appended} cohort={cohort} warmups={warmups}",
@@ -168,7 +178,7 @@ fn writer_case(appended: usize, cohort: usize, warmups: usize, readiness: bool) 
     ];
     let appended_records:Vec<_>=(0..appended).map(|i|json!({"id":format!("tail-{i}"),"kind":"note","body":format!("append evidence {i} é")})).collect();
     let config = root.join("cell.json");
-    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4,"readiness":readiness})).unwrap()).unwrap();
+    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4,"readiness":readiness,"observer":observer})).unwrap()).unwrap();
     let binary = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
         .join("release/examples/slice30_gd_diagnostic");
     println!("binary before runtime SHA256 {}", digest(&binary));
@@ -349,4 +359,102 @@ proptest! {
     #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301303),..ProptestConfig::default()})]
     #[test]
     fn readiness_uses_real_counts_and_serial_full_invocation_intervals(rows in 1usize..9,warmups in 0usize..3){verify_readiness(rows,warmups);}
+}
+
+fn verify_worker_adapter(count: usize, cohort: usize, enabled: bool) {
+    let out = writer_observation_case(count, cohort, 2, true, enabled);
+    let path = out.join("worker-observer.json");
+    let report: Value = if path.exists() {
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+    } else {
+        Value::Null
+    };
+    if !cfg!(feature = "slice30-measurement") || !enabled {
+        assert_eq!(report["available"], false, "missing explicit unavailable worker attribution");
+        assert_eq!(
+            report["reason"],
+            if cfg!(feature = "slice30-measurement") {
+                "observer_disabled"
+            } else {
+                "feature_absent"
+            }
+        );
+        for key in ["records", "dropped", "query_records", "query_dropped", "attribution_complete"]
+        {
+            assert!(
+                report[key].is_null(),
+                "unavailable attribution must not fabricate zeros {key}"
+            );
+        }
+        return;
+    }
+    let records = report["records"].as_array().cloned().unwrap_or_default();
+    assert_eq!(
+        records.iter().filter_map(|r| r["job_count"].as_u64()).sum::<u64>(),
+        count as u64,
+        "missing actual D worker adapter records after successful workload controls"
+    );
+    assert_eq!(report["available"], true);
+    assert_eq!(report["attribution_complete"], true);
+    assert_eq!(report["dropped"], 0);
+    assert_eq!(report["query_dropped"], 0);
+    assert_eq!(report["capacity"], 32768);
+    let queries = report["query_records"].as_array().unwrap();
+    assert_eq!(queries.len(), 6);
+    assert!(queries.iter().all(|q| q["event"] == "QueryComplete"));
+    let engine_id = &queries[0]["engine_id"];
+    let raw: Vec<Value> = std::fs::read_to_string(out.join("queries.jsonl"))
+        .unwrap()
+        .lines()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+    let end = raw.last().unwrap()["end_ns"].as_u64().unwrap();
+    let mut batches = BTreeSet::new();
+    let mut actual = Vec::new();
+    for record in records {
+        assert_eq!(&record["engine_id"], engine_id);
+        assert_eq!(record["event"], "ProjectionBatchEnd");
+        assert_eq!(record["disposition"], "finished");
+        assert_eq!(record["cleanup"], "confirmed");
+        assert_eq!(record["commit_outcome"], "ok");
+        assert!(record["clock_issue"].is_null());
+        assert!(record["worker_idx"].as_u64().unwrap() < 2);
+        assert!(batches.insert(record["batch_id"].as_u64().unwrap()));
+        let start = record["start_ns"].as_u64().unwrap();
+        let stop = record["end_ns"].as_u64().unwrap();
+        assert!(start < stop);
+        assert!(start >= raw[1]["end_ns"].as_u64().unwrap());
+        assert!(
+            end <= report["collected_at_ns"].as_u64().unwrap()
+                && stop <= report["collected_at_ns"].as_u64().unwrap()
+        );
+        for cursor in record["cursors"].as_array().unwrap() {
+            assert_eq!(cursor["kind"], "note");
+            actual.push(cursor["write_cursor"].as_u64().unwrap());
+        }
+    }
+    let writes: Vec<Value> =
+        serde_json::from_slice(&std::fs::read(out.join("writes.json")).unwrap()).unwrap();
+    let mut expected: Vec<u64> = writes
+        .iter()
+        .flat_map(|w| w["row_cursors"].as_array().unwrap().iter().map(|c| c.as_u64().unwrap()))
+        .collect();
+    actual.sort_unstable();
+    expected.sort_unstable();
+    assert_eq!(actual, expected);
+}
+#[test]
+fn worker_native_feature_control_reports_unavailability_honestly() {
+    verify_worker_adapter(4, 3, false);
+}
+#[cfg(feature = "slice30-measurement")]
+#[test]
+fn enabled_worker_adapter_preserves_actual_separate_streams_and_origin() {
+    verify_worker_adapter(7, 3, true);
+}
+#[cfg(feature = "slice30-measurement")]
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301304),..ProptestConfig::default()})]
+    #[test]
+    fn worker_adapter_conserves_actual_cursors_without_query_stream_mixing(rows in 1usize..9,cohort in 1usize..5){verify_worker_adapter(rows,cohort,true);}
 }

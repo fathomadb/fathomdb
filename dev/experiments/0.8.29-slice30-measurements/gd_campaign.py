@@ -301,30 +301,59 @@ def _effective_bounds(cell,bounds):
 
 
 def _run_completion(command,attempt,bounds,stopped,monitor=None):
-    """Run the actual validator command and retain its processing outcome."""
+    """Bound actual validation work and owned cleanup by the original endpoints."""
     started=time.monotonic_ns()
-    def refusal():
-        error=(f"controller_signal_{stopped['signal']}" if stopped["signal"] is not None else
-               "validation deadline" if time.monotonic_ns()>=min(bounds[key] for key in
-               ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]) else None)
-        return ({"complete":False,"pid":None,"child_exit":None,
-                 "cleanup":{"complete":True,"not_started":True},
-                 "elapsed_ns":time.monotonic_ns()-started,"error":error} if error else None)
-    rejected=refusal()
-    if rejected is not None:
-        return rejected
-    with _owned_subreaper(), (attempt/"validation.log").open("wb") as log:
-        rejected=refusal()
-        if rejected is not None:
-            return rejected
-        child=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+    work=min(bounds[key] for key in ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])
+    hard=min(bounds["hard_deadline_ns"],bounds["shared_deadline_ns"])/1e9
+    def issue():
+        return (f"controller_signal_{stopped['signal']}" if stopped["signal"] is not None else
+                "validation deadline" if time.monotonic_ns()>=work else None)
+    def rejected(error):
+        return {"complete":False,"pid":None,"child_exit":None,"cleanup":{"complete":True,"not_started":True},
+                "elapsed_ns":time.monotonic_ns()-started,"error":error}
+    def observe(pid):
+        if monitor is None:
+            return None
         try:
-            code=child.wait()
+            return monitor(pid)
+        except Exception as error:
+            return f"validation observation unavailable: {error}"
+    error=issue()
+    if error:
+        return rejected(error)
+    error=observe(None) or issue()
+    if error:
+        return rejected(error)
+    with _owned_subreaper(), (attempt/"validation.log").open("wb") as log:
+        error=issue()
+        if error:
+            return rejected(error)
+        child=None
+        try:
+            child=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+            while True:
+                error=issue()
+                if error or child.poll() is not None:
+                    break
+                error=observe(child.pid) or issue()
+                if error:
+                    break
+                try:
+                    child.wait(timeout=min(0.05,max(0,(work-time.monotonic_ns())/1e9)))
+                except subprocess.TimeoutExpired:
+                    pass
+            error=error or issue()
         finally:
-            cleanup=_cleanup_owned_group(child,deadline=min(bounds["hard_deadline_ns"]/1e9,time.monotonic()+20))
-    return {"complete":code==0 and cleanup["complete"],"pid":child.pid,"child_exit":code,
-            "cleanup":cleanup,"elapsed_ns":time.monotonic_ns()-started,
-            "error":None if code==0 else "native completion rejected"}
+            cleanup=(_cleanup_owned_group(child,deadline=min(hard,time.monotonic()+20))
+                     if child is not None else {"complete":True,"not_started":True})
+        assert child is not None
+        if not cleanup["complete"]:
+            error=error or "validation owned cleanup incomplete"
+        if time.monotonic()>=hard:
+            error=error or "validation hard deadline"
+        return {"complete":error is None and child.returncode==0,"pid":child.pid,"child_exit":child.returncode,
+                "cleanup":cleanup,"elapsed_ns":time.monotonic_ns()-started,
+                "error":error or (None if child.returncode==0 else "native completion rejected")}
 
 
 def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None, load=None, gpu_before=None, gpu_interval: float = 1):
@@ -426,6 +455,23 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
             cleanup = _cleanup_owned_group(child, deadline=min(hard-5, time.monotonic()+20))
         if not cleanup["complete"]:
             error = error or "owned group cleanup incomplete"
+        validation_samples=[]
+        def observe_validation(pid):
+            nonlocal next_probe
+            if pid is None or time.monotonic()>=next_probe:
+                sample=_sample_resources(resources,work,start=pid is None,swap=swap)
+                sample.update(phase="validation_start" if pid is None else "validation_running",
+                              validation_pid=pid,child_alive_at_start=pid is not None)
+                validation_samples.append(sample)
+                next_probe=time.monotonic()+resource_interval
+            return None
+        validation=None
+        if child.returncode==0 and error is None and stopped["signal"] is None:
+            validation=_run_completion([sys.executable,str(Path(__file__).resolve()),"--validate",str(config),str(attempt)],
+                                       attempt,native,stopped,monitor=observe_validation if resources else None)
+            validation["resource_samples"]=validation_samples if resources else None
+            if not validation["complete"]:
+                error=validation["error"] or "native completion unverified"
         if resources and stopped["signal"] is None:
             try:
                 sample = _sample_resources(resources, hard, swap=swap)
@@ -458,14 +504,10 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
         stop_signal = stopped["signal"]
         if stop_signal is not None:
             error = error or f"controller_signal_{stop_signal}"
-        validation=None
-        if child.returncode==0 and error is None and stopped["signal"] is None:
-            validation=_run_completion([sys.executable,str(Path(__file__).resolve()),"--validate",str(config),str(attempt)],attempt,native,stopped)
-            if not validation["complete"]:
-                error=validation["error"] or "native completion unverified"
         return {"exit":128+stop_signal if stop_signal is not None else (124 if error else child.returncode), "error":error,
                 "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup,
                 "complete":validation is not None and validation["complete"],"validation":validation,
+                "completion_deadline_ns":min(native["hard_deadline_ns"],native["shared_deadline_ns"]),
                 "resource_samples":samples if resources else None, "controller_signal":stop_signal,
                 "cpu_samples":cpu_samples if native.get("cpu_observation") else None,
                 "gpu_samples":gpu_samples if native.get("gpu_reservation") else None}

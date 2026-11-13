@@ -100,6 +100,9 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
         if execution is not None:
             if execution.get("cell_started_ns") is not None:
                 ended_ns = time.monotonic_ns()
+                if execution.get("completion_deadline_ns") is not None and ended_ns>=execution["completion_deadline_ns"]:
+                    outcome["status"]="failed"
+                    outcome["error"]=outcome["error"] or "completion hard deadline"
                 outcome.update(cell_started_ns=execution["cell_started_ns"],cell_ended_ns=ended_ns,
                                cell_elapsed_ns=ended_ns-execution["cell_started_ns"],
                                cell_elapsed_scope="original entry through preparation/admission/retries/native/cleanup/completion validation; final outcome serialization excluded")

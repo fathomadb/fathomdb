@@ -758,3 +758,15 @@ aggregate-cap qualification; those controller units remain required.
 - `g-t10-output-freshness-combined-green` passes both protocol/freshness tests,
   exit 0, no resource stop; Ruff passes. This closes the command output contract
   finding, without claiming actual DB/native/Default/GPU qualification.
+
+### G seed/read/natural-diagnostic command RED
+
+- `g-t10-read-dispatch-red` runs five actual harmless-child command controls.
+  All five subcases fail runtime assertions: two current stage names are `G1`
+  instead of `G-seed`, repeat1 omits its fresh seed, and reused read/diagnostic
+  calls receive a wrong global subject instead of their exact size/seed subject.
+  One test, five failures, exit 1, no resource stop.
+- Frozen expectations also require exact reversal/route fields and G-O's first
+  50 registered questions once, zero warmups/no extra first call, with the
+  original 500-question input unchanged. This is command-protocol coverage,
+  explicitly not qualified dense-subject or native/Default/GPU evidence.

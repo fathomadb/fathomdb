@@ -80,3 +80,55 @@ class GProgramOutputContractTests(unittest.TestCase):
             self.assertTrue(all(Path(step["config"]).is_file() and Path(step["output"]).is_dir()
                                 and Path(step["config"]).parent != Path(step["output"])
                                 for step in result["steps"]))
+
+class GReadDispatchTests(unittest.TestCase):
+    def test_seed_read_and_natural_diagnostic_cells_bind_current_drivers_and_exact_subjects(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        plan = {row["id"]: row for row in make_g_plan(spec)}
+        cases = [("g1-n10000", ["G-seed"]), ("g1-n100000", ["G-seed"]),
+                 ("g-r-n10000-r0", ["G-R"]), ("g-r-n100000-r1", ["G-seed", "G-R"]),
+                 ("g-o-natural-r0-on", ["G-O"])]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            queries = root / "all500.jsonl"
+            questions = [f"question-{index}" for index in range(500)]
+            queries.write_text("".join(json.dumps(value) + "\n" for value in questions))
+            for identifier, families in cases:
+                with self.subTest(cell=identifier):
+                    cell = plan[identifier]
+                    attempt = root / identifier
+                    calls = root / f"{identifier}-calls.jsonl"
+                    code = "\n".join([
+                        "import json,pathlib,sys",
+                        "config=json.loads(pathlib.Path(sys.argv[1]).read_text()); out=pathlib.Path(sys.argv[2])",
+                        f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write(json.dumps(config)+'\\n')",
+                        "assert not out.exists(); out.mkdir(parents=True)",
+                        "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
+                    ])
+                    subjects = {f"g1-n{size}": str(root / f"qualified-n{size}" / "store.sqlite")
+                                for size in [10000, 100000]}
+                    manifest = {"command": [sys.executable, "-c", code],
+                                "corpus": "frozen-corpus.jsonl", "queries": str(queries),
+                                "selected_store": "wrong-global-subject.sqlite", "subjects": subjects}
+                    result = execute_stage(cell, manifest, attempt, time.monotonic_ns() + 900 * 10**9)
+                    actual = [json.loads(line) for line in calls.read_text().splitlines()]
+                    self.assertEqual([row["family"] for row in actual], families,
+                                     "G stage did not bind its required current normal-program drivers")
+                    self.assertTrue(result["complete"])
+                    if cell["kind"] == "seed":
+                        self.assertEqual(actual[0]["adapter"], "sdk")
+                    else:
+                        read = actual[-1]
+                        expected = (str(attempt / "seed" / "store.sqlite") if cell["fresh_seed"]
+                                    else subjects[cell["seed_subject"]])
+                        self.assertEqual(read["store"], expected)
+                        self.assertEqual((read["adapters"], read["routes"]),
+                                         (cell["adapters"], cell["routes"]))
+                        if cell["kind"] == "natural":
+                            self.assertEqual((read["samples"], read["warmup"], read["record_first_call"]),
+                                             (50, 0, False))
+                            selected = [json.loads(line) for line in Path(read["queries"]).read_text().splitlines()]
+                            self.assertEqual(selected, questions[:50])
+                        else:
+                            self.assertEqual(read["queries"], str(queries))
+                    self.assertEqual([json.loads(line) for line in queries.read_text().splitlines()], questions)

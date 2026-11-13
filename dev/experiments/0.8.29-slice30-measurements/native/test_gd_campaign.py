@@ -1050,5 +1050,38 @@ class GpuReservationTests(unittest.TestCase):
         self.check_locked(observer)
 
 
+class QuietCancellationTests(unittest.TestCase):
+    def check_stop(self, value, number):
+        root, _, manifest = clock_fixture()
+        healthy = run_manifest(manifest, root/"healthy")
+        self.assertEqual([row["status"] for row in healthy], ["complete", "complete"],
+                         "ordinary actual native database controls NOT_RED")
+        manifest["cells"][0]["quiet_start"] = True
+        old_handlers = {item:signal.getsignal(item) for item in [signal.SIGINT, signal.SIGTERM]}
+        calls = []
+        def load():
+            calls.append(value)
+            os.kill(os.getpid(), number)
+            return value
+        outcomes = run_manifest(manifest, root/"stopped", load=load)
+        self.assertEqual(calls, [value])
+        for item, handler in old_handlers.items():
+            self.assertEqual(signal.getsignal(item), handler)
+        print(f"actual quiet stop signal={number} load={value} pids={[row['pid'] for row in outcomes]}", flush=True)
+        with self.subTest(meaning="stop all later launches"):
+            self.assertEqual([row["pid"] for row in outcomes], [None, None],
+                             "quiet stop was lost before this or a later native cell")
+        with self.subTest(meaning="retain original stop"):
+            self.assertEqual([row.get("controller_signal") for row in outcomes], [number, number],
+                             "quiet stop was not retained as manifest cancellation")
+        self.assertEqual(list((root/"stopped").glob("*/attempt-*")), [])
+
+    def test_term_during_busy_observation_prevents_later_cell_launch(self):
+        self.check_stop(3.0, signal.SIGTERM)
+
+    def test_int_during_eligible_observation_prevents_current_and_later_launch(self):
+        self.check_stop(2.0, signal.SIGINT)
+
+
 if __name__ == "__main__":
     unittest.main()

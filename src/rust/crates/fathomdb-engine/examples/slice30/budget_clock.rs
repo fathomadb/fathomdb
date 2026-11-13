@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::path::Path;
 
 #[cfg(target_os = "linux")]
-pub(super) fn monotonic_ns() -> Result<u64, String> {
+pub(crate) fn monotonic_ns() -> Result<u64, String> {
     let mut value = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     // The initialized timespec remains valid and exclusively borrowed for this call.
     if unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut value) } != 0 {
@@ -22,11 +22,11 @@ pub(super) fn monotonic_ns() -> Result<u64, String> {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub(super) fn monotonic_ns() -> Result<u64, String> {
+pub(crate) fn monotonic_ns() -> Result<u64, String> {
     Err("native CLOCK_MONOTONIC budgets require Linux".into())
 }
 
-pub(super) fn bounds(config: &Value) -> Result<Option<(u64, u64)>, String> {
+pub(crate) fn bounds(config: &Value) -> Result<Option<(u64, u64)>, String> {
     if !config["work_deadline_ns"].is_u64() {
         return Ok(None);
     }
@@ -38,7 +38,7 @@ pub(super) fn bounds(config: &Value) -> Result<Option<(u64, u64)>, String> {
     Ok(Some((monotonic_ns()?, limit)))
 }
 
-pub(super) fn phase(config: &Value, out: &Path, phase: &str) -> Result<(), ()> {
+pub(crate) fn phase(config: &Value, out: &Path, phase: &str) -> Result<(), ()> {
     let mut report = match bounds(config) {
         Ok(None) => return Ok(()),
         Ok(Some((now, limit))) if now < limit => return Ok(()),

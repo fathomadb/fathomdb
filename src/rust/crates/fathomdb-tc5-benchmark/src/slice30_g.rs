@@ -3,8 +3,7 @@
 #[path = "../../fathomdb-sdk/examples/slice30/g_fixture.rs"]
 mod g_fixture;
 
-#[path = "../../fathomdb-engine/examples/slice30/budget_clock.rs"]
-mod budget_clock;
+use g_fixture::budget_clock;
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();

@@ -34,13 +34,14 @@ fn commit_cohort(
     cohort: &mut Vec<PreparedWrite>,
     written: &mut usize,
     cohorts: &mut Vec<Value>,
-    _recorder: &mut super::Recorder,
+    recorder: &mut super::Recorder,
 ) -> Result<(), ()> {
     super::budget_clock::phase(config, out, "write")?;
     let started = std::time::Instant::now();
     let receipt = engine.write(cohort).unwrap();
     cohorts.push(json!({"first_input_index":*written,"rows":cohort.len(),"cursor":receipt.cursor,
         "write_ns":u64::try_from(started.elapsed().as_nanos()).unwrap()}));
+    recorder.emit("batches", cohorts.last().unwrap());
     *written += cohort.len();
     cohort.clear();
     Ok(())
@@ -111,15 +112,18 @@ pub(super) fn run(config: &Value, out: &Path) {
                 valid_until: None,
             });
             if cohort.len() == 64 && commit(&mut cohort).is_err() {
+                recorder.flush_all();
                 engine.close().unwrap();
                 return;
             }
         }
         if !cohort.is_empty() && commit(&mut cohort).is_err() {
+            recorder.flush_all();
             engine.close().unwrap();
             return;
         }
         assert!(!ids.is_empty());
+        recorder.flush_all();
         let seed_ns = u64::try_from(seeding.elapsed().as_nanos()).unwrap();
         let draining = std::time::Instant::now();
         super::g_budget::drain(config, |timeout| {
@@ -147,7 +151,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
         let proof = json!({"api_complete":true,"input_ids":ids,"write_rows":written,"write_calls":cohorts.len(),"cohorts":cohorts,
             "open_ns":open_ns,"configure_ns":configure_ns,"seed_ns":seed_ns,"drain_ns":drain_ns,"close_ns":close_ns,"verification_ns":verification_ns,
-            "pending":pending,"coverage":coverage,"closed_main_sha256":hash(&store),
+            "pending":pending,"coverage":coverage,"closed_main_sha256":hash(&store),"raw_persistence":recorder.statistics_since([0;5]),
             "selected_cuda_uuid":resolution.selected_cuda_uuid,"cuda_ordinal":device.ordinal,"cuda_compiled":resolution.cuda_compiled,
             "cuda_libraries":format!("{:?}",device.cuda_libraries),"pooling":"engine Default BGE Mean; governed projection preparation"});
         std::fs::write(

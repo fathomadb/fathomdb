@@ -246,11 +246,12 @@ pub(super) struct Preimage {
     pub vectors: Vec<i64>,
     pub survivors: Vec<i64>,
     pub survivor_rows: Vec<(String, Vec<Value>)>,
+    pub target_rows: Vec<(String, Vec<Value>)>,
     pub intact_scores: Vec<(String, u64)>,
     pub survivor_only_scores: Vec<(String, u64)>,
 }
 
-fn survivor_rows(c: &Connection, cursors: &[i64]) -> Vec<(String, Vec<Value>)> {
+fn rows_for_cursors(c: &Connection, cursors: &[i64]) -> Vec<(String, Vec<Value>)> {
     let encoded = serde_json::to_string(cursors).unwrap();
     let mut result = Vec::new();
     for table in [
@@ -266,6 +267,10 @@ fn survivor_rows(c: &Connection, cursors: &[i64]) -> Vec<(String, Vec<Value>)> {
     ] {
         let sql = format!("SELECT rowid,* FROM {table} WHERE write_cursor IN (SELECT value FROM json_each(?1)) ORDER BY rowid");
         result.push((table.into(), rows(c, &sql, &encoded)));
+    }
+    let vectors = integers(c, "SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor IN (SELECT value FROM json_each(?1)) ORDER BY rowid", &encoded);
+    if !vectors.is_empty() {
+        result.push(("vector_default".into(), rows(c, "SELECT rowid,* FROM vector_default WHERE rowid IN (SELECT value FROM json_each(?1)) ORDER BY rowid", &serde_json::to_string(&vectors).unwrap())));
     }
     result
 }
@@ -350,9 +355,10 @@ pub(super) fn capture(
         request: request(&c, &ticket),
         ticket,
         rich,
+        target_rows: rows_for_cursors(&c, &targets),
         targets,
         vectors,
-        survivor_rows: survivor_rows(&c, &survivors),
+        survivor_rows: rows_for_cursors(&c, &survivors),
         survivors,
         intact_scores: scores(engine),
         survivor_only_scores: baseline,
@@ -367,7 +373,7 @@ pub(super) fn read_only(path: &Path) -> Connection {
 
 pub(super) fn assert_survivors(c: &Connection, pre: &Preimage) {
     assert_eq!(
-        survivor_rows(c, &pre.survivors),
+        rows_for_cursors(c, &pre.survivors),
         pre.survivor_rows,
         "exact survivor row/cursor/history identity"
     );
@@ -377,6 +383,13 @@ pub(super) fn assert_target_partition(c: &Connection, pre: &Preimage, present: b
     let encoded = serde_json::to_string(&pre.targets).unwrap();
     let found = integers(c, "SELECT write_cursor FROM canonical_nodes WHERE source_id=?1 UNION SELECT write_cursor FROM canonical_edges WHERE source_id=?1 ORDER BY write_cursor", "target");
     assert_eq!(found, if present { pre.targets.clone() } else { Vec::new() });
+    if present {
+        assert_eq!(
+            rows_for_cursors(c, &pre.targets),
+            pre.target_rows,
+            "rollback preserves every populated target row/span/vector"
+        );
+    }
     if !present {
         for table in [
             "canonical_attributes",
@@ -412,6 +425,18 @@ pub(super) fn assert_phase(c: &Connection, pre: &Preimage, phase: &str) {
         count(c, "SELECT coalescing FROM _fathomdb_read_visibility_state WHERE singleton=1"),
         0
     );
+    if matches!(phase, "sanitizing" | "finalizing" | "complete") {
+        let state: String = c
+            .query_row(
+                "SELECT value FROM _fathomdb_open_state WHERE key='_fathomdb_fts_sanitation'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let state: Value = serde_json::from_str(&state).unwrap();
+        assert_eq!(state["phase"], if phase == "complete" { "clean" } else { "finalizing" });
+        assert_eq!(state["family"], TABLES.len());
+    }
     if phase == "queued" {
         assert!(root(c).is_none());
     } else if phase == "complete" {

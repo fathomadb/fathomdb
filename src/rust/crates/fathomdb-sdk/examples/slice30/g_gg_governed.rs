@@ -227,6 +227,17 @@ pub(super) fn from_template(
     );
     let GAdapter::Core(opened) = &adapter else { unreachable!() };
     let engine = &opened.engine;
+    macro_rules! verified {
+        ($read:expr) => {{
+            match g_gg_stages::verification(config, out, $read) {
+                Ok(value) => value,
+                Err(()) => {
+                    adapter.close();
+                    return false;
+                }
+            }
+        }};
+    }
     let writes = governed_writes();
     let Ok(write_ns) = g_gg_stages::mutation(config, out, "write", || {
         let writing = Instant::now();
@@ -266,13 +277,9 @@ pub(super) fn from_template(
         }
     };
     let valid_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-    let valid_readiness = g_gg_stages::verification(config, out, || readiness(engine)).unwrap();
-    let valid = g_gg_stages::verification(config, out, || {
-        inventory(&store, &report.default_embedder, false)
-    })
-    .unwrap();
-    let mut controls =
-        vec![g_gg_stages::verification(config, out, || control(engine, "valid")).unwrap()];
+    let valid_readiness = verified!(|| readiness(engine));
+    let valid = verified!(|| { inventory(&store, &report.default_embedder, false) });
+    let mut controls = vec![verified!(|| control(engine, "valid"))];
     if !g_gg_stages::measure_stage(
         engine,
         config,
@@ -308,13 +315,10 @@ pub(super) fn from_template(
         }
     };
     let deleted_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-    let deleted_readiness = g_gg_stages::verification(config, out, || readiness(engine)).unwrap();
+    let deleted_readiness = verified!(|| readiness(engine));
     let pending = deleted_readiness["pending_count"].as_u64().unwrap();
-    let deleted = g_gg_stages::verification(config, out, || {
-        inventory(&store, &report.default_embedder, true)
-    })
-    .unwrap();
-    controls.push(g_gg_stages::verification(config, out, || control(engine, "deleted")).unwrap());
+    let deleted = verified!(|| { inventory(&store, &report.default_embedder, true) });
+    controls.push(verified!(|| control(engine, "deleted")));
     if !g_gg_stages::measure_stage(
         engine,
         config,
@@ -326,10 +330,7 @@ pub(super) fn from_template(
         return false;
     }
     adapter.close();
-    let source_hash = g_gg_stages::verification(config, out, || {
-        Sha256::digest(std::fs::read(source).unwrap()).to_vec()
-    })
-    .unwrap();
+    let source_hash = verified!(|| { Sha256::digest(std::fs::read(source).unwrap()).to_vec() });
     assert_eq!(source_hash, original);
     let mut proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
         "governed_write_calls":1,"write_rows":2,"dependency_registrations":1,"transitions":1,"pending":pending,

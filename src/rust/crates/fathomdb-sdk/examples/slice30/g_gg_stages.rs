@@ -44,11 +44,11 @@ pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<
 }
 
 pub(super) fn verification<T>(
-    _config: &Value,
-    _out: &Path,
+    config: &Value,
+    out: &Path,
     read: impl FnOnce() -> T,
 ) -> Result<T, ()> {
-    Ok(read())
+    super::g_write_schedule::admitted_read(config, out, "verification", read)
 }
 
 pub(super) fn mutation<T>(

@@ -46,12 +46,20 @@ pub(super) fn from_template(
     );
     let GAdapter::Core(opened) = &adapter else { unreachable!() };
     let engine = &opened.engine;
-    let baseline = g_gg_stages::verification(config, out, || {
-        g_write_schedule::current_coverage(&store, &report.default_embedder)
-    })
-    .unwrap();
-    let mut controls =
-        vec![g_gg_stages::verification(config, out, || control(engine, "baseline", 100)).unwrap()];
+    macro_rules! verified {
+        ($read:expr) => {{
+            match g_gg_stages::verification(config, out, $read) {
+                Ok(value) => value,
+                Err(()) => {
+                    adapter.close();
+                    return false;
+                }
+            }
+        }};
+    }
+    let baseline =
+        verified!(|| { g_write_schedule::current_coverage(&store, &report.default_embedder) });
+    let mut controls = vec![verified!(|| control(engine, "baseline", 100))];
     if !g_gg_stages::measure_stage(
         engine,
         config,
@@ -99,19 +107,12 @@ pub(super) fn from_template(
         }
     };
     let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-    let pending = g_gg_stages::verification(config, out, || {
-        engine.read_embedding_readiness().unwrap().pending_count
-    })
-    .unwrap();
+    let pending = verified!(|| { engine.read_embedding_readiness().unwrap().pending_count });
     assert_eq!(pending, 0);
-    let after = g_gg_stages::verification(config, out, || {
-        g_write_schedule::current_coverage(&store, &report.default_embedder)
-    })
-    .unwrap();
+    let after =
+        verified!(|| { g_write_schedule::current_coverage(&store, &report.default_embedder) });
     for (stage, as_of) in [("before", 80), ("inside", 100), ("after", 120)] {
-        controls.push(
-            g_gg_stages::verification(config, out, || control(engine, stage, as_of)).unwrap(),
-        );
+        controls.push(verified!(|| control(engine, stage, as_of)));
         if !g_gg_stages::measure_stage(
             engine,
             config,
@@ -124,10 +125,7 @@ pub(super) fn from_template(
         }
     }
     adapter.close();
-    let source_hash = g_gg_stages::verification(config, out, || {
-        Sha256::digest(std::fs::read(source).unwrap()).to_vec()
-    })
-    .unwrap();
+    let source_hash = verified!(|| { Sha256::digest(std::fs::read(source).unwrap()).to_vec() });
     assert_eq!(source_hash, original);
     let mut proof = json!({"controls":controls,"baseline_coverage":baseline,"after_coverage":after,
         "governed_write_calls":1,"write_rows":1,"write_cursor":receipt.cursor,"write_ns":write_ns,

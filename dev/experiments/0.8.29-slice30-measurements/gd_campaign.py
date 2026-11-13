@@ -1,7 +1,9 @@
 """Execute explicit G/D manifest cells through the maintained attempt machinery."""
 
 import argparse
+from contextlib import contextmanager
 import json
+import signal
 import subprocess
 from pathlib import Path
 import time
@@ -22,6 +24,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
     deadline = clock["started_ns"] + int(min(manifest["campaign_seconds"], 14400) * 1_000_000_000)
 
     swap = {"previous":None,"streak":0}
+    cancelled = None
 
     def prepare():
         check_clock()
@@ -38,6 +41,8 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         return context
 
     def check_clock():
+        if cancelled is not None:
+            raise _CampaignRefusal("controller_stopped")
         if clock["boot_id"] != boot_id:
             raise _CampaignRefusal("campaign_clock_unavailable")
         now = time.monotonic_ns()
@@ -54,7 +59,10 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
                   "shared_deadline_ns": deadline}
 
         def execute(cell, command, config, attempt, observe):
-            return _run_native(cell, command, config, attempt, observe, bounds, resources, resource_interval, swap)
+            nonlocal cancelled
+            result = _run_native(cell, command, config, attempt, observe, bounds, resources, resource_interval, swap)
+            cancelled = result.get("controller_signal")
+            return result
 
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
@@ -97,6 +105,24 @@ def _sample_resources(resources, deadline, start=False, swap=None):
     return sample
 
 
+@contextmanager
+def _owned_stop_flags():
+    state: dict[str, int | None] = {"signal":None}
+    previous = {number:signal.getsignal(number) for number in (signal.SIGTERM,signal.SIGINT)}
+
+    def stop(number, _frame):
+        if state["signal"] is None:
+            state["signal"] = number
+
+    try:
+        for number in previous:
+            signal.signal(number,stop)
+        yield state
+    finally:
+        for number, handler in previous.items():
+            signal.signal(number,handler)
+
+
 def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None):
     native = dict(cell)
     for key, limit in bounds.items():
@@ -113,13 +139,19 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
     error = None
     samples = []
     next_probe = time.monotonic()+resource_interval
-    with _owned_subreaper(), (attempt / "child.log").open("wb") as log:
+    with _owned_stop_flags() as stopped, _owned_subreaper(), (attempt / "child.log").open("wb") as log:
+        if stopped["signal"] is not None:
+            number = stopped["signal"]
+            return dict(refusal,exit=128+number,error=f"controller_signal_{number}",controller_signal=number)
         if time.monotonic_ns() >= native["work_deadline_ns"]:
             return refusal
         child = subprocess.Popen([*command, str(config), str(attempt)], stdout=log,
                                  stderr=subprocess.STDOUT, start_new_session=True)
         try:
             while True:
+                if stopped["signal"] is not None:
+                    error = f"controller_signal_{stopped['signal']}"
+                    break
                 now = time.monotonic()
                 if now >= work:
                     error = "cell work deadline"
@@ -140,6 +172,9 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
                         error = str(refusal)
                         break
                     next_probe = time.monotonic()+resource_interval
+                if stopped["signal"] is not None:
+                    error = f"controller_signal_{stopped['signal']}"
+                    break
                 if monitor:
                     error = monitor(child.pid)
                     if error:
@@ -152,12 +187,12 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
                     child.wait(timeout=min(0.1, remaining))
                 except subprocess.TimeoutExpired:
                     pass
-            if monitor and error is None:
+            if monitor and error is None and stopped["signal"] is None:
                 error = monitor(child.pid)
             if time.monotonic() >= work:
                 error = error or "cell work deadline"
         finally:
-            if child.poll() is None:
+            if child.poll() is None and stopped["signal"] is None:
                 cooperative = min(time.monotonic()+5, hard-25)
                 if cooperative > time.monotonic():
                     try:
@@ -167,7 +202,7 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
             cleanup = _cleanup_owned_group(child, deadline=min(hard-5, time.monotonic()+20))
         if not cleanup["complete"]:
             error = error or "owned group cleanup incomplete"
-        if resources:
+        if resources and stopped["signal"] is None:
             try:
                 sample = _sample_resources(resources, hard, swap=swap)
                 sample["phase"] = "final"
@@ -176,9 +211,12 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
                 error = error or str(refusal)
         if time.monotonic() >= hard:
             error = error or "cell hard deadline"
-        return {"exit":124 if error else child.returncode, "error":error,
+        stop_signal = stopped["signal"]
+        if stop_signal is not None:
+            error = error or f"controller_signal_{stop_signal}"
+        return {"exit":128+stop_signal if stop_signal is not None else (124 if error else child.returncode), "error":error,
                 "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup,
-                "resource_samples":samples if resources else None}
+                "resource_samples":samples if resources else None, "controller_signal":stop_signal}
 
 
 class _CampaignRefusal(Exception):
@@ -214,7 +252,8 @@ def main():
     manifest = json.loads(args.manifest.read_text())
     outcomes = run_manifest(manifest, args.output, resources=manifest.get("resources"))
     print(json.dumps(outcomes, indent=2))
-    return int(any(row["status"] != "complete" for row in outcomes))
+    stopped = next((row["controller_signal"] for row in outcomes if row.get("controller_signal") is not None),None)
+    return 128+stopped if stopped is not None else int(any(row["status"] != "complete" for row in outcomes))
 
 
 if __name__ == "__main__":

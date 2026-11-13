@@ -98,6 +98,8 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
         if execution is not None:
             outcome["cleanup"] = execution["cleanup"]
             outcome["child_exit"] = execution["child_exit"]
+            if execution.get("controller_signal") is not None:
+                outcome["controller_signal"] = execution["controller_signal"]
             if execution.get("resource_samples") is not None:
                 outcome["resource_samples"] = execution["resource_samples"]
             if execution["pid"] is None:

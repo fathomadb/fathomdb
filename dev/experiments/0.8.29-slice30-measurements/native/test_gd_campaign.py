@@ -178,6 +178,40 @@ class SharedClockCampaignTests(unittest.TestCase):
         self.assertEqual(clock.read_bytes(),saved)
 
 
+class FamilyDestinationTests(unittest.TestCase):
+    def check_destination(self,depth):
+        root, _, manifest=clock_fixture()
+        manifest["cells"]=manifest["cells"][:1]
+        healthy=run_manifest(manifest,root/"healthy")[0]
+        self.assertEqual(healthy["status"],"complete","actual flat native control NOT_RED")
+        name="/".join(["d",*['nested']*depth,"source-cell"])
+        manifest["cells"][0]["id"]=name
+        error=None
+        outcomes=[]
+        try:
+            outcomes=run_manifest(manifest,root/"family")
+        except FileNotFoundError as failure:
+            error=str(failure)
+        print(f"actual family destination {root/'family'/name} error={error}",flush=True)
+        self.assertIsNone(error,"GD catalog family destination was not created before its owned native attempt")
+        self.assertEqual(outcomes[0]["status"],"complete")
+        attempt=Path(outcomes[0]["attempt"])
+        self.assertEqual(attempt.parent,root/"family"/name)
+        self.assertTrue(outcomes[0]["cleanup"]["complete"])
+        with closing(sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT logical_id,body FROM canonical_nodes").fetchall(),[("clock-row","clockwitness évidence")])
+        resumed=run_manifest(manifest,root/"family")
+        self.assertEqual(resumed[0]["attempt"],outcomes[0]["attempt"])
+
+    def test_real_cell_runs_under_its_raw_family_directory(self):
+        self.check_destination(0)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=1,max_value=3))
+    def test_actual_nested_cell_destinations_preserve_data_and_resume(self,depth):
+        self.check_destination(depth)
+
+
 class CellRetryClockTests(unittest.TestCase):
     def check_retry(self,milliseconds):
         root, _, manifest=clock_fixture()

@@ -501,6 +501,7 @@ class CopiedGCellTests(_NativeGFixture):
         # The stored producer already includes its selected native identity.
         resumed=run_manifest(manifest,results,resources=self.resources)
         self.assertEqual([row["attempt"] for row in resumed],[producer["attempt"],outcome["attempt"]])
+        return manifest,results,outcome
 
     def test_closed_gt_copy_drives_real_six_mode_cell_and_resume(self):
         self.check_copy("copied é")

@@ -358,5 +358,65 @@ class NativeGAdmissionTests(unittest.TestCase):
         self.check_scheduled_drain_budgets(mode)
 
 
+    def check_owned_preparation(self,suffix):
+        root=self.root/f"owned-preparation-{self.ordinal}"
+        self.ordinal+=1
+        root.mkdir()
+        records=[f"budget {suffix} {i}" for i in range(65)]
+        corpus,questions=root/"corpus.jsonl",root/"questions.jsonl"
+        corpus.write_text("".join(json.dumps(body)+"\n" for body in records))
+        questions.write_text("".join(json.dumps(query)+"\n" for query in ["budget","été","missingnomatch"]))
+        cell=dict(self.config,id="gt-source",family="G_PREPARE",artifact="gn",gpu_uuid=GPU,
+                  n=65,corpus=str(corpus),questions=str(questions),query_count=3)
+        digest=hashlib.sha256(self.binary.read_bytes()).hexdigest()
+        if digest!=self.features["binary_sha256"]:
+            raise RuntimeError("actual normal artifact unavailable NOT_RED")
+        print(f"owned GT {root} normal_binary={digest}",flush=True)
+        manifest={"schema":"slice30-gd/source-fixture-v1","cell_seconds":150,"campaign_seconds":14400,
+                  "artifacts":{"gn":{"path":str(self.binary),"sha256":digest}},"cells":[cell]}
+        snapshots=[]
+        def monitor(pid):
+            snapshots.append(_accounting(pid,min(self.work_end,time.monotonic()+5)))
+            return None
+        _sample_resources(self.resources,self.work_end,start=True)
+        with (self.task/"locks"/(GPU+".lock")).open("a") as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            before=_accounting(None,min(self.work_end,time.monotonic()+5))
+            if before["util"] or before["total_MiB"]-before["used_MiB"]<8192:
+                raise RuntimeError("approved GPU not quiet/free NOT_RED")
+            outcome=run_manifest(manifest,root/"results",monitor=monitor,resources=self.resources)[0]
+        if outcome["exit"]!=0:
+            raise RuntimeError(f"owned preparation setup/accounting failure NOT_RED {outcome}")
+        attempt=Path(outcome["attempt"])
+        store=attempt/"case-0/template.sqlite"
+        count=0
+        if store.exists():
+            if not any(row["pid"]==outcome["pid"] and row["own_MiB"]>0 and row["util"]>0 for row in snapshots):
+                raise RuntimeError("actual owned preparation CUDA engagement missing NOT_RED")
+            with closing(sqlite3.connect(f"file:{store}?mode=ro",uri=True)) as db:
+                actual=db.execute("SELECT logical_id,kind,body FROM canonical_nodes ORDER BY write_cursor").fetchall()
+                count=len(actual)
+                self.assertEqual(actual,[(f"s30doc-{i}","doc",body) for i,body in enumerate(records)])
+                self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],65)
+                self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_spans").fetchone()[0],65)
+            report=json.loads((attempt/"case-0/template.json").read_text())["preparation"]
+            self.assertEqual((report["api_complete"],report["write_rows"],report["write_calls"],report["pending"]),(True,65,2,0))
+            self.assertEqual(hashlib.sha256(store.read_bytes()).hexdigest(),report["closed_main_sha256"])
+            self.assertTrue(not Path(str(store)+"-wal").exists() or Path(str(store)+"-wal").stat().st_size==0)
+            encoded=[json.loads(line) for line in (attempt/"questions.jsonl").read_text().splitlines()]
+            self.assertEqual(encoded,[{"id":0,"query":"budget"},{"id":1,"query":"été"},{"id":2,"query":"missingnomatch"}])
+            self.assertTrue(outcome["cleanup"]["complete"])
+        print(f"actual owned GT {attempt} produced={count}/65 pid={outcome['pid']}",flush=True)
+        self.assertEqual(count,65,"owned GT controller child did not encode and execute actual normal BGE preparation")
+
+    def test_owned_gt_child_executes_real_closed_template_preparation(self):
+        self.check_owned_preparation("épreuve β")
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.text(alphabet="abcéβ常",min_size=1,max_size=8))
+    def test_owned_preparation_preserves_selected_unicode_inputs(self,suffix):
+        self.check_owned_preparation(suffix)
+
+
 if __name__ == "__main__":
     unittest.main()

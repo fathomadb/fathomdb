@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import json
 import signal
 import subprocess
+import sys
 from pathlib import Path
 import time
 
@@ -73,8 +74,10 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
+        command = ([sys.executable,str(Path(__file__).with_name("gd_stage.py"))]
+                   if cell["family"]=="G_PREPARE" else [artifact["path"]])
         try:
-            outcomes.extend(run_campaign([cell], root, [artifact["path"]],
+            outcomes.extend(run_campaign([cell], root, command,
                                          timeout=manifest["cell_seconds"], completion=_native_complete,
                                          monitor=monitor, before=prepare,
                                          poll_interval=0.1, observe_start=monitor is not None, execute=execute))

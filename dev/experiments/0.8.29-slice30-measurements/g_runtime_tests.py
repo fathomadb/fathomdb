@@ -205,5 +205,38 @@ class GNormalCliTests(unittest.TestCase):
             self.assertFalse(result["qualified_dense_fixture"])
 
 
+    def test_diagnostic_registered_calls_exclude_an_unrequested_extra_first_call(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text('"alpha needle"\n"beta"\n')
+            queries.write_text('"needle"\n"beta"\n')
+            seed = root / "seed.json"
+            seed.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                        "adapter": "sdk", "n": 2, "corpus": str(corpus), "queries": str(queries)}))
+            prepared = subprocess.run([str(binary), str(seed), str(root / "seed")],
+                                      text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+            config = root / "cell.json"
+            config.write_text(json.dumps({"family": "G-O", "provider": "none", "negative_control": True,
+                                          "store": str(root / "seed" / "store.sqlite"), "queries": str(queries),
+                                          "adapters": ["sdk"], "routes": ["text"], "observe": True,
+                                          "warmup": 0, "samples": 2, "repeat": 0, "record_first_call": False}))
+            out = root / "out"
+            child = subprocess.run([str(binary), str(config), str(out)],
+                                   text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+            result = json.loads((out / "result.json").read_text())
+            calls = [row for trace in result["observation_batches"] for row in trace["records"]
+                     if row["phase"] == "api_text"]
+            self.assertEqual(len(calls), 2, "diagnostic added an API call outside its registered population")
+            self.assertEqual(result["first_call_count"], 0)
+            self.assertEqual(result["warmup_count"], 0)
+            self.assertEqual(result["sample_count"], 2)
+            self.assertEqual([row["ids"] for row in result["samples"]], [["l:s30doc-0"], ["l:s30doc-1"]])
+            self.assertEqual(len((out / "first-calls.jsonl").read_text().splitlines()), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

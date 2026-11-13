@@ -253,5 +253,36 @@ class CellBudgetCampaignTests(unittest.TestCase):
         self.assertLess(elapsed,2_000_000_000)
 
 
+class NativePhaseStopTests(unittest.TestCase):
+    def check_stop(self, samples):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        healthy = run_manifest(manifest, root/"healthy")
+        self.assertEqual(healthy[0]["status"],"complete", "ordinary real D calls NOT_RED")
+        manifest["cells"][0]["samples"] = samples
+        manifest["cell_seconds"] = 30.02
+        result = run_manifest(manifest, root/"bounded")[0]
+        self.assertEqual(result["status"],"failed", "controller deadline control NOT_RED")
+        attempt = Path(result["attempt"])
+        print(f"actual native stop fixture {attempt}", flush=True)
+        self.assertFalse((attempt/"complete.json").exists(), "native caller continued later work after refused/expired phase")
+        report = json.loads((attempt/"budget.json").read_text())
+        self.assertEqual(report["disposition"], "deadline_refused")
+        self.assertIn(report["phase"],["entry","configure","drain","warmup","timed","write","collect","complete"])
+        path = attempt/"queries.jsonl"
+        calls = [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+        self.assertLess(len(calls),samples+1)
+        self.assertTrue(all(call["ok"] for call in calls))
+        self.assertTrue(result["cleanup"]["complete"])
+
+    def test_real_native_does_not_publish_completion_after_its_phase_budget(self):
+        self.check_stop(3000)
+
+    @settings(max_examples=2, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.integers(min_value=2000,max_value=3000))
+    def test_expired_native_preserves_only_the_completed_call_prefix(self,samples):
+        self.check_stop(samples)
+
+
 if __name__ == "__main__":
     unittest.main()

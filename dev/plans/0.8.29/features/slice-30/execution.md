@@ -935,3 +935,15 @@ aggregate-cap qualification; those controller units remain required.
   for the existing fresh Astra reviewer once. It does not qualify native/model/
   GPU execution. Next work is the usable frozen production runner and complete
   G-W workload feasibility, with native qualification gated on window return.
+
+### Frozen production runner RED
+
+- Began the usable G runner on the working current-driver scaffold.
+  `g-runner-production-red` executes actual harmless G-seed/G-R command controls,
+  whose reports explicitly say `runner_only: true`. The wrapper incorrectly
+  accepts them as complete positive Default work: `AssertionError: True is not
+  false : harmless protocol reports were accepted as positive Default
+  qualification`. One runtime failure, exit 1, no resource stop.
+- Frozen expectations require refusal of these controlled reports, retained
+  command inputs/results and an explicit qualification issue. No database,
+  native, model or GPU execution is performed or claimed by this unit.

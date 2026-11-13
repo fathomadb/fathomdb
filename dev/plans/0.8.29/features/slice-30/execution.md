@@ -320,3 +320,31 @@ remain a nonadditive tree. Known error wall time is retained separately, while
 error/unavailable/missing collection and dropped records prevent exclusive
 remainders. No independent percentile subtraction, corrected latency or exclusive
 GPU-service inference. This is tool math, not a new natural measurement.
+
+Fresh math preaudit identified a child escaping its actual parent without an
+issue. Separate RED84465f8e6 runs literal parent[0,10]/child[9,11] and fails
+completeTruevsFalse. GREENf7dcfcf14 checks containment before completeness, records
+child_outside_parent and suppresses all exclusive remainders while retaining
+inclusive10/2. g-t8-math-containment-green passes6/6 and Ruff passes; fresh Astra
+recheck resolves the finding with no further numeric/null-schema regression.
+The original5 bodies stay unchanged; six-test blob
+7daa82a238884a1ed01bde2de3ac733d33cde09e matches RED→GREEN.
+
+G-T9 initial g-t9-red compiled and failed missing actual replacement cohorts0vs2.
+Before implementation, source check identified an unreachable downstream new-test
+error-kind spelling typo. Independent Astra narrow review approved ONLY changing
+embedder_not_configured to the existing accepted EmbedderNotConfiguredError.
+Initial receipt/log and exact scaffold/test patch SHA256
+83faa9544c2827a099e7f0490a71ca78ecc76a8611a809fba4026f64c02eb301 remain.
+Corrected g-t9-corrected-red recompiles and fails the same genuine cohort0vs2
+assertion, then REDd627f0b02 freezes it before any G schedule implementation.
+GREEN g-t9-green passes1/1/0ignored across12 tiny adapter/route/batch combinations
+(8 other example tests filtered), exit0/no resource stop; scoped SDK example/tests
+Clippy passes. The unchanged test-module SHA256 is
+6b1cd445fae1f92d7c0ad8650b2c2f95f778a7baf3b665371e2a9b777c80e4df.
+Two actual governed cohorts replace existing natural IDs; independently read
+active/history counts, exact token/current point+FTS body, separate clocks and
+event order are checked. No marker nodes, filters, interbatch drain or artificial
+pending counts. Provider-free embed errors are expected negative controls, not
+positive dense/GPU qualification. Normal G CLI, actual SDK/nested observation,
+controller/registration, full/native qualification and campaign remain pending.

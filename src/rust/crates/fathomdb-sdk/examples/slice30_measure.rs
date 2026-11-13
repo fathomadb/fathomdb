@@ -190,6 +190,22 @@ struct GSchedule {
 }
 
 #[cfg(test)]
+fn g_point_probe(engine: &Adapter, id: &str, expected_body: &str) -> Value {
+    let start = std::time::Instant::now();
+    let result = match engine {
+        Adapter::Core(engine) => engine.read_get(id, &ReadView::default()).map_err(Into::into),
+        Adapter::Sdk(engine) => fathomdb_sdk::read::get(engine, id, None),
+    };
+    let elapsed_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    match result {
+        Ok(Some(record)) => json!({"elapsed_ns":elapsed_ns,"body":record.body,
+            "write_cursor":record.write_cursor,"current":record.logical_id==id && record.body==expected_body}),
+        Ok(None) => json!({"elapsed_ns":elapsed_ns,"body":null,"current":false}),
+        Err(error) => json!({"elapsed_ns":elapsed_ns,"current":false,"error":format!("{error:?}")}),
+    }
+}
+
+#[cfg(test)]
 fn run_g_schedule_observed(
     engine: &Adapter,
     route: &str,
@@ -198,9 +214,49 @@ fn run_g_schedule_observed(
     schedule: GSchedule,
     observer: &mut dyn FnMut(&str, &Value),
 ) -> Schedule {
-    let _ = (original_bodies, schedule.batch_size, schedule.searches_per_batch);
+    assert!(!queries.is_empty() && schedule.searches_per_batch > 0);
+    assert!(original_bodies.len() >= 10);
+    assert!(schedule.batch_size == 1 || schedule.batch_size == 10);
     let mut output = Schedule { searches: vec![], batches: vec![], probes: vec![] };
     for sample in 0..schedule.samples {
+        if sample % schedule.searches_per_batch == 0 {
+            let cohort = sample / schedule.searches_per_batch;
+            let slots =
+                if schedule.batch_size == 1 { vec![cohort % 10] } else { (0..10).collect() };
+            let replacements = slots
+                .iter()
+                .map(|slot| {
+                    let id = format!("s30doc-{slot}");
+                    let token = format!("s30gmarker{slot}revision{cohort}");
+                    let body = format!("{} {token}", original_bodies[*slot]);
+                    (id, token, body)
+                })
+                .collect::<Vec<_>>();
+            let writes =
+                replacements.iter().map(|(id, _, body)| node(id, "doc", body)).collect::<Vec<_>>();
+            let start = std::time::Instant::now();
+            let cursor = engine.write(&writes);
+            let write_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+            let batch = json!({"before_sample":sample,"cohort_index":cohort,"rows":writes.len(),
+                "write_ns":write_ns,"after_write_cursor":cursor,
+                "affected_ids":replacements.iter().map(|(id,_,_)|id).collect::<Vec<_>>(),
+                "revision_tokens":replacements.iter().map(|(_,token,_)|token).collect::<Vec<_>>(),
+                "authority_observation":"governed write receipt only; not a search snapshot"});
+            observer("batches", &batch);
+            output.batches.push(batch);
+            for (id, token, body) in replacements {
+                let point = g_point_probe(engine, &id, &body);
+                let text = observe_g_route(engine, "text", &token);
+                let current = point["current"] == true
+                    && text["ids"] == json!([format!("l:{id}")])
+                    && text["bodies"] == json!([body]);
+                let probe = json!({"before_sample":sample,"cohort_index":cohort,
+                    "logical_id":id,"revision_token":token,"point_probe":point,
+                    "text_probe":text,"marker_current":current});
+                observer("g-marker-probes", &probe);
+                output.probes.push(probe);
+            }
+        }
         let mut row = observe_g_route(engine, route, &queries[sample % queries.len()]);
         row["sample_index"] = json!(sample);
         row["query_index"] = json!(sample % queries.len());

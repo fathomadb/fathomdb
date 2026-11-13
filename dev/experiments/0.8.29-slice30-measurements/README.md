@@ -20,7 +20,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [cells.json](cells.json) | Eight actual P base cells, two balanced repeats:16cells. P1 has engine/SDK passes; P2 is separately filtered marker-write work. |
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
-| [test_g_spans.py](test_g_spans.py) | Five frozen literal interval/availability/operation-identity oracles. Selected by existing Python discovery; no natural campaign. |
+| [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
 | [test_tools.py](test_tools.py) | Fourteen bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
 
 The Rust example's six independently specified real-store assertions are
@@ -114,8 +114,8 @@ MCP/Windows/Block1 and final160 obligations are not discharged by this P subset.
 The [reviewed continuation](../../plans/0.8.29/features/slice-30/continuation-gd.md)
 and [execution](../../plans/0.8.29/features/slice-30/execution.md) distinguish source
 GO from technical GPU campaign GO. No accepted P measurements are repeated.
-The existing SDK example now has two additional ordinary tiny real-store route/
-fixture assertions. The negative readiness fixture has two natural doc nodes and
+The existing SDK example now has three additional ordinary tiny real-store route/
+fixture/replacement-schedule assertions. The negative readiness fixture has two natural doc nodes and
 two separate body-bearing control edges; pending2/blocked without a provider is
 not positive dense or GPU qualification. The engine observer ownership target
 uses two real stores and no model:
@@ -134,3 +134,10 @@ attribution. Source-window membership and pending-probe controls use a determini
 SDK observer execution still await normal G CLI integration. The test-only
 forwarding/phase surface is documented in rust.md. No G campaign, BGE/GPU execution
 or selected natural dense store is qualified by these ordinary assertions.
+
+The G-only replacement schedule updates existing first-ten natural doc IDs with
+original body plus a cohort-specific marker token, using one governed write per
+cohort. Point and direct-text marker probes have separate clocks and precede
+natural unfiltered calls; they affect cache state and loop throughput. No
+interbatch drain or separate marker nodes are added. The tiny ordinary schedule
+test uses no provider and explicitly expects the typed embed failure.

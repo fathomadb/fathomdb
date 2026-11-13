@@ -70,3 +70,15 @@ class GPhaseResourceStopTests(unittest.TestCase):
             self.assertEqual((facts["pgid"], facts["sid"]), (report["pid"], report["pid"]))
             self.assertNotEqual(facts["pid"], report["pid"])
             self.assertFalse(late.exists(), "TERM-resistant actual descendant survived resource-stop leader cleanup")
+
+
+class GPhaseSuccessfulLeaderTests(unittest.TestCase):
+    def test_successful_leader_cannot_leave_a_live_owned_descendant(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            child, report, facts, late = phase_control(Path(temporary), resource_stop=False)
+            self.assertIsNone(report["resource_stop"], child.stdout + child.stderr)
+            self.assertEqual((facts["pgid"], facts["sid"]), (report["pid"], report["pid"]))
+            self.assertNotEqual(facts["pid"], report["pid"])
+            self.assertNotEqual(child.returncode, 0,
+                                "successful native phase leader was accepted with live owned work")
+            self.assertFalse(late.exists(), "actual descendant continued after successful native phase leader")

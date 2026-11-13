@@ -171,6 +171,31 @@ pub(crate) fn span(phase: &'static str) -> Span {
     Span { data, marker: PhantomData }
 }
 
+pub(crate) fn not_run(phase: &'static str, reason: &'static str) {
+    let Some(token) = capture_token() else {
+        return;
+    };
+    let Some(collector) = token.collector.upgrade() else {
+        return;
+    };
+    if !collector.active.load(Ordering::Acquire) {
+        return;
+    }
+    let record = Slice30ObservationRecord {
+        engine_id: collector.engine_id,
+        session_id: collector.session_id,
+        operation_id: token.operation_id,
+        span_id: collector.next_span.fetch_add(1, Ordering::Relaxed),
+        parent_span_id: token.parent_span_id,
+        phase,
+        started_ns: None,
+        ended_ns: None,
+        status: "not_run",
+        facts: serde_json::json!({"called":false,"sql_executed":false,"reason":reason}),
+    };
+    collector.append(record);
+}
+
 impl Span {
     pub(crate) fn success(&self) {
         if let Some(data) = &self.data {

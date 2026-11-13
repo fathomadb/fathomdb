@@ -710,6 +710,16 @@ run_tier_maybe_suite heavy test-slice30-gd-campaign "$slice30_measurement_platfo
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_gd_campaign.py
 '
 
+run_tier_maybe_suite heavy test-slice30-gd-results "$slice30_measurement_platform_reason" bash -c '
+  set -euo pipefail
+  mkdir -p "$S30_GD_TASK/bin/gd-results"
+  cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks
+  cp "$CARGO_TARGET_DIR/release/examples/slice30_gd_diagnostic" "$S30_GD_TASK/bin/gd-results/dn"
+  cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks,slice30-measurement
+  cp "$CARGO_TARGET_DIR/release/examples/slice30_gd_diagnostic" "$S30_GD_TASK/bin/gd-results/do"
+  timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_gd_results.py
+'
+
 run_tier_maybe_suite heavy test-slice30-native-budget "$slice30_measurement_platform_reason" bash -c '
   set -euo pipefail
   cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic

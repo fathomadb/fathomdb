@@ -3,7 +3,7 @@
 #[path = "../examples/slice30/native_budget.rs"]
 mod native_budget;
 
-use fathomdb_engine::{EmbedderChoice, Engine};
+use fathomdb_engine::{EmbedderChoice, Engine, InitialState, PreparedWrite, SourceId};
 use proptest::prelude::*;
 use proptest::test_runner::RngSeed;
 use serde_json::{json, Value};
@@ -134,4 +134,71 @@ proptest! {
     #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301402),..ProptestConfig::default()})]
     #[test]
     fn actual_drain_argument_is_floor_of_remaining_absolute_budget(milliseconds in 1000u64..4000){drain_case(milliseconds);}
+}
+
+fn copied_database_refusal(rows: usize) {
+    let binary = std::env::current_exe().unwrap();
+    let hash: String = Sha256::digest(std::fs::read(&binary).unwrap())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let root =
+        tempfile::Builder::new().prefix("s30-post-template-refusal-").tempdir().unwrap().keep();
+    println!(
+        "real copied database refusal {} test_binary={} sha256={hash}",
+        root.display(),
+        binary.display()
+    );
+    let source = root.join("template.sqlite");
+    let engine = Engine::open_with_choice(&source, EmbedderChoice::None).unwrap().engine;
+    let nodes: Vec<_> = (0..rows)
+        .map(|i| PreparedWrite::Node {
+            kind: "doc".into(),
+            body: format!("actual copied Unicode é {i}"),
+            source_id: SourceId::new("test:slice30-budget-report").unwrap(),
+            logical_id: Some(format!("copied-{i}")),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        })
+        .collect();
+    engine.write(&nodes).unwrap();
+    engine.close().unwrap();
+    let copied = root.join("query.sqlite");
+    std::fs::copy(&source, &copied).unwrap();
+    let connection =
+        rusqlite::Connection::open_with_flags(&copied, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let observed: usize =
+        connection.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
+    assert_eq!(observed, rows, "actual governed DB/closed-copy controls NOT_RED");
+    drop(connection);
+    let config =
+        json!({"work_deadline_ns":0,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+    assert!(native_budget::query_open(&config, &root).is_err());
+    assert!(source.exists() && copied.exists());
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(root.join("budget.json")).unwrap()).unwrap();
+    println!("actual existing SQLite refusal {report}");
+    assert_eq!(report["phase"], "query_open", "post-copy refusal must not claim untouched entry");
+    assert!(
+        report.get("sqlite_created").is_none(),
+        "already copied SQLite must not be reported absent"
+    );
+    assert!(
+        report.get("open_calls").is_none(),
+        "initial zero-work counters do not apply after preparation"
+    );
+    assert_eq!(report["disposition"], "deadline_refused");
+}
+
+#[test]
+fn post_template_refusal_does_not_claim_no_sqlite_work() {
+    copied_database_refusal(2);
+}
+proptest! {
+    #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301403),..ProptestConfig::default()})]
+    #[test]
+    fn copied_population_refusal_preserves_truthful_phase(rows in 1usize..4) { copied_database_refusal(rows); }
 }

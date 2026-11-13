@@ -41,7 +41,7 @@ fn run_inner(config: &Value, out: &Path) -> Result<(), ()> {
         dense_template::run(config, &out.join("template"));
         std::fs::copy(out.join("template/template.sqlite"), &store).unwrap();
     }
-    super::native_budget::phase(config, out, "entry")?;
+    super::native_budget::query_open(config, out)?;
     let opened = Engine::open_with_test_choice_for_test(
         &store,
         TestEmbedderChoice::Caller(Arc::new(VaryingEmbedder)),

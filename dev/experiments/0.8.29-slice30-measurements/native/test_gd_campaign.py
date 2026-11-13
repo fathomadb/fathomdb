@@ -269,7 +269,7 @@ class NativePhaseStopTests(unittest.TestCase):
         self.assertFalse((attempt/"complete.json").exists(), "native caller continued later work after refused/expired phase")
         report = json.loads((attempt/"budget.json").read_text())
         self.assertEqual(report["disposition"], "deadline_refused")
-        self.assertIn(report["phase"],["entry","configure","drain","warmup","timed","write","collect","complete"])
+        self.assertIn(report["phase"],["entry","query_open","configure","drain","warmup","timed","write","collect","complete"])
         path = attempt/"queries.jsonl"
         calls = [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
         self.assertLess(len(calls),samples+1)

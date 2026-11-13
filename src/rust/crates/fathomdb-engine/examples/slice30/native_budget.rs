@@ -57,6 +57,10 @@ pub(super) fn phase(config: &Value, out: &Path, phase: &str) -> Result<(), ()> {
     Err(())
 }
 
+pub(super) fn query_open(config: &Value, out: &Path) -> Result<(), ()> {
+    phase(config, out, "entry")
+}
+
 pub(super) fn admit(config: &Value, out: &Path) -> bool {
     phase(config, out, "entry").is_ok()
 }

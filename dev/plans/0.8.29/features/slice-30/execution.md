@@ -892,3 +892,13 @@ aggregate-cap qualification; those controller units remain required.
 - This is an observed unsafe signalling attempt/lost pin. No foreign process is
   signalled and no PGID reuse is forced or claimed. Existing assertions remain
   unchanged; successful-leader descendant quiescence is still separately open.
+
+- Pin correction: first `g-lifecycle-pin-green` failed because owned Python has
+  no `os.pidfd_open`; the failed attempt is retained and no later checks ran in
+  that invocation. Replaced that environment assumption with bounded WNOWAIT
+  observation/waiting, which does not reap the leader before final signalling.
+- `g-lifecycle-pin-poll-green` passes the frozen `dc45d9dbe` kernel-state control;
+  `g-lifecycle-pin-controller-regression` passes all nine existing controller
+  tests; Ruff passes. No resource stops. The monitor-exception test intentionally
+  remains RED and successful-leader descendant quiescence remains open, so no
+  combined lifecycle GREEN is claimed yet.

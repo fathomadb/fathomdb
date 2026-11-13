@@ -8,18 +8,34 @@ import subprocess
 import time
 
 
+def unreaped_exit(child):
+    """Observe this owned child's exit while leaving its leader PID unreaped."""
+    info = os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+    if info is None:
+        return None
+    return info.si_status if info.si_code == os.CLD_EXITED else -info.si_status
+
+
+def wait_unreaped(child, seconds):
+    """Wait a bounded interval for exit without releasing the leader's PID pin."""
+    until = time.monotonic() + seconds
+    while True:
+        code = unreaped_exit(child)
+        if code is not None or time.monotonic() >= until:
+            return code
+        time.sleep(0.005)
+
+
 def stop_owned_group(child):
-    """Terminate only the new process group created for this owned attempt."""
-    for stop_signal in (signal.SIGTERM, signal.SIGKILL):
-        try:
-            os.killpg(child.pid, stop_signal)
-        except ProcessLookupError:
-            pass
-        if stop_signal == signal.SIGTERM:
-            try:
-                child.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                pass
+    """Signal the owned session while its unreaped leader pins the numeric PGID."""
+    if child.returncode is not None:
+        raise RuntimeError("owned leader was reaped before group cleanup")
+    unreaped_exit(child)
+    os.killpg(child.pid, signal.SIGTERM)
+    wait_unreaped(child, 2)
+    os.killpg(child.pid, signal.SIGKILL)
+    if wait_unreaped(child, 2) is None:
+        raise RuntimeError("owned leader did not stop within bounded group cleanup")
     child.wait()
 
 
@@ -41,10 +57,14 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
             error = "cell timeout before child start"
         else:
             child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            checked_at = None
             while True:
-                code = child.poll()
-                remaining = (deadline_ns - time.monotonic_ns()) / 10**9
-                error = monitor(child.pid) if monitor else None
+                code = unreaped_exit(child)
+                now = time.monotonic_ns()
+                remaining = (deadline_ns - now) / 10**9
+                if checked_at is None or now - checked_at >= 10**9 or code is not None:
+                    error = monitor(child.pid) if monitor else None
+                    checked_at = now
                 if remaining <= 0:
                     error = error or "cell timeout"
                 if error:
@@ -52,11 +72,9 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
                     code = 124
                     break
                 if code is not None:
+                    child.wait()
                     break
-                try:
-                    code = child.wait(timeout=min(1, remaining))
-                except subprocess.TimeoutExpired:
-                    continue
+                time.sleep(min(0.01, remaining))
             result_path = attempt / "result.json"
             if code == 0 and error is None:
                 try:

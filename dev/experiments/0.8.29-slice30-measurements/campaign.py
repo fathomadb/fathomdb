@@ -37,7 +37,7 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
             continue
         context = before() if before else None
         cell_root = root / cell["id"]
-        cell_root.mkdir(exist_ok=True)
+        cell_root.mkdir(parents=execute is not None, exist_ok=True)
         prior = [int(p.name.split("-")[1]) for p in cell_root.glob("attempt-*") if p.is_dir()]
         attempt = cell_root / f"attempt-{max(prior, default=0) + 1:04}"
         attempt.mkdir()

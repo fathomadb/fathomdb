@@ -578,5 +578,57 @@ class ConditionalGTests(_NativeGFixture):
         self.check_admission(feasible)
 
 
+
+class GpuAccountingTests(_NativeGFixture):
+    def check_accounting(self, suffix):
+        root=Path(tempfile.mkdtemp(prefix="owned-gpu-accounting-",dir=self.root))
+        corpus, questions=root/"corpus.jsonl",root/"questions.jsonl"
+        bodies=[f"actual accounted budget {suffix} {i}" for i in range(65)]
+        corpus.write_text("".join(json.dumps(body)+"\n" for body in bodies))
+        questions.write_text(json.dumps("budget")+"\n")
+        cell=dict(self.config,id="accounted-gt",family="G_PREPARE",artifact="gn",n=65,
+                  gpu_reservation=True,corpus=str(corpus),questions=str(questions),query_count=1)
+        manifest={"schema":"slice30-gd/source-fixture-v1","cell_seconds":150,"campaign_seconds":14400,
+                  "artifacts":{"gn":{"path":str(self.binary),"sha256":self.features["binary_sha256"]}},"cells":[cell]}
+        independent=[]
+        def monitor(pid):
+            independent.append(_accounting(pid,min(self.work_end,time.monotonic()+5)))
+            return None
+        outcome=run_manifest(manifest,root/"results",monitor=monitor,resources=self.resources,gpu_interval=0.1)[0]
+        if outcome["exit"]!=0 or outcome["status"]!="complete":
+            raise RuntimeError(f"actual normal CUDA preparation setup NOT_RED {outcome}")
+        attempt=Path(outcome["attempt"])
+        store=attempt/"case-0/template.sqlite"
+        with closing(sqlite3.connect(f"file:{store}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT logical_id,kind,body FROM canonical_nodes ORDER BY write_cursor").fetchall(),
+                             [(f"s30doc-{i}","doc",body) for i,body in enumerate(bodies)])
+            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],65)
+            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_spans").fetchone()[0],65)
+        preparation=json.loads((attempt/"case-0/template.json").read_text())["preparation"]
+        self.assertEqual((preparation["selected_cuda_uuid"],preparation["pending"],preparation["write_rows"]),(GPU,0,65))
+        self.assertEqual(hashlib.sha256(store.read_bytes()).hexdigest(),preparation["closed_main_sha256"])
+        if not any(row["pid"]==outcome["pid"] and row["own_MiB"]>0 and row["util"]>0 for row in independent):
+            raise RuntimeError("actual independent PID/UUID positive CUDA engagement missing NOT_RED")
+        print(f"actual controller GPU series {attempt} pid={outcome['pid']} independent_positive=True",flush=True)
+        samples=outcome.get("gpu_samples") or []
+        self.assertTrue(samples,"controller omitted its own required GPU accounting records")
+        self.assertEqual(samples[0]["phase"],"before")
+        self.assertEqual(samples[0]["own_MiB"],0)
+        self.assertEqual(samples[-1]["phase"],"final")
+        self.assertTrue(all(row["uuid"]==GPU and 0<=row["own_MiB"]<=8192 for row in samples))
+        self.assertTrue(any(row["phase"]=="running" and row["pid"]==outcome["pid"]
+                            and row["own_MiB"]>0 and row["util"]>0 for row in samples))
+        self.assertTrue(outcome["cleanup"]["complete"])
+        resumed=run_manifest(manifest,root/"results",resources=self.resources,gpu_interval=0.1)
+        self.assertEqual(resumed[0]["attempt"],outcome["attempt"])
+
+    def test_controller_retains_real_reserved_cuda_series_accounting(self):
+        self.check_accounting("évidence")
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.text(alphabet="abcéβ常",min_size=1,max_size=4))
+    def test_accounted_preparation_preserves_selected_unicode_rows(self,suffix):
+        self.check_accounting(suffix)
+
 if __name__ == "__main__":
     unittest.main()

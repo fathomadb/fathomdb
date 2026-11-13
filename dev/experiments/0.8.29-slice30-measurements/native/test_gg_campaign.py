@@ -24,7 +24,7 @@ STAGES=[("time","baseline",100),("time","before",80),("time","inside",100),
         ("time","after",120),("governed","valid",100),("governed","deleted",100)]
 
 
-class GGCampaignTests(unittest.TestCase):
+class _GGFixture(unittest.TestCase):
     def check_cell(self,warmups,samples):
         task=Path(os.environ["S30_GD_TASK"])
         artifacts=Path(os.environ["S30_GO_ARTIFACTS"])
@@ -112,6 +112,10 @@ class GGCampaignTests(unittest.TestCase):
         self.assertTrue(owners["time"].isdisjoint(owners["governed"]))
         self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),source_hash)
 
+        return manifest,root,outcomes
+
+
+class GGCampaignTests(_GGFixture):
     def test_real_closed_gt_dependency_routes_all_six_gg_stages(self):
         self.check_cell(1,2)
 
@@ -119,6 +123,24 @@ class GGCampaignTests(unittest.TestCase):
     @given(st.sampled_from([(0,1),(1,3)]))
     def test_gg_warmup_timed_counts_preserve_independent_stores(self,case):
         self.check_cell(*case)
+
+
+class GGCompletionTests(_GGFixture):
+    def check_complete(self,warmups,samples):
+        manifest,root,outcomes=self.check_cell(warmups,samples)
+        print(f"actual six-stage native GG {outcomes[1]['attempt']} status={outcomes[1]['status']}",flush=True)
+        self.assertEqual(outcomes[1]["status"],"complete","controller did not recognize actual completed GG stages")
+        resumed=run_manifest(manifest,root/"results",resources=actual_resources())
+        self.assertEqual([row["attempt"] for row in resumed],[row["attempt"] for row in outcomes])
+        self.assertEqual([len(list((root/"results"/cell["id"]).glob("attempt-*"))) for cell in manifest["cells"]],[1,1])
+
+    def test_completed_gt_and_all_gg_stages_resume_without_new_children(self):
+        self.check_complete(1,2)
+
+    @settings(max_examples=2,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.sampled_from([(0,1),(1,2)]))
+    def test_completed_gg_phase_counts_survive_resume(self,case):
+        self.check_complete(*case)
 
 
 if __name__=="__main__":

@@ -1,4 +1,4 @@
-import json, os, pathlib, signal, subprocess, sys, time, shutil, hashlib
+import json, os, pathlib, signal, subprocess, sys, time, shutil, hashlib, threading
 
 root = pathlib.Path(os.environ["S20_SOURCE"]).resolve()
 task = pathlib.Path(os.environ["S20_TASK"]).resolve()
@@ -56,6 +56,32 @@ def sample():
     )
 
 
+retained = {}
+collector_stop = threading.Event()
+collector_errors = []
+
+
+def collect_spills():
+    spill_dir = pathlib.Path(os.environ["AGENT_LOG_DIR"])
+    while not collector_stop.is_set():
+        try:
+            for entry in spill_dir.glob("fathomdb-agent-*.log"):
+                try:
+                    stream = entry.open("rb")
+                    stat = os.fstat(stream.fileno())
+                    key = (entry.name, stat.st_dev, stat.st_ino)
+                    if key in retained:
+                        stream.close()
+                    else:
+                        retained[key] = stream
+                except FileNotFoundError:
+                    pass
+        except Exception as error:
+            collector_errors.append(str(error))
+            return
+        collector_stop.wait(0.2)
+
+
 start = sample()
 GiB = 1024**3
 if (
@@ -75,6 +101,8 @@ record = dict(
     samples=[start],
     resource_stop=None,
 )
+collector = threading.Thread(target=collect_spills, daemon=True)
+collector.start()
 with (task / "logs" / f"{phase}.log").open("wb") as log:
     child = subprocess.Popen(
         cmd, cwd=root, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
@@ -116,6 +144,24 @@ with (task / "logs" / f"{phase}.log").open("wb") as log:
                     os.killpg(child.pid, signal.SIGKILL)
                     code = child.wait()
                 break
+collector_stop.set()
+collector.join()
+saved = []
+destination = task / "logs" / "approved-retained-spills"
+destination.mkdir(exist_ok=True)
+for (name, device, inode), stream in retained.items():
+    stream.seek(0)
+    data = stream.read()
+    stream.close()
+    target = destination / f"{phase}-{inode}-{name}"
+    target.write_bytes(data)
+    saved.append({"original": name, "path": str(target), "bytes": len(data),
+                  "sha256": hashlib.sha256(data).hexdigest()})
+record["retained_spills"] = saved
+record["collector_errors"] = collector_errors
+if collector_errors:
+    record["resource_stop"] = record["resource_stop"] or "spill retention failed"
+    code = code or 1
 record.update(
     exit=code,
     ended=time.time(),

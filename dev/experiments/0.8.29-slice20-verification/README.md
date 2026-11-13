@@ -16,3 +16,20 @@ two stale-predicate and five constant mutations, with exact restored files betwe
 cases. Do not run a full verifier on a negative candidate. Logs/receipts use the
 selected phase under the owned task; all child TMPDIR/cache variables also point
 there. The200GiB cap includes64GiB image, leaving136GiB for Linux inputs/outputs.
+
+
+sensitivity.py implements the seven approved isolated negative controls and
+records source mutations, unchanged assertions, actual executable digests and
+raw logs. Set S20_CONTROL_SOURCE to the exact parent-created ef1f8d137 checkout;
+it refuses a dirty/wrong base, runs one private control target and restores each
+file in finally. Only an observed one-test runtime failure with the named oracle
+qualifies; compiler/zero-test failures do not. No model/GPU or full negative gate.
+
+```bash
+python3 dev/experiments/0.8.29-slice20-verification/resource_guard.py approved-sensitivity python3 dev/experiments/0.8.29-slice20-verification/sensitivity.py
+```
+
+The monitor also retains read-only descriptors for canonical capped spill logs
+before their normal successful deletion, using the existing20 collector method.
+It saves complete passing native diagnostics/results; no runner output or exit
+is changed. Collector failure remains a failure rather than a green claim.

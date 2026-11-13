@@ -35,7 +35,8 @@ def phase_control(root, *, resource_stop):
     harness = "\n".join([
         "import pathlib,runpy,subprocess,sys",
         f"sys.path.insert(0,{str(PHASE.parent)!r})",
-        "import g_resource",
+        "import g_resource, g_attempt",
+        "actual_unreaped=g_attempt.wait_unreaped",
         "actual_sample=g_resource.resource_sample; actual_wait=subprocess.Popen.wait",
         "def sample(source,task):",
         "    values=actual_sample(source,task)",
@@ -45,7 +46,9 @@ def phase_control(root, *, resource_stop):
         "    return values",
         "def wait(child,timeout=None):",
         "    return actual_wait(child,timeout=0.05 if timeout==30 else timeout)",
-        "g_resource.resource_sample=sample; subprocess.Popen.wait=wait",
+        "def wait_unreaped(child,seconds):",
+        "    return actual_unreaped(child,0.05 if seconds==30 else seconds)",
+        "g_resource.resource_sample=sample; subprocess.Popen.wait=wait; g_attempt.wait_unreaped=wait_unreaped",
         f"sys.argv=[{str(PHASE)!r},'controlled-phase',sys.executable,'-c',{leader!r}]",
         f"runpy.run_path({str(PHASE)!r},run_name='__main__')",
     ])

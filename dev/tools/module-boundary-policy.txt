@@ -52,6 +52,7 @@ reported filter::slice85_boundary_tests
 governed frozen_read
 reported frozen_read::tests
 reported fusion
+reported fusion::tests
 reported hints
 reported hints::tests
 governed graph_api

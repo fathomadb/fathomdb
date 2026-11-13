@@ -322,3 +322,20 @@ qualification. Source controls/consumer probes are committed and indexed in
 dev/experiments/0.8.29-slice20-verification/README.md. Actual A6 Windows four-selector
 qualification, formatting/compiler/helper authority and later C:8/5GiB readiness
 remain held; attached RAW capacity alone closes no20/30/Block1 or release gate.
+
+## First final wrapper and bounded continuation
+
+Clean df17789220c9b86fbb9673b743743ae79f36e392 ran the canonical full verifier.
+Owned preflight and shell lint passed; lint stopped62s later with exact diagnostic:
+`FAIL module-boundary: module classification missing fusion::tests`.
+Actual wrapper exit1/no resource stop; typecheck/security/tests had not run.
+Original task logs/approved-final-workspace.log and
+receipts/approved-final-workspace.json remain unchanged, including retained spill.
+
+The correction adds exactly `reported fusion::tests` beside parent `fusion`,
+matching existing test-module policy. No boundary rule/assertion, Engine field,
+production predicate or constant changes. The failed module check and remaining
+canonical lint/typecheck/strict-security/test commands resume on the final clean
+metadata subject. Completed unchanged shell lint is reused; no second full
+wrapper, seven-control rerun or native-lifecycle rerun is claimed. Final evidence
+is assembled qualification, never an uninterrupted full-wrapper exit0.

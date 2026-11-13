@@ -317,12 +317,16 @@ pub(super) fn run(config: &Value, out: &Path) {
         return;
     };
     let (_, closing) = timed(origin, || engine.close().unwrap());
-    let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
-    assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
-    let hash: String = Sha256::digest(std::fs::read(&store).unwrap())
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
+    let hash = super::native_budget::completion(config, out, || {
+        let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
+        assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
+        let hash: String = Sha256::digest(std::fs::read(&store).unwrap())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        hash
+    })
+    .unwrap();
     let mut controls = json!({"api_complete":true,"clock_scope":"one attempt origin before open; serialization outside API clocks",
         "open":opening,"configure":configuring,"empty":empty,"freeze_request":freezing,
         "empty_idle_drain":empty_idle,"idle":idle,"writes":writes,"held":held,"release_request":releasing,

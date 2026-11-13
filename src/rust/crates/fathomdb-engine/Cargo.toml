@@ -972,6 +972,8 @@ required-features = ["test-hooks", "slice30-measurement"]
 [[test]]
 name = "slice30_held_tool"
 required-features = ["test-hooks"]
+# DN/DO driver artifacts are built by the explicit maintained suite.
+test = false
 
 [[test]]
 name = "slice30_d_workload"

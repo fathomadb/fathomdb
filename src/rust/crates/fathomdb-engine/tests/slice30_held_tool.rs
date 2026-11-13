@@ -63,6 +63,17 @@ fn verify_observation_case(
     with_queries: bool,
     sample_readiness: bool,
 ) {
+    verify_adapter_case(records, cohort, mode, with_queries, sample_readiness, None);
+}
+
+fn verify_adapter_case(
+    records: Vec<Value>,
+    cohort: usize,
+    mode: &str,
+    with_queries: bool,
+    sample_readiness: bool,
+    observer: Option<bool>,
+) {
     let root = tempfile::Builder::new().prefix("s30-held-").tempdir().unwrap().keep();
     println!("held proof: {} rows={} cohort={cohort} mode={mode}", root.display(), records.len());
     Engine::open_with_choice(root.join("registration.sqlite"), EmbedderChoice::None)
@@ -72,7 +83,7 @@ fn verify_observation_case(
         .unwrap();
     let config = root.join("cell.json");
     let queries = with_queries.then(|| vec![json!({"id":"held-query","query":"heldwitness"})]);
-    std::fs::write(&config, serde_json::to_vec(&json!({"family":"D_HELD_FIXTURE","records":records,"cohort":cohort,"release_mode":mode,"queries":queries,"warmups":2,"samples":3,"readiness":sample_readiness})).unwrap()).unwrap();
+    std::fs::write(&config, serde_json::to_vec(&json!({"family":"D_HELD_FIXTURE","records":records,"cohort":cohort,"release_mode":mode,"queries":queries,"warmups":2,"samples":3,"readiness":sample_readiness,"observer":observer.unwrap_or(false)})).unwrap()).unwrap();
     let out = root.join("out");
     let binary = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
         .join("release/examples/slice30_gd_diagnostic");
@@ -315,6 +326,71 @@ fn verify_observation_case(
             }
         }
     }
+    if let Some(enabled) = observer {
+        let path = out.join("worker-observer.json");
+        let report: Value = if path.exists() {
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+        } else {
+            Value::Null
+        };
+        if !cfg!(feature = "slice30-measurement") || !enabled {
+            assert_eq!(report["available"], false, "missing held unavailable worker attribution");
+            assert_eq!(
+                report["reason"],
+                if cfg!(feature = "slice30-measurement") {
+                    "observer_disabled"
+                } else {
+                    "feature_absent"
+                }
+            );
+            for key in
+                ["records", "dropped", "query_records", "query_dropped", "attribution_complete"]
+            {
+                assert!(report[key].is_null());
+            }
+        } else {
+            let workers = report["records"].as_array().cloned().unwrap_or_default();
+            assert_eq!(
+                workers.iter().filter_map(|w| w["job_count"].as_u64()).sum::<u64>(),
+                records.len() as u64,
+                "missing actual held-release worker adapter records"
+            );
+            assert_eq!(report["available"], true);
+            assert_eq!(report["attribution_complete"], true);
+            assert_eq!(report["dropped"], 0);
+            assert_eq!(report["query_dropped"], 0);
+            let queries = report["query_records"].as_array().unwrap();
+            assert_eq!(queries.len(), 5);
+            assert!(queries.iter().all(|q| q["event"] == "QueryComplete"));
+            let mut actual = Vec::new();
+            for worker in workers {
+                assert_eq!(worker["event"], "ProjectionBatchEnd");
+                assert_eq!(worker["engine_id"], queries[0]["engine_id"]);
+                assert!(worker["clock_issue"].is_null());
+                assert_eq!(worker["cleanup"], "confirmed");
+                assert_eq!(worker["commit_outcome"], "ok");
+                assert!(
+                    worker["start_ns"].as_u64().unwrap()
+                        >= proof["release_request"]["start_ns"].as_u64().unwrap()
+                );
+                assert!(
+                    worker["end_ns"].as_u64().unwrap()
+                        <= report["collected_at_ns"].as_u64().unwrap()
+                );
+                actual.extend(
+                    worker["cursors"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|c| c["write_cursor"].as_u64().unwrap()),
+                );
+            }
+            let mut expected: Vec<_> = receipts.iter().map(|c| c.as_u64().unwrap()).collect();
+            actual.sort_unstable();
+            expected.sort_unstable();
+            assert_eq!(actual, expected);
+        }
+    }
 }
 
 fn literal() -> Vec<Value> {
@@ -382,4 +458,24 @@ proptest! {
         let records=(0..rows).map(|i|json!({"id":format!("ready-{i}"),"kind":if i%2==0{"doc"}else{"note"},"body":format!("heldwitness {i} é")})).collect();
         verify_observation_case(records,cohort,if drop_release{"drop"}else{"explicit"},true,true);
     }
+}
+
+fn held_adapter_fixture(rows: usize, enabled: bool) {
+    let records=(0..rows).map(|i|json!({"id":format!("observe-{i}"),"kind":if i%2==0{"doc"}else{"note"},"body":format!("heldwitness {i} é")})).collect();
+    verify_adapter_case(records, 3, "drop", true, true, Some(enabled));
+}
+#[test]
+fn held_worker_feature_control_reports_unavailable() {
+    held_adapter_fixture(4, false);
+}
+#[cfg(feature = "slice30-measurement")]
+#[test]
+fn held_worker_adapter_preserves_post_release_jobs_and_held_queries() {
+    held_adapter_fixture(7, true);
+}
+#[cfg(feature = "slice30-measurement")]
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301310),..ProptestConfig::default()})]
+    #[test]
+    fn held_worker_adapter_conserves_actual_cursors_after_release(rows in 1usize..9){held_adapter_fixture(rows,true);}
 }

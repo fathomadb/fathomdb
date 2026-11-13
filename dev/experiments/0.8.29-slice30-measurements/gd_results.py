@@ -124,7 +124,7 @@ def _g_pass(base,cell,attempt,path,mode,outcome,dataset):
     calls=[dict(row,phase=phase) for phase,rows in [("warmup",warmups),("timed",samples)] for row in rows]
     stats=describe(calls,proof.get("loop_ns"))
     stats["throughput_scope"]=proof.get("throughput_scope")
-    feature="observer_setup_ns" in proof
+    feature=base["observer_feature"] or "observer_setup_ns" in proof
     group.update(mode=mode.split("_",1)[1],adapter=mode.split("_",1)[0],
                  dataset_sha256=dataset,dataset_identity_scope="closed source template SHA256 before writable cell copy",
                  population=cell.get("population","G1"),warmup_count=len(warmups),statistics=stats,

@@ -3,20 +3,56 @@
 import argparse
 import json
 from pathlib import Path
+import time
 
 from campaign import run_campaign
 
 
 def run_manifest(manifest, root, monitor=None, before=None):
     """Run supplied cells in order with their actual native artifact identities."""
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    clock_path = root / "campaign-clock.json"
+    boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    if not clock_path.exists():
+        clock_path.write_text(json.dumps({"started_ns": time.monotonic_ns(), "boot_id": boot_id}) + "\n")
+    clock = json.loads(clock_path.read_text())
+    deadline = clock["started_ns"] + int(min(manifest["campaign_seconds"], 14400) * 1_000_000_000)
+
+    def prepare():
+        check_clock()
+        context = before() if before else None
+        check_clock()
+        return context
+
+    def check_clock():
+        if clock["boot_id"] != boot_id:
+            raise _CampaignRefusal("campaign_clock_unavailable")
+        if time.monotonic_ns() >= deadline:
+            raise _CampaignRefusal("campaign_time_cap")
+
     outcomes = []
     for planned in manifest["cells"]:
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
-        outcomes.extend(run_campaign([cell], root, [artifact["path"]],
-                                     timeout=manifest["cell_seconds"], completion=_native_complete, monitor=monitor, before=before,
-                                     poll_interval=0.1, observe_start=monitor is not None))
+        try:
+            outcomes.extend(run_campaign([cell], root, [artifact["path"]],
+                                         timeout=manifest["cell_seconds"], completion=_native_complete,
+                                         monitor=monitor, before=prepare,
+                                         poll_interval=0.1, observe_start=monitor is not None))
+        except _CampaignRefusal as error:
+            outcome = {"id": cell["id"], "cell": cell, "status": "not_run_resource",
+                       "reason": str(error), "pid": None, "attempt": None, "exit": None}
+            state_path = root / "campaign-state.json"
+            previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+            previous[cell["id"]] = outcome
+            state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
+            outcomes.append(outcome)
     return outcomes
+
+
+class _CampaignRefusal(Exception):
+    pass
 
 
 def _native_complete(cell, attempt):

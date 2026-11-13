@@ -807,6 +807,23 @@ mod g_fixture_tests {
                 }
             }
             engine.write(&[node("alpha", "doc", "alpha needle"), node("beta", "doc", "beta")]);
+            let edge = |id: &str, body: &str| PreparedWrite::Edge {
+                kind: "relates_to".into(),
+                from: "alpha".into(),
+                to: "beta".into(),
+                logical_id: Some(id.into()),
+                body: Some(body.into()),
+                source_id: SourceId::new("test:slice30-g-fixture").unwrap(),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            };
+            engine.write(&[
+                edge("edge-one", "first deferred relation"),
+                edge("edge-two", "second deferred relation"),
+            ]);
             let observed = g_fixture_observation(&engine, &path);
             assert_eq!(
                 observed["natural_records"], 2,

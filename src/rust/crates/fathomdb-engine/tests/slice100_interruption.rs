@@ -274,7 +274,7 @@ fn g2_case() {
         assert!(fixture::count(&c, "SELECT count(*) FROM operational_mutations WHERE collection_name='erasure_pending_redaction'") > 0);
         drop(c);
         assert!(
-            matches!(recover_complete_erasures(&offline.join("candidate.sqlite")),
+            matches!(recover_complete_erasures(offline.join("candidate.sqlite")),
             Err(EngineOpenError::Io { message }) if message == "original telemetry sink is unavailable; erasure remains owed"),
             "durable original-sink obligation remains owed"
         );

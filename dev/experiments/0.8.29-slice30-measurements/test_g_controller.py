@@ -7,7 +7,8 @@ import tempfile
 import time
 import unittest
 
-from g_campaign import run_g_plan
+from campaign import run_campaign
+from g_campaign import make_g_plan, run_g_plan
 
 
 class GPlanTests(unittest.TestCase):
@@ -125,3 +126,28 @@ class GPreparationBudgetTests(unittest.TestCase):
                                 and row["reason"] == "shared_time_exhausted" for row in outcomes))
             self.assertGreaterEqual(json.loads((root / "g-budget.json").read_text())["used_ns"] - used,
                                     100_000_000)
+
+
+class GResumeBudgetTests(unittest.TestCase):
+    def test_actual_completed_child_survives_exhausted_resume_and_only_remaining_cells_refuse(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls = root / "calls.jsonl"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write('called\\n')",
+                "(pathlib.Path(sys.argv[2])/'result.json').write_text(json.dumps({'complete':True}))",
+            ])
+            completed = run_campaign(make_g_plan(spec)[:1], root, [sys.executable, "-c", code])
+            self.assertEqual(completed[0]["status"], "complete")
+            (root / "g-budget.json").write_text(json.dumps({
+                "schema": "slice30-gd-budget/v1", "used_ns": 14400 * 10**9, "inflight": None,
+            }))
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code])
+            self.assertEqual(outcomes[0], completed[0], "exhausted resume erased actual completed child outcome")
+            self.assertEqual(calls.read_text().splitlines(), ["called"])
+            self.assertEqual(len(outcomes), 84)
+            self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
+                                and row["reason"] == "shared_time_exhausted" for row in outcomes[1:]))
+            self.assertEqual(json.loads((root / "g-outcomes.json").read_text()), outcomes)

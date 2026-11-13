@@ -606,3 +606,20 @@ aggregate-cap qualification; those controller units remain required.
 - The preparation artifact and all 84 required refusal rows must remain, and
   actual preparation wall time must be charged. This unit does not establish
   later production native/model dispatch or storage-growth monitoring.
+
+### G completed-resume finding RED
+
+- Fresh Astra identified completed outcomes being overwritten by refusal rows
+  on exhausted resume. Before another GREEN commit, preserved the uncommitted
+  preparation correction as `g-preparation-pre-resume-green.patch`, SHA256
+  `72b053a14f33c9fc0a15b1f783daa51af55d0efedafe9df9963d943a1c020e3c`, then
+  restored only `g_campaign.py` to committed `df2fa8f15`.
+- `g-t10-preparation-green` had passed four Python tests on that saved prototype;
+  it is retained as prototype evidence, not a frozen implementation commit.
+- On the restored baseline, `g-t10-resume-finding-red` first completes one real
+  harmless Python child, then resumes with the exhausted allocation. It fails
+  the literal equality assertion `exhausted resume erased actual completed child
+  outcome`: actual `not_run_cap` replaces the retained `complete` outcome.
+  One runtime failure, exit 1, no resource stop. Existing oracles are unchanged;
+  the separately frozen preparation test intentionally remains RED during this
+  scoped finding repair.

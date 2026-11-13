@@ -35,22 +35,30 @@ def run_program_step(command, config, output, deadline_ns):
 
 
 def execute_stage(cell, manifest, attempt, deadline_ns):
-    """Bind a current G driver; G-W always seeds its own matching fresh subject first."""
+    """Bind current G drivers and exact size/attempt subjects under one deadline."""
     attempt = Path(attempt)
     attempt.mkdir(parents=True, exist_ok=True)
     common = dict(cell, corpus=manifest["corpus"], queries=manifest["queries"])
     steps = []
-    if cell["stage"] == "G-W":
+    if cell["kind"] == "seed" or cell.get("fresh_seed"):
         seed_output = attempt / "seed"
-        seed_config = dict(common, family="G-seed", adapter=cell["adapters"][0])
+        adapter = cell.get("adapter") or cell["adapters"][0]
+        seed_config = dict(common, family="G-seed", adapter=adapter)
         seed = run_program_step(manifest["command"], seed_config, seed_output, deadline_ns)
         steps.append(seed)
-        if not seed["complete"]:
-            return {"complete": False, "steps": steps}
-        config = dict(common, family="G-W", store=str(seed_output / "store.sqlite"))
-        output = attempt / "write"
+        if not seed["complete"] or cell["kind"] == "seed":
+            return {"complete": seed["complete"], "steps": steps}
+        store = str(seed_output / "store.sqlite")
     else:
-        config = dict(common, family=cell["stage"], store=manifest["selected_store"])
-        output = attempt / "read"
+        store = manifest["subjects"][cell["seed_subject"]]
+    if cell["kind"] == "natural":
+        questions = Path(manifest["queries"]).read_text().splitlines()
+        if len(questions) < 50:
+            raise ValueError("G-O needs the registered first50 questions")
+        selected = attempt / "queries-first50.jsonl"
+        selected.write_text("\n".join(questions[:50]) + "\n")
+        common["queries"] = str(selected)
+    config = dict(common, family=cell["stage"], store=store)
+    output = attempt / ("write" if cell["stage"] == "G-W" else "read")
     steps.append(run_program_step(manifest["command"], config, output, deadline_ns))
     return {"complete": all(step["complete"] for step in steps), "steps": steps}

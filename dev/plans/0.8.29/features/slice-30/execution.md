@@ -770,3 +770,12 @@ aggregate-cap qualification; those controller units remain required.
   50 registered questions once, zero warmups/no extra first call, with the
   original 500-question input unchanged. This is command-protocol coverage,
   explicitly not qualified dense-subject or native/Default/GPU evidence.
+
+- Seed/read/natural diagnostic binding GREEN: `g-t10-read-dispatch-green`
+  passes all three dispatch tests, including all five new subcases, exit 0,
+  no resource stop; Ruff passes. The `frozen RED` command assertions are
+  unchanged. G1 selects current `G-seed`, repeat1 prepares its own seed, reusable
+  calls select the named size subject, and natural G-O receives an owned first50
+  slice without changing original input or adding calls/warmups.
+- G0/tiny-branch binding, production result/device qualification, complete outer
+  budget/identity integration and actual native/model/GPU evidence remain open.

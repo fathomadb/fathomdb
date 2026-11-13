@@ -81,3 +81,20 @@ base and commissioning the approved verification route and a capacity-only
 derivative; the earlier full guest-sequence packet cannot execute unchanged.
 No completed proof, disk operation, Windows qualification or slice closure follows
 from recording the rulings.
+
+## Approved continuation design and capacity subset
+
+Parent-commissioned independent Astra-medium design PASS covers approved packet
+manifestdbc8e40f92f73250410505ee26fa03c86cb61480393c59b1acf2cd02f3a5e999,
+reconciled against actual0a7df81 rulings/integrated30P/60/70. The same design
+reviewer passed the narrow portable capacity adaptation: unused frozen40-file
+runtime dependency becomes provenance only; exact own-manifest binding and all
+operational checks remain. Fresh distinct capacity-results Astra-medium PASS
+accepted c7e0aec8edf786f42488141bdc398e3f8f812f8a and14contained controls before
+parent live capacity GO. Actual attached-RAW outcome is in execution.md.
+
+The fresh A3/A5 implementation reviewer preaudited ef1 source with no blocking
+finding and retained terminal approval for actual seven controls, affected/
+feature/native checks and final stable-source qualification. This checkpoint is
+not a terminal implementation PASS. Parent owns the final review/integration and
+release-state/ledger changes. Whole20/A6/30/60-F11/Block1 remain separate.

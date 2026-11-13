@@ -269,3 +269,56 @@ sensitivity controls and final source/native qualification remain to execute.
 The indexed verification resource monitor reuses existing Slice60 control logic
 with the required64GiB image reservation and optional single control checkout;
 no parallel native window or seven-target allocation is introduced.
+
+## A3/A5 scoped qualification and pre-final freeze
+
+Actual Rust subjectef1f8d137ef647f172e81f400ad3e5caddef0192 is unchanged through
+581ad3584efc3438740e3fc55d56552f612c8ad9. Own MCP clippy/test-seams and production
+feature-off check passed. Actual MCP lib25, admission29 and lifecycle18 passed,
+all0failed/0ignored; original-deadline, idle-lock release, stale1/bridge2, exact
+l:note:a, no-accounting-leak and cleanup/shutdown assertions all ran. Both fusion
+and default-embedder feature-on live tripwire selectors passed1each without model
+construction. External test-seam boundary consumer1passed across its default-
+negative/dev-release-feature-positive arms.
+
+One exact parent-created control checkout at ef1 and one private control target
+ran allseven mutations serially. Each unchanged selector ran1test and failed at
+runtime with exit101; source bytes were restored between cases and clean after.
+Original raw logs are under
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice20/logs/approved-negative-*.log`;
+case records are in logs/approved-sensitivity.log. Actual driver subject4fda01349;
+outer monitor exit0/no resource stop. Predicate bypass retains absent-engine panic
+as sensitivity evidence only; it is not claimed as witnessed stale engine work.
+Constant controls name the re-evaluation record and actual changed constant.
+
+A real tooling output collision overwrote the original summary with its monitor
+receipt. Consumer RED803ce735f reproduced loss of seven-case data; GREEN191dc4534
+renames only the case destination. Recovery preserves all original case objects,
+monitor receipt and raw logs, with no repeated passing controls. Distinct recovered
+receipts/approved-sensitivity-cases.json and original receipts/approved-sensitivity.json
+are under the same task root. Separate runtime_attribution selects actual test
+binaries using Cargo profile.test plus the exact Running line/one-test output;
+original executables arrays include built-but-unexecuted MCP server artifacts.
+The retained consumer passes against allseven recovered records.
+
+Owned Node25.9.0/npm11.12.1/root+TS+Mermaid installs and canonical Python --provision
+passed. Actual owned Python3.12.3, Ruff0.15.17/Pyright1.1.410, sourceef1/deltaempty
+noneditable production wheel; no old3.13 environment/ABI was borrowed. Its own
+.cache/agent/python-native.json module digest is
+10162dad859afb4016ef71d56520d48aea0e17592260676f13ab0cbfa91ffe88.
+Production Python lifecycle passed at581 with exact unchanged compiled-input
+comparison to ef1. Own production Node build/lifecycle also passed at581; addon
+c993b9aa9e3120f8bc3db2afdef4ce57f46dd2fa77870b3257f05fef22aabaa2.
+Both use real provider-free expected logical-ID write/text-search/close/reopen/
+search/close/normal-exit. These are local source-bound consumers, not published
+registry proof. Raw `approved-production-*` logs and `approved-*` monitored receipts
+stay under task logs/receipts; every completed phase exit0/no resource stop.
+
+This is the pre-final-source-gate checkpoint. Final clean stable-tree verifier,
+canonical test-hook candidate/nonce/actual-child identity and fresh independent
+implementation review remain next. The final verifier's logs/receipt and retained
+passing native spills are external, source-bound results; no files change during
+qualification. Source controls/consumer probes are committed and indexed in
+dev/experiments/0.8.29-slice20-verification/README.md. Actual A6 Windows four-selector
+qualification, formatting/compiler/helper authority and later C:8/5GiB readiness
+remain held; attached RAW capacity alone closes no20/30/Block1 or release gate.

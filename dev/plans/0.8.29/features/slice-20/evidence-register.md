@@ -112,3 +112,14 @@ unknown. Baseline global-hook rows above are pre-implementation evidence; curren
 sidecar/resolver hooks are engine-owned. No current Windows proof or held A3/A5
 addition follows. Actual final source/full/native receipts remain external and
 source-bound; qualification is never inferred from this original inventory.
+
+## Approved verification continuation
+
+Owner2026-11-13 seq-369 supersedes the historical unanswered A3/A5 policy rows;
+seq-370 permits only capacity creation/necessary narrow ACL/live attachment.
+[Execution](execution.md) records actual RAW disk completion, current A3/A5
+positive and seven isolated sensitivity controls, own native/input attribution
+and preserved output-loss failure/recovery. Historical A2 Linux repair evidence
+remains accepted within its original limits. No new production queue/constant
+policy or database format change occurred. A3/A5 final source/review gates still
+apply; A6 real Windows startup/opener proof remains outstanding.

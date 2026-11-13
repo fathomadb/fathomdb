@@ -8,9 +8,11 @@ import subprocess
 import sys
 from pathlib import Path
 import time
+from typing import Any
 
 from campaign import run_campaign
-from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, resource_issue, resource_sample, swap_streak
+from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, aggregate_roots, measure_root, resource_issue, resource_sample, swap_streak
+from gd_feasibility import report as feasibility_report
 
 
 def run_manifest(manifest, root, monitor=None, before=None, resources=None, resource_interval: float = 30):
@@ -38,6 +40,12 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         if resources:
             samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True, swap=swap))
             context = {"preparation":context,"resource_samples":samples}
+        check_clock()
+        if cell.get("lower"):
+            admission = _conditional(cell,root,samples[-1] if samples else None,clock["started_ns"],work_deadline)
+            if context is None:
+                context = {}
+            context["admission"] = admission
         check_clock()
         return context
 
@@ -90,12 +98,45 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         except _CampaignRefusal as error:
             outcome = {"id": cell["id"], "cell": cell, "status": "not_run_resource",
                        "reason": str(error), "pid": None, "attempt": None, "exit": None}
+            if error.admission is not None:
+                outcome["admission"] = error.admission
             state_path = root / "campaign-state.json"
             previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
             previous[cell["id"]] = outcome
             state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
             outcomes.append(outcome)
     return outcomes
+
+
+def _conditional(cell,root,current,shared_start,work_deadline):
+    state_path=root/"campaign-state.json"
+    state={row["id"]:row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+    lower=state.get(cell["lower"])
+    if (lower is None or lower["status"]!="complete" or current is None
+            or not lower.get("cell_elapsed_ns") or not lower["cell"].get("n")):
+        raise _CampaignRefusal("lower_observation_unavailable")
+    raw="g_raw" if cell["family"].startswith("G") else "d_raw"
+    observed=lower.get("resource_samples") or []
+    if not observed or any(raw not in sample for sample in observed) or raw not in current:
+        raise _CampaignRefusal("lower_storage_observation_unavailable")
+    try:
+        retained=aggregate_roots([measure_root(Path(lower["attempt"]).parent,
+                                              deadline=min(work_deadline/1_000_000_000,time.monotonic()+5))])
+    except Exception as error:
+        raise _CampaignRefusal(f"lower_storage_observation_unavailable: {error}") from error
+    transient=max(0,max(sample[raw] for sample in observed)-observed[-1][raw])
+    report: dict[str,Any]=feasibility_report({"lower_n":lower["cell"]["n"],"target_n":cell["n"],
+        "elapsed_ns":lower["cell_elapsed_ns"],"peak_bytes":retained+transient,
+        "retained_family_bytes":current[raw],"lower_status":"complete",
+        "shared_elapsed_ns":time.monotonic_ns()-shared_start})
+    remaining=max(0,work_deadline-time.monotonic_ns())
+    eligible=report["admission"]["eligible"] and report["time"]["projected_ns"]<=remaining
+    report.update(lower=cell["lower"],
+        storage_scope="retained cell/all attempts plus sampled transient family excess; not a continuous peak",
+        conditional_gate={"eligible":eligible,"remaining_work_ns":remaining})
+    if not eligible:
+        raise _CampaignRefusal("conditional_not_feasible",report)
+    return report
 
 
 def _sample_resources(resources, deadline, start=False, swap=None):
@@ -236,7 +277,9 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
 
 
 class _CampaignRefusal(Exception):
-    pass
+    def __init__(self,reason,admission=None):
+        super().__init__(reason)
+        self.admission=admission
 
 
 def _native_complete(cell, attempt):

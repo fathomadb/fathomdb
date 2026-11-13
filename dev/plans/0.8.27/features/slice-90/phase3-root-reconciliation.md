@@ -1,13 +1,15 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 2303100aa5363f09f57629864b61a4ffd1553d66
+lib_rs_blob: d4ec3ed7626a159fe563bd525423f3f6896a03af
 ---
 
 # Slice 90 Phase 3 root reconciliation
 
 This inventory is derived from the engine `lib.rs` blob named above after the
-approved structural moves and the query-helper doc correction. Slice 140
+approved structural moves and the query-helper doc correction. The non-default
+Slice30 measurement module adds only a feature-gated composition declaration;
+root fields and method ownership remain unchanged. Slice 140
 refreshes this inventory after gating the four retained test fixtures behind
 `any(test, feature = "test-hooks")`; the prior Slice 90 blob was
 `9afaec4a6a42eed8415f531b3e22047a9bf7e242`. The accepted

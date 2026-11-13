@@ -922,7 +922,11 @@ pub(crate) fn vector_arm_requires_fallback(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
+    #[cfg(any(test, feature = "slice30-observer"))]
+    let observation = crate::slice30_observer::span("vector_arm_requires_fallback");
     if !has_source_dependencies {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        observation.boolean_result(&Ok::<bool, rusqlite::Error>(false), false);
         return Ok(false);
     }
     let mut source_predicate = String::new();
@@ -966,19 +970,27 @@ pub(crate) fn vector_arm_requires_fallback(
            )\
          )"
     );
-    if include_out_of_window {
+    let result = if include_out_of_window {
         connection.query_row(&sql, [], |row| row.get(0))
     } else {
         connection.query_row(&sql, [effective_at], |row| row.get(0))
-    }
+    };
+    #[cfg(any(test, feature = "slice30-observer"))]
+    observation.boolean_result(&result, true);
+    result
 }
 
 pub(crate) fn has_source_dependencies(connection: &Connection) -> rusqlite::Result<bool> {
-    crate::prepare_search_statement(
+    #[cfg(any(test, feature = "slice30-observer"))]
+    let observation = crate::slice30_observer::span("has_source_dependencies");
+    let result = crate::prepare_search_statement(
         connection,
         "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)",
     )
-    .and_then(|mut statement| statement.query_row([], |row| row.get(0)))
+    .and_then(|mut statement| statement.query_row([], |row| row.get(0)));
+    #[cfg(any(test, feature = "slice30-observer"))]
+    observation.boolean_result(&result, true);
+    result
 }
 
 pub(crate) fn all_nodes_directly_eligible(
@@ -988,24 +1000,31 @@ pub(crate) fn all_nodes_directly_eligible(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
-    let unsafe_row: bool = crate::prepare_search_statement(
+    #[cfg(any(test, feature = "slice30-observer"))]
+    let observation = crate::slice30_observer::span("all_nodes_directly_eligible");
+    let unsafe_row = crate::prepare_search_statement(
         connection,
         "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE \
            (?2=0 AND n.superseded_at IS NOT NULL) OR \
            (?3=0 AND n.state!='active') OR \
            (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR \
                       (n.valid_until IS NOT NULL AND n.valid_until<=?1))) LIMIT 1)",
-    )?
-    .query_row(
-        params![
-            effective_at,
-            i64::from(include_superseded),
-            i64::from(include_inactive),
-            i64::from(include_out_of_window),
-        ],
-        |row| row.get(0),
-    )?;
-    Ok(!unsafe_row)
+    )
+    .and_then(|mut statement| {
+        statement.query_row(
+            params![
+                effective_at,
+                i64::from(include_superseded),
+                i64::from(include_inactive),
+                i64::from(include_out_of_window),
+            ],
+            |row| row.get::<_, bool>(0),
+        )
+    });
+    let result = unsafe_row.map(|unsafe_row| !unsafe_row);
+    #[cfg(any(test, feature = "slice30-observer"))]
+    observation.boolean_result(&result, true);
+    result
 }
 
 pub(crate) fn read_eligibility_sql(

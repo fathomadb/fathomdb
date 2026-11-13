@@ -139,6 +139,7 @@ struct SpanData {
     phase: &'static str,
     started_ns: u64,
     status: Cell<&'static str>,
+    facts: RefCell<serde_json::Value>,
 }
 
 pub(crate) struct Span {
@@ -157,7 +158,15 @@ pub(crate) fn span(phase: &'static str) -> Span {
         let mut nested = token.clone();
         nested.parent_span_id = Some(span_id);
         let previous = CURRENT.with(|slot| slot.replace(Some(nested)));
-        Some(SpanData { token, previous, span_id, phase, started_ns, status: Cell::new("error") })
+        Some(SpanData {
+            token,
+            previous,
+            span_id,
+            phase,
+            started_ns,
+            status: Cell::new("error"),
+            facts: RefCell::new(serde_json::json!({})),
+        })
     });
     Span { data, marker: PhantomData }
 }
@@ -165,6 +174,20 @@ pub(crate) fn span(phase: &'static str) -> Span {
 impl Span {
     pub(crate) fn success(&self) {
         if let Some(data) = &self.data {
+            data.status.set("ok");
+        }
+    }
+
+    pub(crate) fn boolean_result<E>(&self, result: &Result<bool, E>, sql_attempted: bool) {
+        let Some(data) = &self.data else {
+            return;
+        };
+        let mut facts = data.facts.borrow_mut();
+        facts["called"] = serde_json::json!(true);
+        facts["sql_attempted"] = serde_json::json!(sql_attempted);
+        if let Ok(value) = result {
+            facts["result"] = serde_json::json!(value);
+            facts["sql_executed"] = serde_json::json!(sql_attempted);
             data.status.set("ok");
         }
     }
@@ -187,7 +210,7 @@ impl Drop for Span {
                 started_ns: Some(data.started_ns),
                 ended_ns: Some(collector.now_ns()),
                 status: data.status.get(),
-                facts: serde_json::json!({}),
+                facts: data.facts.into_inner(),
             };
             collector.append(record);
         }

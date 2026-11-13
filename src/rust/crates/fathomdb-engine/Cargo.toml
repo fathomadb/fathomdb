@@ -980,3 +980,8 @@ name = "slice30_d_workload"
 required-features = ["test-hooks"]
 # The maintained suite builds each matching DN/DO executable before this target.
 test = false
+
+[[test]]
+name = "slice30_native_budget"
+# The explicit suite builds this target's external control executable first.
+test = false

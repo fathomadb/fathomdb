@@ -5,6 +5,9 @@ use serde_json::{json, Value};
 use std::io::Write;
 use std::path::Path;
 
+#[path = "slice30/native_budget.rs"]
+mod native_budget;
+
 #[cfg(feature = "test-hooks")]
 #[path = "slice30/dense_template.rs"]
 mod dense_template;
@@ -33,6 +36,9 @@ fn strings(path: &str) -> Vec<String> {
 }
 
 fn run(config: &Value, out: &Path) {
+    if config["family"] == "NATIVE_BUDGET_CONTROL" {
+        return native_budget::run_control(config, out);
+    }
     if config["family"] == "D_QUERY_FIXTURE" {
         #[cfg(feature = "test-hooks")]
         return d_workload::run(config, out);

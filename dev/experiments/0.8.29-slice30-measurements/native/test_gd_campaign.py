@@ -847,7 +847,7 @@ class HeldCompletionRouteTests(unittest.TestCase):
 class DOverlapQualificationTests(unittest.TestCase):
     def check_qualification(self,count,enabled):
         root,_,manifest=clock_fixture()
-        cell=dict(manifest["cells"][0],id="d/qualified-control",n=count,cohort=2,workload="overlap",
+        cell:dict=dict(manifest["cells"][0],id="d/qualified-control",n=count,cohort=2,workload="overlap",
                   observer=enabled,requires_overlap=enabled,warmups=1,samples=0 if enabled else 2)
         del cell["write_records"]
         result=run_manifest(dict(manifest,cells=[cell]),root/"results")[0]

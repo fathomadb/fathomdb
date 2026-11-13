@@ -46,8 +46,12 @@ pub(super) fn from_template(
     );
     let GAdapter::Core(opened) = &adapter else { unreachable!() };
     let engine = &opened.engine;
-    let baseline = g_write_schedule::current_coverage(&store, &report.default_embedder);
-    let mut controls = vec![control(engine, "baseline", 100)];
+    let baseline = g_gg_stages::verification(config, out, || {
+        g_write_schedule::current_coverage(&store, &report.default_embedder)
+    })
+    .unwrap();
+    let mut controls =
+        vec![g_gg_stages::verification(config, out, || control(engine, "baseline", 100)).unwrap()];
     if !g_gg_stages::measure_stage(
         engine,
         config,
@@ -95,11 +99,19 @@ pub(super) fn from_template(
         }
     };
     let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-    let pending = engine.read_embedding_readiness().unwrap().pending_count;
+    let pending = g_gg_stages::verification(config, out, || {
+        engine.read_embedding_readiness().unwrap().pending_count
+    })
+    .unwrap();
     assert_eq!(pending, 0);
-    let after = g_write_schedule::current_coverage(&store, &report.default_embedder);
+    let after = g_gg_stages::verification(config, out, || {
+        g_write_schedule::current_coverage(&store, &report.default_embedder)
+    })
+    .unwrap();
     for (stage, as_of) in [("before", 80), ("inside", 100), ("after", 120)] {
-        controls.push(control(engine, stage, as_of));
+        controls.push(
+            g_gg_stages::verification(config, out, || control(engine, stage, as_of)).unwrap(),
+        );
         if !g_gg_stages::measure_stage(
             engine,
             config,
@@ -112,7 +124,11 @@ pub(super) fn from_template(
         }
     }
     adapter.close();
-    assert_eq!(Sha256::digest(std::fs::read(source).unwrap()).to_vec(), original);
+    let source_hash = g_gg_stages::verification(config, out, || {
+        Sha256::digest(std::fs::read(source).unwrap()).to_vec()
+    })
+    .unwrap();
+    assert_eq!(source_hash, original);
     let mut proof = json!({"controls":controls,"baseline_coverage":baseline,"after_coverage":after,
         "governed_write_calls":1,"write_rows":1,"write_cursor":receipt.cursor,"write_ns":write_ns,
         "drain_ns":drain_ns,"pending":pending,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,

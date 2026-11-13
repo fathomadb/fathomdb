@@ -43,6 +43,14 @@ pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<
     })
 }
 
+pub(super) fn verification<T>(
+    _config: &Value,
+    _out: &Path,
+    read: impl FnOnce() -> T,
+) -> Result<T, ()> {
+    Ok(read())
+}
+
 pub(super) fn mutation<T>(
     config: &Value,
     out: &Path,
@@ -490,6 +498,108 @@ mod tests {
         #[test]
         fn gg_preparation_does_not_renew_bounds(check_copy in any::<bool>(), key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
             actual_preparation(key, check_copy);
+        }
+    }
+
+    fn actual_verification(key: &str, kind: &str) {
+        let root =
+            tempfile::Builder::new().prefix("s30-gg-verification-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "verifygg épreuve".into(),
+                logical_id: Some("verify".into()),
+                source_id: SourceId::new("test:s30-gg-verification").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        let db = rusqlite::Connection::open_with_flags(
+            &store,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get::<_, usize>(0))
+                .unwrap(),
+            1
+        );
+        for allowed in [true, false] {
+            let mut config = if allowed {
+                json!({})
+            } else {
+                json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX})
+            };
+            if !allowed {
+                config[key] = json!(0);
+            }
+            let mut calls = 0;
+            let result = verification(&config, &root, || {
+                calls += 1;
+                match kind {
+                    "control" => engine
+                        .search_text_only_filtered_with_snippets(
+                            "verifygg",
+                            None,
+                            &ReadView::default(),
+                            10,
+                            None,
+                        )
+                        .unwrap()
+                        .results
+                        .len(),
+                    "inventory" => db
+                        .query_row("SELECT count(*) FROM canonical_nodes", [], |row| {
+                            row.get::<_, usize>(0)
+                        })
+                        .unwrap(),
+                    "hash" => Sha256::digest(std::fs::read(&store).unwrap()).len(),
+                    "readiness" => {
+                        usize::try_from(engine.read_embedding_readiness().unwrap().pending_count)
+                            .unwrap()
+                    }
+                    _ => unreachable!(),
+                }
+            });
+            println!("actual GG verification {} kind={kind} allowed={allowed} calls={calls} result={result:?}", root.display());
+            assert_eq!(calls, usize::from(allowed), "verification invoked after original endpoint");
+            if allowed {
+                let value = result.unwrap();
+                if kind != "readiness" {
+                    assert_eq!(value, if kind == "hash" { 32 } else { 1 });
+                }
+            } else {
+                assert!(result.is_err());
+            }
+        }
+        engine.close().unwrap();
+    }
+
+    #[test]
+    fn work_endpoint_refuses_gg_literal_control() {
+        actual_verification("work_deadline_ns", "control");
+    }
+    #[test]
+    fn hard_endpoint_refuses_gg_inventory() {
+        actual_verification("hard_deadline_ns", "inventory");
+    }
+    #[test]
+    fn work_endpoint_refuses_gg_hash_read() {
+        actual_verification("work_deadline_ns", "hash");
+    }
+    #[test]
+    fn shared_endpoint_refuses_gg_readiness() {
+        actual_verification("shared_deadline_ns", "readiness");
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn gg_verification_never_renews_the_original_window(kind in prop::sample::select(vec!["control","inventory","readiness"]), key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            actual_verification(key, kind);
         }
     }
 }

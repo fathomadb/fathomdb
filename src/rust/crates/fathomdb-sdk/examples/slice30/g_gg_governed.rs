@@ -266,9 +266,13 @@ pub(super) fn from_template(
         }
     };
     let valid_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-    let valid_readiness = readiness(engine);
-    let valid = inventory(&store, &report.default_embedder, false);
-    let mut controls = vec![control(engine, "valid")];
+    let valid_readiness = g_gg_stages::verification(config, out, || readiness(engine)).unwrap();
+    let valid = g_gg_stages::verification(config, out, || {
+        inventory(&store, &report.default_embedder, false)
+    })
+    .unwrap();
+    let mut controls =
+        vec![g_gg_stages::verification(config, out, || control(engine, "valid")).unwrap()];
     if !g_gg_stages::measure_stage(
         engine,
         config,
@@ -304,10 +308,13 @@ pub(super) fn from_template(
         }
     };
     let deleted_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-    let deleted_readiness = readiness(engine);
+    let deleted_readiness = g_gg_stages::verification(config, out, || readiness(engine)).unwrap();
     let pending = deleted_readiness["pending_count"].as_u64().unwrap();
-    let deleted = inventory(&store, &report.default_embedder, true);
-    controls.push(control(engine, "deleted"));
+    let deleted = g_gg_stages::verification(config, out, || {
+        inventory(&store, &report.default_embedder, true)
+    })
+    .unwrap();
+    controls.push(g_gg_stages::verification(config, out, || control(engine, "deleted")).unwrap());
     if !g_gg_stages::measure_stage(
         engine,
         config,
@@ -319,7 +326,11 @@ pub(super) fn from_template(
         return false;
     }
     adapter.close();
-    assert_eq!(Sha256::digest(std::fs::read(source).unwrap()).to_vec(), original);
+    let source_hash = g_gg_stages::verification(config, out, || {
+        Sha256::digest(std::fs::read(source).unwrap()).to_vec()
+    })
+    .unwrap();
+    assert_eq!(source_hash, original);
     let mut proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
         "governed_write_calls":1,"write_rows":2,"dependency_registrations":1,"transitions":1,"pending":pending,
         "write_ns":write_ns,"register_ns":register_ns,"valid_drain_ns":valid_drain_ns,"transition_ns":transition_ns,"deleted_drain_ns":deleted_drain_ns,

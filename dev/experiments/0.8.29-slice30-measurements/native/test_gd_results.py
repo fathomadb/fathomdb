@@ -15,6 +15,7 @@ from hypothesis import Phase, given, settings, strategies as st
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from gd_campaign import run_manifest  # noqa: E402
+from gd_results import describe  # noqa: E402
 
 TOOL=Path(__file__).parents[1]/"gd_results.py"
 
@@ -121,6 +122,62 @@ class DResultGroupingTests(unittest.TestCase):
         forward=self.groups(suffix,False)
         reverse=self.groups(suffix,True)
         self.assertNotEqual(forward,reverse)
+
+
+class ResultStatisticsTests(unittest.TestCase):
+    def test_literal_timed_nearest_ranks_exclude_warmup(self):
+        calls=[{"phase":"warmup","ok":True,"elapsed_ns":99_000_000},
+               {"phase":"timed","ok":True,"elapsed_ns":1_000_000},
+               {"phase":"timed","ok":True,"elapsed_ns":3_000_000},
+               {"phase":"timed","ok":False,"elapsed_ns":7_000_000,"error":"InvalidFilter"}]
+        result=describe(calls,1_000_000_000)
+        timed=result.get("timed",{})
+        self.assertEqual(timed.get("requests",0),3,"missing timed-only descriptive population")
+        self.assertEqual(timed["successful_latency"],{"count":2,"p50_ms":1,"p99_ms":3,"mean_ms":2})
+        self.assertEqual(timed["error_latency"],{"count":1,"p50_ms":7,"p99_ms":7,"mean_ms":7})
+        self.assertEqual(result["warmup"]["successful_latency"]["mean_ms"],99)
+        self.assertEqual(result["all_requests"],4)
+        self.assertEqual(result["throughput_all_per_s"],4)
+
+    def test_error_denominator_and_unknown_error_remain_explicit(self):
+        calls=[{"phase":"timed","ok":True,"elapsed_ns":1_000_000},
+               {"phase":"timed","ok":False,"elapsed_ns":3_000_000,"error":"InvalidFilter"},
+               {"phase":"timed","ok":False,"elapsed_ns":5_000_000,"error":None}]
+        result=describe(calls,2_000_000_000)
+        timed=result.get("timed",{})
+        self.assertEqual(timed.get("errors",{}),{"InvalidFilter":1,"unknown":1},"missing error population or denominator")
+        self.assertEqual((timed["requests"],timed["ok"]),(3,1))
+        self.assertEqual(timed["error_latency"],{"count":2,"p50_ms":3,"p99_ms":5,"mean_ms":4})
+        self.assertEqual(result["throughput_all_per_s"],1.5)
+
+    def test_actual_whole_cell_rate_counts_both_warmup_and_timed_calls(self):
+        root,path,raw,_=actual_results()
+        report=read_result(path,root)
+        outcomes={row["id"]:row for row in json.loads((root/"results/campaign-state.json").read_text())}
+        for group in report["cells"][:3]:
+            with self.subTest(cell=group["id"]):
+                stats=group.get("statistics",{})
+                self.assertEqual(stats.get("all_requests",0),5,"warmups omitted from all-call whole-cell numerator")
+                ordered=sorted(row["elapsed_ns"] for row in raw[group["id"]])
+                latency=stats["timed"]["successful_latency"]
+                self.assertEqual(latency["p50_ms"],ordered[1]/1_000_000)
+                self.assertEqual(latency["p99_ms"],ordered[-1]/1_000_000)
+                self.assertAlmostEqual(latency["mean_ms"],sum(ordered)/4/1_000_000)
+                self.assertEqual(stats["wall_ns"],outcomes[group["id"]]["cell_elapsed_ns"])
+                self.assertEqual(stats["throughput_all_per_s"],5*1_000_000_000/stats["wall_ns"])
+
+    @settings(max_examples=3,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.lists(st.integers(min_value=1,max_value=10_000_000),min_size=1,max_size=5),st.integers(min_value=0,max_value=3))
+    def test_warmups_do_not_change_timed_distribution_but_count_in_rate(self,elapsed,warmups):
+        calls=[{"phase":"warmup","ok":True,"elapsed_ns":99_000_000} for _ in range(warmups)]
+        calls.extend({"phase":"timed","ok":True,"elapsed_ns":value} for value in elapsed)
+        result=describe(calls,1_000_000_000)
+        latency=result.get("timed",{}).get("successful_latency",{})
+        self.assertEqual(latency.get("count",0),len(elapsed),"missing raw-call descriptive statistics")
+        self.assertEqual(latency["p50_ms"],sorted(elapsed)[(len(elapsed)-1)//2]/1_000_000)
+        self.assertAlmostEqual(latency["mean_ms"],sum(elapsed)/len(elapsed)/1_000_000)
+        self.assertEqual(result["all_requests"],len(elapsed)+warmups)
+        self.assertEqual(result["throughput_all_per_s"],len(elapsed)+warmups)
 
 
 if __name__=="__main__":

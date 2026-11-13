@@ -16,6 +16,11 @@ def _json(path,issues):
         return {}
 
 
+def describe(calls,wall_ns):
+    """Separate timed/warmup latency populations and all-call whole-cell throughput."""
+    return {}
+
+
 def _dataset(config):
     records=[*config.get("records",[]),*config.get("write_records",[])]
     digest=hashlib.sha256()
@@ -58,6 +63,7 @@ def summarize(manifest, root):
                      dataset_sha256=_dataset(config),
                      dataset_identity_scope="ordered native API id/kind/body inputs; excludes wall clocks and physical database bytes",
                      warmup_count=sum(row["phase"]=="warmup" for row in calls),
+                     statistics=describe(calls,outcome.get("cell_elapsed_ns")),
                      queries=[{"query_id":row.get("query_id"),"sample_index":row["sample_index"],
                                "query_fingerprint":row.get("query_sha256"),"elapsed_ns":row["elapsed_ns"],
                                "ok":row["ok"],"error":row.get("error_class") or row.get("error")}

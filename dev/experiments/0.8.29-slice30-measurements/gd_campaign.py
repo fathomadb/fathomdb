@@ -321,6 +321,28 @@ def _native_complete(cell, attempt):
                     proof.get("api_calls")) != (mode, warmups, query_count, warmups+query_count):
                 return False
         return bool(passes)
+    if cell["family"]=="D_HELD_FIXTURE":
+        path=attempt/"controls.json"
+        if not path.exists():
+            return False
+        proof=json.loads(path.read_text())
+        count=cell.get("n",len(cell.get("records",[])))
+        coverage=proof.get("coverage",{})
+        held=proof.get("held",{})
+        released=proof.get("released",{})
+        if (proof.get("api_complete") is not True or proof.get("release_requests")!=1
+                or held.get("readiness",{}).get("pending_count")!=count
+                or held.get("sql",{}).get("physical_vectors")!=0
+                or released.get("readiness",{}).get("pending_count")!=0
+                or released.get("sql",{}).get("physical_vectors")!=count
+                or coverage.get("verified") is not True or len(coverage.get("rows",[]))!=count
+                or coverage.get("profile",{}).get("dimension")!=768):
+            return False
+        if cell.get("queries") or cell.get("query_source"):
+            calls=[json.loads(line) for line in (attempt/"queries.jsonl").read_text().splitlines()]
+            return ([row["phase"] for row in calls]==["warmup"]*cell["warmups"]+["timed"]*cell["samples"]
+                    and all(row.get("ok") is True for row in calls))
+        return True
     name = "complete.json" if cell["family"] == "D_QUERY_FIXTURE" else "result.json"
     path = attempt / name
     return path.exists() and json.loads(path.read_text()).get("complete") is True

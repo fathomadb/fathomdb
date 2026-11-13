@@ -2,6 +2,7 @@
 
 import argparse
 import json
+from itertools import islice
 import sys
 from pathlib import Path
 
@@ -108,6 +109,69 @@ def execute_cell(cell, manifest, attempt, deadline_ns):
     return result
 
 
+
+def qualified_result(outcome, cache=None):
+    """Read only completed current production results, never protocol-only controls."""
+    if not outcome or outcome.get("status") != "complete":
+        return None
+    key = outcome["attempt"]
+    if cache is not None and key in cache:
+        return cache[key]
+    try:
+        result = json.loads(Path(outcome["attempt"], "result.json").read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    qualified = result if result.get("complete") is True and result.get("qualification_issues") == [] else None
+    if cache is not None:
+        cache[key] = qualified
+    return qualified
+
+
+def observed_write_costs(cell, previous, manifest, cache):
+    """Collect current qualified G1/G-R/G-O costs for the exact G-W adapter and route."""
+    seed_outcome = previous.get("g1-n100000")
+    read_outcome = previous.get(f"g-r-n100000-r{cell['repeat']}")
+    branch_outcome = previous.get("g-o-branches")
+    seed = qualified_result(seed_outcome, cache)
+    read = qualified_result(read_outcome, cache)
+    branches = qualified_result(branch_outcome, cache)
+    if any(value is None for value in (seed, read, branches)):
+        return {}
+    adapter, route = cell["adapters"][0], cell["routes"][0]
+    seed_step = seed["steps"][0]
+    seed_report = seed_step["result"]
+    read_step = next((step for step in read["steps"] if step["family"] == "G-R"), None)
+    if read_step is None:
+        return {}
+    report = read_step["result"]
+    selected = next((item for item in report["passes"] if item["adapter"] == adapter and item["route"] == route), None)
+    texts = [row["elapsed_ns"] for row in report["samples"] if row["adapter"] == adapter and row["route"] == "text" and row["ok"]]
+    commits = [step["result"] for step in branches["steps"] if step["family"] == "G-W"
+               and json.loads(Path(step["config"]).read_text())["adapters"] == [adapter]]
+    probes = [probe for item in commits for probe in item["probes"]]
+    batches = [batch for item in commits for batch in item["batches"]]
+    closes = [row["elapsed_ns"] for row in report["close_outcomes"] if row["adapter"] == adapter]
+    if not selected or not texts or not probes or not batches or not closes:
+        return {}
+    raw = [path for path in Path(read_step["output"]).glob("*.json*") if path.is_file()]
+    record_count = report["sample_count"] + report["warmup_count"] + report["first_call_count"]
+    raw_per_record = (sum(path.stat().st_size for path in raw) + record_count - 1) // record_count
+    with Path(manifest["corpus"]).open() as stream:
+        body_bytes = max(len(json.dumps(json.loads(line)).encode()) for line in islice(stream, 10))
+    probe_bytes = max(len(json.dumps(probe).encode()) for probe in probes) + 2 * body_bytes
+    budget = json.loads(Path(manifest["allocation"], "g-budget.json").read_text())
+    seed_wall_ns = max(seed_outcome["elapsed_ns"], budget.get("cell_used_ns", {}).get("g1-n100000", 0))
+    return {"seed_wall_ns": seed_wall_ns,
+            "seed_bytes": sum(path.stat().st_size for path in Path(seed_outcome["attempt"]).rglob("*") if path.is_file()),
+            "seed_write_ns": seed_report["write_ns"], "seed_rows": seed_report["natural_records"],
+            "route_wall_ns": selected["wall_ns"], "route_requests": selected["requests"],
+            "open_ns": selected["open_ns"], "close_ns": max(closes), "text_max_ns": max(texts),
+            "point_probe_max_ns": max(probe["point_probe"]["elapsed_ns"] for probe in probes),
+            "text_probe_max_ns": max(probe["text_probe"]["elapsed_ns"] for probe in probes),
+            "readiness_max_ns": max(batch["adjacent_readiness"]["elapsed_ns"] for batch in batches),
+            "write_row_max_ns": max((batch["write_ns"] + batch["rows"] - 1) // batch["rows"] for batch in batches),
+            "raw_bytes_per_record": max(raw_per_record, probe_bytes)}
+
 def run_prepared(manifest, root):
     """Run the prepared G protocol; frozen entry validates identities before this layer."""
     from g_campaign import run_g_plan
@@ -118,7 +182,18 @@ def run_prepared(manifest, root):
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
     def command(_cell, deadline):
         return [sys.executable, str(Path(__file__).resolve()), "_cell", str(path), str(deadline)]
-    return run_g_plan(spec, root / "results", command)
+    cache = {}
+    def assess(cell, previous, remaining_ns, retained_bytes):
+        if cell["stage"] != "G0" and qualified_result(previous.get("g0-smoke"), cache) is None:
+            return {"status": "not_run_prerequisite", "reason": "g0_not_qualified"}
+        if cell["stage"] == "G-W":
+            from g_forecast import forecast_write
+            observed = observed_write_costs(cell, previous, manifest, cache)
+            prediction = forecast_write(cell, observed, remaining_ns, retained_bytes)
+            if not prediction["allowed"]:
+                return {"status": "not_run_cap", "reason": "cap_feasibility", "prediction": prediction}
+        return None
+    return run_g_plan(spec, root / "results", command, allocation_root=manifest["allocation"], assess=assess)
 
 
 def run_cell_job(manifest_path, deadline_ns, config_path, output):

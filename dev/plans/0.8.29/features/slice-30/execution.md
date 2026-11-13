@@ -1002,3 +1002,17 @@ aggregate-cap qualification; those controller units remain required.
   explicitly prerequisite-held, and zero command starts for an exhausted shared
   G/D allocation. Controlled command reports remain unqualified and no native/
   database/model/GPU execution is involved. Fixed caps and all84 cells remain.
+
+- Pipeline integration GREEN: `g-runner-pipeline-green` passes both frozen
+  `7b13fe299` controls; `g-runner-integrated-tools-green` passes all30 G tool
+  tests, exit 0, no resource stops; Ruff passes. The exact allocation ledger is
+  shared across tranches, G0 prerequisites are checked before creating later
+  jobs, and all84 obligations remain explicit. Assessment/forecast/preparation
+  use the same absolute cell clock. Completed outcomes and uncertain-cleanup
+  holds retain their reviewed behavior.
+- Actual G-W forecasts consume qualified current G1/G-R/G-O records, including
+  whole recorded seed allowance, matching route/call populations and both probe
+  costs. Raw estimates include actual natural first-ten body lengths. Only
+  immutable completed report data is cached by the tool; no live readiness is
+  reused. Freeze/run/report CLI and telemetry binding are the remaining Python
+  integration work; no native/model/GPU evidence is inferred here.

@@ -91,20 +91,21 @@ def predict_seed(cell, previous, cell_usage):
             "seed_ns": (2 * observed_ns * cell["n"] + observed_rows - 1) // observed_rows,
             "seed_bytes": (2 * active_bytes(lower["attempt"]) * cell["n"] + observed_rows - 1) // observed_rows}
 
-def run_g_plan(spec, root, command, prepare=None):
-    """Run the fixed G schedule with retained cap refusals and owned child groups."""
+def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None):
+    """Run every fixed G obligation against one shared allocation and absolute cell clock."""
     plan = make_g_plan(spec)
     root = Path(root)
+    allocation = Path(allocation_root) if allocation_root is not None else root
     root.mkdir(parents=True, exist_ok=True)
-    budget_path = root / "g-budget.json"
+    allocation.mkdir(parents=True, exist_ok=True)
+    budget_path = allocation / "g-budget.json"
     budget = (json.loads(budget_path.read_text()) if budget_path.exists() else
               {"schema": "slice30-gd-budget/v1", "used_ns": 0, "inflight": None})
     if (budget.get("schema") != "slice30-gd-budget/v1"
             or type(budget.get("used_ns")) is not int or budget["used_ns"] < 0):
         raise ValueError("invalid shared G/D allocation record")
     cell_usage = budget.setdefault("cell_used_ns", {})
-    if not isinstance(cell_usage, dict) or any(type(value) is not int or value < 0
-                                              for value in cell_usage.values()):
+    if not isinstance(cell_usage, dict) or any(type(value) is not int or value < 0 for value in cell_usage.values()):
         raise ValueError("invalid per-cell G allowance record")
     state_path = root / "campaign-state.json"
     previous = ({row["id"]: row for row in json.loads(state_path.read_text())}
@@ -116,51 +117,68 @@ def run_g_plan(spec, root, command, prepare=None):
             outcomes.append(completed)
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
-        prediction = predict_seed(cell, previous, cell_usage)
-        infeasible = (prediction.get("unavailable") is not None
-                      or prediction.get("seed_ns", 0) > min(900 * 10**9 - cell_usage.get(cell["id"], 0),
-                                                           14400 * 10**9 - budget["used_ns"])
-                      or prediction.get("seed_bytes", 0) + active_bytes(root) > 16 * 1024**3)
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
                   "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
                   "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= 900 * 10**9 else
-                  "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else
-                  "cap_feasibility" if infeasible else None)
+                  "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
         if reason:
             outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
-                             "complete": False, "reason": reason, "prediction": prediction})
+                             "complete": False, "reason": reason})
         else:
             started = time.monotonic_ns()
+            shared_allowance = 14400 * 10**9 - budget["used_ns"]
+            cell_allowance = 900 * 10**9 - cell_usage.get(cell["id"], 0)
+            deadline = started + min(shared_allowance, cell_allowance)
             budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
             budget_path.write_text(json.dumps(budget, indent=2) + "\n")
             work_stopped = True
             try:
-                context = prepare(cell, root) if prepare else None
+                assessment = assess(cell, previous, shared_allowance, active_bytes(allocation)) if assess else None
+                prediction = predict_seed(cell, previous, cell_usage) if not assessment else {}
                 elapsed = time.monotonic_ns() - started
-                shared_remaining = 14400 * 10**9 - budget["used_ns"] - elapsed
-                cell_remaining = 900 * 10**9 - cell_usage.get(cell["id"], 0) - elapsed
-                reason = ("shared_time_exhausted" if shared_remaining <= 0 else
-                          "cell_time_exhausted" if cell_remaining <= 0 else
-                          "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else None)
+                reason = ("shared_time_exhausted" if elapsed >= shared_allowance else
+                          "cell_time_exhausted" if elapsed >= cell_allowance else
+                          "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
                 if reason:
-                    outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
-                                     "complete": False, "reason": reason})
+                    outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
+                               "complete": False, "reason": reason}
+                elif assessment:
+                    outcome = dict(assessment, id=cell["id"], cell=cell, complete=False)
+                elif (prediction.get("unavailable") is not None
+                      or prediction.get("seed_ns", 0) > min(cell_allowance - elapsed, shared_allowance - elapsed)
+                      or prediction.get("seed_bytes", 0) + active_bytes(allocation) > 16 * 1024**3):
+                    outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
+                               "complete": False, "reason": "cap_feasibility", "prediction": prediction}
                 else:
-                    def monitor(_pid):
-                        elapsed = time.monotonic_ns() - started
-                        if active_bytes(root) >= 16 * 1024**3:
-                            return "active_storage_exhausted"
-                        if budget["used_ns"] + elapsed >= 14400 * 10**9:
-                            return "shared_time_exhausted"
-                        if cell_usage.get(cell["id"], 0) + elapsed >= 900 * 10**9:
-                            return "cell_time_exhausted"
-                        return None
-                    deadline = started + min(900 * 10**9 - cell_usage.get(cell["id"], 0),
-                                             14400 * 10**9 - budget["used_ns"])
-                    work_stopped = False
-                    outcome = run_g_attempt(cell, root, command, deadline, context=context, monitor=monitor)
-                    outcomes.append(outcome)
-                    work_stopped = not outcome.get("cleanup_uncertain", True)
+                    context = prepare(cell, root) if prepare else None
+                    elapsed = time.monotonic_ns() - started
+                    reason = ("shared_time_exhausted" if elapsed >= shared_allowance else
+                              "cell_time_exhausted" if elapsed >= cell_allowance else
+                              "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
+                    if reason:
+                        outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
+                                   "complete": False, "reason": reason}
+                    else:
+                        def monitor(_pid):
+                            now_elapsed = time.monotonic_ns() - started
+                            if active_bytes(allocation) >= 16 * 1024**3:
+                                return "active_storage_exhausted"
+                            if now_elapsed >= shared_allowance:
+                                return "shared_time_exhausted"
+                            if now_elapsed >= cell_allowance:
+                                return "cell_time_exhausted"
+                            return None
+                        work_stopped = False
+                        outcome = run_g_attempt(cell, root, command, deadline, context=context, monitor=monitor)
+                        work_stopped = not outcome.get("cleanup_uncertain", True)
+                outcomes.append(outcome)
+                (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+                if outcome.get("status") == "complete" and time.monotonic_ns() >= deadline:
+                    outcome.update(status="failed", complete=False, error="whole_cell_time_exhausted")
+                    state = {row["id"]: row for row in json.loads(state_path.read_text())}
+                    state[cell["id"]] = outcome
+                    state_path.write_text(json.dumps(list(state.values()), indent=2) + "\n")
+                    Path(outcome["attempt"], "controller-outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
             finally:
                 elapsed = time.monotonic_ns() - started
                 budget["used_ns"] += elapsed

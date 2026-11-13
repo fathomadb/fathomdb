@@ -680,3 +680,17 @@ aggregate-cap qualification; those controller units remain required.
   complete; following cells retain explicit refusal rows. Raw artifacts remain.
   The existing runner's polling is not the later one-second GPU engagement
   sampler, and production dispatch/deadline integration remains pending.
+
+### G prospective scale RED
+
+- `g-t10-scale-red` runs harmless children through the actual fixed G table.
+  Its 10k stage retains a real 1 GiB sparse raw artifact. The required 2x
+  observed per-row forecast for 100k is at least 20 GiB, exceeding the unchanged
+  16 GiB allocation, yet the actual `g1-n100000` child still launches.
+- The literal runtime `assertNotIn` fails with `100k preparation launched despite
+  observed 10k bytes predicting over16GiB`; one failure, exit 1, no resource
+  stop. These are controlled runner/estimation artifacts, never dense-store,
+  natural-data, Default or GPU qualification.
+- The frozen contract requires all 79 required 100k obligations retained as
+  `cap_feasibility` refusals, while the five bounded smaller obligations may
+  execute and the original 10k raw artifact remains.

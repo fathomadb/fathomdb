@@ -200,3 +200,31 @@ class GStorageGrowthTests(unittest.TestCase):
             self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
                                 and row["reason"] == "active_storage_exhausted" for row in outcomes[1:]))
             self.assertEqual(len(list(root.glob("*/attempt-*"))), 1)
+
+class GScaleFeasibilityTests(unittest.TestCase):
+    def test_observed_ten_k_retained_bytes_refuse_twice_per_row_hundred_k_preparation(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls = root / "calls.jsonl"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "cell=json.loads(pathlib.Path(sys.argv[1]).read_text()); out=pathlib.Path(sys.argv[2])",
+                f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write(cell['id']+'\\n')",
+                "if cell['id']=='g1-n10000':",
+                "    with (out/'lower-observed.raw').open('wb') as stream: stream.truncate(1024**3)",
+                "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
+            ])
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code])
+            actual = calls.read_text().splitlines()
+            self.assertNotIn("g1-n100000", actual,
+                             "100k preparation launched despite observed 10k bytes predicting over16GiB")
+            large = [row for row in outcomes if row["cell"]["n"] == 100000]
+            self.assertEqual(len(large), 79)
+            self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
+                                and row["reason"] == "cap_feasibility" for row in large))
+            self.assertEqual(len(outcomes), 84)
+            self.assertEqual(len(actual), 5)
+            lower = Path(next(row["attempt"] for row in outcomes if row["id"] == "g1-n10000"))
+            self.assertEqual((lower / "lower-observed.raw").stat().st_size, 1024**3)
+            self.assertGreaterEqual(outcomes[2]["prediction"]["seed_bytes"], 20 * 1024**3)

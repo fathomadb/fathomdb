@@ -316,5 +316,47 @@ class NativeGAdmissionTests(unittest.TestCase):
         self.check_running_phase(mode,phase)
 
 
+    def check_scheduled_drain_budgets(self,mode):
+        store=self.root/f"scheduled-store-{self.ordinal}.sqlite"
+        shutil.copyfile(self.template,store)
+        self.assertEqual(hashlib.sha256(store.read_bytes()).digest(),hashlib.sha256(self.template.read_bytes()).digest())
+        queries=self.root/f"scheduled-queries-{self.ordinal}.jsonl"
+        inputs=[{"id":i,"query":"budget"} for i in range(20)]
+        queries.write_text("".join(json.dumps(row)+"\n" for row in inputs))
+        config=dict(self.config,family="G_PASS",store=str(store),queries=str(queries),mode=mode,
+                    population="G2",schedule="write",warmups=2)
+        out=self.invoke(config,relative_work_ns=10_000_000_000)
+        actual=json.loads((out.parent/"cell.json").read_text())
+        deadline=min(actual[key] for key in ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])
+        proof=json.loads((out/"api-proof.json").read_text())
+        timed=[json.loads(line) for line in (out/"samples.jsonl").read_text().splitlines()]
+        phases=[json.loads(line) for line in (out/"batches.jsonl").read_text().splitlines()]
+        probes=[json.loads(line) for line in (out/"marker-probes.jsonl").read_text().splitlines()]
+        self.assertEqual((proof["api_calls"],proof["warmup_api_calls"],len(timed),len(probes)),(22,2,20,20))
+        self.assertEqual([row["query_id"] for row in timed],list(range(20)))
+        self.assertTrue(all(row["ok"] and row["elapsed_ns"]>0 for row in timed))
+        self.assertTrue(all(row["ok"] and row["marker_current"] for row in probes))
+        drains=[row for row in phases if row["event"]=="projection_drained"]
+        self.assertEqual([row["after_natural_calls"] for row in drains],[10,20])
+        self.assertEqual(proof["g2_reset"]["coverage"]["current_by_kind"],{"doc":65,"note":10})
+        for phase,report in [("reset",proof["g2_reset"].get("drain_budget",{})),
+                             *[(f"cohort-{index}",row.get("drain_budget",{})) for index,row in enumerate(drains)]]:
+            with self.subTest(mode=mode,phase=phase):
+                self.assertEqual(report.get("drain_calls",0),1,"G2 reset/scheduled drain still lacks actual remaining-budget forwarding")
+                expected=(deadline-report["start_ns"])//1_000_000
+                self.assertEqual(report["timeout_ms"],expected)
+                self.assertGreater(report["timeout_ms"],5000)
+
+    def test_all_sdk_schedules_forward_original_drain_budget(self):
+        for mode in ["sdk_text","sdk_hybrid","sdk_mean"]:
+            with self.subTest(mode=mode):
+                self.check_scheduled_drain_budgets(mode)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.sampled_from(["sdk_text","sdk_hybrid","sdk_mean"]))
+    def test_scheduled_budget_never_renews_between_cohorts(self,mode):
+        self.check_scheduled_drain_budgets(mode)
+
+
 if __name__ == "__main__":
     unittest.main()

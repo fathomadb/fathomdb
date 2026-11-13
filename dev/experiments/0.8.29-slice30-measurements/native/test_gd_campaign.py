@@ -755,5 +755,51 @@ class DQuerySourceTests(unittest.TestCase):
         self.check_source(texts)
 
 
+class HeldPopulationRouteTests(unittest.TestCase):
+    def check_held(self,count):
+        root,_,manifest=clock_fixture()
+        selected=root/"held-questions.jsonl"
+        selected.write_text(json.dumps("épreuve")+"\n"+json.dumps("aaa0000")+"\n")
+        base=dict(manifest["cells"][0],family="D_HELD_FIXTURE",records=[{"id":"held-control","kind":"doc","body":"held control"}],
+                  release_mode="explicit",warmups=1,samples=2,query_source=str(selected),cohort=3)
+        del base["write_records"]
+        control=run_manifest(dict(manifest,cells=[base]),root/"control")[0]
+        self.assertEqual(control["exit"],0,"actual held write/query/release control NOT_RED")
+        ordinary=json.loads((Path(control["attempt"])/"controls.json").read_text())
+        self.assertTrue(ordinary["api_complete"])
+        self.assertEqual(ordinary["held"]["readiness"]["pending_count"],1)
+        self.assertEqual(ordinary["released"]["sql"]["physical_vectors"],1)
+        cell=dict(base,id="d/held-population",n=count)
+        result=run_manifest(dict(manifest,cells=[cell]),root/"generated")[0]
+        self.assertEqual(result["exit"],0,"held materialization native setup NOT_RED")
+        self.assertTrue(result["cleanup"]["complete"])
+        attempt=Path(result["attempt"])
+        observed=json.loads((attempt/"controls.json").read_text())
+        self.assertTrue(observed["api_complete"])
+        print(f"actual held population {attempt} rows={observed['held']['sql']['canonical_rows']} required={count}",flush=True)
+        self.assertEqual(observed["held"]["sql"]["canonical_rows"],count,"missing generated population on held route")
+        self.assertEqual(observed["held"]["readiness"]["pending_count"],count)
+        self.assertEqual(observed["after_queries"]["readiness"]["pending_count"],count)
+        self.assertEqual(observed["held"]["sql"]["physical_vectors"],0)
+        self.assertEqual(observed["release_requests"],1)
+        self.assertEqual(observed["released"]["readiness"]["pending_count"],0)
+        self.assertEqual(observed["released"]["sql"]["physical_vectors"],count)
+        with closing(sqlite3.connect(f"file:{attempt/'store.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT logical_id,kind FROM canonical_nodes ORDER BY write_cursor").fetchall(),[(f"d-{i}","doc") for i in range(count)])
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes c JOIN _fathomdb_vector_rows m ON m.kind=c.kind AND m.write_cursor=c.write_cursor JOIN vector_default_rowids v ON v.rowid=m.rowid JOIN _fathomdb_vector_spans s ON s.vector_rowid=m.rowid AND s.write_cursor=c.write_cursor WHERE s.byte_start=0 AND s.byte_end IS NULL").fetchone()[0],count)
+        calls=[json.loads(line) for line in (attempt/"queries.jsonl").read_text().splitlines()]
+        self.assertEqual([call["query"] for call in calls],["épreuve","épreuve","aaa0000"])
+        self.assertEqual([call["query_id"] for call in calls],[0,0,1])
+        self.assertTrue(all(call["ok"] for call in calls))
+
+    def test_catalog_held_population_is_written_before_queries_and_release(self):
+        self.check_held(7)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=4,max_value=9))
+    def test_held_generated_tail_remains_pending_then_projects_once(self,count):
+        self.check_held(count)
+
+
 if __name__ == "__main__":
     unittest.main()

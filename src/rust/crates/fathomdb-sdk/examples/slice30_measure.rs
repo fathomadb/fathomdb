@@ -167,10 +167,24 @@ fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct GDiagnosticOptions {
     view: ReadView,
     filter: Option<SearchFilter>,
+}
+
+fn g_diagnostic_options_at(
+    options: Option<&GDiagnosticOptions>,
+    times: &[i64],
+    index: usize,
+) -> Option<GDiagnosticOptions> {
+    options.map(|options| {
+        let mut selected = options.clone();
+        if !times.is_empty() {
+            selected.view.valid_as_of = Some(times[index % times.len()]);
+        }
+        selected
+    })
 }
 
 fn observe_g_diagnostic_route(
@@ -853,12 +867,32 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     let samples = number("samples");
     let warmup = number("warmup");
     assert!(samples > 0);
-    let diagnostic_options = config.get("diagnostic_filter_kind").map(|kind| {
-        assert_eq!(config["family"], "G-O", "natural G-R calls remain unfiltered");
-        let mut filter = SearchFilter::default();
-        filter.kind = Some(kind.as_str().expect("diagnostic kind").to_string());
-        GDiagnosticOptions { filter: Some(filter), ..GDiagnosticOptions::default() }
-    });
+    let diagnostic_times = config
+        .get("diagnostic_valid_as_of_sequence")
+        .map(|times| {
+            let times = times
+                .as_array()
+                .expect("diagnostic time sequence")
+                .iter()
+                .map(|time| time.as_i64().expect("signed epoch seconds"))
+                .collect::<Vec<_>>();
+            assert!(!times.is_empty(), "explicit diagnostic time sequence cannot be empty");
+            times
+        })
+        .unwrap_or_default();
+    let diagnostic_options =
+        if config.get("diagnostic_filter_kind").is_some() || !diagnostic_times.is_empty() {
+            assert_eq!(config["family"], "G-O", "natural G-R calls keep default filter/view");
+            let mut options = GDiagnosticOptions::default();
+            if let Some(kind) = config.get("diagnostic_filter_kind") {
+                let mut filter = SearchFilter::default();
+                filter.kind = Some(kind.as_str().expect("diagnostic kind").to_string());
+                options.filter = Some(filter);
+            }
+            Some(options)
+        } else {
+            None
+        };
     let observed = config["observe"] == true;
     let record_first = config
         .get("record_first_call")
@@ -893,7 +927,8 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
                     &queries[index % queries.len()],
                     operation,
                     &observation,
-                    diagnostic_options.as_ref(),
+                    g_diagnostic_options_at(diagnostic_options.as_ref(), &diagnostic_times, index)
+                        .as_ref(),
                 );
                 row["adapter"] = json!(name);
                 row["repeat"] = config["repeat"].clone();
@@ -929,7 +964,8 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
                     &queries[index % queries.len()],
                     operation,
                     &observation,
-                    diagnostic_options.as_ref(),
+                    g_diagnostic_options_at(diagnostic_options.as_ref(), &diagnostic_times, index)
+                        .as_ref(),
                 );
                 row["adapter"] = json!(name);
                 row["repeat"] = config["repeat"].clone();
@@ -979,7 +1015,7 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     let result = json!({"complete":outcomes_ok && attribution_ok,"negative_control":negative,
         "sample_count":rows.len(),"warmup_count":warmups.len(),"first_call_count":first_calls.len(),
         "record_first_call":record_first,
-        "diagnostic_options":diagnostic_options.as_ref().map(|options|json!({"filter_kind":options.filter.as_ref().and_then(|filter|filter.kind.as_ref())})),
+        "diagnostic_options":diagnostic_options.as_ref().map(|options|json!({"filter_kind":options.filter.as_ref().and_then(|filter|filter.kind.as_ref()),"valid_as_of_sequence":diagnostic_times})),
         "samples":rows,"warmups":warmups,"first_calls":first_calls,
         "observation_batches":traces,"passes":passes,"fixtures":fixtures,
         "raw_persistence":recorder.statistics_since([0;5]),

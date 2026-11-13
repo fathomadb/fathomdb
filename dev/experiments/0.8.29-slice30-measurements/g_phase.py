@@ -2,7 +2,7 @@
 
 import json, os, pathlib, subprocess, sys, time, traceback
 from g_resource import resource_sample
-from g_attempt import stop_owned_group, wait_unreaped
+from g_attempt import live_owned_pids, stop_owned_group, wait_unreaped
 
 root = pathlib.Path(os.environ["S30_SOURCE"]).resolve()
 task = pathlib.Path(os.environ["S30_TASK"]).resolve()
@@ -55,7 +55,13 @@ with (task / "logs" / f"{phase}.log").open("wb") as log:
         while True:
             code = wait_unreaped(child, 30)
             if code is not None:
-                child.wait()
+                survivors = live_owned_pids(child)
+                record["survivors_at_leader_exit"] = survivors
+                if survivors:
+                    record["executor_error"] = "owned_work_survived_leader"
+                    code = 125
+                else:
+                    child.wait()
                 break
             try:
                 s = sample()

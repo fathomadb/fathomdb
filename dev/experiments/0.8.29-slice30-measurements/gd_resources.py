@@ -34,9 +34,12 @@ def reservation_ok(owned, setup_used, g_raw, d_raw):
 def measure_root(path, deadline=None):
     """Accept successful du totals only, retaining both bounded attempts on failure."""
     import subprocess
+    import time
     row = {"path": str(path), "warnings": []}
     for key, flag in (("allocated", "-sB1"), ("apparent", "-sb")):
         for attempt in range(2):
+            if deadline is not None and time.monotonic() >= deadline:
+                raise RuntimeError(f"owned size unverifiable: probe deadline exhausted before du {flag} {path}")
             process = subprocess.run(["du", flag, str(path)], capture_output=True, text=True)
             lines = process.stdout.splitlines()
             fields = lines[-1].split() if lines else []

@@ -159,6 +159,8 @@ pub(super) fn run(config: &Value, out: &Path) {
     let cohort = usize::try_from(config["cohort"].as_u64().unwrap()).unwrap();
     assert!(!records.is_empty() && cohort > 0);
     let mut writes = Vec::new();
+    let mut raw_writes = std::fs::File::create(out.join("writes.jsonl")).unwrap();
+    let mut raw_observations = std::fs::File::create(out.join("observations.jsonl")).unwrap();
     for chunk in records.chunks(cohort) {
         let batch: Vec<_> = chunk
             .iter()
@@ -179,10 +181,15 @@ pub(super) fn run(config: &Value, out: &Path) {
             return;
         };
         writes.push(json!({"clock":clock,"rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors}));
+        super::d_workload::write_row(&mut raw_writes, writes.last().unwrap());
     }
     let held = observation(origin, engine, &store);
     assert_eq!(held["readiness"]["pending_count"], records.len());
     assert_eq!(held["sql"]["physical_vectors"], 0);
+    super::d_workload::write_row(
+        &mut raw_observations,
+        &json!({"phase":"held","observation":held}),
+    );
     let after_queries = if config["queries"].as_array().is_some() {
         let mut output = std::fs::File::create(out.join("queries.jsonl")).unwrap();
         let run_phase = |output: &mut std::fs::File, phase: &str, key: &str| {
@@ -259,6 +266,10 @@ pub(super) fn run(config: &Value, out: &Path) {
     let released = observation(origin, engine, &store);
     assert_eq!(released["readiness"]["pending_count"], 0);
     assert_eq!(released["sql"]["physical_vectors"], records.len());
+    super::d_workload::write_row(
+        &mut raw_observations,
+        &json!({"phase":"released","observation":released}),
+    );
     let observed = super::d_workload::observation_report(engine, origin, config);
     std::fs::write(out.join("worker-observer.json"), serde_json::to_vec_pretty(&observed).unwrap())
         .unwrap();

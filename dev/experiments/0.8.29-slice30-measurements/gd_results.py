@@ -90,6 +90,18 @@ def comparisons(groups):
     return pairs
 
 
+def caller_comparisons(groups):
+    """Pair normal Core/SDK passes from the same actual cell/template/query population."""
+    keyed={}
+    for group in groups:
+        if group.get("observer_feature") or "cell_id" not in group or "dataset_sha256" not in group:
+            continue
+        key=tuple(group.get(field) for field in ["cell_id","dataset_sha256","mode","repeat","n","workload","population","schedule"])
+        keyed.setdefault(key,{}).setdefault(group.get("adapter"),[]).append(group)
+    return [pair_groups(adapters["engine"][0],adapters["sdk"][0]) for adapters in keyed.values()
+            if len(adapters.get("engine",[]))==len(adapters.get("sdk",[]))==1]
+
+
 def observer_summary(calls,enabled):
     """Describe actual per-call observer transport and delta counters."""
     if not enabled:
@@ -222,7 +234,7 @@ def summarize(manifest, root):
                                "worker_records":len(observer["records"]) if isinstance(observer.get("records"),list) else None})
         if issues and group["status"]=="complete":
             group["status"]="incomplete"
-    return {"cells":groups,"pairs":comparisons(groups),"gated":False}
+    return {"cells":groups,"pairs":comparisons(groups),"caller_pairs":caller_comparisons(groups),"gated":False}
 
 
 def main():

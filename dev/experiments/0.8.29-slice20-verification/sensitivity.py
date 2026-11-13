@@ -108,7 +108,7 @@ def main():
             assert path.read_bytes() == original
         if git('status', '--porcelain'):
             raise RuntimeError('control source was not exactly restored')
-    destination = TASK/'receipts/approved-sensitivity.json'
+    destination = TASK/'receipts/approved-sensitivity-cases.json'
     destination.write_text(json.dumps({'cases': records, 'control_sha': EXPECTED,
                                       'clean_after': not git('status', '--porcelain'),
                                       'product_red_claim': False}, indent=2)+'\n')

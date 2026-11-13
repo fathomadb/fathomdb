@@ -33,3 +33,18 @@ The monitor also retains read-only descriptors for canonical capped spill logs
 before their normal successful deletion, using the existing20 collector method.
 It saves complete passing native diagnostics/results; no runner output or exit
 is changed. Collector failure remains a failure rather than a green claim.
+
+verify_sensitivity_results.py is the retained consumer regression for case-result
+loss after monitor completion. sensitivity.py writes approved-sensitivity-cases.json;
+the monitor alone writes approved-sensitivity.json. recover_sensitivity.py recovers
+the original seven records from retained raw output once, preserving the original
+monitor receipt and all source/patch/artifact hashes. No passing control rerun.
+The original executables arrays list Cargo-built artifacts; separate
+runtime_attribution identifies the actual test executable via profile.test and
+the exact Cargo Running line plus one-test harness output. Server artifacts are
+never labeled executed merely because Cargo built them.
+
+```bash
+python3 dev/experiments/0.8.29-slice20-verification/recover_sensitivity.py
+python3 dev/experiments/0.8.29-slice20-verification/verify_sensitivity_results.py
+```

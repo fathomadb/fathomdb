@@ -87,8 +87,43 @@ fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
 
 #[cfg(test)]
 fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
-    let _ = route;
-    observe(engine, query, None)
+    enum Output {
+        Search(fathomdb_engine::SearchResult),
+        Embed(Vec<f32>),
+    }
+    let started = std::time::Instant::now();
+    let result: fathomdb_sdk::Result<Output> = match (engine, route) {
+        (Adapter::Core(engine), "text") => {
+            engine.search_text_only(query).map(Output::Search).map_err(Into::into)
+        }
+        (Adapter::Sdk(engine), "text") => {
+            engine.search_text_only(query, TextSearchOptions::default()).map(Output::Search)
+        }
+        (Adapter::Core(engine), "hybrid") => {
+            engine.search(query).map(Output::Search).map_err(Into::into)
+        }
+        (Adapter::Sdk(engine), "hybrid") => {
+            engine.search(query, fathomdb_sdk::SearchOptions::default()).map(Output::Search)
+        }
+        (Adapter::Core(engine), "embed") => {
+            engine.embed_text(query).map(Output::Embed).map_err(Into::into)
+        }
+        (Adapter::Sdk(engine), "embed") => engine.embed(query).map(Output::Embed),
+        _ => panic!("unknown G route"),
+    };
+    let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+    match result {
+        Ok(Output::Search(result)) => json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
+            "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
+            "bodies":result.results.iter().map(|hit|&hit.body).collect::<Vec<_>>(),
+            "returned_hits":result.results.len(),"projection_cursor":result.projection_cursor,
+            "soft_fallback":format!("{:?}",result.soft_fallback),
+            "degradations":format!("{:?}",result.degradations)}),
+        Ok(Output::Embed(vector)) => json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
+            "dimension":vector.len(),"finite":vector.iter().all(|x|x.is_finite())}),
+        Err(error) => json!({"route":route,"ok":false,"elapsed_ns":elapsed_ns,
+            "error_kind":error.kind().name(),"error":format!("{error:?}")}),
+    }
 }
 
 struct Schedule {

@@ -410,5 +410,56 @@ class GNormalCliTests(unittest.TestCase):
                     self.assertEqual(captures[0][key], captures[1][key], "no intervening write in source views")
 
 
+    def test_actual_open_report_device_absence_and_close_outcomes_are_retained(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text('"alpha needle"\n"beta"\n')
+            queries.write_text('"needle"\n')
+            seed = root / "seed.json"
+            seed.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                        "adapter": "sdk", "n": 2, "corpus": str(corpus), "queries": str(queries)}))
+            prepared = subprocess.run([str(binary), str(seed), str(root / "seed")],
+                                      text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+            config = root / "cell.json"
+            config.write_text(json.dumps({"family": "G-R", "provider": "none", "negative_control": True,
+                                          "store": str(root / "seed" / "store.sqlite"), "queries": str(queries),
+                                          "adapters": ["engine", "sdk"], "routes": ["text"],
+                                          "warmup": 0, "samples": 1, "repeat": 0, "observe": False,
+                                          "record_first_call": False}))
+            out = root / "out"
+            with subprocess.Popen([str(binary), str(config), str(out)], text=True,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE) as child:
+                try:
+                    stdout, stderr = child.communicate(timeout=30)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.communicate()
+                    raise
+                self.assertEqual(child.returncode, 0, stdout + stderr)
+                actual_pid = child.pid
+            result = json.loads((out / "result.json").read_text())
+            self.assertEqual(len(result.get("open_reports", [])), 2,
+                             "normal G driver discarded actual public open/device reports")
+            self.assertEqual([row["adapter"] for row in result["open_reports"]], ["engine", "sdk"])
+            for report in result["open_reports"]:
+                self.assertTrue(report["available"])
+                self.assertEqual(report["pid"], actual_pid)
+                self.assertEqual(Path(report["executable"]).resolve(), binary)
+                self.assertEqual(report["schema_version_after"], 37)
+                self.assertEqual(report["requested_provider"], "none")
+                self.assertIsNone(report["embedder_device_resolution"])
+                self.assertIsNone(report["embedder_download_ms"])
+            self.assertEqual(len(result["close_outcomes"]), 2)
+            self.assertTrue(all(row["status"] == "ok" and row["elapsed_ns"] > 0
+                                for row in result["close_outcomes"]))
+            prepared_result = json.loads((root / "seed" / "result.json").read_text())
+            self.assertTrue(prepared_result["open_report"]["available"])
+            self.assertTrue(prepared_result["reopen_report"]["available"])
+            self.assertGreater(prepared_result["reopen_close_ns"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

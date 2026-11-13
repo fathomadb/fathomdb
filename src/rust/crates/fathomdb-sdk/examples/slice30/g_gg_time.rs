@@ -71,7 +71,21 @@ pub(super) fn from_template(
         .unwrap();
     let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
     let draining = Instant::now();
-    let drain_budget = g_gg_stages::drain(engine, config).unwrap();
+    let drain_budget = match g_gg_stages::drain(engine, config) {
+        Ok(report) => report,
+        Err(error) => {
+            std::fs::write(
+                out.join("budget.json"),
+                serde_json::to_vec_pretty(&json!({
+                    "phase":"drain","disposition":"phase_failed","error":error
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            adapter.close();
+            return false;
+        }
+    };
     let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let pending = engine.read_embedding_readiness().unwrap().pending_count;
     assert_eq!(pending, 0);

@@ -7,10 +7,10 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::time::Instant;
 
-pub(super) fn drain(engine: &fathomdb_engine::Engine, _config: &Value) -> Result<Value, String> {
-    let start = super::budget_clock::monotonic_ns()?;
-    engine.drain(5000).map_err(|error| format!("{error:?}"))?;
-    Ok(json!({"start_ns":start,"timeout_ms":5000,"drain_calls":1}))
+pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<Value, String> {
+    super::g_budget::drain(config, |timeout| {
+        engine.drain(timeout).map_err(|error| format!("{error:?}"))
+    })
 }
 
 pub(super) fn measure_stage(

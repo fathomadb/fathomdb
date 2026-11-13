@@ -236,7 +236,21 @@ pub(super) fn from_template(
         .unwrap();
     let register_ns = u64::try_from(registering.elapsed().as_nanos()).unwrap();
     let draining = Instant::now();
-    let valid_drain_budget = g_gg_stages::drain(engine, config).unwrap();
+    let valid_drain_budget = match g_gg_stages::drain(engine, config) {
+        Ok(report) => report,
+        Err(error) => {
+            std::fs::write(
+                out.join("budget.json"),
+                serde_json::to_vec_pretty(&json!({
+                    "phase":"drain","disposition":"phase_failed","error":error
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            adapter.close();
+            return false;
+        }
+    };
     let valid_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let valid_readiness = readiness(engine);
     let valid = inventory(&store, &report.default_embedder, false);
@@ -252,7 +266,21 @@ pub(super) fn from_template(
     engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
     let transition_ns = u64::try_from(transitioning.elapsed().as_nanos()).unwrap();
     let draining = Instant::now();
-    let deleted_drain_budget = g_gg_stages::drain(engine, config).unwrap();
+    let deleted_drain_budget = match g_gg_stages::drain(engine, config) {
+        Ok(report) => report,
+        Err(error) => {
+            std::fs::write(
+                out.join("budget.json"),
+                serde_json::to_vec_pretty(&json!({
+                    "phase":"drain","disposition":"phase_failed","error":error
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            adapter.close();
+            return false;
+        }
+    };
     let deleted_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let deleted_readiness = readiness(engine);
     let pending = deleted_readiness["pending_count"].as_u64().unwrap();

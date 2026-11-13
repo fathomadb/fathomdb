@@ -713,6 +713,7 @@ run_tier_maybe_suite heavy test-slice30-gd-campaign "$slice30_measurement_platfo
 run_tier_maybe_suite heavy test-slice30-native-budget "$slice30_measurement_platform_reason" bash -c '
   set -euo pipefail
   cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic
+  cargo test --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks,slice30-measurement -- --test-threads=1 --nocapture
   cargo test --locked --release -p fathomdb-engine --test slice30_native_budget -- --test-threads=1 --nocapture
 '
 

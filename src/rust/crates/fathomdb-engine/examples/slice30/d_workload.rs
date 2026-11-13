@@ -30,6 +30,12 @@ fn drain(engine: &Engine, config: &Value, out: &Path) -> Result<(), ()> {
     super::native_budget::phase(config, out, "drain")
 }
 
+fn prepare_template(config: &Value, out: &Path, store: &Path) -> Result<(), ()> {
+    let _ = dense_template::run(config, &out.join("template"));
+    std::fs::copy(out.join("template/template.sqlite"), store).unwrap();
+    Ok(())
+}
+
 fn run_inner(config: &Value, out: &Path) -> Result<(), ()> {
     let origin = Instant::now();
     std::fs::create_dir_all(out).unwrap();
@@ -38,8 +44,7 @@ fn run_inner(config: &Value, out: &Path) -> Result<(), ()> {
     let empty_start = config["empty_start"].as_bool().unwrap_or(false);
     super::native_budget::phase(config, out, "entry")?;
     if !empty_start {
-        dense_template::run(config, &out.join("template"));
-        std::fs::copy(out.join("template/template.sqlite"), &store).unwrap();
+        prepare_template(config, out, &store)?;
     }
     super::native_budget::query_open(config, out)?;
     let opened = Engine::open_with_test_choice_for_test(
@@ -332,4 +337,69 @@ pub(super) fn enable_observation(engine: &Engine, config: &Value) {
     }
     #[cfg(not(feature = "slice30-measurement"))]
     let _ = (engine, config);
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn failed_preparation(rows: usize) {
+        let root = tempfile::Builder::new().prefix("s30-template-stop-").tempdir().unwrap().keep();
+        let records: Vec<_> = (0..rows).map(|index|json!({"id":format!("prepared-{index}"),"kind":"doc","body":format!("real prepared é {index}")})).collect();
+        let healthy = root.join("healthy");
+        let healthy_copy = healthy.join("query.sqlite");
+        assert!(prepare_template(&json!({"records":records}), &healthy, &healthy_copy).is_ok());
+        assert!(healthy.join("template/template.json").exists());
+        let verify = |path: &Path| {
+            let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+            let count: usize =
+                db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
+            assert_eq!(count, rows);
+            let dimension: usize = db
+                .query_row(
+                    "SELECT dimension FROM _fathomdb_embedder_profiles WHERE profile='default'",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(dimension, 768);
+        };
+        verify(&healthy_copy);
+        let failed = root.join("refused");
+        let target = failed.join("query.sqlite");
+        let result = prepare_template(
+            &json!({"records":records,"work_deadline_ns":0,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX}),
+            &failed,
+            &target,
+        );
+        let source = failed.join("template/template.sqlite");
+        verify(&source);
+        assert!(!failed.join("template/template.json").exists());
+        let refusal: Value =
+            serde_json::from_slice(&std::fs::read(failed.join("template/budget.json")).unwrap())
+                .unwrap();
+        assert_eq!(refusal["drain_calls"], 0);
+        assert_eq!(refusal["disposition"], "deadline_refused");
+        println!(
+            "actual unqualified template {} rows={rows} copied={} result={result:?}",
+            source.display(),
+            target.exists()
+        );
+        assert!(!target.exists(), "failed preparation still started a downstream SQLite copy");
+        assert!(result.is_err());
+        let forwarded: Value =
+            serde_json::from_slice(&std::fs::read(failed.join("budget.json")).unwrap()).unwrap();
+        assert_eq!(forwarded, refusal);
+    }
+
+    #[test]
+    fn refused_template_prevents_downstream_copy() {
+        failed_preparation(2);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn refused_preparation_keeps_real_rows_without_copying_them(rows in 1usize..5) {failed_preparation(rows);}
+    }
 }

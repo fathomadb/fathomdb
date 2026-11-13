@@ -60,7 +60,10 @@ fn run(config: &Value, out: &Path) {
     }
     if config["family"] == "D_TEMPLATE" {
         #[cfg(feature = "test-hooks")]
-        return dense_template::run(config, out);
+        {
+            dense_template::run(config, out);
+            return;
+        }
         #[cfg(not(feature = "test-hooks"))]
         panic!("D fixture requires its explicit test-hooks artifact");
     }

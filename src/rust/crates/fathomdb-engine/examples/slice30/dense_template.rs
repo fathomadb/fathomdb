@@ -14,7 +14,7 @@ use std::sync::Arc;
 use super::template_verify;
 use super::varying_embedder::VaryingEmbedder;
 
-pub(super) fn run(config: &Value, out: &Path) {
+pub(super) fn run(config: &Value, out: &Path) -> bool {
     std::fs::create_dir_all(out).unwrap();
     let store = out.join("template.sqlite");
     assert!(!store.exists(), "template fixture must be fresh");
@@ -46,7 +46,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     let draining = std::time::Instant::now();
     if super::native_budget::checked_drain(engine, config, out).is_err() {
         engine.close().unwrap();
-        return;
+        return false;
     }
     let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let pending = engine.read_embedding_readiness().unwrap().pending_count;
@@ -69,6 +69,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     metadata["coverage"] = template_verify::coverage(&store, &VaryingEmbedder.identity());
     std::fs::write(out.join("template.json"), serde_json::to_vec_pretty(&metadata).unwrap())
         .unwrap();
+    true
 }
 
 fn closed_metadata(store: &Path, pending: u64) -> Value {

@@ -45,6 +45,10 @@ where
     let hooks = hooks.clone();
     let task = tokio::task::spawn_blocking(move || {
         let guard = guard;
+        #[cfg(feature = "test-seams")]
+        if let Some(observation) = &guard.pre_enqueue {
+            observation.bridge(guard.epoch);
+        }
         hooks.before_call(&guard.name);
         f(&guard.engine)
     });

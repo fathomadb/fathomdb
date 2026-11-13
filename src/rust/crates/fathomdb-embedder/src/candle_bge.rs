@@ -934,3 +934,19 @@ mod cuda_probe_error_tests {
         assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::ProbeFailed { .. }));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn overflow_chunking_embedder_tripwire() {
+        assert_eq!(
+            DEFAULT_EMBEDDER_NAME, "fathomdb-bge-small-en-v1.5",
+            "Re-evaluate dev/design/overflow-chunking-reevaluation.md: DEFAULT_EMBEDDER_NAME"
+        );
+        assert_eq!(
+            MAX_SEQUENCE_TOKENS, 512,
+            "Re-evaluate dev/design/overflow-chunking-reevaluation.md: MAX_SEQUENCE_TOKENS"
+        );
+    }
+}

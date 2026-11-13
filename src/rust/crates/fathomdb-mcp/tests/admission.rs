@@ -975,3 +975,150 @@ async fn a_permit_with_little_deadline_left_still_starts_the_call() {
     );
     harness.shutdown().await;
 }
+
+fn pre_enqueue_config(fixture: &Fixture, wait_ms: u64) -> fathomdb_mcp::config::Config {
+    store_config(
+        fixture,
+        json!({
+            "result_format": "structured", "admission_cap": 1,
+            "idle_timeout_secs": 1, "call_deadline_ms": wait_ms
+        }),
+    )
+}
+
+fn pre_enqueue_search() -> Value {
+    json!({"store": "a", "query": "alpha", "mode": "text"})
+}
+
+async fn reached_pre_enqueue(observation: &fathomdb_mcp::seams::PreEnqueueObservation) {
+    wait_for("Ready before accounting", Duration::from_secs(2), || {
+        observation.snapshot().reached.is_some()
+    })
+    .await;
+    let reached = observation.snapshot().reached.unwrap();
+    assert_eq!((reached.epoch, reached.queued, reached.in_flight), (1, 0, 0));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_drain_before_enqueue_returns_the_call_to_open_wait() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(pre_enqueue_config(&fixture, 10_000)).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let seams = harness.adapter.seams().clone();
+    let observation = seams.observe_pre_enqueue("a");
+    let call = spawn_call(&harness, "search", pre_enqueue_search());
+    reached_pre_enqueue(&observation).await;
+    assert!(
+        common::wait_for_readiness(&harness.client, "a", "closed", Duration::from_secs(5)).await
+    );
+    assert!(
+        common::can_open(&fixture.path("a.sqlite")),
+        "the real idle drain released its engine lock"
+    );
+    seams.block_open("a");
+    observation.release();
+    wait_for("the stale phase/epoch rejection", Duration::from_secs(2), || {
+        observation.snapshot().stale_epochs == [1]
+    })
+    .await;
+    assert!(
+        common::wait_for_readiness(&harness.client, "a", "reopening", Duration::from_secs(2)).await
+    );
+    assert!(observation.snapshot().bridge_epochs.is_empty(), "no old-epoch bridge entry");
+    assert!(!call.is_finished(), "the original call waits for reopening");
+    seams.release_open("a");
+    let result = tokio::time::timeout(Duration::from_secs(3), call).await.unwrap().unwrap();
+    assert_ne!(result.is_error, Some(true));
+    let result = result.structured_content.unwrap();
+    assert_eq!(result["results"][0]["ref"], "l:note:a");
+    assert_eq!(result["epoch"], 2);
+    assert_eq!(observation.snapshot().stale_epochs, [1]);
+    assert_eq!(observation.snapshot().bridge_epochs, [2]);
+    assert!(!observation.is_active());
+
+    let health = seams.observe_pre_enqueue("a");
+    let later = spawn_call(&harness, "search", pre_enqueue_search());
+    wait_for("a later admission with no leaked accounting", Duration::from_secs(2), || {
+        health.snapshot().reached.is_some()
+    })
+    .await;
+    let reached = health.snapshot().reached.unwrap();
+    assert_eq!((reached.epoch, reached.queued, reached.in_flight), (2, 0, 0));
+    health.release();
+    let later = tokio::time::timeout(Duration::from_secs(3), later).await.unwrap().unwrap();
+    assert_eq!(later.structured_content.unwrap()["results"][0]["ref"], "l:note:a");
+    assert!(
+        common::wait_for_readiness(&harness.client, "a", "closed", Duration::from_secs(5)).await
+    );
+    assert!(common::can_open(&fixture.path("a.sqlite")));
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_pre_enqueue_drain_keeps_the_original_wait_deadline() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(pre_enqueue_config(&fixture, 3_000)).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let observation = harness.adapter.seams().observe_pre_enqueue("a");
+    let arrived = Instant::now();
+    let call = spawn_call(&harness, "search", pre_enqueue_search());
+    reached_pre_enqueue(&observation).await;
+    assert!(
+        common::wait_for_readiness(&harness.client, "a", "closed", Duration::from_secs(3)).await
+    );
+    harness.adapter.seams().block_open("a");
+    observation.release();
+    let result = tokio::time::timeout(Duration::from_secs(4), call).await.unwrap().unwrap();
+    let elapsed = arrived.elapsed();
+    let error = error_of(&result);
+    assert_eq!(error["class"], "not_ready");
+    assert_eq!(error["code"], "reopening");
+    assert!(elapsed >= Duration::from_millis(2_700), "original deadline: {elapsed:?}");
+    assert!(elapsed < Duration::from_millis(3_600), "wait budget restarted: {elapsed:?}");
+    assert_eq!(observation.snapshot().stale_epochs, [1]);
+    assert!(observation.snapshot().bridge_epochs.is_empty());
+    assert!(!observation.is_active());
+    harness.adapter.seams().release_all();
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_dropped_pre_enqueue_observation_releases_its_hold() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(pre_enqueue_config(&fixture, 10_000)).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let observation = harness.adapter.seams().observe_pre_enqueue("a");
+    let call = spawn_call(&harness, "search", pre_enqueue_search());
+    reached_pre_enqueue(&observation).await;
+    drop(observation);
+    let result = tokio::time::timeout(Duration::from_secs(3), call).await.unwrap().unwrap();
+    assert_eq!(result.structured_content.unwrap()["results"][0]["ref"], "l:note:a");
+    let again = harness.adapter.seams().observe_pre_enqueue("a");
+    let call = spawn_call(&harness, "search", pre_enqueue_search());
+    reached_pre_enqueue(&again).await;
+    harness.adapter.seams().release_all();
+    let result = tokio::time::timeout(Duration::from_secs(3), call).await.unwrap().unwrap();
+    assert_eq!(result.structured_content.unwrap()["results"][0]["ref"], "l:note:a");
+    assert!(!again.is_active());
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shutdown_at_pre_enqueue_refuses_without_engine_work() {
+    let fixture = Fixture::new();
+    let harness = Harness::start(pre_enqueue_config(&fixture, 10_000)).await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let observation = harness.adapter.seams().observe_pre_enqueue("a");
+    let call = spawn_call(&harness, "search", pre_enqueue_search());
+    reached_pre_enqueue(&observation).await;
+    tokio::time::timeout(Duration::from_secs(3), harness.adapter.shutdown()).await.unwrap();
+    observation.release();
+    let result = tokio::time::timeout(Duration::from_secs(3), call).await.unwrap().unwrap();
+    let error = error_of(&result);
+    assert_eq!(error["class"], "not_ready");
+    assert_eq!(error["code"], "draining");
+    assert!(observation.snapshot().bridge_epochs.is_empty());
+    assert!(!observation.is_active());
+    assert!(common::can_open(&fixture.path("a.sqlite")));
+    harness.shutdown().await;
+}

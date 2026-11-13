@@ -270,6 +270,8 @@ pub(crate) struct StoreGuard {
     started: Instant,
     run: Arc<AtomicU8>,
     permit: Permit,
+    #[cfg(feature = "test-seams")]
+    pub(crate) pre_enqueue: Option<crate::seams::PreEnqueueLease>,
 }
 
 impl Drop for StoreGuard {
@@ -521,6 +523,8 @@ impl Registry {
         let wait_until = call.wait_until;
         self.ensure_slot(name)?;
         let mut waited_attempt: Option<u64> = None;
+        #[cfg(feature = "test-seams")]
+        let mut observation = None;
         loop {
             let next = {
                 let mut inner = self.lock();
@@ -564,8 +568,41 @@ impl Registry {
             };
             let (mut changed, phase) = match next {
                 Next::Admit { load, epoch, changed } => {
-                    match self.admit(name, load, epoch, changed, call).await? {
-                        Some(guard) => return Ok(guard),
+                    #[cfg(feature = "test-seams")]
+                    if observation.is_none() {
+                        observation = self
+                            .hooks
+                            .seams
+                            .before_enqueue(
+                                name,
+                                epoch,
+                                load.queued.load(Ordering::SeqCst),
+                                load.in_flight(),
+                                wait_until,
+                            )
+                            .await;
+                    }
+                    match self
+                        .admit(
+                            name,
+                            load,
+                            epoch,
+                            changed,
+                            call,
+                            #[cfg(feature = "test-seams")]
+                            observation.as_ref(),
+                        )
+                        .await?
+                    {
+                        Some(guard) => {
+                            #[cfg(feature = "test-seams")]
+                            let guard = {
+                                let mut guard = guard;
+                                guard.pre_enqueue = observation.take();
+                                guard
+                            };
+                            return Ok(guard);
+                        }
                         None => continue,
                     }
                 }
@@ -594,6 +631,7 @@ impl Registry {
         epoch: u64,
         mut changed: watch::Receiver<u64>,
         call: &Admission<'_>,
+        #[cfg(feature = "test-seams")] observation: Option<&crate::seams::PreEnqueueLease>,
     ) -> Result<Option<StoreGuard>, ToolError> {
         let refuse = |reason| {
             let busy = load.busy(reason);
@@ -693,6 +731,10 @@ impl Registry {
         }
         let slot = inner.slots.get_mut(name).expect("slot exists after ensure_slot");
         if slot.phase != Phase::Ready || slot.epoch != epoch {
+            #[cfg(feature = "test-seams")]
+            if let Some(observation) = observation {
+                observation.stale(epoch);
+            }
             return Ok(None);
         }
         slot.last_used.touch();
@@ -716,6 +758,8 @@ impl Registry {
             started,
             run: Arc::new(AtomicU8::new(RUNNING)),
             permit,
+            #[cfg(feature = "test-seams")]
+            pre_enqueue: None,
         }))
     }
 

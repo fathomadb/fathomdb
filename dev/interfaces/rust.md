@@ -181,6 +181,19 @@ already armed hook on the same engine panics; callbacks must provide their own
 bounded release/cleanup. An unfired callback is dropped with its engine. Ordinary
 search and shipped artifacts carry no hook state or new contract fields.
 
+### Explicit MCP admission observations
+
+`fathomdb-mcp/test-seams` alone exposes `Seams::observe_pre_enqueue` and its
+owned observation/snapshot types. One exact store/unique token observes Ready
+selection after the registry mutex is released and before permit/queue accounting.
+Duplicate outstanding arms panic. The async hold is bounded by the original wait
+or a10s safety bound; it holds no registry mutex or Tokio worker thread. Handle
+Drop/release_all releases its hold. Attempt/guard Drop, abort and unwind remove
+only their matching live token; old handles cannot remove a newer arm. Bounded
+snapshot history retains reached epoch/counters, actual stale rejections and
+bridge-entry epochs for that attempt only. Production builds expose no observer,
+state/result fields, queue policy or interruption/cancellation promise.
+
 ### Unstable binding-support items in `fathomdb-embedder`
 
 `fathomdb-embedder` exports five `#[doc(hidden)]` items for the Node addon's

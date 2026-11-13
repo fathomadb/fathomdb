@@ -24,6 +24,8 @@ struct State {
     admitted_held: BTreeMap<String, usize>,
     progress_bursts: BTreeMap<String, u32>,
     search_routes: [usize; 2],
+    pre_enqueue: BTreeMap<String, (u64, Arc<PreEnqueueState>)>,
+    next_pre_enqueue: u64,
 }
 
 /// Injectable delays and faults, shared by every clone.
@@ -92,6 +94,9 @@ impl Seams {
         state.calls_blocked.clear();
         state.admitted_blocked.clear();
         state.arrivals_blocked.clear();
+        for (_, observation) in state.pre_enqueue.values() {
+            observation.release();
+        }
         drop(state);
         self.inner.1.notify_all();
     }
@@ -163,6 +168,68 @@ impl Seams {
         (state.search_routes[0], state.search_routes[1])
     }
 
+    /// Observe one ready-to-admit attempt before permit or queue accounting.
+    ///
+    /// Panics if this store already has an outstanding observation. Dropping
+    /// the returned handle releases its hold; a later arm has a distinct token.
+    pub fn observe_pre_enqueue(&self, store: &str) -> PreEnqueueObservation {
+        let mut state = self.state();
+        assert!(!state.pre_enqueue.contains_key(store), "store already observed");
+        let token = state.next_pre_enqueue;
+        state.next_pre_enqueue = token.checked_add(1).expect("test observation token overflow");
+        let observation = Arc::new(PreEnqueueState::default());
+        state.pre_enqueue.insert(store.to_string(), (token, observation.clone()));
+        PreEnqueueObservation { seams: self.clone(), store: store.to_string(), token, observation }
+    }
+
+    pub(crate) async fn before_enqueue(
+        &self,
+        store: &str,
+        epoch: u64,
+        queued: usize,
+        in_flight: usize,
+        wait_until: Option<std::time::Instant>,
+    ) -> Option<PreEnqueueLease> {
+        let (token, observation) = self.state().pre_enqueue.get(store)?.clone();
+        {
+            let mut facts = observation.facts.lock().unwrap_or_else(|p| p.into_inner());
+            if facts.reached.is_some() {
+                return None;
+            }
+            facts.reached = Some(PreEnqueueReached { epoch, queued, in_flight });
+        }
+        let lease = PreEnqueueLease {
+            seams: self.clone(),
+            store: store.to_string(),
+            token,
+            observation: observation.clone(),
+        };
+        let safety_bound = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = wait_until.map_or(safety_bound, |deadline| deadline.min(safety_bound));
+        loop {
+            let released = observation.released.notified();
+            tokio::pin!(released);
+            released.as_mut().enable();
+            if !observation.facts.lock().unwrap_or_else(|p| p.into_inner()).held {
+                break;
+            }
+            if tokio::time::timeout_at(deadline.into(), released).await.is_err() {
+                observation.release();
+                break;
+            }
+        }
+        Some(lease)
+    }
+
+    fn finish_pre_enqueue(&self, store: &str, token: u64, observation: &PreEnqueueState) {
+        let mut state = self.state();
+        if state.pre_enqueue.get(store).is_some_and(|(current, _)| *current == token) {
+            state.pre_enqueue.remove(store);
+        }
+        drop(state);
+        observation.release();
+    }
+
     pub(crate) fn before_search(&self, hybrid: bool) {
         self.state().search_routes[usize::from(hybrid)] += 1;
     }
@@ -229,6 +296,135 @@ impl Seams {
 
     pub(crate) fn progress_burst(&self, tool: &str) -> u32 {
         self.state().progress_bursts.get(tool).copied().unwrap_or(0)
+    }
+}
+
+/// Facts captured after Ready selection, before any permit or queue ticket.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PreEnqueueReached {
+    /// The selected ready epoch.
+    pub epoch: u64,
+    /// Calls already waiting for a permit at this point.
+    pub queued: usize,
+    /// Permits already owned at this point.
+    pub in_flight: usize,
+}
+
+/// Bounded history of one observed attempt, including its eventual bridge call.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PreEnqueueSnapshot {
+    /// The reached gap, if the armed attempt has arrived.
+    pub reached: Option<PreEnqueueReached>,
+    /// Epochs rejected by the actual admission phase/epoch predicate.
+    pub stale_epochs: Vec<u64>,
+    /// Epochs entering the bridge with a real store guard.
+    pub bridge_epochs: Vec<u64>,
+}
+
+struct PreEnqueueFacts {
+    held: bool,
+    history: PreEnqueueSnapshot,
+}
+
+impl std::ops::Deref for PreEnqueueFacts {
+    type Target = PreEnqueueSnapshot;
+    fn deref(&self) -> &Self::Target {
+        &self.history
+    }
+}
+impl std::ops::DerefMut for PreEnqueueFacts {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.history
+    }
+}
+
+struct PreEnqueueState {
+    facts: Mutex<PreEnqueueFacts>,
+    released: tokio::sync::Notify,
+}
+
+impl Default for PreEnqueueState {
+    fn default() -> Self {
+        Self {
+            facts: Mutex::new(PreEnqueueFacts {
+                held: true,
+                history: PreEnqueueSnapshot::default(),
+            }),
+            released: tokio::sync::Notify::new(),
+        }
+    }
+}
+
+impl PreEnqueueState {
+    fn release(&self) {
+        self.facts.lock().unwrap_or_else(|p| p.into_inner()).held = false;
+        self.released.notify_waiters();
+    }
+}
+
+/// Owned one-shot pre-enqueue rendezvous; dropping it releases only its token.
+///
+/// Snapshot history remains available after completion. The live registry arm
+/// is removed when the attempt/guard is dropped, aborted or unwinds. This test
+/// observation owns no permit or queue ticket and never extends the wait deadline.
+#[must_use]
+pub struct PreEnqueueObservation {
+    seams: Seams,
+    store: String,
+    token: u64,
+    observation: Arc<PreEnqueueState>,
+}
+
+impl PreEnqueueObservation {
+    /// Copy this observation's bounded reached/stale/bridge history.
+    pub fn snapshot(&self) -> PreEnqueueSnapshot {
+        self.observation.facts.lock().unwrap_or_else(|p| p.into_inner()).history.clone()
+    }
+    /// Release this observation's hold without clearing its eventual history.
+    pub fn release(&self) {
+        self.observation.release();
+    }
+    /// Whether this exact token is still the store's active observation.
+    pub fn is_active(&self) -> bool {
+        self.seams
+            .state()
+            .pre_enqueue
+            .get(&self.store)
+            .is_some_and(|(token, _)| *token == self.token)
+    }
+}
+
+impl Drop for PreEnqueueObservation {
+    fn drop(&mut self) {
+        self.seams.finish_pre_enqueue(&self.store, self.token, &self.observation);
+    }
+}
+
+pub(crate) struct PreEnqueueLease {
+    seams: Seams,
+    store: String,
+    token: u64,
+    observation: Arc<PreEnqueueState>,
+}
+
+impl PreEnqueueLease {
+    pub(crate) fn stale(&self, epoch: u64) {
+        let mut facts = self.observation.facts.lock().unwrap_or_else(|p| p.into_inner());
+        if facts.stale_epochs.len() < 8 {
+            facts.stale_epochs.push(epoch);
+        }
+    }
+    pub(crate) fn bridge(&self, epoch: u64) {
+        let mut facts = self.observation.facts.lock().unwrap_or_else(|p| p.into_inner());
+        if facts.bridge_epochs.len() < 8 {
+            facts.bridge_epochs.push(epoch);
+        }
+    }
+}
+
+impl Drop for PreEnqueueLease {
+    fn drop(&mut self) {
+        self.seams.finish_pre_enqueue(&self.store, self.token, &self.observation);
     }
 }
 
@@ -432,5 +628,47 @@ fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> Sha
         structured: shaped.rendered.structured,
         kept: shaped.kept,
         iterations: shaped.iterations,
+    }
+}
+
+#[cfg(test)]
+mod pre_enqueue_tests {
+    use super::*;
+    use std::time::Duration;
+
+    async fn reached(observation: &PreEnqueueObservation) {
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while observation.snapshot().reached.is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn abort_and_unwind_release_only_the_owned_pre_enqueue_token() {
+        let seams = Seams::default();
+        let old = seams.observe_pre_enqueue("a");
+        let actor = seams.clone();
+        let task = tokio::spawn(async move { actor.before_enqueue("a", 1, 0, 0, None).await });
+        reached(&old).await;
+        task.abort();
+        let Err(error) = task.await else { panic!("actor was not aborted") };
+        assert!(error.is_cancelled());
+        assert!(!old.is_active());
+        let next = seams.observe_pre_enqueue("a");
+        drop(old);
+        assert!(next.is_active(), "old handle cannot clear a newer token");
+        next.release();
+        let actor = seams.clone();
+        let task = tokio::spawn(async move {
+            let _lease = actor.before_enqueue("a", 2, 0, 0, None).await;
+            panic!("contained observation unwind");
+        });
+        assert!(task.await.unwrap_err().is_panic());
+        assert!(!next.is_active());
+        let other = seams.observe_pre_enqueue("a");
+        drop(other);
     }
 }

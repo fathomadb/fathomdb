@@ -283,3 +283,20 @@ pub(crate) fn build_importance_confidence_maps(
     }
     Ok((importance_by_id, confidence_by_id))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn overflow_chunking_fusion_tripwire() {
+        assert_eq!(RRF_K, 30.0, "Re-evaluate dev/design/overflow-chunking-reevaluation.md: RRF_K");
+        assert_eq!(
+            RRF_WEIGHT_TEXT, 3.0,
+            "Re-evaluate dev/design/overflow-chunking-reevaluation.md: RRF_WEIGHT_TEXT"
+        );
+        assert_eq!(
+            RRF_WEIGHT_VECTOR, 1.0,
+            "Re-evaluate dev/design/overflow-chunking-reevaluation.md: RRF_WEIGHT_VECTOR"
+        );
+    }
+}

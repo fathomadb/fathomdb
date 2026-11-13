@@ -234,6 +234,17 @@ class _CampaignRefusal(Exception):
 
 
 def _native_complete(cell, attempt):
+    if cell["family"] == "G_PREPARE":
+        metadata = attempt / "case-0/template.json"
+        questions = attempt / "questions.jsonl"
+        if not metadata.exists() or not questions.exists():
+            return False
+        proof = json.loads(metadata.read_text()).get("preparation",{})
+        coverage = proof.get("coverage",{})
+        return (proof.get("api_complete") is True and proof.get("write_rows")==cell["n"]
+                and proof.get("pending")==0 and len(coverage.get("rows",[]))==cell["n"]
+                and coverage.get("profile",{}).get("dimension")==384
+                and len(questions.read_text().splitlines())==cell.get("query_count",500))
     if cell["family"] in {"G1_PLAN_FIXTURE", "G1_CELL"}:
         base = attempt / "cell" if cell["family"] == "G1_PLAN_FIXTURE" else attempt
         passes = cell["passes"]

@@ -286,6 +286,45 @@ class NativePhaseStopTests(unittest.TestCase):
         self.check_stop(samples)
 
 
+class NativeHeldPhaseStopTests(unittest.TestCase):
+    def check_held_stop(self,samples):
+        root, _, manifest=clock_fixture()
+        records=[{"id":f"held-{i}","kind":"doc","body":"heldbudget évidence"} for i in range(3)]
+        manifest["cells"]=[dict(manifest["cells"][0],family="D_HELD_FIXTURE",records=records,
+            release_mode="drop",cohort=2,warmups=2,samples=3,queries=[{"id":0,"query":"heldbudget"}])]
+        healthy=run_manifest(manifest,root/"healthy")[0]
+        if healthy["exit"]!=0:
+            raise RuntimeError(f"actual held native control failed NOT_RED {healthy}")
+        controls=json.loads((Path(healthy["attempt"])/"controls.json").read_text())
+        self.assertEqual((controls["held"]["readiness"]["pending_count"],controls["held"]["sql"]["physical_vectors"]),(3,0))
+        self.assertEqual((controls["released"]["readiness"]["pending_count"],controls["released"]["sql"]["physical_vectors"]),(0,3))
+        manifest["cells"][0]["samples"]=samples
+        manifest["cell_seconds"]=30.15
+        result=run_manifest(manifest,root/"bounded")[0]
+        self.assertTrue(result["cleanup"]["complete"])
+        attempt=Path(result["attempt"])
+        path=attempt/"queries.jsonl"
+        rows=[json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+        if not rows:
+            raise RuntimeError("actual held query phase not reached NOT_RED")
+        self.assertTrue(all(row["ok"] and row["query_id"]==0 for row in rows))
+        print(f"actual held native {attempt} calls={len(rows)}/{samples+2}",flush=True)
+        self.assertLess(len(rows),samples+2,"held native continued starting queries after original work expiry")
+        self.assertFalse((attempt/"controls.json").exists(),"expired held native reported full completion")
+        self.assertEqual(json.loads((attempt/"budget.json").read_text())["disposition"],"deadline_refused")
+        with closing(sqlite3.connect(f"file:{attempt/'store.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],3)
+            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],3,"held Drop must release before engine close")
+
+    def test_held_query_loop_stops_and_releases_before_close(self):
+        self.check_held_stop(10000)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=9000,max_value=11000))
+    def test_held_partial_query_prefix_retains_cleanup(self,samples):
+        self.check_held_stop(samples)
+
+
 class PrelaunchDeadlineTests(unittest.TestCase):
     def check_prelaunch(self, bound, deadline):
         root, _, manifest = clock_fixture()

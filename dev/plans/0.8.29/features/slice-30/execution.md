@@ -1238,3 +1238,25 @@ history, not semantic RED. Its private owned cache is now explicitly selected,
 and lint passes. Coherent lifecycle recheck is pending before further native
 phases/full source qualification; the separately proposed explicit own-source
 fixture environment binding remains unapplied pending that same review.
+
+### Executor recheck and portable lifecycle fixture fit
+
+Fresh Astra resolves P1 at `d0dd292b6` and accepts the own-checkout source
+binding. Its same bounded assessment accepts explicit synthetic safe start
+observations in the lifecycle TEST harness only; they are labelled as controls,
+not host readiness. Patch SHA256
+`73b98fe685a3080a1586c6f9c0699ee68b4e3f9a46a505379e1b5846c385ad4b`
+plus the requested short label leaves the real ready-marker stop trigger,
+WNOWAIT, signals, timing and every assertion unchanged. Production sampling,
+floors, caps and lifecycle code are untouched by this fit.
+
+`g-phase-portable-original-baseline.log` runs the unchanged controls against
+immutable original executor bytes from19d6e6c65 via explicit loader selection;
+it retains both original intended failures. The corrected source was never
+restored/regressed for this comparison, and it is qualification of the fixture,
+not a new TDD RED claim. `g-phase-portable-green` passes both corrected controls;
+`g-phase-portable-combined` passes37/37 with both private S30_SOURCE and S30_TASK
+removed. Assertion ASTs match the fitted committed RED. Ruff passes. This
+completes the accepted fixture fit and coherent lifecycle recheck; full/native
+preparation may resume under the existing window, while model/GPU/campaign GO
+and final G acceptance remain separately held.

@@ -37,9 +37,10 @@ def phase_control(root, *, resource_stop):
         f"sys.path.insert(0,{str(PHASE.parent)!r})",
         "import g_resource, g_attempt",
         "actual_unreaped=g_attempt.wait_unreaped",
-        "actual_sample=g_resource.resource_sample; actual_wait=subprocess.Popen.wait",
+        "actual_wait=subprocess.Popen.wait",
         "def sample(source,task):",
-        "    values=actual_sample(source,task)",
+        "    # Synthetic lifecycle controls, not host-readiness evidence.",
+        "    values=dict(root_free=40*1024**3,task_free=300*1024**3,memory_available=20*1024**3,owned=0,measurement_retries=[])",
         f"    if {resource_stop!r} and pathlib.Path({str(ready)!r}).exists():",
         f"        pathlib.Path({str(trigger)!r}).write_text('controlled resource stop')",
         "        values['memory_available']=0",
@@ -54,7 +55,7 @@ def phase_control(root, *, resource_stop):
     ])
     for name in ("logs", "receipts"):
         (root / name).mkdir()
-    environment = dict(os.environ, S30_TASK=str(root))
+    environment = dict(os.environ, S30_SOURCE=str(PHASE.parents[3]), S30_TASK=str(root))
     child = subprocess.run([sys.executable, "-c", harness], env=environment,
                            text=True, capture_output=True, timeout=15, check=False)
     time.sleep(0.35)

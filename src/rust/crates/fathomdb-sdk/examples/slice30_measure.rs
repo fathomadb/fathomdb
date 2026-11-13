@@ -128,8 +128,52 @@ fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
 
 #[cfg(test)]
 fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
-    let _ = (engine, path);
-    json!({})
+    let readiness = match engine {
+        Adapter::Core(engine) => {
+            engine.read_embedding_readiness().map_err(fathomdb_sdk::Error::from)
+        }
+        Adapter::Sdk(engine) => fathomdb_sdk::read::embedding_readiness(engine),
+    };
+    let generation = match engine {
+        Adapter::Core(engine) => {
+            engine.read_projection_generation_status().map_err(fathomdb_sdk::Error::from)
+        }
+        Adapter::Sdk(engine) => fathomdb_sdk::read::projection_generation_status(engine),
+    };
+    let (readiness, generation) = match (readiness, generation) {
+        (Ok(readiness), Ok(generation)) => (readiness, generation),
+        (readiness, generation) => {
+            return json!({"qualified_dense_fixture":false,
+            "readiness_error":format!("{readiness:?}"),"generation_error":format!("{generation:?}")})
+        }
+    };
+    let connection =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("open owned G fixture for separate untimed counts");
+    let count = |sql| connection.query_row(sql, [], |row| row.get::<_, u64>(0)).ok();
+    let natural = count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='doc' AND superseded_at IS NULL AND state='active'");
+    let vectors = count("SELECT COUNT(*) FROM _fathomdb_vector_rows");
+    let spans = count("SELECT COUNT(*) FROM _fathomdb_vector_spans");
+    let physical = count("SELECT COUNT(*) FROM vector_default");
+    let format: Option<u32> =
+        connection.pragma_query_value(None, "user_version", |row| row.get(0)).ok();
+    let qualified = readiness.usable_embedder
+        && readiness.pending_count == 0
+        && readiness.state == fathomdb_engine::EmbeddingReadinessState::Ready
+        && generation.readiness == fathomdb_engine::ProjectionReadinessV1::Ready
+        && generation.failed_count == 0
+        && natural.is_some_and(|n| n > 0)
+        && vectors == natural
+        && spans == natural
+        && physical == natural
+        && format == Some(37);
+    json!({"natural_records":natural,"vector_rows":vectors,"span_rows":spans,
+        "physical_vector_rows":physical,"format":format,
+        "pending_count":readiness.pending_count,"readiness":readiness.state.as_str(),
+        "usable_embedder":readiness.usable_embedder,"generation_id":generation.generation_id.as_str(),
+        "generation_readiness":generation.readiness.as_str(),"generation_pending":generation.pending_count,
+        "generation_failed":generation.failed_count,"qualified_dense_fixture":qualified,
+        "observation_scope":"adjacent public readiness/generation and separate count transactions; not a search snapshot"})
 }
 
 struct Schedule {

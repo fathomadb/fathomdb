@@ -514,14 +514,14 @@ class CopiedGCellTests(_NativeGFixture):
 class ConditionalGTests(_NativeGFixture):
     check_owned_preparation=OwnedGTTests.check_owned_preparation
 
-    def check_admission(self,feasible):
+    def check_admission(self,feasible,tighter=None):
         lower=self.check_owned_preparation("conditional é")
         self.assertEqual(lower["status"],"complete","actual completed lower population NOT_RED")
         results=Path(lower["attempt"]).parents[1]
         source=results.parent/"target-corpus.jsonl"
         source.write_text("".join(json.dumps(f"budget target {i}")+"\n" for i in range(66)))
         projected=(lower["cell_elapsed_ns"]*66*3+65*2-1)//(65*2)
-        seconds=150 if feasible else 30+projected*0.75/1_000_000_000
+        seconds=150 if feasible or tighter else 30+projected*0.75/1_000_000_000
         cell=dict(self.config,id="g/gt-target",family="G_PREPARE",artifact="gn",group="GT",n=66,
                   lower="gt-source",corpus=str(source),questions=lower["cell"]["questions"],query_count=3)
         manifest={"schema":"slice30-gd/source-fixture-v1","cell_seconds":seconds,"campaign_seconds":14400,
@@ -536,6 +536,9 @@ class ConditionalGTests(_NativeGFixture):
             before=_accounting(None,min(self.work_end,time.monotonic()+5))
             if before["util"] or before["total_MiB"]-before["used_MiB"]<8192:
                 raise RuntimeError("approved GPU not quiet/free NOT_RED")
+            if tighter:
+                endpoint=time.monotonic_ns()+projected*9//10
+                cell[tighter]=endpoint+(0 if tighter=="work_deadline_ns" else 30_000_000_000)
             target=run_manifest(manifest,results,monitor=monitor,resources=self.resources)[0]
         print(f"actual conditional GT {results} lower_ns={lower['cell_elapsed_ns']} projected={projected} feasible={feasible} pid={target['pid']}",flush=True)
         if target["pid"] is not None:
@@ -556,6 +559,11 @@ class ConditionalGTests(_NativeGFixture):
         assert report is not None,"actual conditional decision did not retain its observed lower-scale forecast"
         self.assertEqual(report["time"]["projected_ns"],projected)
         self.assertGreater(report["storage"]["additional_bytes"],0)
+
+    def test_tighter_cell_supplied_endpoints_constrain_conditional_launch(self):
+        for bound in ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]:
+            with self.subTest(bound=bound):
+                self.check_admission(False,tighter=bound)
 
     def test_actual_lower_scale_refuses_target_before_remaining_work_is_exceeded(self):
         self.check_admission(False)

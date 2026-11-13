@@ -31,7 +31,7 @@ def reservation_ok(owned, setup_used, g_raw, d_raw):
     return forecast <= 200*GiB
 
 
-def measure_root(path):
+def measure_root(path, deadline=None):
     """Accept successful du totals only, retaining both bounded attempts on failure."""
     import subprocess
     row = {"path": str(path), "warnings": []}

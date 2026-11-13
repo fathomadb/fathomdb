@@ -33,16 +33,16 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         check_clock()
         samples = []
         if resources:
-            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True, swap=swap))
+            samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
         check_clock()
         context = before() if before else None
         check_clock()
         if resources:
-            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True, swap=swap))
+            samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
             context = {"preparation":context,"resource_samples":samples}
         check_clock()
         if cell.get("lower"):
-            admission = _conditional(cell,root,samples[-1] if samples else None,clock["started_ns"],work_deadline)
+            admission = _conditional(cell,root,samples[-1] if samples else None,clock["started_ns"],effective_work_deadline)
             if context is None:
                 context = {}
             context["admission"] = admission
@@ -76,6 +76,8 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         work_deadline = hard_deadline-30_000_000_000
         bounds = {"work_deadline_ns": work_deadline, "hard_deadline_ns": hard_deadline,
                   "shared_deadline_ns": deadline}
+        bounds = _effective_bounds(planned,bounds)
+        effective_work_deadline = bounds["work_deadline_ns"]
 
         def execute(cell, command, config, attempt, observe):
             nonlocal cancelled
@@ -180,12 +182,17 @@ def _owned_stop_flags():
             signal.signal(number,handler)
 
 
+def _effective_bounds(cell,bounds):
+    effective={key:min(cell.get(key,limit),limit) for key,limit in bounds.items()}
+    hard=min(effective["hard_deadline_ns"],effective["shared_deadline_ns"])
+    effective["hard_deadline_ns"]=hard
+    effective["work_deadline_ns"]=min(effective["work_deadline_ns"],max(0,hard-30_000_000_000))
+    return effective
+
+
 def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None):
-    native = dict(cell)
-    for key, limit in bounds.items():
-        native[key] = min(native.get(key, limit), limit)
-    hard_ns = min(native["hard_deadline_ns"], native["shared_deadline_ns"])
-    native["work_deadline_ns"] = min(native["work_deadline_ns"], max(0, hard_ns-30_000_000_000))
+    native = dict(cell,**_effective_bounds(cell,bounds))
+    hard_ns = native["hard_deadline_ns"]
     config.write_text(json.dumps(native, indent=2) + "\n")
     refusal = {"exit":125, "error":"native_prelaunch_deadline", "pid":None, "pgid":None,
                "child_exit":None, "cleanup":{"complete":True,"not_started":True}}

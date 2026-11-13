@@ -444,7 +444,7 @@ impl Recorder {
 
     fn new_g(out: &Path) -> Self {
         let mut recorder = Self::new(out);
-        for name in ["observations", "g-marker-probes"] {
+        for name in ["observations", "g-marker-probes", "first-calls"] {
             recorder.streams.insert(
                 name,
                 RawStream {
@@ -660,6 +660,55 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
         "raw_persistence":recorder.statistics_since([0; 5]),
         "snapshot_observation":"unavailable; write receipts are not search snapshot authority",
         "cache_note":"P2 marker proof calls intervene between each write and natural searches; OS caches uncontrolled"});
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
+}
+
+fn run_g_read(config: &Value, out: &Path) -> Value {
+    let provider = config["provider"].as_str().expect("G provider");
+    let negative = config["negative_control"] == true;
+    assert_eq!(provider, if negative { "none" } else { "default" });
+    if !negative {
+        assert_eq!(
+            std::env::var("AGENT_LONG").as_deref(),
+            Ok("1"),
+            "Default runs require long opt-in"
+        );
+    }
+    let store = Path::new(config["store"].as_str().expect("existing G store"));
+    assert!(store.is_file());
+    assert!(!out.exists(), "G read output must be fresh");
+    std::fs::create_dir_all(out).expect("owned G read output");
+    let queries = read_jsonl(config["queries"].as_str().expect("G queries"));
+    assert!(!queries.is_empty());
+    let mut recorder = Recorder::new_g(out);
+    let mut rows = Vec::new();
+    let mut fixtures = Vec::new();
+    for adapter in config["adapters"].as_array().expect("G adapters") {
+        let name = adapter.as_str().unwrap();
+        let engine = Adapter::open_g(name, store, provider);
+        let fixture = g_fixture_observation(&engine, store);
+        assert!(
+            negative || fixture["qualified_dense_fixture"] == true,
+            "G read requires selected qualified dense store"
+        );
+        fixtures.push(fixture);
+        for route in config["routes"].as_array().expect("G routes") {
+            let route = route.as_str().unwrap();
+            let mut row = observe_g_route(&engine, route, &queries[0]);
+            row["adapter"] = json!(name);
+            row["sample_index"] = json!(0);
+            row["query_index"] = json!(0);
+            recorder.emit("samples", &row);
+            rows.push(row);
+        }
+        engine.close();
+        drop(engine);
+    }
+    recorder.flush_all();
+    let result = json!({"complete":true,"negative_control":negative,"sample_count":rows.len(),
+        "warmup_count":0,"first_call_count":0,"samples":rows,"warmups":[],"first_calls":[],
+        "observation_batches":[],"passes":[],"fixtures":fixtures});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result
 }
@@ -899,6 +948,8 @@ fn main() {
         run_g_control(&config, Path::new(&args[2]))
     } else if config["family"] == "G-seed" {
         run_g_seed(&config, Path::new(&args[2]))
+    } else if config["family"] == "G-R" || config["family"] == "G-O" {
+        run_g_read(&config, Path::new(&args[2]))
     } else {
         run_cell(&config, Path::new(&args[2]))
     };

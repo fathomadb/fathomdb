@@ -99,5 +99,62 @@ class GNormalCliTests(unittest.TestCase):
                     self.assertFalse(fixture["qualified_dense_fixture"])
 
 
+    def test_shared_read_routes_emit_exact_first_warmup_sample_and_observer_populations(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text('"alpha needle"\n"beta"\n')
+            queries.write_text('"needle"\n"beta"\n')
+            seed = root / "seed.json"
+            seed.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                        "adapter": "sdk", "n": 2, "corpus": str(corpus), "queries": str(queries)}))
+            prepared = subprocess.run([str(binary), str(seed), str(root / "seed")],
+                                      text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+            for family, observed in [("G-R", False), ("G-O", True)]:
+                config = root / f"{family}.json"
+                config.write_text(json.dumps({"family": family, "provider": "none", "negative_control": True,
+                                              "store": str(root / "seed" / "store.sqlite"), "queries": str(queries),
+                                              "adapters": ["engine", "sdk"], "routes": ["text", "hybrid", "embed"],
+                                              "warmup": 1, "samples": 2, "repeat": 0, "observe": observed}))
+                out = root / family
+                child = subprocess.run([str(binary), str(config), str(out)],
+                                       text=True, capture_output=True, timeout=30, check=False)
+                self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+                result = json.loads((out / "result.json").read_text())
+                self.assertEqual(result["sample_count"], 12, "normal G driver omitted required natural route calls")
+                self.assertEqual(result["warmup_count"], 6)
+                self.assertEqual(result["first_call_count"], 6)
+                self.assertTrue(result["complete"])
+                expected = [(adapter, route, sample) for adapter in ["engine", "sdk"]
+                            for route in ["text", "hybrid", "embed"] for sample in [0, 1]]
+                self.assertEqual([(row["adapter"], row["route"], row["sample_index"])
+                                  for row in result["samples"]], expected)
+                for row in result["samples"]:
+                    self.assertEqual(row["query_index"], row["sample_index"])
+                    self.assertGreater(row["elapsed_ns"], 0)
+                    if row["route"] == "embed":
+                        self.assertFalse(row["ok"])
+                        self.assertEqual(row["error_kind"], "EmbedderNotConfiguredError")
+                    else:
+                        self.assertTrue(row["ok"])
+                        if row["route"] == "text":
+                            self.assertEqual(row["ids"], [f"l:s30doc-{row['sample_index']}"])
+                self.assertEqual(len(result["passes"]), 6)
+                self.assertTrue(all(row["wall_ns"] > 0 for row in result["passes"]))
+                self.assertEqual(len(result["observation_batches"]), 24 if observed else 0)
+                for trace in result["observation_batches"]:
+                    self.assertGreater(len(trace["records"]), 0)
+                    self.assertEqual(trace["dropped_records"], 0)
+                    self.assertEqual(trace["issues"], [])
+                    self.assertTrue(all(row["operation_id"] == trace["operation_id"] for row in trace["records"]))
+                self.assertEqual(len((out / "samples.jsonl").read_text().splitlines()), 12)
+                self.assertEqual(len((out / "warmups.jsonl").read_text().splitlines()), 6)
+                self.assertEqual(len((out / "first-calls.jsonl").read_text().splitlines()), 6)
+                self.assertTrue(all(fixture["natural_records"] == 2 and not fixture["qualified_dense_fixture"]
+                                    for fixture in result["fixtures"]))
+
+
 if __name__ == "__main__":
     unittest.main()

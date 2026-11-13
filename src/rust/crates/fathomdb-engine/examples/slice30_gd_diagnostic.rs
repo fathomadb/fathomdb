@@ -36,6 +36,13 @@ fn strings(path: &str) -> Vec<String> {
 }
 
 fn run(config: &Value, out: &Path) {
+    if matches!(
+        config["family"].as_str(),
+        Some("D_QUERY_FIXTURE" | "D_HELD_FIXTURE" | "D_TEMPLATE")
+    ) && !native_budget::admit(config, out)
+    {
+        return;
+    }
     if config["family"] == "NATIVE_BUDGET_CONTROL" {
         return native_budget::run_control(config, out);
     }

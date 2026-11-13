@@ -101,6 +101,13 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         reset_end_ns = Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         reset
     });
+    let reset = match reset.transpose() {
+        Ok(reset) => reset,
+        Err(()) => {
+            engine.close();
+            return;
+        }
+    };
     let mut first_warmup_record_start_ns = None;
     let mut first_timed_record_start_ns = None;
     let mut recorder = Recorder::new(out);
@@ -176,7 +183,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         recorder.emit("samples", &row);
         let timed_calls = sample_index + 1;
         if writing && timed_calls.is_multiple_of(10) {
-            let cohort = g_write_schedule::run(
+            let Ok(cohort) = g_write_schedule::run(
                 &engine,
                 store,
                 timed_calls,
@@ -184,7 +191,11 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
                 pass_origin,
                 config,
                 out,
-            );
+            ) else {
+                recorder.flush_all();
+                engine.close();
+                return;
+            };
             scheduled_write_calls += 1;
             scheduled_write_rows += cohort.rows;
             marker_probes += cohort.probes;

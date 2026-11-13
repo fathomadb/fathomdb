@@ -73,16 +73,22 @@ fn governed_write(
     engine: &fathomdb_sdk::Engine,
     writes: &[PreparedWrite],
     origin: Instant,
-    _config: &Value,
-    _out: &Path,
+    config: &Value,
+    out: &Path,
 ) -> Result<(fathomdb_engine::WriteReceipt, u64, u64), ()> {
+    super::budget_clock::phase(config, out, "write")?;
     let start = ns(origin);
     let receipt = engine.write(writes).unwrap();
     let end = ns(origin);
     Ok((receipt, start, end))
 }
 
-pub(super) fn reset(adapter: &GAdapter, path: &Path, config: &Value, out: &Path) -> Value {
+pub(super) fn reset(
+    adapter: &GAdapter,
+    path: &Path,
+    config: &Value,
+    out: &Path,
+) -> Result<Value, ()> {
     let GAdapter::Sdk(engine) = adapter else { panic!("G2 reset is SDK only") };
     let writes: Vec<_> = (0..10)
         .map(|slot| PreparedWrite::Node {
@@ -97,7 +103,7 @@ pub(super) fn reset(adapter: &GAdapter, path: &Path, config: &Value, out: &Path)
         })
         .collect();
     let writing = Instant::now();
-    let (_, start, end) = governed_write(engine, &writes, writing, config, out).unwrap();
+    let (_, start, end) = governed_write(engine, &writes, writing, config, out)?;
     let write_ns = end - start;
     let draining = Instant::now();
     let drain_budget = super::g_budget::drain(config, |timeout| {
@@ -114,11 +120,12 @@ pub(super) fn reset(adapter: &GAdapter, path: &Path, config: &Value, out: &Path)
     if config["work_deadline_ns"].is_u64() {
         report["drain_budget"] = drain_budget;
     }
-    report
+    Ok(report)
 }
 
 /// Execute one SDK G2 cohort after a completed natural group; return actual rows/probes.
-/// Panics on API/coverage/output failure; already completed phase flushes stay recorded.
+/// Returns Err on deadline refusal; panics on API/coverage/output failure.
+/// Already completed phase flushes stay recorded.
 pub(super) fn run(
     adapter: &GAdapter,
     path: &Path,
@@ -127,7 +134,7 @@ pub(super) fn run(
     origin: Instant,
     config: &Value,
     out: &Path,
-) -> Cohort {
+) -> Result<Cohort, ()> {
     assert!(calls > 0 && calls.is_multiple_of(10));
     let GAdapter::Sdk(engine) = adapter else {
         panic!("G2 scheduled source population is SDK only")
@@ -145,7 +152,7 @@ pub(super) fn run(
             valid_until: None,
         })
         .collect();
-    let (receipt, start, end) = governed_write(engine, &writes, origin, config, out).unwrap();
+    let (receipt, start, end) = governed_write(engine, &writes, origin, config, out)?;
     recorder.emit("batches",&json!({"event":"governed_write","cohort":cohort,"after_natural_calls":calls,
         "rows":writes.len(),"cursor":receipt.cursor,"start_ns":start,"end_ns":end,"write_ns":end-start}));
     recorder.flush_all();
@@ -197,7 +204,7 @@ pub(super) fn run(
     coverage["end_ns"] = json!(end);
     recorder.emit("batches", &coverage);
     recorder.flush_all();
-    Cohort { rows: writes.len(), probes }
+    Ok(Cohort { rows: writes.len(), probes })
 }
 
 #[cfg(all(test, target_os = "linux"))]

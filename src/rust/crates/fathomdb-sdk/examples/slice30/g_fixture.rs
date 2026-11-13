@@ -492,7 +492,7 @@ pub(super) fn run_observed(config: &Value, out: &Path, observer: Option<CoreObse
         recorder.emit("samples", &row);
         calls += 1;
         if config["schedule"] == "write" && calls.is_multiple_of(10) {
-            let cohort = g_write_schedule::run(
+            let Ok(cohort) = g_write_schedule::run(
                 &engine,
                 &store,
                 calls,
@@ -500,7 +500,11 @@ pub(super) fn run_observed(config: &Value, out: &Path, observer: Option<CoreObse
                 loop_started,
                 config,
                 out,
-            );
+            ) else {
+                recorder.flush_all();
+                engine.close();
+                return;
+            };
             scheduled_write_calls += 1;
             scheduled_write_rows += cohort.rows;
             marker_probes += cohort.probes;

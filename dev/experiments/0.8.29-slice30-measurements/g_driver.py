@@ -6,7 +6,7 @@ import subprocess
 import time
 
 
-def run_program_step(command, config, output, deadline_ns):
+def run_program_step(command, config, output, deadline_ns, observe=None):
     """Retain one normal-program step under the same absolute parent cell deadline."""
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -14,7 +14,7 @@ def run_program_step(command, config, output, deadline_ns):
     config = dict(config, remaining_cell_ms=max(0, (deadline_ns - time.monotonic_ns()) // 10**6))
     path.write_text(json.dumps(config, indent=2) + "\n")
     step = {"family": config["family"], "config": str(path), "output": str(output),
-            "complete": False, "exit": None, "result": None}
+            "complete": False, "exit": None, "result": None, "gpu_samples": []}
     remaining = (deadline_ns - time.monotonic_ns()) / 10**9
     if config["remaining_cell_ms"] == 0 or remaining <= 0:
         return dict(step, status="not_run_cap", reason="cell_time_exhausted")
@@ -24,7 +24,18 @@ def run_program_step(command, config, output, deadline_ns):
                                      stderr=subprocess.STDOUT)
             step["pid"] = child.pid
             step["executable"] = str(Path(command[0]).resolve())
-            child.wait(timeout=remaining)
+            if observe:
+                step["gpu_samples"].append(observe(child.pid))
+            while True:
+                remaining = (deadline_ns - time.monotonic_ns()) / 10**9
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command, 0)
+                try:
+                    child.wait(timeout=min(1, remaining))
+                    break
+                except subprocess.TimeoutExpired:
+                    if observe:
+                        step["gpu_samples"].append(observe(child.pid))
         except subprocess.TimeoutExpired:
             child.kill()
             child.wait(timeout=2)
@@ -49,7 +60,7 @@ def execute_branches(cell, manifest, attempt, deadline_ns):
                   record_first_call=False, observe=True)
     steps = []
     def run(config, output, case):
-        step = run_program_step(manifest["command"], dict(config, diagnostic_case=case), output, deadline_ns)
+        step = run_program_step(manifest["command"], dict(config, diagnostic_case=case), output, deadline_ns, observe=manifest.get("_observe_native"))
         step["diagnostic_case"] = case
         steps.append(step)
         return step["complete"]
@@ -110,7 +121,7 @@ def execute_stage(cell, manifest, attempt, deadline_ns):
         seed_output = attempt / "seed"
         adapter = cell.get("adapter") or cell["adapters"][0]
         seed_config = dict(common, family="G-seed", adapter=adapter)
-        seed = run_program_step(manifest["command"], seed_config, seed_output, deadline_ns)
+        seed = run_program_step(manifest["command"], seed_config, seed_output, deadline_ns, observe=manifest.get("_observe_native"))
         steps.append(seed)
         if not seed["complete"] or cell["kind"] == "seed":
             return {"complete": seed["complete"], "steps": steps}
@@ -127,5 +138,5 @@ def execute_stage(cell, manifest, attempt, deadline_ns):
     family = "G-R" if cell["kind"] == "smoke" else cell["stage"]
     config = dict(common, family=family, store=store)
     output = attempt / ("write" if cell["stage"] == "G-W" else "read")
-    steps.append(run_program_step(manifest["command"], config, output, deadline_ns))
+    steps.append(run_program_step(manifest["command"], config, output, deadline_ns, observe=manifest.get("_observe_native")))
     return {"complete": all(step["complete"] for step in steps), "steps": steps}

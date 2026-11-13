@@ -1,6 +1,11 @@
 """Frozen G production runner, using current bounded driver and attempt contracts."""
 
 import argparse
+import fcntl
+import os
+import time
+import traceback
+import uuid
 import json
 from itertools import islice
 import sys
@@ -177,10 +182,12 @@ def run_prepared(manifest, root):
     from g_campaign import run_g_plan
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    path = root / "prepared-manifest.json"
-    path.write_text(json.dumps(manifest, indent=2) + "\n")
+    path = root / f"prepared-{uuid.uuid4().hex}.json"
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
     def command(_cell, deadline):
+        if not path.exists():
+            path.write_text(json.dumps(manifest, indent=2) + "\n")
+            path.chmod(0o444)
         return [sys.executable, str(Path(__file__).resolve()), "_cell", str(path), str(deadline)]
     cache = {}
     def assess(cell, previous, remaining_ns, retained_bytes):
@@ -214,26 +221,149 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
         if prior and prior.get("status") == "complete":
             report = json.loads(Path(prior["attempt"], "result.json").read_text())
             manifest["subjects"][identifier] = str(Path(report["steps"][0]["output"]) / "store.sqlite")
+    if manifest.get("gpu"):
+        from g_gpu import GpuObserver
+        observer = GpuObserver(manifest["gpu"])
+        manifest["_observe_native"] = observer.sample
     result = execute_cell(cell, manifest, output, deadline_ns)
     return result["complete"]
 
 
+
+def run_frozen(root):
+    """Run only the frozen clean candidate, charging preflight to the same shared allocation."""
+    from g_freeze import git, validate_frozen
+    from g_gpu import inspect_gpu
+    root = Path(root).resolve()
+    preliminary = json.loads((root / "manifest.json").read_text())
+    if preliminary.get("schema") != "slice30-g-campaign/v1" or preliminary["source_sha"] != git("rev-parse", "HEAD") or git("status", "--porcelain"):
+        raise ValueError("run requires the exact clean frozen G source")
+    allocation = Path(preliminary["allocation"])
+    if not root.is_relative_to(allocation):
+        raise ValueError("frozen G root is outside the shared allocation")
+    with (allocation / "g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        budget_path = allocation / "g-budget.json"
+        budget = json.loads(budget_path.read_text()) if budget_path.exists() else {"schema":"slice30-gd-budget/v1","used_ns":0,"inflight":None,"cell_used_ns":{}}
+        def prepared(manifest):
+            return dict(manifest, corpus=manifest["inputs"]["corpus"]["path"], queries=manifest["inputs"]["queries"]["path"],
+                        commands={key:[value["path"]] for key,value in manifest["binaries"].items()})
+        state_path = root / "results/campaign-state.json"
+        previous = {row["id"]:row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+        if all(previous.get(cell["id"], {}).get("status") == "complete"
+               and previous[cell["id"]].get("cell") == cell for cell in preliminary["plan"]):
+            validate_frozen(root)
+            return run_prepared(prepared(preliminary), root)
+        if budget.get("inflight") or budget["used_ns"] >= 14400 * 10**9:
+            return run_prepared(prepared(preliminary), root)
+        started = time.monotonic_ns()
+        invocation = root / "invocations" / f"run-{uuid.uuid4().hex}"
+        invocation.mkdir(parents=True)
+        def publish_invocation(ok, error=None):
+            value = {"path":str(invocation),"environment_ok":ok,"error":error,"finished_at_ns":time.time_ns()}
+            (invocation / "invocation.json").write_text(json.dumps(value,indent=2)+"\n")
+            (root / "last-run.json").write_text(json.dumps(value,indent=2)+"\n")
+        budget["inflight"] = {"cell":"g-preflight","started_at_ns":time.time_ns()}
+        budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+        pending = next((cell["id"] for cell in preliminary["plan"] if previous.get(cell["id"],{}).get("status") != "complete"), None)
+        failure = None
+        try:
+            manifest = validate_frozen(root)
+            before = inspect_gpu(manifest["gpu"]["uuid"])
+            if before["applications"]:
+                raise RuntimeError("selected3090 reservation is not quiet")
+            (invocation / "environment-before.json").write_text(json.dumps(before, indent=2) + "\n")
+            os.environ["FATHOMDB_EMBED_DEVICE"] = manifest["device_policy"]
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        except Exception as error:
+            failure = f"{type(error).__name__}: {error}"
+            (invocation / "preflight-failure.log").write_text(traceback.format_exc())
+        finally:
+            elapsed = time.monotonic_ns() - started
+            budget["used_ns"] += elapsed
+            if pending:
+                usage = budget.setdefault("cell_used_ns", {})
+                usage[pending] = usage.get(pending,0) + elapsed
+            budget["inflight"] = None
+            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+        if failure:
+            outcomes = [previous[cell["id"]] if previous.get(cell["id"],{}).get("status") == "complete" else
+                        {"id":cell["id"],"cell":cell,"status":"not_run_prerequisite","complete":False,"reason":"frozen_preflight_failed","error":failure}
+                        for cell in preliminary["plan"]]
+            (root / "results").mkdir(exist_ok=True)
+            (root / "results/g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+            publish_invocation(False, failure)
+            return outcomes
+        outcomes = run_prepared(prepared(manifest), root)
+        try:
+            after = inspect_gpu(manifest["gpu"]["uuid"])
+            (invocation / "environment-after.json").write_text(json.dumps(after, indent=2) + "\n")
+            if after["applications"]:
+                raise RuntimeError("selected GPU compute work remains after campaign")
+        except Exception as error:
+            (invocation / "environment-after-failure.log").write_text(traceback.format_exc())
+            current = next((row for row in reversed(outcomes) if row.get("status") == "complete"
+                            and row.get("attempt") != previous.get(row["id"],{}).get("attempt")), None)
+            if current is not None:
+                current.update(status="failed",complete=False,error="postflight_environment_unavailable")
+                state = {row["id"]:row for row in json.loads(state_path.read_text())}
+                state[current["id"]] = current
+                state_path.write_text(json.dumps(list(state.values()),indent=2)+"\n")
+                Path(current["attempt"],"controller-postflight.json").write_text(json.dumps(current,indent=2)+"\n")
+                (root / "results/g-outcomes.json").write_text(json.dumps(outcomes,indent=2)+"\n")
+            publish_invocation(False, f"{type(error).__name__}: {error}")
+        else:
+            publish_invocation(True)
+        return outcomes
+
+
 def main():
-    """Operate current prepared foreground jobs; frozen public entry is added below."""
+    """Build, freeze, run and report the exact bounded G campaign without implicit opt-in."""
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    build = commands.add_parser("build")
+    build.add_argument("--out", type=Path, required=True)
+    freeze_parser = commands.add_parser("freeze")
+    for field in ("corpus", "queries", "license", "ordinary", "diagnostic", "build_receipt", "model_cache", "allocation", "out"):
+        freeze_parser.add_argument("--"+field.replace("_","-"), dest=field, type=Path, required=True)
+    freeze_parser.add_argument("--gpu-uuid", required=True)
+    freeze_parser.add_argument("--gpu-ordinal", type=int, required=True)
     run = commands.add_parser("run")
     run.add_argument("root", type=Path)
+    report = commands.add_parser("report")
+    report.add_argument("root", type=Path)
     job = commands.add_parser("_cell")
     job.add_argument("manifest", type=Path)
     job.add_argument("deadline", type=int)
     job.add_argument("config", type=Path)
     job.add_argument("output", type=Path)
     args = parser.parse_args()
-    if args.action == "run":
-        manifest = json.loads((args.root / "manifest.json").read_text())
-        outcomes = run_prepared(manifest, args.root)
-        if any(row["status"] != "complete" for row in outcomes):
+    if args.action == "build":
+        from g_freeze import build_tools
+        build_tools(args.out)
+    elif args.action == "freeze":
+        from g_freeze import freeze
+        manifest = freeze(vars(args))
+        print(json.dumps({"campaign_uuid":manifest["campaign_uuid"],"source_sha":manifest["source_sha"],"root":manifest["root"]}))
+    elif args.action == "run":
+        if os.environ.get("AGENT_LONG") != "1":
+            parser.error("G production campaign requires AGENT_LONG=1")
+        outcomes = run_frozen(args.root)
+        print(json.dumps({"cells":len(outcomes),"complete":all(row["status"]=="complete" for row in outcomes)}))
+        if any(row["status"] != "complete" for row in outcomes) or not json.loads((args.root / "last-run.json").read_text()).get("environment_ok", False):
+            raise SystemExit(1)
+    elif args.action == "report":
+        from g_campaign import active_bytes
+        from g_report import summarize
+        value = summarize(args.root)
+        payload = json.dumps(value, indent=2) + "\n"
+        allocation = Path(value["manifest"]["allocation"])
+        if active_bytes(allocation) + len(payload.encode()) > 16 * 1024**3:
+            raise RuntimeError("retained cap cannot hold a new summary; raw obligations remain retained")
+        (args.root / "summary-g.json").write_text(payload)
+        print(json.dumps({"cells":len(value["cells"]),"complete":value["complete"]}))
+        if not value["complete"]:
             raise SystemExit(1)
     elif not run_cell_job(args.manifest, args.deadline, args.config, args.output):
         raise SystemExit(1)

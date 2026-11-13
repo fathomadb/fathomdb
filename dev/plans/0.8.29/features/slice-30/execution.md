@@ -1049,3 +1049,32 @@ aggregate-cap qualification; those controller units remain required.
 - Frozen expectations require exit2 and an explicit AGENT_LONG=1 requirement
   before any command starts. The default production provider and all fixed
   table/cap/qualification contracts are unchanged.
+
+### Coherent production Python candidate
+
+- Exact-byte freeze `9b8bf07c5`, diagnostic report `64e081f9c` and working CLI
+  opt-in `854bf5813` runtime REDs are preserved. Their original assertions are
+  unchanged. `g-runner-coherent-python-green`, then retained-invocation source
+  `g-runner-coherent-final-python`, and current
+  `g-runner-coherent-release-python` each pass33 G Python controls; Ruff passes,
+  no resource stops. Later runs follow behavior-bearing integration changes;
+  no accepted P measurement was repeated.
+- The usable entry is `g_runner.py build|freeze|run|report`, documented in the
+  tools README. It verifies registered local bytes, exact current source/build/
+  owned native/cache identities, maintains one shared allocation across
+  tranches, gates later jobs on qualified G0, and uses the complete G-W forecast.
+  Actual native command PIDs are independent observations; telemetry records
+  selected3090 memory/utilization with fixed R580/primaryCUDA12.6 checks.
+- Invocation/prepared inputs and failures are retained separately. Failed final
+  environment verification holds the new final attempt without rewriting native
+  raw reports or earlier outcomes. Matching completed history survives resume.
+  Reports retain all84 obligations, error-inclusive populations, fixed paired
+  query-cluster math and nonadditive span semantics. Small/50-query diagnostics
+  have counts and means, never release-target acceptance or percentile claims.
+- Only Python/static/harmless-child checks executed. Build, valid-input freeze,
+  GPU queries, model calls and actual campaigns remain unrun. This is the
+  coherent Python candidate for combined Astra review, not final G qualification.
+  Next native phase must prove actual stored span byte ranges/body lengths with
+  Unicode offsets, integrated normal CLI/feature consumers, then stable full
+  qualification and fresh final review. Use the separately accepted source100
+  strict owned-ENOENT sampler before any native executor; caps remain unchanged.

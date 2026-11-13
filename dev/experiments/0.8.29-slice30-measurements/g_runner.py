@@ -222,13 +222,20 @@ def main():
     """Operate current prepared foreground jobs; frozen public entry is added below."""
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    run = commands.add_parser("run")
+    run.add_argument("root", type=Path)
     job = commands.add_parser("_cell")
     job.add_argument("manifest", type=Path)
     job.add_argument("deadline", type=int)
     job.add_argument("config", type=Path)
     job.add_argument("output", type=Path)
     args = parser.parse_args()
-    if not run_cell_job(args.manifest, args.deadline, args.config, args.output):
+    if args.action == "run":
+        manifest = json.loads((args.root / "manifest.json").read_text())
+        outcomes = run_prepared(manifest, args.root)
+        if any(row["status"] != "complete" for row in outcomes):
+            raise SystemExit(1)
+    elif not run_cell_job(args.manifest, args.deadline, args.config, args.output):
         raise SystemExit(1)
 
 

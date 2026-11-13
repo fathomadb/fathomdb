@@ -1038,3 +1038,14 @@ aggregate-cap qualification; those controller units remain required.
 - Frozen expectations retain mean25.5ms/count50 and the failed/not-run statuses,
   with no percentile claim for this diagnostic. These are hand-set math/report
   inputs, not actual measurement evidence or a database/model/GPU stand-in.
+
+### G run-entry opt-in RED
+
+- `g-runner-entry-red` calls the functioning run CLI with controlled harmless
+  commands and AGENT_LONG absent. Actual commands start; the literal assertion
+  fails `G CLI dispatched commands without the required long opt-in`. One
+  runtime failure, exit 1, no resource stop. This is not an unsupported-command
+  parser failure or a model/native run.
+- Frozen expectations require exit2 and an explicit AGENT_LONG=1 requirement
+  before any command starts. The default production provider and all fixed
+  table/cap/qualification contracts are unchanged.

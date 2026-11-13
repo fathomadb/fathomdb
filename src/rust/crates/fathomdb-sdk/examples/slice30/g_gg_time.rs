@@ -33,13 +33,11 @@ pub(super) fn from_template(
     source: &Path,
     observer: CoreObserver,
 ) -> bool {
-    let original = Sha256::digest(std::fs::read(source).unwrap());
-    let directory = out.join("time");
-    std::fs::create_dir(&directory).unwrap();
-    let store = directory.join("store.sqlite");
-    std::fs::copy(source, &store).unwrap();
-    assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
-    let adapter = GAdapter::open("engine_hybrid", &store);
+    let prepared = g_gg_stages::prepare_store(config, out, source, "time", |path| {
+        GAdapter::open("engine_hybrid", path)
+    })
+    .unwrap();
+    let g_gg_stages::PreparedStore { adapter, original, directory, store } = prepared;
     let report = adapter.report();
     assert_eq!(
         report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid.as_deref(),
@@ -113,7 +111,7 @@ pub(super) fn from_template(
         }
     }
     adapter.close();
-    assert_eq!(Sha256::digest(std::fs::read(source).unwrap()), original);
+    assert_eq!(Sha256::digest(std::fs::read(source).unwrap()).to_vec(), original);
     let mut proof = json!({"controls":controls,"baseline_coverage":baseline,"after_coverage":after,
         "governed_write_calls":1,"write_rows":1,"write_cursor":receipt.cursor,"write_ns":write_ns,
         "drain_ns":drain_ns,"pending":pending,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,

@@ -1,11 +1,35 @@
 //! Shared private GG measured caller; explicit query/view, same API and observer clocks.
 
-use super::{g_observer, CoreObserver, Recorder};
+use super::{g_observer, CoreObserver, GAdapter, Recorder};
 use fathomdb_engine::ReadView;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
+
+pub(super) struct PreparedStore {
+    pub(super) adapter: GAdapter,
+    pub(super) original: Vec<u8>,
+    pub(super) directory: PathBuf,
+    pub(super) store: PathBuf,
+}
+
+pub(super) fn prepare_store(
+    _config: &Value,
+    out: &Path,
+    source: &Path,
+    family: &str,
+    open: impl FnOnce(&Path) -> GAdapter,
+) -> Result<PreparedStore, ()> {
+    let original = Sha256::digest(std::fs::read(source).unwrap()).to_vec();
+    let directory = out.join(family);
+    std::fs::create_dir(&directory).unwrap();
+    let store = directory.join("store.sqlite");
+    std::fs::copy(source, &store).unwrap();
+    assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()).to_vec(), original);
+    let adapter = open(&store);
+    Ok(PreparedStore { adapter, original, directory, store })
+}
 
 pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<Value, String> {
     super::g_budget::drain(config, |timeout| {
@@ -362,6 +386,104 @@ mod tests {
         #[test]
         fn gg_mutation_admission_preserves_current_rows_and_dependencies(action in prop::sample::select(vec!["write","dependency","transition"]), key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
             expired_mutation(key, action);
+        }
+    }
+
+    fn actual_preparation(key: &str, check_copy: bool) {
+        let root = tempfile::Builder::new().prefix("s30-gg-prepare-").tempdir().unwrap().keep();
+        let source = root.join("source.sqlite");
+        let engine = Engine::open_with_choice(&source, EmbedderChoice::None).unwrap().engine;
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "closedcopy épreuve".into(),
+                logical_id: Some("copy".into()),
+                source_id: SourceId::new("test:s30-gg-prepare").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        engine.close().unwrap();
+        let original = Sha256::digest(std::fs::read(&source).unwrap()).to_vec();
+        for allowed in [true, false] {
+            let out = root.join(if allowed { "healthy" } else { "expired" });
+            std::fs::create_dir(&out).unwrap();
+            let mut config = if allowed {
+                json!({})
+            } else {
+                json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX})
+            };
+            if !allowed {
+                config[key] = json!(0);
+            }
+            let mut opens = 0;
+            let result = prepare_store(&config, &out, &source, "time", |path| {
+                assert_eq!(Sha256::digest(std::fs::read(path).unwrap()).to_vec(), original);
+                opens += 1;
+                GAdapter::Core(Box::new(
+                    Engine::open_with_choice(path, EmbedderChoice::None).unwrap(),
+                ))
+            });
+            let completed = result.is_ok();
+            if let Ok(prepared) = result {
+                prepared.adapter.close();
+            }
+            let copied = out.join("time/store.sqlite");
+            if copied.exists() {
+                let db = rusqlite::Connection::open_with_flags(
+                    &copied,
+                    rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+                )
+                .unwrap();
+                assert_eq!(
+                    db.query_row("SELECT body FROM canonical_nodes", [], |row| row
+                        .get::<_, String>(0))
+                        .unwrap(),
+                    "closedcopy épreuve"
+                );
+            }
+            assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()).to_vec(), original);
+            println!(
+                "actual GG prepare {} allowed={allowed} copied={} opens={opens}",
+                out.display(),
+                copied.exists()
+            );
+            if check_copy {
+                assert_eq!(
+                    copied.exists(),
+                    allowed,
+                    "GG copied a new store after original endpoint"
+                );
+            } else {
+                assert_eq!(
+                    opens,
+                    usize::from(allowed),
+                    "GG started an open after original endpoint"
+                );
+            }
+            assert_eq!(completed, allowed);
+        }
+    }
+
+    #[test]
+    fn work_endpoint_refuses_gg_copy() {
+        actual_preparation("work_deadline_ns", true);
+    }
+    #[test]
+    fn hard_endpoint_refuses_gg_open() {
+        actual_preparation("hard_deadline_ns", false);
+    }
+    #[test]
+    fn shared_endpoint_refuses_gg_copy() {
+        actual_preparation("shared_deadline_ns", true);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn gg_preparation_does_not_renew_bounds(check_copy in any::<bool>(), key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            actual_preparation(key, check_copy);
         }
     }
 }

@@ -13,6 +13,26 @@ pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<
     })
 }
 
+fn measured_call(
+    engine: &fathomdb_engine::Engine,
+    _config: &Value,
+    _out: &Path,
+    _phase: &str,
+    as_of: i64,
+    query: &str,
+) -> Result<Value, ()> {
+    let started = Instant::now();
+    let view = ReadView { valid_as_of: Some(as_of), ..ReadView::default() };
+    let result = engine
+        .search_reranked_view_with_limit(query, None, 0, false, 0.3, 0, false, &view, 10)
+        .unwrap();
+    let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+    let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
+    Ok(json!({"adapter":"engine","mode":"hybrid","ok":true,"elapsed_ns":elapsed_ns,"ids":ids,
+        "returned_hits":result.results.len(),"soft_fallback":format!("{:?}",result.soft_fallback),
+        "degradations":format!("{:?}",result.degradations)}))
+}
+
 pub(super) fn measure_stage(
     engine: &fathomdb_engine::Engine,
     config: &Value,
@@ -34,18 +54,14 @@ pub(super) fn measure_stage(
         for sample in 0..count {
             let fingerprint: String =
                 Sha256::digest(query.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect();
-            let started = Instant::now();
-            let view = ReadView { valid_as_of: Some(as_of), ..ReadView::default() };
-            let result = engine
-                .search_reranked_view_with_limit(query, None, 0, false, 0.3, 0, false, &view, 10)
-                .unwrap();
-            let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
-            let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
-            let row = json!({"adapter":"engine","mode":"hybrid","stage":stage,"valid_as_of":as_of,
-                "ok":true,"query_id":0,"query_fingerprint":fingerprint,"sample_index":sample,"call_index":calls,
-                "elapsed_ns":elapsed_ns,"ids":ids,"returned_hits":result.results.len(),
-                "soft_fallback":format!("{:?}",result.soft_fallback),"degradations":format!("{:?}",result.degradations),
-                "observer":observation.complete(true)});
+            let mut row = measured_call(engine, config, &out, stream, as_of, query).unwrap();
+            row["stage"] = json!(stage);
+            row["valid_as_of"] = json!(as_of);
+            row["query_id"] = json!(0);
+            row["query_fingerprint"] = json!(fingerprint);
+            row["sample_index"] = json!(sample);
+            row["call_index"] = json!(calls);
+            row["observer"] = observation.complete(true);
             recorder.emit(stream, &row);
             calls += 1;
         }
@@ -142,5 +158,85 @@ mod tests {
         #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
         #[test]
         fn gg_drains_never_renew_the_original_work_window(milliseconds in 50u64..2000) { actual_drain(milliseconds); }
+    }
+
+    fn actual_call(config: &Value, query: &str, as_of: i64, allowed: bool) {
+        let root = tempfile::Builder::new().prefix("s30-gg-call-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "ggquery épreuve".into(),
+                logical_id: Some("gg-query".into()),
+                source_id: SourceId::new("test:s30-gg-call").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        assert_eq!(
+            engine
+                .search_text_only_filtered_with_snippets(
+                    "ggquery",
+                    None,
+                    &ReadView::default(),
+                    10,
+                    None
+                )
+                .unwrap()
+                .results
+                .len(),
+            1
+        );
+        let healthy = measured_call(&engine, &json!({}), &root, "timed", as_of, query).unwrap();
+        assert_eq!(healthy["ok"], true);
+        assert!(healthy["elapsed_ns"].as_u64().unwrap() > 0);
+        assert!(healthy["ids"].as_array().unwrap().iter().all(|id| id == "l:gg-query"));
+        let result = measured_call(&engine, config, &root, "timed", as_of, query);
+        engine.close().unwrap();
+        let db = rusqlite::Connection::open_with_flags(
+            &store,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get::<_, usize>(0))
+                .unwrap(),
+            1
+        );
+        println!("actual GG call {} allowed={allowed} result={result:?}", root.display());
+        assert_eq!(
+            result.is_ok(),
+            allowed,
+            "GG query admitted beyond original work/hard/shared endpoint"
+        );
+    }
+
+    fn expired_call(key: &str, query: &str, as_of: i64) {
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        actual_call(&config, query, as_of, false);
+    }
+
+    #[test]
+    fn work_endpoint_refuses_next_gg_query() {
+        expired_call("work_deadline_ns", "ggquery", 100);
+    }
+    #[test]
+    fn hard_endpoint_refuses_next_gg_query() {
+        expired_call("hard_deadline_ns", "ggquery", 80);
+    }
+    #[test]
+    fn shared_endpoint_refuses_next_gg_query() {
+        expired_call("shared_deadline_ns", "nomatch", 120);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn gg_query_admission_does_not_depend_on_query_or_view(query in prop::sample::select(vec!["ggquery","nomatch"]), as_of in 80i64..121, key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            expired_call(key, query, as_of);
+        }
     }
 }

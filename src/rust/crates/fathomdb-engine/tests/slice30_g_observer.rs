@@ -163,3 +163,46 @@ fn no_dependency_hybrid_observes_each_actual_guard_once_without_invented_sql() {
     assert_eq!(batch.dropped_records, 0);
     engine.close().unwrap();
 }
+
+#[test]
+fn skipped_guards_remain_explicit_for_direct_text_and_filtered_hybrid() {
+    let directory = tempfile::tempdir().unwrap();
+    let engine = seed_dense(&directory.path().join("guards.sqlite"));
+    let observer = engine.begin_slice30_observation_for_test(128).unwrap();
+    observer.with_operation(201, || {
+        assert_eq!(engine.search_text_only("needle").unwrap().results[0].id.value, "alpha");
+    });
+    let direct = observer.take();
+    for phase in ["all_nodes_directly_eligible", "vector_arm_requires_fallback"] {
+        let skipped =
+            direct.records.iter().filter(|record| record.phase == phase).collect::<Vec<_>>();
+        assert_eq!(skipped.len(), 1, "the direct-text skipped guard is missing: {phase}");
+        assert_eq!(skipped[0].status, "not_run");
+        assert_eq!(skipped[0].facts["reason"], "vector_unavailable");
+        assert_eq!(skipped[0].facts["called"], false);
+        assert!(skipped[0].started_ns.is_none() && skipped[0].ended_ns.is_none());
+    }
+    let mut filter = fathomdb_engine::SearchFilter::default();
+    filter.kind = Some("doc".into());
+    observer.with_operation(202, || {
+        assert_eq!(
+            engine.search_filtered_with_limit("needle", Some(filter), 10).unwrap().results[0]
+                .id
+                .value,
+            "alpha"
+        );
+    });
+    let filtered = observer.take();
+    let skipped = filtered
+        .records
+        .iter()
+        .filter(|record| record.phase == "all_nodes_directly_eligible")
+        .collect::<Vec<_>>();
+    assert_eq!(skipped.len(), 1);
+    assert_eq!(skipped[0].status, "not_run");
+    assert_eq!(skipped[0].facts["reason"], "filter");
+    assert_eq!(skipped[0].facts["called"], false);
+    assert!(skipped[0].started_ns.is_none() && skipped[0].ended_ns.is_none());
+    assert_eq!(filtered.dropped_records, 0);
+    engine.close().unwrap();
+}

@@ -27,6 +27,27 @@ def wait_unreaped(child, seconds):
         time.sleep(0.005)
 
 
+
+def live_owned_pids(child):
+    """Inspect live members of the owned foreground session while its leader is pinned."""
+    if child.returncode is not None:
+        raise RuntimeError("cannot inspect a group after its leader pin was reaped")
+    unreaped_exit(child)
+    leader = Path(f"/proc/{child.pid}/stat").read_text().rsplit(") ", 1)[1].split()
+    if (int(leader[2]), int(leader[3])) != (child.pid, child.pid):
+        raise RuntimeError("owned leader is not the expected private group/session")
+    live = []
+    for path in Path("/proc").iterdir():
+        if not path.name.isdecimal():
+            continue
+        try:
+            fields = (path / "stat").read_text().rsplit(") ", 1)[1].split()
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        if (int(fields[2]), int(fields[3])) == (child.pid, child.pid) and fields[0] not in ("Z", "X"):
+            live.append(int(path.name))
+    return sorted(live)
+
 def stop_owned_group(child):
     """Signal the owned session while its unreaped leader pins the numeric PGID."""
     if child.returncode is not None:
@@ -37,7 +58,15 @@ def stop_owned_group(child):
     os.killpg(child.pid, signal.SIGKILL)
     if wait_unreaped(child, 2) is None:
         raise RuntimeError("owned leader did not stop within bounded group cleanup")
-    child.wait()
+    until = time.monotonic() + 2
+    while True:
+        live = live_owned_pids(child)
+        if not live:
+            child.wait()
+            return []
+        if time.monotonic() >= until:
+            raise RuntimeError(f"owned group still has live work after bounded cleanup: {live}")
+        time.sleep(0.005)
 
 
 def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
@@ -54,6 +83,7 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
     argv = [*command, str(config), str(attempt)]
     error, child, code, complete = None, None, None, False
     cleanup_uncertain = False
+    live_owned = []
     with (attempt / "child.log").open("w") as log:
         if time.monotonic_ns() >= deadline_ns:
             error = "cell timeout before child start"
@@ -74,7 +104,12 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
                         code = 124
                         break
                     if code is not None:
-                        child.wait()
+                        live_owned = live_owned_pids(child)
+                        if live_owned:
+                            error = "owned_work_survived_leader"
+                            code = 125
+                        else:
+                            child.wait()
                         break
                     time.sleep(min(0.01, remaining))
             except BaseException as failure:
@@ -84,9 +119,10 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
             finally:
                 if child.returncode is None:
                     try:
-                        stop_owned_group(child)
+                        live_owned = stop_owned_group(child)
                     except BaseException as failure:
                         cleanup_uncertain = True
+                        live_owned = None
                         error = (error or "owned attempt failed") + f"; cleanup {type(failure).__name__}: {failure}"
                         traceback.print_exc(file=log)
             result_path = attempt / "result.json"
@@ -97,6 +133,7 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
                     error = "missing or partial result.json"
     outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "exit": code,
                "child_exit": child.returncode if child else None, "cleanup_uncertain": cleanup_uncertain,
+               "live_owned_pids": live_owned,
                "status": "complete" if complete else "failed", "error": error,
                "elapsed_ns": time.monotonic_ns() - started, "environment_before": context,
                "started_at": started_at, "ended_at": time.time(), "deadline_ns": deadline_ns,

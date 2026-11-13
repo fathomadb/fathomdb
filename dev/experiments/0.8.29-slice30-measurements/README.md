@@ -213,3 +213,10 @@ logs/receipts and an absolute deadline spanning preparation/startup. Cap timeout
 terminates the owned group so descendants cannot continue work after the cell;
 the accepted P runner remains unchanged. This controller timeout proof uses only
 harmless Python children, without a product fault or model/GPU execution.
+
+`test_g_lifecycle.py` separately proves monitor-exception cleanup, unreaped-leader
+ownership through signals, and rejection/cleanup of successful leaders leaving
+live foreground descendants. Fixed G production drivers inherit their attempt's
+private session; detached commands are not part of this contract. Group scans
+exclude already dead zombies, retain uncertainty on unavailable evidence, and
+never release the leader pin before the last signal/quiescence decision.

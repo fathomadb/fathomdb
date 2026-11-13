@@ -922,3 +922,16 @@ aggregate-cap qualification; those controller units remain required.
 - Frozen expectations require rejecting that completion, bounded cleanup of
   surviving owned work while the leader pin is retained, no late marker and no
   remaining live owned PIDs. Earlier pin/exception assertions remain unchanged.
+
+- Successful-leader correction GREEN: `g-lifecycle-success-descendant-green`
+  passes all three frozen lifecycle controls; `g-lifecycle-combined-green` passes
+  all 23 G math/controller/dispatch/lifecycle tests, exit 0, no resource stops;
+  Ruff passes. The `7dd57704e` descendant oracle and all earlier assertions are
+  unchanged. Normal leader completion is inspected before reaping, and live
+  foreground-session members invalidate completion and receive bounded owned
+  cleanup while the leader pins its group. Only verified no-live-work permits
+  reaping and acceptance; unavailable cleanup retains uncertainty/inflight.
+- This coherent candidate addresses all three lifecycle findings and is ready
+  for the existing fresh Astra reviewer once. It does not qualify native/model/
+  GPU execution. Next work is the usable frozen production runner and complete
+  G-W workload feasibility, with native qualification gated on window return.

@@ -139,3 +139,21 @@ class CpuPolicyCatalogTests(unittest.TestCase):
         cells = self.generate(["gn", "go", "dn", "do"])
         self.assertEqual(sum(row.get("cpu_observation") is True for row in cells), 28,
                          "actual catalog omits CPU baseline/runtime observation")
+
+
+class DevicePolicyCatalogTests(unittest.TestCase):
+    generate = GCatalogTests.generate
+
+    def check_policy(self, cells):
+        self.assertEqual(len(cells), 28)
+        self.assertEqual([row.get("gpu_reservation") for row in cells],
+                         [row["id"].startswith("g/") for row in cells],
+                         "actual G preparation/retrieval catalog omits mandatory device reservation/accounting")
+
+    def test_literal_every_g_entry_and_no_d_entry_requests_approved_device(self):
+        self.check_policy(self.generate(["gn", "go", "dn", "do"]))
+
+    @settings(max_examples=3, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.permutations(["gn", "go", "dn", "do"]))
+    def test_reference_order_cannot_drop_reservation_or_move_d_onto_gpu(self, keys):
+        self.check_policy(self.generate(keys))

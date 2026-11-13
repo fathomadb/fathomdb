@@ -189,10 +189,11 @@ class NativeAdmissionCampaignTests(unittest.TestCase):
         cell = manifest["cells"][0]
         cell.update(work_deadline_ns=2**64-1, hard_deadline_ns=2**64-1, shared_deadline_ns=2**64-1)
         cell[bound] = 0
-        outcomes = run_manifest(manifest, root/"expired")
-        print(f"actual expired native {bound}: {outcomes}", flush=True)
-        self.assertEqual(outcomes[0]["status"], "failed", "expired native phase still completed real database work")
-        attempt = Path(outcomes[0]["attempt"])
+        config, attempt = root/"expired.json", root/"expired-native"
+        config.write_text(json.dumps(cell))
+        child = subprocess.run([str(binary),str(config),str(attempt)],capture_output=True,text=True,timeout=150)
+        self.assertEqual(child.returncode,0, f"native admission setup NOT_RED {child.stderr}")
+        self.assertFalse((attempt/"complete.json").exists(), "expired native phase still completed real database work")
         self.assertFalse((attempt/"query.sqlite").exists())
         self.assertFalse((attempt/"queries.jsonl").exists())
         self.assertEqual(json.loads((attempt/"budget.json").read_text())["disposition"], "deadline_refused")
@@ -282,6 +283,38 @@ class NativePhaseStopTests(unittest.TestCase):
     @given(st.integers(min_value=2000,max_value=3000))
     def test_expired_native_preserves_only_the_completed_call_prefix(self,samples):
         self.check_stop(samples)
+
+
+class PrelaunchDeadlineTests(unittest.TestCase):
+    def check_prelaunch(self, bound, deadline):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        healthy = run_manifest(manifest,root/"healthy")
+        self.assertEqual(healthy[0]["status"],"complete", "ordinary real caller NOT_RED")
+        cell = manifest["cells"][0]
+        cell.update(work_deadline_ns=2**64-1,hard_deadline_ns=2**64-1,shared_deadline_ns=2**64-1)
+        cell[bound] = deadline
+        outcome = run_manifest(manifest,root/"expired")[0]
+        print(f"actual prelaunch {bound}: pid={outcome['pid']} status={outcome['status']}",flush=True)
+        self.assertIsNone(outcome["pid"], "controller launched a native child despite its actual tightened absolute bound")
+        self.assertEqual(outcome["status"],"not_run_resource")
+        self.assertEqual(outcome["reason"],"native_prelaunch_deadline")
+        attempt = Path(outcome["attempt"])
+        config = json.loads((attempt/"cell.json").read_text())
+        self.assertEqual(config[bound],deadline)
+        self.assertFalse((attempt/"query.sqlite").exists())
+        self.assertFalse((attempt/"budget.json").exists(), "no fabricated native observation when no child ran")
+        self.assertFalse((attempt/"child.log").exists())
+
+    def test_each_tightened_actual_bound_is_rechecked_before_popen(self):
+        for bound in ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]:
+            with self.subTest(bound=bound):
+                self.check_prelaunch(bound,0)
+
+    @settings(max_examples=3,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.sampled_from(["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]),st.integers(min_value=0,max_value=1000))
+    def test_expired_actual_config_cannot_start_a_child(self,bound,deadline):
+        self.check_prelaunch(bound,deadline)
 
 
 if __name__ == "__main__":

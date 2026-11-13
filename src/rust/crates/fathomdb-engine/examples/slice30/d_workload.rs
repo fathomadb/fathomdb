@@ -59,11 +59,7 @@ pub(super) fn run(config: &Value, out: &Path) {
             .unwrap();
     }
     assert_eq!(engine.read_embedding_readiness().unwrap().pending_count, 0);
-    #[cfg(feature = "slice30-measurement")]
-    if config["observer"].as_bool().unwrap_or(false) {
-        engine.slice30_observe_projection_workers_for_test(true).unwrap();
-        engine.slice30_observe_queries_for_test(true).unwrap();
-    }
+    enable_observation(engine, config);
     let mut output = std::fs::File::create(out.join("queries.jsonl")).unwrap();
     let warmups = usize::try_from(config["warmups"].as_u64().unwrap()).unwrap();
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
@@ -210,16 +206,19 @@ fn unavailable(reason: &str) -> Value {
 }
 
 #[cfg(not(feature = "slice30-measurement"))]
-fn observation_report(_engine: &Engine, _origin: Instant, _config: &Value) -> Value {
+pub(super) fn observation_report(_engine: &Engine, _origin: Instant, _config: &Value) -> Value {
     unavailable("feature_absent")
 }
 
 #[cfg(feature = "slice30-measurement")]
-fn observation_report(engine: &Engine, origin: Instant, config: &Value) -> Value {
+pub(super) fn observation_report(engine: &Engine, origin: Instant, config: &Value) -> Value {
     if !config["observer"].as_bool().unwrap_or(false) {
         return unavailable("observer_disabled");
     }
-    let expected = config["write_records"].as_array().map_or(0, Vec::len) as u64;
+    let expected = config["write_records"]
+        .as_array()
+        .or_else(|| config["records"].as_array())
+        .map_or(0, Vec::len) as u64;
     let deadline = Instant::now() + Duration::from_secs(5);
     let mut records = Vec::new();
     let dropped;
@@ -286,4 +285,14 @@ pub(super) fn readiness_loop(
         }
     }
     reads
+}
+
+pub(super) fn enable_observation(engine: &Engine, config: &Value) {
+    #[cfg(feature = "slice30-measurement")]
+    if config["observer"].as_bool().unwrap_or(false) {
+        engine.slice30_observe_projection_workers_for_test(true).unwrap();
+        engine.slice30_observe_queries_for_test(true).unwrap();
+    }
+    #[cfg(not(feature = "slice30-measurement"))]
+    let _ = (engine, config);
 }

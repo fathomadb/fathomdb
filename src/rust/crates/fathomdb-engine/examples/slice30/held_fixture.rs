@@ -120,6 +120,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     let idle = observation(origin, engine, &store);
     assert_eq!(idle["readiness"]["pending_count"], 0);
     assert_eq!(idle["sql"]["canonical_rows"], 0);
+    super::d_workload::enable_observation(engine, config);
     let records = config["records"].as_array().unwrap();
     let cohort = usize::try_from(config["cohort"].as_u64().unwrap()).unwrap();
     assert!(!records.is_empty() && cohort > 0);
@@ -202,6 +203,9 @@ pub(super) fn run(config: &Value, out: &Path) {
     let released = observation(origin, engine, &store);
     assert_eq!(released["readiness"]["pending_count"], 0);
     assert_eq!(released["sql"]["physical_vectors"], records.len());
+    let observed = super::d_workload::observation_report(engine, origin, config);
+    std::fs::write(out.join("worker-observer.json"), serde_json::to_vec_pretty(&observed).unwrap())
+        .unwrap();
     let (coverage, coverage_time) =
         timed(origin, || template_verify::coverage(&store, &VaryingEmbedder.identity()));
     let (_, closing) = timed(origin, || engine.close().unwrap());

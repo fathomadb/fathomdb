@@ -102,7 +102,7 @@ def _deadline_probe(command, deadline):
         return subprocess.CompletedProcess(command, status, output, errors)
 
 
-def resource_sample(roots, task, baseline):
+def resource_sample(roots, task, baseline, deadline=None):
     """Observe disjoint aggregate, independent raw budgets, memory/disk and swap."""
     import os
     from pathlib import Path

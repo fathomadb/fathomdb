@@ -48,3 +48,16 @@ never labeled executed merely because Cargo built them.
 python3 dev/experiments/0.8.29-slice20-verification/recover_sensitivity.py
 python3 dev/experiments/0.8.29-slice20-verification/verify_sensitivity_results.py
 ```
+
+production_python.py checks the checkout-owned installed wheel's exact module
+identity and unchanged compiled inputs from its build receipt, then exercises
+provider-free write/text-search/close/reopen/search/close and normal exit.
+production_node.mjs applies the same independently seeded logical-ID oracle to
+the source-built production SDK and exactly one own native addon. Build with the
+canonical owned Python helper and npm production build first; these are local
+source-bound consumers, not registry or publication evidence.
+
+```bash
+.venv/bin/python dev/experiments/0.8.29-slice20-verification/production_python.py
+node dev/experiments/0.8.29-slice20-verification/production_node.mjs
+```

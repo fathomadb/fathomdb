@@ -49,6 +49,10 @@ fn inspect(store: &Path, records: &[Value]) -> Vec<Value> {
 }
 
 fn verify(records: Vec<Value>, cohort: usize, mode: &str) {
+    verify_case(records, cohort, mode, false);
+}
+
+fn verify_case(records: Vec<Value>, cohort: usize, mode: &str, with_queries: bool) {
     let root = tempfile::Builder::new().prefix("s30-held-").tempdir().unwrap().keep();
     println!("held proof: {} rows={} cohort={cohort} mode={mode}", root.display(), records.len());
     Engine::open_with_choice(root.join("registration.sqlite"), EmbedderChoice::None)
@@ -57,7 +61,8 @@ fn verify(records: Vec<Value>, cohort: usize, mode: &str) {
         .close()
         .unwrap();
     let config = root.join("cell.json");
-    std::fs::write(&config, serde_json::to_vec(&json!({"family":"D_HELD_FIXTURE","records":records,"cohort":cohort,"release_mode":mode})).unwrap()).unwrap();
+    let queries = with_queries.then(|| vec![json!({"id":"held-query","query":"heldwitness"})]);
+    std::fs::write(&config, serde_json::to_vec(&json!({"family":"D_HELD_FIXTURE","records":records,"cohort":cohort,"release_mode":mode,"queries":queries,"warmups":2,"samples":3})).unwrap()).unwrap();
     let out = root.join("out");
     let binary = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
         .join("release/examples/slice30_gd_diagnostic");
@@ -230,6 +235,49 @@ fn verify(records: Vec<Value>, cohort: usize, mode: &str) {
         proof["released_drain"]["end_ns"].as_u64().unwrap()
             <= phases[1]["start_ns"].as_u64().unwrap()
     );
+
+    if with_queries {
+        let path = out.join("queries.jsonl");
+        let calls: Vec<Value> = if path.exists() {
+            std::fs::read_to_string(path)
+                .unwrap()
+                .lines()
+                .map(|s| serde_json::from_str(s).unwrap())
+                .collect()
+        } else {
+            Vec::new()
+        };
+        assert_eq!(calls.len(), 5, "missing actual held-state warmup/timed queries before release");
+        let expected: std::collections::BTreeSet<_> =
+            records.iter().map(|r| format!("l:{}", r["id"].as_str().unwrap())).collect();
+        let mut previous = held["end_ns"].as_u64().unwrap();
+        for (index, call) in calls.iter().enumerate() {
+            assert_eq!(call["ok"], true);
+            assert_eq!(call["query_id"], "held-query");
+            assert_eq!(call["query"], "heldwitness");
+            assert_eq!(call["phase"], if index < 2 { "warmup" } else { "timed" });
+            assert_eq!(call["sample_index"], if index < 2 { index } else { index - 2 });
+            let ids: std::collections::BTreeSet<_> = call["ids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap().to_owned())
+                .collect();
+            assert_eq!(ids, expected, "actual held text visibility, no drained-vector claim");
+            let start = call["start_ns"].as_u64().unwrap();
+            let end = call["end_ns"].as_u64().unwrap();
+            assert!(previous <= start && start < end && call["elapsed_ns"].as_u64().unwrap() > 0);
+            previous = end;
+        }
+        let after = &proof["after_queries"];
+        assert!(
+            previous <= after["start_ns"].as_u64().unwrap()
+                && after["end_ns"].as_u64().unwrap()
+                    <= proof["release_request"]["start_ns"].as_u64().unwrap()
+        );
+        assert_eq!(after["readiness"]["pending_count"], records.len());
+        assert_eq!(after["sql"]["physical_vectors"], 0);
+    }
 }
 
 fn literal() -> Vec<Value> {
@@ -256,5 +304,26 @@ proptest! {
     fn bounded_unicode_cohorts_preserve_completed_tail_and_phase_order(rows in prop::collection::vec((any::<bool>(),1usize..5),1..13), cohort in 1usize..9, drop_release in any::<bool>()) {
         let records = rows.iter().enumerate().map(|(index,(note,repeats))|json!({"id":format!("row-{index}"),"kind":if *note {"note"} else {"doc"},"body":format!("row {index} {}", "évidence β ".repeat(*repeats))})).collect();
         verify(records,cohort,if drop_release {"drop"}else{"explicit"});
+    }
+}
+
+#[test]
+fn held_queries_run_before_explicit_release_with_real_text_visibility() {
+    verify_case(
+        vec![
+            json!({"id":"a","kind":"doc","body":"heldwitness alpha"}),
+            json!({"id":"b","kind":"note","body":"heldwitness beta é"}),
+        ],
+        2,
+        "explicit",
+        true,
+    );
+}
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301308),..ProptestConfig::default()})]
+    #[test]
+    fn held_query_population_preserves_pending_then_drained_order(rows in 1usize..9,cohort in 1usize..5,drop_release in any::<bool>()){
+        let records=(0..rows).map(|i|json!({"id":format!("held-{i}"),"kind":if i%2==0{"doc"}else{"note"},"body":format!("heldwitness {i} évidence 🐟")})).collect();
+        verify_case(records,cohort,if drop_release{"drop"}else{"explicit"},true);
     }
 }

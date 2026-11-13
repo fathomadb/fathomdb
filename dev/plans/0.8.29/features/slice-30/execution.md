@@ -652,3 +652,12 @@ aggregate-cap qualification; those controller units remain required.
 - The frozen oracle requires the failed attempt retained, no renewed attempt for
   that cell, and the other 83 required cells still dispatched when their own and
   shared allowances permit. The fixed caps are unchanged.
+
+- Failed-cell allowance GREEN: `g-t10-retry-budget-green` passes all six frozen
+  Python controller tests (exit 0, no resource stop); Ruff passes. The
+  `a4dbccb87` ledger-boundary/actual-child oracle is unchanged. Persisted per-cell
+  usage now reduces the same 900-second allowance across retries, while every
+  attempt's measured preparation/execution time also consumes shared usage.
+  Matching completed outcomes continue to survive refusals. Production dispatch,
+  absolute native phase deadlines, growth/feasibility and final qualification
+  remain pending.

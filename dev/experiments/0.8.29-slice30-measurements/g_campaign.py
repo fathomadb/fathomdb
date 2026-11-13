@@ -84,6 +84,10 @@ def run_g_plan(spec, root, command, prepare=None):
     if (budget.get("schema") != "slice30-gd-budget/v1"
             or type(budget.get("used_ns")) is not int or budget["used_ns"] < 0):
         raise ValueError("invalid shared G/D allocation record")
+    cell_usage = budget.setdefault("cell_used_ns", {})
+    if not isinstance(cell_usage, dict) or any(type(value) is not int or value < 0
+                                              for value in cell_usage.values()):
+        raise ValueError("invalid per-cell G allowance record")
     state_path = root / "campaign-state.json"
     previous = ({row["id"]: row for row in json.loads(state_path.read_text())}
                 if state_path.exists() else {})
@@ -96,6 +100,7 @@ def run_g_plan(spec, root, command, prepare=None):
             continue
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
                   "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
+                  "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= 900 * 10**9 else
                   "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else None)
         if reason:
             outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
@@ -108,7 +113,7 @@ def run_g_plan(spec, root, command, prepare=None):
                 context = prepare(cell, root) if prepare else None
                 elapsed = time.monotonic_ns() - started
                 shared_remaining = 14400 * 10**9 - budget["used_ns"] - elapsed
-                cell_remaining = 900 * 10**9 - elapsed
+                cell_remaining = 900 * 10**9 - cell_usage.get(cell["id"], 0) - elapsed
                 reason = ("shared_time_exhausted" if shared_remaining <= 0 else
                           "cell_time_exhausted" if cell_remaining <= 0 else
                           "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else None)
@@ -120,7 +125,9 @@ def run_g_plan(spec, root, command, prepare=None):
                                                  timeout=min(cell_remaining, shared_remaining) / 10**9,
                                                  before=lambda: context))
             finally:
-                budget["used_ns"] += time.monotonic_ns() - started
+                elapsed = time.monotonic_ns() - started
+                budget["used_ns"] += elapsed
+                cell_usage[cell["id"]] = cell_usage.get(cell["id"], 0) + elapsed
                 budget["inflight"] = None
                 budget_path.write_text(json.dumps(budget, indent=2) + "\n")
         (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")

@@ -966,5 +966,56 @@ class QuietStartTests(unittest.TestCase):
         self.assertLessEqual(clock["started_ns"], outcome["cell_started_ns"])
 
 
+class CpuObservationTests(unittest.TestCase):
+    def check_observation(self, runtime_load):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        healthy = run_manifest(manifest, root/"healthy")[0]
+        self.assertEqual(healthy["status"], "complete", "ordinary native DB control NOT_RED")
+        manifest["cells"][0]["cpu_observation"] = True
+        calls = []
+        def load():
+            value = 1.5 if not calls else runtime_load
+            calls.append(value)
+            return value
+        outcome = run_manifest(manifest, root/"observed", load=load)[0]
+        self.assertEqual(outcome["status"], "complete", "actual observed DB control NOT_RED")
+        self.assertEqual(len((Path(outcome["attempt"])/"queries.jsonl").read_text().splitlines()), 3)
+        baseline = (outcome.get("environment_before") or {}).get("cpu_baseline")
+        samples = outcome.get("cpu_samples") or []
+        with self.subTest(population="external baseline"):
+            self.assertIsNotNone(baseline, "missing external CPU baseline before own D workers")
+            self.assertEqual(baseline["load1"], 1.5)
+            self.assertLess(baseline["observed_ns"], samples[0]["observed_ns"])
+        with self.subTest(population="actual runtime"):
+            self.assertTrue(samples, "missing CPU samples around actual native work")
+            self.assertTrue(any(row["phase"] == "running" and row["child_alive_at_start"] for row in samples))
+            self.assertEqual(samples[-1]["phase"], "final")
+            self.assertTrue(all(row["load1"] == runtime_load for row in samples))
+            self.assertTrue(all(row["includes_intentional_worker_load"] is True for row in samples))
+            self.assertTrue(all(row["above_noisy_threshold"] is (runtime_load > 2.5) for row in samples))
+        self.assertTrue(outcome["cleanup"]["complete"])
+
+    def test_actual_worker_load_is_sampled_without_relabeling_external_baseline(self):
+        self.check_observation(3.0)
+
+    @settings(max_examples=2, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.sampled_from([2.0, 2.5, 2.51, 4.0]))
+    def test_actual_native_calls_survive_noisy_label_threshold_without_sample_deletion(self, value):
+        self.check_observation(value)
+
+    def test_unavailable_required_cpu_baseline_refuses_actual_child(self):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        healthy = run_manifest(manifest, root/"healthy")[0]
+        self.assertEqual(healthy["status"], "complete", "ordinary actual database control NOT_RED")
+        manifest["cells"][0]["cpu_observation"] = True
+        def unavailable():
+            raise OSError("required CPU observation unavailable")
+        outcome = run_manifest(manifest, root/"unavailable", load=unavailable)[0]
+        self.assertIsNone(outcome["pid"], "unavailable CPU baseline still launched actual native work")
+        self.assertTrue(outcome["reason"].startswith("cpu_load_unavailable"))
+
+
 if __name__ == "__main__":
     unittest.main()

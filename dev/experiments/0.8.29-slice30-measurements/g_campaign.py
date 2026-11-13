@@ -1,6 +1,9 @@
 """G-only stage inventory; accepted P scheduling and results stay unchanged."""
 
 from itertools import product
+import json
+from pathlib import Path
+import time
 
 from campaign import run_campaign
 
@@ -67,4 +70,32 @@ def make_g_plan(spec):
 
 def run_g_plan(spec, root, command):
     """Run a callable stage schedule with the existing owned-child attempt runner."""
-    return run_campaign(make_g_plan(spec), root, command, timeout=spec["limits"]["cell_seconds"])
+    plan = make_g_plan(spec)
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    budget_path = root / "g-budget.json"
+    budget = (json.loads(budget_path.read_text()) if budget_path.exists() else
+              {"schema": "slice30-gd-budget/v1", "used_ns": 0, "inflight": None})
+    if (budget.get("schema") != "slice30-gd-budget/v1"
+            or type(budget.get("used_ns")) is not int or budget["used_ns"] < 0):
+        raise ValueError("invalid shared G/D allocation record")
+    outcomes = []
+    for cell in plan:
+        reason = ("unfinished_shared_attempt" if budget.get("inflight") else
+                  "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else None)
+        if reason:
+            outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
+                             "complete": False, "reason": reason})
+        else:
+            started = time.monotonic_ns()
+            budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
+            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+            try:
+                remaining = (14400 * 10**9 - budget["used_ns"]) / 10**9
+                outcomes.extend(run_campaign([cell], root, command, timeout=min(900, remaining)))
+            finally:
+                budget["used_ns"] += time.monotonic_ns() - started
+                budget["inflight"] = None
+                budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+        (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+    return outcomes

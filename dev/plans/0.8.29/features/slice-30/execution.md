@@ -569,3 +569,11 @@ aggregate-cap qualification; those controller units remain required.
   exhausted G/D allocation still launched an actual child`. One runtime test
   failed, exit 1, no resource stop. It does not qualify model, database or GPU
   behavior. All 84 required cells must remain explicit when refused.
+
+- Shared-allocation guard GREEN: `g-t10-cumulative-green` passes both controller
+  tests (exit 0, no resource stop); frozen exhausted-budget assertions are
+  unchanged from `4ad1a64c9`. G-only persisted usage and unfinished-attempt
+  records accompany the guard. `g-outcomes.json` retains all required refused
+  rows. Ruff passes. This establishes exhaustion refusal and scheduling only;
+  production dispatch, preparation/deadline propagation, storage/scale checks,
+  fresh-store enforcement and final registration remain pending.

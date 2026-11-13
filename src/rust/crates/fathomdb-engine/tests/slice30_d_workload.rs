@@ -173,6 +173,18 @@ fn writer_input_case(
     observer: bool,
     queries: Option<&[Value]>,
 ) -> PathBuf {
+    writer_population_case(appended, cohort, warmups, readiness, observer, queries, false)
+}
+
+fn writer_population_case(
+    appended: usize,
+    cohort: usize,
+    warmups: usize,
+    readiness: bool,
+    observer: bool,
+    queries: Option<&[Value]>,
+    empty_start: bool,
+) -> PathBuf {
     let root = tempfile::Builder::new().prefix("s30-d-writer-").tempdir().unwrap().keep();
     println!(
         "writer fixture {} appended={appended} cohort={cohort} warmups={warmups}",
@@ -189,7 +201,7 @@ fn writer_input_case(
     ];
     let appended_records:Vec<_>=(0..appended).map(|i|json!({"id":format!("tail-{i}"),"kind":"note","body":format!("append evidence {i} é")})).collect();
     let config = root.join("cell.json");
-    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4,"readiness":readiness,"observer":observer,"queries":queries})).unwrap()).unwrap();
+    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4,"readiness":readiness,"observer":observer,"queries":queries,"empty_start":empty_start})).unwrap()).unwrap();
     let binary = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
         .join("release/examples/slice30_gd_diagnostic");
     println!("binary before runtime SHA256 {}", digest(&binary));
@@ -223,11 +235,13 @@ fn writer_input_case(
         "API/setup failed NOT_RED: {}",
         std::fs::read_to_string(root.join("stderr.log")).unwrap()
     );
-    let metadata: Value =
-        serde_json::from_slice(&std::fs::read(out.join("template/template.json")).unwrap())
-            .unwrap();
-    assert_eq!(metadata["coverage"]["verified"], true);
-    assert_eq!(metadata["closed_main_sha256"], digest(&out.join("template/template.sqlite")));
+    if !empty_start {
+        let metadata: Value =
+            serde_json::from_slice(&std::fs::read(out.join("template/template.json")).unwrap())
+                .unwrap();
+        assert_eq!(metadata["coverage"]["verified"], true);
+        assert_eq!(metadata["closed_main_sha256"], digest(&out.join("template/template.sqlite")));
+    }
     let rows: Vec<Value> = std::fs::read_to_string(out.join("queries.jsonl"))
         .unwrap()
         .lines()
@@ -242,7 +256,9 @@ fn writer_input_case(
         assert_eq!(row["ok"], true);
         assert!(row["elapsed_ns"].as_u64().unwrap() > 0);
         let ids = row["ids"].as_array().unwrap();
-        assert!(!ids.is_empty());
+        if !empty_start {
+            assert!(!ids.is_empty());
+        }
         assert!(ids.iter().all(|id| permitted.contains(id.as_str().unwrap())));
     }
     let path = out.join("writes.json");
@@ -302,7 +318,8 @@ fn writer_input_case(
         assert_eq!(
             db.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get::<_, usize>(0))
                 .unwrap(),
-            2 + appended
+            appended + if empty_start { 0 } else { 2 },
+            "unexpected seed population in requested empty-start route"
         );
     }
     let wal = PathBuf::from(format!("{}-wal", out.join("query.sqlite").display()));
@@ -613,4 +630,53 @@ proptest! {
         let queries=indices.into_iter().map(|i|{let query=["alpha","beta","évidence 🐟","neverhit"][i]; json!({"id":i,"query":query})}).collect();
         verify_query_population(queries);
     }
+}
+
+fn verify_empty_population(rows: usize, cohort: usize, warmups: usize) {
+    let queries = vec![json!({"id":0,"query":"record"})];
+    let out = writer_population_case(rows, cohort, warmups, true, false, Some(&queries), true);
+    let initial: Value =
+        serde_json::from_slice(&std::fs::read(out.join("initial.json")).unwrap()).unwrap();
+    assert_eq!(initial["pending_count"], 0);
+    assert_eq!(initial["usable_embedder"], true);
+    for key in
+        ["canonical_nodes", "vector_default", "_fathomdb_vector_rows", "_fathomdb_vector_spans"]
+    {
+        assert_eq!(initial[key], 0);
+    }
+    assert_eq!(
+        initial["profile"],
+        json!({"name":"varying","revision":"perf-gates-dense","dimension":768})
+    );
+    assert_eq!(initial["projection_workers"], 2);
+    assert_eq!(initial["provider_workers"], 5);
+    let calls: Vec<Value> = std::fs::read_to_string(out.join("queries.jsonl"))
+        .unwrap()
+        .lines()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+    let initial_end = initial["end_ns"].as_u64().unwrap();
+    for call in calls {
+        assert!(initial_end <= call["start_ns"].as_u64().unwrap());
+        if call["phase"] == "warmup" {
+            assert!(
+                call["ids"].as_array().unwrap().is_empty(),
+                "empty-store warmup is an actual call, not a seed shortcut"
+            );
+        }
+        assert!(call["ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|id| id.as_str().unwrap().starts_with("l:tail-")));
+    }
+}
+#[test]
+fn empty_start_has_no_seed_rows_before_actual_governed_population() {
+    verify_empty_population(7, 3, 2);
+}
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301307),..ProptestConfig::default()})]
+    #[test]
+    fn empty_population_preserves_exact_totals_prefix_and_partial_cohorts(rows in 1usize..9,cohort in 1usize..5,warmups in 0usize..3){verify_empty_population(rows,cohort,warmups);}
 }

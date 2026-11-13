@@ -664,6 +664,52 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     result
 }
 
+#[cfg(feature = "slice30-observer")]
+type GObservation = Option<fathomdb_engine::Slice30ObservationGuard>;
+#[cfg(not(feature = "slice30-observer"))]
+struct GObservation;
+
+fn begin_g_observation(engine: &Adapter, enabled: bool) -> GObservation {
+    #[cfg(feature = "slice30-observer")]
+    {
+        enabled.then(|| engine.begin_observation())
+    }
+    #[cfg(not(feature = "slice30-observer"))]
+    {
+        let _ = engine;
+        assert!(!enabled, "G diagnostic collection requires slice30-observer build");
+        GObservation
+    }
+}
+
+fn observe_g_operation(
+    engine: &Adapter,
+    route: &str,
+    query: &str,
+    operation: u64,
+    observation: &GObservation,
+) -> (Value, Option<Value>) {
+    #[cfg(feature = "slice30-observer")]
+    let mut row = if let Some(observation) = observation {
+        observation.with_operation(operation, || observe_g_route(engine, route, query))
+    } else {
+        observe_g_route(engine, route, query)
+    };
+    #[cfg(not(feature = "slice30-observer"))]
+    let mut row = {
+        let _ = observation;
+        observe_g_route(engine, route, query)
+    };
+    row["operation_id"] = json!(operation);
+    #[cfg(feature = "slice30-observer")]
+    let trace = observation.as_ref().map(|observation| {
+        serde_json::to_value(observation.take()).expect("encode actual G batch")
+    });
+    #[cfg(not(feature = "slice30-observer"))]
+    let trace = None;
+    (row, trace)
+}
+
 fn run_g_read(config: &Value, out: &Path) -> Value {
     let provider = config["provider"].as_str().expect("G provider");
     let negative = config["negative_control"] == true;
@@ -681,34 +727,125 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     std::fs::create_dir_all(out).expect("owned G read output");
     let queries = read_jsonl(config["queries"].as_str().expect("G queries"));
     assert!(!queries.is_empty());
+    let number = |key: &str| usize::try_from(config[key].as_u64().expect("G call count")).unwrap();
+    let samples = number("samples");
+    let warmup = number("warmup");
+    assert!(samples > 0);
+    let observed = config["observe"] == true;
     let mut recorder = Recorder::new_g(out);
     let mut rows = Vec::new();
+    let mut warmups = Vec::new();
+    let mut first_calls = Vec::new();
+    let mut traces = Vec::new();
     let mut fixtures = Vec::new();
+    let mut passes = Vec::new();
+    let mut operation = 1_u64;
     for adapter in config["adapters"].as_array().expect("G adapters") {
         let name = adapter.as_str().unwrap();
+        let opening = std::time::Instant::now();
         let engine = Adapter::open_g(name, store, provider);
+        let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
         let fixture = g_fixture_observation(&engine, store);
         assert!(
             negative || fixture["qualified_dense_fixture"] == true,
             "G read requires selected qualified dense store"
         );
         fixtures.push(fixture);
+        let observation = begin_g_observation(&engine, observed);
         for route in config["routes"].as_array().expect("G routes") {
             let route = route.as_str().unwrap();
-            let mut row = observe_g_route(&engine, route, &queries[0]);
-            row["adapter"] = json!(name);
-            row["sample_index"] = json!(0);
-            row["query_index"] = json!(0);
-            recorder.emit("samples", &row);
-            rows.push(row);
+            let mut publish = |stream: &'static str, phase: &str, index: usize| {
+                let (mut row, trace) = observe_g_operation(
+                    &engine,
+                    route,
+                    &queries[index % queries.len()],
+                    operation,
+                    &observation,
+                );
+                row["adapter"] = json!(name);
+                row["repeat"] = config["repeat"].clone();
+                row["sample_index"] = json!(index);
+                row["query_index"] = json!(index % queries.len());
+                row["phase"] = json!(phase);
+                recorder.emit(stream, &row);
+                if let Some(mut trace) = trace {
+                    trace["adapter"] = json!(name);
+                    trace["route"] = json!(route);
+                    trace["phase"] = json!(phase);
+                    trace["sample_index"] = json!(index);
+                    trace["operation_id"] = json!(operation);
+                    recorder.emit("observations", &trace);
+                    traces.push(trace);
+                }
+                operation += 1;
+                row
+            };
+            first_calls.push(publish("first-calls", "first_call", 0));
+            for index in 0..warmup {
+                warmups.push(publish("warmups", "warmup", index));
+            }
+            // End phase checkpoints before starting the measured loop wall.
+            recorder.flush_all();
+            let measured = std::time::Instant::now();
+            for index in 0..samples {
+                let (mut row, trace) = observe_g_operation(
+                    &engine,
+                    route,
+                    &queries[index % queries.len()],
+                    operation,
+                    &observation,
+                );
+                row["adapter"] = json!(name);
+                row["repeat"] = config["repeat"].clone();
+                row["sample_index"] = json!(index);
+                row["query_index"] = json!(index % queries.len());
+                row["phase"] = json!("measured");
+                recorder.emit("samples", &row);
+                if let Some(mut trace) = trace {
+                    trace["adapter"] = json!(name);
+                    trace["route"] = json!(route);
+                    trace["phase"] = json!("measured");
+                    trace["sample_index"] = json!(index);
+                    trace["operation_id"] = json!(operation);
+                    recorder.emit("observations", &trace);
+                    traces.push(trace);
+                }
+                operation += 1;
+                rows.push(row);
+            }
+            recorder.flush_all();
+            passes.push(json!({"adapter":name,"route":route,"open_ns":open_ns,
+                "wall_ns":u64::try_from(measured.elapsed().as_nanos()).unwrap(),
+                "requests":samples,"collector":observed,
+                "throughput_scope":"natural route loop includes recording/checkpoint I/O and enabled diagnostics"}));
         }
+        #[cfg(feature = "slice30-observer")]
+        drop(observation);
         engine.close();
         drop(engine);
     }
     recorder.flush_all();
-    let result = json!({"complete":true,"negative_control":negative,"sample_count":rows.len(),
-        "warmup_count":0,"first_call_count":0,"samples":rows,"warmups":[],"first_calls":[],
-        "observation_batches":[],"passes":[],"fixtures":fixtures});
+    let outcomes_ok = rows.iter().chain(&warmups).chain(&first_calls).all(|row| {
+        if negative && row["route"] == "embed" {
+            row["ok"] == false && row["error_kind"] == "EmbedderNotConfiguredError"
+        } else {
+            row["ok"] == true
+                && (row["route"] != "embed" || (row["dimension"] == 384 && row["finite"] == true))
+        }
+    });
+    let attribution_ok = !observed
+        || (traces.len() == rows.len() + warmups.len() + first_calls.len()
+            && traces.iter().all(|trace| {
+                trace["dropped_records"] == 0
+                    && trace["issues"] == json!([])
+                    && trace["records"].as_array().is_some_and(|records| !records.is_empty())
+            }));
+    let result = json!({"complete":outcomes_ok && attribution_ok,"negative_control":negative,
+        "sample_count":rows.len(),"warmup_count":warmups.len(),"first_call_count":first_calls.len(),
+        "samples":rows,"warmups":warmups,"first_calls":first_calls,
+        "observation_batches":traces,"passes":passes,"fixtures":fixtures,
+        "raw_persistence":recorder.statistics_since([0;5]),
+        "cache_note":"first-call,readiness and warmup probes precede timed calls; OS caches uncontrolled; collector overhead uncorrected"});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result
 }

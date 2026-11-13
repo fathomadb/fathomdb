@@ -21,7 +21,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
 | [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
-| [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Two actual normal-program controls: engine/SDK collector+nested unwind and shared public seed/configure/drain/report/reopen. Both use no provider and never qualify dense/GPU work. Canonical runner registration remains pending before final gate. |
+| [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Five actual normal-program controls: engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,and shared first/warmup/read/off-on populations. Both use no provider and never qualify dense/GPU work. Canonical runner registration remains pending before final gate. |
 | [test_tools.py](test_tools.py) | Fourteen bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
 
 The Rust example's six independently specified real-store assertions are
@@ -149,7 +149,15 @@ batch, and reports actual successful chunk lengths/receipt cursors. P's1024 loop
 is unchanged. Positive G seed calls must receive the controller's numeric
 remaining_cell_ms in0..=900000; it can only reduce the fixed cap. Negative source
 controls may omit it. Zero allowance returns NOT_RUN_CAP_TIME before DB creation;
-after any preparation, exhausted allowance remains PARTIAL_CAP_TIME with the
+after database creation, exhausted allowance remains PARTIAL_CAP_TIME with the
 owned store retained. driver_wall_ns starts before corpus/query read and output
 setup. It is not the full parent cell clock: outer controller startup/config
 read/final reporting and aggregate14400s/16GiB enforcement remain required.
+
+The shared G read driver now emits separate first-call/warmup/measured streams,
+per-route loop walls and actual operation batches when enabled, outside each
+outer API timer. Ordinary and diagnostic variants use the same current route
+calls; ordinary builds reject requested collection and carry no engine observer
+state. Tiny negative route controls are not the final G-O branch/time matrix or
+positive Default workload. That production configuration, normal G-W wiring and
+whole-cell/cumulative controller remain pending.

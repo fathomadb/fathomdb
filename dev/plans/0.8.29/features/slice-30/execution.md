@@ -428,3 +428,26 @@ start/enforce the whole-cell deadline before its preparation and charge actual
 all-attempt wall time to the unchanged14400s/16GiB allocation. This pending
 integration is not silently claimed complete, and no original seed receipt is
 retrospectively relabelled as whole-cell budget proof. No model/GPU run occurred.
+
+Read-route GREEN follows frozen RED867e2a6ed only after the bounded seed repairs.
+g-t10-read-green and distinct g-t10-read-green-final pass5/5 actual normal-child
+tests, including negative2-adapter/3-route populations12measured,6warmups and
+6separate first calls; diagnostic control returns24 nonempty owned operation
+batches, collector-off returns0. Raw stream counts and literal text IDs are
+checked independently of cell metadata. Five-test runtime oracle
+0191a03659e88ab3007125c462443316f10c08c9 remains byte-stable.
+
+Feature-positive Clippy passes. Initial default-build g-t10-read-default-clippy
+fails let_unit_value for the diagnostic-off wrapper placeholder. A private empty
+marker replaces the unit alias without observation state/clocks; distinct
+g-t10-read-default-clippy-fixed passes. Failed/remaining work resumes only; final
+normal-program build/test then passes5/5, no resource stop. API clocks end before
+record/take/JSONL work; loop wall includes recording/checkpoint/diagnostic costs,
+and no corrected/exclusive GPU latency is inferred. Positive embed completion
+requires384 finite values, but no Default/model/GPU call has yet run.
+
+This milestone is shared read/population/collection wiring, not the final G-O
+synthetic branch/time/natural50 configuration or positive dense qualification.
+Normal G-W and G0 fixture wiring, G-only table/stage/prereg/whole-cell+cumulative
+cap/refusal/retained-not-run controls, consumers/runner registration, final
+full/native gate and technical-GO GPU campaign/fresh final review remain required.

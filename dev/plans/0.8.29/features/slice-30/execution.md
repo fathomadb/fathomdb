@@ -835,3 +835,17 @@ aggregate-cap qualification; those controller units remain required.
 - `g-registration-static` (test-target inventory tests), `g-registration-tiers`
   (exact tier totality), Ruff, Python syntax and Bash syntax pass. This is
   static registration only, not native suite execution or full qualification.
+
+### G owned timeout RED
+
+- `g-t10-owned-timeout-red` starts an actual harmless Python descendant under
+  the first command and witnesses its start. The inherited attempt runner
+  terminates only its direct child at the remaining allowance; the descendant
+  subsequently writes an owned late marker. The literal runtime assertion fails
+  `owned descendant escaped the cell timeout and wrote after termination`.
+  One failure, exit 1, no resource stop. The delayed child exits within the test;
+  no product/native process, DB, GPU or external fault is involved.
+- Frozen expectations require owned-attempt descendants to stop at timeout, the
+  timed-out attempt/log retained, and all 83 otherwise permitted obligations
+  still processed. Accepted P runner behavior/evidence will not be rewritten;
+  this correction belongs to a G-only owned-attempt runner.

@@ -228,3 +228,35 @@ class GScaleFeasibilityTests(unittest.TestCase):
             lower = Path(next(row["attempt"] for row in outcomes if row["id"] == "g1-n10000"))
             self.assertEqual((lower / "lower-observed.raw").stat().st_size, 1024**3)
             self.assertGreaterEqual(outcomes[2]["prediction"]["seed_bytes"], 20 * 1024**3)
+
+class GOwnedTimeoutTests(unittest.TestCase):
+    def test_timed_out_harmless_child_descendant_cannot_continue_after_its_owned_attempt(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ready, late = root / "descendant-started", root / "descendant-late-write"
+            (root / "g-budget.json").write_text(json.dumps({
+                "schema": "slice30-gd-budget/v1", "used_ns": 899_700_000_000,
+                "cell_used_ns": {"g0-smoke": 899_700_000_000}, "inflight": None,
+            }))
+            descendant = "\n".join([
+                "import pathlib,time",
+                f"pathlib.Path({str(ready)!r}).write_text('actual descendant started')",
+                "time.sleep(0.5)",
+                f"pathlib.Path({str(late)!r}).write_text('escaped timeout')",
+            ])
+            code = "\n".join([
+                "import json,pathlib,subprocess,sys,time",
+                "cell=json.loads(pathlib.Path(sys.argv[1]).read_text())",
+                "if cell['id']=='g0-smoke':",
+                f"    subprocess.Popen([sys.executable,'-c',{descendant!r}])",
+                "    time.sleep(2)",
+                "(pathlib.Path(sys.argv[2])/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
+            ])
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code])
+            self.assertTrue(ready.exists(), "control did not establish an actual owned descendant")
+            self.assertFalse(late.exists(), "owned descendant escaped the cell timeout and wrote after termination")
+            self.assertEqual((outcomes[0]["status"], outcomes[0]["exit"]), ("failed", 124))
+            self.assertTrue(all(row["status"] == "complete" for row in outcomes[1:]))
+            self.assertEqual(len(outcomes), 84)
+            self.assertEqual(len(list((root / "g0-smoke").glob("attempt-*"))), 1)

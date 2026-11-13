@@ -89,11 +89,13 @@ fn observation(
     origin: Instant,
     engine: &Engine,
     path: &Path,
-    _config: &Value,
-    _out: &Path,
+    config: &Value,
+    out: &Path,
 ) -> Result<Value, ()> {
+    super::native_budget::phase(config, out, "observation")?;
     let (ready, readiness_time) = timed(origin, || engine.read_embedding_readiness().unwrap());
     let ready = readiness(ready);
+    super::native_budget::phase(config, out, "observation")?;
     let (sql, sql_time) = timed(origin, || snapshot(path));
     Ok(json!({"start_ns":readiness_time["start_ns"],"end_ns":sql_time["end_ns"],
         "readiness":ready,"readiness_time":readiness_time,"sql":sql,"sql_time":sql_time}))
@@ -144,7 +146,10 @@ pub(super) fn run(config: &Value, out: &Path) {
     engine.begin_d27_observation_for_test(origin);
     let configuration = engine.d27_observation_for_test().unwrap().configuration_observation;
     assert_eq!((configuration.scheduler_runtime_threads, configuration.embedder_pool_size), (2, 5));
-    let empty = observation(origin, engine, &store, config, out).unwrap();
+    let Ok(empty) = observation(origin, engine, &store, config, out) else {
+        engine.close().unwrap();
+        return;
+    };
     assert_eq!(empty["readiness"]["pending_count"], 0);
     assert_eq!(empty["sql"]["canonical_rows"], 0);
     assert_eq!(empty["sql"]["physical_vectors"], 0);
@@ -157,7 +162,11 @@ pub(super) fn run(config: &Value, out: &Path) {
         engine.close().unwrap();
         return;
     }
-    let idle = observation(origin, engine, &store, config, out).unwrap();
+    let Ok(idle) = observation(origin, engine, &store, config, out) else {
+        release_refused(hold, out);
+        engine.close().unwrap();
+        return;
+    };
     assert_eq!(idle["readiness"]["pending_count"], 0);
     assert_eq!(idle["sql"]["canonical_rows"], 0);
     super::d_workload::enable_observation(engine, config);
@@ -189,7 +198,11 @@ pub(super) fn run(config: &Value, out: &Path) {
         writes.push(json!({"clock":clock,"rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors}));
         super::d_workload::write_row(&mut raw_writes, writes.last().unwrap());
     }
-    let held = observation(origin, engine, &store, config, out).unwrap();
+    let Ok(held) = observation(origin, engine, &store, config, out) else {
+        release_refused(hold, out);
+        engine.close().unwrap();
+        return;
+    };
     assert_eq!(held["readiness"]["pending_count"], records.len());
     assert_eq!(held["sql"]["physical_vectors"], 0);
     super::d_workload::write_row(
@@ -249,7 +262,12 @@ pub(super) fn run(config: &Value, out: &Path) {
             release_refused(hold, out);
             return;
         }
-        Some(observation(origin, engine, &store, config, out).unwrap())
+        let Ok(after) = observation(origin, engine, &store, config, out) else {
+            release_refused(hold, out);
+            engine.close().unwrap();
+            return;
+        };
+        Some(after)
     } else {
         None
     };
@@ -269,7 +287,11 @@ pub(super) fn run(config: &Value, out: &Path) {
         engine.close().unwrap();
         return;
     }
-    let released = observation(origin, engine, &store, config, out).unwrap();
+    let Ok(released) = observation(origin, engine, &store, config, out) else {
+        retain_release_count(out, requests.get());
+        engine.close().unwrap();
+        return;
+    };
     assert_eq!(released["readiness"]["pending_count"], 0);
     assert_eq!(released["sql"]["physical_vectors"], records.len());
     super::d_workload::write_row(

@@ -169,3 +169,52 @@ class GSmokeDispatchTests(unittest.TestCase):
             self.assertEqual(corpus.read_text(), '"retained natural body"\n')
             self.assertEqual(queries.read_text(), '"retained natural question"\n')
             self.assertTrue(result["complete"])
+
+class GBranchDispatchTests(unittest.TestCase):
+    def test_six_tiny_diagnostics_use_separate_source_and_commit_subjects_under_one_cell(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        cell = next(row for row in make_g_plan(spec) if row["kind"] == "branches")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls = root / "calls.jsonl"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "config=json.loads(pathlib.Path(sys.argv[1]).read_text()); out=pathlib.Path(sys.argv[2])",
+                f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write(json.dumps(config)+'\\n')",
+                "assert not out.exists(); out.mkdir(parents=True)",
+                "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True,'boundary_epoch_s':2000000000}))",
+            ])
+            result = execute_stage(cell, {"command": [sys.executable, "-c", code],
+                                          "corpus": "frozen-natural-corpus.jsonl", "queries": "frozen-natural-queries.jsonl"},
+                                   root / "attempt", time.monotonic_ns() + 900 * 10**9)
+            actual = [json.loads(line) for line in calls.read_text().splitlines()]
+            self.assertEqual([row["family"] for row in actual],
+                             ["G-seed"] + ["G-O"] * 4 + ["G-source-fixture", "G-O"] + ["G-seed", "G-W"] * 4,
+                             "G-O did not retain every required tiny branch command")
+            self.assertEqual([row["diagnostic_case"] for row in actual],
+                             ["base_seed", "direct_text", "hybrid_no_dependencies", "hybrid_kind_filter", "no_match",
+                              "source_window", "source_window"] + ["commit_change"] * 8)
+            self.assertEqual([json.loads(line) for line in Path(actual[0]["corpus"]).read_text().splitlines()],
+                             [f"needle body{index}" for index in range(10)])
+            self.assertEqual(actual[1]["routes"], ["text"])
+            self.assertEqual(actual[2]["routes"], ["hybrid"])
+            self.assertEqual((actual[3]["routes"], actual[3]["diagnostic_filter_kind"]), (["hybrid"], "note"))
+            self.assertEqual(actual[4]["routes"], ["text", "hybrid"])
+            self.assertEqual([json.loads(line) for line in Path(actual[4]["queries"]).read_text().splitlines()],
+                             ["gdeliberatelyabsenttoken"])
+            source = actual[6]
+            self.assertEqual((source["routes"], source["samples"], source["diagnostic_valid_as_of_sequence"]),
+                             (["text", "hybrid"], 2, [1999999999, 2000000000]))
+            self.assertEqual(source["store"], str(Path(result["steps"][5]["output"]) / "store.sqlite"))
+            writes = [row for row in actual if row["family"] == "G-W"]
+            self.assertEqual([(row["adapters"], row["routes"]) for row in writes],
+                             [([adapter], [route]) for adapter in ["engine", "sdk"] for route in ["text", "hybrid"]])
+            self.assertEqual(len({row["store"] for row in writes}), 4)
+            self.assertTrue(all(row["store"] != actual[1]["store"] and row["warmup"] == 1
+                                and row["samples"] == 1 and row["batch_size"] == 1
+                                and row["searches_per_batch"] == 1 and row["record_first_call"] is False
+                                for row in writes))
+            self.assertTrue(all(row["observe"] is True and row["provider"] == "default"
+                                and row["negative_control"] is False for row in actual))
+            self.assertTrue(result["complete"])
+            self.assertEqual(len(result["steps"]), 15)

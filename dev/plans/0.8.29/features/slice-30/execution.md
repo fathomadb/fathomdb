@@ -797,3 +797,16 @@ aggregate-cap qualification; those controller units remain required.
   known tiny lexical control, leaving natural inputs untouched. Actual Default
   finite384 output, lexical/readiness/close/reopen and reserved3090 engagement
   remain later positive qualification obligations.
+
+### G six-branch command RED
+
+- `g-t10-branches-dispatch-red` runs actual harmless children and observes two
+  commands instead of the required 15-command composite: common seed; direct,
+  hybrid, filtered and no-match reads; public source fixture/view pair; four
+  separately seeded adapter/route commit controls. One literal runtime list
+  failure, exit 1, no resource stop.
+- Frozen command expectations retain every six-case diagnostic, separate source
+  and commit subjects, exact same-store future T-1/T sequence from the fixture's
+  returned boundary, and warmup-before-write/natural calls for commit comparison.
+  All commands share the single parent cell deadline. No DB/Default/GPU or
+  observed branch/snapshot claim is inferred from these controlled child reports.

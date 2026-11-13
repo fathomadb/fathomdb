@@ -84,8 +84,16 @@ def run_g_plan(spec, root, command, prepare=None):
     if (budget.get("schema") != "slice30-gd-budget/v1"
             or type(budget.get("used_ns")) is not int or budget["used_ns"] < 0):
         raise ValueError("invalid shared G/D allocation record")
+    state_path = root / "campaign-state.json"
+    previous = ({row["id"]: row for row in json.loads(state_path.read_text())}
+                if state_path.exists() else {})
     outcomes = []
     for cell in plan:
+        completed = previous.get(cell["id"])
+        if completed and completed.get("status") == "complete" and completed.get("cell") == cell:
+            outcomes.append(completed)
+            (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+            continue
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
                   "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
                   "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else None)

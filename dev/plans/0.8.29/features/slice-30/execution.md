@@ -623,3 +623,11 @@ aggregate-cap qualification; those controller units remain required.
   One runtime failure, exit 1, no resource stop. Existing oracles are unchanged;
   the separately frozen preparation test intentionally remains RED during this
   scoped finding repair.
+
+- Completed-resume finding GREEN: `g-t10-resume-finding-green` passes the four
+  applicable frozen controller cases (inventory, initial exhaustion, retained
+  storage and completed resume), exit 0, no resource stop; Ruff passes. The
+  `c917fe11a` resume oracle is unchanged. A matching completed actual outcome is
+  copied verbatim before any exhausted/inflight refusal; only outstanding cells
+  receive refusal rows. The preparation correction is still held separately,
+  and the entire five-test controller suite is not claimed GREEN at this point.

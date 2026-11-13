@@ -108,8 +108,9 @@ def resource_sample(roots, task, baseline, deadline=None):
     from pathlib import Path
     import shutil
     import time
-    measured = [measure_root(path) for path in roots]
-    raw = [measure_root(task / name) if (task / name).exists()
+    probe_deadline = min(deadline, time.monotonic()+5) if deadline is not None else None
+    measured = [measure_root(path, deadline=probe_deadline) for path in roots]
+    raw = [measure_root(task / name, deadline=probe_deadline) if (task / name).exists()
            else {"allocated":0, "apparent":0} for name in ("g", "d")]
     mem = dict(line.split(":",1) for line in Path("/proc/meminfo").read_text().splitlines())
     vm = dict(line.split() for line in Path("/proc/vmstat").read_text().splitlines())

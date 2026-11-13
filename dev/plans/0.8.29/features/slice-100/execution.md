@@ -120,3 +120,39 @@ floors. Only own registered actors; untouched files precede observer/retry.
 No exploratory debugger campaign or automatic retry. Exact final-SHA commands
 will be sent directly to parent; no further execution is presently authorized.
 Own setup and final full verification can proceed while fault scope is pending.
+
+## Incomplete full gate and bounded monitor repair
+
+Canonical owned Python3.13 noneditable production-wheel setup completed after a
+preserved offline-source-cache miss; failed/remaining build passed. Own locked TS
+tooling is installed. Full wrapper ran once at clean09f9506e1: all lint,
+typecheck and strict security stages passed (including real unconfined ptrace and
+live egress controls). The collector passed Windows attribution in555000ms and
+all reached suites except pages-site/tegra-pages-retention, whose shared cause
+was a stale generated contributor-map source hash for the new test registration.
+Canonical generation changes exactly that one comment, no oracle/prose/API.
+
+The wrapper stopped during cold Rust test compilation before collector totals:
+resource du observed concurrently removed own rcgu.o/rustc paths. Child exit-15,
+monitor exit2;343 valid samples, no floor/cap breach, final tracked delta empty.
+Last valid allocation11,103,324,045B was below64GiB. Bounded registered/adopted
+cleanup reported no errors; exact recorded actors are absent unconfined. Original
+receipt/full stdout/stderr remain receipts/full-verify-first.json and matching
+logs/. Rust, bindings and subsequent collector suites are unfinished, not passes.
+
+Resource metadata RED54304c131 uses real controlled du diagnostics. The first
+GREEN attempt exposed a new fixture precondition: empty directories have zero
+apparent size here. A positive payload preserves the assertion; corrected test
+REDa6c643aaf still failed against exact pre-fix09f9506e1. Unchanged corrected
+controls then passed with minimal GREEN:20total, including original17 unchanged.
+At most3 fresh measurements are allowed only when every diagnostic is ENOENT for
+a resolved own-root path still absent. Permission/mixed/outside-root/other errors
+and exhaustion fail closed; no partial size result is used. Retry diagnostics
+are retained in samples. Caps/floors and Q1 case attempts remain unchanged.
+
+This is monitor/tool repair, not product failure. Original RED, first owned0
+fixture attempt and incomplete full wrapper remain distinct. Resume only failed
+site/retention and actually unfinished collector suites after scoped checks;
+reuse passed lint/typecheck/security evidence with exact source-input limits.
+No second full wrapper or uninterrupted full-green claim follows. Additional Q1
+fault scope and corrected actual exit/recovery qualification remain held.

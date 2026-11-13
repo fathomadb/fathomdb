@@ -26,6 +26,11 @@ It changes no production erasure/API/SQLite/VFS/schema behavior or existing85 fi
   for resume-before-exit notification and wrong-SIGTERM refusal. Committed runtime
   RED/separate GREEN;17total controls pass. Proof/exit/utility subjects are
   synthetic, with no debugger, ptrace, OS fault or product/recovery proof.
+- `test_resource_measurement.py`: controlled real-du metadata regression for
+  owned vanished files, bounded retry exhaustion and strict outside/permission/
+  mixed-error refusal. Positive fixture corrected without assertion changes,
+  shown RED against pre-fix source, then unchanged GREEN;20total controls pass.
+  Metadata retry never retries a product/fault case or changes resource limits.
 - `src/rust/crates/fathomdb-engine/tests/slice100_interruption.rs`: ignored Q1
   normal-success child, raw observer/retry and G2 children. Its Linux regular G2
   parent executes one rich healthy control and the four reviewed existing-hook

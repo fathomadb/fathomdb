@@ -5,15 +5,20 @@ executions. Entry3c34cd19 includes accepted70 e875f360 and20 f803a964 with exact
 reviewed03bdd/f803 src/lock identity. The read-only current-evidence, Q1 metadata
 and protocol packets passed independent Astra review; the maintained-plan recheck passed at c1226d1bf and parent implementation GO
 was recorded at5f8f12071. Own ownership and closed10/resource preflight passed.
-100 owns the transferred native window; Q1 remains technically held.
+Actual bounded G2 composition and own Q1 healthy execution passed; the first
+independently witnessed interruption remains UNQUALIFIED in operator exit handling,
+with no raw-snapshot/recovery result. [Execution](execution.md) retains precise
+subjects, real tool RED/GREEN and current20controls. Source review accepted the
+interrupt transition; bounded monitor repair and final qualification remain.
 
-Seq-371 approves the specific verification-only additions; seq-372 separately
-selects bounded Q1 on the local unconfined executor. [Owner decisions](owner-decisions.md)
-retain source review, actor/identity/runtime readiness and parent technical GO.
-No native tools/artifacts/venv are borrowed. [Execution](execution.md) records
-source/static controls and outstanding Rust/G2/native qualification; no Q1
-debugger or fault execution has occurred. Keep original diagnostics/exits; full source-phase verification
-runs once on the stable implementation phase, not for this plan-only update.
+Seq-371 approves specific verification additions; seq-372's one actual witnessed
+signal has been issued. No second Q1 fault is authorized. Original healthy proof
+is retained; strict matching still requires a new healthy at any newly scoped
+frozen subject. Own native/TS setup is complete, with no borrowed artifacts.
+The one full wrapper passed lint/typecheck/security, then stopped incompletely
+on du disappearance during Rust compilation, after two generated-doc site failures.
+Continue only failed/unfinished checks; do not rerun the whole wrapper or infer
+an uninterrupted PASS. All original diagnostics/exits remain retained.
 
 ## Existing proof to reuse before writing tests
 

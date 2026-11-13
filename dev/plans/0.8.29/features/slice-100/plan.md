@@ -13,7 +13,7 @@ for any approved implementation, then a fresh independent implementation review.
 No Steward/Orchestrator role or nested agent. Reviewed current-evidence,
 metadata and child/operator packets have independent Astra-medium PASS. The maintained-plan recheck passed at c1226d1bf; parent implementation GO
 was recorded at5f8f12071. [Execution](execution.md) distinguishes the coverage
-source checkpoint and static controls from pending native/Q1 qualification. Owner seq-371/372 select the narrow coverage exception and Q1 scope;
+source/G2/healthy results from incomplete interruption and remaining final qualification. Owner seq-371/372 select the narrow coverage exception and Q1 scope;
 [exact authority and holds](owner-decisions.md) distinguish approval from readiness.
 
 ## Authority and exact scope
@@ -51,8 +51,10 @@ No current product defect has been observed or established by this read-only
 audit. A before-commit hook is inside its active transaction; the premise that
 transaction-interior process-crash coverage is absent would be false. Conversely,
 neither checkpoint BUSY nor pre/post-call observations prove an abrupt exit
-inside active checkpoint work. G100-1 active-checkpoint reachability and G100-2 rich post-crash composition
-assertions remain open. Integrated20 supplies usable command/source execution
+inside active checkpoint work. Additional own100 healthy execution now proves
+native reachability, and the reviewed five G2 cells supply bounded rich composition.
+The first witnessed interruption remains UNQUALIFIED in operator exit handling;
+G100-1 completed interruption/recovery qualification and100/D28-09 remain open. Integrated20 supplies usable command/source execution
 inference for the existing controls under G100-3; final independent review
 remains. These are evidence classes, not three established bugs.
 

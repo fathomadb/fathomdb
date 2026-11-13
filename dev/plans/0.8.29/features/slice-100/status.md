@@ -107,9 +107,14 @@ No binary, native module or venv was borrowed. G is unintegrated, not a prerequi
 The interrupt-only tool repair has real harmless scripted-MI runtime RED17190c0d3
 then minimal GREEN;17tool controls pass, including wrong-SIGTERM refusal. These
 launch no debugger/ptrace/product and cannot establish real debugger exit delivery.
-Original qualified healthy and incomplete interruption remain immutable. Repair
-review, explicit additional real execution scope, own Python/native setup and
-final full verification remain. No further Q1 launch or100/D28-09 closure follows.
+Original qualified healthy and incomplete interruption remain immutable.
+Owned Python/native and locked TS setup completed. The one full wrapper passed
+lint/typecheck/security, then stopped incompletely on an owned du disappearance
+race during Rust compilation;343 valid samples, no actual floor/cap breach.
+Two earlier site failures require one canonical generated source-hash update.
+Monitor RED54304c131/corrected REDa6c643aaf and unchanged20control GREEN preserve
+strict bounded ENOENT-only sampling. Repair review, failed/unfinished gate
+continuation and explicit additional Q1 scope remain. No further Q1 launch or100/D28-09 closure follows.
 
 ## Historical Phase A checks
 

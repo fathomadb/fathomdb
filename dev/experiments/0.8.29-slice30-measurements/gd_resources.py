@@ -40,7 +40,13 @@ def measure_root(path, deadline=None):
         for attempt in range(2):
             if deadline is not None and time.monotonic() >= deadline:
                 raise RuntimeError(f"owned size unverifiable: probe deadline exhausted before du {flag} {path}")
-            process = subprocess.run(["du", flag, str(path)], capture_output=True, text=True)
+            command = ["du", flag, str(path)]
+            try:
+                process = (_deadline_probe(command, deadline) if deadline is not None else
+                           subprocess.run(command, capture_output=True, text=True))
+            except RuntimeError as error:
+                row["warnings"].append(f"attempt {attempt+1}: {error}")
+                raise RuntimeError("owned size unverifiable: " + "\n".join(row["warnings"])) from error
             lines = process.stdout.splitlines()
             fields = lines[-1].split() if lines else []
             if process.returncode == 0 and fields and fields[0].isdigit():
@@ -55,6 +61,45 @@ def measure_root(path, deadline=None):
             if attempt == 1:
                 raise RuntimeError("owned size unverifiable: " + "\n".join(row["warnings"]))
     return row
+
+
+def _deadline_probe(command, deadline):
+    import subprocess
+    import tempfile
+    import time
+    if time.monotonic() + 0.02 >= deadline:
+        raise RuntimeError("probe deadline leaves no owned-child cleanup allowance")
+    # Files avoid an inherited pipe writer turning output collection into a wait.
+    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+        child = subprocess.Popen(command, stdout=stdout, stderr=stderr)
+        status = None
+        timely = False
+        try:
+            while True:
+                status = child.poll()
+                now = time.monotonic()
+                if status is not None:
+                    timely = now < deadline
+                    break
+                if now >= deadline-0.02:
+                    break
+                time.sleep(min(0.002, deadline-0.02-now))
+        finally:
+            if child.poll() is None:
+                try:
+                    child.kill()
+                except ProcessLookupError:
+                    pass
+                while time.monotonic() < deadline and child.poll() is None:
+                    time.sleep(min(0.002, max(0, deadline-time.monotonic())))
+        stdout.seek(0)
+        stderr.seek(0)
+        output, errors = stdout.read().decode(), stderr.read().decode()
+        if not timely or time.monotonic() >= deadline:
+            raise RuntimeError(f"probe deadline pid={child.pid} reaped={child.poll() is not None} "
+                               f"stdout={output!r} stderr={errors!r}")
+        assert status is not None
+        return subprocess.CompletedProcess(command, status, output, errors)
 
 
 def resource_sample(roots, task, baseline):

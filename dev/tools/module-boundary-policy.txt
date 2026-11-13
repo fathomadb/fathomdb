@@ -1,7 +1,7 @@
 # Engine architecture policy: reviewed owners, classifications and prohibitions.
 # The gate reads manifest feature closure for the three boundary axes and the
-# five actual helper cases below. Each feature set covers test/non-test,
-# Linux/non-Linux and debug/release (104 concrete points). New relevant cfg
+# seven actual helper cases below. Each feature set covers test/non-test,
+# Linux/non-Linux and debug/release (120 concrete points). New relevant cfg
 # predicates or edges active at no point fail; ML cases are not a consumer matrix.
 # The governed-module graph follows import/type/explicit dependencies.
 # The item graph follows calls, callable references and Engine fields/methods,
@@ -18,6 +18,8 @@ configuration-case ml-cpu default-embedder,default-reranker
 configuration-case ml-cuda embed-cuda,rerank-cuda
 configuration-case migration migration-test-hooks
 configuration-case slice72 slice72-test-hooks
+configuration-case slice30 slice30-measurement
+configuration-case slice30-hooks test-hooks,slice30-measurement
 configuration-case helpers test-hooks,operator,default-embedder,default-reranker,migration-test-hooks,slice72-test-hooks
 reported actuation
 reported actuation::tests
@@ -69,6 +71,10 @@ reported mean
 reported mean::mean_centering_internals_for_test
 reported maintenance_admission
 reported maintenance_admission::callback
+reported measurement_for_test
+reported measurement_for_test::projection
+reported measurement_for_test::projection::tests
+reported measurement_for_test::tests
 reported open
 reported open::default_embedder_load_error_tests
 reported open::device_policy_open_error_tests
@@ -240,6 +246,7 @@ local-macro identity caller_identity_newtype 7294cc907f93c51b
 unparsed-macro actuation::tests <module> proptest ddd003ceb259de46
 unparsed-macro evidence::tests <module> proptest 174c5b885c19479e
 unparsed-macro frozen_read::tests <module> proptest 8077e5a8a7846daf
+unparsed-macro measurement_for_test::tests <module> proptest dc38b6ee3b2fec24
 unparsed-macro pagination::tests <module> proptest b18a9c1d1a2ce7f9
 unparsed-macro root::tests <module> proptest ea8d95990855291e
 unparsed-macro visibility_coalescing_tests <module> proptest::proptest e248e1679fc0f020

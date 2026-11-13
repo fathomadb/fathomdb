@@ -1078,3 +1078,19 @@ aggregate-cap qualification; those controller units remain required.
   Unicode offsets, integrated normal CLI/feature consumers, then stable full
   qualification and fresh final review. Use the separately accepted source100
   strict owned-ENOENT sampler before any native executor; caps remain unchanged.
+
+### Complete-forecast remaining-allowance finding RED
+
+- Astra found that the complete G-W forecast was checked against a fresh900s
+  even after prior cell usage/assessment consumed allowance. No production
+  preparation or new forecast/report behavior was landed before this RED.
+- `g-runner-remaining-red` uses the existing prepare/context channel to retain
+  the complete literal forecast in the actual attempt receipt while leaving
+  controller dispatch unchanged. The first control has400s charged and600s
+  forecast (including100s seed) but still starts its real harmless command with
+  only500s left. The second consumes actual200ms in assessment from300ms left,
+  then still dispatches a200ms complete forecast. Both marker assertions fail
+  runtime; two failures, exit1, no resource stop.
+- Literal prior allowance/forecast tables are not measured timing evidence.
+  Actual assessment wall and command starts are independently witnessed. All33
+  existing controls and fixed caps remain unchanged.

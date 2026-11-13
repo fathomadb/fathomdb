@@ -511,5 +511,63 @@ class CopiedGCellTests(_NativeGFixture):
         self.check_copy(suffix)
 
 
+class ConditionalGTests(_NativeGFixture):
+    check_owned_preparation=OwnedGTTests.check_owned_preparation
+
+    def check_admission(self,feasible):
+        lower=self.check_owned_preparation("conditional é")
+        self.assertEqual(lower["status"],"complete","actual completed lower population NOT_RED")
+        results=Path(lower["attempt"]).parents[1]
+        source=results.parent/"target-corpus.jsonl"
+        source.write_text("".join(json.dumps(f"budget target {i}")+"\n" for i in range(66)))
+        projected=(lower["cell_elapsed_ns"]*66*3+65*2-1)//(65*2)
+        seconds=150 if feasible else 30+projected*0.75/1_000_000_000
+        cell=dict(self.config,id="g/gt-target",family="G_PREPARE",artifact="gn",group="GT",n=66,
+                  lower="gt-source",corpus=str(source),questions=lower["cell"]["questions"],query_count=3)
+        manifest={"schema":"slice30-gd/source-fixture-v1","cell_seconds":seconds,"campaign_seconds":14400,
+                  "artifacts":{"gn":{"path":str(self.binary),"sha256":self.features["binary_sha256"]}},"cells":[cell]}
+        snapshots=[]
+        def monitor(pid):
+            snapshots.append(_accounting(pid,min(self.work_end,time.monotonic()+5)))
+            return None
+        _sample_resources(self.resources,self.work_end,start=True)
+        with (self.task/"locks"/(GPU+".lock")).open("a") as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            before=_accounting(None,min(self.work_end,time.monotonic()+5))
+            if before["util"] or before["total_MiB"]-before["used_MiB"]<8192:
+                raise RuntimeError("approved GPU not quiet/free NOT_RED")
+            target=run_manifest(manifest,results,monitor=monitor,resources=self.resources)[0]
+        print(f"actual conditional GT {results} lower_ns={lower['cell_elapsed_ns']} projected={projected} feasible={feasible} pid={target['pid']}",flush=True)
+        if target["pid"] is not None:
+            if target["exit"]!=0 or target["status"]!="complete":
+                raise RuntimeError(f"actual target66 native/runtime setup NOT_RED {target}")
+            if not any(row["pid"]==target["pid"] and row["own_MiB"]>0 and row["util"]>0 for row in snapshots):
+                raise RuntimeError("actual target CUDA engagement absent NOT_RED")
+            with closing(sqlite3.connect(f"file:{Path(target['attempt'])/'case-0/template.sqlite'}?mode=ro",uri=True)) as db:
+                self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],66)
+        elif target.get("reason")!="conditional_not_feasible":
+            raise RuntimeError(f"external admission/resource failure NOT_RED {target}")
+        if not feasible:
+            self.assertIsNone(target["pid"],"lower-scale projection exceeded original remaining work but target native child was launched")
+            self.assertEqual(target["status"],"not_run_resource")
+        else:
+            self.assertEqual(target["status"],"complete")
+        report=(target.get("admission") or (target.get("environment_before") or {}).get("admission"))
+        assert report is not None,"actual conditional decision did not retain its observed lower-scale forecast"
+        self.assertEqual(report["time"]["projected_ns"],projected)
+        self.assertGreater(report["storage"]["additional_bytes"],0)
+
+    def test_actual_lower_scale_refuses_target_before_remaining_work_is_exceeded(self):
+        self.check_admission(False)
+
+    def test_fitting_actual_source_target_retains_admission_observations(self):
+        self.check_admission(True)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.booleans())
+    def test_actual_lower_observation_admits_only_fitting_source_targets(self,feasible):
+        self.check_admission(feasible)
+
+
 if __name__ == "__main__":
     unittest.main()

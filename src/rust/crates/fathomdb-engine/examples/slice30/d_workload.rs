@@ -4,6 +4,7 @@ use fathomdb_engine::{
     Engine, InitialState, PreparedWrite, ReadView, SourceId, TestEmbedderChoice,
 };
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
@@ -35,7 +36,10 @@ pub(super) fn run(config: &Value, out: &Path) {
     let warmups = usize::try_from(config["warmups"].as_u64().unwrap()).unwrap();
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
     for sample in 0..warmups {
-        write_row(&mut output, &query_row(engine, origin, "warmup", sample));
+        write_row(
+            &mut output,
+            &query_row(engine, origin, "warmup", sample, request(config, sample)),
+        );
     }
     if let Some(records) = config["write_records"].as_array() {
         let cohort = usize::try_from(config["cohort"].as_u64().unwrap()).unwrap();
@@ -97,7 +101,10 @@ pub(super) fn run(config: &Value, out: &Path) {
             }
             release.send(launch_ns).unwrap();
             for sample in 0..samples {
-                write_row(&mut output, &query_row(engine, origin, "timed", sample));
+                write_row(
+                    &mut output,
+                    &query_row(engine, origin, "timed", sample, request(config, sample)),
+                );
             }
             let writes = writer.join().unwrap();
             if let Some(readiness) = readiness {
@@ -116,7 +123,10 @@ pub(super) fn run(config: &Value, out: &Path) {
         engine.drain(5000).unwrap();
     } else {
         for sample in 0..samples {
-            write_row(&mut output, &query_row(engine, origin, "timed", sample));
+            write_row(
+                &mut output,
+                &query_row(engine, origin, "timed", sample, request(config, sample)),
+            );
         }
     }
     output.flush().unwrap();
@@ -135,12 +145,29 @@ fn write_row(output: &mut std::fs::File, row: &Value) {
     output.write_all(b"\n").unwrap();
 }
 
-fn query_row(engine: &Engine, origin: Instant, phase: &str, sample: usize) -> Value {
+fn request(config: &Value, sample: usize) -> Option<&Value> {
+    let queries = config["queries"].as_array()?;
+    assert!(!queries.is_empty());
+    Some(&queries[sample % queries.len()])
+}
+
+fn query_row(
+    engine: &Engine,
+    origin: Instant,
+    phase: &str,
+    sample: usize,
+    request: Option<&Value>,
+) -> Value {
+    let query = request.map_or("record", |r| r["query"].as_str().unwrap());
+    let fingerprint = request.map(|_| {
+        Sha256::digest(query.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>()
+    });
+
     let start_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
     let started = Instant::now();
     let result = engine
         .search_reranked_view_with_limit(
-            "record",
+            query,
             None,
             0,
             false,
@@ -153,10 +180,15 @@ fn query_row(engine: &Engine, origin: Instant, phase: &str, sample: usize) -> Va
         .unwrap();
     let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
     let end_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
-    json!({"phase":phase,"sample_index":sample,"query":"record",
+    let mut row = json!({"phase":phase,"sample_index":sample,"query":query,
     "start_ns":start_ns,"end_ns":end_ns,"elapsed_ns":elapsed_ns,"ok":true,
     "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
-    "soft_fallback":format!("{:?}",result.soft_fallback),"degradations":format!("{:?}",result.degradations)})
+    "soft_fallback":format!("{:?}",result.soft_fallback),"degradations":format!("{:?}",result.degradations)});
+    if let Some(request) = request {
+        row["query_id"] = request["id"].clone();
+        row["query_sha256"] = json!(fingerprint.unwrap());
+    }
+    row
 }
 
 fn unavailable(reason: &str) -> Value {

@@ -6,6 +6,7 @@ from pathlib import Path
 import signal
 import subprocess
 import time
+import traceback
 
 
 def unreaped_exit(child):
@@ -52,29 +53,42 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
     config.write_text(json.dumps(cell, indent=2) + "\n")
     argv = [*command, str(config), str(attempt)]
     error, child, code, complete = None, None, None, False
-    with (attempt / "child.log").open("wb") as log:
+    cleanup_uncertain = False
+    with (attempt / "child.log").open("w") as log:
         if time.monotonic_ns() >= deadline_ns:
             error = "cell timeout before child start"
         else:
             child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-            checked_at = None
-            while True:
-                code = unreaped_exit(child)
-                now = time.monotonic_ns()
-                remaining = (deadline_ns - now) / 10**9
-                if checked_at is None or now - checked_at >= 10**9 or code is not None:
-                    error = monitor(child.pid) if monitor else None
-                    checked_at = now
-                if remaining <= 0:
-                    error = error or "cell timeout"
-                if error:
-                    stop_owned_group(child)
-                    code = 124
-                    break
-                if code is not None:
-                    child.wait()
-                    break
-                time.sleep(min(0.01, remaining))
+            try:
+                checked_at = None
+                while True:
+                    code = unreaped_exit(child)
+                    now = time.monotonic_ns()
+                    remaining = (deadline_ns - now) / 10**9
+                    if checked_at is None or now - checked_at >= 10**9 or code is not None:
+                        error = monitor(child.pid) if monitor else None
+                        checked_at = now
+                    if remaining <= 0:
+                        error = error or "cell timeout"
+                    if error:
+                        code = 124
+                        break
+                    if code is not None:
+                        child.wait()
+                        break
+                    time.sleep(min(0.01, remaining))
+            except BaseException as failure:
+                code = 125
+                error = f"{type(failure).__name__}: {failure}"
+                traceback.print_exc(file=log)
+            finally:
+                if child.returncode is None:
+                    try:
+                        stop_owned_group(child)
+                    except BaseException as failure:
+                        cleanup_uncertain = True
+                        error = (error or "owned attempt failed") + f"; cleanup {type(failure).__name__}: {failure}"
+                        traceback.print_exc(file=log)
             result_path = attempt / "result.json"
             if code == 0 and error is None:
                 try:
@@ -82,7 +96,7 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
                 except (FileNotFoundError, json.JSONDecodeError):
                     error = "missing or partial result.json"
     outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "exit": code,
-               "child_exit": child.returncode if child else None,
+               "child_exit": child.returncode if child else None, "cleanup_uncertain": cleanup_uncertain,
                "status": "complete" if complete else "failed", "error": error,
                "elapsed_ns": time.monotonic_ns() - started, "environment_before": context,
                "started_at": started_at, "ended_at": time.time(), "deadline_ns": deadline_ns,

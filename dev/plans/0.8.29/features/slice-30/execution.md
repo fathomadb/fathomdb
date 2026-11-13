@@ -902,3 +902,11 @@ aggregate-cap qualification; those controller units remain required.
   tests; Ruff passes. No resource stops. The monitor-exception test intentionally
   remains RED and successful-leader descendant quiescence remains open, so no
   combined lifecycle GREEN is claimed yet.
+
+- Exception correction GREEN: `g-lifecycle-monitor-green` passes both frozen
+  lifecycle controls, and `g-lifecycle-monitor-controller-regression` passes the
+  unchanged nine controller tests; Ruff passes, no resource stops. The
+  `3aa81a280` monitor-exception assertion is unchanged. Live-child exceptions now
+  run bounded cleanup in finally, preserve full traceback and failed outcome,
+  and retain inflight if cleanup is uncertain. The successful-leader descendant
+  finding remains separately open; no combined lifecycle acceptance is claimed.

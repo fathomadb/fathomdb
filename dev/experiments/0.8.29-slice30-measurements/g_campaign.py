@@ -133,6 +133,7 @@ def run_g_plan(spec, root, command, prepare=None):
             started = time.monotonic_ns()
             budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
             budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+            work_stopped = True
             try:
                 context = prepare(cell, root) if prepare else None
                 elapsed = time.monotonic_ns() - started
@@ -156,13 +157,18 @@ def run_g_plan(spec, root, command, prepare=None):
                         return None
                     deadline = started + min(900 * 10**9 - cell_usage.get(cell["id"], 0),
                                              14400 * 10**9 - budget["used_ns"])
-                    outcomes.append(run_g_attempt(cell, root, command, deadline,
-                                                  context=context, monitor=monitor))
+                    work_stopped = False
+                    outcome = run_g_attempt(cell, root, command, deadline, context=context, monitor=monitor)
+                    outcomes.append(outcome)
+                    work_stopped = not outcome.get("cleanup_uncertain", True)
             finally:
                 elapsed = time.monotonic_ns() - started
                 budget["used_ns"] += elapsed
                 cell_usage[cell["id"]] = cell_usage.get(cell["id"], 0) + elapsed
-                budget["inflight"] = None
+                if work_stopped:
+                    budget["inflight"] = None
+                else:
+                    budget["inflight"]["status"] = "cleanup_uncertain"
                 budget_path.write_text(json.dumps(budget, indent=2) + "\n")
         previous[cell["id"]] = outcomes[-1]
         (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")

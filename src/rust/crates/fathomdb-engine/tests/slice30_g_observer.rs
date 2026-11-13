@@ -206,3 +206,102 @@ fn skipped_guards_remain_explicit_for_direct_text_and_filtered_hybrid() {
     assert_eq!(filtered.dropped_records, 0);
     engine.close().unwrap();
 }
+
+#[test]
+fn source_window_controls_observe_actual_fallback_selection_without_clock_changes() {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, ProvenancedNodeV1, ReadView,
+        SourceDependencyRegistrationV1, SourceLocator, SourceRevisionId, SourceVersionId,
+        WriteProvenanceV1,
+    };
+    use sha2::{Digest, Sha256};
+    let directory = tempfile::tempdir().unwrap();
+    let engine = seed_dense(&directory.path().join("source-window.sqlite"));
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    // Provenance admission needs a currently eligible source; explicit future
+    // query instants cross its half-open boundary without changing the host clock.
+    let boundary = now + 3600;
+    let source_body = "source body";
+    let source = PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: source_body.into(),
+        logical_id: Some("g-source".into()),
+        source_id: SourceId::new("test:slice30-provenance").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: Some(now - 1),
+        valid_until: Some(boundary),
+        provenance: WriteProvenanceV1::canonical(
+            ArtifactRevisionId::new("g-source-r1").unwrap(),
+            SourceVersionId::new("v1").unwrap(),
+        ),
+    });
+    let hash = Sha256::digest(source_body.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let derived = PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: "gderivedneedle".into(),
+        logical_id: Some("g-derived".into()),
+        source_id: SourceId::new("test:slice30-provenance").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::derived(
+            ArtifactRevisionId::new("g-derived-r1").unwrap(),
+            SourceVersionId::new("v1").unwrap(),
+            SourceRevisionId::new("g-source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(hash).unwrap(),
+        ),
+    });
+    engine.write(&[source, derived]).unwrap();
+    engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("g-dependency", "g-source-r1", "g-derived-r1")
+                .unwrap(),
+        )
+        .unwrap();
+    engine.drain(5_000).unwrap();
+    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    for (operation, time, expected_fallback) in [(301, boundary - 1, false), (302, boundary, true)]
+    {
+        let view = ReadView { valid_as_of: Some(time), ..ReadView::default() };
+        let result = observer
+            .with_operation(operation, || engine.search_view("gderivedneedle", &view))
+            .unwrap();
+        assert_eq!(
+            result.results.iter().any(|hit| hit.id.value == "g-derived"),
+            !expected_fallback
+        );
+        let batch = observer.take();
+        let dependencies = batch
+            .records
+            .iter()
+            .filter(|r| r.phase == "has_source_dependencies")
+            .collect::<Vec<_>>();
+        assert_eq!(dependencies.len(), 1);
+        assert_eq!(dependencies[0].facts["result"], true);
+        let fallback = batch
+            .records
+            .iter()
+            .filter(|r| r.phase == "vector_arm_requires_fallback")
+            .collect::<Vec<_>>();
+        assert_eq!(fallback.len(), 1);
+        assert_eq!(fallback[0].facts["result"], expected_fallback);
+        assert_eq!(fallback[0].facts["sql_executed"], true);
+        let selection = batch
+            .records
+            .iter()
+            .filter(|r| r.phase == "source_fallback_selection")
+            .collect::<Vec<_>>();
+        assert_eq!(selection.len(), 1, "the actual fallback selection interval is missing");
+        assert_eq!(selection[0].facts["result"], expected_fallback);
+        assert_eq!(selection[0].status, "ok");
+        assert_eq!(batch.dropped_records, 0);
+    }
+    engine.close().unwrap();
+}

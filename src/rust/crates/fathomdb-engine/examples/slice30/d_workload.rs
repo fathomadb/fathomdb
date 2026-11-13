@@ -15,15 +15,33 @@ use super::dense_template;
 use super::varying_embedder::VaryingEmbedder;
 
 pub(super) fn run(config: &Value, out: &Path) {
+    let _ = run_inner(config, out);
+}
+
+fn drain(engine: &Engine, config: &Value, out: &Path) -> Result<(), ()> {
+    super::native_budget::phase(config, out, "drain")?;
+    let mut report = super::native_budget::drain(engine, config).unwrap();
+    if report["drain_calls"] != 1 {
+        report["phase"] = json!("drain");
+        std::fs::write(out.join("budget.json"), serde_json::to_vec_pretty(&report).unwrap())
+            .unwrap();
+        return Err(());
+    }
+    super::native_budget::phase(config, out, "drain")
+}
+
+fn run_inner(config: &Value, out: &Path) -> Result<(), ()> {
     let origin = Instant::now();
     std::fs::create_dir_all(out).unwrap();
     let store = out.join("query.sqlite");
     assert!(!store.exists());
     let empty_start = config["empty_start"].as_bool().unwrap_or(false);
+    super::native_budget::phase(config, out, "entry")?;
     if !empty_start {
         dense_template::run(config, &out.join("template"));
         std::fs::copy(out.join("template/template.sqlite"), &store).unwrap();
     }
+    super::native_budget::phase(config, out, "entry")?;
     let opened = Engine::open_with_test_choice_for_test(
         &store,
         TestEmbedderChoice::Caller(Arc::new(VaryingEmbedder)),
@@ -31,9 +49,10 @@ pub(super) fn run(config: &Value, out: &Path) {
     .unwrap();
     let engine = &opened.engine;
     if empty_start {
+        super::native_budget::phase(config, out, "configure")?;
         dense_template::configure(engine);
         let start_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
-        super::native_budget::drain(engine, config).unwrap();
+        drain(engine, config, out)?;
         let readiness = engine.read_embedding_readiness().unwrap();
         let connection =
             Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
@@ -64,6 +83,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     let warmups = usize::try_from(config["warmups"].as_u64().unwrap()).unwrap();
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
     for sample in 0..warmups {
+        super::native_budget::phase(config, out, "warmup")?;
         write_row(
             &mut output,
             &query_row(engine, origin, "warmup", sample, request(config, sample)),
@@ -88,6 +108,11 @@ pub(super) fn run(config: &Value, out: &Path) {
                 let launch_ns: u64 = ready.recv_timeout(Duration::from_secs(5)).unwrap();
                 let mut writes = Vec::new();
                 for rows in records.chunks(cohort) {
+                    if super::native_budget::bounds(config)
+                        .map_or(true, |bound| bound.is_some_and(|(now, limit)| now >= limit))
+                    {
+                        break;
+                    }
                     let batch: Vec<_> = rows.iter().map(|row| PreparedWrite::Node {
                         kind: row["kind"].as_str().unwrap().into(),
                         body: row["body"].as_str().unwrap().into(),
@@ -110,6 +135,9 @@ pub(super) fn run(config: &Value, out: &Path) {
             }
             release.send(launch_ns).unwrap();
             for sample in 0..samples {
+                if super::native_budget::phase(config, out, "timed").is_err() {
+                    break;
+                }
                 write_row(
                     &mut output,
                     &query_row(engine, origin, "timed", sample, request(config, sample)),
@@ -129,9 +157,10 @@ pub(super) fn run(config: &Value, out: &Path) {
         });
         std::fs::write(out.join("writes.json"), serde_json::to_vec_pretty(&writes).unwrap())
             .unwrap();
-        super::native_budget::drain(engine, config).unwrap();
+        drain(engine, config, out)?;
     } else {
         for sample in 0..samples {
+            super::native_budget::phase(config, out, "timed")?;
             write_row(
                 &mut output,
                 &query_row(engine, origin, "timed", sample, request(config, sample)),
@@ -139,6 +168,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         }
     }
     output.flush().unwrap();
+    super::native_budget::phase(config, out, "collect")?;
     let observation = observation_report(engine, origin, config);
     std::fs::write(
         out.join("worker-observer.json"),
@@ -146,7 +176,9 @@ pub(super) fn run(config: &Value, out: &Path) {
     )
     .unwrap();
     engine.close().unwrap();
+    super::native_budget::phase(config, out, "complete")?;
     std::fs::write(out.join("complete.json"), b"{\"complete\":true}\n").unwrap();
+    Ok(())
 }
 
 pub(super) fn write_row(output: &mut std::fs::File, row: &Value) {
@@ -219,7 +251,12 @@ pub(super) fn observation_report(engine: &Engine, origin: Instant, config: &Valu
         .as_array()
         .or_else(|| config["records"].as_array())
         .map_or(0, Vec::len) as u64;
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let allowance = super::native_budget::bounds(config)
+        .unwrap()
+        .map_or(Duration::from_secs(5), |(now, limit)| {
+            Duration::from_nanos(limit.saturating_sub(now)).min(Duration::from_secs(5))
+        });
+    let deadline = Instant::now() + allowance;
     let mut records = Vec::new();
     let dropped;
     loop {

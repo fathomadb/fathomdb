@@ -27,27 +27,38 @@ pub(super) fn monotonic_ns() -> Result<u64, String> {
     Err("native CLOCK_MONOTONIC budgets require Linux".into())
 }
 
-pub(super) fn admit(config: &Value, out: &Path) -> bool {
+pub(super) fn bounds(config: &Value) -> Result<Option<(u64, u64)>, String> {
     if !config["work_deadline_ns"].is_u64() {
-        return true;
+        return Ok(None);
     }
     let limit = ["work_deadline_ns", "hard_deadline_ns", "shared_deadline_ns"]
         .into_iter()
         .map(|key| config[key].as_u64().unwrap())
         .min()
         .unwrap();
-    let report = match monotonic_ns() {
-        Ok(now) if now < limit => return true,
-        Ok(now) => {
-            json!({"phase":"entry","open_calls":0,"sqlite_created":false,"disposition":"deadline_refused","observed_at_ns":now})
+    Ok(Some((monotonic_ns()?, limit)))
+}
+
+pub(super) fn phase(config: &Value, out: &Path, phase: &str) -> Result<(), ()> {
+    let mut report = match bounds(config) {
+        Ok(None) => return Ok(()),
+        Ok(Some((now, limit))) if now < limit => return Ok(()),
+        Ok(Some((now, _))) => {
+            json!({"phase":phase,"disposition":"deadline_refused","observed_at_ns":now})
         }
-        Err(error) => {
-            json!({"phase":"entry","open_calls":0,"sqlite_created":false,"disposition":"clock_unavailable","error":error})
-        }
+        Err(error) => json!({"phase":phase,"disposition":"clock_unavailable","error":error}),
     };
+    if phase == "entry" {
+        report["open_calls"] = json!(0);
+        report["sqlite_created"] = json!(false);
+    }
     std::fs::create_dir_all(out).unwrap();
     std::fs::write(out.join("budget.json"), serde_json::to_vec_pretty(&report).unwrap()).unwrap();
-    false
+    Err(())
+}
+
+pub(super) fn admit(config: &Value, out: &Path) -> bool {
+    phase(config, out, "entry").is_ok()
 }
 
 pub(super) fn run_control(config: &Value, out: &Path) {

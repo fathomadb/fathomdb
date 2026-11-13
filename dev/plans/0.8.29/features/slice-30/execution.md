@@ -232,3 +232,37 @@ or raw closure rows. These8d deterministic provider controls establish observer
 logic only, never BGE/positive GPU/campaign or relevance/fidelity qualification.
 Their exact monitored logs/receipts use `g-t4-*`, `g-t5-*`, `g-t6-*` under the same
 owned task. Nested and SDK observer runtime proof remain outstanding as above.
+
+## G fallback finding and same-call authority proof
+
+Fresh independent preaudit found selection attribution incorrectly reported
+eligibility degradation rather than the actual selected fallback. Separate real
+store RED222072de3 reproduces a pending, probe-positive vector selection with
+observer false. GREEN3d26b3621 changes only the reported selected.is_some() fact
+and passes5/5. The first green-named invocation preceded the actual source edit,
+remains exit101/4pass/1fail in g-t6-probe-finding-green, and is not a correction
+claim. Distinct g-t6-probe-finding-green-fixed recompiled and passed.
+
+G-T7 original RED615234443 requires actual same-reader authority capture, stable
+explicit instants and changed authority after a governed write. An uncommitted
+three-file prototype passed its6tests, but fresh review identified missing
+same-call authority binding to source-boundary membership. Before any GREEN
+commit, the exact prototype was retained externally as
+g-t7-pre-gap-implementation.patch, SHA256
+a86bb2c383f3313a10daf326bb7d684a0eeeb9cc50110252952a8d492e574d61.
+Only those three implementation files were restored to committed615234443.
+Additional RED8a24921b1 then compiled and failed the intended missing boundary
+capture0vs1 on that actual unimplemented baseline. Existing assertions were
+unchanged; the new test binds exact derived membership1→0 and returned cursor to
+one successful capture per T-1/T call, with stable generation/nonce/dependency
+generation and no intervening write, sleep or host-clock adjustment.
+
+The saved prototype passed applicability and was reapplied unchanged. Distinct
+g-t7-boundary-green passes7/7/0ignored, exit0, no resource stop. Its test-file
+blob remains9007388223668c2c3cd5492bf0a2c686135b8446 and SHA256
+eb3484110c19362a4eca5ba5605c4b6107f6766f2e266d762a5f26f7bb50f6db across
+additional RED→GREEN. The earlier6test prototype is incomplete evidence, not a
+committed GREEN. A subsequent fast module gate detects the existing G-T5 local
+guard macro as unclassified/unparsed; that retained failure short-circuited
+Clippy. A separate parseable refactor must clear it before final source gates.
+No positive BGE/GPU/campaign or complete nested/SDK runtime claim follows.

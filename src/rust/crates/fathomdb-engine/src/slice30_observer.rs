@@ -128,6 +128,12 @@ pub(crate) fn enter_token(
     OperationScope(CURRENT.with(|slot| slot.replace(token)))
 }
 
+pub(crate) fn is_recording() -> bool {
+    capture_token()
+        .and_then(|token| token.collector.upgrade())
+        .is_some_and(|collector| collector.active.load(Ordering::Acquire))
+}
+
 pub(crate) fn enter_engine(owner: &Arc<WalAttributionCollector>) -> OperationScope {
     enter_token(owner, capture_token())
 }
@@ -200,6 +206,36 @@ impl Span {
     pub(crate) fn success(&self) {
         if let Some(data) = &self.data {
             data.status.set("ok");
+        }
+    }
+
+    pub(crate) fn snapshot_result(
+        &self,
+        authority: &Result<(u64, String, u64), EngineError>,
+        view: &crate::temporal::FrozenView,
+        cursor: u64,
+    ) {
+        let Some(data) = &self.data else {
+            return;
+        };
+        match authority {
+            Ok((generation, nonce, dependency_generation)) => {
+                data.facts.replace(serde_json::json!({
+                    "observer_added":true,"visibility_generation":generation,"visibility_nonce":nonce,
+                    "dependency_generation":dependency_generation,"projection_cursor":cursor,
+                    "effective_at_epoch_s":view.edge_now(),"validity_binding_epoch_s":view.now_param(),
+                    "read_view":{"include_superseded":view.view.include_superseded,
+                        "include_inactive":view.view.include_inactive,
+                        "include_out_of_window":view.view.include_out_of_window}
+                }));
+                data.status.set("ok");
+            }
+            Err(error) => {
+                data.facts.replace(
+                    serde_json::json!({"observer_added":true,"error":format!("{error:?}")}),
+                );
+                data.status.set("unavailable");
+            }
         }
     }
 

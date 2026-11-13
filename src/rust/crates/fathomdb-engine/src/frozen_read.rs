@@ -357,6 +357,17 @@ fn load_visibility_nonce(connection: &Connection) -> Result<String, EngineError>
         .map_err(|_| EngineError::Storage)
 }
 
+#[cfg(any(test, feature = "slice30-observer"))]
+pub(crate) fn slice30_authority_for_test(
+    connection: &Connection,
+) -> Result<(u64, String, u64), EngineError> {
+    Ok((
+        load_visibility_generation(connection)?,
+        load_visibility_nonce(connection)?,
+        load_dependency_generation(connection)?,
+    ))
+}
+
 pub(crate) fn begin_visibility_writer(
     connection: &Connection,
 ) -> rusqlite::Result<rusqlite::Transaction<'_>> {

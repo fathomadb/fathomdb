@@ -1984,6 +1984,12 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         )
     };
     let cursor = load_projection_cursor_for_search(&tx)?;
+    #[cfg(any(test, feature = "slice30-observer"))]
+    if crate::slice30_observer::is_recording() {
+        let observation = crate::slice30_observer::span("observer_snapshot_capture");
+        let authority = frozen_read::slice30_authority_for_test(&tx);
+        observation.snapshot_result(&authority, &view, cursor);
+    }
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits
     // `AND attr_<hex>=?` and before the FTS arm probes `canonical_attributes`. The

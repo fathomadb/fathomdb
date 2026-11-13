@@ -772,7 +772,7 @@ run_tier_maybe_suite heavy test-slice30-g-campaign "$slice30_g_mean_gpu_reason" 
   timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_campaign.py GpuAccountingTests
   timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_campaign.py PreparationStopTests
   timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_campaign.py CopiedGCellTests
-  timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_results.py GResultTests GCallerResultTests GpuEnvironmentResultTests
+  timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_results.py GResultTests GCallerResultTests GpuEnvironmentResultTests StoppedPassTests
   timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_campaign.py ConditionalGTests
 '
 

@@ -208,6 +208,47 @@ class PartialGResultTests(source._NativeGFixture):
         self.assertTrue(group["issues"])
 
 
+class StoppedPassTests(source._NativeGFixture):
+    check_copy=source.CopiedGCellTests.check_copy
+    check_owned_preparation=source.OwnedGTTests.check_owned_preparation
+
+    def check_stopped(self,passes):
+        from contextlib import closing
+        import sqlite3
+        manifest,root,_=self.check_copy("stopped pass é")
+        cell:dict=dict(manifest["cells"][-1],id="stopped-cell",passes=passes,warmups=0)
+        with (self.task/"locks"/(source.GPU+".lock")).open("a") as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            before=source._accounting(None,min(self.work_end,time.monotonic()+5))
+            if before["util"] or before["total_MiB"]-before["used_MiB"]<8192:
+                raise RuntimeError("approved GPU not quiet/free NOT_RED")
+            source._sample_resources(self.resources,self.work_end,start=True)
+            cell["work_deadline_ns"]=time.monotonic_ns()+250_000_000
+            outcome=source.run_manifest(dict(manifest,cells=[cell]),root)[0]
+        self.assertIsNotNone(outcome["pid"])
+        self.assertEqual(outcome["status"],"failed")
+        self.assertTrue(outcome["cleanup"]["complete"])
+        attempt=Path(outcome["attempt"])
+        first=attempt/"pass-0"
+        budget=json.loads((first/"budget.json").read_text())
+        self.assertEqual((budget["phase"],budget["disposition"]),("pass","deadline_refused"),"actual first-pass refusal missing NOT_RED")
+        self.assertFalse((first/"api-proof.json").exists())
+        with closing(sqlite3.connect(f"file:{attempt/'store.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],65)
+            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],65)
+        later=[path.name for path in attempt.glob("pass-*") if path.name!="pass-0"]
+        print(f"actual refused first pass {attempt} later={later}",flush=True)
+        self.assertEqual(later,[],"scheduler entered later passes after actual first-pass refusal")
+
+    def test_refused_first_pass_prevents_all_later_work(self):
+        self.check_stopped(["engine_hybrid","sdk_text","sdk_mean"])
+
+    @settings(max_examples=2,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.sampled_from([("engine_mean","sdk_hybrid"),("engine_text","sdk_mean")]))
+    def test_stop_propagates_across_mode_order(self,passes):
+        self.check_stopped(list(passes))
+
+
 class GpuEnvironmentResultTests(source._NativeGFixture):
     check_accounting=source.GpuAccountingTests.check_accounting
 

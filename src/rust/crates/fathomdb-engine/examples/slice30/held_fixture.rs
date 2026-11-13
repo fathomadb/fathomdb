@@ -106,6 +106,10 @@ pub(super) fn run(config: &Value, out: &Path) {
         .unwrap()
     });
     let engine = &opened.engine;
+    if super::native_budget::phase(config, out, "configure").is_err() {
+        engine.close().unwrap();
+        return;
+    }
     let (_, configuring) = timed(origin, || {
         engine
             .configure_projections(

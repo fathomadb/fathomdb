@@ -19,19 +19,19 @@ Valid and Deleted observations preserve source shadow versus derived erasure,
 actual reader generations and explicit vector degradation. The initial unsupported
 fact fixture remains NOT_RED. Controlled fixtures are not the100k campaign.
 
-## Remaining implementation
+## Source qualification remaining
 
-- Native execution budgets: complete remaining G/held/preparation phase checks.
-  Ordinary D enforces absolute phase limits/remaining drains; GN/GO entry shares
-  the same clock. Owned cancellation and retry-result preservation are implemented.
-  Source defaults retain5s only when no absolute limits are supplied.
-- Controller: generate the26measurement+at most2preparation entries and wire
-  family output placement, remaining generic G routes and conditional admission.
-  Tiny real G/D completion/resume, the original shared clock, per-cell cleanup
-  reserve and before/periodic/final13-root resource checks are implemented.
-- Results: actual mode/query/template/adapter/repeat grouping, raw distributions,
-  errors/loss/unavailable/unpaired outcomes and paired observer cost. No percentile
-  subtraction or invented exclusive timing shares.
+The candidate includes the26measurement+at most2preparation catalog, actual owned
+preparation/copy/family routes, original shared/per-cell deadlines, before/periodic/
+final resource and device supervision, cancellation, retry preservation, conditional
+lower-scale admission, raw results and matched caller/observer comparisons.
+GG has separate per-copy setup/verification/close costs; completed ordinary and
+held D write records are published outside API intervals. These are source-tested
+features, not a completed natural campaign or proof of natural positive overlap.
+
+Remaining work is final clean-source review, one stable full agent-verify,
+source-bound production native/lifecycle checks and immutable campaign
+freeze/admission. No natural G/D campaign clock has begun.
 
 New behavior keeps a genuine failing runtime test committed before minimal GREEN.
 Pure refactoring reuses unchanged controls. Implementation review is batched at

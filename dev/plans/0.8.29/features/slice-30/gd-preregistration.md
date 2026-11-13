@@ -1,30 +1,30 @@
 # Slice30 G/D prospective cells and resources
 
 Current execution: reviewed design PASS and parent source GO at5968884b.
-Bounded source TDD is underway; see [actual execution](execution-gd.md).
+The G/D source candidate implements the reviewed routes; see [source status](execution-gd.md).
 Historical design-stage statements below describe the349/b83 review subject,
 not current runtime authorization or completed qualification. No G/D natural
 campaign or whole-slice acceptance is claimed.
 
-Status: DESIGN ONLY. No G/D runtime authorization. Freeze actual immutable
-source/artifact/model/template/cell identities after design PASS, parent GO,
-owned setup, real TDD and source qualification. Preserve accepted P freeze/raw
+Status: source implementation awaiting final qualification. Freeze actual
+source/artifact/model/template/cell identities after source qualification and
+before any natural campaign. Preserve accepted P freeze/raw
 at their original paths/subjects; no reuse of their mutable venv/modules/targets.
 
 ## Source, inputs and artifacts
 
 New owner checkout: /mnt/data/worktrees/fathomdb-0.8.29-s30-data;
 common Git: /mnt/data/repos/fathomdb-0.8.29-continuation.git;
-entry349e9fa07d6c624affab69709735f35c18c0abae. New mutable root:
+historical design entry349e9fa07d6c624affab69709735f35c18c0abae. Mutable root:
 /mnt/data/tmp2/fathomdb-0829-continuation/slice30-gd. Strict closed10 preflight
-passed with0warnings; receipt gd-design-entry.json. Only locked root Markdown
-modules provisioned, offline/private cache, Node25.9/npm11.12.1/MD0.23.3.
-No new Python/native/model/toolkit setup occurred.
+passed with0warnings. At that design entry only locked root Markdown modules
+were provisioned; later source work uses checkout-owned Python/native/TS tools
+and private caches. Node25.9/npm11.12.1/MD0.23.3 remain pinned.
 
 Use owned copies of the accepted LME100k/500query converted bytes (hashes in
 [inputs](inputs.md)); BGE snapshot5c38ec7c405ec4b44b94cc5a9bb96e735b38267a and
-three loader-pinned files listed there. Existing files are read-only sources;
-copy/verify into own cache only after GO. No network model/dataset fetch. The
+three loader-pinned files listed there. Existing files are read-only sources.
+Owned copies are used under the reviewed source GO. No network model/dataset fetch. The
 already accepted default model has384dimensions/512token head coverage; actual
 vector span completeness is reported, not full long-record semantic coverage.
 No new export/redistribution/license ruling is claimed.
@@ -242,7 +242,9 @@ Keep the P16-record checkpoint/phase flush method and strict UTF8 prefix reader,
 including its pending-flush limitation, persistence/checkpoint costs and failed/
 incomplete disposition. Extend only the new record populations with genuine
 TDD. Record per-repeat p50/p99/mean/errors, all-request throughput, raw matched
-pairs, descriptive query-cluster intervals and noisy flags. CPU quiet start
+pairs, descriptive query-cluster intervals and noisy flags. GG also retains
+per-copy copy/hash-validation, open, verification and close phase durations outside API clocks. Phase publication is outside those durations
+and included in cell wall time; shared/nested extents are not additive. CPU quiet start
 <=2/noisy>2.5 remains for normal retrieval; D's intentional own worker load is
 separately tagged, with external-load baseline retained. Every900s cell includes
 open/setup, warmup, all retries, writes/drain, close and partial-output preservation;

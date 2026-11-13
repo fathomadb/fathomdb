@@ -105,14 +105,13 @@ Core observer collection stays engine-owned, outside caller API timers. D stays
 in explicit test-hooks/measurement artifacts. Earlier SDK/engine examples and
 all original proofs remain honest tiny-fixture identities, not relabelled as
 this new host. No product ABI/ranking/cache/provider policy changes follow.
-Planned controller-owned absolute clocks will bound native phases/probes/cleanup
+Controller-owned absolute clocks bound native phases/probes/cleanup
 without making synchronous Engine APIs cancellable. The11e09 fit received exact
 design PASS/source GO; GN is implemented with accepted bounded G1 source prefixes
-through8e5823. Later bounded G2, GO and GG prefixes are implemented through26cb528;
-full population/phase attribution/deadline/controller/budget wiring, remaining D
-work and final source/native/lifecycle/campaign qualification remain pending.
-Earlier proposal wording
-is historical and does not make the current GN host planning-only.
+through8e5823. The candidate now includes G2/GO/GG, supplied populations,
+phase attribution, bounded controller/resource/device supervision and raw result
+comparisons. Final source/native/lifecycle and natural-campaign qualification
+remain open; earlier planning-freeze anchors retain their historical meaning.
 
 ## Proposed D worker ownership clarification
 
@@ -125,4 +124,7 @@ provider workers and configured concurrency remain distinct observations. No SDK
 surface, scheduler notification/pause, product counter/policy or default-build
 instrumentation is introduced. The exact c5/7c design received PASS and source
 continuation; bounded D11 source transport now has a genuine RED/GREEN pair.
-Held/real-overlap adapters, full-source and campaign qualification remain pending.
+Held and ordinary writer/query/readiness adapters are implemented. Traced
+attribution uses strict common overlap with a fully contained successful positive
+readiness invocation; controls remain explicitly unavailable. Natural overlap,
+full-source and campaign qualification remain unproven.

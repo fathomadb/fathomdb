@@ -1,16 +1,15 @@
 # Slice30 G/D concrete extension design
 
 Current execution: reviewed design PASS and parent source GO at5968884b.
-Bounded source TDD is underway; see [actual execution](execution-gd.md).
+The reviewed G/D routes are implemented in the source candidate; see [source status](execution-gd.md).
 Historical design-stage statements below describe the349/b83 review subject,
 not current runtime authorization or completed qualification. No G/D natural
 campaign or whole-slice acceptance is claimed.
 
-Status: DESIGN PROPOSAL ONLY. Baseline349e9fa07d6c624affab69709735f35c18c0abae
-contains accepted P at0d8be5bb75516955ebf99b94913b9b54921bb3a4. Parent integrated
-P/state at2381de882 and the all-/mnt/data storage checkpoint at349e9fa07.
-Independent Astra design PASS and explicit parent source/runtime GO remain
-prerequisites. No G/D source, model load, DB, native build or GPU workload ran.
+Historical design baseline349e9fa07 contains accepted P at0d8be5bb;
+parent integrated P/state at2381de882 and all-/mnt/data storage at349e9fa07.
+Subsequent design reviews and source GO authorized the implemented G/D routes.
+Final source/native/lifecycle qualification and natural campaigns remain open.
 
 ## Scope and accepted P boundary
 
@@ -156,10 +155,9 @@ reported precisely; no generic cold-drive request or unrelated Windows prerequis
 ## Generic G ownership and route fit amendment (planning only)
 
 The heading preserves the11e09 planning-freeze anchor. That exact fit received
-independent design PASS/source GO; GN host/input/caller/warmup/pass prefixes through
-8e5823 are now implemented and independently accepted within their bounded source
-scope. G2/GO/GG/controller/budget and remaining D wiring/final qualification are
-pending. The following artifact/identity/method constraints remain in force.
+independent design PASS/source GO. The candidate implements GN/G2/GO/GG,
+D held/ordinary routes, owned bounded execution, catalog and result adapters.
+Bounded source tests do not establish natural-campaign or final qualification. The following artifact/identity/method constraints remain in force.
 
 Accepted source prefixes through46ee7cf6e cover the observer, actual API/tiny
 closed-template tools and bounded SDK-text actuation; they are not generic

@@ -188,6 +188,7 @@ def summarize(manifest, root):
     state=_json(state_path,state_issues) if state_path.exists() else []
     previous={row["id"]:row for row in state} if isinstance(state,list) else {}
     groups=[]
+    native_phases={}
     for cell in manifest["cells"]:
         outcome=previous.get(cell["id"])
         group={"id":cell["id"],"status":outcome["status"] if outcome else "not_run",
@@ -203,6 +204,9 @@ def summarize(manifest, root):
             continue
         attempt=Path(outcome["attempt"])
         issues=group["issues"]
+        phase_path=attempt/"phases.jsonl"
+        if phase_path.exists():
+            native_phases[cell["id"]]=read_jsonl_records(phase_path,issues)
         if cell["family"]=="G_PREPARE":
             group["kind"]="preparation"
             continue
@@ -248,7 +252,10 @@ def summarize(manifest, root):
                                "worker_records":len(observer["records"]) if isinstance(observer.get("records"),list) else None})
         if issues and group["status"]=="complete":
             group["status"]="incomplete"
-    return {"cells":groups,"pairs":comparisons(groups),"caller_pairs":caller_comparisons(groups),"gated":False}
+    return {"cells":groups,"pairs":comparisons(groups),"caller_pairs":caller_comparisons(groups),
+            "native_phases":native_phases,
+            "native_phase_scope":"per-cell/family operation extents shared by stage groups; nested durations are not additive; publication excluded from extents and included in cell wall time",
+            "gated":False}
 
 
 def main():

@@ -2,11 +2,10 @@
 
 Status: P accepted at0d8/integrated2381. Historical initial implementation scope
 below was **P only**. The11e09 generic fit in [extension](gd-extension.md) received
-independent design PASS/source GO. Accepted bounded source prefixes through8e5823
-now implement GN's private host and G1 inputs/callers/warmups/pass execution.
-G2/GO/GG/controller/budget wiring and remaining D work are pending. No G/D
-campaign or final source/native/lifecycle qualification follows.
-M/F remain held; each further source stage needs its exact reviewed authority.
+independent design PASS/source GO. The source candidate now includes generic
+G1/G2/GO/GG, D worker/held/ordinary routes, absolute budgets, owned supervision,
+catalog and raw result adapters. Bounded tests do not establish G/D natural
+campaign or final source/native/lifecycle qualification. M/F remain held.
 All prerequisites in [parent proposal](prerequisite-change.md) remain in force.
 
 ## Current source and original tool fit

@@ -1,17 +1,18 @@
 # Slice30 G/D executable test and TDD proposal
 
 Current execution: reviewed design PASS and parent source GO at5968884b.
-Bounded source TDD is underway; see [actual execution](execution-gd.md).
+The source candidate implements the staged contracts below; see [source status](execution-gd.md).
 Historical design-stage statements below describe the349/b83 review subject,
 not current runtime authorization or completed qualification. No G/D natural
 campaign or whole-slice acceptance is claimed.
 
-Status: DESIGN ONLY at349e9fa07. No listed test was authored/executed yet.
+This map preserves the original staged requirements and initial RED seams.
+The349e9fa07 scaffolding descriptions are historical, not the current source.
 AGENTS strict per-behavior runtime RED→committed RED→separate GREEN applies.
 Existing passing product tests are controls, not new coverage labelled RED.
 No missing import/feature/module/compile or fixture-construction failure is RED.
 
-## Entry and scaffolding
+## Initial entry and scaffolding at349 (historical)
 
 The first observer RED has a fixed diagnostic selector, not a requirement applied
 to normal P. After GO, add only a compile-ready engine example

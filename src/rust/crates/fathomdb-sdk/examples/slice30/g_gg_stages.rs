@@ -4,8 +4,23 @@ use super::{g_observer, CoreObserver, GAdapter, Recorder};
 use fathomdb_engine::ReadView;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
+
+fn record_phase(out: &Path, family: &str, phase: &str, elapsed_ns: u64) {
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(out.join("phases.jsonl"))
+        .unwrap();
+    serde_json::to_writer(
+        &mut file,
+        &json!({"family":family,"phase":phase,"elapsed_ns":elapsed_ns}),
+    )
+    .unwrap();
+    file.write_all(b"\n").unwrap();
+}
 
 pub(super) struct PreparedStore {
     pub(super) adapter: GAdapter,
@@ -22,14 +37,20 @@ pub(super) fn prepare_store(
     open: impl FnOnce(&Path) -> GAdapter,
 ) -> Result<PreparedStore, ()> {
     super::budget_clock::phase(config, out, "copy")?;
+    let copying = Instant::now();
     let original = Sha256::digest(std::fs::read(source).unwrap()).to_vec();
     let directory = out.join(family);
     std::fs::create_dir(&directory).unwrap();
     let store = directory.join("store.sqlite");
     std::fs::copy(source, &store).unwrap();
     assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()).to_vec(), original);
+    let copy_ns = u64::try_from(copying.elapsed().as_nanos()).unwrap();
+    record_phase(out, family, "copy_and_validation", copy_ns);
     super::budget_clock::phase(config, out, "open")?;
+    let opening = Instant::now();
     let adapter = open(&store);
+    let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
+    record_phase(out, family, "open", open_ns);
     if super::budget_clock::phase(config, out, "verification").is_err() {
         close(&adapter, out, family);
         return Err(());
@@ -54,14 +75,23 @@ pub(super) fn verification<T>(
 pub(super) fn verification_for_copy<T>(
     config: &Value,
     out: &Path,
-    _family: &str,
+    family: &str,
     read: impl FnOnce() -> T,
 ) -> Result<T, ()> {
-    verification(config, out, read)
+    let (value, elapsed_ns) = verification(config, out, || {
+        let started = Instant::now();
+        let value = read();
+        (value, u64::try_from(started.elapsed().as_nanos()).unwrap())
+    })?;
+    record_phase(out, family, "verification", elapsed_ns);
+    Ok(value)
 }
 
-pub(super) fn close(adapter: &GAdapter, _out: &Path, _family: &str) {
+pub(super) fn close(adapter: &GAdapter, out: &Path, family: &str) {
+    let started = Instant::now();
     adapter.close();
+    let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+    record_phase(out, family, "close", elapsed_ns);
 }
 
 pub(super) fn mutation<T>(

@@ -34,6 +34,7 @@ fn commit_cohort(
     cohort: &mut Vec<PreparedWrite>,
     written: &mut usize,
     cohorts: &mut Vec<Value>,
+    _recorder: &mut super::Recorder,
 ) -> Result<(), ()> {
     super::budget_clock::phase(config, out, "write")?;
     let started = std::time::Instant::now();
@@ -87,8 +88,9 @@ pub(super) fn run(config: &Value, out: &Path) {
         let mut cohorts = Vec::new();
         let mut ids = Vec::new();
         let mut written = 0;
+        let mut recorder = super::Recorder::new(&directory);
         let mut commit = |cohort: &mut Vec<PreparedWrite>| {
-            commit_cohort(engine, config, out, cohort, &mut written, &mut cohorts)
+            commit_cohort(engine, config, out, cohort, &mut written, &mut cohorts, &mut recorder)
         };
         for line in std::io::BufReader::new(
             std::fs::File::open(input["records"].as_str().unwrap()).unwrap(),
@@ -189,7 +191,16 @@ mod tests {
         let mut cohort = writes(count);
         let mut written = 0;
         let mut cohorts = Vec::new();
-        let result = commit_cohort(&engine, config, &root, &mut cohort, &mut written, &mut cohorts);
+        let mut recorder = super::super::Recorder::new(&root);
+        let result = commit_cohort(
+            &engine,
+            config,
+            &root,
+            &mut cohort,
+            &mut written,
+            &mut cohorts,
+            &mut recorder,
+        );
         engine.close().unwrap();
         let db = rusqlite::Connection::open_with_flags(
             &store,
@@ -227,6 +238,102 @@ mod tests {
         let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
         config[["work_deadline_ns", "hard_deadline_ns", "shared_deadline_ns"][bound]] = json!(0);
         check_write(&config, count, false);
+    }
+
+    fn retained_cohorts(tail: usize) {
+        let root = tempfile::Builder::new().prefix("s30-gt-checkpoint-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+        let mut recorder = super::super::Recorder::new(&root);
+        let mut written = 0;
+        let mut cohorts = Vec::new();
+        for index in 0..16 + tail {
+            let mut cohort = writes(1);
+            if let PreparedWrite::Node { logical_id, .. } = &mut cohort[0] {
+                *logical_id = Some(format!("retained-{index}"));
+            }
+            commit_cohort(
+                &engine,
+                &json!({}),
+                &root,
+                &mut cohort,
+                &mut written,
+                &mut cohorts,
+                &mut recorder,
+            )
+            .unwrap();
+        }
+        let mut refused = writes(1);
+        let result = commit_cohort(
+            &engine,
+            &json!({"work_deadline_ns":0,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX}),
+            &root,
+            &mut refused,
+            &mut written,
+            &mut cohorts,
+            &mut recorder,
+        );
+        assert!(result.is_err());
+        engine.close().unwrap();
+        let db = rusqlite::Connection::open_with_flags(
+            &store,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        let cursors: Vec<u64> = db
+            .prepare("SELECT write_cursor FROM canonical_nodes ORDER BY write_cursor")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(cursors.len(), 16 + tail);
+        assert_eq!(written, 16 + tail);
+        assert_eq!(cohorts.len(), 16 + tail);
+        let read = || {
+            std::fs::read_to_string(root.join("batches.jsonl"))
+                .unwrap()
+                .lines()
+                .map(|line| serde_json::from_str::<Value>(line).unwrap())
+                .collect::<Vec<_>>()
+        };
+        let prefix = read();
+        println!(
+            "actual GT checkpoint {} canonical={} retained={} tail={tail}",
+            root.display(),
+            cursors.len(),
+            prefix.len()
+        );
+        assert_eq!(
+            prefix.len(),
+            16,
+            "completed preparation checkpoint was not retained before later refusal"
+        );
+        for (index, row) in prefix.iter().enumerate() {
+            assert_eq!(row["cursor"], cursors[index]);
+            assert_eq!(row["first_input_index"], index);
+            assert_eq!(row["rows"], 1);
+        }
+        let statistics = recorder.statistics_since([0; 5]);
+        assert_eq!(statistics["records"], 16 + tail);
+        assert_eq!(statistics["checkpoints"], 1);
+        recorder.flush_all();
+        let complete = read();
+        assert_eq!(complete.len(), 16 + tail);
+        assert_eq!(
+            complete.iter().map(|row| row["cursor"].as_u64().unwrap()).collect::<Vec<_>>(),
+            cursors
+        );
+    }
+
+    #[test]
+    fn preparation_checkpoint_survives_subsequent_refused_write() {
+        retained_cohorts(0);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn preparation_prefix_survives_small_uncheckpointed_tail(tail in 1usize..4) {retained_cohorts(tail);}
     }
 
     #[test]

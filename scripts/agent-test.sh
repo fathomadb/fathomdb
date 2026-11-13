@@ -703,7 +703,8 @@ run_tier_suite heavy test-slice30-g-observer cargo test --locked --release --job
   -p fathomdb-engine --features slice30-observer,test-hooks --test slice30_g_observer \
   -- --test-threads=1 --nocapture
 slice30_g_platform_reason=""
-if [ "$(uname -s)" != "Linux" ]; then
+slice30_g_host_os="$(uname -s)"
+if [ "$slice30_g_host_os" != "Linux" ]; then
   slice30_g_platform_reason="Slice30 G diagnostic tooling is Linux-only"
 fi
 run_tier_maybe_suite heavy test-slice30-g-cli "$slice30_g_platform_reason" \

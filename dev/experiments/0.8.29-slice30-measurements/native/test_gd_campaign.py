@@ -699,9 +699,9 @@ class GeneratedDPopulationTests(unittest.TestCase):
             print(f"actual generated D {attempt} rows={len(actual)} required={count}",flush=True)
             self.assertEqual(len(actual),count,"missing generated D population actuation")
             self.assertEqual([(row[0],row[1]) for row in actual],[(f"d-{i}","doc") for i in range(count)])
-            for table in ["vector_default","_fathomdb_vector_rows","_fathomdb_vector_spans"]:
+            for table in ["vector_default_rowids","_fathomdb_vector_rows","_fathomdb_vector_spans"]:
                 self.assertEqual(db.execute(f"SELECT count(*) FROM {table}").fetchone()[0],count)
-            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes c JOIN _fathomdb_vector_rows m ON m.kind=c.kind AND m.write_cursor=c.write_cursor JOIN _fathomdb_vector_spans s ON s.vector_rowid=m.rowid AND s.write_cursor=c.write_cursor WHERE s.byte_start=0 AND s.byte_end IS NULL").fetchone()[0],count)
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes c JOIN _fathomdb_vector_rows m ON m.kind=c.kind AND m.write_cursor=c.write_cursor JOIN vector_default_rowids v ON v.rowid=m.rowid JOIN _fathomdb_vector_spans s ON s.vector_rowid=m.rowid AND s.write_cursor=c.write_cursor WHERE s.byte_start=0 AND s.byte_end IS NULL").fetchone()[0],count)
             self.assertEqual(db.execute("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'").fetchone(),("varying","perf-gates-dense",768))
         vocab={f"{chr(97+i//676%26)}{chr(97+i//26%26)}{chr(97+i%26)}{i:04}" for i in range(1024)}
         for _,_,body in actual:

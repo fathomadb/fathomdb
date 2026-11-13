@@ -86,11 +86,12 @@ mean/CLS distinction, dispatch/default concurrency and worker commit ownership
 are preserved. D synthetic providers stay in existing test-hooks attachment.
 No global statement tracer, public production knob, cache or ranking change.
 At349 this was a design proposal. The engine collector and bounded source
-fixtures were implemented through46ee7cf6e with accepted prefix reviews. Later
-GN source prefixes through8e5823 implement the private host and bounded G1 input/
-caller/warmup/pass routing; full campaign qualification remains pending.
+fixtures were implemented through46ee7cf6e with accepted prefix reviews.
+The current source implements the private GN/GO host, G1/G2/GG and D routes, bounded owned
+controller, catalog and paired result adapters. Assembled source qualification
+and production lifecycle checks passed; natural campaign qualification remains pending.
 
-## Proposed generic G artifact ownership (current fit review)
+## Generic G artifact ownership
 
 The generic normal and diagnostic G callers use a SEPARATE feature-gated binary
 in the same private host

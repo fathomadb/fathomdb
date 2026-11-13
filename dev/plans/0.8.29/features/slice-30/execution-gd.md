@@ -19,7 +19,7 @@ Valid and Deleted observations preserve source shadow versus derived erasure,
 actual reader generations and explicit vector degradation. The initial unsupported
 fact fixture remains NOT_RED. Controlled fixtures are not the100k campaign.
 
-## Source qualification remaining
+## Source qualification and campaign boundary
 
 The candidate includes the26measurement+at most2preparation catalog, actual owned
 preparation/copy/family routes, original shared/per-cell deadlines, before/periodic/
@@ -29,9 +29,15 @@ GG has separate per-copy setup/verification/close costs; completed ordinary and
 held D write records are published outside API intervals. These are source-tested
 features, not a completed natural campaign or proof of natural positive overlap.
 
-Remaining work is final clean-source review, one stable full agent-verify,
-source-bound production native/lifecycle checks and immutable campaign
-freeze/admission. No natural G/D campaign clock has begun.
+Independent implementation review and assembled source qualification passed at
+6fc09adb4, including scoped resolutions after the original wrapper failure and
+resource/fixture-environment stops. Production Python/TypeScript lifecycle and
+normal release CLI checks passed. Manual GPU suites remain explicitly skipped
+in the canonical gate; earlier actual hardware proofs retain their source subjects.
+
+Remaining work is the immutable campaign artifact/input freeze, fresh resource
+and device admission, authorized natural measurements and independent results
+review. No natural G/D campaign clock has begun.
 
 New behavior keeps a genuine failing runtime test committed before minimal GREEN.
 Pure refactoring reuses unchanged controls. Implementation review is batched at
@@ -53,10 +59,8 @@ including preparation/waits. No natural G/D campaign clock has begun. Actual pin
 runs require the approved3090, reservation/engagement and fixed R580/CUDA12.6;
 no CPU substitute or download. Conditional sizes need actual lower-scale evidence.
 
-G/D final source qualification, fresh source-bound production native/lifecycle
-proofs and campaign freeze/admission remain outstanding. The9e Python setup was
-build/import only. Earlier raw failures/skips retain their original subjects;
-accepted P qualification is assembled, not an uninterrupted all-green run.
+Earlier raw failures/skips retain their original subjects. G/D and accepted P
+source qualification are assembled, not uninterrupted all-green runs.
 MCP20 A3/A5, Windows20, frozen TC5 fidelity, whole20/30,40/50 source and pre90
 obligations remain open. No policy answer or missing fidelity pack is inferred.
 

@@ -621,3 +621,59 @@ fn api_phases_attribute_actual_compile_dispatch_wait_and_response_per_route() {
     assert_eq!(batch.dropped_records, 0);
     absent.close().unwrap();
 }
+
+#[test]
+fn reader_phases_preserve_combined_vector_sql_fts_fusion_and_identity_parentage() {
+    let directory = tempfile::tempdir().unwrap();
+    let engine = seed_dense(&directory.path().join("reader-phases.sqlite"));
+    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    let result = observer.with_operation(1001, || engine.search("needle")).unwrap();
+    assert_eq!(result.results.len(), 2);
+    assert_eq!(result.results[0].id.value, "alpha");
+    let batch = observer.take();
+    let unique = |phase| {
+        let records =
+            batch.records.iter().filter(|record| record.phase == phase).collect::<Vec<_>>();
+        assert_eq!(records.len(), 1, "actual reader phase is missing or duplicated: {phase}");
+        records[0]
+    };
+    let reader = unique("reader_transaction");
+    let vector = unique("vector_retrieval");
+    for (phase, parent, count) in [
+        ("vector_retrieval", reader.span_id, 2),
+        ("vector_phase1_f32_sql", vector.span_id, 2),
+        ("vector_hydration", vector.span_id, 2),
+        ("node_fts_candidates", reader.span_id, 1),
+        ("edge_fts_candidates", reader.span_id, 0),
+        ("fusion_final_ranking", reader.span_id, 2),
+    ] {
+        let record = unique(phase);
+        assert_eq!(record.parent_span_id, Some(parent));
+        assert_eq!(record.status, "ok");
+        assert_eq!(record.operation_id, 1001);
+        assert_eq!(record.facts["candidates"], count);
+        assert!(reader.started_ns.unwrap() <= record.started_ns.unwrap());
+        assert!(record.started_ns.unwrap() <= record.ended_ns.unwrap());
+        assert!(record.ended_ns.unwrap() <= reader.ended_ns.unwrap());
+    }
+    let identity = unique("deferred_identity_hydration");
+    assert_eq!(identity.status, "ok");
+    assert_eq!(identity.parent_span_id, Some(reader.span_id));
+    assert_eq!(batch.dropped_records, 0);
+    observer.with_operation(1002, || engine.search_text_only("needle")).unwrap();
+    let batch = observer.take();
+    for phase in ["vector_retrieval", "deferred_identity_hydration"] {
+        let records =
+            batch.records.iter().filter(|record| record.phase == phase).collect::<Vec<_>>();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].status, "not_run");
+        assert_eq!(records[0].started_ns, None);
+        assert_eq!(records[0].ended_ns, None);
+        assert_eq!(records[0].facts["called"], false);
+    }
+    assert!(!batch.records.iter().any(
+        |record| record.phase == "vector_phase1_f32_sql" || record.phase == "vector_hydration"
+    ));
+    assert_eq!(batch.dropped_records, 0);
+    engine.close().unwrap();
+}

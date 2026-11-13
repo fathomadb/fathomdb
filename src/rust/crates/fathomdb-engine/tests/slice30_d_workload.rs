@@ -148,6 +148,10 @@ proptest! {
 }
 
 fn writer_fixture(appended: usize, cohort: usize, warmups: usize) {
+    writer_case(appended, cohort, warmups, false);
+}
+
+fn writer_case(appended: usize, cohort: usize, warmups: usize, readiness: bool) -> PathBuf {
     let root = tempfile::Builder::new().prefix("s30-d-writer-").tempdir().unwrap().keep();
     println!(
         "writer fixture {} appended={appended} cohort={cohort} warmups={warmups}",
@@ -164,7 +168,7 @@ fn writer_fixture(appended: usize, cohort: usize, warmups: usize) {
     ];
     let appended_records:Vec<_>=(0..appended).map(|i|json!({"id":format!("tail-{i}"),"kind":"note","body":format!("append evidence {i} é")})).collect();
     let config = root.join("cell.json");
-    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4})).unwrap()).unwrap();
+    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4,"readiness":readiness})).unwrap()).unwrap();
     let binary = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
         .join("release/examples/slice30_gd_diagnostic");
     println!("binary before runtime SHA256 {}", digest(&binary));
@@ -282,6 +286,7 @@ fn writer_fixture(appended: usize, cohort: usize, warmups: usize) {
     }
     let wal = PathBuf::from(format!("{}-wal", out.join("query.sqlite").display()));
     assert!(std::fs::metadata(wal).map_or(true, |m| m.len() == 0));
+    out
 }
 
 #[test]
@@ -296,4 +301,52 @@ proptest! {
     #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301302),..ProptestConfig::default()})]
     #[test]
     fn bounded_writer_cohorts_preserve_receipts_and_completed_tail(rows in 1usize..9,cohort in 1usize..5,warmups in 0usize..3){writer_fixture(rows,cohort,warmups);}
+}
+
+fn verify_readiness(rows: usize, warmups: usize) {
+    let out = writer_case(rows, 3, warmups, true);
+    let path = out.join("readiness.json");
+    let reads: Vec<Value> = if path.exists() {
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+    } else {
+        Vec::new()
+    };
+    assert!(!reads.is_empty(), "missing actual concurrent readiness API invocations");
+    let queries: Vec<Value> = std::fs::read_to_string(out.join("queries.jsonl"))
+        .unwrap()
+        .lines()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+    let writes: Vec<Value> =
+        serde_json::from_slice(&std::fs::read(out.join("writes.json")).unwrap()).unwrap();
+    let launch = writes[0]["launch_ns"].as_u64().unwrap();
+    let last_warm = queries
+        .iter()
+        .filter(|r| r["phase"] == "warmup")
+        .map(|r| r["end_ns"].as_u64().unwrap())
+        .max()
+        .unwrap_or(0);
+    let mut previous_end = last_warm;
+    let mut previous_start = None;
+    for read in reads {
+        assert_eq!(read["ok"], true, "ordinary readiness API success");
+        assert!(read["pending_count"].as_u64().unwrap() <= rows as u64);
+        let start = read["start_ns"].as_u64().unwrap();
+        let end = read["end_ns"].as_u64().unwrap();
+        assert!(launch <= start && previous_end <= start && start < end);
+        if let Some(prior) = previous_start {
+            assert!(start - prior >= 100_000_000, "100ms minimum invocation-start cadence");
+        }
+        previous_start = Some(start);
+        previous_end = end;
+    }
+}
+#[test]
+fn actual_readiness_call_is_measured_on_shared_writer_query_origin() {
+    verify_readiness(7, 2);
+}
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301303),..ProptestConfig::default()})]
+    #[test]
+    fn readiness_uses_real_counts_and_serial_full_invocation_intervals(rows in 1usize..9,warmups in 0usize..3){verify_readiness(rows,warmups);}
 }

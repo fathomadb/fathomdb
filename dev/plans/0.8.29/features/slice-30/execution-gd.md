@@ -10,7 +10,7 @@
 | Closed templates | Existing deterministic768 and normal BGE producers, canonical(kind,cursor)→mapping→physical/span/profile verification, closed WAL/hash/copy/reopen. D covered ends remain unknown; BGE uses actual UTF8 head ends. |
 | D worker observation | Accepted600bcd8→9b1b252: actual projection worker/batch IDs, jobs/cursors, typed start/end and state observations in an independent bounded stream. Conversion uses the supplied attempt origin; loss/toggles/aborted/invalid-clock cases have runtime tests. No inferred worker concurrency. |
 | D held adapter | Accepted914751e→8971508: verified empty configuration, freeze plus empty idle drain BEFORE writes, actual pendingN/vector0, idempotent explicit/Drop release then drain/physical completion. Phase reports use observed counts and one clock before open. Freeze does not cancel admitted scans. |
-| D ordinary source caller | Actual deterministic-provider warmup/timed queries, concurrent governed writer cohorts, serialized100ms readiness calls and same-origin worker/query adapter. DN/DO-off attribution stays unavailable; actual output feeds strict overlap analysis. Tiny closed seeds and literal queries are controls, not campaign populations or qualifying overlap. |
+| D ordinary source caller | Actual deterministic-provider warmup/timed queries, concurrent governed writer cohorts, serialized100ms readiness calls and same-origin worker/query adapter. DN/DO-off attribution stays unavailable; actual output feeds strict overlap analysis. Supplied query/population inputs and empty-start/held routes are implemented; tiny fixtures are controls, not campaign qualification. |
 
 ## GG governed valid/Deleted measured stages
 
@@ -21,16 +21,14 @@ fact fixture remains NOT_RED. Controlled fixtures are not the100k campaign.
 
 ## Remaining implementation
 
-- D population routing: connect supplied fixed queries and complete population
-  inputs to empty-store ordinary and held routes; current tiny closed-seed caller
-  is a source control. No campaign-sized preparation. Qualifying overlap still
-  requires actual strict common intersection and a successful full positive
-  readiness invocation inside it; no sleep/hold/padded intervals.
-- Native execution budgets: absolute admission and remaining-budget drains/close,
-  bounded resource probes and owned cleanup. Existing5s drains are source fixtures.
-- Controller: immutable26measurement+at most2preparation entries, actual generic
-  G/D populations/pass order, fresh attempts/resume, resource admission and one
-  shared4h clock including preparation/copy/quiet/retries.
+- Native execution budgets: complete G/held/preparation phase integration and
+  owned-controller cancellation. Ordinary D now enforces actual absolute entry/
+  phase limits and remaining-budget drains; source defaults retain5s only when
+  no absolute limits are supplied.
+- Controller: generate the26measurement+at most2preparation entries and wire
+  family output placement, remaining generic G routes and conditional admission.
+  Tiny real G/D completion/resume, the original shared clock, per-cell cleanup
+  reserve and before/periodic/final13-root resource checks are implemented.
 - Results: actual mode/query/template/adapter/repeat grouping, raw distributions,
   errors/loss/unavailable/unpaired outcomes and paired observer cost. No percentile
   subtraction or invented exclusive timing shares.
@@ -51,7 +49,7 @@ One heavy window/jobs2; final canonical jobs1. No cap growth or sibling mutable
 native/model/tool environment. P artifacts stay immutable.
 
 Source fixtures use180total/150work/30cleanup; campaign entries900/870/30, shared4h
-including preparation/waits. No G/D campaign clock has begun. Actual pinned BGE
+including preparation/waits. No natural G/D campaign clock has begun. Actual pinned BGE
 runs require the approved3090, reservation/engagement and fixed R580/CUDA12.6;
 no CPU substitute or download. Conditional sizes need actual lower-scale evidence.
 

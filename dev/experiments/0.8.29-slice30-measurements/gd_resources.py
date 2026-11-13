@@ -205,6 +205,13 @@ def _cleanup_owned_group(child, deadline=None):
     return result
 
 
+def swap_streak(sample, last, streak):
+    """Return the existing64MiB/s consecutive-sample count and three-window stop reason."""
+    rate = (sample["swap_bytes"]-last["swap_bytes"])/max(sample["time"]-last["time"],0.001)
+    streak = streak+1 if rate>=64*1024**2 else 0
+    return streak, "swap_rate" if streak>=3 else None
+
+
 def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB,
                 interval=30, phase_name="phase"):
     """Run one owned child, preserving output/exit and enforcing accepted resources."""
@@ -245,10 +252,9 @@ def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB
                         try:
                             sample = resource_sample(roots,task,baseline)
                             record["samples"].append(sample)
-                            rate = (sample["swap_bytes"]-last["swap_bytes"])/max(sample["time"]-last["time"],0.001)
-                            streak = streak+1 if rate>=64*1024**2 else 0
+                            streak, swap_issue = swap_streak(sample,last,streak)
                             last = sample
-                            issue = resource_issue(sample,max_owned) or ("swap_rate" if streak>=3 else None)
+                            issue = resource_issue(sample,max_owned) or swap_issue
                         except Exception as error:
                             issue = str(error)
                         if issue:
@@ -266,9 +272,8 @@ def run_guarded(command, phase_dir, roots=None, baseline=None, max_owned=200*GiB
         record["samples"].append(final)
         final_issue = resource_issue(final,max_owned)
         if record["pid"] is not None:
-            rate = (final["swap_bytes"]-last["swap_bytes"])/max(final["time"]-last["time"],0.001)
-            streak = streak+1 if rate>=64*1024**2 else 0
-            final_issue = final_issue or ("swap_rate" if streak>=3 else None)
+            streak, swap_issue = swap_streak(final,last,streak)
+            final_issue = final_issue or swap_issue
         record["resource_stop"] = record["resource_stop"] or final_issue
     except Exception as error:
         record["final_sample_error"] = str(error)

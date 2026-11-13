@@ -7,10 +7,10 @@ from pathlib import Path
 import time
 
 from campaign import run_campaign
-from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, resource_issue, resource_sample
+from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, resource_issue, resource_sample, swap_streak
 
 
-def run_manifest(manifest, root, monitor=None, before=None, resources=None, resource_interval=30):
+def run_manifest(manifest, root, monitor=None, before=None, resources=None, resource_interval: float = 30):
     """Run supplied cells in order with their actual native artifact identities."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -21,16 +21,18 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
     clock = json.loads(clock_path.read_text())
     deadline = clock["started_ns"] + int(min(manifest["campaign_seconds"], 14400) * 1_000_000_000)
 
+    swap = {"previous":None,"streak":0}
+
     def prepare():
         check_clock()
         samples = []
         if resources:
-            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True))
+            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True, swap=swap))
         check_clock()
         context = before() if before else None
         check_clock()
         if resources:
-            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True))
+            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True, swap=swap))
             context = {"preparation":context,"resource_samples":samples}
         check_clock()
         return context
@@ -52,7 +54,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
                   "shared_deadline_ns": deadline}
 
         def execute(cell, command, config, attempt, observe):
-            return _run_native(cell, command, config, attempt, observe, bounds, resources)
+            return _run_native(cell, command, config, attempt, observe, bounds, resources, resource_interval, swap)
 
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
@@ -72,7 +74,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
     return outcomes
 
 
-def _sample_resources(resources, deadline, start=False):
+def _sample_resources(resources, deadline, start=False, swap=None):
     try:
         sample = resource_sample(resources["roots"], Path(resources["task"]), resources["baseline"],
                                  deadline=deadline)
@@ -81,12 +83,21 @@ def _sample_resources(resources, deadline, start=False):
     sample["observed_ns"] = time.monotonic_ns()
     sample["baseline"] = resources["baseline"]
     issue = resource_issue(sample, 200*GiB, start=start)
+    if swap is not None:
+        observed = dict(sample,time=sample["observed_ns"]/1_000_000_000)
+        previous = swap["previous"]
+        if previous is None:
+            swap["previous"] = observed
+        elif observed["time"]-previous["time"] >= 30:
+            swap["streak"], swap_issue = swap_streak(observed,previous,swap["streak"])
+            swap["previous"] = observed
+            issue = issue or swap_issue
     if issue:
         raise _CampaignRefusal(issue)
     return sample
 
 
-def _run_native(cell, command, config, attempt, monitor, bounds, resources=None):
+def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None):
     native = dict(cell)
     for key, limit in bounds.items():
         native[key] = min(native.get(key, limit), limit)
@@ -100,6 +111,8 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None)
     work = native["work_deadline_ns"] / 1_000_000_000
     hard = hard_ns / 1_000_000_000
     error = None
+    samples = []
+    next_probe = time.monotonic()+resource_interval
     with _owned_subreaper(), (attempt / "child.log").open("wb") as log:
         if time.monotonic_ns() >= native["work_deadline_ns"]:
             return refusal
@@ -113,6 +126,20 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None)
                     break
                 if child.poll() is not None:
                     break
+                if resources and now >= next_probe:
+                    probe_started_ns = time.monotonic_ns()
+                    alive = child.poll() is None
+                    if not alive:
+                        break
+                    try:
+                        sample = _sample_resources(resources, work, swap=swap)
+                        sample.update(phase="running", native_pid=child.pid,
+                                      child_alive_at_start=alive, probe_started_ns=probe_started_ns)
+                        samples.append(sample)
+                    except _CampaignRefusal as refusal:
+                        error = str(refusal)
+                        break
+                    next_probe = time.monotonic()+resource_interval
                 if monitor:
                     error = monitor(child.pid)
                     if error:
@@ -140,10 +167,9 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None)
             cleanup = _cleanup_owned_group(child, deadline=min(hard-5, time.monotonic()+20))
         if not cleanup["complete"]:
             error = error or "owned group cleanup incomplete"
-        samples = []
         if resources:
             try:
-                sample = _sample_resources(resources, hard)
+                sample = _sample_resources(resources, hard, swap=swap)
                 sample["phase"] = "final"
                 samples.append(sample)
             except _CampaignRefusal as refusal:

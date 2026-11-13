@@ -32,7 +32,7 @@ def reservation_ok(owned, setup_used, g_raw, d_raw):
 
 
 def measure_root(path, deadline=None):
-    """Accept successful du totals only, retaining both bounded attempts on failure."""
+    """Return verified du totals; an optional monotonic deadline covers both metrics/retries."""
     import subprocess
     import time
     row = {"path": str(path), "warnings": []}
@@ -103,7 +103,7 @@ def _deadline_probe(command, deadline):
 
 
 def resource_sample(roots, task, baseline, deadline=None):
-    """Observe disjoint aggregate, independent raw budgets, memory/disk and swap."""
+    """Observe resources; an optional absolute deadline bounds the entire probe to at most5s."""
     import os
     from pathlib import Path
     import shutil
@@ -188,14 +188,19 @@ def _cleanup_owned_group(child, deadline=None):
 
     if alive():
         result["term_sent"] = send(signal.SIGTERM)
-        deadline = time.monotonic() + 15
-        while alive() and time.monotonic() < deadline:
-            time.sleep(0.02)
+        term_until = time.monotonic() + 15
+        if deadline is not None:
+            # Preserve KILL/reap time inside the caller's original endpoint.
+            term_until = min(term_until, max(time.monotonic(), deadline-5))
+        while alive() and time.monotonic() < term_until:
+            time.sleep(0.02 if deadline is None else min(0.02, max(0, term_until-time.monotonic())))
         if alive():
             result["kill_sent"] = send(signal.SIGKILL)
-            deadline = time.monotonic() + 5
-            while alive() and time.monotonic() < deadline:
-                time.sleep(0.02)
+            kill_until = time.monotonic() + 5
+            if deadline is not None:
+                kill_until = min(kill_until, deadline)
+            while alive() and time.monotonic() < kill_until:
+                time.sleep(0.02 if deadline is None else min(0.02, max(0, kill_until-time.monotonic())))
     result["complete"] = not alive()
     return result
 

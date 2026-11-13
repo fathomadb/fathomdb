@@ -97,9 +97,10 @@ fn write_cohort(
     origin: Instant,
     engine: &Engine,
     batch: &[PreparedWrite],
-    _config: &Value,
-    _out: &Path,
+    config: &Value,
+    out: &Path,
 ) -> Result<(fathomdb_engine::WriteReceipt, Value), ()> {
+    super::native_budget::phase(config, out, "write")?;
     Ok(timed(origin, || engine.write(batch).unwrap()))
 }
 
@@ -172,7 +173,11 @@ pub(super) fn run(config: &Value, out: &Path) {
                 valid_until: None,
             })
             .collect();
-        let (receipt, clock) = write_cohort(origin, engine, &batch, config, out).unwrap();
+        let Ok((receipt, clock)) = write_cohort(origin, engine, &batch, config, out) else {
+            release_refused(hold, out);
+            engine.close().unwrap();
+            return;
+        };
         writes.push(json!({"clock":clock,"rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors}));
     }
     let held = observation(origin, engine, &store);

@@ -303,7 +303,20 @@ def _effective_bounds(cell,bounds):
 def _run_completion(command,attempt,bounds,stopped):
     """Run the actual validator command and retain its processing outcome."""
     started=time.monotonic_ns()
+    def refusal():
+        error=(f"controller_signal_{stopped['signal']}" if stopped["signal"] is not None else
+               "validation deadline" if time.monotonic_ns()>=min(bounds[key] for key in
+               ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]) else None)
+        return ({"complete":False,"pid":None,"child_exit":None,
+                 "cleanup":{"complete":True,"not_started":True},
+                 "elapsed_ns":time.monotonic_ns()-started,"error":error} if error else None)
+    rejected=refusal()
+    if rejected is not None:
+        return rejected
     with _owned_subreaper(), (attempt/"validation.log").open("wb") as log:
+        rejected=refusal()
+        if rejected is not None:
+            return rejected
         child=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
         try:
             code=child.wait()

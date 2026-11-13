@@ -1121,3 +1121,40 @@ aggregate-cap qualification; those controller units remain required.
   uv CPython3.13.13 LIBDIR contains libpython3.13.so.1.0. Its scoped loader path
   is added to the private environment; Rust binding DT_NEEDED inspection remains
   required before the full wrapper. No system loader change or borrowed module.
+
+## Accepted Slice100 subset integration before G native qualification
+
+Merged exact accepted parent `3e31e6d4d5b22c9b224671cedd8346e11d93ce5a`
+with normal hooks at `8bbed7cae`, preserving all G RED/GREEN history. The only
+merge conflict was the appended engine test-target table: both G observer and
+Slice100 interruption targets and their required features are retained.
+Ancestry, clean checkout and strict closed10 preflight pass. Its sole warning is
+the expected implementer branch advancement beyond the release baseline.
+
+Against the prior imported `ff9c474eb5135d7a41731f5b78e0f12139dc29d9`, actual
+source changes are the engine manifest and new Slice100 interruption/support
+tests. Production engine, SDK, embedder, query, schema, MCP and Cargo.lock remain
+byte-identical. G contracts, inputs, caps, observer semantics and campaign holds
+therefore need no redesign. Slice100's accepted subset is the actual predecessor;
+whole100/Q1 remain open and create no new G dependency. Source-derived canonical
+tier totality now reports220 labels (209 fast/11 heavy), not the earlier219.
+This is registration evidence only, not executed-suite qualification.
+
+The native executor uses the exact accepted Source100 strict owned-ENOENT
+sampler, with G's unchanged resource floors/caps. The selected owned uv3.13
+interpreter LIBDIR is verified and scoped on LD_LIBRARY_PATH; binding binary
+DT_NEEDED verification remains required before the full native gate.
+
+### Stored span byte-range witness RED
+
+`g-span-unicode-red` compiled successfully (36.22s) and ran the real-store
+`stored_span_witness_preserves_utf8_byte_ranges_and_unknown_coverage` test:
+0passed/1failed/9filtered, exit101, no resource stop. The closed store contains
+three governed projected documents. The working read-only witness reports the
+actual count3, then fails the literal range assertion: `Null` versus the expected
+three stored UTF-8 byte ranges with body lengths5/8/3 and ends1/2/3. This is
+missing runtime reporting, not a compiler/missing-helper RED. Known/unknown
+coverage assertions are frozen together; unknown-provider metadata is a separate
+iteration in that same test. The deterministic scalar-head test provider is
+neither Default384 nor GPU qualification; projection/span storage is unchanged.
+Raw log and receipt retain their unique phase name under the owned task.

@@ -677,3 +677,105 @@ fn reader_phases_preserve_combined_vector_sql_fts_fusion_and_identity_parentage(
     assert_eq!(batch.dropped_records, 0);
     engine.close().unwrap();
 }
+
+struct ScalarHead {
+    known: bool,
+}
+
+impl fathomdb_embedder_api::Embedder for ScalarHead {
+    fn identity(&self) -> fathomdb_embedder_api::EmbedderIdentity {
+        fathomdb_embedder_api::EmbedderIdentity::new(
+            "slice30-scalar-head-control",
+            if self.known { "known" } else { "unknown" },
+            8,
+        )
+    }
+
+    fn embed(
+        &self,
+        input: &str,
+    ) -> Result<fathomdb_embedder_api::Vector, fathomdb_embedder_api::EmbedderError> {
+        let mut vector = vec![0.0; 8];
+        vector[input.chars().next().unwrap() as usize % 8] = 1.0;
+        Ok(vector)
+    }
+
+    fn truncation_offset(
+        &self,
+        input: &str,
+    ) -> Result<Option<usize>, fathomdb_embedder_api::EmbedderError> {
+        Ok(self.known.then(|| input.chars().next().unwrap().len_utf8()))
+    }
+}
+
+#[test]
+fn stored_span_witness_preserves_utf8_byte_ranges_and_unknown_coverage() {
+    for known in [true, false] {
+        let directory = tempfile::tempdir().unwrap();
+        let store = directory.path().join("coverage.sqlite");
+        let engine =
+            Engine::open_with_embedder_for_test(&store, std::sync::Arc::new(ScalarHead { known }))
+                .unwrap()
+                .engine;
+        engine
+            .configure_projections(
+                &[fathomdb_engine::ProjectionSpec {
+                    name: "doc".into(),
+                    roles: [fathomdb_engine::ProjectionRole::Searchable].into_iter().collect(),
+                    fts: None,
+                    vector: Some(fathomdb_engine::ProjectionVector::default()),
+                    source: None,
+                }],
+                &[],
+            )
+            .unwrap();
+        let writes = [("ascii", "alpha"), ("mixed", "βeta雪"), ("full", "雪")].map(|(id, body)| {
+            PreparedWrite::Node {
+                kind: "doc".into(),
+                body: body.into(),
+                logical_id: Some(id.into()),
+                source_id: SourceId::new("test:slice30-span-coverage").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }
+        });
+        engine.write(&writes).unwrap();
+        engine.drain(5_000).unwrap();
+        assert_eq!(engine.read_embedding_readiness().unwrap().pending_count, 0);
+        engine.close().unwrap();
+        drop(engine);
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../..");
+        let witness = std::process::Command::new(root.join(".venv/bin/python"))
+            .arg(root.join("dev/experiments/0.8.29-slice30-measurements/g_span_coverage.py"))
+            .arg(&store)
+            .output()
+            .unwrap();
+        assert!(witness.status.success(), "{}", String::from_utf8_lossy(&witness.stderr));
+        let report: serde_json::Value = serde_json::from_slice(&witness.stdout).unwrap();
+        assert_eq!(report["span_count"], 3);
+        let ends = if known { [Some(1), Some(2), Some(3)] } else { [None; 3] };
+        let spans: Vec<_> = ends
+            .into_iter()
+            .zip([5, 8, 3])
+            .map(|(end, length)| {
+                serde_json::json!({"window_number": 0, "byte_start": 0,
+                "byte_end": end, "body_length": length})
+            })
+            .collect();
+        assert_eq!(
+            report["spans"],
+            serde_json::json!(spans),
+            "actual stored ranges must distinguish UTF-8 bytes from scalar counts"
+        );
+        assert_eq!(report["full_body_spans"], if known { 1 } else { 0 });
+        assert_eq!(report["partial_body_spans"], if known { 2 } else { 0 });
+        assert_eq!(report["unknown_coverage_spans"], if known { 0 } else { 3 });
+        assert_eq!(report["body_bytes"], 16);
+        assert_eq!(
+            report["known_covered_bytes"],
+            if known { serde_json::json!(6) } else { serde_json::Value::Null }
+        );
+    }
+}

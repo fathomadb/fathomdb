@@ -28,3 +28,14 @@ The [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
 applies real-database boundaries, explicit independent oracles and resource
 release. General fuzzing, fault injection and exhaustive matrices are deferred;
 no such investment is needed to establish this bounded measurement baseline.
+
+## Actual native-entry predecessor fit
+
+Before G native qualification, accepted Slice100 subset at parent
+`3e31e6d4d5b22c9b224671cedd8346e11d93ce5a` is merged without rewriting G TDD
+history. Its production G inputs are unchanged; only the engine manifest and
+new interruption/support tests extend source inventory. R30-1..9/A30-1..7 and
+release requirements/AC remain unchanged. Canonical suite registration is220
+labels; no execution or whole100/Q1 closure follows. Accepted20 A3/A5 remains
+satisfied for M, which still needs a qualified selected G store and exact MCP
+tool review. D, F and model/GPU/campaign authority remain separately held.

@@ -1,0 +1,25 @@
+{
+  "schema": "slice30-g/v1",
+  "format": 37,
+  "provider": "default",
+  "model": {
+    "name": "fathomdb-bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "dimension": 384,
+    "head_tokens": 512
+  },
+  "sizes": [10000, 100000],
+  "adapters": ["engine", "sdk"],
+  "routes": ["text", "hybrid", "embed"],
+  "repeats": 2,
+  "warmup": 500,
+  "samples": 1000,
+  "seed_batch": 1000,
+  "diagnostic_queries": 50,
+  "write_batch_sizes": [1, 10],
+  "write_search_ratios": [1, 10, 100],
+  "tiny_cases": ["direct_text", "hybrid_no_dependencies", "hybrid_kind_filter", "source_window", "commit_change", "no_match"],
+  "limits": {"cell_seconds": 900, "campaign_seconds": 14400, "active_bytes": 17179869184},
+  "stage_order": ["G0", "G1", "G-R", "G-O", "G-W"],
+  "scope": "All G cells remain required; refusal retains INCOMPLETE/NOT_RUN obligations, not whole30 clearance. D shares the same fixed continuation allocation and needs separate source GO."
+}

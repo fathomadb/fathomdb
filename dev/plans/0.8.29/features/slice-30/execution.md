@@ -537,3 +537,24 @@ utilization proof still requires the later frozen ready packet and technical GO.
 Complete G-only table/stage/prereg/fresh-store/deadline/cumulative/refusal controls,
 consumers/registration, final full/native gate and fresh final results review
 remain required. No model/dataset fetch or GPU execution has occurred.
+
+At clean lifecycle-source checkpoint, merged exact metadata/plans parent
+5f8f12071f5400eaaec4b531cefcee1eefdbe6d9 into
+b484202099cc44e2b57fa6ec03c05c7205bfd7b0. Parent3c→5f8 and childffd5→merge
+have identical src/Cargo.lock; ancestry/clean tree and views/ledgers pass. All
+TDD commits survive without rebase. Parent explicitly transfers the sole heavy/
+native window to100; ensuing work is Python/static inventory/controller and
+harmless Python children only. Native consumers/modules/DB tests/full gate/GPU
+wait for explicit return;100-only approvals confer no G exception.
+
+G inventory RED3eb4fe37e imports the callable scaffold and observes0 actual
+children rather than84. Separate GREEN g-t10-inventory-green and final run pass
+the unchanged literal stage/order test using84 harmless owned Python children;
+Ruff passes, no resource stop. Fixed inventory is1G0,2G1,4G-R, one bounded G-O
+branch pack plus4 paired natural diagnostic cells, and72 G-W. The branch pack
+contains all six control kinds for both adapters under one whole-cell cap, not
+a fresh900s per internal step. Exact900s/14400s/16GiB, DefaultBGE384/head512,
+1000-row seed batches, balanced repeats and false/zero-warmup first50 policy
+remain fixed. P cells and runner source are unchanged. This is stage inventory
+proof, not operational GPU/DB execution or completed deadline/fresh-store/
+aggregate-cap qualification; those controller units remain required.

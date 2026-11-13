@@ -73,6 +73,15 @@ pub(super) fn drain(engine: &Engine, config: &Value) -> Result<Value, String> {
 }
 
 pub(super) fn checked_drain(engine: &Engine, config: &Value, out: &Path) -> Result<Value, String> {
-    let _ = out;
-    drain(engine, config)
+    let (mut report, error) = match drain(engine, config) {
+        Ok(report) if report["drain_calls"] == 1 => return Ok(report),
+        Ok(report) => {
+            (report, "native drain was not invoked before the original deadline".to_owned())
+        }
+        Err(error) => (json!({"disposition":"phase_failed","error":error.clone()}), error),
+    };
+    report["phase"] = json!("drain");
+    std::fs::create_dir_all(out).unwrap();
+    std::fs::write(out.join("budget.json"), serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+    Err(error)
 }

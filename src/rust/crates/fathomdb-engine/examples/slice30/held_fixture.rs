@@ -44,9 +44,13 @@ impl Drop for Hold<'_> {
 fn release_refused(hold: Hold<'_>, out: &Path) {
     let requests = hold.release_requests;
     drop(hold);
+    retain_release_count(out, requests.get());
+}
+
+fn retain_release_count(out: &Path, requests: usize) {
     let path = out.join("budget.json");
     let mut report: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    report["release_requests"] = json!(requests.get());
+    report["release_requests"] = json!(requests);
     std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
 }
 
@@ -125,7 +129,13 @@ pub(super) fn run(config: &Value, out: &Path) {
     assert_eq!(empty["sql"]["physical_vectors"], 0);
     let requests = Cell::new(0);
     let (mut hold, freezing) = timed(origin, || Hold::freeze(engine, &requests));
-    let (_, empty_idle) = timed(origin, || super::native_budget::drain(engine, config).unwrap());
+    let (idle_result, empty_idle) =
+        timed(origin, || super::native_budget::checked_drain(engine, config, out));
+    if idle_result.is_err() {
+        release_refused(hold, out);
+        engine.close().unwrap();
+        return;
+    }
     let idle = observation(origin, engine, &store);
     assert_eq!(idle["readiness"]["pending_count"], 0);
     assert_eq!(idle["sql"]["canonical_rows"], 0);
@@ -220,7 +230,13 @@ pub(super) fn run(config: &Value, out: &Path) {
         }
         drop(hold);
     });
-    let (_, draining) = timed(origin, || super::native_budget::drain(engine, config).unwrap());
+    let (drain_result, draining) =
+        timed(origin, || super::native_budget::checked_drain(engine, config, out));
+    if drain_result.is_err() {
+        retain_release_count(out, requests.get());
+        engine.close().unwrap();
+        return;
+    }
     let released = observation(origin, engine, &store);
     assert_eq!(released["readiness"]["pending_count"], 0);
     assert_eq!(released["sql"]["physical_vectors"], records.len());

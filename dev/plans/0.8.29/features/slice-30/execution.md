@@ -577,3 +577,13 @@ aggregate-cap qualification; those controller units remain required.
   rows. Ruff passes. This establishes exhaustion refusal and scheduling only;
   production dispatch, preparation/deadline propagation, storage/scale checks,
   fresh-store enforcement and final registration remain pending.
+
+### G retained-storage RED
+
+- `g-t10-storage-red` uses one real owned sparse raw artifact with logical size
+  16 GiB. The fixed cap includes retained raw data, so this is an exhausted
+  allocation without allocating physical 16 GiB or opening a database.
+- One actual harmless-child test fails with `AssertionError: True is not false :
+  retained raw artifacts exhausted cap but child still ran`; exit 1, no resource
+  stop. The immutable oracle also requires the original file and all 84 refused
+  obligations to remain present. No model/native/database claim is made.

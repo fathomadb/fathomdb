@@ -75,3 +75,21 @@ class GCumulativeBudgetTests(unittest.TestCase):
             self.assertEqual(json.loads((root / "g-budget.json").read_text())["used_ns"],
                              14400 * 10**9)
             self.assertEqual(len(json.loads((root / "g-outcomes.json").read_text())), 84)
+
+class GStorageBudgetTests(unittest.TestCase):
+    def test_retained_sixteen_gib_refuses_children_and_keeps_failed_artifacts(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            retained = root / "prior-failed-attempt.raw"
+            with retained.open("wb") as stream:
+                stream.truncate(16 * 1024**3)
+            calls = root / "unexpected-child"
+            code = f"import pathlib; pathlib.Path({str(calls)!r}).write_text('started')"
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code])
+            self.assertFalse(calls.exists(), "retained raw artifacts exhausted cap but child still ran")
+            self.assertEqual(retained.stat().st_size, 16 * 1024**3)
+            self.assertEqual(len(outcomes), 84)
+            self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
+                                and row["reason"] == "active_storage_exhausted" for row in outcomes))
+            self.assertEqual(len(json.loads((root / "g-outcomes.json").read_text())), 84)

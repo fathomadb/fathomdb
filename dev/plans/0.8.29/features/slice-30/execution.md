@@ -1199,3 +1199,42 @@ Native/runner candidate remains subject to fresh independent review and one
 stable full source gate after generated-document/loader/native ownership checks.
 Actual Default384, reserved3090 engagement and all measurement cells remain held
 for the technical campaign GO; no D/M/F or whole-release clearance follows.
+
+### Native executor lifecycle finding and repair
+
+Fresh independent review accepted the span/production binding candidate but
+found the newly tracked native executor inherited an old leader-only cleanup
+path. No-resource-stop passes remain their original qualified subjects. Full
+verification and further native phases stopped. Already-active owned setup
+finished: Python and TS both exit0/no resource stop; original unconfined-context
+checks confirm registered leaders2952413/2952819 absent and both foreground
+groups empty (`g-setup-actors-absent.json`). The canonical generator already ran
+once after source freeze and changed only the contributor-map script digest;
+public docs check passes. No model/GPU construction occurred.
+
+- Resource-stop RED `38d3b7f7c`: actual TERM-resistant descendant writes after
+  its leader exits during controlled resource-stop cleanup.
+- Successful-leader RED `355aa9f93`: actual exit0 is accepted with a live owned
+  descendant, which also writes later. Both fixtures self-exit within bounds.
+- Independent Astra accepted the exact test timing fit, patch SHA256
+  `6a0da17bbbc8ebaf5e39e5a5fa13eea97b18518b06946c1bc8ec38e14c5bb05e`:
+  equivalent30s-to0.05s test polling acceleration for reused wait_unreaped only;
+  real WNOWAIT, ownership, signals,2s cleanup waits and assertions stay fixed.
+  Both adapted tests still fail on the untouched executor at `06d540589`.
+- Resource-stop GREEN `1af0631d3`: exact reviewed G attempt wait/pinned cleanup
+  helpers replace leader-only waiting; focused1/1 passes with no late write,
+  phase124/actual child_exit-15, empty owned group and no cleanup uncertainty.
+  Successful-leader quiescence is still outstanding at that intermediate commit.
+- Successful-leader GREEN `d0dd292b6`: inspect actual live foreground members
+  before reaping; surviving work causes phase125, retained survivor IDs and
+  bounded pinned cleanup. Focused1/1 and combined37/37 pass, prior35 unchanged.
+  Oracle blob `19cf9594ea36a86cf6eb02ebc1af457dd4dfe63d` matches adapted RED.
+  Cleanup exceptions are retained and fail closed. The foreground-group contract
+  and resource floors/caps/poll cadence stay fixed; no detached-work guarantee
+  is claimed. Original logs and independent fixture decisions remain retained.
+
+Ruff initially encountered a read-only cache path in the sandbox; this is setup
+history, not semantic RED. Its private owned cache is now explicitly selected,
+and lint passes. Coherent lifecycle recheck is pending before further native
+phases/full source qualification; the separately proposed explicit own-source
+fixture environment binding remains unapplied pending that same review.

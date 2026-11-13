@@ -222,14 +222,12 @@ struct Schedule {
     probes: Vec<Value>,
 }
 
-#[cfg(test)]
 struct GSchedule {
     samples: usize,
     batch_size: usize,
     searches_per_batch: usize,
 }
 
-#[cfg(test)]
 fn g_point_probe(engine: &Adapter, id: &str, expected_body: &str) -> Value {
     let start = std::time::Instant::now();
     let result = match engine {
@@ -253,6 +251,28 @@ fn run_g_schedule_observed(
     original_bodies: &[String],
     schedule: GSchedule,
     observer: &mut dyn FnMut(&str, &Value),
+) -> Schedule {
+    run_g_schedule_with_calls(
+        engine,
+        route,
+        queries,
+        original_bodies,
+        schedule,
+        observer,
+        &mut |route, query, _phase| (observe_g_route(engine, route, query), None),
+    )
+}
+
+type GRouteCall<'a> = dyn FnMut(&str, &str, &str) -> (Value, Option<Value>) + 'a;
+
+fn run_g_schedule_with_calls(
+    engine: &Adapter,
+    route: &str,
+    queries: &[String],
+    original_bodies: &[String],
+    schedule: GSchedule,
+    observer: &mut dyn FnMut(&str, &Value),
+    call: &mut GRouteCall<'_>,
 ) -> Schedule {
     assert!(!queries.is_empty() && schedule.searches_per_batch > 0);
     assert!(original_bodies.len() >= 10);
@@ -286,7 +306,12 @@ fn run_g_schedule_observed(
             output.batches.push(batch);
             for (id, token, body) in replacements {
                 let point = g_point_probe(engine, &id, &body);
-                let text = observe_g_route(engine, "text", &token);
+                let (text, trace) = call("text", &token, "marker_probe");
+                if let Some(mut trace) = trace {
+                    trace["before_sample"] = json!(sample);
+                    trace["cohort_index"] = json!(cohort);
+                    observer("observations", &trace);
+                }
                 let current = point["current"] == true
                     && text["ids"] == json!([format!("l:{id}")])
                     && text["bodies"] == json!([body]);
@@ -297,7 +322,12 @@ fn run_g_schedule_observed(
                 output.probes.push(probe);
             }
         }
-        let mut row = observe_g_route(engine, route, &queries[sample % queries.len()]);
+        let (mut row, trace) = call(route, &queries[sample % queries.len()], "measured");
+        if let Some(mut trace) = trace {
+            trace["sample_index"] = json!(sample);
+            trace["query_index"] = json!(sample % queries.len());
+            observer("observations", &trace);
+        }
         row["sample_index"] = json!(sample);
         row["query_index"] = json!(sample % queries.len());
         observer("samples", &row);
@@ -858,10 +888,147 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
 }
 
 fn run_g_write(config: &Value, out: &Path) -> Value {
-    let mut result = run_g_read(config, out);
-    result["batches"] = json!([]);
-    result["probes"] = json!([]);
-    result["batch_count"] = json!(0);
+    let provider = config["provider"].as_str().expect("G provider");
+    let negative = config["negative_control"] == true;
+    assert_eq!(provider, if negative { "none" } else { "default" });
+    if !negative {
+        assert_eq!(
+            std::env::var("AGENT_LONG").as_deref(),
+            Ok("1"),
+            "Default runs require long opt-in"
+        );
+    }
+    let adapters = config["adapters"].as_array().expect("G-W adapter");
+    let routes = config["routes"].as_array().expect("G-W route");
+    assert_eq!(adapters.len(), 1, "G-W requires one adapter per fresh matching store");
+    assert_eq!(routes.len(), 1, "G-W requires one route per fresh matching store");
+    let name = adapters[0].as_str().unwrap();
+    let route = routes[0].as_str().unwrap();
+    let store = Path::new(config["store"].as_str().expect("selected G-W store"));
+    assert!(store.is_file());
+    assert!(!out.exists(), "G-W output must be fresh");
+    std::fs::create_dir_all(out).expect("owned G-W output");
+    let queries = read_jsonl(config["queries"].as_str().expect("G-W queries"));
+    let originals = read_jsonl(config["corpus"].as_str().expect("original natural corpus"));
+    let number =
+        |key: &str| usize::try_from(config[key].as_u64().expect("G-W call count")).unwrap();
+    let samples = number("samples");
+    let warmup = number("warmup");
+    assert!(samples > 0 && !queries.is_empty() && originals.len() >= 10);
+    let observed = config["observe"] == true;
+    let opening = std::time::Instant::now();
+    let engine = Adapter::open_g(name, store, provider);
+    let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
+    let before = g_fixture_observation(&engine, store);
+    assert!(
+        negative || before["qualified_dense_fixture"] == true,
+        "G-W needs a qualified initial dense store"
+    );
+    let observation = begin_g_observation(&engine, observed);
+    let mut recorder = Recorder::new_g(out);
+    let mut operation = 1_u64;
+    let mut warmups = Vec::new();
+    let mut traces = Vec::new();
+    for index in 0..warmup {
+        let (mut row, trace) = observe_g_operation(
+            &engine,
+            route,
+            &queries[index % queries.len()],
+            operation,
+            &observation,
+        );
+        row["adapter"] = json!(name);
+        row["repeat"] = config["repeat"].clone();
+        row["sample_index"] = json!(index);
+        row["query_index"] = json!(index % queries.len());
+        row["phase"] = json!("warmup");
+        recorder.emit("warmups", &row);
+        warmups.push(row);
+        if let Some(mut trace) = trace {
+            trace["adapter"] = json!(name);
+            trace["route"] = json!(route);
+            trace["phase"] = json!("warmup");
+            trace["operation_id"] = json!(operation);
+            recorder.emit("observations", &trace);
+            traces.push(trace);
+        }
+        operation += 1;
+    }
+    recorder.flush_all();
+    let measured = std::time::Instant::now();
+    let schedule = run_g_schedule_with_calls(
+        &engine,
+        route,
+        &queries,
+        &originals,
+        GSchedule {
+            samples,
+            batch_size: number("batch_size"),
+            searches_per_batch: number("searches_per_batch"),
+        },
+        &mut |stream, row| {
+            let mut row = row.clone();
+            row["adapter"] = json!(name);
+            row["repeat"] = config["repeat"].clone();
+            if stream == "observations" {
+                traces.push(row.clone());
+            }
+            recorder.emit(stream, &row);
+        },
+        &mut |called_route, query, phase| {
+            let (mut row, trace) =
+                observe_g_operation(&engine, called_route, query, operation, &observation);
+            row["adapter"] = json!(name);
+            row["repeat"] = config["repeat"].clone();
+            row["phase"] = json!(phase);
+            let trace = trace.map(|mut trace| {
+                trace["adapter"] = json!(name);
+                trace["route"] = json!(called_route);
+                trace["phase"] = json!(phase);
+                trace["operation_id"] = json!(operation);
+                trace
+            });
+            operation += 1;
+            (row, trace)
+        },
+    );
+    recorder.flush_all();
+    let wall_ns = u64::try_from(measured.elapsed().as_nanos()).unwrap();
+    let after = g_fixture_observation(&engine, store);
+    #[cfg(feature = "slice30-observer")]
+    drop(observation);
+    let closing = std::time::Instant::now();
+    engine.close();
+    drop(engine);
+    let close_ns = u64::try_from(closing.elapsed().as_nanos()).unwrap();
+    let outcomes_ok = schedule.searches.iter().chain(&warmups).all(|row| {
+        if negative && row["route"] == "embed" {
+            row["ok"] == false && row["error_kind"] == "EmbedderNotConfiguredError"
+        } else {
+            row["ok"] == true
+                && (row["route"] != "embed" || (row["dimension"] == 384 && row["finite"] == true))
+        }
+    });
+    let attribution_ok = !observed
+        || (traces.len() == warmups.len() + schedule.searches.len() + schedule.probes.len()
+            && traces.iter().all(|trace| {
+                trace["dropped_records"] == 0
+                    && trace["issues"] == json!([])
+                    && trace["records"].as_array().is_some_and(|records| !records.is_empty())
+            }));
+    let complete = outcomes_ok
+        && attribution_ok
+        && schedule.probes.iter().all(|probe| probe["marker_current"] == true)
+        && before["natural_records"] == after["natural_records"];
+    let result = json!({"complete":complete,"negative_control":negative,
+        "sample_count":schedule.searches.len(),"warmup_count":warmups.len(),"first_call_count":0,
+        "batch_count":schedule.batches.len(),"batches":schedule.batches,"probes":schedule.probes,
+        "samples":schedule.searches,"warmups":warmups,"first_calls":[],"observation_batches":traces,
+        "before_workload":before,"after_workload":after,"open_ns":open_ns,"close_ns":close_ns,
+        "passes":[{"adapter":name,"route":route,"requests":samples,"wall_ns":wall_ns,
+            "throughput_scope":"natural route calls over write/point+FTS probe/search/recording/checkpoint loop"}],
+        "raw_persistence":recorder.statistics_since([0;5]),
+        "cache_note":"separate point and FTS probes intervene after each governed cohort; warmups precede writes; no interbatch drain or observed-worker-overlap claim"});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result
 }

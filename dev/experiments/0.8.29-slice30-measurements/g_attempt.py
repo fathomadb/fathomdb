@@ -80,14 +80,25 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
     attempt.mkdir()
     config = attempt / "cell.json"
     config.write_text(json.dumps(cell, indent=2) + "\n")
+    if context is not None:
+        (attempt / "context.json").write_text(json.dumps(context, indent=2) + "\n")
+    prospective = context.get("prospective_prediction") if isinstance(context, dict) else None
     selected = command(cell, deadline_ns) if callable(command) else command
     argv = [*selected, str(config), str(attempt)]
     error, child, code, complete = None, None, None, False
     cleanup_uncertain = False
     live_owned = []
+    forecast_refusal = False
+    remaining_at_dispatch = deadline_ns - time.monotonic_ns()
     with (attempt / "child.log").open("w") as log:
-        if time.monotonic_ns() >= deadline_ns:
+        remaining_at_dispatch = deadline_ns - time.monotonic_ns()
+        if remaining_at_dispatch <= 0:
             error = "cell timeout before child start"
+        elif prospective is not None and (type(prospective.get("total_ns")) is not int
+                                          or prospective["total_ns"] < 0
+                                          or prospective["total_ns"] > remaining_at_dispatch):
+            forecast_refusal = True
+            error = "complete forecast exceeds actual remaining allowance or is unavailable"
         else:
             child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:
@@ -135,11 +146,16 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
     outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "exit": code,
                "child_exit": child.returncode if child else None, "cleanup_uncertain": cleanup_uncertain,
                "live_owned_pids": live_owned,
-               "status": "complete" if complete else "failed", "error": error,
+               "status": "not_run_cap" if forecast_refusal else "complete" if complete else "failed", "error": error,
                "elapsed_ns": time.monotonic_ns() - started, "environment_before": context,
                "started_at": started_at, "ended_at": time.time(), "deadline_ns": deadline_ns,
                "pid": child.pid if child else None, "pgid": child.pid if child else None,
                "command": argv}
+    if prospective is not None:
+        outcome.update(prediction=prospective, remaining_ns_at_dispatch=remaining_at_dispatch,
+                       forecast_allowed_at_dispatch=not forecast_refusal)
+    if forecast_refusal:
+        outcome.update(complete=False, reason="cap_feasibility")
     (attempt / "attempt.json").write_text(json.dumps(outcome, indent=2) + "\n")
     state_path = root / "campaign-state.json"
     previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}

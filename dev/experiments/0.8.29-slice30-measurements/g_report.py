@@ -22,7 +22,7 @@ def summarize(root):
         if not outcome:
             continue
         report["outcome"] = outcome
-        if not outcome.get("attempt"):
+        if not outcome.get("attempt") or outcome["status"].startswith("not_run_"):
             continue
         try:
             actual = json.loads(Path(outcome["attempt"], "result.json").read_text())

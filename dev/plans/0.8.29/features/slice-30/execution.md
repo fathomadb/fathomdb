@@ -1094,3 +1094,15 @@ aggregate-cap qualification; those controller units remain required.
 - Literal prior allowance/forecast tables are not measured timing evidence.
   Actual assessment wall and command starts are independently witnessed. All33
   existing controls and fixed caps remain unchanged.
+
+- Remaining-allowance correction GREEN: `g-runner-remaining-green` passes both
+  frozen `40fb84021` harmless-dispatch cases; `g-runner-remaining-combined` passes
+  all35 G Python controls, including the unchanged prior33; Ruff passes, no
+  resource stops. Complete positive forecasts now travel through the existing
+  context channel and are retained before child launch.
+- Immediately before Popen, the complete forecast is compared with the actual
+  absolute deadline remaining, which already includes min(cell/shared allowance),
+  prior charged use and assessment/preparation/configuration elapsed. Refusals
+  retain the full prediction, actual remaining time and explicit cap status;
+  no budget, target or earlier assertion changed. Native execution remains gated
+  on the now-returned window's verified sampler/loader setup and real-store REDs.

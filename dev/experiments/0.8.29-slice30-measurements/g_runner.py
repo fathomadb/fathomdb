@@ -190,6 +190,7 @@ def run_prepared(manifest, root):
             path.chmod(0o444)
         return [sys.executable, str(Path(__file__).resolve()), "_cell", str(path), str(deadline)]
     cache = {}
+    predictions = {}
     def assess(cell, previous, remaining_ns, retained_bytes):
         if cell["stage"] != "G0" and qualified_result(previous.get("g0-smoke"), cache) is None:
             return {"status": "not_run_prerequisite", "reason": "g0_not_qualified"}
@@ -199,8 +200,13 @@ def run_prepared(manifest, root):
             prediction = forecast_write(cell, observed, remaining_ns, retained_bytes)
             if not prediction["allowed"]:
                 return {"status": "not_run_cap", "reason": "cap_feasibility", "prediction": prediction}
+            predictions[cell["id"]] = prediction
         return None
-    return run_g_plan(spec, root / "results", command, allocation_root=manifest["allocation"], assess=assess)
+    def prepare(cell, _root):
+        prediction = predictions.get(cell["id"])
+        return {"prospective_prediction": prediction} if prediction is not None else None
+    return run_g_plan(spec, root / "results", command, prepare=prepare,
+                      allocation_root=manifest["allocation"], assess=assess)
 
 
 def run_cell_job(manifest_path, deadline_ns, config_path, output):

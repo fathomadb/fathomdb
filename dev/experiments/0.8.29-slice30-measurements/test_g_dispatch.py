@@ -132,3 +132,40 @@ class GReadDispatchTests(unittest.TestCase):
                         else:
                             self.assertEqual(read["queries"], str(queries))
                     self.assertEqual([json.loads(line) for line in queries.read_text().splitlines()], questions)
+
+class GSmokeDispatchTests(unittest.TestCase):
+    def test_tiny_smoke_binds_known_fixture_to_seed_and_all_current_routes_without_natural_input_change(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        cell = make_g_plan(spec)[0]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "natural-corpus.jsonl", root / "natural-queries.jsonl"
+            corpus.write_text('"retained natural body"\n')
+            queries.write_text('"retained natural question"\n')
+            calls = root / "calls.jsonl"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "config=json.loads(pathlib.Path(sys.argv[1]).read_text()); out=pathlib.Path(sys.argv[2])",
+                f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write(json.dumps(config)+'\\n')",
+                "assert not out.exists(); out.mkdir(parents=True)",
+                "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
+            ])
+            result = execute_stage(cell, {"command": [sys.executable, "-c", code],
+                                          "corpus": str(corpus), "queries": str(queries)},
+                                   root / "attempt", time.monotonic_ns() + 900 * 10**9)
+            actual = [json.loads(line) for line in calls.read_text().splitlines()]
+            self.assertEqual([row["family"] for row in actual], ["G-seed", "G-R"],
+                             "tiny G0 did not invoke the existing seed/read drivers")
+            self.assertEqual([json.loads(line) for line in Path(actual[0]["corpus"]).read_text().splitlines()],
+                             ["alpha needle", "beta"])
+            self.assertEqual([json.loads(line) for line in Path(actual[1]["queries"]).read_text().splitlines()],
+                             ["needle"])
+            self.assertEqual(actual[1]["corpus"], actual[0]["corpus"])
+            self.assertEqual(actual[1]["store"], str(root / "attempt" / "seed" / "store.sqlite"))
+            self.assertEqual((actual[1]["adapters"], actual[1]["routes"]),
+                             (["engine", "sdk"], ["text", "hybrid", "embed"]))
+            self.assertEqual((actual[1]["samples"], actual[1]["warmup"], actual[1]["record_first_call"]),
+                             (16, 0, False))
+            self.assertEqual(corpus.read_text(), '"retained natural body"\n')
+            self.assertEqual(queries.read_text(), '"retained natural question"\n')
+            self.assertTrue(result["complete"])

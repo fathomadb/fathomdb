@@ -779,3 +779,14 @@ aggregate-cap qualification; those controller units remain required.
   slice without changing original input or adding calls/warmups.
 - G0/tiny-branch binding, production result/device qualification, complete outer
   budget/identity integration and actual native/model/GPU evidence remain open.
+
+### G0 command/fixture RED
+
+- `g-t10-smoke-dispatch-red` runs actual harmless children and observes
+  `['G-seed', 'G0']` instead of current `['G-seed', 'G-R']`; one runtime
+  failure, exit 1, no resource stop.
+- Frozen expectations bind the existing two-document `alpha needle`/`beta`
+  control and `needle` query, current six adapter/routes, 16 samples with no
+  warmup/extra first call, same seeded subject and unchanged natural input
+  files. This is synthetic command/fixture coverage, never natural-data or
+  Default/dense/GPU qualification.

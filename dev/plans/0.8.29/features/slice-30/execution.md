@@ -587,3 +587,9 @@ aggregate-cap qualification; those controller units remain required.
   retained raw artifacts exhausted cap but child still ran`; exit 1, no resource
   stop. The immutable oracle also requires the original file and all 84 refused
   obligations to remain present. No model/native/database claim is made.
+
+- Retained-storage guard GREEN: `g-t10-storage-green` passes all three Python
+  controller tests (exit 0, no resource stop) with the `87887b738` oracle
+  unchanged. Ruff passes. Counted lengths include every retained file under the
+  allocation root; no old artifact is removed to renew headroom. This proves
+  refusal at entry, not yet production growth monitoring or scale feasibility.

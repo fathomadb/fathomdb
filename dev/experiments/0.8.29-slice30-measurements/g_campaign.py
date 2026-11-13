@@ -68,6 +68,11 @@ def make_g_plan(spec):
     return plan
 
 
+def active_bytes(root):
+    """Count all retained file lengths, including failed raw/DB/WAL artifacts."""
+    return sum(path.stat().st_size for path in Path(root).rglob("*") if path.is_file())
+
+
 def run_g_plan(spec, root, command):
     """Run a callable stage schedule with the existing owned-child attempt runner."""
     plan = make_g_plan(spec)
@@ -82,7 +87,8 @@ def run_g_plan(spec, root, command):
     outcomes = []
     for cell in plan:
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
-                  "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else None)
+                  "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
+                  "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else None)
         if reason:
             outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
                              "complete": False, "reason": reason})

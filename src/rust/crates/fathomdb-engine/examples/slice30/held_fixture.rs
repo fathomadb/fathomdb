@@ -85,12 +85,18 @@ fn snapshot(path: &Path) -> Value {
         "span_rows":count("_fathomdb_vector_spans"),"profile":profile})
 }
 
-fn observation(origin: Instant, engine: &Engine, path: &Path) -> Value {
+fn observation(
+    origin: Instant,
+    engine: &Engine,
+    path: &Path,
+    _config: &Value,
+    _out: &Path,
+) -> Result<Value, ()> {
     let (ready, readiness_time) = timed(origin, || engine.read_embedding_readiness().unwrap());
     let ready = readiness(ready);
     let (sql, sql_time) = timed(origin, || snapshot(path));
-    json!({"start_ns":readiness_time["start_ns"],"end_ns":sql_time["end_ns"],
-        "readiness":ready,"readiness_time":readiness_time,"sql":sql,"sql_time":sql_time})
+    Ok(json!({"start_ns":readiness_time["start_ns"],"end_ns":sql_time["end_ns"],
+        "readiness":ready,"readiness_time":readiness_time,"sql":sql,"sql_time":sql_time}))
 }
 
 fn write_cohort(
@@ -138,7 +144,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     engine.begin_d27_observation_for_test(origin);
     let configuration = engine.d27_observation_for_test().unwrap().configuration_observation;
     assert_eq!((configuration.scheduler_runtime_threads, configuration.embedder_pool_size), (2, 5));
-    let empty = observation(origin, engine, &store);
+    let empty = observation(origin, engine, &store, config, out).unwrap();
     assert_eq!(empty["readiness"]["pending_count"], 0);
     assert_eq!(empty["sql"]["canonical_rows"], 0);
     assert_eq!(empty["sql"]["physical_vectors"], 0);
@@ -151,7 +157,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         engine.close().unwrap();
         return;
     }
-    let idle = observation(origin, engine, &store);
+    let idle = observation(origin, engine, &store, config, out).unwrap();
     assert_eq!(idle["readiness"]["pending_count"], 0);
     assert_eq!(idle["sql"]["canonical_rows"], 0);
     super::d_workload::enable_observation(engine, config);
@@ -183,7 +189,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         writes.push(json!({"clock":clock,"rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors}));
         super::d_workload::write_row(&mut raw_writes, writes.last().unwrap());
     }
-    let held = observation(origin, engine, &store);
+    let held = observation(origin, engine, &store, config, out).unwrap();
     assert_eq!(held["readiness"]["pending_count"], records.len());
     assert_eq!(held["sql"]["physical_vectors"], 0);
     super::d_workload::write_row(
@@ -243,7 +249,7 @@ pub(super) fn run(config: &Value, out: &Path) {
             release_refused(hold, out);
             return;
         }
-        Some(observation(origin, engine, &store))
+        Some(observation(origin, engine, &store, config, out).unwrap())
     } else {
         None
     };
@@ -263,7 +269,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         engine.close().unwrap();
         return;
     }
-    let released = observation(origin, engine, &store);
+    let released = observation(origin, engine, &store, config, out).unwrap();
     assert_eq!(released["readiness"]["pending_count"], 0);
     assert_eq!(released["sql"]["physical_vectors"], records.len());
     super::d_workload::write_row(
@@ -430,5 +436,79 @@ mod tests {
         #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
         #[test]
         fn original_held_cohort_bounds_preserve_only_previous_commits(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {write_admission(key,count);}
+    }
+
+    fn observation_admission(key: &str, count: usize) {
+        let root =
+            tempfile::Builder::new().prefix("s30-held-observation-").tempdir().unwrap().keep();
+        let origin = Instant::now();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_test_choice_for_test(
+            &store,
+            TestEmbedderChoice::Caller(Arc::new(VaryingEmbedder)),
+        )
+        .unwrap()
+        .engine;
+        super::super::dense_template::configure(&engine);
+        let batch: Vec<_> = (0..count)
+            .map(|i| PreparedWrite::Node {
+                kind: "doc".into(),
+                body: format!("actual observation é {i}"),
+                logical_id: Some(format!("observed-{i}")),
+                source_id: SourceId::new("test:s30-held-observation").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        engine.write(&batch).unwrap();
+        engine.drain(5000).unwrap();
+        let healthy = observation(origin, &engine, &store, &json!({}), &root).unwrap();
+        assert_eq!(healthy["readiness"]["pending_count"], 0);
+        assert_eq!(healthy["sql"]["canonical_rows"], count);
+        assert_eq!(healthy["sql"]["physical_vectors"], count);
+        assert_eq!(healthy["sql"]["profile"]["dimension"], 768);
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        let result = observation(origin, &engine, &store, &config, &root);
+        engine.close().unwrap();
+        let db = Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get::<_, usize>(0))
+                .unwrap(),
+            count
+        );
+        println!(
+            "actual held observation {} key={key} accepted={}",
+            root.display(),
+            result.is_ok()
+        );
+        assert!(
+            result.is_err(),
+            "expired held observation still executed successful readiness/SQL work"
+        );
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(root.join("budget.json")).unwrap()).unwrap();
+        assert_eq!(report["phase"], "observation");
+        assert_eq!(report["disposition"], "deadline_refused");
+    }
+
+    #[test]
+    fn work_expiry_prevents_actual_held_observation() {
+        observation_admission("work_deadline_ns", 3);
+    }
+    #[test]
+    fn hard_expiry_prevents_actual_held_observation() {
+        observation_admission("hard_deadline_ns", 3);
+    }
+    #[test]
+    fn shared_expiry_prevents_actual_held_observation() {
+        observation_admission("shared_deadline_ns", 3);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn original_held_observation_bounds_preserve_stored_population(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {observation_admission(key,count);}
     }
 }

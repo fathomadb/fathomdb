@@ -31,7 +31,10 @@ fn drain(engine: &Engine, config: &Value, out: &Path) -> Result<(), ()> {
 }
 
 fn prepare_template(config: &Value, out: &Path, store: &Path) -> Result<(), ()> {
-    let _ = dense_template::run(config, &out.join("template"));
+    if !dense_template::run(config, &out.join("template")) {
+        std::fs::copy(out.join("template/budget.json"), out.join("budget.json")).unwrap();
+        return Err(());
+    }
     std::fs::copy(out.join("template/template.sqlite"), store).unwrap();
     Ok(())
 }

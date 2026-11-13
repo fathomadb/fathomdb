@@ -305,3 +305,18 @@ separate planned units; final full/native/review qualification is still pending.
 
 The first reader GREEN commit hook refused MD012 at execution.md:281 (two blank
 lines); the whitespace-only correction preserves every source/oracle value.
+
+G-T8 math RED55ab300fc imports and runs a compiling summary scaffold: literal
+nested-tree completeFalsevsTrue and missing drop/required-phase metadata fail
+semantic assertions. The initial five-test run has4assertion failures and2
+incidental absent-row IndexErrors; those exceptions are retained but are not
+semantic RED evidence. GREEN g-t8-math-green passes all5 frozen tests, exit0/no
+resource stop, and g-t8-math-ruff passes. Test blob remains
+87f1c400cf0b8d1e5580b3c172de113d739e8fcb, SHA256
+b0c680dac8b4d8321a5bd69cd95f6a4f341b2e80a1a80697ea6b77f6c9f0e2a1.
+Literal parent[0,10], children[1,4]/[5,7] yield inclusive10/remainder5; grandchildren
+are subtracted only from their actual direct parent. Overlapping/nested siblings
+remain a nonadditive tree. Known error wall time is retained separately, while
+error/unavailable/missing collection and dropped records prevent exclusive
+remainders. No independent percentile subtraction, corrected latency or exclusive
+GPU-service inference. This is tool math, not a new natural measurement.

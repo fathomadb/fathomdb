@@ -118,6 +118,56 @@ class GObserverResultTests(source._NativeGFixture):
             self.assertTrue(pair["complete"])
 
 
+class PartialGResultTests(source._NativeGFixture):
+    check_copy=source.CopiedGCellTests.check_copy
+    check_owned_preparation=source.OwnedGTTests.check_owned_preparation
+
+    def test_real_post_open_stop_preserves_known_observer_artifact_identity(self):
+        from contextlib import closing
+        import sqlite3
+        manifest,root,_=self.check_copy("partial identity é")
+        artifacts=Path(os.environ["S30_GO_ARTIFACTS"])
+        binary=artifacts/"go"
+        closure=json.loads((artifacts/"go-features.json").read_text())
+        digest=hashlib.sha256(binary.read_bytes()).hexdigest()
+        self.assertEqual(closure["binary_sha256"],digest,"actual GO artifact setup NOT_RED")
+        self.assertFalse(closure["normal_gn"])
+        self.assertTrue(any(row["target"]["name"]=="fathomdb_engine" and "slice30-measurement" in row["features"] for row in closure["artifacts"]))
+        self.assertFalse(any(feature=="test-hooks" or feature.startswith("tc5-benchmark") for row in closure["artifacts"] for feature in row["features"]))
+        manifest["artifacts"]["go"]={"path":str(binary),"sha256":digest,"features":["slice30-g-observer","slice30-measurement"]}
+        cell:dict=dict(manifest["cells"][-1],id="partial-go",artifact="go",passes=["engine_hybrid"],observer=True)
+        with (self.task/"locks"/(source.GPU+".lock")).open("a") as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            before=source._accounting(None,min(self.work_end,time.monotonic()+5))
+            if before["util"] or before["total_MiB"]-before["used_MiB"]<8192:
+                raise RuntimeError("approved GPU not quiet/free NOT_RED")
+            source._sample_resources(self.resources,self.work_end,start=True)
+            cell["work_deadline_ns"]=time.monotonic_ns()+250_000_000
+            outcome=source.run_manifest(dict(manifest,cells=[cell]),root)[0]
+        self.assertIsNotNone(outcome["pid"],"native phase was not reached NOT_RED")
+        self.assertEqual(outcome["status"],"failed")
+        attempt=Path(outcome["attempt"])
+        proof=attempt/"pass-0/api-proof.json"
+        budget=json.loads((attempt/"pass-0/budget.json").read_text())
+        self.assertEqual((budget["phase"],budget["disposition"]),("pass","deadline_refused"),"actual post-open stop missing NOT_RED")
+        self.assertNotIn("sqlite_created",budget)
+        self.assertFalse(proof.exists())
+        with closing(sqlite3.connect(f"file:{attempt/'store.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],65)
+            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],65)
+        self.assertTrue(outcome["cleanup"]["complete"])
+        report=summarize(dict(manifest,cells=[cell]),root)
+        group=report["cells"][0]
+        print(f"actual partial GO {attempt} binary={digest} feature={group['observer_feature']} reason={group['observer']['reason']}",flush=True)
+        with self.subTest(contract="artifact"):
+            self.assertTrue(group["observer_feature"],"missing final API proof erased known observer compiler identity")
+        with self.subTest(contract="unavailable"):
+            self.assertEqual(group["observer"]["reason"],"incomplete","missing invocation output reported as feature absence")
+            self.assertFalse(group["observer"]["attribution_complete"])
+        self.assertEqual(group["status"],"failed")
+        self.assertTrue(group["issues"])
+
+
 class ObserverDeltaTests(unittest.TestCase):
     def test_report_uses_deltas_instead_of_summing_lifetime_counters(self):
         calls=[{"observer":{"records_available":True,"status":"observed","records":[{}],

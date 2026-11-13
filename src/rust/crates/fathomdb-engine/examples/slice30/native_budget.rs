@@ -53,7 +53,22 @@ pub(super) fn run_control(config: &Value, out: &Path) {
 
 pub(super) fn drain(engine: &Engine, config: &Value) -> Result<Value, String> {
     let started = if config["work_deadline_ns"].is_u64() { Some(monotonic_ns()?) } else { None };
-    let timeout_ms = 5000;
+    let timeout_ms = if let Some(now) = started {
+        let limit = ["work_deadline_ns", "hard_deadline_ns", "shared_deadline_ns"]
+            .into_iter()
+            .map(|key| config[key].as_u64().unwrap())
+            .min()
+            .unwrap();
+        let remaining_ms = limit.saturating_sub(now) / 1_000_000;
+        if remaining_ms == 0 {
+            return Ok(
+                json!({"drain_calls":0,"timeout_ms":0,"start_ns":now,"disposition":"deadline_refused"}),
+            );
+        }
+        remaining_ms
+    } else {
+        5000
+    };
     engine.drain(timeout_ms).map_err(|error| format!("{error:?}"))?;
     Ok(json!({"drain_calls":1,"timeout_ms":timeout_ms,"start_ns":started}))
 }

@@ -790,3 +790,10 @@ aggregate-cap qualification; those controller units remain required.
   warmup/extra first call, same seeded subject and unchanged natural input
   files. This is synthetic command/fixture coverage, never natural-data or
   Default/dense/GPU qualification.
+
+- G0 command/fixture GREEN: `g-t10-smoke-dispatch-green` passes all four frozen
+  dispatch tests (exit 0, no resource stop); Ruff passes. The `eff733d1a` oracle
+  is unchanged. G0 now selects existing G-seed/G-R with an owned copy of the
+  known tiny lexical control, leaving natural inputs untouched. Actual Default
+  finite384 output, lexical/readiness/close/reopen and reserved3090 engagement
+  remain later positive qualification obligations.

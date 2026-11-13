@@ -39,6 +39,11 @@ def execute_stage(cell, manifest, attempt, deadline_ns):
     attempt = Path(attempt)
     attempt.mkdir(parents=True, exist_ok=True)
     common = dict(cell, corpus=manifest["corpus"], queries=manifest["queries"])
+    if cell["kind"] == "smoke":
+        corpus, queries = attempt / "tiny-corpus.jsonl", attempt / "tiny-queries.jsonl"
+        corpus.write_text('"alpha needle"\n"beta"\n')
+        queries.write_text('"needle"\n')
+        common.update(corpus=str(corpus), queries=str(queries))
     steps = []
     if cell["kind"] == "seed" or cell.get("fresh_seed"):
         seed_output = attempt / "seed"
@@ -58,7 +63,8 @@ def execute_stage(cell, manifest, attempt, deadline_ns):
         selected = attempt / "queries-first50.jsonl"
         selected.write_text("\n".join(questions[:50]) + "\n")
         common["queries"] = str(selected)
-    config = dict(common, family=cell["stage"], store=store)
+    family = "G-R" if cell["kind"] == "smoke" else cell["stage"]
+    config = dict(common, family=family, store=store)
     output = attempt / ("write" if cell["stage"] == "G-W" else "read")
     steps.append(run_program_step(manifest["command"], config, output, deadline_ns))
     return {"complete": all(step["complete"] for step in steps), "steps": steps}

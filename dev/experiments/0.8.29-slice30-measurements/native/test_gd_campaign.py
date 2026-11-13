@@ -1061,6 +1061,41 @@ class CpuEnvironmentResultTests(unittest.TestCase):
         self.assertIsNone(context["gpu_samples"])
 
 
+class CompletionAdmissionTests(unittest.TestCase):
+    def check_admission(self,key):
+        from gd_campaign import _run_completion
+        root,_,manifest=clock_fixture()
+        manifest["cells"]=manifest["cells"][:1]
+        outcome=run_manifest(manifest,root/"healthy")[0]
+        self.assertEqual(outcome["status"],"complete","actual native completion control NOT_RED")
+        store=Path(outcome["attempt"])/"query.sqlite"
+        with closing(sqlite3.connect(f"file:{store}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],1)
+        script=root/"validate-sql.py"
+        script.write_text("import sqlite3,sys,os\nfrom pathlib import Path\nwith sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True) as db:\n assert db.execute('SELECT count(*) FROM canonical_nodes').fetchone()[0]==1\nPath(sys.argv[2]).write_text(str(os.getpid()))\n")
+        future=time.monotonic_ns()+3_000_000_000
+        bounds={"work_deadline_ns":future,"hard_deadline_ns":future+30_000_000_000,"shared_deadline_ns":future+30_000_000_000}
+        healthy=root/"validation-healthy";healthy.mkdir()
+        good=_run_completion([sys.executable,str(script),str(store),str(healthy/"read")],healthy,bounds,{"signal":None})
+        self.assertTrue(good["complete"] and (healthy/"read").exists(),"actual validator SQL control NOT_RED")
+        attempt=root/"validation-expired";attempt.mkdir()
+        stopped={"signal":signal.SIGTERM if key=="stop" else None}
+        if key!="stop":
+            bounds[key]=0
+        result=_run_completion([sys.executable,str(script),str(store),str(attempt/"read")],attempt,bounds,stopped)
+        print(f"actual validator admission {attempt} key={key} pid={result['pid']} read={(attempt/'read').exists()}",flush=True)
+        self.assertEqual((result["pid"],result["complete"],(attempt/"read").exists()),(None,False,False),"validator launched after original endpoint or stop")
+        self.assertTrue(result["cleanup"]["complete"])
+
+    def test_expired_work_refuses_validator_before_sql(self): self.check_admission("work_deadline_ns")
+    def test_expired_hard_refuses_validator_before_sql(self): self.check_admission("hard_deadline_ns")
+    def test_expired_shared_refuses_validator_before_sql(self): self.check_admission("shared_deadline_ns")
+    def test_prior_controller_stop_refuses_validator(self): self.check_admission("stop")
+    @settings(max_examples=3,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.sampled_from(["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]))
+    def test_each_original_bound_prevents_new_validation(self,key): self.check_admission(key)
+
+
 class GpuReservationTests(unittest.TestCase):
     def check_locked(self, observer):
         root, _, manifest = clock_fixture()

@@ -300,6 +300,20 @@ def _effective_bounds(cell,bounds):
     return effective
 
 
+def _run_completion(command,attempt,bounds,stopped):
+    """Run the actual validator command and retain its processing outcome."""
+    started=time.monotonic_ns()
+    with _owned_subreaper(), (attempt/"validation.log").open("wb") as log:
+        child=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+        try:
+            code=child.wait()
+        finally:
+            cleanup=_cleanup_owned_group(child,deadline=min(bounds["hard_deadline_ns"]/1e9,time.monotonic()+20))
+    return {"complete":code==0 and cleanup["complete"],"pid":child.pid,"child_exit":code,
+            "cleanup":cleanup,"elapsed_ns":time.monotonic_ns()-started,
+            "error":None if code==0 else "native completion rejected"}
+
+
 def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None, load=None, gpu_before=None, gpu_interval: float = 1):
     native = dict(cell,**_effective_bounds(cell,bounds))
     hard_ns = native["hard_deadline_ns"]
@@ -431,8 +445,14 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
         stop_signal = stopped["signal"]
         if stop_signal is not None:
             error = error or f"controller_signal_{stop_signal}"
+        validation=None
+        if child.returncode==0 and error is None and stopped["signal"] is None:
+            validation=_run_completion([sys.executable,str(Path(__file__).resolve()),"--validate",str(config),str(attempt)],attempt,native,stopped)
+            if not validation["complete"]:
+                error=validation["error"] or "native completion unverified"
         return {"exit":128+stop_signal if stop_signal is not None else (124 if error else child.returncode), "error":error,
                 "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup,
+                "complete":validation is not None and validation["complete"],"validation":validation,
                 "resource_samples":samples if resources else None, "controller_signal":stop_signal,
                 "cpu_samples":cpu_samples if native.get("cpu_observation") else None,
                 "gpu_samples":gpu_samples if native.get("gpu_reservation") else None}
@@ -524,10 +544,13 @@ def _native_complete(cell, attempt):
 def main():
     """Execute an explicit manifest and print actual per-cell outcomes."""
     parser = argparse.ArgumentParser()
+    parser.add_argument("--validate",action="store_true",help=argparse.SUPPRESS)
     parser.add_argument("manifest", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text())
+    if args.validate:
+        return 0 if _native_complete(manifest,args.output) else 1
     outcomes = run_manifest(manifest, args.output, resources=manifest.get("resources"))
     print(json.dumps(outcomes, indent=2))
     stopped = next((row["controller_signal"] for row in outcomes if row.get("controller_signal") is not None),None)

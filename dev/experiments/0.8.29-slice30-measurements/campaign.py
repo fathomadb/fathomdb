@@ -82,7 +82,9 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
         result_path = attempt / "result.json"
         complete = False
         if code == 0 and error is None:
-            if completion is not None:
+            if execution is not None and "complete" in execution:
+                complete = execution["complete"] is True
+            elif completion is not None:
                 complete = completion(cell, attempt) is True
                 if not complete:
                     error = "child returned without verified native completion"
@@ -105,6 +107,8 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
             outcome["child_exit"] = execution["child_exit"]
             if execution.get("controller_signal") is not None:
                 outcome["controller_signal"] = execution["controller_signal"]
+            if execution.get("validation") is not None:
+                outcome["validation"] = execution["validation"]
             if execution.get("gpu_samples") is not None:
                 outcome["gpu_samples"] = execution["gpu_samples"]
             if execution.get("cpu_samples") is not None:

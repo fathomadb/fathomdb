@@ -214,10 +214,11 @@ pub(super) fn from_template(
     source: &Path,
     observer: CoreObserver,
 ) -> bool {
-    let prepared = g_gg_stages::prepare_store(config, out, source, "governed", |path| {
+    let Ok(prepared) = g_gg_stages::prepare_store(config, out, source, "governed", |path| {
         GAdapter::open("engine_hybrid", path)
-    })
-    .unwrap();
+    }) else {
+        return false;
+    };
     let g_gg_stages::PreparedStore { adapter, original, directory, store } = prepared;
     let report = adapter.report();
     assert_eq!(

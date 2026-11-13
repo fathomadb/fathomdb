@@ -15,19 +15,25 @@ pub(super) struct PreparedStore {
 }
 
 pub(super) fn prepare_store(
-    _config: &Value,
+    config: &Value,
     out: &Path,
     source: &Path,
     family: &str,
     open: impl FnOnce(&Path) -> GAdapter,
 ) -> Result<PreparedStore, ()> {
+    super::budget_clock::phase(config, out, "copy")?;
     let original = Sha256::digest(std::fs::read(source).unwrap()).to_vec();
     let directory = out.join(family);
     std::fs::create_dir(&directory).unwrap();
     let store = directory.join("store.sqlite");
     std::fs::copy(source, &store).unwrap();
     assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()).to_vec(), original);
+    super::budget_clock::phase(config, out, "open")?;
     let adapter = open(&store);
+    if super::budget_clock::phase(config, out, "verification").is_err() {
+        adapter.close();
+        return Err(());
+    }
     Ok(PreparedStore { adapter, original, directory, store })
 }
 

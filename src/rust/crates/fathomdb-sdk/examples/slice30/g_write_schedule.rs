@@ -151,7 +151,7 @@ pub(super) fn reset(
 }
 
 /// Execute one SDK G2 cohort after a completed natural group; return actual rows/probes.
-/// Returns Err on deadline refusal; panics on API/coverage/output failure.
+/// Returns Err on budget or drain refusal; other API/coverage/output failures panic.
 /// Already completed phase flushes stay recorded.
 pub(super) fn run(
     adapter: &GAdapter,

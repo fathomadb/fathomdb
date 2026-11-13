@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 
 from campaign import run_campaign
-from gd_resources import _cleanup_owned_group, _owned_subreaper
+from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, resource_issue, resource_sample
 
 
 def run_manifest(manifest, root, monitor=None, before=None, resources=None):
@@ -23,7 +23,15 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None):
 
     def prepare():
         check_clock()
+        samples = []
+        if resources:
+            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True))
+        check_clock()
         context = before() if before else None
+        check_clock()
+        if resources:
+            samples.append(_sample_resources(resources, work_deadline / 1_000_000_000, start=True))
+            context = {"preparation":context,"resource_samples":samples}
         check_clock()
         return context
 
@@ -62,6 +70,20 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None):
             state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
             outcomes.append(outcome)
     return outcomes
+
+
+def _sample_resources(resources, deadline, start=False):
+    try:
+        sample = resource_sample(resources["roots"], Path(resources["task"]), resources["baseline"],
+                                 deadline=deadline)
+    except Exception as error:
+        raise _CampaignRefusal(f"resource_observation_unavailable: {error}") from error
+    sample["observed_ns"] = time.monotonic_ns()
+    sample["baseline"] = resources["baseline"]
+    issue = resource_issue(sample, 200*GiB, start=start)
+    if issue:
+        raise _CampaignRefusal(issue)
+    return sample
 
 
 def _run_native(cell, command, config, attempt, monitor, bounds):
@@ -154,7 +176,8 @@ def main():
     parser.add_argument("manifest", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    outcomes = run_manifest(json.loads(args.manifest.read_text()), args.output)
+    manifest = json.loads(args.manifest.read_text())
+    outcomes = run_manifest(manifest, args.output, resources=manifest.get("resources"))
     print(json.dumps(outcomes, indent=2))
     return int(any(row["status"] != "complete" for row in outcomes))
 

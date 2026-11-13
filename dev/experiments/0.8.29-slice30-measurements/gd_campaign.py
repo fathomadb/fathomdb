@@ -13,6 +13,7 @@ from typing import Any
 from campaign import run_campaign
 from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, aggregate_roots, measure_root, resource_issue, resource_sample, swap_streak
 from gd_feasibility import report as feasibility_report
+from gd_overlap import analyze_native
 
 
 def run_manifest(manifest, root, monitor=None, before=None, resources=None, resource_interval: float = 30):
@@ -345,7 +346,10 @@ def _native_complete(cell, attempt):
         return True
     name = "complete.json" if cell["family"] == "D_QUERY_FIXTURE" else "result.json"
     path = attempt / name
-    return path.exists() and json.loads(path.read_text()).get("complete") is True
+    complete=path.exists() and json.loads(path.read_text()).get("complete") is True
+    if complete and cell["family"]=="D_QUERY_FIXTURE" and cell.get("workload")=="overlap":
+        (attempt/"qualification.json").write_text(json.dumps(analyze_native(attempt),indent=2)+"\n")
+    return complete
 
 
 def main():

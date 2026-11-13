@@ -62,24 +62,30 @@ def _interval(row):
     return None
 
 
+def analyze_native(root):
+    """Classify actual native raw streams; workload success remains independent."""
+    root = Path(root)
+    queries = [json.loads(line) for line in (root / "queries.jsonl").read_text().splitlines()]
+    writes = json.loads((root / "writes.json").read_text())
+    ready = json.loads((root / "readiness.json").read_text())
+    workers = json.loads((root / "worker-observer.json").read_text())
+    result = {"status": "NOT_EVALUATED", "timed_queries": sum(row["phase"] == "timed" for row in queries),
+              "write_calls": len(writes), "readiness_calls": len(ready),
+              "worker_records": len(workers.get("records") or []) if workers["available"] else None}
+    result.update(analyze(
+        queries=[row for row in queries if row["phase"] == "timed"], writes=writes,
+        workers=workers["records"] or [], readiness=ready,
+        enabled=workers["available"] is True,
+        dropped=workers["dropped"] if workers["available"] else 0,
+        attribution_complete=workers["attribution_complete"] is True))
+    return result
+
+
 def main():
     """Read one JSON analysis request and emit its analysis report."""
     request = json.load(sys.stdin)
     if "native_output" in request:
-        root = Path(request["native_output"])
-        queries = [json.loads(line) for line in (root / "queries.jsonl").read_text().splitlines()]
-        writes = json.loads((root / "writes.json").read_text())
-        ready = json.loads((root / "readiness.json").read_text())
-        workers = json.loads((root / "worker-observer.json").read_text())
-        result = {"status": "NOT_EVALUATED", "timed_queries": sum(row["phase"] == "timed" for row in queries),
-                  "write_calls": len(writes), "readiness_calls": len(ready),
-                  "worker_records": len(workers.get("records") or []) if workers["available"] else None}
-        result.update(analyze(
-            queries=[row for row in queries if row["phase"] == "timed"], writes=writes,
-            workers=workers["records"] or [], readiness=ready,
-            enabled=workers["available"] is True,
-            dropped=workers["dropped"] if workers["available"] else 0,
-            attribution_complete=workers["attribution_complete"] is True))
+        result = analyze_native(request["native_output"])
     else:
         result = analyze(**request)
     print(json.dumps(result))

@@ -114,25 +114,27 @@ fn run_inner(config: &Value, out: &Path) -> Result<(), ()> {
             let writer = scope.spawn(move || {
                 let launch_ns: u64 = ready.recv_timeout(Duration::from_secs(5)).unwrap();
                 let mut writes = Vec::new();
+                let mut raw = std::fs::File::create(out.join("writes.jsonl")).unwrap();
                 for rows in records.chunks(cohort) {
                     if super::native_budget::bounds(config)
                         .map_or(true, |bound| bound.is_some_and(|(now, limit)| now >= limit))
                     {
                         break;
                     }
-                    let batch: Vec<_> = rows.iter().map(|row| PreparedWrite::Node {
-                        kind: row["kind"].as_str().unwrap().into(),
-                        body: row["body"].as_str().unwrap().into(),
-                        source_id: SourceId::new("test:slice30-d-overlap").unwrap(),
-                        logical_id: Some(row["id"].as_str().unwrap().into()),
-                        state: InitialState::Active,
-                        reason: None, valid_from: None, valid_until: None,
-                    }).collect();
-                    let start_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
-                    let receipt = engine.write(&batch).unwrap();
-                    let end_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
-                    writes.push(json!({"ok":true,"launch_ns":launch_ns,"start_ns":start_ns,"end_ns":end_ns,
-                        "rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors}));
+                    let batch: Vec<_> = rows
+                        .iter()
+                        .map(|row| PreparedWrite::Node {
+                            kind: row["kind"].as_str().unwrap().into(),
+                            body: row["body"].as_str().unwrap().into(),
+                            source_id: SourceId::new("test:slice30-d-overlap").unwrap(),
+                            logical_id: Some(row["id"].as_str().unwrap().into()),
+                            state: InitialState::Active,
+                            reason: None,
+                            valid_from: None,
+                            valid_until: None,
+                        })
+                        .collect();
+                    writes.push(write_cohort(engine, origin, launch_ns, &batch, &mut raw));
                 }
                 writes
             });
@@ -186,6 +188,20 @@ fn run_inner(config: &Value, out: &Path) -> Result<(), ()> {
     super::native_budget::phase(config, out, "complete")?;
     std::fs::write(out.join("complete.json"), b"{\"complete\":true}\n").unwrap();
     Ok(())
+}
+
+fn write_cohort(
+    engine: &Engine,
+    origin: Instant,
+    launch_ns: u64,
+    batch: &[PreparedWrite],
+    _raw: &mut std::fs::File,
+) -> Value {
+    let start_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
+    let receipt = engine.write(batch).unwrap();
+    let end_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
+    json!({"ok":true,"launch_ns":launch_ns,"start_ns":start_ns,"end_ns":end_ns,
+        "rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors})
 }
 
 pub(super) fn write_row(output: &mut std::fs::File, row: &Value) {
@@ -493,5 +509,79 @@ mod tests {
         #![proptest_config(ProptestConfig{cases:2,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
         #[test]
         fn background_readiness_never_renews_any_original_bound(key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {readiness_admission(key);}
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod write_prefix_tests {
+    use super::*;
+    use fathomdb_engine::EmbedderChoice;
+    use proptest::prelude::*;
+
+    fn retained_prefix(tail: usize) {
+        let root = tempfile::Builder::new().prefix("s30-d-write-prefix-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+        let origin = Instant::now();
+        let raw_path = root.join("writes.jsonl");
+        let mut raw = std::fs::File::create(&raw_path).unwrap();
+        let mut writes = Vec::new();
+        for index in 0..16 + tail {
+            let batch = [PreparedWrite::Node {
+                kind: "doc".into(),
+                body: format!("actual in-flight prefix é {index}"),
+                source_id: SourceId::new("test:s30-d-write-prefix").unwrap(),
+                logical_id: Some(format!("prefix-{index}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }];
+            writes.push(write_cohort(&engine, origin, 0, &batch, &mut raw));
+        }
+        let db = Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let canonical: Vec<(String, i64)> = db
+            .prepare("SELECT logical_id,write_cursor FROM canonical_nodes ORDER BY write_cursor")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(canonical.len(), 16 + tail);
+        for (index, (id, cursor)) in canonical.iter().enumerate() {
+            assert_eq!(id, &format!("prefix-{index}"));
+            assert_eq!(writes[index]["cursor"], *cursor);
+            assert_eq!(writes[index]["rows"], 1);
+            assert_eq!(writes[index]["row_cursors"], json!([cursor]));
+            assert!(
+                writes[index]["start_ns"].as_u64().unwrap()
+                    < writes[index]["end_ns"].as_u64().unwrap()
+            );
+        }
+        let prefix: Vec<Value> = std::fs::read_to_string(&raw_path)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        println!(
+            "actual unfinished D writer {} committed={} retained={}",
+            root.display(),
+            canonical.len(),
+            prefix.len()
+        );
+        assert_eq!(prefix.len(), 16 + tail, "completed D cohorts unavailable until writer join");
+        assert_eq!(prefix, writes);
+        assert!(!root.join("writes.json").exists());
+        engine.close().unwrap();
+    }
+
+    #[test]
+    fn completed_writer_prefix_is_available_before_final_result() {
+        retained_prefix(0);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn prefix_keeps_actual_small_completed_tail(tail in 1usize..4) { retained_prefix(tail); }
     }
 }

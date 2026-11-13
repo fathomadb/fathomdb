@@ -2,6 +2,11 @@
 
 These are release-local measurement requirements, not new canonical ACs.
 
+The accepted P subset is preserved. The [G/D continuation](continuation-gd.md) reviews actual
+20/60/70 predecessors and release requirements/AC, refines G/D input/observer/
+TDD contracts and stages G first. It is a design candidate, not source or run GO;
+all unqualified cells and downstream holds remain required.
+
 | ID | Requirement and reason | Acceptance |
 | --- | --- | --- |
 | R30-1 | Reconcile actual integrated20/60/70 source and current format37 before tool adaptation; old ELIG/FTS/armlimit prototypes are historical evidence. | A30-1 |

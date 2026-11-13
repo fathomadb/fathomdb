@@ -92,3 +92,11 @@ before16Pcells and checked unchanged afterward. Actual source/native/method
 identities and raw paths are in [results](results-p.md). Models were neither
 copied nor invoked; the exact frozen TC5 pack remains absent/held, not replaced
 by LME or the convenience10k corpus. /mnt/data remained available throughout.
+
+## G/D continuation inventory
+
+The [G/D continuation](continuation-gd.md) retains the accepted LME/model pins and records
+a bounded November13 known-path metadata check: the registered exact TC5 index
+and qualified-manifest paths remain absent; the existing BGE snapshot path exists.
+This is neither model execution nor proof that no other TC5 copy exists. No
+new dataset/model acquisition or database open was performed.

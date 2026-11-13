@@ -73,3 +73,13 @@ belong to measurement tooling, not database recovery or a new product contract.
 [Results](results-p.md) describe actual current residual cost; filtered P2 versus
 unfiltered P1 is not a controlled write-only treatment comparison. Authoritative
 architecture paragraph above remains a parent integration proposal.
+
+## G/D diagnostic extension candidate
+
+The [G/D continuation](continuation-gd.md) specifies new bounded engine-owned optional
+spans and SDK test-only forwarding because public millisecond profile records
+and Slice71 SQL-string tracing do not establish guarded phase attribution.
+It preserves actual predicate call ordering, default-off product builds and
+current worker/commit ownership. Same-transaction diagnostic authority reads
+are labelled observer-added; they do not approve a cache key or new production
+API/configuration. D worker-state telemetry remains a separate source gate.

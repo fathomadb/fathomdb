@@ -1,18 +1,20 @@
 # Slice 20 continuation test map
 
-All runtime commands are future, from a fresh parent-created sole-writer checkout
-after this revision passes independent Astra design review and own setup. Record exact SHA/features/argv/log/
-exit/nonzero reached counts; preserve compiler diagnostics verbatim. Existing
-Linux accepted evidence stays in execution.md; do not repeat it wholesale.
+The Linux commands and seven sensitivity controls below executed successfully
+within the approved verification route; source f803a964 passed fresh final review.
+[Execution](execution.md#final-qualified-linux-proof-and-capacity-subset) records
+actual subjects, features, exits and native identities. Windows A6 commands remain
+future and unqualified. Preserve original diagnostics and do not repeat accepted
+Linux evidence solely for later documentation changes.
 
 | Obligation | Exact target / proposed selector | Proof and gate |
 | --- | --- | --- |
-| A3 primary | cargo test -p fathomdb-mcp --test admission a_drain_before_enqueue_returns_the_call_to_open_wait -- --exact | Approved verification-only seq-369; runtime outstanding. Reached old epoch/counters0, real idle/lock release, stale rejection before bridge, blocked reopen, exact ref/new epoch. |
-| A3 deadline | Same target, a_pre_enqueue_drain_keeps_the_original_wait_deadline | Proposed; original absolute budget, exact not_ready/reopening, bounded cleanup. |
-| A3 cleanup/shutdown | Same target, a_dropped_pre_enqueue_observation_releases_its_hold and shutdown_at_pre_enqueue_refuses_without_engine_work | Proposed; Drop/abort/panic/release_all release owned token and all actors; shutdown no bridge. No new pre-permit cancellation promise. |
-| A3 preservation | cargo test -p fathomdb-mcp --test admission; cargo test -p fathomdb-mcp --test lifecycle | Current complete25/18 controls originally qualified; run affected current bodies with ordinary harness parallelism/TOKIO_WORKER_THREADS2. Preserve queue/FIFO/deadline/cancel/running ownership, idle/LRU and current advertised schema validation. |
+| A3 primary | cargo test -p fathomdb-mcp --features test-seams --test admission a_drain_before_enqueue_returns_the_call_to_open_wait -- --exact | Qualified under seq-369 at f803a964. Reached old epoch/counters0, real idle/lock release, stale rejection before bridge, blocked reopen, exact ref/new epoch. |
+| A3 deadline | Same target, a_pre_enqueue_drain_keeps_the_original_wait_deadline | Qualified; original absolute budget, exact not_ready/reopening, bounded cleanup. |
+| A3 cleanup/shutdown | Same target, a_dropped_pre_enqueue_observation_releases_its_hold and shutdown_at_pre_enqueue_refuses_without_engine_work | Qualified; Drop/abort/panic/release_all release owned token and all actors; shutdown no bridge. No new pre-permit cancellation promise. |
+| A3 preservation | cargo test -p fathomdb-mcp --features test-seams --test admission; cargo test -p fathomdb-mcp --features test-seams --test lifecycle | Current admission29/lifecycle18 passed; affected bodies ran with ordinary harness parallelism/TOKIO_WORKER_THREADS2. Preserve queue/FIFO/deadline/cancel/running ownership, idle/LRU and current advertised schema validation. |
 | A5 fusion | cargo test -p fathomdb-engine --lib fusion::tests::overflow_chunking_fusion_tripwire -- --exact | Approved verification-only seq-369, live30/3/1 and record path in every assertion. |
-| A5 embedder | cargo test -p fathomdb-embedder --features default-embedder --lib candle_bge::tests::overflow_chunking_embedder_tripwire -- --exact | Proposed; live name/private512, no model construction/network/GPU. Confirm actual module-qualified listed name before execution. |
+| A5 embedder | cargo test -p fathomdb-embedder --features default-embedder --lib candle_bge::tests::overflow_chunking_embedder_tripwire -- --exact | Qualified feature-on; live name/private512, no model construction/network/GPU. Confirm actual module-qualified listed name before execution. |
 | Sensitivity | Same new selectors in disposable isolated controls | Both reviewed stale controls (typed not_ready/draining replacement and phase/epoch predicate bypass) plus five separate actual-constant changes; unchanged oracle fails named assertion. Coverage controls, never product RED. Parent-created trees/own targets, source candidate untouched. |
 | Genuine new defect | Exact new deterministic regression at committed RED, then unchanged test at separate GREEN | Capture failure assertion at RED SHA, preserve tests through fix, independent clean RED replay. Missing API/compile failure or wrong introduced expected value is not semantic RED. |
 | Test-seam contract | scripts/tests/test_slice140_test_seam_boundary.py plus affected feature-off/check/clippy | Existing default-negative and dev/release-positive consumers preserved; Rust interface note documents new public test-seam ownership/lifetime. |

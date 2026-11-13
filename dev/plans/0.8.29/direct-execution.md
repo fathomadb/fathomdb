@@ -111,8 +111,9 @@ claimed. Git linkage and original file manifest were verified after relocation.
 
 Slice20 Linux repairs are integrated at657edeb76caaf9c8d2aab433766bec9362e73217
 after genuine RED/GREEN and fresh independent implementation PASS.20 remains
-open for actual A3/A5 proofs and Windows A6; seq-369/370 are the current
-owner rulings. The accepted30 P subset has separate recorded entry/limits; no
+open for actual Windows A6; approved A3/A5 proofs and RAW capacity preparation
+are qualified at f803a964 after fresh independent final review. Seq-369/370 are
+the current owner rulings. The accepted30 P subset has separate recorded entry/limits; no
 whole20/30 clearance or Block1 exit follows.
 Slice60's implemented format/direct-filter/budget subset is integrated at
 5271c1bf022f0ea22f95f7433e226feb2315043e after fresh independent implementation PASS
@@ -133,15 +134,17 @@ Reviewed Slice20 continuation documentation391ae66aa is integrated after fresh
 independent final Astra-medium PASS. It reconciles actual60/70, preserves all
 mandatory criteria and records the exact reviewed Windows operations proposal.
 No product source changed in that documentation checkpoint. Current owner
-rulings are ledger seq-369/370; actual proofs and compiler/control/Windows runtime
-qualification remain unexecuted in the resumed20 phase.
+rulings are ledger seq-369/370. Their Linux proofs and capacity preparation
+subsequently passed fresh final review and were integrated at f803a964; native
+Windows A6 remains unqualified.
 
 Slice30 documentationbea7f05cd and its exact P-only dependency amendment passed
 independent Astra-medium design review. State/master now permit initial direct-
 text Linux P entry from closed10 plus qualified integrated20/current70 after
 actual ancestry/preflight, own source/native setup and parent GO. G/D need later
-concrete review; M20 proof/policy, F frozen TC5, whole30/40/50 and pre90 Block1
-remain held. The eligible30 P subset subsequently completed its own recorded
+concrete review; the20 proof condition for M is now satisfied, while its selected
+G-store/tooling prerequisites, F frozen TC5, whole30/40/50 and pre90 Block1 remain
+held. The eligible30 P subset subsequently completed its own recorded
 qualification; whole30 remains open. Keep each dedicated owner for continuation.
 
 ## Owner decisions recorded 2026-11-13
@@ -152,3 +155,9 @@ A3/A5 execution now follows the approved verification-only route. Capacity work
 requires a reviewed derivative that stops after creation/attachment and read-only
 identity checks; the prior full guest-sequence packet cannot run unchanged under
 the narrower ruling. No renewed generic permission or broader authority is inferred.
+
+The accepted20 continuation at f803a964 has assembled216/216-suite qualification
+and actual source/nonce/native child proof, preserving its first lint failure and
+strict resumed phases. The64GiB disk is attached RAW only; no formatting or actual
+Windows native A6 evidence is inferred. The G-first/D proposal and actual-integrated20 fit have independent design
+PASS and are imported; fresh isolated G entry and parent source GO remain.

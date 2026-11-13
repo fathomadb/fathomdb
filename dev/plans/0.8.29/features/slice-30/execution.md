@@ -165,5 +165,7 @@ production/binding/dependency inputs justify1f reuse; its receipt remains1f,
 not relabelled2fd. The private executable was rebuilt and actually invoked at2fd.
 Original inner Rust67ignored/38filtered, Python36skips and TS6skips stay explicit.
 
-Final phase-doc reconciliation is after quiet timings. Fresh final results
-review/parent integration is pending; no whole30/downstream/Block1 closure.
+Final phase-doc reconciliation followed quiet timings. Fresh final independent
+Astra-medium results PASS on clean0d8be5bb and parent acceptance2381de882 now
+qualify P only. Earlier pending entries retain their historical phase subjects;
+no runtime/native evidence is relabelled and no whole30/downstream/Block1 closes.

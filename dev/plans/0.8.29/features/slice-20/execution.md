@@ -339,3 +339,45 @@ canonical lint/typecheck/strict-security/test commands resume on the final clean
 metadata subject. Completed unchanged shell lint is reused; no second full
 wrapper, seven-control rerun or native-lifecycle rerun is claimed. Final evidence
 is assembled qualification, never an uninterrupted full-wrapper exit0.
+
+## Final qualified Linux proof and capacity subset
+
+Fresh distinct Astra-medium reviewer `/root/slice20_capacity_astra_final` issued
+terminal PASS at clean f803a964ad8c8154a481e6f9385599bef5c0e054 with no actionable
+findings. The parent verified key retained Rust/Python/TS log and native module
+hashes, passed strict closed10 landing preflight and fast-forwarded that exact
+source plus the explicit local release ref. A3/A5 and capacity preparation are
+accepted within their bounds; A6 and whole20 remain open.
+
+Resumed qualification registered, ran and passed216suites, with0failed,0suite-
+skipped and0excluded. Rust2726passed/67ignored across406target summaries;
+Python1750passed/36skipped; TS629passed/6skipped plus15explicit in-body skip
+markers. Strict security reported0violations/0blockers/0downgrades, including
+live AC-037. Original df177 wrapper failure remains; the exact resumed lint copy
+changes only SCRIPT_DIR and omits already-passed unchanged shell lint. This is
+assembled qualification, not an uninterrupted full-wrapper pass. All202retained
+spill hashes matched in independent review; source/start/end SHA and tracked tree
+were unchanged, with no resource stop or collector errors. Counted peak ownership
+was120,649,170,691B including the full64GiB image reservation.
+
+Actual child identity passed with sourcef803a964, owned Python3.12 venv, private
+hook, nonce `agent-test-731811` and module SHA256
+`c7a0f28e611d8adfd1ac338cbeeac5d1c2ce6f7d42c59606a51dec05f1952c80`.
+Production Python remains separately attributed to ef1 with exact unchanged
+compiled inputs; retained production Node artifact remains separately identified.
+No later metadata commit requires rebuilding merely to change a documentation SHA.
+
+Retained handoff is
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice20/approved-runtime/final-handoff.json`.
+The task receipts include `approved-final-continuation.json`, the original
+`approved-final-workspace.json`, recovered `approved-sensitivity-cases.json` and
+actual `approved-child-candidate.json`; original raw logs and failure records
+remain intact. The stale-bypass mutation is sensitivity through panic/missing
+rejection, not observed stale-engine execution. No model/GPU/fault/toolkit/driver
+work or publication followed. All owned test descendants exited; heavy window
+was released.
+
+Actual capacity outcome remains attached RAW only. Formatting, native Windows
+operator/compiler and four-selector A6 qualification remain outside this accepted
+subset; later C:8/5GiB workload policy remains unchanged. Whole30/60-F11, the
+pre90 Block1 exit and final release/publication readiness remain separate.

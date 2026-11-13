@@ -12,7 +12,9 @@
 
 A30-2 is workload/report completeness, not a new numerical pass gate. Accepted
 canonical gates remain separate. Current P execution/qualification is recorded in [results](results-p.md), with
-fresh final results review/parent integration pending. P covers workload/direct-route,
+fresh final Astra results PASS and parent acceptance at2381de882. The
+[G/D continuation](continuation-gd.md) refines the still-unqualified G/D criteria without
+changing P evidence or the canonical numerical/fidelity contracts. P covers workload/direct-route,
 committed-marker schedule, tool/TDD and owned-resource portions only; G/D/M/F
 and full branch/fidelity obligations remain unqualified. Windows20 cannot be proved by Linux, review,
 static PowerShell inspection or a future CI assumption. Pre90 Block1 exit and

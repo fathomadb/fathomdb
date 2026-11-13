@@ -72,3 +72,36 @@ OriginalSC2312/Pages/MD012 failures, invalid124history and inner skips/ignores s
 explicit. This final candidate requests same-reviewer results acceptance and
 parent evaluation/integration. No self-closure/state/board/ledger edit follows.
 G/D extension and M/F/whole20/30/40/50/pre90/final160 holds remain unchanged.
+
+## Accepted P and next G/D candidate
+
+Fresh final independent Astra-medium P implementation/results review passed on
+clean0d8be5bb; parent acceptance2381de882 is authoritative. Earlier pending
+entries above describe their original phase, not a current unresolved P review.
+P source remains2fd and production native remains1f with recorded unchanged
+relevant inputs; all failed/assembled evidence and invalid124 history remain.
+The [G/D continuation](continuation-gd.md) is a November13 frozen-source design candidate,
+not a self-declared PASS or source GO. It stages G ownership/routes and keeps
+D observer/source separately reviewable.20 A3/A5 proofs and seven controls are now qualified with fresh final Astra
+PASS and parent FF integration f803a964; whole20/WindowsA6 remain open. RAW
+capacity attachment is not Windows qualification. M/F/whole30/downstream/Block1 holds remain.
+
+## G-first/D design and actual integrated20 fit — PASS
+
+Independent Astra-medium `/root/slice30_gd_astra_design` approved FIX1 after the
+D characterization/timing distinction was made explicit at every required size
+and repeat, within unchanged caps. The same reviewer then approved the bounded
+actual20 fit at f803a964ad8c8154a481e6f9385599bef5c0e054:40named input files,
+13complete relevant subtrees and44Cargo manifests were verified. G production
+paths and all approved G/D contracts are unchanged.20 A3/A5 proof is accepted;
+M still requires the selected qualifiedG store and exact tooling, while Windows
+A6 remains independent.
+
+The imported packet manifest SHA256 is
+`9a242563fcef7e9c4ece9e7fdafb3f9dbf0d42d9ca7da1f2536e3a8e4cd61a4f`.
+Its patch SHA256 is
+`a2b18430120892494fd11118c303b97b1fe0280cfba9daec4132e386a31b53f8`.
+Parent verified those bytes and clean applicability before import. This approves
+the design only: fresh isolated G source entry/parent GO and actual runtime/GPU
+qualification remain; D source GO is separate. No accepted P timing is rerun or
+relabelled, and no whole30/40/50/Block1 clearance follows.

@@ -1,8 +1,9 @@
 # Slice 30 staged measurement design
 
-Status: P implemented/measured on clean2fd; final results review pending.
-Accepted initial implementation scope is **P only**. G/D/M/F
-remain designed staging boundaries, not implicit runtime/source authority.
+Status: P implemented/measured on clean2fd, final Astra review PASS at0d8be5bb
+and parent acceptance2381de882. Accepted implementation remains **P only**.
+The [G/D continuation](continuation-gd.md) is the concrete next G/D design candidate;
+G/D/M/F are not implicit runtime/source authority.
 All prerequisites in [parent proposal](prerequisite-change.md) remain in force.
 
 ## Current source and original tool fit
@@ -74,7 +75,7 @@ do not introduce a production API just to fill the field.
 
 | Group | Actual prerequisite | Scope and current disposition |
 | --- | --- | --- |
-| P | Reviewed dependency cut, closed10/current source, own tools/input/native artifacts | Provider-free direct-text baseline and write schedules;16cells measured, final results review pending. |
+| P | Reviewed dependency cut, closed10/current source, own tools/input/native artifacts | Provider-free direct-text baseline and write schedules;16cells measured, final Astra PASS and parent P-subset acceptance2381de882. |
 | G | P tools qualified; updated concrete G packet/review; own pinned BGE cache, available reserved engaged3090 | Same BGE384 store for engine/SDK hybrid/direct-text/embed-only; read/write schedules and guarded branch attribution. No TC5 dependency. NOT_RUN. |
 | D | P tools; reviewed current worker observer/fixture fit and cap feasibility | Synthetic deterministic768-d held/overlap10k/100k/300k drain follow-ups, pending counts, worker concurrency and WAL;300k requires lower-scale extrapolation under15min/16GiB. NOT_RUN. |
 | M | Dependable selected G store;20 A3/A5 proof or actual owner disposition; reviewed exact MCP tooling | Real stdio c1/4/8/16/32, actual queue denominator/errors, fresh-process/open/idle/alternating-store costs. NOT_RUN/HELD. No claimed queue proof from timing. |

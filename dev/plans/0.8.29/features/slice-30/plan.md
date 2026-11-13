@@ -13,8 +13,10 @@ Parent integrated the independently reviewed exact P prerequisite split at
 144bde29b75b31f1ce7277edfb82b5c6d5735068. Same owner passed strict closed10
 preflight/ownership/resources and received explicit P-only source GO. Actual
 clean2fd772558e46d0b1645dce2ffea730d0bdd3305c now supplies the16executed P cells
-and [measured results](results-p.md). Local qualification is assembled; final
-fresh Astra results review and parent integration remain pending. Whole20/30,
+and [measured results](results-p.md). Local qualification is assembled; fresh final Astra results PASS at
+0d8be5bb and parent acceptance2381de882 qualify only P. The
+[G/D continuation](continuation-gd.md) is the next bounded design candidate, with exact
+observer ownership/interface/TDD and separate D source gates. Whole20/30,
 G/D source, M/F,40/50 source and pre90 Block1 remain open.
 
 Historical PhaseA inspected c0c94b4203ffeb9e573efcc14e8b10df653318c5 and proposed
@@ -42,8 +44,10 @@ proposes the corresponding maintained architecture clarification.
 
 ## Sequence and retained boundaries
 
-P steps1–4 executed; [execution](execution.md) records actual RED/GREEN and
-qualification resumptions. Final review/integration in step5 remains pending.
+P steps1–5 are accepted within their recorded subset and assembled qualification
+limits; [execution](execution.md) preserves actual RED/GREEN and resumptions.
+The historical P sequence below is retained. Next G/D design/source/measurement
+review follows the [G/D continuation](continuation-gd.md); it does not repeat accepted P.
 
 1. Parent reviews/integrates the per-cell dependency amendment after Astra PASS.
 2. Same owner provisions only its own /mnt/data tools/native environment after GO.

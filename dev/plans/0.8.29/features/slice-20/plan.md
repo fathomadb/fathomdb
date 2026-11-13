@@ -13,8 +13,12 @@ input is0a7df81fd4b6f17d716c950e6fd2748daa3565c2 on llm/0.8.29-chat, including a
 seq-369/370 rulings. Parent created /mnt/data/worktrees/fathomdb-0.8.29-s20-approved-20261113
 on llm/0.8.29-s20-approved-20261113 at that exact base. Strict closed10
 preflight passed with zero warnings; initial omitted-path CLI usage error is
-parent tooling evidence only. Source GO still waits for this design PASS. No
-source/setup/build/VM mutation has run in this resumed phase.
+parent tooling evidence only. The approved Linux proof/capacity subset subsequently
+completed independent design and fresh final implementation review at
+f803a964ad8c8154a481e6f9385599bef5c0e054 and is integrated on the local release
+branch. [Final execution](execution.md#final-qualified-linux-proof-and-capacity-subset)
+records actual checks, original failures and qualification limits. A6 and whole20
+remain open; this ACTIVE plan retains the remaining Windows obligations.
 
 ## Scope and current integrated inputs
 

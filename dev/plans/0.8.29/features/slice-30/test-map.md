@@ -51,3 +51,11 @@ invalid124fixture history, diagnostics and oracle identities are in
 [execution](execution.md). [Results](results-p.md) maps actual affected checks,
 assembled source qualification and remaining holds; no test count implies full
 whole30/fidelity/Windows completion.
+
+## G/D extension candidate
+
+The [G/D continuation](continuation-gd.md) adds ordered G-T1..10 and separately gated
+D-T1..4 runtime RED/GREEN proposals with literal real-store/count/branch/time/
+ownership oracles. P tests/evidence remain unchanged. Candidate test names and
+ordinary/long-run registration must be finalized before each actual RED; this
+proposal is not implementation, executed coverage or a Slice20 exception.

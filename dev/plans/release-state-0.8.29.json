@@ -180,10 +180,13 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "A3_A5_VERIFICATION_EXCEPTION_APPROVED_WINDOWS_CAPACITY_ONLY_APPROVED",
-      "evidence": "Two genuine engine-owned sidecar/resolver hook repairs integrated at657edeb76caaf9c8d2aab433766bec9362e73217 after separate observed RED/GREEN and fresh independent Astra-medium implementation PASS. Previous assembled qualification/native identity limits remain in features/slice-20/execution.md and review-log.md. Continuation documentation391ae66aa reconciled60/70 and passed independent design/final documentation reviews. Owner seq-369 now authorizes A3/A5 verification-only proofs/negative controls for already-correct behavior; actual defects still require genuine RED/GREEN. Owner seq-370 authorizes only new64GiB scratch-disk creation/attachment. The broader5122 packet invokes guest initialization/formatting and is not executable unchanged under this narrower ruling. Current-base design recheck, bounded capacity-only derivative, actual proof execution and Windows technical qualification remain. No full20/30/Block1/release closure follows.",
-      "qualified_subset_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
-      "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5"
+      "phase": "LINUX_A3_A5_AND_CAPACITY_SUBSET_QUALIFIED_WINDOWS_A6_HELD",
+      "evidence": "Approved seq-369 A3/A5 verification-only proofs and seq-370 capacity preparation integrated at f803a964ad8c8154a481e6f9385599bef5c0e054 after independent design and fresh final Astra-medium PASS. Real idle/stale/deadline/cleanup and five live-constant guards passed; seven isolated mutations each failed the unchanged runtime oracle and restored exact source. Genuine operator capability and receipt-loss tooling RED/GREEN are separate from these coverage controls. Assembled216/216 suites passed: Rust2726 passed67 ignored, Python1750 passed36 skipped, TS629 passed6 skipped plus15 in-body skip markers; strict security0 and actual nonce/source/native child identity passed. Original df177 wrapper module-classification failure, exact two-change lint resumption and all202 retained spill hashes remain recorded in features/slice-20/execution.md and review-log.md. Actual64GiB new disk is attached RAW; no live formatting or Windows A6 engine/compiler qualification. A6/whole20, whole30/60-F11, Block1 and release closure remain open.",
+      "qualified_subset_sha": "f803a964ad8c8154a481e6f9385599bef5c0e054",
+      "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5",
+      "linux_repair_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
+      "linux_proof_sha": "f803a964ad8c8154a481e6f9385599bef5c0e054",
+      "capacity_preparation": "ATTACHED_RAW_CAPACITY_ONLY"
     },
     {
       "slice": 30,
@@ -205,14 +208,16 @@
         "dev/plans/0.8.29/features/slice-30/prerequisite-change.md",
         "dev/plans/0.8.29/features/slice-30/review-log.md",
         "dev/plans/0.8.29/features/slice-30/execution.md",
-        "dev/plans/0.8.29/features/slice-30/results-p.md"
+        "dev/plans/0.8.29/features/slice-30/results-p.md",
+        "dev/plans/0.8.29/features/slice-30/continuation-gd.md"
       ],
-      "phase": "P_SUBSET_IMPLEMENTED_QUALIFIED_REVIEW_PASS_WHOLE_SLICE_OPEN",
+      "phase": "P_SUBSET_QUALIFIED_G_DESIGN_APPROVED_SOURCE_ENTRY_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P-only Linux subset is qualified after reviewed closed10/qualified Linux20/current70 entry and owned setup. G/D still require concrete extension design review and parent GO; M remains held on20 A3/A5 proof or owner disposition; F needs the exact frozen TC5 pack/current-candidate proof. Windows20 A6, whole20/30,40/50 source gates and pre90 Block1 remain open.",
+      "conditions": "P-only Linux subset is qualified. G-first design passed Astra after exact actual20 input-fit review; fresh owned entry and explicit parent source GO remain. Actual cache/engaged3090/preregistration precede G campaign. D source GO remains separate. The20 A3/A5 proof condition is satisfied at f803a964; M still requires a selected qualifiedG store and reviewed exact MCP tooling. F needs exact frozen TC5 pack/current-candidate proof. Whole20/30,40/50 and pre90 Block1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
-      "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4"
+      "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
+      "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md."
     },
     {
       "slice": 40,
@@ -610,7 +615,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded degradation/native SDK parity have independent implementation PASS. Integrated20 Linux repairs,60 format/direct-filter/budget subset and30 provider-free P measurements passed within their recorded limits. P runtime2fd and final documentation0d8 have fresh independent P-subset acceptance; whole30/G/D/M/F remain open. Whole20/60/F11, remaining product/platform/artifact criteria, pre90 Block1 and final160 qualification remain pending. Assembled qualification retains original failures, interruptions/resumptions and inner skips; no uninterrupted full-wrapper or published-package claim. Current continuation excludes CI work/execution and registry publication.",
+    "qualification": "Slice10 preparation and Slice70 bounded SDK parity are complete. Qualified20 Linux repairs/A3-A5 proofs/capacity preparation,30 P measurements and60 MCP subset are integrated within recorded limits. Windows20 A6, whole30/60-F11, other selected outcomes and final160 qualification remain pending. Assembled evidence retains original failures/resumptions/ignored/skipped bodies; no uninterrupted full-wrapper or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

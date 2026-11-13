@@ -108,3 +108,10 @@ parent integration gate the qualified partial. No CI dispatch/workflow execution
 registry publication, paid model API, new download, fault/reset/VM operation or
 GPU workload occurs in initial P. G later reserves3090 and proves engagement;
 its GPU requirement is not imposed on provider-free P.
+
+## G/D prospective extension
+
+The P preregistration and executed freeze above remain unchanged. The
+[G/D continuation](continuation-gd.md) preregisters separate G/D routes, bounded observer
+controls, staged cell order and feasibility refusal before larger cells. It
+requests design review only; source/runtime GO and actual evidence are separate.

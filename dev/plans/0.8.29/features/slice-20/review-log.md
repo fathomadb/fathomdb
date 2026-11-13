@@ -98,3 +98,18 @@ finding and retained terminal approval for actual seven controls, affected/
 feature/native checks and final stable-source qualification. This checkpoint is
 not a terminal implementation PASS. Parent owns the final review/integration and
 release-state/ledger changes. Whole20/A6/30/60-F11/Block1 remain separate.
+
+## Fresh final Linux proof and capacity review — PASS
+
+Independent GPT-6 Astra-medium `/root/slice20_capacity_astra_final`, distinct from
+the design reviewer, issued terminal PASS at clean
+f803a964ad8c8154a481e6f9385599bef5c0e054. No actionable findings. Verified the
+216/216assembled suites, original wrapper failure/resumption, ignored/skipped
+limits, all202retained spill hashes, strict security, actual child nonce/native
+identity, seven restored sensitivity controls and RAW capacity preparation.
+
+The parent passed strict closed10 landing preflight, verified key raw/native
+hashes and fast-forwarded that exact source plus the explicit local release ref.
+See [final execution](execution.md#final-qualified-linux-proof-and-capacity-subset).
+This accepts A3/A5 Linux proofs and capacity preparation only; A6, whole20/30,
+Block1 and release/publication closure remain outside the verdict.

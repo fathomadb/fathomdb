@@ -69,7 +69,20 @@ pub(super) fn current_coverage(
     json!({"current_by_kind":by_kind,"current_vector_cursors":physical_ids.len(),"total_physical_vectors":total,"historical_physical_vectors":historical})
 }
 
-pub(super) fn reset(adapter: &GAdapter, path: &Path, config: &Value) -> Value {
+fn governed_write(
+    engine: &fathomdb_sdk::Engine,
+    writes: &[PreparedWrite],
+    origin: Instant,
+    _config: &Value,
+    _out: &Path,
+) -> Result<(fathomdb_engine::WriteReceipt, u64, u64), ()> {
+    let start = ns(origin);
+    let receipt = engine.write(writes).unwrap();
+    let end = ns(origin);
+    Ok((receipt, start, end))
+}
+
+pub(super) fn reset(adapter: &GAdapter, path: &Path, config: &Value, out: &Path) -> Value {
     let GAdapter::Sdk(engine) = adapter else { panic!("G2 reset is SDK only") };
     let writes: Vec<_> = (0..10)
         .map(|slot| PreparedWrite::Node {
@@ -84,8 +97,8 @@ pub(super) fn reset(adapter: &GAdapter, path: &Path, config: &Value) -> Value {
         })
         .collect();
     let writing = Instant::now();
-    engine.write(&writes).unwrap();
-    let write_ns = ns(writing);
+    let (_, start, end) = governed_write(engine, &writes, writing, config, out).unwrap();
+    let write_ns = end - start;
     let draining = Instant::now();
     let drain_budget = super::g_budget::drain(config, |timeout| {
         engine.drain(timeout).map_err(|error| format!("{error:?}"))
@@ -113,6 +126,7 @@ pub(super) fn run(
     recorder: &mut Recorder,
     origin: Instant,
     config: &Value,
+    out: &Path,
 ) -> Cohort {
     assert!(calls > 0 && calls.is_multiple_of(10));
     let GAdapter::Sdk(engine) = adapter else {
@@ -131,9 +145,7 @@ pub(super) fn run(
             valid_until: None,
         })
         .collect();
-    let start = ns(origin);
-    let receipt = engine.write(&writes).unwrap();
-    let end = ns(origin);
+    let (receipt, start, end) = governed_write(engine, &writes, origin, config, out).unwrap();
     recorder.emit("batches",&json!({"event":"governed_write","cohort":cohort,"after_natural_calls":calls,
         "rows":writes.len(),"cursor":receipt.cursor,"start_ns":start,"end_ns":end,"write_ns":end-start}));
     recorder.flush_all();
@@ -186,4 +198,76 @@ pub(super) fn run(
     recorder.emit("batches", &coverage);
     recorder.flush_all();
     Cohort { rows: writes.len(), probes }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn actual_write(config: &Value, count: usize, allowed: bool) {
+        let root = tempfile::Builder::new().prefix("s30-g2-write-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = fathomdb_sdk::Engine::open(
+            &store,
+            fathomdb_sdk::OpenOptions { use_default_embedder: false, ..Default::default() },
+        )
+        .unwrap();
+        let writes: Vec<_> = (0..count)
+            .map(|index| PreparedWrite::Node {
+                kind: "note".into(),
+                body: format!("budgetmarker évidence {index}"),
+                logical_id: Some(format!("marker-{index}")),
+                source_id: SourceId::new("test:s30-g2-admission").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        let result = governed_write(&engine, &writes, Instant::now(), config, &root);
+        let hits = engine.search_text_only("budgetmarker", Default::default()).unwrap();
+        engine.close().unwrap();
+        let db = Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let actual: usize =
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
+        assert_eq!(hits.results.len(), actual, "real SDK/SQLite control mismatch");
+        println!(
+            "actual G2 write {} allowed={allowed} rows={actual} result={result:?}",
+            root.display()
+        );
+        assert_eq!(
+            actual,
+            if allowed { count } else { 0 },
+            "G2 write admitted after original work/hard/shared endpoint"
+        );
+        assert_eq!(result.is_ok(), allowed);
+    }
+
+    fn expired(key: &str, count: usize) {
+        actual_write(&json!({}), count, true);
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        actual_write(&config, count, false);
+    }
+
+    #[test]
+    fn original_work_endpoint_refuses_governed_g2_write() {
+        expired("work_deadline_ns", 2);
+    }
+    #[test]
+    fn original_hard_endpoint_refuses_governed_g2_write() {
+        expired("hard_deadline_ns", 3);
+    }
+    #[test]
+    fn original_shared_endpoint_refuses_governed_g2_write() {
+        expired("shared_deadline_ns", 1);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn expired_governed_writes_never_publish_a_partial_cohort(count in 1usize..5, key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            expired(key, count);
+        }
+    }
 }

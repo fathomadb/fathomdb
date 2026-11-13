@@ -97,7 +97,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
     let mut reset_end_ns = None;
     let reset = g2.then(|| {
         reset_start_ns = Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
-        let reset = g_write_schedule::reset(&engine, store, config);
+        let reset = g_write_schedule::reset(&engine, store, config, out);
         reset_end_ns = Some(u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
         reset
     });
@@ -183,6 +183,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
                 &mut recorder,
                 pass_origin,
                 config,
+                out,
             );
             scheduled_write_calls += 1;
             scheduled_write_rows += cohort.rows;

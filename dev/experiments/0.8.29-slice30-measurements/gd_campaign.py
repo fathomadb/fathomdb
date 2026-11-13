@@ -329,6 +329,23 @@ def _native_complete(cell, attempt):
                     proof.get("api_calls")) != (mode, warmups, query_count, warmups+query_count):
                 return False
         return bool(passes)
+    if cell["family"]=="GG_CELL":
+        control=attempt/"gg-control.json"
+        if not control.exists():
+            return False
+        proof=json.loads(control.read_text())
+        if (proof.get("api_complete"),proof.get("base_rows"),proof.get("pending"),proof.get("selected_cuda_uuid"))!=(True,cell["n"],0,cell["gpu_uuid"]):
+            return False
+        stages=[("time","baseline",100),("time","before",80),("time","inside",100),
+                ("time","after",120),("governed","valid",100),("governed","deleted",100)]
+        for family,stage,as_of in stages:
+            path=attempt/family/stage/"api-proof.json"
+            if not path.exists():
+                return False
+            proof=json.loads(path.read_text())
+            if (proof.get("stage"),proof.get("valid_as_of"),proof.get("warmup_calls"),proof.get("timed_calls"),proof.get("api_calls"))!=(stage,as_of,cell["warmups"],cell["samples"],cell["warmups"]+cell["samples"]):
+                return False
+        return True
     if cell["family"]=="D_HELD_FIXTURE":
         path=attempt/"controls.json"
         if not path.exists():

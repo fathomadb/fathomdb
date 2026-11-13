@@ -1,11 +1,11 @@
-"""G-only stage inventory; accepted P scheduling and results stay unchanged."""
+"""Fixed G stages, cap accounting and retained attempts; accepted P stays unchanged."""
 
 from itertools import product
 import json
 from pathlib import Path
 import time
 
-from campaign import run_campaign
+from g_attempt import run_g_attempt
 
 
 def make_g_plan(spec):
@@ -92,7 +92,7 @@ def predict_seed(cell, previous, cell_usage):
             "seed_bytes": (2 * active_bytes(lower["attempt"]) * cell["n"] + observed_rows - 1) // observed_rows}
 
 def run_g_plan(spec, root, command, prepare=None):
-    """Run a callable stage schedule with the existing owned-child attempt runner."""
+    """Run the fixed G schedule with retained cap refusals and owned child groups."""
     plan = make_g_plan(spec)
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -154,9 +154,10 @@ def run_g_plan(spec, root, command, prepare=None):
                         if cell_usage.get(cell["id"], 0) + elapsed >= 900 * 10**9:
                             return "cell_time_exhausted"
                         return None
-                    outcomes.extend(run_campaign([cell], root, command,
-                                                 timeout=min(cell_remaining, shared_remaining) / 10**9,
-                                                 before=lambda: context, monitor=monitor))
+                    deadline = started + min(900 * 10**9 - cell_usage.get(cell["id"], 0),
+                                             14400 * 10**9 - budget["used_ns"])
+                    outcomes.append(run_g_attempt(cell, root, command, deadline,
+                                                  context=context, monitor=monitor))
             finally:
                 elapsed = time.monotonic_ns() - started
                 budget["used_ns"] += elapsed

@@ -849,3 +849,14 @@ aggregate-cap qualification; those controller units remain required.
   timed-out attempt/log retained, and all 83 otherwise permitted obligations
   still processed. Accepted P runner behavior/evidence will not be rewritten;
   this correction belongs to a G-only owned-attempt runner.
+
+- Owned timeout GREEN: `g-t10-owned-timeout-green` passes all nine frozen Python
+  controller tests (exit 0, no resource stop); Ruff passes. The `f3d727bc9`
+  actual-descendant oracle is unchanged. G-only `g_attempt.py` starts each child
+  in its own process group and terminates that owned group at deadline/cap,
+  retaining both controller exit and actual child exit. Config/startup consume
+  the same absolute parent deadline; attempts/configs/logs remain retained.
+- Accepted P runner/source/evidence are unchanged. One-second G attempt cap
+  polling is not yet the native-PID GPU sampler. Frozen production command and
+  identity/qualification integration, full-workload forecasting and campaign
+  evidence remain pending, with Slice100 still owning the native window.

@@ -207,3 +207,9 @@ and negative compile logs; expected absent-method E0599 errors are compile-only
 contract evidence, never runtime RED. The source-derived feature matrix records
 the observer target's exact feature requirements. Native execution and the final
 full gate remain serialized behind the assigned heavy/native window.
+
+`g_attempt.py` owns each G child process group, with retained per-attempt configs,
+logs/receipts and an absolute deadline spanning preparation/startup. Cap timeout
+terminates the owned group so descendants cannot continue work after the cell;
+the accepted P runner remains unchanged. This controller timeout proof uses only
+harmless Python children, without a product fault or model/GPU execution.

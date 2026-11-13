@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sqlite3
 import tempfile
 import unittest
 
@@ -236,6 +237,59 @@ class GNormalCliTests(unittest.TestCase):
             self.assertEqual(result["sample_count"], 2)
             self.assertEqual([row["ids"] for row in result["samples"]], [["l:s30doc-0"], ["l:s30doc-1"]])
             self.assertEqual(len((out / "first-calls.jsonl").read_text().splitlines()), 0)
+
+
+    def test_normal_write_driver_replaces_natural_rows_in_two_real_cohorts(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        for adapter in ["engine", "sdk"]:
+            for route in ["text", "hybrid", "embed"]:
+                for batch_size in [1, 10]:
+                    with self.subTest(adapter=adapter, route=route, batch_size=batch_size), tempfile.TemporaryDirectory() as temporary:
+                        root = Path(temporary)
+                        corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+                        corpus.write_text("".join(json.dumps(f"needle body{index}") + "\n" for index in range(10)))
+                        queries.write_text('"needle"\n')
+                        seed = root / "seed.json"
+                        seed.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                                    "adapter": "sdk", "n": 10, "corpus": str(corpus), "queries": str(queries)}))
+                        prepared = subprocess.run([str(binary), str(seed), str(root / "seed")],
+                                                  text=True, capture_output=True, timeout=30, check=False)
+                        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+                        store = root / "seed" / "store.sqlite"
+                        config = root / "cell.json"
+                        config.write_text(json.dumps({"family": "G-W", "provider": "none", "negative_control": True,
+                                                      "store": str(store), "corpus": str(corpus), "queries": str(queries),
+                                                      "adapters": [adapter], "routes": [route], "warmup": 1, "samples": 4,
+                                                      "batch_size": batch_size, "searches_per_batch": 2,
+                                                      "record_first_call": False, "repeat": 0, "observe": True}))
+                        out = root / "out"
+                        child = subprocess.run([str(binary), str(config), str(out)],
+                                               text=True, capture_output=True, timeout=30, check=False)
+                        self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+                        with sqlite3.connect(f"file:{store}?mode=ro", uri=True) as connection:
+                            history = connection.execute("SELECT COUNT(*) FROM canonical_nodes").fetchone()[0]
+                            active = connection.execute("SELECT COUNT(*) FROM canonical_nodes WHERE superseded_at IS NULL AND state='active'").fetchone()[0]
+                            notes = connection.execute("SELECT COUNT(*) FROM canonical_nodes WHERE kind='note'").fetchone()[0]
+                        self.assertEqual(history, 10 + 2 * batch_size,
+                                         "normal G-W omitted actual natural replacement writes")
+                        self.assertEqual(active, 10)
+                        self.assertEqual(notes, 0)
+                        result = json.loads((out / "result.json").read_text())
+                        self.assertTrue(result["complete"])
+                        self.assertEqual(result["batch_count"], 2)
+                        self.assertEqual([row["before_sample"] for row in result["batches"]], [0, 2])
+                        self.assertEqual([row["rows"] for row in result["batches"]], [batch_size, batch_size])
+                        self.assertEqual(result["sample_count"], 4)
+                        self.assertEqual(result["warmup_count"], 1)
+                        self.assertEqual(result["first_call_count"], 0)
+                        self.assertTrue(all(row["route"] == route for row in result["samples"]))
+                        self.assertEqual(len(result["probes"]), 2 * batch_size)
+                        self.assertTrue(all(row["marker_current"] and row["point_probe"]["current"] for row in result["probes"]))
+                        self.assertTrue(all(row["point_probe"]["elapsed_ns"] > 0 and row["text_probe"]["elapsed_ns"] > 0 for row in result["probes"]))
+                        self.assertEqual(len(result["observation_batches"]), 5 + 2 * batch_size)
+                        self.assertTrue(all(row["dropped_records"] == 0 and not row["issues"] for row in result["observation_batches"]))
+                        self.assertEqual(len((out / "batches.jsonl").read_text().splitlines()), 2)
+                        self.assertEqual(len((out / "g-marker-probes.jsonl").read_text().splitlines()), 2 * batch_size)
 
 
 if __name__ == "__main__":

@@ -857,6 +857,15 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     result
 }
 
+fn run_g_write(config: &Value, out: &Path) -> Value {
+    let mut result = run_g_read(config, out);
+    result["batches"] = json!([]);
+    result["probes"] = json!([]);
+    result["batch_count"] = json!(0);
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
+}
+
 fn g_projection_declared(engine: &Adapter) -> bool {
     let specs = match engine {
         Adapter::Core(engine) => engine.read_projections().map_err(Into::into),
@@ -1146,6 +1155,8 @@ fn main() {
         run_g_seed(&config, Path::new(&args[2]))
     } else if config["family"] == "G-R" || config["family"] == "G-O" {
         run_g_read(&config, Path::new(&args[2]))
+    } else if config["family"] == "G-W" {
+        run_g_write(&config, Path::new(&args[2]))
     } else {
         run_cell(&config, Path::new(&args[2]))
     };

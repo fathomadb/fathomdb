@@ -11,7 +11,8 @@ def build(inputs):
 
     def add(group,n,repeat,identifier,**fields):
         cell={"id":f"g/{identifier}","group":group,"n":n,"repeat":repeat,
-              "measurement":group!="GT","gpu_uuid":inputs["gpu_uuid"],**fields}
+              "measurement":group!="GT","gpu_uuid":inputs["gpu_uuid"],
+              "quiet_start":group!="GT","cpu_observation":True,**fields}
         if group!="GT":
             cell["template_from"]=f"g/gt-{n}"
         if group in {"G1","G2","GO"}:
@@ -45,6 +46,7 @@ def build(inputs):
         suffix=f"-{artifact}-off" if group=="DC" else ""
         cell={"id":f"d/{group.lower()}-{n}-{workload}-r{repeat}{suffix}","group":group,
               "n":n,"repeat":repeat,"measurement":True,"artifact":artifact,"observer":observer,
+              "quiet_start":False,"cpu_observation":True,
               "workload":workload,"requires_overlap":observer and workload=="overlap",
               "cohort":1024,"warmups":10,"samples":100,"readiness":True,
               "query_source":inputs["queries"],"lower":None}

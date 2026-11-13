@@ -680,5 +680,47 @@ class AttemptHistoryTests(unittest.TestCase):
         self.check_history(samples)
 
 
+class GeneratedDPopulationTests(unittest.TestCase):
+    def population(self,count):
+        root,binary,manifest=clock_fixture()
+        control=run_manifest(dict(manifest,cells=manifest["cells"][:1]),root/"control")[0]
+        self.assertEqual(control["status"],"complete","existing real write/query route NOT_RED")
+        with closing(sqlite3.connect(f"file:{Path(control['attempt'])/'query.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT logical_id,body FROM canonical_nodes").fetchall(),[("clock-row","clockwitness évidence")])
+        cell=dict(manifest["cells"][0],id="d/generated",n=count,cohort=3,warmups=0,samples=1)
+        del cell["write_records"]
+        result=run_manifest(dict(manifest,cells=[cell]),root/"generated")[0]
+        self.assertEqual(result["exit"],0,"generated route native setup NOT_RED")
+        self.assertTrue(result["cleanup"]["complete"])
+        attempt=Path(result["attempt"])
+        self.assertTrue(json.loads((attempt/"complete.json").read_text())["complete"])
+        with closing(sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro",uri=True)) as db:
+            actual=db.execute("SELECT logical_id,kind,body FROM canonical_nodes ORDER BY write_cursor").fetchall()
+            print(f"actual generated D {attempt} rows={len(actual)} required={count}",flush=True)
+            self.assertEqual(len(actual),count,"missing generated D population actuation")
+            self.assertEqual([(row[0],row[1]) for row in actual],[(f"d-{i}","doc") for i in range(count)])
+            for table in ["vector_default","_fathomdb_vector_rows","_fathomdb_vector_spans"]:
+                self.assertEqual(db.execute(f"SELECT count(*) FROM {table}").fetchone()[0],count)
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes c JOIN _fathomdb_vector_rows m ON m.kind=c.kind AND m.write_cursor=c.write_cursor JOIN _fathomdb_vector_spans s ON s.vector_rowid=m.rowid AND s.write_cursor=c.write_cursor WHERE s.byte_start=0 AND s.byte_end IS NULL").fetchone()[0],count)
+            self.assertEqual(db.execute("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'").fetchone(),("varying","perf-gates-dense",768))
+        vocab={f"{chr(97+i//676%26)}{chr(97+i//26%26)}{chr(97+i%26)}{i:04}" for i in range(1024)}
+        for _,_,body in actual:
+            words=body.split(" ")
+            self.assertTrue(55<=len(words)<=74)
+            self.assertTrue(set(words)<=vocab)
+        self.assertEqual(result["status"],"complete")
+        return actual
+
+    def test_declared_population_reaches_real_governed_vectors_and_spans(self):
+        self.population(7)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=1,max_value=9))
+    def test_generated_body_population_is_a_size_independent_ordered_prefix(self,count):
+        prefix=self.population(count)
+        longer=self.population(count+1)
+        self.assertEqual(longer[:count],prefix)
+
+
 if __name__ == "__main__":
     unittest.main()

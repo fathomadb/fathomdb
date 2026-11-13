@@ -976,3 +976,5 @@ required-features = ["test-hooks"]
 [[test]]
 name = "slice30_d_workload"
 required-features = ["test-hooks"]
+# The maintained suite builds each matching DN/DO executable before this target.
+test = false

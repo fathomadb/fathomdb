@@ -79,33 +79,14 @@ pub(super) fn run(config: &Value, out: &Path) {
         let writes = std::thread::scope(|scope| {
             let (start_readiness, readiness_ready) = std::sync::mpsc::sync_channel(1);
             let (stop_readiness, readiness_stop) = std::sync::mpsc::sync_channel(1);
-            let readiness = if config["readiness"].as_bool().unwrap_or(false) {
-                Some(scope.spawn(move || {
-                    readiness_ready.recv_timeout(Duration::from_secs(5)).unwrap();
-                    let mut reads = Vec::new();
-                    loop {
-                        let started = Instant::now();
-                        let start_ns = u64::try_from(started.duration_since(origin).as_nanos()).unwrap();
-                        let result = engine.read_embedding_readiness();
-                        let end_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
-                        reads.push(match result {
-                            Ok(readiness) => json!({"ok":true,"start_ns":start_ns,"end_ns":end_ns,
-                                "pending_count":readiness.pending_count,"usable_embedder":readiness.usable_embedder,
-                                "state":format!("{:?}",readiness.state)}),
-                            Err(error) => json!({"ok":false,"start_ns":start_ns,"end_ns":end_ns,
-                                "pending_count":null,"error":format!("{error:?}")}),
-                        });
-                        let until_next = (started + Duration::from_millis(100)).saturating_duration_since(Instant::now());
-                        match readiness_stop.recv_timeout(until_next) {
-                            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (),
-                            _ => break,
-                        }
-                    }
-                    reads
-                }))
-            } else {
-                None
-            };
+            let readiness =
+                if config["readiness"].as_bool().unwrap_or(false) {
+                    Some(scope.spawn(move || {
+                        readiness_loop(engine, origin, readiness_ready, readiness_stop)
+                    }))
+                } else {
+                    None
+                };
             let (release, ready) = std::sync::mpsc::sync_channel(1);
             let writer = scope.spawn(move || {
                 let launch_ns: u64 = ready.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -275,4 +256,34 @@ fn observation_report(engine: &Engine, origin: Instant, config: &Value) -> Value
     json!({"available":true,"reason":null,"capacity":32768,"dropped":dropped,
         "records":records,"query_records":query_records,"query_dropped":query_dropped,
         "attribution_complete":complete,"collected_at_ns":u64::try_from(origin.elapsed().as_nanos()).unwrap()})
+}
+
+pub(super) fn readiness_loop(
+    engine: &Engine,
+    origin: Instant,
+    start: std::sync::mpsc::Receiver<()>,
+    stop: std::sync::mpsc::Receiver<()>,
+) -> Vec<Value> {
+    start.recv_timeout(Duration::from_secs(5)).unwrap();
+    let mut reads = Vec::new();
+    loop {
+        let started = Instant::now();
+        let start_ns = u64::try_from(started.duration_since(origin).as_nanos()).unwrap();
+        let result = engine.read_embedding_readiness();
+        let end_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
+        reads.push(match result {
+            Ok(readiness) => json!({"ok":true,"start_ns":start_ns,"end_ns":end_ns,
+            "pending_count":readiness.pending_count,"usable_embedder":readiness.usable_embedder,
+            "state":format!("{:?}",readiness.state)}),
+            Err(error) => json!({"ok":false,"start_ns":start_ns,"end_ns":end_ns,
+            "pending_count":null,"error":format!("{error:?}")}),
+        });
+        let until_next =
+            (started + Duration::from_millis(100)).saturating_duration_since(Instant::now());
+        match stop.recv_timeout(until_next) {
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (),
+            _ => break,
+        }
+    }
+    reads
 }

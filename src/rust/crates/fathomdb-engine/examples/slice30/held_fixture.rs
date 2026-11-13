@@ -146,7 +146,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     assert_eq!(held["sql"]["physical_vectors"], 0);
     let after_queries = if config["queries"].as_array().is_some() {
         let mut output = std::fs::File::create(out.join("queries.jsonl")).unwrap();
-        for (phase, key) in [("warmup", "warmups"), ("timed", "samples")] {
+        let run_phase = |output: &mut std::fs::File, phase: &str, key: &str| {
             let count = usize::try_from(config[key].as_u64().unwrap()).unwrap();
             for sample in 0..count {
                 let row = super::d_workload::query_row(
@@ -156,9 +156,34 @@ pub(super) fn run(config: &Value, out: &Path) {
                     sample,
                     super::d_workload::request(config, sample),
                 );
-                super::d_workload::write_row(&mut output, &row);
+                super::d_workload::write_row(output, &row);
             }
-        }
+        };
+        run_phase(&mut output, "warmup", "warmups");
+        std::thread::scope(|scope| {
+            let (start, ready) = std::sync::mpsc::sync_channel(1);
+            let (stop, stopping) = std::sync::mpsc::sync_channel(1);
+            let sampler = if config["readiness"].as_bool().unwrap_or(false) {
+                Some(scope.spawn(move || {
+                    super::d_workload::readiness_loop(engine, origin, ready, stopping)
+                }))
+            } else {
+                None
+            };
+            if sampler.is_some() {
+                start.send(()).unwrap();
+            }
+            run_phase(&mut output, "timed", "samples");
+            if let Some(sampler) = sampler {
+                let _ = stop.send(());
+                let reads = sampler.join().unwrap();
+                std::fs::write(
+                    out.join("readiness.json"),
+                    serde_json::to_vec_pretty(&reads).unwrap(),
+                )
+                .unwrap();
+            }
+        });
         std::io::Write::flush(&mut output).unwrap();
         Some(observation(origin, engine, &store))
     } else {

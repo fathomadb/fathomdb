@@ -96,6 +96,11 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
                    "started_at": started_at, "ended_at": time.time(), "pid": pid,
                    "pgid": group, "command": [*command, str(config), str(attempt)]}
         if execution is not None:
+            if execution.get("cell_started_ns") is not None:
+                ended_ns = time.monotonic_ns()
+                outcome.update(cell_started_ns=execution["cell_started_ns"],cell_ended_ns=ended_ns,
+                               cell_elapsed_ns=ended_ns-execution["cell_started_ns"],
+                               cell_elapsed_scope="original entry through preparation/admission/retries/native/cleanup/completion validation; final outcome serialization excluded")
             outcome["cleanup"] = execution["cleanup"]
             outcome["child_exit"] = execution["child_exit"]
             if execution.get("controller_signal") is not None:

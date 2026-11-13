@@ -56,12 +56,15 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
     for planned in manifest["cells"]:
         now = time.monotonic_ns()
         hard_deadline = min(deadline, now+int(min(manifest["cell_seconds"],900)*1_000_000_000))
+        cell_started_ns = None
         if clock["boot_id"] == boot_id and now < deadline:
             cell_deadlines = clock["cell_deadlines"]
             if planned["id"] not in cell_deadlines:
-                cell_deadlines[planned["id"]] = hard_deadline
+                cell_deadlines[planned["id"]] = {"entered_ns":now,"hard_deadline_ns":hard_deadline}
                 clock_path.write_text(json.dumps(clock) + "\n")
-            hard_deadline = min(hard_deadline, cell_deadlines[planned["id"]])
+            extent = cell_deadlines[planned["id"]]
+            cell_started_ns = extent["entered_ns"]
+            hard_deadline = min(hard_deadline, extent["hard_deadline_ns"])
         work_deadline = hard_deadline-30_000_000_000
         bounds = {"work_deadline_ns": work_deadline, "hard_deadline_ns": hard_deadline,
                   "shared_deadline_ns": deadline}
@@ -70,6 +73,8 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
             nonlocal cancelled
             native = dict(cell,campaign_root=str(root)) if cell.get("template_from") else cell
             result = _run_native(native, command, config, attempt, observe, bounds, resources, resource_interval, swap)
+            if cell_started_ns is not None:
+                result["cell_started_ns"] = cell_started_ns
             cancelled = result.get("controller_signal")
             return result
 

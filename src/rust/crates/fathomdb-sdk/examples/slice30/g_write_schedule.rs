@@ -93,16 +93,20 @@ fn governed_write(
     Ok((receipt, start, end))
 }
 
-fn completed_drain(
-    engine: &fathomdb_sdk::Engine,
-    config: &Value,
-    _out: &Path,
-) -> Result<Value, ()> {
-    let report = super::g_budget::drain(config, |timeout| {
+fn completed_drain(engine: &fathomdb_sdk::Engine, config: &Value, out: &Path) -> Result<Value, ()> {
+    super::g_budget::drain(config, |timeout| {
         engine.drain(timeout).map_err(|error| format!("{error:?}"))
     })
-    .unwrap();
-    Ok(report)
+    .map_err(|error| {
+        std::fs::write(
+            out.join("budget.json"),
+            serde_json::to_vec_pretty(&json!({
+                "phase":"drain","disposition":"phase_failed","error":error
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    })
 }
 
 pub(super) fn reset(
@@ -128,7 +132,7 @@ pub(super) fn reset(
     let (_, start, end) = governed_write(engine, &writes, writing, config, out)?;
     let write_ns = end - start;
     let draining = Instant::now();
-    let drain_budget = completed_drain(engine, config, out).unwrap();
+    let drain_budget = completed_drain(engine, config, out)?;
     let drain_ns = ns(draining);
     let pending = admitted_read(config, out, "readiness", || {
         fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count
@@ -180,7 +184,7 @@ pub(super) fn run(
         "rows":writes.len(),"cursor":receipt.cursor,"start_ns":start,"end_ns":end,"write_ns":end-start}));
     recorder.flush_all();
     let start = ns(origin);
-    let drain_budget = completed_drain(engine, config, out).unwrap();
+    let drain_budget = completed_drain(engine, config, out)?;
     let end = ns(origin);
     let pending = admitted_read(config, out, "readiness", || {
         fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count

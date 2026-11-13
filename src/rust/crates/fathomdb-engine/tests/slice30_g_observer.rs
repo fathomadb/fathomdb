@@ -525,3 +525,99 @@ fn boundary_capture_binds_same_call_authority_to_derived_membership() {
     }
     engine.close().unwrap();
 }
+
+#[test]
+fn api_phases_attribute_actual_compile_dispatch_wait_and_response_per_route() {
+    let directory = tempfile::tempdir().unwrap();
+    let engine = seed_dense(&directory.path().join("api-phases.sqlite"));
+    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    for (operation, api, phases) in [
+        (
+            901,
+            "api_hybrid",
+            vec![
+                "query_compile",
+                "query_embedding_dispatch_wall",
+                "query_mean_serialization",
+                "reader_wait",
+                "final_response",
+            ],
+        ),
+        (902, "api_text", vec!["query_compile", "reader_wait", "final_response"]),
+        (903, "api_embed", vec!["query_embedding_dispatch_wall"]),
+    ] {
+        match operation {
+            901 => {
+                assert_eq!(
+                    observer.with_operation(operation, || engine.search("needle")).unwrap().results
+                        [0]
+                    .id
+                    .value,
+                    "alpha"
+                );
+            }
+            902 => {
+                assert_eq!(
+                    observer
+                        .with_operation(operation, || engine.search_text_only("needle"))
+                        .unwrap()
+                        .results[0]
+                        .id
+                        .value,
+                    "alpha"
+                );
+            }
+            _ => {
+                assert_eq!(
+                    observer.with_operation(operation, || engine.embed_text("needle")).unwrap(),
+                    vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                );
+            }
+        }
+        let batch = observer.take();
+        let api_records =
+            batch.records.iter().filter(|record| record.phase == api).collect::<Vec<_>>();
+        assert_eq!(api_records.len(), 1, "actual route API interval is missing: {api}");
+        let root = api_records[0];
+        assert_eq!(root.operation_id, operation);
+        assert_eq!(root.status, "ok");
+        assert!(root.started_ns.unwrap() <= root.ended_ns.unwrap());
+        for phase in phases {
+            let records =
+                batch.records.iter().filter(|record| record.phase == phase).collect::<Vec<_>>();
+            assert_eq!(records.len(), 1, "actual API phase is missing or duplicated: {phase}");
+            let record = records[0];
+            assert_eq!(record.operation_id, operation);
+            assert_eq!(record.parent_span_id, Some(root.span_id));
+            assert_eq!(record.status, "ok");
+            assert!(root.started_ns.unwrap() <= record.started_ns.unwrap());
+            assert!(record.started_ns.unwrap() <= record.ended_ns.unwrap());
+            assert!(record.ended_ns.unwrap() <= root.ended_ns.unwrap());
+        }
+        if operation == 902 {
+            assert!(!batch
+                .records
+                .iter()
+                .any(|record| record.phase == "query_embedding_dispatch_wall"));
+        }
+        assert_eq!(batch.dropped_records, 0);
+    }
+    engine.close().unwrap();
+    let absent = seed(&directory.path().join("absent-api.sqlite"));
+    let observer = absent.begin_slice30_observation_for_test(32).unwrap();
+    assert!(matches!(
+        observer.with_operation(904, || absent.embed_text("needle")),
+        Err(EngineError::EmbedderNotConfigured)
+    ));
+    let batch = observer.take();
+    for phase in ["api_embed", "query_embedding_dispatch_wall"] {
+        let records =
+            batch.records.iter().filter(|record| record.phase == phase).collect::<Vec<_>>();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].status, "error");
+        assert!(records[0].started_ns.is_some());
+        assert!(records[0].ended_ns.is_some());
+    }
+    assert_eq!(batch.dropped_records, 0);
+    absent.close().unwrap();
+}

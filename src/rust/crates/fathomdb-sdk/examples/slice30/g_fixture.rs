@@ -9,6 +9,9 @@ use fathomdb_sdk::{Engine as SdkEngine, OpenOptions};
 use serde_json::{json, Value};
 use std::path::Path;
 
+#[path = "../../../fathomdb-engine/examples/slice30/budget_clock.rs"]
+mod budget_clock;
+
 #[path = "raw.rs"]
 mod raw;
 use raw::Recorder;

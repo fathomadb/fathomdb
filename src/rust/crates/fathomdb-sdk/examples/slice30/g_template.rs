@@ -47,6 +47,9 @@ pub(super) fn run(config: &Value, out: &Path) {
         assert_eq!(resolution.selected_cuda_uuid.as_deref(), config["gpu_uuid"].as_str());
         assert_eq!(device.ordinal, 0);
         assert_eq!(opened.report.default_embedder.dimension, 384);
+        if super::budget_clock::phase(config, out, "configure").is_err() {
+            return;
+        }
         let configuring = std::time::Instant::now();
         engine
             .configure_projections(

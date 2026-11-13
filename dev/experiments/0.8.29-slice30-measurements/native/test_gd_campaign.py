@@ -844,5 +844,42 @@ class HeldCompletionRouteTests(unittest.TestCase):
         self.check_completion(count,observer)
 
 
+class DOverlapQualificationTests(unittest.TestCase):
+    def check_qualification(self,count,enabled):
+        root,_,manifest=clock_fixture()
+        cell=dict(manifest["cells"][0],id="d/qualified-control",n=count,cohort=2,workload="overlap",
+                  observer=enabled,requires_overlap=enabled,warmups=1,samples=0 if enabled else 2)
+        del cell["write_records"]
+        result=run_manifest(dict(manifest,cells=[cell]),root/"results")[0]
+        self.assertEqual(result["status"],"complete","real ordinary workload success stays separate from overlap evidence")
+        attempt=Path(result["attempt"])
+        with closing(sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes c JOIN _fathomdb_vector_rows m ON m.kind=c.kind AND m.write_cursor=c.write_cursor JOIN vector_default_rowids v ON v.rowid=m.rowid").fetchone()[0],count)
+        calls=[json.loads(line) for line in (attempt/"queries.jsonl").read_text().splitlines()]
+        self.assertTrue(all(call["ok"] for call in calls))
+        self.assertEqual(len(calls),1+cell["samples"])
+        analyzer=Path(__file__).parents[1]/"gd_overlap.py"
+        actual=subprocess.run([sys.executable,str(analyzer)],input=json.dumps({"native_output":str(attempt)}),capture_output=True,text=True,timeout=5)
+        self.assertEqual(actual.returncode,0,actual.stderr)
+        expected=json.loads(actual.stdout)
+        self.assertEqual(expected["status"],"INCOMPLETE_OVERLAP" if enabled else "WORKER_ATTRIBUTION_UNAVAILABLE")
+        self.assertEqual(expected["witnesses"],[] if enabled else None)
+        path=attempt/"qualification.json"
+        report=json.loads(path.read_text()) if path.exists() else {}
+        print(f"actual D program complete {attempt} independent={expected['status']} controller={report.get('status')}",flush=True)
+        self.assertEqual(report.get("status"),expected["status"],"actual controller discarded ordinary overlap qualification")
+        self.assertEqual(report,expected)
+
+    def test_successful_unavailable_and_incomplete_runs_keep_distinct_qualification(self):
+        for enabled in [False,True]:
+            with self.subTest(observer=enabled):
+                self.check_qualification(3,enabled)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=1,max_value=5),st.booleans())
+    def test_actual_worker_presence_does_not_turn_absent_witness_into_failure_or_success(self,count,enabled):
+        self.check_qualification(count,enabled)
+
+
 if __name__ == "__main__":
     unittest.main()

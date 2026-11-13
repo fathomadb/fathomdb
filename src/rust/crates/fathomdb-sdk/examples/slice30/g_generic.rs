@@ -71,6 +71,9 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
     let ids: BTreeSet<_> = queries.iter().map(|query| query["id"].as_u64().unwrap()).collect();
     assert_eq!(ids.len(), queries.len());
     let mode = config["mode"].as_str().unwrap();
+    if super::budget_clock::phase(config, out, "pass").is_err() {
+        return;
+    }
     let opening = std::time::Instant::now();
     let engine = GAdapter::open(mode, store);
     let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
@@ -80,6 +83,10 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         matches!(&resolution.effective_device, EffectiveEmbedDevice::Cuda(device) if device.ordinal == 0)
     );
     assert_eq!(engine.report().default_embedder.dimension, 384);
+    if super::budget_clock::phase(config, out, "pass").is_err() {
+        engine.close();
+        return;
+    }
     let adapter = match &engine {
         GAdapter::Core(_) => "engine",
         GAdapter::Sdk(_) => "sdk",

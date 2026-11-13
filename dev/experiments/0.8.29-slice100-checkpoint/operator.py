@@ -220,9 +220,19 @@ def source_subject(args) -> dict:
     return {"gdb": str(args.gdb.resolve()), "gdb_sha256": digest(args.gdb), "build_id": build_ids[0], "source_sha": sha, "lock_sha256": digest(source / "Cargo.lock"), "binary": str(binary), "binary_sha256": digest(binary), "artifact_json_sha256": digest(args.artifact_json), "features": features, "sqlite_source": str(sqlite), "sqlite_sha256": SQLITE_SHA256, "fixture": FIXTURE}
 
 
-def resource_sample(source: Path, task: Path) -> dict:
+def resource_sample(source: Path, task: Path, *, actors=None) -> dict:
     """Use the existing Slice60 monitor's owned-du/free/MemAvailable observations."""
-    sizes = subprocess.check_output(["du", "-sb", str(source), str(task)], text=True, timeout=3)
+    observation = subprocess.Popen(["du", "-sb", str(source), str(task)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if actors is not None:
+        actors.processes.append(observation)
+    try:
+        sizes, error = observation.communicate(timeout=3)
+    except subprocess.TimeoutExpired as error:
+        observation.kill()
+        observation.communicate(timeout=5)
+        raise Unqualified("owned allocation observation deadline") from error
+    if observation.returncode:
+        raise Unqualified("owned allocation observation failed: " + error)
     values = [int(line.split()[0]) for line in sizes.splitlines()]
     if len(values) != 2:
         raise Unqualified("owned allocation measurement unavailable")
@@ -245,6 +255,25 @@ class Actors:
         self.inferior = None
         self.pidfd = None
         self.starttime = None
+        self.adoption_scope = False
+        self.adopted_cleanup = []
+
+    def direct_children(self):
+        children = set()
+        for thread in Path("/proc/self/task").iterdir():
+            try:
+                children.update(int(pid) for pid in (thread / "children").read_text().split())
+            except FileNotFoundError:
+                continue
+        return children
+
+    def begin_launch_scope(self):
+        # Standalone, single-threaded operator: after this empty baseline EVERY
+        # launch is registered, including synchronous resource observations.
+        # A later direct adopted child can therefore only descend from these roots.
+        if self.processes or self.direct_children() or len(list(Path("/proc/self/task").iterdir())) != 1:
+            raise Unqualified("exclusive owned-launch baseline unavailable")
+        self.adoption_scope = True
 
     def bind_inferior(self, pid: int, gdb_pid: int, binary: Path):
         if self.inferior is not None:
@@ -287,20 +316,45 @@ class Actors:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 errors.append("owned process did not reap: " + str(process.pid))
-        # A failed GDB may orphan the registered inferior to this subreaper.
-        if self.inferior:
+        # Killing/reaping the registered launch roots transfers descendants to
+        # this subreaper even when MI decoding or pidfd registration never finished.
+        # This fallback is CLEANUP ONLY; qualified fault still requires its pidfd.
+        if self.adoption_scope:
             until = time.monotonic() + 5
             while True:
                 try:
-                    pid, _ = os.waitpid(self.inferior, os.WNOHANG)
-                    if pid:
+                    children = self.direct_children()
+                    if not children:
                         break
-                except ChildProcessError:
+                    for pid in children:
+                        try:
+                            fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
+                            if int(fields[1]) != os.getpid():
+                                errors.append("refused non-adopted actor: " + str(pid))
+                                continue
+                            self.adopted_cleanup.append({"pid": pid, "starttime": fields[19], "ppid": os.getpid(), "registered_roots": [p.pid for p in self.processes]})
+                            # A direct unreaped child cannot be PID-reused until WE reap it.
+                            os.kill(pid, signal.SIGKILL)
+                            os.waitpid(pid, os.WNOHANG)
+                        except (FileNotFoundError, ChildProcessError, ProcessLookupError):
+                            continue
+                    if time.monotonic() >= until:
+                        errors.append("owned adopted-descendant reap deadline: " + repr(sorted(self.direct_children())))
+                        break
+                    time.sleep(0.02)
+                except OSError as error:
+                    errors.append("adopted-descendant cleanup unavailable: " + str(error))
                     break
-                if time.monotonic() >= until:
-                    errors.append("inferior reap deadline")
-                    break
-                time.sleep(0.02)
+        elif self.inferior:
+            # No adoption claim is made by callers outside the exclusive run_case context.
+            try:
+                os.waitpid(self.inferior, os.WNOHANG)
+            except ChildProcessError:
+                pass
+        for process in self.processes:
+            for stream in [process.stdin, process.stdout, process.stderr]:
+                if stream is not None:
+                    stream.close()
         return errors
 
 
@@ -338,7 +392,7 @@ class Debugger:
         if now >= min(until, self.deadline):
             raise Unqualified("actor/phase deadline")
         if now >= self.next_sample:
-            sample = resource_sample(self.args.source_root, self.args.task_root)
+            sample = resource_sample(self.args.source_root, self.args.task_root, actors=self.actors)
             self.resources.append(sample)
             check_resources(sample)
             sample["case_bytes"] = sum(p.stat().st_size for p in self.case.rglob("*") if p.is_file())
@@ -451,7 +505,7 @@ def utility_child(args, case, snapshot, action, nonce, actors, deadline):
         while child.poll() is None:
             if time.monotonic() >= until:
                 raise Unqualified(action + " deadline")
-            check_resources(resource_sample(args.source_root, args.task_root))
+            check_resources(resource_sample(args.source_root, args.task_root, actors=actors))
             try:
                 child.wait(timeout=min(5, until - time.monotonic()))
             except subprocess.TimeoutExpired:
@@ -483,6 +537,7 @@ def run_case(args) -> dict:
 
         if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) != 0:
             raise Unqualified("owned subreaper unavailable")
+        actors.begin_launch_scope()
         debugger = Debugger(args, case, nonce, actors)
         for command in ["-gdb-set auto-load off", "-gdb-set debuginfod enabled off", "-gdb-set confirm off", "-gdb-set pagination off", "-gdb-set style enabled off", "-gdb-set startup-with-shell off", "-gdb-set follow-fork-mode parent", "-gdb-set detach-on-fork on"]:
             debugger.command(command)
@@ -557,6 +612,7 @@ def run_case(args) -> dict:
         result.update(status="UNQUALIFIED", error=type(error).__name__ + ": " + str(error))
     finally:
         errors = actors.cleanup()
+        result["adopted_cleanup"] = actors.adopted_cleanup
         if debugger is not None:
             debugger.finish()
         if errors:

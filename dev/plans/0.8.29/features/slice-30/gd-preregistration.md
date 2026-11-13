@@ -257,9 +257,10 @@ Before runtime: real committed RED/GREEN, maintained selectors, scoped checks,
 final clean full source gate once and actual owned normal/diagnostic CLI proofs.
 Freeze actual source/lock/features/binaries/GPU/model/templates/cells/method.
 No edits/compilation alongside measurements. Preserve partial streams, failed
-attempts, inner skips/ignores, source/binary identities and actual stops. Capture
-command/cwd/SHA/delta/exit receipts from every qualification phase, including
-quiet Markdown checks. No new tamper/receipt-hardening test program.
+attempts, inner skips/ignores, source/binary identities and actual stops. Keep raw
+test output and technically necessary measurement identities; no supplemental
+receipts, hash inventories, per-helper audit packets or execution diaries.
+No new tamper/receipt-hardening test program.
 
 Fresh final Astra assesses actual G/D evidence; parent alone integrates and
 updates state. G supplies40/50 hybrid/embedding/guarded-source data and D supplies

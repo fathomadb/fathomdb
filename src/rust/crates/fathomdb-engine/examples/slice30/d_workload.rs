@@ -138,7 +138,7 @@ fn run_inner(config: &Value, out: &Path) -> Result<(), ()> {
             });
             let launch_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
             if readiness.is_some() {
-                start_readiness.send(()).unwrap();
+                let _ = start_readiness.send(());
             }
             release.send(launch_ns).unwrap();
             for sample in 0..samples {
@@ -306,11 +306,22 @@ pub(super) fn readiness_loop(
     origin: Instant,
     start: std::sync::mpsc::Receiver<()>,
     stop: std::sync::mpsc::Receiver<()>,
-    _config: &Value,
+    config: &Value,
 ) -> Vec<Value> {
-    start.recv_timeout(Duration::from_secs(5)).unwrap();
+    let remaining = || match super::native_budget::bounds(config) {
+        Ok(Some((now, limit))) => Some(Duration::from_nanos(limit.saturating_sub(now))),
+        Ok(None) => None,
+        Err(_) => Some(Duration::ZERO),
+    };
+    let start_wait = Duration::from_secs(5).min(remaining().unwrap_or(Duration::from_secs(5)));
+    if start.recv_timeout(start_wait).is_err() {
+        return Vec::new();
+    }
     let mut reads = Vec::new();
     loop {
+        if remaining().is_some_and(|duration| duration.is_zero()) {
+            break;
+        }
         let started = Instant::now();
         let start_ns = u64::try_from(started.duration_since(origin).as_nanos()).unwrap();
         let result = engine.read_embedding_readiness();
@@ -324,6 +335,7 @@ pub(super) fn readiness_loop(
         });
         let until_next =
             (started + Duration::from_millis(100)).saturating_duration_since(Instant::now());
+        let until_next = until_next.min(remaining().unwrap_or(until_next));
         match stop.recv_timeout(until_next) {
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (),
             _ => break,

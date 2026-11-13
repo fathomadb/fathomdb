@@ -243,7 +243,7 @@ pub(super) fn run(config: &Value, out: &Path) {
                 None
             };
             if sampler.is_some() {
-                start.send(()).unwrap();
+                let _ = start.send(());
             }
             let complete = run_phase(&mut output, "timed", "samples");
             if let Some(sampler) = sampler {

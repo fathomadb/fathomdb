@@ -80,7 +80,7 @@ def comparisons(groups):
     for group in groups:
         if "dataset_sha256" not in group:
             continue
-        key=tuple(group.get(field) for field in ["dataset_sha256","mode","adapter","repeat","n","workload"])
+        key=tuple(group.get(field) for field in ["dataset_sha256","mode","adapter","repeat","n","workload","population","schedule"])
         role="enabled" if group["observer_enabled"] else "disabled" if group["observer_feature"] else "normal"
         keyed.setdefault(key,{}).setdefault(role,[]).append(group)
     for roles in keyed.values():
@@ -88,6 +88,34 @@ def comparisons(groups):
             if len(roles.get(left,[]))==len(roles.get(right,[]))==1:
                 pairs.append(pair_groups(roles[left][0],roles[right][0]))
     return pairs
+
+
+def _g_pass(base,cell,attempt,path,mode,outcome,dataset):
+    group:dict=dict(base,issues=list(base["issues"]),cell_id=cell["id"],id=f"{cell['id']}/{path.name}")
+    issues=group["issues"]
+    proof=_json(path/"api-proof.json",issues)
+    warmups=read_jsonl_records(path/"warmups.jsonl",issues)
+    samples=read_jsonl_records(path/"samples.jsonl",issues)
+    calls=[dict(row,phase=phase) for phase,rows in [("warmup",warmups),("timed",samples)] for row in rows]
+    stats=describe(calls,proof.get("loop_ns"))
+    stats["throughput_scope"]=proof.get("throughput_scope")
+    feature="observer_setup_ns" in proof
+    group.update(mode=mode.split("_",1)[1],adapter=mode.split("_",1)[0],
+                 dataset_sha256=dataset,dataset_identity_scope="closed source template SHA256 before writable cell copy",
+                 population=cell.get("population","G1"),warmup_count=len(warmups),statistics=stats,
+                 whole_cell_elapsed_ns=outcome.get("cell_elapsed_ns"),observer_feature=feature,
+                 queries=[{"query_id":row.get("query_id"),"sample_index":row["sample_index"],
+                           "query_fingerprint":row.get("query_fingerprint"),"elapsed_ns":row["elapsed_ns"],
+                           "ok":row["ok"],"error":row.get("error_class") or row.get("error")} for row in samples],
+                 observer={"available":None if feature else False,
+                           "reason":"observer_reporting_pending" if feature else "feature_absent",
+                           "query_records":None,"worker_records":None,"dropped":None,"query_dropped":None,
+                           "attribution_complete":None})
+    if feature:
+        issues.append("observer reporting pending")
+    if issues and group["status"]=="complete":
+        group["status"]="incomplete"
+    return group
 
 
 def _dataset(config):
@@ -121,6 +149,18 @@ def summarize(manifest, root):
             continue
         attempt=Path(outcome["attempt"])
         issues=group["issues"]
+        if cell["family"]=="G_PREPARE":
+            group["kind"]="preparation"
+            continue
+        if cell["family"]=="G1_CELL":
+            copy=_json(attempt/"copy.json",issues)
+            groups.pop()
+            for ordinal,mode in enumerate(cell["passes"]):
+                row=_g_pass(group,cell,attempt,attempt/f"pass-{ordinal}",mode,outcome,copy.get("source_main_sha256"))
+                if cell.get("schedules"):
+                    row["schedule"]=cell["schedules"][ordinal]
+                groups.append(row)
+            continue
         if cell["family"] not in {"D_QUERY_FIXTURE","D_HELD_FIXTURE"}:
             issues.append("result family not yet supported")
             continue

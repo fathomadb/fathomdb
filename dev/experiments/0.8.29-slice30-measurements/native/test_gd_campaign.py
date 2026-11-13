@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from gd_campaign import run_manifest  # noqa: E402
 
 
-def verify(rows):
+def verify(rows, supervised=False):
     root = Path(tempfile.mkdtemp(prefix="s30-gd-controller-"))
     binary = Path(os.environ["CARGO_TARGET_DIR"])/"release/examples/slice30_gd_diagnostic"
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -40,7 +40,12 @@ def verify(rows):
     direct = subprocess.run([str(binary), str(config), str(control)], capture_output=True, text=True, timeout=150)
     assert direct.returncode == 0, f"native fixture setup NOT_RED {direct.stderr}"
     assert json.loads((control/"complete.json").read_text())["complete"] is True
-    outcomes = run_manifest(json.loads(path.read_text()), root/"results")
+    observations = []
+    def observe(pid):
+        observations.append({"pid":pid, "alive":Path(f"/proc/{pid}").exists()})
+        return None
+    outcomes = run_manifest(json.loads(path.read_text()), root/"results",
+                            monitor=observe if supervised else None)
     assert [outcome["id"] for outcome in outcomes] == ["d-off", "d-on"]
     attempts = []
     for outcome, cell in zip(outcomes, cells, strict=True):
@@ -71,6 +76,11 @@ def verify(rows):
     resumed = run_manifest(manifest, root/"results")
     assert [outcome["attempt"] for outcome in resumed] == attempts
     assert len(list((root/"results").glob("*/attempt-*"))) == 2
+    if supervised:
+        live = {row["pid"] for row in observations if row["alive"]}
+        print(f"actual native child monitor observations {observations}", flush=True)
+        assert all(outcome["pid"] in live for outcome in outcomes), "missing live native child supervision before completion"
+
 
 
 class ActualCampaignTests(unittest.TestCase):
@@ -81,6 +91,16 @@ class ActualCampaignTests(unittest.TestCase):
     @given(st.integers(min_value=1, max_value=5))
     def test_real_manifest_preserves_population_tail_and_cell_order(self, rows):
         verify(rows)
+
+
+class SupervisedCampaignTests(unittest.TestCase):
+    def test_actual_children_are_observed_while_alive(self):
+        verify(3, supervised=True)
+
+    @settings(max_examples=3, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.integers(min_value=1, max_value=5))
+    def test_live_supervision_preserves_real_native_population_and_resume(self, rows):
+        verify(rows, supervised=True)
 
 
 if __name__ == "__main__":

@@ -359,9 +359,7 @@ class NativeGAdmissionTests(unittest.TestCase):
 
 
     def check_owned_preparation(self,suffix):
-        root=self.root/f"owned-preparation-{self.ordinal}"
-        self.ordinal+=1
-        root.mkdir()
+        root=Path(tempfile.mkdtemp(prefix="owned-preparation-",dir=self.root))
         records=[f"budget {suffix} {i}" for i in range(65)]
         corpus,questions=root/"corpus.jsonl",root/"questions.jsonl"
         corpus.write_text("".join(json.dumps(body)+"\n" for body in records))

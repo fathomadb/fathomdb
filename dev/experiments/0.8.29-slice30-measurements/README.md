@@ -192,3 +192,11 @@ DB or supplies model/GPU evidence. Other stage bindings and frozen production
 entry/qualification remain pending. Run controller/dispatch guards via unittest
 discovery (`-p 'test_g_*.py'`), so classes following the historical direct-file
 main guard in `test_g_controller.py` are imported and exercised.
+
+G stage binding now covers G0, G1, G-R, natural G-O and all six tiny G-O cases.
+Tiny branches retain a common untouched subject for direct/hybrid/filter/no-match
+reads, a public source fixture with returned future T-1/T views, and four fresh
+seed/write subjects for commit-before/after comparison. They share one900s cap.
+Harmless children prove command protocol only; actual branch facts, qualified
+Default subjects/device/engagement and production frozen-controller integration
+remain required before any campaign qualification.

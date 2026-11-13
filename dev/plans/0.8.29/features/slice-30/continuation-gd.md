@@ -303,7 +303,7 @@ No model execution happens in ordinary test discovery.
 | Hybrid, all-current active unbounded nodes, no dependencies | embedding and vector actual; dependency call once false; fallback function entered with SQL false/NOT_RUN; direct eligibility entered once true when every preceding deferred guard passes. |
 | Same hybrid with a kind filter | actual native vector/filter path; all_nodes predicate NOT_RUN, filter guard named. No fabricated scan cost. |
 | Registered eligible canonical source + derived row | dependency true; fallback SQL executes/result false; all_nodes NOT_RUN; literal eligible derived result retained. |
-| Same source bounded `[100,200)`, query views `valid_as_of=199` then200 | no write between calls; frozen resolved times199/200; fallback false then true and derived ID absent at200. Different time with stable generation cannot imply cache reuse. No host clock changes or fake pending closure. |
+| Same current-admissible source bounded `[now-1,T)` with futureT, query views `valid_as_of=T-1` thenT | no write between calls; frozen resolved timesT-1/T; fallback false then true and derived ID absent atT. Different time with stable generation cannot imply cache reuse. No historical-admission bypass, host clock changes or fake pending closure. |
 | Committed update/transition between queries | actual same-tx generation/nonce observations change; literal new body/eligible IDs are current. Write receipt alone is not snapshot evidence. |
 | No-match text/hybrid | observe actual FTS work and vector presence separately; never call no-match hybrid vector-only. |
 

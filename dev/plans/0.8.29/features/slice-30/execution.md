@@ -810,3 +810,14 @@ aggregate-cap qualification; those controller units remain required.
   returned boundary, and warmup-before-write/natural calls for commit comparison.
   All commands share the single parent cell deadline. No DB/Default/GPU or
   observed branch/snapshot claim is inferred from these controlled child reports.
+
+- Six-branch command GREEN: `g-t10-branches-dispatch-green` passes all five
+  frozen dispatch tests (exit 0, no resource stop); Ruff passes. The `317d04616`
+  oracle remains blob `58adecac48a41ecbf92a94d1a8c9c8c322850d46`. The required
+  15 commands share one deadline; source and each commit adapter/route retain
+  separate subjects. This is protocol only, with actual branch/snapshot facts
+  still requiring the normal native/Default/GPU qualification.
+- Reconciled the design table's stale 199/200 illustration to the previously
+  approved current-admissible future T-1/T interpretation already exercised by
+  T6/T7 and the normal source-view control. Existing assertions, source semantics
+  and accepted evidence are unchanged; no historical-admission bypass is added.

@@ -34,10 +34,66 @@ def run_program_step(command, config, output, deadline_ns):
     return dict(step, status="complete" if step["complete"] else "failed")
 
 
+
+def execute_branches(cell, manifest, attempt, deadline_ns):
+    """Bind six synthetic diagnostics with isolated source/commit subjects and one cap."""
+    corpus, queries = attempt / "branch-corpus.jsonl", attempt / "branch-queries.jsonl"
+    corpus.write_text("".join(json.dumps(f"needle body{index}") + "\n" for index in range(10)))
+    queries.write_text('"needle"\n')
+    common = dict(cell, corpus=str(corpus), queries=str(queries), warmup=0, samples=1,
+                  record_first_call=False, observe=True)
+    steps = []
+    def run(config, output, case):
+        step = run_program_step(manifest["command"], dict(config, diagnostic_case=case), output, deadline_ns)
+        step["diagnostic_case"] = case
+        steps.append(step)
+        return step["complete"]
+    base = attempt / "base-seed"
+    if not run(dict(common, family="G-seed", adapter="sdk"), base, "base_seed"):
+        return {"complete": False, "steps": steps, "cases": cell["cases"]}
+    read = dict(common, family="G-O", store=str(base / "store.sqlite"))
+    no_match = attempt / "no-match-queries.jsonl"
+    no_match.write_text('"gdeliberatelyabsenttoken"\n')
+    for case, fields in [
+        ("direct_text", {"routes": ["text"]}),
+        ("hybrid_no_dependencies", {"routes": ["hybrid"]}),
+        ("hybrid_kind_filter", {"routes": ["hybrid"], "diagnostic_filter_kind": "note"}),
+        ("no_match", {"routes": ["text", "hybrid"], "queries": str(no_match)}),
+    ]:
+        if not run(dict(read, **fields), attempt / case, case):
+            return {"complete": False, "steps": steps, "cases": cell["cases"]}
+    source = attempt / "source-fixture"
+    if not run(dict(common, family="G-source-fixture", adapter="sdk"), source, "source_window"):
+        return {"complete": False, "steps": steps, "cases": cell["cases"]}
+    boundary = steps[-1]["result"]["boundary_epoch_s"]
+    if type(boundary) is not int:
+        raise ValueError("source fixture did not return its actual boundary")
+    source_queries = attempt / "source-queries.jsonl"
+    source_queries.write_text('"gderivedneedle"\n')
+    source_read = dict(common, family="G-O", n=2, store=str(source / "store.sqlite"),
+                       queries=str(source_queries), routes=["text", "hybrid"], samples=2,
+                       diagnostic_valid_as_of_sequence=[boundary - 1, boundary])
+    if not run(source_read, attempt / "source-views", "source_window"):
+        return {"complete": False, "steps": steps, "cases": cell["cases"]}
+    for adapter in cell["adapters"]:
+        for route in ["text", "hybrid"]:
+            prefix = f"commit-{adapter}-{route}"
+            seed = attempt / (prefix + "-seed")
+            if not run(dict(common, family="G-seed", adapter=adapter), seed, "commit_change"):
+                return {"complete": False, "steps": steps, "cases": cell["cases"]}
+            write = dict(common, family="G-W", adapters=[adapter], routes=[route],
+                         store=str(seed / "store.sqlite"), warmup=1, samples=1,
+                         batch_size=1, searches_per_batch=1)
+            if not run(write, attempt / (prefix + "-write"), "commit_change"):
+                return {"complete": False, "steps": steps, "cases": cell["cases"]}
+    return {"complete": all(step["complete"] for step in steps), "steps": steps, "cases": cell["cases"]}
+
 def execute_stage(cell, manifest, attempt, deadline_ns):
     """Bind current G drivers and exact size/attempt subjects under one deadline."""
     attempt = Path(attempt)
     attempt.mkdir(parents=True, exist_ok=True)
+    if cell["kind"] == "branches":
+        return execute_branches(cell, manifest, attempt, deadline_ns)
     common = dict(cell, corpus=manifest["corpus"], queries=manifest["queries"])
     if cell["kind"] == "smoke":
         corpus, queries = attempt / "tiny-corpus.jsonl", attempt / "tiny-queries.jsonl"

@@ -451,3 +451,42 @@ synthetic branch/time/natural50 configuration or positive dense qualification.
 Normal G-W and G0 fixture wiring, G-only table/stage/prereg/whole-cell+cumulative
 cap/refusal/retained-not-run controls, consumers/runner registration, final
 full/native gate and technical-GO GPU campaign/fresh final review remain required.
+
+Exact diagnostic-call RED30b6cfb8a requests2 registered SDK text calls without
+a separate first query and witnesses3 actual api_text intervals. GREENcb6cd79eb
+honors record_first_call=false and passes6/6 normal-child controls plus Clippy;
+the earlier smaller first-call oracle stays unchanged. Production G-O table
+must select false/0warmup/first50 once; branch fixtures/positive qualification
+remain separate, not inferred from this control.
+
+Normal G-W RED3aa682635 calls the new normal program on real stores. Independent
+readonly SQLite history stays10 instead of literal12/30 in all12 adapter/route/
+batch cases. This is absent actual governed writes, not absent report fields.
+GREEN8462f24bc passes initial g-t10-write-green7/7 actual normal-child tests and
+the original frozen T9 unit regression1/1 across12 combinations. Positive and
+default Clippy pass after retained g-t10-write-clippy type_complexity diagnostic
+is corrected with a private lifetime-explicit callback alias. P paths remain
+unchanged. The production-shared scheduler preserves exact cohort write/probe/
+natural order, warmups before writes, separate point/FTS clocks, no interbatch
+drain, actual per-query operation records and16-record output checkpoints.
+
+The original seven-test blobbe5a1b51b731ef3958fe549be869f11c2bd24da2 stays byte
+identical across write RED→GREEN. Initial7/7 output retains a ResourceWarning:
+Python sqlite3 connection context manager does not close the readonly witness.
+A separate fresh Astra-medium narrow teardown review approves ONLY importing
+contextlib.closing and wrapping that same URI-mode-ro connect. Three SELECTs,
+order, all values/assertions and fixtures stay exact. The mechanical patch is
+retained in owned g-t10-write-witness-close.patch, SHA256
+efc406ec3065baf66b854c3498cac19e3271a1a0bffe2637f79beffb4723b3f5.
+After-test blob1fae8bbba42ed691bdb3de275528d23b45722464, SHA256
+19e1bc3c7c411030ae8ed731da4b9109d5d2f7d09771f24f553345ca9c3b9186, differs
+only by that cleanup. Distinct actual rebuilt normal witness
+g-t10-write-witness-close passes1/1 across12 combinations without that warning;
+Ruff passes and no resource stop. This affected run is not relabelled as a new
+whole seven-test pass. Cleanup is committed separately after source GREEN.
+
+Default/GPU execution, final G-O branch/time fixtures, G0 smoke, complete
+G-only stage/cell/prereg/whole-cell+cumulative cap/refusal/retained-not-run
+controller, default-negative/positive consumers, canonical registration and the
+stable full/native gate/fresh final results review remain required. No campaign
+or whole-slice/downstream clearance follows these source controls.

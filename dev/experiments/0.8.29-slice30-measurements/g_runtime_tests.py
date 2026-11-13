@@ -1,5 +1,7 @@
 """Explicit normal-program G controls; never model execution or silent skips."""
 
+from contextlib import closing
+
 import json
 import os
 from pathlib import Path
@@ -266,7 +268,7 @@ class GNormalCliTests(unittest.TestCase):
                         child = subprocess.run([str(binary), str(config), str(out)],
                                                text=True, capture_output=True, timeout=30, check=False)
                         self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
-                        with sqlite3.connect(f"file:{store}?mode=ro", uri=True) as connection:
+                        with closing(sqlite3.connect(f"file:{store}?mode=ro", uri=True)) as connection:
                             history = connection.execute("SELECT COUNT(*) FROM canonical_nodes").fetchone()[0]
                             active = connection.execute("SELECT COUNT(*) FROM canonical_nodes WHERE superseded_at IS NULL AND state='active'").fetchone()[0]
                             notes = connection.execute("SELECT COUNT(*) FROM canonical_nodes WHERE kind='note'").fetchone()[0]

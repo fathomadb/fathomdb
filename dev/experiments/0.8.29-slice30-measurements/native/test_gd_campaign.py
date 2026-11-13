@@ -881,5 +881,43 @@ class DOverlapQualificationTests(unittest.TestCase):
         self.check_qualification(count,enabled)
 
 
+class DConditionalQualificationTests(unittest.TestCase):
+    def check_lower(self,count,enabled):
+        root,_,manifest=clock_fixture()
+        resources=actual_resources()
+        lower_cell=dict(manifest["cells"][0],id="d/lower",n=count,cohort=2,workload="overlap",observer=enabled,
+                        requires_overlap=enabled,warmups=1,samples=0 if enabled else 2)
+        del lower_cell["write_records"]
+        manifest=dict(manifest,cells=[lower_cell])
+        lower=run_manifest(manifest,root/"results",resources=resources)[0]
+        self.assertEqual(lower["status"],"complete","actual successful lower workload/resource controls NOT_RED")
+        attempt=Path(lower["attempt"])
+        classification=json.loads((attempt/"qualification.json").read_text())
+        self.assertEqual(classification["status"],"INCOMPLETE_OVERLAP" if enabled else "WORKER_ATTRIBUTION_UNAVAILABLE")
+        with closing(sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],count)
+        target=dict(lower_cell,id="d/larger",n=count+1,observer=True,requires_overlap=True,samples=2,lower="d/lower")
+        outcome=run_manifest(dict(manifest,cells=[target]),root/"results",resources=resources)[0]
+        if outcome["pid"] is not None:
+            self.assertEqual(outcome["status"],"complete","larger actual route/resource setup NOT_RED")
+            with closing(sqlite3.connect(f"file:{Path(outcome['attempt'])/'query.sqlite'}?mode=ro",uri=True)) as db:
+                self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],count+1)
+        print(f"actual lower {classification['status']} target PID={outcome['pid']} {root}",flush=True)
+        self.assertIsNone(outcome["pid"],"unqualified completed lower overlap admitted larger native work")
+        self.assertEqual(outcome["status"],"not_run_resource")
+        self.assertEqual(outcome["reason"],"lower_overlap_unqualified")
+        self.assertEqual(len(list((root/"results/d/larger").glob("attempt-*"))),0)
+
+    def test_complete_off_and_incomplete_on_lower_runs_cannot_admit_larger_overlap(self):
+        for enabled in [False,True]:
+            with self.subTest(observer=enabled):
+                self.check_lower(3,enabled)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=1,max_value=4),st.booleans())
+    def test_lower_size_and_observer_control_never_replace_actual_witness(self,count,enabled):
+        self.check_lower(count,enabled)
+
+
 if __name__ == "__main__":
     unittest.main()

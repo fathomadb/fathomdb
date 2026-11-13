@@ -1,4 +1,4 @@
-//! Provider-free Slice30 direct-text measurement adapter. See the committed
+//! Current Slice30 engine/SDK measurement adapter; P remains provider-free. See the committed
 //! dev/experiments/0.8.29-slice30-measurements/README.md for commands and scope.
 
 use fathomdb_engine::{EmbedderChoice, Engine as CoreEngine, ReadView, SearchFilter};
@@ -664,6 +664,19 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     result
 }
 
+fn g_projection_declared(engine: &Adapter) -> bool {
+    let specs = match engine {
+        Adapter::Core(engine) => engine.read_projections().map_err(Into::into),
+        Adapter::Sdk(engine) => fathomdb_sdk::read::projections(engine),
+    }
+    .expect("read actual G projection declaration");
+    specs.iter().any(|spec| {
+        spec.name == "doc"
+            && spec.vector.is_some()
+            && spec.roles.contains(&fathomdb_engine::ProjectionRole::Searchable)
+    })
+}
+
 fn run_g_seed(config: &Value, out: &Path) -> Value {
     let provider = config["provider"].as_str().expect("G provider");
     let negative = config["negative_control"] == true;
@@ -683,9 +696,25 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     std::fs::create_dir_all(out).expect("owned G seed output");
     let store = out.join("store.sqlite");
     assert!(!store.exists(), "G seed store must be fresh");
+    let cell_started = std::time::Instant::now();
     let start = std::time::Instant::now();
     let engine = Adapter::open_g(adapter, &store, provider);
     let open_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    let spec = fathomdb_engine::ProjectionSpec {
+        name: "doc".into(),
+        roles: [fathomdb_engine::ProjectionRole::Searchable].into_iter().collect(),
+        fts: None,
+        vector: Some(fathomdb_engine::ProjectionVector::default()),
+        source: None,
+    };
+    let start = std::time::Instant::now();
+    match &engine {
+        Adapter::Core(engine) => engine.configure_projections(&[spec], &[]).map_err(Into::into),
+        Adapter::Sdk(engine) => engine.configure_projections(&[spec], &[]),
+    }
+    .expect("configure public G doc vector projection");
+    let configure_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    let projection_declared = g_projection_declared(&engine);
     let start = std::time::Instant::now();
     for begin in (0..n).step_by(1024) {
         engine.write(
@@ -697,6 +726,17 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         );
     }
     let write_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    let remaining_ms = 900_000_u64
+        .checked_sub(u64::try_from(cell_started.elapsed().as_millis()).unwrap())
+        .expect("G seed whole-cell budget exhausted before drain");
+    assert!(remaining_ms > 0, "G seed has no remaining drain budget");
+    let start = std::time::Instant::now();
+    match &engine {
+        Adapter::Core(engine) => engine.drain(remaining_ms).map_err(Into::into),
+        Adapter::Sdk(engine) => engine.drain(remaining_ms),
+    }
+    .expect("drain within remaining G seed whole-cell budget");
+    let drain_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
     let before_close = g_fixture_observation(&engine, &store);
     let start = std::time::Instant::now();
     engine.close();
@@ -707,15 +747,27 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     let reopen_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
     let lexical = observe_g_route(&reopened, "text", &queries[0]);
     let after_reopen = g_fixture_observation(&reopened, &store);
+    let projection_declared_after_reopen = g_projection_declared(&reopened);
     reopened.close();
     drop(reopened);
-    let result = json!({"complete":negative && before_close["natural_records"]==n,
+    let cell_wall_ns = u64::try_from(cell_started.elapsed().as_nanos()).unwrap();
+    let qualified = before_close["qualified_dense_fixture"] == true
+        && after_reopen["qualified_dense_fixture"] == true;
+    let complete = projection_declared
+        && projection_declared_after_reopen
+        && before_close["natural_records"] == n
+        && after_reopen["natural_records"] == n
+        && lexical["ok"] == true
+        && cell_wall_ns <= 900_000_000_000
+        && (negative || qualified);
+    let result = json!({"complete":complete,
         "control":if negative {"negative_no_provider"} else {"default_dense_seed"},
         "requested_provider":provider,"adapter":adapter,"natural_records":before_close["natural_records"],
-        "projection_declared":null,"configure_ns":null,"drain_ns":null,
+        "projection_declared":projection_declared,"projection_declared_after_reopen":projection_declared_after_reopen,
+        "configure_ns":configure_ns,"drain_ns":drain_ns,"cell_wall_ns":cell_wall_ns,
         "open_ns":open_ns,"write_ns":write_ns,"close_ns":close_ns,"reopen_ns":reopen_ns,
         "before_close":before_close,"after_reopen":after_reopen,"lexical_probe":lexical,
-        "qualified_dense_fixture":false});
+        "qualified_dense_fixture":qualified});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result
 }

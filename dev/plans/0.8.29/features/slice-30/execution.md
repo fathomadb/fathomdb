@@ -348,3 +348,50 @@ event order are checked. No marker nodes, filters, interbatch drain or artificia
 pending counts. Provider-free embed errors are expected negative controls, not
 positive dense/GPU qualification. Normal G CLI, actual SDK/nested observation,
 controller/registration, full/native qualification and campaign remain pending.
+
+## Normal G CLI and shared provider/seed wiring
+
+Normal-program RED133f04be1 follows a working G-only stream scaffold and fails
+actual observation records0>0. Initial g-t10-cli-red instead hit a known-stream
+preparation panic; it is retained, unqualified as semantic RED. G-only recorder
+registration leaves Recorder::new and P stream set/output/commands unchanged.
+GREEN134cd796f passes the unchanged actual-child test in both g-t10-cli-green
+and g-t10-cli-green-final, including6 engine/SDK route batches and actual
+outer7001→inner7002 caught-unwind→outer7001 for each adapter. Frozen Python oracle
+blob546d859be5748fb2fdafafd20528513ef270abd1 matches RED→GREEN. Fresh Astra
+preaudit confirms no concrete finding and resolves the prior SDK/nested runtime
+gaps only for this negative-provider control. This is not production G-R/G-W.
+
+Initial Clippy large-enum diagnostic remains in g-t10-cli-clippy. Narrow local
+stack-enum rationale avoids adding Box allocation inside the outer route wall;
+the core api_* span already ends before wrapping. Positive/default Clippy and
+Ruff then pass. ShellCheck SC2155 initially refused export+command assignment;
+splitting assignment/export fixes it, bash/ShellCheck pass, and affected normal
+runner was actually rerun. No assertion changed or ordinary observer behavior
+disabled to create RED.
+
+Provider-choice RED3b4ffcb78 actually calls the new mapper and rejects requested
+Default silently selecting None. GREEN36135d4a0 passes1/1 plus actual negative
+normal CLI regression and feature Clippy. Only the mapper default arm changes to
+EmbedderChoice::Default; shared G opener forwards through current core choice or
+existing SDK use_default_embedder. Neither test initializes Default/model/GPU.
+P open/default/commands and public SDK semantics remain unchanged.
+
+Shared production seed-driver RED269b8defc compiles the normal program; both
+engine/SDK child cases fail public projection_declared NullvsTrue, while prior
+normal SDK/nested control passes. GREEN g-t10-seed-green passes2/2 actual tests,
+including both seed-adapter subcases; feature/default Clippy and Ruff pass, no
+resource stop. The same shared driver now calls public configure/read-registry,
+write and drain, records actual phase costs and adjacent physical/count/readiness
+reports, then normal close/reopen with exact lexical ID and fresh counts. Drain
+receives only the remainder of the900s whole-cell budget; no renewed timeout.
+
+Negative seed evidence has exactly2 natural docs, no control edges/marker nodes,
+zero actual vectors/spans/physical rows, unusable provider and false dense
+qualification. It never asserts pending=natural_count; T2's separate two-edge
+pending control is not imported into the natural seed. Actual Default runs need
+explicit long opt-in and later reserved3090 qualification with exact inputs,
+384 finite output, selected dense closure and observed GPU engagement. Those
+claims remain pending, as do normal G-R/G-O/G-W measurement wiring, complete
+G-only stage/cell/prereg/cap/refusal controls, feature consumers/registration,
+final full/native qualification and fresh final implementation/results review.

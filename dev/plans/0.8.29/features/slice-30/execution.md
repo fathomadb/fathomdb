@@ -860,3 +860,19 @@ aggregate-cap qualification; those controller units remain required.
   polling is not yet the native-PID GPU sampler. Frozen production command and
   identity/qualification integration, full-workload forecasting and campaign
   evidence remain pending, with Slice100 still owning the native window.
+
+### G lifecycle monitor-exception finding RED
+
+- Fresh Astra found exception cleanup, signalling ownership pinning and
+  successful-leader descendant-quiescence defects at `7d8ab9f48`. All are held
+  for separate runtime RED/GREEN correction; no production qualification follows
+  from the prior living-leader timeout control.
+- `g-lifecycle-monitor-red` establishes the actual child's PID/start, then raises
+  a controlled monitor exception. The child continues and writes a late marker:
+  `AssertionError: True is not false : actual owned child continued after monitor
+  exception`. One runtime failure, exit 1, no resource stop. The original
+  subprocess ResourceWarning is retained. The harmless child exits before the
+  control ends; no product/native/DB/GPU fault is involved.
+- Frozen expectations require no late child work, a stopped actual child,
+  retained failed outcome and full exception log. Pinning and successful-leader
+  descendant findings remain distinct open obligations.

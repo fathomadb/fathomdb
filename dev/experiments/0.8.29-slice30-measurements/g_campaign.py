@@ -121,9 +121,18 @@ def run_g_plan(spec, root, command, prepare=None):
                     outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
                                      "complete": False, "reason": reason})
                 else:
+                    def monitor(_pid):
+                        elapsed = time.monotonic_ns() - started
+                        if active_bytes(root) >= 16 * 1024**3:
+                            return "active_storage_exhausted"
+                        if budget["used_ns"] + elapsed >= 14400 * 10**9:
+                            return "shared_time_exhausted"
+                        if cell_usage.get(cell["id"], 0) + elapsed >= 900 * 10**9:
+                            return "cell_time_exhausted"
+                        return None
                     outcomes.extend(run_campaign([cell], root, command,
                                                  timeout=min(cell_remaining, shared_remaining) / 10**9,
-                                                 before=lambda: context))
+                                                 before=lambda: context, monitor=monitor))
             finally:
                 elapsed = time.monotonic_ns() - started
                 budget["used_ns"] += elapsed

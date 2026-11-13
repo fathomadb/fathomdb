@@ -672,3 +672,11 @@ aggregate-cap qualification; those controller units remain required.
   physically allocating 16 GiB or opening any database.
 - The frozen contract requires that cap-consuming attempt incomplete, its raw
   file retained, and all other 83 required cells refused without new attempts.
+
+- Retained-growth GREEN: `g-t10-storage-growth-green` passes all seven frozen
+  Python controller tests (exit 0, no resource stop); Ruff passes. The
+  `9306319c3` cap-consuming-child oracle is unchanged. G-only monitoring through
+  the existing runner seam marks the attempt failed even if its own report says
+  complete; following cells retain explicit refusal rows. Raw artifacts remain.
+  The existing runner's polling is not the later one-second GPU engagement
+  sampler, and production dispatch/deadline integration remains pending.

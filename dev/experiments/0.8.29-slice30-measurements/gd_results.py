@@ -1,12 +1,13 @@
 """Read actual G/D outputs without running children or assigning performance gates."""
 
 import argparse
+from collections import Counter
 import hashlib
 import json
 from pathlib import Path
 
 from control import read_jsonl_records
-from metrics import aggregate
+from metrics import aggregate, paired_difference
 
 
 def _json(path,issues):
@@ -33,7 +34,60 @@ def describe(calls,wall_ns):
 
 def pair_groups(left,right):
     """Compare matching successful raw calls, preserving unmatched and attribution issues."""
-    return {}
+    issues=[f"{side}: {issue}" for side,group in [("left",left),("right",right)] for issue in group["issues"]]
+    issues.extend(f"{group['id']}: workload not complete" for group in [left,right] if group.get("status","complete")!="complete")
+    for side,group in [("left",left),("right",right)]:
+        observer=group["observer"]
+        if observer.get("available") and (observer.get("dropped")!=0 or observer.get("query_dropped")!=0
+                                          or observer.get("attribution_complete") is not True):
+            issues.append(f"{side}: observer attribution incomplete")
+    def keyed(group):
+        rows={}
+        for row in group["queries"]:
+            key=(row["sample_index"],row.get("query_id"),row.get("query_fingerprint"))
+            rows.setdefault(key,[]).append(row)
+        return rows
+    a,b=keyed(left),keyed(right)
+    raw=[]
+    records=[]
+    for key,values in a.items():
+        other=b.get(key,[])
+        if len(values)!=1 or len(other)!=1 or key[2] is None:
+            continue
+        first,second=values[0],other[0]
+        if not first["ok"] or not second["ok"]:
+            continue
+        index=len(raw)
+        raw.append({"sample_index":key[0],"query_id":key[1],"query_fingerprint":key[2],
+                    "left_ns":first["elapsed_ns"],"right_ns":second["elapsed_ns"],
+                    "right_minus_left_ms":(second["elapsed_ns"]-first["elapsed_ns"])/1_000_000})
+        for adapter,row in [("engine",first),("sdk",second)]:
+            records.append(dict(row,adapter=adapter,repeat=0,sample_index=index,query_index=(key[1],key[2])))
+    result=paired_difference(records)
+    unpaired=len(left["queries"])+len(right["queries"])-2*len(raw)
+    return {"left":left["id"],"right":right["id"],"matched_calls":len(raw),
+            "unpaired_calls":unpaired,"raw_pairs":raw,"distinct_queries":result["distinct_queries"],
+            "right_minus_left_mean_ms":result["sdk_minus_engine_mean_ms"],
+            "bootstrap95_ms":result["bootstrap95_ms"],"bootstrap_seed":result["bootstrap_seed"],
+            "errors":{side:dict(Counter(row.get("error") or "unknown" for row in group["queries"] if not row["ok"]))
+                      for side,group in [("left",left),("right",right)]},
+            "complete":bool(raw) and unpaired==0 and not issues,"issues":issues}
+
+
+def comparisons(groups):
+    pairs=[]
+    keyed={}
+    for group in groups:
+        if "dataset_sha256" not in group:
+            continue
+        key=tuple(group.get(field) for field in ["dataset_sha256","mode","adapter","repeat","n","workload"])
+        role="enabled" if group["observer_enabled"] else "disabled" if group["observer_feature"] else "normal"
+        keyed.setdefault(key,{}).setdefault(role,[]).append(group)
+    for roles in keyed.values():
+        for left,right in [("normal","disabled"),("disabled","enabled")]:
+            if len(roles.get(left,[]))==len(roles.get(right,[]))==1:
+                pairs.append(pair_groups(roles[left][0],roles[right][0]))
+    return pairs
 
 
 def _dataset(config):
@@ -57,6 +111,7 @@ def summarize(manifest, root):
         outcome=previous.get(cell["id"])
         group={"id":cell["id"],"status":outcome["status"] if outcome else "not_run",
                "artifact":cell["artifact"],"observer_enabled":cell.get("observer"),
+               "observer_feature":"slice30-measurement" in manifest["artifacts"][cell["artifact"]].get("features",[]),
                "repeat":cell.get("repeat"),"n":cell.get("n"),"workload":cell.get("workload"),
                "issues":list(state_issues)}
         groups.append(group)
@@ -90,7 +145,7 @@ def summarize(manifest, root):
                                "worker_records":len(observer["records"]) if isinstance(observer.get("records"),list) else None})
         if issues and group["status"]=="complete":
             group["status"]="incomplete"
-    return {"cells":groups,"pairs":[],"gated":False}
+    return {"cells":groups,"pairs":comparisons(groups),"gated":False}
 
 
 def main():

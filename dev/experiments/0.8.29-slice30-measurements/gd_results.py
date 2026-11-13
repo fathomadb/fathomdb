@@ -80,7 +80,7 @@ def comparisons(groups):
     for group in groups:
         if "dataset_sha256" not in group:
             continue
-        key=tuple(group.get(field) for field in ["dataset_sha256","mode","adapter","repeat","n","workload","population","schedule"])
+        key=tuple(group.get(field) for field in ["dataset_sha256","mode","adapter","repeat","n","workload","population","schedule","stage_family","stage","valid_as_of"])
         role="enabled" if group["observer_enabled"] else "disabled" if group["observer_feature"] else "normal"
         keyed.setdefault(key,{}).setdefault(role,[]).append(group)
     for roles in keyed.values():
@@ -179,6 +179,15 @@ def summarize(manifest, root):
         issues=group["issues"]
         if cell["family"]=="G_PREPARE":
             group["kind"]="preparation"
+            continue
+        if cell["family"]=="GG_CELL":
+            copy=_json(attempt/"copy.json",issues)
+            groups.pop()
+            for family,stage,as_of in [("time","baseline",100),("time","before",80),("time","inside",100),
+                                      ("time","after",120),("governed","valid",100),("governed","deleted",100)]:
+                row=_g_pass(group,cell,attempt,attempt/family/stage,"engine_hybrid",outcome,copy.get("source_main_sha256"))
+                row.update(id=f"{cell['id']}/{family}/{stage}",population="GG",stage_family=family,stage=stage,valid_as_of=as_of)
+                groups.append(row)
             continue
         if cell["family"]=="G1_CELL":
             copy=_json(attempt/"copy.json",issues)

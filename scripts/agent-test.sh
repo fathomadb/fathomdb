@@ -882,7 +882,8 @@ run_tier_maybe_suite heavy test-slice30-gg-campaign "$slice30_g_mean_gpu_reason"
   python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "${label}-go" observer
   cp "${CARGO_TARGET_DIR}/release/slice30-g-measurement" "${artifacts}/go"
   cp "${S30_GD_TASK}/proofs/gd-g-host-feature-closure.json" "${artifacts}/go-features.json"
-  S30_GO_ARTIFACTS="$artifacts" timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_gg_campaign.py
+  S30_GO_ARTIFACTS="$artifacts" timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_gg_campaign.py GGCampaignTests GGCompletionTests
+  S30_GO_ARTIFACTS="$artifacts" timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_gg_campaign.py GGResultTests
   python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "${label}-results-gn"
   S30_G_CONTROLLER_FEATURES="$S30_GD_TASK/proofs/gd-g-host-${label}-results-gn.json" S30_GO_ARTIFACTS="$artifacts" timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_results.py GObserverResultTests ObserverDeltaTests
 '

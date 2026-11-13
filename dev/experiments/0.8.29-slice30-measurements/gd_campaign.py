@@ -3,6 +3,8 @@
 import argparse
 from contextlib import contextmanager
 import json
+import math
+import os
 import signal
 import subprocess
 import sys
@@ -36,7 +38,11 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         if resources:
             samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
         check_clock()
+        quiet = _quiet_start(load or (lambda: os.getloadavg()[0]), effective_work_deadline) if cell.get("quiet_start") else None
+        check_clock()
         context = before() if before else None
+        if quiet is not None:
+            context = {"preparation":context,"cpu_quiet":quiet}
         check_clock()
         if resources:
             samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
@@ -112,6 +118,29 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
             state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
             outcomes.append(outcome)
     return outcomes
+
+
+def _quiet_start(load, deadline_ns):
+    observations = []
+    with _owned_stop_flags() as stopped:
+        while True:
+            if stopped["signal"] is not None:
+                raise _CampaignRefusal("controller_stopped", {"cpu_quiet":observations})
+            remaining = (deadline_ns-time.monotonic_ns())/1_000_000_000
+            if remaining <= 0:
+                raise _CampaignRefusal("cpu_quiet_deadline", {"cpu_quiet":observations})
+            try:
+                value = float(load())
+                if not math.isfinite(value) or value < 0:
+                    raise ValueError("invalid one-minute CPU load")
+            except Exception as error:
+                raise _CampaignRefusal(f"cpu_load_unavailable: {error}", {"cpu_quiet":observations}) from error
+            observations.append({"observed_ns":time.monotonic_ns(),"load1":value})
+            if observations[-1]["observed_ns"] >= deadline_ns:
+                raise _CampaignRefusal("cpu_quiet_deadline", {"cpu_quiet":observations})
+            if value <= 2:
+                return observations
+            time.sleep(max(0, min(0.1, (deadline_ns-time.monotonic_ns())/1_000_000_000)))
 
 
 def _conditional(cell,root,current,shared_start,work_deadline):

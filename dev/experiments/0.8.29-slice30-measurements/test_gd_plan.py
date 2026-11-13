@@ -69,3 +69,49 @@ class GCatalogTests(unittest.TestCase):
     @given(st.permutations(["gn","go","dn","do"]))
     def test_artifact_reference_order_never_changes_g_schedule(self,keys):
         self.check_g(self.generate(keys))
+
+
+class DCatalogTests(unittest.TestCase):
+    generate=GCatalogTests.generate
+
+    def check_d(self,cells):
+        d=[row for row in cells if row["id"].startswith("d/")]
+        self.assertEqual(len(d),14,"missing8 D1 plus4 DC plus2 conditional D3 measurements")
+        self.assertEqual(len(cells),28)
+        self.assertEqual(sum(row["measurement"] for row in cells),26)
+        self.assertEqual(len({row["id"] for row in cells}),28)
+        d1=[row for row in d if row["group"]=="D1"]
+        expected=[(10000,"held",0),(10000,"overlap",0),(100000,"held",0),(100000,"overlap",0),
+                  (100000,"overlap",1),(100000,"held",1),(10000,"overlap",1),(10000,"held",1)]
+        self.assertEqual([(row["n"],row["workload"],row["repeat"]) for row in d1],expected)
+        self.assertTrue(all(row["artifact"]=="do" and row["observer"] for row in d1))
+        for row in d:
+            self.assertEqual((row["cohort"],row["warmups"],row["samples"],row["readiness"]),(1024,10,100,True))
+            self.assertEqual(row["query_source"],"/mnt/data/questions500.jsonl")
+            self.assertEqual(row["requires_overlap"],row["observer"] and row["workload"]=="overlap")
+            if row["workload"]=="held":
+                self.assertEqual((row["family"],row["release_mode"]),("D_HELD_FIXTURE","explicit"))
+            else:
+                self.assertEqual((row["family"],row["empty_start"]),("D_QUERY_FIXTURE",True))
+                self.assertNotIn("release_mode",row)
+        dc=[row for row in d if row["group"]=="DC"]
+        self.assertEqual([(row["artifact"],row["workload"]) for row in dc],
+                         [("dn","held"),("dn","overlap"),("do","held"),("do","overlap")])
+        self.assertTrue(all(row["observer"] is False and row["n"]==10000 for row in dc))
+        for row in d1:
+            if row["n"]==10000:
+                self.assertIsNone(row["lower"])
+            else:
+                self.assertEqual(row["lower"],f"d/d1-10000-{row['workload']}-r0")
+        d3=[row for row in d if row["group"]=="D3"]
+        self.assertEqual([row["n"] for row in d3],[300000,300000])
+        self.assertEqual([row["workload"] for row in d3],["held","overlap"])
+        self.assertTrue(all(row["lower"]==f"d/d1-100000-{row['workload']}-r0" and row["conditional"] is True for row in d3))
+
+    def test_literal_d_catalog_completes_exact26_plus2(self):
+        self.check_d(self.generate(["gn","go","dn","do"]))
+
+    @settings(max_examples=4,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.permutations(["gn","go","dn","do"]))
+    def test_control_artifact_order_never_changes_d_schedule(self,keys):
+        self.check_d(self.generate(keys))

@@ -58,7 +58,7 @@ pub(super) fn phase(config: &Value, out: &Path, phase: &str) -> Result<(), ()> {
 }
 
 pub(super) fn query_open(config: &Value, out: &Path) -> Result<(), ()> {
-    phase(config, out, "entry")
+    phase(config, out, "query_open")
 }
 
 pub(super) fn admit(config: &Value, out: &Path) -> bool {

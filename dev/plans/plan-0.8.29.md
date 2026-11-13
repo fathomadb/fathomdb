@@ -32,6 +32,13 @@ integrates accepted work and dispatches the next slice owner. Completed slices
 retain their verified exits unless subsequent evidence invalidates affected scope.
 No Steward or Orchestrator role is used.
 
+Feature completion takes priority. Revise existing canonical documents only when
+the contract or method changes; do not produce a new paperwork package for each
+step. Keep genuine RED/GREEN, requested Astra reviews, essential resource controls
+and raw results. Batch reviews at coherent milestones while implementation
+continues on already-reviewed scope. No supplemental receipts, repeated audits,
+execution diaries, paperwork-only commits or per-helper parent approval stops.
+
 The owner requires `/mnt/data/` for parent and slice worktrees, owned task scratch,
 build targets, caches, temporary files and qualification output. Set task-local
 `TMPDIR` and `AGENT_LOG_DIR` there; immutable installed tools may be read-only
@@ -278,12 +285,12 @@ imported serially. Never share checkout branch switching or another writer's ven
 
 ## Cross-cutting DoD — contract, design and verification discipline
 
-Every slice begins with prep: confirm goals/current maturity; write local draft
-needs, requirements, acceptance and architecture CRUD; read active architecture;
-draft design; identify challenges and primary-source research approaches; check
-fit/revise; record prerequisites for the next reviewer. Allocation is not design
-approval. Interface/public API changes need the accepted ADR/interface updates
-when implementation is authorized.
+Each owner checks the current implementation and accepted contract, then changes
+existing requirements, acceptance, design and architecture only where needed.
+Do not recreate completed planning or require a document edit when the existing
+contract remains accurate. Necessary scope/design changes receive the requested
+Astra review before implementation. Interface/public API changes include the
+appropriate ADR/interface update.
 
 Each implementation slice then reviews requirements/design, uses per-behavior
 failing tests and RED→GREEN, gets independent code review and appropriate native/
@@ -346,44 +353,26 @@ that bounded prerequisite through 7/9/10 before160 without weakening protections
 Use JSON as the single writer of generated release views after activation.
 Use ledgerwatch/ledgerwrite for ledgers and stable TC ids.
 
-[The proposal register and decision log](0.8.29/proposal-register.md) distinguish
-approved work from genuinely pending item decisions. Actual0–9 reviews are
-complete. Approved10 preparation and qualified product subsets are recorded in
-the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provide
-current direct-text evidence. P acceptance does not close whole30 or downstream
-source gates. The reviewed G/D source prefix remains isolated while host RAM
-is below its unchanged16GiB heavy start floor. The same30 owner is quiescent;
-final native/runtime qualification remains pending. Slice100's current-parent
-documentary design passed independent Astra review. Three retained post-crash
-predicates remain unqualified; the minimal coverage-only proposal requires a
-specific strict-TDD exception, still ungranted. Active native-checkpoint proof
-is optional under the original transaction-or-checkpoint minimum.
+[The proposal register and decision log](0.8.29/proposal-register.md) retain
+actual unresolved decisions. The dedicated30 owner is actively finishing reviewed
+G/D source: overlap qualification, remaining native/controller routes and result
+pairing. Continue genuine RED/GREEN and batch Astra implementation review without
+additional parent GO between already-reviewed source steps. Run the final full
+source gate once on the stable completed phase before actual campaign admission.
+P measurements are accepted; no natural G/D campaign has started. M retains20
+proof/policy and F requires the exact frozen TC5 pack.
 
-Slice100's documentary checkpoint is integrated after distinct final review;
-its exact H/P/W coverage exception remains ungranted. Slice50's current-parent
-source census and proposed identity contract passed fresh design review. The
-identity/provenance/feedback/helper-pack and public-helper dispositions remain
-unselected, with runtime census method and hard30 source dependency open.
-Qualified60/70 and actual30 P inform this planning; P supplies no G/D/M/F/TC5
-qualification. Current MCP search still rejects relaxed flags under F11.
+Slices100,50 and early80 have integrated documentary checkpoints; do not repeat
+those reviews or reconstruct their records.100's H/P/W coverage-only exception
+and50's identity/feedback semantics remain unanswered. Preserve actual20/60/F11,
+80/90 and Block1 dependencies; independent approved feature work may advance.
+Physical erasure is complete except demonstrated defects. Current ladder state
+comes from release-state JSON, not this narrative.
 
-The early80 owner reconciled actual source and conditional50 inputs; its bounded
-documentary design and S80-F1 attribution correction passed fresh Astra review.
-Parent scoped checks and a different final DOC review precede checkpoint
-integration. Preserve unsettled50/60 inputs,80 dependencies and full80 approval
-hold; no ABI adoption or90 source entry follows.
-
-After80's report/final review/integration, prioritize the same30 owner's remaining
-G/D source work only after explicit current-parent resumption and fresh resource
-floors. Prospective13-root accounting charges new documentation assets to the
-same original96GiB setup allowance and unchanged baseline; G16/D16 raw and200GiB
-total stay fixed. The initial15.89584GiB sample failed; fresh post80 memory16.46707GiB
-and root/data floors passed with strict parent closed10 preflight. Original
-bounded G/D source resumption is authorized only after exact current-parent
-normal merge and fresh owner entry, preserving RED/GREEN history. No campaign precedes final source qualification, independent review and
-frozen artifact/hardware proof. Physical erasure remains done except defects;
-all actual dependencies and pre90 Block1 remain.
-Publication remains separately authorized.
+All mutable work stays under/mnt/data. Keep the existing13-root accounting,
+original baseline and setup/raw/total allowances, resource start/stop floors,
+owned GPU controls and original cell/shared deadlines. Do not repeat resource
+admission history or reset limits. CI and registry publication remain excluded.
 
 ## Immediate next slice
 

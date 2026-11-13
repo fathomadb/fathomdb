@@ -69,7 +69,7 @@ pub(super) fn current_coverage(
     json!({"current_by_kind":by_kind,"current_vector_cursors":physical_ids.len(),"total_physical_vectors":total,"historical_physical_vectors":historical})
 }
 
-pub(super) fn reset(adapter: &GAdapter, path: &Path) -> Value {
+pub(super) fn reset(adapter: &GAdapter, path: &Path, config: &Value) -> Value {
     let GAdapter::Sdk(engine) = adapter else { panic!("G2 reset is SDK only") };
     let writes: Vec<_> = (0..10)
         .map(|slot| PreparedWrite::Node {
@@ -87,14 +87,21 @@ pub(super) fn reset(adapter: &GAdapter, path: &Path) -> Value {
     engine.write(&writes).unwrap();
     let write_ns = ns(writing);
     let draining = Instant::now();
-    engine.drain(5000).unwrap();
+    let drain_budget = super::g_budget::drain(config, |timeout| {
+        engine.drain(timeout).map_err(|error| format!("{error:?}"))
+    })
+    .unwrap();
     let drain_ns = ns(draining);
     let pending = fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count;
     assert_eq!(pending, 0);
     let coverage = current_coverage(path, &engine.open_report().default_embedder);
     assert_eq!(coverage["current_by_kind"]["note"], 10);
-    json!({"reset_write_calls":1,"reset_rows":writes.len(),"reset_write_ns":write_ns,
-        "reset_drain_ns":drain_ns,"pending_after_drain":pending,"coverage":coverage})
+    let mut report = json!({"reset_write_calls":1,"reset_rows":writes.len(),"reset_write_ns":write_ns,
+        "reset_drain_ns":drain_ns,"pending_after_drain":pending,"coverage":coverage});
+    if config["work_deadline_ns"].is_u64() {
+        report["drain_budget"] = drain_budget;
+    }
+    report
 }
 
 /// Execute one SDK G2 cohort after a completed natural group; return actual rows/probes.
@@ -105,6 +112,7 @@ pub(super) fn run(
     calls: usize,
     recorder: &mut Recorder,
     origin: Instant,
+    config: &Value,
 ) -> Cohort {
     assert!(calls > 0 && calls.is_multiple_of(10));
     let GAdapter::Sdk(engine) = adapter else {
@@ -130,15 +138,19 @@ pub(super) fn run(
         "rows":writes.len(),"cursor":receipt.cursor,"start_ns":start,"end_ns":end,"write_ns":end-start}));
     recorder.flush_all();
     let start = ns(origin);
-    engine.drain(5000).unwrap();
+    let drain_budget = super::g_budget::drain(config, |timeout| {
+        engine.drain(timeout).map_err(|error| format!("{error:?}"))
+    })
+    .unwrap();
     let end = ns(origin);
     let pending = fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count;
     assert_eq!(pending, 0);
-    recorder.emit(
-        "batches",
-        &json!({"event":"projection_drained","cohort":cohort,"after_natural_calls":calls,
-        "start_ns":start,"end_ns":end,"drain_ns":end-start,"pending_after_drain":pending}),
-    );
+    let mut drained = json!({"event":"projection_drained","cohort":cohort,"after_natural_calls":calls,
+        "start_ns":start,"end_ns":end,"drain_ns":end-start,"pending_after_drain":pending});
+    if config["work_deadline_ns"].is_u64() {
+        drained["drain_budget"] = drain_budget;
+    }
+    recorder.emit("batches", &drained);
     recorder.flush_all();
     let mut probes = 0;
     for slot in 0..10 {

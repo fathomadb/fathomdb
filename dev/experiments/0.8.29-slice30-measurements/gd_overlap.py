@@ -5,8 +5,59 @@ import sys
 
 
 def analyze(queries, writes, workers, readiness, enabled=True, dropped=0, attribution_complete=True):
-    """Return the overlap verdict; disabled worker attribution is unavailable."""
-    return {"status": "NOT_EVALUATED"}
+    """Classify one attempt's aligned spans; witnesses index the supplied records.
+
+    Native callers carry missing-record knowledge in attribution_complete.
+    Invalid worker clocks and loss prevent complete attribution even when an
+    independent valid witness survives. Workload success is accounted separately.
+    """
+    if not enabled:
+        return {"status": "WORKER_ATTRIBUTION_UNAVAILABLE", "witnesses": None,
+                "partial_intersections": None, "outside_readiness": None,
+                "unavailable_workers": None}
+    unavailable = [index for index, worker in enumerate(workers)
+                   if _interval(worker) is None or worker.get("clock_issue")
+                   or worker.get("unavailable")]
+    valid_workers = [(index, worker) for index, worker in enumerate(workers)
+                     if index not in unavailable]
+    witnesses = []
+    used = set()
+    partial = 0
+    for qi, query in enumerate(queries):
+        q0, q1 = query["start_ns"], query["end_ns"]
+        for wi, write in enumerate(writes):
+            w0, w1 = write["start_ns"], write["end_ns"]
+            if max(q0, w0) >= min(q1, w1):
+                continue
+            for ji, worker in valid_workers:
+                j0, j1 = worker["start_ns"], worker["end_ns"]
+                if max(q0, j0) >= min(q1, j1):
+                    continue
+                lower, upper = max(q0, w0, j0), min(q1, w1, j1)
+                if lower >= upper:
+                    partial += 1
+                    continue
+                for pi, ready in enumerate(readiness):
+                    interval = _interval(ready)
+                    pending = ready.get("pending_count")
+                    if (interval is not None and type(pending) is int and pending > 0
+                            and lower < interval[0] <= interval[1] < upper):
+                        used.add(pi)
+                        witnesses.append({"query": qi, "write": wi, "worker": ji,
+                                          "readiness": pi, "start_ns": lower, "end_ns": upper})
+    complete = attribution_complete and not dropped and not unavailable and bool(workers)
+    status = ("INCOMPLETE_ATTRIBUTION" if not complete else
+              "OBSERVED_OVERLAP" if witnesses else "INCOMPLETE_OVERLAP")
+    return {"status": status, "witnesses": witnesses, "partial_intersections": partial,
+            "outside_readiness": [index for index in range(len(readiness)) if index not in used],
+            "unavailable_workers": unavailable}
+
+
+def _interval(row):
+    start, end = row.get("start_ns"), row.get("end_ns")
+    if type(start) is int and type(end) is int and start <= end:
+        return start, end
+    return None
 
 
 def main():

@@ -231,10 +231,10 @@ pub(super) fn from_template(
     let engine = &opened.engine;
     macro_rules! verified {
         ($read:expr) => {{
-            match g_gg_stages::verification(config, out, $read) {
+            match g_gg_stages::verification_for_copy(config, out, "governed", $read) {
                 Ok(value) => value,
                 Err(()) => {
-                    adapter.close();
+                    g_gg_stages::close(&adapter, out, "governed");
                     return false;
                 }
             }
@@ -246,7 +246,7 @@ pub(super) fn from_template(
         engine.write(&writes).unwrap();
         u64::try_from(writing.elapsed().as_nanos()).unwrap()
     }) else {
-        adapter.close();
+        g_gg_stages::close(&adapter, out, "governed");
         return false;
     };
     let Ok(register_ns) = g_gg_stages::mutation(config, out, "dependency", || {
@@ -259,7 +259,7 @@ pub(super) fn from_template(
             .unwrap();
         u64::try_from(registering.elapsed().as_nanos()).unwrap()
     }) else {
-        adapter.close();
+        g_gg_stages::close(&adapter, out, "governed");
         return false;
     };
     let draining = Instant::now();
@@ -274,7 +274,7 @@ pub(super) fn from_template(
                 .unwrap(),
             )
             .unwrap();
-            adapter.close();
+            g_gg_stages::close(&adapter, out, "governed");
             return false;
         }
     };
@@ -289,7 +289,7 @@ pub(super) fn from_template(
         ("valid", 100, "s30gggoverned"),
         observer,
     ) {
-        adapter.close();
+        g_gg_stages::close(&adapter, out, "governed");
         return false;
     }
     let Ok(transition_ns) = g_gg_stages::mutation(config, out, "transition", || {
@@ -297,7 +297,7 @@ pub(super) fn from_template(
         engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
         u64::try_from(transitioning.elapsed().as_nanos()).unwrap()
     }) else {
-        adapter.close();
+        g_gg_stages::close(&adapter, out, "governed");
         return false;
     };
     let draining = Instant::now();
@@ -312,7 +312,7 @@ pub(super) fn from_template(
                 .unwrap(),
             )
             .unwrap();
-            adapter.close();
+            g_gg_stages::close(&adapter, out, "governed");
             return false;
         }
     };
@@ -328,10 +328,10 @@ pub(super) fn from_template(
         ("deleted", 100, "s30gggoverned"),
         observer,
     ) {
-        adapter.close();
+        g_gg_stages::close(&adapter, out, "governed");
         return false;
     }
-    adapter.close();
+    g_gg_stages::close(&adapter, out, "governed");
     let source_hash = verified!(|| { Sha256::digest(std::fs::read(source).unwrap()).to_vec() });
     assert_eq!(source_hash, original);
     let mut proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,

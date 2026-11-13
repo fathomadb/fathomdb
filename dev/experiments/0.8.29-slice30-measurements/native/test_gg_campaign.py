@@ -144,6 +144,43 @@ class GGCompletionTests(_GGFixture):
         self.check_complete(*case)
 
 
+class GGPhaseCostTests(_GGFixture):
+    def check_costs(self,warmups,samples):
+        manifest,root,outcomes=self.check_cell(warmups,samples)
+        self.assertEqual(outcomes[1]["status"],"complete","actual six-stage GG control NOT_RED")
+        attempt=Path(outcomes[1]["attempt"])
+        for family,stage,_ in STAGES:
+            path=attempt/family/stage
+            proof=json.loads((path/"api-proof.json").read_text())
+            rows=[json.loads(line) for name in ["warmups","samples"] for line in (path/f"{name}.jsonl").read_text().splitlines()]
+            self.assertLessEqual(sum(row["elapsed_ns"] for row in rows),proof["loop_ns"])
+        path=attempt/"phases.jsonl"
+        raw=[json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+        report=summarize(manifest,root/"results")
+        exposed=report.get("native_phases",{}).get(manifest["cells"][1]["id"],[])
+        print(f"actual GG phase costs {attempt} raw={len(raw)} exposed={len(exposed)}",flush=True)
+        for label,rows in [("raw",raw),("result",exposed)]:
+            with self.subTest(output=label):
+                self.assertTrue(rows,"actual GG setup/verification/close costs were not retained separately")
+                for family in ["time","governed"]:
+                    for phase in ["copy_and_validation","open","close"]:
+                        selected=[row for row in rows if (row["family"],row["phase"])==(family,phase)]
+                        self.assertEqual(len(selected),1)
+                        self.assertGreater(selected[0]["elapsed_ns"],0)
+                    verified=[row for row in rows if (row["family"],row["phase"])==(family,"verification")]
+                    self.assertTrue(verified)
+                    self.assertTrue(all(row["elapsed_ns"]>0 for row in verified))
+        self.assertEqual(raw,exposed)
+
+    def test_real_two_copy_six_stage_costs_are_separate_from_api_clocks(self):
+        self.check_costs(1,2)
+
+    @settings(max_examples=2,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.sampled_from([(0,1),(1,3)]))
+    def test_phase_costs_remain_per_copy_across_stage_call_counts(self,case):
+        self.check_costs(*case)
+
+
 class GGResultTests(_GGFixture):
     def check_report(self,warmups,samples):
         manifest,root,outcomes=self.check_cell(warmups,samples)

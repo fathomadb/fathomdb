@@ -31,7 +31,7 @@ pub(super) fn prepare_store(
     super::budget_clock::phase(config, out, "open")?;
     let adapter = open(&store);
     if super::budget_clock::phase(config, out, "verification").is_err() {
-        adapter.close();
+        close(&adapter, out, family);
         return Err(());
     }
     Ok(PreparedStore { adapter, original, directory, store })
@@ -49,6 +49,19 @@ pub(super) fn verification<T>(
     read: impl FnOnce() -> T,
 ) -> Result<T, ()> {
     super::g_write_schedule::admitted_read(config, out, "verification", read)
+}
+
+pub(super) fn verification_for_copy<T>(
+    config: &Value,
+    out: &Path,
+    _family: &str,
+    read: impl FnOnce() -> T,
+) -> Result<T, ()> {
+    verification(config, out, read)
+}
+
+pub(super) fn close(adapter: &GAdapter, _out: &Path, _family: &str) {
+    adapter.close();
 }
 
 pub(super) fn mutation<T>(

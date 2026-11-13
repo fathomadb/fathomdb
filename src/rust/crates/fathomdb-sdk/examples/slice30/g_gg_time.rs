@@ -50,10 +50,10 @@ pub(super) fn from_template(
     let engine = &opened.engine;
     macro_rules! verified {
         ($read:expr) => {{
-            match g_gg_stages::verification(config, out, $read) {
+            match g_gg_stages::verification_for_copy(config, out, "time", $read) {
                 Ok(value) => value,
                 Err(()) => {
-                    adapter.close();
+                    g_gg_stages::close(&adapter, out, "time");
                     return false;
                 }
             }
@@ -69,7 +69,7 @@ pub(super) fn from_template(
         ("baseline", 100, "s30ggwindow"),
         observer,
     ) {
-        adapter.close();
+        g_gg_stages::close(&adapter, out, "time");
         return false;
     }
     let Ok((receipt, write_ns)) = g_gg_stages::mutation(config, out, "write", || {
@@ -89,7 +89,7 @@ pub(super) fn from_template(
         let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
         (receipt, write_ns)
     }) else {
-        adapter.close();
+        g_gg_stages::close(&adapter, out, "time");
         return false;
     };
     let draining = Instant::now();
@@ -104,7 +104,7 @@ pub(super) fn from_template(
                 .unwrap(),
             )
             .unwrap();
-            adapter.close();
+            g_gg_stages::close(&adapter, out, "time");
             return false;
         }
     };
@@ -122,11 +122,11 @@ pub(super) fn from_template(
             (stage, as_of, "s30ggwindow"),
             observer,
         ) {
-            adapter.close();
+            g_gg_stages::close(&adapter, out, "time");
             return false;
         }
     }
-    adapter.close();
+    g_gg_stages::close(&adapter, out, "time");
     let source_hash = verified!(|| { Sha256::digest(std::fs::read(source).unwrap()).to_vec() });
     assert_eq!(source_hash, original);
     let mut proof = json!({"controls":controls,"baseline_coverage":baseline,"after_coverage":after,

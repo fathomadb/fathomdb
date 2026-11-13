@@ -31,6 +31,13 @@ def run(config,out):
                 return
             population.append(row)
         native=dict(config,write_records=population)
+        if config.get("query_source"):
+            if not admitted("encode_questions"):
+                return
+            questions=out/"questions.jsonl"
+            if encode_queries(config["query_source"],questions)["records"]==0:
+                raise ValueError("D query source is empty")
+            native["queries"]=[json.loads(line) for line in questions.read_text().splitlines()]
     elif config["family"]=="G_PREPARE":
         if not admitted("encode_corpus"):
             return

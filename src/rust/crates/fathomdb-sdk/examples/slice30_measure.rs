@@ -8,6 +8,13 @@ use fathomdb_sdk::{
 use serde_json::{json, Value};
 use std::path::Path;
 
+fn g_provider_choice(provider: &str) -> EmbedderChoice {
+    match provider {
+        "none" | "default" => EmbedderChoice::None,
+        _ => panic!("unknown G provider choice"),
+    }
+}
+
 enum Adapter {
     Core(Box<CoreEngine>),
     Sdk(Box<SdkEngine>),
@@ -25,6 +32,26 @@ impl Adapter {
                 SdkEngine::open(path, OpenOptions::default()).expect("open SDK without provider"),
             )),
             _ => panic!("unknown adapter"),
+        }
+    }
+
+    fn open_g(adapter: &str, path: &Path, provider: &str) -> Self {
+        let choice = g_provider_choice(provider);
+        match adapter {
+            "engine" => Self::Core(Box::new(
+                CoreEngine::open_with_choice(path, choice).expect("G core open").engine,
+            )),
+            "sdk" => Self::Sdk(Box::new(
+                SdkEngine::open(
+                    path,
+                    OpenOptions {
+                        use_default_embedder: matches!(choice, EmbedderChoice::Default),
+                        ..OpenOptions::default()
+                    },
+                )
+                .expect("G SDK open"),
+            )),
+            _ => panic!("unknown G adapter"),
         }
     }
 
@@ -645,7 +672,7 @@ fn run_g_control(config: &Value, out: &Path) -> Value {
     std::fs::create_dir_all(out).expect("owned control output");
     let store = out.join("store.sqlite");
     assert!(!store.exists(), "control store must be fresh");
-    let seed = Adapter::open("sdk", &store);
+    let seed = Adapter::open_g("sdk", &store, config["provider"].as_str().unwrap());
     seed.write(
         &corpus[..n]
             .iter()
@@ -662,7 +689,7 @@ fn run_g_control(config: &Value, out: &Path) -> Value {
     let mut recorder = Recorder::new_g(out);
     let mut operation = 1_u64;
     for adapter in ["engine", "sdk"] {
-        let engine = Adapter::open(adapter, &store);
+        let engine = Adapter::open_g(adapter, &store, config["provider"].as_str().unwrap());
         #[cfg(feature = "slice30-observer")]
         let observation = (config["observe"] == true).then(|| engine.begin_observation());
         for route in ["text", "hybrid", "embed"] {
@@ -1228,5 +1255,19 @@ mod g_schedule_tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod g_provider_tests {
+    use super::*;
+
+    #[test]
+    fn g_default_selection_forwards_the_actual_default_choice_without_starting_a_model() {
+        assert!(matches!(g_provider_choice("none"), EmbedderChoice::None));
+        assert!(
+            matches!(g_provider_choice("default"), EmbedderChoice::Default),
+            "G requested Default must not silently select no provider"
+        );
     }
 }

@@ -294,5 +294,42 @@ class GNormalCliTests(unittest.TestCase):
                         self.assertEqual(len((out / "g-marker-probes.jsonl").read_text().splitlines()), 2 * batch_size)
 
 
+    def test_write_cohorts_report_adjacent_public_readiness_separately_from_query_authority(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text("".join(json.dumps(f"needle body{index}") + "\n" for index in range(10)))
+            queries.write_text('"needle"\n')
+            seed = root / "seed.json"
+            seed.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                        "adapter": "sdk", "n": 10, "corpus": str(corpus), "queries": str(queries)}))
+            prepared = subprocess.run([str(binary), str(seed), str(root / "seed")],
+                                      text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+            config = root / "cell.json"
+            config.write_text(json.dumps({"family": "G-W", "provider": "none", "negative_control": True,
+                                          "store": str(root / "seed" / "store.sqlite"), "corpus": str(corpus),
+                                          "queries": str(queries), "adapters": ["sdk"], "routes": ["text"],
+                                          "warmup": 0, "samples": 4, "batch_size": 1, "searches_per_batch": 2,
+                                          "repeat": 0, "observe": False, "record_first_call": False}))
+            out = root / "out"
+            child = subprocess.run([str(binary), str(config), str(out)],
+                                   text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+            result = json.loads((out / "result.json").read_text())
+            self.assertEqual(len(result["batches"]), 2)
+            for batch in result["batches"]:
+                ready = batch.get("adjacent_readiness", {})
+                self.assertEqual(ready.get("pending_count"), 0,
+                                 "actual inert no-provider readiness must be recorded, not missing")
+                self.assertTrue(ready["available"])
+                self.assertFalse(ready["usable_embedder"])
+                self.assertGreater(ready["elapsed_ns"], 0)
+                self.assertEqual(ready["observation_scope"], "adjacent public readiness; not query snapshot")
+                self.assertGreater(batch["after_write_cursor"], 0)
+            self.assertEqual(result["observation_batches"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

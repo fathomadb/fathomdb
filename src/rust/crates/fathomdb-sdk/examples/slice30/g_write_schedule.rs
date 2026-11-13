@@ -93,6 +93,18 @@ fn governed_write(
     Ok((receipt, start, end))
 }
 
+fn completed_drain(
+    engine: &fathomdb_sdk::Engine,
+    config: &Value,
+    _out: &Path,
+) -> Result<Value, ()> {
+    let report = super::g_budget::drain(config, |timeout| {
+        engine.drain(timeout).map_err(|error| format!("{error:?}"))
+    })
+    .unwrap();
+    Ok(report)
+}
+
 pub(super) fn reset(
     adapter: &GAdapter,
     path: &Path,
@@ -116,10 +128,7 @@ pub(super) fn reset(
     let (_, start, end) = governed_write(engine, &writes, writing, config, out)?;
     let write_ns = end - start;
     let draining = Instant::now();
-    let drain_budget = super::g_budget::drain(config, |timeout| {
-        engine.drain(timeout).map_err(|error| format!("{error:?}"))
-    })
-    .unwrap();
+    let drain_budget = completed_drain(engine, config, out).unwrap();
     let drain_ns = ns(draining);
     let pending = admitted_read(config, out, "readiness", || {
         fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count
@@ -171,10 +180,7 @@ pub(super) fn run(
         "rows":writes.len(),"cursor":receipt.cursor,"start_ns":start,"end_ns":end,"write_ns":end-start}));
     recorder.flush_all();
     let start = ns(origin);
-    let drain_budget = super::g_budget::drain(config, |timeout| {
-        engine.drain(timeout).map_err(|error| format!("{error:?}"))
-    })
-    .unwrap();
+    let drain_budget = completed_drain(engine, config, out).unwrap();
     let end = ns(origin);
     let pending = admitted_read(config, out, "readiness", || {
         fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count
@@ -394,6 +400,78 @@ mod tests {
         #[test]
         fn read_admission_never_renews_original_endpoints(count in 1usize..5, text in any::<bool>(), key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
             expired_read(key, text, count);
+        }
+    }
+
+    fn refused_drain(key: &str, count: usize) {
+        let root =
+            tempfile::Builder::new().prefix("s30-g2-drain-refusal-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = fathomdb_sdk::Engine::open(
+            &store,
+            fathomdb_sdk::OpenOptions { use_default_embedder: false, ..Default::default() },
+        )
+        .unwrap();
+        let writes: Vec<_> = (0..count)
+            .map(|index| PreparedWrite::Node {
+                kind: "note".into(),
+                body: format!("drainrefusal contrôle {index}"),
+                logical_id: Some(format!("drain-{index}")),
+                source_id: SourceId::new("test:s30-g2-drain-refusal").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        engine.write(&writes).unwrap();
+        let healthy = completed_drain(&engine, &json!({}), &root).unwrap();
+        assert_eq!(healthy["drain_calls"], 1);
+        assert_eq!(
+            engine.search_text_only("drainrefusal", Default::default()).unwrap().results.len(),
+            count
+        );
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        let returned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            completed_drain(&engine, &config, &root)
+        }));
+        engine.close().unwrap();
+        let db = Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get::<_, usize>(0))
+                .unwrap(),
+            count
+        );
+        println!("actual G2 drain refusal {} returned={returned:?}", root.display());
+        assert!(
+            returned.is_ok(),
+            "drain refusal panicked instead of returning to partial-output/close caller"
+        );
+        assert!(returned.unwrap().is_err());
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(root.join("budget.json")).unwrap()).unwrap();
+        assert_eq!(report["phase"], "drain");
+        assert_eq!(report["error"], "G drain work deadline exhausted");
+    }
+
+    #[test]
+    fn work_drain_refusal_returns_to_caller() {
+        refused_drain("work_deadline_ns", 2);
+    }
+    #[test]
+    fn hard_drain_refusal_returns_to_caller() {
+        refused_drain("hard_deadline_ns", 1);
+    }
+    #[test]
+    fn shared_drain_refusal_returns_to_caller() {
+        refused_drain("shared_deadline_ns", 3);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn drain_refusal_preserves_durable_rows_and_original_error(count in 1usize..5, key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            refused_drain(key, count);
         }
     }
 }

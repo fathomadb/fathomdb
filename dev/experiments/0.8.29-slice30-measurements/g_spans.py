@@ -56,9 +56,20 @@ def summarize_spans(records, *, dropped_records=0, issues=(), required_phases=()
                 problems.append(f"missing_required_phase:{phase}")
     if not records:
         problems.extend(f"missing_required_phase:{phase}" for phase in required_phases)
-    for key in children:
-        if key not in indexed:
+    for key, direct in children.items():
+        parent = indexed.get(key)
+        if parent is None:
             problems.append("missing_parent_span")
+            continue
+        parent_start, parent_end = parent.get("started_ns"), parent.get("ended_ns")
+        for child in direct:
+            start, end = child.get("started_ns"), child.get("ended_ns")
+            if start is None or end is None:
+                continue
+            if parent_start is None or parent_end is None:
+                problems.append("parent_interval_unavailable")
+            elif start < parent_start or end > parent_end:
+                problems.append("child_outside_parent")
     complete = not problems
     if complete:
         for row in spans:
@@ -67,9 +78,6 @@ def summarize_spans(records, *, dropped_records=0, issues=(), required_phases=()
             key = (*(row[field] for field in _IDENTITY), row["span_id"])
             direct = [child for child in children[key] if child["status"] != "not_run"]
             intervals = sorted((child["started_ns"], child["ended_ns"]) for child in direct)
-            if any(start < row["started_ns"] or end > row["ended_ns"]
-                   for start, end in intervals):
-                continue
             if any(right[0] < left[1] for left, right in zip(intervals, intervals[1:])):
                 row["additivity"] = "non_additive"
                 continue

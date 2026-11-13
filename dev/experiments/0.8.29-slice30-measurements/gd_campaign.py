@@ -16,7 +16,7 @@ from gd_feasibility import report as feasibility_report
 from gd_overlap import analyze_native
 
 
-def run_manifest(manifest, root, monitor=None, before=None, resources=None, resource_interval: float = 30):
+def run_manifest(manifest, root, monitor=None, before=None, resources=None, resource_interval: float = 30, load=None):
     """Run supplied cells in order with their actual native artifact identities."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)

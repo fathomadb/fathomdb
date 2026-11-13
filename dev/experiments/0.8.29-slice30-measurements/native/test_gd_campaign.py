@@ -919,5 +919,52 @@ class DConditionalQualificationTests(unittest.TestCase):
         self.check_lower(count,enabled)
 
 
+class QuietStartTests(unittest.TestCase):
+    def check_busy(self, busy):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        healthy = run_manifest(manifest, root/"healthy")[0]
+        self.assertEqual(healthy["status"], "complete", "real native setup control NOT_RED")
+        self.assertTrue((Path(healthy["attempt"])/"query.sqlite").exists())
+        manifest["cells"][0].update(quiet_start=True,
+            work_deadline_ns=time.monotonic_ns()+800_000_000)
+        loads = []
+        def load():
+            loads.append(busy)
+            return busy
+        outcome = run_manifest(manifest, root/"busy", load=load)[0]
+        print(f"actual quiet admission {root} load={busy} pid={outcome['pid']}", flush=True)
+        self.assertIsNone(outcome["pid"], "busy CPU admission launched the actual native child")
+        self.assertEqual((outcome["status"], outcome["reason"]),
+                         ("not_run_resource", "cpu_quiet_deadline"))
+        self.assertTrue(loads)
+        self.assertEqual(list((root/"busy").glob("*/attempt-*")), [])
+
+    def test_busy_start_consumes_original_work_window_without_native_launch(self):
+        self.check_busy(3.0)
+
+    @settings(max_examples=2, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.sampled_from([2.01, 2.5, 8.0]))
+    def test_above_quiet_threshold_cannot_spend_cleanup_reserve(self, busy):
+        self.check_busy(busy)
+
+    def test_wait_ends_at_first_eligible_observation_before_actual_work(self):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        manifest["cells"][0]["quiet_start"] = True
+        values = iter([3.0, 2.0])
+        calls = []
+        def load():
+            value = next(values)
+            calls.append(value)
+            return value
+        outcome = run_manifest(manifest, root/"recover", load=load)[0]
+        self.assertEqual(outcome["status"], "complete", "actual recovered native work NOT_RED")
+        self.assertTrue((Path(outcome["attempt"])/"query.sqlite").exists())
+        self.assertEqual(calls, [3.0, 2.0], "native launch omitted the actual quiet observation sequence")
+        clock = json.loads((root/"recover/campaign-clock.json").read_text())
+        self.assertLessEqual(clock["started_ns"], outcome["cell_started_ns"])
+
+
 if __name__ == "__main__":
     unittest.main()

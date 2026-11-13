@@ -177,5 +177,36 @@ class SharedClockCampaignTests(unittest.TestCase):
         self.assertEqual(clock.read_bytes(),saved)
 
 
+class NativeAdmissionCampaignTests(unittest.TestCase):
+    def check_native_admission(self, bound):
+        root, binary, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        healthy = run_manifest(manifest, root/"healthy")
+        self.assertEqual(healthy[0]["status"], "complete", "real D API/setup control NOT_RED")
+        attempt = Path(healthy[0]["attempt"])
+        self.assertEqual(len((attempt/"queries.jsonl").read_text().splitlines()), 3)
+        self.assertTrue((attempt/"query.sqlite").exists())
+        cell = manifest["cells"][0]
+        cell.update(work_deadline_ns=2**64-1, hard_deadline_ns=2**64-1, shared_deadline_ns=2**64-1)
+        cell[bound] = 0
+        outcomes = run_manifest(manifest, root/"expired")
+        print(f"actual expired native {bound}: {outcomes}", flush=True)
+        self.assertEqual(outcomes[0]["status"], "failed", "expired native phase still completed real database work")
+        attempt = Path(outcomes[0]["attempt"])
+        self.assertFalse((attempt/"query.sqlite").exists())
+        self.assertFalse((attempt/"queries.jsonl").exists())
+        self.assertEqual(json.loads((attempt/"budget.json").read_text())["disposition"], "deadline_refused")
+
+    def test_each_absolute_native_bound_refuses_actual_d_database_work(self):
+        for bound in ["work_deadline_ns", "hard_deadline_ns", "shared_deadline_ns"]:
+            with self.subTest(bound=bound):
+                self.check_native_admission(bound)
+
+    @settings(max_examples=3, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.sampled_from(["shared_deadline_ns", "work_deadline_ns", "hard_deadline_ns"]))
+    def test_expired_native_admission_keeps_real_store_and_query_outputs_absent(self, bound):
+        self.check_native_admission(bound)
+
+
 if __name__ == "__main__":
     unittest.main()

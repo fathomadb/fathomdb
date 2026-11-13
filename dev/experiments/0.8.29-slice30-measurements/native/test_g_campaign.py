@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import subprocess
+import shutil
 from pathlib import Path
 import sqlite3
 from contextlib import closing
@@ -128,6 +129,7 @@ class NativeGAdmissionTests(unittest.TestCase):
         out = cls.invoke(dict(cls.config))
         if not (out/"case-0/template.sqlite").exists():
             raise RuntimeError("healthy actual BGE producer did not complete NOT_RED")
+        cls.template = out/"case-0/template.sqlite"
 
     @classmethod
     def invoke(cls,config,relative_work_ns=None,allow_partial=False):
@@ -172,6 +174,7 @@ class NativeGAdmissionTests(unittest.TestCase):
                     cls.stopped = stop["signal"]
                 if not cleanup["complete"] or child.returncode != 0:
                     raise RuntimeError(f"actual G runtime/setup NOT_RED {case} exit={child.returncode}")
+        cls.last_gpu_samples = samples
         print(json.dumps({"pid":child.pid,"uuid":GPU,"peak_own_MiB":max((row["own_MiB"] for row in samples),default=0),
                           "positive_util":any(row["own_MiB"]>0 and row["util"]>0 for row in samples)}),flush=True)
         if (out/"case-0/template.sqlite").exists():
@@ -226,6 +229,54 @@ class NativeGAdmissionTests(unittest.TestCase):
     @given(st.integers(min_value=150_000_000,max_value=250_000_000))
     def test_tight_source_windows_preserve_empty_store_after_open_expiry(self,work_ns):
         self.check_post_open(work_ns)
+
+    def check_pass_open(self,mode,warmups):
+        store = self.root/f"pass-store-{self.ordinal}.sqlite"
+        wal = Path(str(self.template)+"-wal")
+        if wal.exists() and wal.stat().st_size:
+            raise RuntimeError("source closed template WAL nonempty NOT_RED")
+        shutil.copyfile(self.template,store)
+        if hashlib.sha256(store.read_bytes()).digest() != hashlib.sha256(self.template.read_bytes()).digest():
+            raise RuntimeError("fresh closed template copy invalid NOT_RED")
+        questions = self.root/"pass-queries.jsonl"
+        inputs = [{"id":i,"query":"budget"} for i in range(128)]
+        questions.write_text("".join(json.dumps(row)+"\n" for row in inputs))
+        config = dict(self.config,family="G_PASS",mode=mode,store=str(store),queries=str(questions),warmups=warmups)
+        out = self.invoke(config,relative_work_ns=250_000_000,allow_partial=True)
+        proof_path = out/"api-proof.json"
+        calls = []
+        for name in ["warmups.jsonl","samples.jsonl"]:
+            path = out/name
+            if path.exists():
+                calls.extend(json.loads(line) for line in path.read_text().splitlines())
+        if proof_path.exists():
+            proof = json.loads(proof_path.read_text())
+            if proof["open_ns"] <= 250_000_000:
+                raise RuntimeError("actual pass open did not span source work window NOT_RED")
+            self.assertEqual(proof["selected_cuda_uuid"],GPU)
+            self.assertEqual((proof["warmup_api_calls"],proof["timed_api_calls"]),(warmups,128))
+            self.assertEqual([row["query_id"] for row in calls],list(range(warmups))+list(range(128)))
+            self.assertTrue(all(row["ok"] and row["elapsed_ns"]>0 and row["query_fingerprint"]==hashlib.sha256(b"budget").hexdigest() for row in calls))
+            if mode.endswith("_mean"):
+                self.assertTrue(all(row["dimension"]==384 and row["finite"] and row["norm_squared"]>0 for row in calls))
+            else:
+                self.assertTrue(all(row["returned_hits"]==10 and len(set(row["ids"]))==10 for row in calls))
+            if not mode.endswith("_text") and not any(row["own_MiB"]>0 and row["util"]>0 for row in self.last_gpu_samples):
+                raise RuntimeError("actual inference series GPU engagement absent NOT_RED")
+        print(f"actual post-pass-open mode={mode} warmups={warmups} calls={len(calls)} root={out}",flush=True)
+        self.assertEqual(len(calls),0,"generic G pass invoked queries after Default open exhausted its work endpoint")
+        self.assertFalse(proof_path.exists())
+        self.assertEqual(json.loads((out/"budget.json").read_text())["phase"],"pass")
+
+    def test_all_six_modes_stop_after_expired_real_pass_open(self):
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.check_pass_open(mode,0)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.sampled_from(MODES),st.integers(min_value=1,max_value=3))
+    def test_expired_pass_cannot_start_positive_warmups(self,mode,warmups):
+        self.check_pass_open(mode,warmups)
 
 
 if __name__ == "__main__":

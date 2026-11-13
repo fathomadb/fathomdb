@@ -15,12 +15,13 @@ pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<
 
 fn measured_call(
     engine: &fathomdb_engine::Engine,
-    _config: &Value,
-    _out: &Path,
-    _phase: &str,
+    config: &Value,
+    out: &Path,
+    phase: &str,
     as_of: i64,
     query: &str,
 ) -> Result<Value, ()> {
+    super::budget_clock::phase(config, out, phase)?;
     let started = Instant::now();
     let view = ReadView { valid_as_of: Some(as_of), ..ReadView::default() };
     let result = engine
@@ -39,7 +40,7 @@ pub(super) fn measure_stage(
     directory: &Path,
     stage: (&str, i64, &str),
     observer: CoreObserver,
-) {
+) -> bool {
     let (stage, as_of, query) = stage;
     let out = directory.join(stage);
     std::fs::create_dir(&out).unwrap();
@@ -54,7 +55,12 @@ pub(super) fn measure_stage(
         for sample in 0..count {
             let fingerprint: String =
                 Sha256::digest(query.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect();
-            let mut row = measured_call(engine, config, &out, stream, as_of, query).unwrap();
+            let phase = if stream == "warmups" { "warmup" } else { "timed" };
+            let Ok(mut row) = measured_call(engine, config, &out, phase, as_of, query) else {
+                recorder.flush_all();
+                observer.0(engine, false).unwrap();
+                return false;
+            };
             row["stage"] = json!(stage);
             row["valid_as_of"] = json!(as_of);
             row["query_id"] = json!(0);
@@ -76,6 +82,7 @@ pub(super) fn measure_stage(
         "raw_persistence":recorder.statistics_since([0;5]),
         "throughput_scope":"stage warmup and timed APIs plus validation/observer collection/recording; literal controls/write/drain/open/close and observer toggles separate"});
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
+    true
 }
 
 #[cfg(all(test, target_os = "linux"))]

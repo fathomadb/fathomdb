@@ -255,13 +255,16 @@ pub(super) fn from_template(
     let valid_readiness = readiness(engine);
     let valid = inventory(&store, &report.default_embedder, false);
     let mut controls = vec![control(engine, "valid")];
-    g_gg_stages::measure_stage(
+    if !g_gg_stages::measure_stage(
         engine,
         config,
         &directory,
         ("valid", 100, "s30gggoverned"),
         observer,
-    );
+    ) {
+        adapter.close();
+        return false;
+    }
     let transitioning = Instant::now();
     engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
     let transition_ns = u64::try_from(transitioning.elapsed().as_nanos()).unwrap();
@@ -286,13 +289,16 @@ pub(super) fn from_template(
     let pending = deleted_readiness["pending_count"].as_u64().unwrap();
     let deleted = inventory(&store, &report.default_embedder, true);
     controls.push(control(engine, "deleted"));
-    g_gg_stages::measure_stage(
+    if !g_gg_stages::measure_stage(
         engine,
         config,
         &directory,
         ("deleted", 100, "s30gggoverned"),
         observer,
-    );
+    ) {
+        adapter.close();
+        return false;
+    }
     adapter.close();
     assert_eq!(Sha256::digest(std::fs::read(source).unwrap()), original);
     let mut proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,

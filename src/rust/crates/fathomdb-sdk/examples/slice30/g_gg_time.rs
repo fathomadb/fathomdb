@@ -49,13 +49,16 @@ pub(super) fn from_template(
     let engine = &opened.engine;
     let baseline = g_write_schedule::current_coverage(&store, &report.default_embedder);
     let mut controls = vec![control(engine, "baseline", 100)];
-    g_gg_stages::measure_stage(
+    if !g_gg_stages::measure_stage(
         engine,
         config,
         &directory,
         ("baseline", 100, "s30ggwindow"),
         observer,
-    );
+    ) {
+        adapter.close();
+        return false;
+    }
     let writing = Instant::now();
     let receipt = engine
         .write(&[PreparedWrite::Node {
@@ -92,13 +95,16 @@ pub(super) fn from_template(
     let after = g_write_schedule::current_coverage(&store, &report.default_embedder);
     for (stage, as_of) in [("before", 80), ("inside", 100), ("after", 120)] {
         controls.push(control(engine, stage, as_of));
-        g_gg_stages::measure_stage(
+        if !g_gg_stages::measure_stage(
             engine,
             config,
             &directory,
             (stage, as_of, "s30ggwindow"),
             observer,
-        );
+        ) {
+            adapter.close();
+            return false;
+        }
     }
     adapter.close();
     assert_eq!(Sha256::digest(std::fs::read(source).unwrap()), original);

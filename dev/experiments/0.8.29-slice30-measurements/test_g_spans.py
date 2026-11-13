@@ -68,5 +68,13 @@ class SpanMathTests(unittest.TestCase):
         self.assertEqual([row["exclusive_remainder_ns"] for row in parents], [7, 3])
 
 
+    def test_child_outside_actual_parent_invalidates_complete_attribution(self):
+        result = summarize_spans([record(1, None, 0, 10), record(2, 1, 9, 11)])
+        self.assertFalse(result["complete"], "child escapes its actual parent interval")
+        self.assertIn("child_outside_parent", result["issues"])
+        self.assertEqual([row["inclusive_ns"] for row in result["spans"]], [10, 2])
+        self.assertTrue(all(row["exclusive_remainder_ns"] is None for row in result["spans"]))
+
+
 if __name__ == "__main__":
     unittest.main()

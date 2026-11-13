@@ -587,8 +587,8 @@ class AttemptHistoryTests(unittest.TestCase):
         manifest["cells"] = manifest["cells"][:1]
         healthy = run_manifest(manifest,root/"healthy")[0]
         self.assertEqual(healthy["status"],"complete","ordinary actual route NOT_RED")
-        manifest["cells"][0]["samples"] = samples
-        manifest["cell_seconds"] = 30.02
+        manifest["cells"][0].update(family="NATIVE_BUDGET_CONTROL",samples=samples)
+        manifest["cell_seconds"] = 150
         first = run_manifest(manifest,root/"results")[0]
         second = run_manifest(manifest,root/"results")[0]
         self.assertEqual([first["status"],second["status"]],["failed","failed"],"actual bounded failure controls NOT_RED")
@@ -596,6 +596,8 @@ class AttemptHistoryTests(unittest.TestCase):
         self.assertTrue(first["cleanup"]["complete"] and second["cleanup"]["complete"])
         archives = []
         for outcome in [first,second]:
+            budget=json.loads((Path(outcome["attempt"])/"budget.json").read_text())
+            self.assertEqual((budget["open_calls"],budget["sqlite_created"],budget["disposition"]),(1,True,"executed"),"ordinary real open/close lacks measurement completion; no product failure inferred")
             path = Path(outcome["attempt"])/"outcome.json"
             archives.append(json.loads(path.read_text()) if path.exists() else None)
         print(f"actual retry archives present={sum(row is not None for row in archives)} {root}",flush=True)

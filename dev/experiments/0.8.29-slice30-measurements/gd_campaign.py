@@ -19,7 +19,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
     clock_path = root / "campaign-clock.json"
     boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
     if not clock_path.exists():
-        clock_path.write_text(json.dumps({"started_ns": time.monotonic_ns(), "boot_id": boot_id}) + "\n")
+        clock_path.write_text(json.dumps({"started_ns": time.monotonic_ns(), "boot_id": boot_id,"cell_deadlines":{}}) + "\n")
     clock = json.loads(clock_path.read_text())
     deadline = clock["started_ns"] + int(min(manifest["campaign_seconds"], 14400) * 1_000_000_000)
 
@@ -53,7 +53,14 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
     outcomes = []
     for planned in manifest["cells"]:
-        hard_deadline = min(deadline, time.monotonic_ns()+int(min(manifest["cell_seconds"],900)*1_000_000_000))
+        now = time.monotonic_ns()
+        hard_deadline = min(deadline, now+int(min(manifest["cell_seconds"],900)*1_000_000_000))
+        if clock["boot_id"] == boot_id and now < deadline:
+            cell_deadlines = clock["cell_deadlines"]
+            if planned["id"] not in cell_deadlines:
+                cell_deadlines[planned["id"]] = hard_deadline
+                clock_path.write_text(json.dumps(clock) + "\n")
+            hard_deadline = min(hard_deadline, cell_deadlines[planned["id"]])
         work_deadline = hard_deadline-30_000_000_000
         bounds = {"work_deadline_ns": work_deadline, "hard_deadline_ns": hard_deadline,
                   "shared_deadline_ns": deadline}

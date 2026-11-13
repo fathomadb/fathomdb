@@ -20,11 +20,10 @@ Ruff0.15.17 static check passed; new Rust files were formatted without a build.
 Own logs stay under /mnt/data/tmp2/fathomdb-0829-continuation/slice100-20261113.
 
 The native window has transferred from G to100. Own setup/build and scoped G2
-qualification remain next at this source checkpoint. Q1 debugger/inferior/
+results are recorded below. Q1 debugger/inferior/
 ptrace/SIGKILL remain technically held pending frozen source/binary identity,
 scoped safety/control evidence, independent adversarial implementation preaudit
-and parent technical GO. No active-checkpoint witness, native/G2 pass or whole100/
-D28-09 closure is claimed. G remains unintegrated, not a hard prerequisite.
+and parent technical GO. No active-checkpoint witness or whole100/D28-09 closure is claimed. G remains unintegrated, not a hard prerequisite.
 
 All original failures/unqualified outcomes will retain exact source subjects and
 raw diagnostics. Actual accepted-contract defects require committed runtime RED
@@ -54,3 +53,21 @@ before MI registration and during pidfd_open, with independent outer cleanup.
 Original14 controls stay byte-frozen. A separate real documented CLI --help
 startup failure has RED9664309cf then GREEN55a480e82. All16 tool controls pass;
 none is a Q1 runtime witness. Qualified Q1 pidfd/witness requirements are unchanged.
+
+## Corrected scoped native results
+
+At clean b59a2eb8689c5da78cfc9d8d29181488da3b09e4, scoped Clippy with
+warnings denied and the own Cargo JSON no-run build both passed. The affected
+G2 parent passed:1test,0failures,5filtered,3.13s. Its healthy and four existing-
+hook cases each passed their composed oracles; no timeout/resource stop or actor
+cleanup error occurred. Before-delete rollback uses valid rich head vectors;
+healthy and post-removal cells retain900000/window1 stress with pre-stress public
+scores. Original failed healthy setup and native diagnostics remain retained.
+
+Exact commands, frozen source/delta, resource samples and raw paths are in
+receipts/rust-clippy-fixture-split.json, rust-build-fixture-split.json and
+g2-fixture-split.json under the own task. Five-cell evidence is retained in
+g2-fixture-split/. These are Linux scoped coverage results, not full-workspace
+verification, Q1 reachability/healthy/interruption evidence or release closure.
+A checkout-owned Python/native environment and the full gate remain outstanding.
+Q1 launches await the fresh implementation/readiness recheck and parent GO.

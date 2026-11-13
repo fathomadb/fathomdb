@@ -17,6 +17,11 @@ It changes no production erasure/API/SQLite/VFS/schema behavior or existing85 fi
 - `test_actor_cleanup.py`: two harmless real Python-helper cleanup controls,
   proving termination/reaping and isolation to the controller registry. No
   debugger, product process, ptrace or Q1 fault is invoked.
+- `test_descendant_cleanup.py`: harmless real descendant regression with an
+  independent outer cleanup safeguard. Committed runtime RED then separate GREEN
+  cover pre-MI-registration and pidfd-open failures without a debugger/product.
+- `test_cli_help.py`: actual documented CLI help regression, committed runtime
+  RED then separate GREEN. The complete tool suite has16passing controls.
 - `src/rust/crates/fathomdb-engine/tests/slice100_interruption.rs`: ignored Q1
   normal-success child, raw observer/retry and G2 children. Its Linux regular G2
   parent executes one rich healthy control and the four reviewed existing-hook

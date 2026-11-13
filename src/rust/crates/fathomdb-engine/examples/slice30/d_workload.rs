@@ -36,6 +36,35 @@ pub(super) fn run(config: &Value, out: &Path) {
         let cohort = usize::try_from(config["cohort"].as_u64().unwrap()).unwrap();
         assert!(cohort > 0);
         let writes = std::thread::scope(|scope| {
+            let (start_readiness, readiness_ready) = std::sync::mpsc::sync_channel(1);
+            let (stop_readiness, readiness_stop) = std::sync::mpsc::sync_channel(1);
+            let readiness = if config["readiness"].as_bool().unwrap_or(false) {
+                Some(scope.spawn(move || {
+                    readiness_ready.recv_timeout(Duration::from_secs(5)).unwrap();
+                    let mut reads = Vec::new();
+                    loop {
+                        let started = Instant::now();
+                        let start_ns = u64::try_from(started.duration_since(origin).as_nanos()).unwrap();
+                        let result = engine.read_embedding_readiness();
+                        let end_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
+                        reads.push(match result {
+                            Ok(readiness) => json!({"ok":true,"start_ns":start_ns,"end_ns":end_ns,
+                                "pending_count":readiness.pending_count,"usable_embedder":readiness.usable_embedder,
+                                "state":format!("{:?}",readiness.state)}),
+                            Err(error) => json!({"ok":false,"start_ns":start_ns,"end_ns":end_ns,
+                                "pending_count":null,"error":format!("{error:?}")}),
+                        });
+                        let until_next = (started + Duration::from_millis(100)).saturating_duration_since(Instant::now());
+                        match readiness_stop.recv_timeout(until_next) {
+                            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (),
+                            _ => break,
+                        }
+                    }
+                    reads
+                }))
+            } else {
+                None
+            };
             let (release, ready) = std::sync::mpsc::sync_channel(1);
             let writer = scope.spawn(move || {
                 let launch_ns: u64 = ready.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -58,11 +87,24 @@ pub(super) fn run(config: &Value, out: &Path) {
                 writes
             });
             let launch_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
+            if readiness.is_some() {
+                start_readiness.send(()).unwrap();
+            }
             release.send(launch_ns).unwrap();
             for sample in 0..samples {
                 write_row(&mut output, &query_row(engine, origin, "timed", sample));
             }
-            writer.join().unwrap()
+            let writes = writer.join().unwrap();
+            if let Some(readiness) = readiness {
+                let _ = stop_readiness.send(());
+                let reads = readiness.join().unwrap();
+                std::fs::write(
+                    out.join("readiness.json"),
+                    serde_json::to_vec_pretty(&reads).unwrap(),
+                )
+                .unwrap();
+            }
+            writes
         });
         std::fs::write(out.join("writes.json"), serde_json::to_vec_pretty(&writes).unwrap())
             .unwrap();

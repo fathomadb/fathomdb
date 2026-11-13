@@ -277,3 +277,31 @@ Fresh T7 preaudit at41165a3e8 reports no new concrete finding and verifies actua
 same-tx/view source and runtime boundary/commit oracles. Capture-read failure
 handling is source-verified unavailable/non-propagating; runtime failure
 injection remains unestablished and is not claimed as tested.
+
+## G phase attribution source units
+
+G-T8 API RED420fcf4f5 compiled and failed actual api_hybrid interval0vs1.
+GREEN588143e97 passes8/8 frozen tests, including unique parented compile, dispatch
+wall, mean/serialization, reader wait and response intervals for the entered
+routes and actual absent-provider embed error intervals. Both original
+g-t8-api-green and final g-t8-api-green-final passes remain; the latter follows
+explicit untimed frozen-reader delegated skips. Scoped module/Clippy pass. Fresh
+Astra preaudit reports no concrete finding; delegated skips are source-verified,
+not separately runtime-tested. Reader wait overlaps reader work and query
+dispatch wall includes queue/service; neither is an exclusive GPU cost.
+
+Separate reader RED292ac2851 compiled and failed missing vector_retrieval0vs1.
+Its GREEN g-t8-reader-green passes9/9/0ignored, exit0, no resource stop; scoped
+g-t8-reader-module and g-t8-reader-clippy pass. The unchanged test-file blob
+b47c8f5d9d86dd32798e75e6b50d799239e34568 binds exact tiny populations2vector,
+1nodeFTS,0edgeFTS and2fused to nested successful spans, plus explicit direct-text
+not_run vector/deferred-identity with no timestamps. Existing SQL, row ordering,
+hydration, RRF/ranking/defaults/results are unchanged. Binary KNN and f32 rerank
+remain one combined actual SQL span; no separate exclusive times are invented.
+Current deferred identity lookup is not Slice50 body deferral. These deterministic
+8d real-store controls are no model/GPU/campaign qualification. Span aggregation,
+write schedule, normal G CLI/SDK+nested integration and campaign controller remain
+separate planned units; final full/native/review qualification is still pending.
+
+The first reader GREEN commit hook refused MD012 at execution.md:281 (two blank
+lines); the whitespace-only correction preserves every source/oracle value.

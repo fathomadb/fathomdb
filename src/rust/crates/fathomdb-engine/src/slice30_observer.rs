@@ -203,6 +203,13 @@ pub(crate) fn not_run(phase: &'static str, reason: &'static str) {
 }
 
 impl Span {
+    pub(crate) fn counted_success(&self, candidates: usize) {
+        if let Some(data) = &self.data {
+            data.facts.replace(serde_json::json!({"candidates":candidates}));
+            data.status.set("ok");
+        }
+    }
+
     pub(crate) fn success(&self) {
         if let Some(data) = &self.data {
             data.status.set("ok");

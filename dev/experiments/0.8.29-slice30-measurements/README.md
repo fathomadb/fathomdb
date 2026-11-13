@@ -124,9 +124,11 @@ cargo test --locked --release -p fathomdb-sdk --example slice30_measure g_fixtur
 cargo test --locked --release -p fathomdb-engine --features slice30-observer,test-hooks --test slice30_g_observer -- --nocapture
 ```
 
-The nondefault observer is bounded and engine/session/operation owned. Its current
-source milestone covers direct-text API/reader transport and cleanup; guarded
-predicate/full phase attribution and the G CLI/cell controller follow their own
-runtime RED/GREEN. The test-only forwarding surface is documented in rust.md.
-No G campaign, BGE execution, source-fallback/time result or dense fixture is
-qualified by these ordinary assertions.
+The nondefault observer is bounded and engine/session/operation owned. Nine tiny
+real-store tests now cover ownership/reader transport, exact guard short-circuit
+facts, fallback selection, same-call snapshot/time authority and API/reader phase
+attribution. Source-window membership and pending-probe controls use a deterministic
+8d test provider, not BGE. Top-level unwind is covered; nested operation and actual
+SDK observer execution still await normal G CLI integration. The test-only
+forwarding/phase surface is documented in rust.md. No G campaign, BGE/GPU execution
+or selected natural dense store is qualified by these ordinary assertions.

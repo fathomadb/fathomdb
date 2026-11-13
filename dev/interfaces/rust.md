@@ -204,6 +204,21 @@ are explicit, never zero-cost or complete attribution. No hot I/O/subscriber cal
 or global collector is introduced. Diagnostic intervals are inclusive and cannot
 be added as exclusive shares or subtracted across independent percentiles.
 
+Actual G-route intervals name `api_text`, `api_hybrid` and `api_embed`, with
+`query_compile`, `query_embedding_dispatch_wall`, `query_mean_serialization`,
+`reader_wait` and `final_response` where entered. Dispatch wall includes queue
+and service; reader wait overlaps reader work and is not an additive share.
+The reader records `vector_retrieval` with nested `vector_phase1_f32_sql` and
+`vector_hydration`, then `node_fts_candidates`, `edge_fts_candidates`,
+`fusion_final_ranking` and optional `deferred_identity_hydration`. Binary KNN
+and f32 reranking occur in one existing SQL operation; no exclusive split is
+inferred. Candidate counts describe the respective existing output population.
+Deferred identity hydration is the current logical-ID/source lookup, not a new
+body-content deferral. Skipped vector/identity sections carry untimed `not_run`.
+Snapshot authority reads are feature+active gated, explicitly observer-added on
+the actual reader transaction; read failure records unavailable without authority
+values or changing the product outcome.
+
 ### Explicit MCP admission observations
 
 `fathomdb-mcp/test-seams` alone exposes `Seams::observe_pre_enqueue` and its

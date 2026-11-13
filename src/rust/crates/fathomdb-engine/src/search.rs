@@ -2041,9 +2041,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let vector_results = if let Some(query_vector) =
         query_vector.filter(|_| !vector_eligibility_degraded)
     {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let vector_observation = crate::slice30_observer::span("vector_retrieval");
         let mut rowids = Vec::new();
         let bin_vector = query_vector_bin.unwrap_or(query_vector);
         {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let sql_observation = crate::slice30_observer::span("vector_phase1_f32_sql");
             // Phase 1: bit-KNN over `embedding_bin` to a top-K candidate
             // set; Phase 2: f32 rerank on the candidate set via
             // vec_distance_l2 against the retained `embedding` column.
@@ -2074,6 +2078,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             for row in rows {
                 rowids.push(row?);
             }
+            #[cfg(any(test, feature = "slice30-observer"))]
+            sql_observation.counted_success(rowids.len());
         }
         // G1: carry the canonical row's `write_cursor` (interim id), `kind`,
         // `body`, and the `vec_distance_l2` rerank score per hit. The
@@ -2084,6 +2090,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // kind = "edge_fact"; their write_cursor is in canonical_edges, not
         // canonical_nodes. Try canonical_nodes first; fall back to canonical_edges
         // for edge-fact hits so they are not silently dropped.
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let hydration_observation = crate::slice30_observer::span("vector_hydration");
         let mut results = Vec::new();
         // Cause-A: the two node/edge SELECTs additively fetch `logical_id` so the
         // hit can carry a stable cross-session id (derive_stable_id). Read-only
@@ -2220,8 +2228,15 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 });
             }
         }
+        #[cfg(any(test, feature = "slice30-observer"))]
+        {
+            hydration_observation.counted_success(results.len());
+            vector_observation.counted_success(results.len());
+        }
         results
     } else {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        crate::slice30_observer::not_run("vector_retrieval", "vector_unavailable_or_ineligible");
         Vec::new()
     };
     let vector_rows_visible = !vector_results.is_empty();
@@ -2267,6 +2282,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // when snippets are requested.
     let mut fts_rows = FtsRows::new();
     let text_candidates: Vec<SearchHit> = {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let node_observation = crate::slice30_observer::span("node_fts_candidates");
         #[cfg(feature = "tc5-benchmark")]
         tc5_benchmark::record_fts_route();
         // Optional experimental FTS5 LIMIT cap. It applies only when
@@ -2521,7 +2538,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         } else {
             None
         };
-        if let Some(candidates) = deferred_candidates {
+        let candidates = if let Some(candidates) = deferred_candidates {
             deferred_text_identity = true;
             #[cfg(feature = "test-hooks")]
             record_fts_route_for_test("hybrid_deferred_identity");
@@ -2640,7 +2657,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     &mut fts_rows,
                 )
             }
-        }
+        };
+        #[cfg(any(test, feature = "slice30-observer"))]
+        node_observation.counted_success(candidates.len());
+        candidates
     };
     let mut text_results: Vec<SearchHit> = text_candidates;
 
@@ -2660,6 +2680,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // candidates into a Vec first (drops stmt borrow on tx) so we can pass
     // &tx to edge_fts_hit_passes_filter without a borrow conflict.
     let edge_candidates: Vec<SearchHit> = {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let edge_observation = crate::slice30_observer::span("edge_fts_candidates");
         // Cause-A: the JOIN to canonical_edges already exists; additively select
         // `ce.logical_id` (edges always carry one) for the stable hit-id. No
         // ordering/row-set change.
@@ -2706,7 +2728,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             Ok((hit, row.get::<_, i64>(6)?))
         })?;
         let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-        keep_rowids(hits, FtsTable::Edges, snippet.is_some(), &mut fts_rows)
+        let candidates = keep_rowids(hits, FtsTable::Edges, snippet.is_some(), &mut fts_rows);
+        #[cfg(any(test, feature = "slice30-observer"))]
+        edge_observation.counted_success(candidates.len());
+        candidates
     };
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested
@@ -2803,96 +2828,106 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let mut exp_importance: Option<HashMap<u64, f64>> = None;
     let mut exp_confidence: Option<HashMap<u64, f64>> = None;
 
-    let mut results = if vector_stage_only {
-        vector_results
-    } else if use_graph_arm {
-        // R3 (Slice 30) — graph arm: BFS over temporal fact-edges seeded from
-        // the top-10 two-arm fused candidates, depth ≤ 3, cap 50.
-        // Temporal filter: superseded_at IS NULL AND (t_invalid IS NULL OR t_invalid > now).
-        // Synthesized-node penalty: kind = 'unknown' → score *= 0.3.
-        //
-        // Approach: compute the two-arm fused result first (for BFS seeding),
-        // then fuse three arms: the two-arm result (as "vector" arm), an empty
-        // text arm, and the graph candidates. The two-arm result preserves all
-        // existing ranking semantics; the graph arm contributes new candidates.
-        let two_arm_fused = fuse_rrf(vector_results, text_results);
-        // C1: seed the graph arm from the query's FTS match expression (entities /
-        // edge-facts), not the doc-node fused hits. `fused_hits` is still passed for
-        // the seed-body exclusion set.
-        let (graph_candidates, stats, graph_edge_confidence) = bfs_graph_arm_candidates(
-            &tx,
-            &two_arm_fused,
-            compiled.match_expression.as_str(),
-            3,
-            50,
-            view,
-            filter,
-            &mut capture,
-        )?;
-        graph_stats = stats;
-        if explain {
-            exp_graph_ranks = Some(body_rank_map(&graph_candidates));
-            exp_graph_n = graph_candidates.len() as u32;
-        }
-        // Named intermediate (byte-identical to the prior nested call) so explain
-        // can read the pre-CE fused scores without perturbing the ranking.
-        let fused = apply_recency_reweight(
-            fuse_three_arms(two_arm_fused, vec![], graph_candidates),
-            recency_enabled,
-        );
-        // F9 — importance (node) / confidence (edge) reweight, OFF by default.
-        // Order: AFTER recency (consistent placement), BEFORE the CE rerank seam.
-        let (imp_map, mut conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(&tx, &fused)?
-        } else {
-            (HashMap::new(), HashMap::new())
-        };
-        // F9 FIX-1: `build_importance_confidence_maps` keys edge confidence on the
-        // EDGE `write_cursor`, which never matches a graph-arm NODE hit's cursor —
-        // so it alone leaves graph-arm hits with no edge confidence. Merge the
-        // BFS-collected per-node traversing-edge confidence (node cursor ⇒ conf).
-        // Node/edge cursors are globally unique, so there is never a key collision
-        // with the edge-fact confidence above; `or_insert` documents that intent.
-        if importance_enabled || explain {
-            for (cursor, conf) in &graph_edge_confidence {
-                conf_map.entry(*cursor).or_insert(*conf);
+    let mut results = {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let fusion_observation = crate::slice30_observer::span("fusion_final_ranking");
+        let mut results = if vector_stage_only {
+            vector_results
+        } else if use_graph_arm {
+            // R3 (Slice 30) — graph arm: BFS over temporal fact-edges seeded from
+            // the top-10 two-arm fused candidates, depth ≤ 3, cap 50.
+            // Temporal filter: superseded_at IS NULL AND (t_invalid IS NULL OR t_invalid > now).
+            // Synthesized-node penalty: kind = 'unknown' → score *= 0.3.
+            //
+            // Approach: compute the two-arm fused result first (for BFS seeding),
+            // then fuse three arms: the two-arm result (as "vector" arm), an empty
+            // text arm, and the graph candidates. The two-arm result preserves all
+            // existing ranking semantics; the graph arm contributes new candidates.
+            let two_arm_fused = fuse_rrf(vector_results, text_results);
+            // C1: seed the graph arm from the query's FTS match expression (entities /
+            // edge-facts), not the doc-node fused hits. `fused_hits` is still passed for
+            // the seed-body exclusion set.
+            let (graph_candidates, stats, graph_edge_confidence) = bfs_graph_arm_candidates(
+                &tx,
+                &two_arm_fused,
+                compiled.match_expression.as_str(),
+                3,
+                50,
+                view,
+                filter,
+                &mut capture,
+            )?;
+            graph_stats = stats;
+            if explain {
+                exp_graph_ranks = Some(body_rank_map(&graph_candidates));
+                exp_graph_n = graph_candidates.len() as u32;
             }
-        }
-        let fused = apply_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
-        if explain {
-            exp_importance = Some(imp_map);
-            exp_confidence = Some(conf_map);
-            exp_fused_scores = Some(body_score_map(&fused));
-        }
-        try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
-            .map_err(SearchReaderError::RerankerDevicePolicy)?
-    } else {
-        // G9 + G12: RRF-fuse the two ranked branches (keyed on body, vector-first
-        // tiebreak) into the unconditional new ranking, recency-reweight (gated,
-        // off by default), then pass through the identity rerank seam. The
-        // vector-empty `soft_fallback` signal was computed above, BEFORE this
-        // branch-collapse.
-        let fused = apply_recency_reweight(fuse_rrf(vector_results, text_results), recency_enabled);
-        // F9 — importance (node) / confidence (edge) reweight, OFF by default.
-        // Same placement as the graph-arm branch: after recency, before CE rerank.
-        let (imp_map, conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(&tx, &fused)?
+            // Named intermediate (byte-identical to the prior nested call) so explain
+            // can read the pre-CE fused scores without perturbing the ranking.
+            let fused = apply_recency_reweight(
+                fuse_three_arms(two_arm_fused, vec![], graph_candidates),
+                recency_enabled,
+            );
+            // F9 — importance (node) / confidence (edge) reweight, OFF by default.
+            // Order: AFTER recency (consistent placement), BEFORE the CE rerank seam.
+            let (imp_map, mut conf_map) = if importance_enabled || explain {
+                build_importance_confidence_maps(&tx, &fused)?
+            } else {
+                (HashMap::new(), HashMap::new())
+            };
+            // F9 FIX-1: `build_importance_confidence_maps` keys edge confidence on the
+            // EDGE `write_cursor`, which never matches a graph-arm NODE hit's cursor —
+            // so it alone leaves graph-arm hits with no edge confidence. Merge the
+            // BFS-collected per-node traversing-edge confidence (node cursor ⇒ conf).
+            // Node/edge cursors are globally unique, so there is never a key collision
+            // with the edge-fact confidence above; `or_insert` documents that intent.
+            if importance_enabled || explain {
+                for (cursor, conf) in &graph_edge_confidence {
+                    conf_map.entry(*cursor).or_insert(*conf);
+                }
+            }
+            let fused = apply_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
+            if explain {
+                exp_importance = Some(imp_map);
+                exp_confidence = Some(conf_map);
+                exp_fused_scores = Some(body_score_map(&fused));
+            }
+            try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+                .map_err(SearchReaderError::RerankerDevicePolicy)?
         } else {
-            (HashMap::new(), HashMap::new())
+            // G9 + G12: RRF-fuse the two ranked branches (keyed on body, vector-first
+            // tiebreak) into the unconditional new ranking, recency-reweight (gated,
+            // off by default), then pass through the identity rerank seam. The
+            // vector-empty `soft_fallback` signal was computed above, BEFORE this
+            // branch-collapse.
+            let fused =
+                apply_recency_reweight(fuse_rrf(vector_results, text_results), recency_enabled);
+            // F9 — importance (node) / confidence (edge) reweight, OFF by default.
+            // Same placement as the graph-arm branch: after recency, before CE rerank.
+            let (imp_map, conf_map) = if importance_enabled || explain {
+                build_importance_confidence_maps(&tx, &fused)?
+            } else {
+                (HashMap::new(), HashMap::new())
+            };
+            let fused = apply_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
+            if explain {
+                exp_importance = Some(imp_map);
+                exp_confidence = Some(conf_map);
+                exp_fused_scores = Some(body_score_map(&fused));
+            }
+            try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+                .map_err(SearchReaderError::RerankerDevicePolicy)?
         };
-        let fused = apply_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
-        if explain {
-            exp_importance = Some(imp_map);
-            exp_confidence = Some(conf_map);
-            exp_fused_scores = Some(body_score_map(&fused));
-        }
-        try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
-            .map_err(SearchReaderError::RerankerDevicePolicy)?
+
+        results.truncate(final_limit);
+        #[cfg(any(test, feature = "slice30-observer"))]
+        fusion_observation.counted_success(results.len());
+        results
     };
 
-    results.truncate(final_limit);
-
     if deferred_text_identity {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let identity_observation = crate::slice30_observer::span("deferred_identity_hydration");
         let mut identity_stmt = tx.prepare_cached(
             "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1",
         )?;
@@ -2912,6 +2947,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 hit.id = derive_stable_id(None, &hit.body);
             }
         }
+        #[cfg(any(test, feature = "slice30-observer"))]
+        identity_observation.success();
+    } else {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        crate::slice30_observer::not_run("deferred_identity_hydration", "not_deferred");
     }
 
     let projection_status = explain

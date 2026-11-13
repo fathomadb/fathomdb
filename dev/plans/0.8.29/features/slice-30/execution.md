@@ -266,3 +266,14 @@ committed GREEN. A subsequent fast module gate detects the existing G-T5 local
 guard macro as unclassified/unparsed; that retained failure short-circuited
 Clippy. A separate parseable refactor must clear it before final source gates.
 No positive BGE/GPU/campaign or complete nested/SDK runtime claim follows.
+
+The boundary correction replaces only the local guard macro with a parseable
+inline identity helper. Every original operand remains in the same short-circuit
+position, evaluated once; the helper records the same blocking boolean and
+returns the unchanged operand. No parser/policy exception was added. Distinct
+g-guard-parseable-module, g-guard-parseable-clippy and g-guard-parseable-tests
+pass; the latter reruns all7 frozen assertions after this source refactor.
+Fresh T7 preaudit at41165a3e8 reports no new concrete finding and verifies actual
+same-tx/view source and runtime boundary/commit oracles. Capture-read failure
+handling is source-verified unavailable/non-propagating; runtime failure
+injection remains unestablished and is not claimed as tested.

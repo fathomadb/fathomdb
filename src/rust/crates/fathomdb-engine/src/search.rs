@@ -1833,23 +1833,20 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     Ok((candidates, stats, edge_confidence_by_cursor))
 }
 
-macro_rules! observe_slice30_guard {
-    (@true, $phase:literal, $reason:literal, $value:expr) => {{
-        let value = $value;
-        #[cfg(any(test, feature = "slice30-observer"))]
-        if value {
-            crate::slice30_observer::not_run($phase, $reason);
-        }
-        value
-    }};
-    ($phase:literal, $reason:literal, $value:expr) => {{
-        let value = $value;
-        #[cfg(any(test, feature = "slice30-observer"))]
-        if !value {
-            crate::slice30_observer::not_run($phase, $reason);
-        }
-        value
-    }};
+#[inline]
+fn observe_slice30_guard(
+    phase: &'static str,
+    reason: &'static str,
+    blocked_value: bool,
+    value: bool,
+) -> bool {
+    #[cfg(any(test, feature = "slice30-observer"))]
+    if value == blocked_value {
+        crate::slice30_observer::not_run(phase, reason);
+    }
+    #[cfg(not(any(test, feature = "slice30-observer")))]
+    let _ = (phase, reason, blocked_value);
+    value
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2023,12 +2020,16 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     } else {
         false
     };
-    let vector_eligibility_degraded = observe_slice30_guard!(
-        @true, "vector_arm_requires_fallback", "history_incomplete", history_incomplete
-    ) || observe_slice30_guard!(
+    let vector_eligibility_degraded = observe_slice30_guard(
+        "vector_arm_requires_fallback",
+        "history_incomplete",
+        true,
+        history_incomplete,
+    ) || observe_slice30_guard(
         "vector_arm_requires_fallback",
         "vector_unavailable",
-        query_vector.is_some()
+        false,
+        query_vector.is_some(),
     ) && dependency_closure::vector_arm_requires_fallback(
         &tx,
         has_source_dependencies,
@@ -2361,65 +2362,76 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
         #[cfg(not(feature = "test-hooks"))]
         let force_full_sort = false;
-        let defer_text_identity = observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "vector_unavailable",
-            query_vector.is_some()
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "filter",
-            filter.is_none()
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "perf_limit",
-            perf_limit.is_none()
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "source_dependencies",
-            !has_source_dependencies
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "include_superseded",
-            !view.view.include_superseded
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "include_inactive",
-            !view.view.include_inactive
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "include_out_of_window",
-            !view.view.include_out_of_window
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "recency",
-            !recency_enabled
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "importance",
-            !importance_enabled
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "rerank",
-            rerank_depth == 0
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "graph",
-            !use_graph_arm
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "explain",
-            !explain
-        ) && observe_slice30_guard!(
-            "all_nodes_directly_eligible",
-            "force_full_sort",
-            !force_full_sort
-        ) && dependency_closure::all_nodes_directly_eligible(
-            &tx,
-            view.view.include_superseded,
-            view.view.include_inactive,
-            view.view.include_out_of_window,
-            view.edge_now(),
-        )?;
+        let defer_text_identity =
+            observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "vector_unavailable",
+                false,
+                query_vector.is_some(),
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "filter",
+                false,
+                filter.is_none(),
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "perf_limit",
+                false,
+                perf_limit.is_none(),
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "source_dependencies",
+                false,
+                !has_source_dependencies,
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "include_superseded",
+                false,
+                !view.view.include_superseded,
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "include_inactive",
+                false,
+                !view.view.include_inactive,
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "include_out_of_window",
+                false,
+                !view.view.include_out_of_window,
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "recency",
+                false,
+                !recency_enabled,
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "importance",
+                false,
+                !importance_enabled,
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "rerank",
+                false,
+                rerank_depth == 0,
+            ) && observe_slice30_guard(
+                "all_nodes_directly_eligible",
+                "graph",
+                false,
+                !use_graph_arm,
+            ) && observe_slice30_guard("all_nodes_directly_eligible", "explain", false, !explain)
+                && observe_slice30_guard(
+                    "all_nodes_directly_eligible",
+                    "force_full_sort",
+                    false,
+                    !force_full_sort,
+                )
+                && dependency_closure::all_nodes_directly_eligible(
+                    &tx,
+                    view.view.include_superseded,
+                    view.view.include_inactive,
+                    view.view.include_out_of_window,
+                    view.edge_now(),
+                )?;
         let join_sql = crate::filter::body_fts_rank_sql_view(
             &text_validity,
             &text_eligibility,

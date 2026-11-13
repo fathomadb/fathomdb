@@ -1027,3 +1027,14 @@ aggregate-cap qualification; those controller units remain required.
   controlled cache bytes. No real model, binary/native, dataset fetch, GPU
   query or database open occurs. The final entry must verify the existing
   registered bytes and exact current build/cache identities before execution.
+
+### G diagnostic report RED
+
+- `g-runner-report-red` reads a literal50-row diagnostic control through the
+  working generic report. All84 obligations remain visible, but the50-row
+  population incorrectly includes p50/p99. The literal assertion fails
+  `'p50_ms' unexpectedly found ... : 50-query diagnostic gained a percentile
+  claim`; one runtime failure, exit 1, no resource stop.
+- Frozen expectations retain mean25.5ms/count50 and the failed/not-run statuses,
+  with no percentile claim for this diagnostic. These are hand-set math/report
+  inputs, not actual measurement evidence or a database/model/GPU stand-in.

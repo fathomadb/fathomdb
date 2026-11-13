@@ -10,7 +10,7 @@ from campaign import run_campaign
 from gd_resources import GiB, _cleanup_owned_group, _owned_subreaper, resource_issue, resource_sample
 
 
-def run_manifest(manifest, root, monitor=None, before=None, resources=None):
+def run_manifest(manifest, root, monitor=None, before=None, resources=None, resource_interval=30):
     """Run supplied cells in order with their actual native artifact identities."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)

@@ -399,5 +399,36 @@ class ResourceFinalCampaignTests(unittest.TestCase):
         self.check_final_sample(rows)
 
 
+class ResourcePeriodicCampaignTests(unittest.TestCase):
+    def check_periodic_sample(self,samples):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        manifest["cells"][0]["samples"] = samples
+        resources = actual_resources()
+        outcome = run_manifest(manifest,root/"results",resources=resources,resource_interval=0.01)[0]
+        self.assertEqual(outcome["status"],"complete","actual native/resource controls NOT_RED")
+        attempt = Path(outcome["attempt"])
+        self.assertEqual(len((attempt/"queries.jsonl").read_text().splitlines()),samples+1)
+        observed = outcome["resource_samples"]
+        running = [row for row in observed if row["phase"] == "running"]
+        print(f"actual periodic observations={len(running)} fixture={attempt}",flush=True)
+        self.assertGreaterEqual(len(running),1,"controller resource observer was never invoked while its native child was alive")
+        self.assertEqual(observed[-1]["phase"],"final")
+        for sample in running:
+            self.assertEqual(sample["native_pid"],outcome["pid"])
+            self.assertTrue(sample["child_alive_at_start"])
+            self.assertLessEqual(sample["probe_started_ns"],sample["observed_ns"])
+            self.assertEqual([row["path"] for row in sample["roots"]],resources["roots"])
+            self.assertEqual(sample["baseline"],69280403456)
+
+    def test_resource_observer_runs_during_actual_native_work(self):
+        self.check_periodic_sample(3000)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=2500,max_value=3000))
+    def test_periodic_accounting_preserves_real_query_count_and_final_observation(self,samples):
+        self.check_periodic_sample(samples)
+
+
 if __name__ == "__main__":
     unittest.main()

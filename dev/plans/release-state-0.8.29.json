@@ -377,8 +377,9 @@
         "dev/plans/0.8.29/features/slice-100/test-plan.md"
       ],
       "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
-      "phase": "COVERAGE_AND_BOUNDED_Q1_APPROVED_SOURCE_PREPARATION",
-      "evidence": "Explicit owner approvals recorded at seq-371 (Slice100-only verification exception) and seq-372 (bounded Q1 owned-child scope/local unconfined executor). Independent Astra-medium protocol design PASS at reviewed 03bdd source base; manifest 93c24186320b596c529570fbda8194d24942a9d55b63c711bd805b8404e77c68. No source/runtime/fault qualification or100/D28-09 closure follows. Fresh isolated source preparation, approved-plan reconciliation, source review and actual actor/native-witness/healthy-control readiness precede Q1 execution. G2 uses only reviewed existing-hook cells; actual defects still committed RED/GREEN."
+      "phase": "APPROVED_PLAN_SOURCE_GO_NATIVE_WINDOW_QUEUED",
+      "evidence": "Owner approvals seq-371/372 and independently reviewed maintained plan checkpoint c1226d1bf958e1aa4b69fc81f265c9bc3d217198 are integrated. Independent Astra-medium recheck PASS covers exact coverage/Q1 protocol, current source/AC/oracles, preserved history and scoped Markdown/normal-hook evidence. Parent authorizes implementation in llm/0.8.29-s100-20261113 after clean fast-forward to this control record. G retains the sole heavy/native window;100 native setup/build/tests and debugger/fault execution remain queued. Actual actor/source/binary/native-witness/healthy-control readiness and independent implementation review precede Q1 technical execution GO. No source/runtime qualification or100/D28-09 closure is claimed.",
+      "plan_sha": "c1226d1bf958e1aa4b69fc81f265c9bc3d217198"
     },
     {
       "slice": 110,

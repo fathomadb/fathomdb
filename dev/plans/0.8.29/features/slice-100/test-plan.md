@@ -1,17 +1,18 @@
 # Slice 100 selectors, independent oracles and execution holds
 
-All commands below are **available selectors**, not new100 executions. Actual10
-is closed; independently reviewed20 Linux subset657edeb is integrated at clean
-parent/release2f6913c. The actual20 canonical run supports existing-control reuse
-as described below. This planning update authorizes no executions. Later selected runs require the
-parent's fresh checkout/GO, strict closed10 dependency preflight, actual-base
-reread and checkout-owned tooling/source identity. Recorded independent actual10 design PASS was
-bounded to existing-evidence reconciliation; this actual20 update awaits fresh
-independent design/evidence recheck. Use the actual completed10
-owned setup helper and artifacts rather than another checkout's venv/modules.
-No model/data/registry download or environment change occurred here.
-Keep original error diagnostics and real exit codes. Required final source gate
-is once on the stable final code phase, not repeatedly for this scratch package.
+Existing selectors below remain available evidence references, not new100
+executions. Entry3c34cd19 includes accepted70 e875f360 and20 f803a964 with exact
+reviewed03bdd/f803 src/lock identity. The read-only current-evidence, Q1 metadata
+and protocol packets passed independent Astra review; this maintained plan still
+needs its independent in-checkout recheck and parent source GO. Own ownership
+check and parent closed10/resource preflight passed. G retains the native window.
+
+Seq-371 approves the specific verification-only additions; seq-372 separately
+selects bounded Q1 on the local unconfined executor. [Owner decisions](owner-decisions.md)
+retain source review, actor/identity/runtime readiness and parent technical GO.
+No native tools/artifacts/venv are borrowed, and no product/debugger/fault work
+has occurred. Keep original diagnostics/exits; full source-phase verification
+runs once on the stable implementation phase, not for this plan-only update.
 
 ## Existing proof to reuse before writing tests
 
@@ -39,53 +40,50 @@ these rows define the evidence set, not permission for a broad repeat campaign.
 Retain old successes, failures, first/persistent fault cases and healthy controls.
 No observed RED/GREEN or product pass is supplied by the selector table.
 
-Actual20 reuse: its independently reviewed Linux subset657edeb is integrated.
-Clean6eee source-bound canonical workspace Rust command has no filters/exclusions;
-workspace operator/test-hooks closure selects these controls. The retained quiet
-Rust log hash aacbdb427f6a809d34ef046fe38ebebf5b8e01256f21e32a2d5e338d53bbd2a2
-matches its index. Lines1611–1629 match85 crash's2tests/eightchild launches/1pass/
-1ignored/0fail; unchanged passing parent implies all eight exit73/state/retry
-checks. This is command/source inference, not named phase/PID/binary-hash output.
-Other existing controls have matching quiet count/child blocks. Entire src/lock
-match6eee→657→2f691; the prior02e erasure/control inputs are also unchanged.
-Collector212pass/2fail plus reviewed affected corrections remains assembled
-qualification. Final657 binding identities/lifecycles are separate, not a Rust
-recapture. Retain all receipt limits for independent review; no duplicate broad
-campaign is indicated.20 remains open and creates no new hard dependency. No
+Actual20 reuse: accepted f803 canonical `agent-test.sh --tier=all` invokes
+`test-rust-workspace.sh --serial`: unfiltered workspace Rust, quiet output,
+no-fail-fast, jobs1/test-threads1. CLI operator and engine self-dev test-hooks
+closure select these controls. The retained Rust log is65,528B/2,408lines,
+SHA256 `1baf83f557ee5b959c91866a778bb3d8c3dcf2ef2e6e13e7bbf30a74f6d44b84`.
+Lines1616–1634 match85 crash's2tests/eightchild launches/1pass/1ignored/0fail;
+unchanged passing parent requires all eight exit73/state/retry assertions. This
+is command/source inference, not named phase/PID/binary-hash output. Entire
+src/lock match f803→03bdd; whole src/lock do not match the older2f691 evidence.
+The named erasure/crash/checkpoint files and canonical Rust caller are unchanged.
+The newer result therefore adds current integrated-runtime attribution without
+reruns, but no new assertion or native-checkpoint fault position. Qualification
+assembles216/216 suites after original module-policy failure and bounded
+continuation; native identities remain separate from Rust crash execution.
+20 A3/A5 and RAW capacity preparation are accepted; A6/whole20 remain open. No
+new hard dependency or100 exception follows. Keep original failures/skips; no
 success fills G100-1/G100-2 observations absent from the unchanged assertions.
 
-## Optional new evidence — not authorized to land under current TDD rule
+## Approved new coverage and held execution
 
-Q1 in [design](design.md) targets A100-5/G100-1 only: an owned disposable child
-under a verified native-frame breakpoint, not timed termination. Reached receipt
-must prove erasure checkpoint callstack, positive frame work and exact child/
-binary identity before abrupt child exit. If breakpoint never reaches, stop and
-record missing control; do not emit success. Debugger/ptrace/native symbols and
-permitted venue need actual qualification before any fault. No new VFS or SQLite
-patch, host/power/disk fault, process-wide kill or production deadline is allowed.
+S10: [Q1 child/operator protocol](q1-protocol.md), R100-5/A100-5 and G100-1.
+A new ignored normal-exit0 child uses the ordinary explicit maintenance API.
+A test-only ready marker gates native breakpoint setup after fixture/queue work;
+no production seam is added. One healthy case must reach the eligible native
+copy frame and finish normally. Only then may one matched interruption case
+obtain its OWN same-execution source/binary/PID/PC/erasure-stack/positive-frame
+witness before SIGKILL. Missing symbols/locals/ptrace/stack/frame or timeout is
+UNQUALIFIED. Bounded cleanup of only registered actors is not a fault result.
 
-If the specific passing-coverage exception is explicitly chosen and Q1 is
-reviewed viable, the narrow protocol is: one release-through healthy control,
-one attributable active-copy interruption, inspect the untouched post-crash
-artifacts through a live observer, then reopen explicit policy and assert
-Finalizing/Removed/root+ticket identity-free/global write fence/coalescing0 and
-survivor preservation before explicit retry. Retry must Complete with structural
-zero, actual live-WAL absence and one receipt; reopen again with no resurrection.
-This is process-crash checkpoint qualification only. Any debugger interruption
-that can publish a terminal success before the observed native return fails the
-oracle. Bound all owned actors by a reviewed external watchdog and reap on every
-failure; timeout is no product result.
+S11: [Four G2 composition cells](composed-oracles.md), R100-1–4/A100-1–4 and
+G100-2. Existing before-delete, after-delete, after-redacted and one post-sink-
+rename hook supply the same existing process-exit model. Capture positive target
+cursor/vector/span IDs before deletion, exact survivor/history values and raw
+main/WAL/SHM before reopen/retry. Preserve old85 assertions/files; no broad matrix.
+Before-delete rollback compares intact full-fixture statistics; after removal
+uses independent survivor-only score/order. New healthy/refusal controls and
+all six requirement/oracle joins are specified in the linked oracle document.
 
-G100-2, if specifically excepted, should reuse existing hooks rather than build a
-new matrix: rich explicit before-delete rollback, after-delete committed removal,
-and after-redacted identity-free state are the candidate minimal cells. Compare
-raw target cursor families/mapped vector IDs/spans and exact survivor history
-against pre-authored expected values and an independent survivor-only store.
-One original sink adds the existing after-rename replay witness; multiple-sink
-success/refusal stays with existing controls. All selected positive families must
-actually be populated. Preserve existing85 crash assertions verbatim; added
-assertions cannot weaken them. Coverage controls/mutants test test adequacy only,
-not substitute for observed baseline RED. No new tests are selected by default.
+[Implementation and resource map](implementation-map.md) names intended files,
+held commands, opt-in Q1 and proposed operational bounds under the approved
+120s/case and64GiB caps. Seq-371 permits honest coverage commits; it does not
+turn compiler/missing-symbol/mutant failures into product RED. No implementation
+or execution occurs until this recheck and source GO; source review, actual
+runtime readiness and parent technical GO precede Q1 faults.
 
 ## Receipts and terminal disposition
 
@@ -100,7 +98,7 @@ For each confirmed defect: observed RED SHA/assertion/exact selector/log → sep
 GREEN SHA → unchanged oracle and independent review. Audit RED from Git before
 acceptance. Two same-issue corrections trigger the repository rethink rule.
 No code/no new coverage after reviewed source reconciliation is a valid result;
-record G100-1/G100-2 limitations explicitly and obtain their specific disposition
-before full D28-09 closure. A full gate passing cannot fill a missing reached
+record actual G100-1/G100-2 results and remaining limitations before full
+D28-09 closure. Approved scope alone supplies no qualification. A full gate passing cannot fill a missing reached
 fault or authorize a TDD exception. Later affected core changes invalidate the
 named receipts and160 reruns the affected combined seams.

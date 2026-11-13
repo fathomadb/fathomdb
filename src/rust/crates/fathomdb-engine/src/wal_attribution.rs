@@ -244,6 +244,8 @@ pub(super) type ReaderCompletionPause = (Arc<Barrier>, Arc<Barrier>, Arc<AtomicB
 /// Private diagnostic state. It is off unless controlled CI/test config opts in
 /// via presence of `FATHOMDB_WAL_ATTRIBUTION`; the off path is a single atomic read.
 pub(super) struct WalAttributionCollector {
+    #[cfg(any(test, feature = "slice30-observer"))]
+    pub(super) slice30_observation: crate::slice30_observer::ObservationSlot,
     pub(super) enabled: bool,
     pub(super) started: Instant,
     pub(super) roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
@@ -294,6 +296,8 @@ impl Drop for WalAttributionActivity {
 impl WalAttributionCollector {
     pub(super) fn new() -> Self {
         Self {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            slice30_observation: crate::slice30_observer::ObservationSlot::default(),
             enabled: cfg!(test) || std::env::var_os("FATHOMDB_WAL_ATTRIBUTION").is_some(),
             started: Instant::now(),
             roles: Mutex::new(BTreeMap::new()),

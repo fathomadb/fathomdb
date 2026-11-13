@@ -1,9 +1,12 @@
 # Slice30 current direct-text measurement tools
 
-Initial P only: provider-free direct text, unchanged format37 and contracts.
+Accepted P remains provider-free direct text. Reviewed G source is now in
+progress, with unchanged format37/product contracts and a separately gated
+GPU campaign.
 [Design](../../plans/0.8.29/features/slice-30/design.md) and
 [preregistration](../../plans/0.8.29/features/slice-30/preregistration.md) own scope.
-G/D need later concrete review; M/F, whole30,40/50 source and pre90 remain held.
+G design/actual20 fit passed independent Astra and source entry is authorized.
+D source, M/F, whole30,40/50 source and pre90 remain held.
 No old prototype timing is a current baseline or fidelity result.
 
 ## Committed tools and origins
@@ -102,3 +105,28 @@ measurement output cap apply with the reviewed outer owned resource guard.
 No compilation/concurrent owned campaign is allowed in the timing window.
 Source, failed attempts, skips and outliers remain explicit. Whole30, fidelity,
 MCP/Windows/Block1 and final160 obligations are not discharged by this P subset.
+
+
+## G implementation and bounded ordinary tests
+
+The [reviewed continuation](../../plans/0.8.29/features/slice-30/continuation-gd.md)
+and [execution](../../plans/0.8.29/features/slice-30/execution.md) distinguish source
+GO from technical GPU campaign GO. No accepted P measurements are repeated.
+The existing SDK example now has two additional ordinary tiny real-store route/
+fixture assertions. The negative readiness fixture has two natural doc nodes and
+two separate body-bearing control edges; pending2/blocked without a provider is
+not positive dense or GPU qualification. The engine observer ownership target
+uses two real stores and no model:
+
+```bash
+cargo test --locked --release -p fathomdb-sdk --example slice30_measure g_route_tests -- --nocapture
+cargo test --locked --release -p fathomdb-sdk --example slice30_measure g_fixture_tests -- --nocapture
+cargo test --locked --release -p fathomdb-engine --features slice30-observer,test-hooks --test slice30_g_observer -- --nocapture
+```
+
+The nondefault observer is bounded and engine/session/operation owned. Its current
+source milestone covers direct-text API/reader transport and cleanup; guarded
+predicate/full phase attribution and the G CLI/cell controller follow their own
+runtime RED/GREEN. The test-only forwarding surface is documented in rust.md.
+No G campaign, BGE execution, source-fallback/time result or dense fixture is
+qualified by these ordinary assertions.

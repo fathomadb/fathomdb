@@ -29,6 +29,8 @@ impl EvidenceCapture {
 /// Capability payload kept behind one pointer so adding optional search state
 /// cannot inflate every request crossing the bounded reader channel.
 pub(crate) struct SearchReaderWork {
+    #[cfg(any(test, feature = "slice30-observer"))]
+    slice30_owner: Option<crate::slice30_observer::OperationToken>,
     #[cfg(feature = "test-hooks")]
     pub(crate) d27_owner: Option<crate::embed_dispatch::d27_observation::Owner>,
     compiled: Option<fathomdb_query::CompiledQuery>,
@@ -86,6 +88,8 @@ impl SearchReaderWork {
         expand_depth: Option<u32>,
     ) -> Self {
         Self {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            slice30_owner: crate::slice30_observer::capture_token(),
             #[cfg(feature = "test-hooks")]
             d27_owner: crate::embed_dispatch::d27_observation::current_owner(),
             compiled,
@@ -164,6 +168,8 @@ impl SearchReaderWork {
         filter: Option<SearchFilter>,
     ) -> Self {
         Self {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            slice30_owner: crate::slice30_observer::capture_token(),
             #[cfg(feature = "test-hooks")]
             d27_owner: crate::embed_dispatch::d27_observation::current_owner(),
             compiled: Some(compiled),
@@ -798,6 +804,8 @@ pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<C::Output, SearchReaderError> {
+    #[cfg(any(test, feature = "slice30-observer"))]
+    let _scope = crate::slice30_observer::enter_token(attribution, work.slice30_owner.clone());
     read_search_in_tx(
         reader,
         work.compiled.as_ref(),
@@ -1875,6 +1883,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // production and on every non-race test.
     #[cfg(any(test, feature = "test-hooks"))]
     reader_search_hook::fire(attribution);
+    #[cfg(any(test, feature = "slice30-observer"))]
+    let observation = crate::slice30_observer::span("reader_transaction");
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
         let generation =
@@ -2965,6 +2975,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         snippets,
     )?;
     tx.commit()?;
+    #[cfg(any(test, feature = "slice30-observer"))]
+    observation.success();
     Ok(output)
 }
 use crate::dependency_closure;

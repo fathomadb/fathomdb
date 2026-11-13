@@ -181,6 +181,29 @@ already armed hook on the same engine panics; callbacks must provide their own
 bounded release/cleanup. An unfired callback is dropped with its engine. Ordinary
 search and shipped artifacts carry no hook state or new contract fields.
 
+### Private Slice30 measurement observations
+
+The nondefault `fathomdb-engine/slice30-observer` feature exposes doc-hidden
+`Engine::begin_slice30_observation_for_test(max_records)` and the returned
+`Slice30ObservationGuard`/batch/record types. The SDK's same-named feature forwards
+only that engine capability; its method returns the guard with normal SDK error
+translation and exposes no core engine. Shipped bindings/facade/CLI/MCP feature
+lists do not enable it. Ordinary builds carry no observation state/clocks or
+new result/configuration/counter fields.
+
+One exact engine accepts one active session, bounded to1..=32768 records; bad
+bounds/duplicate begin return `InvalidArgument`, a closed engine returns `Closing`,
+and poisoned begin bookkeeping returns `Storage`. The guard is neither Clone nor
+Send, owns no engine/SQL/provider lifetime, and Drop disarms only its own session.
+`with_operation(id, work)` restores nested context on return/unwind; explicit weak
+tokens carry the operation into actual reader work, and other engines cannot
+consume it. Records identify the engine, session, operation and parent span with
+monotonic nanoseconds. `take()` drains outside product clocks and reports cumulative
+loss/issues. Hot append uses bounded storage/try_lock; capacity/contention drops
+are explicit, never zero-cost or complete attribution. No hot I/O/subscriber call
+or global collector is introduced. Diagnostic intervals are inclusive and cannot
+be added as exclusive shares or subtracted across independent percentiles.
+
 ### Explicit MCP admission observations
 
 `fathomdb-mcp/test-seams` alone exposes `Seams::observe_pre_enqueue` and its

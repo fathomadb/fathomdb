@@ -1141,6 +1141,10 @@ impl Engine {
         limit: usize,
         snippet: Option<&SnippetOptions>,
     ) -> Result<SearchResult, EngineError> {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let _observation_scope = crate::slice30_observer::enter_engine(&self.wal_attribution);
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let observation = crate::slice30_observer::span("api_text");
         let filter = filter.filter(|filter| !filter.is_unfiltered());
         let limit = validate_search_result_limit(limit)?;
         validate_snippet(snippet)?;
@@ -1199,6 +1203,8 @@ impl Engine {
                 return Err(EngineError::Storage);
             }
         };
+        #[cfg(any(test, feature = "slice30-observer"))]
+        observation.success();
         Ok(SearchResult {
             projection_cursor: cursor,
             soft_fallback,

@@ -55,3 +55,23 @@ class GPlanTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class GCumulativeBudgetTests(unittest.TestCase):
+    def test_exhausted_shared_allocation_runs_no_child_and_retains_all_required_cells(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "g-budget.json").write_text(json.dumps({
+                "schema": "slice30-gd-budget/v1", "used_ns": 14400 * 10**9,
+                "inflight": None,
+            }))
+            calls = root / "unexpected-child"
+            code = f"import pathlib; pathlib.Path({str(calls)!r}).write_text('started')"
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code])
+            self.assertFalse(calls.exists(), "exhausted G/D allocation still launched an actual child")
+            self.assertEqual(len(outcomes), 84)
+            self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
+                                and row["reason"] == "shared_time_exhausted" for row in outcomes))
+            self.assertEqual(json.loads((root / "g-budget.json").read_text())["used_ns"],
+                             14400 * 10**9)
+            self.assertEqual(len(json.loads((root / "g-outcomes.json").read_text())), 84)

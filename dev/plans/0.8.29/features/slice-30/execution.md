@@ -558,3 +558,14 @@ a fresh900s per internal step. Exact900s/14400s/16GiB, DefaultBGE384/head512,
 remain fixed. P cells and runner source are unchanged. This is stage inventory
 proof, not operational GPU/DB execution or completed deadline/fresh-store/
 aggregate-cap qualification; those controller units remain required.
+
+### G controller shared-allocation RED
+
+- Metadata-only parent `ff9c474eb5135d7a41731f5b78e0f12139dc29d9` merged at
+  `6bba9be4b`; source and lock bytes remain unchanged. Slice100 retains the
+  heavy/native window; this unit runs only harmless Python children.
+- `g-t10-cumulative-red` records a real exhausted 14,400-second shared G/D
+  allocation still launching a child: `AssertionError: True is not false :
+  exhausted G/D allocation still launched an actual child`. One runtime test
+  failed, exit 1, no resource stop. It does not qualify model, database or GPU
+  behavior. All 84 required cells must remain explicit when refused.

@@ -20,6 +20,20 @@ def run_manifest(manifest, root, monitor=None):
 
 
 def _native_complete(cell, attempt):
+    if cell["family"] in {"G1_PLAN_FIXTURE", "G1_CELL"}:
+        base = attempt / "cell" if cell["family"] == "G1_PLAN_FIXTURE" else attempt
+        passes = cell["passes"]
+        query_count = len(Path(cell["queries"]).read_text().splitlines())
+        warmups = cell.get("warmups", 0)
+        for ordinal, mode in enumerate(passes):
+            path = base / f"pass-{ordinal}" / "api-proof.json"
+            if not path.exists():
+                return False
+            proof = json.loads(path.read_text())
+            if (proof.get("mode"), proof.get("warmup_api_calls"), proof.get("timed_api_calls"),
+                    proof.get("api_calls")) != (mode, warmups, query_count, warmups+query_count):
+                return False
+        return bool(passes)
     name = "complete.json" if cell["family"] == "D_QUERY_FIXTURE" else "result.json"
     path = attempt / name
     return path.exists() and json.loads(path.read_text()).get("complete") is True

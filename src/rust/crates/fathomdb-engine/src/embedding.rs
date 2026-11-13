@@ -232,15 +232,30 @@ impl Engine {
     /// ([`EngineError::CudaPoolExhausted`], [`EngineError::CudaContextLost`],
     /// [`EngineError::CudaPrivateBuildRefused`]).
     pub fn embed_text(&self, text: &str) -> Result<Vec<f32>, EngineError> {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let _observation_scope = crate::slice30_observer::enter_engine(&self.wal_attribution);
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let observation = crate::slice30_observer::span("api_embed");
         let _operation = self.ensure_open()?;
-        dispatch_embed_vector(&self.embed_dispatch, text).map_err(|error| match error {
-            DispatchError::NotConfigured => EngineError::EmbedderNotConfigured,
-            DispatchError::Saturated | DispatchError::QueuedExpired => EngineError::Overloaded,
-            DispatchError::Closing | DispatchError::Cancelled => EngineError::Closing,
-            DispatchError::Provider(error) => map_runtime_embedder_error(error),
-            DispatchError::StartedTimeout | DispatchError::InvalidOutput => EngineError::Embedder,
-            DispatchError::Panic(payload) => std::panic::resume_unwind(payload),
-        })
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let phase = crate::slice30_observer::span("query_embedding_dispatch_wall");
+        let result =
+            dispatch_embed_vector(&self.embed_dispatch, text).map_err(|error| match error {
+                DispatchError::NotConfigured => EngineError::EmbedderNotConfigured,
+                DispatchError::Saturated | DispatchError::QueuedExpired => EngineError::Overloaded,
+                DispatchError::Closing | DispatchError::Cancelled => EngineError::Closing,
+                DispatchError::Provider(error) => map_runtime_embedder_error(error),
+                DispatchError::StartedTimeout | DispatchError::InvalidOutput => {
+                    EngineError::Embedder
+                }
+                DispatchError::Panic(payload) => std::panic::resume_unwind(payload),
+            });
+        #[cfg(any(test, feature = "slice30-observer"))]
+        if result.is_ok() {
+            phase.success();
+            observation.success();
+        }
+        result
     }
 }
 

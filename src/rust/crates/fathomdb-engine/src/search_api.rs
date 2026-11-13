@@ -530,6 +530,10 @@ impl Engine {
         expand_depth: Option<u32>,
         snippet: Option<SnippetOptions>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let _observation_scope = crate::slice30_observer::enter_engine(&self.wal_attribution);
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let observation = crate::slice30_observer::span("api_hybrid");
         let _operation = self.ensure_open()?;
         let is_frozen = frozen_binding.is_some();
         if !is_frozen && query.trim().is_empty() {
@@ -557,7 +561,22 @@ impl Engine {
         // `InvalidFilter`. Moving it there also removes a per-filtered-search writer
         // lock and the fix-2 concurrent-ADD false-reject (the reader snapshot sees a
         // freshly-added declaration and accepts).
-        let compiled = (!is_frozen).then(|| compile_text_query_with(query, &self.query_stop_words));
+        #[cfg(any(test, feature = "slice30-observer"))]
+        if is_frozen {
+            crate::slice30_observer::not_run("query_compile", "frozen_reader_runtime");
+            crate::slice30_observer::not_run(
+                "query_embedding_dispatch_wall",
+                "frozen_reader_runtime",
+            );
+        }
+        let compiled = (!is_frozen).then(|| {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let phase = crate::slice30_observer::span("query_compile");
+            let compiled = compile_text_query_with(query, &self.query_stop_words);
+            #[cfg(any(test, feature = "slice30-observer"))]
+            phase.success();
+            compiled
+        });
         // REQ-013 / AC-059b / REQ-055: the cursor returned with a search
         // MUST be derived from the same WAL snapshot the data was read
         // from. Loading `next_cursor` from the writer-side atomic before
@@ -577,24 +596,40 @@ impl Engine {
         let raw_query_vector = if is_frozen {
             None
         } else {
-            search_query_vector(&self.embed_dispatch, query, &mut degradations)?
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let phase = crate::slice30_observer::span("query_embedding_dispatch_wall");
+            let vector = search_query_vector(&self.embed_dispatch, query, &mut degradations)?;
+            #[cfg(any(test, feature = "slice30-observer"))]
+            phase.success();
+            vector
         };
-        let query_vector_bin = match raw_query_vector.as_ref() {
-            Some(vector) if identity_requires_mean_centering(&self.runtime_embedder_identity) => {
-                let pinned = {
-                    let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-                    let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-                    read_pinned_mean_vec(connection, self.runtime_embedder_identity.dimension)?
-                };
-                match pinned {
-                    Some(mean) => serde_json::to_string(&subtract_mean(vector, &mean)).ok(),
-                    None => serde_json::to_string(vector).ok(),
+        let (query_vector_bin, query_vector) = {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let phase = crate::slice30_observer::span("query_mean_serialization");
+            let query_vector_bin = match raw_query_vector.as_ref() {
+                Some(vector)
+                    if identity_requires_mean_centering(&self.runtime_embedder_identity) =>
+                {
+                    let pinned = {
+                        let connection =
+                            self.connection.lock().map_err(|_| EngineError::Storage)?;
+                        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+                        read_pinned_mean_vec(connection, self.runtime_embedder_identity.dimension)?
+                    };
+                    match pinned {
+                        Some(mean) => serde_json::to_string(&subtract_mean(vector, &mean)).ok(),
+                        None => serde_json::to_string(vector).ok(),
+                    }
                 }
-            }
-            Some(vector) => serde_json::to_string(vector).ok(),
-            None => None,
+                Some(vector) => serde_json::to_string(vector).ok(),
+                None => None,
+            };
+            let query_vector =
+                raw_query_vector.and_then(|vector| serde_json::to_string(&vector).ok());
+            #[cfg(any(test, feature = "slice30-observer"))]
+            phase.success();
+            (query_vector_bin, query_vector)
         };
-        let query_vector = raw_query_vector.and_then(|vector| serde_json::to_string(&vector).ok());
         let frozen_query_runtime = is_frozen.then(|| {
             Box::new(FrozenQueryRuntime::new(
                 Arc::clone(&self.embed_dispatch),
@@ -648,10 +683,19 @@ impl Engine {
             .with_snippet(snippet),
             response_tx,
         );
-        if self.reader_pool.dispatch(request).is_err() {
-            return Err(EngineError::Closing);
-        }
-        let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
+        let search_result = {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let phase = crate::slice30_observer::span("reader_wait");
+            if self.reader_pool.dispatch(request).is_err() {
+                return Err(EngineError::Closing);
+            }
+            let result = response_rx.recv().map_err(|_| EngineError::Storage)?;
+            #[cfg(any(test, feature = "slice30-observer"))]
+            phase.success();
+            result
+        };
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let response_phase = crate::slice30_observer::span("final_response");
         let (
             cursor,
             soft_fallback,
@@ -705,7 +749,7 @@ impl Engine {
             exp
         });
 
-        Ok((
+        let result = (
             SearchResult {
                 projection_cursor: cursor,
                 soft_fallback,
@@ -716,7 +760,12 @@ impl Engine {
             },
             graph_stats,
             expanded,
-        ))
+        );
+        #[cfg(any(test, feature = "slice30-observer"))]
+        response_phase.success();
+        #[cfg(any(test, feature = "slice30-observer"))]
+        observation.success();
+        Ok(result)
     }
 }
 
@@ -1152,7 +1201,14 @@ impl Engine {
         if query.trim().is_empty() {
             return Err(EngineError::WriteValidation);
         }
-        let compiled = compile_text_query_with(query, &self.query_stop_words);
+        let compiled = {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let phase = crate::slice30_observer::span("query_compile");
+            let compiled = compile_text_query_with(query, &self.query_stop_words);
+            #[cfg(any(test, feature = "slice30-observer"))]
+            phase.success();
+            compiled
+        };
         let candidate_limit =
             self.projection_runtime.shared.search_limit_override.load(Ordering::SeqCst).max(limit);
         let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
@@ -1164,10 +1220,19 @@ impl Engine {
                 .with_snippet(snippet.copied()),
             response_tx,
         );
-        if self.reader_pool.dispatch(request).is_err() {
-            return Err(EngineError::Closing);
-        }
-        let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
+        let search_result = {
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let phase = crate::slice30_observer::span("reader_wait");
+            if self.reader_pool.dispatch(request).is_err() {
+                return Err(EngineError::Closing);
+            }
+            let result = response_rx.recv().map_err(|_| EngineError::Storage)?;
+            #[cfg(any(test, feature = "slice30-observer"))]
+            phase.success();
+            result
+        };
+        #[cfg(any(test, feature = "slice30-observer"))]
+        let response_phase = crate::slice30_observer::span("final_response");
         let (
             cursor,
             soft_fallback,
@@ -1203,16 +1268,19 @@ impl Engine {
                 return Err(EngineError::Storage);
             }
         };
-        #[cfg(any(test, feature = "slice30-observer"))]
-        observation.success();
-        Ok(SearchResult {
+        let result = SearchResult {
             projection_cursor: cursor,
             soft_fallback,
             results,
             explanation,
             degradations: Vec::new(),
             snippets,
-        })
+        };
+        #[cfg(any(test, feature = "slice30-observer"))]
+        response_phase.success();
+        #[cfg(any(test, feature = "slice30-observer"))]
+        observation.success();
+        Ok(result)
     }
 
     /// [`search_text_only_view_with_limit`][Engine::search_text_only_view_with_limit]

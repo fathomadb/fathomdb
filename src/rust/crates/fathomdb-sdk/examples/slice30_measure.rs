@@ -167,6 +167,64 @@ fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
     }
 }
 
+#[derive(Default)]
+struct GDiagnosticOptions {
+    view: ReadView,
+    filter: Option<SearchFilter>,
+}
+
+fn observe_g_diagnostic_route(
+    engine: &Adapter,
+    route: &str,
+    query: &str,
+    options: &GDiagnosticOptions,
+) -> Value {
+    let filter = options.filter.clone();
+    let started = std::time::Instant::now();
+    let result: fathomdb_sdk::Result<fathomdb_engine::SearchResult> = match (engine, route) {
+        (Adapter::Core(engine), "text") => engine
+            .search_text_only_filtered_with_snippets(query, filter, &options.view, 10, None)
+            .map_err(Into::into),
+        (Adapter::Sdk(engine), "text") => {
+            let mut search = TextSearchOptions::default();
+            search.filter = filter;
+            search.view = options.view;
+            engine.search_text_only(query, search)
+        }
+        (Adapter::Core(engine), "hybrid") => engine
+            .search_reranked_view_with_limit(
+                query,
+                filter,
+                0,
+                false,
+                0.3,
+                0,
+                false,
+                &options.view,
+                10,
+            )
+            .map_err(Into::into),
+        (Adapter::Sdk(engine), "hybrid") => {
+            let mut search = fathomdb_sdk::SearchOptions::default();
+            search.filter = filter.map(Into::into);
+            search.view = options.view;
+            engine.search(query, search)
+        }
+        _ => panic!("diagnostic query options apply only to search routes"),
+    };
+    let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+    match result {
+        Ok(result) => json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
+            "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
+            "bodies":result.results.iter().map(|hit|&hit.body).collect::<Vec<_>>(),
+            "returned_hits":result.results.len(),"projection_cursor":result.projection_cursor,
+            "soft_fallback":format!("{:?}",result.soft_fallback),
+            "degradations":format!("{:?}",result.degradations)}),
+        Err(error) => json!({"route":route,"ok":false,"elapsed_ns":elapsed_ns,
+            "error_kind":error.kind().name(),"error":format!("{error:?}")}),
+    }
+}
+
 fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
     let readiness = match engine {
         Adapter::Core(engine) => {
@@ -738,16 +796,31 @@ fn observe_g_operation(
     operation: u64,
     observation: &GObservation,
 ) -> (Value, Option<Value>) {
+    observe_g_operation_options(engine, route, query, operation, observation, None)
+}
+
+fn observe_g_operation_options(
+    engine: &Adapter,
+    route: &str,
+    query: &str,
+    operation: u64,
+    observation: &GObservation,
+    options: Option<&GDiagnosticOptions>,
+) -> (Value, Option<Value>) {
+    let execute = || match options {
+        Some(options) => observe_g_diagnostic_route(engine, route, query, options),
+        None => observe_g_route(engine, route, query),
+    };
     #[cfg(feature = "slice30-observer")]
     let mut row = if let Some(observation) = observation {
-        observation.with_operation(operation, || observe_g_route(engine, route, query))
+        observation.with_operation(operation, execute)
     } else {
-        observe_g_route(engine, route, query)
+        execute()
     };
     #[cfg(not(feature = "slice30-observer"))]
     let mut row = {
         let _ = observation;
-        observe_g_route(engine, route, query)
+        execute()
     };
     row["operation_id"] = json!(operation);
     #[cfg(feature = "slice30-observer")]
@@ -780,6 +853,12 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     let samples = number("samples");
     let warmup = number("warmup");
     assert!(samples > 0);
+    let diagnostic_options = config.get("diagnostic_filter_kind").map(|kind| {
+        assert_eq!(config["family"], "G-O", "natural G-R calls remain unfiltered");
+        let mut filter = SearchFilter::default();
+        filter.kind = Some(kind.as_str().expect("diagnostic kind").to_string());
+        GDiagnosticOptions { filter: Some(filter), ..GDiagnosticOptions::default() }
+    });
     let observed = config["observe"] == true;
     let record_first = config
         .get("record_first_call")
@@ -808,12 +887,13 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
         for route in config["routes"].as_array().expect("G routes") {
             let route = route.as_str().unwrap();
             let mut publish = |stream: &'static str, phase: &str, index: usize| {
-                let (mut row, trace) = observe_g_operation(
+                let (mut row, trace) = observe_g_operation_options(
                     &engine,
                     route,
                     &queries[index % queries.len()],
                     operation,
                     &observation,
+                    diagnostic_options.as_ref(),
                 );
                 row["adapter"] = json!(name);
                 row["repeat"] = config["repeat"].clone();
@@ -843,12 +923,13 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
             recorder.flush_all();
             let measured = std::time::Instant::now();
             for index in 0..samples {
-                let (mut row, trace) = observe_g_operation(
+                let (mut row, trace) = observe_g_operation_options(
                     &engine,
                     route,
                     &queries[index % queries.len()],
                     operation,
                     &observation,
+                    diagnostic_options.as_ref(),
                 );
                 row["adapter"] = json!(name);
                 row["repeat"] = config["repeat"].clone();
@@ -898,6 +979,7 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     let result = json!({"complete":outcomes_ok && attribution_ok,"negative_control":negative,
         "sample_count":rows.len(),"warmup_count":warmups.len(),"first_call_count":first_calls.len(),
         "record_first_call":record_first,
+        "diagnostic_options":diagnostic_options.as_ref().map(|options|json!({"filter_kind":options.filter.as_ref().and_then(|filter|filter.kind.as_ref())})),
         "samples":rows,"warmups":warmups,"first_calls":first_calls,
         "observation_batches":traces,"passes":passes,"fixtures":fixtures,
         "raw_persistence":recorder.statistics_since([0;5]),

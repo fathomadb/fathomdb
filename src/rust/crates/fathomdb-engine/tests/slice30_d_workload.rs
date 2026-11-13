@@ -162,6 +162,17 @@ fn writer_observation_case(
     readiness: bool,
     observer: bool,
 ) -> PathBuf {
+    writer_input_case(appended, cohort, warmups, readiness, observer, None)
+}
+
+fn writer_input_case(
+    appended: usize,
+    cohort: usize,
+    warmups: usize,
+    readiness: bool,
+    observer: bool,
+    queries: Option<&[Value]>,
+) -> PathBuf {
     let root = tempfile::Builder::new().prefix("s30-d-writer-").tempdir().unwrap().keep();
     println!(
         "writer fixture {} appended={appended} cohort={cohort} warmups={warmups}",
@@ -178,7 +189,7 @@ fn writer_observation_case(
     ];
     let appended_records:Vec<_>=(0..appended).map(|i|json!({"id":format!("tail-{i}"),"kind":"note","body":format!("append evidence {i} é")})).collect();
     let config = root.join("cell.json");
-    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4,"readiness":readiness,"observer":observer})).unwrap()).unwrap();
+    std::fs::write(&config,serde_json::to_vec(&json!({"family":"D_QUERY_FIXTURE","records":records,"write_records":appended_records,"cohort":cohort,"warmups":warmups,"samples":4,"readiness":readiness,"observer":observer,"queries":queries})).unwrap()).unwrap();
     let binary = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
         .join("release/examples/slice30_gd_diagnostic");
     println!("binary before runtime SHA256 {}", digest(&binary));
@@ -559,4 +570,47 @@ proptest! {
     #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301305),..ProptestConfig::default()})]
     #[test]
     fn actual_native_framing_preserves_geometry_and_control_disposition(rows in 1usize..9,cohort in 1usize..5,enabled in any::<bool>()){verify_native_overlap(rows,cohort,enabled);}
+}
+
+fn verify_query_population(queries: Vec<Value>) {
+    let out = writer_input_case(4, 3, 2, true, false, Some(&queries));
+    let rows: Vec<Value> = std::fs::read_to_string(out.join("queries.jsonl"))
+        .unwrap()
+        .lines()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+    let expected: Vec<_> = [("warmup", 2usize), ("timed", 4usize)]
+        .into_iter()
+        .flat_map(|(phase, count)| (0..count).map(move |index| (phase, index)))
+        .map(|(phase, index)| {
+            let request = &queries[index % queries.len()];
+            let query = request["query"].as_str().unwrap();
+            let fingerprint: String =
+                Sha256::digest(query.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+            json!([phase, index, request["id"], query, fingerprint])
+        })
+        .collect();
+    let actual: Vec<_> = rows
+        .iter()
+        .map(|r| {
+            json!([r["phase"], r["sample_index"], r["query_id"], r["query"], r["query_sha256"]])
+        })
+        .collect();
+    assert_eq!(actual, expected, "missing actual supplied D query identity/input forwarding");
+}
+#[test]
+fn actual_query_population_restarts_timed_prefix_after_warmups() {
+    verify_query_population(vec![
+        json!({"id":"b","query":"beta"}),
+        json!({"id":"a","query":"alpha"}),
+        json!({"id":"b","query":"évidence 🐟"}),
+    ]);
+}
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301306),..ProptestConfig::default()})]
+    #[test]
+    fn query_population_preserves_order_duplicates_and_utf8_arguments(indices in prop::collection::vec(0usize..4,1..5)){
+        let queries=indices.into_iter().map(|i|{let query=["alpha","beta","évidence 🐟","neverhit"][i]; json!({"id":i,"query":query})}).collect();
+        verify_query_population(queries);
+    }
 }

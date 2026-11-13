@@ -40,7 +40,8 @@ def analyze(queries, writes, workers, readiness, enabled=True, dropped=0, attrib
                 for pi, ready in enumerate(readiness):
                     interval = _interval(ready)
                     pending = ready.get("pending_count")
-                    if (interval is not None and type(pending) is int and pending > 0
+                    if (ready.get("ok") is True and interval is not None
+                            and type(pending) is int and pending > 0
                             and lower < interval[0] <= interval[1] < upper):
                         used.add(pi)
                         witnesses.append({"query": qi, "write": wi, "worker": ji,

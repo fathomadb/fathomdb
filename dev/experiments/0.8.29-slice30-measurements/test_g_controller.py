@@ -151,3 +151,32 @@ class GResumeBudgetTests(unittest.TestCase):
             self.assertTrue(all(row["status"] == "not_run_cap" and row["complete"] is False
                                 and row["reason"] == "shared_time_exhausted" for row in outcomes[1:]))
             self.assertEqual(json.loads((root / "g-outcomes.json").read_text()), outcomes)
+
+class GCellRetryBudgetTests(unittest.TestCase):
+    def test_failed_cell_cannot_renew_spent_nine_hundred_seconds_on_retry(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls = root / "calls.jsonl"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "cell=json.loads(pathlib.Path(sys.argv[1]).read_text())",
+                f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write(cell['id']+'\\n')",
+                "(pathlib.Path(sys.argv[2])/'result.json').write_text(json.dumps({'complete':True}))",
+            ])
+            failed = run_campaign(make_g_plan(spec)[:1], root, [sys.executable, "-c", code + "\nraise SystemExit(1)"])
+            self.assertEqual(failed[0]["status"], "failed")
+            (root / "g-budget.json").write_text(json.dumps({
+                "schema": "slice30-gd-budget/v1", "used_ns": 900 * 10**9,
+                "cell_used_ns": {"g0-smoke": 900 * 10**9}, "inflight": None,
+            }))
+            outcomes = run_g_plan(spec, root, [sys.executable, "-c", code])
+            actual = calls.read_text().splitlines()
+            self.assertEqual(actual.count("g0-smoke"), 1, "failed G cell renewed its spent 900-second allowance")
+            self.assertEqual(len(outcomes), 84)
+            self.assertEqual((outcomes[0]["status"], outcomes[0]["reason"]),
+                             ("not_run_cap", "cell_time_exhausted"))
+            self.assertTrue(all(row["status"] == "complete" for row in outcomes[1:]))
+            self.assertEqual(len(list((root / "g0-smoke").glob("attempt-*"))), 1)
+            self.assertEqual(json.loads((root / "g-budget.json").read_text())["cell_used_ns"]["g0-smoke"],
+                             900 * 10**9)

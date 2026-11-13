@@ -639,3 +639,16 @@ aggregate-cap qualification; those controller units remain required.
   allowance is recomputed before child launch. This is the preparation boundary
   proof, not yet a claim of complete production absolute-deadline propagation,
   per-cell retry accounting, growth monitoring or scale feasibility.
+
+### G failed-cell allowance RED
+
+- `g-t10-retry-budget-red` retains one actual failed harmless-child attempt and
+  supplies the literal persisted spent allowance of 900 seconds for that cell.
+  It observes a second actual invocation of the same cell: `AssertionError:
+  2 != 1 : failed G cell renewed its spent 900-second allowance`. One runtime
+  failure, exit 1, no resource stop. No 900-second execution is fabricated: the
+  boundary value is an explicit ledger-input contract, and actual child count
+  independently witnesses the incorrect dispatch decision.
+- The frozen oracle requires the failed attempt retained, no renewed attempt for
+  that cell, and the other 83 required cells still dispatched when their own and
+  shared allowances permit. The fixed caps are unchanged.

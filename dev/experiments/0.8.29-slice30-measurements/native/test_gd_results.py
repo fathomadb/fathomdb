@@ -15,7 +15,7 @@ from hypothesis import Phase, given, settings, strategies as st
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from gd_campaign import run_manifest  # noqa: E402
-from gd_results import describe  # noqa: E402
+from gd_results import describe, pair_groups  # noqa: E402
 
 TOOL=Path(__file__).parents[1]/"gd_results.py"
 
@@ -178,6 +178,62 @@ class ResultStatisticsTests(unittest.TestCase):
         self.assertAlmostEqual(latency["mean_ms"],sum(elapsed)/len(elapsed)/1_000_000)
         self.assertEqual(result["all_requests"],len(elapsed)+warmups)
         self.assertEqual(result["throughput_all_per_s"],len(elapsed)+warmups)
+
+
+class ResultPairingTests(unittest.TestCase):
+    def test_actual_normal_disabled_enabled_raw_pairs(self):
+        root,path,raw,_=actual_results()
+        result=read_result(path,root)
+        pairs=result.get("pairs",[])
+        self.assertEqual(len(pairs),2,"missing normal/disabled and disabled/enabled comparisons")
+        for pair,left,right in zip(pairs,["d/dn","d/off"],["d/off","d/on"],strict=True):
+            self.assertEqual((pair["left"],pair["right"]),(left,right))
+            self.assertEqual(pair["matched_calls"],4)
+            self.assertEqual(pair["unpaired_calls"],0)
+            expected=[(b["elapsed_ns"]-a["elapsed_ns"])/1_000_000 for a,b in zip(raw[left],raw[right],strict=True)]
+            self.assertEqual([row["right_minus_left_ms"] for row in pair["raw_pairs"]],expected)
+            self.assertAlmostEqual(pair["right_minus_left_mean_ms"],sum(expected)/4)
+            self.assertEqual(pair["distinct_queries"],2)
+            self.assertEqual(len(pair["bootstrap95_ms"]),2)
+            self.assertTrue(pair["complete"])
+
+    def group(self,name,rows,**observer):
+        return {"id":name,"queries":rows,"observer":{"available":True,"dropped":0,"query_dropped":0,
+                "attribution_complete":True,**observer},"issues":[]}
+
+    def call(self,index,elapsed,ok=True,fingerprint="alpha"):
+        return {"query_id":"qa","query_fingerprint":fingerprint,"sample_index":index,
+                "elapsed_ns":elapsed,"ok":ok,"error":None if ok else "InvalidFilter"}
+
+    def test_errors_missing_fingerprints_and_duplicate_positions_remain_unpaired(self):
+        left=self.group("left",[self.call(0,1_000_000),self.call(1,4_000_000,False),self.call(2,9_000_000),self.call(3,11_000_000),self.call(3,12_000_000)])
+        right=self.group("right",[self.call(0,3_000_000),self.call(1,8_000_000),self.call(2,10_000_000,fingerprint="beta"),self.call(3,13_000_000)])
+        pair=pair_groups(left,right)
+        self.assertEqual(pair.get("matched_calls",0),1,"missing exact raw-call pairing")
+        self.assertEqual(pair["unpaired_calls"],7)
+        self.assertEqual(pair["errors"],{"left":{"InvalidFilter":1},"right":{}})
+        self.assertEqual(pair["raw_pairs"][0]["right_minus_left_ms"],2)
+        self.assertFalse(pair["complete"])
+
+    def test_loss_and_unavailable_attribution_are_not_complete_pairs(self):
+        rows=[self.call(0,1)]
+        for observer in [{"dropped":1},{"query_dropped":1},{"attribution_complete":False},
+                         {"available":True,"attribution_complete":None}]:
+            with self.subTest(observer=observer):
+                pair=pair_groups(self.group("left",rows),self.group("right",rows,**observer))
+                self.assertEqual(pair.get("matched_calls",0),1,"valid API pairs must remain visible")
+                self.assertFalse(pair["complete"])
+                self.assertTrue(pair["issues"])
+
+    @settings(max_examples=3,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.lists(st.integers(min_value=1,max_value=10_000),min_size=1,max_size=5))
+    def test_pairing_uses_actual_position_and_fingerprint_not_input_order(self,values):
+        left=[self.call(i,value) for i,value in enumerate(values)]
+        right=[self.call(i,value+2_000_000) for i,value in enumerate(values)]
+        pair=pair_groups(self.group("left",left),self.group("right",list(reversed(right))))
+        self.assertEqual(pair.get("matched_calls",0),len(values),"missing ordered-independent raw pairs")
+        self.assertEqual(pair["unpaired_calls"],0)
+        self.assertEqual(pair["right_minus_left_mean_ms"],2)
 
 
 if __name__=="__main__":

@@ -31,6 +31,11 @@ def describe(calls,wall_ns):
     return result
 
 
+def pair_groups(left,right):
+    """Compare matching successful raw calls, preserving unmatched and attribution issues."""
+    return {}
+
+
 def _dataset(config):
     records=[*config.get("records",[]),*config.get("write_records",[])]
     digest=hashlib.sha256()

@@ -52,7 +52,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None):
                   "shared_deadline_ns": deadline}
 
         def execute(cell, command, config, attempt, observe):
-            return _run_native(cell, command, config, attempt, observe, bounds)
+            return _run_native(cell, command, config, attempt, observe, bounds, resources)
 
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
@@ -86,7 +86,7 @@ def _sample_resources(resources, deadline, start=False):
     return sample
 
 
-def _run_native(cell, command, config, attempt, monitor, bounds):
+def _run_native(cell, command, config, attempt, monitor, bounds, resources=None):
     native = dict(cell)
     for key, limit in bounds.items():
         native[key] = min(native.get(key, limit), limit)
@@ -140,10 +140,19 @@ def _run_native(cell, command, config, attempt, monitor, bounds):
             cleanup = _cleanup_owned_group(child, deadline=min(hard-5, time.monotonic()+20))
         if not cleanup["complete"]:
             error = error or "owned group cleanup incomplete"
+        samples = []
+        if resources:
+            try:
+                sample = _sample_resources(resources, hard)
+                sample["phase"] = "final"
+                samples.append(sample)
+            except _CampaignRefusal as refusal:
+                error = error or str(refusal)
         if time.monotonic() >= hard:
             error = error or "cell hard deadline"
         return {"exit":124 if error else child.returncode, "error":error,
-                "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup}
+                "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup,
+                "resource_samples":samples if resources else None}
 
 
 class _CampaignRefusal(Exception):

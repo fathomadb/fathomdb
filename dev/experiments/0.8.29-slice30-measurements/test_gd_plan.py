@@ -115,3 +115,27 @@ class DCatalogTests(unittest.TestCase):
     @given(st.permutations(["gn","go","dn","do"]))
     def test_control_artifact_order_never_changes_d_schedule(self,keys):
         self.check_d(self.generate(keys))
+
+
+class CpuPolicyCatalogTests(unittest.TestCase):
+    generate = GCatalogTests.generate
+
+    def check_policy(self, cells):
+        self.assertEqual(len(cells), 28)
+        self.assertEqual([row.get("quiet_start") for row in cells],
+                         [row["group"] in {"G1", "G2", "GO", "GG"} for row in cells],
+                         "normal retrieval quiet policy missing from actual catalog")
+
+
+    def test_literal_catalog_has_quiet_retrieval_and_observed_d_worker_controls(self):
+        self.check_policy(self.generate(["gn", "go", "dn", "do"]))
+
+    @settings(max_examples=3, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.permutations(["gn", "go", "dn", "do"]))
+    def test_reference_order_preserves_preparation_and_intentional_worker_policy(self, keys):
+        self.check_policy(self.generate(keys))
+
+    def test_cpu_observations_are_requested_for_every_actual_catalog_entry(self):
+        cells = self.generate(["gn", "go", "dn", "do"])
+        self.assertEqual(sum(row.get("cpu_observation") is True for row in cells), 28,
+                         "actual catalog omits CPU baseline/runtime observation")

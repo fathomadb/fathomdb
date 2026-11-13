@@ -10,6 +10,7 @@
 | Closed templates | Existing deterministic768 and normal BGE producers, canonical(kind,cursor)→mapping→physical/span/profile verification, closed WAL/hash/copy/reopen. D covered ends remain unknown; BGE uses actual UTF8 head ends. |
 | D worker observation | Accepted600bcd8→9b1b252: actual projection worker/batch IDs, jobs/cursors, typed start/end and state observations in an independent bounded stream. Conversion uses the supplied attempt origin; loss/toggles/aborted/invalid-clock cases have runtime tests. No inferred worker concurrency. |
 | D held adapter | Accepted914751e→8971508: verified empty configuration, freeze plus empty idle drain BEFORE writes, actual pendingN/vector0, idempotent explicit/Drop release then drain/physical completion. Phase reports use observed counts and one clock before open. Freeze does not cancel admitted scans. |
+| D ordinary source caller | Actual deterministic-provider warmup/timed queries, concurrent governed writer cohorts, serialized100ms readiness calls and same-origin worker/query adapter. DN/DO-off attribution stays unavailable; actual output feeds strict overlap analysis. Tiny closed seeds and literal queries are controls, not campaign populations or qualifying overlap. |
 
 ## GG governed valid/Deleted measured stages
 
@@ -20,10 +21,11 @@ fact fixture remains NOT_RED. Controlled fixtures are not the100k campaign.
 
 ## Remaining implementation
 
-- D13: ordinary writer/query/worker overlap and same100ms readiness load across
-  DN/DO-off/DO-on. Enabled traces require strict common intersection and the
-  complete positive readiness invocation inside it. Control worker attribution
-  remains unavailable. No sleep/hold/padded interval in ordinary overlap.
+- D population routing: connect supplied fixed queries and complete population
+  inputs to empty-store ordinary and held routes; current tiny closed-seed caller
+  is a source control. No campaign-sized preparation. Qualifying overlap still
+  requires actual strict common intersection and a successful full positive
+  readiness invocation inside it; no sleep/hold/padded intervals.
 - Native execution budgets: absolute admission and remaining-budget drains/close,
   bounded resource probes and owned cleanup. Existing5s drains are source fixtures.
 - Controller: immutable26measurement+at most2preparation entries, actual generic

@@ -74,6 +74,12 @@ def main():
         result = {"status": "NOT_EVALUATED", "timed_queries": sum(row["phase"] == "timed" for row in queries),
                   "write_calls": len(writes), "readiness_calls": len(ready),
                   "worker_records": len(workers.get("records") or []) if workers["available"] else None}
+        result.update(analyze(
+            queries=[row for row in queries if row["phase"] == "timed"], writes=writes,
+            workers=workers["records"] or [], readiness=ready,
+            enabled=workers["available"] is True,
+            dropped=workers["dropped"] if workers["available"] else 0,
+            attribution_complete=workers["attribution_complete"] is True))
     else:
         result = analyze(**request)
     print(json.dumps(result))

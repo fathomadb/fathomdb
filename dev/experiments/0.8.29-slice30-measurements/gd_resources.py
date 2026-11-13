@@ -152,7 +152,7 @@ def _owned_subreaper():
             raise OSError(ctypes.get_errno(), "restore process child-subreaper state")
 
 
-def _cleanup_owned_group(child):
+def _cleanup_owned_group(child, deadline=None):
     import os
     import signal
     import time

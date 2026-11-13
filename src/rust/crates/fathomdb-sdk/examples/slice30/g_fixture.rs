@@ -50,6 +50,9 @@ mod g_observer;
 #[path = "g_observer_controls.rs"]
 mod g_observer_controls;
 
+#[path = "g_budget.rs"]
+mod g_budget;
+
 enum GAdapter {
     Core(Box<OpenedEngine>),
     Sdk(Box<SdkEngine>),

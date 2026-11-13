@@ -752,6 +752,7 @@ if [ -z "$slice30_g_mean_gpu_reason" ] && { [ "${AGENT_LONG:-0}" != 1 ] \
 fi
 run_tier_maybe_suite heavy test-slice30-g-campaign "$slice30_g_mean_gpu_reason" bash -c '
   set -euo pipefail
+  cargo test --locked --release -p fathomdb-tc5-benchmark --bin slice30-g-measurement --features slice30-g -- --test-threads=1 --nocapture
   label="controller-g-${BASHPID}"
   python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "$label"
   export S30_G_CONTROLLER_FEATURES="$S30_GD_TASK/proofs/gd-g-host-${label}.json"

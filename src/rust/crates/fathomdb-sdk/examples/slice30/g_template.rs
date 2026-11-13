@@ -107,7 +107,10 @@ pub(super) fn run(config: &Value, out: &Path) {
         assert!(!ids.is_empty());
         let seed_ns = u64::try_from(seeding.elapsed().as_nanos()).unwrap();
         let draining = std::time::Instant::now();
-        engine.drain(5000).unwrap();
+        super::g_budget::drain(config, |timeout| {
+            engine.drain(timeout).map_err(|error| format!("{error:?}"))
+        })
+        .unwrap();
         let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
         let pending = engine.read_embedding_readiness().unwrap().pending_count;
         assert_eq!(pending, 0);

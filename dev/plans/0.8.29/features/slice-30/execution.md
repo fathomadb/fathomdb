@@ -910,3 +910,15 @@ aggregate-cap qualification; those controller units remain required.
   run bounded cleanup in finally, preserve full traceback and failed outcome,
   and retain inflight if cleanup is uncertain. The successful-leader descendant
   finding remains separately open; no combined lifecycle acceptance is claimed.
+
+### G successful-leader descendant finding RED
+
+- `g-lifecycle-success-descendant-red` establishes a real descendant's distinct
+  PID in the actual leader's private process group, then lets the leader exit 0
+  with a complete report. The descendant remains live and later writes its
+  marker. The literal runtime assertion fails `'complete' != 'failed' :
+  successful leader was accepted with surviving owned work`; one failure,
+  exit 1, no resource stop. The harmless descendant exits before the test ends.
+- Frozen expectations require rejecting that completion, bounded cleanup of
+  surviving owned work while the leader pin is retained, no late marker and no
+  remaining live owned PIDs. Earlier pin/exception assertions remain unchanged.

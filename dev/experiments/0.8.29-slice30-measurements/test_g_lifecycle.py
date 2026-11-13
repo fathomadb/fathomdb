@@ -86,3 +86,35 @@ class GSignalPinTests(unittest.TestCase):
             self.assertTrue(all(facts is not None for facts in observed),
                             "owned group signalling attempted after actual leader pin was reaped")
             self.assertIsNotNone(child.returncode)
+
+class GSuccessfulLeaderTests(unittest.TestCase):
+    def test_successful_leader_cannot_complete_with_actual_live_owned_descendant(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ready, late = root / "descendant-started", root / "descendant-late"
+            descendant = "\n".join([
+                "import json,os,pathlib,time",
+                f"pathlib.Path({str(ready)!r}).write_text(json.dumps({{'pid':os.getpid(),'pgid':os.getpgrp()}}))",
+                "time.sleep(0.2)",
+                f"pathlib.Path({str(late)!r}).write_text('survived successful leader')",
+            ])
+            code = "\n".join([
+                "import json,pathlib,subprocess,sys,time",
+                f"subprocess.Popen([sys.executable,'-c',{descendant!r}])",
+                "until=time.monotonic()+2",
+                f"while not pathlib.Path({str(ready)!r}).exists() and time.monotonic()<until: time.sleep(0.005)",
+                "(pathlib.Path(sys.argv[2])/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
+            ])
+            outcome = run_g_attempt({"id": "successful-leader"}, root,
+                                    [sys.executable, "-c", code], time.monotonic_ns() + 5 * 10**9)
+            time.sleep(0.35)
+            self.assertTrue(ready.exists(), "actual owned descendant was not established")
+            facts = json.loads(ready.read_text())
+            self.assertEqual(facts["pgid"], outcome["pid"])
+            self.assertNotEqual(facts["pid"], outcome["pid"])
+            self.assertEqual(outcome["child_exit"], 0)
+            self.assertEqual(outcome["status"], "failed", "successful leader was accepted with surviving owned work")
+            self.assertEqual(outcome["error"], "owned_work_survived_leader")
+            self.assertFalse(late.exists(), "actual descendant continued after successful leader completion")
+            self.assertFalse(outcome["cleanup_uncertain"])
+            self.assertEqual(outcome["live_owned_pids"], [])

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from control import read_jsonl_records
+from metrics import aggregate
 
 
 def _json(path,issues):
@@ -18,7 +19,16 @@ def _json(path,issues):
 
 def describe(calls,wall_ns):
     """Separate timed/warmup latency populations and all-call whole-cell throughput."""
-    return {}
+    result={"all_requests":len(calls),"wall_ns":wall_ns,
+            "throughput_all_per_s":len(calls)*1_000_000_000/wall_ns if wall_ns else None,
+            "throughput_scope":"all warmup and timed calls over whole cell including preparation, writes, drain, close and cleanup; excludes outcome serialization"}
+    for phase in ["timed","warmup"]:
+        rows=[dict(row,error=row.get("error_class") or row.get("error") or "unknown")
+              for row in calls if row["phase"]==phase]
+        population=aggregate(rows,0)
+        population.pop("throughput_all_per_s")
+        result[phase]=population
+    return result
 
 
 def _dataset(config):

@@ -167,6 +167,19 @@ def _dataset(config):
     return digest.hexdigest()
 
 
+def environment(cell,outcome):
+    """Expose retained accounting without treating absent samples as cap compliance."""
+    before=outcome.get("environment_before")
+    baseline=before.get("cpu_baseline") if isinstance(before,dict) else None
+    cpu=outcome.get("cpu_samples")
+    observations=([baseline] if baseline else [])+(cpu or [])
+    return {"before":before,"cpu_requested":bool(cell.get("cpu_observation")),
+            "gpu_requested":bool(cell.get("gpu_reservation")),"cpu_samples":cpu,
+            "cpu_noisy":any(row["load1"]>2.5 for row in observations) if observations else None,
+            "cpu_scope":"observed total load; baseline precedes own work, runtime may include intentional workers",
+            "gpu_samples":outcome.get("gpu_samples"),"admission":outcome.get("admission")}
+
+
 def summarize(manifest, root):
     """Normalize actual plan/outcome/raw identities; never infer missing worker records as zero."""
     root=Path(root)
@@ -182,6 +195,7 @@ def summarize(manifest, root):
                "observer_feature":"slice30-measurement" in manifest["artifacts"][cell["artifact"]].get("features",[]),
                "repeat":cell.get("repeat"),"n":cell.get("n"),"workload":cell.get("workload"),
                "issues":list(state_issues)}
+        group["environment"]=environment(cell,outcome or {})
         groups.append(group)
         if outcome is None or outcome.get("attempt") is None:
             if outcome is not None:

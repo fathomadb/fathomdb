@@ -69,6 +69,15 @@ pub(super) fn current_coverage(
     json!({"current_by_kind":by_kind,"current_vector_cursors":physical_ids.len(),"total_physical_vectors":total,"historical_physical_vectors":historical})
 }
 
+pub(super) fn admitted_read<T>(
+    _config: &Value,
+    _out: &Path,
+    _phase: &str,
+    read: impl FnOnce() -> T,
+) -> Result<T, ()> {
+    Ok(read())
+}
+
 fn governed_write(
     engine: &fathomdb_sdk::Engine,
     writes: &[PreparedWrite],
@@ -113,7 +122,10 @@ pub(super) fn reset(
     let drain_ns = ns(draining);
     let pending = fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count;
     assert_eq!(pending, 0);
-    let coverage = current_coverage(path, &engine.open_report().default_embedder);
+    let coverage = admitted_read(config, out, "coverage", || {
+        current_coverage(path, &engine.open_report().default_embedder)
+    })
+    .unwrap();
     assert_eq!(coverage["current_by_kind"]["note"], 10);
     let mut report = json!({"reset_write_calls":1,"reset_rows":writes.len(),"reset_write_ns":write_ns,
         "reset_drain_ns":drain_ns,"pending_after_drain":pending,"coverage":coverage});
@@ -177,9 +189,14 @@ pub(super) fn run(
         let mut filter = fathomdb_engine::SearchFilter::default();
         filter.kind = Some("note".into());
         options.filter = Some(filter);
-        let start = ns(origin);
-        let result = engine.search_text_only(&format!("s30markercurrent{slot}"), options).unwrap();
-        let end = ns(origin);
+        let (result, start, end) = admitted_read(config, out, "probe", || {
+            let start = ns(origin);
+            let result =
+                engine.search_text_only(&format!("s30markercurrent{slot}"), options).unwrap();
+            let end = ns(origin);
+            (result, start, end)
+        })
+        .unwrap();
         let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
         let bodies: Vec<_> = result.results.iter().map(|hit| hit.body.clone()).collect();
         let current = ids == [format!("l:s30marker-{slot}")]
@@ -195,7 +212,10 @@ pub(super) fn run(
     }
     recorder.flush_all();
     let start = ns(origin);
-    let mut coverage = current_coverage(path, &engine.open_report().default_embedder);
+    let mut coverage = admitted_read(config, out, "coverage", || {
+        current_coverage(path, &engine.open_report().default_embedder)
+    })
+    .unwrap();
     let end = ns(origin);
     coverage["event"] = json!("active_coverage");
     coverage["cohort"] = json!(cohort);
@@ -275,6 +295,103 @@ mod tests {
         #[test]
         fn expired_governed_writes_never_publish_a_partial_cohort(count in 1usize..5, key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
             expired(key, count);
+        }
+    }
+
+    fn actual_read(config: &Value, count: usize, text: bool, allowed: bool) {
+        let root = tempfile::Builder::new().prefix("s30-g2-read-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = fathomdb_sdk::Engine::open(
+            &store,
+            fathomdb_sdk::OpenOptions { use_default_embedder: false, ..Default::default() },
+        )
+        .unwrap();
+        let writes: Vec<_> = (0..count)
+            .map(|index| PreparedWrite::Node {
+                kind: "note".into(),
+                body: format!("readmarker évidence {index}"),
+                logical_id: Some(format!("read-{index}")),
+                source_id: SourceId::new("test:s30-g2-read-admission").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        engine.write(&writes).unwrap();
+        let db = Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let before: usize =
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
+        assert_eq!(before, count);
+        assert_eq!(
+            engine.search_text_only("readmarker", Default::default()).unwrap().results.len(),
+            count
+        );
+        let mut calls = 0;
+        let result = admitted_read(config, &root, if text { "probe" } else { "coverage" }, || {
+            calls += 1;
+            if text {
+                engine.search_text_only("readmarker", Default::default()).unwrap().results.len()
+            } else {
+                db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| {
+                    row.get::<_, usize>(0)
+                })
+                .unwrap()
+            }
+        });
+        engine.close().unwrap();
+        println!(
+            "actual G2 read {} text={text} allowed={allowed} calls={calls} result={result:?}",
+            root.display()
+        );
+        assert_eq!(
+            calls,
+            usize::from(allowed),
+            "read invoked after original work/hard/shared endpoint"
+        );
+        if allowed {
+            assert_eq!(result.unwrap(), count);
+        } else {
+            assert!(result.is_err());
+        }
+    }
+
+    fn expired_read(key: &str, text: bool, count: usize) {
+        actual_read(&json!({}), count, text, true);
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        actual_read(&config, count, text, false);
+    }
+
+    #[test]
+    fn work_endpoint_refuses_actual_marker_probe() {
+        expired_read("work_deadline_ns", true, 2);
+    }
+    #[test]
+    fn hard_endpoint_refuses_actual_marker_probe() {
+        expired_read("hard_deadline_ns", true, 1);
+    }
+    #[test]
+    fn shared_endpoint_refuses_actual_marker_probe() {
+        expired_read("shared_deadline_ns", true, 3);
+    }
+    #[test]
+    fn work_endpoint_refuses_actual_coverage_read() {
+        expired_read("work_deadline_ns", false, 3);
+    }
+    #[test]
+    fn hard_endpoint_refuses_actual_coverage_read() {
+        expired_read("hard_deadline_ns", false, 2);
+    }
+    #[test]
+    fn shared_endpoint_refuses_actual_coverage_read() {
+        expired_read("shared_deadline_ns", false, 1);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn read_admission_never_renews_original_endpoints(count in 1usize..5, text in any::<bool>(), key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            expired_read(key, text, count);
         }
     }
 }

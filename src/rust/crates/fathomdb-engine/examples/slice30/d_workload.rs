@@ -33,7 +33,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     if empty_start {
         dense_template::configure(engine);
         let start_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
-        engine.drain(5000).unwrap();
+        super::native_budget::drain(engine, config).unwrap();
         let readiness = engine.read_embedding_readiness().unwrap();
         let connection =
             Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
@@ -129,7 +129,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         });
         std::fs::write(out.join("writes.json"), serde_json::to_vec_pretty(&writes).unwrap())
             .unwrap();
-        engine.drain(5000).unwrap();
+        super::native_budget::drain(engine, config).unwrap();
     } else {
         for sample in 0..samples {
             write_row(

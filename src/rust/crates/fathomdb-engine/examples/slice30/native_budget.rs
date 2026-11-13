@@ -50,3 +50,10 @@ pub(super) fn run_control(config: &Value, out: &Path) {
     };
     std::fs::write(out.join("budget.json"), serde_json::to_vec_pretty(&report).unwrap()).unwrap();
 }
+
+pub(super) fn drain(engine: &Engine, config: &Value) -> Result<Value, String> {
+    let started = if config["work_deadline_ns"].is_u64() { Some(monotonic_ns()?) } else { None };
+    let timeout_ms = 5000;
+    engine.drain(timeout_ms).map_err(|error| format!("{error:?}"))?;
+    Ok(json!({"drain_calls":1,"timeout_ms":timeout_ms,"start_ns":started}))
+}

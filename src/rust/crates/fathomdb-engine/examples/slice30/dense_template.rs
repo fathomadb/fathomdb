@@ -44,7 +44,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     let receipt = engine.write(&writes).unwrap();
     let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
     let draining = std::time::Instant::now();
-    engine.drain(5000).unwrap();
+    super::native_budget::drain(engine, config).unwrap();
     let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let pending = engine.read_embedding_readiness().unwrap().pending_count;
     assert_eq!(pending, 0);

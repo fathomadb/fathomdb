@@ -116,7 +116,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     assert_eq!(empty["sql"]["physical_vectors"], 0);
     let requests = Cell::new(0);
     let (mut hold, freezing) = timed(origin, || Hold::freeze(engine, &requests));
-    let (_, empty_idle) = timed(origin, || engine.drain(5000).unwrap());
+    let (_, empty_idle) = timed(origin, || super::native_budget::drain(engine, config).unwrap());
     let idle = observation(origin, engine, &store);
     assert_eq!(idle["readiness"]["pending_count"], 0);
     assert_eq!(idle["sql"]["canonical_rows"], 0);
@@ -199,7 +199,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         }
         drop(hold);
     });
-    let (_, draining) = timed(origin, || engine.drain(5000).unwrap());
+    let (_, draining) = timed(origin, || super::native_budget::drain(engine, config).unwrap());
     let released = observation(origin, engine, &store);
     assert_eq!(released["readiness"]["pending_count"], 0);
     assert_eq!(released["sql"]["physical_vectors"], records.len());

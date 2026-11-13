@@ -1016,3 +1016,14 @@ aggregate-cap qualification; those controller units remain required.
   immutable completed report data is cached by the tool; no live readiness is
   reused. Freeze/run/report CLI and telemetry binding are the remaining Python
   integration work; no native/model/GPU evidence is inferred here.
+
+### Exact frozen-input entry RED
+
+- `g-runner-freeze-red` invokes the working local identity/freezing scaffold
+  with actual tiny unregistered corpus/cache files. It publishes a manifest
+  instead of refusing the registered corpus mismatch: `AssertionError:
+  ValueError not raised`. One runtime failure, exit 1, no resource stop.
+- Frozen expectations require refusal before publication and unchanged local
+  controlled cache bytes. No real model, binary/native, dataset fetch, GPU
+  query or database open occurs. The final entry must verify the existing
+  registered bytes and exact current build/cache identities before execution.

@@ -42,7 +42,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
             samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
         check_clock()
         cpu_baseline = _cpu_sample(load) if cell.get("cpu_observation") else None
-        quiet = _quiet_start(load, effective_work_deadline) if cell.get("quiet_start") else None
+        quiet = _quiet_start(load, effective_work_deadline, stop_manifest) if cell.get("quiet_start") else None
         check_clock()
         context = before() if before else None
         if quiet is not None:
@@ -65,7 +65,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
     def check_clock():
         if cancelled is not None:
-            raise _CampaignRefusal("controller_stopped")
+            raise _CampaignRefusal("controller_stopped", controller_signal=cancelled)
         if clock["boot_id"] != boot_id:
             raise _CampaignRefusal("campaign_clock_unavailable")
         now = time.monotonic_ns()
@@ -73,6 +73,10 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
             raise _CampaignRefusal("campaign_time_cap")
         if now >= work_deadline:
             raise _CampaignRefusal("cell_work_deadline")
+
+    def stop_manifest(number):
+        nonlocal cancelled
+        cancelled = cancelled if cancelled is not None else number
 
     outcomes = []
     for planned in manifest["cells"]:
@@ -116,8 +120,12 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
                                              monitor=monitor, before=prepare,
                                              poll_interval=0.1, observe_start=monitor is not None, execute=execute))
         except _CampaignRefusal as error:
+            if error.controller_signal is not None:
+                stop_manifest(error.controller_signal)
             outcome = {"id": cell["id"], "cell": cell, "status": "not_run_resource",
                        "reason": str(error), "pid": None, "attempt": None, "exit": None}
+            if cancelled is not None:
+                outcome["controller_signal"] = cancelled
             if error.admission is not None:
                 outcome["admission"] = error.admission
             state_path = root / "campaign-state.json"
@@ -157,18 +165,20 @@ def _cpu_sample(load):
     return {"observed_ns":time.monotonic_ns(),"load1":value}
 
 
-def _quiet_start(load, deadline_ns):
+def _quiet_start(load, deadline_ns, on_stop):
     observations = []
-    with _owned_stop_flags() as stopped:
+    with _owned_stop_flags(on_stop) as stopped:
         while True:
             if stopped["signal"] is not None:
-                raise _CampaignRefusal("controller_stopped", {"cpu_quiet":observations})
+                raise _CampaignRefusal("controller_stopped", {"cpu_quiet":observations}, stopped["signal"])
             remaining = (deadline_ns-time.monotonic_ns())/1_000_000_000
             if remaining <= 0:
                 raise _CampaignRefusal("cpu_quiet_deadline", {"cpu_quiet":observations})
             sample = _cpu_sample(load)
             value = sample["load1"]
             observations.append(sample)
+            if stopped["signal"] is not None:
+                raise _CampaignRefusal("controller_stopped", {"cpu_quiet":observations}, stopped["signal"])
             if observations[-1]["observed_ns"] >= deadline_ns:
                 raise _CampaignRefusal("cpu_quiet_deadline", {"cpu_quiet":observations})
             if value <= 2:
@@ -238,13 +248,15 @@ def _sample_resources(resources, deadline, start=False, swap=None):
 
 
 @contextmanager
-def _owned_stop_flags():
+def _owned_stop_flags(on_stop=None):
     state: dict[str, int | None] = {"signal":None}
     previous = {number:signal.getsignal(number) for number in (signal.SIGTERM,signal.SIGINT)}
 
     def stop(number, _frame):
         if state["signal"] is None:
             state["signal"] = number
+            if on_stop is not None:
+                on_stop(number)
 
     try:
         for number in previous:
@@ -380,9 +392,10 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
 
 
 class _CampaignRefusal(Exception):
-    def __init__(self,reason,admission=None):
+    def __init__(self,reason,admission=None,controller_signal=None):
         super().__init__(reason)
         self.admission=admission
+        self.controller_signal=controller_signal
 
 
 def _native_complete(cell, attempt):

@@ -630,5 +630,39 @@ class GpuAccountingTests(_NativeGFixture):
     def test_accounted_preparation_preserves_selected_unicode_rows(self,suffix):
         self.check_accounting(suffix)
 
+
+class PreparationStopTests(_NativeGFixture):
+    def check_stopped_preparation(self, family, work_ns):
+        questions=self.root/f"stop-questions-{self.ordinal}.jsonl"
+        questions.write_text(json.dumps({"id":0,"query":"actual"})+"\n")
+        config=dict(self.config,family=family,queries=str(questions),modes=["engine_text"],
+                    passes=["engine_text"],warmups=0,query="actual",limit=10)
+        out=self.invoke(config,relative_work_ns=work_ns,allow_partial=True)
+        store=out/"case-0/template.sqlite"
+        if not store.exists():
+            raise RuntimeError("actual post-open preparation boundary was not reached NOT_RED")
+        report=json.loads((out/"budget.json").read_text())
+        if report.get("phase")!="configure":
+            raise RuntimeError(f"actual post-open configure refusal missing NOT_RED {report}")
+        self.assertEqual(report["disposition"],"deadline_refused")
+        with closing(sqlite3.connect(f"file:{store}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],0)
+        self.assertFalse((out/"case-0/template.json").exists())
+        destination={"G1_PLAN_FIXTURE":"cell","G_FEED_FIXTURE":"engine_text","G_LIMIT":"engine_hybrid"}[family]
+        print(f"actual refused preparation {family} destination_exists={(out/destination).exists()} {out}",flush=True)
+        self.assertFalse((out/destination).exists(),"caller copied/opened a measurement store after its producer stopped")
+        self.assertFalse((out/"limit-proof.json").exists())
+
+    def test_all_normal_fixture_callers_stop_before_copy_after_actual_open_expiry(self):
+        for family in ["G1_PLAN_FIXTURE","G_FEED_FIXTURE","G_LIMIT"]:
+            with self.subTest(family=family):
+                self.check_stopped_preparation(family,250_000_000)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.sampled_from(["G1_PLAN_FIXTURE","G_FEED_FIXTURE","G_LIMIT"]),
+           st.integers(min_value=150_000_000,max_value=250_000_000))
+    def test_small_original_windows_cannot_begin_dependent_store_work(self,family,work_ns):
+        self.check_stopped_preparation(family,work_ns)
+
 if __name__ == "__main__":
     unittest.main()

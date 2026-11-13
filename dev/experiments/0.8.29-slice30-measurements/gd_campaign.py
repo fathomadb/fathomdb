@@ -2,10 +2,12 @@
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 import time
 
 from campaign import run_campaign
+from gd_resources import _cleanup_owned_group, _owned_subreaper
 
 
 def run_manifest(manifest, root, monitor=None, before=None):
@@ -38,13 +40,19 @@ def run_manifest(manifest, root, monitor=None, before=None):
     for planned in manifest["cells"]:
         hard_deadline = min(deadline, time.monotonic_ns()+int(min(manifest["cell_seconds"],900)*1_000_000_000))
         work_deadline = hard_deadline-30_000_000_000
+        bounds = {"work_deadline_ns": work_deadline, "hard_deadline_ns": hard_deadline,
+                  "shared_deadline_ns": deadline}
+
+        def execute(cell, command, config, attempt, observe):
+            return _run_native(cell, command, config, attempt, observe, bounds)
+
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
         try:
             outcomes.extend(run_campaign([cell], root, [artifact["path"]],
                                          timeout=manifest["cell_seconds"], completion=_native_complete,
                                          monitor=monitor, before=prepare,
-                                         poll_interval=0.1, observe_start=monitor is not None))
+                                         poll_interval=0.1, observe_start=monitor is not None, execute=execute))
         except _CampaignRefusal as error:
             outcome = {"id": cell["id"], "cell": cell, "status": "not_run_resource",
                        "reason": str(error), "pid": None, "attempt": None, "exit": None}
@@ -54,6 +62,58 @@ def run_manifest(manifest, root, monitor=None, before=None):
             state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
             outcomes.append(outcome)
     return outcomes
+
+
+def _run_native(cell, command, config, attempt, monitor, bounds):
+    native = dict(cell)
+    for key, limit in bounds.items():
+        native[key] = min(native.get(key, limit), limit)
+    config.write_text(json.dumps(native, indent=2) + "\n")
+    work = bounds["work_deadline_ns"] / 1_000_000_000
+    hard = min(bounds["hard_deadline_ns"], bounds["shared_deadline_ns"]) / 1_000_000_000
+    error = None
+    with _owned_subreaper(), (attempt / "child.log").open("wb") as log:
+        child = subprocess.Popen([*command, str(config), str(attempt)], stdout=log,
+                                 stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            while True:
+                now = time.monotonic()
+                if now >= work:
+                    error = "cell work deadline"
+                    break
+                if child.poll() is not None:
+                    break
+                if monitor:
+                    error = monitor(child.pid)
+                    if error:
+                        break
+                remaining = work-time.monotonic()
+                if remaining <= 0:
+                    error = "cell work deadline"
+                    break
+                try:
+                    child.wait(timeout=min(0.1, remaining))
+                except subprocess.TimeoutExpired:
+                    pass
+            if monitor and error is None:
+                error = monitor(child.pid)
+            if time.monotonic() >= work:
+                error = error or "cell work deadline"
+        finally:
+            if child.poll() is None:
+                cooperative = min(time.monotonic()+5, hard-25)
+                if cooperative > time.monotonic():
+                    try:
+                        child.wait(timeout=cooperative-time.monotonic())
+                    except subprocess.TimeoutExpired:
+                        pass
+            cleanup = _cleanup_owned_group(child, deadline=min(hard-5, time.monotonic()+20))
+        if not cleanup["complete"]:
+            error = error or "owned group cleanup incomplete"
+        if time.monotonic() >= hard:
+            error = error or "cell hard deadline"
+        return {"exit":124 if error else child.returncode, "error":error,
+                "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup}
 
 
 class _CampaignRefusal(Exception):

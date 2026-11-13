@@ -23,8 +23,8 @@ def make_plan(cells, repeats):
 
 
 def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, completion=None,
-                 poll_interval: float = 30, observe_start=False):
-    """Run fresh attempts; completion optionally validates a native protocol, defaulting to P result.json."""
+                 poll_interval: float = 30, observe_start=False, execute=None):
+    """Run fresh attempts; optional completion/execute callbacks adapt native protocols and supervision."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     state_path = root / "campaign-state.json"
@@ -46,32 +46,39 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
         started_at = time.time()
         started = time.monotonic_ns()
         error = None
-        with (attempt / "child.log").open("wb") as log:
-            child = subprocess.Popen([*command, str(config), str(attempt)],
-                                     stdout=log, stderr=subprocess.STDOUT)
-            group = os.getpgid(child.pid)
-            initial_observation = observe_start
-            while True:
-                remaining = timeout - (time.monotonic_ns() - started) / 1000000000
-                if not initial_observation:
-                    try:
-                        code = child.wait(timeout=max(0.01, min(poll_interval, remaining)))
+        execution = None
+        if execute is not None:
+            execution = execute(cell, command, config, attempt, monitor)
+            code, error = execution["exit"], execution["error"]
+            pid, group = execution["pid"], execution["pgid"]
+        else:
+            with (attempt / "child.log").open("wb") as log:
+                child = subprocess.Popen([*command, str(config), str(attempt)],
+                                         stdout=log, stderr=subprocess.STDOUT)
+                group = os.getpgid(child.pid)
+                initial_observation = observe_start
+                while True:
+                    remaining = timeout - (time.monotonic_ns() - started) / 1000000000
+                    if not initial_observation:
+                        try:
+                            code = child.wait(timeout=max(0.01, min(poll_interval, remaining)))
+                            break
+                        except subprocess.TimeoutExpired:
+                            pass
+                    initial_observation = False
+                    error = "cell timeout" if remaining <= 0 else (monitor(child.pid) if monitor else None)
+                    if error:
+                        child.terminate()
+                        try:
+                            child.wait(timeout=15)
+                        except subprocess.TimeoutExpired:
+                            child.kill()
+                            child.wait()
+                        code = 124
                         break
-                    except subprocess.TimeoutExpired:
-                        pass
-                initial_observation = False
-                error = "cell timeout" if remaining <= 0 else (monitor(child.pid) if monitor else None)
-                if error:
-                    child.terminate()
-                    try:
-                        child.wait(timeout=15)
-                    except subprocess.TimeoutExpired:
-                        child.kill()
-                        child.wait()
-                    code = 124
-                    break
-            if monitor:
-                error = error or monitor(child.pid)
+                if monitor:
+                    error = error or monitor(child.pid)
+            pid = child.pid
         result_path = attempt / "result.json"
         complete = False
         if code == 0 and error is None:
@@ -86,8 +93,11 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
         outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "exit": code,
                    "status": "complete" if complete else "failed", "error": error,
                    "elapsed_ns": time.monotonic_ns() - started, "environment_before": context,
-                   "started_at": started_at, "ended_at": time.time(), "pid": child.pid,
+                   "started_at": started_at, "ended_at": time.time(), "pid": pid,
                    "pgid": group, "command": [*command, str(config), str(attempt)]}
+        if execution is not None:
+            outcome["cleanup"] = execution["cleanup"]
+            outcome["child_exit"] = execution["child_exit"]
         outcomes.append(outcome)
         previous[cell["id"]] = outcome
         state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")

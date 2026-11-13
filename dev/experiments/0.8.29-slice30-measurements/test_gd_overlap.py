@@ -81,5 +81,37 @@ class OverlapTests(unittest.TestCase):
                          (offset+2, offset+width+4))
 
 
+def worker_analysis(workers, complete=True):
+    payload = {"queries": [span(0, 10)], "writes": [span(1, 9)],
+               "workers": workers, "readiness": [span(3, 4, pending_count=1)],
+               "attribution_complete": complete}
+    child = subprocess.run([sys.executable, str(TOOL)], input=json.dumps(payload),
+                           capture_output=True, text=True, timeout=5)
+    if child.returncode:
+        raise AssertionError(child.stderr)
+    return json.loads(child.stdout)
+
+
+class AttributionCompletenessTests(unittest.TestCase):
+    def test_invalid_worker_cannot_be_skipped_to_claim_complete_attribution(self):
+        for invalid in [span(None, None, clock_issue="unavailable"),
+                        span(2, 8, clock_issue="unavailable"), {}]:
+            with self.subTest(invalid=invalid):
+                result = worker_analysis([span(2, 8), invalid])
+                self.assertEqual(result.get("status"), "INCOMPLETE_ATTRIBUTION")
+                self.assertEqual(len(result["witnesses"]), 1)
+                self.assertEqual(result["unavailable_workers"], [1])
+
+    def test_native_adapter_missing_record_flag_prevents_complete_attribution(self):
+        result = worker_analysis([span(2, 8)], complete=False)
+        self.assertEqual(result.get("status"), "INCOMPLETE_ATTRIBUTION")
+        self.assertEqual(len(result["witnesses"]), 1)
+
+    def test_missing_worker_stream_is_not_complete_zero_concurrency(self):
+        result = worker_analysis([])
+        self.assertEqual(result.get("status"), "INCOMPLETE_ATTRIBUTION")
+        self.assertEqual(result["witnesses"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

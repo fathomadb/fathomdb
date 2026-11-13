@@ -4,7 +4,7 @@ import json
 import sys
 
 
-def analyze(queries, writes, workers, readiness, enabled=True, dropped=0):
+def analyze(queries, writes, workers, readiness, enabled=True, dropped=0, attribution_complete=True):
     """Return the overlap verdict; disabled worker attribution is unavailable."""
     return {"status": "NOT_EVALUATED"}
 

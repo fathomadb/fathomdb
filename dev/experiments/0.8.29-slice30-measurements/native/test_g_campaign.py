@@ -4,6 +4,7 @@ import fcntl
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 import sqlite3
 from contextlib import closing
@@ -15,7 +16,7 @@ import unittest
 from test_g_text import GPU, _accounting
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from gd_campaign import run_manifest  # noqa: E402
+from gd_campaign import _owned_stop_flags, _sample_resources, run_manifest  # noqa: E402
 
 MODES = ["engine_mean", "sdk_mean", "engine_hybrid", "sdk_hybrid", "engine_text", "sdk_text"]
 
@@ -96,6 +97,100 @@ class ActualGCampaignTests(unittest.TestCase):
                 assert all((row["returned_hits"],row["soft_fallback"],row["degradations"]) == (10,"None","[]") for row in [*warm,*timed])
         print("actual normal G preparation/CUDA/SQL/all-six-mode API controls passed", flush=True)
         self.assertEqual(outcomes[0]["status"], "complete", "missing actual G manifest completion integration")
+
+
+class NativeGAdmissionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from test_gd_campaign import actual_resources
+        cls.resources = actual_resources()
+        cls.task = Path(os.environ["S30_GD_TASK"])
+        cls.features = json.loads(Path(os.environ["S30_G_CONTROLLER_FEATURES"]).read_text())
+        cls.binary = Path(cls.features["binary"])
+        if cls.features["normal_gn"] is not True:
+            raise RuntimeError("normal GN identity required NOT_RED")
+        if os.environ.get("CUDA_VISIBLE_DEVICES") != GPU or os.environ.get("FATHOMDB_EMBED_DEVICE") != "cuda:0":
+            raise RuntimeError("approved CUDA reservation required NOT_RED")
+        for row in json.loads((cls.task/"receipts/gd-pinned-inputs.json").read_text())["copied"]:
+            if hashlib.sha256(Path(row["destination"]).read_bytes()).hexdigest() != row["sha256"]:
+                raise RuntimeError("pinned existing BGE files unavailable NOT_RED")
+        cls.root = Path(tempfile.mkdtemp(prefix="s30-g-native-budget-"))
+        cls.work_end = time.monotonic()+150
+        cls.records = [{"id":f"budget-{i}","kind":"doc","body":f"actual BGE budget é {i}"} for i in range(65)]
+        corpus = cls.root/"records.jsonl"
+        corpus.write_text("".join(json.dumps(row)+"\n" for row in cls.records))
+        cls.config = {"family":"G_TEMPLATE","gpu_uuid":GPU,"templates":[{"records":str(corpus)}],
+            "work_deadline_ns":int(cls.work_end*1e9),"hard_deadline_ns":int((cls.work_end+30)*1e9),"shared_deadline_ns":int((cls.work_end+30)*1e9)}
+        cls.ordinal = 0
+        cls.stopped = None
+        out = cls.invoke(dict(cls.config))
+        if not (out/"case-0/template.sqlite").exists():
+            raise RuntimeError("healthy actual BGE producer did not complete NOT_RED")
+
+    @classmethod
+    def invoke(cls,config):
+        from gd_resources import _cleanup_owned_group, _owned_subreaper
+        if cls.stopped is not None:
+            raise RuntimeError("source fixture stopped; no further native starts NOT_RED")
+        _sample_resources(cls.resources,cls.work_end,start=True)
+        case = cls.root/f"case-{cls.ordinal}"
+        cls.ordinal += 1
+        case.mkdir()
+        path,out = case/"cell.json",case/"out"
+        path.write_text(json.dumps(config))
+        digest = hashlib.sha256(cls.binary.read_bytes()).hexdigest()
+        if digest != cls.features["binary_sha256"]:
+            raise RuntimeError("actual artifact differs from normal feature proof NOT_RED")
+        print(f"G native admission {case} binary={digest}",flush=True)
+        samples=[]
+        with (cls.task/"locks"/(GPU+".lock")).open("a") as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            before = _accounting(None,min(cls.work_end,time.monotonic()+5))
+            if before["util"] or before["total_MiB"]-before["used_MiB"] < 8192:
+                raise RuntimeError("approved GPU not quiet/free NOT_RED")
+            with _owned_stop_flags() as stop, _owned_subreaper(),(case/"child.log").open("wb") as log:
+                child = subprocess.Popen([str(cls.binary),str(path),str(out)],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+                try:
+                    while child.poll() is None:
+                        if stop["signal"] is not None:
+                            cls.stopped = stop["signal"]
+                            raise RuntimeError("source fixture controlled stop NOT_RED")
+                        if time.monotonic() >= cls.work_end:
+                            raise RuntimeError("source work deadline NOT_RED")
+                        samples.append(_accounting(child.pid,min(cls.work_end,time.monotonic()+5)))
+                        try:
+                            child.wait(timeout=min(0.1,max(0,cls.work_end-time.monotonic())))
+                        except subprocess.TimeoutExpired:
+                            pass
+                finally:
+                    cleanup = _cleanup_owned_group(child,deadline=min(cls.work_end+30,time.monotonic()+20))
+                    cls.stopped = stop["signal"]
+                if not cleanup["complete"] or child.returncode != 0:
+                    raise RuntimeError(f"actual G runtime/setup NOT_RED {case} exit={child.returncode}")
+        print(json.dumps({"pid":child.pid,"uuid":GPU,"peak_own_MiB":max((row["own_MiB"] for row in samples),default=0),
+                          "positive_util":any(row["own_MiB"]>0 and row["util"]>0 for row in samples)}),flush=True)
+        if (out/"case-0/template.sqlite").exists():
+            report = json.loads((out/"case-0/template.json").read_text())["preparation"]
+            if not (report["api_complete"] and report["selected_cuda_uuid"]==GPU and report["cuda_compiled"] and
+                    report["write_rows"]==65 and report["write_calls"]==2 and report["pending"]==0 and
+                    len(report["coverage"]["rows"])==65 and any(row["own_MiB"]>0 and row["util"]>0 for row in samples)):
+                raise RuntimeError("actual normal CUDA preparation controls NOT_RED")
+            with closing(sqlite3.connect(f"file:{out/'case-0/template.sqlite'}?mode=ro",uri=True)) as db:
+                actual = db.execute("SELECT logical_id,kind,body FROM canonical_nodes ORDER BY write_cursor").fetchall()
+                if actual != [(row["id"],row["kind"],row["body"]) for row in cls.records]:
+                    raise RuntimeError("actual copied input/SQL controls NOT_RED")
+        return out
+
+    def test_each_expired_native_bound_prevents_default_bge_database_work(self):
+        for bound in ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]:
+            with self.subTest(bound=bound):
+                config = dict(self.config)
+                config[bound]=0
+                out = self.invoke(config)
+                self.assertFalse((out/"case-0/template.sqlite").exists(),"expired native G entry still opened/projected a real BGE store")
+                report = json.loads((out/"budget.json").read_text())
+                self.assertEqual(report["disposition"],"deadline_refused")
+                self.assertEqual(report["phase"],"entry")
 
 
 if __name__ == "__main__":

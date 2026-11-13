@@ -126,6 +126,12 @@ fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
     }
 }
 
+#[cfg(test)]
+fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
+    let _ = (engine, path);
+    json!({})
+}
+
 struct Schedule {
     searches: Vec<Value>,
     batches: Vec<Value>,
@@ -771,6 +777,54 @@ mod g_route_tests {
             assert!(hybrid["degradations"].as_str().unwrap().contains("EmbedderAbsent"));
             assert_eq!(hybrid["route"], "hybrid");
             engine.close();
+        }
+    }
+}
+
+#[cfg(test)]
+mod g_fixture_tests {
+    use super::*;
+
+    #[test]
+    fn g_fixture_reports_real_pending_and_physical_counts_without_false_readiness() {
+        for adapter in ["engine", "sdk"] {
+            let directory = tempfile::tempdir().unwrap();
+            let path = directory.path().join("g-fixture.sqlite");
+            let engine = Adapter::open(adapter, &path);
+            let spec = fathomdb_sdk::ProjectionSpec {
+                name: "doc".into(),
+                roles: [fathomdb_sdk::ProjectionRole::Searchable].into_iter().collect(),
+                fts: None,
+                vector: Some(fathomdb_sdk::ProjectionVector::default()),
+                source: None,
+            };
+            match &engine {
+                Adapter::Core(engine) => {
+                    engine.configure_projections(&[spec], &[]).unwrap();
+                }
+                Adapter::Sdk(engine) => {
+                    engine.configure_projections(&[spec], &[]).unwrap();
+                }
+            }
+            engine.write(&[node("alpha", "doc", "alpha needle"), node("beta", "doc", "beta")]);
+            let observed = g_fixture_observation(&engine, &path);
+            assert_eq!(
+                observed["natural_records"], 2,
+                "G fixture must report actual current canonical rows"
+            );
+            assert_eq!(observed["pending_count"], 2);
+            assert_eq!(observed["readiness"], "blocked");
+            assert_eq!(observed["usable_embedder"], false);
+            assert_eq!(observed["vector_rows"], 0);
+            assert_eq!(observed["span_rows"], 0);
+            assert_eq!(observed["format"], 37);
+            assert!(observed["generation_id"].as_str().unwrap().starts_with("pgen1:"));
+            assert_eq!(observed["qualified_dense_fixture"], false);
+            engine.close();
+            let reopened = Adapter::open(adapter, &path);
+            assert_eq!(observe_g_route(&reopened, "text", "needle")["ids"], json!(["l:alpha"]));
+            assert_eq!(g_fixture_observation(&reopened, &path)["pending_count"], 2);
+            reopened.close();
         }
     }
 }

@@ -54,13 +54,13 @@ def run(config,out):
             raise ValueError("selected question population does not match the declared cell")
         native=dict(config,family="G_TEMPLATE",templates=[{"records":str(records)}],
                     encoded_inputs={"records":record_count,"questions":question_count})
-    elif config["family"]=="G1_CELL" and config.get("template_from"):
+    elif config["family"] in {"G1_CELL","GG_CELL"} and config.get("template_from"):
         if not admitted("template_source"):
             return
         state={row["id"]:row for row in json.loads((Path(config["campaign_root"])/"campaign-state.json").read_text())}
         prepared=state[config["template_from"]]
-        questions=state[config["queries_from"]]
-        if prepared["status"]!="complete" or questions["status"]!="complete":
+        questions=state[config["queries_from"]] if config.get("queries_from") else None
+        if prepared["status"]!="complete" or (questions is not None and questions["status"]!="complete"):
             raise ValueError("dependent cell requires completed closed preparation")
         source=Path(prepared["attempt"])/"case-0/template.sqlite"
         metadata=json.loads((source.parent/"template.json").read_text())
@@ -90,10 +90,13 @@ def run(config,out):
         if copy_hash!=source_hash:
             raise ValueError("fresh writable copy differs from closed source")
         question_copy=out/"questions.jsonl"
-        shutil.copyfile(Path(questions["attempt"])/"questions.jsonl",question_copy)
+        if questions is not None:
+            shutil.copyfile(Path(questions["attempt"])/"questions.jsonl",question_copy)
         (out/"copy.json").write_text(json.dumps({"source":str(source),"source_main_sha256":source_hash,
             "initial_copy_sha256":copy_hash,"source_hash_ns":source_hash_ns,"copy_ns":copy_ns,"copy_hash_ns":copy_hash_ns})+"\n")
-        native=dict(config,store=str(store),queries=str(question_copy))
+        native=dict(config,store=str(store))
+        if questions is not None:
+            native["queries"]=str(question_copy)
     else:
         raise ValueError("unsupported owned preparation stage")
     native_path=out/"native-config.json"

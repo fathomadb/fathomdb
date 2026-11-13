@@ -860,6 +860,19 @@ run_tier_maybe_suite heavy test-slice30-gg-time "$slice30_g_mean_gpu_reason" bas
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_gg_time.py
 '
 
+run_tier_maybe_suite heavy test-slice30-gg-campaign "$slice30_g_mean_gpu_reason" bash -c '
+  set -euo pipefail
+  artifacts=$(mktemp -d "${S30_GD_TASK}/proofs/gg-artifacts-XXXXXX")
+  label=${artifacts##*/}
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "${label}-gn"
+  cp "${CARGO_TARGET_DIR}/release/slice30-g-measurement" "${artifacts}/gn"
+  cp "${S30_GD_TASK}/proofs/gd-g-host-feature-closure.json" "${artifacts}/gn-features.json"
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "${label}-go" observer
+  cp "${CARGO_TARGET_DIR}/release/slice30-g-measurement" "${artifacts}/go"
+  cp "${S30_GD_TASK}/proofs/gd-g-host-feature-closure.json" "${artifacts}/go-features.json"
+  S30_GO_ARTIFACTS="$artifacts" timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_gg_campaign.py
+'
+
 run_tier_maybe_suite heavy test-slice30-g-observer "$slice30_g_mean_gpu_reason" bash -c '
   set -e
   artifacts=$(mktemp -d "${S30_GD_TASK}/proofs/go-artifacts-XXXXXX")

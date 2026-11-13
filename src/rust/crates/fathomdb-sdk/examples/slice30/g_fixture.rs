@@ -44,6 +44,9 @@ mod g_gg_governed;
 #[path = "g_gg_time.rs"]
 mod g_gg_time;
 
+#[path = "g_gg_cell.rs"]
+mod g_gg_cell;
+
 #[path = "g_observer.rs"]
 mod g_observer;
 
@@ -361,6 +364,9 @@ pub(super) fn run(config: &Value, out: &Path) {
 }
 
 pub(super) fn run_observed(config: &Value, out: &Path, observer: Option<CoreObserver>) {
+    if config["family"] == "GG_CELL" {
+        return g_gg_cell::run(config, out, observer.expect("GG requires the private GO artifact"));
+    }
     if config["family"] == "GG_GOVERNED_FIXTURE" {
         return g_gg_governed::fixture(
             config,

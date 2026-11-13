@@ -664,6 +664,62 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     result
 }
 
+fn run_g_seed(config: &Value, out: &Path) -> Value {
+    let provider = config["provider"].as_str().expect("G provider");
+    let negative = config["negative_control"] == true;
+    assert_eq!(provider, if negative { "none" } else { "default" });
+    if !negative {
+        assert_eq!(
+            std::env::var("AGENT_LONG").as_deref(),
+            Ok("1"),
+            "Default runs require the explicit long-run opt-in"
+        );
+    }
+    let adapter = config["adapter"].as_str().expect("G seed adapter");
+    let corpus = read_jsonl(config["corpus"].as_str().expect("corpus path"));
+    let queries = read_jsonl(config["queries"].as_str().expect("queries path"));
+    let n = usize::try_from(config["n"].as_u64().expect("G seed n")).unwrap();
+    assert!(n > 0 && n <= corpus.len() && !queries.is_empty());
+    std::fs::create_dir_all(out).expect("owned G seed output");
+    let store = out.join("store.sqlite");
+    assert!(!store.exists(), "G seed store must be fresh");
+    let start = std::time::Instant::now();
+    let engine = Adapter::open_g(adapter, &store, provider);
+    let open_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    let start = std::time::Instant::now();
+    for begin in (0..n).step_by(1024) {
+        engine.write(
+            &corpus[begin..n.min(begin + 1024)]
+                .iter()
+                .enumerate()
+                .map(|(offset, body)| node(&format!("s30doc-{}", begin + offset), "doc", body))
+                .collect::<Vec<_>>(),
+        );
+    }
+    let write_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    let before_close = g_fixture_observation(&engine, &store);
+    let start = std::time::Instant::now();
+    engine.close();
+    drop(engine);
+    let close_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    let start = std::time::Instant::now();
+    let reopened = Adapter::open_g(adapter, &store, provider);
+    let reopen_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    let lexical = observe_g_route(&reopened, "text", &queries[0]);
+    let after_reopen = g_fixture_observation(&reopened, &store);
+    reopened.close();
+    drop(reopened);
+    let result = json!({"complete":negative && before_close["natural_records"]==n,
+        "control":if negative {"negative_no_provider"} else {"default_dense_seed"},
+        "requested_provider":provider,"adapter":adapter,"natural_records":before_close["natural_records"],
+        "projection_declared":null,"configure_ns":null,"drain_ns":null,
+        "open_ns":open_ns,"write_ns":write_ns,"close_ns":close_ns,"reopen_ns":reopen_ns,
+        "before_close":before_close,"after_reopen":after_reopen,"lexical_probe":lexical,
+        "qualified_dense_fixture":false});
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
+}
+
 fn run_g_control(config: &Value, out: &Path) -> Value {
     assert_eq!(config["provider"], "none", "G-control is only a negative readiness control");
     let corpus = read_jsonl(config["corpus"].as_str().expect("corpus path"));
@@ -789,6 +845,8 @@ fn main() {
         .expect("cell JSON");
     let result = if config["family"] == "G-control" {
         run_g_control(&config, Path::new(&args[2]))
+    } else if config["family"] == "G-seed" {
+        run_g_seed(&config, Path::new(&args[2]))
     } else {
         run_cell(&config, Path::new(&args[2]))
     };

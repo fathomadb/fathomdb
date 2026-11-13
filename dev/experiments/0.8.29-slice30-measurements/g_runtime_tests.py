@@ -62,5 +62,42 @@ class GNormalCliTests(unittest.TestCase):
                                 for fixture in result["fixtures"]))
 
 
+    def test_shared_seed_driver_declares_reports_and_reopens_without_false_dense_readiness(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        for adapter in ["engine", "sdk"]:
+            with self.subTest(adapter=adapter), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+                corpus.write_text('"alpha needle"\n"beta"\n')
+                queries.write_text('"needle"\n')
+                config = root / "cell.json"
+                config.write_text(json.dumps({"family": "G-seed", "provider": "none",
+                                              "negative_control": True, "adapter": adapter,
+                                              "n": 2, "corpus": str(corpus),
+                                              "queries": str(queries)}))
+                child = subprocess.run([str(binary), str(config), str(root / "out")],
+                                       text=True, capture_output=True, timeout=30, check=False)
+                self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+                result = json.loads((root / "out" / "result.json").read_text())
+                self.assertTrue(result["projection_declared"],
+                                "shared G seed driver did not declare the public doc vector projection")
+                self.assertTrue(result["complete"])
+                self.assertEqual(result["requested_provider"], "none")
+                self.assertEqual(result["natural_records"], 2)
+                self.assertEqual(result["lexical_probe"]["ids"], ["l:s30doc-0"])
+                self.assertFalse(result["qualified_dense_fixture"])
+                for phase in ["open_ns", "configure_ns", "write_ns", "drain_ns",
+                              "close_ns", "reopen_ns"]:
+                    self.assertGreater(result[phase], 0)
+                for fixture in [result["before_close"], result["after_reopen"]]:
+                    self.assertEqual(fixture["natural_records"], 2)
+                    self.assertEqual(fixture["vector_rows"], 0)
+                    self.assertEqual(fixture["span_rows"], 0)
+                    self.assertEqual(fixture["physical_vector_rows"], 0)
+                    self.assertEqual(fixture["format"], 37)
+                    self.assertFalse(fixture["usable_embedder"])
+                    self.assertFalse(fixture["qualified_dense_fixture"])
+
+
 if __name__ == "__main__":
     unittest.main()

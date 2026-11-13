@@ -1,6 +1,7 @@
 """Explain worker/query/write overlap on one attempt-local monotonic clock."""
 
 import json
+from pathlib import Path
 import sys
 
 
@@ -63,7 +64,19 @@ def _interval(row):
 
 def main():
     """Read one JSON analysis request and emit its analysis report."""
-    print(json.dumps(analyze(**json.load(sys.stdin))))
+    request = json.load(sys.stdin)
+    if "native_output" in request:
+        root = Path(request["native_output"])
+        queries = [json.loads(line) for line in (root / "queries.jsonl").read_text().splitlines()]
+        writes = json.loads((root / "writes.json").read_text())
+        ready = json.loads((root / "readiness.json").read_text())
+        workers = json.loads((root / "worker-observer.json").read_text())
+        result = {"status": "NOT_EVALUATED", "timed_queries": sum(row["phase"] == "timed" for row in queries),
+                  "write_calls": len(writes), "readiness_calls": len(ready),
+                  "worker_records": len(workers.get("records") or []) if workers["available"] else None}
+    else:
+        result = analyze(**request)
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":

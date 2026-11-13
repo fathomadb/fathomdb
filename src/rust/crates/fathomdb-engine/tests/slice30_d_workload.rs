@@ -458,3 +458,105 @@ proptest! {
     #[test]
     fn worker_adapter_conserves_actual_cursors_without_query_stream_mixing(rows in 1usize..9,cohort in 1usize..5){verify_worker_adapter(rows,cohort,true);}
 }
+
+fn verify_native_overlap(count: usize, cohort: usize, enabled: bool) {
+    let out = writer_observation_case(count, cohort, 2, true, enabled);
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../dev/experiments/0.8.29-slice30-measurements/gd_overlap.py");
+    let mut child = Command::new("python3")
+        .arg(path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    use std::io::Write;
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(serde_json::to_string(&json!({"native_output":out})).unwrap().as_bytes())
+        .unwrap();
+    let result = child.wait_with_output().unwrap();
+    assert!(
+        result.status.success(),
+        "adapter CLI/setup NOT_RED {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let report: Value = serde_json::from_slice(&result.stdout).unwrap();
+    let native: Value =
+        serde_json::from_slice(&std::fs::read(out.join("worker-observer.json")).unwrap()).unwrap();
+    let queries: Vec<Value> = std::fs::read_to_string(out.join("queries.jsonl"))
+        .unwrap()
+        .lines()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .filter(|r: &Value| r["phase"] == "timed")
+        .collect();
+    let writes: Vec<Value> =
+        serde_json::from_slice(&std::fs::read(out.join("writes.json")).unwrap()).unwrap();
+    let ready: Vec<Value> =
+        serde_json::from_slice(&std::fs::read(out.join("readiness.json")).unwrap()).unwrap();
+    assert_eq!(report["timed_queries"], 4);
+    assert_eq!(report["write_calls"], writes.len());
+    assert_eq!(report["readiness_calls"], ready.len());
+    let mut expected = Vec::new();
+    if native["available"] == true {
+        let workers = native["records"].as_array().unwrap();
+        assert_eq!(report["worker_records"], workers.len());
+        for (qi, q) in queries.iter().enumerate() {
+            for (wi, w) in writes.iter().enumerate() {
+                for (ji, j) in workers.iter().enumerate() {
+                    let lower = [
+                        q["start_ns"].as_u64().unwrap(),
+                        w["start_ns"].as_u64().unwrap(),
+                        j["start_ns"].as_u64().unwrap(),
+                    ]
+                    .into_iter()
+                    .max()
+                    .unwrap();
+                    let upper = [
+                        q["end_ns"].as_u64().unwrap(),
+                        w["end_ns"].as_u64().unwrap(),
+                        j["end_ns"].as_u64().unwrap(),
+                    ]
+                    .into_iter()
+                    .min()
+                    .unwrap();
+                    for (pi, p) in ready.iter().enumerate() {
+                        if p["ok"] == true
+                            && p["pending_count"].as_u64().unwrap() > 0
+                            && lower < p["start_ns"].as_u64().unwrap()
+                            && p["end_ns"].as_u64().unwrap() < upper
+                        {
+                            expected.push(json!({"query":qi,"write":wi,"worker":ji,"readiness":pi,"start_ns":lower,"end_ns":upper}));
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(report["status"],if native["attribution_complete"]!=true {"INCOMPLETE_ATTRIBUTION"}else if expected.is_empty(){"INCOMPLETE_OVERLAP"}else{"OBSERVED_OVERLAP"},"missing actual native overlap classification after successful workload and CLI controls");
+        assert_eq!(report["witnesses"], Value::Array(expected));
+    } else {
+        assert!(report["worker_records"].is_null());
+        assert_eq!(
+            report["status"], "WORKER_ATTRIBUTION_UNAVAILABLE",
+            "missing unavailable native control classification"
+        );
+        assert!(report["witnesses"].is_null());
+    }
+}
+#[test]
+fn native_overlap_preserves_unavailable_feature_control() {
+    verify_native_overlap(4, 3, false);
+}
+#[cfg(feature = "slice30-measurement")]
+#[test]
+fn native_overlap_uses_actual_timed_intervals_and_successful_ready_calls() {
+    verify_native_overlap(7, 3, true);
+}
+#[cfg(feature = "slice30-measurement")]
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301305),..ProptestConfig::default()})]
+    #[test]
+    fn actual_native_framing_preserves_geometry_and_control_disposition(rows in 1usize..9,cohort in 1usize..5,enabled in any::<bool>()){verify_native_overlap(rows,cohort,enabled);}
+}

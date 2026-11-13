@@ -11,7 +11,12 @@ old census. Whole src/lock changed after2f691; do not inherit the old global
 identity claim. Instead f803 and current03bdd share src tree
 `e28ba613f7b8dd24de5565b5585aa96bd7ffdf6f` and Cargo.lock blob
 `2abf7dbf46b90144c783667a4a6f8db6f120cf26`. SQLite/rusqlite remain0.39.1/0.41.1.
-No new test execution occurred in this reconciliation.
+No new test execution occurred in that initial reconciliation. Later additions
+are recorded separately in [execution](execution.md): five reviewed G2 cells
+passed, and own Q1 healthy reached the qualified native witness and normal0.
+The separately witnessed interruption issued its signal but timed out without
+observed exit/raw snapshot/recovery, so remains UNQUALIFIED. The inherited census
+below preserves its original assertion/source limits.
 
 Tests below are in `src/rust/crates/fathomdb-engine/tests/`; production modules
 are in that crate's `src/`. Complete bodies were read for82 recovery/physical,
@@ -48,8 +53,12 @@ original-file obligations and main/live-WAL before close; paired survivor-only
 control. Existing isolated proofs are substantial but their conjunction is not
 an executed crash proof. Seq-371 now approves the specific coverage-only assertions in
 [composed oracles](composed-oracles.md); seq-372 selects the distinct Q1 scope.
-Source/runtime readiness and parent technical GO remain held. No new assertions
-or faults have executed; both qualification gaps remain open.
+The approved bounded G2 additions have now executed and passed; healthy G2
+completes/closes but does not separately reopen. Active native healthy proof is
+also real. The incomplete interruption supplies no qualified crash recovery;
+additional Q1 scope remains held. Assembled217-registration qualification and
+Rust2727pass/72ignored are recorded in execution.md with the original incomplete
+wrapper and failed-target closure; no uninterrupted PASS is claimed.
 
 No product-defect cell is currently established. A later observed failure is a
 new finding requiring minimization and its own true RED/GREEN, not permission

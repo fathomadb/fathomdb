@@ -88,9 +88,11 @@ kill, broader fault or artificial product RED replaces them.
 The proposed small composition would combine the existing85 rich success fixture
 and independent survivor-only/history oracles with selected existing transaction
 exits, adding direct target span joins and exact pre-retry phase/root/queue checks.
-Positive population must establish all four FTS families, retained target and
-survivor revisions, dependency rows, non-head vector mapping/span and original
-sink ID before fault. Final raw scans occur before close; permitted audit/closure
+Positive population establishes all four FTS families, retained target/survivor
+revisions, dependency rows and mapped head vectors/spans. The reviewed
+[fixture split](composed-oracles.md#four-g2-cells-one-rich-fixture-pattern) keeps
+rollback query-admissible; healthy/post-removal cells additionally carry positive
+non-head900000/window1 stress, and the sink cell records its original identity. Final raw scans occur before close; permitted audit/closure
 carve-outs stay. Existing proof validators and expected results are not reused
 as the sole independent oracle. Do not multiply every family across every hook.
 
@@ -110,8 +112,8 @@ before any SQLite/Engine open or retry. Existing85 files stay byte-frozen.
 
 No product defect is currently established. Actual defects retain observed
 committed runtime RED and separate GREEN; missing hooks/symbols/compilers or
-synthetic mutants are not RED. This plan update remains before implementation,
-and source review/runtime readiness/parent technical GO remain before faults.
+synthetic mutants are not RED. The maintained-plan recheck and parent implementation GO are complete;
+source review/runtime readiness/parent technical GO remain before Q1 faults.
 
 ## Repair and dependency boundaries
 

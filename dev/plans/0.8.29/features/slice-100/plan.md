@@ -11,10 +11,9 @@ Direct Sol-high ownership follows the [execution mandate](../../direct-execution
 independent fresh Astra-medium design review before implementation, same owner
 for any approved implementation, then a fresh independent implementation review.
 No Steward/Orchestrator role or nested agent. Reviewed current-evidence,
-metadata and child/operator packets have independent Astra-medium PASS. The
-in-checkout reconciliation at source-entry3c34cd19 still requires its independent
-recheck before parent source GO. No implementation or runtime qualification is
-claimed. Owner seq-371/372 select the narrow coverage exception and Q1 scope;
+metadata and child/operator packets have independent Astra-medium PASS. The maintained-plan recheck passed at c1226d1bf; parent implementation GO
+was recorded at5f8f12071. [Execution](execution.md) distinguishes the coverage
+source/G2/healthy results from incomplete interruption and remaining final qualification. Owner seq-371/372 select the narrow coverage exception and Q1 scope;
 [exact authority and holds](owner-decisions.md) distinguish approval from readiness.
 
 ## Authority and exact scope
@@ -52,8 +51,10 @@ No current product defect has been observed or established by this read-only
 audit. A before-commit hook is inside its active transaction; the premise that
 transaction-interior process-crash coverage is absent would be false. Conversely,
 neither checkpoint BUSY nor pre/post-call observations prove an abrupt exit
-inside active checkpoint work. G100-1 active-checkpoint reachability and G100-2 rich post-crash composition
-assertions remain open. Integrated20 supplies usable command/source execution
+inside active checkpoint work. Additional own100 healthy execution now proves
+native reachability, and the reviewed five G2 cells supply bounded rich composition.
+The first witnessed interruption remains UNQUALIFIED in operator exit handling;
+G100-1 completed interruption/recovery qualification and100/D28-09 remain open. Integrated20 supplies usable command/source execution
 inference for the existing controls under G100-3; final independent review
 remains. These are evidence classes, not three established bugs.
 
@@ -63,8 +64,10 @@ remains. These are evidence classes, not three established bugs.
    `/mnt/data/worktrees/fathomdb-0.8.29-s100-20261113`, branch
    `llm/0.8.29-s100-20261113`, base3c34cd195e85daffa4f11303b66edc9ff6a2ecec.
    Parent strict closed10/resource preflight passed; own nonmutating ownership
-   check passed. Independent in-checkout Astra recheck and parent source GO
-   precede any test/operator implementation. G retains the sole native window.
+   check passed. Independent maintained-plan Astra PASS at c1226d1bf and parent source GO at
+   5f8f12071 authorized the reviewed test/operator implementation. Recorded native
+   qualification is complete for the current subset; further Q1 work requires
+   actual additional scope and a newly scheduled native window.
 2. Accepted20 f803a964 and70 e875f360 are ancestors. Entry src tree and lock
    match reviewed03bdd/f803 exactly; whole src/lock changed since older2f691.
    Use reviewed bounded G100-3 command/source inference; retain quiet-output

@@ -1,12 +1,12 @@
 # Slice100 Q1 child and operator protocol
 
-Plan-only reconciliation at source-entry3c34cd19. Owner seq-371 approves the
+Reviewed protocol at source-entry3c34cd19, now in approved implementation. Owner seq-371 approves the
 reviewed100-only verification exception; seq-372 selects bounded Q1 on the local
 unconfined ptrace-capable executor, including bounded reaping of the same actors.
-[Exact decisions and technical holds](owner-decisions.md) remain binding. The
-in-checkout plan recheck and parent source GO precede implementation; independent
-source review, actor/identity/runtime readiness and parent technical GO precede
-Q1 execution. No code, native runtime proof or100 closure is claimed here.
+[Exact decisions and technical holds](owner-decisions.md) remain binding. The maintained-plan recheck passed at c1226d1bf and source GO is recorded at
+5f8f12071. Independent source review, actor/identity/runtime readiness and parent
+technical GO still precede Q1 execution. [Execution](execution.md) distinguishes
+source/control results from native witness/qualification;100 closure stays open.
 The reviewed scratch packets remain unchanged.
 
 ## Actors and subject

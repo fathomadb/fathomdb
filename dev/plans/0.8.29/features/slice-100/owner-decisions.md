@@ -22,9 +22,10 @@ No host/disk/power/VM/GPU fault, external attachment, unrelated process/filesyst
 cleanup, timed-kill substitute, SQLite/VFS patch or production fault seam is
 included. Approval is not proof of viability and is not100/D28-09 closure.
 
-Current phase is planning only in the assigned isolated checkout. Independent
-Astra recheck of these maintained plans and parent source GO precede source/test/
-operator implementation; G retains the sole native window. The scoped approved
+The maintained-plan Astra recheck passed at c1226d1bf and parent implementation
+GO was recorded at5f8f12071.100 now owns the transferred native window, while
+Q1 debugger/inferior/ptrace/SIGKILL remain technically held. The scoped approved
 [protocol](q1-protocol.md), [oracles](composed-oracles.md) and
-[implementation map](implementation-map.md) preserve source review and actual
-runtime technical GO before any Q1 execution. Do not ask again for either ruling.
+[implementation map](implementation-map.md) preserve independent source review,
+actual runtime readiness and parent technical GO before Q1 execution. Do not ask
+again for either user ruling. [Execution](execution.md) records current evidence.

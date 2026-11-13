@@ -3,16 +3,25 @@
 Existing selectors below remain available evidence references, not new100
 executions. Entry3c34cd19 includes accepted70 e875f360 and20 f803a964 with exact
 reviewed03bdd/f803 src/lock identity. The read-only current-evidence, Q1 metadata
-and protocol packets passed independent Astra review; this maintained plan still
-needs its independent in-checkout recheck and parent source GO. Own ownership
-check and parent closed10/resource preflight passed. G retains the native window.
+and protocol packets passed independent Astra review; the maintained-plan recheck passed at c1226d1bf and parent implementation GO
+was recorded at5f8f12071. Own ownership and closed10/resource preflight passed.
+Actual bounded G2 composition and own Q1 healthy execution passed; the first
+independently witnessed interruption remains UNQUALIFIED in operator exit handling,
+with no raw-snapshot/recovery result. [Execution](execution.md) retains precise
+subjects, real tool RED/GREEN and current20controls. Source review accepted the
+interrupt transition and bounded monitor repair. Assembled qualification covers
+all217registrations with explicit failed/remaining continuation and exact PyO3
+loader correction; final assembled review remains.
 
-Seq-371 approves the specific verification-only additions; seq-372 separately
-selects bounded Q1 on the local unconfined executor. [Owner decisions](owner-decisions.md)
-retain source review, actor/identity/runtime readiness and parent technical GO.
-No native tools/artifacts/venv are borrowed, and no product/debugger/fault work
-has occurred. Keep original diagnostics/exits; full source-phase verification
-runs once on the stable implementation phase, not for this plan-only update.
+Seq-371 approves specific verification additions; seq-372's one actual witnessed
+signal has been issued. No second Q1 fault is authorized. Original healthy proof
+is retained; strict matching still requires a new healthy at any newly scoped
+frozen subject. Own native/TS setup is complete, with no borrowed artifacts.
+The one full wrapper passed lint/typecheck/security, then stopped incompletely
+on du disappearance during Rust compilation, after two generated-doc site failures.
+Those failed/unfinished checks are now covered by the selected continuation and
+exact failed PyO3 artifact rerun. No whole-wrapper rerun or uninterrupted PASS is
+claimed. All original diagnostics/exits and missing body-count limits remain.
 
 ## Existing proof to reuse before writing tests
 

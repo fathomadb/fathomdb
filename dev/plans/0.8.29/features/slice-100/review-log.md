@@ -24,3 +24,39 @@ protocol/oracles/implementation map now reflect those actual rulings.
 This in-checkout reconciliation awaits a fresh independent Astra-medium recheck.
 No new terminal verdict, implementation or runtime/fault result is claimed here.
 Parent owns source GO and later technical GO, release-state and ledger actions.
+
+## Maintained-plan recheck and implementation GO
+
+Parent-commissioned independent Astra-medium PASS at
+c1226d1bf958e1aa4b69fc81f265c9bc3d217198 has no blocking findings. Parent imported
+it and recorded implementation GO at5f8f12071f5400eaaec4b531cefcee1eefdbe6d9.
+This authorizes only the reviewed seq-371/372 source scope.100 subsequently
+received the sole native window; Q1 debugger/inferior/ptrace/fault launches still
+require independent source review, actual readiness and parent technical GO.
+No implementation/results acceptance or100 closure follows from the plan PASS.
+
+## Focused source and fixture technical rechecks
+
+Independent Astra-medium source recheck at92fd596ab resolved the pre-registration
+cleanup and incomplete rollback-preimage findings. Real descendant RED/GREEN,
+CLI entrypoint progression and original14 unchanged controls were verified.
+A subsequent independent technical design PASS accepts the exact valid-rollback /
+post-removal non-head-stress split in composed-oracles.md after the first healthy
+setup failure exposed the inherited fragment's head-only validation boundary.
+This is not runtime qualification or Q1 launch GO; the corrected frozen source
+and affected actual results still precede technical readiness evaluation.
+
+## Resource repair and assembled qualification review boundary
+
+Parent reports independent Astra acceptance at a9b2bbc7a12fbbff7e434802b5710a97bde5b29b:
+strict owned-ENOENT-only bounded fresh measurement, corrected genuine RED then
+unchanged20control GREEN on both interpreters, one generated source-hash comment,
+and exact217=200pass+2failed+15unfinished resumption selection. Rust/lock are
+unchanged. This is no Q1 fault or whole100 acceptance.
+
+The selected continuation and exact original PyO3 loader-corrected artifact now
+supply assembled217-registration evidence and Rust2727pass/72ignored, preserving
+the incomplete wrapper, collector failure, target127, exec_prefix warning and
+unavailable Python/TS body counts. Exact native actors are gone; window returned
+to G. This docs-only result checkpoint awaits final independent assembled review.
+Original Q1 interruption remains UNQUALIFIED and additional scope is unanswered.

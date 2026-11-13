@@ -18,8 +18,8 @@ identical entry src/lock inputs; the updated plan still needs its independent
 recheck. Seq-371 approves100-only verification coverage; seq-372 selects bounded
 Q1 on the local unconfined ptrace-capable executor. [Exact decisions](owner-decisions.md)
 retain source review, actor/identity/runtime readiness and parent technical GO.
-Seq-369 remains20-only. No runtime proof or100 closure follows. Entry preflight/ownership checks passed; current plan recheck and parent source
-GO remain. Recorded bounded design PASS is not product acceptance.
+Seq-369 remains20-only. No runtime proof or100 closure follows. Entry preflight/ownership checks, maintained-plan recheck and parent source GO
+are complete. Q1 source/runtime readiness and parent technical GO remain. Recorded bounded design PASS is not product acceptance.
 
 | Need → requirement → acceptance | Independent oracle / census / selector / source |
 | --- | --- |

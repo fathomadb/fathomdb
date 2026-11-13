@@ -216,6 +216,24 @@ fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
         "observation_scope":"adjacent public readiness/generation and separate count transactions; not a search snapshot"})
 }
 
+fn g_readiness_observation(engine: &Adapter) -> Value {
+    let started = std::time::Instant::now();
+    let result = match engine {
+        Adapter::Core(engine) => engine.read_embedding_readiness().map_err(Into::into),
+        Adapter::Sdk(engine) => fathomdb_sdk::read::embedding_readiness(engine),
+    };
+    let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+    match result {
+        Ok(ready) => json!({"available":true,"elapsed_ns":elapsed_ns,
+            "pending_count":ready.pending_count,"usable_embedder":ready.usable_embedder,
+            "state":ready.state.as_str(),"observation_scope":"adjacent public readiness; not query snapshot"}),
+        Err(error) => json!({"available":false,"elapsed_ns":elapsed_ns,
+            "pending_count":null,"usable_embedder":null,"state":null,
+            "error_kind":error.kind().name(),"error":format!("{error:?}"),
+            "observation_scope":"adjacent public readiness; not query snapshot"}),
+    }
+}
+
 struct Schedule {
     searches: Vec<Value>,
     batches: Vec<Value>,
@@ -297,11 +315,12 @@ fn run_g_schedule_with_calls(
             let start = std::time::Instant::now();
             let cursor = engine.write(&writes);
             let write_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
-            let batch = json!({"before_sample":sample,"cohort_index":cohort,"rows":writes.len(),
+            let mut batch = json!({"before_sample":sample,"cohort_index":cohort,"rows":writes.len(),
                 "write_ns":write_ns,"after_write_cursor":cursor,
                 "affected_ids":replacements.iter().map(|(id,_,_)|id).collect::<Vec<_>>(),
                 "revision_tokens":replacements.iter().map(|(_,token,_)|token).collect::<Vec<_>>(),
                 "authority_observation":"governed write receipt only; not a search snapshot"});
+            batch["adjacent_readiness"] = g_readiness_observation(engine);
             observer("batches", &batch);
             output.batches.push(batch);
             for (id, token, body) in replacements {
@@ -1019,6 +1038,7 @@ fn run_g_write(config: &Value, out: &Path) -> Value {
     let complete = outcomes_ok
         && attribution_ok
         && schedule.probes.iter().all(|probe| probe["marker_current"] == true)
+        && schedule.batches.iter().all(|batch| batch["adjacent_readiness"]["available"] == true)
         && before["natural_records"] == after["natural_records"];
     let result = json!({"complete":complete,"negative_control":negative,
         "sample_count":schedule.searches.len(),"warmup_count":warmups.len(),"first_call_count":0,
@@ -1026,9 +1046,9 @@ fn run_g_write(config: &Value, out: &Path) -> Value {
         "samples":schedule.searches,"warmups":warmups,"first_calls":[],"observation_batches":traces,
         "before_workload":before,"after_workload":after,"open_ns":open_ns,"close_ns":close_ns,
         "passes":[{"adapter":name,"route":route,"requests":samples,"wall_ns":wall_ns,
-            "throughput_scope":"natural route calls over write/point+FTS probe/search/recording/checkpoint loop"}],
+            "throughput_scope":"natural route calls over write/readiness/point+FTS probe/search/recording/checkpoint loop"}],
         "raw_persistence":recorder.statistics_since([0;5]),
-        "cache_note":"separate point and FTS probes intervene after each governed cohort; warmups precede writes; no interbatch drain or observed-worker-overlap claim"});
+        "cache_note":"adjacent public readiness and separate point/FTS probes intervene after each governed cohort; warmups precede writes; no interbatch drain or observed-worker-overlap claim"});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result
 }

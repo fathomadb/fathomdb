@@ -727,3 +727,19 @@ aggregate-cap qualification; those controller units remain required.
   absolute deadline. Step configs/logs/results are retained and the old subject
   is unchanged. This is command binding only: native fresh-store semantics and
   Default/GPU qualification require the later normal-program campaign gate.
+
+### G normal-program output freshness RED
+
+- Source inspection found `run_program_step` precreating output, conflicting
+  with current G-R/G-W's required nonexistent output directory. The earlier
+  harmless-child sequencing GREEN proves command order only.
+- `g-t10-output-freshness-red` observes `[{'existed': True}]` instead of the
+  required two `False` entries from actual harmless child invocations. One
+  literal runtime failure, exit 1, no resource stop. The child encodes the
+  existing normal-program output contract and owns directory creation.
+- Earlier frozen protocol fixture also assumed precreated output. Proposed
+  setup-only `out.mkdir(parents=True, exist_ok=True)` before that child's result
+  write is held for independent review; assertions/expectations are unchanged.
+  Exact patch `g-write-protocol-child-mkdir.patch` SHA256
+  `da116410cc3ae792d98a39fedfc816ddaad033c2263d91f47c7bcaee9e786054` is retained
+  privately and has not been applied.

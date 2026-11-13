@@ -53,3 +53,29 @@ class GWriteDispatchTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class GProgramOutputContractTests(unittest.TestCase):
+    def test_normal_program_step_receives_nonexistent_output_and_owns_its_creation(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        cell = next(row for row in make_g_plan(spec) if row["stage"] == "G-W")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls = root / "output-contract.jsonl"
+            code = "\n".join([
+                "import json,pathlib,sys",
+                "out=pathlib.Path(sys.argv[2])",
+                f"with pathlib.Path({str(calls)!r}).open('a') as stream: stream.write(json.dumps({{'existed':out.exists()}})+'\\n')",
+                "assert not out.exists(), 'normal G driver output must be fresh'",
+                "out.mkdir(parents=True)",
+                "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True}))",
+            ])
+            manifest = {"command": [sys.executable, "-c", code], "corpus": "frozen-corpus.jsonl",
+                        "queries": "frozen-queries.jsonl", "selected_store": str(root / "prior.sqlite")}
+            result = execute_stage(cell, manifest, root / "attempt", time.monotonic_ns() + 900 * 10**9)
+            actual = [json.loads(line) for line in calls.read_text().splitlines()]
+            self.assertEqual(actual, [{"existed": False}, {"existed": False}],
+                             "controller precreated the normal G driver output")
+            self.assertTrue(result["complete"])
+            self.assertTrue(all(Path(step["config"]).is_file() and Path(step["output"]).is_dir()
+                                and Path(step["config"]).parent != Path(step["output"])
+                                for step in result["steps"]))

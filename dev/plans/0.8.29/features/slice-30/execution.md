@@ -876,3 +876,19 @@ aggregate-cap qualification; those controller units remain required.
 - Frozen expectations require no late child work, a stopped actual child,
   retained failed outcome and full exception log. Pinning and successful-leader
   descendant findings remain distinct open obligations.
+
+### G signalling pin finding RED
+
+- To avoid using known unsafe cleanup during the exception GREEN, froze the
+  separate safe pin control first; the monitor-exception oracle remains RED.
+  Parent independently approved observing actual kernel state and suppressing
+  any signal once the ownership pin is gone.
+- `g-lifecycle-pin-red` starts a real private-session leader and observes its
+  `/proc` state at each signal boundary. TERM is forwarded while PGID/SID match
+  the actual owned PID; the later attempted signal finds that leader already
+  reaped and is suppressed. The literal assertion fails `owned group signalling
+  attempted after actual leader pin was reaped`; one runtime failure, exit 1,
+  no resource stop.
+- This is an observed unsafe signalling attempt/lost pin. No foreign process is
+  signalled and no PGID reuse is forced or claimed. Existing assertions remain
+  unchanged; successful-leader descendant quiescence is still separately open.

@@ -1,13 +1,16 @@
 """Owned harmless-process lifecycle controls, without product/native execution."""
 
 import json
+import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
-from g_attempt import run_g_attempt
+from g_attempt import run_g_attempt, stop_owned_group
 
 
 class GMonitorExceptionTests(unittest.TestCase):
@@ -49,3 +52,37 @@ class GMonitorExceptionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GSignalPinTests(unittest.TestCase):
+    def test_actual_leader_stays_unreaped_through_every_owned_group_signal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ready = root / "leader-started"
+            code = (f"import pathlib,time; pathlib.Path({str(ready)!r}).write_text('ready'); "
+                    "time.sleep(2)")
+            child = subprocess.Popen([sys.executable, "-c", code], start_new_session=True)
+            until = time.monotonic() + 2
+            while not ready.exists() and time.monotonic() < until:
+                time.sleep(0.005)
+            self.assertTrue(ready.exists(), "actual group leader did not start")
+            observed = []
+            actual_killpg = os.killpg
+            def only_forward_while_pinned(group, stop_signal):
+                self.assertEqual(group, child.pid)
+                try:
+                    fields = Path(f"/proc/{child.pid}/stat").read_text().split(") ", 1)[1].split()
+                    facts = {"state": fields[0], "pgid": int(fields[2]), "sid": int(fields[3])}
+                except FileNotFoundError:
+                    facts = None
+                observed.append(facts)
+                if facts is None:
+                    raise ProcessLookupError("suppressed unsafe signal attempt after ownership pin disappeared")
+                self.assertEqual((facts["pgid"], facts["sid"]), (child.pid, child.pid))
+                return actual_killpg(group, stop_signal)
+            with patch("g_attempt.os.killpg", side_effect=only_forward_while_pinned):
+                stop_owned_group(child)
+            self.assertGreaterEqual(len(observed), 1)
+            self.assertTrue(all(facts is not None for facts in observed),
+                            "owned group signalling attempted after actual leader pin was reaped")
+            self.assertIsNotNone(child.returncode)

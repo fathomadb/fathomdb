@@ -66,7 +66,7 @@ fn template_drain(engine: &Engine, config: &Value, out: &Path) -> Result<Value, 
     }
 }
 
-pub(super) fn run(config: &Value, out: &Path) {
+pub(super) fn run(config: &Value, out: &Path) -> bool {
     let templates = config["templates"].as_array().unwrap();
     assert!(!templates.is_empty());
     std::fs::create_dir_all(out).unwrap();
@@ -87,7 +87,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         assert_eq!(device.ordinal, 0);
         assert_eq!(opened.report.default_embedder.dimension, 384);
         if super::budget_clock::phase(config, out, "configure").is_err() {
-            return;
+            return false;
         }
         let configuring = std::time::Instant::now();
         engine
@@ -133,13 +133,13 @@ pub(super) fn run(config: &Value, out: &Path) {
             if cohort.len() == 64 && commit(&mut cohort).is_err() {
                 recorder.flush_all();
                 engine.close().unwrap();
-                return;
+                return false;
             }
         }
         if !cohort.is_empty() && commit(&mut cohort).is_err() {
             recorder.flush_all();
             engine.close().unwrap();
-            return;
+            return false;
         }
         assert!(!ids.is_empty());
         recorder.flush_all();
@@ -147,7 +147,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         let draining = std::time::Instant::now();
         if template_drain(engine, config, out).is_err() {
             engine.close().unwrap();
-            return;
+            return false;
         }
         let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
         let pending = engine.read_embedding_readiness().unwrap().pending_count;
@@ -185,6 +185,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         )
         .unwrap();
     }
+    true
 }
 
 #[cfg(all(test, target_os = "linux"))]

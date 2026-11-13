@@ -234,7 +234,9 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
 
 pub(super) fn fixture(config: &Value, out: &Path, observer: Option<CoreObserver>) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
-    g_template::run(config, out);
+    if !g_template::run(config, out) {
+        return;
+    }
     let source = out.join("case-0/template.sqlite");
     let original = Sha256::digest(std::fs::read(&source).unwrap());
     for mode in config["modes"].as_array().unwrap() {
@@ -282,7 +284,9 @@ pub(super) fn cell(config: &Value, out: &Path, store: &Path, observer: Option<Co
 
 pub(super) fn plan_fixture(config: &Value, out: &Path, observer: Option<CoreObserver>) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
-    g_template::run(config, out);
+    if !g_template::run(config, out) {
+        return;
+    }
     let source = out.join("case-0/template.sqlite");
     let original = Sha256::digest(std::fs::read(&source).unwrap());
     let directory = out.join("cell");

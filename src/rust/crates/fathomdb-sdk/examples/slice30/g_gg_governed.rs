@@ -164,7 +164,9 @@ fn control(engine: &fathomdb_engine::Engine, stage: &str) -> Value {
 
 pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
-    g_template::run(config, out);
+    if !g_template::run(config, out) {
+        return;
+    }
     let source = out.join("case-0/template.sqlite");
     from_template(config, out, &source, observer);
 }

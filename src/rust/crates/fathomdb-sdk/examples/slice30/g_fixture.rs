@@ -402,7 +402,8 @@ pub(super) fn run_observed(config: &Value, out: &Path, observer: Option<CoreObse
         return g_limit::run(config, out);
     }
     if config["family"] == "G_TEMPLATE" {
-        return g_template::run(config, out);
+        g_template::run(config, out);
+        return;
     }
     let mode = config["mode"].as_str().unwrap();
     let adapter = if mode.starts_with("engine_") { "engine" } else { "sdk" };

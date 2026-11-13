@@ -8,7 +8,9 @@ use std::path::Path;
 
 pub(super) fn run(config: &Value, out: &Path) {
     assert_eq!(config["templates"].as_array().unwrap().len(), 1);
-    g_template::run(config, out);
+    if !g_template::run(config, out) {
+        return;
+    }
     let source = out.join("case-0/template.sqlite");
     let source_hash = Sha256::digest(std::fs::read(&source).unwrap());
     let mut rows = Vec::new();

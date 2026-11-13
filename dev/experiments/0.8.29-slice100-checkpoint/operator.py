@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import sys
+
+# Direct script launch must not shadow Python's stdlib operator with this file.
+if __name__ == "__main__" and sys.path and sys.path[0].replace("\\", "/") == __file__.replace("\\", "/").rsplit("/", 1)[0]:
+    sys.path.pop(0)
+
 import argparse
 import hashlib
 import json

@@ -317,5 +317,55 @@ class PrelaunchDeadlineTests(unittest.TestCase):
         self.check_prelaunch(bound,deadline)
 
 
+def actual_resources():
+    task = Path(os.environ["S30_GD_TASK"])
+    proposal = json.loads((task.parent/"parent/slice30-resumption-resource-proposal.json").read_text())
+    roots = [row["path"] for row in proposal["extended_roots"]]
+    assert len(roots) == 13
+    return {"roots":roots,"task":str(task),"baseline":69280403456}
+
+
+class ResourceAdmissionCampaignTests(unittest.TestCase):
+    def test_real_thirteen_root_admission_precedes_actual_preparation_and_native_calls(self):
+        root, binary, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        resources = actual_resources()
+        preparation = []
+        def before():
+            preparation.append(time.monotonic_ns())
+            prepare_actual_database(root,binary,"resource-admitted-preparation")
+            return {"actual_preparation":True}
+        outcome = run_manifest(manifest,root/"results",before=before,resources=resources)[0]
+        self.assertEqual(outcome["status"],"complete", "ordinary actual D caller NOT_RED")
+        self.assertTrue((Path(outcome["attempt"])/"query.sqlite").exists())
+        environment = outcome["environment_before"] or {}
+        samples = environment.get("resource_samples",[])
+        print(f"actual resource admission samples={len(samples)}",flush=True)
+        self.assertEqual(len(samples),2,"missing actual resource admission before preparation and before native launch")
+        self.assertEqual(environment["preparation"],{"actual_preparation":True})
+        self.assertLessEqual(samples[0]["observed_ns"],preparation[0])
+        self.assertGreaterEqual(samples[1]["observed_ns"],preparation[0])
+        for sample in samples:
+            self.assertEqual([row["path"] for row in sample["roots"]],resources["roots"])
+            self.assertGreater(sample["owned"],69280403456)
+            self.assertGreaterEqual(sample["memory_available"],16*1024**3)
+            self.assertEqual(sample["baseline"],69280403456)
+
+    def test_unavailable_required_size_accounting_refuses_real_child_and_preparation(self):
+        root, binary, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        prepare_actual_database(root,binary,"ordinary-real-control")
+        resources = actual_resources()
+        resources["roots"] = [*resources["roots"][:-1],str(root/"unavailable-owned-resource")]
+        preparations = []
+        outcome = run_manifest(manifest,root/"results",before=lambda:preparations.append(True),resources=resources)[0]
+        self.assertEqual(outcome["status"],"not_run_resource","required accounting failure was ignored")
+        self.assertTrue(outcome["reason"].startswith("resource_observation_unavailable"))
+        self.assertIn("unavailable-owned-resource",outcome["reason"])
+        self.assertIsNone(outcome["pid"])
+        self.assertEqual(preparations,[])
+        self.assertEqual(list((root/"results").glob("*/attempt-*")),[])
+
+
 if __name__ == "__main__":
     unittest.main()

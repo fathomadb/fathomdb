@@ -110,8 +110,8 @@ before any SQLite/Engine open or retry. Existing85 files stay byte-frozen.
 
 No product defect is currently established. Actual defects retain observed
 committed runtime RED and separate GREEN; missing hooks/symbols/compilers or
-synthetic mutants are not RED. This plan update remains before implementation,
-and source review/runtime readiness/parent technical GO remain before faults.
+synthetic mutants are not RED. The maintained-plan recheck and parent implementation GO are complete;
+source review/runtime readiness/parent technical GO remain before Q1 faults.
 
 ## Repair and dependency boundaries
 

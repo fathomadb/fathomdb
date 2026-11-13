@@ -1,12 +1,12 @@
 # Proposed implementation footprint, commands and resources
 
-No implementation files below have been created and no listed command has run.
-Seq-371/372 select the reviewed coverage/fault scope; [technical holds](owner-decisions.md)
-remain. Parent supplied the fresh source100 checkout at3c34cd19 after strict
-closed10/resource preflight, and own ownership check passed. Independent maintained-
-plan recheck and source GO precede implementation. Reread any later actual
-integrated changes; G is currently unintegrated, not a hard prerequisite.
-No source20 artifacts/venv/target is reused.
+The coverage-only source checkpoint now contains the listed child/fixture,
+operator/guard tests and index. Maintained-plan Astra PASS at c1226d1bf and parent
+implementation GO at5f8f12071 precede it.100 owns the transferred native window;
+[execution](execution.md) records actual checks and outstanding native work.
+Q1 source review, exact actor/binary/runtime readiness and parent technical GO
+remain before any debugger/inferior/ptrace/fault launch. No source20 artifacts,
+venv or target are borrowed. G is unintegrated, not a hard prerequisite.
 
 ## Intended changes
 

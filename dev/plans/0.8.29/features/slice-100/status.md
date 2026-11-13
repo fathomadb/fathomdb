@@ -1,6 +1,6 @@
 ---
 title: Slice 100 — current f803 and70 evidence reconciliation
-status: PLAN_READY
+status: IN_PROGRESS
 target_release: 0.8.29
 date: 2026-11-13
 ---
@@ -12,10 +12,11 @@ entry3c34cd19. The three prior packets have independent Astra-medium PASS.
 Seq-371 approves the100-only verification exception; seq-372 selects bounded Q1
 on the local unconfined ptrace-capable executor. [Exact decisions](owner-decisions.md),
 [Q1 protocol](q1-protocol.md), [composed oracles](composed-oracles.md) and
-[implementation map](implementation-map.md) are maintained here. The in-checkout
-Astra recheck and parent source GO remain next. Source review, actual runtime
-readiness and parent technical GO precede Q1 execution. No new source/test/
-operator implementation or native/fault work has occurred;100/D28-09 stay open.
+[implementation map](implementation-map.md) are maintained here. The maintained-plan
+Astra recheck passed at c1226d1bf and parent implementation GO is5f8f12071. Source review, actual runtime
+readiness and parent technical GO precede Q1 execution. The approved coverage source is now written; [execution](execution.md) separates
+static controls from outstanding build/G2/native and Q1 qualification.100/D28-09
+stay open.
 
 ## Source/evidence identity
 
@@ -92,9 +93,9 @@ checks. Quiet output omits phase names/PIDs/Rust binary digests. Disclose these
 limits; no automatic binary-hash or broad rerun gate is added. No G100-1/G100-2
 closure, new hard20 dependency or fresh100/native/full PASS follows.
 
-Source entry checkout/preflight is complete; implementation remains parent-held
-until the independent maintained-plan recheck and source GO. G retains the sole
-native window. Owned Node25.9.0/npm11.12.1/Markdown0.23.3 support scoped Markdown
+Source entry/preflight, maintained-plan recheck and source GO are complete.
+100 owns the transferred native window; Q1 debugger/inferior/ptrace/SIGKILL still
+require independent source review and parent technical readiness GO. Owned Node25.9.0/npm11.12.1/Markdown0.23.3 support scoped Markdown
 validation only, with npm scripts/browser downloads disabled. No full bootstrap,
 Python wheel/native build/import, product tests, debugger/ptrace/fault/model/GPU/
 VM/DB work ran in this phase. Historical records and scratch packets stay frozen.

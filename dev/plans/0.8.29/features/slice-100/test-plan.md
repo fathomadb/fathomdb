@@ -3,15 +3,16 @@
 Existing selectors below remain available evidence references, not new100
 executions. Entry3c34cd19 includes accepted70 e875f360 and20 f803a964 with exact
 reviewed03bdd/f803 src/lock identity. The read-only current-evidence, Q1 metadata
-and protocol packets passed independent Astra review; this maintained plan still
-needs its independent in-checkout recheck and parent source GO. Own ownership
-check and parent closed10/resource preflight passed. G retains the native window.
+and protocol packets passed independent Astra review; the maintained-plan recheck passed at c1226d1bf and parent implementation GO
+was recorded at5f8f12071. Own ownership and closed10/resource preflight passed.
+100 owns the transferred native window; Q1 remains technically held.
 
 Seq-371 approves the specific verification-only additions; seq-372 separately
 selects bounded Q1 on the local unconfined executor. [Owner decisions](owner-decisions.md)
 retain source review, actor/identity/runtime readiness and parent technical GO.
-No native tools/artifacts/venv are borrowed, and no product/debugger/fault work
-has occurred. Keep original diagnostics/exits; full source-phase verification
+No native tools/artifacts/venv are borrowed. [Execution](execution.md) records
+source/static controls and outstanding Rust/G2/native qualification; no Q1
+debugger or fault execution has occurred. Keep original diagnostics/exits; full source-phase verification
 runs once on the stable implementation phase, not for this plan-only update.
 
 ## Existing proof to reuse before writing tests

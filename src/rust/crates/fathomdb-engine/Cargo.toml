@@ -933,3 +933,7 @@ required-features = ["test-hooks", "operator"]
 [[test]]
 name = "slice70_query_degradations"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "slice100_interruption"
+required-features = ["operator", "test-hooks"]

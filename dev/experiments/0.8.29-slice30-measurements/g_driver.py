@@ -20,10 +20,15 @@ def run_program_step(command, config, output, deadline_ns):
         return dict(step, status="not_run_cap", reason="cell_time_exhausted")
     with output.with_name(output.name + "-native.log").open("wb") as log:
         try:
-            child = subprocess.run([*command, str(path), str(output)], stdout=log,
-                                   stderr=subprocess.STDOUT, check=False, timeout=remaining)
+            child = subprocess.Popen([*command, str(path), str(output)], stdout=log,
+                                     stderr=subprocess.STDOUT)
+            step["pid"] = child.pid
+            step["executable"] = str(Path(command[0]).resolve())
+            child.wait(timeout=remaining)
         except subprocess.TimeoutExpired:
-            return dict(step, status="failed", reason="cell_time_exhausted")
+            child.kill()
+            child.wait(timeout=2)
+            return dict(step, status="failed", reason="cell_time_exhausted", exit=child.returncode)
     step["exit"] = child.returncode
     try:
         step["result"] = json.loads((output / "result.json").read_text())

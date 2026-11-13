@@ -220,3 +220,10 @@ live foreground descendants. Fixed G production drivers inherit their attempt's
 private session; detached commands are not part of this contract. Group scans
 exclude already dead zombies, retain uncertainty on unavailable evidence, and
 never release the leader pin before the last signal/quiescence decision.
+
+`g_runner.py` is the G production qualification wrapper in progress.
+`test_g_runner.py` uses actual harmless commands to prove protocol-only reports
+cannot count as Default qualification and that native-command PIDs are observed
+independently. Positive runtime facts still require the reserved3090 campaign.
+Provider driver/toolkit fields are optional in current Candle; fixed R580 and
+primaryCUDA12.6 must be observed separately, never filled into provider reports.

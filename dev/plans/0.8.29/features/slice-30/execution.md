@@ -954,3 +954,17 @@ aggregate-cap qualification; those controller units remain required.
   retain the actual command child PID`. One runtime failure, exit 1, no resource
   stop. This PID is a controlled child identity, never a GPU engagement claim;
   the existing protocol-refusal oracle remains unchanged.
+
+- Production qualification/command PID GREEN: `g-runner-production-green` and
+  current-source-fit `g-runner-production-sourcefit-green` pass both frozen
+  runner tests; `g-runner-dispatch-regression` passes all five dispatch tests;
+  Ruff passes, no resource stops. Runtime REDs `e914960df` and `c245ffb0f` retain
+  unchanged assertions. Actual command PIDs are independently observed, and
+  protocol-only reports remain incomplete with explicit qualification issues.
+- The qualifier checks current Default/model/format, actual open reports,
+  selected CUDA identity, dense readiness/counts, call populations, finite384
+  outputs and observer availability; actual GPU engagement remains mandatory.
+  Source inspection confirms Candle currently reports null optional driver/
+  toolkit fields, so required R580/primaryCUDA12.6 facts come from separate host
+  observations rather than invented provider values. Actual positive qualification
+  is still unestablished; frozen entry/sampler/whole-workload integration follows.

@@ -43,6 +43,7 @@ class GResultTests(source._NativeGFixture):
             self.assertEqual(group["observer"]["reason"],"feature_absent")
             self.assertIsNone(group["observer"]["query_records"])
             self.assertEqual(group["issues"],[])
+        return report
 
     def test_actual_six_modes_preserve_raw_latency_and_pass_rate_scope(self):
         self.check_report("result é")
@@ -51,6 +52,45 @@ class GResultTests(source._NativeGFixture):
     @given(st.sampled_from(["β","中"]))
     def test_closed_source_unicode_population_keeps_each_mode_group(self,suffix):
         self.check_report(suffix)
+
+
+class GCallerResultTests(source._NativeGFixture):
+    check_copy=source.CopiedGCellTests.check_copy
+    check_owned_preparation=source.OwnedGTTests.check_owned_preparation
+    check_report=GResultTests.check_report
+
+    def check_callers(self,suffix):
+        report=self.check_report(suffix)
+        groups={(row["adapter"],row["mode"]):row for row in report["cells"] if row.get("cell_id")=="g1-source"}
+        pairs=report.get("caller_pairs",[])
+        print(f"actual six-mode caller pairs={len(pairs)}/3",flush=True)
+        self.assertEqual(len(pairs),3,"actual engine/SDK calls are not exposed as raw matched caller comparisons")
+        for mode in ["mean","hybrid","text"]:
+            engine,sdk=groups["engine",mode],groups["sdk",mode]
+            pair=next(row for row in pairs if row["left"]==engine["id"] and row["right"]==sdk["id"])
+            self.assertEqual((pair["matched_calls"],pair["unpaired_calls"],pair["distinct_queries"]),(3,0,3))
+            expected=[]
+            for left,right in zip(engine["queries"],sdk["queries"],strict=True):
+                self.assertEqual((left["sample_index"],left["query_id"],left["query_fingerprint"]),
+                                 (right["sample_index"],right["query_id"],right["query_fingerprint"]))
+                self.assertTrue(left["ok"] and right["ok"])
+                expected.append({"sample_index":left["sample_index"],"query_id":left["query_id"],
+                    "query_fingerprint":left["query_fingerprint"],"left_ns":left["elapsed_ns"],"right_ns":right["elapsed_ns"],
+                    "right_minus_left_ms":(right["elapsed_ns"]-left["elapsed_ns"])/1_000_000})
+            self.assertEqual(pair["raw_pairs"],expected)
+            self.assertAlmostEqual(pair["right_minus_left_mean_ms"],sum(row["right_minus_left_ms"] for row in expected)/3)
+            self.assertEqual(len(pair["bootstrap95_ms"]),2)
+            self.assertTrue(pair["complete"])
+            self.assertEqual(pair["errors"],{"left":{},"right":{}})
+        self.assertEqual(report["pairs"],[],"normal caller comparison changed observer-pair meaning")
+
+    def test_actual_three_modes_pair_core_and_sdk_raw_calls(self):
+        self.check_callers("caller é")
+
+    @settings(max_examples=2,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.sampled_from(["β","中"]))
+    def test_unicode_template_keeps_each_raw_caller_difference(self,suffix):
+        self.check_callers(suffix)
 
 
 class GObserverResultTests(source._NativeGFixture):

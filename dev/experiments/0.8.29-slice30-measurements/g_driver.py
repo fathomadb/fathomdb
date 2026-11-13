@@ -3,7 +3,10 @@
 import json
 from pathlib import Path
 import subprocess
+import sqlite3
 import time
+
+from g_span_coverage import stored_coverage
 
 
 def run_program_step(command, config, output, deadline_ns, observe=None):
@@ -45,6 +48,11 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
         step["result"] = json.loads((output / "result.json").read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         return dict(step, status="failed", reason="missing_or_partial_result")
+    if config["family"] in ("G-seed", "G-source-fixture") and not step["result"].get("runner_only"):
+        try:
+            step["span_coverage"] = stored_coverage(output / "store.sqlite")
+        except (OSError, sqlite3.Error) as error:
+            return dict(step, status="failed", reason="stored_span_coverage_unavailable", error=str(error))
     step["complete"] = (child.returncode == 0 and step["result"].get("complete") is True
                         and time.monotonic_ns() < deadline_ns)
     return dict(step, status="complete" if step["complete"] else "failed")

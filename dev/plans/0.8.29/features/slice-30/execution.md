@@ -1171,3 +1171,31 @@ body bytes and known represented bytes; unknown offsets remain null. Neither
 row counts nor character counts imply full-body coverage. Schema37, embedder
 truncation policy and vector/span storage are untouched. This synthetic provider
 proof is distinct from the still-held actual Default384/GPU qualification.
+
+### Production closed-store span witness binding
+
+Separate actual normal-program RED `c36a74efe` ran the public SDK no-provider
+G-seed to completion, confirmed two natural documents and negative dense
+readiness, then failed `None` versus the literal empty stored-span report.
+`g-span-binding-red` retains exit1/no resource stop. The minimal G-only driver
+correction reads the closed seed/source-fixture store through the same witness
+and retains `step.span_coverage` beside the unchanged native result. Read errors
+fail that step with their actual diagnostic; protocol-only controls never open
+stores. Collection is outside individual route timing, inside the existing
+absolute whole-cell deadline, without any new partial-coverage refusal threshold.
+
+`g-span-binding-green` passes all12 normal CLI controls; the old11 class is
+AST-identical and the new RED test file is byte-identical. The actual None
+provider correctly yields zero spans and unknown represented-byte total, never
+full-body/dense/GPU qualification. `g-span-binding-python` passes all35 unchanged
+Python controls. `g-native-module-boundary` passes125 modules/20 governed/104
+reviewed configurations. `g-native-scoped-clippy` passes strict engine/SDK
+all-target observer/test-hook lint. `g-native-feature-consumers` passes explicit
+feature consumers and observes both expected default E0599 rejections; those
+are compile-contract controls, not semantic runtime RED. All phases have no
+resource stop. The earlier `g-native-cli-regression`11/11 pass is retained.
+
+Native/runner candidate remains subject to fresh independent review and one
+stable full source gate after generated-document/loader/native ownership checks.
+Actual Default384, reserved3090 engagement and all measurement cells remain held
+for the technical campaign GO; no D/M/F or whole-release clearance follows.

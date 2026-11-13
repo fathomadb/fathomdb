@@ -23,7 +23,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [test_g_controller.py](test_g_controller.py) | Actual harmless Python children prove the literal complete stage inventory; no database/model simulation or positive GPU evidence. |
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
 | [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
-| [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Eleven actual normal-program controls: engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,normal G-W replacements,adjacent readiness,typed filters/future views,and actual open/device/close reports. Both use no provider and never qualify dense/GPU work. Canonical heavy runner registration is present; final native execution remains pending. |
+| [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Twelve actual normal-program controls (including closed-store span witness binding): engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,normal G-W replacements,adjacent readiness,typed filters/future views,and actual open/device/close reports. Both use no provider and never qualify dense/GPU work. Canonical heavy runner registration is present; final native execution remains pending. |
 | [g_driver.py](g_driver.py), [g_attempt.py](g_attempt.py) | Current foreground driver binding and retained owned-process attempts under one absolute deadline. |
 | [g_runner.py](g_runner.py), [g_freeze.py](g_freeze.py), [g_gpu.py](g_gpu.py), [g_report.py](g_report.py) | Strict build/freeze/run/report entry, registered source/input/cache/native pins, actual selected3090 observations and scoped retained reports. Native/GPU execution remains separately gated. |
 | [g_forecast.py](g_forecast.py) | Whole G-W preparation/warmup/natural/write/readiness/point+FTS/raw-growth forecast with unchanged fixed caps. |
@@ -114,7 +114,6 @@ measurement output cap apply with the reviewed outer owned resource guard.
 No compilation/concurrent owned campaign is allowed in the timing window.
 Source, failed attempts, skips and outliers remain explicit. Whole30, fidelity,
 MCP/Windows/Block1 and final160 obligations are not discharged by this P subset.
-
 
 ## G implementation and bounded ordinary tests
 
@@ -239,7 +238,6 @@ inputs, exact cohorts and an actual forbidden harmless-child dispatch witness.
 These are prospective-policy controls, never substituted measurement evidence;
 missing current observations refuse the still-required cell.
 
-
 ## G production entry
 
 These commands are provided for the authorized native/campaign phases; no build,
@@ -294,3 +292,12 @@ Remaining native entry work includes actual stored byte-range/body-length span
 coverage (with UTF-8 byte offsets), integrated normal-program/feature consumers,
 then the one stable full qualification and fresh final implementation review.
 No D/M/F/whole30/40/50/Block1 or Windows qualification follows from this runner.
+
+Stored coverage is retained as `steps[].span_coverage` in each actual cell
+`result.json` for native G-seed and source-fixture steps. The read-only
+[g_span_coverage.py](g_span_coverage.py) witness exposes every stored window/start/
+exclusive-end/body-length in UTF-8 bytes, plus full/partial/unknown counts and
+known represented-byte totals. Unknown ends remain null; span counts alone make
+no full-body claim. The real-store scalar-head Unicode control uses a test
+provider and does not qualify Default384/GPU behavior. This reporting does not
+change projection storage or impose a new partial-coverage acceptance threshold.

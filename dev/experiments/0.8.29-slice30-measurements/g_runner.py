@@ -1,6 +1,8 @@
 """Frozen G production runner, using current bounded driver and attempt contracts."""
 
+import argparse
 import json
+import sys
 from pathlib import Path
 
 from g_driver import execute_stage
@@ -104,3 +106,56 @@ def execute_cell(cell, manifest, attempt, deadline_ns):
     result["complete"] = result["complete"] and not issues
     (Path(attempt) / "result.json").write_text(json.dumps(result, indent=2) + "\n")
     return result
+
+
+def run_prepared(manifest, root):
+    """Run the prepared G protocol; frozen entry validates identities before this layer."""
+    from g_campaign import run_g_plan
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / "prepared-manifest.json"
+    path.write_text(json.dumps(manifest, indent=2) + "\n")
+    spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+    def command(_cell, deadline):
+        return [sys.executable, str(Path(__file__).resolve()), "_cell", str(path), str(deadline)]
+    return run_g_plan(spec, root / "results", command)
+
+
+def run_cell_job(manifest_path, deadline_ns, config_path, output):
+    """Execute one foreground job from the fixed prepared G schedule."""
+    manifest = json.loads(Path(manifest_path).read_text())
+    cell = json.loads(Path(config_path).read_text())
+    root = Path(manifest_path).parent
+    state_path = root / "results" / "campaign-state.json"
+    previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+    g0 = previous.get("g0-smoke")
+    if cell["stage"] != "G0" and (not g0 or g0.get("status") != "complete"):
+        Path(output, "result.json").write_text(json.dumps({"complete":False,"qualification_issues":["g0_not_qualified"]}) + "\n")
+        return False
+    manifest["command"] = manifest["commands"][cell["artifact"]]
+    manifest["subjects"] = {}
+    for identifier in ["g1-n10000", "g1-n100000"]:
+        prior = previous.get(identifier)
+        if prior and prior.get("status") == "complete":
+            report = json.loads(Path(prior["attempt"], "result.json").read_text())
+            manifest["subjects"][identifier] = str(Path(report["steps"][0]["output"]) / "store.sqlite")
+    result = execute_cell(cell, manifest, output, deadline_ns)
+    return result["complete"]
+
+
+def main():
+    """Operate current prepared foreground jobs; frozen public entry is added below."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="action", required=True)
+    job = commands.add_parser("_cell")
+    job.add_argument("manifest", type=Path)
+    job.add_argument("deadline", type=int)
+    job.add_argument("config", type=Path)
+    job.add_argument("output", type=Path)
+    args = parser.parse_args()
+    if not run_cell_job(args.manifest, args.deadline, args.config, args.output):
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -990,3 +990,15 @@ aggregate-cap qualification; those controller units remain required.
 - Forecasts are conservative planning estimates, not actual measured evidence or
   exclusive phase decompositions. Production integration consumes current
   qualified G1/G-R/G-O records; no future D/M/F/Windows condition is introduced.
+
+### Frozen pipeline/shared-allocation RED
+
+- Added the working foreground prepared-job scaffold and absolute-deadline
+  command factory, without modifying earlier assertions.
+  `g-runner-pipeline-red` has two real runtime failures: later attempt jobs start
+  after unqualified G0, and a fresh G results directory launches harmless native-
+  command controls despite an exhausted separate shared allocation ledger.
+- The frozen oracles require only one G0 attempt, all other83 obligations
+  explicitly prerequisite-held, and zero command starts for an exhausted shared
+  G/D allocation. Controlled command reports remain unqualified and no native/
+  database/model/GPU execution is involved. Fixed caps and all84 cells remain.

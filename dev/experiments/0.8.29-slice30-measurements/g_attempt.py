@@ -80,7 +80,8 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
     attempt.mkdir()
     config = attempt / "cell.json"
     config.write_text(json.dumps(cell, indent=2) + "\n")
-    argv = [*command, str(config), str(attempt)]
+    selected = command(cell, deadline_ns) if callable(command) else command
+    argv = [*selected, str(config), str(attempt)]
     error, child, code, complete = None, None, None, False
     cleanup_uncertain = False
     live_owned = []

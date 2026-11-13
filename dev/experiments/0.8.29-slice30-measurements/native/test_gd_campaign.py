@@ -722,5 +722,38 @@ class GeneratedDPopulationTests(unittest.TestCase):
         self.assertEqual(longer[:count],prefix)
 
 
+class DQuerySourceTests(unittest.TestCase):
+    def check_source(self,texts):
+        root,_,manifest=clock_fixture()
+        healthy=run_manifest(dict(manifest,cells=manifest["cells"][:1]),root/"control")[0]
+        self.assertEqual(healthy["status"],"complete","actual supplied-query control NOT_RED")
+        source=root/"selected-questions.jsonl"
+        source.write_text("".join(json.dumps(text,ensure_ascii=False)+"\n" for text in texts))
+        cell=dict(manifest["cells"][0],id="d/query-source",n=2,cohort=2,warmups=2,samples=5,query_source=str(source))
+        del cell["write_records"]
+        result=run_manifest(dict(manifest,cells=[cell]),root/"selected")[0]
+        self.assertEqual(result["status"],"complete","actual populated native calls NOT_RED")
+        attempt=Path(result["attempt"])
+        with closing(sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],2)
+        calls=[json.loads(line) for line in (attempt/"queries.jsonl").read_text().splitlines()]
+        self.assertEqual(len(calls),7)
+        self.assertTrue(all(call["ok"] for call in calls))
+        self.assertEqual([call["phase"] for call in calls],["warmup"]*2+["timed"]*5)
+        expected=[texts[i%len(texts)] for count in [2,5] for i in range(count)]
+        print(f"actual selected D {attempt} texts={[call['query'] for call in calls]}",flush=True)
+        self.assertEqual([call["query"] for call in calls],expected,"selected query population was not forwarded to real D API")
+        self.assertEqual([call["query_id"] for call in calls],[i%len(texts) for count in [2,5] for i in range(count)])
+        self.assertEqual([call["query_sha256"] for call in calls],[hashlib.sha256(text.encode()).hexdigest() for text in expected])
+
+    def test_selected_order_duplicates_and_unicode_reach_actual_calls(self):
+        self.check_source(["épreuve","record","épreuve"])
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.lists(st.text(alphabet="abéβ中",min_size=1,max_size=6),min_size=1,max_size=3))
+    def test_selected_utf8_query_prefix_and_cycles_preserve_input_identity(self,texts):
+        self.check_source(texts)
+
+
 if __name__ == "__main__":
     unittest.main()

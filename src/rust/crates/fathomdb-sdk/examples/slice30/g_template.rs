@@ -47,6 +47,14 @@ fn commit_cohort(
     Ok(())
 }
 
+fn template_drain(engine: &Engine, config: &Value, _out: &Path) -> Result<Value, ()> {
+    let report = super::g_budget::drain(config, |timeout| {
+        engine.drain(timeout).map_err(|error| format!("{error:?}"))
+    })
+    .unwrap();
+    Ok(report)
+}
+
 pub(super) fn run(config: &Value, out: &Path) {
     let templates = config["templates"].as_array().unwrap();
     assert!(!templates.is_empty());
@@ -126,10 +134,7 @@ pub(super) fn run(config: &Value, out: &Path) {
         recorder.flush_all();
         let seed_ns = u64::try_from(seeding.elapsed().as_nanos()).unwrap();
         let draining = std::time::Instant::now();
-        super::g_budget::drain(config, |timeout| {
-            engine.drain(timeout).map_err(|error| format!("{error:?}"))
-        })
-        .unwrap();
+        template_drain(engine, config, out).unwrap();
         let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
         let pending = engine.read_embedding_readiness().unwrap().pending_count;
         assert_eq!(pending, 0);
@@ -242,6 +247,62 @@ mod tests {
         let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
         config[["work_deadline_ns", "hard_deadline_ns", "shared_deadline_ns"][bound]] = json!(0);
         check_write(&config, count, false);
+    }
+
+    fn refused_preparation_drain(key: &str, count: usize) {
+        let root = tempfile::Builder::new().prefix("s30-gt-drain-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+        engine.write(&writes(count)).unwrap();
+        let healthy = template_drain(&engine, &json!({}), &root).unwrap();
+        assert_eq!(healthy["drain_calls"], 1);
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            template_drain(&engine, &config, &root)
+        }));
+        engine.close().unwrap();
+        let db = rusqlite::Connection::open_with_flags(
+            &store,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        let actual: usize =
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
+        assert_eq!(actual, count);
+        println!(
+            "actual GT drain {} key={key} canonical={actual} result={result:?}",
+            root.display()
+        );
+        assert!(
+            matches!(result, Ok(Err(()))),
+            "preparation drain refusal panicked instead of returning to stop its caller"
+        );
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(root.join("budget.json")).unwrap()).unwrap();
+        assert_eq!(report["phase"], "drain");
+        assert_eq!(report["disposition"], "phase_failed");
+        assert!(report["error"].as_str().unwrap().contains("deadline exhausted"));
+    }
+
+    #[test]
+    fn work_drain_refusal_returns_without_later_preparation() {
+        refused_preparation_drain("work_deadline_ns", 2);
+    }
+    #[test]
+    fn hard_drain_refusal_returns_without_later_preparation() {
+        refused_preparation_drain("hard_deadline_ns", 2);
+    }
+    #[test]
+    fn shared_drain_refusal_returns_without_later_preparation() {
+        refused_preparation_drain("shared_deadline_ns", 2);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn original_preparation_drain_refusal_preserves_rows(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            refused_preparation_drain(key,count);
+        }
     }
 
     fn retained_cohorts(tail: usize) {

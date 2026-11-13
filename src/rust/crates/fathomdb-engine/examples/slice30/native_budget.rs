@@ -20,11 +20,8 @@ pub(super) fn phase(config: &Value, out: &Path, phase: &str) -> Result<(), ()> {
 }
 
 #[cfg(feature = "test-hooks")]
-pub(super) fn completion<T>(
-    _config: &Value,
-    _out: &Path,
-    work: impl FnOnce() -> T,
-) -> Result<T, ()> {
+pub(super) fn completion<T>(config: &Value, out: &Path, work: impl FnOnce() -> T) -> Result<T, ()> {
+    phase(config, out, "complete")?;
     Ok(work())
 }
 

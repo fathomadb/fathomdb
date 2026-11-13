@@ -69,12 +69,13 @@ pub(super) fn run(config: &Value, out: &Path) -> bool {
         "configuration_observation":"existing D27 configuration snapshot after drain",
         "provider":"test-hooks varying/perf-gates-dense768; no BGE","span_end":"unknown"});
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
-    let metadata = super::native_budget::completion(config, out, || {
+    let Ok(metadata) = super::native_budget::completion(config, out, || {
         let mut metadata = closed_metadata(&store, pending);
         metadata["coverage"] = template_verify::coverage(&store, &VaryingEmbedder.identity());
         metadata
-    })
-    .unwrap();
+    }) else {
+        return false;
+    };
     std::fs::write(out.join("template.json"), serde_json::to_vec_pretty(&metadata).unwrap())
         .unwrap();
     true

@@ -3,11 +3,19 @@
 use serde_json::{json, Value};
 
 pub(super) fn drain(
-    _config: &Value,
+    config: &Value,
     work: impl FnOnce(u64) -> Result<(), String>,
 ) -> Result<Value, String> {
-    let start = super::budget_clock::monotonic_ns()?;
-    let timeout_ms = 5000;
+    let (start, timeout_ms) = match super::budget_clock::bounds(config)? {
+        Some((start, limit)) => {
+            let remaining = limit.saturating_sub(start) / 1_000_000;
+            if remaining == 0 {
+                return Err("G drain work deadline exhausted".into());
+            }
+            (start, remaining)
+        }
+        None => (super::budget_clock::monotonic_ns()?, 5000),
+    };
     work(timeout_ms)?;
     Ok(json!({"start_ns":start,"timeout_ms":timeout_ms,"drain_calls":1}))
 }

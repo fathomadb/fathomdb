@@ -377,8 +377,8 @@
         "dev/plans/0.8.29/features/slice-100/test-plan.md"
       ],
       "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
-      "phase": "APPROVED_PLAN_SOURCE_GO_NATIVE_WINDOW_QUEUED",
-      "evidence": "Owner approvals seq-371/372 and independently reviewed maintained plan checkpoint c1226d1bf958e1aa4b69fc81f265c9bc3d217198 are integrated. Independent Astra-medium recheck PASS covers exact coverage/Q1 protocol, current source/AC/oracles, preserved history and scoped Markdown/normal-hook evidence. Parent authorizes implementation in llm/0.8.29-s100-20261113 after clean fast-forward to this control record. G retains the sole heavy/native window;100 native setup/build/tests and debugger/fault execution remain queued. Actual actor/source/binary/native-witness/healthy-control readiness and independent implementation review precede Q1 technical execution GO. No source/runtime qualification or100/D28-09 closure is claimed.",
+      "phase": "IMPLEMENTATION_AUTHORIZED_QUALIFICATION_PENDING",
+      "evidence": "Owner approvals seq-371/372 and independently reviewed maintained plan checkpoint c1226d1bf958e1aa4b69fc81f265c9bc3d217198 are integrated. Independent Astra-medium recheck PASS covers exact coverage/Q1 protocol, current source/AC/oracles, preserved history and scoped Markdown/normal-hook evidence. Parent authorizes implementation in llm/0.8.29-s100-20261113 after clean fast-forward to this control record. Heavy/native work is serialized through parent scheduling; debugger/fault runs remain subject to the reviewed source, resource and runtime-readiness controls. Actual actor/source/binary/native-witness/healthy-control readiness and independent implementation review precede Q1 technical execution GO. No source/runtime qualification or100/D28-09 closure is claimed.",
       "plan_sha": "c1226d1bf958e1aa4b69fc81f265c9bc3d217198"
     },
     {

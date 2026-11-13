@@ -50,8 +50,8 @@ parent-created worktree and own /mnt/data resources.
 Slice100 owner decisions are recorded in the [ledger](../../steward/steward-ledger.jsonl)
 at seq-371 and seq-372. The owner reconciled its plans at c1226d1bf after
 independent Astra PASS; implementation is authorized in its isolated checkout.
-Native execution is queued behind30; source/runtime qualification and
-100/D28-09 closure remain pending.
+Heavy/native work is serialized; source/runtime qualification and100/D28-09
+closure remain pending.
 
 ## Retained gates
 

@@ -66,8 +66,8 @@ fn template_drain(engine: &Engine, config: &Value, out: &Path) -> Result<Value, 
     }
 }
 
-fn verification<T>(_config: &Value, _out: &Path, read: impl FnOnce() -> T) -> Result<T, ()> {
-    Ok(read())
+fn verification<T>(config: &Value, out: &Path, read: impl FnOnce() -> T) -> Result<T, ()> {
+    super::g_write_schedule::admitted_read(config, out, "verification", read)
 }
 
 pub(super) fn run(config: &Value, out: &Path) -> bool {
@@ -154,19 +154,23 @@ pub(super) fn run(config: &Value, out: &Path) -> bool {
             return false;
         }
         let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
-        let pending =
+        let Ok(pending) =
             verification(config, out, || engine.read_embedding_readiness().unwrap().pending_count)
-                .unwrap();
+        else {
+            engine.close().unwrap();
+            return false;
+        };
         assert_eq!(pending, 0);
         let closing = std::time::Instant::now();
         engine.close().unwrap();
         let close_ns = u64::try_from(closing.elapsed().as_nanos()).unwrap();
-        let (coverage, verification_ns) = verification(config, out, || {
+        let Ok((coverage, verification_ns)) = verification(config, out, || {
             let verifying = std::time::Instant::now();
             let coverage = template_verify::coverage(&store, &opened.report.default_embedder);
             (coverage, u64::try_from(verifying.elapsed().as_nanos()).unwrap())
-        })
-        .unwrap();
+        }) else {
+            return false;
+        };
         assert!(
             coverage["rows"]
                 .as_array()
@@ -175,7 +179,9 @@ pub(super) fn run(config: &Value, out: &Path) -> bool {
                 .all(|row| row["byte_end"].as_u64().is_some()),
             "pinned BGE successful spans must have known ends"
         );
-        let closed_hash = verification(config, out, || hash(&store)).unwrap();
+        let Ok(closed_hash) = verification(config, out, || hash(&store)) else {
+            return false;
+        };
         let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
         assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
         let proof = json!({"api_complete":true,"input_ids":ids,"write_rows":written,"write_calls":cohorts.len(),"cohorts":cohorts,

@@ -26,6 +26,11 @@ pub(super) fn run(config: &Value, out: &Path) {
     .unwrap();
     let engine = &opened.engine;
     assert_eq!(engine.read_embedding_readiness().unwrap().pending_count, 0);
+    #[cfg(feature = "slice30-measurement")]
+    if config["observer"].as_bool().unwrap_or(false) {
+        engine.slice30_observe_projection_workers_for_test(true).unwrap();
+        engine.slice30_observe_queries_for_test(true).unwrap();
+    }
     let mut output = std::fs::File::create(out.join("queries.jsonl")).unwrap();
     let warmups = usize::try_from(config["warmups"].as_u64().unwrap()).unwrap();
     let samples = usize::try_from(config["samples"].as_u64().unwrap()).unwrap();
@@ -115,6 +120,12 @@ pub(super) fn run(config: &Value, out: &Path) {
         }
     }
     output.flush().unwrap();
+    let observation = observation_report(engine, origin, config);
+    std::fs::write(
+        out.join("worker-observer.json"),
+        serde_json::to_vec_pretty(&observation).unwrap(),
+    )
+    .unwrap();
     engine.close().unwrap();
     std::fs::write(out.join("complete.json"), b"{\"complete\":true}\n").unwrap();
 }
@@ -146,4 +157,58 @@ fn query_row(engine: &Engine, origin: Instant, phase: &str, sample: usize) -> Va
     "start_ns":start_ns,"end_ns":end_ns,"elapsed_ns":elapsed_ns,"ok":true,
     "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
     "soft_fallback":format!("{:?}",result.soft_fallback),"degradations":format!("{:?}",result.degradations)})
+}
+
+fn unavailable(reason: &str) -> Value {
+    json!({"available":false,"reason":reason,"records":null,"dropped":null,
+        "query_records":null,"query_dropped":null,"attribution_complete":null})
+}
+
+#[cfg(not(feature = "slice30-measurement"))]
+fn observation_report(_engine: &Engine, _origin: Instant, _config: &Value) -> Value {
+    unavailable("feature_absent")
+}
+
+#[cfg(feature = "slice30-measurement")]
+fn observation_report(engine: &Engine, origin: Instant, config: &Value) -> Value {
+    if !config["observer"].as_bool().unwrap_or(false) {
+        return unavailable("observer_disabled");
+    }
+    let expected = config["write_records"].as_array().map_or(0, Vec::len) as u64;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut records = Vec::new();
+    let dropped;
+    loop {
+        let report = engine.take_slice30_projection_measurements_for_test(origin).unwrap();
+        assert_eq!(report["capacity"], 32768);
+        records.extend(report["records"].as_array().unwrap().iter().cloned());
+        let observed: u64 = records.iter().map(|r| r["job_count"].as_u64().unwrap()).sum();
+        if observed >= expected || Instant::now() >= deadline {
+            dropped = report["dropped"].as_u64().unwrap();
+            break;
+        }
+        std::thread::sleep(
+            Duration::from_millis(5).min(deadline.saturating_duration_since(Instant::now())),
+        );
+    }
+    let query_records = engine.take_slice30_measurements_for_test().unwrap();
+    let query_stats = engine.slice30_measurement_stats_for_test().unwrap();
+    let query_dropped = query_stats["dropped"].as_u64().unwrap();
+    let query_count = config["warmups"].as_u64().unwrap() + config["samples"].as_u64().unwrap();
+    let observed: u64 = records.iter().map(|r| r["job_count"].as_u64().unwrap()).sum();
+    let complete = dropped == 0
+        && query_dropped == 0
+        && !records.is_empty()
+        && observed == expected
+        && query_records.len() as u64 == query_count
+        && records.iter().all(|r| {
+            r["clock_issue"].is_null()
+                && r["start_ns"].as_u64().is_some()
+                && r["end_ns"].as_u64().is_some()
+                && r["cleanup"] == "confirmed"
+                && r["commit_outcome"] == "ok"
+        });
+    json!({"available":true,"reason":null,"capacity":32768,"dropped":dropped,
+        "records":records,"query_records":query_records,"query_dropped":query_dropped,
+        "attribution_complete":complete,"collected_at_ns":u64::try_from(origin.elapsed().as_nanos()).unwrap()})
 }

@@ -406,6 +406,7 @@ class NativeGAdmissionTests(unittest.TestCase):
             self.assertTrue(outcome["cleanup"]["complete"])
         print(f"actual owned GT {attempt} produced={count}/65 pid={outcome['pid']}",flush=True)
         self.assertEqual(count,65,"owned GT controller child did not encode and execute actual normal BGE preparation")
+        return outcome
 
     def test_owned_gt_child_executes_real_closed_template_preparation(self):
         self.check_owned_preparation("épreuve β")
@@ -414,6 +415,17 @@ class NativeGAdmissionTests(unittest.TestCase):
     @given(st.text(alphabet="abcéβ常",min_size=1,max_size=8))
     def test_owned_preparation_preserves_selected_unicode_inputs(self,suffix):
         self.check_owned_preparation(suffix)
+
+
+    def test_actual_gt_preparation_is_recognized_complete(self):
+        outcome=self.check_owned_preparation("completion é")
+        self.assertEqual(outcome["status"],"complete","actual closed GT output is still rejected by the controller completion adapter")
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.text(alphabet="abcéβ常",min_size=1,max_size=8))
+    def test_actual_prepared_unicode_population_completes_controller(self,suffix):
+        outcome=self.check_owned_preparation(suffix)
+        self.assertEqual(outcome["status"],"complete","actual closed GT output is still rejected by the controller completion adapter")
 
 
 if __name__ == "__main__":

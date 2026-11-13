@@ -1295,6 +1295,120 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     result
 }
 
+fn run_g_source_fixture(config: &Value, out: &Path) -> Value {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, ProvenancedNodeV1, SourceDependencyRegistrationV1,
+        SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    };
+    let started = std::time::Instant::now();
+    let negative = config["negative_control"] == true;
+    let allowance = config
+        .get("remaining_cell_ms")
+        .map(|value| value.as_u64().expect("remaining G allowance"))
+        .unwrap_or_else(|| {
+            assert!(negative);
+            900_000
+        });
+    assert!(allowance <= 900_000);
+    if g_remaining_ms(started, allowance) == 0 {
+        return g_seed_cap_refusal(out, started, allowance);
+    }
+    let provider = config["provider"].as_str().expect("source fixture provider");
+    assert_eq!(provider, if negative { "none" } else { "default" });
+    if !negative {
+        assert_eq!(std::env::var("AGENT_LONG").as_deref(), Ok("1"));
+    }
+    let adapter = config["adapter"].as_str().expect("source fixture adapter");
+    assert!(!out.exists(), "synthetic source fixture must be fresh");
+    std::fs::create_dir_all(out).unwrap();
+    let path = out.join("store.sqlite");
+    let engine = Adapter::open_g(adapter, &path, provider);
+    let spec = fathomdb_engine::ProjectionSpec {
+        name: "doc".into(),
+        roles: [fathomdb_engine::ProjectionRole::Searchable].into_iter().collect(),
+        fts: None,
+        vector: Some(fathomdb_engine::ProjectionVector::default()),
+        source: None,
+    };
+    match &engine {
+        Adapter::Core(engine) => engine.configure_projections(&[spec], &[]).map_err(Into::into),
+        Adapter::Sdk(engine) => engine.configure_projections(&[spec], &[]),
+    }
+    .expect("declare synthetic source fixture through public API");
+    let now = i64::try_from(
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+    )
+    .unwrap();
+    let boundary = now + 3600;
+    let source = PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: "source body".into(),
+        logical_id: Some("g-source".into()),
+        source_id: SourceId::new("test:slice30-provenance").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: Some(now - 1),
+        valid_until: Some(boundary),
+        provenance: WriteProvenanceV1::canonical(
+            ArtifactRevisionId::new("g-source-r1").unwrap(),
+            SourceVersionId::new("v1").unwrap(),
+        ),
+    });
+    let derived = PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: "gderivedneedle".into(),
+        logical_id: Some("g-derived".into()),
+        source_id: SourceId::new("test:slice30-provenance").unwrap(),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::derived(
+            ArtifactRevisionId::new("g-derived-r1").unwrap(),
+            SourceVersionId::new("v1").unwrap(),
+            SourceRevisionId::new("g-source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            // SHA-256 of the fixed canonical "source body" above; admission verifies it.
+            CanonicalHash::sha256(
+                "8e0217a3ecb3eea361aa1807153c7ad853ff9e4d3e107a2d8be40ad66ceb2dc6",
+            )
+            .unwrap(),
+        ),
+    });
+    engine.write(&[source, derived]);
+    let request =
+        SourceDependencyRegistrationV1::new("g-dependency", "g-source-r1", "g-derived-r1").unwrap();
+    match &engine {
+        Adapter::Core(engine) => engine.register_source_dependency(request).map_err(Into::into),
+        Adapter::Sdk(engine) => engine.register_source_dependency(request),
+    }
+    .expect("register actual synthetic dependency");
+    let remaining = g_remaining_ms(started, allowance);
+    if remaining == 0 {
+        engine.close();
+        drop(engine);
+        return g_seed_cap_refusal(out, started, allowance);
+    }
+    match &engine {
+        Adapter::Core(engine) => engine.drain(remaining).map_err(Into::into),
+        Adapter::Sdk(engine) => engine.drain(remaining),
+    }
+    .expect("drain source fixture within remaining allowance");
+    let fixture = g_fixture_observation(&engine, &path);
+    let declared = g_projection_declared(&engine);
+    engine.close();
+    drop(engine);
+    let complete = declared
+        && fixture["natural_records"] == 2
+        && (negative || fixture["qualified_dense_fixture"] == true);
+    let result = json!({"complete":complete,"control":"registered_future_source_window",
+        "natural_lme_fixture":false,"negative_control":negative,"boundary_epoch_s":boundary,
+        "projection_declared":declared,"fixture":fixture,
+        "driver_wall_ns":u64::try_from(started.elapsed().as_nanos()).unwrap()});
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
+}
+
 fn run_g_control(config: &Value, out: &Path) -> Value {
     assert_eq!(config["provider"], "none", "G-control is only a negative readiness control");
     let corpus = read_jsonl(config["corpus"].as_str().expect("corpus path"));
@@ -1422,6 +1536,8 @@ fn main() {
         run_g_control(&config, Path::new(&args[2]))
     } else if config["family"] == "G-seed" {
         run_g_seed(&config, Path::new(&args[2]))
+    } else if config["family"] == "G-source-fixture" {
+        run_g_source_fixture(&config, Path::new(&args[2]))
     } else if config["family"] == "G-R" || config["family"] == "G-O" {
         run_g_read(&config, Path::new(&args[2]))
     } else if config["family"] == "G-W" {

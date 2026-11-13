@@ -363,5 +363,52 @@ class GNormalCliTests(unittest.TestCase):
             self.assertEqual(result["diagnostic_options"]["filter_kind"], "note")
 
 
+    def test_normal_future_source_views_bind_membership_and_same_call_authority(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = root / "fixture.json"
+            fixture.write_text(json.dumps({"family": "G-source-fixture", "provider": "none",
+                                           "negative_control": True, "adapter": "sdk"}))
+            prepared = subprocess.run([str(binary), str(fixture), str(root / "fixture")],
+                                      text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+            subject = json.loads((root / "fixture" / "result.json").read_text())
+            self.assertFalse(subject["natural_lme_fixture"])
+            boundary = subject["boundary_epoch_s"]
+            queries = root / "queries.jsonl"
+            queries.write_text('"gderivedneedle"\n')
+            config = root / "cell.json"
+            config.write_text(json.dumps({"family": "G-O", "provider": "none", "negative_control": True,
+                                          "store": str(root / "fixture" / "store.sqlite"), "queries": str(queries),
+                                          "adapters": ["engine", "sdk"], "routes": ["text", "hybrid"],
+                                          "warmup": 0, "samples": 2, "repeat": 0, "observe": True,
+                                          "record_first_call": False,
+                                          "diagnostic_valid_as_of_sequence": [boundary - 1, boundary]}))
+            out = root / "out"
+            child = subprocess.run([str(binary), str(config), str(out)],
+                                   text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+            result = json.loads((out / "result.json").read_text())
+            self.assertEqual(len(result["samples"]), 8)
+            for index in range(0, 8, 2):
+                before, after = result["samples"][index:index + 2]
+                self.assertEqual(["l:g-derived" in before["ids"], "l:g-derived" in after["ids"]],
+                                 [True, False], "normal diagnostic discarded the explicit future view")
+                captures = []
+                for row, trace, time in zip([before, after], result["observation_batches"][index:index + 2],
+                                            [boundary - 1, boundary]):
+                    facts = [event["facts"] for event in trace["records"]
+                             if event["phase"] == "observer_snapshot_capture" and event["status"] == "ok"]
+                    self.assertEqual(len(facts), 1)
+                    self.assertEqual(facts[0]["effective_at_epoch_s"], time)
+                    self.assertEqual(facts[0]["validity_binding_epoch_s"], time)
+                    self.assertEqual(facts[0]["projection_cursor"], row["projection_cursor"])
+                    self.assertEqual(trace["dropped_records"], 0)
+                    captures.append(facts[0])
+                for key in ["visibility_generation", "visibility_nonce", "dependency_generation"]:
+                    self.assertEqual(captures[0][key], captures[1][key], "no intervening write in source views")
+
+
 if __name__ == "__main__":
     unittest.main()

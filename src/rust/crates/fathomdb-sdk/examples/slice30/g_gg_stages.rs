@@ -7,6 +7,12 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::time::Instant;
 
+pub(super) fn drain(engine: &fathomdb_engine::Engine, _config: &Value) -> Result<Value, String> {
+    let start = super::budget_clock::monotonic_ns()?;
+    engine.drain(5000).map_err(|error| format!("{error:?}"))?;
+    Ok(json!({"start_ns":start,"timeout_ms":5000,"drain_calls":1}))
+}
+
 pub(super) fn measure_stage(
     engine: &fathomdb_engine::Engine,
     config: &Value,
@@ -54,4 +60,87 @@ pub(super) fn measure_stage(
         "raw_persistence":recorder.statistics_since([0;5]),
         "throughput_scope":"stage warmup and timed APIs plus validation/observer collection/recording; literal controls/write/drain/open/close and observer toggles separate"});
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+    use fathomdb_engine::{EmbedderChoice, Engine, InitialState, PreparedWrite, SourceId};
+    use proptest::prelude::*;
+
+    fn actual_drain(milliseconds: u64) {
+        let root = tempfile::Builder::new().prefix("s30-gg-drain-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "ggdrain épreuve".into(),
+                logical_id: Some("gg-drain".into()),
+                source_id: SourceId::new("test:s30-gg-drain").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        let deadline =
+            super::super::budget_clock::monotonic_ns().unwrap() + milliseconds * 1_000_000;
+        let config = json!({"work_deadline_ns":deadline,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        let result = drain(&engine, &config);
+        assert_eq!(
+            engine
+                .search_text_only_filtered_with_snippets(
+                    "ggdrain",
+                    None,
+                    &ReadView::default(),
+                    10,
+                    None
+                )
+                .unwrap()
+                .results
+                .len(),
+            1
+        );
+        engine.close().unwrap();
+        let db = rusqlite::Connection::open_with_flags(
+            &store,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get::<_, usize>(0))
+                .unwrap(),
+            1
+        );
+        println!(
+            "actual GG drain {} milliseconds={milliseconds} result={result:?}",
+            root.display()
+        );
+        if milliseconds == 0 {
+            assert!(result.is_err(), "expired GG drain invoked the actual API");
+        } else {
+            let report = result.unwrap();
+            let expected = (deadline - report["start_ns"].as_u64().unwrap()) / 1_000_000;
+            assert_eq!(
+                report["timeout_ms"], expected,
+                "GG drain renewed a fixed5000ms instead of original remaining budget"
+            );
+            assert_eq!(report["drain_calls"], 1);
+        }
+    }
+
+    #[test]
+    fn gg_drain_forwards_actual_original_remaining_timeout() {
+        actual_drain(1500);
+    }
+    #[test]
+    fn expired_gg_drain_does_not_invoke_api() {
+        actual_drain(0);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn gg_drains_never_renew_the_original_work_window(milliseconds in 50u64..2000) { actual_drain(milliseconds); }
+    }
 }

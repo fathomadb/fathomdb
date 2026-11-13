@@ -7,8 +7,12 @@ use std::path::Path;
 pub(super) fn run(config: &Value, out: &Path, observer: CoreObserver) {
     std::fs::create_dir_all(out).unwrap();
     let source = Path::new(config["store"].as_str().unwrap());
-    g_gg_time::from_template(config, out, source, observer);
-    g_gg_governed::from_template(config, out, source, observer);
+    if !g_gg_time::from_template(config, out, source, observer) {
+        return;
+    }
+    if !g_gg_governed::from_template(config, out, source, observer) {
+        return;
+    }
     let time: Value =
         serde_json::from_slice(&std::fs::read(out.join("time/controls.json")).unwrap()).unwrap();
     let governed: Value =

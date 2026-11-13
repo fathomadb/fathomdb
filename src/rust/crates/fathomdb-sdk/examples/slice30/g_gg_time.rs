@@ -27,7 +27,12 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
     from_template(config, out, &source, observer);
 }
 
-pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer: CoreObserver) {
+pub(super) fn from_template(
+    config: &Value,
+    out: &Path,
+    source: &Path,
+    observer: CoreObserver,
+) -> bool {
     let original = Sha256::digest(std::fs::read(source).unwrap());
     let directory = out.join("time");
     std::fs::create_dir(&directory).unwrap();
@@ -66,7 +71,7 @@ pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer:
         .unwrap();
     let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
     let draining = Instant::now();
-    engine.drain(5000).unwrap();
+    let drain_budget = g_gg_stages::drain(engine, config).unwrap();
     let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let pending = engine.read_embedding_readiness().unwrap().pending_count;
     assert_eq!(pending, 0);
@@ -83,10 +88,14 @@ pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer:
     }
     adapter.close();
     assert_eq!(Sha256::digest(std::fs::read(source).unwrap()), original);
-    let proof = json!({"controls":controls,"baseline_coverage":baseline,"after_coverage":after,
+    let mut proof = json!({"controls":controls,"baseline_coverage":baseline,"after_coverage":after,
         "governed_write_calls":1,"write_rows":1,"write_cursor":receipt.cursor,"write_ns":write_ns,
         "drain_ns":drain_ns,"pending":pending,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
         "scope":"literal public-view controls; write/drain separate; timed hybrid stages recorded separately"});
+    if config["work_deadline_ns"].is_u64() {
+        proof["drain_budget"] = drain_budget;
+    }
     std::fs::write(directory.join("controls.json"), serde_json::to_vec_pretty(&proof).unwrap())
         .unwrap();
+    true
 }

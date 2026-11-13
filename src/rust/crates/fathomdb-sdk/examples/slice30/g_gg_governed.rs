@@ -169,7 +169,12 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
     from_template(config, out, &source, observer);
 }
 
-pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer: CoreObserver) {
+pub(super) fn from_template(
+    config: &Value,
+    out: &Path,
+    source: &Path,
+    observer: CoreObserver,
+) -> bool {
     let original = Sha256::digest(std::fs::read(source).unwrap());
     let directory = out.join("governed");
     std::fs::create_dir(&directory).unwrap();
@@ -231,7 +236,7 @@ pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer:
         .unwrap();
     let register_ns = u64::try_from(registering.elapsed().as_nanos()).unwrap();
     let draining = Instant::now();
-    engine.drain(5000).unwrap();
+    let valid_drain_budget = g_gg_stages::drain(engine, config).unwrap();
     let valid_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let valid_readiness = readiness(engine);
     let valid = inventory(&store, &report.default_embedder, false);
@@ -247,7 +252,7 @@ pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer:
     engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
     let transition_ns = u64::try_from(transitioning.elapsed().as_nanos()).unwrap();
     let draining = Instant::now();
-    engine.drain(5000).unwrap();
+    let deleted_drain_budget = g_gg_stages::drain(engine, config).unwrap();
     let deleted_drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
     let deleted_readiness = readiness(engine);
     let pending = deleted_readiness["pending_count"].as_u64().unwrap();
@@ -262,10 +267,15 @@ pub(super) fn from_template(config: &Value, out: &Path, source: &Path, observer:
     );
     adapter.close();
     assert_eq!(Sha256::digest(std::fs::read(source).unwrap()), original);
-    let proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
+    let mut proof = json!({"controls":controls,"valid_inventory":valid,"deleted_inventory":deleted,"valid_readiness":valid_readiness,"deleted_readiness":deleted_readiness,"selected_cuda_uuid":report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid,
         "governed_write_calls":1,"write_rows":2,"dependency_registrations":1,"transitions":1,"pending":pending,
         "write_ns":write_ns,"register_ns":register_ns,"valid_drain_ns":valid_drain_ns,"transition_ns":transition_ns,"deleted_drain_ns":deleted_drain_ns,
         "scope":"ordinary provenance/dependency/lifecycle/public-view controls and physical inventory; timed stages recorded separately"});
+    if config["work_deadline_ns"].is_u64() {
+        proof["valid_drain_budget"] = valid_drain_budget;
+        proof["deleted_drain_budget"] = deleted_drain_budget;
+    }
     std::fs::write(directory.join("controls.json"), serde_json::to_vec_pretty(&proof).unwrap())
         .unwrap();
+    true
 }

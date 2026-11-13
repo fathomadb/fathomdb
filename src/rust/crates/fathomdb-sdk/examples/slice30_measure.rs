@@ -28,6 +28,18 @@ impl Adapter {
         }
     }
 
+    #[cfg(feature = "slice30-observer")]
+    fn begin_observation(&self) -> fathomdb_engine::Slice30ObservationGuard {
+        match self {
+            Self::Core(engine) => {
+                engine.begin_slice30_observation_for_test(512).expect("core observer")
+            }
+            Self::Sdk(engine) => {
+                engine.begin_slice30_observation_for_test(512).expect("SDK observer")
+            }
+        }
+    }
+
     fn write(&self, batch: &[PreparedWrite]) -> u64 {
         match self {
             Self::Core(engine) => engine.write(batch).expect("core write").cursor,
@@ -86,6 +98,8 @@ fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
 }
 
 fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
+    // Keep dispatch allocation-free inside the outer route wall interval.
+    #[allow(clippy::large_enum_variant)]
     enum Output {
         Search(fathomdb_engine::SearchResult),
         Embed(Vec<f32>),
@@ -649,19 +663,62 @@ fn run_g_control(config: &Value, out: &Path) -> Value {
     let mut operation = 1_u64;
     for adapter in ["engine", "sdk"] {
         let engine = Adapter::open(adapter, &store);
+        #[cfg(feature = "slice30-observer")]
+        let observation = (config["observe"] == true).then(|| engine.begin_observation());
         for route in ["text", "hybrid", "embed"] {
+            #[cfg(feature = "slice30-observer")]
+            let mut row = if let Some(observation) = &observation {
+                observation
+                    .with_operation(operation, || observe_g_route(&engine, route, &queries[0]))
+            } else {
+                observe_g_route(&engine, route, &queries[0])
+            };
+            #[cfg(not(feature = "slice30-observer"))]
             let mut row = observe_g_route(&engine, route, &queries[0]);
             row["adapter"] = json!(adapter);
             row["operation_id"] = json!(operation);
             recorder.emit("samples", &row);
             rows.push(row);
-            let trace = json!({"adapter":adapter,"route":route,"operation_id":operation,
-                "records":[],"dropped_records":0,"issues":[]});
+            let mut trace = json!({"records":[],"dropped_records":null,
+                "issues":["collector_disabled_or_feature_absent"],"collection":"unavailable"});
+            #[cfg(feature = "slice30-observer")]
+            if let Some(observation) = &observation {
+                trace = serde_json::to_value(observation.take())
+                    .expect("encode actual observation batch");
+                trace["collection"] = json!("enabled");
+            }
+            trace["adapter"] = json!(adapter);
+            trace["route"] = json!(route);
+            trace["operation_id"] = json!(operation);
             recorder.emit("observations", &trace);
             traces.push(trace);
             operation += 1;
         }
-        nested.push(json!({"adapter":adapter,"records":[],"dropped_records":0,"issues":[]}));
+        let mut nested_trace = json!({"records":[],"dropped_records":null,
+            "issues":["nested_control_not_observed"],"collection":"unavailable"});
+        #[cfg(feature = "slice30-observer")]
+        if config["nested_control"] == true {
+            if let Some(observation) = &observation {
+                observation.with_operation(7001, || {
+                    observe_g_route(&engine, "text", &queries[0]);
+                    let contained = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        observation.with_operation(7002, || {
+                            observe_g_route(&engine, "text", &queries[0]);
+                            panic!("contained G nested operation unwind");
+                        });
+                    }));
+                    assert!(contained.is_err(), "nested control must exercise unwind restoration");
+                    observe_g_route(&engine, "text", &queries[0]);
+                });
+                nested_trace = serde_json::to_value(observation.take())
+                    .expect("encode actual nested observation batch");
+                nested_trace["collection"] = json!("enabled");
+            }
+        }
+        nested_trace["adapter"] = json!(adapter);
+        nested.push(nested_trace);
+        #[cfg(feature = "slice30-observer")]
+        drop(observation);
         fixtures.push(g_fixture_observation(&engine, &store));
         engine.close();
         drop(engine);
@@ -674,9 +731,24 @@ fn run_g_control(config: &Value, out: &Path) -> Value {
             row["ok"] == true
         }
     });
+    let complete = complete
+        && (config["observe"] != true
+            || traces.iter().all(|trace| {
+                trace["collection"] == "enabled"
+                    && trace["dropped_records"] == 0
+                    && trace["issues"] == json!([])
+                    && trace["records"].as_array().is_some_and(|records| !records.is_empty())
+            }))
+        && (config["nested_control"] != true
+            || nested.iter().all(|trace| {
+                trace["collection"] == "enabled"
+                    && trace["dropped_records"] == 0
+                    && trace["issues"] == json!([])
+                    && trace["records"].as_array().is_some_and(|records| !records.is_empty())
+            }));
     let result = json!({"complete":complete,"control":"negative_no_provider",
         "qualified_dense_fixture":false,"samples":rows,"observation_batches":traces,
-        "nested_controls":nested,"fixtures":fixtures,"format":37,
+        "nested_controls":nested,"fixtures":fixtures,"format":fixtures[0]["format"],
         "raw_persistence":recorder.statistics_since([0;5])});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result

@@ -91,7 +91,9 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
         command = ([sys.executable,str(Path(__file__).with_name("gd_stage.py"))]
-                   if cell["family"]=="G_PREPARE" or cell.get("template_from") else [artifact["path"]])
+                   if (cell["family"]=="G_PREPARE" or cell.get("template_from")
+                       or (cell["family"]=="D_QUERY_FIXTURE" and "n" in cell and "write_records" not in cell))
+                   else [artifact["path"]])
         try:
             outcomes.extend(run_campaign([cell], root, command,
                                          timeout=manifest["cell_seconds"], completion=_native_complete,

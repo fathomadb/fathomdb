@@ -237,7 +237,7 @@ pub(super) fn run(config: &Value, out: &Path) {
             let (stop, stopping) = std::sync::mpsc::sync_channel(1);
             let sampler = if config["readiness"].as_bool().unwrap_or(false) {
                 Some(scope.spawn(move || {
-                    super::d_workload::readiness_loop(engine, origin, ready, stopping)
+                    super::d_workload::readiness_loop(engine, origin, ready, stopping, config)
                 }))
             } else {
                 None

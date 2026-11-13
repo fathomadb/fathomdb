@@ -39,19 +39,26 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-The reviewed G-first design and actual20 fit are imported; G source work is in
-progress in its isolated checkout. D source/runtime and GPU/model/campaign
-execution remain separately gated. The20 proof condition for M is satisfied; its
+The reviewed G-first design and actual Slice 20 fit are imported. G implementation
+continues in its isolated checkout; Astra found one remaining-cell-allowance
+forecast issue in the frozen Python runner, now under RED/GREEN correction.
+G has the native window for subsequent controlled span coverage and CLI/consumer
+qualification. D source/runtime and GPU/model/campaign execution remain gated. The20 proof condition for M is satisfied; its
 selected G-store/tooling prerequisites and F frozen-input,
 whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
 completed70 retain their recorded bounds. Each source owner uses a fresh
 parent-created worktree and own /mnt/data resources.
 
-Slice100 owner decisions are recorded in the [ledger](../../steward/steward-ledger.jsonl)
-at seq-371 and seq-372. The owner reconciled its plans at c1226d1bf after
-independent Astra PASS; implementation is authorized in its isolated checkout.
-Heavy/native work is serialized; source/runtime qualification and100/D28-09
-closure remain pending.
+Slice 100 owner decisions seq-371/372 are recorded in the
+[ledger](../../steward/steward-ledger.jsonl). Its qualified source, G2 coverage and
+native subset is integrated at `85f7eb219d96ff75c27cf24660218aa1a1c79780` after
+final independent Astra ACCEPT. Assembled coverage accounts for all 217 registered
+suites, with original failures and targeted repairs retained; see the
+[execution record](../0.8.29/features/slice-100/execution.md). This includes the
+original qualified healthy Q1 run. The interruption remains UNQUALIFIED, without
+confirmed fault-exit, raw snapshot or recovery qualification. An additional
+matched pair question is unanswered; Slice 100 and D28-09 stay open. Native work
+has returned to G; Slice 100 is held for additional scope and a scheduled window.
 
 ## Retained gates
 

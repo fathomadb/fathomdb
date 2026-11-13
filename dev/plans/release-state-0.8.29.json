@@ -211,9 +211,9 @@
         "dev/plans/0.8.29/features/slice-30/results-p.md",
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md"
       ],
-      "phase": "P_SUBSET_QUALIFIED_G_DESIGN_APPROVED_SOURCE_ENTRY_AUTHORIZED",
+      "phase": "P_SUBSET_QUALIFIED_G_IMPLEMENTATION_AND_NATIVE_QUALIFICATION_ACTIVE",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P-only Linux subset is qualified. G-first design passed Astra after exact actual20 input-fit review; fresh owned entry and explicit parent source GO remain. Actual cache/engaged3090/preregistration precede G campaign. D source GO remains separate. The20 A3/A5 proof condition is satisfied at f803a964; M still requires a selected qualifiedG store and reviewed exact MCP tooling. F needs exact frozen TC5 pack/current-candidate proof. Whole20/30,40/50 and pre90 Block1 remain open.",
+      "conditions": "P-only Linux subset remains qualified. G design and actual Slice 20 input-fit passed Astra. G implementation is active in its owned branch and is not integrated or qualified. Frozen Python runner 58e153d86 passed 33 controls; Astra found a P2 remaining-cell-allowance forecast issue, now under RED/GREEN correction. G has the native window for controlled span byte-range/Unicode and normal CLI/consumer qualification after that fix. Actual Default/model/GPU/preregistration readiness precedes campaign GO; D source/runtime remains separate. Slice 20 A3/A5 proof is satisfied at f803a964. M still requires a qualified G store and reviewed exact MCP tooling. F requires the exact frozen TC5 pack and current-candidate proof. Whole 20/30, 40/50 and pre-90 Block 1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -374,12 +374,14 @@
         "dev/plans/0.8.29/features/slice-100/requirements.md",
         "dev/plans/0.8.29/features/slice-100/review-log.md",
         "dev/plans/0.8.29/features/slice-100/status.md",
-        "dev/plans/0.8.29/features/slice-100/test-plan.md"
+        "dev/plans/0.8.29/features/slice-100/test-plan.md",
+        "dev/plans/0.8.29/features/slice-100/execution.md"
       ],
       "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
-      "phase": "IMPLEMENTATION_AUTHORIZED_QUALIFICATION_PENDING",
-      "evidence": "Owner approvals seq-371/372 and independently reviewed maintained plan checkpoint c1226d1bf958e1aa4b69fc81f265c9bc3d217198 are integrated. Independent Astra-medium recheck PASS covers exact coverage/Q1 protocol, current source/AC/oracles, preserved history and scoped Markdown/normal-hook evidence. Parent authorizes implementation in llm/0.8.29-s100-20261113 after clean fast-forward to this control record. Heavy/native work is serialized through parent scheduling; debugger/fault runs remain subject to the reviewed source, resource and runtime-readiness controls. Actual actor/source/binary/native-witness/healthy-control readiness and independent implementation review precede Q1 technical execution GO. No source/runtime qualification or100/D28-09 closure is claimed.",
-      "plan_sha": "c1226d1bf958e1aa4b69fc81f265c9bc3d217198"
+      "phase": "QUALIFIED_COVERAGE_AND_NATIVE_SUBSET_Q1_HELD",
+      "evidence": "Qualified source, coverage and native subset integrated at 85f7eb219d96ff75c27cf24660218aa1a1c79780 after final independent Astra-medium ACCEPT, with no remaining concrete finding. All 20 operator controls and five composed G2 cells passed. The original qualified healthy Q1 run has its own active native checkpoint witness and normal completion/reopen. Assembled coverage of 217 registrations comprises 200 original passes, 16 continuation passes and the exact repaired Rust target. Rust: 2727 passed, 72 ignored. Python/native receipt, TS and hermetic executable NAPI passed; Python/TS body counts are unavailable and are not inferred. Original incomplete wrapper, measurement stop, stale-doc failures, Cargo101/target127 and exec_prefix warning remain recorded in features/slice-100/execution.md and review-log.md. Operator defects have committed runtime RED/GREEN. Original Q1 interruption remains UNQUALIFIED, without confirmed fault-exit, raw snapshot or recovery qualification. Corrected real-debugger behavior is unverified; the additional matched pair question is unanswered. Slice 100, D28-09 and release closure remain open.",
+      "plan_sha": "c1226d1bf958e1aa4b69fc81f265c9bc3d217198",
+      "qualified_subset_sha": "85f7eb219d96ff75c27cf24660218aa1a1c79780"
     },
     {
       "slice": 110,
@@ -643,7 +645,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded SDK parity are complete. Qualified20 Linux repairs/A3-A5 proofs/capacity preparation,30 P measurements and60 MCP subset are integrated within recorded limits. Windows20 A6, whole30/60-F11, other selected outcomes and final160 qualification remain pending. Assembled evidence retains original failures/resumptions/ignored/skipped bodies; no uninterrupted full-wrapper or published-package claim.",
+    "qualification": "Slice 10 preparation and Slice 70 bounded SDK parity are complete. Qualified Slice 20 Linux repairs/A3-A5 proofs/capacity preparation, Slice 30 P measurements, Slice 60 MCP subset and Slice 100 coverage/native subset are integrated within recorded limits. Windows 20 A6, whole 30/60-F11, 100 Q1, other selected outcomes and final 160 qualification remain pending. Assembled evidence retains original failures, resumptions, ignored/skipped bodies and missing count limits; no uninterrupted full-wrapper or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

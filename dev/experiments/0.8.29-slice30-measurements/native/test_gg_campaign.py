@@ -19,6 +19,7 @@ from test_gd_campaign import actual_resources
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from gd_campaign import run_manifest  # noqa: E402
+from gd_results import summarize  # noqa: E402
 
 STAGES=[("time","baseline",100),("time","before",80),("time","inside",100),
         ("time","after",120),("governed","valid",100),("governed","deleted",100)]
@@ -141,6 +142,40 @@ class GGCompletionTests(_GGFixture):
     @given(st.sampled_from([(0,1),(1,2)]))
     def test_completed_gg_phase_counts_survive_resume(self,case):
         self.check_complete(*case)
+
+
+class GGResultTests(_GGFixture):
+    def check_report(self,warmups,samples):
+        manifest,root,outcomes=self.check_cell(warmups,samples)
+        report=summarize(manifest,root/"results")
+        groups=[row for row in report["cells"] if row.get("cell_id")==manifest["cells"][1]["id"]]
+        self.assertEqual(len(groups),6,"missing actual GG stage/view result groups")
+        for group,(family,stage,as_of) in zip(groups,STAGES,strict=True):
+            with self.subTest(stage=stage):
+                directory=Path(outcomes[1]["attempt"])/family/stage
+                proof=json.loads((directory/"api-proof.json").read_text())
+                raw=[json.loads(line) for line in (directory/"samples.jsonl").read_text().splitlines()]
+                self.assertEqual((group["stage_family"],group["stage"],group["valid_as_of"]),(family,stage,as_of))
+                self.assertEqual((group["mode"],group["adapter"],group["population"]),("hybrid","engine","GG"))
+                self.assertEqual(group["status"],"complete")
+                self.assertEqual(group["observer"]["query_records"],warmups+samples)
+                self.assertTrue(group["observer"]["attribution_complete"])
+                self.assertEqual(group["statistics"]["warmup"]["requests"],warmups)
+                self.assertEqual(group["statistics"]["timed"]["requests"],samples)
+                self.assertEqual(group["statistics"]["wall_ns"],proof["loop_ns"])
+                self.assertEqual(group["statistics"]["throughput_scope"],proof["throughput_scope"])
+                self.assertEqual([row["elapsed_ns"] for row in group["queries"]],[row["elapsed_ns"] for row in raw])
+                self.assertEqual([row["observer"] for row in group["queries"]],[row["observer"] for row in raw])
+                self.assertEqual(group["issues"],[])
+        self.assertEqual(len({row["dataset_sha256"] for row in groups}),1)
+
+    def test_all_six_actual_views_keep_their_own_raw_distributions(self):
+        self.check_report(1,2)
+
+    @settings(max_examples=2,deadline=None,database=None,derandomize=True,phases=[Phase.generate])
+    @given(st.sampled_from([(0,1),(1,2)]))
+    def test_stage_warmup_and_timed_populations_remain_separate(self,case):
+        self.check_report(*case)
 
 
 if __name__=="__main__":

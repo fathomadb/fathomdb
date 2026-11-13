@@ -56,6 +56,7 @@ class ResourceMeasurement(unittest.TestCase):
         source, task, tools = [directory / name for name in ['source', 'task', 'tools']]
         for path in [source, task, tools]:
             path.mkdir()
+        (source / 'payload').write_bytes(b'positive owned fixture payload')
         shim = tools / 'du'
         shim.write_text('#!' + sys.executable + '\n' + SHIM)
         shim.chmod(0o700)

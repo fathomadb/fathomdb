@@ -7,14 +7,14 @@ from pathlib import Path
 from campaign import run_campaign
 
 
-def run_manifest(manifest, root, monitor=None):
+def run_manifest(manifest, root, monitor=None, before=None):
     """Run supplied cells in order with their actual native artifact identities."""
     outcomes = []
     for planned in manifest["cells"]:
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
         outcomes.extend(run_campaign([cell], root, [artifact["path"]],
-                                     timeout=manifest["cell_seconds"], completion=_native_complete, monitor=monitor,
+                                     timeout=manifest["cell_seconds"], completion=_native_complete, monitor=monitor, before=before,
                                      poll_interval=0.1, observe_start=monitor is not None))
     return outcomes
 

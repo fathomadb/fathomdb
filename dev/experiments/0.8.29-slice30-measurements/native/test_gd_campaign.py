@@ -1,6 +1,7 @@
 """Tiny real manifest/controller/native D integration; not campaign qualification."""
 
 import hashlib
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 from hypothesis import Phase, given, settings, strategies as st
@@ -53,7 +55,7 @@ def verify(rows, supervised=False):
         attempt = Path(outcome["attempt"])
         attempts.append(str(attempt))
         assert json.loads((attempt/"complete.json").read_text())["complete"] is True
-        with sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro", uri=True) as db:
+        with closing(sqlite3.connect(f"file:{attempt/'query.sqlite'}?mode=ro", uri=True)) as db:
             actual = db.execute("SELECT logical_id,kind,body FROM canonical_nodes ORDER BY write_cursor").fetchall()
             assert actual == [(record["id"],record["kind"],record["body"]) for record in records]
             for table in ["_fathomdb_vector_rows","_fathomdb_vector_spans"]:
@@ -101,6 +103,78 @@ class SupervisedCampaignTests(unittest.TestCase):
     @given(st.integers(min_value=1, max_value=5))
     def test_live_supervision_preserves_real_native_population_and_resume(self, rows):
         verify(rows, supervised=True)
+
+
+def clock_fixture():
+    root = Path(tempfile.mkdtemp(prefix="s30-shared-clock-"))
+    binary = Path(os.environ["CARGO_TARGET_DIR"])/"release/examples/slice30_gd_diagnostic"
+    digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+    print(f"shared clock fixture {root} binary={digest}", flush=True)
+    records = [{"id":"clock-row", "kind":"doc", "body":"clockwitness évidence"}]
+    base = {"family":"D_QUERY_FIXTURE", "records":[], "empty_start":True, "write_records":records,
+            "cohort":1, "warmups":1, "samples":2, "queries":[{"id":0,"query":"clockwitness"}],
+            "readiness":True, "observer":False, "artifact":"do"}
+    manifest = {"schema":"slice30-gd/source-fixture-v1", "cell_seconds":150, "campaign_seconds":14400,
+                "artifacts":{"do":{"path":str(binary),"sha256":digest}},
+                "cells":[dict(base,id="clock-a"),dict(base,id="clock-b")]}
+    return root, binary, manifest
+
+
+def prepare_actual_database(root, binary, name):
+    config = root/f"{name}.json"
+    config.write_text(json.dumps({"family":"NATIVE_BUDGET_CONTROL","work_deadline_ns":2**64-1,"hard_deadline_ns":2**64-1,"shared_deadline_ns":2**64-1}))
+    out = root/name
+    result = subprocess.run([str(binary),str(config),str(out)],capture_output=True,text=True,timeout=150)
+    assert result.returncode == 0, f"real preparation setup NOT_RED {result.stderr}"
+    assert json.loads((out/"budget.json").read_text())["open_calls"] == 1
+    assert (out/"store.sqlite").exists()
+
+
+class SharedClockCampaignTests(unittest.TestCase):
+    def test_clock_begins_before_real_preparation_and_is_shared_by_cells(self):
+        root, binary, manifest = clock_fixture()
+        clock = root/"results/campaign-clock.json"
+        preparations = []
+        def before():
+            observed = json.loads(clock.read_text()) if clock.exists() else None
+            start = time.monotonic_ns()
+            prepare_actual_database(root,binary,f"prepare-{len(preparations)}")
+            record = {"clock":observed,"preparation_start_ns":start,"preparation_end_ns":time.monotonic_ns()}
+            preparations.append(record)
+            return record
+        outcomes = run_manifest(manifest,root/"results",before=before)
+        assert [row["status"] for row in outcomes] == ["complete","complete"]
+        assert len(preparations) == 2
+        actual = [(row["clock"] or {}).get("started_ns") for row in preparations]
+        print(f"clock before actual preparations={actual}", flush=True)
+        self.assertTrue(all(isinstance(start,int) and start <= row["preparation_start_ns"] for start,row in zip(actual,preparations,strict=True)),"missing shared clock before actual preparation")
+        self.assertEqual(len(set(actual)),1)
+        saved = clock.read_bytes()
+        resumed = run_manifest(manifest,root/"results",before=before)
+        self.assertEqual([row["attempt"] for row in resumed],[row["attempt"] for row in outcomes])
+        self.assertEqual(len(preparations),2)
+        self.assertEqual(clock.read_bytes(),saved)
+
+    def test_elapsed_actual_preparation_cannot_gain_fresh_budget_on_resume(self):
+        root, binary, manifest = clock_fixture()
+        results = root/"results"
+        results.mkdir()
+        clock = results/"campaign-clock.json"
+        started = time.monotonic_ns()
+        clock.write_text(json.dumps({"started_ns":started,"boot_id":Path("/proc/sys/kernel/random/boot_id").read_text().strip()}))
+        prepare_actual_database(root,binary,"already-prepared")
+        manifest["campaign_seconds"] = (time.monotonic_ns()-started)/2_000_000_000
+        saved = clock.read_bytes()
+        outcomes = run_manifest(manifest,results)
+        for row in outcomes:
+            if row["status"] == "complete":
+                assert json.loads((Path(row["attempt"])/"complete.json").read_text())["complete"] is True
+        self.assertEqual([row["status"] for row in outcomes],["not_run_resource","not_run_resource"],"elapsed preparation/shared clock was renewed or ignored")
+        self.assertTrue(all(row["reason"] == "campaign_time_cap" and row["pid"] is None for row in outcomes))
+        self.assertEqual(list(results.glob("*/attempt-*")),[])
+        again = run_manifest(manifest,results)
+        self.assertEqual([row["status"] for row in again],["not_run_resource","not_run_resource"])
+        self.assertEqual(clock.read_bytes(),saved)
 
 
 if __name__ == "__main__":

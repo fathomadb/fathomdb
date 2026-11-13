@@ -18,6 +18,7 @@ from hypothesis import Phase, given, settings, strategies as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from gd_campaign import run_manifest  # noqa: E402
+from control import read_jsonl_records  # noqa: E402
 
 
 def verify(rows, supervised=False):
@@ -420,6 +421,7 @@ class NativeHeldPhaseStopTests(unittest.TestCase):
             mapped=db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0]
             self.assertLessEqual(mapped,3)
             self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_spans").fetchone()[0],mapped)
+        return result
 
     def test_held_query_loop_stops_and_releases_before_close(self):
         self.check_held_stop(10000)
@@ -1081,6 +1083,40 @@ class QuietCancellationTests(unittest.TestCase):
 
     def test_int_during_eligible_observation_prevents_current_and_later_launch(self):
         self.check_stop(2.0, signal.SIGINT)
+
+
+class HeldRawRetentionTests(unittest.TestCase):
+    check_held_stop = NativeHeldPhaseStopTests.check_held_stop
+
+    def check_retention(self, samples):
+        result=self.check_held_stop(samples)
+        attempt=Path(result["attempt"])
+        issues=[]
+        writes=read_jsonl_records(attempt/"writes.jsonl",issues)
+        observations=read_jsonl_records(attempt/"observations.jsonl",issues)
+        with self.subTest(population="completed writes"):
+            self.assertEqual(len(writes),2,"already-completed governed cohorts were lost before orderly budget stop")
+            self.assertEqual([row["rows"] for row in writes],[2,1])
+            self.assertEqual([len(row["row_cursors"]) for row in writes],[2,1])
+            self.assertLess(writes[0]["cursor"],writes[1]["cursor"])
+        with self.subTest(population="completed held observation"):
+            self.assertEqual(len(observations),1,"already-completed held observation was lost before query stop")
+            self.assertEqual(observations[0]["phase"],"held")
+            held=observations[0]["observation"]
+            self.assertEqual((held["readiness"]["pending_count"],held["sql"]["canonical_rows"],held["sql"]["physical_vectors"]),(3,3,0))
+            self.assertEqual(held["sql"]["profile"]["dimension"],768)
+            calls=read_jsonl_records(attempt/"queries.jsonl",issues)
+            self.assertLessEqual(held["end_ns"],calls[0]["start_ns"])
+            self.assertTrue(all(row["clock"]["end_ns"]<=held["start_ns"] for row in writes))
+        self.assertEqual(issues,[])
+
+    def test_completed_write_and_held_rows_survive_real_partial_query_shutdown(self):
+        self.check_retention(10000)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=9000,max_value=11000))
+    def test_partial_tail_never_erases_preceding_completed_phase_rows(self,samples):
+        self.check_retention(samples)
 
 
 if __name__ == "__main__":

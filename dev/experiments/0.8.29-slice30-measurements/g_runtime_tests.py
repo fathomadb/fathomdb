@@ -331,5 +331,37 @@ class GNormalCliTests(unittest.TestCase):
             self.assertEqual(result["observation_batches"], [])
 
 
+    def test_diagnostic_filter_is_forwarded_to_actual_core_and_sdk_search_routes(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text('"alpha needle"\n"beta"\n')
+            queries.write_text('"needle"\n')
+            seed = root / "seed.json"
+            seed.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                        "adapter": "sdk", "n": 2, "corpus": str(corpus), "queries": str(queries)}))
+            prepared = subprocess.run([str(binary), str(seed), str(root / "seed")],
+                                      text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+            config = root / "cell.json"
+            config.write_text(json.dumps({"family": "G-O", "provider": "none", "negative_control": True,
+                                          "store": str(root / "seed" / "store.sqlite"), "queries": str(queries),
+                                          "adapters": ["engine", "sdk"], "routes": ["text", "hybrid"],
+                                          "warmup": 0, "samples": 1, "repeat": 0, "observe": True,
+                                          "record_first_call": False, "diagnostic_filter_kind": "note"}))
+            out = root / "out"
+            child = subprocess.run([str(binary), str(config), str(out)],
+                                   text=True, capture_output=True, timeout=30, check=False)
+            self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+            result = json.loads((out / "result.json").read_text())
+            self.assertEqual(len(result["samples"]), 4)
+            self.assertTrue(all(row["ids"] == [] for row in result["samples"]),
+                            "normal diagnostic silently discarded the kind filter")
+            self.assertTrue(all(row["ok"] and row["returned_hits"] == 0 for row in result["samples"]))
+            self.assertEqual(len(result["observation_batches"]), 4)
+            self.assertEqual(result["diagnostic_options"]["filter_kind"], "note")
+
+
 if __name__ == "__main__":
     unittest.main()

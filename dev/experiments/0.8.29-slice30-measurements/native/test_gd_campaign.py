@@ -801,5 +801,48 @@ class HeldPopulationRouteTests(unittest.TestCase):
         self.check_held(count)
 
 
+class HeldCompletionRouteTests(unittest.TestCase):
+    def check_completion(self,count,observer):
+        root,_,manifest=clock_fixture()
+        cell=dict(manifest["cells"][0],id="d/held-complete",family="D_HELD_FIXTURE",n=count,
+                  records=[{"id":"unused-source-fixture","kind":"doc","body":"control"}],
+                  cohort=3,release_mode="explicit",warmups=1,samples=2,observer=observer)
+        del cell["write_records"]
+        manifest=dict(manifest,cells=[cell])
+        result=run_manifest(manifest,root/"results")[0]
+        self.assertEqual(result["exit"],0,"real held APIs and cleanup NOT_RED")
+        self.assertTrue(result["cleanup"]["complete"])
+        attempt=Path(result["attempt"])
+        controls=json.loads((attempt/"controls.json").read_text())
+        self.assertTrue(controls["api_complete"])
+        self.assertEqual((controls["held"]["readiness"]["pending_count"],controls["held"]["sql"]["physical_vectors"]),(count,0))
+        self.assertEqual((controls["released"]["readiness"]["pending_count"],controls["released"]["sql"]["physical_vectors"]),(0,count))
+        self.assertEqual(controls["release_requests"],1)
+        self.assertTrue(controls["coverage"]["verified"])
+        self.assertEqual(len(controls["coverage"]["rows"]),count)
+        self.assertEqual(controls["coverage"]["profile"]["dimension"],768)
+        calls=[json.loads(line) for line in (attempt/"queries.jsonl").read_text().splitlines()]
+        self.assertEqual([call["phase"] for call in calls],["warmup","timed","timed"])
+        self.assertTrue(all(call["ok"] for call in calls))
+        with closing(sqlite3.connect(f"file:{attempt/'store.sqlite'}?mode=ro",uri=True)) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes c JOIN _fathomdb_vector_rows m ON m.kind=c.kind AND m.write_cursor=c.write_cursor JOIN vector_default_rowids v ON v.rowid=m.rowid JOIN _fathomdb_vector_spans s ON s.vector_rowid=m.rowid AND s.write_cursor=c.write_cursor").fetchone()[0],count)
+        self.assertEqual(hashlib.sha256((attempt/"store.sqlite").read_bytes()).hexdigest(),controls["closed_main_sha256"])
+        wal=attempt/"store.sqlite-wal"
+        self.assertTrue(not wal.exists() or wal.stat().st_size==0)
+        print(f"actual held completion {attempt} rows={count} observer={observer} status={result['status']}",flush=True)
+        self.assertEqual(result["status"],"complete","held native completion not recognized by actual controller")
+        resumed=run_manifest(manifest,root/"results")[0]
+        self.assertEqual(resumed["attempt"],result["attempt"])
+        self.assertEqual(len(list((root/"results/d/held-complete").glob("attempt-*"))),1)
+
+    def test_real_traced_held_completion_and_resume(self):
+        self.check_completion(6,True)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=1,max_value=8),st.booleans())
+    def test_actual_held_tail_and_observer_control_complete_without_rerun(self,count,observer):
+        self.check_completion(count,observer)
+
+
 if __name__ == "__main__":
     unittest.main()

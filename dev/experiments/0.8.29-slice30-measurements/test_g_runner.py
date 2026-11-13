@@ -37,3 +37,22 @@ class GProductionQualificationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class GActualProgramIdentityTests(unittest.TestCase):
+    def test_actual_program_pid_is_retained_independently_of_reported_result(self):
+        spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            code = "\n".join([
+                "import json,os,pathlib,sys",
+                "out=pathlib.Path(sys.argv[2]); assert not out.exists(); out.mkdir(parents=True)",
+                "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True,'reported_pid':os.getpid()}))",
+            ])
+            result = execute_cell(make_g_plan(spec)[0], {"command": [sys.executable, "-c", code],
+                                                       "corpus": "registered-corpus.jsonl", "queries": "registered-queries.jsonl"},
+                                  root / "attempt", time.monotonic_ns() + 900 * 10**9)
+            self.assertEqual(len(result["steps"]), 2)
+            for step in result["steps"]:
+                self.assertEqual(step.get("pid"), step["result"]["reported_pid"],
+                                 "runner did not independently retain the actual command child PID")
+            self.assertNotEqual(result["steps"][0]["pid"], result["steps"][1]["pid"])

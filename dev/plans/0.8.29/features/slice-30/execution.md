@@ -947,3 +947,10 @@ aggregate-cap qualification; those controller units remain required.
 - Frozen expectations require refusal of these controlled reports, retained
   command inputs/results and an explicit qualification issue. No database,
   native, model or GPU execution is performed or claimed by this unit.
+
+- Added the production runner's actual-command attribution oracle before GREEN.
+  `g-runner-native-pid-red` observes two real command processes but no independent
+  retained PID: `AssertionError: None != 2355459 : runner did not independently
+  retain the actual command child PID`. One runtime failure, exit 1, no resource
+  stop. This PID is a controlled child identity, never a GPU engagement claim;
+  the existing protocol-refusal oracle remains unchanged.

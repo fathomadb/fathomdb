@@ -172,18 +172,18 @@ pub(super) fn run(config: &Value, out: &Path) {
     std::fs::write(out.join("complete.json"), b"{\"complete\":true}\n").unwrap();
 }
 
-fn write_row(output: &mut std::fs::File, row: &Value) {
+pub(super) fn write_row(output: &mut std::fs::File, row: &Value) {
     serde_json::to_writer(&mut *output, row).unwrap();
     output.write_all(b"\n").unwrap();
 }
 
-fn request(config: &Value, sample: usize) -> Option<&Value> {
+pub(super) fn request(config: &Value, sample: usize) -> Option<&Value> {
     let queries = config["queries"].as_array()?;
     assert!(!queries.is_empty());
     Some(&queries[sample % queries.len()])
 }
 
-fn query_row(
+pub(super) fn query_row(
     engine: &Engine,
     origin: Instant,
     phase: &str,

@@ -144,6 +144,26 @@ pub(super) fn run(config: &Value, out: &Path) {
     let held = observation(origin, engine, &store);
     assert_eq!(held["readiness"]["pending_count"], records.len());
     assert_eq!(held["sql"]["physical_vectors"], 0);
+    let after_queries = if config["queries"].as_array().is_some() {
+        let mut output = std::fs::File::create(out.join("queries.jsonl")).unwrap();
+        for (phase, key) in [("warmup", "warmups"), ("timed", "samples")] {
+            let count = usize::try_from(config[key].as_u64().unwrap()).unwrap();
+            for sample in 0..count {
+                let row = super::d_workload::query_row(
+                    engine,
+                    origin,
+                    phase,
+                    sample,
+                    super::d_workload::request(config, sample),
+                );
+                super::d_workload::write_row(&mut output, &row);
+            }
+        }
+        std::io::Write::flush(&mut output).unwrap();
+        Some(observation(origin, engine, &store))
+    } else {
+        None
+    };
     let mode = config["release_mode"].as_str().unwrap();
     let (_, releasing) = timed(origin, || {
         match mode {
@@ -166,12 +186,15 @@ pub(super) fn run(config: &Value, out: &Path) {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect();
-    let controls = json!({"api_complete":true,"clock_scope":"one attempt origin before open; serialization outside API clocks",
+    let mut controls = json!({"api_complete":true,"clock_scope":"one attempt origin before open; serialization outside API clocks",
         "open":opening,"configure":configuring,"empty":empty,"freeze_request":freezing,
         "empty_idle_drain":empty_idle,"idle":idle,"writes":writes,"held":held,"release_request":releasing,
         "release_mode":mode,"release_requests":requests.get(),"released_drain":draining,"released":released,
         "coverage":coverage,"coverage_time":coverage_time,"close":closing,"closed_main_sha256":hash,
         "configured_projection_workers":configuration.scheduler_runtime_threads,"configured_provider_workers":configuration.embedder_pool_size});
+    if let Some(after_queries) = after_queries {
+        controls["after_queries"] = after_queries;
+    }
     std::fs::write(out.join("controls.json"), serde_json::to_vec_pretty(&controls).unwrap())
         .unwrap();
     let phases: Vec<_> = [("held", &controls["held"]), ("released", &controls["released"])]

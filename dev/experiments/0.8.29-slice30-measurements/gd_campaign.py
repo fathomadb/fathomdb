@@ -31,6 +31,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
     swap = {"previous":None,"streak":0}
     cancelled = None
+    load = load or (lambda: os.getloadavg()[0])
 
     def prepare():
         check_clock()
@@ -38,7 +39,8 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         if resources:
             samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
         check_clock()
-        quiet = _quiet_start(load or (lambda: os.getloadavg()[0]), effective_work_deadline) if cell.get("quiet_start") else None
+        cpu_baseline = _cpu_sample(load) if cell.get("cpu_observation") else None
+        quiet = _quiet_start(load, effective_work_deadline) if cell.get("quiet_start") else None
         check_clock()
         context = before() if before else None
         if quiet is not None:
@@ -47,6 +49,9 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         if resources:
             samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
             context = {"preparation":context,"resource_samples":samples}
+        if cpu_baseline is not None:
+            context = context if isinstance(context,dict) else {"preparation":context}
+            context["cpu_baseline"] = cpu_baseline
         check_clock()
         if cell.get("lower"):
             admission = _conditional(cell,root,samples[-1] if samples else None,clock["started_ns"],effective_work_deadline)
@@ -89,7 +94,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
         def execute(cell, command, config, attempt, observe):
             nonlocal cancelled
             native = dict(cell,campaign_root=str(root)) if cell.get("template_from") else cell
-            result = _run_native(native, command, config, attempt, observe, bounds, resources, resource_interval, swap)
+            result = _run_native(native, command, config, attempt, observe, bounds, resources, resource_interval, swap, load)
             if cell_started_ns is not None:
                 result["cell_started_ns"] = cell_started_ns
             cancelled = result.get("controller_signal")
@@ -120,6 +125,16 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
     return outcomes
 
 
+def _cpu_sample(load):
+    try:
+        value = float(load())
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("invalid one-minute CPU load")
+    except Exception as error:
+        raise _CampaignRefusal(f"cpu_load_unavailable: {error}") from error
+    return {"observed_ns":time.monotonic_ns(),"load1":value}
+
+
 def _quiet_start(load, deadline_ns):
     observations = []
     with _owned_stop_flags() as stopped:
@@ -129,13 +144,9 @@ def _quiet_start(load, deadline_ns):
             remaining = (deadline_ns-time.monotonic_ns())/1_000_000_000
             if remaining <= 0:
                 raise _CampaignRefusal("cpu_quiet_deadline", {"cpu_quiet":observations})
-            try:
-                value = float(load())
-                if not math.isfinite(value) or value < 0:
-                    raise ValueError("invalid one-minute CPU load")
-            except Exception as error:
-                raise _CampaignRefusal(f"cpu_load_unavailable: {error}", {"cpu_quiet":observations}) from error
-            observations.append({"observed_ns":time.monotonic_ns(),"load1":value})
+            sample = _cpu_sample(load)
+            value = sample["load1"]
+            observations.append(sample)
             if observations[-1]["observed_ns"] >= deadline_ns:
                 raise _CampaignRefusal("cpu_quiet_deadline", {"cpu_quiet":observations})
             if value <= 2:
@@ -230,7 +241,7 @@ def _effective_bounds(cell,bounds):
     return effective
 
 
-def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None):
+def _run_native(cell, command, config, attempt, monitor, bounds, resources=None, resource_interval: float = 30, swap=None, load=None):
     native = dict(cell,**_effective_bounds(cell,bounds))
     hard_ns = native["hard_deadline_ns"]
     config.write_text(json.dumps(native, indent=2) + "\n")
@@ -243,6 +254,8 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
     error = None
     samples = []
     next_probe = time.monotonic()+resource_interval
+    cpu_samples = []
+    next_cpu_probe = time.monotonic()
     with _owned_stop_flags() as stopped, _owned_subreaper(), (attempt / "child.log").open("wb") as log:
         if stopped["signal"] is not None:
             number = stopped["signal"]
@@ -262,6 +275,17 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
                     break
                 if child.poll() is not None:
                     break
+                if native.get("cpu_observation") and now >= next_cpu_probe:
+                    try:
+                        sample = _cpu_sample(load)
+                        sample.update(phase="running",child_alive_at_start=True,
+                                      includes_intentional_worker_load=native["family"].startswith("D_"),
+                                      above_noisy_threshold=sample["load1"]>2.5)
+                        cpu_samples.append(sample)
+                    except _CampaignRefusal as refusal:
+                        error = str(refusal)
+                        break
+                    next_cpu_probe = time.monotonic()+1
                 if resources and now >= next_probe:
                     probe_started_ns = time.monotonic_ns()
                     alive = child.poll() is None
@@ -313,6 +337,15 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
                 samples.append(sample)
             except _CampaignRefusal as refusal:
                 error = error or str(refusal)
+        if native.get("cpu_observation") and stopped["signal"] is None:
+            try:
+                sample = _cpu_sample(load)
+                sample.update(phase="final",child_alive_at_start=False,
+                              includes_intentional_worker_load=native["family"].startswith("D_"),
+                              above_noisy_threshold=sample["load1"]>2.5)
+                cpu_samples.append(sample)
+            except _CampaignRefusal as refusal:
+                error = error or str(refusal)
         if time.monotonic() >= hard:
             error = error or "cell hard deadline"
         stop_signal = stopped["signal"]
@@ -320,7 +353,8 @@ def _run_native(cell, command, config, attempt, monitor, bounds, resources=None,
             error = error or f"controller_signal_{stop_signal}"
         return {"exit":128+stop_signal if stop_signal is not None else (124 if error else child.returncode), "error":error,
                 "pid":child.pid, "pgid":child.pid, "child_exit":child.returncode, "cleanup":cleanup,
-                "resource_samples":samples if resources else None, "controller_signal":stop_signal}
+                "resource_samples":samples if resources else None, "controller_signal":stop_signal,
+                "cpu_samples":cpu_samples if native.get("cpu_observation") else None}
 
 
 class _CampaignRefusal(Exception):

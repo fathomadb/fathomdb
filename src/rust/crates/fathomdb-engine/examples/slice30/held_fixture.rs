@@ -41,6 +41,15 @@ impl Drop for Hold<'_> {
     }
 }
 
+fn release_refused(hold: Hold<'_>, out: &Path) {
+    let requests = hold.release_requests;
+    drop(hold);
+    let path = out.join("budget.json");
+    let mut report: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    report["release_requests"] = json!(requests.get());
+    std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+}
+
 fn now(origin: Instant) -> u64 {
     u64::try_from(origin.elapsed().as_nanos()).unwrap()
 }
@@ -150,6 +159,9 @@ pub(super) fn run(config: &Value, out: &Path) {
         let run_phase = |output: &mut std::fs::File, phase: &str, key: &str| {
             let count = usize::try_from(config[key].as_u64().unwrap()).unwrap();
             for sample in 0..count {
+                if super::native_budget::phase(config, out, phase).is_err() {
+                    return false;
+                }
                 let row = super::d_workload::query_row(
                     engine,
                     origin,
@@ -159,9 +171,13 @@ pub(super) fn run(config: &Value, out: &Path) {
                 );
                 super::d_workload::write_row(output, &row);
             }
+            true
         };
-        run_phase(&mut output, "warmup", "warmups");
-        std::thread::scope(|scope| {
+        if !run_phase(&mut output, "warmup", "warmups") {
+            release_refused(hold, out);
+            return;
+        }
+        let complete = std::thread::scope(|scope| {
             let (start, ready) = std::sync::mpsc::sync_channel(1);
             let (stop, stopping) = std::sync::mpsc::sync_channel(1);
             let sampler = if config["readiness"].as_bool().unwrap_or(false) {
@@ -174,7 +190,7 @@ pub(super) fn run(config: &Value, out: &Path) {
             if sampler.is_some() {
                 start.send(()).unwrap();
             }
-            run_phase(&mut output, "timed", "samples");
+            let complete = run_phase(&mut output, "timed", "samples");
             if let Some(sampler) = sampler {
                 let _ = stop.send(());
                 let reads = sampler.join().unwrap();
@@ -184,8 +200,13 @@ pub(super) fn run(config: &Value, out: &Path) {
                 )
                 .unwrap();
             }
+            complete
         });
         std::io::Write::flush(&mut output).unwrap();
+        if !complete {
+            release_refused(hold, out);
+            return;
+        }
         Some(observation(origin, engine, &store))
     } else {
         None

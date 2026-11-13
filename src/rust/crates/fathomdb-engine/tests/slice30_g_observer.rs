@@ -305,3 +305,64 @@ fn source_window_controls_observe_actual_fallback_selection_without_clock_change
     }
     engine.close().unwrap();
 }
+
+#[test]
+fn pending_vector_probe_records_the_selected_fallback_not_only_eligibility() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("pending-probe.sqlite");
+    let engine = Engine::open_with_embedder_for_test(&path, std::sync::Arc::new(FixedVector))
+        .unwrap()
+        .engine;
+    engine.set_projection_scheduler_frozen_for_test(true);
+    engine
+        .configure_projections(
+            &[fathomdb_engine::ProjectionSpec {
+                name: "doc".into(),
+                roles: [fathomdb_engine::ProjectionRole::Searchable].into_iter().collect(),
+                fts: None,
+                vector: Some(fathomdb_engine::ProjectionVector::default()),
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    engine.drain(5_000).unwrap();
+    let cursor = engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: "pending needle".into(),
+            logical_id: Some("pending".into()),
+            source_id: SourceId::new("test:slice30-pending-probe").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .unwrap()
+        .cursor;
+    let pending = engine.read_embedding_readiness().unwrap().pending_count;
+    let vector_present = engine.has_vector_for_cursor_for_test(cursor).unwrap();
+    let observer = engine.begin_slice30_observation_for_test(128).unwrap();
+    let result = observer.with_operation(601, || engine.search("needle")).unwrap();
+    let batch = observer.take();
+    engine.set_projection_scheduler_frozen_for_test(false);
+    engine.drain(5_000).unwrap();
+    engine.close().unwrap();
+    assert_eq!(pending, 1);
+    assert!(!vector_present);
+    assert_eq!(result.results[0].id.value, "pending");
+    assert_eq!(
+        result.soft_fallback.as_ref().unwrap().branch,
+        fathomdb_engine::SoftFallbackBranch::Vector
+    );
+    let eligibility =
+        batch.records.iter().find(|r| r.phase == "vector_arm_requires_fallback").unwrap();
+    assert_eq!(eligibility.facts["result"], false);
+    let selection = batch.records.iter().find(|r| r.phase == "source_fallback_selection").unwrap();
+    assert_eq!(selection.facts["sql_executed"], true);
+    assert_eq!(
+        selection.facts["result"], true,
+        "the actual pending-row probe selected Some(Vector)"
+    );
+    assert_eq!(batch.dropped_records, 0);
+}

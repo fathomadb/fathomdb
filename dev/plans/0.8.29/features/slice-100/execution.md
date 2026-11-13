@@ -156,3 +156,53 @@ site/retention and actually unfinished collector suites after scoped checks;
 reuse passed lint/typecheck/security evidence with exact source-input limits.
 No second full wrapper or uninterrupted full-green claim follows. Additional Q1
 fault scope and corrected actual exit/recovery qualification remain held.
+
+## Assembled qualification at a9b2bbc7a — original failures retained
+
+The selected17 continuation ran on clean a9b2bbc7a12fbbff7e434802b5710a97bde5b29b:
+registered17/ran17/passed16/failed1/skipped0/excluded0, exit1. Both repaired site
+suites passed. All remaining Python/native receipt, TS, hermetic executable NAPI,
+measurement adapter, experiment/slice135/ledgerwatch and shell suites passed.
+No resource stop or cleanup error occurred;311 valid samples include one
+confirmed-owned disappearance resample. Peak allocation47,148,185,273B stayed
+below64GiB. The original wrapper's343 samples/exit-15/monitor2 remain unchanged.
+
+Only Rust failed: its selected PyO3 test artifact could not load
+libpython3.13.so.1.0 and exited127 before executing tests. The other406 completed
+Rust summaries contain2684passed/0assertion failures/72ignored. Existing memory
+0.8.28-slice42-sqlite-bump-lessons.md documents this uv3.13 loader prerequisite;
+it was missed in initial environment setup. No product RED or code fix follows.
+
+The owned venv's selected interpreter identifies LIBDIR as
+/home/coreyt/.local/share/uv/python/cpython-3.13.13-linux-x86_64-gnu/lib;
+ELF DT_NEEDED matches its existing libpython3.13.so.1.0. Only the exact original
+fathomdb_py-298c1355149e1691 artifact was rerun with original
+--test-threads=1 --quiet and that command-local LD_LIBRARY_PATH, preserving the
+workspace feature closure. It passed43/43, exit0, no resource/cleanup errors.
+The stderr warning "Could not find platform dependent libraries <exec_prefix>"
+is retained. No interpreter substitution, system loader change, borrowed module,
+test edit or whole-Rust rerun occurred.
+
+Assembled Rust is2727passed/0assertion failures/72ignored. Together,200 retained
+original passes plus16 continuation passes and the exact failed Rust-target
+closure cover all217 registrations. This is assembled evidence, never an
+uninterrupted wrapper or collector PASS. Python/TS suite exits0 and the Python
+native receipt are authoritative; canonical passing-spill cleanup removed their
+individual body counts before retention. No counts are inferred from older runs
+and no test was rerun for telemetry. The late read-only TS spill-open attempt
+found it already unlinked and changed nothing.
+
+Raw evidence: receipts/resume-failed-unfinished.json and matching logs;
+logs/fathomdb-agent-test-rust-2680744.log retains the original Cargo101/target127;
+receipts/pyo3-original-artifact-loader-corrected.json and matching stdout/stderr
+retain the exact43-test closure. All are under the own task. Final unconfined
+checks found no exact recorded native actor remaining; all cleanup errors are
+empty. The native window was returned to G. Further work here is docs/static only.
+
+Parent reports independent Astra acceptance of a9b2bbc7a's sampler/resumption,
+exact217=200pass+2failed+15unfinished selection, strict20controls and bounded
+one-comment generated-doc repair. Final assembled qualification review remains.
+G is still unintegrated and not a prerequisite; these results are bound to the
+recorded source/configuration. Q1's original interruption remains UNQUALIFIED,
+with no raw-snapshot/recovery proof. No additional fault scope,100/D28-09 closure,
+release-state/ledger ruling or publication follows from this qualified subset.

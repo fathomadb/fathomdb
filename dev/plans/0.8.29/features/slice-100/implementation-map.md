@@ -2,8 +2,9 @@
 
 The coverage-only source checkpoint now contains the listed child/fixture,
 operator/guard tests and index. Maintained-plan Astra PASS at c1226d1bf and parent
-implementation GO at5f8f12071 precede it.100 owns the transferred native window;
-[execution](execution.md) records actual checks and outstanding native work.
+implementation GO at5f8f12071 precede it.
+[Execution](execution.md) records actual source/G2/healthy and assembled gate
+results. The native window has returned to G; further Q1 runs remain held.
 Q1 source review, exact actor/binary/runtime readiness and parent technical GO
 remain before any debugger/inferior/ptrace/fault launch. No source20 artifacts,
 venv or target are borrowed. G is unintegrated, not a hard prerequisite.

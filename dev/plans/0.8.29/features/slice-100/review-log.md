@@ -45,3 +45,18 @@ post-removal non-head-stress split in composed-oracles.md after the first health
 setup failure exposed the inherited fragment's head-only validation boundary.
 This is not runtime qualification or Q1 launch GO; the corrected frozen source
 and affected actual results still precede technical readiness evaluation.
+
+## Resource repair and assembled qualification review boundary
+
+Parent reports independent Astra acceptance at a9b2bbc7a12fbbff7e434802b5710a97bde5b29b:
+strict owned-ENOENT-only bounded fresh measurement, corrected genuine RED then
+unchanged20control GREEN on both interpreters, one generated source-hash comment,
+and exact217=200pass+2failed+15unfinished resumption selection. Rust/lock are
+unchanged. This is no Q1 fault or whole100 acceptance.
+
+The selected continuation and exact original PyO3 loader-corrected artifact now
+supply assembled217-registration evidence and Rust2727pass/72ignored, preserving
+the incomplete wrapper, collector failure, target127, exec_prefix warning and
+unavailable Python/TS body counts. Exact native actors are gone; window returned
+to G. This docs-only result checkpoint awaits final independent assembled review.
+Original Q1 interruption remains UNQUALIFIED and additional scope is unanswered.

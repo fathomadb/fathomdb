@@ -65,8 +65,9 @@ remains. These are evidence classes, not three established bugs.
    `llm/0.8.29-s100-20261113`, base3c34cd195e85daffa4f11303b66edc9ff6a2ecec.
    Parent strict closed10/resource preflight passed; own nonmutating ownership
    check passed. Independent maintained-plan Astra PASS at c1226d1bf and parent source GO at
-   5f8f12071 now authorize the reviewed test/operator implementation.100 owns
-   the transferred native window; Q1 launches remain technically held.
+   5f8f12071 authorized the reviewed test/operator implementation. Recorded native
+   qualification is complete for the current subset; further Q1 work requires
+   actual additional scope and a newly scheduled native window.
 2. Accepted20 f803a964 and70 e875f360 are ancestors. Entry src tree and lock
    match reviewed03bdd/f803 exactly; whole src/lock changed since older2f691.
    Use reviewed bounded G100-3 command/source inference; retain quiet-output

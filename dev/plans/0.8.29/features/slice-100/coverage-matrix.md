@@ -56,8 +56,9 @@ an executed crash proof. Seq-371 now approves the specific coverage-only asserti
 The approved bounded G2 additions have now executed and passed; healthy G2
 completes/closes but does not separately reopen. Active native healthy proof is
 also real. The incomplete interruption supplies no qualified crash recovery;
-additional Q1 scope and final failed/unfinished gate continuation remain held.
-The one full wrapper was incomplete, not an uninterrupted PASS.
+additional Q1 scope remains held. Assembled217-registration qualification and
+Rust2727pass/72ignored are recorded in execution.md with the original incomplete
+wrapper and failed-target closure; no uninterrupted PASS is claimed.
 
 No product-defect cell is currently established. A later observed failure is a
 new finding requiring minimization and its own true RED/GREEN, not permission

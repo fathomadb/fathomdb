@@ -9,7 +9,9 @@ Actual bounded G2 composition and own Q1 healthy execution passed; the first
 independently witnessed interruption remains UNQUALIFIED in operator exit handling,
 with no raw-snapshot/recovery result. [Execution](execution.md) retains precise
 subjects, real tool RED/GREEN and current20controls. Source review accepted the
-interrupt transition; bounded monitor repair and final qualification remain.
+interrupt transition and bounded monitor repair. Assembled qualification covers
+all217registrations with explicit failed/remaining continuation and exact PyO3
+loader correction; final assembled review remains.
 
 Seq-371 approves specific verification additions; seq-372's one actual witnessed
 signal has been issued. No second Q1 fault is authorized. Original healthy proof
@@ -17,8 +19,9 @@ is retained; strict matching still requires a new healthy at any newly scoped
 frozen subject. Own native/TS setup is complete, with no borrowed artifacts.
 The one full wrapper passed lint/typecheck/security, then stopped incompletely
 on du disappearance during Rust compilation, after two generated-doc site failures.
-Continue only failed/unfinished checks; do not rerun the whole wrapper or infer
-an uninterrupted PASS. All original diagnostics/exits remain retained.
+Those failed/unfinished checks are now covered by the selected continuation and
+exact failed PyO3 artifact rerun. No whole-wrapper rerun or uninterrupted PASS is
+claimed. All original diagnostics/exits and missing body-count limits remain.
 
 ## Existing proof to reuse before writing tests
 

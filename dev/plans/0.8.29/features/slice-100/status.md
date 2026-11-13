@@ -17,7 +17,8 @@ Astra recheck passed at c1226d1bf and parent implementation GO is5f8f12071. Inde
 Own build, five G2 cells and actual qualified Q1 healthy execution are complete.
 [Execution](execution.md) preserves their source subjects and original failures.
 The first witnessed interruption stopped UNQUALIFIED in operator exit handling;
-its tool repair and final full verification remain under review.100/D28-09 stay open.
+its tool repairs passed independent review and assembled qualification is recorded below.
+Final assembled review and additional Q1 scope remain;100/D28-09 stay open.
 
 ## Source/evidence identity
 
@@ -109,12 +110,27 @@ then minimal GREEN;17tool controls pass, including wrong-SIGTERM refusal. These
 launch no debugger/ptrace/product and cannot establish real debugger exit delivery.
 Original qualified healthy and incomplete interruption remain immutable.
 Owned Python/native and locked TS setup completed. The one full wrapper passed
-lint/typecheck/security, then stopped incompletely on an owned du disappearance
-race during Rust compilation;343 valid samples, no actual floor/cap breach.
-Two earlier site failures require one canonical generated source-hash update.
-Monitor RED54304c131/corrected REDa6c643aaf and unchanged20control GREEN preserve
-strict bounded ENOENT-only sampling. Repair review, failed/unfinished gate
-continuation and explicit additional Q1 scope remain. No further Q1 launch or100/D28-09 closure follows.
+lint/typecheck/security, then stopped incompletely on du disappearance during Rust
+compilation:343 valid samples, no actual floor/cap breach, original exits retained.
+Canonical generation repaired one contributor-map source hash. Sampler corrected
+REDa6c643aaf then unchanged20control GREEN and independent Astra acceptance at
+a9b2bbc7a preserve strict bounded ENOENT-only observation and all resource caps.
+
+The exact17-suite continuation finished16pass/1fail; only the PyO3 Rust target
+failed to start because the selected uv3.13 interpreter's libpython was outside
+the loader path. Its exact original artifact then passed43/43 with verified
+command-local LIBDIR. Assembled Rust:2727pass/0assertion failures/72ignored.
+All217 registrations are covered by200 original passes,16 continuation passes
+and that exact Rust-target closure. No uninterrupted wrapper/collector PASS is
+claimed. Python/native receipt and TS suites exited0; individual Python/TS body
+counts were not retained by canonical passing-log cleanup. The exec_prefix
+embedding warning and all original failures remain explicit in execution.md.
+
+Exact registered native actors are gone in their original unconfined context;
+cleanup errors are empty. The native window returned to G. Final assembled Astra
+review remains; further work is docs/static only. No additional Q1 fault is
+selected, no qualified interruption/recovery proof exists, and100/D28-09 remain
+open. Historical records and immutable scratch packets are preserved.
 
 ## Historical Phase A checks
 

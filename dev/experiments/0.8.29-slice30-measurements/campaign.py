@@ -22,7 +22,8 @@ def make_plan(cells, repeats):
     return plan
 
 
-def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, completion=None):
+def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, completion=None,
+                 poll_interval: float = 30, observe_start=False):
     """Run fresh attempts; completion optionally validates a native protocol, defaulting to P result.json."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -49,22 +50,26 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, co
             child = subprocess.Popen([*command, str(config), str(attempt)],
                                      stdout=log, stderr=subprocess.STDOUT)
             group = os.getpgid(child.pid)
+            initial_observation = observe_start
             while True:
                 remaining = timeout - (time.monotonic_ns() - started) / 1000000000
-                try:
-                    code = child.wait(timeout=max(0.01, min(30, remaining)))
-                    break
-                except subprocess.TimeoutExpired:
-                    error = "cell timeout" if remaining <= 0 else (monitor(child.pid) if monitor else None)
-                    if error:
-                        child.terminate()
-                        try:
-                            child.wait(timeout=15)
-                        except subprocess.TimeoutExpired:
-                            child.kill()
-                            child.wait()
-                        code = 124
+                if not initial_observation:
+                    try:
+                        code = child.wait(timeout=max(0.01, min(poll_interval, remaining)))
                         break
+                    except subprocess.TimeoutExpired:
+                        pass
+                initial_observation = False
+                error = "cell timeout" if remaining <= 0 else (monitor(child.pid) if monitor else None)
+                if error:
+                    child.terminate()
+                    try:
+                        child.wait(timeout=15)
+                    except subprocess.TimeoutExpired:
+                        child.kill()
+                        child.wait()
+                    code = 124
+                    break
             if monitor:
                 error = error or monitor(child.pid)
         result_path = attempt / "result.json"

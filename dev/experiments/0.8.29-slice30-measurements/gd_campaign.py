@@ -14,7 +14,8 @@ def run_manifest(manifest, root, monitor=None):
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
         outcomes.extend(run_campaign([cell], root, [artifact["path"]],
-                                     timeout=manifest["cell_seconds"], completion=_native_complete, monitor=monitor))
+                                     timeout=manifest["cell_seconds"], completion=_native_complete, monitor=monitor,
+                                     poll_interval=0.1, observe_start=monitor is not None))
     return outcomes
 
 

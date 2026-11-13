@@ -981,10 +981,10 @@ class CpuObservationTests(unittest.TestCase):
         outcome = run_manifest(manifest, root/"observed", load=load)[0]
         self.assertEqual(outcome["status"], "complete", "actual observed DB control NOT_RED")
         self.assertEqual(len((Path(outcome["attempt"])/"queries.jsonl").read_text().splitlines()), 3)
-        baseline = (outcome.get("environment_before") or {}).get("cpu_baseline")
+        baseline = (outcome.get("environment_before") or {}).get("cpu_baseline", {})
         samples = outcome.get("cpu_samples") or []
         with self.subTest(population="external baseline"):
-            self.assertIsNotNone(baseline, "missing external CPU baseline before own D workers")
+            self.assertTrue(baseline, "missing external CPU baseline before own D workers")
             self.assertEqual(baseline["load1"], 1.5)
             self.assertLess(baseline["observed_ns"], samples[0]["observed_ns"])
         with self.subTest(population="actual runtime"):

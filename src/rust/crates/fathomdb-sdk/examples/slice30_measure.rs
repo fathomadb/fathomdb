@@ -37,21 +37,29 @@ impl Adapter {
     }
 
     fn open_g(adapter: &str, path: &Path, provider: &str) -> Self {
+        Self::open_g_reported(adapter, path, provider).0
+    }
+
+    fn open_g_reported(adapter: &str, path: &Path, provider: &str) -> (Self, Value) {
         let choice = g_provider_choice(provider);
         match adapter {
-            "engine" => Self::Core(Box::new(
-                CoreEngine::open_with_choice(path, choice).expect("G core open").engine,
-            )),
-            "sdk" => Self::Sdk(Box::new(
-                SdkEngine::open(
+            "engine" => {
+                let opened = CoreEngine::open_with_choice(path, choice).expect("G core open");
+                let report = g_open_observation(&opened.report, provider);
+                (Self::Core(Box::new(opened.engine)), report)
+            }
+            "sdk" => {
+                let engine = SdkEngine::open(
                     path,
                     OpenOptions {
                         use_default_embedder: matches!(choice, EmbedderChoice::Default),
                         ..OpenOptions::default()
                     },
                 )
-                .expect("G SDK open"),
-            )),
+                .expect("G SDK open");
+                let report = g_open_observation(engine.open_report(), provider);
+                (Self::Sdk(Box::new(engine)), report)
+            }
             _ => panic!("unknown G adapter"),
         }
     }
@@ -81,6 +89,41 @@ impl Adapter {
             Self::Sdk(engine) => engine.close().expect("SDK close"),
         }
     }
+}
+
+fn g_open_observation(report: &fathomdb_engine::OpenReport, provider: &str) -> Value {
+    use fathomdb_embedder::{EffectiveEmbedDevice, EmbedDevicePolicy};
+    let device = report.embedder_device_resolution.as_ref().map(|resolution| {
+        let policy = match resolution.requested_policy {
+            EmbedDevicePolicy::Auto => "auto".to_string(),
+            EmbedDevicePolicy::Cpu => "cpu".to_string(),
+            EmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        let effective = match &resolution.effective_device {
+            EffectiveEmbedDevice::Cpu => json!({"kind":"cpu"}),
+            EffectiveEmbedDevice::Cuda(info) => json!({"kind":"cuda","ordinal":info.ordinal,
+                "uuid":info.uuid,"name":info.name,"driver_version":info.driver_version,
+                "compute_capability":info.compute_capability,"cuda_toolkit_version":info.cuda_toolkit_version,
+                "allocator":info.cuda_allocator.as_ref().map(|allocator|format!("{allocator:?}")),
+                "libraries":info.cuda_libraries.iter().map(|library|format!("{library:?}")).collect::<Vec<_>>()}),
+        };
+        json!({"requested_policy":policy,"cuda_compiled":resolution.cuda_compiled,
+            "effective_device":effective,"selected_cuda_uuid":resolution.selected_cuda_uuid,
+            "reason":resolution.reason.map(|reason|reason.as_str()),
+            "visible_cuda_devices":resolution.visible_cuda_devices.iter().map(|device|json!({
+                "visible_ordinal":device.visible_ordinal,"uuid":device.uuid,"name":device.name,
+                "compute_capability":device.compute_capability})).collect::<Vec<_>>()})
+    });
+    json!({"available":true,"pid":std::process::id(),
+        "executable":std::env::current_exe().expect("actual executable identity").to_string_lossy(),
+        "requested_provider":provider,"schema_version_before":report.schema_version_before,
+        "schema_version_after":report.schema_version_after,"query_backend":report.query_backend,
+        "embedder_identity":{"name":report.default_embedder.name,"revision":report.default_embedder.revision,"dimension":report.default_embedder.dimension},
+        "embedder_device_resolution":device,"embedder_warmup_ms":report.embedder_warmup_ms,
+        "embedder_download_ms":report.embedder_download_ms,
+        "embedder_events":report.embedder_events.iter().map(|event|format!("{event:?}")).collect::<Vec<_>>(),
+        "mean_centering_required":report.embedder_mean_centering_required,
+        "mean_vec_pinned":report.embedder_mean_vec_pinned})
 }
 
 fn node(id: &str, kind: &str, body: &str) -> PreparedWrite {
@@ -905,11 +948,15 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
     let mut traces = Vec::new();
     let mut fixtures = Vec::new();
     let mut passes = Vec::new();
+    let mut open_reports = Vec::new();
+    let mut close_outcomes = Vec::new();
     let mut operation = 1_u64;
     for adapter in config["adapters"].as_array().expect("G adapters") {
         let name = adapter.as_str().unwrap();
         let opening = std::time::Instant::now();
-        let engine = Adapter::open_g(name, store, provider);
+        let (engine, mut open_report) = Adapter::open_g_reported(name, store, provider);
+        open_report["adapter"] = json!(name);
+        open_reports.push(open_report);
         let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
         let fixture = g_fixture_observation(&engine, store);
         assert!(
@@ -993,8 +1040,10 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
         }
         #[cfg(feature = "slice30-observer")]
         drop(observation);
+        let closing = std::time::Instant::now();
         engine.close();
         drop(engine);
+        close_outcomes.push(json!({"adapter":name,"status":"ok", "elapsed_ns":u64::try_from(closing.elapsed().as_nanos()).unwrap()}));
     }
     recorder.flush_all();
     let outcomes_ok = rows.iter().chain(&warmups).chain(&first_calls).all(|row| {
@@ -1018,6 +1067,7 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
         "diagnostic_options":diagnostic_options.as_ref().map(|options|json!({"filter_kind":options.filter.as_ref().and_then(|filter|filter.kind.as_ref()),"valid_as_of_sequence":diagnostic_times})),
         "samples":rows,"warmups":warmups,"first_calls":first_calls,
         "observation_batches":traces,"passes":passes,"fixtures":fixtures,
+        "open_reports":open_reports,"close_outcomes":close_outcomes,
         "raw_persistence":recorder.statistics_since([0;5]),
         "cache_note":"readiness and any configured first-call/warmup probes precede timed calls; OS caches uncontrolled; collector overhead uncorrected"});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
@@ -1054,7 +1104,7 @@ fn run_g_write(config: &Value, out: &Path) -> Value {
     assert!(samples > 0 && !queries.is_empty() && originals.len() >= 10);
     let observed = config["observe"] == true;
     let opening = std::time::Instant::now();
-    let engine = Adapter::open_g(name, store, provider);
+    let (engine, open_report) = Adapter::open_g_reported(name, store, provider);
     let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
     let before = g_fixture_observation(&engine, store);
     assert!(
@@ -1162,7 +1212,7 @@ fn run_g_write(config: &Value, out: &Path) -> Value {
         "sample_count":schedule.searches.len(),"warmup_count":warmups.len(),"first_call_count":0,
         "batch_count":schedule.batches.len(),"batches":schedule.batches,"probes":schedule.probes,
         "samples":schedule.searches,"warmups":warmups,"first_calls":[],"observation_batches":traces,
-        "before_workload":before,"after_workload":after,"open_ns":open_ns,"close_ns":close_ns,
+        "before_workload":before,"after_workload":after,"open_ns":open_ns,"close_ns":close_ns,"open_report":open_report,
         "passes":[{"adapter":name,"route":route,"requests":samples,"wall_ns":wall_ns,
             "throughput_scope":"natural route calls over write/readiness/point+FTS probe/search/recording/checkpoint loop"}],
         "raw_persistence":recorder.statistics_since([0;5]),
@@ -1244,7 +1294,7 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         return g_seed_cap_refusal(out, driver_started, allowance_ms);
     }
     let start = std::time::Instant::now();
-    let engine = Adapter::open_g(adapter, &store, provider);
+    let (engine, open_report) = Adapter::open_g_reported(adapter, &store, provider);
     let open_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
     let spec = fathomdb_engine::ProjectionSpec {
         name: "doc".into(),
@@ -1300,13 +1350,15 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         return g_seed_cap_refusal(out, driver_started, allowance_ms);
     }
     let start = std::time::Instant::now();
-    let reopened = Adapter::open_g(adapter, &store, provider);
+    let (reopened, reopen_report) = Adapter::open_g_reported(adapter, &store, provider);
     let reopen_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
     let lexical = observe_g_route(&reopened, "text", &queries[0]);
     let after_reopen = g_fixture_observation(&reopened, &store);
     let projection_declared_after_reopen = g_projection_declared(&reopened);
+    let reopening_close = std::time::Instant::now();
     reopened.close();
     drop(reopened);
+    let reopen_close_ns = u64::try_from(reopening_close.elapsed().as_nanos()).unwrap();
     let driver_wall_ns = u64::try_from(driver_started.elapsed().as_nanos()).unwrap();
     let qualified = before_close["qualified_dense_fixture"] == true
         && after_reopen["qualified_dense_fixture"] == true;
@@ -1324,7 +1376,8 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         "configure_ns":configure_ns,"drain_ns":drain_ns,"driver_wall_ns":driver_wall_ns,"admitted_allowance_ms":allowance_ms,
         "budget_scope":"driver entry includes input/output preparation; outer controller owns whole-cell startup/configuration/final reporting",
         "open_ns":open_ns,"write_ns":write_ns,"seed_batches":seed_batches,
-        "close_ns":close_ns,"reopen_ns":reopen_ns,
+        "close_ns":close_ns,"reopen_ns":reopen_ns,"reopen_close_ns":reopen_close_ns,
+        "open_report":open_report,"reopen_report":reopen_report,
         "before_close":before_close,"after_reopen":after_reopen,"lexical_probe":lexical,
         "qualified_dense_fixture":qualified});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
@@ -1358,7 +1411,7 @@ fn run_g_source_fixture(config: &Value, out: &Path) -> Value {
     assert!(!out.exists(), "synthetic source fixture must be fresh");
     std::fs::create_dir_all(out).unwrap();
     let path = out.join("store.sqlite");
-    let engine = Adapter::open_g(adapter, &path, provider);
+    let (engine, open_report) = Adapter::open_g_reported(adapter, &path, provider);
     let spec = fathomdb_engine::ProjectionSpec {
         name: "doc".into(),
         roles: [fathomdb_engine::ProjectionRole::Searchable].into_iter().collect(),
@@ -1439,7 +1492,7 @@ fn run_g_source_fixture(config: &Value, out: &Path) -> Value {
         && (negative || fixture["qualified_dense_fixture"] == true);
     let result = json!({"complete":complete,"control":"registered_future_source_window",
         "natural_lme_fixture":false,"negative_control":negative,"boundary_epoch_s":boundary,
-        "projection_declared":declared,"fixture":fixture,
+        "projection_declared":declared,"fixture":fixture,"open_report":open_report,
         "driver_wall_ns":u64::try_from(started.elapsed().as_nanos()).unwrap()});
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result

@@ -21,7 +21,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [slice30_measure.rs](../../../src/rust/crates/fathomdb-sdk/examples/slice30_measure.rs) | Current engine/SDK direct-text APIs, fresh governed real stores, warmups/raw calls, marker commits/probes, actual compiled-FTS match counts and close/reopen. Build with default SDK features; provider none, no model/GPU. |
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
 | [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
-| [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Seven actual normal-program controls: engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,and normal G-W replacements. Both use no provider and never qualify dense/GPU work. Canonical runner registration remains pending before final gate. |
+| [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Eleven actual normal-program controls: engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,normal G-W replacements,adjacent readiness,typed filters/future views,and actual open/device/close reports. Both use no provider and never qualify dense/GPU work. Canonical runner registration remains pending before final gate. |
 | [test_tools.py](test_tools.py) | Fourteen bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
 
 The Rust example's six independently specified real-store assertions are
@@ -171,3 +171,13 @@ history/active counts witness both atomic cohort sizes and absence of extra
 marker nodes. These provider-free controls do not qualify the72-cell GPU matrix.
 The readonly Python witness uses contextlib.closing; its cleanup-only patch was
 independently approved with URI/queries/assertions unchanged.
+
+Diagnostic G-O filters and explicit valid_as_of sequences use the current public
+core/SDK APIs; natural G-R stays unfiltered with its default view. The source
+window control uses public canonical/derived writes and dependency registration
+with a current-admissible future boundary. It is synthetic, not a natural LME
+fixture. Captured engine facts bind each query's authority/cursor/resolved time.
+Each G open now retains the actual public report, child PID/executable and device
+resolution as reported; None remains absent, never fabricated CPU/CUDA. Separate
+close outcomes and seed reopen-close clocks are retained. This enables later
+GPU qualification, but no Default/model/GPU execution is established here.

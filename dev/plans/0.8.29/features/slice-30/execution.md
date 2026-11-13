@@ -490,3 +490,50 @@ G-only stage/cell/prereg/whole-cell+cumulative cap/refusal/retained-not-run
 controller, default-negative/positive consumers, canonical registration and the
 stable full/native gate/fresh final results review remain required. No campaign
 or whole-slice/downstream clearance follows these source controls.
+
+Per-cohort readiness RED1e98b4d58 observes missing pending metadata Nonevs0 on
+actual inert no-provider writes. GREEN160af97c9 passes8/8 actual normal controls,
+original T9 regression and Clippy. Each successful cohort makes a fresh public
+readiness call before probes, records its separate wall/available/pending/state
+and keeps unknown values null on error, making the tool incomplete. Scope is
+adjacent public readiness, never query authority or D overlap. Fresh Astra
+preaudit confirms no concrete finding.
+
+Diagnostic filter REDd08eda690 sees actual nonempty IDs when kind=note should
+exclude the real doc fixture. GREENa8f0c4aa9 passes9/9 actual normal controls and
+positive/default Clippy; initial needless-borrow lint is retained before its
+exact ownership-spelling correction. Default natural methods remain unchanged;
+only explicit G-O options select typed current public filter/view methods.
+
+Future-view REDc25accbf2 has successful public source/derived/dependency setup
+and witnesses actual [true,true] derived membership at T-1/T instead of
+[true,false]. GREEN16fbad91e passes10/10 plus positive/default Clippy. Each actual
+core/SDK text/hybrid call changes membership without a write and binds returned
+cursor, exact resolved instant and stable generation/nonce/dependency generation
+to one successful native capture. The source is admitted while currently valid;
+no historical1970 admission, clock override, sleep, raw closure rows or model
+stand-in. It is explicitly a synthetic non-LME/no-provider control. Fresh Astra
+preaudit confirms both filter/view pairs without a concrete finding.
+
+At clean16fb, merged exact approved metadata parent
+3c34cd195e85daffa4f11303b66edc9ff6a2ecec with normal Git merge into
+4ec5e470d890dec0dda624fab2fa75870ee3aad6. No rebase/history rewrite; parent
+03bdd→3c and child16fb→merge have identical src/Cargo.lock. Active-base ancestry
+and clean tree verified. Strict closed10 preflight passes with the one expected
+advanced-baseline warning for this branch's G commits. Scoped views/ledgers/
+Markdown all pass; unchanged behavior proofs are not rerun for metadata alone.
+Seq371/372 apply only to100 and confer no G exception, GPU or format authority.
+
+Open-report REDc132cf345 actually opens/closes real core/SDK stores but retains
+0of2 public reports. GREEN g-t10-open-report-green passes11/11 actual normal
+controls; both source build-variant Clippy checks pass, no resource stop. New
+public-report serialization records actual PID/executable, schema/identity/loader
+facts and structured device resolution without inventing absent CUDA/CPU data.
+The witness independently compares Popen PID and executable; no-provider
+resolution/download remain None. Separate close outcomes, seed/reopen reports
+and reopen-close timing are kept. Device selection is an observed report, not
+sufficient GPU engagement; actual reserved3090 Default384/finite/dense/PID/memory/
+utilization proof still requires the later frozen ready packet and technical GO.
+Complete G-only table/stage/prereg/fresh-store/deadline/cumulative/refusal controls,
+consumers/registration, final full/native gate and fresh final results review
+remain required. No model/dataset fetch or GPU execution has occurred.

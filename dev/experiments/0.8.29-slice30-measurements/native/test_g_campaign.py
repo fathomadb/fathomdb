@@ -102,7 +102,7 @@ class ActualGCampaignTests(unittest.TestCase):
         self.assertEqual(outcomes[0]["status"], "complete", "missing actual G manifest completion integration")
 
 
-class NativeGAdmissionTests(unittest.TestCase):
+class _NativeGFixture(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from test_gd_campaign import actual_resources
@@ -191,6 +191,9 @@ class NativeGAdmissionTests(unittest.TestCase):
                     raise RuntimeError("actual copied input/SQL controls NOT_RED")
         return out
 
+
+
+class NativeGAdmissionTests(_NativeGFixture):
     def test_each_expired_native_bound_prevents_default_bge_database_work(self):
         for bound in ["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"]:
             with self.subTest(bound=bound):
@@ -358,6 +361,9 @@ class NativeGAdmissionTests(unittest.TestCase):
         self.check_scheduled_drain_budgets(mode)
 
 
+
+
+class OwnedGTTests(_NativeGFixture):
     def check_owned_preparation(self,suffix):
         root=Path(tempfile.mkdtemp(prefix="owned-preparation-",dir=self.root))
         records=[f"budget {suffix} {i}" for i in range(65)]
@@ -426,6 +432,83 @@ class NativeGAdmissionTests(unittest.TestCase):
     def test_actual_prepared_unicode_population_completes_controller(self,suffix):
         outcome=self.check_owned_preparation(suffix)
         self.assertEqual(outcome["status"],"complete","actual closed GT output is still rejected by the controller completion adapter")
+
+
+class CopiedGCellTests(_NativeGFixture):
+    check_owned_preparation=OwnedGTTests.check_owned_preparation
+
+    def check_copy(self,suffix):
+        producer=self.check_owned_preparation(suffix)
+        self.assertEqual(producer["status"],"complete","real GT completion control NOT_RED")
+        results=Path(producer["attempt"]).parents[1]
+        source=Path(producer["attempt"])/"case-0/template.sqlite"
+        source_hash=hashlib.sha256(source.read_bytes()).hexdigest()
+        cell=dict(self.config,id="g1-source",family="G1_CELL",artifact="gn",n=65,
+                  template_from="gt-source",queries_from="gt-source",passes=MODES,warmups=2,query_count=3)
+        artifact={"path":str(self.binary),"sha256":self.features["binary_sha256"]}
+        manifest={"schema":"slice30-gd/source-fixture-v1","cell_seconds":150,"campaign_seconds":14400,
+                  "artifacts":{"gn":artifact},"cells":[cell]}
+        snapshots=[]
+        def monitor(pid):
+            snapshots.append(_accounting(pid,min(self.work_end,time.monotonic()+5)))
+            return None
+        _sample_resources(self.resources,self.work_end,start=True)
+        with (self.task/"locks"/(GPU+".lock")).open("a") as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            before=_accounting(None,min(self.work_end,time.monotonic()+5))
+            if before["util"] or before["total_MiB"]-before["used_MiB"]<8192:
+                raise RuntimeError("approved GPU not quiet/free NOT_RED")
+            outcome=run_manifest(manifest,results,monitor=monitor,resources=self.resources)[0]
+        if outcome["exit"]!=0:
+            raise RuntimeError(f"copied source cell setup/accounting failure NOT_RED {outcome}")
+        attempt=Path(outcome["attempt"])
+        calls=[]
+        for ordinal,mode in enumerate(MODES):
+            directory=attempt/f"pass-{ordinal}"
+            path=directory/"samples.jsonl"
+            if not path.exists():
+                continue
+            rows=[json.loads(line) for line in path.read_text().splitlines()]
+            warm=[json.loads(line) for line in (directory/"warmups.jsonl").read_text().splitlines()]
+            self.assertEqual([row["query_id"] for row in rows],[0,1,2])
+            self.assertEqual([row["query_id"] for row in warm],[0,1])
+            self.assertTrue(all(row["ok"] and row["elapsed_ns"]>0 for row in [*warm,*rows]))
+            self.assertEqual([row["query_fingerprint"] for row in rows],[hashlib.sha256(text.encode()).hexdigest() for text in ["budget","été","missingnomatch"]])
+            if mode.endswith("_mean"):
+                self.assertTrue(all(row["dimension"]==384 and row["finite"] and row["norm_squared"]>0 for row in rows))
+            elif mode.endswith("_text"):
+                self.assertEqual([row["returned_hits"] for row in rows],[10,0,0])
+            else:
+                self.assertTrue(all(row["returned_hits"]==10 and row["soft_fallback"]=="None" and row["degradations"]=="[]" for row in rows))
+            calls.extend(rows)
+        store=attempt/"store.sqlite"
+        if store.exists():
+            with closing(sqlite3.connect(f"file:{store}?mode=ro",uri=True)) as db:
+                self.assertEqual(db.execute("SELECT logical_id,kind,body FROM canonical_nodes ORDER BY write_cursor").fetchall(),
+                                 [(f"s30doc-{i}","doc",f"budget {suffix} {i}") for i in range(65)])
+                self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],65)
+                self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_spans").fetchone()[0],65)
+        print(f"actual dependent G1 {attempt} timed={len(calls)}/18",flush=True)
+        self.assertEqual(len(calls),18,"completed GT template was not copied into an actual six-mode dependent cell")
+        self.assertEqual(outcome["status"],"complete")
+        copy=json.loads((attempt/"copy.json").read_text())
+        self.assertEqual((copy["source_main_sha256"],copy["initial_copy_sha256"]),(source_hash,source_hash))
+        self.assertGreater(copy["copy_ns"],0)
+        self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),source_hash)
+        self.assertTrue(any(row["pid"]==outcome["pid"] and row["own_MiB"]>0 and row["util"]>0 for row in snapshots))
+        self.assertTrue(outcome["cleanup"]["complete"])
+        manifest["cells"]=[producer["cell"],cell]
+        # The stored producer already includes its selected native identity.
+        resumed=run_manifest(manifest,results,resources=self.resources)
+        self.assertEqual([row["attempt"] for row in resumed],[producer["attempt"],outcome["attempt"]])
+
+    def test_closed_gt_copy_drives_real_six_mode_cell_and_resume(self):
+        self.check_copy("copied é")
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.text(alphabet="abcéβ常",min_size=1,max_size=8))
+    def test_copied_unicode_source_keeps_template_and_query_population(self,suffix):
+        self.check_copy(suffix)
 
 
 if __name__ == "__main__":

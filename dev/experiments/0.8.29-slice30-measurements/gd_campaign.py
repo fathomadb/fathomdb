@@ -68,14 +68,15 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
         def execute(cell, command, config, attempt, observe):
             nonlocal cancelled
-            result = _run_native(cell, command, config, attempt, observe, bounds, resources, resource_interval, swap)
+            native = dict(cell,campaign_root=str(root)) if cell.get("template_from") else cell
+            result = _run_native(native, command, config, attempt, observe, bounds, resources, resource_interval, swap)
             cancelled = result.get("controller_signal")
             return result
 
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
         command = ([sys.executable,str(Path(__file__).with_name("gd_stage.py"))]
-                   if cell["family"]=="G_PREPARE" else [artifact["path"]])
+                   if cell["family"]=="G_PREPARE" or cell.get("template_from") else [artifact["path"]])
         try:
             outcomes.extend(run_campaign([cell], root, command,
                                          timeout=manifest["cell_seconds"], completion=_native_complete,
@@ -248,7 +249,10 @@ def _native_complete(cell, attempt):
     if cell["family"] in {"G1_PLAN_FIXTURE", "G1_CELL"}:
         base = attempt / "cell" if cell["family"] == "G1_PLAN_FIXTURE" else attempt
         passes = cell["passes"]
-        query_count = len(Path(cell["queries"]).read_text().splitlines())
+        questions = attempt / "questions.jsonl" if cell.get("queries_from") else Path(cell["queries"])
+        if not questions.exists():
+            return False
+        query_count = len(questions.read_text().splitlines())
         warmups = cell.get("warmups", 0)
         for ordinal, mode in enumerate(passes):
             path = base / f"pass-{ordinal}" / "api-proof.json"

@@ -11,6 +11,9 @@ from g_inputs import encode_queries, encode_records
 
 def run(config,out):
     """Dispatch an owned stage without changing original cell/attempt endpoints."""
+    if config["family"]=="G1_CELL" and config.get("template_from"):
+        out.mkdir(parents=True,exist_ok=True)
+        return
     if config["family"]!="G_PREPARE":
         raise ValueError("unsupported owned preparation stage")
     out.mkdir(parents=True,exist_ok=True)

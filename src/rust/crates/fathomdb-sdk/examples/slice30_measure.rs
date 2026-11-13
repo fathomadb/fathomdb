@@ -766,8 +766,8 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     let projection_declared = g_projection_declared(&engine);
     let start = std::time::Instant::now();
     let mut seed_batches = Vec::new();
-    for begin in (0..n).step_by(1024) {
-        let writes = corpus[begin..n.min(begin + 1024)]
+    for begin in (0..n).step_by(1000) {
+        let writes = corpus[begin..n.min(begin + 1000)]
             .iter()
             .enumerate()
             .map(|(offset, body)| node(&format!("s30doc-{}", begin + offset), "doc", body))

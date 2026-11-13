@@ -719,3 +719,11 @@ aggregate-cap qualification; those controller units remain required.
   declining allowance against one absolute deadline, and the old subject bytes
   retained without opening/copying/reuse. Controlled child reports are explicitly
   `runner_only`; no Default, dense-store, native or GPU proof is inferred.
+
+- G-W command protocol GREEN: `g-t10-write-dispatch-green` passes the frozen
+  `3f2678821` harmless-child test (exit 0, no resource stop); Ruff passes. Actual
+  program commands are now `G-seed` then `G-W`, matched adapter and fresh seed
+  subject path, with remaining allowance recomputed for each step against one
+  absolute deadline. Step configs/logs/results are retained and the old subject
+  is unchanged. This is command binding only: native fresh-store semantics and
+  Default/GPU qualification require the later normal-program campaign gate.

@@ -183,3 +183,12 @@ Each G open now retains the actual public report, child PID/executable and devic
 resolution as reported; None remains absent, never fabricated CPU/CUDA. Separate
 close outcomes and seed reopen-close clocks are retained. This enables later
 GPU qualification, but no Default/model/GPU execution is established here.
+
+`g_driver.py` binds G-only inventory to current measurement-program commands.
+The G-W command protocol seeds each fresh matching subject before the write
+step, passing one declining absolute deadline. `test_g_dispatch.py` uses actual
+harmless Python command children and qualifies protocol only; it never opens a
+DB or supplies model/GPU evidence. Other stage bindings and frozen production
+entry/qualification remain pending. Run controller/dispatch guards via unittest
+discovery (`-p 'test_g_*.py'`), so classes following the historical direct-file
+main guard in `test_g_controller.py` are imported and exercised.

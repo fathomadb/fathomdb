@@ -706,3 +706,16 @@ aggregate-cap qualification; those controller units remain required.
   complete absolute outer deadlines, source/native registration and campaign
   evidence remain open. Final Python registration uses unittest discovery,
   which imports all classes after the historical direct-file main guard.
+
+### G-W production command protocol RED
+
+- Added a normal current `G-W` command scaffold in `g_driver.py` with retained
+  command input/output. `g-t10-write-dispatch-red` runs a real harmless Python
+  program in that command slot and observes `['G-W']` instead of the required
+  `['G-seed', 'G-W']`. One literal runtime list assertion fails, exit 1, no
+  resource stop. This proves a scheduler protocol gap, not database semantics.
+- The frozen oracle requires a fresh governed 100k seed, matching adapter,
+  same newly selected seed path for the write step, original corpus/query pins,
+  declining allowance against one absolute deadline, and the old subject bytes
+  retained without opening/copying/reuse. Controlled child reports are explicitly
+  `runner_only`; no Default, dense-store, native or GPU proof is inferred.

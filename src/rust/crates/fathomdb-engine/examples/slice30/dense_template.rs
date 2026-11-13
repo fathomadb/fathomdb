@@ -24,6 +24,10 @@ pub(super) fn run(config: &Value, out: &Path) -> bool {
     )
     .unwrap();
     let engine = &opened.engine;
+    if super::native_budget::phase(config, out, "configure").is_err() {
+        engine.close().unwrap();
+        return false;
+    }
     configure(engine);
     let records = config["records"].as_array().unwrap();
     assert!(!records.is_empty());

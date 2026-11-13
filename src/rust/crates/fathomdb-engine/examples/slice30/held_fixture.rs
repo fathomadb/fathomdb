@@ -101,6 +101,15 @@ fn observation(
         "readiness":ready,"readiness_time":readiness_time,"sql":sql,"sql_time":sql_time}))
 }
 
+fn coverage(
+    origin: Instant,
+    store: &Path,
+    _config: &Value,
+    _out: &Path,
+) -> Result<(Value, Value), ()> {
+    Ok(timed(origin, || template_verify::coverage(store, &VaryingEmbedder.identity())))
+}
+
 fn write_cohort(
     origin: Instant,
     engine: &Engine,
@@ -301,8 +310,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     let observed = super::d_workload::observation_report(engine, origin, config);
     std::fs::write(out.join("worker-observer.json"), serde_json::to_vec_pretty(&observed).unwrap())
         .unwrap();
-    let (coverage, coverage_time) =
-        timed(origin, || template_verify::coverage(&store, &VaryingEmbedder.identity()));
+    let (coverage, coverage_time) = coverage(origin, &store, config, out).unwrap();
     let (_, closing) = timed(origin, || engine.close().unwrap());
     let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
     assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
@@ -532,5 +540,68 @@ mod tests {
         #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
         #[test]
         fn original_held_observation_bounds_preserve_stored_population(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {observation_admission(key,count);}
+    }
+
+    fn coverage_admission(key: &str, count: usize) {
+        let root = tempfile::Builder::new().prefix("s30-held-coverage-").tempdir().unwrap().keep();
+        let origin = Instant::now();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_test_choice_for_test(
+            &store,
+            TestEmbedderChoice::Caller(Arc::new(VaryingEmbedder)),
+        )
+        .unwrap()
+        .engine;
+        super::super::dense_template::configure(&engine);
+        let batch: Vec<_> = (0..count)
+            .map(|i| PreparedWrite::Node {
+                kind: "doc".into(),
+                body: format!("actual coverage é {i}"),
+                logical_id: Some(format!("covered-{i}")),
+                source_id: SourceId::new("test:s30-held-coverage").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        engine.write(&batch).unwrap();
+        engine.drain(5000).unwrap();
+        engine.close().unwrap();
+        let (healthy, clock) = coverage(origin, &store, &json!({}), &root).unwrap();
+        assert_eq!(healthy["verified"], true);
+        assert_eq!(healthy["rows"].as_array().unwrap().len(), count);
+        assert_eq!(healthy["profile"]["dimension"], 768);
+        assert!(clock["end_ns"].as_u64().unwrap() >= clock["start_ns"].as_u64().unwrap());
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        let result = coverage(origin, &store, &config, &root);
+        println!("actual held coverage {} key={key} accepted={}", root.display(), result.is_ok());
+        assert!(
+            result.is_err(),
+            "expired held route still starts actual cursor/vector/span verification"
+        );
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(root.join("budget.json")).unwrap()).unwrap();
+        assert_eq!(report["phase"], "verification");
+        assert_eq!(report["disposition"], "deadline_refused");
+    }
+
+    #[test]
+    fn work_expiry_prevents_actual_held_coverage() {
+        coverage_admission("work_deadline_ns", 3);
+    }
+    #[test]
+    fn hard_expiry_prevents_actual_held_coverage() {
+        coverage_admission("hard_deadline_ns", 3);
+    }
+    #[test]
+    fn shared_expiry_prevents_actual_held_coverage() {
+        coverage_admission("shared_deadline_ns", 3);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn original_held_coverage_bounds_apply_to_real_closed_stores(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {coverage_admission(key,count);}
     }
 }

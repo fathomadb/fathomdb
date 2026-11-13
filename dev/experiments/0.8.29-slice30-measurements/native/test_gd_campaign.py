@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import signal
 import subprocess
 import sys
 import tempfile
@@ -428,6 +429,80 @@ class ResourcePeriodicCampaignTests(unittest.TestCase):
     @given(st.integers(min_value=2500,max_value=3000))
     def test_periodic_accounting_preserves_real_query_count_and_final_observation(self,samples):
         self.check_periodic_sample(samples)
+
+
+class ControllerCancellationTests(unittest.TestCase):
+    def check_stop(self,requested):
+        from gd_resources import _owned_subreaper
+        root, binary, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        manifest["cells"][0].update(warmups=0,samples=100000)
+        config = root/"manifest.json"
+        config.write_text(json.dumps(manifest))
+        controller = Path(__file__).resolve().parents[1]/"gd_campaign.py"
+        query_path = root/"results/clock-a/attempt-0001/queries.jsonl"
+        native = None
+        with _owned_subreaper(), (root/"controller.log").open("wb") as log:
+            child = subprocess.Popen([sys.executable,str(controller),str(config),str(root/"results")],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+            try:
+                ready_until = time.monotonic()+10
+                while True:
+                    if child.poll() is not None or time.monotonic() >= ready_until:
+                        raise RuntimeError(f"actual controller/first-query setup NOT_RED {root}")
+                    children = Path(f"/proc/{child.pid}/task/{child.pid}/children").read_text().split()
+                    if len(children) == 1:
+                        native = int(children[0])
+                        self.assertEqual(os.getpgid(native),native)
+                    if native is not None and query_path.exists():
+                        with query_path.open("rb") as stream:
+                            line = stream.readline()
+                        if line.endswith(b"\n"):
+                            first = json.loads(line)
+                            self.assertTrue(first["ok"],"successful actual query control NOT_RED")
+                            self.assertEqual(Path(f"/proc/{native}/cmdline").read_bytes().split(b"\0")[0],os.fsencode(binary))
+                            break
+                    time.sleep(0.005)
+                child.send_signal(requested)
+                child.wait(timeout=10)
+                end = time.monotonic()+0.5
+                while Path(f"/proc/{native}").exists() and time.monotonic() < end:
+                    time.sleep(0.005)
+                alive = Path(f"/proc/{native}").exists()
+                print(f"controller stop fixture={root} controller_exit={child.returncode} native_pid={native} remains={alive}",flush=True)
+                with self.subTest(contract="owned cleanup"):
+                    self.assertFalse(alive,"stopped controller orphaned its actual native child/session")
+                state = root/"results/campaign-state.json"
+                outcomes = json.loads(state.read_text()) if state.exists() else []
+                with self.subTest(contract="retained failed attempt"):
+                    self.assertEqual(len(outcomes),1,"controlled stop lost its actual failed attempt/outcome")
+                    self.assertEqual(outcomes[0]["status"],"failed")
+                    self.assertEqual(outcomes[0]["controller_signal"],int(requested))
+                    self.assertEqual(outcomes[0]["pid"],native)
+                    self.assertIsInstance(outcomes[0]["child_exit"],int)
+                    self.assertTrue(outcomes[0]["cleanup"]["complete"])
+                with query_path.open("rb") as stream:
+                    self.assertEqual(json.loads(stream.readline()),first,"completed raw query prefix must survive controller stop")
+            finally:
+                if child.poll() is None:
+                    os.killpg(child.pid,signal.SIGKILL)
+                    child.wait(timeout=3)
+                if native is not None:
+                    end = time.monotonic()+3
+                    while time.monotonic() < end:
+                        try:
+                            pid,_ = os.waitpid(native,os.WNOHANG)
+                        except ChildProcessError:
+                            break
+                        if pid:
+                            break
+                        os.killpg(native,signal.SIGKILL)
+                        time.sleep(0.005)
+
+    def test_sigterm_cleans_owned_native_and_retains_actual_failed_outcome(self):
+        self.check_stop(signal.SIGTERM)
+
+    def test_sigint_retains_failed_outcome_with_existing_owned_cleanup(self):
+        self.check_stop(signal.SIGINT)
 
 
 if __name__ == "__main__":

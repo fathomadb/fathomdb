@@ -231,3 +231,41 @@ reruns, runtime warning and skips remain disclosed; this is assembled
 qualification, never an uninterrupted verifier exit0. No borrowed parent-native
 qualification is claimed. A3/A5 policy remains unanswered and actual Windows A6
 unqualified. Slice20 remains open;30 and Block1 exit are not cleared.
+
+## Approved continuation: capacity-only result
+
+Owner seq-369 approves A3/A5 verification and negative controls without fabricated
+RED; actual defects retain committed semantic RED/GREEN. Seq-370 approves only
+new64GiB image, necessary narrow ACL and live attachment. Parent recorded both
+in0a7df81fd4b6f17d716c950e6fd2748daa3565c2 before the fresh sole-writer child.
+Strict closed10 preflight and nonmutating owned-environment check passed.
+
+Capacity capability RED a9f85467ad0b466d204dd8a8829033dbfa79eeeb shows the
+unchanged healthy boundary test cannot obtain ATTACHED_RAW_CAPACITY_ONLY from
+the inherited full helper under narrower authority. Its refusal was correct;
+this is missing safe capability, not an old product defect. GREEN
+c7e0aec8edf786f42488141bdc398e3f8f812f8a passes14contained controls, including
+identity/refusal/UNKNOWN branches and harmless real-child timeout output.
+Original failed logger fixture adapter (.cwd missing), correction and raw logs
+remain under task approved-runtime/logs. The healthy assertions were unchanged.
+Operator manifest9e8b6c4ed02ece44cba59a3557456dc513f02b5856324a49acdffb3cedd7d17a
+binds the exact three committed operator/control/README inputs. Fresh distinct
+Astra-medium capacity-results review PASS preceded parent live GO.
+
+Parent executed the exact committed operator and actual seq-370 authority;
+exit0 ATTACHED_RAW_CAPACITY_ONLY. Actual evidence directory:
+/mnt/data/tmp2/fathomdb-0829-continuation/slice20/capacity-only-2ff3bab79d754de89f15039626ef117a.
+New Disk1/serialFDB29S20A6/68,719,476,736B/RAW/nonboot/nonsystem is present;
+original guest disk metadata and persistent XML remained identical. All25commands
+exited0 with no timeout. Image is
+/mnt/data/tmp2/fathomdb-0829-continuation/slice20-windows-images-approved-20261113/windows-a6-64g.qcow2.
+No initialization, partition, format, compiler/helper/test or cleanup ran. C:
+remains below later8GiB start/5GiB stop policy; broader Windows work/A6 remains
+held and unqualified. Capacity success does not close20/30/Block1.
+
+A3/A5 proof candidate c13914453 is committed under seq-369, runtime not yet
+qualified at this checkpoint. Its own setup/scoped tests, seven serialized
+sensitivity controls and final source/native qualification remain to execute.
+The indexed verification resource monitor reuses existing Slice60 control logic
+with the required64GiB image reservation and optional single control checkout;
+no parallel native window or seven-target allocation is introduced.

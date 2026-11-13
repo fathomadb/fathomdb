@@ -277,3 +277,66 @@ pub(super) fn run(config: &Value, out: &Path) {
         .collect();
     std::fs::write(out.join("phases.json"), serde_json::to_vec_pretty(&phases).unwrap()).unwrap();
 }
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn configure_admission(key: &str, count: usize) {
+        let root = tempfile::Builder::new().prefix("s30-held-configure-").tempdir().unwrap().keep();
+        let records: Vec<_> = (0..count).map(|i|json!({"id":format!("held-{i}"),"kind":"doc","body":format!("actual held é {i}")})).collect();
+        let base = json!({"records":records,"cohort":2,"release_mode":"explicit"});
+        let healthy = root.join("healthy");
+        run(&base, &healthy);
+        let control: Value =
+            serde_json::from_slice(&std::fs::read(healthy.join("controls.json")).unwrap()).unwrap();
+        assert_eq!(control["held"]["readiness"]["pending_count"], count);
+        assert_eq!(control["held"]["sql"]["physical_vectors"], 0);
+        assert_eq!(control["released"]["readiness"]["pending_count"], 0);
+        assert_eq!(control["released"]["sql"]["physical_vectors"], count);
+        assert_eq!(control["release_requests"], 1);
+        let mut expired = base;
+        for bound in ["work_deadline_ns", "hard_deadline_ns", "shared_deadline_ns"] {
+            expired[bound] = json!(u64::MAX);
+        }
+        expired[key] = json!(0);
+        let out = root.join("expired");
+        run(&expired, &out);
+        let db =
+            Connection::open_with_flags(out.join("store.sqlite"), OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get::<_, usize>(0))
+                .unwrap(),
+            0
+        );
+        let budget: Value =
+            serde_json::from_slice(&std::fs::read(out.join("budget.json")).unwrap()).unwrap();
+        println!("actual held configure {} key={key} refusal={budget}", out.display());
+        assert_eq!(
+            (budget["phase"].as_str(), budget["release_requests"].as_u64().unwrap_or(0)),
+            (Some("configure"), 0),
+            "expired held route configured/froze work before refusing"
+        );
+        assert!(!out.join("controls.json").exists());
+    }
+
+    #[test]
+    fn work_expiry_stops_before_held_configuration() {
+        configure_admission("work_deadline_ns", 3);
+    }
+    #[test]
+    fn hard_expiry_stops_before_held_configuration() {
+        configure_admission("hard_deadline_ns", 3);
+    }
+    #[test]
+    fn shared_expiry_stops_before_held_configuration() {
+        configure_admission("shared_deadline_ns", 3);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn original_held_bounds_prevent_freezing_an_expired_route(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {configure_admission(key,count);}
+    }
+}

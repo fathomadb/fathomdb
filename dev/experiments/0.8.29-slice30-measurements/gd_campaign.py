@@ -1,8 +1,9 @@
 """Execute explicit G/D manifest cells through the maintained attempt machinery."""
 
 import argparse
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 import json
+import fcntl
 import math
 import os
 import signal
@@ -35,6 +36,7 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
 
     def prepare():
         check_clock()
+        reservation.enter_context(_gpu_reservation(cell, resources))
         samples = []
         if resources:
             samples.append(_sample_resources(resources, effective_work_deadline / 1_000_000_000, start=True, swap=swap))
@@ -108,10 +110,11 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
                            or (cell["family"]=="D_QUERY_FIXTURE" and "write_records" not in cell))))
                    else [artifact["path"]])
         try:
-            outcomes.extend(run_campaign([cell], root, command,
-                                         timeout=manifest["cell_seconds"], completion=_native_complete,
-                                         monitor=monitor, before=prepare,
-                                         poll_interval=0.1, observe_start=monitor is not None, execute=execute))
+            with ExitStack() as reservation:
+                outcomes.extend(run_campaign([cell], root, command,
+                                             timeout=manifest["cell_seconds"], completion=_native_complete,
+                                             monitor=monitor, before=prepare,
+                                             poll_interval=0.1, observe_start=monitor is not None, execute=execute))
         except _CampaignRefusal as error:
             outcome = {"id": cell["id"], "cell": cell, "status": "not_run_resource",
                        "reason": str(error), "pid": None, "attempt": None, "exit": None}
@@ -123,6 +126,25 @@ def run_manifest(manifest, root, monitor=None, before=None, resources=None, reso
             state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
             outcomes.append(outcome)
     return outcomes
+
+
+@contextmanager
+def _gpu_reservation(cell, resources):
+    if not cell.get("gpu_reservation"):
+        yield
+        return
+    gpu = "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"
+    if cell.get("gpu_uuid") != gpu:
+        raise _CampaignRefusal("gpu_identity_unapproved")
+    task = Path(resources["task"] if resources else os.environ["S30_GD_TASK"])
+    directory = task/"locks"
+    directory.mkdir(exist_ok=True)
+    with (directory/(gpu+".lock")).open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise _CampaignRefusal("gpu_reserved") from error
+        yield
 
 
 def _cpu_sample(load):

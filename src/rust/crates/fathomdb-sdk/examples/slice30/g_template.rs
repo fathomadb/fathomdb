@@ -47,12 +47,23 @@ fn commit_cohort(
     Ok(())
 }
 
-fn template_drain(engine: &Engine, config: &Value, _out: &Path) -> Result<Value, ()> {
-    let report = super::g_budget::drain(config, |timeout| {
+fn template_drain(engine: &Engine, config: &Value, out: &Path) -> Result<Value, ()> {
+    match super::g_budget::drain(config, |timeout| {
         engine.drain(timeout).map_err(|error| format!("{error:?}"))
-    })
-    .unwrap();
-    Ok(report)
+    }) {
+        Ok(report) => Ok(report),
+        Err(error) => {
+            std::fs::write(
+                out.join("budget.json"),
+                serde_json::to_vec_pretty(&json!({
+                    "phase":"drain","disposition":"phase_failed","error":error
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            Err(())
+        }
+    }
 }
 
 pub(super) fn run(config: &Value, out: &Path) {
@@ -134,7 +145,10 @@ pub(super) fn run(config: &Value, out: &Path) {
         recorder.flush_all();
         let seed_ns = u64::try_from(seeding.elapsed().as_nanos()).unwrap();
         let draining = std::time::Instant::now();
-        template_drain(engine, config, out).unwrap();
+        if template_drain(engine, config, out).is_err() {
+            engine.close().unwrap();
+            return;
+        }
         let drain_ns = u64::try_from(draining.elapsed().as_nanos()).unwrap();
         let pending = engine.read_embedding_readiness().unwrap().pending_count;
         assert_eq!(pending, 0);

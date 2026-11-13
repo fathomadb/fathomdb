@@ -28,11 +28,16 @@ def run_manifest(manifest, root, monitor=None, before=None):
     def check_clock():
         if clock["boot_id"] != boot_id:
             raise _CampaignRefusal("campaign_clock_unavailable")
-        if time.monotonic_ns() >= deadline:
+        now = time.monotonic_ns()
+        if now >= deadline:
             raise _CampaignRefusal("campaign_time_cap")
+        if now >= work_deadline:
+            raise _CampaignRefusal("cell_work_deadline")
 
     outcomes = []
     for planned in manifest["cells"]:
+        hard_deadline = min(deadline, time.monotonic_ns()+int(min(manifest["cell_seconds"],900)*1_000_000_000))
+        work_deadline = hard_deadline-30_000_000_000
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
         try:

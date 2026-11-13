@@ -208,5 +208,50 @@ class NativeAdmissionCampaignTests(unittest.TestCase):
         self.check_native_admission(bound)
 
 
+class CellBudgetCampaignTests(unittest.TestCase):
+    def check_cleanup_reserve(self, seconds):
+        root, binary, manifest = clock_fixture()
+        prepare_actual_database(root, binary, "real-preparation-control")
+        manifest["cells"] = manifest["cells"][:1]
+        manifest["cell_seconds"] = seconds
+        preparations = []
+        result = run_manifest(manifest, root/"results", before=lambda: preparations.append(True))
+        self.assertEqual(result[0]["status"], "not_run_resource", "cell cleanup reserve was consumed as work time")
+        self.assertEqual(result[0]["reason"], "cell_work_deadline")
+        self.assertEqual(preparations, [])
+        self.assertEqual(list((root/"results").glob("*/attempt-*")), [])
+
+    def test_cleanup_reserve_prevents_actual_native_launch(self):
+        self.check_cleanup_reserve(30)
+
+    @settings(max_examples=3, deadline=None, database=None, phases=[Phase.generate])
+    @given(st.integers(min_value=1, max_value=30))
+    def test_no_positive_work_allowance_cannot_launch_a_database_child(self, seconds):
+        self.check_cleanup_reserve(seconds)
+
+    def test_work_deadline_reaches_actual_native_config_and_owned_child_supervision(self):
+        root, _, manifest = clock_fixture()
+        manifest["cells"] = manifest["cells"][:1]
+        manifest["cells"][0]["samples"] = 3000
+        healthy = run_manifest(manifest, root/"healthy")
+        self.assertEqual(healthy[0]["status"], "complete", "real D workload control NOT_RED")
+        self.assertEqual(len((Path(healthy[0]["attempt"])/"queries.jsonl").read_text().splitlines()), 3001)
+        manifest["cell_seconds"] = 30.02
+        started = time.monotonic_ns()
+        outcomes = run_manifest(manifest, root/"bounded")
+        elapsed = time.monotonic_ns()-started
+        print(f"actual bounded D attempt elapsed_ns={elapsed}: {outcomes}", flush=True)
+        self.assertEqual(outcomes[0]["status"], "failed", "actual native work passed beyond the reserved work endpoint")
+        outcome = outcomes[0]
+        config = json.loads((Path(outcome["attempt"])/"cell.json").read_text())
+        self.assertLessEqual(config["work_deadline_ns"], started+25_000_000)
+        self.assertEqual(config["hard_deadline_ns"]-config["work_deadline_ns"],30_000_000_000)
+        self.assertLessEqual(config["hard_deadline_ns"],config["shared_deadline_ns"])
+        self.assertEqual(outcome["pgid"],outcome["pid"])
+        self.assertTrue(outcome["cleanup"]["complete"])
+        self.assertFalse(Path(f"/proc/{outcome['pid']}").exists())
+        self.assertLess(elapsed,2_000_000_000)
+
+
 if __name__ == "__main__":
     unittest.main()

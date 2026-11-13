@@ -1,14 +1,16 @@
 # Slice 100 exact coverage and gap census
 
 Initial census at bootstrap `ad102de7630141762aee28123fac57cbef9f61d5` is now
-reconciled read-only at parent HEAD and local `release/0.8.29`
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`. The prior actual10 review used02e30d. Completed10 implementation is
-`104dcbcbe92a1eca730d146b99ab17d444df6217`, closed by parent d7d928f8e after
-fresh Astra implementation PASS. Actual20 Linux repairs657edeb have independent Astra PASS and are integrated.
-Their engine delta owns evidence hooks; crash-control tests, erasure/checkpoint
-modules, manifests and Rust callers remain identical to02e30d. Entire src tree
-c9ce2529a905684432e45691112225b6fd7ef268 and Cargo.lock are identical at23c first
-freeze,6eee collector,657 final and current2f691. SQLite/rusqlite remain0.39.1/0.41.1.
+reconciled against reviewed03bdd0eb and now exact source-entry
+`3c34cd195e85daffa4f11303b66edc9ff6a2ecec`. Entry src/lock are identical. Completed10 implementation
+`104dcbcbe92a1eca730d146b99ab17d444df6217` and parent closure d7d928f8e remain
+reachable. Accepted70 is `e875f36042f89c1d84756f78135db0e8926c1ed4`; accepted20
+A3/A5 Linux proof/capacity subset is `f803a964ad8c8154a481e6f9385599bef5c0e054`.
+The named erasure/crash/checkpoint files and Rust caller remain identical to the
+old census. Whole src/lock changed after2f691; do not inherit the old global
+identity claim. Instead f803 and current03bdd share src tree
+`e28ba613f7b8dd24de5565b5585aa96bd7ffdf6f` and Cargo.lock blob
+`2abf7dbf46b90144c783667a4a6f8db6f120cf26`. SQLite/rusqlite remain0.39.1/0.41.1.
 No new test execution occurred in this reconciliation.
 
 Tests below are in `src/rust/crates/fathomdb-engine/tests/`; production modules
@@ -37,15 +39,17 @@ phase-named runtime trace; final independent review remains.
 | C11 /A2,A4 |85 physical `offline_completion_publishes_same_activated_receipt_without_activating_queued_intent`, orphaned-root/unknown-policy/partial-finalization refusal tests;82 malformed sanitation test. | Offline Queued stays Queued/target visible; after activation fault offline publishes same Complete/target absent. Corrupt root/ticket/phase refuses;82 malformed sanitation raw main+WAL unchanged with positive WAL. Covered conservative recovery. Orphaned explicit-root test itself compares main only; do not claim every corrupt case has WAL checksum assertion. |
 | C12 /A3,A4 |83 routes `owed_debt_routes_match_independent_survivor_only_stores_before_caps_and_statistics`; `erasure_completeness::{erasure_wal_bytes_absent,erasure_busy_yields_incomplete_not_success}`. | Independent survivor-only controls compare read/list/text/property/frozen/hybrid/graph/evidence across three distributions during owed debt; positive span fixture. Separate AC080 raw main+LIVE-WAL scan with secret/control before close; real reader pin gives typed incomplete. Covered success/refusal/routing; no exhaustive interrupted combination. Existing5s bound is retained; no new product deadline. |
 | C13 /A5 | `erasure::checkpoint_erasure_at_rest`, `wal_runtime::wal_checkpoint_truncate_once`, worker `checkpoint`, offline completion. | Existing actual-checkpoint observations are before/after call; BUSY is a real checkpoint refusal. No inspected test/control proves termination in active frame-copy/TRUNCATE work. **G100-1 missing fault-position coverage**, not a product defect. Before-completion crash is after checkpoint, never relabel it inside. |
-| C14 /A6 | Historical83 `af84f12f8`;85 `a2fb4a6475500b70676f9f54aff251df60f3e07c`;95 format37 repair `6d580ec57692241c28a5113e374102cddc42e559` and final `3741dfb8a3d85bced4bfac6047083cc7e30da314`; completed10 implementation104dcbc/closure d7d928. | Tracked status/qualification JSON retain assembled gates, scoped fixes, platform/CI/ignored limits. Format37 clean marker/admission controls exist; erasure transactions do not arm coalescing.10 records full Rust serial pass, original211 collector207pass/4fail and all four affected repairs qualified;214 final registrations include three separately run additions. **G100-3 existing-control execution is now matched by command/source inference, pending independent review.** Clean6eee canonical workspace command has no filter/exclusion; CLI operator and engine self-dev test-hooks satisfy required features. Retained Rust hash aacbdb427f6a809d34ef046fe38ebebf5b8e01256f21e32a2d5e338d53bbd2a2 matches the index. Lines1611–1629 show2tests/eightchild launches/1pass/1ignored/0fail, matching unchanged85 crash. Passing parent implies all eight exit73 and state/retry assertions. Quiet output omits names/PIDs/Rust binary digests; retain those limits, without inventing a broad rerun gate. Collector212pass/2fail plus affected corrections remains assembled20 proof; final657 binding refresh is not another Rust crash run. |
+| C14 /A6 | Historical83 `af84f12f8`;85 `a2fb4a6475500b70676f9f54aff251df60f3e07c`;95 format37 repair `6d580ec57692241c28a5113e374102cddc42e559` and final `3741dfb8a3d85bced4bfac6047083cc7e30da314`; completed10 implementation104dcbc/closure d7d928. Current accepted20 f803 execution after integrated70 e875. | Historical receipts retain their original identities and assembled limits. **G100-3 existing-control execution now has current f803 command/source inference, pending independent100 recheck.** Source-bound canonical workspace command has no test filter/exclusion; operator/test-hooks closure selects the controls. Retained Rust log65,528B/2,408lines SHA256 `1baf83f557ee5b959c91866a778bb3d8c3dcf2ef2e6e13e7bbf30a74f6d44b84` matches its receipt. Lines1616–1634 show2tests/eightchild launches/1pass/1ignored/0fail, matching unchanged85 crash. Passing parent implies all eight exit73/state/retry assertions; quiet output omits phase names/PIDs/Rust binary digests. All406 retained result summaries total2726pass/0fail/67ignored. f803→03bdd src/lock identity supports reuse against current integrated runtime, while older2f691 whole-src/lock identity no longer holds. Original module-policy wrapper failure and bounded continuation assemble216/216 suites; Python1750pass/36skip and TS629pass/6skip plus15body-skip markers remain explicit. Native candidate/production receipts are separate from Rust crash proof. No new fault authority,100 acceptance or G100-1/G100-2 closure follows. |
 
 G100-2 is precisely richer independent pre-retry/post-crash assertions: exact
 intermediate phase/root/queue scrub and immutable scope; retained all-version
 canonical/FTS/property history, positive mapped non-head vector/span joins,
 original-file obligations and main/live-WAL before close; paired survivor-only
 control. Existing isolated proofs are substantial but their conjunction is not
-an executed crash proof. New assertions are deferred under strict TDD unless
-specifically excepted or they reveal an actual failing accepted invariant.
+an executed crash proof. Seq-371 now approves the specific coverage-only assertions in
+[composed oracles](composed-oracles.md); seq-372 selects the distinct Q1 scope.
+Source/runtime readiness and parent technical GO remain held. No new assertions
+or faults have executed; both qualification gaps remain open.
 
 No product-defect cell is currently established. A later observed failure is a
 new finding requiring minimization and its own true RED/GREEN, not permission

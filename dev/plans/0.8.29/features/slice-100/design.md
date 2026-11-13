@@ -1,4 +1,4 @@
-# Slice 100 bounded design and policy-held extension
+# Slice 100 bounded design and approved verification scope
 
 ## Existing mechanisms versus net-new work
 
@@ -62,8 +62,9 @@ after a delay is inadequate. CKPT_START/DONE are VFS file-control notifications;
 using them as callbacks requires a VFS control, not merely arming a Rust hook.
 No new VFS/disk/power campaign or SQLite patch is selected here.
 
-Q1 is a bounded **unselected** alternative for independent review and the specific
-policy/fault-control disposition: supervise only an owned disposable explicit-
+Q1 is selected by seq-372 within the separate seq-371 verification exception;
+source review, runtime readiness and parent technical GO still precede execution.
+The [maintained protocol](q1-protocol.md) specifies: supervise only an owned disposable explicit-
 maintenance child under an existing debugger; break at the pinned native
 `walCheckpoint` frame-copy instruction with an erasure checkpoint Rust callstack,
 positive pending frames and no native return yet. Record exact inferior PID,
@@ -72,12 +73,15 @@ abruptly terminate that inferior. A launch under the wrong stack, unresolved
 symbol, pre-call breakpoint, empty checkpoint, timeout or missing reached witness
 is unqualified. An identical release-through control must finish normally.
 
-`/usr/bin/gdb` exists by read-only path lookup; its version, usable native symbols,
-ptrace permission and source-location fidelity are unverified. No debugger or
-fault ran. Q1 neither promises a viable control nor authorizes a new fault venue.
-If its preconditions cannot be demonstrated under the permitted owned-child
-model, leave G100-1 open for specific disposition. Do not substitute a timed kill,
-broader host fault or a new test seam whose absence is called product RED.
+Reviewed metadata finds GDB15.1 and a retained S20 PIE candidate with native
+checkpoint symbols and DWARF mappings for the eligible frame-copy region. Its
+source hash matches the reviewed SQLite file; its current exact file is NOT
+bound as the executed canonical child by the quiet log. Never borrow that binary.
+Future100 needs its own source-qualified child and actual relocated breakpoint,
+readable locals/stack and owned actor identities. Metadata and the approved
+unconfined executor do not prove runtime ptrace/witness viability. No inferior,
+ptrace or fault has run for100. Missing preconditions stop UNQUALIFIED; no timed
+kill, broader fault or artificial product RED replaces them.
 
 ## G100-2: richer assertions and strict TDD
 
@@ -90,22 +94,24 @@ sink ID before fault. Final raw scans occur before close; permitted audit/closur
 carve-outs stay. Existing proof validators and expected results are not reused
 as the sole independent oracle. Do not multiply every family across every hook.
 
-This would likely be passing-on-arrival coverage, not a proven behavior repair.
-The current implementation plan therefore **defers** new G100-2 tests. Q1 and any
-new passing qualification harness are likewise policy-held. Concrete choices
-for the parent to present if qualification remains mandatory are:
+This is coverage-only work, not a proven behavior repair. Owner seq-371 now
+approves exactly the reviewed new child/operator controls and four existing-hook
+composition cells as honest passing-on-arrival coverage commits. Seq-372 separately
+selects bounded Q1 fault/cleanup on the local unconfined executor. Their exact
+scope is in [owner decisions](owner-decisions.md); seq-369 remains20-only.
 
-- Explicitly allow only the reviewed G100-1/G100-2 passing coverage additions,
-  with honest coverage-only commits and independent negative/healthy controls;
-  real defect repairs still require observed per-finding RED→separate GREEN.
-- Keep strict discipline unchanged, add no passing coverage or artificial source
-  change, and explicitly defer/dispose those unqualified cells while retaining
-  the already-covered transaction proof and its precise limits.
+[Composed oracles](composed-oracles.md) bind all six R100/A100 rows and the four
+G2 cells: before-delete rollback, after-delete removal, after-redacted identity
+scrub, and one original-sink post-rename replay. Rollback preserves full-fixture
+statistics; independent survivor-only ranking applies after committed removal.
+Q1 uses the new normal-exit0 child and one witnessed healthy release-through
+before its independently witnessed SIGKILL case. Raw main/WAL/SHM are preserved
+before any SQLite/Engine open or retry. Existing85 files stay byte-frozen.
 
-Neither alternative is recorded as an owner decision. Slice20's unanswered
-race23/T2 question cannot choose for100. Missing-hook compilation or a synthetic
-mutant failure is not evidence that the actual baseline violates the contract.
-The default under unchanged rules is no new passing-on-arrival test/source work.
+No product defect is currently established. Actual defects retain observed
+committed runtime RED and separate GREEN; missing hooks/symbols/compilers or
+synthetic mutants are not RED. This plan update remains before implementation,
+and source review/runtime readiness/parent technical GO remain before faults.
 
 ## Repair and dependency boundaries
 
@@ -128,21 +134,29 @@ to parent/children under the unchanged nonce/source/native receipt gate; install
 production remains separate.18 actual RED/GREEN pairs and214 registrations do
 not turn the failed original211 collector into an uninterrupted full-green.
 
-This resolves the old pending10 dependency. Current clean parent/release2f6913c
-includes independently reviewed20 Linux subset657edeb. Its delta owns evidence
-rendezvous only; erasure/crash/checkpoint inputs remain unchanged from02e30d.
-Recorded actual10 design recheck passed; fresh independent review of this20
-evidence update remains. Future source entry still requires parent's fresh
-worktree/GO, closed10 preflight, then-actual-base reread and own setup/resources.
-No setup, native tests or faults are authorized by this planning update.
+This resolves the old pending10 dependency. Actual source-entry3c34cd19
+includes accepted70 e875f360 and20 A3/A5 proof/capacity subset f803a964. The named
+erasure/crash/checkpoint inputs remain unchanged from02e30d; whole src and lock
+are not unchanged since2f691.70 changed embedding/reasons/native/MCP behavior;
+20 added verification controls, while30 added SDK-only lock dependencies. The
+current f803 run, rather than blanket old evidence inheritance, qualifies the
+then-integrated runtime. Fresh independent review of this in-checkout update remains.
+The parent supplied the fresh checkout and passed closed10/resource preflight;
+own ownership check passed. Source GO, own native setup and runtime readiness
+remain later. Current phase permits only planning/Markdown tooling, no native
+tests, debugger execution or faults.
 
-Actual20 canonical source-bound execution supplies usable existing-control
-inference from the unfiltered workspace feature closure and matching quiet Rust
-count/child blocks, including all eight85 crashes. Entire src/lock match collector
-6eee→final657→current2f691. Quiet output omits names/PIDs/Rust binary digests;
-retain those provenance limits and final independent review. This supports
-G100-3 reuse without a duplicate campaign or new hard20 dependency. Collector
-212pass/2fail plus affected corrections remains assembled qualification. No20
-result fills G100-1/G100-2 observations absent from the unchanged assertions.
-Later40/50/70/110/90 engine changes require explicit affected-receipt invalidation;
-160 owns final composed qualification. No unconditional all-release rerun rule.
+Actual20 f803 canonical execution supplies usable existing-control inference
+from the unfiltered serial workspace feature closure and matching quiet Rust
+count/child block, including all eight85 crashes. Entire src/lock match f803→
+03bdd and source-entry3c34cd19. Quiet output omits phase names/PIDs/Rust binary digests; retain those
+provenance limits and independent review. This supports G100-3 reuse without a
+duplicate campaign or new hard20 dependency. Accepted qualification assembles
+216/216 suites after the original module-policy failure and bounded continuation;
+Rust2726pass/67ignored, Python1750pass/36skip and TS629pass/6skip plus15body-skip
+markers are not an uninterrupted full-wrapper PASS.20 A3/A5 and RAW capacity
+preparation are accepted; A6/whole20 remain held. No20 result fills G100-1/G100-2
+observations absent from the unchanged assertions. Later integrated engine,
+manifest, lock or caller changes require affected-input review; unintegrated G
+work is future work, not a current predecessor.160 owns final composed
+qualification. No unconditional all-release rerun rule.

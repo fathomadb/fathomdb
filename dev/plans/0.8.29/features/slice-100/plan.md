@@ -10,11 +10,12 @@ slice: 100
 Direct Sol-high ownership follows the [execution mandate](../../direct-execution.md):
 independent fresh Astra-medium design review before implementation, same owner
 for any approved implementation, then a fresh independent implementation review.
-No Steward/Orchestrator role or nested agent. This reconciliation changes only
-the same six scratch documents, with intended repository destinations preserved.
-Recorded independent Astra actual10 design recheck passed at02e30d, bounded to
-existing-evidence reconciliation; it approved no new faults or closure. This
-actual20 evidence update still requires fresh independent output/results review.
+No Steward/Orchestrator role or nested agent. Reviewed current-evidence,
+metadata and child/operator packets have independent Astra-medium PASS. The
+in-checkout reconciliation at source-entry3c34cd19 still requires its independent
+recheck before parent source GO. No implementation or runtime qualification is
+claimed. Owner seq-371/372 select the narrow coverage exception and Q1 scope;
+[exact authority and holds](owner-decisions.md) distinguish approval from readiness.
 
 ## Authority and exact scope
 
@@ -56,39 +57,37 @@ assertions remain open. Integrated20 supplies usable command/source execution
 inference for the existing controls under G100-3; final independent review
 remains. These are evidence classes, not three established bugs.
 
-## Ordered work and policy disposition
+## Ordered work and selected scope
 
-1. Parent arranges fresh independent review of the actual20 evidence update; the
-   prior actual10 design PASS remains bounded to its reviewed source/evidence.
-2. Actual10 implementation104dcbcbe92a1eca730d146b99ab17d444df6217 has fresh
-   Astra implementation PASS and parent closure d7d928f8e. The prior recheck read
-   that evidence at02e30d861beddc8061af0dc22f12106d5e09dd32.
-   Current clean parent/release2f6913c1d59ac8ff3a30de835b57290a8635998c includes
-   independently reviewed20 Linux repairs657edeb. Existing crash-control inputs
-   remain unchanged; recheck later actual deltas before any source entry.
-   Parent provides the fresh isolated checkout and explicit source entry;
-   strict closed10 dependency preflight and own tools/artifacts still precede
-   execution. This read-only update authorizes no setup, native tests or faults.
-3. Reuse or execute the existing selected suites under [the test plan](test-plan.md).
-   Accept matching receipts only with exact source/configuration/test identity;
-   report zero-selection, skip and historical results honestly.
-4. G100-2 new passing coverage is **deferred by this candidate** under the current
-   strict TDD rule; retain its explicit coverage limitation. G100-1's optional
-   debugger-based child qualification is a concrete design alternative, not
-   selected or authorized execution. Both require the specific disposition in
-   [design](design.md) before new passing-on-arrival tests/harnesses can land.
-5. A genuine contract failure, if later observed, receives its own observed RED
-   commit with exact failure evidence, then a separate minimal GREEN. Preserve
-   its human-intent oracle unchanged. An absent hook/compile failure or mutation
-   of correct code is never a substitute RED.
-6. Close only the discharged obligations. A reviewed no-code reconciliation is
-   valid; it cannot silently certify or waive G100-1/G100-2. Full D28-09 closure
-   requires their proof or explicit authorized disposition. Reviewers cannot
-   supply that owner policy decision.
-
-The unanswered Slice20 race23/T2 exception question applies only there and grants
-no Slice100 exception. `tdd-red-must-fail-per-finding.md` permits documentation
-only without RED; this package invents no blanket qualification exception.
+1. Complete this plan-only reconciliation in the fresh sole-writer checkout
+   `/mnt/data/worktrees/fathomdb-0.8.29-s100-20261113`, branch
+   `llm/0.8.29-s100-20261113`, base3c34cd195e85daffa4f11303b66edc9ff6a2ecec.
+   Parent strict closed10/resource preflight passed; own nonmutating ownership
+   check passed. Independent in-checkout Astra recheck and parent source GO
+   precede any test/operator implementation. G retains the sole native window.
+2. Accepted20 f803a964 and70 e875f360 are ancestors. Entry src tree and lock
+   match reviewed03bdd/f803 exactly; whole src/lock changed since older2f691.
+   Use reviewed bounded G100-3 command/source inference; retain quiet-output
+   limits. G remains unintegrated and is not a new hard prerequisite. Reconcile
+   later actual integrated changes only when they affect the selected inputs.
+3. Seq-371 permits honest passing-on-arrival coverage commits for the reviewed
+   child/operator and four G2 existing-hook cells. It does not excuse real
+   defects from committed runtime RED followed by separate minimal GREEN.
+   An absent hook/compiler/symbol or mutant of correct code is never product RED.
+4. Seq-372 selects one newly built disposable-child healthy release-through,
+   then one SIGKILL only after the interruption case has its OWN qualified native
+   witness, on the local unconfined ptrace-capable executor. Bounded reaping of
+   only registered owned actors is included; caps120s/case and64GiB allocation.
+   Source review, actual symbols/locals/PID/stack/readiness and parent technical
+   GO still precede Q1 execution. Missing checks stop UNQUALIFIED.
+5. Implement only the linked [Q1 protocol](q1-protocol.md),
+   [composed oracles](composed-oracles.md) and
+   [implementation/resource map](implementation-map.md) after those holds clear.
+   Existing85 tests stay byte-frozen. No production fault seam, SQLite/VFS patch,
+   timed-kill substitute, external attachment or broader fault venue is included.
+6. Fresh independent source/results review and actual proof precede closing any
+   discharged obligation. G100-1/G100-2 and100/D28-09 closure stay open. A passing
+   gate or approval is not a reached fault. Parent owns global state and ledgers.
 
 ## Integration and verification
 
@@ -106,17 +105,21 @@ early nonmutating ownership guards, noneditable own-wheel setup, exact pytest
 parent/child native identity,18 observed RED/GREEN pairs and214 registrations.
 Its original failed211-suite collector and qualified affected resumptions remain
 assembled10 evidence. Independently reviewed20 Linux subset657edeb is integrated.
-Its clean6eee source-bound214-suite collector212pass/2fail plus reviewed affected
-corrections is likewise assembled qualification. The matching quiet Rust eight-
-child block and unchanged source support existing-control execution inference,
-not active-checkpoint or rich post-crash proof.20 A3/A5 and WindowsA6 remain open.
+Its earlier6eee qualification remains historical. The accepted f803 continuation
+assembles216/216 suites after an original module-policy wrapper failure and
+bounded failed/remaining continuation. Rust2726pass/67ignored, Python1750pass/
+36skip and TS629pass/6skip plus15body-skip markers retain their limits. The
+matching quiet Rust eight-child block and exact f803→03bdd src/lock support
+existing-control execution inference, not active-checkpoint or rich post-crash
+proof.20 A3/A5 and RAW capacity preparation are accepted; A6/whole20 remain open.
 
 Planning-only import uses scoped Markdown checks. Any source, test or executable
 change requires the required final full source gate on its stable owned tree,
-with original failure evidence and scoped resumptions retained. No product tests,
-faults, builds, setup, downloads or source/Git/ledger writes occurred in Phase A.
+with original failure evidence and scoped resumptions retained. Historical Phase A performed no product/native work. This current phase adds
+only reviewed planning text and owned pinned Markdown tooling; no source/test/
+operator implementation, native build, debugger, ptrace, fault or ledger write.
 
 Quality-roadmap fit: adopt the bounded anomaly/reopen and independent positive
 survivor approach already present; defer general VFS/OOM/MC/DC/fuzz campaigns.
 The new evidence is substantial inherited coverage and the strict TDD constraint,
-which favor explicit no-code/disposition paths over redundant erasure work.
+which favor the approved small coverage-only protocol over redundant erasure work.

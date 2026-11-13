@@ -11,11 +11,15 @@ to locked canonical ACs. No existing threshold changes.
 
 Completed10 implementation104dcbcbe92a1eca730d146b99ab17d444df6217 and parent
 closure d7d928f8e are integrated at02e30d861beddc8061af0dc22f12106d5e09dd32.
-That preparation dependency is satisfied. Reviewed20 Linux subset657edeb is
-integrated at current clean parent/release2f6913c. Its unchanged-source canonical
-Rust execution supports existing-control inference; A100-6 still needs independent
-review of this evidence and its receipt limits. Own exact-base preflight precedes
-any later source entry. Recorded bounded design PASS is not product acceptance.
+That preparation dependency is satisfied. Accepted70 e875f360 and20 A3/A5 Linux
+proof/capacity subset f803a964 are integrated at source-entry3c34cd19.
+The f803 canonical Rust execution supports existing-control inference against
+identical entry src/lock inputs; the updated plan still needs its independent
+recheck. Seq-371 approves100-only verification coverage; seq-372 selects bounded
+Q1 on the local unconfined ptrace-capable executor. [Exact decisions](owner-decisions.md)
+retain source review, actor/identity/runtime readiness and parent technical GO.
+Seq-369 remains20-only. No runtime proof or100 closure follows. Entry preflight/ownership checks passed; current plan recheck and parent source
+GO remain. Recorded bounded design PASS is not product acceptance.
 
 | Need → requirement → acceptance | Independent oracle / census / selector / source |
 | --- | --- |
@@ -23,7 +27,7 @@ any later source entry. Recorded bounded design PASS is not product acceptance.
 | N100 → R100-2: policy/fences remain exact across release/reopen. A100-2: Queued has unchanged visibility; explicit activated debt fences mutations and never starts autonomous work; autonomous reopen actually finishes without target/follow-up calls. | Separate explicit/autonomous controls and independently opened observer, not disabling worker during autonomy proof. C7/C10/C11; S3/S4/S7. `open`, `erasure_maintenance`, `physical_maintenance`, durable root/queue guards. |
 | N100 → R100-3: physical success preserves registered boundaries. A100-3: exact zero for canonical/projection/native/span targets, original-sink discharge, identity-free queue/root, successful TRUNCATE precede Complete; capture main/live WAL before close can mask residue. | Positive target population, raw tables/file bytes, recorded original fingerprints and unchanged control records. C5/C8/C9/C12; S4–S6/S8. Shared erasure/projection/span registry and finalizer; G100-2 remains explicitly partial for combined crash assertion coverage. |
 | N100 → R100-4: preserve exact selected scope/survivors and permitted replay. A100-4: survivor history/row IDs and independent survivor-only scores/order persist, retry converges, offline leaves Queued untouched and publishes same activated receipt. | Hand-selected targets plus independent survivor-only store, exact history snapshot, real retry/offline controls. C8–C12; S4–S6/S8. `erasure_queue::preview`, physical zero proof, `operator/data_plane::recover_complete_erasures`. |
-| N100 → R100-5: qualify the actual interruption model. A100-5: inside-checkpoint coverage requires an attributable active-checkpoint reached witness, not a sleep, pre/post hook, BUSY or unreached child; retain all fault/control outcomes and limitations. | C13/G100-1; optional Q1 in [design](design.md). Pinned SQLite `walCheckpoint` frame-copy position and owned child identity would be the independent boundary witness. No current selector establishes it; NOT QUALIFIED, not a reproduced product defect. |
+| N100 → R100-5: qualify the actual interruption model. A100-5: inside-checkpoint coverage requires an attributable active-checkpoint reached witness, not a sleep, pre/post hook, BUSY or unreached child; retain all fault/control outcomes and limitations. | C13/G100-1; selected Q1 scope in [protocol](q1-protocol.md). Pinned SQLite `walCheckpoint` frame-copy position and owned child identity would be the independent boundary witness. Runtime witness remains NOT QUALIFIED, not a reproduced product defect; approved scope is not viability. |
 | N100 → R100-6: keep qualification honest and changes minimal. A100-6: exact source/tree/lock/features/tool/native/host/selector/exits/reachability receipts, verified closed10 ancestry, own strict preflight and two independent reviews; only real defect repairs receive per-finding RED→GREEN. | C14/G100-3; S1–S9 with own artifact receipts, Git/record checks and independent review. Existing [83](../../../0.8.28/features/slice-83/status.md), [85](../../../0.8.28/features/slice-85/status.md), [95](../../../0.8.28/features/slice-95/status.md) receipts keep original identities; completed10 preparation is not fresh100 proof or a coverage exception. |
 
 Every R/A row maps to N100 and the release FAULT row, and each census row maps

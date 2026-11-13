@@ -211,13 +211,18 @@
         "dev/plans/0.8.29/features/slice-30/results-p.md",
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md"
       ],
-      "phase": "P_SUBSET_QUALIFIED_G_DESIGN_APPROVED_SOURCE_ENTRY_PENDING",
+      "phase": "P_SUBSET_QUALIFIED_G_DESIGN_APPROVED_SOURCE_ENTRY_AUTHORIZED",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
       "conditions": "P-only Linux subset is qualified. G-first design passed Astra after exact actual20 input-fit review; fresh owned entry and explicit parent source GO remain. Actual cache/engaged3090/preregistration precede G campaign. D source GO remains separate. The20 A3/A5 proof condition is satisfied at f803a964; M still requires a selected qualifiedG store and reviewed exact MCP tooling. F needs exact frozen TC5 pack/current-candidate proof. Whole20/30,40/50 and pre90 Block1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
-      "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md."
+      "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md.",
+      "g_source_entry": {
+        "branch": "llm/0.8.29-s30-g-20261113",
+        "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-g-20261113",
+        "scope": "Reviewed G source only; own setup and genuine per-behavior runtime RED/GREEN. Actual GPU/cache/preregistration checks precede campaign; D/M/F remain separately held."
+      }
     },
     {
       "slice": 40,
@@ -595,6 +600,14 @@
         "id": "publication",
         "title": "Explicit actual publication authorization remains separate.",
         "owner_slice": 160
+      },
+      {
+        "id": "slice20-windows-owned-disk-format",
+        "title": "Actual owner ruling on guarded GPT/new R: partition/quick NTFS format of only the already-owned empty64GiB Disk1; seq-370 creation/attachment is fulfilled and not reused as formatting authority.",
+        "owner_slice": 20,
+        "halts_run": false,
+        "source": "Prepared operator git:396a023e02580a1bb82ddcb7f16817874ad0046c dev/experiments/0.8.29-slice20-format/README.md; fresh independent preparation review PASS; actual async question2026-11-13",
+        "conditions": "No live storage mutation before explicit answer and parent GO. Existing disks/C cleanup/compiler/A6 remain outside this operation; in-flight guarded sequence may finish after disconnect; uncertain state stops with read-only inspection. C:8/5GiB later workload floor unchanged."
       }
     ]
   },

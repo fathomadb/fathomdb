@@ -35,7 +35,7 @@ fn commit_cohort(
     written: &mut usize,
     cohorts: &mut Vec<Value>,
 ) -> Result<(), ()> {
-    let _ = (config, out);
+    super::budget_clock::phase(config, out, "write")?;
     let started = std::time::Instant::now();
     let receipt = engine.write(cohort).unwrap();
     cohorts.push(json!({"first_input_index":*written,"rows":cohort.len(),"cursor":receipt.cursor,

@@ -694,3 +694,15 @@ aggregate-cap qualification; those controller units remain required.
 - The frozen contract requires all 79 required 100k obligations retained as
   `cap_feasibility` refusals, while the five bounded smaller obligations may
   execute and the original 10k raw artifact remains.
+
+- Prospective scale GREEN: `g-t10-scale-green` passes all eight frozen Python
+  controller tests (exit 0, no resource stop); Ruff passes. The `2f7fb9bdd`
+  actual-child/retained-artifact oracle is unchanged. Fresh preparation uses
+  2x observed per-row whole-attempt wall (including recorded preparation) and
+  retained file lengths; required reusable subjects must be completed. Refused
+  rows retain prediction inputs, while all 79 larger obligations remain present.
+- These controlled runner artifacts do not establish qualified dense subjects.
+  Production result qualification/dispatch, query-and-write cost forecasting,
+  complete absolute outer deadlines, source/native registration and campaign
+  evidence remain open. Final Python registration uses unittest discovery,
+  which imports all classes after the historical direct-file main guard.

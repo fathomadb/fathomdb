@@ -73,6 +73,24 @@ def active_bytes(root):
     return sum(path.stat().st_size for path in Path(root).rglob("*") if path.is_file())
 
 
+
+def predict_seed(cell, previous, cell_usage):
+    """Forecast fresh preparation at twice observed per-row wall and retained bytes."""
+    if cell["n"] < 10000 or cell["id"] == "g1-n10000":
+        return {}
+    exact = previous.get(f"g1-n{cell['n']}")
+    lower = exact if exact and exact.get("status") == "complete" else previous.get("g1-n10000")
+    if not lower or lower.get("status") != "complete":
+        return {"unavailable": "missing_completed_lower_seed"}
+    if not cell.get("fresh_seed"):
+        return {} if exact and exact.get("status") == "complete" else {
+            "unavailable": "required_seed_not_complete"}
+    observed_rows = lower["cell"]["n"]
+    observed_ns = max(lower["elapsed_ns"], cell_usage.get(lower["id"], 0))
+    return {"seed_subject": lower["id"],
+            "seed_ns": (2 * observed_ns * cell["n"] + observed_rows - 1) // observed_rows,
+            "seed_bytes": (2 * active_bytes(lower["attempt"]) * cell["n"] + observed_rows - 1) // observed_rows}
+
 def run_g_plan(spec, root, command, prepare=None):
     """Run a callable stage schedule with the existing owned-child attempt runner."""
     plan = make_g_plan(spec)
@@ -98,13 +116,19 @@ def run_g_plan(spec, root, command, prepare=None):
             outcomes.append(completed)
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
+        prediction = predict_seed(cell, previous, cell_usage)
+        infeasible = (prediction.get("unavailable") is not None
+                      or prediction.get("seed_ns", 0) > min(900 * 10**9 - cell_usage.get(cell["id"], 0),
+                                                           14400 * 10**9 - budget["used_ns"])
+                      or prediction.get("seed_bytes", 0) + active_bytes(root) > 16 * 1024**3)
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
                   "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
                   "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= 900 * 10**9 else
-                  "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else None)
+                  "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else
+                  "cap_feasibility" if infeasible else None)
         if reason:
             outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
-                             "complete": False, "reason": reason})
+                             "complete": False, "reason": reason, "prediction": prediction})
         else:
             started = time.monotonic_ns()
             budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
@@ -139,5 +163,6 @@ def run_g_plan(spec, root, command, prepare=None):
                 cell_usage[cell["id"]] = cell_usage.get(cell["id"], 0) + elapsed
                 budget["inflight"] = None
                 budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+        previous[cell["id"]] = outcomes[-1]
         (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
     return outcomes

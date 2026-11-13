@@ -1,90 +1,86 @@
 ---
-title: "Slice 20 — dependable queue and parallel-test evidence"
+title: "Slice 20 — approved verification continuation"
 status: ACTIVE
 target_release: 0.8.29
 slice: 20
 ---
 
-# Slice 20 — continuation scope
+# Slice 20 approved continuation
 
-Same dedicated GPT-6.1 Sol-high owner; parent commissions independent Astra-medium
-design and fresh implementation reviews. No Steward/Orchestrator or nested agent.
-This revision reconciles actual integrated20 repairs657edeb,60 subset5271c1bf,
-completed70 e875f360 and parent continuationfcbce1674. It supersedes the old source-
-entry instructions, without invalidating their historical execution receipts.
+Direct Sol-high owner; parent commissions independent Astra-medium design PASS
+before implementation and a fresh distinct final implementation review. Planning
+input is0a7df81fd4b6f17d716c950e6fd2748daa3565c2 on llm/0.8.29-chat, including actual
+seq-369/370 rulings. Parent created /mnt/data/worktrees/fathomdb-0.8.29-s20-approved-20261113
+on llm/0.8.29-s20-approved-20261113 at that exact base. Strict closed10
+preflight passed with zero warnings; initial omitted-path CLI usage error is
+parent tooling evidence only. Source GO still waits for this design PASS. No
+source/setup/build/VM mutation has run in this resumed phase.
 
-## Actual completed work and remaining outcomes
+## Scope and current integrated inputs
 
-The two engine-owned evidence-hook repairs are integrated and independently
-accepted. Their real RED/GREEN, assembled qualification, failed attempts and
-native limitations remain in [execution](execution.md) and [review](review-log.md).
-Do not repeat those repairs or call their previous environment current proof.
-TC57/configure-first, Slice40 and non-test CPU warning controls were qualified
-within that subset; no current defect was demonstrated in them.
+Retain accepted20 Linux evidence-hook repairs657edeb76caaf9c8d2aab433766bec9362e73217;
+continuation docs391ae66aa9d36fc0dbdfe5326ed028551a6774f5;
+60 subset5271c1bf022f0ea22f95f7433e226feb2315043e;
+completed70 e875f36042f89c1d84756f78135db0e8926c1ed4; measured30 P integrated
+in2381. Their qualified subset evidence remains valid within recorded limits;
+whole20/30/60-F11 and pre90 Block1 exit remain open.
 
-Remaining mandatory outcomes are A3 pre-enqueue race23, A5 live five-constant
-tripwire and A6 actual Windows startup/opener qualification. [Requirements](requirements.md),
-[acceptance](acceptance.md), [design](design.md) and [test map](test-map.md) retain
-precise conditions. A3/A5 remain held under the actual unanswered coverage-policy
-item. Neither continuation mandate nor design PASS chooses exception or defer.
-A6 remains capacity-held. No20 closure,30 clearance or Block1 exit follows.
+R29-3P-06/O3-06 still requires queue wait/run/permit preservation and actual
+Ready-to-pre-accounting proof plus live tripwire constants. Reconcile current60
+format-bound schema helper and70 bounded degradation/Closing propagation:
+new race fixtures explicitly request structured output and text search.
+No new production queue policy or architecture successor is needed.
 
-## Integrated predecessor adaptation
+Owner2026-11-13 seq-369 approves A3/A5 verification-only proofs and negative
+controls without manufactured RED. All actual defects keep genuine committed
+semantic RED before GREEN. Seq-370 approves only64GiB host image creation,
+necessary narrow ACLs and live attachment to existing Windows VM. Formatting,
+compiler/helper/test execution remain held. No renewed approval question.
 
-60 preserves Registry admission/lifecycle code and adds direct-text/hybrid route
-counters to Seams/Hooks. Admission's helper now validates output against actual
-advertised format-bound schemas. Use that maintained helper; select text mode and
-structured format explicitly in the new race fixture so compact parsing and70's
-provider-free hybrid degradation do not become accidental oracles.70 adds
-embedder_absent/embedder_timeout and actual Closing propagation; keep those
-accepted words, order, remedies and native fixture successors. Queue error/wait/
-permit policy and the five T2 production values remain unchanged. No architecture
-or production-interface successor is required for this test-only continuation.
+Keep schema37/no migration, query scaffold, accepted hints/spans/compact default,
+W0.8.29/E0.8.0, R580/primary CUDA12.6/no K620. No model/GPU fault/toolkit work,
+cleanup, remote CI or publication.
 
-Keep format37, no migration, W0.8.29/E0.8.0, query scaffold, hints/spans/defaults,
-R580/primary CUDA12.6/no K620. No model, GPU fault, toolkit/driver change, new
-numerical threshold, chunking, reader interruption or retry hint is allocated.
-CI work/execution, remote dispatch, publishing tags and registries are excluded.
+## Ordered execution
 
-## Owned entry and ordered work
+1. Independent Astra-medium review of these five canonical candidates and exact
+   capacity-only derivative. No source/test/VM mutation before PASS.
+2. Parent has committed rulings/state and created the fresh isolated checkout; owner
+   rereads actual resulting base, confirms input equivalence and strict closed10
+   preflight. Parent owns all worktrees, ledgers/state and integration. No old
+   continuation checkout or parent native environment is reused.
+3. Capacity route may proceed independently once technically reviewed: refresh
+   exact VM/disk/UID/port/resources and execute only capacity-only.py with actual
+   parent ruling record. Stop after attachment/read-only new-disk identity.
+   Do not invoke frozen full provisioning or any compiler/helper/test entry point.
+4. In owned source, canonical ownership check/provision with all targets/caches/
+   TMPDIR/AGENT_LOG_DIR under /mnt/data. One heavy phase/jobs2; canonical final
+   Rust jobs1. Add A3 owned async observation/proofs and A5 live unit guards.
+   Passing-on-arrival is stated as verification under seq-369. Negative controls
+   run in distinct parent-owned isolated copies, unchanged assertions.
+5. Scoped lint/check then affected admission/lifecycle/test-seam and feature-on
+   no-model constant tests. Real defects use committed RED then GREEN; no test
+   weakening. One final stable clean source full gate, source/native identity
+   refresh only where compiled inputs changed, fresh distinct Astra final review.
+6. Parent integrates qualified scope and updates criterion disposition. A6 remains
+   open until actual authorized technically ready Windows execution passes its
+   four controls. No20/30/Block1 or release closure from capacity/proof subsets.
 
-Parent-created sole-writer checkout is
-`/mnt/data/worktrees/fathomdb-0.8.29-s20-continuation`, branch
-`llm/0.8.29-s20-continuation`, basefcbce16748a5885cb296f504579ff9630d11fc6a.
-Owner identity/clean-tree and strict closed10 preflight passed with zero warnings.
-TMPDIR, AGENT_LOG_DIR and all Cargo/UV/pip/npm/XDG cache/target/tool outputs
-are task-local; all task scratch/tools/logs/caches/targets/temp stay under
-`/mnt/data/tmp2/fathomdb-0829-continuation/slice20`; no new /tmp/root-disk outputs.
-No source setup/build/test/transfer has run in this continuation.
+## Resource bounds
 
-1. Parent obtains fresh adversarial design PASS for this exact revision.
-2. Parent GO opens only the reviewed, actually unheld work. Nonmutating ownership
-   check precedes any own setup; use canonical --provision and exact pinned tools.
-   Own source/native identity and measured capacity precede heavy work.
-3. Under an explicit A3/A5 exception, implement the conditional proof/guards and
-   isolated negative controls in design; retain honest coverage timing. Under an
-   explicit defer, parent records unsatisfied receiving disposition; no fake RED.
-4. A6 capacity approval, reviewed operational scripts/bootstrap and actual binary
-   controls precede exact-source native Windows build/four selectors. A discovered
-   real defect gets a committed failing regression and separate GREEN, fixed
-   assertions, exact raw evidence and an independent RED replay.
-5. Scoped checks during work; full source gate once on final stable clean source
-   if source/tests/scripts change, then fresh independent implementation review.
-   Only docs use scoped Markdown/state checks. Preserve failures and skipped cases.
-
-## Bounded capacity and decision boundary
-
-Host observation: about648GiB free on /mnt/data,56GiB root,23.6GiB available RAM;
-full swap allocation alone is not a stop decision. Refresh live rates/floors before
-setup. Review uses one heavy phase/jobs2, root32/20GiB, taskfs250/50GiB,
-MemAvailable16/8GiB, total owned200GiB and sustained swap64MiB/s for three30s
-samples. Canonical final Rust jobs1 stays intact. Count checkout/task and any
-image reservation together; do not sum duplicated filesystem capacity.
-
-Existing Windows VM now has9,151,545,344B C: free (8.52GiB), no alternate writable
-disk and no active build process. Existing32GiB build floor fails. Retain FIX3's
-concrete64GiB scratch-disk option, with explicit owner approval before image/ACL/
-attach/initialize; [design](design.md) records exact unresolved preparation.
-No approved host cross-build route exists. Parent's cross-build lead was corrected
-to investigation; native Linux target only and no demonstrated cross toolchain.
-No new infrastructure requirement or capacity waiver is inferred.
+Use existing reviewed limits: root32/20GiB, taskfs250/50GiB, MemAvailable16/8GiB
+start/stop; total owned200GiB; sustained swap64MiB/s for three30s samples stops
+heavy work. Reserve64GiB Windows image plus at least64GiB Linux build/source in
+the total, counting task/source actual usage without duplicated filesystem free
+capacity. Use one control checkout at the frozen proof commit and one control target,
+serialized across all seven mutations. Restore each exact production file and
+confirm Git identity before the next case. Reusing this same slice-owned control
+target serially is a build cache, never borrowed native qualification: each Cargo
+invocation recompiles the selected mutation and records its source and actual
+executed binary identity. No full gate runs on negative candidates. Reserve
+128GiB combined Linux candidate/control/source/tools plus64GiB image (192GiB);
+stop before the next phase if measured total would exceed200GiB. Keep only these
+two native targets; do not create seven full targets.
+Capacity-only does no heavy compiler phase. Its current checks and
+exact no-format stop are in capacity-only.md. Preserve failed/UNKNOWN outcomes;
+no blind retries, cleanup or broader infrastructure fallback.

@@ -1,17 +1,17 @@
 # Slice 20 continuation test map
 
-All runtime commands are future, from the owned continuation checkout after
-fresh design PASS, parent GO and own setup. Record exact SHA/features/argv/log/
+All runtime commands are future, from a fresh parent-created sole-writer checkout
+after this revision passes independent Astra design review and own setup. Record exact SHA/features/argv/log/
 exit/nonzero reached counts; preserve compiler diagnostics verbatim. Existing
 Linux accepted evidence stays in execution.md; do not repeat it wholesale.
 
 | Obligation | Exact target / proposed selector | Proof and gate |
 | --- | --- | --- |
-| A3 primary | cargo test -p fathomdb-mcp --test admission a_drain_before_enqueue_returns_the_call_to_open_wait -- --exact | Proposed; actual exception first. Reached old epoch/counters0, real idle/lock release, stale rejection before bridge, blocked reopen, exact ref/new epoch. |
+| A3 primary | cargo test -p fathomdb-mcp --test admission a_drain_before_enqueue_returns_the_call_to_open_wait -- --exact | Approved verification-only seq-369; runtime outstanding. Reached old epoch/counters0, real idle/lock release, stale rejection before bridge, blocked reopen, exact ref/new epoch. |
 | A3 deadline | Same target, a_pre_enqueue_drain_keeps_the_original_wait_deadline | Proposed; original absolute budget, exact not_ready/reopening, bounded cleanup. |
 | A3 cleanup/shutdown | Same target, a_dropped_pre_enqueue_observation_releases_its_hold and shutdown_at_pre_enqueue_refuses_without_engine_work | Proposed; Drop/abort/panic/release_all release owned token and all actors; shutdown no bridge. No new pre-permit cancellation promise. |
 | A3 preservation | cargo test -p fathomdb-mcp --test admission; cargo test -p fathomdb-mcp --test lifecycle | Current complete25/18 controls originally qualified; run affected current bodies with ordinary harness parallelism/TOKIO_WORKER_THREADS2. Preserve queue/FIFO/deadline/cancel/running ownership, idle/LRU and current advertised schema validation. |
-| A5 fusion | cargo test -p fathomdb-engine --lib fusion::tests::overflow_chunking_fusion_tripwire -- --exact | Proposed; explicit exception first, live30/3/1 and record path in every assertion. |
+| A5 fusion | cargo test -p fathomdb-engine --lib fusion::tests::overflow_chunking_fusion_tripwire -- --exact | Approved verification-only seq-369, live30/3/1 and record path in every assertion. |
 | A5 embedder | cargo test -p fathomdb-embedder --features default-embedder --lib candle_bge::tests::overflow_chunking_embedder_tripwire -- --exact | Proposed; live name/private512, no model construction/network/GPU. Confirm actual module-qualified listed name before execution. |
 | Sensitivity | Same new selectors in disposable isolated controls | Both reviewed stale controls (typed not_ready/draining replacement and phase/epoch predicate bypass) plus five separate actual-constant changes; unchanged oracle fails named assertion. Coverage controls, never product RED. Parent-created trees/own targets, source candidate untouched. |
 | Genuine new defect | Exact new deterministic regression at committed RED, then unchanged test at separate GREEN | Capture failure assertion at RED SHA, preserve tests through fix, independent clean RED replay. Missing API/compile failure or wrong introduced expected value is not semantic RED. |
@@ -22,8 +22,9 @@ Linux accepted evidence stays in execution.md; do not repeat it wholesale.
 Build exact committed source with:
 `cargo test -p fathomdb-engine --features operator,test-hooks --lib --no-run`.
 Then use the same prefix without --no-run, each selector below, followed by
-`-- --exact --nocapture`. Actual execution requires accepted adequate capacity,
-reviewed/qualified operational scripts/bootstrap/binary and private-job supervisor.
+`-- --exact --nocapture`. Actual execution remains HELD beyond capacity-only seq-370; guest format and
+compiler/helper/test authority plus qualified scripts/bootstrap/binary/supervisor
+are separate prerequisites.
 Build20min; each selector90s; zero selected tests/timeout is failure.
 
 1. `slice90_close_review_tests::failed_startup_after_accepted_probe_preserves_error_and_cleans_sqlite_profiles`:

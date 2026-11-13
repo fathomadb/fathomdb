@@ -1,0 +1,8 @@
+{
+  "origin_manifest_sha256": "5122aa082974461cb8a6f04e2f96accd645c19554844419cd43131355171aafa",
+  "files": {
+    "capacity_only.py": "c0407d29c13090c0d90df40194321cef76f337bcc3a10b2cadeebfd33370cd04",
+    "README.md": "2ab2f341a4be761cb86bbf54dd6a90e3bd1f9082ee8981277429b19143cb011b",
+    "test_capacity_only.py": "327ee4e26caaa4c64a6c09fb82fccea872e4be5c060583c39312e0c0b3ff3305"
+  }
+}

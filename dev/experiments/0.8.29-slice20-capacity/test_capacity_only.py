@@ -5,6 +5,8 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
@@ -72,6 +74,8 @@ class CapacityControls(unittest.TestCase):
             if str(value) == '/proc':
                 return SimpleNamespace(iterdir=lambda: [FakeProcess()])
             return Path(value)
+        self.real_run = self.module.run
+        fixture_path.cwd = Path.cwd
         self.addCleanup(patch.stopall)
         patch.object(self.module, 'Path', fixture_path).start()
         patch.object(self.module, 'sample', lambda: None).start()
@@ -195,6 +199,43 @@ class CapacityControls(unittest.TestCase):
         self.assertEqual(len(self.mutations()), 4)
         self.assertEqual(len(self.guest_requests), 1)
         self.assertIn('attach-device', self.commands[-1])
+
+
+    def test_wrong_qemu_uid_refuses_before_mutation(self):
+        with patch.object(FakeProcess, 'stat', lambda _: SimpleNamespace(st_uid=64054)):
+            self.assert_refused_before_mutation()
+
+    def test_mismatched_new_disk_is_unknown_without_followup(self):
+        self.after_disks = [ORIGINAL.copy(), dict(FRESH, SerialNumber='other')]
+        with self.assertRaises(RuntimeError):
+            self.invoke()
+        result = json.loads((self.module.EVIDENCE/'result.json').read_text())
+        self.assertEqual(result['status'], 'UNKNOWN')
+        self.assertEqual(len(self.mutations()), 4)
+        self.assertEqual(len(self.guest_requests), 2)
+
+    def test_changed_original_guest_disk_is_unknown_without_followup(self):
+        self.after_disks = [dict(ORIGINAL, Size=119*GIB), FRESH.copy()]
+        with self.assertRaises(RuntimeError):
+            self.invoke()
+        result = json.loads((self.module.EVIDENCE/'result.json').read_text())
+        self.assertEqual(result['status'], 'UNKNOWN')
+        self.assertEqual(len(self.mutations()), 4)
+        self.assertEqual(len(self.guest_requests), 2)
+
+    def test_real_local_timeout_retains_initiation_and_partial_output(self):
+        self.module.EVIDENCE = self.root/'real-run-logs'
+        self.module.EVIDENCE.mkdir()
+        command = [sys.executable, '-c',
+                   "import sys,time;print('partial-out',flush=True);print('partial-err',file=sys.stderr,flush=True);time.sleep(5)"]
+        with self.assertRaises(subprocess.TimeoutExpired):
+            self.real_run(command, timeout=0.2)
+        records = [json.loads(line) for line in (self.module.EVIDENCE/'commands.jsonl').read_text().splitlines()]
+        self.assertEqual([r['event'] for r in records], ['COMMAND_START', 'COMMAND_TIMEOUT'])
+        self.assertEqual(records[0]['token'], records[1]['token'])
+        self.assertIn('partial-out', records[1]['stdout'])
+        self.assertIn('partial-err', records[1]['stderr'])
+        self.assertEqual(records[1]['termination'], 'DIRECT_CHILD_KILLED_REAPED_BY_SUBPROCESS_RUN;DESCENDANTS_AND_GUEST_UNKNOWN')
 
 
 if __name__ == '__main__':

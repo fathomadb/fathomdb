@@ -366,3 +366,60 @@ fn pending_vector_probe_records_the_selected_fallback_not_only_eligibility() {
     );
     assert_eq!(batch.dropped_records, 0);
 }
+
+#[test]
+fn authority_observation_uses_reader_transaction_and_frozen_validity() {
+    let directory = tempfile::tempdir().unwrap();
+    let engine = seed_dense(&directory.path().join("authority.sqlite"));
+    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    let capture = |operation: u64, time: i64| {
+        let view = fathomdb_engine::ReadView { valid_as_of: Some(time), ..Default::default() };
+        let result =
+            observer.with_operation(operation, || engine.search_view("needle", &view)).unwrap();
+        let batch = observer.take();
+        let records = batch
+            .records
+            .iter()
+            .filter(|r| r.phase == "observer_snapshot_capture")
+            .collect::<Vec<_>>();
+        assert_eq!(records.len(), 1, "same-reader authority capture is missing");
+        let record = records[0];
+        assert_eq!(record.status, "ok");
+        assert_eq!(record.operation_id, operation);
+        assert_eq!(record.facts["observer_added"], true);
+        assert_eq!(record.facts["effective_at_epoch_s"], time);
+        assert_eq!(record.facts["validity_binding_epoch_s"], time);
+        assert_eq!(record.facts["projection_cursor"], result.projection_cursor);
+        assert!(record.facts["visibility_generation"].as_u64().is_some());
+        assert!(record.facts["dependency_generation"].as_u64().is_some());
+        assert!(!record.facts["visibility_nonce"].as_str().unwrap().is_empty());
+        assert_eq!(batch.dropped_records, 0);
+        (record.facts.clone(), result)
+    };
+    let (first, _) = capture(701, 199);
+    let (second, _) = capture(702, 200);
+    assert_eq!(first["visibility_generation"], second["visibility_generation"]);
+    assert_eq!(first["visibility_nonce"], second["visibility_nonce"]);
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: "updated needle".into(),
+            logical_id: Some("alpha".into()),
+            source_id: SourceId::new("test:slice30-dense-unit").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .unwrap();
+    let (third, result) = capture(703, 200);
+    assert_eq!(result.results[0].id.value, "alpha");
+    assert_eq!(result.results[0].body, "updated needle");
+    assert!(
+        third["visibility_generation"].as_u64().unwrap()
+            > first["visibility_generation"].as_u64().unwrap()
+    );
+    assert_ne!(third["visibility_nonce"], first["visibility_nonce"]);
+    engine.drain(5_000).unwrap();
+    engine.close().unwrap();
+}

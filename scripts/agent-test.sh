@@ -750,6 +750,14 @@ if [ -z "$slice30_g_mean_gpu_reason" ] && { [ "${AGENT_LONG:-0}" != 1 ] \
   || [ "${FATHOMDB_EMBED_DEVICE:-}" != cuda:0 ]; }; then
   slice30_g_mean_gpu_reason="manual pinned3090 source test: AGENT_LONG=1, reserved CUDA_VISIBLE_DEVICES UUID and forced cuda:0 required"
 fi
+run_tier_maybe_suite heavy test-slice30-g-campaign "$slice30_g_mean_gpu_reason" bash -c '
+  set -euo pipefail
+  label="controller-g-${BASHPID}"
+  python3 dev/experiments/0.8.29-slice30-measurements/native/build_g_host.py "$label"
+  export S30_G_CONTROLLER_FEATURES="$S30_GD_TASK/proofs/gd-g-host-${label}.json"
+  timeout --signal=TERM --kill-after=30s 150s python3 dev/experiments/0.8.29-slice30-measurements/native/test_g_campaign.py
+'
+
 run_tier_maybe_suite heavy test-slice30-g-core-mean "$slice30_g_mean_gpu_reason" bash -c '
   set -euo pipefail
   cargo build --locked --release -p fathomdb-sdk --example slice30_g_mean --features embed-cuda

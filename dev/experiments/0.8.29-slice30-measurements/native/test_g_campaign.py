@@ -13,6 +13,8 @@ import tempfile
 import time
 import unittest
 
+from hypothesis import Phase, given, settings, strategies as st
+
 from test_g_text import GPU, _accounting
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -128,7 +130,7 @@ class NativeGAdmissionTests(unittest.TestCase):
             raise RuntimeError("healthy actual BGE producer did not complete NOT_RED")
 
     @classmethod
-    def invoke(cls,config):
+    def invoke(cls,config,relative_work_ns=None,allow_partial=False):
         from gd_resources import _cleanup_owned_group, _owned_subreaper
         if cls.stopped is not None:
             raise RuntimeError("source fixture stopped; no further native starts NOT_RED")
@@ -149,6 +151,9 @@ class NativeGAdmissionTests(unittest.TestCase):
             if before["util"] or before["total_MiB"]-before["used_MiB"] < 8192:
                 raise RuntimeError("approved GPU not quiet/free NOT_RED")
             with _owned_stop_flags() as stop, _owned_subreaper(),(case/"child.log").open("wb") as log:
+                if relative_work_ns is not None:
+                    config = dict(config,work_deadline_ns=min(config["work_deadline_ns"],time.monotonic_ns()+relative_work_ns))
+                    path.write_text(json.dumps(config))
                 child = subprocess.Popen([str(cls.binary),str(path),str(out)],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
                 try:
                     while child.poll() is None:
@@ -170,6 +175,8 @@ class NativeGAdmissionTests(unittest.TestCase):
         print(json.dumps({"pid":child.pid,"uuid":GPU,"peak_own_MiB":max((row["own_MiB"] for row in samples),default=0),
                           "positive_util":any(row["own_MiB"]>0 and row["util"]>0 for row in samples)}),flush=True)
         if (out/"case-0/template.sqlite").exists():
+            if allow_partial and not (out/"case-0/template.json").exists() and (out/"budget.json").exists():
+                return out
             report = json.loads((out/"case-0/template.json").read_text())["preparation"]
             if not (report["api_complete"] and report["selected_cuda_uuid"]==GPU and report["cuda_compiled"] and
                     report["write_rows"]==65 and report["write_calls"]==2 and report["pending"]==0 and
@@ -191,6 +198,34 @@ class NativeGAdmissionTests(unittest.TestCase):
                 report = json.loads((out/"budget.json").read_text())
                 self.assertEqual(report["disposition"],"deadline_refused")
                 self.assertEqual(report["phase"],"entry")
+
+    def check_post_open(self,work_ns):
+        out = self.invoke(dict(self.config),relative_work_ns=work_ns,allow_partial=True)
+        store = out/"case-0/template.sqlite"
+        if not store.exists():
+            raise RuntimeError("post-open source phase not reached NOT_RED")
+        proof = out/"case-0/api-proof.json"
+        if proof.exists() and json.loads(proof.read_text())["open_ns"] <= work_ns:
+            raise RuntimeError("actual Default open did not span the chosen source work window NOT_RED")
+        with closing(sqlite3.connect(f"file:{store}?mode=ro",uri=True)) as db:
+            rows = db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0]
+        print(f"actual post-Default-open rows={rows} work_ns={work_ns} store={store}",flush=True)
+        self.assertEqual(rows,0,"native G continued configuration/writes after its real Default open exhausted work time")
+        report = json.loads((out/"budget.json").read_text())
+        self.assertEqual(report["phase"],"configure")
+        self.assertEqual(report["disposition"],"deadline_refused")
+        self.assertNotIn("sqlite_created",report)
+        config = json.loads((out.parent/"cell.json").read_text())
+        self.assertGreaterEqual(report["observed_at_ns"],config["work_deadline_ns"])
+        self.assertFalse(proof.exists())
+
+    def test_post_default_open_expiry_prevents_following_configuration_and_writes(self):
+        self.check_post_open(250_000_000)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=150_000_000,max_value=250_000_000))
+    def test_tight_source_windows_preserve_empty_store_after_open_expiry(self,work_ns):
+        self.check_post_open(work_ns)
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ pub(super) fn from_template(
         adapter.close();
         return false;
     }
-    let (receipt, write_ns) = g_gg_stages::mutation(config, out, "write", || {
+    let Ok((receipt, write_ns)) = g_gg_stages::mutation(config, out, "write", || {
         let writing = Instant::now();
         let receipt = engine
             .write(&[PreparedWrite::Node {
@@ -75,8 +75,10 @@ pub(super) fn from_template(
             .unwrap();
         let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
         (receipt, write_ns)
-    })
-    .unwrap();
+    }) else {
+        adapter.close();
+        return false;
+    };
     let draining = Instant::now();
     let drain_budget = match g_gg_stages::drain(engine, config) {
         Ok(report) => report,

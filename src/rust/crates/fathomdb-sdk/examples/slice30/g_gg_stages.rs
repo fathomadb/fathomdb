@@ -14,11 +14,12 @@ pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<
 }
 
 pub(super) fn mutation<T>(
-    _config: &Value,
-    _out: &Path,
-    _phase: &str,
+    config: &Value,
+    out: &Path,
+    phase: &str,
     work: impl FnOnce() -> T,
 ) -> Result<T, ()> {
+    super::budget_clock::phase(config, out, phase)?;
     Ok(work())
 }
 

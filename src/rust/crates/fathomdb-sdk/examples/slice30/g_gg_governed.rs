@@ -229,13 +229,15 @@ pub(super) fn from_template(
     let GAdapter::Core(opened) = &adapter else { unreachable!() };
     let engine = &opened.engine;
     let writes = governed_writes();
-    let write_ns = g_gg_stages::mutation(config, out, "write", || {
+    let Ok(write_ns) = g_gg_stages::mutation(config, out, "write", || {
         let writing = Instant::now();
         engine.write(&writes).unwrap();
         u64::try_from(writing.elapsed().as_nanos()).unwrap()
-    })
-    .unwrap();
-    let register_ns = g_gg_stages::mutation(config, out, "dependency", || {
+    }) else {
+        adapter.close();
+        return false;
+    };
+    let Ok(register_ns) = g_gg_stages::mutation(config, out, "dependency", || {
         let registering = Instant::now();
         engine
             .register_source_dependency(
@@ -244,8 +246,10 @@ pub(super) fn from_template(
             )
             .unwrap();
         u64::try_from(registering.elapsed().as_nanos()).unwrap()
-    })
-    .unwrap();
+    }) else {
+        adapter.close();
+        return false;
+    };
     let draining = Instant::now();
     let valid_drain_budget = match g_gg_stages::drain(engine, config) {
         Ok(report) => report,
@@ -276,12 +280,14 @@ pub(super) fn from_template(
         adapter.close();
         return false;
     }
-    let transition_ns = g_gg_stages::mutation(config, out, "transition", || {
+    let Ok(transition_ns) = g_gg_stages::mutation(config, out, "transition", || {
         let transitioning = Instant::now();
         engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
         u64::try_from(transitioning.elapsed().as_nanos()).unwrap()
-    })
-    .unwrap();
+    }) else {
+        adapter.close();
+        return false;
+    };
     let draining = Instant::now();
     let deleted_drain_budget = match g_gg_stages::drain(engine, config) {
         Ok(report) => report,

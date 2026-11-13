@@ -113,5 +113,19 @@ class AttributionCompletenessTests(unittest.TestCase):
         self.assertEqual(result["witnesses"], [])
 
 
+class ReadinessSuccessTests(unittest.TestCase):
+    def test_failed_readiness_with_stale_positive_count_cannot_witness_overlap(self):
+        payload = {"queries": [span(0, 10)], "writes": [span(1, 9)],
+                   "workers": [span(2, 8)],
+                   "readiness": [span(3, 4, pending_count=1, ok=False)]}
+        child = subprocess.run([sys.executable, str(TOOL)], input=json.dumps(payload),
+                               capture_output=True, text=True, timeout=5)
+        self.assertEqual(child.returncode, 0, child.stderr)
+        result = json.loads(child.stdout)
+        self.assertEqual(result["status"], "INCOMPLETE_OVERLAP")
+        self.assertEqual(result["witnesses"], [])
+        self.assertEqual(result["outside_readiness"], [0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -279,5 +279,42 @@ class NativeGAdmissionTests(unittest.TestCase):
         self.check_pass_open(mode,warmups)
 
 
+    def check_running_phase(self, mode, phase):
+        store = self.root/f"running-store-{self.ordinal}.sqlite"
+        shutil.copyfile(self.template,store)
+        if hashlib.sha256(store.read_bytes()).digest() != hashlib.sha256(self.template.read_bytes()).digest():
+            raise RuntimeError("actual closed-template copy failed NOT_RED")
+        queries = self.root/f"running-queries-{self.ordinal}.jsonl"
+        inputs = [{"id":i,"query":"budget"} for i in range(2048)]
+        queries.write_text("".join(json.dumps(row)+"\n" for row in inputs))
+        config = dict(self.config,family="G_PASS",store=str(store),queries=str(queries),mode=mode,
+                      warmups=len(inputs) if phase=="warmup" else 0)
+        out = self.invoke(config,relative_work_ns=2_000_000_000)
+        path = out/("warmups.jsonl" if phase=="warmup" else "samples.jsonl")
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        if not rows or not any(row["own_MiB"]>0 and row["util"]>0 for row in self.last_gpu_samples):
+            raise RuntimeError("actual inference prefix/own CUDA engagement absent NOT_RED")
+        self.assertEqual([row["query_id"] for row in rows],list(range(len(rows))))
+        self.assertTrue(all(row["query_fingerprint"]==hashlib.sha256(b"budget").hexdigest() and
+                            row["ok"] and row["dimension"]==384 and row["finite"] and
+                            row["norm_squared"]>0 and row["elapsed_ns"]>0 for row in rows))
+        print(f"actual running {phase} {mode} prefix={len(rows)}/{len(inputs)} root={out}",flush=True)
+        self.assertLess(len(rows),len(inputs),"native G continued starting inference calls after its original work endpoint")
+        self.assertFalse((out/"api-proof.json").exists(),"expired partial pass reported completion")
+        self.assertEqual(json.loads((out/"budget.json").read_text())["phase"],phase)
+        if phase=="warmup":
+            self.assertEqual((out/"samples.jsonl").read_text(),"")
+
+    def test_running_warmup_and_timed_phases_stop_with_actual_prefix(self):
+        for phase in ["warmup","timed"]:
+            with self.subTest(phase=phase):
+                self.check_running_phase("engine_mean",phase)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.sampled_from(["engine_mean","sdk_mean"]),st.sampled_from(["warmup","timed"]))
+    def test_running_mean_prefix_preserves_input_order(self,mode,phase):
+        self.check_running_phase(mode,phase)
+
+
 if __name__ == "__main__":
     unittest.main()

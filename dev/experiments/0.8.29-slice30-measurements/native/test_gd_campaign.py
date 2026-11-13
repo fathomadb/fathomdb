@@ -212,6 +212,39 @@ class FamilyDestinationTests(unittest.TestCase):
         self.check_destination(depth)
 
 
+class WholeCellElapsedTests(unittest.TestCase):
+    def check_elapsed(self,samples):
+        root,binary,manifest=clock_fixture()
+        manifest["cells"]=manifest["cells"][:1]
+        manifest["cells"][0]["samples"]=samples
+        preparations=[]
+        def before():
+            started=time.monotonic_ns()
+            prepare_actual_database(root,binary,"measured-preparation")
+            preparations.append((started,time.monotonic_ns()))
+        result=run_manifest(manifest,root/"results",before=before)[0]
+        self.assertEqual(result["status"],"complete","actual preparation/native route controls NOT_RED")
+        self.assertTrue(result["cleanup"]["complete"])
+        prep_start,prep_end=preparations[0]
+        minimum=prep_end-prep_start+result["elapsed_ns"]
+        print(f"whole real cell {root} prep_ns={prep_end-prep_start} native_ns={result['elapsed_ns']} total={result.get('cell_elapsed_ns')}",flush=True)
+        self.assertGreaterEqual(result.get("cell_elapsed_ns",0),minimum,"lower-scale elapsed omitted actual preparation/admission work")
+        self.assertLessEqual(result["cell_started_ns"],prep_start)
+        self.assertGreaterEqual(result["cell_ended_ns"],prep_end)
+        self.assertEqual(result["cell_elapsed_ns"],result["cell_ended_ns"]-result["cell_started_ns"])
+        attempt=Path(result["attempt"])
+        self.assertEqual(json.loads((attempt/"outcome.json").read_text()),result)
+        self.assertEqual(json.loads((root/"results/campaign-state.json").read_text()),[result])
+
+    def test_lower_scale_time_includes_actual_database_preparation(self):
+        self.check_elapsed(3)
+
+    @settings(max_examples=2,deadline=None,database=None,phases=[Phase.generate])
+    @given(st.integers(min_value=2,max_value=7))
+    def test_whole_cell_extent_contains_actual_prep_and_native_work(self,samples):
+        self.check_elapsed(samples)
+
+
 class CellRetryClockTests(unittest.TestCase):
     def check_retry(self,milliseconds):
         root, _, manifest=clock_fixture()

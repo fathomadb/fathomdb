@@ -704,6 +704,12 @@ run_tier_maybe_suite heavy test-slice30-gd-completion "$slice30_measurement_plat
   python3 dev/experiments/0.8.29-slice30-measurements/native/test_completion.py
 '
 
+run_tier_maybe_suite heavy test-slice30-d-query-workload "$slice30_measurement_platform_reason" bash -c '
+  set -euo pipefail
+  cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks,slice30-measurement
+  cargo test --locked --release -p fathomdb-engine --test slice30_d_workload --features test-hooks,slice30-measurement -- --test-threads=1 --nocapture
+'
+
 run_tier_maybe_suite heavy test-slice30-gd-held "$slice30_measurement_platform_reason" bash -c '
   set -euo pipefail
   cargo build --locked --release -p fathomdb-engine --example slice30_gd_diagnostic --features test-hooks,slice30-measurement

@@ -10,6 +10,10 @@ use std::path::Path;
 mod dense_template;
 
 #[cfg(feature = "test-hooks")]
+#[path = "slice30/d_workload.rs"]
+mod d_workload;
+
+#[cfg(feature = "test-hooks")]
 #[path = "slice30/held_fixture.rs"]
 mod held_fixture;
 
@@ -29,6 +33,12 @@ fn strings(path: &str) -> Vec<String> {
 }
 
 fn run(config: &Value, out: &Path) {
+    if config["family"] == "D_QUERY_FIXTURE" {
+        #[cfg(feature = "test-hooks")]
+        return d_workload::run(config, out);
+        #[cfg(not(feature = "test-hooks"))]
+        panic!("D query fixture requires its explicit test-hooks artifact");
+    }
     if config["family"] == "D_HELD_FIXTURE" {
         #[cfg(feature = "test-hooks")]
         return held_fixture::run(config, out);

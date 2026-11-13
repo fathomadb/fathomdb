@@ -71,3 +71,8 @@ pub(super) fn drain(engine: &Engine, config: &Value) -> Result<Value, String> {
     engine.drain(timeout_ms).map_err(|error| format!("{error:?}"))?;
     Ok(json!({"drain_calls":1,"timeout_ms":timeout_ms,"start_ns":started}))
 }
+
+pub(super) fn checked_drain(engine: &Engine, config: &Value, out: &Path) -> Result<Value, String> {
+    let _ = out;
+    drain(engine, config)
+}

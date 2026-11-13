@@ -202,3 +202,56 @@ proptest! {
     #[test]
     fn copied_population_refusal_preserves_truthful_phase(rows in 1usize..4) { copied_database_refusal(rows); }
 }
+
+fn checked_precondition(bound: usize) {
+    let root = tempfile::Builder::new().prefix("s30-drain-precondition-").tempdir().unwrap().keep();
+    let store = root.join("store.sqlite");
+    let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: "actual drain precondition é".into(),
+            source_id: SourceId::new("test:s30-checked-drain").unwrap(),
+            logical_id: Some("precondition".into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .unwrap();
+    let ordinary = native_budget::checked_drain(&engine, &json!({}), &root).unwrap();
+    assert_eq!(ordinary["drain_calls"], 1, "actual ready-store drain control NOT_RED");
+    let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+    config[["work_deadline_ns", "hard_deadline_ns", "shared_deadline_ns"][bound]] = json!(0);
+    let outcome = native_budget::checked_drain(&engine, &config, &root);
+    engine.close().unwrap();
+    let db =
+        rusqlite::Connection::open_with_flags(&store, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    assert_eq!(
+        db.query_row("SELECT logical_id,body FROM canonical_nodes", [], |row| Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?
+        )))
+        .unwrap(),
+        ("precondition".into(), "actual drain precondition é".into())
+    );
+    println!("actual checked drain {} bound={bound} outcome={outcome:?}", root.display());
+    assert!(outcome.is_err(), "unperformed drain was accepted as a successful phase precondition");
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(root.join("budget.json")).unwrap()).unwrap();
+    assert_eq!(report["drain_calls"], 0);
+    assert_eq!(report["phase"], "drain");
+    assert_eq!(report["disposition"], "deadline_refused");
+    assert!(report.get("sqlite_created").is_none());
+}
+
+#[test]
+fn checked_drain_refuses_unperformed_phase_precondition() {
+    checked_precondition(0);
+}
+proptest! {
+    #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301404),..ProptestConfig::default()})]
+    #[test]
+    fn checked_drain_preserves_original_endpoint_refusal(bound in 0usize..3) {checked_precondition(bound);}
+}

@@ -200,3 +200,10 @@ seed/write subjects for commit-before/after comparison. They share one900s cap.
 Harmless children prove command protocol only; actual branch facts, qualified
 Default subjects/device/engagement and production frozen-controller integration
 remain required before any campaign qualification.
+
+The canonical heavy tier explicitly selects the observer target, normal CLI
+controls and standalone feature-boundary consumers. The latter retain positive
+and negative compile logs; expected absent-method E0599 errors are compile-only
+contract evidence, never runtime RED. The source-derived feature matrix records
+the observer target's exact feature requirements. Native execution and the final
+full gate remain serialized behind the assigned heavy/native window.

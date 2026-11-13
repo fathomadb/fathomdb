@@ -821,3 +821,17 @@ aggregate-cap qualification; those controller units remain required.
   approved current-admissible future T-1/T interpretation already exercised by
   T6/T7 and the normal source-view control. Existing assertions, source semantics
   and accepted evidence are unchanged; no historical-admission bypass is added.
+
+### G static registration checkpoint
+
+- Prepared retained standalone engine/SDK default-negative and explicit-feature
+  positive consumers in `scripts/tests/test_slice30_g_feature_boundary.py`.
+  Expected E0599 rejections are compile-contract controls, never semantic RED.
+  They have not executed while Slice100 owns the native window.
+- Registered observer, normal CLI and feature-consumer suites in the canonical
+  heavy tier, and regenerated the source-derived feature matrix using the
+  repository generator. Python tools use existing discovery, including every
+  controller/dispatch class. No P commands, streams or accepted results changed.
+- `g-registration-static` (test-target inventory tests), `g-registration-tiers`
+  (exact tier totality), Ruff, Python syntax and Bash syntax pass. This is
+  static registration only, not native suite execution or full qualification.

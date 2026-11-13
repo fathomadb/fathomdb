@@ -90,6 +90,10 @@ features = ["operator", "test-hooks"]
 
 [[entry]]
 crate = "fathomdb-engine"
+features = ["slice30-observer", "test-hooks"]
+
+[[entry]]
+crate = "fathomdb-engine"
 features = ["slice72-gpu-tests", "test-hooks"]
 
 [[entry]]

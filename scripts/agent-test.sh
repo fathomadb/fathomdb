@@ -697,6 +697,17 @@ run_tier_suite heavy test-rust bash scripts/test-rust-workspace.sh --serial
 # unit assertions. Execute the bounded real-store adapter contracts explicitly.
 run_tier_suite heavy test-slice30-measurement-adapter cargo test --locked --release \
   --jobs 1 -p fathomdb-sdk --example slice30_measure -- --test-threads=1 --nocapture
+run_tier_suite heavy test-slice30-g-observer cargo test --locked --release --jobs 1 \
+  -p fathomdb-engine --features slice30-observer,test-hooks --test slice30_g_observer \
+  -- --test-threads=1 --nocapture
+slice30_g_platform_reason=""
+if [ "$(uname -s)" != "Linux" ]; then
+  slice30_g_platform_reason="Slice30 G diagnostic tooling is Linux-only"
+fi
+run_tier_maybe_suite heavy test-slice30-g-cli "$slice30_g_platform_reason" \
+  bash scripts/test-slice30-g-cli.sh
+run_tier_suite heavy test-slice30-g-feature-boundary \
+  python3 scripts/tests/test_slice30_g_feature_boundary.py
 
 # Python
 python_bin=""

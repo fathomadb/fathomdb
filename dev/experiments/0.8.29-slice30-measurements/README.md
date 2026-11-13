@@ -143,3 +143,13 @@ cohort. Point and direct-text marker probes have separate clocks and precede
 natural unfiltered calls; they affect cache state and loop throughput. No
 interbatch drain or separate marker nodes are added. The tiny ordinary schedule
 test uses no provider and explicitly expects the typed embed failure.
+
+The shared G seed driver commits batches of1000, including the final partial
+batch, and reports actual successful chunk lengths/receipt cursors. P's1024 loop
+is unchanged. Positive G seed calls must receive the controller's numeric
+remaining_cell_ms in0..=900000; it can only reduce the fixed cap. Negative source
+controls may omit it. Zero allowance returns NOT_RUN_CAP_TIME before DB creation;
+after any preparation, exhausted allowance remains PARTIAL_CAP_TIME with the
+owned store retained. driver_wall_ns starts before corpus/query read and output
+setup. It is not the full parent cell clock: outer controller startup/config
+read/final reporting and aggregate14400s/16GiB enforcement remain required.

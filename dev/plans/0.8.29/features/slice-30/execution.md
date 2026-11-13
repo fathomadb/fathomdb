@@ -395,3 +395,36 @@ explicit long opt-in and later reserved3090 qualification with exact inputs,
 claims remain pending, as do normal G-R/G-O/G-W measurement wiring, complete
 G-only stage/cell/prereg/cap/refusal controls, feature consumers/registration,
 final full/native qualification and fresh final implementation/results review.
+
+Fresh seed preaudit at8fbe7ace6 found inherited G1024 batching inconsistent with
+accepted1000 and identified the then-internal clock starting after input prep.
+Separate read-route RED867e2a6ed first freezes actual normal driver calls6vs12;
+its implementation is deliberately paused for these bounded repairs.
+
+Batch RED1eb0e61fe leaves the old G1024 loop intact and records actual chunk
+length only after successful governed write with returned cursor. The real
+1001-doc child witnesses actual[1001] vs literal[1000,1], not a missing field.
+GREEN5b43487c3 changes only the two G1024 constants to1000, preserves P1024 and
+passes3 selected actual-child controls plus Clippy. Four-test oracle blob
+383fe89216d04a9e7e70213c4a0260d5904c957d is unchanged across that pair.
+
+Separate cap-admission REDa70e6442a runs the current normal driver with valid
+input and zero remaining allowance; actual store creation fails the literal
+no-store assertion TruevsFalse. The new GREEN g-t10-seed-budget-green passes4
+selected controls (cap,1001-boundary,prior seed,SDK/nested), and feature Clippy
+passes, no resource stop. Five-test oracle blob
+0191a03659e88ab3007125c462443316f10c08c9 remains unchanged. The read-route RED
+is excluded intentionally; this is not the entire CLI suite GREEN.
+
+Driver clock now starts at entry before input/output preparation, and numeric
+remaining_cell_ms can only reduce900000ms. Positive calls require the parent's
+remaining allowance rather than implicitly renewing900s. Zero rejects before DB
+creation; later exhausted branches retain a partial store and stop further work.
+Drain uses the same declining allowance. Runtime proof covers zero refusal and
+unchanged selected controls; later partial-branch handling and prep-clock order
+are source-verified so far. The renamed driver_wall_ns explicitly excludes
+outer process startup/configuration/final reporting. Final controller must still
+start/enforce the whole-cell deadline before its preparation and charge actual
+all-attempt wall time to the unchanged14400s/16GiB allocation. This pending
+integration is not silently claimed complete, and no original seed receipt is
+retrospectively relabelled as whole-cell budget proof. No model/GPU run occurred.

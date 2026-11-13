@@ -726,7 +726,41 @@ fn g_projection_declared(engine: &Adapter) -> bool {
     })
 }
 
+fn g_remaining_ms(started: std::time::Instant, allowance_ms: u64) -> u64 {
+    std::time::Duration::from_millis(allowance_ms)
+        .checked_sub(started.elapsed())
+        .map(|remaining| u64::try_from(remaining.as_millis()).unwrap())
+        .unwrap_or(0)
+}
+
+fn g_seed_cap_refusal(out: &Path, started: std::time::Instant, allowance_ms: u64) -> Value {
+    let partial = out.join("store.sqlite").exists();
+    std::fs::create_dir_all(out).expect("retain G cap refusal metadata");
+    let result = json!({"complete":false,"qualified_dense_fixture":false,
+        "status":if partial {"PARTIAL_CAP_TIME"} else {"NOT_RUN_CAP_TIME"},
+        "admitted_allowance_ms":allowance_ms,"remaining_cell_ms":0,
+        "driver_wall_ns":u64::try_from(started.elapsed().as_nanos()).unwrap(),
+        "budget_scope":"driver entry includes input/output preparation; outer controller owns whole-cell startup/configuration/final reporting"});
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
+}
+
 fn run_g_seed(config: &Value, out: &Path) -> Value {
+    let driver_started = std::time::Instant::now();
+    let allowance_ms = match config.get("remaining_cell_ms") {
+        Some(value) => value.as_u64().expect("numeric remaining G cell allowance"),
+        None => {
+            assert_eq!(
+                config["negative_control"], true,
+                "positive G driver needs the controller's remaining allowance"
+            );
+            900_000
+        }
+    };
+    assert!(allowance_ms <= 900_000, "G allowance cannot expand the fixed whole-cell cap");
+    if g_remaining_ms(driver_started, allowance_ms) == 0 {
+        return g_seed_cap_refusal(out, driver_started, allowance_ms);
+    }
     let provider = config["provider"].as_str().expect("G provider");
     let negative = config["negative_control"] == true;
     assert_eq!(provider, if negative { "none" } else { "default" });
@@ -742,10 +776,15 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     let queries = read_jsonl(config["queries"].as_str().expect("queries path"));
     let n = usize::try_from(config["n"].as_u64().expect("G seed n")).unwrap();
     assert!(n > 0 && n <= corpus.len() && !queries.is_empty());
+    if g_remaining_ms(driver_started, allowance_ms) == 0 {
+        return g_seed_cap_refusal(out, driver_started, allowance_ms);
+    }
     std::fs::create_dir_all(out).expect("owned G seed output");
     let store = out.join("store.sqlite");
     assert!(!store.exists(), "G seed store must be fresh");
-    let cell_started = std::time::Instant::now();
+    if g_remaining_ms(driver_started, allowance_ms) == 0 {
+        return g_seed_cap_refusal(out, driver_started, allowance_ms);
+    }
     let start = std::time::Instant::now();
     let engine = Adapter::open_g(adapter, &store, provider);
     let open_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
@@ -767,6 +806,11 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     let start = std::time::Instant::now();
     let mut seed_batches = Vec::new();
     for begin in (0..n).step_by(1000) {
+        if g_remaining_ms(driver_started, allowance_ms) == 0 {
+            engine.close();
+            drop(engine);
+            return g_seed_cap_refusal(out, driver_started, allowance_ms);
+        }
         let writes = corpus[begin..n.min(begin + 1000)]
             .iter()
             .enumerate()
@@ -776,10 +820,12 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         seed_batches.push(json!({"rows":writes.len(),"after_write_cursor":cursor}));
     }
     let write_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
-    let remaining_ms = 900_000_u64
-        .checked_sub(u64::try_from(cell_started.elapsed().as_millis()).unwrap())
-        .expect("G seed whole-cell budget exhausted before drain");
-    assert!(remaining_ms > 0, "G seed has no remaining drain budget");
+    let remaining_ms = g_remaining_ms(driver_started, allowance_ms);
+    if remaining_ms == 0 {
+        engine.close();
+        drop(engine);
+        return g_seed_cap_refusal(out, driver_started, allowance_ms);
+    }
     let start = std::time::Instant::now();
     match &engine {
         Adapter::Core(engine) => engine.drain(remaining_ms).map_err(Into::into),
@@ -792,6 +838,9 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     engine.close();
     drop(engine);
     let close_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
+    if g_remaining_ms(driver_started, allowance_ms) == 0 {
+        return g_seed_cap_refusal(out, driver_started, allowance_ms);
+    }
     let start = std::time::Instant::now();
     let reopened = Adapter::open_g(adapter, &store, provider);
     let reopen_ns = u64::try_from(start.elapsed().as_nanos()).unwrap();
@@ -800,7 +849,7 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
     let projection_declared_after_reopen = g_projection_declared(&reopened);
     reopened.close();
     drop(reopened);
-    let cell_wall_ns = u64::try_from(cell_started.elapsed().as_nanos()).unwrap();
+    let driver_wall_ns = u64::try_from(driver_started.elapsed().as_nanos()).unwrap();
     let qualified = before_close["qualified_dense_fixture"] == true
         && after_reopen["qualified_dense_fixture"] == true;
     let complete = projection_declared
@@ -808,13 +857,14 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         && before_close["natural_records"] == n
         && after_reopen["natural_records"] == n
         && lexical["ok"] == true
-        && cell_wall_ns <= 900_000_000_000
+        && driver_wall_ns <= allowance_ms * 1_000_000
         && (negative || qualified);
     let result = json!({"complete":complete,
         "control":if negative {"negative_no_provider"} else {"default_dense_seed"},
         "requested_provider":provider,"adapter":adapter,"natural_records":before_close["natural_records"],
         "projection_declared":projection_declared,"projection_declared_after_reopen":projection_declared_after_reopen,
-        "configure_ns":configure_ns,"drain_ns":drain_ns,"cell_wall_ns":cell_wall_ns,
+        "configure_ns":configure_ns,"drain_ns":drain_ns,"driver_wall_ns":driver_wall_ns,"admitted_allowance_ms":allowance_ms,
+        "budget_scope":"driver entry includes input/output preparation; outer controller owns whole-cell startup/configuration/final reporting",
         "open_ns":open_ns,"write_ns":write_ns,"seed_batches":seed_batches,
         "close_ns":close_ns,"reopen_ns":reopen_ns,
         "before_close":before_close,"after_reopen":after_reopen,"lexical_probe":lexical,

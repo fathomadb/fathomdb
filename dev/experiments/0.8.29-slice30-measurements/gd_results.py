@@ -92,8 +92,27 @@ def comparisons(groups):
 
 def observer_summary(calls,enabled):
     """Describe actual per-call observer transport and delta counters."""
-    return {"available":None,"reason":"observer_reporting_pending","query_records":None,
-            "worker_records":None,"dropped":None,"query_dropped":None,"attribution_complete":None}
+    if not enabled:
+        return {"available":False,"reason":"observer_disabled","query_records":None,"worker_records":None,
+                "dropped":None,"query_dropped":None,"attribution_complete":None,"issues":[]}
+    observations=[row.get("observer",{}) for row in calls]
+    issues=[issue for row in observations for issue in row.get("issues",[])]
+    available=bool(observations) and all(row.get("records_available") is True for row in observations)
+    deltas=[row.get("dropped_delta") for row in observations]
+    dropped=sum(deltas) if deltas and all(isinstance(value,int) for value in deltas) else None
+    if not available:
+        issues.append("observer record transport unavailable")
+    if dropped is None:
+        issues.append("observer counter unavailable")
+    elif dropped:
+        issues.append("observer records dropped")
+    if any(row.get("status") not in {"observed","not_applicable"} or row.get("unpaired_records")!=0 for row in observations):
+        issues.append("observer records missing or unpaired")
+    complete=available and dropped==0 and not issues
+    return {"available":available,"reason":"not_applicable" if observations and all(row.get("status")=="not_applicable" for row in observations) else "observed" if complete else "incomplete",
+            "query_records":sum(len(row["records"]) for row in observations) if available else None,
+            "worker_records":None,"dropped":dropped,"query_dropped":dropped,
+            "attribution_complete":complete,"issues":issues}
 
 
 def _g_pass(base,cell,attempt,path,mode,outcome,dataset):
@@ -118,7 +137,10 @@ def _g_pass(base,cell,attempt,path,mode,outcome,dataset):
                            "query_records":None,"worker_records":None,"dropped":None,"query_dropped":None,
                            "attribution_complete":None})
     if feature:
-        issues.append("observer reporting pending")
+        group["observer"]=observer_summary(calls,cell.get("observer",False))
+        issues.extend(group["observer"]["issues"])
+        for normalized,raw in zip(group["queries"],samples,strict=True):
+            normalized["observer"]=raw.get("observer")
     if issues and group["status"]=="complete":
         group["status"]="incomplete"
     return group

@@ -3,6 +3,7 @@
 use fathomdb_engine::{
     Engine, InitialState, PreparedWrite, ReadView, SourceId, TestEmbedderChoice,
 };
+use rusqlite::{Connection, OpenFlags};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::io::Write;
@@ -15,17 +16,48 @@ use super::varying_embedder::VaryingEmbedder;
 
 pub(super) fn run(config: &Value, out: &Path) {
     let origin = Instant::now();
-    dense_template::run(config, &out.join("template"));
-    let source = out.join("template/template.sqlite");
+    std::fs::create_dir_all(out).unwrap();
     let store = out.join("query.sqlite");
     assert!(!store.exists());
-    std::fs::copy(&source, &store).unwrap();
+    let empty_start = config["empty_start"].as_bool().unwrap_or(false);
+    if !empty_start {
+        dense_template::run(config, &out.join("template"));
+        std::fs::copy(out.join("template/template.sqlite"), &store).unwrap();
+    }
     let opened = Engine::open_with_test_choice_for_test(
         &store,
         TestEmbedderChoice::Caller(Arc::new(VaryingEmbedder)),
     )
     .unwrap();
     let engine = &opened.engine;
+    if empty_start {
+        dense_template::configure(engine);
+        let start_ns = u64::try_from(origin.elapsed().as_nanos()).unwrap();
+        engine.drain(5000).unwrap();
+        let readiness = engine.read_embedding_readiness().unwrap();
+        let connection =
+            Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let mut initial = json!({"start_ns":start_ns,"pending_count":readiness.pending_count,
+            "usable_embedder":readiness.usable_embedder});
+        for table in
+            ["canonical_nodes", "vector_default", "_fathomdb_vector_rows", "_fathomdb_vector_spans"]
+        {
+            let count: u64 = connection
+                .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(count, 0);
+            initial[table] = json!(count);
+        }
+        initial["profile"] = connection.query_row("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'", [], |r|Ok(json!({"name":r.get::<_,String>(0)?,"revision":r.get::<_,String>(1)?,"dimension":r.get::<_,u32>(2)?}))).unwrap();
+        drop(connection);
+        engine.begin_d27_observation_for_test(origin);
+        let configuration = engine.d27_observation_for_test().unwrap().configuration_observation;
+        initial["projection_workers"] = json!(configuration.scheduler_runtime_threads);
+        initial["provider_workers"] = json!(configuration.embedder_pool_size);
+        initial["end_ns"] = json!(u64::try_from(origin.elapsed().as_nanos()).unwrap());
+        std::fs::write(out.join("initial.json"), serde_json::to_vec_pretty(&initial).unwrap())
+            .unwrap();
+    }
     assert_eq!(engine.read_embedding_readiness().unwrap().pending_count, 0);
     #[cfg(feature = "slice30-measurement")]
     if config["observer"].as_bool().unwrap_or(false) {

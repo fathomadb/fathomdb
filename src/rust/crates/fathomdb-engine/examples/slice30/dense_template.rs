@@ -24,18 +24,7 @@ pub(super) fn run(config: &Value, out: &Path) {
     )
     .unwrap();
     let engine = &opened.engine;
-    engine
-        .configure_projections(
-            &[ProjectionSpec {
-                name: "s30_dense".into(),
-                roles: [ProjectionRole::Searchable].into_iter().collect(),
-                fts: None,
-                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
-                source: None,
-            }],
-            &[],
-        )
-        .unwrap();
+    configure(engine);
     let records = config["records"].as_array().unwrap();
     assert!(!records.is_empty());
     let writes: Vec<_> = records
@@ -111,4 +100,19 @@ fn closed_metadata(store: &Path, pending: u64) -> Value {
         .map(|byte| format!("{byte:02x}"))
         .collect();
     json!({"summary":{"records":records,"kind_counts":kinds,"physical_vectors":physical_vectors,"span_rows":span_rows,"pending_count":pending,"profile":profile,"span_end":"unknown"},"closed_main_sha256":hash})
+}
+
+pub(super) fn configure(engine: &Engine) {
+    engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "s30_dense".into(),
+                roles: [ProjectionRole::Searchable].into_iter().collect(),
+                fts: None,
+                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
 }

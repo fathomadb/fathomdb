@@ -592,3 +592,16 @@ seams exist. Exact frozen TC5 availability remains a real F input need; selected
 qualified G store/M tooling review and Windows technical qualification remain
 separate. Accepted20 proof is not reopened. No new
 policy/model/dataset/driver or paid-input decision is needed to review G now.
+
+## G-W operational forecast binding
+
+Before each fresh G-W subject, the controller records2x observed per-row seed
+wall/bytes, matched ordinary G-R route wall for500 warmups/1000 natural calls,
+open/close, exact prospective cohort/replacement counts and observed write cost.
+Readiness/point/FTS planning uses the greater of the tiny current G-O cost and
+observed100k text-call maximum, then2x; raw growth uses2x observed record bytes.
+These are conservative prospective estimates, not exclusive measured costs or
+latency corrections. Missing inputs, predicted whole-cell/shared-time excess or
+retained-byte excess refuse that still-required cell before preparation. Actual
+runtime clocks/storage monitoring remain authoritative and all refusals remain
+incomplete obligations under the unchanged900s/14400s/16GiB allocation.

@@ -227,3 +227,9 @@ cannot count as Default qualification and that native-command PIDs are observed
 independently. Positive runtime facts still require the reserved3090 campaign.
 Provider driver/toolkit fields are optional in current Candle; fixed R580 and
 primaryCUDA12.6 must be observed separately, never filled into provider reports.
+
+`g_forecast.py` computes every required whole G-W preparation/workload/probe
+component and raw-growth estimate. `test_g_forecast.py` freezes literal cost
+inputs, exact cohorts and an actual forbidden harmless-child dispatch witness.
+These are prospective-policy controls, never substituted measurement evidence;
+missing current observations refuse the still-required cell.

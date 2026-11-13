@@ -980,3 +980,13 @@ aggregate-cap qualification; those controller units remain required.
   cohort/replacement counts, remaining shared time, raw-growth headroom and
   missing-cost refusal. These control tables do not alter or substitute any
   real observation/evidence. All earlier assertions remain unchanged.
+
+- Whole-workload forecast GREEN: `g-runner-whole-write-green` passes all three
+  frozen `b288f6f61` table/forbidden-child tests; Ruff passes, no resource stop.
+  Components explicitly include seed, open/close,500 warmups,1000 natural calls,
+  counted cohorts/replacement rows, writes, readiness and separate point/FTS
+  probes. Raw-growth headroom and remaining shared time are also checked.
+  Missing observed costs refuse instead of becoming zero; fixed caps unchanged.
+- Forecasts are conservative planning estimates, not actual measured evidence or
+  exclusive phase decompositions. Production integration consumes current
+  qualified G1/G-R/G-O records; no future D/M/F/Windows condition is introduced.

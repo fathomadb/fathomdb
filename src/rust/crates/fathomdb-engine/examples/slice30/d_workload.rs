@@ -354,11 +354,14 @@ mod tests {
         let healthy_copy = healthy.join("query.sqlite");
         assert!(prepare_template(&json!({"records":records}), &healthy, &healthy_copy).is_ok());
         assert!(healthy.join("template/template.json").exists());
-        let verify = |path: &Path| {
+        let verify = |path: &Path, expected: usize| {
             let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
             let count: usize =
                 db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
-            assert_eq!(count, rows);
+            assert_eq!(
+                count, expected,
+                "expired D preparation committed rows before checking its next phase"
+            );
             let dimension: usize = db
                 .query_row(
                     "SELECT dimension FROM _fathomdb_embedder_profiles WHERE profile='default'",
@@ -368,7 +371,7 @@ mod tests {
                 .unwrap();
             assert_eq!(dimension, 768);
         };
-        verify(&healthy_copy);
+        verify(&healthy_copy, rows);
         let failed = root.join("refused");
         let target = failed.join("query.sqlite");
         let result = prepare_template(
@@ -377,12 +380,12 @@ mod tests {
             &target,
         );
         let source = failed.join("template/template.sqlite");
-        verify(&source);
+        verify(&source, 0);
         assert!(!failed.join("template/template.json").exists());
         let refusal: Value =
             serde_json::from_slice(&std::fs::read(failed.join("template/budget.json")).unwrap())
                 .unwrap();
-        assert_eq!(refusal["drain_calls"], 0);
+        assert_eq!(refusal["phase"], "configure");
         assert_eq!(refusal["disposition"], "deadline_refused");
         println!(
             "actual unqualified template {} rows={rows} copied={} result={result:?}",
@@ -403,6 +406,6 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
         #[test]
-        fn refused_preparation_keeps_real_rows_without_copying_them(rows in 1usize..5) {failed_preparation(rows);}
+        fn refused_preparation_commits_no_new_rows_and_never_copies(rows in 1usize..5) {failed_preparation(rows);}
     }
 }

@@ -59,20 +59,24 @@ pub(super) fn from_template(
         adapter.close();
         return false;
     }
-    let writing = Instant::now();
-    let receipt = engine
-        .write(&[PreparedWrite::Node {
-            kind: "doc".into(),
-            body: "s30ggwindow épreuve".into(),
-            source_id: SourceId::new("test:slice30-gg-time").unwrap(),
-            logical_id: Some("gg-window".into()),
-            state: InitialState::Active,
-            reason: None,
-            valid_from: Some(90),
-            valid_until: Some(110),
-        }])
-        .unwrap();
-    let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
+    let (receipt, write_ns) = g_gg_stages::mutation(config, out, "write", || {
+        let writing = Instant::now();
+        let receipt = engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "s30ggwindow épreuve".into(),
+                source_id: SourceId::new("test:slice30-gg-time").unwrap(),
+                logical_id: Some("gg-window".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: Some(90),
+                valid_until: Some(110),
+            }])
+            .unwrap();
+        let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
+        (receipt, write_ns)
+    })
+    .unwrap();
     let draining = Instant::now();
     let drain_budget = match g_gg_stages::drain(engine, config) {
         Ok(report) => report,

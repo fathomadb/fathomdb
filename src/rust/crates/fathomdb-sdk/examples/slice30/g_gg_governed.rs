@@ -169,30 +169,11 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: CoreObserver) {
     from_template(config, out, &source, observer);
 }
 
-pub(super) fn from_template(
-    config: &Value,
-    out: &Path,
-    source: &Path,
-    observer: CoreObserver,
-) -> bool {
-    let original = Sha256::digest(std::fs::read(source).unwrap());
-    let directory = out.join("governed");
-    std::fs::create_dir(&directory).unwrap();
-    let store = directory.join("store.sqlite");
-    std::fs::copy(source, &store).unwrap();
-    assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
-    let adapter = GAdapter::open("engine_hybrid", &store);
-    let report = adapter.report();
-    assert_eq!(
-        report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid.as_deref(),
-        config["gpu_uuid"].as_str()
-    );
-    let GAdapter::Core(opened) = &adapter else { unreachable!() };
-    let engine = &opened.engine;
+pub(super) fn governed_writes() -> [PreparedWrite; 2] {
     let source_body = "s30gggoverned canonical épreuve";
     let hash: String =
         Sha256::digest(source_body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect();
-    let writes = [
+    [
         PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
             kind: "doc".into(),
             body: source_body.into(),
@@ -224,17 +205,47 @@ pub(super) fn from_template(
                 CanonicalHash::sha256(hash).unwrap(),
             ),
         }),
-    ];
-    let writing = Instant::now();
-    engine.write(&writes).unwrap();
-    let write_ns = u64::try_from(writing.elapsed().as_nanos()).unwrap();
-    let registering = Instant::now();
-    engine
-        .register_source_dependency(
-            SourceDependencyRegistrationV1::new("gg-dep", "gg-source-r1", "gg-derived-r1").unwrap(),
-        )
-        .unwrap();
-    let register_ns = u64::try_from(registering.elapsed().as_nanos()).unwrap();
+    ]
+}
+
+pub(super) fn from_template(
+    config: &Value,
+    out: &Path,
+    source: &Path,
+    observer: CoreObserver,
+) -> bool {
+    let original = Sha256::digest(std::fs::read(source).unwrap());
+    let directory = out.join("governed");
+    std::fs::create_dir(&directory).unwrap();
+    let store = directory.join("store.sqlite");
+    std::fs::copy(source, &store).unwrap();
+    assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
+    let adapter = GAdapter::open("engine_hybrid", &store);
+    let report = adapter.report();
+    assert_eq!(
+        report.embedder_device_resolution.as_ref().unwrap().selected_cuda_uuid.as_deref(),
+        config["gpu_uuid"].as_str()
+    );
+    let GAdapter::Core(opened) = &adapter else { unreachable!() };
+    let engine = &opened.engine;
+    let writes = governed_writes();
+    let write_ns = g_gg_stages::mutation(config, out, "write", || {
+        let writing = Instant::now();
+        engine.write(&writes).unwrap();
+        u64::try_from(writing.elapsed().as_nanos()).unwrap()
+    })
+    .unwrap();
+    let register_ns = g_gg_stages::mutation(config, out, "dependency", || {
+        let registering = Instant::now();
+        engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new("gg-dep", "gg-source-r1", "gg-derived-r1")
+                    .unwrap(),
+            )
+            .unwrap();
+        u64::try_from(registering.elapsed().as_nanos()).unwrap()
+    })
+    .unwrap();
     let draining = Instant::now();
     let valid_drain_budget = match g_gg_stages::drain(engine, config) {
         Ok(report) => report,
@@ -265,9 +276,12 @@ pub(super) fn from_template(
         adapter.close();
         return false;
     }
-    let transitioning = Instant::now();
-    engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
-    let transition_ns = u64::try_from(transitioning.elapsed().as_nanos()).unwrap();
+    let transition_ns = g_gg_stages::mutation(config, out, "transition", || {
+        let transitioning = Instant::now();
+        engine.transition("gg-source", LifecycleState::Deleted, None).unwrap();
+        u64::try_from(transitioning.elapsed().as_nanos()).unwrap()
+    })
+    .unwrap();
     let draining = Instant::now();
     let deleted_drain_budget = match g_gg_stages::drain(engine, config) {
         Ok(report) => report,

@@ -13,6 +13,15 @@ pub(super) fn drain(engine: &fathomdb_engine::Engine, config: &Value) -> Result<
     })
 }
 
+pub(super) fn mutation<T>(
+    _config: &Value,
+    _out: &Path,
+    _phase: &str,
+    work: impl FnOnce() -> T,
+) -> Result<T, ()> {
+    Ok(work())
+}
+
 fn measured_call(
     engine: &fathomdb_engine::Engine,
     config: &Value,
@@ -244,6 +253,114 @@ mod tests {
         #[test]
         fn gg_query_admission_does_not_depend_on_query_or_view(query in prop::sample::select(vec!["ggquery","nomatch"]), as_of in 80i64..121, key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
             expired_call(key, query, as_of);
+        }
+    }
+
+    fn actual_mutation(config: &Value, action: &str, allowed: bool) {
+        let root = tempfile::Builder::new().prefix("s30-gg-mutation-").tempdir().unwrap().keep();
+        let store = root.join("store.sqlite");
+        let engine = Engine::open_with_choice(&store, EmbedderChoice::None).unwrap().engine;
+        engine.write(&super::super::g_gg_governed::governed_writes()).unwrap();
+        let before = rusqlite::Connection::open_with_flags(
+            &store,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        assert_eq!(
+            before
+                .query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get::<_, usize>(0))
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            before
+                .query_row("SELECT count(*) FROM _fathomdb_source_dependencies", [], |row| row
+                    .get::<_, usize>(0))
+                .unwrap(),
+            0
+        );
+        let mut calls = 0;
+        let result = mutation(config, &root, action, || {
+            calls += 1;
+            match action {
+                "write" => {
+                    engine
+                        .write(&[PreparedWrite::Node {
+                            kind: "doc".into(),
+                            body: "extra mutation record".into(),
+                            logical_id: Some("extra".into()),
+                            source_id: SourceId::new("test:s30-gg-mutation").unwrap(),
+                            state: InitialState::Active,
+                            reason: None,
+                            valid_from: None,
+                            valid_until: None,
+                        }])
+                        .unwrap();
+                }
+                "dependency" => {
+                    engine
+                        .register_source_dependency(
+                            fathomdb_engine::SourceDependencyRegistrationV1::new(
+                                "gg-dep",
+                                "gg-source-r1",
+                                "gg-derived-r1",
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                }
+                "transition" => {
+                    engine
+                        .transition("gg-source", fathomdb_engine::LifecycleState::Deleted, None)
+                        .unwrap();
+                }
+                _ => unreachable!(),
+            }
+        });
+        engine.close().unwrap();
+        let actual = rusqlite::Connection::open_with_flags(
+            &store,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        let rows: usize =
+            actual.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
+        let dependencies: usize = actual
+            .query_row("SELECT count(*) FROM _fathomdb_source_dependencies", [], |row| row.get(0))
+            .unwrap();
+        let state: String = actual.query_row("SELECT state FROM canonical_nodes WHERE logical_id='gg-source' AND superseded_at IS NULL", [], |row| row.get(0)).unwrap();
+        println!("actual GG mutation {} action={action} allowed={allowed} calls={calls} rows={rows} dependencies={dependencies} state={state}", root.display());
+        assert_eq!(calls, usize::from(allowed), "GG mutation invoked after original endpoint");
+        assert_eq!(result.is_ok(), allowed);
+        assert_eq!(rows, 2 + usize::from(allowed && action == "write"));
+        assert_eq!(dependencies, usize::from(allowed && action == "dependency"));
+        assert_eq!(state, if allowed && action == "transition" { "deleted" } else { "active" });
+    }
+
+    fn expired_mutation(key: &str, action: &str) {
+        actual_mutation(&json!({}), action, true);
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        actual_mutation(&config, action, false);
+    }
+
+    #[test]
+    fn work_endpoint_refuses_next_gg_write() {
+        expired_mutation("work_deadline_ns", "write");
+    }
+    #[test]
+    fn hard_endpoint_refuses_next_gg_dependency_registration() {
+        expired_mutation("hard_deadline_ns", "dependency");
+    }
+    #[test]
+    fn shared_endpoint_refuses_next_gg_transition() {
+        expired_mutation("shared_deadline_ns", "transition");
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 4, max_shrink_iters: 0, failure_persistence: None, .. ProptestConfig::default() })]
+        #[test]
+        fn gg_mutation_admission_preserves_current_rows_and_dependencies(action in prop::sample::select(vec!["write","dependency","transition"]), key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {
+            expired_mutation(key, action);
         }
     }
 }

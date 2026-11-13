@@ -14,8 +14,14 @@ def run_manifest(manifest, root):
         artifact = manifest["artifacts"][planned["artifact"]]
         cell = dict(planned, artifact_identity=artifact)
         outcomes.extend(run_campaign([cell], root, [artifact["path"]],
-                                     timeout=manifest["cell_seconds"]))
+                                     timeout=manifest["cell_seconds"], completion=_native_complete))
     return outcomes
+
+
+def _native_complete(cell, attempt):
+    name = "complete.json" if cell["family"] == "D_QUERY_FIXTURE" else "result.json"
+    path = attempt / name
+    return path.exists() and json.loads(path.read_text()).get("complete") is True
 
 
 def main():

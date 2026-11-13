@@ -22,8 +22,8 @@ def make_plan(cells, repeats):
     return plan
 
 
-def run_campaign(plan, root, command, timeout=900, before=None, monitor=None):
-    """Execute every cell in an owned fresh attempt directory, retaining failures."""
+def run_campaign(plan, root, command, timeout=900, before=None, monitor=None, completion=None):
+    """Run fresh attempts; completion optionally validates a native protocol, defaulting to P result.json."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     state_path = root / "campaign-state.json"
@@ -70,7 +70,11 @@ def run_campaign(plan, root, command, timeout=900, before=None, monitor=None):
         result_path = attempt / "result.json"
         complete = False
         if code == 0 and error is None:
-            if result_path.exists():
+            if completion is not None:
+                complete = completion(cell, attempt) is True
+                if not complete:
+                    error = "child returned without verified native completion"
+            elif result_path.exists():
                 complete = json.loads(result_path.read_text()).get("complete") is True
             else:
                 error = "child returned without result.json"

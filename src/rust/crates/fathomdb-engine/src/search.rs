@@ -2247,10 +2247,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             None
         };
         #[cfg(any(test, feature = "slice30-observer"))]
-        observation.boolean_result(
-            &Ok::<bool, rusqlite::Error>(vector_eligibility_degraded),
-            probe_attempted,
-        );
+        observation
+            .boolean_result(&Ok::<bool, rusqlite::Error>(selected.is_some()), probe_attempted);
         selected
     };
     // Collect the text branch (ranked by `write_cursor`, as 0.7.2), then

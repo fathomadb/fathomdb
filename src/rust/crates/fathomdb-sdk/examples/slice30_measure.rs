@@ -10,7 +10,8 @@ use std::path::Path;
 
 fn g_provider_choice(provider: &str) -> EmbedderChoice {
     match provider {
-        "none" | "default" => EmbedderChoice::None,
+        "none" => EmbedderChoice::None,
+        "default" => EmbedderChoice::Default,
         _ => panic!("unknown G provider choice"),
     }
 }

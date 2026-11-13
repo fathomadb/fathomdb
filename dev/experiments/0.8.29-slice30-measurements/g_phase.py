@@ -1,7 +1,8 @@
 """Owned G build/test executor; exact reviewed sampler, unchanged G resource envelope."""
 
-import json, os, pathlib, signal, subprocess, sys, time
+import json, os, pathlib, subprocess, sys, time, traceback
 from g_resource import resource_sample
+from g_attempt import stop_owned_group, wait_unreaped
 
 root = pathlib.Path(os.environ["S30_SOURCE"]).resolve()
 task = pathlib.Path(os.environ["S30_TASK"]).resolve()
@@ -47,11 +48,15 @@ with (task / "logs" / f"{phase}.log").open("wb") as log:
     record["pid"] = child.pid
     last = start
     swap_streak = 0
-    while True:
-        try:
-            code = child.wait(timeout=30)
-            break
-        except subprocess.TimeoutExpired:
+    code = None
+    record["cleanup_uncertain"] = False
+    record["live_owned_pids"] = []
+    try:
+        while True:
+            code = wait_unreaped(child, 30)
+            if code is not None:
+                child.wait()
+                break
             try:
                 s = sample()
                 record["samples"].append(s)
@@ -74,13 +79,24 @@ with (task / "logs" / f"{phase}.log").open("wb") as log:
                 stop = True
             if stop:
                 record["resource_stop"] = record["resource_stop"] or s
-                os.killpg(child.pid, signal.SIGTERM)
-                try:
-                    code = child.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    os.killpg(child.pid, signal.SIGKILL)
-                    code = child.wait()
+                code = 124
                 break
+    except BaseException as error:
+        record["executor_error"] = f"{type(error).__name__}: {error}"
+        traceback.print_exc(file=log)
+        code = 125
+    finally:
+        if child.returncode is None:
+            try:
+                record["live_owned_pids"] = stop_owned_group(child)
+            except BaseException as error:
+                record["cleanup_uncertain"] = True
+                record["live_owned_pids"] = None
+                record["cleanup_error"] = f"{type(error).__name__}: {error}"
+                traceback.print_exc(file=log)
+                code = 125
+    record["child_exit"] = child.returncode
+
 record.update(
     exit=code,
     ended=time.time(),

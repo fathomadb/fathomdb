@@ -85,7 +85,6 @@ fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
     }
 }
 
-#[cfg(test)]
 fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
     enum Output {
         Search(fathomdb_engine::SearchResult),
@@ -126,7 +125,6 @@ fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
     }
 }
 
-#[cfg(test)]
 fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
     let readiness = match engine {
         Adapter::Core(engine) => {
@@ -402,6 +400,26 @@ impl Recorder {
         Self { streams, elapsed_ns: 0, checkpoint_ns: 0 }
     }
 
+    fn new_g(out: &Path) -> Self {
+        let mut recorder = Self::new(out);
+        for name in ["observations", "g-marker-probes"] {
+            recorder.streams.insert(
+                name,
+                RawStream {
+                    writer: std::io::BufWriter::new(
+                        std::fs::File::create(out.join(format!("{name}.jsonl")))
+                            .expect("create G raw output"),
+                    ),
+                    records: 0,
+                    bytes: 0,
+                    pending: 0,
+                    checkpoints: 0,
+                },
+            );
+        }
+        recorder
+    }
+
     fn checkpoint(stream: &mut RawStream) -> u64 {
         use std::io::Write;
         if stream.pending == 0 {
@@ -604,12 +622,76 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     result
 }
 
+fn run_g_control(config: &Value, out: &Path) -> Value {
+    assert_eq!(config["provider"], "none", "G-control is only a negative readiness control");
+    let corpus = read_jsonl(config["corpus"].as_str().expect("corpus path"));
+    let queries = read_jsonl(config["queries"].as_str().expect("queries path"));
+    let n = usize::try_from(config["n"].as_u64().expect("n")).unwrap();
+    assert!(n > 0 && n <= corpus.len() && !queries.is_empty());
+    std::fs::create_dir_all(out).expect("owned control output");
+    let store = out.join("store.sqlite");
+    assert!(!store.exists(), "control store must be fresh");
+    let seed = Adapter::open("sdk", &store);
+    seed.write(
+        &corpus[..n]
+            .iter()
+            .enumerate()
+            .map(|(index, body)| node(&format!("s30doc-{index}"), "doc", body))
+            .collect::<Vec<_>>(),
+    );
+    seed.close();
+    drop(seed);
+    let mut rows = Vec::new();
+    let mut traces = Vec::new();
+    let mut fixtures = Vec::new();
+    let mut nested = Vec::new();
+    let mut recorder = Recorder::new_g(out);
+    let mut operation = 1_u64;
+    for adapter in ["engine", "sdk"] {
+        let engine = Adapter::open(adapter, &store);
+        for route in ["text", "hybrid", "embed"] {
+            let mut row = observe_g_route(&engine, route, &queries[0]);
+            row["adapter"] = json!(adapter);
+            row["operation_id"] = json!(operation);
+            recorder.emit("samples", &row);
+            rows.push(row);
+            let trace = json!({"adapter":adapter,"route":route,"operation_id":operation,
+                "records":[],"dropped_records":0,"issues":[]});
+            recorder.emit("observations", &trace);
+            traces.push(trace);
+            operation += 1;
+        }
+        nested.push(json!({"adapter":adapter,"records":[],"dropped_records":0,"issues":[]}));
+        fixtures.push(g_fixture_observation(&engine, &store));
+        engine.close();
+        drop(engine);
+    }
+    recorder.flush_all();
+    let complete = rows.iter().all(|row| {
+        if row["route"] == "embed" {
+            row["ok"] == false && row["error_kind"] == "EmbedderNotConfiguredError"
+        } else {
+            row["ok"] == true
+        }
+    });
+    let result = json!({"complete":complete,"control":"negative_no_provider",
+        "qualified_dense_fixture":false,"samples":rows,"observation_batches":traces,
+        "nested_controls":nested,"fixtures":fixtures,"format":37,
+        "raw_persistence":recorder.statistics_since([0;5])});
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
+}
+
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     assert_eq!(args.len(), 3, "usage: slice30_measure cell.json owned-output-directory");
     let config: Value = serde_json::from_slice(&std::fs::read(&args[1]).expect("read frozen cell"))
         .expect("cell JSON");
-    let result = run_cell(&config, Path::new(&args[2]));
+    let result = if config["family"] == "G-control" {
+        run_g_control(&config, Path::new(&args[2]))
+    } else {
+        run_cell(&config, Path::new(&args[2]))
+    };
     println!("{result}");
     if result["complete"] != true {
         std::process::exit(1);

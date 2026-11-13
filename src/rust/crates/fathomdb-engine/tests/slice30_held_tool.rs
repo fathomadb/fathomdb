@@ -53,6 +53,16 @@ fn verify(records: Vec<Value>, cohort: usize, mode: &str) {
 }
 
 fn verify_case(records: Vec<Value>, cohort: usize, mode: &str, with_queries: bool) {
+    verify_observation_case(records, cohort, mode, with_queries, false);
+}
+
+fn verify_observation_case(
+    records: Vec<Value>,
+    cohort: usize,
+    mode: &str,
+    with_queries: bool,
+    sample_readiness: bool,
+) {
     let root = tempfile::Builder::new().prefix("s30-held-").tempdir().unwrap().keep();
     println!("held proof: {} rows={} cohort={cohort} mode={mode}", root.display(), records.len());
     Engine::open_with_choice(root.join("registration.sqlite"), EmbedderChoice::None)
@@ -62,7 +72,7 @@ fn verify_case(records: Vec<Value>, cohort: usize, mode: &str, with_queries: boo
         .unwrap();
     let config = root.join("cell.json");
     let queries = with_queries.then(|| vec![json!({"id":"held-query","query":"heldwitness"})]);
-    std::fs::write(&config, serde_json::to_vec(&json!({"family":"D_HELD_FIXTURE","records":records,"cohort":cohort,"release_mode":mode,"queries":queries,"warmups":2,"samples":3})).unwrap()).unwrap();
+    std::fs::write(&config, serde_json::to_vec(&json!({"family":"D_HELD_FIXTURE","records":records,"cohort":cohort,"release_mode":mode,"queries":queries,"warmups":2,"samples":3,"readiness":sample_readiness})).unwrap()).unwrap();
     let out = root.join("out");
     let binary = PathBuf::from(std::env::var_os("CARGO_TARGET_DIR").unwrap())
         .join("release/examples/slice30_gd_diagnostic");
@@ -277,6 +287,33 @@ fn verify_case(records: Vec<Value>, cohort: usize, mode: &str, with_queries: boo
         );
         assert_eq!(after["readiness"]["pending_count"], records.len());
         assert_eq!(after["sql"]["physical_vectors"], 0);
+        if sample_readiness {
+            let path = out.join("readiness.json");
+            let reads: Vec<Value> = if path.exists() {
+                serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+            } else {
+                Vec::new()
+            };
+            assert!(!reads.is_empty(), "missing actual held readiness sampling load");
+            let mut previous_end = calls[1]["end_ns"].as_u64().unwrap();
+            let mut previous_start = None;
+            for read in reads {
+                assert_eq!(read["ok"], true);
+                assert_eq!(read["pending_count"], records.len());
+                let start = read["start_ns"].as_u64().unwrap();
+                let end = read["end_ns"].as_u64().unwrap();
+                assert!(
+                    previous_end <= start
+                        && start < end
+                        && end <= after["start_ns"].as_u64().unwrap()
+                );
+                if let Some(prior) = previous_start {
+                    assert!(start - prior >= 100_000_000);
+                }
+                previous_start = Some(start);
+                previous_end = end;
+            }
+        }
     }
 }
 
@@ -325,5 +362,24 @@ proptest! {
     fn held_query_population_preserves_pending_then_drained_order(rows in 1usize..9,cohort in 1usize..5,drop_release in any::<bool>()){
         let records=(0..rows).map(|i|json!({"id":format!("held-{i}"),"kind":if i%2==0{"doc"}else{"note"},"body":format!("heldwitness {i} évidence 🐟")})).collect();
         verify_case(records,cohort,if drop_release{"drop"}else{"explicit"},true);
+    }
+}
+
+#[test]
+fn held_readiness_load_uses_actual_counts_and_shared_query_clock() {
+    verify_observation_case(
+        vec![json!({"id":"held","kind":"doc","body":"heldwitness é"})],
+        1,
+        "drop",
+        true,
+        true,
+    );
+}
+proptest! {
+    #![proptest_config(ProptestConfig{cases:4,max_shrink_iters:0,failure_persistence:None,rng_seed:RngSeed::Fixed(0x301309),..ProptestConfig::default()})]
+    #[test]
+    fn held_readiness_preserves_full_serial_invocations_before_release(rows in 1usize..9,cohort in 1usize..5,drop_release in any::<bool>()){
+        let records=(0..rows).map(|i|json!({"id":format!("ready-{i}"),"kind":if i%2==0{"doc"}else{"note"},"body":format!("heldwitness {i} é")})).collect();
+        verify_observation_case(records,cohort,if drop_release{"drop"}else{"explicit"},true,true);
     }
 }

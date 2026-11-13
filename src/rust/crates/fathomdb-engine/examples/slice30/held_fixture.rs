@@ -104,9 +104,10 @@ fn observation(
 fn coverage(
     origin: Instant,
     store: &Path,
-    _config: &Value,
-    _out: &Path,
+    config: &Value,
+    out: &Path,
 ) -> Result<(Value, Value), ()> {
+    super::native_budget::phase(config, out, "verification")?;
     Ok(timed(origin, || template_verify::coverage(store, &VaryingEmbedder.identity())))
 }
 
@@ -310,7 +311,11 @@ pub(super) fn run(config: &Value, out: &Path) {
     let observed = super::d_workload::observation_report(engine, origin, config);
     std::fs::write(out.join("worker-observer.json"), serde_json::to_vec_pretty(&observed).unwrap())
         .unwrap();
-    let (coverage, coverage_time) = coverage(origin, &store, config, out).unwrap();
+    let Ok((coverage, coverage_time)) = coverage(origin, &store, config, out) else {
+        retain_release_count(out, requests.get());
+        engine.close().unwrap();
+        return;
+    };
     let (_, closing) = timed(origin, || engine.close().unwrap());
     let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
     assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));

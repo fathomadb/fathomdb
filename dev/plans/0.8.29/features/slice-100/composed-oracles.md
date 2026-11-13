@@ -37,6 +37,21 @@ is refusal/failure, not an omitted assertion.
 
 ## Four G2 cells, one rich fixture pattern
 
+Runtime/source reconciliation: the inherited raw900000/window1 fragment is
+intentionally inadmissible to current head-only query/open validation. The first
+healthy fixture failed before any fault because it queried AFTER adding that
+fragment; this is a fixture-conjunction failure, not product RED. Independent
+Astra-medium technical review approved the following split without product changes.
+
+Before-delete rollback remains fully rich, with positive valid head vectors,
+mappings/spans, exact full target preimages and intact full-fixture public scores.
+It does not inject the non-head fragment. Healthy and after-delete/redacted/sink
+cells retain positive900000/window1 stress and all captured-ID zero assertions.
+Their public score snapshot is explicitly pre-stress, captured BEFORE insertion;
+raw target structural preimages/IDs are captured AFTER insertion. No read/reopen
+admissibility is claimed while that artificial fragment remains. The rich-fixture
+flag and non-head-stress flag are separate, so rollback retains vector coverage.
+
 Add only three explicit crash phases before_delete_commit, after_delete_commit,
 after_redacted_commit, and one original-sink after_sink_redaction replay cell.
 Use existing hooks/exit73; preserve old85 parent/assertions unchanged. No family×

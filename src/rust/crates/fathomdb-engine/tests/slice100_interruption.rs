@@ -66,7 +66,15 @@ fn q1_child() {
     assert!(!path.exists(), "Q1 must create its own fresh store");
     let engine = fixture::minimal_fixture(&path);
     let ticket = queue(&engine, &nonce);
-    let pre = fixture::capture(&engine, nonce.clone(), ticket.clone(), false, Vec::new());
+    let pre = fixture::capture(
+        &engine,
+        nonce.clone(),
+        ticket.clone(),
+        false,
+        Vec::new(),
+        fixture::scores(&engine),
+        false,
+    );
     save_preimage(&dir, &pre);
     println!(
         "\nQ1_READY {}",
@@ -162,8 +170,22 @@ fn g2_child() {
         )
         .unwrap();
     }
+    // The inherited non-head fragment is erasure stress, not a query-admissible layout.
+    let intact_scores_pre_stress = fixture::scores(&engine);
+    let non_head_stress = phase != "before_delete_commit";
+    if non_head_stress {
+        fixture::inject_non_head(&path);
+    }
     let ticket = queue(&engine, &nonce);
-    let pre = fixture::capture(&engine, nonce, ticket.clone(), true, expected_scores);
+    let pre = fixture::capture(
+        &engine,
+        nonce,
+        ticket.clone(),
+        true,
+        expected_scores,
+        intact_scores_pre_stress,
+        non_head_stress,
+    );
     save_preimage(&dir, &pre);
     if phase == "healthy" {
         fixture::complete(&engine, &pre, None, &dir.join("healthy-live"));
@@ -256,7 +278,7 @@ fn g2_case() {
     let engine = fixture::reopen(&path, pre.rich);
     assert_eq!(engine.physical_erasure_policy(), PhysicalErasurePolicy::ExplicitMaintenance);
     if phase == "before_delete_commit" {
-        assert_eq!(fixture::scores(&engine), pre.intact_scores);
+        assert_eq!(fixture::scores(&engine), pre.intact_scores_pre_stress);
     } else {
         assert_eq!(fixture::scores(&engine), pre.survivor_only_scores);
         assert!(engine

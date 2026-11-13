@@ -183,11 +183,7 @@ pub(super) fn rich(path: &Path, targets: bool) -> Arc<Engine> {
             .unwrap();
     }
     engine.drain(10000).unwrap();
-    if targets {
-        let c = Connection::open(path).unwrap();
-        let head: i64 = c.query_row("SELECT v.rowid FROM _fathomdb_vector_rows v JOIN canonical_nodes n ON n.write_cursor=v.write_cursor WHERE n.source_id='target' ORDER BY v.rowid LIMIT 1", [], |r| r.get(0)).unwrap();
-        c.execute_batch(&format!("CREATE TEMP TABLE scope_vector_copy AS SELECT * FROM vector_default WHERE rowid={head}; INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) SELECT 900000,embedding,vec_bit(embedding_bin),source_type,kind,created_at,status,lifecycle,valid_from,valid_until FROM scope_vector_copy; DROP TABLE scope_vector_copy; INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) SELECT 900000,kind,write_cursor FROM _fathomdb_vector_rows WHERE rowid={head}; INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) SELECT 900000,write_cursor,(SELECT COALESCE(MAX(window_number),0)+1 FROM _fathomdb_vector_spans v WHERE v.write_cursor=s.write_cursor),byte_start,byte_end,body_length FROM _fathomdb_vector_spans s WHERE vector_rowid={head};")).unwrap();
-    }
+
     engine
 }
 
@@ -247,7 +243,8 @@ pub(super) struct Preimage {
     pub survivors: Vec<i64>,
     pub survivor_rows: Vec<(String, Vec<Value>)>,
     pub target_rows: Vec<(String, Vec<Value>)>,
-    pub intact_scores: Vec<(String, u64)>,
+    pub intact_scores_pre_stress: Vec<(String, u64)>,
+    pub non_head_stress: bool,
     pub survivor_only_scores: Vec<(String, u64)>,
 }
 
@@ -305,6 +302,8 @@ pub(super) fn capture(
     ticket: String,
     rich: bool,
     baseline: Vec<(String, u64)>,
+    intact_scores_pre_stress: Vec<(String, u64)>,
+    non_head_stress: bool,
 ) -> Preimage {
     let c = Connection::open(engine.path()).unwrap();
     assert_eq!(
@@ -336,11 +335,19 @@ pub(super) fn capture(
     let encoded = serde_json::to_string(&targets).unwrap();
     let vectors = integers(&c, "SELECT rowid FROM _fathomdb_vector_rows WHERE write_cursor IN (SELECT value FROM json_each(?1)) ORDER BY rowid", &encoded);
     if rich {
-        assert!(vectors.contains(&900000));
-        assert!(
-            count(&c, "SELECT count(*) FROM _fathomdb_vector_spans WHERE vector_rowid=900000") > 0
-        );
+        assert!(!vectors.is_empty(), "positive mapped head-vector population even without stress");
+        let spans: i64 = c.query_row("SELECT count(*) FROM _fathomdb_vector_spans WHERE write_cursor IN (SELECT value FROM json_each(?1))", [&encoded], |r| r.get(0)).unwrap();
+        assert!(spans > 0, "positive target span population");
+        if !non_head_stress {
+            let invalid: i64 = c.query_row("SELECT count(*) FROM _fathomdb_vector_rows r LEFT JOIN _fathomdb_vector_spans s ON s.vector_rowid=r.rowid WHERE r.write_cursor IN (SELECT value FROM json_each(?1)) AND (s.vector_rowid IS NULL OR r.rowid!=r.write_cursor OR s.write_cursor!=r.write_cursor OR s.window_number!=0 OR s.byte_start!=0)", [&encoded], |r| r.get(0)).unwrap();
+            assert_eq!(invalid, 0, "rollback retains positive valid head-vector/map/span coverage");
+        }
     }
+    assert_eq!(vectors.contains(&900000), non_head_stress);
+    if non_head_stress {
+        assert_eq!(count(&c, "SELECT count(*) FROM _fathomdb_vector_spans WHERE vector_rowid=900000 AND window_number=1"), 1);
+    }
+
     let mut marker = false;
     let mut survivor = false;
     for suffix in ["", "-wal"] {
@@ -360,7 +367,8 @@ pub(super) fn capture(
         vectors,
         survivor_rows: rows_for_cursors(&c, &survivors),
         survivors,
-        intact_scores: scores(engine),
+        intact_scores_pre_stress,
+        non_head_stress,
         survivor_only_scores: baseline,
     }
 }
@@ -532,4 +540,10 @@ pub(super) fn reopen(path: &Path, rich: bool) -> Arc<Engine> {
             Engine::open_with_choice_and_config(path, EmbedderChoice::None, config).unwrap().engine,
         )
     }
+}
+
+pub(super) fn inject_non_head(path: &Path) {
+    let c = Connection::open(path).unwrap();
+    let head: i64 = c.query_row("SELECT v.rowid FROM _fathomdb_vector_rows v JOIN canonical_nodes n ON n.write_cursor=v.write_cursor WHERE n.source_id='target' ORDER BY v.rowid LIMIT 1", [], |r| r.get(0)).unwrap();
+    c.execute_batch(&format!("CREATE TEMP TABLE scope_vector_copy AS SELECT * FROM vector_default WHERE rowid={head}; INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) SELECT 900000,embedding,vec_bit(embedding_bin),source_type,kind,created_at,status,lifecycle,valid_from,valid_until FROM scope_vector_copy; DROP TABLE scope_vector_copy; INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) SELECT 900000,kind,write_cursor FROM _fathomdb_vector_rows WHERE rowid={head}; INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) SELECT 900000,write_cursor,(SELECT COALESCE(MAX(window_number),0)+1 FROM _fathomdb_vector_spans v WHERE v.write_cursor=s.write_cursor),byte_start,byte_end,body_length FROM _fathomdb_vector_spans s WHERE vector_rowid={head};")).unwrap();
 }

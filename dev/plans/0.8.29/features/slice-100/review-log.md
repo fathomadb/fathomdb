@@ -34,3 +34,14 @@ This authorizes only the reviewed seq-371/372 source scope.100 subsequently
 received the sole native window; Q1 debugger/inferior/ptrace/fault launches still
 require independent source review, actual readiness and parent technical GO.
 No implementation/results acceptance or100 closure follows from the plan PASS.
+
+## Focused source and fixture technical rechecks
+
+Independent Astra-medium source recheck at92fd596ab resolved the pre-registration
+cleanup and incomplete rollback-preimage findings. Real descendant RED/GREEN,
+CLI entrypoint progression and original14 unchanged controls were verified.
+A subsequent independent technical design PASS accepts the exact valid-rollback /
+post-removal non-head-stress split in composed-oracles.md after the first healthy
+setup failure exposed the inherited fragment's head-only validation boundary.
+This is not runtime qualification or Q1 launch GO; the corrected frozen source
+and affected actual results still precede technical readiness evaluation.

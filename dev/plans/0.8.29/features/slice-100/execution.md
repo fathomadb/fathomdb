@@ -30,3 +30,27 @@ All original failures/unqualified outcomes will retain exact source subjects and
 raw diagnostics. Actual accepted-contract defects require committed runtime RED
 then separate GREEN; no compiler/missing-symbol/mutant failure is product RED.
 Parent owns global release-state, ledger and final integration actions.
+
+## Native source check and reviewed fixture correction
+
+At clean92fd596ab, corrected scoped clippy passed and own no-run build passed
+with operator/test-hooks on Rust1.95.0. The first G2 run stopped in its healthy
+setup before any fault: querying after the inherited900000/window1 raw stress
+fragment correctly triggered ProjectionGenerationCorrupt. Original raw receipts,
+build JSON and nested child logs remain under the task; no product RED or new
+product behavior is inferred. Current vector-span validation deliberately requires
+head rowid/cursor identity and window0, including on open.
+
+Independent Astra-medium technical review approved a valid rich rollback profile
+plus malformed-target stress only for healthy/post-removal cells. Public scores
+are captured pre-stress; raw structural preimages follow insertion. Exact rollback
+canonical/history/FTS/head-vector/map/span equality and post-removal900000/span
+zero remain required. Production validators, thresholds and hooks are unchanged.
+Affected native/G2 reruns follow the corrected frozen coverage checkpoint.
+
+The source preaudit's operator descendant leak has real harmless-descendant RED
+797e9d2ef then minimal GREEN39ff7442b; the unchanged regression covers failures
+before MI registration and during pidfd_open, with independent outer cleanup.
+Original14 controls stay byte-frozen. A separate real documented CLI --help
+startup failure has RED9664309cf then GREEN55a480e82. All16 tool controls pass;
+none is a Q1 runtime witness. Qualified Q1 pidfd/witness requirements are unchanged.

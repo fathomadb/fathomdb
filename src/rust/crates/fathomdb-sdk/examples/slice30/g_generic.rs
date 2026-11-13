@@ -56,7 +56,12 @@ fn observe(
     row
 }
 
-pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<CoreObserver>) {
+pub(super) fn run(
+    config: &Value,
+    out: &Path,
+    store: &Path,
+    observer: Option<CoreObserver>,
+) -> bool {
     if observer.is_some() {
         assert!(config["mode"].as_str().unwrap().starts_with("engine_"));
     }
@@ -72,7 +77,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
     assert_eq!(ids.len(), queries.len());
     let mode = config["mode"].as_str().unwrap();
     if super::budget_clock::phase(config, out, "pass").is_err() {
-        return;
+        return false;
     }
     let opening = std::time::Instant::now();
     let engine = GAdapter::open(mode, store);
@@ -85,7 +90,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
     assert_eq!(engine.report().default_embedder.dimension, 384);
     if super::budget_clock::phase(config, out, "pass").is_err() {
         engine.close();
-        return;
+        return false;
     }
     let adapter = match &engine {
         GAdapter::Core(_) => "engine",
@@ -105,7 +110,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         Ok(reset) => reset,
         Err(()) => {
             engine.close();
-            return;
+            return false;
         }
     };
     let mut first_warmup_record_start_ns = None;
@@ -134,7 +139,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         if super::budget_clock::phase(config, out, "warmup").is_err() {
             recorder.flush_all();
             engine.close();
-            return;
+            return false;
         }
         let record_start_ns =
             writing.then(|| u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
@@ -161,7 +166,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         if super::budget_clock::phase(config, out, "timed").is_err() {
             recorder.flush_all();
             engine.close();
-            return;
+            return false;
         }
         let record_start_ns =
             writing.then(|| u64::try_from(pass_origin.elapsed().as_nanos()).unwrap());
@@ -194,7 +199,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
             ) else {
                 recorder.flush_all();
                 engine.close();
-                return;
+                return false;
             };
             scheduled_write_calls += 1;
             scheduled_write_rows += cohort.rows;
@@ -230,6 +235,7 @@ pub(super) fn run(config: &Value, out: &Path, store: &Path, observer: Option<Cor
         proof["throughput_scope"] = json!("warmup and timed API calls plus input identity/validation/observer collection/serialization/checkpoints; observer setup/open/close separate");
     }
     std::fs::write(out.join("api-proof.json"), serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
+    true
 }
 
 pub(super) fn fixture(config: &Value, out: &Path, observer: Option<CoreObserver>) {
@@ -247,7 +253,9 @@ pub(super) fn fixture(config: &Value, out: &Path, observer: Option<CoreObserver>
         assert_eq!(Sha256::digest(std::fs::read(&store).unwrap()), original);
         let mut pass = config.clone();
         pass["mode"] = mode.clone();
-        run(&pass, &directory, &store, observer);
+        if !run(&pass, &directory, &store, observer) {
+            return;
+        }
         let wal = std::path::PathBuf::from(format!("{}-wal", store.display()));
         assert!(std::fs::metadata(wal).map_or(true, |metadata| metadata.len() == 0));
         assert_eq!(Sha256::digest(std::fs::read(&source).unwrap()), original);
@@ -278,7 +286,9 @@ pub(super) fn cell(config: &Value, out: &Path, store: &Path, observer: Option<Co
             assert!(matches!(schedules[ordinal].as_str(), Some("readonly" | "write")));
             pass["schedule"] = schedules[ordinal].clone();
         }
-        run(&pass, &out.join(format!("pass-{ordinal}")), store, observer);
+        if !run(&pass, &out.join(format!("pass-{ordinal}")), store, observer) {
+            return;
+        }
     }
 }
 

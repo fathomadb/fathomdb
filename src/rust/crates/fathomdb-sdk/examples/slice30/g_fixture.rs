@@ -396,7 +396,8 @@ pub(super) fn run_observed(config: &Value, out: &Path, observer: Option<CoreObse
         return g_generic::fixture(config, out, observer);
     }
     if config["family"] == "G_PASS" {
-        return g_generic::run(config, out, Path::new(config["store"].as_str().unwrap()), observer);
+        g_generic::run(config, out, Path::new(config["store"].as_str().unwrap()), observer);
+        return;
     }
     if config["family"] == "G_LIMIT" {
         return g_limit::run(config, out);

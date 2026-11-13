@@ -70,11 +70,12 @@ pub(super) fn current_coverage(
 }
 
 pub(super) fn admitted_read<T>(
-    _config: &Value,
-    _out: &Path,
-    _phase: &str,
+    config: &Value,
+    out: &Path,
+    phase: &str,
     read: impl FnOnce() -> T,
 ) -> Result<T, ()> {
+    super::budget_clock::phase(config, out, phase)?;
     Ok(read())
 }
 
@@ -120,12 +121,13 @@ pub(super) fn reset(
     })
     .unwrap();
     let drain_ns = ns(draining);
-    let pending = fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count;
+    let pending = admitted_read(config, out, "readiness", || {
+        fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count
+    })?;
     assert_eq!(pending, 0);
     let coverage = admitted_read(config, out, "coverage", || {
         current_coverage(path, &engine.open_report().default_embedder)
-    })
-    .unwrap();
+    })?;
     assert_eq!(coverage["current_by_kind"]["note"], 10);
     let mut report = json!({"reset_write_calls":1,"reset_rows":writes.len(),"reset_write_ns":write_ns,
         "reset_drain_ns":drain_ns,"pending_after_drain":pending,"coverage":coverage});
@@ -174,7 +176,9 @@ pub(super) fn run(
     })
     .unwrap();
     let end = ns(origin);
-    let pending = fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count;
+    let pending = admitted_read(config, out, "readiness", || {
+        fathomdb_sdk::read::embedding_readiness(engine).unwrap().pending_count
+    })?;
     assert_eq!(pending, 0);
     let mut drained = json!({"event":"projection_drained","cohort":cohort,"after_natural_calls":calls,
         "start_ns":start,"end_ns":end,"drain_ns":end-start,"pending_after_drain":pending});
@@ -195,8 +199,7 @@ pub(super) fn run(
                 engine.search_text_only(&format!("s30markercurrent{slot}"), options).unwrap();
             let end = ns(origin);
             (result, start, end)
-        })
-        .unwrap();
+        })?;
         let ids: Vec<_> = result.results.iter().map(|hit| hit.id.to_prefixed()).collect();
         let bodies: Vec<_> = result.results.iter().map(|hit| hit.body.clone()).collect();
         let current = ids == [format!("l:s30marker-{slot}")]
@@ -214,8 +217,7 @@ pub(super) fn run(
     let start = ns(origin);
     let mut coverage = admitted_read(config, out, "coverage", || {
         current_coverage(path, &engine.open_report().default_embedder)
-    })
-    .unwrap();
+    })?;
     let end = ns(origin);
     coverage["event"] = json!("active_coverage");
     coverage["cohort"] = json!(cohort);

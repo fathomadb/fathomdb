@@ -90,6 +90,12 @@ def comparisons(groups):
     return pairs
 
 
+def observer_summary(calls,enabled):
+    """Describe actual per-call observer transport and delta counters."""
+    return {"available":None,"reason":"observer_reporting_pending","query_records":None,
+            "worker_records":None,"dropped":None,"query_dropped":None,"attribution_complete":None}
+
+
 def _g_pass(base,cell,attempt,path,mode,outcome,dataset):
     group:dict=dict(base,issues=list(base["issues"]),cell_id=cell["id"],id=f"{cell['id']}/{path.name}")
     issues=group["issues"]

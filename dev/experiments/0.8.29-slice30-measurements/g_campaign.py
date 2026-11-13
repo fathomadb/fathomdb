@@ -105,9 +105,20 @@ def run_g_plan(spec, root, command, prepare=None):
             budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
             budget_path.write_text(json.dumps(budget, indent=2) + "\n")
             try:
-                remaining = (14400 * 10**9 - budget["used_ns"]) / 10**9
-                outcomes.extend(run_campaign([cell], root, command, timeout=min(900, remaining),
-                                             before=(lambda: prepare(cell, root)) if prepare else None))
+                context = prepare(cell, root) if prepare else None
+                elapsed = time.monotonic_ns() - started
+                shared_remaining = 14400 * 10**9 - budget["used_ns"] - elapsed
+                cell_remaining = 900 * 10**9 - elapsed
+                reason = ("shared_time_exhausted" if shared_remaining <= 0 else
+                          "cell_time_exhausted" if cell_remaining <= 0 else
+                          "active_storage_exhausted" if active_bytes(root) >= 16 * 1024**3 else None)
+                if reason:
+                    outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
+                                     "complete": False, "reason": reason})
+                else:
+                    outcomes.extend(run_campaign([cell], root, command,
+                                                 timeout=min(cell_remaining, shared_remaining) / 10**9,
+                                                 before=lambda: context))
             finally:
                 budget["used_ns"] += time.monotonic_ns() - started
                 budget["inflight"] = None

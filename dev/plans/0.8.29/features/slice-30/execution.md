@@ -631,3 +631,11 @@ aggregate-cap qualification; those controller units remain required.
   copied verbatim before any exhausted/inflight refusal; only outstanding cells
   receive refusal rows. The preparation correction is still held separately,
   and the entire five-test controller suite is not claimed GREEN at this point.
+
+- Preparation correction reapplied byte-for-byte from the preserved patch after
+  the separate resume repair. `g-t10-preparation-corrected-green` passes all five
+  frozen Python controller tests (exit 0, no resource stop); Ruff passes.
+  Preparation is charged from before its callback and remaining shared/cell
+  allowance is recomputed before child launch. This is the preparation boundary
+  proof, not yet a claim of complete production absolute-deadline propagation,
+  per-cell retry accounting, growth monitoring or scale feasibility.

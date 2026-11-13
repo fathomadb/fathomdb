@@ -181,5 +181,29 @@ class GNormalCliTests(unittest.TestCase):
             self.assertFalse(result["qualified_dense_fixture"])
 
 
+    def test_exhausted_whole_cell_allowance_refuses_before_any_seed_store_creation(self):
+        binary = Path(os.environ["FATHOMDB_SLICE30_G_BINARY"]).resolve(strict=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus, queries = root / "corpus.jsonl", root / "queries.jsonl"
+            corpus.write_text('"alpha needle"\n"beta"\n')
+            queries.write_text('"needle"\n')
+            config = root / "cell.json"
+            config.write_text(json.dumps({"family": "G-seed", "provider": "none", "negative_control": True,
+                                          "adapter": "sdk", "n": 2, "corpus": str(corpus),
+                                          "queries": str(queries), "remaining_cell_ms": 0}))
+            out = root / "out"
+            child = subprocess.run([str(binary), str(config), str(out)],
+                                   text=True, capture_output=True, timeout=30, check=False)
+            self.assertFalse((out / "store.sqlite").exists(),
+                             "zero remaining whole-cell budget must refuse before database preparation")
+            self.assertEqual(child.returncode, 1, child.stdout + child.stderr)
+            result = json.loads((out / "result.json").read_text())
+            self.assertFalse(result["complete"])
+            self.assertEqual(result["status"], "NOT_RUN_CAP_TIME")
+            self.assertEqual(result["remaining_cell_ms"], 0)
+            self.assertFalse(result["qualified_dense_fixture"])
+
+
 if __name__ == "__main__":
     unittest.main()

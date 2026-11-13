@@ -311,10 +311,14 @@ class NativeHeldPhaseStopTests(unittest.TestCase):
         print(f"actual held native {attempt} calls={len(rows)}/{samples+2}",flush=True)
         self.assertLess(len(rows),samples+2,"held native continued starting queries after original work expiry")
         self.assertFalse((attempt/"controls.json").exists(),"expired held native reported full completion")
-        self.assertEqual(json.loads((attempt/"budget.json").read_text())["disposition"],"deadline_refused")
+        report=json.loads((attempt/"budget.json").read_text())
+        self.assertEqual(report["disposition"],"deadline_refused")
+        self.assertEqual(report["release_requests"],1,"held guard must request release before engine close; progress is not inferred")
         with closing(sqlite3.connect(f"file:{attempt/'store.sqlite'}?mode=ro",uri=True)) as db:
             self.assertEqual(db.execute("SELECT count(*) FROM canonical_nodes").fetchone()[0],3)
-            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0],3,"held Drop must release before engine close")
+            mapped=db.execute("SELECT count(*) FROM _fathomdb_vector_rows").fetchone()[0]
+            self.assertLessEqual(mapped,3)
+            self.assertEqual(db.execute("SELECT count(*) FROM _fathomdb_vector_spans").fetchone()[0],mapped)
 
     def test_held_query_loop_stops_and_releases_before_close(self):
         self.check_held_stop(10000)

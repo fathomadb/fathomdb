@@ -24,13 +24,14 @@ def run(config,out):
         (out/"budget.json").write_text(json.dumps({"phase":phase,"disposition":"deadline_refused","observed_at_ns":now})+"\n")
         return False
 
-    if config["family"]=="D_QUERY_FIXTURE" and "n" in config and "write_records" not in config:
+    if config["family"] in {"D_QUERY_FIXTURE","D_HELD_FIXTURE"} and "n" in config:
         population=[]
         for index,row in enumerate(d_records(config["n"])):
             if index%1024==0 and not admitted("generate_population"):
                 return
             population.append(row)
-        native=dict(config,write_records=population)
+        native=dict(config)
+        native["records" if config["family"]=="D_HELD_FIXTURE" else "write_records"]=population
         if config.get("query_source"):
             if not admitted("encode_questions"):
                 return

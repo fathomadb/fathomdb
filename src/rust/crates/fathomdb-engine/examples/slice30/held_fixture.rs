@@ -93,6 +93,16 @@ fn observation(origin: Instant, engine: &Engine, path: &Path) -> Value {
         "readiness":ready,"readiness_time":readiness_time,"sql":sql,"sql_time":sql_time})
 }
 
+fn write_cohort(
+    origin: Instant,
+    engine: &Engine,
+    batch: &[PreparedWrite],
+    _config: &Value,
+    _out: &Path,
+) -> Result<(fathomdb_engine::WriteReceipt, Value), ()> {
+    Ok(timed(origin, || engine.write(batch).unwrap()))
+}
+
 pub(super) fn run(config: &Value, out: &Path) {
     let origin = Instant::now();
     std::fs::create_dir_all(out).unwrap();
@@ -162,7 +172,7 @@ pub(super) fn run(config: &Value, out: &Path) {
                 valid_until: None,
             })
             .collect();
-        let (receipt, clock) = timed(origin, || engine.write(&batch).unwrap());
+        let (receipt, clock) = write_cohort(origin, engine, &batch, config, out).unwrap();
         writes.push(json!({"clock":clock,"rows":batch.len(),"cursor":receipt.cursor,"row_cursors":receipt.row_cursors}));
     }
     let held = observation(origin, engine, &store);
@@ -342,5 +352,67 @@ mod tests {
         #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
         #[test]
         fn original_held_bounds_prevent_freezing_an_expired_route(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {configure_admission(key,count);}
+    }
+
+    fn write_admission(key: &str, count: usize) {
+        let root = tempfile::Builder::new().prefix("s30-held-write-").tempdir().unwrap().keep();
+        let origin = Instant::now();
+        let store = root.join("store.sqlite");
+        let engine =
+            Engine::open_with_choice(&store, fathomdb_engine::EmbedderChoice::None).unwrap().engine;
+        let make = |prefix: &str, n: usize| {
+            (0..n)
+                .map(|i| PreparedWrite::Node {
+                    kind: "doc".into(),
+                    body: format!("actual governed é {i}"),
+                    logical_id: Some(format!("{prefix}-{i}")),
+                    source_id: SourceId::new("test:s30-held-write").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                })
+                .collect::<Vec<_>>()
+        };
+        let (receipt, clock) =
+            write_cohort(origin, &engine, &make("base", 1), &json!({}), &root).unwrap();
+        assert_eq!(receipt.row_cursors.len(), 1);
+        assert!(clock["end_ns"].as_u64().unwrap() >= clock["start_ns"].as_u64().unwrap());
+        let mut config = json!({"work_deadline_ns":u64::MAX,"hard_deadline_ns":u64::MAX,"shared_deadline_ns":u64::MAX});
+        config[key] = json!(0);
+        let result = write_cohort(origin, &engine, &make("expired", count), &config, &root);
+        engine.close().unwrap();
+        let db = Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let rows: usize =
+            db.query_row("SELECT count(*) FROM canonical_nodes", [], |row| row.get(0)).unwrap();
+        println!(
+            "actual held write {} key={key} canonical={rows} accepted={}",
+            root.display(),
+            result.is_ok()
+        );
+        assert_eq!(rows, 1, "expired held cohort still committed new canonical rows");
+        assert!(result.is_err());
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(root.join("budget.json")).unwrap()).unwrap();
+        assert_eq!(report["phase"], "write");
+        assert_eq!(report["disposition"], "deadline_refused");
+    }
+
+    #[test]
+    fn work_expiry_prevents_actual_held_write() {
+        write_admission("work_deadline_ns", 3);
+    }
+    #[test]
+    fn hard_expiry_prevents_actual_held_write() {
+        write_admission("hard_deadline_ns", 3);
+    }
+    #[test]
+    fn shared_expiry_prevents_actual_held_write() {
+        write_admission("shared_deadline_ns", 3);
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig{cases:3,max_shrink_iters:0,failure_persistence:None,..ProptestConfig::default()})]
+        #[test]
+        fn original_held_cohort_bounds_preserve_only_previous_commits(count in 1usize..5,key in prop::sample::select(vec!["work_deadline_ns","hard_deadline_ns","shared_deadline_ns"])) {write_admission(key,count);}
     }
 }

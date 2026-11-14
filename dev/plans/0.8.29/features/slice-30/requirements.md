@@ -39,3 +39,16 @@ release requirements/AC remain unchanged. Canonical suite registration is220
 labels; no execution or whole100/Q1 closure follows. Accepted20 A3/A5 remains
 satisfied for M, which still needs a qualified selected G store and exact MCP
 tool review. D, F and model/GPU/campaign authority remain separately held.
+
+## Assembled G source qualification candidate
+
+The current source candidate retains all R30-1..9/A30-1..7 and release req*/AC
+obligations. The original220-suite collector has218 passes and two governance
+failures, now repaired by unchanged root48-field guards and41 policy tests with
+53 governed operations. The passive diagnostic addendum changes no signed/default
+operation; current code uses `begin_slice30_observation` without an alias.
+Affected observer/CLI/feature/native identity checks pass on a3c483fa7. Evidence,
+inner-skip/no-provider limits and all original failures are in execution.md.
+Fresh assembled source review is pending; positive Default384/3090 and campaign
+qualification remain held. No source control establishes a qualified selected
+G store for M or clears D/F/whole30/downstream/Block1.

@@ -1324,3 +1324,49 @@ recognizer, without granting any capability or changing the literal masker.
 All35 tests pass, including original28 and actual53/53 governed operations; every
 RED assertion is unchanged. This closes the concrete lexer gap without a new
 exception, diagnostic, signed operation or broader feature policy.
+
+### Final assembled source checkpoint before Default/GPU qualification
+
+Fresh Astra accepted the catalog/extern/declaration implementation and resolved
+feature-path findings. P2 RED `f6535affb` exposed9 dependency/weak-forwarding cases;
+GREEN `c5bc192b8` passed40 tests but still filtered an inherited alias too early.
+The retry-budget rethink reread all40 tests, ADR decision4, the precise proposal
+and verified memories `verify-the-agents-fix-not-just-its-diagnosis.md` /
+`conformance-rewrite-vacuous-green-trap.md`. The existing proposal now states the
+single resolution invariant. Alias RED `1bb6672cc` exposed4 cases; measured GREEN
+`a3c483fa7` resolves each declaration through one inherited-identity path before
+classification. All41 tests pass, prior40 method ASTs and complete RED-file bytes
+unchanged; actual53/53 parity remains. Same Astra resolves P2 with no further
+finding. The original syntax-preparation failure, actual REDs and failed first
+GREEN remain distinct; none is relabelled as runtime product RED.
+
+Current assembled evidence (owned task log root remains unchanged):
+
+| Subject | Actual outcome and existing log |
+| --- | --- |
+| Failed full collector at66ce |220ran/218pass/2governancefail/0suite-skip/0exclude; `g-source-tests.log`. Original lint refusal and passing lint/typecheck/strict-security continuations retained. No second full wrapper. |
+| Root inventory repair |8/8 unchanged guards, exact48 fields/declarations unchanged; `g-root-inventory-green.log`. Current root source blob7279630 is unchanged by the coordinated method rename. |
+| SDK parity repair |41/41 with original28 and53 operations unchanged; `g-sdk-inherited-identity-green.log`; all policy RED/failed attempts retained. |
+| Affected current sourcea3c483fa7 |`g-final-module-boundary`, `g-final-scoped-clippy`, `g-final-observer`10/10, `g-final-normal-cli`12/12, `g-final-feature-consumers` PASS, each .log under the log root. |
+| Current owned bindings |Canonical noneditable Python and TS/native rebuilds PASS in `g-final-owned-python.log` / `g-final-owned-ts.log`; source receipts identifya3c483fa7. |
+| Live child/native input proof |`g-final-native-child-proof.log`; PythonPID3412298 and TSPID3412323 match parent-observed PIDs, nonce5135f75a18d3418686fa7b8a52bb5328, actual mapped native paths/byte digests, real governed write/read/reopen and schema37. Both explicitly use no provider. |
+
+All affected phases exit0 with no resource stop or cleanup uncertainty. Native
+input fingerprint is d644d89f4590d60be701ad1b9cd2eecd66c9d390d8a45a0a370c774a69e83114;
+actual rebuilt cfg-off bytes match earlier bytes, which does not retag the old
+artifacts. Current build receipts and child proof are new subjects. Retained Rust
+workspace summaries report2727pass/72ignored. Canonical passing-log cleanup removed
+Python/TS per-case output: their actual suite PASS and Python nonce/module receipt
+are retained, without inventing per-case counts or claiming zero inner skips.
+Network/conditional/in-body skips and no-provider limits remain.
+
+This is an assembled source-qualification candidate for fresh final review,
+not positive Default384/dense/3090 qualification or a measurement/campaign GO.
+All84 G obligations/caps remain; D source, selected-qualified-G-store/exact-tool M,
+missing exactTC5 F, whole30/downstream/Block1 and publication holds remain.
+
+Current canonical generated-doc check is current. Scoped Markdown first refused
+one MD012 blank-line error in requirements.md; that exact failure is retained in
+`g-final-markdown.log`. After the single formatting correction,
+`g-final-markdown-corrected.log` passes with no resource stop. This final checkpoint
+changes documentation only after the tested a3 source; no native input is retagged.

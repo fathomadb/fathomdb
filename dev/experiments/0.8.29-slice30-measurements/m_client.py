@@ -162,6 +162,8 @@ class RpcChild:
         if any(thread.is_alive() for thread in self._threads):
             self.failures.append("stream reader did not reach EOF")
         self._stop.set()
+        while self._consume(0):
+            pass
         for request_id, row in self.records.items():
             if request_id not in self._persisted:
                 row["status"] = "unresolved"

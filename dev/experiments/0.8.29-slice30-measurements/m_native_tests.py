@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -115,6 +116,16 @@ class PublicCellTests(NativeCase):
                 self.assertEqual(result["fetch_body"], "alpha river crossing\né😀")
                 self.assertEqual(result["typed_error"], "invalid_request/unknown_store")
                 self.assertTrue(result["complete"])
+
+    def test_committed_public_command_reports_both_real_m0_cells(self):
+        child = subprocess.run([sys.executable, str(Path(__file__).with_name("m_runner.py")),
+            "source-smoke", "--root", str(self.root / "public-entry"),
+            "--cli", str(self.cli), "--helper", str(self.helper)], capture_output=True, timeout=30)
+        self.assertEqual(child.returncode, 0, child.stderr.decode())
+        report = json.loads(child.stdout)
+        self.assertEqual([row["id"] for row in report["rows"]], ["M0-text", "M0-structured"])
+        self.assertTrue(all(row["complete"] for row in report["rows"]))
+        self.assertFalse(report["qualifies_natural"])
 
 
 class PublicThroughputTests(NativeCase):

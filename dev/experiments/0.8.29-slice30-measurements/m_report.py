@@ -13,6 +13,8 @@ def summarize_invocations(records, wall_ns, *, stderr=(), log_level="warn"):
     result = aggregate(completed, wall_ns)
     success = sum(row["ok"] is True for row in completed)
     result.update(submitted=len(records), completed=len(completed), success=success,
+                  requests=len(records),
+                  throughput_all_per_s=len(records) * 10**9 / wall_ns if wall_ns else None,
                   unresolved=len(records) - len(completed),
                   cancellation_requested=sum(row.get("cancellation_requested", False)
                                              for row in records))

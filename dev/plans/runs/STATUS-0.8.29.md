@@ -39,32 +39,39 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-G source, measurement-tooling and no-provider subsets retain their bounded
-acceptance at `4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae`; the G0 polling repair
-at `21d8d4e7e0a05d77338da5d20aad580fd3a5aa54` passed genuine RED/GREEN and Astra
-review. Owned pinned inputs/cache and ordinary/diagnostic CUDA programs are ready.
+G source/controller qualification is integrated at
+`f8703b466f1778e4db59cf86fd1fb11f03d52d67` after fresh independent Astra ACCEPT,
+51 affected controls and a final canonical **220/220** gate. Rust recorded
+2727 passed/72 ignored; current Python/TS suites passed, but their inner counts
+were removed by canonical log cleanup. Source/native identities and earlier
+failed attempts remain attributed honestly. The private guardian contains nested
+sessions, refuses missing/unknown/stale state and verifies quiescence; final
+boundary removal and independent no-survivor checks passed.
+
+Owned pinned inputs/cache and ordinary/diagnostic CUDA programs are ready.
 The first G0 remains failed for missing same-sample own-PID GPU memory plus
 utilization; 83 later obligations remain prerequisite NOT_RUN. Its raw output
-and 11.157694114-second shared charge remain retained.
+and 11.157694114-second shared charge remain retained. Fresh source/input/native,
+claimed quiet3090 and resource checks precede bounded continuation. Source/full
+verification alone does not qualify actual Default/GPU measurements.
 
-Full verification at `973b2e692` ran 220 suites: 219 passed and the Rust hints
-performance target failed at 209.8us against the unchanged 200us limit. One
-preserved-artifact follow-up passed. Astra accepted the actual launch/evidence;
-this is assembled qualification, with the original failed wrapper retained.
-No hints source repair or cause was established. See the
+The earlier 973b full wrapper failed hints overhead at 209.8us against the
+unchanged 200us limit; one preserved-artifact resumption passed and was reviewed.
+The later final f870 full gate passed without another target retry. Both outcomes
+remain recorded, without a source hints repair or causal inference; see the
 [Slice60 execution record](../0.8.29/features/slice-60/execution.md).
 
-Astra also confirmed that outer resource-stop cleanup can miss a separately
-sessioned measurement child. The private-cgroup design and one task-owned
-capability probe passed, but the source repair, composed-child RED/GREEN and
-implementation review remain pending. Compound GPU execution stays held.
 The [M continuation](../0.8.29/features/slice-30/continuation-m.md) passed
 independent Astra design review; its proposed 46-cell matrix still requires a
 qualified closed G100k input, implemented/reviewed tools and remaining-budget
-fit. It grants no source/runtime GO or new allocation. D and F retain their own
-holds. The Slice20 A3/A5 prerequisite for M is satisfied; Windows A6, whole30,
-40/50 and pre90 gates remain open. Independently qualified60 and completed70
-retain their recorded bounds. Each writer has its own checkout and resources.
+fit. D and F retain their own holds. The Slice20 A3/A5 prerequisite for M is
+satisfied; Windows A6, whole30,40/50 and pre90 gates remain open. Independently
+qualified60 and completed70 retain their recorded bounds.
+
+The corrected [Slice50 access method](../0.8.29/features/slice-50/census.md)
+passed independent Astra review. Existing census scope is already approved;
+exact artifact/provenance/custody inputs remain missing. New acquisition is a
+separate specifically authorized action. No consumer data was accessed or copied.
 
 Slice 100 owner decisions seq-371/372 are recorded in the
 [ledger](../../steward/steward-ledger.jsonl). Its qualified source, G2 coverage and

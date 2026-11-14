@@ -144,14 +144,15 @@ Read-only Memex source/docs at `/home/coreyt/projects/memex` were searched.
 `fathom_store.py:4300–4374` adapts SDK results from decoded body, kind, score,
 ce_score, source_id and logical IdSpace.value; source_id inside JSON properties
 is distinct from engine erasure provenance. Existing identity-recall audit is
-historical source analysis, not a current duplicate census. The inspected
-backup-orchestration doc says safe_export checkpoints; its April validation and
-rotation prose are older than current backup.py. That source declares
-`~/.memex/backups`; backup_dir creates it and rotation deletes old files, so no
-helper was invoked. R-I4's old read-only spike supplies no current snapshot
-identity or safe live-copy method.
+historical source analysis, not a current duplicate census. In Memex,
+`FathomStore.open` (`src/memex/fathom_store.py`)
+runs writable migrations, registration and recovery; `_AdminAdapter.safe_export` currently raises NotImplementedError.
+`src/memex/backup.py`'s `backup_all` opens the store and rotates/deletes backups;
+`backup_dir` creates its destination directory.
+Its checkpoint description is not a supported acquisition contract on this build.
+No helper was invoked. R-I4's old spike supplies no current snapshot/access method.
 
-Safe path metadata only: `/home/coreyt/.memex/backups` exists with24
+Historical Phase A metadata only: `/home/coreyt/.memex/backups` existed with24
 `fathom*.db` names. The latest filename timestamp candidate is
 `fathom-startup-20260630T142206.db` (696320 bytes, not a symlink), with both
 `-wal` and `-shm` present. The last8 filename-ordered candidates inspected also
@@ -160,19 +161,48 @@ format37, source provenance or relevance; these old candidates are not a qualifi
 current consumer census snapshot. No DB content/SQLite header was read.
 
 The owner already approved50 identity census/ADR scope; no renewed generic
-census approval is needed. No exact appropriate consumer snapshot/access protocol
-was identified in the relevant inspected docs/source. Missing: an existing safe
-snapshot path/identity, its provenance/consistency confirmation (closed copy with
-no live writer/WAL dependency), and an access method preventing source sidecars/
-writes. A concrete existing consistent snapshot within that approved scope may
-later be used; creating one from live data first needs a concrete safe method. Do not open a readable live DB or use
-`immutable=1` to pretend a live WAL database is frozen; do not invoke Engine.open
-or safe_export against production, copy DB/model bytes, or dump config secrets.
+census approval is needed. The independently reviewed method below is proposed;
+the exact artifact, custody and capture provenance remain missing.
+A qualified supplied artifact needs these inputs, not renewed census approval; this correction grants no new data access or acquisition authorization.
 
-After identifying the appropriate consistent snapshot/access method, bind its
-identity/query set; run aggregate-only
+1. **Establish closed custody before any SQLite open.** Obtain the owner's exact
+   artifact path, originating Memex population, capture method/time and confirmation that
+   its main file contains all committed data, with no writer or WAL dependency.
+   Digest, schema, lock availability and absent sidecars alone prove neither historical completeness nor representativeness.
+2. **Prefer that existing qualified artifact.** Otherwise, propose a later explicitly
+   authorized byte-preserving copy of an independently closed, main-file-complete,
+   WAL-independent source. Exact source/destination paths and owner authorization
+   precede copying; retain closed custody and verify byte identity. WAL-dependent
+   sources are ineligible. Do not raw-copy live files, checkpoint or delete sidecars.
+3. **Inspect format/layout read-only after step1.** Use a percent-encoded URI with
+   `mode=ro&immutable=1`, READ_ONLY|URI, `query_only=ON` and one read transaction.
+   Read `PRAGMA user_version` and require37; verify canonical/provenance/visibility/span
+   layout and no unresolved WAL/journal dependency; hold on disagreement, without
+   migration. Immutability follows custody; it does not freeze live files.
+   [`inspect_data_plane_integrity`](../../../../../src/rust/crates/fathomdb-engine/src/operator/data_plane.rs)
+   supplies the boundary pattern, not a census executor; it requires a pre-existing
+   acquirable lock. Do not create one or invoke Engine.open.
+4. **Bind repeatable aggregate queries.** Retain artifact digest/size, capture
+   provenance, source/tool revision, SQLite build, exact aggregate SQL and fixed view/time/flags/population selection in this record. Preserve
+   node/edge, physical locator, logical/revision/source and anonymous/ownerless
+   distinctions; compare exact stored bytes internally and publish aggregates only.
+   Generation/nonce binds the visibility envelope, not completeness or record identity;
+   retain stored hints/spans and role-tagged byte coordinates.
+5. **Report only observed scope.** SQL counts establish stored membership/eligibility,
+   not actual physical/vector retrieval overlap unless separately executed under its
+   authorized resource window. Execution stays held pending inputs; no calibration verdict, threshold or acceptance change.
+
+Native [`Engine::safe_export`](../../../../../src/rust/crates/fathomdb-engine/src/operator.rs)
+uses VACUUM INTO; CLI [`run_doctor_verb_inner`](../../../../../src/rust/crates/fathomdb-cli/src/lib.rs)
+first opens a writable Engine with possible reconciliation/maintenance effects.
+Export reconstructs the DB, with no demonstrated preservation contract for every census physical locator.
+It is not the default fallback; an alternative needs
+concrete justification/authorization. Closed, main-file-complete input needs no export.
+No schema change or config-secret access follows from this method.
+
+After qualifying the exact artifact under this method, run aggregate-only
 counts of equal-body groups across artifact class/cursor/logical/revision/source/
-visibility and per-arm overlap. Compare rows at fixed views and record population
+visibility and stored arm membership. Compare rows at fixed views and record population
 selection. Publish no bodies/raw IDs. Until then, runtime census is HELD and all
 frequency/benefit claims are unknown. The old LME twin counts in memory are
 historical study evidence, not fresh consumer measurements or30 substitution.

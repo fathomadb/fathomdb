@@ -71,6 +71,26 @@ def _preflight(root):
     manifest = validate_frozen(root)
     if inspect_gpu(manifest["gpu"]["uuid"])["applications"]:
         raise RuntimeError("selected3090 has foreign/current compute work")
+    if manifest["stage"] != "closed-copy-calibration":
+        from g_campaign import active_bytes
+        from g_closed_costs import load_calibration
+        from g_closed_forecast import forecast_closed_read
+        calibration = load_calibration(manifest["calibration_from"], manifest)
+        manifest["calibration"] = {key: value for key, value in calibration.items() if key != "records"}
+        if manifest["stage"] == "closed-copy-read-r1":
+            budget = json.loads(Path(manifest["allocation"], "g-budget.json").read_text())
+            r0 = manifest["reused"]["g-r-n100000-r0"]
+            observed = {"elapsed_ns": max(r0["elapsed_ns"], budget.get("cell_used_ns", {}).get(r0["id"], 0)),
+                        "retained_bytes": active_bytes(r0["attempt"]), "n": 100000, "repeat": 0}
+            seed = manifest["reused"]["g1-n100000"]
+            old_seed = 2 * max(seed["elapsed_ns"], budget.get("cell_used_ns", {}).get(seed["id"], 0))
+            cell = next(row for row in manifest["plan"] if row["id"] == "g-r-n100000-r1")
+            prediction = forecast_closed_read(cell, observed, calibration["costs"],
+                manifest["closed_limits"]["campaign_seconds"] * 10**9 - budget["used_ns"],
+                active_bytes(manifest["allocation"]), old_seed)
+            manifest["_closed_predictions"] = {cell["id"]: prediction}
+        else:
+            raise ValueError("write-matrix requires recorded reviewed costs after qualified R1")
     manifest.update(corpus=manifest["inputs"]["corpus"]["path"], queries=manifest["inputs"]["queries"]["path"],
                     commands={key: [value["path"]] for key, value in manifest["binaries"].items()})
     manifest["_prepared_manifest"] = str(root / f"prepared-closed-{uuid.uuid4().hex}.json")

@@ -164,6 +164,12 @@ def freeze(options):
         if options.get("stage") == "first-100k-seed-exploratory" and "g-o-branches" not in manifest["reused"]:
             raise ValueError("exploratory seed stage requires the qualified branch-stage subject")
     if closed:
+        if options["stage"] != "closed-copy-calibration":
+            if not options.get("calibration_from"):
+                raise ValueError("closed successor requires its actual qualified calibration root")
+            manifest["calibration_from"] = str(Path(options["calibration_from"]).resolve())
+        if options.get("cost_review_from"):
+            manifest["cost_review_from"] = str(Path(options["cost_review_from"]).resolve())
         reference = manifest["reused"]["g1-n100000"]
         seed = json.loads(Path(reference["attempt"], "result.json").read_text())["steps"][0]
         store = Path(seed["closed_store"]) if "closed_store" in seed else Path(seed["output"]) / "store.sqlite"
@@ -191,6 +197,8 @@ def validate_frozen(root):
         raise ValueError("frozen G source/plan differs from the selected clean candidate")
     records = [*manifest["inputs"].values(), *manifest["model_files"].values(), *manifest["binaries"].values(),
                manifest["lock"], manifest["build_receipt"], manifest["python_receipt"], manifest["python_native"]]
+    if manifest.get("preparation") == "closed-copy-v1":
+        records += list(manifest["closed_subject"]["files"].values())
     if any(identify(record["path"]) != record for record in records):
         raise ValueError("frozen G input/native/model bytes changed")
     if manifest.get("reuse_completed_from"):

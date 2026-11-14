@@ -46,4 +46,24 @@ def forecast_closed_write(cell, observed, remaining_ns, retained_bytes, legacy):
 
 def forecast_closed_read(cell, observed, costs, remaining_ns, retained_bytes, legacy_seed_ns):
     """Forecast the required reversed R1 read on a new physical copy, never a measured R1 result."""
-    return {"allowed": False, "reason": "calibration_cost_unavailable"}
+    required = ("copy_ns", "validation_ns", "copy_bytes", "fixed_bytes")
+    if (set(costs) != {"engine", "sdk"} or observed.get("n") != 100000 or observed.get("repeat") != 0
+            or type(observed.get("elapsed_ns")) is not int or observed["elapsed_ns"] <= 0
+            or type(observed.get("retained_bytes")) is not int or observed["retained_bytes"] < 0
+            or any(any(type(value.get(key)) is not int or value[key] < 0 for key in required)
+                   for value in costs.values())
+            or len({value["copy_bytes"] for value in costs.values()}) != 1):
+        return {"allowed": False, "reason": "calibration_cost_unavailable", "total_ns": None,
+                "new_bytes": None, "legacy_seed_ns": legacy_seed_ns}
+    components = {"copy_validation_ns": 2 * max(value["copy_ns"] + value["validation_ns"] for value in costs.values()),
+                  "ordinary_r0_ns": 2 * observed["elapsed_ns"]}
+    total_ns = sum(components.values())
+    new_bytes = (costs["engine"]["copy_bytes"] + 2 * observed["retained_bytes"]
+                 + 2 * max(value["fixed_bytes"] for value in costs.values()))
+    reason = ("whole_cell_time_forecast" if total_ns > cell["cell_seconds"] * 10**9 else
+              "shared_time_forecast" if total_ns > remaining_ns else
+              "retained_storage_forecast" if retained_bytes + new_bytes > cell["active_bytes"] else None)
+    return {"allowed": reason is None, "reason": reason, "components": components,
+            "total_ns": total_ns, "new_bytes": new_bytes, "legacy_seed_ns": legacy_seed_ns,
+            "legacy_seed_time_feasible_900s": legacy_seed_ns <= 900 * 10**9,
+            "method": "2x entire matched ordinary R0 wall including warmup/open/close plus2x copy/validation; reversed R1 remains a new physical-copy execution, not independently regenerated projection evidence"}

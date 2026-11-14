@@ -12,7 +12,7 @@ from g_closed_guard import write_budget
 COMMON_BYTES = 1024**3
 
 
-def run_common(allocation, mode, command):
+def run_common(allocation, mode, command, limits=None):
     """Charge actual common work once; caller owns the allocation lock and guardian.
 
     A40s cleanup reservation remains outside the child execution deadline. Unknown
@@ -23,13 +23,21 @@ def run_common(allocation, mode, command):
     budget_path = allocation / "g-budget.json"
     budget = (json.loads(budget_path.read_text()) if budget_path.exists() else
               {"schema": "slice30-gd-budget/v1", "used_ns": 0, "inflight": None, "cell_used_ns": {}})
+    from g_closed_limits import DEFAULT, validate_limits
+    selected_limits = validate_limits(limits or DEFAULT)
+    guardian_limits = (budget.get("closed_guardian") or {}).get("limits")
+    if (limits is not None and mode != "closed-copy-write-matrix"
+            or guardian_limits is not None and selected_limits != guardian_limits):
+        raise ValueError("common worker prospective totals differ from its active outer guardian")
+    shared_ns = selected_limits["campaign_seconds"]*10**9
+    storage_bytes = selected_limits["active_bytes"]
     common = budget.setdefault("common_used_ns", {})
-    remaining = min(600 * 10**9 - common.get(mode, 0), 14400 * 10**9 - budget["used_ns"])
+    remaining = min(600 * 10**9 - common.get(mode, 0), shared_ns - budget["used_ns"])
     reason = ("unfinished_shared_attempt" if budget.get("inflight") else
               "common_time_exhausted" if common.get(mode, 0) >= 600 * 10**9 else
-              "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
+              "shared_time_exhausted" if budget["used_ns"] >= shared_ns else
               "common_storage_exhausted" if common_bytes(allocation) >= COMMON_BYTES else
-              "shared_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else
+              "shared_storage_exhausted" if active_bytes(allocation) >= storage_bytes else
               "common_cleanup_reserve" if remaining <= 40 * 10**9 else None)
     if reason:
         return {"status": "not_run_cap", "complete": False, "reason": reason}
@@ -41,7 +49,7 @@ def run_common(allocation, mode, command):
         def monitor(_pid):
             if common_bytes(allocation) >= COMMON_BYTES:
                 return "common_storage_exhausted"
-            if active_bytes(allocation) >= 16 * 1024**3:
+            if active_bytes(allocation) >= storage_bytes:
                 return "shared_storage_exhausted"
             return None
         outcome = run_g_attempt({"id": "g-common-" + mode}, allocation / "common", command,

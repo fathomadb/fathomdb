@@ -16,13 +16,22 @@ def discover(command):
         values = dict(zip(command[3::2], command[4::2], strict=True))
         if values.get("--preparation") != "closed-copy-v1":
             return None
-        return {"allocation": values["--allocation"], "mode": values["--stage"],
-                "root": values["--out"]}
+        profile = {"allocation": values["--allocation"], "mode": values["--stage"], "root": values["--out"]}
+        if profile["mode"] == "closed-copy-write-matrix":
+            from g_closed_limits import reviewed_limits
+            profile["limits"] = reviewed_limits(values["--cost-review-from"])
+        return profile
     if action in ("run", "report"):
         root = Path(command[3]).resolve()
         manifest = json.loads((root / "manifest.json").read_text())
         if manifest.get("preparation") == "closed-copy-v1":
-            return {"allocation": manifest["allocation"], "mode": manifest["stage"], "root": str(root)}
+            profile = {"allocation": manifest["allocation"], "mode": manifest["stage"], "root": str(root)}
+            if profile["mode"] == "closed-copy-write-matrix":
+                from g_closed_limits import reviewed_limits
+                profile["limits"] = reviewed_limits(manifest["cost_review_from"])
+                if profile["limits"] != {key: manifest["closed_limits"][key] for key in profile["limits"]}:
+                    raise ValueError("outer prospective limits differ from frozen reviewed totals")
+            return profile
     return None
 
 
@@ -46,7 +55,10 @@ class ClosedGuard:
                 or not self.allocation.is_relative_to(Path(task).resolve())
                 or not self.root.is_relative_to(self.allocation)):
             raise ValueError("closed guardian requires a known mode and owned allocation")
-        self.limits = profile.get("limits") or {"campaign_seconds": 14400, "active_bytes": 16 * 1024**3}
+        from g_closed_limits import DEFAULT, validate_limits
+        self.limits = validate_limits(profile.get("limits") or DEFAULT)
+        if self.mode != "closed-copy-write-matrix" and self.limits != DEFAULT:
+            raise ValueError("only the reviewed successor write matrix can change shared totals")
         self.path = self.allocation / "g-budget.json"
         budget = self.read()
         self.prior = budget["used_ns"]
@@ -74,7 +86,7 @@ class ClosedGuard:
             roots.append(str(self.root))
         self.owned = True
         budget["closed_guardian"] = {"pid": os.getpid(), "mode": self.mode,
-                                    "started_monotonic_ns": self.started}
+                                    "started_monotonic_ns": self.started, "limits": self.limits}
         write_budget(self.path, budget)
 
     def residual(self, budget, now):

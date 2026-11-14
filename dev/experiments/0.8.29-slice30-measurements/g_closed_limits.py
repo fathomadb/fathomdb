@@ -25,3 +25,15 @@ def effective_limits(spec):
             or (review.get("review") or {}).get("verdict") != "ACCEPT"):
         raise ValueError("prospective totals lack their matching reviewed record")
     return limits
+
+
+def reviewed_limits(path):
+    """Read only a named accepted G-only prospective profile; full actual-table checks follow."""
+    import json
+    from pathlib import Path
+    review = json.loads(Path(path).read_text())
+    decision = review.get("review") or {}
+    if (review.get("schema") != "slice30-closed-write-review/v1" or review.get("admission_scope") != "G-only"
+            or decision.get("verdict") != "ACCEPT" or not decision.get("reviewer") or not decision.get("subject")):
+        raise ValueError("prospective totals require the named reviewed G-only cost record")
+    return validate_limits(review["limits"])

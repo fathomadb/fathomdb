@@ -23,7 +23,15 @@ def _call(allocation, mode, action, options):
     jobs.mkdir(parents=True, exist_ok=True)
     job = jobs / f"{action}-{uuid.uuid4().hex}.json"
     job.write_text(json.dumps({"action": action, "options": options}, default=str) + "\n")
-    outcome = run_common(allocation, mode, worker_command(job))
+    limits = None
+    if mode == "closed-copy-write-matrix":
+        from g_closed_limits import reviewed_limits
+        if action == "freeze":
+            review_path = options["cost_review_from"]
+        else:
+            review_path = json.loads(Path(options["root"], "manifest.json").read_text())["cost_review_from"]
+        limits = reviewed_limits(review_path)
+    outcome = run_common(allocation, mode, worker_command(job), limits=limits)
     if outcome["status"] != "complete":
         raise RuntimeError(f"supervised {action} incomplete: {outcome}")
     return json.loads(Path(outcome["attempt"], "result.json").read_text())["value"]

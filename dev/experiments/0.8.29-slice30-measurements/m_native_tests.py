@@ -377,5 +377,28 @@ class WaitDeadlineTests(NativeCase):
                     self.assertTrue(result["diagnostic"]["complete"])
 
 
+class RunningCancelTests(NativeCase):
+    """Actual running cancellation abandons work without freeing its admission permit."""
+
+    def test_actual_running_cancel_remains_abandoned_until_explicit_release(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with self.helper_session(result_format) as (session, control):
+                    result = run_case("running_cancel", session, control)
+                    self.assertTrue(result.get("cancellation_requested"),
+                                    f"actual running cancel was not requested; retained={self.root}")
+                    if "response" in result:
+                        self.assertEqual(result.get("error"), "timeout/cancelled")
+                    else:
+                        self.assertEqual(result["status"], "unresolved")
+                    facts = result["diagnostic"]
+                    busy = facts["probe"]["payload"]["error"]["busy"]
+                    self.assertEqual((busy["in_flight"], busy["abandoned"]), (4, 1))
+                    self.assertEqual((facts["held_before_release"], facts["held_after_release"]), (4, 0))
+                    self.assertEqual(facts["recovery_held"], 4)
+                    self.assertTrue(all(session.records[item]["ok"] for item in facts["recovery_rpc_ids"]))
+                    self.assertTrue(facts["complete"])
+
+
 if __name__ == "__main__":
     unittest.main()

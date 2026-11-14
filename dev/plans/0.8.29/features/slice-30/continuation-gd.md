@@ -10,16 +10,13 @@ observed_on: 2026-11-14
 
 ## Scope, predecessor review and release contracts
 
-The original FIX1/actual20 fit below grounded the G-first source unit; it is
-retained as design history. G source/tooling subsequently received independent
-Astra ACCEPT and canonical220/220 qualification atf8703b466. The bounded campaign
-at60f471aaf, UUID5e89e1dc-8fbd-4848-bc2a-8dc84e478f16, now has four accepted
-completed cases, one failed branch qualification and79 cap refusals; see
-[execution](execution.md). The November14 amendment below proposes only the
-next Python tooling changes. Independent Astra design PASS covers the November14
-amendment; its implemented candidate awaits fresh implementation review and
-final source qualification before runtime;
-no new runtime authority or whole-G/30 disposition follows. Parent owns release
+The original FIX1/actual20 fit below grounded G-first implementation. Source/
+tooling atbf647231e has fresh independent Astra ACCEPT and canonical220/220.
+The original60f/UUID5e89 four-case subset and the separately accepted d9b8
+branch/100k stages now supply six qualified original cases; see
+[execution](execution.md). Earlier failures/refusals remain unchanged. The new
+normal fixed84 reuse extension below is plan-only pending independent design
+review; no source/runtime or wholeG/30 authority follows. Parent owns release
 state; this checkout owns its plan. No roles, skills or nested agents are used.
 
 The original G-first sequence is **G routes and G observation**, followed by its
@@ -360,11 +357,13 @@ selection, benefit threshold or causal speedup verdict follows.
 
 R30-1..9/A30-1..7 and release req*/AC remain unchanged. Accepted20 A3/A5 and
 accepted100 subset are integrated; whole20/WindowsA6 and whole100/Q1 remain open.
-Accepted P is not replayed. M still needs a qualified selected100k G store and
-exact MCP tooling; the accepted10k store does not supply that subject. D source
-and runtime remain separate; F still needs the exact frozen TC5 pack.
+Accepted P is not replayed. M now has a qualified CLOSED100k G input from the
+accepted exploratory seed; exact MCP tooling and later selected-store pins still
+need review. No M source/runtime GO follows. D source/runtime remain separate;
+F still needs the exact frozen TC5 pack.
 
-**Design PASS, implementation candidate/runtime held:** preserve the original84-cell inventory, original
+**Accepted staged checkpoint:** both stages below are qualified; their retained
+preregistration does not authorize repetition. Preserve the original84-cell inventory, original
 artifacts and all charges. Both native and outer hard limits remain900s/cell,
 including prior charges and new preparation; shared G/D14400s and retained16GiB
 remain fixed. The native seed rejects allowances above900000ms. No1320s option,
@@ -505,6 +504,68 @@ Tests focus sampling, resume/order and measurement/budget correctness; no tamper
 inventory. Source freeze, applicable controls/Ruff/scoped docs, required canonical
 verification and independent implementation/results review precede runtime. No
 new native build is needed if compiler inputs and binaries remain identical.
+
+### Proposed normal fixed84 assessment
+
+Review against unchanged R30-1..9/A30-1..7 and release req*/AC retains current
+format37, accepted20 A3/A5/60/70/100 predecessors, P evidence, freshness/provider
+contracts and fidelity/latency distinctions. Whole20/WindowsA6 and100/Q1 remain
+open. M input availability changes no M source/runtime gate; refresh its actual
+selected-store/native/tooling fit after G assessment. D/F/whole30 remain held.
+
+One Python behavior extension only: permit normal `freeze --reuse-completed-from`
+without `--stage` when the source is the accepted first-100k-seed-exploratory
+root. Extend `collect_reuse` through that seed→branch→base chain to six strict
+original references. Keep stage-specific requirements, qualification/equivalence
+checks, original source/UUID/paths/timestamps and unchanged native artifacts.
+No copying, retagging, qualified-case replay, Rust change, new stage/subset flag,
+forecast exception or hard-cap change. Current freeze couples reuse to a stage
+and current collector rejects the seed root; these are the exact bounded seams.
+
+The existing fixed84 controller then skips completed references in their original
+positions and assesses every remaining obligation in its existing order:
+
+| Next normal-plan order | Prospective disposition, not an actual result |
+| --- | --- |
+| `g-r-n100000-r0` | May run using the qualified100k seed. Preserve engine→SDK/text→hybrid→embed,6000timed/3000warmup/6first calls and same-store sequential close/reopen. |
+| `g-r-n100000-r1` | Remains `fresh_seed=true`:2x max(actual elapsed,cumulative charged seed)=1315.871925088s>900s, so forecast cap refusal. No R0 borrowing, smaller or nonfresh replacement. |
+| Four G-O natural cells | May run on that100k subject: r0 off→on, then r1 on→off; first50 queries/route/adapter,0warmups/no first call. Keep ordinary/natural1s GPU cadence and diagnostic-only statistics. |
+| All72 G-W cells | Required fresh-seed work remains. Existing whole-cell2x seed alone exceeds900s; missing qualified R1 read costs also refuse. No waiver or native dispatch by inference. |
+
+Five potentially runnable/73 cap refusals is a forecast only; actual controller
+assessment, remaining time/storage, errors and strict GPU qualification decide
+outcomes. All84 rows remain visible, expected incomplete exit1 is preserved, and
+no cell retries or D/M chaining occur. The consumed exploratory token and original
+failed2x forecasts remain. Start from shared1030482596607ns/`inflight:null`,
+retained1540312679B, both900s hard limits (including prior per-cell charges and
+new preparation), unchanged shared14400s/16GiB. No renewal or disposal is inferred.
+
+Queued normal entry after design PASS, genuine RED/GREEN, fresh implementation
+review/full source qualification and separate technical GO, using the same owned
+environment/variables and persistent exact-UUID FD9 claim through quiescence:
+
+```bash
+ASSESS="$S30_TASK/gd-allocation/g-frozen-g-assessment-v5"
+.venv/bin/python "$G_DIR/g_runner.py" freeze --reuse-completed-from "$SEED" --out "$ASSESS" \
+  --corpus "$S30_TASK/inputs/corpus.jsonl" --queries "$S30_TASK/inputs/queries.jsonl" \
+  --license "$S30_TASK/inputs/LICENSE.txt" --allocation "$S30_TASK/gd-allocation" \
+  --ordinary "$G_TOOLS/slice30-measure-ordinary" --diagnostic "$G_TOOLS/slice30-measure-diagnostic" \
+  --build-receipt "$G_TOOLS/build-receipt.json" \
+  --model-cache "$HF_HOME/hub/models--BAAI--bge-small-en-v1.5/snapshots/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a" \
+  --gpu-uuid "$CUDA_VISIBLE_DEVICES" --gpu-ordinal 0
+AGENT_LONG=1 .venv/bin/python "$G_DIR/g_phase.py" g-assessment-v5 \
+  .venv/bin/python "$G_DIR/g_runner.py" run "$ASSESS"
+```
+
+One behavior-specific callable runtime RED must show the current normal entry
+refusing the valid accepted seed-reference chain (recognized existing flags,
+not missing-helper/import/compile failure). Minimal GREEN permits that chain;
+real harmless-child schedule/resume controls must prove six references never
+redispatch, all84 remain ordered, R1 stays fresh/cap-refused, prior charges/token
+persist and ordinary rules remain. Existing60 controls/oracles stay unchanged;
+no tamper/hash-inventory tests. No implementation, test or runtime ran for this
+plan update. Normal assessment ends after G; even qualified100k input does not
+clear M, D, fidelity, wholeG/30 or downstream release gates.
 
 ## D extension — exact required work, separate source gate
 

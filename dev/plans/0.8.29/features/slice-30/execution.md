@@ -1475,7 +1475,8 @@ cooperative claim was released and native window returned. No wholeG/M/30 claim.
 
 The [November14 continuation proposal](continuation-gd.md#november14-proposed-staged-g-continuation)
 received independent Astra design PASS. Its Python implementation retains both
-900s hard caps and the original native artifacts; actual runtime remains held.
+900s hard caps and the original native artifacts. Its qualification preceded
+the separately authorized two accepted stages below.
 
 | Behavior | Actual committed RED → separate GREEN |
 | --- | --- |
@@ -1505,5 +1506,37 @@ stop/cleanup uncertainty, empty owned survivors and exact private-boundary
 populated0/removal. Guardian/gate actors and that boundary were independently
 absent in the original executor context; the marker is absent. Original shared
 charge357099039661ns/`inflight:null` and raw remain unchanged. These controls and
-source qualification establish no new100k or GPU evidence; both actual stages
-remain held pending parent acceptance and separate fresh technical GO.
+source qualification alone established no new100k or GPU evidence; the two
+subsequently authorized actual stages are recorded below.
+
+## Accepted branch and exploratory100k stages atd9b8
+
+Fresh independent Astra ACCEPT covers both actual stages at clean
+`d9b81334b8bc2c0476fe4438673f1361e3c46504`, using the original binaries/native
+receipt without rebuild or retagging. Original60f/UUID5e89 four-case references
+and all earlier failed G0/branch/cap evidence remain in place.
+
+| Actual root under `gd-allocation/` | Original UUID | New result and costs |
+| --- | --- | --- |
+| `g-frozen-branch-v3` |9559b132-3939-4cc2-8b17-b51187cb7f6a |15 native steps qualified,59 strict GPU-positive samples;14612571089ns elapsed/15450495708ns charged.4 reused/1new complete/79held; shared372549535369ns. |
+| `g-frozen-seed100k-v4` |eb4da153-0185-4335-a41c-38f8a8c12af5 |SDK100k qualified,597/612 strict GPU-positive samples;657095755807ns elapsed/657933061238ns charged.5 reused/1new complete/78held; shared1030482596607ns. |
+
+The seed committed100 batches of1000; before close and after reopen it reports
+Ready/pending0/generation-failed0 and100000 natural/vector/physical/span rows.
+Its closed `results/g1-n100000/attempt-0001/seed/store.sqlite` is715223040B;
+attempt retention730417530B and total allocation1540312679B. Actual stored spans
+are83644full/16356partial/0unknown; dense closure is not full-body coverage.
+Driver wall is656440143910ns. The original2x1306.635944940s refusal remains
+failed; linear653.317972470s was only the recorded exploratory hypothesis.
+The seed token is consumed; cumulative seed allowance used is657935962544ns,
+including its prior2901306ns. Shared1030482596607ns/`inflight:null`, all prior
+charges/raw and both900s hard caps remain unchanged.
+
+Both stages report `stage_complete=true`, `campaign_complete=false`; normal
+exit1 reflects held obligations. Exact private boundaries reached populated0
+and were removed; original-context actors/markers were absent, no resource stop
+or cleanup uncertainty occurred, selected3090 was quiet and each FD9 claim was
+released only after verified quiescence. Phase logs/receipts are `g-branch-v3`
+and `g-seed100k-v4`. M now has a qualified CLOSED100k input, without M source/
+runtime or wholeG/30 clearance. The next normal fixed84 assessment remains
+[plan-only](continuation-gd.md#proposed-normal-fixed84-assessment).

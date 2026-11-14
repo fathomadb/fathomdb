@@ -100,5 +100,32 @@ class TypedErrorTests(NativeCase):
                 self.assertTrue(client.exit["readers_joined"])
 
 
+class FetchTests(NativeCase):
+    """Actual fetch preserves UTF8 byte frames, duplicate order and item errors."""
+
+    def test_actual_fetch_retains_exact_body_and_each_ordered_outcome(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with RpcChild([str(self.cli), "--config", str(self.config(result_format))],
+                              self.root / result_format) as client:
+                    self.initialize(client)
+                    result = self.call(client, "fetch", {"refs": ["l:alpha", "l:missing", "l:alpha"]})
+                    items = result["payload"].get("items", [])
+                    self.assertEqual(len(items), 3,
+                                     f"actual fetch frames were lost: {result}; retained={self.root}")
+                    self.assertEqual([item["ref"] for item in items],
+                                     ["l:alpha", "l:missing", "l:alpha"])
+                    self.assertEqual(items[0]["record"],
+                                     {"kind": "note", "body": "alpha river crossing\né😀",
+                                      "body_cut": False})
+                    self.assertEqual(items[2], items[0])
+                    self.assertEqual(items[1]["error"]["class"], "not_found")
+                    self.assertEqual(items[1]["error"]["code"], "not_found")
+                    self.assertIn("remedy", items[1]["error"])
+                    self.assertTrue(result["ok"])
+                self.assertEqual(client.exit["code"], 0)
+                self.assertTrue(client.exit["readers_joined"])
+
+
 if __name__ == "__main__":
     unittest.main()

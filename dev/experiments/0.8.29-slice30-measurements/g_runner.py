@@ -421,12 +421,17 @@ def main():
     elif args.action == "report":
         from g_campaign import active_bytes
         from g_report import summarize
-        value = summarize(args.root)
-        payload = json.dumps(value, indent=2) + "\n"
-        allocation = Path(value["manifest"]["allocation"])
-        if active_bytes(allocation) + len(payload.encode()) > 16 * 1024**3:
-            raise RuntimeError("retained cap cannot hold a new summary; raw obligations remain retained")
-        (args.root / "summary-g.json").write_text(payload)
+        bootstrap = json.loads((args.root / "manifest.json").read_text())
+        if bootstrap.get("preparation") == "closed-copy-v1":
+            from g_closed_entry import report_entry
+            value = report_entry(args.root)
+        else:
+            value = summarize(args.root)
+            payload = json.dumps(value, indent=2) + "\n"
+            allocation = Path(value["manifest"]["allocation"])
+            if active_bytes(allocation) + len(payload.encode()) > 16 * 1024**3:
+                raise RuntimeError("retained cap cannot hold a new summary; raw obligations remain retained")
+            (args.root / "summary-g.json").write_text(payload)
         print(json.dumps({"cells":len(value["cells"]),"complete":value["complete"]}))
         if not value["complete"]:
             raise SystemExit(1)

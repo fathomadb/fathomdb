@@ -354,3 +354,27 @@ known represented-byte totals. Unknown ends remain null; span counts alone make
 no full-body claim. The real-store scalar-head Unicode control uses a test
 provider and does not qualify Default384/GPU behavior. This reporting does not
 change projection storage or impose a new partial-coverage acceptance threshold.
+
+
+## CLOSED-copy source candidate
+
+The existing G entry now supports `--preparation closed-copy-v1` with fixed
+`closed-copy-calibration`, `closed-copy-read-r1` and `closed-copy-write-matrix`
+modes. Each stops before another mode; all84 primary obligations remain visible,
+calibration is separate and exact original references are never redispatched.
+`--calibration-from` binds qualified records; `--cost-review-from` binds the
+reviewed write table/profile. Freeze records the prerequisite; supervised run
+recomputes actual costs and refuses unavailable/changed admission. These source
+interfaces grant no measurement or prospective-cap authority.
+
+| Tools | Contract |
+| --- | --- |
+| [g_closed_entry.py](g_closed_entry.py), [g_closed_common.py](g_closed_common.py), [g_closed_guard.py](g_closed_guard.py), [g_common_storage.py](g_common_storage.py) | Supervise and charge common freeze/preflight/report/guardian work, including retained metadata and interrupted active cells; unknown cleanup blocks entry. |
+| [g_closed_copy.py](g_closed_copy.py), [g_admission.py](g_admission.py) | Supervised fresh CLOSED copies and validation before native calls; public cell/common workers require live matching owned controller/boundary and exact admitted config/deadline. |
+| [g_closed_costs.py](g_closed_costs.py), [g_closed_forecast.py](g_closed_forecast.py), [g_closed_matrix.py](g_closed_matrix.py) | Match actual qualified calibration/R0/R1 costs, retain original refusals and conservative2x forecasts, and bind the complete reviewed G table with explicit held D/M unknowns. |
+| [g_closed_limits.py](g_closed_limits.py), [g_closed_review.py](g_closed_review.py) | Validate prospective-only named G profile/table; preserve old11 and qualified R1 subject identities, prior charges/token and unchanged native artifacts. |
+
+Portable source controls remain under `test_g*.py`; selected actual cgroup
+controls use the explicit live route above. Tiny real SQLite/harmless children
+are source protocol evidence, never Default/GPU qualification. Current scoped
+results and original failures are retained in the existing execution record.

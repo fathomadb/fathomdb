@@ -721,9 +721,9 @@ storage allowance; otherwise refuse it honestly, not increase its cap implicitly
 
 ### One coherent source phase, then separate runtime decisions
 
-Proposed future CLI adds `--preparation closed-copy-v1` and three closed stage
+The source candidate adds `--preparation closed-copy-v1` and three closed stage
 values: `closed-copy-calibration`, `closed-copy-read-r1`, `closed-copy-write-matrix`.
-They do not exist yet. `--calibration-from` binds actual calibration; write-matrix
+Implementation review, final canonical qualification and each runtime GO remain held. `--calibration-from` binds actual calibration; write-matrix
 also requires `--cost-review-from` identifying its recorded reviewed frozen
 prerequisite. Calibration references accepted `g-frozen-g-assessment-v5`; R1-only
 references the same11 original primary cases; write-matrix additionally references
@@ -737,7 +737,8 @@ in one source phase; no code edit merely to advance between modes.
 
 Implement/test the complete preparation, cadence, cost/limit policy and reuse
 semantics before one final source gate: genuine callable runtime RED→GREEN for
-supervised stalled copy/validation and charge, bounded common reserve, fixed
+new accounting/admission behavior, with specific stalled copy/validation proved
+as inherited-supervision preservation rather than fabricated RED; bounded common reserve, fixed
 calibration stop and mandatory R1→review→write boundary,
 prospective1500s deadline/prior-use handling, calibrated forecasting and exact
 original-reference reuse. Real tiny stores/harmless children prove no mutation

@@ -352,6 +352,9 @@ def main():
     from g_campaign import STAGES
     freeze_parser.add_argument("--stage", choices=tuple(STAGES))
     freeze_parser.add_argument("--reuse-completed-from", type=Path)
+    freeze_parser.add_argument("--preparation", choices=("closed-copy-v1",))
+    freeze_parser.add_argument("--calibration-from", type=Path)
+    freeze_parser.add_argument("--cost-review-from", type=Path)
     freeze_parser.add_argument("--gpu-uuid", required=True)
     freeze_parser.add_argument("--gpu-ordinal", type=int, required=True)
     run = commands.add_parser("run")
@@ -363,13 +366,21 @@ def main():
     job.add_argument("deadline", type=int)
     job.add_argument("config", type=Path)
     job.add_argument("output", type=Path)
+    common = commands.add_parser("_common")
+    common.add_argument("job", type=Path)
+    common.add_argument("config", type=Path)
+    common.add_argument("output", type=Path)
     args = parser.parse_args()
     if args.action == "build":
         from g_freeze import build_tools
         build_tools(args.out)
     elif args.action == "freeze":
         from g_freeze import freeze
-        manifest = freeze(vars(args))
+        if args.preparation == "closed-copy-v1":
+            from g_closed_entry import freeze_entry
+            manifest = freeze_entry(vars(args))
+        else:
+            manifest = freeze(vars(args))
         print(json.dumps({"campaign_uuid":manifest["campaign_uuid"],"source_sha":manifest["source_sha"],"root":manifest["root"]}))
     elif args.action == "run":
         if os.environ.get("AGENT_LONG") != "1":
@@ -390,6 +401,9 @@ def main():
         print(json.dumps({"cells":len(value["cells"]),"complete":value["complete"]}))
         if not value["complete"]:
             raise SystemExit(1)
+    elif args.action == "_common":
+        from g_closed_entry import common_worker
+        common_worker(args.job, args.output)
     elif not run_cell_job(args.manifest, args.deadline, args.config, args.output):
         raise SystemExit(1)
 

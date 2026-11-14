@@ -42,3 +42,8 @@ def forecast_closed_write(cell, observed, remaining_ns, retained_bytes, legacy):
             "total_ns": total_ns, "new_bytes": new_bytes, "cohorts": cohorts,
             "replacement_rows": rows, "observed": observed, "legacy_forecast": legacy,
             "method": "closed-copy-v1: exact baseline bytes;2x matched100k copy/validation,route,write,probe,readiness,remainder,growth/raw bounds; observer tail may overlap remainder, conservatively counted again; not exclusive GPU attribution"}
+
+
+def forecast_closed_read(cell, observed, costs, remaining_ns, retained_bytes, legacy_seed_ns):
+    """Forecast the required reversed R1 read on a new physical copy, never a measured R1 result."""
+    return {"allowed": False, "reason": "calibration_cost_unavailable"}

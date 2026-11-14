@@ -129,7 +129,11 @@ def execute_stage(cell, manifest, attempt, deadline_ns):
         queries.write_text('"needle"\n')
         common.update(corpus=str(corpus), queries=str(queries))
     steps = []
-    if cell["kind"] == "seed" or cell.get("fresh_seed"):
+    preparation = None
+    if cell.get("fresh_copy"):
+        from g_closed_copy import copy_subject
+        store, preparation = copy_subject(manifest["closed_subject"], attempt / "subject/store.sqlite", deadline_ns)
+    elif cell["kind"] == "seed" or cell.get("fresh_seed"):
         seed_output = attempt / "seed"
         adapter = cell.get("adapter") or cell["adapters"][0]
         seed_config = dict(common, family="G-seed", adapter=adapter)
@@ -151,4 +155,7 @@ def execute_stage(cell, manifest, attempt, deadline_ns):
     config = dict(common, family=family, store=store)
     output = attempt / ("write" if cell["stage"] == "G-W" else "read")
     steps.append(run_program_step(manifest["command"], config, output, deadline_ns, observe=manifest.get("_observe_native")))
-    return {"complete": all(step["complete"] for step in steps), "steps": steps}
+    result = {"complete": all(step["complete"] for step in steps), "steps": steps}
+    if preparation is not None:
+        result["preparation"] = preparation
+    return result

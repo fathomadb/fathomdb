@@ -276,7 +276,17 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             budget["exploratory_seed100k"] = {"consumed": True, "cell": cell["id"],
                                 "root": str(root), "consumed_at_ns": time.time_ns(), "prediction": prediction}
                             save_budget()
+                        peak_retained = peak_store = 0
+                        def observe_growth():
+                            nonlocal peak_retained, peak_store
+                            directory = root / cell["id"]
+                            peak_retained = max(peak_retained, active_bytes(directory))
+                            physical = sum(path.stat().st_size for path in directory.rglob("store.sqlite*")
+                                           if path.is_file() and path.name in ("store.sqlite", "store.sqlite-wal", "store.sqlite-shm"))
+                            peak_store = max(peak_store, physical)
                         def monitor(_pid):
+                            if spec.get("preparation") == "closed-copy-v1":
+                                observe_growth()
                             now_elapsed = time.monotonic_ns() - started
                             if cell.get("calibration") and active_bytes(root / cell["id"]) >= CALIBRATION_CELL_BYTES:
                                 return "calibration_cell_storage_exhausted"
@@ -289,6 +299,11 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             return None
                         work_stopped = False
                         outcome = run_g_attempt(cell, root, command, deadline, context=context, monitor=monitor)
+                        if spec.get("preparation") == "closed-copy-v1":
+                            observe_growth()
+                            outcome.update(peak_retained_bytes=peak_retained, peak_store_bytes=peak_store,
+                                           peak_scope="observed at controller polls/exit; unsampled peaks are not claimed")
+                            Path(outcome["attempt"], "controller-outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
                         work_stopped = not outcome.get("cleanup_uncertain", True)
                 outcomes.append(outcome)
                 (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")

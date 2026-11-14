@@ -90,6 +90,8 @@ def run_case(case, session, control):
         return _queue_full(session, control)
     if case == "queued_cancel":
         return _queued_cancel(session, control)
+    if case == "wait_deadline":
+        return _wait_deadline(session, control)
     return session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
 
 
@@ -177,3 +179,18 @@ def _queued_cancel(session, control):
         "before_cancel_stage": before_stage, "after_cancel_stage": after_stage,
         "complete": terminal_ok and all(session.records[item].get("ok") is True
                                         for item in requests if item != target)})
+
+
+def _wait_deadline(session, control):
+    requests = _hold_four(session, control)
+    try:
+        result = session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
+        before = control.wait_held(4)["held_calls"]
+    finally:
+        control.send("release_all")
+        _drain(session, requests)
+    after = control.wait_held(0)["held_calls"]
+    return dict(result, diagnostic={"case": "wait_deadline", "held_before_release": before,
+        "held_after_release": after,
+        "complete": result.get("error") == "busy/admission/deadline"
+                    and all(session.records[item].get("ok") is True for item in requests)})

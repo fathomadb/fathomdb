@@ -96,6 +96,38 @@ def _compact(text):
         return {"error": _error(text[len("error "):])}
     if text.startswith("fetch "):
         return _fetch(text)
+    if text.startswith("orient "):
+        lines = text.split("\n")
+        payload, _ = _fields(lines[0][len("orient "):])
+        payload["budget"] = _budget(payload)
+        payload.update(projections=[], projection_status={"projections": []}, degradation=[])
+        for line in lines[1:]:
+            if line.startswith("projection "):
+                name, size = json.JSONDecoder().raw_decode(line[len("projection "):])
+                fields, _ = _fields(line[len("projection ") + size:])
+                if "roles" in fields:
+                    payload["projections"].append({"name": name, "roles": fields["roles"].split(","),
+                                                   "fts": fields["fts"], "vector": fields["vector"]})
+                if "dense" in fields:
+                    payload["projection_status"]["projections"].append(
+                        {"name": name, "dense_readiness": fields["dense"]})
+            elif line.startswith("embedding: "):
+                fields, _ = _fields(line[len("embedding: "):])
+                fields["pending_count"] = fields.pop("pending")
+                payload["embedding_readiness"] = fields
+            elif line.startswith("runtime_embedder: "):
+                fields, _ = _fields(line[len("runtime_embedder: "):])
+                payload["projection_status"].update(runtime_embedder_available=fields["available"],
+                    runtime_unavailability_reason=fields["reason"])
+            elif line.startswith("vector_unsupported_kinds="):
+                fields, _ = _fields(line)
+                payload["projection_status"].update(fields)
+            elif line.startswith("degraded: "):
+                arm, reason = line[len("degraded: "):].split(" ", 1)
+                payload["degradation"].append({"arm": arm, "reason": reason})
+            else:
+                raise ValueError(f"unrecognized compact orient line: {line!r}")
+        return payload
     if text.startswith("stores: "):
         lines = text.split("\n")
         expected = int(lines[0][len("stores: "):])

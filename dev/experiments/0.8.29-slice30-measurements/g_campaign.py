@@ -116,6 +116,9 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
     """Run every fixed G obligation against one shared allocation and absolute cell clock."""
     plan = make_g_plan(spec)
     target = stage_target(stage)
+    if spec.get("preparation") == "closed-copy-v1" and spec.get("closed_mode") == "closed-copy-read-r1":
+        target = "g-r-n100000-r1"
+        stage = spec["closed_mode"]
     root = Path(root)
     allocation = Path(allocation_root) if allocation_root is not None else root
     root.mkdir(parents=True, exist_ok=True)

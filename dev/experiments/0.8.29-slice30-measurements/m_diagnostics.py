@@ -96,7 +96,9 @@ def run_case(case, session, control):
         return _running_cancel(session, control)
     if case == "run_limit":
         return _run_limit(session, control)
-    return session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
+    if case == "open_deadline":
+        return _open_deadline(session, control)
+    raise ValueError("unknown M helper diagnostic case")
 
 
 def _submit_search(session, token=None):
@@ -255,3 +257,34 @@ def _run_limit(session, control):
         "complete": busy.get("abandoned") == 4 and busy.get("in_flight") == 4
                     and all(session.records[item].get("error") == "timeout/deadline" for item in requests)
                     and all(session.records[item].get("ok") is True for item in recovery)})
+
+
+def _open_deadline(session, control):
+    control.send("block_open")
+    target = _submit_search(session, "open-target")
+    try:
+        stage = _progress(session, lambda params: params.get("progressToken") == "open-target"
+                          and params.get("message") == "store opening")
+        opening = session.tool("list_stores", {})
+        session.wait(target)
+        before = control.wait_held(0)["held_calls"]
+    finally:
+        control.send("release_all")
+        _drain(session, [target])
+    until = time.monotonic() + 5
+    while True:
+        listing = session.tool("list_stores", {})
+        ready = any(row["name"] == "a" and row["readiness"] == "ready"
+                    for row in listing.get("payload", {}).get("stores", []))
+        if ready:
+            break
+        if time.monotonic() >= until:
+            raise TimeoutError("released helper open did not become ready")
+        time.sleep(0.01)
+    recovered = session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
+    after = control.wait_held(0)["held_calls"]
+    result = session.records[target]
+    return dict(result, diagnostic={"case": "open_deadline", "opening": opening,
+        "opening_stage": stage, "ready": listing, "recovered": recovered,
+        "held_before_release": before, "held_after_release": after,
+        "complete": result.get("error") == "not_ready/opening" and recovered["ok"]})

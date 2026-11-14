@@ -416,8 +416,33 @@ operator,test-hooks --lib` exit0/13.79s,175passed/0failed/0ignored. Raw files ar
 Both new child cases and all four original startup/timeout/visibility/opener
 selectors actually executed in that Linux suite. No model/GPU/VM payload ran.
 
-Fresh independent implementation/results review and the required once-only final
-clean source full gate remain pending at this checkpoint. Current Windows
-readiness/format/reattachment holds remain in [plan](plan.md); no live resource
-policy was changed. Actual Windows A6, whole20 and Block1 remain open. Linux
-qualification and this record cannot substitute for actual Windows results.
+Fresh independent Astra implementation review ACCEPTs clean
+dffea9dcd80b4a5ab6a622b60892e0bb11663c7c with no findings. Its original
+canonical `scripts/agent-verify.sh` completed all220 registrations in3411.32s:
+218passed,2failed,0skipped,0excluded; wrapper exit1. Lint, typecheck, strict
+security and native suites passed. The failures are release-baseline ancestry
+(test-preflight-release-state,1/11) after reviewed metadata advanced to
+2a6401da02123ddc0016023a4bd8e747ef3717da, and the root source-inventory blob
+pin (test-slice90-root-reconciliation,1/8) after the new cfg(test) module.
+Original raw logs remain `final-full-gate.log` and their retained spills; the
+original PID/PGID687086 and its owned descendants exited.
+
+After terminal quiescence, the reviewed parent metadata was merged into this
+isolated checkout and the existing source inventory refreshed. Only these two
+failed guards and scoped documentation/state checks resume; no full-gate replay
+or source/test-oracle change is authorized by those metadata failures. The
+owned Python3.12.3 noneditable native receipt remains attributed to actual
+build subject dffea9dcd80b4a5ab6a622b60892e0bb11663c7c; metadata composition
+does not retag that artifact. The two targeted resumptions pass unchanged:
+preflight11/11 in0.71s and root reconciliation8/8 in10.43s, with raw logs
+`resumed-preflight-release-state.log` and
+`resumed-slice90-root-reconciliation.log`. Scoped Markdown and release-state
+validation pass. Reviewed source, scripts, Cargo inputs and test oracles are
+byte-identical to dff; the composed checkout descends from reviewed2a640.
+All220 registered suites therefore have passing results across the original
+run and these two metadata-only resumptions. This is assembled qualification;
+the original full wrapper remains exit1 with both raw failures preserved.
+
+Current Windows readiness/format/reattachment holds remain in [plan](plan.md);
+no live resource policy was changed. Actual Windows A6, whole20 and Block1
+remain open. Linux qualification cannot substitute for actual Windows results.

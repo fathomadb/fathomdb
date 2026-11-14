@@ -1398,3 +1398,38 @@ engagement. All16 G0 calls per route/adapter,84 cells, strict evidence predicate
 deadlines, cleanup and shared caps remain unchanged. Independent implementation
 review and a separately authorized fresh actual G0 proof still precede runtime
 qualification. The first failed run remains failed; D/M/F/whole30 holds remain.
+
+## Composed-session containment correction
+
+Parent420171c89 integrates the reviewed M proposal and accepted single hints
+resumption. The unchanged973b full wrapper remains219/220, with its original
+209.8us hints failure and accepted retained-artifact1/1 follow-up both preserved;
+no numerical headroom or noise cause was established. No benchmark replay or
+native rebuild follows. Compiler inputs remain d644d89f…3114; first failed G0,
+all84 outcomes and shared11157694114ns charge remain unchanged.
+
+Astra identified the outer-group/separate-cell-session P1. One explicitly
+approved capability probe proved private cgroup attachment/kill/populated0/removal
+and direct-libc pidfds. Runtime RED2b4509032 exposed actual surviving work after
+default TERM, forced escalation and normal exit, plus controlled create/attach
+refusal failures. GREEN7ea29fc45 passes those5 frozen controls and2 existing phase
+controls using held private cgroup controls; no parent/global changes or fallback.
+
+Initial84477 durable-entry runs stopped before their policy oracles: text
+tracebacks could not write to the binary log. Those setup failures remain
+unqualified. Separate real reporting REDcc133e262 and one-line GREEN2b33ba7e6
+retain the original controlled error and terminal receipt. Original entry tests
+stay unchanged: their later RED proves actual following-guard dispatch and
+missing normal-entry refusal classification. Additional RED9b75f9f99 separately
+proves actual harmless-child dispatch from normal entry with retained unknown
+cleanup and cleared shared inflight; synthetic prerequisites are policy controls,
+never model/GPU evidence.
+
+Current durable-state correction passes3 focused entry oracles and48 combined
+G Python controls, with all4 RED testfiles unchanged and Ruff passing. Exclusive
+state ownership prevents overwrite; normal entry permits only a known live own
+boundary and rejects retained unknown/stale state before dispatch. Population
+uncertainty retains the exact private path/identity; it is not automatically
+removed or bypassed. All fixed resource/grace/kill/quiescence bounds remain.
+Independent implementation review and root-scheduled final qualification remain
+pending. No new full wrapper, Default/GPU continuation or D/M/Q1 run occurred.

@@ -7,6 +7,34 @@ import time
 import uuid
 
 
+def require_known_containment(task):
+    """Refuse retained unknown/stale state; a live owning boundary permits its own runner only."""
+    state_path = Path(task) / "g-containment-state.json"
+    try:
+        value = state_path.read_text()
+    except FileNotFoundError:
+        if not state_path.is_symlink():
+            return
+        raise RuntimeError("G containment marker is unavailable; redispatch refused") from None
+    try:
+        state = json.loads(value)
+        if state["schema"] != "slice30-g-containment/v1" or state["status"] != "active":
+            raise RuntimeError("retained containment is not active")
+        fields = Path(f"/proc/{state['guardian_pid']}/stat").read_text().rsplit(") ", 1)[1].split()
+        if fields[0] in ("Z", "X") or int(fields[19]) != state["guardian_start"]:
+            raise RuntimeError("containment guardian identity is stale")
+        relative = next(line.split(":", 2)[2] for line in Path("/proc/self/cgroup").read_text().splitlines()
+                        if line.startswith("0:"))
+        expected = state["relative_path"]
+        if relative != expected and not relative.startswith(expected + "/"):
+            raise RuntimeError("caller is outside the active private containment")
+        identity = Path(state["path"]).stat()
+        if (identity.st_dev, identity.st_ino) != (state["identity"]["device"], state["identity"]["inode"]):
+            raise RuntimeError("private containment identity changed")
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError, StopIteration) as error:
+        raise RuntimeError("G containment is unknown or unavailable; redispatch refused") from error
+
+
 class TaskBoundary:
     """Hold exact private controls; unsupported or unknown containment fails closed."""
 
@@ -15,12 +43,15 @@ class TaskBoundary:
         self.name = "fathomdb-s30-g-" + uuid.uuid4().hex
         self.parent_fd = self.directory_fd = self.procs_fd = self.kill_fd = self.events_fd = None
         self.created = False
+        self.owns_state = False
         fields = Path('/proc/self/stat').read_text().rsplit(') ', 1)[1].split()
         self.evidence = dict(schema="slice30-g-containment/v1", status="preparing",
                              guardian_pid=os.getpid(), guardian_start=int(fields[19]), name=self.name)
 
     def publish(self):
-        self.state_path.write_text(json.dumps(self.evidence, indent=2) + "\n")
+        with self.state_path.open("w" if self.owns_state else "x") as stream:
+            self.owns_state = True
+            stream.write(json.dumps(self.evidence, indent=2) + "\n")
 
     def create(self):
         relative = next(line.split(":", 2)[2] for line in Path("/proc/self/cgroup").read_text().splitlines()
@@ -78,13 +109,16 @@ class TaskBoundary:
                 self.evidence["populated_after"] = False
                 os.rmdir(self.name, dir_fd=self.parent_fd)
                 self.evidence["removed_exact_empty_boundary"] = True
-            self.evidence["status"] = "quiescent"
-            self.state_path.unlink(missing_ok=True)
-        except BaseException as error:
-            self.evidence.update(status="unknown", error=f"{type(error).__name__}: {error}")
-            self.publish()
-            raise
-        finally:
-            for descriptor in (self.events_fd, self.kill_fd, self.procs_fd, self.directory_fd, self.parent_fd):
+            for attribute in ("events_fd", "kill_fd", "procs_fd", "directory_fd", "parent_fd"):
+                descriptor = getattr(self, attribute)
                 if descriptor is not None:
                     os.close(descriptor)
+                    setattr(self, attribute, None)
+            self.evidence["status"] = "quiescent"
+            if self.owns_state:
+                self.state_path.unlink()
+        except BaseException as error:
+            self.evidence.update(status="unknown", error=f"{type(error).__name__}: {error}")
+            if self.owns_state:
+                self.publish()
+            raise

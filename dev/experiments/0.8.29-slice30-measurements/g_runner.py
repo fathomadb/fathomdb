@@ -240,6 +240,8 @@ def run_frozen(root):
     """Run only the frozen clean candidate, charging preflight to the same shared allocation."""
     from g_freeze import git, validate_frozen
     from g_gpu import inspect_gpu
+    from g_boundary import require_known_containment
+    require_known_containment(os.environ["S30_TASK"])
     root = Path(root).resolve()
     preliminary = json.loads((root / "manifest.json").read_text())
     if preliminary.get("schema") != "slice30-g-campaign/v1" or preliminary["source_sha"] != git("rev-parse", "HEAD") or git("status", "--porcelain"):

@@ -12,6 +12,7 @@ from g_attempt import live_owned_pids, stop_owned_group, unreaped_exit
 from g_boundary import TaskBoundary
 from g_campaign import active_bytes
 from g_resource import resource_sample
+from m_load import observe_load, summarize_load
 
 
 def write_budget(path, value):
@@ -116,6 +117,10 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             raise RuntimeError("shared cleanup reserve unavailable")
         source = Path(__file__).resolve().parents[3]
         sample = resource_sample(source, task)
+        load_observations = [observe_load()]
+        sample["load"] = load_observations[-1]
+        if load_observations[-1]["load"] > 2:
+            raise RuntimeError(f"M load entry exceeds2: observed {load_observations[-1]['load']}")
         gib = 1024**3
         if (sample["root_free"] < 32 * gib or sample["task_free"] < 250 * gib
                 or sample["memory_available"] < 16 * gib or sample["owned"] >= 200 * gib
@@ -173,6 +178,8 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                         break
                     if now - last_sample >= 30 * 10**9:
                         sample = resource_sample(source, task)
+                        load_observations.append(observe_load())
+                        sample["load"] = load_observations[-1]
                         receipt["resources"].append(sample)
                         vm = dict(line.split() for line in Path("/proc/vmstat").read_text().splitlines())
                         swap = int(vm["pswpin"]) + int(vm["pswpout"])
@@ -204,9 +211,13 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                 receipt["stopped_monotonic_ns"] = time.monotonic_ns()
                 receipt["boundary"] = boundary.evidence
         try:
-            receipt.setdefault("resources", []).append(resource_sample(source, task))
+            final = resource_sample(source, task)
+            load_observations.append(observe_load())
+            final["load"] = load_observations[-1]
+            receipt.setdefault("resources", []).append(final)
         except Exception as error:
             receipt.update(exit=124, final_resource_error=str(error))
+        receipt["load"] = summarize_load(load_observations)
         receipt["accounting"] = accounting.finish(uncertain=receipt["cleanup_uncertain"],
                                                   stopped_ns=receipt["stopped_monotonic_ns"])
         (phase / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")

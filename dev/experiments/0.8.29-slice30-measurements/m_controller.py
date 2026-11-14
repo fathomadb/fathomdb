@@ -8,6 +8,7 @@ from campaign import run_campaign
 from g_campaign import active_bytes
 from m_attempt import CLEANUP_RESERVE_NS, run_attempt
 from m_guard import write_budget
+from m_load import observe_load, summarize_load
 
 
 COMPONENTS = ("copy", "packaging", "open", "first", "warmups", "timed", "logging",
@@ -125,6 +126,12 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
             for held in pending:
                 results[held["id"]] = _held(held, reason)
             break
+        load_observations = [observe_load()]
+        if load_observations[-1]["load"] > 2:
+            for held in pending:
+                results[held["id"]] = _held(held, "quiet load<=2 cell entry unavailable")
+            results[cell["id"]]["load"] = summarize_load(load_observations)
+            break
         prior = ledger.setdefault("cell_used_ns", {}).get(cell["id"], 0)
         deadline = min(started + profile["whole_cell_ns"] - prior,
                        started + total_ns - ledger["used_ns"])
@@ -133,11 +140,15 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
         write_budget(ledger_path, ledger)
 
         def monitor():
+            load_observations.append(observe_load())
             return ("shared retained storage exhausted"
                     if active_bytes(allocation) > total_bytes else None)
 
         outcome = run_attempt(cell, root, command, deadline_ns=deadline, prepare=prepare,
                               authorize=authorize, monitor=monitor, register=register)
+        load_observations.append(observe_load())
+        outcome["load"] = summarize_load(load_observations)
+        (Path(outcome["attempt"]) / "load.json").write_text(json.dumps(outcome["load"], indent=2) + "\n")
         elapsed = time.monotonic_ns() - started
         ledger = json.loads(ledger_path.read_text())
         ledger["used_ns"] += elapsed

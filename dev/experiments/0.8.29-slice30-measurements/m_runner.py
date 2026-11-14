@@ -194,12 +194,18 @@ def report(root):
             result = path.with_name("result.json")
             if result.exists():
                 attempt["result"] = json.loads(result.read_text())
+            load = path.with_name("load.json")
+            if load.exists():
+                attempt["load"] = json.loads(load.read_text())
             history.append(attempt)
         row["attempts"] = history
         rows.append(row)
     value = {"schema": "slice30-m-report/v1", "freeze_uuid": manifest["uuid"],
              "source_sha": manifest["source_sha"], "complete": all(row["complete"] for row in rows),
              "rows": rows, "verdict": None, "calibrated_threshold": None}
+    value["phase_load"] = [{"receipt": str(path), "load": json.loads(path.read_text()).get("load")}
+                           for path in sorted((root / "guardians").glob("*/guardian.json"))]
+    value["phase_load_scope"] = "completed guardian phases before this report"
     destination = root / "reports"
     destination.mkdir(exist_ok=True)
     (destination / f"report-{time.time_ns()}.json").write_text(json.dumps(value, indent=2) + "\n")

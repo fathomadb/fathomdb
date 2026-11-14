@@ -6,6 +6,7 @@ import time
 from m_report import summarize_invocations
 from m_diagnostics import PrivateControl, run_case
 from m_lifecycle import alternating, first_calls, idle_cycle
+from m_load import observe_load, summarize_load
 from m_schedule import closed_loop
 from m_session import McpSession
 
@@ -17,9 +18,12 @@ def _loops(session, cell, queries, deadline_ns):
                                       ("warmup", cell["warmups"], 1),
                                       ("timed", cell["timed"], cell["concurrency"])):
         session.timeout = min(45, max(0, (deadline_ns - time.monotonic_ns()) / 10**9))
+        phase_load = [observe_load()]
         value = closed_loop(session, queries, concurrency, total=count, phase=phase,
                             mode=cell["search_mode"])
         session.phase_boundary()
+        phase_load.append(observe_load())
+        value["load"] = summarize_load(phase_load)
         phases[phase] = value
         complete &= len(value["completed"]) == count
         complete &= all(session.records[key].get("ok") is True
@@ -32,6 +36,7 @@ def _loops(session, cell, queries, deadline_ns):
 
 def execute(cell, command, root, *, queries, deadline_ns, files=None, control_path=None, on_spawn=None):
     """Run a cell against its actual stdio process and retain decoded outcomes."""
+    cell_load = [observe_load()]
     with McpSession(command, root, result_format=cell["result_format"]) as session:
         if on_spawn:
             on_spawn(session.child.pid)
@@ -70,6 +75,8 @@ def execute(cell, command, root, *, queries, deadline_ns, files=None, control_pa
                 and all(row["ok"] for row in (search, fetched, orient))
                 and error.get("error") == "invalid_request/unknown_store")
     result["exit"] = session.exit
+    cell_load.append(observe_load())
+    result["load"] = summarize_load(cell_load)
     result["pid"] = session.child.pid
     result["complete"] &= session.exit["code"] == 0 and not session.failures
     if cell["family"] in ("M-R", "M-C", "M-L"):

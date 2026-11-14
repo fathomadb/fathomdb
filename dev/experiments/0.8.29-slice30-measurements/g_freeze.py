@@ -76,7 +76,7 @@ def freeze(options):
     """Refuse nonregistered bytes, then freeze exact local inputs/build/device prerequisites."""
     from g_campaign import stage_target
     stage_target(options.get("stage"))
-    if bool(options.get("stage")) != bool(options.get("reuse_completed_from")):
+    if options.get("stage") and not options.get("reuse_completed_from"):
         raise ValueError("closed stage and original completed source must be selected together")
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
     inputs = {}
@@ -144,10 +144,15 @@ def freeze(options):
         manifest["stage"] = options["stage"]
     if options.get("reuse_completed_from"):
         from g_reuse import collect_reuse
+        original_stage = json.loads((Path(options["reuse_completed_from"]) / "manifest.json").read_text()).get("stage")
+        if not options.get("stage") and original_stage != "first-100k-seed-exploratory":
+            raise ValueError("normal G reuse requires the qualified exploratory seed source")
+        if options.get("stage") and original_stage == "first-100k-seed-exploratory":
+            raise ValueError("exploratory seed references require normal G entry")
         manifest["reuse_completed_from"] = str(Path(options["reuse_completed_from"]).resolve())
         manifest["reused"] = collect_reuse(manifest, manifest["reuse_completed_from"])
         manifest["prior_outcome_path"] = str(Path(manifest["reuse_completed_from"]) / "results/g-outcomes.json")
-        if options["stage"] == "first-100k-seed-exploratory" and "g-o-branches" not in manifest["reused"]:
+        if options.get("stage") == "first-100k-seed-exploratory" and "g-o-branches" not in manifest["reused"]:
             raise ValueError("exploratory seed stage requires the qualified branch-stage subject")
     output.mkdir(parents=True, exist_ok=False)
     for name, value in (("manifest.json", manifest), ("plan.json", manifest["plan"])):

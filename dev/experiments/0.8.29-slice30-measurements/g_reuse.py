@@ -38,10 +38,13 @@ def collect_reuse(current, original_root):
     selected = set(BASE_CELLS)
     inherited = {}
     if (original.get("source_sha"), original.get("campaign_uuid")) != (BASE_SOURCE, BASE_UUID):
-        if original.get("stage") != "branch-controls" or not original.get("reuse_completed_from"):
-            raise ValueError("reuse source is not the accepted base or its qualified branch stage")
+        stage = original.get("stage")
+        if stage not in ("branch-controls", "first-100k-seed-exploratory") or not original.get("reuse_completed_from"):
+            raise ValueError("reuse source is not the accepted base or its qualified branch/seed stage")
         inherited = collect_reuse(current, original["reuse_completed_from"])
-        selected = {"g-o-branches"}
+        if stage == "first-100k-seed-exploratory" and set(inherited) != BASE_CELLS | {"g-o-branches"}:
+            raise ValueError("seed reuse requires its qualified branch/base chain")
+        selected = {"g1-n100000"} if stage == "first-100k-seed-exploratory" else {"g-o-branches"}
     rows = {row["id"]: row for row in json.loads((root / "results/g-outcomes.json").read_text())}
     invocation = json.loads((root / "last-run.json").read_text())
     if invocation.get("environment_ok") is not True:

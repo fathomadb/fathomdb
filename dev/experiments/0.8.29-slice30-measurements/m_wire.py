@@ -96,6 +96,22 @@ def _compact(text):
         return {"error": _error(text[len("error "):])}
     if text.startswith("fetch "):
         return _fetch(text)
+    if text.startswith("stores: "):
+        lines = text.split("\n")
+        expected = int(lines[0][len("stores: "):])
+        payload = {"stores": [], "hints": []}
+        for line in lines[1:]:
+            if line.startswith("hint: "):
+                payload["hints"].append({"raw_text": line})
+                continue
+            name, size = json.JSONDecoder().raw_decode(line)
+            fields, _ = _fields(line[size:])
+            payload["stores"].append({"name": name, "open": fields["open"],
+                                      "readiness": fields["readiness"],
+                                      "default": fields.get("default", False)})
+        if len(payload["stores"]) != expected:
+            raise ValueError("compact store count differs from decoded listing")
+        return payload
     lines = text.split("\n")
     if not lines or not lines[0].startswith("search "):
         return {"raw_text": text}

@@ -63,6 +63,15 @@ class Accounting:
         """Charge actual outer elapsed time after the original owned cleanup result."""
         value = self.read()
         now = time.monotonic_ns()
+        active = value.get("inflight")
+        recovered = self.uncommitted(value, now if uncertain else stopped_ns)
+        if active:
+            usage = value.setdefault("cell_used_ns", {})
+            usage[active["cell"]] = usage.get(active["cell"], 0) + recovered
+            value["used_ns"] += recovered
+            active.update(status="cleanup_uncertain" if uncertain else "guardian_stopped",
+                          accounted_through_monotonic_ns=now if uncertain else stopped_ns,
+                          quiescence_known=not uncertain)
         residual = max(0, now - self.started_ns - (value["used_ns"] - self.prior_used))
         value["used_ns"] += residual
         common = value.setdefault("common_used_ns", {})
@@ -72,7 +81,7 @@ class Accounting:
         else:
             value["m_guardian"] = None
         write_budget(self.path, value)
-        return {"common_ns": residual, "recovered_cell_ns": 0,
+        return {"common_ns": residual, "recovered_cell_ns": recovered,
                 "charged_ns": value["used_ns"] - self.prior_used}
 
 

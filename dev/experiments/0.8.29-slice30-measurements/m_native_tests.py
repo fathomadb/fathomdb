@@ -148,6 +148,24 @@ class PublicThroughputTests(NativeCase):
         self.assertTrue(result["complete"])
 
 
+class PublicDegradedLoopTests(NativeCase):
+    """An actual provider-free hybrid response cannot qualify the natural loop binding."""
+
+    def test_unexpected_actual_degradation_keeps_public_loop_incomplete(self):
+        cell = next(row for row in load_plan() if row["id"] == "M-R-1-1-warn")
+        cell = dict(cell, use_default_embedder=False, first=1, warmups=1, timed=1)
+        root = self.root / "degraded-public"
+        result = execute(cell, [str(self.cli), "--config", str(self.config())], root,
+                         queries=["alpha"], deadline_ns=time.monotonic_ns() + 30 * 10**9)
+        rows = [json.loads(line) for line in (root / "outcomes.jsonl").read_text().splitlines()]
+        searches = [row for row in rows if row["request"]["params"].get("name") == "search"]
+        self.assertEqual(searches[0]["payload"]["degradation"], [
+            {"arm": "vector", "reason": "embedder_absent"},
+            {"arm": "vector", "reason": "embedder_unavailable"}])
+        self.assertFalse(result["complete"], "actual degraded search was treated as qualified work")
+        self.assertTrue(result["unexpected_degradation"])
+
+
 class PublicControlRoutesTests(NativeCase):
     """Lifecycle and private diagnostics use the same registered cell execution path."""
 

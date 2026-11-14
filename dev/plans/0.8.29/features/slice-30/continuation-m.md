@@ -1,12 +1,12 @@
 # Slice 30 M continuation — proposed real stdio measurements
 
-Status: **PROPOSED**, with independent Astra design PASS at reviewed
-ca76af9f5c7c710b1aca7f8ee79f2c90549a4874. This document
-refines held M only; it grants no source, setup or runtime GO. Accepted P and
-executed G preregistrations/freezes remain unchanged. No qualified selected G
-store exists at this design entry. The first G0 attempt lacked its required
-own-PID memory plus GPU-utilization sample; the separately reviewed polling
-correction and running G source gate do not qualify a store for M.
+Status: **PROPOSED FIT AMENDMENT**, pending fresh independent Astra review.
+The original design passed at ca76af9f5c7c710b1aca7f8ee79f2c90549a4874;
+this update reconciles accepted parent2a6ef143358ec178c41d9a8f4281c7e4ddcd68ef.
+It refines held M only and grants no source, native setup or runtime GO.
+Accepted P and executed G preregistrations/freezes remain unchanged. G now has
+11qualified cases and73still-required refused obligations; wholeG is incomplete,
+but is not an additional hard prerequisite for M source qualification.
 
 ## Inherited scope and predecessor fit
 
@@ -16,7 +16,7 @@ queue/all-call denominators, errors/cancel/timeouts, first-process/open/idle/
 alternating-store costs and logging controls. The exact counts/modes/formats
 below are **new preregistration proposals**, not already accepted gates.
 
-Current parent973b2e692f54b2944d809cec2367ff53b8c152d0 includes accepted20 A3/A5
+Current parent includes accepted20 A3/A5
 f803a964ad8c8154a481e6f9385599bef5c0e054, accepted60 subset
 5271c1bf022f0ea22f95f7433e226feb2315043e and complete70
 e875f36042f89c1d84756f78135db0e8926c1ed4. The [G/D fit](continuation-gd.md)
@@ -25,6 +25,18 @@ whole20/WindowsA6 is independent.60 supplies compact-default/structured formats,
 filters and budgets, but F11 remains open.70 supplies current provider absence,
 overload, timeout, Closing and CUDA-kind outcomes; M must preserve these words
 and remedies rather than collapse them to a generic error.
+
+The released closed100k G subject is recorded under `g_selected_input_for_m` in
+[release state](../../../release-state-0.8.29.json), from source
+d9b81334b8bc2c0476fe4438673f1361e3c46504, campaign
+eb4da153-0185-4335-a41c-38f8a8c12af5. Its seed took657.095755807s;
+before close/after reopen it was Ready/pending0 with100000natural/vector/
+physical/span rows. Stored coverage is83644full/16356partial/0unknown;
+these adjacent observations are not search-snapshot or fidelity proof.
+The later accepted fixed84 assessment preserved six cases and qualified five
+more, including100k R0; all73refusals remain required. G remainder assessment
+is preferred sequencing to preserve unchanged native artifacts, not a wholeG
+source gate for M. This amendment opens neither campaign.
 
 | Existing obligation | M refinement and retained boundary |
 | --- | --- |
@@ -56,6 +68,15 @@ subtraction. Reuse accepted converter/statistics,16-record checkpoints, strict
 UTF8 prefix retention, fresh attempts/resume and owned-child lifecycle concepts
 from the [measurement tools](../../../../../dev/experiments/0.8.29-slice30-measurements/README.md).
 No wholesale prototype merge or new production observer is needed.
+
+Actual code fit needs a concurrent RPC-ID demultiplexer: the existing
+`RawClient` in [test helpers](../../../../../src/rust/crates/fathomdb-mcp/tests/common/mod.rs)
+discards unmatched responses while waiting for one ID. Reuse `distribution` in
+[metrics.py](../../../../../dev/experiments/0.8.29-slice30-measurements/metrics.py),
+but its existing `aggregate` assumes response records with `ok`/`elapsed_ns`;
+M must separately retain submitted/completed/success/error/unresolved counts.
+Compact fetch uses exact UTF8 byte frames, with literal preservation oracles in
+[formats.rs](../../../../../src/rust/crates/fathomdb-mcp/tests/formats.rs).
 
 Proposed future tools belong in that existing experiment directory: a separate
 M cell inventory and client/controller, with bounded tests and commands indexed
@@ -92,7 +113,7 @@ no filters, highlights, explain, rerank, graph option or writes are added.
 | M-R-r-c-log |20| Compact hybrid, five concurrency levels, two repeats, each warn/debug. Fresh server per cell; separate first call,500 sequential warmups,1000 timed calls. |
 | M-C-r-modeformat |4| Warn c1 controls: compact direct text and structured hybrid, two repeats each; same first/warmup/timed counts and queries. |
 | M-L-r-case |8| Compact/warn hybrid lifecycle: lazy, eager, idle and alternating A/B/A, two repeats each; exact calls below, no percentile claims from tiny counts. |
-| M-E-f-case |12| Tiny private-helper stdio diagnostics: queue_full, wait_deadline, queued_cancel, running_cancel, run_limit, open_deadline, each format. No ordinary latency claim. |
+| M-E-f-case |12| Provider-free tiny private-helper stdio diagnostics: queue_full, wait_deadline, queued_cancel, running_cancel, run_limit, open_deadline, each format. No ordinary latency claim. |
 
 M-R/M-C are24cells and36024 search submissions including first calls/warmups;
 timed samples are24000, with1000 per cell. Every1000-call timed pass submits
@@ -192,6 +213,9 @@ select exact commands/names and register new bounded tests in the maintained
 runner. Each missing behavior gets a compiling scaffold, committed runtime
 assertion failure, then separate GREEN with unchanged oracle. Existing passing
 product behavior is reuse, not manufactured RED; no new golden/tamper suite.
+Keep compact and structured decoding, invocation records, schedule, accounting,
+each lifecycle record, and each diagnostic disposition as separate genuine
+runtime RED/GREEN behaviors; no single all-tools oracle forces a big-bang GREEN.
 
 | Unit | Small falsifying oracle before its GREEN |
 | --- | --- |
@@ -203,39 +227,102 @@ product behavior is reuse, not manufactured RED; no new golden/tamper suite.
 | M-T6 outcome recorder, one case at a time | Private-helper stdio runs actual Adapter+real DB with existing Seams; missing queue_full/deadline/cancel/run-limit/open-deadline disposition fails the respective literal assertion. Running-abandoned work must remain held until release. |
 | M-T7 registration/remaining allocation | Actual harmless children prove explicit table/order, refusal before copy/start when forecast cannot fit, distinct incomplete attempts and retained not-run rows. Reuse passing checkpoint/prefix/resume controls unchanged. |
 
-M-E/M-T6 require a separate **nondefault test-only helper build** serving the
-existing Adapter over stdio. Control existing block_open/block_calls/held_calls/
-release_all Seams through one private bounded Unix channel under the owned task
-root; no extra MCP tool, production environment/config flag, delay hook or new
-observer. Stage acknowledgements come from actual held/state observations, not
-sleep-only ordering. Always release/join on failure and bound child lifetime.
+M-E/M-T6 require a separate **nondefault test-only helper build**, with
+`test-seams` alone, `use_default_embedder:false` and `search_mode:text` on tiny
+real stores. A Cargo example with `required-features = ["test-seams"]` can serve
+the existing [Adapter connection](../../../../../src/rust/crates/fathomdb-mcp/src/lib.rs)
+over stdio. Control existing block_open/block_calls/held_calls/release_all
+[Seams](../../../../../src/rust/crates/fathomdb-mcp/src/seams.rs) through one private
+bounded Unix channel under the owned task root; a standard-library socket
+thread needs no extra MCP tool, production API/config/environment change or
+new observer.
+Bound connection/read/command counts and child lifetime; release all holds and
+join on failure/disconnect. Existing Seams have no generic queued/held-open
+getter: acknowledge actual held_calls=4, existing MCP queued progress and
+list_stores readiness. Observe queue32 before sending the excess request;
+observe the target queued/running before cancelling. No sleep-only ordering.
+Cancelled replies may be suppressed; retain bounded unresolved disposition and
+verify running-abandoned work through existing held-call/busy facts until release.
 Keep default cap4/queue32/wait10s/run30s, including diagnostics; never treat the
 private helper's timings as normal CLI data or assume production CLI can arm
 Seams. Canonical existing A3/admission tests remain preservation evidence.
 
-## Entry stages, fixed caps and unresolved choices
+## Entry stages, prospective allocation and unresolved choices
 
-Design PASS and explicit source GO precede isolated tool implementation/scoped
-TDD; source qualification/review precede runtime GO. All M runtime, including
-M0, stays held until selected qualified closed G input and exact tooling review.
-Candidate-owned production MCP/cache/source proof and a reserved3090 with actual
-MCP-PID memory increase plus nonzero GPU utilization qualify the GPU stages;
-G's old PID observation or an environment string cannot substitute. M0 remains
-provider-free and does not establish this GPU proof. Only then stage M-R/M-C,
-M-L and separately identified helper diagnostics. No concurrent compilation or
-other owned heavy campaign; AGENT_LONG/manual selection gates natural runs.
+Fresh design PASS and explicit source GO permit isolated tool implementation/
+scoped TDD/source qualification while campaign allocation remains unresolved.
+All M campaign runtime, including M0, stays held for exact tooling qualification/
+review, a selected approved shared allocation and complete-table feasibility.
+The qualified released G input now satisfies that input prerequisite only.
+No source GO or natural runtime follows from this amendment itself.
 
-There is **no renewed4h or16GiB allocation**. Before any M preparation, identify
-the explicit remaining reviewed campaign allowance and retained G/D active
-DB+WAL+raw bytes. Forecast the complete table from actual lower-stage wall/byte
-costs with conservative2x bounds, including copy/open/first/warmups/calls/logging/
-polling/idle/close/diagnostics and failed attempts. Forecasting controls dispatch,
-not measured latency or a new pass gate. Missing bounds or unclear remaining
-allocation keeps rows HELD. Each whole cell remains<=900s; accumulated timing
-cannot exceed the reviewed14400s; retained active bytes remain<=16GiB across
-prior G/D and M, not per cell. No deletion/reset, automatic expansion or claim
-that lower cells satisfy unstarted obligations. If it cannot fit, retain all
-required rows and seek separately reviewed explicit budget disposition.
+Candidate-owned production MCP/cache/source proof remains required. Actual
+MCP-PID memory increase plus nonzero utilization on the reserved3090 qualifies
+hybrid GPU-compute stages: M-R, structured-hybrid M-C and M-L. G's old PID
+observation or an environment string cannot substitute. The two compact
+direct-text M-C cells retain their owned CUDA binary/provider identity, but
+query-GPU work is N/A: [the SDK route](../../../../../src/rust/crates/fathomdb-sdk/src/engine.rs)
+does no query embedding/vector work. Do not add queries, warmups or GPU pulses,
+borrow a witness or fall back to CPU to satisfy a nonexistent text-compute test.
+M0 and M-E are provider-free and establish no GPU proof. No concurrent
+compilation/owned heavy campaign; AGENT_LONG/manual selection gates natural runs.
+
+### Prospective M envelope from actual G costs
+
+At this accepted checkpoint the same shared ledger has1845130877940ns charged
+and1903142018B retained. Original14400s leaves12554.869122060s; no allocation
+is renewed. The715223040B closed store needs34fresh retained copies:
+24 M-R/M-C plus `2*(lazy1+eager1+idle1+alternating2)=10` M-L copies. A/B/A reopens
+A rather than making a third file. Tiny M0/M-E fixtures are additional.
+
+| Prospective storage quantity | Bytes |
+| --- | ---: |
+|34 copies alone|24317583360|
+|Copies plus currently retained G|26220725378|
+|Conservative2x copies plus retained G|50538308738|
+|Proposed64GiB TOTAL ceiling|68719476736|
+|Explicit ancillary WAL/raw/log/tiny-fixture/failure/further-G growth reserve|17179869184|
+|Margin after conservative copies, current G and that16GiB reserve|1001298814|
+
+Even the raw copies exceed16GiB. The2x estimate plus current G is47.067468GiB;
+the proposed total leaves16.932532GiB beyond that estimate, not64GiB additional.
+The reserve must be supported by bounded component forecasts, not assumed ample.
+
+Accepted100k R0 SDK1000-call route walls are196.056669924s hybrid and
+33.007299668s direct text. Scaling them to the unchanged22hybrid/2text natural
+cells gives `2*1501/1000*(22*196.056669924+2*33.007299668)=13146.542536s`
+(rounded). This conservative2x **serialized SDK-loop proxy** exceeds remaining
+original time by591.673414s before copies/open/lifecycle/diagnostics/output.
+It is neither measured MCP latency nor ideal concurrency scaling. Per-hybrid
+cell the same proxy is588.562123s, not proof that the whole cell fits900s.
+
+The concrete **M-only prospective amendment** is21600s (6h) TOTAL shared time
+and64GiB TOTAL retained storage, carrying the same used ledger/all prior bytes.
+It leaves19754.869122s before M and6608.326586s after this natural-loop proxy.
+It does not authorize additional G/D runtime or change old G freezes/caps/
+refusals. Parent is separately reviewing a G closed-copy/calibration successor
+for73required rows; the final common allocation may need more. M receives no
+reserved renewal or independent share. The original4h/16GiB are technical
+preregistration bounds; no explicit owner hard ruling for those numbers is
+recorded in the checked current plan/state/[direct mandate](../../direct-execution.md).
+The [initial preregistration](preregistration.md#resource-and-stop-rules) permits
+an evidence-based proposal revision. This does not activate
+their replacement: independent design review and parent disposition must select
+the common allocation before campaign dispatch.
+
+Keep the selected budget profile declarative and pinned in the campaign inputs,
+including total caps, ledger identity, carried usage and retained-byte scope;
+no inferred/default expansion. Immediately before any copy/start, forecast the
+complete remaining required table from actual lower-stage costs with2x bounds:
+copy/packaging/open/first/warmups/timed calls/logging/persistence/polling/idle/
+close/helper diagnostics/failed attempts and any other shared commitments.
+Missing bounds or a total above remaining time/storage keeps every affected row
+HELD. Every whole cell remains<=900s including preparation; the selected shared
+ceiling counts all prior/new charges, not per-stage or per-attempt renewals.
+Source qualification need not wait for a settled campaign allocation, but
+source tooling must prove refusal under an absent/unapproved/infeasible profile.
+No deletion/reset, automatic expansion, retry-until-green or claim that lower
+cells satisfy unstarted obligations.
 
 Retain start floors root32GiB/task250GiB/MemAvailable16GiB; stop only owned
 groups at root<20GiB/task<50GiB/MemAvailable<8GiB/owned>=200GiB or swap>=64MiB/s

@@ -1,6 +1,7 @@
 # Slice 30 M continuation — proposed real stdio measurements
 
-Status: **PROPOSED**, pending independent Astra design review. This document
+Status: **PROPOSED**, with independent Astra design PASS at reviewed
+ca76af9f5c7c710b1aca7f8ee79f2c90549a4874. This document
 refines held M only; it grants no source, setup or runtime GO. Accepted P and
 executed G preregistrations/freezes remain unchanged. No qualified selected G
 store exists at this design entry. The first G0 attempt lacked its required

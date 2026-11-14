@@ -54,6 +54,25 @@ class InvocationTests(unittest.TestCase):
             self.assertEqual([client.records[key]["response"]["result"]["ordinal"]
                               for key in ids], [0, 1])
 
+    def test_malformed_and_unassociated_frames_do_not_erase_a_later_actual_reply(self):
+        child = """
+import json,sys
+r=json.loads(sys.stdin.readline())
+print('null',flush=True)
+print('{broken',flush=True)
+print(json.dumps({'jsonrpc':'2.0','id':999,'result':{}}),flush=True)
+print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':{'literal':'retained'}}),flush=True)
+for line in sys.stdin: pass
+"""
+        with tempfile.TemporaryDirectory() as root:
+            with RpcChild([sys.executable, "-u", "-c", child], root) as client:
+                request = client.submit("echo", {})
+                self.assertEqual(client.wait(request)["result"], {"literal": "retained"})
+                self.assertEqual(len(client.protocol_failures), 3)
+                self.assertEqual(client.records[request]["status"], "completed")
+            self.assertEqual(client.exit["code"], 0)
+            self.assertTrue(client.exit["readers_joined"])
+
 
 if __name__ == "__main__":
     unittest.main()
